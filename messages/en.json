@@ -45,5 +45,22 @@
   "theme_dark": "Dark",
   "theme_label_auto": "Theme mode: auto (system). Click to switch to light mode.",
   "theme_label_light": "Theme mode: light. Click to switch mode.",
-  "theme_label_dark": "Theme mode: dark. Click to switch mode."
+  "theme_label_dark": "Theme mode: dark. Click to switch mode.",
+  "sr_user_menu": "Open user menu",
+  "nav_account": "Account",
+  "nav_studio": "My Studio",
+  "nav_admin": "Admin Dashboard",
+  "nav_settings": "Settings",
+  "become_creator": "Become a Creator",
+  "become_creator_loading": "Upgrading…",
+  "forbidden_title": "Access Denied",
+  "forbidden_description": "You do not have permission to view this page.",
+  "forbidden_go_home": "Go back home",
+  "account_title": "Account",
+  "account_orders": "Orders",
+  "account_settings": "Settings",
+  "studio_title": "My Studio",
+  "studio_description": "Manage your shops and products.",
+  "admin_title": "Admin Dashboard",
+  "admin_description": "System administration."
 }

@@ -1,9 +1,11 @@
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import { authClient } from '#/lib/auth-client'
+import { guardGuest } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
 
 export const Route = createFileRoute('/signin')({
+  beforeLoad: async () => guardGuest(),
   component: SignIn,
 })
 
