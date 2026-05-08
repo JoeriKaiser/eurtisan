@@ -1,4 +1,4 @@
-import { createFileRoute, notFound } from '@tanstack/react-router'
+import { createFileRoute, Link, notFound } from '@tanstack/react-router'
 import { getCategoryBySlugQuery } from '#/lib/categories'
 import { listProductsByCategorySlugQuery } from '#/lib/products'
 import { m } from '#/paraglide/messages'
@@ -30,10 +30,57 @@ function CategoryPage() {
             <h1 className='display-title mb-5 text-4xl font-bold text-[var(--sea-ink)] sm:text-5xl'>
               {category.name}
             </h1>
+
+            {/* Breadcrumbs */}
+            {category.breadcrumbs.length > 0 && (
+              <nav aria-label='breadcrumb' className='mb-4'>
+                <ol className='flex flex-wrap items-center gap-2 text-sm text-[var(--sea-ink-soft)]'>
+                  {category.breadcrumbs.map((crumb, index) => (
+                    <li key={crumb.id} className='flex items-center gap-2'>
+                      {index > 0 && <span>/</span>}
+                      <Link
+                        to='/category/$slug'
+                        params={{ slug: crumb.slug }}
+                        className='hover:text-[var(--sea-ink)] hover:underline'
+                      >
+                        {crumb.name}
+                      </Link>
+                    </li>
+                  ))}
+                  <li className='flex items-center gap-2'>
+                    <span>/</span>
+                    <span className='font-medium text-[var(--sea-ink)]'>{category.name}</span>
+                  </li>
+                </ol>
+              </nav>
+            )}
+
             <p className='m-0 max-w-2xl text-base text-[var(--sea-ink-soft)]'>
               {m.category_description({ name: category.name })}
             </p>
+            <p className='mt-2 text-sm text-[var(--sea-ink-soft)]'>
+              {category.productCount} {category.productCount === 1 ? 'product' : 'products'}
+            </p>
           </section>
+
+          {/* Subcategories */}
+          {category.children.length > 0 && (
+            <section className='mt-8'>
+              <h2 className='mb-4 text-xl font-semibold text-[var(--sea-ink)]'>Subcategories</h2>
+              <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
+                {category.children.map((child) => (
+                  <Link
+                    key={child.id}
+                    to='/category/$slug'
+                    params={{ slug: child.slug }}
+                    className='island-shell rounded-2xl p-5 transition hover:opacity-80'
+                  >
+                    <h3 className='text-base font-semibold text-[var(--sea-ink)]'>{child.name}</h3>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
 
           <section className='mt-8'>
             <h2 className='mb-4 text-xl font-semibold text-[var(--sea-ink)]'>Products</h2>
