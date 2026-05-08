@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { db } from '#/db/index'
 import { categories, product } from '#/db/schema'
 import { authMiddleware } from './auth-middleware'
+import type { SafeUser } from './server-auth'
 
 export function sanitizeSlug(input: string): string {
   return input
@@ -213,56 +214,128 @@ export const updateCategorySchema = z.object({
   parentId: z.string().uuid().optional().nullable(),
 })
 
+export async function updateCategoryInternal(
+  user: SafeUser | null,
+  data: z.infer<typeof updateCategorySchema>,
+) {
+  if (!user || user.role !== 'admin') {
+    throw new Error('Unauthorized: admin access required')
+  }
+
+  const [existing] = await db
+    .select()
+    .from(categories)
+    .where(eq(categories.id, data.id))
+
+  if (!existing) {
+    throw new Response(
+      JSON.stringify({ error: 'Not Found', message: 'Category not found' }),
+      { status: 404, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  if (data.parentId !== undefined && data.parentId !== null) {
+    if (await detectCircularReference(data.id, data.parentId)) {
+      throw new Response(
+        JSON.stringify({ error: 'Circular parent reference detected' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+  }
+
+  const slug = data.slug ? sanitizeSlug(data.slug) : undefined
+
+  if (slug !== undefined) {
+    const slugExists = await db
+      .select()
+      .from(categories)
+      .where(eq(categories.slug, slug))
+    if (slugExists.some((c) => c.id !== data.id)) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Conflict',
+          message: `A category with slug "${slug}" already exists`,
+        }),
+        { status: 409, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+  }
+
+  const updateValues: Partial<typeof categories.$inferInsert> = {}
+  if (data.name !== undefined) updateValues.name = data.name.trim()
+  if (slug !== undefined) updateValues.slug = slug
+  if (data.parentId !== undefined) updateValues.parentId = data.parentId
+
+  const [updated] = await db
+    .update(categories)
+    .set(updateValues)
+    .where(eq(categories.id, data.id))
+    .returning()
+
+  return updated
+}
+
 export const updateCategory = createServerFn({
   method: 'POST',
 })
   .middleware([authMiddleware])
   .inputValidator(updateCategorySchema)
   .handler(async ({ context, data }) => {
-    if (!context.user || context.user.role !== 'admin') {
-      throw new Error('Unauthorized: admin access required')
-    }
+    return updateCategoryInternal(context.user, data)
+  })
 
-    const [existing] = await db
-      .select()
-      .from(categories)
-      .where(eq(categories.id, data.id))
+export const deleteCategorySchema = z.object({
+  id: z.string().uuid(),
+})
 
-    if (!existing) {
-      throw new Error('Category not found')
-    }
+export async function deleteCategoryInternal(
+  user: SafeUser | null,
+  data: z.infer<typeof deleteCategorySchema>,
+) {
+  if (!user || user.role !== 'admin') {
+    throw new Error('Unauthorized: admin access required')
+  }
 
-    if (data.parentId !== undefined && data.parentId !== null) {
-      if (await detectCircularReference(data.id, data.parentId)) {
-        throw new Response(
-          JSON.stringify({ error: 'Circular parent reference detected' }),
-          { status: 400, headers: { 'Content-Type': 'application/json' } },
-        )
-      }
-    }
+  const [existing] = await db
+    .select()
+    .from(categories)
+    .where(eq(categories.id, data.id))
 
-    const slug = data.slug ? sanitizeSlug(data.slug) : undefined
+  if (!existing) {
+    throw new Response(
+      JSON.stringify({ error: 'Not Found', message: 'Category not found' }),
+      { status: 404, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
 
-    if (slug !== undefined) {
-      const slugExists = await db
-        .select()
-        .from(categories)
-        .where(eq(categories.slug, slug))
-      if (slugExists.some((c) => c.id !== data.id)) {
-        throw new Error(`A category with slug "${slug}" already exists`)
-      }
-    }
+  const descendantIds = await getDescendantCategoryIds(data.id)
+  const productCountResult = await db
+    .select({ count: count() })
+    .from(product)
+    .where(inArray(product.categoryId, descendantIds))
 
-    const updateValues: Partial<typeof categories.$inferInsert> = {}
-    if (data.name !== undefined) updateValues.name = data.name.trim()
-    if (slug !== undefined) updateValues.slug = slug
-    if (data.parentId !== undefined) updateValues.parentId = data.parentId
+  const productCount = productCountResult[0]?.count ?? 0
 
-    const [updated] = await db
-      .update(categories)
-      .set(updateValues)
-      .where(eq(categories.id, data.id))
-      .returning()
+  if (productCount > 0) {
+    throw new Response(
+      JSON.stringify({
+        error: 'Conflict',
+        message: `Cannot delete category: ${productCount} product(s) reference this category or its descendants. Reassign or remove the products first.`,
+      }),
+      { status: 409, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
 
-    return updated
+  await db.delete(categories).where(eq(categories.id, data.id))
+
+  return { success: true, id: data.id }
+}
+
+export const deleteCategory = createServerFn({
+  method: 'POST',
+})
+  .middleware([authMiddleware])
+  .inputValidator(deleteCategorySchema)
+  .handler(async ({ context, data }) => {
+    return deleteCategoryInternal(context.user, data)
   })

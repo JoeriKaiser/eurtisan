@@ -1,10 +1,12 @@
-import { eq } from 'drizzle-orm'
+import { count, eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { db } from '#/db/index'
 import { categories, product, shop, user } from '#/db/schema'
 import {
   buildCategoryTree,
   createCategorySchema,
+  deleteCategoryInternal,
+  deleteCategorySchema,
   detectCircularReference,
   getCategoryBreadcrumbs,
   getCategoryBySlugQuery,
@@ -12,7 +14,10 @@ import {
   listCategoriesQuery,
   listCategoryTreeQuery,
   sanitizeSlug,
+  updateCategoryInternal,
+  updateCategorySchema,
 } from './categories'
+import type { SafeUser } from './server-auth'
 
 vi.mock('./auth', () => ({
   auth: {
@@ -86,6 +91,69 @@ describe('createCategorySchema', () => {
 
   it('rejects invalid parentId', () => {
     const result = createCategorySchema.safeParse({ name: 'Books', parentId: 'not-a-uuid' })
+    expect(result.success).toBe(false)
+  })
+})
+
+describe('updateCategorySchema', () => {
+  it('accepts valid input with id only', () => {
+    const result = updateCategorySchema.safeParse({ id: '550e8400-e29b-41d4-a716-446655440000' })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts valid input with all fields', () => {
+    const result = updateCategorySchema.safeParse({
+      id: '550e8400-e29b-41d4-a716-446655440000',
+      name: 'Updated Books',
+      slug: 'updated-books',
+      parentId: '660e8400-e29b-41d4-a716-446655440001',
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts null parentId', () => {
+    const result = updateCategorySchema.safeParse({
+      id: '550e8400-e29b-41d4-a716-446655440000',
+      parentId: null,
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects invalid id', () => {
+    const result = updateCategorySchema.safeParse({ id: 'not-a-uuid', name: 'Books' })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects empty name', () => {
+    const result = updateCategorySchema.safeParse({
+      id: '550e8400-e29b-41d4-a716-446655440000',
+      name: '',
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects invalid parentId', () => {
+    const result = updateCategorySchema.safeParse({
+      id: '550e8400-e29b-41d4-a716-446655440000',
+      parentId: 'not-a-uuid',
+    })
+    expect(result.success).toBe(false)
+  })
+})
+
+describe('deleteCategorySchema', () => {
+  it('accepts valid id', () => {
+    const result = deleteCategorySchema.safeParse({ id: '550e8400-e29b-41d4-a716-446655440000' })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects invalid id', () => {
+    const result = deleteCategorySchema.safeParse({ id: 'not-a-uuid' })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects missing id', () => {
+    const result = deleteCategorySchema.safeParse({})
     expect(result.success).toBe(false)
   })
 })
@@ -470,11 +538,496 @@ describe('detectCircularReference', () => {
   })
 })
 
+describe('category update operations', () => {
+  it('updates a category name', async () => {
+    const [cat] = await db
+      .insert(categories)
+      .values({ name: 'Original', slug: 'original' })
+      .returning()
+
+    await db.update(categories).set({ name: 'Updated' }).where(eq(categories.id, cat.id))
+
+    const [updated] = await db.select().from(categories).where(eq(categories.id, cat.id))
+    expect(updated.name).toBe('Updated')
+    expect(updated.slug).toBe('original')
+  })
+
+  it('updates a category slug', async () => {
+    const [cat] = await db
+      .insert(categories)
+      .values({ name: 'Original', slug: 'original' })
+      .returning()
+
+    await db.update(categories).set({ slug: 'updated' }).where(eq(categories.id, cat.id))
+
+    const [updated] = await db.select().from(categories).where(eq(categories.id, cat.id))
+    expect(updated.slug).toBe('updated')
+  })
+
+  it('updates a category parent', async () => {
+    const [parent] = await db
+      .insert(categories)
+      .values({ name: 'Parent', slug: 'parent' })
+      .returning()
+    const [child] = await db
+      .insert(categories)
+      .values({ name: 'Child', slug: 'child' })
+      .returning()
+
+    await db
+      .update(categories)
+      .set({ parentId: parent.id })
+      .where(eq(categories.id, child.id))
+
+    const [updated] = await db.select().from(categories).where(eq(categories.id, child.id))
+    expect(updated.parentId).toBe(parent.id)
+  })
+
+  it('rejects updating to a duplicate slug', async () => {
+    await db.insert(categories).values({ name: 'First', slug: 'first' })
+    const [second] = await db
+      .insert(categories)
+      .values({ name: 'Second', slug: 'second' })
+      .returning()
+
+    await expect(
+      (async () =>
+        db.update(categories).set({ slug: 'first' }).where(eq(categories.id, second.id)))(),
+    ).rejects.toThrow()
+  })
+
+  it('blocks circular parent reference via detectCircularReference', async () => {
+    const [a] = await db.insert(categories).values({ name: 'A', slug: 'a' }).returning()
+    const [b] = await db
+      .insert(categories)
+      .values({ name: 'B', slug: 'b', parentId: a.id })
+      .returning()
+    const [c] = await db
+      .insert(categories)
+      .values({ name: 'C', slug: 'c', parentId: b.id })
+      .returning()
+
+    // Trying to make A's parent C would create a cycle
+    const isCircular = await detectCircularReference(a.id, c.id)
+    expect(isCircular).toBe(true)
+  })
+})
+
+describe('category delete operations', () => {
+  it('deletes a category with no products', async () => {
+    const [cat] = await db
+      .insert(categories)
+      .values({ name: 'Deletable', slug: 'deletable' })
+      .returning()
+
+    await db.delete(categories).where(eq(categories.id, cat.id))
+
+    const result = await db.select().from(categories).where(eq(categories.id, cat.id))
+    expect(result).toHaveLength(0)
+  })
+
+  it('detects products blocking deletion', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Test Shop',
+        slug: 'test-shop',
+        ownerId: u.id,
+      })
+      .returning()
+
+    const [cat] = await db
+      .insert(categories)
+      .values({ name: 'Pottery', slug: 'pottery' })
+      .returning()
+
+    await db.insert(product).values({
+      id: 'prod-1',
+      name: 'Vase',
+      slug: 'vase',
+      price: '29.99',
+      shopId: s.id,
+      categoryId: cat.id,
+    })
+
+    const descendantIds = await getDescendantCategoryIds(cat.id)
+    const productCountResult = await db
+      .select({ count: count() })
+      .from(product)
+      .where(eq(product.categoryId, cat.id))
+
+    expect(productCountResult[0]?.count).toBe(1)
+    expect(descendantIds).toContain(cat.id)
+  })
+
+  it('detects products in descendant categories blocking deletion', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Test Shop',
+        slug: 'test-shop',
+        ownerId: u.id,
+      })
+      .returning()
+
+    const [parent] = await db
+      .insert(categories)
+      .values({ name: 'Pottery', slug: 'pottery' })
+      .returning()
+
+    const [child] = await db
+      .insert(categories)
+      .values({ name: 'Vases', slug: 'vases', parentId: parent.id })
+      .returning()
+
+    await db.insert(product).values({
+      id: 'prod-1',
+      name: 'Vase',
+      slug: 'vase',
+      price: '29.99',
+      shopId: s.id,
+      categoryId: child.id,
+    })
+
+    const descendantIds = await getDescendantCategoryIds(parent.id)
+    const productCountResult = await db
+      .select({ count: count() })
+      .from(product)
+      .where(eq(product.categoryId, child.id))
+
+    expect(productCountResult[0]?.count).toBe(1)
+    expect(descendantIds).toContain(child.id)
+  })
+
+  it('allows deletion after reassigning all products', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Test Shop',
+        slug: 'test-shop',
+        ownerId: u.id,
+      })
+      .returning()
+
+    const [cat] = await db
+      .insert(categories)
+      .values({ name: 'Pottery', slug: 'pottery' })
+      .returning()
+
+    await db.insert(product).values({
+      id: 'prod-1',
+      name: 'Vase',
+      slug: 'vase',
+      price: '29.99',
+      shopId: s.id,
+      categoryId: cat.id,
+    })
+
+    // Reassign product out of category
+    await db.update(product).set({ categoryId: null }).where(eq(product.id, 'prod-1'))
+
+    const productCountResult = await db
+      .select({ count: count() })
+      .from(product)
+      .where(eq(product.categoryId, cat.id))
+
+    expect(productCountResult[0]?.count).toBe(0)
+
+    // Now deletion should succeed
+    await db.delete(categories).where(eq(categories.id, cat.id))
+
+    const result = await db.select().from(categories).where(eq(categories.id, cat.id))
+    expect(result).toHaveLength(0)
+  })
+})
+
+function makeAdminUser(id = 'admin-1'): SafeUser {
+  return {
+    id,
+    name: 'Admin',
+    email: 'admin@example.com',
+    emailVerified: true,
+    image: null,
+    role: 'admin',
+  }
+}
+
+function makeCustomerUser(id = 'customer-1'): SafeUser {
+  return {
+    id,
+    name: 'Customer',
+    email: 'customer@example.com',
+    emailVerified: true,
+    image: null,
+    role: 'customer',
+  }
+}
+
+describe('updateCategoryInternal', () => {
+  it('rejects unauthenticated user', async () => {
+    await expect(
+      (async () => updateCategoryInternal(null, { id: '550e8400-e29b-41d4-a716-446655440000' }))(),
+    ).rejects.toThrow('Unauthorized: admin access required')
+  })
+
+  it('rejects non-admin user', async () => {
+    await expect(
+      (async () =>
+        updateCategoryInternal(makeCustomerUser(), {
+          id: '550e8400-e29b-41d4-a716-446655440000',
+        }))(),
+    ).rejects.toThrow('Unauthorized: admin access required')
+  })
+
+  it('returns 404 for missing category', async () => {
+    try {
+      await updateCategoryInternal(makeAdminUser(), {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+        name: 'New Name',
+      })
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(404)
+    }
+  })
+
+  it('returns 400 for circular parent reference', async () => {
+    const [a] = await db.insert(categories).values({ name: 'A', slug: 'a' }).returning()
+    const [b] = await db
+      .insert(categories)
+      .values({ name: 'B', slug: 'b', parentId: a.id })
+      .returning()
+    const [c] = await db
+      .insert(categories)
+      .values({ name: 'C', slug: 'c', parentId: b.id })
+      .returning()
+
+    try {
+      await updateCategoryInternal(makeAdminUser(), {
+        id: a.id,
+        parentId: c.id,
+      })
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(400)
+    }
+  })
+
+  it('returns 409 for duplicate slug', async () => {
+    await db.insert(categories).values({ name: 'First', slug: 'first' })
+    const [second] = await db
+      .insert(categories)
+      .values({ name: 'Second', slug: 'second' })
+      .returning()
+
+    try {
+      await updateCategoryInternal(makeAdminUser(), {
+        id: second.id,
+        slug: 'first',
+      })
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(409)
+    }
+  })
+
+  it('updates successfully as admin', async () => {
+    const [cat] = await db
+      .insert(categories)
+      .values({ name: 'Original', slug: 'original' })
+      .returning()
+
+    const result = await updateCategoryInternal(makeAdminUser(), {
+      id: cat.id,
+      name: 'Updated',
+    })
+
+    expect(result.name).toBe('Updated')
+    expect(result.slug).toBe('original')
+  })
+})
+
+describe('deleteCategoryInternal', () => {
+  it('rejects unauthenticated user', async () => {
+    await expect(
+      (async () =>
+        deleteCategoryInternal(null, { id: '550e8400-e29b-41d4-a716-446655440000' }))(),
+    ).rejects.toThrow('Unauthorized: admin access required')
+  })
+
+  it('rejects non-admin user', async () => {
+    await expect(
+      (async () =>
+        deleteCategoryInternal(makeCustomerUser(), {
+          id: '550e8400-e29b-41d4-a716-446655440000',
+        }))(),
+    ).rejects.toThrow('Unauthorized: admin access required')
+  })
+
+  it('returns 404 for missing category', async () => {
+    try {
+      await deleteCategoryInternal(makeAdminUser(), {
+        id: '550e8400-e29b-41d4-a716-446655440000',
+      })
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(404)
+    }
+  })
+
+  it('returns 409 when products reference the category', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Test Shop',
+        slug: 'test-shop',
+        ownerId: u.id,
+      })
+      .returning()
+
+    const [cat] = await db
+      .insert(categories)
+      .values({ name: 'Pottery', slug: 'pottery' })
+      .returning()
+
+    await db.insert(product).values({
+      id: 'prod-1',
+      name: 'Vase',
+      slug: 'vase',
+      price: '29.99',
+      shopId: s.id,
+      categoryId: cat.id,
+    })
+
+    try {
+      await deleteCategoryInternal(makeAdminUser(), { id: cat.id })
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(409)
+    }
+  })
+
+  it('returns 409 when products reference a descendant category', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Test Shop',
+        slug: 'test-shop',
+        ownerId: u.id,
+      })
+      .returning()
+
+    const [parent] = await db
+      .insert(categories)
+      .values({ name: 'Pottery', slug: 'pottery' })
+      .returning()
+
+    const [child] = await db
+      .insert(categories)
+      .values({ name: 'Vases', slug: 'vases', parentId: parent.id })
+      .returning()
+
+    await db.insert(product).values({
+      id: 'prod-1',
+      name: 'Vase',
+      slug: 'vase',
+      price: '29.99',
+      shopId: s.id,
+      categoryId: child.id,
+    })
+
+    try {
+      await deleteCategoryInternal(makeAdminUser(), { id: parent.id })
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(409)
+    }
+  })
+
+  it('deletes successfully as admin when no products exist', async () => {
+    const [cat] = await db
+      .insert(categories)
+      .values({ name: 'Deletable', slug: 'deletable' })
+      .returning()
+
+    const result = await deleteCategoryInternal(makeAdminUser(), { id: cat.id })
+
+    expect(result.success).toBe(true)
+    expect(result.id).toBe(cat.id)
+
+    const remaining = await db.select().from(categories).where(eq(categories.id, cat.id))
+    expect(remaining).toHaveLength(0)
+  })
+})
+
 describe('category database constraints', () => {
   it('rejects duplicate slug', async () => {
     await db.insert(categories).values({ name: 'Books', slug: 'books' })
 
-    await expect(db.insert(categories).values({ name: 'Books 2', slug: 'books' })).rejects.toThrow()
+    await expect(
+      (async () => db.insert(categories).values({ name: 'Books 2', slug: 'books' }))(),
+    ).rejects.toThrow()
   })
 
   it('allows null parentId', async () => {
