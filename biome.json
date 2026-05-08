@@ -40,7 +40,8 @@
       "!**/.output",
       "!**/dist",
       "!**/drizzle",
-      "!**/src/routeTree.gen.ts"
+      "!**/src/routeTree.gen.ts",
+      "!**/src/paraglide"
     ]
   }
 }

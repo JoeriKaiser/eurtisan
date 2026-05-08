@@ -1,6 +1,7 @@
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import { authClient } from '#/lib/auth-client'
+import { m } from '#/paraglide/messages'
 
 export const Route = createFileRoute('/signin')({
   component: SignIn,
@@ -24,20 +25,20 @@ function SignIn() {
       if (isSignUp) {
         const result = await authClient.signUp.email({ email, password, name })
         if (result.error) {
-          setError(result.error.message || 'Sign up failed')
+          setError(result.error.message || m.error_sign_up_failed())
         } else {
           router.invalidate()
         }
       } else {
         const result = await authClient.signIn.email({ email, password })
         if (result.error) {
-          setError(result.error.message || 'Sign in failed')
+          setError(result.error.message || m.error_sign_in_failed())
         } else {
           router.invalidate()
         }
       }
     } catch {
-      setError('An unexpected error occurred')
+      setError(m.error_unexpected())
     } finally {
       setLoading(false)
     }
@@ -48,19 +49,17 @@ function SignIn() {
       <div className='mx-auto max-w-md'>
         <div className='island-shell rounded-2xl p-6 sm:p-8'>
           <h1 className='display-title mb-2 text-2xl font-bold text-[var(--sea-ink)]'>
-            {isSignUp ? 'Create an account' : 'Sign in'}
+            {isSignUp ? m.sign_up_title() : m.sign_in_title()}
           </h1>
           <p className='mb-6 text-sm text-[var(--sea-ink-soft)]'>
-            {isSignUp
-              ? 'Enter your details to create a new account'
-              : 'Enter your email and password to sign in'}
+            {isSignUp ? m.sign_up_description() : m.sign_in_description()}
           </p>
 
           <form onSubmit={handleSubmit} className='grid gap-4'>
             {isSignUp && (
               <div className='grid gap-2'>
                 <label htmlFor='name' className='text-sm font-medium'>
-                  Name
+                  {m.field_name()}
                 </label>
                 <input
                   id='name'
@@ -75,7 +74,7 @@ function SignIn() {
 
             <div className='grid gap-2'>
               <label htmlFor='email' className='text-sm font-medium'>
-                Email
+                {m.field_email()}
               </label>
               <input
                 id='email'
@@ -89,7 +88,7 @@ function SignIn() {
 
             <div className='grid gap-2'>
               <label htmlFor='password' className='text-sm font-medium'>
-                Password
+                {m.field_password()}
               </label>
               <input
                 id='password'
@@ -113,7 +112,11 @@ function SignIn() {
               disabled={loading}
               className='w-full h-9 px-4 text-sm font-medium text-white bg-neutral-900 hover:bg-neutral-800 dark:bg-neutral-50 dark:text-neutral-900 dark:hover:bg-neutral-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
             >
-              {loading ? 'Please wait...' : isSignUp ? 'Create account' : 'Sign in'}
+              {loading
+                ? m.button_loading()
+                : isSignUp
+                  ? m.button_create_account()
+                  : m.button_sign_in()}
             </button>
           </form>
 
@@ -126,7 +129,7 @@ function SignIn() {
               }}
               className='text-sm text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors'
             >
-              {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+              {isSignUp ? m.link_switch_to_sign_in() : m.link_switch_to_sign_up()}
             </button>
           </div>
         </div>

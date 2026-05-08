@@ -1,10 +1,13 @@
 import { betterAuth } from 'better-auth'
+import { drizzleAdapter } from '@better-auth/drizzle-adapter'
 import { tanstackStartCookies } from 'better-auth/tanstack-start'
 
-import { pool } from '#/db'
+import { db } from '#/db/index'
 
 export const auth = betterAuth({
-  database: pool,
+  database: drizzleAdapter(db, {
+    provider: 'pg',
+  }),
   emailAndPassword: {
     enabled: true,
   },

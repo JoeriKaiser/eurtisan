@@ -1,4 +1,4 @@
-.PHONY: up down logs dev build preview start install lint format check test shell auth-secret db-generate db-migrate db-push db-studio
+.PHONY: up down logs dev build preview start install lint format check test shell auth-secret db-generate db-migrate db-push db-studio init db-seed
 
 # Docker Compose lifecycle
 up:
@@ -48,6 +48,14 @@ test: up
 auth-secret: up
 	docker compose exec app bunx @better-auth/cli secret
 
+# Init
+init:
+	docker compose up -d --build
+	docker compose run --rm app bun install
+	docker compose up -d
+	docker compose exec app bun run db:migrate
+	docker compose exec app bun run db:seed
+
 # Database
 db-generate: up
 	docker compose exec app bun run db:generate
@@ -57,6 +65,9 @@ db-migrate: up
 
 db-push: up
 	docker compose exec app bun run db:push
+
+db-seed: up
+	docker compose exec app bun run db:seed
 
 db-studio:
 	docker compose run --rm -p 4983:4983 app bun run db:studio
