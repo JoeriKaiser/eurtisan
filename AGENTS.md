@@ -771,6 +771,7 @@ make auth-secret
 | `make logs` | View logs |
 | `make shell` | Open shell in app container |
 | `make install` | Install dependencies |
+| `make init` | Initialize project (build, install, compile i18n, migrate, seed) |
 | `make dev` | Start development server |
 | `make build` | Build production app |
 | `make preview` | Preview production build |
