@@ -1,4 +1,4 @@
-import { boolean, index, pgEnum, pgTable, serial, text, timestamp } from 'drizzle-orm/pg-core'
+import { boolean, index, pgEnum, pgTable, serial, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
 
 export const userRoleEnum = pgEnum('user_role', ['customer', 'creator', 'admin'])
 
@@ -71,13 +71,17 @@ export const shop = pgTable(
     id: text().primaryKey(),
     name: text().notNull(),
     description: text(),
+    slug: text().notNull(),
     ownerId: text()
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     createdAt: timestamp().notNull().defaultNow(),
     updatedAt: timestamp().notNull().defaultNow(),
   },
-  (table) => [index('shop_ownerId_idx').on(table.ownerId)],
+  (table) => [
+    index('shop_ownerId_idx').on(table.ownerId),
+    uniqueIndex('shop_slug_unique').on(table.slug),
+  ],
 )
 
 export const todos = pgTable('todos', {
