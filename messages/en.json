@@ -62,5 +62,10 @@
   "studio_title": "My Studio",
   "studio_description": "Manage your shops and products.",
   "admin_title": "Admin Dashboard",
-  "admin_description": "System administration."
+  "admin_description": "System administration.",
+  "category_kicker": "Category",
+  "category_description": "Browse products in the {name} category.",
+  "sidebar_search_placeholder": "Search products...",
+  "sidebar_categories_title": "Categories",
+  "sidebar_no_categories": "No categories yet."
 }

@@ -1,42 +1,34 @@
 import { config } from 'dotenv'
+
 config({ path: '.env.local' })
+
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import {
-  authPipeline,
-  requireRole,
-  requireShopOwnership,
-} from '#/lib/authz'
+import { authPipeline, requireRole, requireShopOwnership } from '#/lib/authz'
 
-vi.mock('#/lib/auth', () =>
-  ({
-    auth: {
-      api: {
-        getSession: vi.fn(),
+vi.mock('#/lib/auth', () => ({
+  auth: {
+    api: {
+      getSession: vi.fn(),
+    },
+  },
+}))
+
+vi.mock('#/db/index', () => ({
+  db: {
+    query: {
+      shop: {
+        findFirst: vi.fn(),
       },
     },
-  }))
+  },
+}))
 
-vi.mock('#/db/index', () =>
-  ({
-    db: {
-      query: {
-        shop: {
-          findFirst: vi.fn(),
-        },
-      },
-    },
-  }))
-
-import { auth } from '#/lib/auth'
 import { db } from '#/db/index'
+import { auth } from '#/lib/auth'
 
-const mockGetSession = auth.api.getSession as unknown as ReturnType<
-  typeof vi.fn
->
-const mockFindFirst = db.query.shop.findFirst as unknown as ReturnType<
-  typeof vi.fn
->
+const mockGetSession = auth.api.getSession as unknown as ReturnType<typeof vi.fn>
+const mockFindFirst = db.query.shop.findFirst as unknown as ReturnType<typeof vi.fn>
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -170,10 +162,10 @@ describe('GET /api/shops/:shopId/dashboard (read scope)', () => {
 describe('PATCH /api/shops/:shopId/settings (update scope)', () => {
   const makeSettingsHandler = (req: Request) => async () => {
     const body = await req.json().catch(() => ({}))
-    return new Response(
-      JSON.stringify({ message: 'Settings updated', data: body }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } },
-    )
+    return new Response(JSON.stringify({ message: 'Settings updated', data: body }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
 
   it('returns 401 when unauthenticated', async () => {
@@ -250,10 +242,10 @@ describe('PATCH /api/shops/:shopId/settings (update scope)', () => {
 describe('POST /api/shops/:shopId/products (create scope)', () => {
   const makeProductsHandler = (req: Request) => async () => {
     const body = await req.json().catch(() => ({}))
-    return new Response(
-      JSON.stringify({ message: 'Product created', product: body }),
-      { status: 201, headers: { 'Content-Type': 'application/json' } },
-    )
+    return new Response(JSON.stringify({ message: 'Product created', product: body }), {
+      status: 201,
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
 
   it('returns 401 when unauthenticated', async () => {

@@ -1,4 +1,15 @@
-import { boolean, index, pgEnum, pgTable, serial, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
+import {
+  boolean,
+  foreignKey,
+  index,
+  pgEnum,
+  pgTable,
+  serial,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core'
 
 export const userRoleEnum = pgEnum('user_role', ['customer', 'creator', 'admin'])
 
@@ -89,3 +100,44 @@ export const todos = pgTable('todos', {
   title: text().notNull(),
   createdAt: timestamp('created_at').defaultNow(),
 })
+
+export const categories = pgTable(
+  'category',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text().notNull(),
+    slug: text().notNull().unique(),
+    parentId: uuid('parent_id'),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  (table) => [
+    index('category_slug_idx').on(table.slug),
+    index('category_parent_id_idx').on(table.parentId),
+    foreignKey({
+      columns: [table.parentId],
+      foreignColumns: [table.id],
+    }).onDelete('cascade'),
+  ],
+)
+
+export const product = pgTable(
+  'product',
+  {
+    id: text().primaryKey(),
+    name: text().notNull(),
+    description: text(),
+    slug: text().notNull(),
+    price: text().notNull().default('0'),
+    shopId: text('shop_id')
+      .notNull()
+      .references(() => shop.id, { onDelete: 'cascade' }),
+    categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('product_shop_id_idx').on(table.shopId),
+    index('product_category_id_idx').on(table.categoryId),
+    uniqueIndex('product_shop_slug_unique').on(table.shopId, table.slug),
+  ],
+)
