@@ -119,3 +119,25 @@ export const categories = pgTable(
     }).onDelete('cascade'),
   ],
 )
+
+export const product = pgTable(
+  'product',
+  {
+    id: text().primaryKey(),
+    name: text().notNull(),
+    description: text(),
+    slug: text().notNull(),
+    price: text().notNull().default('0'),
+    shopId: text('shop_id')
+      .notNull()
+      .references(() => shop.id, { onDelete: 'cascade' }),
+    categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('product_shop_id_idx').on(table.shopId),
+    index('product_category_id_idx').on(table.categoryId),
+    uniqueIndex('product_shop_slug_unique').on(table.shopId, table.slug),
+  ],
+)
