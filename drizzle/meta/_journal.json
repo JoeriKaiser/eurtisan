@@ -15,6 +15,13 @@
       "when": 1778240171195,
       "tag": "0001_steady_bug",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1778242195994,
+      "tag": "0002_huge_thunderbird",
+      "breakpoints": true
     }
   ]
 }
