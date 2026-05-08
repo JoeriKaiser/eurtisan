@@ -33,12 +33,8 @@ vi.mock('#/db/index', () => ({
 
 import { auth } from './auth'
 
-const mockGetSession = auth.api.getSession as unknown as ReturnType<
-  typeof vi.fn
->
-const mockFindFirst = db.query.shop.findFirst as unknown as ReturnType<
-  typeof vi.fn
->
+const mockGetSession = auth.api.getSession as unknown as ReturnType<typeof vi.fn>
+const mockFindFirst = db.query.shop.findFirst as unknown as ReturnType<typeof vi.fn>
 
 beforeEach(() => {
   vi.clearAllMocks()

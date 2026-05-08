@@ -1,4 +1,15 @@
-import { boolean, index, pgEnum, pgTable, serial, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
+import {
+  boolean,
+  foreignKey,
+  index,
+  pgEnum,
+  pgTable,
+  serial,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from 'drizzle-orm/pg-core'
 
 export const userRoleEnum = pgEnum('user_role', ['customer', 'creator', 'admin'])
 
@@ -89,3 +100,22 @@ export const todos = pgTable('todos', {
   title: text().notNull(),
   createdAt: timestamp('created_at').defaultNow(),
 })
+
+export const categories = pgTable(
+  'category',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text().notNull(),
+    slug: text().notNull().unique(),
+    parentId: uuid('parent_id'),
+    createdAt: timestamp('created_at').defaultNow(),
+  },
+  (table) => [
+    index('category_slug_idx').on(table.slug),
+    index('category_parent_id_idx').on(table.parentId),
+    foreignKey({
+      columns: [table.parentId],
+      foreignColumns: [table.id],
+    }).onDelete('cascade'),
+  ],
+)

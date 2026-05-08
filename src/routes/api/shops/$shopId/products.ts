@@ -8,10 +8,7 @@ export const Route = createFileRoute('/api/shops/$shopId/products')({
       GET: async ({ request, params }) =>
         authPipeline(
           request,
-          [
-            requireRole('creator'),
-            (ctx) => requireShopOwnership(ctx, params.shopId),
-          ],
+          [requireRole('creator'), (ctx) => requireShopOwnership(ctx, params.shopId)],
           async () =>
             new Response(
               JSON.stringify({
@@ -28,10 +25,7 @@ export const Route = createFileRoute('/api/shops/$shopId/products')({
       POST: async ({ request, params }) =>
         authPipeline(
           request,
-          [
-            requireRole('creator'),
-            (ctx) => requireShopOwnership(ctx, params.shopId),
-          ],
+          [requireRole('creator'), (ctx) => requireShopOwnership(ctx, params.shopId)],
           async () => {
             const body = await request.json().catch(() => ({}))
             return new Response(

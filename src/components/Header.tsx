@@ -1,7 +1,33 @@
 import { Link } from '@tanstack/react-router'
+import { useEffect, useState } from 'react'
+import { listCategories } from '#/lib/categories'
 import { m } from '#/paraglide/messages'
 import ThemeToggle from './ThemeToggle'
 import UserMenu from './UserMenu'
+
+function CategoryNavLinks() {
+  const [categoryList, setCategoryList] = useState<Awaited<ReturnType<typeof listCategories>>>([])
+
+  useEffect(() => {
+    listCategories().then(setCategoryList)
+  }, [])
+
+  return (
+    <>
+      {categoryList.map((category) => (
+        <Link
+          key={category.id}
+          to='/category/$slug'
+          params={{ slug: category.slug }}
+          className='nav-link'
+          activeProps={{ className: 'nav-link is-active' }}
+        >
+          {category.name}
+        </Link>
+      ))}
+    </>
+  )
+}
 
 export default function Header() {
   return (
@@ -37,6 +63,7 @@ export default function Header() {
           >
             {m.nav_docs()}
           </a>
+          <CategoryNavLinks />
         </div>
       </nav>
     </header>

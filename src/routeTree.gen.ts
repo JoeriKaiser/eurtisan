@@ -17,6 +17,7 @@ import { Route as StudioIndexRouteImport } from './routes/studio/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AccountIndexRouteImport } from './routes/account/index'
 import { Route as StudioShopIdRouteImport } from './routes/studio/$shopId'
+import { Route as CategorySlugRouteImport } from './routes/category/$slug'
 import { Route as AccountSettingsRouteImport } from './routes/account/settings'
 import { Route as AccountOrdersRouteImport } from './routes/account/orders'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -65,6 +66,11 @@ const StudioShopIdRoute = StudioShopIdRouteImport.update({
   path: '/studio/$shopId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CategorySlugRoute = CategorySlugRouteImport.update({
+  id: '/category/$slug',
+  path: '/category/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AccountSettingsRoute = AccountSettingsRouteImport.update({
   id: '/account/settings',
   path: '/account/settings',
@@ -108,6 +114,7 @@ export interface FileRoutesByFullPath {
   '/signin': typeof SigninRoute
   '/account/orders': typeof AccountOrdersRoute
   '/account/settings': typeof AccountSettingsRoute
+  '/category/$slug': typeof CategorySlugRoute
   '/studio/$shopId': typeof StudioShopIdRoute
   '/account/': typeof AccountIndexRoute
   '/admin/': typeof AdminIndexRoute
@@ -125,6 +132,7 @@ export interface FileRoutesByTo {
   '/signin': typeof SigninRoute
   '/account/orders': typeof AccountOrdersRoute
   '/account/settings': typeof AccountSettingsRoute
+  '/category/$slug': typeof CategorySlugRoute
   '/studio/$shopId': typeof StudioShopIdRoute
   '/account': typeof AccountIndexRoute
   '/admin': typeof AdminIndexRoute
@@ -143,6 +151,7 @@ export interface FileRoutesById {
   '/signin': typeof SigninRoute
   '/account/orders': typeof AccountOrdersRoute
   '/account/settings': typeof AccountSettingsRoute
+  '/category/$slug': typeof CategorySlugRoute
   '/studio/$shopId': typeof StudioShopIdRoute
   '/account/': typeof AccountIndexRoute
   '/admin/': typeof AdminIndexRoute
@@ -162,6 +171,7 @@ export interface FileRouteTypes {
     | '/signin'
     | '/account/orders'
     | '/account/settings'
+    | '/category/$slug'
     | '/studio/$shopId'
     | '/account/'
     | '/admin/'
@@ -179,6 +189,7 @@ export interface FileRouteTypes {
     | '/signin'
     | '/account/orders'
     | '/account/settings'
+    | '/category/$slug'
     | '/studio/$shopId'
     | '/account'
     | '/admin'
@@ -196,6 +207,7 @@ export interface FileRouteTypes {
     | '/signin'
     | '/account/orders'
     | '/account/settings'
+    | '/category/$slug'
     | '/studio/$shopId'
     | '/account/'
     | '/admin/'
@@ -214,6 +226,7 @@ export interface RootRouteChildren {
   SigninRoute: typeof SigninRoute
   AccountOrdersRoute: typeof AccountOrdersRoute
   AccountSettingsRoute: typeof AccountSettingsRoute
+  CategorySlugRoute: typeof CategorySlugRoute
   StudioShopIdRoute: typeof StudioShopIdRoute
   AccountIndexRoute: typeof AccountIndexRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -283,6 +296,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioShopIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/category/$slug': {
+      id: '/category/$slug'
+      path: '/category/$slug'
+      fullPath: '/category/$slug'
+      preLoaderRoute: typeof CategorySlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/account/settings': {
       id: '/account/settings'
       path: '/account/settings'
@@ -342,6 +362,7 @@ const rootRouteChildren: RootRouteChildren = {
   SigninRoute: SigninRoute,
   AccountOrdersRoute: AccountOrdersRoute,
   AccountSettingsRoute: AccountSettingsRoute,
+  CategorySlugRoute: CategorySlugRoute,
   StudioShopIdRoute: StudioShopIdRoute,
   AccountIndexRoute: AccountIndexRoute,
   AdminIndexRoute: AdminIndexRoute,

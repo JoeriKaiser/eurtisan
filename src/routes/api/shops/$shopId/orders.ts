@@ -8,10 +8,7 @@ export const Route = createFileRoute('/api/shops/$shopId/orders')({
       GET: async ({ request, params }) =>
         authPipeline(
           request,
-          [
-            requireRole('creator'),
-            (ctx) => requireShopOwnership(ctx, params.shopId),
-          ],
+          [requireRole('creator'), (ctx) => requireShopOwnership(ctx, params.shopId)],
           async () =>
             new Response(
               JSON.stringify({
