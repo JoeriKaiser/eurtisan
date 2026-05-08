@@ -33,6 +33,13 @@ vi.mock('#/db/index', () => ({
 
 import { auth } from './auth'
 
+const mockGetSession = auth.api.getSession as unknown as ReturnType<
+  typeof vi.fn
+>
+const mockFindFirst = db.query.shop.findFirst as unknown as ReturnType<
+  typeof vi.fn
+>
+
 beforeEach(() => {
   vi.clearAllMocks()
 })
@@ -73,20 +80,23 @@ function makeRequest(): Request {
 
 describe('requireAuth', () => {
   it('throws AuthError(401) when session is missing', async () => {
-    vi.mocked(auth.api.getSession).mockResolvedValue(null)
+    mockGetSession.mockResolvedValue(null)
 
-    await expect(requireAuth(makeRequest())).rejects.toSatisfy((err: AuthError) => {
-      expect(err.status).toBe(401)
-      expect(err.body.error).toBe('Unauthorized')
-      expect(err.body.message).toContain('Authentication required')
-      return true
-    })
+    try {
+      await requireAuth(makeRequest())
+      expect.fail('should have thrown')
+    } catch (err) {
+      expect(err).toBeInstanceOf(AuthError)
+      expect((err as AuthError).status).toBe(401)
+      expect((err as AuthError).body.error).toBe('Unauthorized')
+      expect((err as AuthError).body.message).toContain('Authentication required')
+    }
   })
 
   it('returns AuthContext when session is present', async () => {
     const user = makeUser('customer')
     const session = makeSession(user.id)
-    vi.mocked(auth.api.getSession).mockResolvedValue({ user, session })
+    mockGetSession.mockResolvedValue({ user, session })
 
     const ctx = await requireAuth(makeRequest())
     expect(ctx.user.id).toBe('user-1')
@@ -119,7 +129,7 @@ describe('requireRole', () => {
 describe('requireShopOwnership', () => {
   it('allows access when user owns the shop', async () => {
     const ctx = { user: makeUser('creator'), session: makeSession('user-1') }
-    vi.mocked(db.query.shop.findFirst).mockResolvedValue({
+    mockFindFirst.mockResolvedValue({
       id: 'shop-1',
       name: 'Test Shop',
       description: null,
@@ -134,7 +144,7 @@ describe('requireShopOwnership', () => {
 
   it('throws AuthError(403) when user does not own the shop', async () => {
     const ctx = { user: makeUser('creator', { id: 'user-2' }), session: makeSession('user-2') }
-    vi.mocked(db.query.shop.findFirst).mockResolvedValue({
+    mockFindFirst.mockResolvedValue({
       id: 'shop-1',
       name: 'Test Shop',
       description: null,
@@ -143,32 +153,38 @@ describe('requireShopOwnership', () => {
       updatedAt: new Date(),
     })
 
-    await expect(requireShopOwnership(ctx, 'shop-1')).rejects.toSatisfy((err: AuthError) => {
-      expect(err.status).toBe(403)
-      expect(err.body.error).toBe('Forbidden')
-      return true
-    })
+    try {
+      await requireShopOwnership(ctx, 'shop-1')
+      expect.fail('should have thrown')
+    } catch (err) {
+      expect(err).toBeInstanceOf(AuthError)
+      expect((err as AuthError).status).toBe(403)
+      expect((err as AuthError).body.error).toBe('Forbidden')
+    }
   })
 
   it('throws AuthError(403) when shop does not exist', async () => {
     const ctx = { user: makeUser('creator'), session: makeSession('user-1') }
-    vi.mocked(db.query.shop.findFirst).mockResolvedValue(undefined)
+    mockFindFirst.mockResolvedValue(undefined)
 
-    await expect(requireShopOwnership(ctx, 'missing-shop')).rejects.toSatisfy((err: AuthError) => {
-      expect(err.status).toBe(403)
-      expect(err.body.message).toContain('Shop not found')
-      return true
-    })
+    try {
+      await requireShopOwnership(ctx, 'missing-shop')
+      expect.fail('should have thrown')
+    } catch (err) {
+      expect(err).toBeInstanceOf(AuthError)
+      expect((err as AuthError).status).toBe(403)
+      expect((err as AuthError).body.message).toContain('Shop not found')
+    }
   })
 
   it('bypasses ownership check for admin users', async () => {
     const ctx = { user: makeUser('admin', { id: 'user-2' }), session: makeSession('user-2') }
     // No shop lookup should be needed
-    vi.mocked(db.query.shop.findFirst).mockResolvedValue(undefined)
+    mockFindFirst.mockResolvedValue(undefined)
 
     const result = await requireShopOwnership(ctx, 'shop-1')
     expect(result).toBe(ctx)
-    expect(db.query.shop.findFirst).not.toHaveBeenCalled()
+    expect(mockFindFirst).not.toHaveBeenCalled()
   })
 })
 
@@ -205,7 +221,7 @@ describe('withAuthz', () => {
 
 describe('authPipeline', () => {
   it('returns 401 when unauthenticated', async () => {
-    vi.mocked(auth.api.getSession).mockResolvedValue(null)
+    mockGetSession.mockResolvedValue(null)
 
     const response = await authPipeline(makeRequest(), [], async () => new Response('OK'))
     expect(response.status).toBe(401)
@@ -214,7 +230,7 @@ describe('authPipeline', () => {
   })
 
   it('returns 403 when role is insufficient', async () => {
-    vi.mocked(auth.api.getSession).mockResolvedValue({
+    mockGetSession.mockResolvedValue({
       user: makeUser('customer'),
       session: makeSession('user-1'),
     })
@@ -230,11 +246,11 @@ describe('authPipeline', () => {
   })
 
   it('returns 403 when shop ownership fails', async () => {
-    vi.mocked(auth.api.getSession).mockResolvedValue({
+    mockGetSession.mockResolvedValue({
       user: makeUser('creator', { id: 'user-2' }),
       session: makeSession('user-2'),
     })
-    vi.mocked(db.query.shop.findFirst).mockResolvedValue(undefined)
+    mockFindFirst.mockResolvedValue(undefined)
 
     const response = await authPipeline(
       makeRequest(),
@@ -245,7 +261,7 @@ describe('authPipeline', () => {
   })
 
   it('succeeds for admin without ownership', async () => {
-    vi.mocked(auth.api.getSession).mockResolvedValue({
+    mockGetSession.mockResolvedValue({
       user: makeUser('admin', { id: 'user-2' }),
       session: makeSession('user-2'),
     })
@@ -261,11 +277,11 @@ describe('authPipeline', () => {
   })
 
   it('succeeds for creator who owns the shop', async () => {
-    vi.mocked(auth.api.getSession).mockResolvedValue({
+    mockGetSession.mockResolvedValue({
       user: makeUser('creator', { id: 'user-1' }),
       session: makeSession('user-1'),
     })
-    vi.mocked(db.query.shop.findFirst).mockResolvedValue({
+    mockFindFirst.mockResolvedValue({
       id: 'shop-1',
       name: 'Test Shop',
       description: null,
@@ -285,7 +301,7 @@ describe('authPipeline', () => {
   })
 
   it('re-throws non-AuthError exceptions from handler', async () => {
-    vi.mocked(auth.api.getSession).mockResolvedValue({
+    mockGetSession.mockResolvedValue({
       user: makeUser('admin'),
       session: makeSession('user-1'),
     })
