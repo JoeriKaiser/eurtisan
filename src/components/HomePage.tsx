@@ -1,16 +1,8 @@
 import { Link, useRouter } from '@tanstack/react-router'
-import {
-  ArrowRight,
-  MapPin,
-  Package,
-  Search,
-  ShieldCheck,
-  Store,
-  Truck,
-} from 'lucide-react'
+import { ArrowRight, MapPin, Package, Search, ShieldCheck, Store, Truck } from 'lucide-react'
 import { useState } from 'react'
+import type { listCategories } from '#/lib/categories'
 import type { FeaturedShop, RecentProduct } from '#/lib/products'
-import { listCategories } from '#/lib/categories'
 import CategoryCard from './CategoryCard'
 import ProductCard from './ProductCard'
 import SearchSidebar from './SearchSidebar'
@@ -106,7 +98,7 @@ export default function HomePage({ categories, products, shops }: HomePageProps)
             </form>
 
             <div className='flex flex-wrap gap-3'>
-              <Link to='/category/$slug' params={{ slug: 'all' }} className='no-underline'>
+              <Link to='/category/all' className='no-underline'>
                 <Button size='lg' className='gap-2'>
                   Explore collections
                   <ArrowRight size={18} />
@@ -201,8 +193,7 @@ export default function HomePage({ categories, products, shops }: HomePageProps)
                           {shop.name}
                         </h3>
                         <p className='text-xs text-text-muted'>
-                          {shop.productCount}{' '}
-                          {shop.productCount === 1 ? 'product' : 'products'}
+                          {shop.productCount} {shop.productCount === 1 ? 'product' : 'products'}
                         </p>
                       </div>
                     </Link>
@@ -243,15 +234,12 @@ export default function HomePage({ categories, products, shops }: HomePageProps)
               {products.length === 0 ? (
                 <div className='island-shell rounded-2xl p-8 text-center sm:p-12'>
                   <Package size={48} className='mx-auto mb-4 text-text-muted' aria-hidden='true' />
-                  <h2 className='mb-2 text-xl font-semibold text-text-primary'>
-                    No products yet
-                  </h2>
+                  <h2 className='mb-2 text-xl font-semibold text-text-primary'>No products yet</h2>
                   <p className='mb-6 text-text-secondary'>
                     Check back soon or browse our categories to discover handmade goods.
                   </p>
                   <Link
-                    to='/category/$slug'
-                    params={{ slug: 'all' }}
+                    to='/category/all'
                     className='inline-flex items-center gap-2 rounded-lg bg-accent-primary px-6 py-3 text-sm font-medium text-text-on-primary no-underline transition-colors hover:bg-accent-primary-hover'
                   >
                     Browse categories

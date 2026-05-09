@@ -16,6 +16,7 @@ import {
   getCategoryBySlugQuery,
   getDescendantCategoryIds,
   listCategoriesQuery,
+  listCategoriesWithCountsQuery,
   listCategoryTreeQuery,
   updateCategoryInternal,
 } from './categories.server'
@@ -76,9 +77,18 @@ describe('createCategorySchema', () => {
     const result = createCategorySchema.safeParse({
       name: 'Books',
       slug: 'books',
+      description: 'All kinds of books',
       parentId: '550e8400-e29b-41d4-a716-446655440000',
     })
     expect(result.success).toBe(true)
+  })
+
+  it('rejects description exceeding 1000 chars', () => {
+    const result = createCategorySchema.safeParse({
+      name: 'Books',
+      description: 'a'.repeat(1001),
+    })
+    expect(result.success).toBe(false)
   })
 
   it('rejects empty name', () => {
@@ -108,7 +118,16 @@ describe('updateCategorySchema', () => {
       id: '550e8400-e29b-41d4-a716-446655440000',
       name: 'Updated Books',
       slug: 'updated-books',
+      description: 'Updated description',
       parentId: '660e8400-e29b-41d4-a716-446655440001',
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts null description', () => {
+    const result = updateCategorySchema.safeParse({
+      id: '550e8400-e29b-41d4-a716-446655440000',
+      description: null,
     })
     expect(result.success).toBe(true)
   })
@@ -259,6 +278,112 @@ describe('listCategoryTreeQuery', () => {
   it('returns empty array when no categories exist', async () => {
     const tree = await listCategoryTreeQuery()
     expect(tree).toEqual([])
+  })
+})
+
+describe('listCategoriesWithCountsQuery', () => {
+  it('returns root categories with product counts', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Test Shop',
+        slug: 'test-shop',
+        ownerId: u.id,
+      })
+      .returning()
+
+    const [root] = await db
+      .insert(categories)
+      .values({ name: 'Pottery', slug: 'pottery' })
+      .returning()
+
+    const [child] = await db
+      .insert(categories)
+      .values({ name: 'Vases', slug: 'vases', parentId: root.id })
+      .returning()
+
+    await db.insert(product).values({
+      id: 'prod-1',
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 2999,
+      shopId: s.id,
+      categoryId: root.id,
+    })
+
+    await db.insert(product).values({
+      id: 'prod-2',
+      name: 'Tall Vase',
+      slug: 'tall-vase',
+      priceCents: 3999,
+      shopId: s.id,
+      categoryId: child.id,
+    })
+
+    const result = await listCategoriesWithCountsQuery()
+
+    expect(result).toHaveLength(1)
+    expect(result[0].slug).toBe('pottery')
+    expect(result[0].productCount).toBe(2)
+  })
+
+  it('returns description when present', async () => {
+    await db
+      .insert(categories)
+      .values({ name: 'Books', slug: 'books', description: 'All kinds of books' })
+      .returning()
+
+    const result = await listCategoriesWithCountsQuery()
+
+    expect(result).toHaveLength(1)
+    expect(result[0].slug).toBe('books')
+    expect(result[0].description).toBe('All kinds of books')
+  })
+
+  it('returns zero product count when no products exist', async () => {
+    const [root] = await db.insert(categories).values({ name: 'Books', slug: 'books' }).returning()
+
+    await db
+      .insert(categories)
+      .values({ name: 'Fiction', slug: 'fiction', parentId: root.id })
+      .returning()
+
+    const result = await listCategoriesWithCountsQuery()
+
+    expect(result).toHaveLength(1)
+    expect(result[0].slug).toBe('books')
+    expect(result[0].productCount).toBe(0)
+  })
+
+  it('returns empty array when no categories exist', async () => {
+    const result = await listCategoriesWithCountsQuery()
+    expect(result).toEqual([])
+  })
+
+  it('excludes child categories from top-level list', async () => {
+    const [root] = await db.insert(categories).values({ name: 'Root', slug: 'root' }).returning()
+
+    await db
+      .insert(categories)
+      .values({ name: 'Child', slug: 'child', parentId: root.id })
+      .returning()
+
+    const result = await listCategoriesWithCountsQuery()
+
+    expect(result).toHaveLength(1)
+    expect(result[0].slug).toBe('root')
+    expect(result.map((c) => c.slug)).not.toContain('child')
   })
 })
 

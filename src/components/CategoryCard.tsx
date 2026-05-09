@@ -44,9 +44,11 @@ interface CategoryCardProps {
   id: string
   name: string
   slug: string
+  description?: string | null
+  productCount?: number
 }
 
-export default function CategoryCard({ name, slug }: CategoryCardProps) {
+export default function CategoryCard({ name, slug, description, productCount }: CategoryCardProps) {
   const Icon = getCategoryIcon(name)
 
   return (
@@ -58,9 +60,17 @@ export default function CategoryCard({ name, slug }: CategoryCardProps) {
       <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-primary-subtle text-accent-primary transition-colors duration-fast group-hover:bg-accent-primary group-hover:text-text-on-primary'>
         <Icon size={22} strokeWidth={1.5} />
       </div>
-      <div>
+      <div className='min-w-0'>
         <h3 className='text-sm font-semibold text-text-primary'>{name}</h3>
-        <p className='text-xs text-text-muted'>Browse collection</p>
+        {description ? (
+          <p className='truncate text-xs text-text-muted'>{description}</p>
+        ) : (
+          <p className='text-xs text-text-muted'>
+            {productCount !== undefined
+              ? `${productCount} ${productCount === 1 ? 'product' : 'products'}`
+              : 'Browse collection'}
+          </p>
+        )}
       </div>
     </Link>
   )

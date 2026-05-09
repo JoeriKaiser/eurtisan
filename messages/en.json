@@ -105,5 +105,12 @@
   "search_no_results_description": "We couldn't find any products matching \"{query}\". Try a different term or browse categories below.",
   "search_browse_categories": "Browse categories",
   "search_meta_title": "{query} — Search Results | Eurtisan",
-  "search_meta_description": "Search results for {query} on Eurtisan. Discover handmade products from European artisans."
+  "search_meta_description": "Search results for {query} on Eurtisan. Discover handmade products from European artisans.",
+  "categories_all_meta_title": "All Categories | Eurtisan",
+  "categories_all_meta_description": "Browse all product categories on Eurtisan. Discover handmade products from European artisans.",
+  "categories_all_kicker": "Categories",
+  "categories_all_title": "All Categories",
+  "categories_all_description": "Browse all product categories and discover handmade goods from European artisans.",
+  "categories_all_empty_title": "No categories yet",
+  "categories_all_empty_description": "Check back soon for new collections."
 }

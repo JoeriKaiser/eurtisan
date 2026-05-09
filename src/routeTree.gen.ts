@@ -20,6 +20,7 @@ import { Route as AccountIndexRouteImport } from './routes/account/index'
 import { Route as StudioShopIdRouteImport } from './routes/studio/$shopId'
 import { Route as ShopsShopSlugRouteImport } from './routes/shops/$shopSlug'
 import { Route as ProductsProductSlugRouteImport } from './routes/products/$productSlug'
+import { Route as CategoryAllRouteImport } from './routes/category/all'
 import { Route as CategorySlugRouteImport } from './routes/category/$slug'
 import { Route as ApiProductsRouteImport } from './routes/api/products'
 import { Route as AccountSettingsRouteImport } from './routes/account/settings'
@@ -86,6 +87,11 @@ const ProductsProductSlugRoute = ProductsProductSlugRouteImport.update({
   path: '/products/$productSlug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CategoryAllRoute = CategoryAllRouteImport.update({
+  id: '/category/all',
+  path: '/category/all',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CategorySlugRoute = CategorySlugRouteImport.update({
   id: '/category/$slug',
   path: '/category/$slug',
@@ -148,6 +154,7 @@ export interface FileRoutesByFullPath {
   '/account/settings': typeof AccountSettingsRoute
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
+  '/category/all': typeof CategoryAllRoute
   '/products/$productSlug': typeof ProductsProductSlugRoute
   '/shops/$shopSlug': typeof ShopsShopSlugRoute
   '/studio/$shopId': typeof StudioShopIdRoute
@@ -171,6 +178,7 @@ export interface FileRoutesByTo {
   '/account/settings': typeof AccountSettingsRoute
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
+  '/category/all': typeof CategoryAllRoute
   '/products/$productSlug': typeof ProductsProductSlugRoute
   '/shops/$shopSlug': typeof ShopsShopSlugRoute
   '/studio/$shopId': typeof StudioShopIdRoute
@@ -195,6 +203,7 @@ export interface FileRoutesById {
   '/account/settings': typeof AccountSettingsRoute
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
+  '/category/all': typeof CategoryAllRoute
   '/products/$productSlug': typeof ProductsProductSlugRoute
   '/shops/$shopSlug': typeof ShopsShopSlugRoute
   '/studio/$shopId': typeof StudioShopIdRoute
@@ -220,6 +229,7 @@ export interface FileRouteTypes {
     | '/account/settings'
     | '/api/products'
     | '/category/$slug'
+    | '/category/all'
     | '/products/$productSlug'
     | '/shops/$shopSlug'
     | '/studio/$shopId'
@@ -243,6 +253,7 @@ export interface FileRouteTypes {
     | '/account/settings'
     | '/api/products'
     | '/category/$slug'
+    | '/category/all'
     | '/products/$productSlug'
     | '/shops/$shopSlug'
     | '/studio/$shopId'
@@ -266,6 +277,7 @@ export interface FileRouteTypes {
     | '/account/settings'
     | '/api/products'
     | '/category/$slug'
+    | '/category/all'
     | '/products/$productSlug'
     | '/shops/$shopSlug'
     | '/studio/$shopId'
@@ -290,6 +302,7 @@ export interface RootRouteChildren {
   AccountSettingsRoute: typeof AccountSettingsRoute
   ApiProductsRoute: typeof ApiProductsRoute
   CategorySlugRoute: typeof CategorySlugRoute
+  CategoryAllRoute: typeof CategoryAllRoute
   ProductsProductSlugRoute: typeof ProductsProductSlugRoute
   ShopsShopSlugRoute: typeof ShopsShopSlugRoute
   StudioShopIdRoute: typeof StudioShopIdRoute
@@ -380,6 +393,13 @@ declare module '@tanstack/react-router' {
       path: '/products/$productSlug'
       fullPath: '/products/$productSlug'
       preLoaderRoute: typeof ProductsProductSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/category/all': {
+      id: '/category/all'
+      path: '/category/all'
+      fullPath: '/category/all'
+      preLoaderRoute: typeof CategoryAllRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/category/$slug': {
@@ -479,6 +499,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccountSettingsRoute: AccountSettingsRoute,
   ApiProductsRoute: ApiProductsRoute,
   CategorySlugRoute: CategorySlugRoute,
+  CategoryAllRoute: CategoryAllRoute,
   ProductsProductSlugRoute: ProductsProductSlugRoute,
   ShopsShopSlugRoute: ShopsShopSlugRoute,
   StudioShopIdRoute: StudioShopIdRoute,

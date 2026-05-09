@@ -32,6 +32,44 @@ export async function listCategoryTreeQuery() {
   return buildCategoryTree(all)
 }
 
+export async function listCategoriesWithCountsQuery() {
+  const result = await db.execute(sql`
+    WITH RECURSIVE descendants AS (
+      SELECT id, id AS root_id
+      FROM category
+      WHERE parent_id IS NULL
+      UNION ALL
+      SELECT c.id, d.root_id
+      FROM category c
+      INNER JOIN descendants d ON c.parent_id = d.id
+    )
+    SELECT
+      cat.id,
+      cat.name,
+      cat.slug,
+      cat.description,
+      cat.parent_id AS "parentId",
+      cat.created_at AS "createdAt",
+      COUNT(p.id)::int AS "productCount"
+    FROM category cat
+    LEFT JOIN descendants d ON cat.id = d.root_id
+    LEFT JOIN product p ON p.category_id = d.id
+    WHERE cat.parent_id IS NULL
+    GROUP BY cat.id, cat.name, cat.slug, cat.description, cat.parent_id, cat.created_at
+    ORDER BY cat.name
+  `)
+
+  return result.rows as {
+    id: string
+    name: string
+    slug: string
+    description: string | null
+    parentId: null
+    createdAt: Date | null
+    productCount: number
+  }[]
+}
+
 export async function getDescendantCategoryIds(categoryId: string): Promise<string[]> {
   const ids = new Set<string>([categoryId])
   let queue = [categoryId]
@@ -132,6 +170,7 @@ export async function updateCategoryInternal(
   const updateValues: Partial<typeof categories.$inferInsert> = {}
   if (data.name !== undefined) updateValues.name = data.name.trim()
   if (slug !== undefined) updateValues.slug = slug
+  if (data.description !== undefined) updateValues.description = data.description?.trim() ?? null
   if (data.parentId !== undefined) updateValues.parentId = data.parentId
 
   const [updated] = await db

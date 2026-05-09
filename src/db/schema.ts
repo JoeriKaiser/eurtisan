@@ -109,6 +109,7 @@ export const categories = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     name: text().notNull(),
     slug: text().notNull().unique(),
+    description: text(),
     parentId: uuid('parent_id'),
     createdAt: timestamp('created_at').defaultNow(),
   },

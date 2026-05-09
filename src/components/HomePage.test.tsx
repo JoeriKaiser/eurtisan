@@ -114,7 +114,9 @@ describe('HomePage', () => {
 
   it('renders recent products with images', () => {
     const products = [
-      makeProduct('1', { image: { id: 'img-1', url: 'http://example.com/1.jpg', altText: null, sortOrder: 0 } }),
+      makeProduct('1', {
+        image: { id: 'img-1', url: 'http://example.com/1.jpg', altText: null, sortOrder: 0 },
+      }),
       makeProduct('2'),
     ]
     render(<HomePage categories={[]} products={products} shops={[]} />)

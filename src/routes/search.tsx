@@ -115,8 +115,7 @@ function SearchPage() {
             </h2>
             <p className='mb-6 text-text-secondary'>{m.search_no_results_description({ query })}</p>
             <Link
-              to='/category/$slug'
-              params={{ slug: 'all' }}
+              to='/category/all'
               className='inline-flex items-center gap-2 rounded-lg bg-accent-primary px-6 py-3 text-sm font-medium text-text-on-primary no-underline transition-colors hover:bg-accent-primary-hover'
             >
               {m.search_browse_categories()}
