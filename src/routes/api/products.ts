@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { listProductsByCategorySlugQuery } from '#/lib/products'
+import { listProductsByCategorySlugQuery } from '#/lib/products.server'
 
 export const Route = createFileRoute('/api/products')({
   server: {

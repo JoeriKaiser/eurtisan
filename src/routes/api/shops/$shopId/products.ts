@@ -3,7 +3,8 @@ import { eq } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { product } from '#/db/schema'
 import { authPipeline, requireRole, requireShopOwnership } from '#/lib/authz'
-import { createProductInternal, createProductSchema } from '#/lib/products'
+import { createProductSchema } from '#/lib/products'
+import { createProductInternal } from '#/lib/products.server'
 
 export const Route = createFileRoute('/api/shops/$shopId/products')({
   server: {

@@ -3,11 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { db } from '#/db/index'
 import { categories, product, shop, user } from '#/db/schema'
 
+import { createProductSchema } from './products'
 import {
-  createProductSchema,
   listProductsByCategorySlugQuery,
   listProductsByShopQuery,
-} from './products'
+} from './products.server'
 
 vi.mock('./auth', () => ({
   auth: {

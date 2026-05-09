@@ -1,17 +1,17 @@
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
-import { getCategoryBySlugQuery } from '#/lib/categories'
-import { listProductsByCategorySlugQuery } from '#/lib/products'
+import { getCategoryBySlug } from '#/lib/categories'
+import { listProductsByCategorySlug } from '#/lib/products'
 import { m } from '#/paraglide/messages'
 
 export const Route = createFileRoute('/category/$slug')({
   loader: async ({ params }) => {
-    const category = await getCategoryBySlugQuery(params.slug)
+    const category = await getCategoryBySlug({ data: { slug: params.slug } })
 
     if (!category) {
       throw notFound()
     }
 
-    const products = await listProductsByCategorySlugQuery(params.slug)
+    const products = await listProductsByCategorySlug({ data: { slug: params.slug } })
 
     return { category, products }
   },

@@ -5,18 +5,20 @@ import { categories, product, shop, user } from '#/db/schema'
 import {
   buildCategoryTree,
   createCategorySchema,
-  deleteCategoryInternal,
   deleteCategorySchema,
+  sanitizeSlug,
+  updateCategorySchema,
+} from './categories'
+import {
+  deleteCategoryInternal,
   detectCircularReference,
   getCategoryBreadcrumbs,
   getCategoryBySlugQuery,
   getDescendantCategoryIds,
   listCategoriesQuery,
   listCategoryTreeQuery,
-  sanitizeSlug,
   updateCategoryInternal,
-  updateCategorySchema,
-} from './categories'
+} from './categories.server'
 import type { SafeUser } from './server-auth'
 
 vi.mock('./auth', () => ({
