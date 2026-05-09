@@ -67,5 +67,15 @@
   "category_description": "Browse products in the {name} category.",
   "sidebar_search_placeholder": "Search products...",
   "sidebar_categories_title": "Categories",
-  "sidebar_no_categories": "No categories yet."
+  "sidebar_no_categories": "No categories yet.",
+  "product_card_label": "Product: {name}",
+  "product_no_image": "No image available",
+  "product_out_of_stock": "Out of stock",
+  "product_unknown_shop": "Unknown shop",
+  "product_grid_empty": "No products found.",
+  "product_grid_loading": "Loading products...",
+  "pagination_previous": "Previous",
+  "pagination_next": "Next",
+  "pagination_page_of": "Page {page} of {totalPages}",
+  "product_pagination": "Product pagination"
 }

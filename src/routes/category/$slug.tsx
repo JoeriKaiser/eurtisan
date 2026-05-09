@@ -1,14 +1,8 @@
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
+import ProductGrid from '#/components/ProductGrid'
 import { getCategoryBySlug } from '#/lib/categories'
 import { listProductsByCategorySlug } from '#/lib/products'
 import { m } from '#/paraglide/messages'
-
-function formatPrice(cents: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'EUR',
-  }).format(cents / 100)
-}
 
 export const Route = createFileRoute('/category/$slug')({
   loader: async ({ params }) => {
@@ -91,32 +85,10 @@ function CategoryPage() {
 
           <section className='mt-8'>
             <h2 className='mb-4 text-xl font-semibold text-[var(--sea-ink)]'>Products</h2>
-            {products.length === 0 ? (
-              <p className='text-sm text-[var(--sea-ink-soft)]'>
-                No products in this category yet.
-              </p>
-            ) : (
-              <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
-                {products.map((product) => (
-                  <article key={product.id} className='island-shell rounded-2xl p-5'>
-                    <h3 className='mb-1 text-base font-semibold text-[var(--sea-ink)]'>
-                      {product.name}
-                    </h3>
-                    <p className='mb-3 text-sm text-[var(--sea-ink-soft)]'>
-                      {product.description ?? 'No description'}
-                    </p>
-                    <div className='flex items-center justify-between'>
-                      <span className='text-sm font-medium text-[var(--sea-ink)]'>
-                        {formatPrice(product.priceCents)}
-                      </span>
-                      <span className='rounded-full bg-[var(--chip-bg)] px-2 py-1 text-xs text-[var(--sea-ink-soft)]'>
-                        {product.categoryName}
-                      </span>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
+            <ProductGrid
+              products={products}
+              emptyMessage='No products in this category yet.'
+            />
           </section>
         </div>
 
