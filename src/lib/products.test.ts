@@ -9,6 +9,8 @@ import {
   createProductInternal,
   getProductBySlugQuery,
   getProductsByShopSlugQuery,
+  getShopBySlugQuery,
+  getShopProductsQuery,
   listProductsByCategorySlugQuery,
   listProductsByShopQuery,
   listProductsQuery,
@@ -732,6 +734,209 @@ describe('createProductInternal', () => {
 
     expect(result.slug).toBe('vase')
     expect(result.shopId).toBe(s2.id)
+  })
+})
+
+describe('getShopBySlugQuery', () => {
+  it('returns shop summary by slug', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Test Shop',
+        description: 'A test shop',
+        slug: 'test-shop',
+        ownerId: u.id,
+      })
+      .returning()
+
+    const result = await getShopBySlugQuery('test-shop')
+    expect(result).not.toBeNull()
+    expect(result?.name).toBe('Test Shop')
+    expect(result?.description).toBe('A test shop')
+    expect(result?.slug).toBe('test-shop')
+  })
+
+  it('returns null for nonexistent shop', async () => {
+    const result = await getShopBySlugQuery('nonexistent-shop')
+    expect(result).toBeNull()
+  })
+
+  it('returns null for suspended shop', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Test Shop',
+        slug: 'test-shop',
+        ownerId: u.id,
+        isSuspended: true,
+      })
+      .returning()
+
+    const result = await getShopBySlugQuery('test-shop')
+    expect(result).toBeNull()
+  })
+})
+
+describe('getShopProductsQuery', () => {
+  async function seedShopWithProducts() {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Test Shop',
+        slug: 'test-shop',
+        ownerId: u.id,
+      })
+      .returning()
+
+    await db.insert(product).values([
+      { id: 'prod-1', name: 'Ceramic Vase', slug: 'ceramic-vase', priceCents: 2999, shopId: s.id },
+      { id: 'prod-2', name: 'Wooden Bowl', slug: 'wooden-bowl', priceCents: 1999, shopId: s.id },
+      {
+        id: 'prod-3',
+        name: 'Glass Plate',
+        slug: 'glass-plate',
+        priceCents: 4999,
+        shopId: s.id,
+        isActive: false,
+      },
+    ])
+
+    return { shop: s }
+  }
+
+  it('returns paginated active products for a shop', async () => {
+    await seedShopWithProducts()
+
+    const result = await getShopProductsQuery('test-shop', undefined, { page: 1, pageSize: 10 })
+    expect(result.products).toHaveLength(2)
+    expect(result.total).toBe(2)
+    expect(result.products.every((p) => p.shopSlug === 'test-shop')).toBe(true)
+  })
+
+  it('filters products by case-insensitive partial name search', async () => {
+    await seedShopWithProducts()
+
+    const result = await getShopProductsQuery('test-shop', 'vase', { page: 1, pageSize: 10 })
+    expect(result.products).toHaveLength(1)
+    expect(result.products[0].name).toBe('Ceramic Vase')
+  })
+
+  it('search is case-insensitive', async () => {
+    await seedShopWithProducts()
+
+    const lowerResult = await getShopProductsQuery('test-shop', 'bowl', { page: 1, pageSize: 10 })
+    expect(lowerResult.products).toHaveLength(1)
+    expect(lowerResult.products[0].name).toBe('Wooden Bowl')
+
+    const upperResult = await getShopProductsQuery('test-shop', 'BOWL', { page: 1, pageSize: 10 })
+    expect(upperResult.products).toHaveLength(1)
+    expect(upperResult.products[0].name).toBe('Wooden Bowl')
+  })
+
+  it('search matches partial names', async () => {
+    await seedShopWithProducts()
+
+    const result = await getShopProductsQuery('test-shop', 'cer', { page: 1, pageSize: 10 })
+    expect(result.products).toHaveLength(1)
+    expect(result.products[0].name).toBe('Ceramic Vase')
+  })
+
+  it('returns empty array when search matches nothing', async () => {
+    await seedShopWithProducts()
+
+    const result = await getShopProductsQuery('test-shop', 'xyz', { page: 1, pageSize: 10 })
+    expect(result.products).toHaveLength(0)
+    expect(result.total).toBe(0)
+  })
+
+  it('excludes inactive products', async () => {
+    await seedShopWithProducts()
+
+    const result = await getShopProductsQuery('test-shop', undefined, { page: 1, pageSize: 10 })
+    expect(result.products.every((p) => p.name !== 'Glass Plate')).toBe(true)
+  })
+
+  it('throws 404 for nonexistent shop', async () => {
+    try {
+      await getShopProductsQuery('nonexistent-shop')
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(404)
+    }
+  })
+
+  it('throws 404 for suspended shop', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Test Shop',
+        slug: 'test-shop',
+        ownerId: u.id,
+        isSuspended: true,
+      })
+      .returning()
+
+    try {
+      await getShopProductsQuery('test-shop')
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(404)
+    }
+  })
+
+  it('applies pagination correctly', async () => {
+    await seedShopWithProducts()
+
+    const result = await getShopProductsQuery('test-shop', undefined, { page: 1, pageSize: 1 })
+    expect(result.products).toHaveLength(1)
+    expect(result.total).toBe(2)
+    expect(result.totalPages).toBe(2)
   })
 })
 

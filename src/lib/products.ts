@@ -111,3 +111,44 @@ export const getProductsByShop = createServerFn({
     const { getProductsByShopSlugQuery } = await import('./products.server')
     return getProductsByShopSlugQuery(data.shopSlug, { page: data.page, pageSize: data.pageSize })
   })
+
+export const getShopBySlugSchema = z.object({
+  slug: z.string().min(1),
+})
+
+export const getShopBySlug = createServerFn({
+  method: 'GET',
+})
+  .inputValidator(getShopBySlugSchema)
+  .handler(async ({ data }) => {
+    const { getShopBySlugQuery } = await import('./products.server')
+    const result = await getShopBySlugQuery(data.slug)
+
+    if (!result) {
+      throw new Response(
+        JSON.stringify({ error: 'Not Found', message: 'Shop not found or suspended' }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    return result
+  })
+
+export const getShopProductsSchema = z.object({
+  shopSlug: z.string().min(1),
+  search: z.string().min(1).max(255).optional(),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
+})
+
+export const getShopProducts = createServerFn({
+  method: 'GET',
+})
+  .inputValidator(getShopProductsSchema)
+  .handler(async ({ data }) => {
+    const { getShopProductsQuery } = await import('./products.server')
+    return getShopProductsQuery(data.shopSlug, data.search, {
+      page: data.page,
+      pageSize: data.pageSize,
+    })
+  })

@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, lte } from 'drizzle-orm'
+import { and, asc, count, desc, eq, gte, ilike, lte } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { categories, product, productImage, shop } from '#/db/schema'
 
@@ -191,6 +191,92 @@ export async function getProductsByShopSlugQuery(
   }
 
   return listProductsQuery({ shopSlug }, pagination, 'newest')
+}
+
+export type ShopSummary = {
+  id: string
+  name: string
+  description: string | null
+  slug: string
+}
+
+export async function getShopBySlugQuery(slug: string): Promise<ShopSummary | null> {
+  const [shopRow] = await db
+    .select({
+      id: shop.id,
+      name: shop.name,
+      description: shop.description,
+      slug: shop.slug,
+      isSuspended: shop.isSuspended,
+    })
+    .from(shop)
+    .where(eq(shop.slug, slug))
+    .limit(1)
+
+  if (!shopRow || shopRow.isSuspended) {
+    return null
+  }
+
+  const { isSuspended: _, ...summary } = shopRow
+  return summary
+}
+
+export async function getShopProductsQuery(
+  shopSlug: string,
+  search?: string,
+  pagination: Pagination = { page: 1, pageSize: 20 },
+): Promise<PaginatedProducts> {
+  const [shopRow] = await db.select().from(shop).where(eq(shop.slug, shopSlug)).limit(1)
+
+  if (!shopRow || shopRow.isSuspended) {
+    throw new Response(
+      JSON.stringify({ error: 'Not Found', message: 'Shop not found or suspended' }),
+      { status: 404, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  const page = Math.max(1, pagination.page)
+  const pageSize = Math.min(100, Math.max(1, pagination.pageSize))
+  const offset = (page - 1) * pageSize
+
+  const conditions = [
+    eq(shop.isSuspended, false),
+    eq(product.isActive, true),
+    eq(shop.slug, shopSlug),
+  ]
+
+  if (search !== undefined && search.trim().length > 0) {
+    conditions.push(ilike(product.name, `%${search.trim()}%`))
+  }
+
+  const where = and(...conditions)
+
+  const [totalResult] = await db
+    .select({ total: count() })
+    .from(product)
+    .innerJoin(shop, eq(product.shopId, shop.id))
+    .leftJoin(categories, eq(product.categoryId, categories.id))
+    .where(where)
+
+  const total = totalResult?.total ?? 0
+
+  const products = await db
+    .select(publicProductColumns)
+    .from(product)
+    .innerJoin(shop, eq(product.shopId, shop.id))
+    .leftJoin(categories, eq(product.categoryId, categories.id))
+    .where(where)
+    .orderBy(desc(product.createdAt))
+    .limit(pageSize)
+    .offset(offset)
+
+  return {
+    products: products as PublicProduct[],
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
+  }
 }
 
 export async function listProductsByShopQuery(shopId: string) {
