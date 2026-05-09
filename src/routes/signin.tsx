@@ -18,21 +18,38 @@ function SignIn() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+
+    const form = e.currentTarget
+    const formEmail = (form.elements.namedItem('email') as HTMLInputElement).value.trim()
+    const formPassword = (form.elements.namedItem('password') as HTMLInputElement).value
+    const formName = isSignUp
+      ? (form.elements.namedItem('name') as HTMLInputElement)?.value.trim() || ''
+      : ''
+
+    // Sync autofill values into state so the UI reflects them
+    setEmail(formEmail)
+    setPassword(formPassword)
+    if (isSignUp) setName(formName)
+
     setError('')
     setLoading(true)
 
     try {
       if (isSignUp) {
-        const result = await authClient.signUp.email({ email, password, name })
+        const result = await authClient.signUp.email({
+          email: formEmail,
+          password: formPassword,
+          name: formName,
+        })
         if (result.error) {
           setError(result.error.message || m.error_sign_up_failed())
         } else {
           router.invalidate()
         }
       } else {
-        const result = await authClient.signIn.email({ email, password })
+        const result = await authClient.signIn.email({ email: formEmail, password: formPassword })
         if (result.error) {
           setError(result.error.message || m.error_sign_in_failed())
         } else {
@@ -65,6 +82,7 @@ function SignIn() {
                 </label>
                 <input
                   id='name'
+                  name='name'
                   type='text'
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -80,6 +98,7 @@ function SignIn() {
               </label>
               <input
                 id='email'
+                name='email'
                 type='email'
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -94,6 +113,7 @@ function SignIn() {
               </label>
               <input
                 id='password'
+                name='password'
                 type='password'
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
