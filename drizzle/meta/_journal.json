@@ -71,6 +71,13 @@
       "when": 1778345729393,
       "tag": "0009_lonely_paper_doll",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1778359711260,
+      "tag": "0010_thick_polaris",
+      "breakpoints": true
     }
   ]
 }

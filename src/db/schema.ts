@@ -167,3 +167,40 @@ export const productImage = pgTable(
     index('product_image_product_id_sort_order_idx').on(table.productId, table.sortOrder),
   ],
 )
+
+export const cart = pgTable(
+  'cart',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
+    sessionId: text('session_id'),
+    expiresAt: timestamp('expires_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('cart_user_id_idx').on(table.userId),
+    index('cart_session_id_idx').on(table.sessionId),
+    index('cart_expires_at_idx').on(table.expiresAt),
+  ],
+)
+
+export const cartItem = pgTable(
+  'cart_item',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    cartId: uuid('cart_id')
+      .notNull()
+      .references(() => cart.id, { onDelete: 'cascade' }),
+    productId: text('product_id')
+      .notNull()
+      .references(() => product.id, { onDelete: 'cascade' }),
+    quantity: integer().notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('cart_item_cart_id_idx').on(table.cartId),
+    uniqueIndex('cart_item_cart_id_product_id_unique').on(table.cartId, table.productId),
+  ],
+)
