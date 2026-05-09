@@ -515,6 +515,18 @@ export async function searchProductsQuery(
   }
 }
 
+export async function listShopsQuery(): Promise<{ id: string; name: string; slug: string }[]> {
+  return db
+    .select({
+      id: shop.id,
+      name: shop.name,
+      slug: shop.slug,
+    })
+    .from(shop)
+    .where(eq(shop.isSuspended, false))
+    .orderBy(shop.name)
+}
+
 export async function createProductInternal(data: {
   name: string
   description?: string

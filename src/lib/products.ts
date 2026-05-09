@@ -179,6 +179,13 @@ export const searchProductsSchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).optional().default(24),
 })
 
+export const listShops = createServerFn({
+  method: 'GET',
+}).handler(async () => {
+  const { listShopsQuery } = await import('./products.server')
+  return listShopsQuery()
+})
+
 export const searchProducts = createServerFn({
   method: 'GET',
 })
