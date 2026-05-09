@@ -319,6 +319,200 @@ describe('POST /api/shops/:shopId/products (create scope)', () => {
   })
 })
 
+describe('PATCH /api/shops/:shopId/products/:productId (update scope)', () => {
+  const makeUpdateProductHandler = (req: Request) => async () => {
+    const body = await req.json().catch(() => ({}))
+    return new Response(JSON.stringify({ message: 'Product updated', data: body }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  it('returns 401 when unauthenticated', async () => {
+    mockGetSession.mockResolvedValue(null)
+
+    const req = new Request('http://localhost/api/shops/shop-1/products/prod-1', {
+      method: 'PATCH',
+      body: JSON.stringify({ name: 'Updated' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const response = await authPipeline(
+      req,
+      [requireRole('creator'), (ctx) => requireShopOwnership(ctx, 'shop-1')],
+      makeUpdateProductHandler(req),
+    )
+
+    expect(response.status).toBe(401)
+  })
+
+  it('returns 403 for customer', async () => {
+    mockGetSession.mockResolvedValue({
+      user: makeUser('customer'),
+      session: makeSession('user-1'),
+    })
+
+    const req = new Request('http://localhost/api/shops/shop-1/products/prod-1', {
+      method: 'PATCH',
+      body: JSON.stringify({ name: 'Updated' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const response = await authPipeline(
+      req,
+      [requireRole('creator'), (ctx) => requireShopOwnership(ctx, 'shop-1')],
+      makeUpdateProductHandler(req),
+    )
+
+    expect(response.status).toBe(403)
+  })
+
+  it('returns 403 for creator without ownership', async () => {
+    mockGetSession.mockResolvedValue({
+      user: makeUser('creator', 'user-2'),
+      session: makeSession('user-2'),
+    })
+    mockFindFirst.mockResolvedValue(undefined)
+
+    const req = new Request('http://localhost/api/shops/shop-1/products/prod-1', {
+      method: 'PATCH',
+      body: JSON.stringify({ name: 'Updated' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const response = await authPipeline(
+      req,
+      [requireRole('creator'), (ctx) => requireShopOwnership(ctx, 'shop-1')],
+      makeUpdateProductHandler(req),
+    )
+
+    expect(response.status).toBe(403)
+  })
+
+  it('returns 200 for creator with ownership', async () => {
+    mockGetSession.mockResolvedValue({
+      user: makeUser('creator', 'user-1'),
+      session: makeSession('user-1'),
+    })
+    mockFindFirst.mockResolvedValue({
+      id: 'shop-1',
+      name: 'Test Shop',
+      description: null,
+      ownerId: 'user-1',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+
+    const req = new Request('http://localhost/api/shops/shop-1/products/prod-1', {
+      method: 'PATCH',
+      body: JSON.stringify({ name: 'Updated' }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+    const response = await authPipeline(
+      req,
+      [requireRole('creator'), (ctx) => requireShopOwnership(ctx, 'shop-1')],
+      makeUpdateProductHandler(req),
+    )
+
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body.message).toBe('Product updated')
+  })
+})
+
+describe('DELETE /api/shops/:shopId/products/:productId (delete scope)', () => {
+  const deleteProductHandler = async () =>
+    new Response(JSON.stringify({ message: 'Product deleted' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+
+  it('returns 401 when unauthenticated', async () => {
+    mockGetSession.mockResolvedValue(null)
+
+    const req = new Request('http://localhost/api/shops/shop-1/products/prod-1?hard=true', {
+      method: 'DELETE',
+    })
+
+    const response = await authPipeline(
+      req,
+      [requireRole('creator'), (ctx) => requireShopOwnership(ctx, 'shop-1')],
+      deleteProductHandler,
+    )
+
+    expect(response.status).toBe(401)
+  })
+
+  it('returns 403 for customer', async () => {
+    mockGetSession.mockResolvedValue({
+      user: makeUser('customer'),
+      session: makeSession('user-1'),
+    })
+
+    const req = new Request('http://localhost/api/shops/shop-1/products/prod-1?hard=true', {
+      method: 'DELETE',
+    })
+
+    const response = await authPipeline(
+      req,
+      [requireRole('creator'), (ctx) => requireShopOwnership(ctx, 'shop-1')],
+      deleteProductHandler,
+    )
+
+    expect(response.status).toBe(403)
+  })
+
+  it('returns 403 for creator without ownership', async () => {
+    mockGetSession.mockResolvedValue({
+      user: makeUser('creator', 'user-2'),
+      session: makeSession('user-2'),
+    })
+    mockFindFirst.mockResolvedValue(undefined)
+
+    const req = new Request('http://localhost/api/shops/shop-1/products/prod-1?hard=true', {
+      method: 'DELETE',
+    })
+
+    const response = await authPipeline(
+      req,
+      [requireRole('creator'), (ctx) => requireShopOwnership(ctx, 'shop-1')],
+      deleteProductHandler,
+    )
+
+    expect(response.status).toBe(403)
+  })
+
+  it('returns 200 for creator with ownership', async () => {
+    mockGetSession.mockResolvedValue({
+      user: makeUser('creator', 'user-1'),
+      session: makeSession('user-1'),
+    })
+    mockFindFirst.mockResolvedValue({
+      id: 'shop-1',
+      name: 'Test Shop',
+      description: null,
+      ownerId: 'user-1',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+
+    const req = new Request('http://localhost/api/shops/shop-1/products/prod-1?hard=true', {
+      method: 'DELETE',
+    })
+
+    const response = await authPipeline(
+      req,
+      [requireRole('creator'), (ctx) => requireShopOwnership(ctx, 'shop-1')],
+      deleteProductHandler,
+    )
+
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body.message).toBe('Product deleted')
+  })
+})
+
 describe('GET /api/shops/:shopId/orders (read scope)', () => {
   const ordersHandler = async () =>
     new Response(JSON.stringify({ message: 'Order list', orders: [] }), {
