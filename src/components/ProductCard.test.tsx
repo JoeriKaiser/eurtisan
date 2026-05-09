@@ -1,9 +1,15 @@
 // @vitest-environment jsdom
 
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { PublicProduct } from '#/lib/products'
 import ProductCard from './ProductCard'
+
+vi.mock('@tanstack/react-router', () => ({
+  Link: (props: { children: React.ReactNode; to: string; className?: string; [key: string]: unknown }) => (
+    <a href={props.to as string} className={props.className} aria-label={props['aria-label'] as string}>{props.children}</a>
+  ),
+}))
 
 function makeProduct(overrides?: Partial<PublicProduct>): PublicProduct {
   return {
@@ -64,8 +70,8 @@ describe('ProductCard', () => {
 
   it('reduces opacity for out-of-stock products', () => {
     const { container } = render(<ProductCard product={makeProduct({ stockCount: 0 })} />)
-    const article = container.querySelector('article')
-    expect(article?.classList.contains('opacity-75')).toBe(true)
+    const link = container.querySelector('a')
+    expect(link?.classList.contains('opacity-75')).toBe(true)
   })
 
   it('does not show out-of-stock badge when stock is positive', () => {

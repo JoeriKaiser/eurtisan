@@ -17,6 +17,7 @@ import { Route as StudioIndexRouteImport } from './routes/studio/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AccountIndexRouteImport } from './routes/account/index'
 import { Route as StudioShopIdRouteImport } from './routes/studio/$shopId'
+import { Route as ProductsProductSlugRouteImport } from './routes/products/$productSlug'
 import { Route as CategorySlugRouteImport } from './routes/category/$slug'
 import { Route as ApiProductsRouteImport } from './routes/api/products'
 import { Route as AccountSettingsRouteImport } from './routes/account/settings'
@@ -65,6 +66,11 @@ const AccountIndexRoute = AccountIndexRouteImport.update({
 const StudioShopIdRoute = StudioShopIdRouteImport.update({
   id: '/studio/$shopId',
   path: '/studio/$shopId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProductsProductSlugRoute = ProductsProductSlugRouteImport.update({
+  id: '/products/$productSlug',
+  path: '/products/$productSlug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CategorySlugRoute = CategorySlugRouteImport.update({
@@ -122,6 +128,7 @@ export interface FileRoutesByFullPath {
   '/account/settings': typeof AccountSettingsRoute
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
+  '/products/$productSlug': typeof ProductsProductSlugRoute
   '/studio/$shopId': typeof StudioShopIdRoute
   '/account/': typeof AccountIndexRoute
   '/admin/': typeof AdminIndexRoute
@@ -141,6 +148,7 @@ export interface FileRoutesByTo {
   '/account/settings': typeof AccountSettingsRoute
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
+  '/products/$productSlug': typeof ProductsProductSlugRoute
   '/studio/$shopId': typeof StudioShopIdRoute
   '/account': typeof AccountIndexRoute
   '/admin': typeof AdminIndexRoute
@@ -161,6 +169,7 @@ export interface FileRoutesById {
   '/account/settings': typeof AccountSettingsRoute
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
+  '/products/$productSlug': typeof ProductsProductSlugRoute
   '/studio/$shopId': typeof StudioShopIdRoute
   '/account/': typeof AccountIndexRoute
   '/admin/': typeof AdminIndexRoute
@@ -182,6 +191,7 @@ export interface FileRouteTypes {
     | '/account/settings'
     | '/api/products'
     | '/category/$slug'
+    | '/products/$productSlug'
     | '/studio/$shopId'
     | '/account/'
     | '/admin/'
@@ -201,6 +211,7 @@ export interface FileRouteTypes {
     | '/account/settings'
     | '/api/products'
     | '/category/$slug'
+    | '/products/$productSlug'
     | '/studio/$shopId'
     | '/account'
     | '/admin'
@@ -220,6 +231,7 @@ export interface FileRouteTypes {
     | '/account/settings'
     | '/api/products'
     | '/category/$slug'
+    | '/products/$productSlug'
     | '/studio/$shopId'
     | '/account/'
     | '/admin/'
@@ -240,6 +252,7 @@ export interface RootRouteChildren {
   AccountSettingsRoute: typeof AccountSettingsRoute
   ApiProductsRoute: typeof ApiProductsRoute
   CategorySlugRoute: typeof CategorySlugRoute
+  ProductsProductSlugRoute: typeof ProductsProductSlugRoute
   StudioShopIdRoute: typeof StudioShopIdRoute
   AccountIndexRoute: typeof AccountIndexRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -307,6 +320,13 @@ declare module '@tanstack/react-router' {
       path: '/studio/$shopId'
       fullPath: '/studio/$shopId'
       preLoaderRoute: typeof StudioShopIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/products/$productSlug': {
+      id: '/products/$productSlug'
+      path: '/products/$productSlug'
+      fullPath: '/products/$productSlug'
+      preLoaderRoute: typeof ProductsProductSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/category/$slug': {
@@ -384,6 +404,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccountSettingsRoute: AccountSettingsRoute,
   ApiProductsRoute: ApiProductsRoute,
   CategorySlugRoute: CategorySlugRoute,
+  ProductsProductSlugRoute: ProductsProductSlugRoute,
   StudioShopIdRoute: StudioShopIdRoute,
   AccountIndexRoute: AccountIndexRoute,
   AdminIndexRoute: AdminIndexRoute,

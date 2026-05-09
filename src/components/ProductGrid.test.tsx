@@ -5,6 +5,12 @@ import { describe, expect, it, vi } from 'vitest'
 import type { PublicProduct } from '#/lib/products'
 import ProductGrid from './ProductGrid'
 
+vi.mock('@tanstack/react-router', () => ({
+  Link: (props: { children: React.ReactNode; to: string; className?: string; [key: string]: unknown }) => (
+    <a href={props.to as string} className={props.className} aria-label={props['aria-label'] as string}>{props.children}</a>
+  ),
+}))
+
 function makeProduct(id: string, overrides?: Partial<PublicProduct>): PublicProduct {
   return {
     id,

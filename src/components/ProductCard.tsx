@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { ImageOff, PackageX, Store } from 'lucide-react'
 import { formatPriceEUR } from '#/lib/pricing'
 import type { PublicProduct } from '#/lib/products'
@@ -12,7 +13,9 @@ export default function ProductCard({ product, imageUrl }: ProductCardProps) {
   const isOutOfStock = product.stockCount <= 0
 
   return (
-    <article
+    <Link
+      to='/products/$productSlug'
+      params={{ productSlug: product.slug }}
       className={`island-shell group relative flex flex-col overflow-hidden rounded-2xl transition hover:border-[color-mix(in_oklab,var(--lagoon-deep)_35%,var(--line))] ${isOutOfStock ? 'opacity-75' : ''}`}
       aria-label={m.product_card_label({ name: product.name })}
     >
@@ -67,6 +70,6 @@ export default function ProductCard({ product, imageUrl }: ProductCardProps) {
           </span>
         </div>
       </div>
-    </article>
+    </Link>
   )
 }
