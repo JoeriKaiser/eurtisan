@@ -422,6 +422,16 @@ export async function searchProductsQuery(
   const trimmedQuery = (query ?? '').trim().slice(0, 100)
   const page = Math.max(1, pagination.page)
   const pageSize = Math.min(100, Math.max(1, pagination.pageSize))
+
+  const { searchProductsMeilisearch } = await import('./meilisearch-products.server')
+  const meiliResult = await searchProductsMeilisearch(trimmedQuery || undefined, filters, sort, {
+    page,
+    pageSize,
+  })
+  if (meiliResult) {
+    return meiliResult
+  }
+
   const offset = (page - 1) * pageSize
 
   const conditions = [eq(shop.isSuspended, false), eq(product.isActive, true)]
@@ -535,6 +545,9 @@ export async function createProductInternal(data: {
       categoryId: data.categoryId ?? null,
     })
     .returning()
+
+  const { syncProductToMeilisearch } = await import('./meilisearch-products.server')
+  await syncProductToMeilisearch(newProduct)
 
   return newProduct
 }

@@ -198,8 +198,8 @@ export async function createProductInternal(data: {
     throw new Error('DUPLICATE_SLUG')
   }
 
-  return db.transaction(async (tx) => {
-    const [newProduct] = await tx
+  const newProduct = await db.transaction(async (tx) => {
+    const [inserted] = await tx
       .insert(product)
       .values({
         id: crypto.randomUUID(),
@@ -215,15 +215,20 @@ export async function createProductInternal(data: {
       .returning()
 
     try {
-      await insertProductImages(tx, newProduct.id, data.images ?? [])
+      await insertProductImages(tx, inserted.id, data.images ?? [])
     } catch (imageErr) {
       // Clean up saved files before re-throwing so the transaction rolls back
-      await deleteProductImages(newProduct.id)
+      await deleteProductImages(inserted.id)
       throw imageErr
     }
 
-    return newProduct
+    return inserted
   })
+
+  const { syncProductToMeilisearch } = await import('./meilisearch-products.server')
+  await syncProductToMeilisearch(newProduct)
+
+  return newProduct
 }
 
 export async function updateProductInternal(data: {
@@ -278,9 +283,9 @@ export async function updateProductInternal(data: {
     oldImageUrls = oldImages.map((i) => i.url)
   }
 
-  return db
+  const updatedProduct = await db
     .transaction(async (tx) => {
-      const [updatedProduct] = await tx
+      const [result] = await tx
         .update(product)
         .set(updateData)
         .where(eq(product.id, data.productId))
@@ -290,9 +295,9 @@ export async function updateProductInternal(data: {
         await replaceProductImages(tx, data.productId, data.images, oldImageUrls)
       }
 
-      return updatedProduct
+      return result
     })
-    .then(async (updatedProduct) => {
+    .then(async (result) => {
       // Transaction committed — safe to delete old files
       for (const url of oldImageUrls) {
         try {
@@ -301,8 +306,13 @@ export async function updateProductInternal(data: {
           // ignore missing files
         }
       }
-      return updatedProduct
+      return result
     })
+
+  const { syncProductToMeilisearch } = await import('./meilisearch-products.server')
+  await syncProductToMeilisearch(updatedProduct)
+
+  return updatedProduct
 }
 
 export async function deleteProductInternal(data: {
@@ -322,13 +332,21 @@ export async function deleteProductInternal(data: {
     // Delete files first so orphaned uploads don't remain if DB delete fails
     await deleteProductImages(data.productId)
     await db.delete(product).where(eq(product.id, data.productId))
+
+    const { removeProductFromMeilisearch } = await import('./meilisearch-products.server')
+    await removeProductFromMeilisearch(data.productId)
+
     return { deleted: true, hard: true }
   }
 
-  await db
+  const [updated] = await db
     .update(product)
     .set({ isActive: false, updatedAt: new Date() })
     .where(eq(product.id, data.productId))
+    .returning()
+
+  const { syncProductToMeilisearch } = await import('./meilisearch-products.server')
+  await syncProductToMeilisearch(updated)
 
   return { deleted: true, hard: false }
 }

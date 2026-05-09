@@ -1394,12 +1394,12 @@ describe('searchProductsQuery', () => {
 
     const [c1] = await db
       .insert(categories)
-      .values({ id: 'cat-1', name: 'Pottery', slug: 'pottery' })
+      .values({ id: '550e8400-e29b-41d4-a716-446655440001', name: 'Pottery', slug: 'pottery' })
       .returning()
 
     const [c2] = await db
       .insert(categories)
-      .values({ id: 'cat-2', name: 'Tableware', slug: 'tableware' })
+      .values({ id: '550e8400-e29b-41d4-a716-446655440002', name: 'Tableware', slug: 'tableware' })
       .returning()
 
     await db.insert(product).values([
