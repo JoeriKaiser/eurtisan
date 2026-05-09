@@ -147,7 +147,7 @@ export const product = pgTable(
       table.isActive,
       table.createdAt,
     ),
-    uniqueIndex('product_slug_unique').on(table.slug),
+    uniqueIndex('product_shop_slug_unique').on(table.shopId, table.slug),
   ],
 )
 

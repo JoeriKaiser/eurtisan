@@ -57,6 +57,13 @@
       "when": 1778319710803,
       "tag": "0007_soft_moondragon",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1778331383731,
+      "tag": "0008_loving_sunset_bain",
+      "breakpoints": true
     }
   ]
 }

@@ -647,7 +647,45 @@ describe('createProductInternal', () => {
     expect(result.priceCents).toBe(2999)
   })
 
-  it('rejects duplicate slug globally', async () => {
+  it('rejects duplicate slug within the same shop', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Test Shop',
+        slug: 'test-shop',
+        ownerId: u.id,
+      })
+      .returning()
+
+    await createProductInternal({
+      name: 'Vase',
+      slug: 'vase',
+      price: '29.99',
+      shopId: s.id,
+    })
+
+    await expect(
+      createProductInternal({
+        name: 'Another Vase',
+        slug: 'vase',
+        price: '39.99',
+        shopId: s.id,
+      }),
+    ).rejects.toThrow('A product with slug "vase" already exists in this shop')
+  })
+
+  it('allows same slug in different shops', async () => {
     const [u] = await db
       .insert(user)
       .values({
@@ -685,14 +723,15 @@ describe('createProductInternal', () => {
       shopId: s1.id,
     })
 
-    await expect(
-      createProductInternal({
-        name: 'Another Vase',
-        slug: 'vase',
-        price: '39.99',
-        shopId: s2.id,
-      }),
-    ).rejects.toThrow('A product with slug "vase" already exists')
+    const result = await createProductInternal({
+      name: 'Another Vase',
+      slug: 'vase',
+      price: '39.99',
+      shopId: s2.id,
+    })
+
+    expect(result.slug).toBe('vase')
+    expect(result.shopId).toBe(s2.id)
   })
 })
 
@@ -705,7 +744,49 @@ describe('product database constraints', () => {
     await db.delete(user)
   })
 
-  it('enforces unique slug globally', async () => {
+  it('enforces unique slug within the same shop', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Test Shop',
+        slug: 'test-shop',
+        ownerId: u.id,
+      })
+      .returning()
+
+    await db.insert(product).values({
+      id: 'prod-1',
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 2999,
+      shopId: s.id,
+    })
+
+    await expect(
+      (async () => {
+        await db.insert(product).values({
+          id: 'prod-2',
+          name: 'Another Vase',
+          slug: 'vase',
+          priceCents: 3999,
+          shopId: s.id,
+        })
+      })(),
+    ).rejects.toThrow()
+  })
+
+  it('allows duplicate slug across different shops at database level', async () => {
     const [u] = await db
       .insert(user)
       .values({
@@ -744,16 +825,19 @@ describe('product database constraints', () => {
       shopId: s1.id,
     })
 
-    await expect(
-      (async () => {
-        await db.insert(product).values({
-          id: 'prod-2',
-          name: 'Another Vase',
-          slug: 'vase',
-          priceCents: 3999,
-          shopId: s2.id,
-        })
-      })(),
-    ).rejects.toThrow()
+    const result = await db
+      .insert(product)
+      .values({
+        id: 'prod-2',
+        name: 'Another Vase',
+        slug: 'vase',
+        priceCents: 3999,
+        shopId: s2.id,
+      })
+      .returning()
+
+    expect(result).toHaveLength(1)
+    expect(result[0].slug).toBe('vase')
+    expect(result[0].shopId).toBe(s2.id)
   })
 })

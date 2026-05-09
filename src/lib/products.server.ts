@@ -231,10 +231,14 @@ export async function createProductInternal(data: {
   shopId: string
   categoryId?: string
 }) {
-  const existing = await db.select().from(product).where(eq(product.slug, data.slug)).limit(1)
+  const existing = await db
+    .select()
+    .from(product)
+    .where(and(eq(product.slug, data.slug), eq(product.shopId, data.shopId)))
+    .limit(1)
 
   if (existing.length > 0) {
-    throw new Error(`A product with slug "${data.slug}" already exists`)
+    throw new Error(`A product with slug "${data.slug}" already exists in this shop`)
   }
 
   const [newProduct] = await db
