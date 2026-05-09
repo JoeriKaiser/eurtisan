@@ -1,8 +1,8 @@
 import { ImageOff, Minus, PackageCheck, PackageX, Plus, ShoppingCart, Store } from 'lucide-react'
 import { useState } from 'react'
 import { formatPriceEUR } from '#/lib/pricing'
-import { m } from '#/paraglide/messages'
 import type { ProductDetail } from '#/lib/products.server'
+import { m } from '#/paraglide/messages'
 
 export interface ProductDetailProps {
   product: ProductDetail
@@ -45,7 +45,11 @@ export default function ProductDetail({ product }: ProductDetailProps) {
                   className='rounded-full bg-[var(--surface-strong)] px-4 py-2 text-sm font-semibold text-[var(--sea-ink)] shadow-sm'
                   role='status'
                 >
-                  <PackageX size={16} className='inline align-text-bottom mr-1' aria-hidden='true' />
+                  <PackageX
+                    size={16}
+                    className='inline align-text-bottom mr-1'
+                    aria-hidden='true'
+                  />
                   {m.product_out_of_stock()}
                 </span>
               </div>
@@ -54,7 +58,11 @@ export default function ProductDetail({ product }: ProductDetailProps) {
 
           {/* Thumbnails */}
           {product.images.length > 1 && (
-            <div className='mt-4 flex gap-2 overflow-x-auto pb-1' role='tablist' aria-label={m.product_gallery_label()}>
+            <div
+              className='mt-4 flex gap-2 overflow-x-auto pb-1'
+              role='tablist'
+              aria-label={m.product_gallery_label()}
+            >
               {product.images.map((image, index) => (
                 <button
                   key={image.id}
@@ -87,7 +95,9 @@ export default function ProductDetail({ product }: ProductDetailProps) {
         {/* Right column: product info */}
         <div className='space-y-6'>
           <section className='island-shell rounded-2xl p-6 sm:p-8'>
-            <p className='island-kicker mb-2'>{product.categoryName ?? m.product_uncategorized()}</p>
+            <p className='island-kicker mb-2'>
+              {product.categoryName ?? m.product_uncategorized()}
+            </p>
             <h1 className='display-title mb-3 text-3xl font-bold text-[var(--sea-ink)] sm:text-4xl'>
               {product.name}
             </h1>

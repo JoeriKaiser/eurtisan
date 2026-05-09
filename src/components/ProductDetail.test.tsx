@@ -2,8 +2,8 @@
 
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import ProductDetail from './ProductDetail'
 import type { ProductDetail as ProductDetailType } from '#/lib/products.server'
+import ProductDetail from './ProductDetail'
 
 function makeProduct(overrides?: Partial<ProductDetailType>): ProductDetailType {
   return {

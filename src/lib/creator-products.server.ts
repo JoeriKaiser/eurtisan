@@ -1,14 +1,31 @@
+import { rm } from 'node:fs/promises'
+import { join } from 'node:path'
 import { createServerFn } from '@tanstack/react-start'
 import { and, count, desc, eq, sql } from 'drizzle-orm'
 import z from 'zod'
-
 import { db } from '#/db/index'
 import { categories, product, productImage, shop } from '#/db/schema'
 import { authMiddleware } from './auth-middleware'
+import {
+  deleteProductImages,
+  type ProductImageInput,
+  sanitizeDescription,
+  saveProductImages,
+} from './image-utils'
 
 /* -------------------------------------------------------------------------- */
 /*                                   Schemas                                  */
 /* -------------------------------------------------------------------------- */
+
+const productImageInputSchema = z.object({
+  dataUrl: z
+    .string()
+    .min(1)
+    .regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/, {
+      message: 'Invalid image data URL format',
+    }),
+  altText: z.string().max(500).optional(),
+})
 
 export const createProductSchema = z.object({
   name: z.string().min(1).max(100),
@@ -23,11 +40,13 @@ export const createProductSchema = z.object({
   priceCents: z.number().int().positive(),
   stockCount: z.number().int().min(0).default(0),
   categoryId: z.string().uuid().optional(),
+  images: z.array(productImageInputSchema).max(10).optional().default([]),
 })
 
 export const updateProductSchema = createProductSchema.partial().extend({
   productId: z.string().min(1),
   shopId: z.string().min(1),
+  images: z.array(productImageInputSchema).max(10).optional(),
 })
 
 export const deleteProductSchema = z.object({
@@ -104,6 +123,57 @@ export async function validateCategory(categoryId: string | undefined) {
   return !!categoryRecord
 }
 
+async function insertProductImages(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  productId: string,
+  images: ProductImageInput[],
+) {
+  if (images.length === 0) return []
+
+  const saved = await saveProductImages(productId, images)
+
+  const values = saved.map((img) => ({
+    id: crypto.randomUUID(),
+    productId,
+    url: img.url,
+    altText: img.altText ?? null,
+    sortOrder: img.sortOrder,
+  }))
+
+  await tx.insert(productImage).values(values)
+  return values
+}
+
+async function replaceProductImages(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  productId: string,
+  images: ProductImageInput[],
+  oldImageUrls: string[],
+) {
+  if (images.length === 0) {
+    await tx.delete(productImage).where(eq(productImage.productId, productId))
+    return { values: [], oldImageUrls }
+  }
+
+  // 1. Save new files first (UUID-based names — never conflict with old files)
+  const saved = await saveProductImages(productId, images)
+
+  // 2. Delete old DB records
+  await tx.delete(productImage).where(eq(productImage.productId, productId))
+
+  // 3. Insert new DB records
+  const values = saved.map((img) => ({
+    id: crypto.randomUUID(),
+    productId,
+    url: img.url,
+    altText: img.altText ?? null,
+    sortOrder: img.sortOrder,
+  }))
+
+  await tx.insert(productImage).values(values)
+  return { values, oldImageUrls }
+}
+
 /* -------------------------------------------------------------------------- */
 /*                             Internal Queries                               */
 /* -------------------------------------------------------------------------- */
@@ -116,6 +186,7 @@ export async function createProductInternal(data: {
   stockCount: number
   shopId: string
   categoryId?: string
+  images?: ProductImageInput[]
 }) {
   const categoryValid = await validateCategory(data.categoryId)
   if (!categoryValid) {
@@ -127,22 +198,32 @@ export async function createProductInternal(data: {
     throw new Error('DUPLICATE_SLUG')
   }
 
-  const [newProduct] = await db
-    .insert(product)
-    .values({
-      id: crypto.randomUUID(),
-      name: data.name.trim(),
-      description: data.description?.trim() ?? null,
-      slug: data.slug.trim(),
-      priceCents: data.priceCents,
-      stockCount: data.stockCount,
-      shopId: data.shopId,
-      categoryId: data.categoryId ?? null,
-      isActive: true,
-    })
-    .returning()
+  return db.transaction(async (tx) => {
+    const [newProduct] = await tx
+      .insert(product)
+      .values({
+        id: crypto.randomUUID(),
+        name: data.name.trim(),
+        description: sanitizeDescription(data.description),
+        slug: data.slug.trim(),
+        priceCents: data.priceCents,
+        stockCount: data.stockCount,
+        shopId: data.shopId,
+        categoryId: data.categoryId ?? null,
+        isActive: true,
+      })
+      .returning()
 
-  return newProduct
+    try {
+      await insertProductImages(tx, newProduct.id, data.images ?? [])
+    } catch (imageErr) {
+      // Clean up saved files before re-throwing so the transaction rolls back
+      await deleteProductImages(newProduct.id)
+      throw imageErr
+    }
+
+    return newProduct
+  })
 }
 
 export async function updateProductInternal(data: {
@@ -155,6 +236,7 @@ export async function updateProductInternal(data: {
   priceCents?: number
   stockCount?: number
   categoryId?: string
+  images?: ProductImageInput[]
 }) {
   const productRecord = await verifyProductOwnership(data.productId, data.userId)
 
@@ -180,19 +262,47 @@ export async function updateProductInternal(data: {
   }
 
   if (data.name !== undefined) updateData.name = data.name.trim()
-  if (data.description !== undefined) updateData.description = data.description?.trim() ?? null
+  if (data.description !== undefined) updateData.description = sanitizeDescription(data.description)
   if (data.slug !== undefined) updateData.slug = data.slug.trim()
   if (data.priceCents !== undefined) updateData.priceCents = data.priceCents
   if (data.stockCount !== undefined) updateData.stockCount = data.stockCount
   if (data.categoryId !== undefined) updateData.categoryId = data.categoryId ?? null
 
-  const [updatedProduct] = await db
-    .update(product)
-    .set(updateData)
-    .where(eq(product.id, data.productId))
-    .returning()
+  // Remember old image URLs so we can clean up files after a successful commit
+  let oldImageUrls: string[] = []
+  if (data.images !== undefined) {
+    const oldImages = await db
+      .select({ url: productImage.url })
+      .from(productImage)
+      .where(eq(productImage.productId, data.productId))
+    oldImageUrls = oldImages.map((i) => i.url)
+  }
 
-  return updatedProduct
+  return db
+    .transaction(async (tx) => {
+      const [updatedProduct] = await tx
+        .update(product)
+        .set(updateData)
+        .where(eq(product.id, data.productId))
+        .returning()
+
+      if (data.images !== undefined) {
+        await replaceProductImages(tx, data.productId, data.images, oldImageUrls)
+      }
+
+      return updatedProduct
+    })
+    .then(async (updatedProduct) => {
+      // Transaction committed — safe to delete old files
+      for (const url of oldImageUrls) {
+        try {
+          await rm(join(process.cwd(), 'public', url), { force: true })
+        } catch {
+          // ignore missing files
+        }
+      }
+      return updatedProduct
+    })
 }
 
 export async function deleteProductInternal(data: {
@@ -209,6 +319,8 @@ export async function deleteProductInternal(data: {
   }
 
   if (data.hard) {
+    // Delete files first so orphaned uploads don't remain if DB delete fails
+    await deleteProductImages(data.productId)
     await db.delete(product).where(eq(product.id, data.productId))
     return { deleted: true, hard: true }
   }

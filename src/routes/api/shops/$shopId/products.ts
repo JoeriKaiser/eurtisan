@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { authPipeline, requireRole, requireShopOwnership } from '#/lib/authz'
 import { createProduct, listCreatorProducts } from '#/lib/creator-products.server'
+import { ImageValidationError } from '#/lib/image-utils'
 
 export const Route = createFileRoute('/api/shops/$shopId/products')({
   server: {
@@ -97,7 +98,7 @@ export const Route = createFileRoute('/api/shops/$shopId/products')({
                     },
                   )
                 }
-                if (err.message.includes('Invalid')) {
+                if (err instanceof ImageValidationError || err.message.includes('Invalid')) {
                   return new Response(
                     JSON.stringify({
                       error: 'Bad Request',

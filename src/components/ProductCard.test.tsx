@@ -6,8 +6,19 @@ import type { PublicProduct } from '#/lib/products'
 import ProductCard from './ProductCard'
 
 vi.mock('@tanstack/react-router', () => ({
-  Link: (props: { children: React.ReactNode; to: string; className?: string; [key: string]: unknown }) => (
-    <a href={props.to as string} className={props.className} aria-label={props['aria-label'] as string}>{props.children}</a>
+  Link: (props: {
+    children: React.ReactNode
+    to: string
+    className?: string
+    [key: string]: unknown
+  }) => (
+    <a
+      href={props.to as string}
+      className={props.className}
+      aria-label={props['aria-label'] as string}
+    >
+      {props.children}
+    </a>
   ),
 }))
 
