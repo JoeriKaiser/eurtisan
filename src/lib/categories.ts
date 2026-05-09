@@ -91,15 +91,12 @@ export const createCategory = createServerFn({
     }
 
     if (data.parentId) {
-      const [parent] = await db
-        .select()
-        .from(categories)
-        .where(eq(categories.id, data.parentId))
+      const [parent] = await db.select().from(categories).where(eq(categories.id, data.parentId))
       if (!parent) {
-        throw new Response(
-          JSON.stringify({ error: 'Parent category not found' }),
-          { status: 400, headers: { 'Content-Type': 'application/json' } },
-        )
+        throw new Response(JSON.stringify({ error: 'Parent category not found' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        })
       }
     }
 
@@ -182,10 +179,7 @@ export async function getCategoryBySlugQuery(slug: string): Promise<CategoryWith
   const [category] = await db.select().from(categories).where(eq(categories.slug, slug))
   if (!category) return null
 
-  const children = await db
-    .select()
-    .from(categories)
-    .where(eq(categories.parentId, category.id))
+  const children = await db.select().from(categories).where(eq(categories.parentId, category.id))
 
   const descendantIds = await getDescendantCategoryIds(category.id)
   const productCountResult = await db
@@ -222,34 +216,28 @@ export async function updateCategoryInternal(
     throw new Error('Unauthorized: admin access required')
   }
 
-  const [existing] = await db
-    .select()
-    .from(categories)
-    .where(eq(categories.id, data.id))
+  const [existing] = await db.select().from(categories).where(eq(categories.id, data.id))
 
   if (!existing) {
-    throw new Response(
-      JSON.stringify({ error: 'Not Found', message: 'Category not found' }),
-      { status: 404, headers: { 'Content-Type': 'application/json' } },
-    )
+    throw new Response(JSON.stringify({ error: 'Not Found', message: 'Category not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
 
   if (data.parentId !== undefined && data.parentId !== null) {
     if (await detectCircularReference(data.id, data.parentId)) {
-      throw new Response(
-        JSON.stringify({ error: 'Circular parent reference detected' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } },
-      )
+      throw new Response(JSON.stringify({ error: 'Circular parent reference detected' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      })
     }
   }
 
   const slug = data.slug ? sanitizeSlug(data.slug) : undefined
 
   if (slug !== undefined) {
-    const slugExists = await db
-      .select()
-      .from(categories)
-      .where(eq(categories.slug, slug))
+    const slugExists = await db.select().from(categories).where(eq(categories.slug, slug))
     if (slugExists.some((c) => c.id !== data.id)) {
       throw new Response(
         JSON.stringify({
@@ -296,16 +284,13 @@ export async function deleteCategoryInternal(
     throw new Error('Unauthorized: admin access required')
   }
 
-  const [existing] = await db
-    .select()
-    .from(categories)
-    .where(eq(categories.id, data.id))
+  const [existing] = await db.select().from(categories).where(eq(categories.id, data.id))
 
   if (!existing) {
-    throw new Response(
-      JSON.stringify({ error: 'Not Found', message: 'Category not found' }),
-      { status: 404, headers: { 'Content-Type': 'application/json' } },
-    )
+    throw new Response(JSON.stringify({ error: 'Not Found', message: 'Category not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
 
   const descendantIds = await getDescendantCategoryIds(data.id)

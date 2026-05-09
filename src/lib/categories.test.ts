@@ -164,7 +164,7 @@ describe('buildCategoryTree', () => {
       { id: '1', name: 'Root', slug: 'root', parentId: null, createdAt: null },
       { id: '2', name: 'Child', slug: 'child', parentId: '1', createdAt: null },
       { id: '3', name: 'Grandchild', slug: 'grandchild', parentId: '2', createdAt: null },
-    ] as typeof categories.$inferSelect[]
+    ] as (typeof categories.$inferSelect)[]
 
     const tree = buildCategoryTree(flat)
 
@@ -180,7 +180,7 @@ describe('buildCategoryTree', () => {
     const flat = [
       { id: '1', name: 'Root A', slug: 'root-a', parentId: null, createdAt: null },
       { id: '2', name: 'Root B', slug: 'root-b', parentId: null, createdAt: null },
-    ] as typeof categories.$inferSelect[]
+    ] as (typeof categories.$inferSelect)[]
 
     const tree = buildCategoryTree(flat)
 
@@ -197,7 +197,7 @@ describe('buildCategoryTree', () => {
     const flat = [
       { id: '1', name: 'Root', slug: 'root', parentId: null, createdAt: null },
       { id: '2', name: 'Orphan', slug: 'orphan', parentId: '999', createdAt: null },
-    ] as typeof categories.$inferSelect[]
+    ] as (typeof categories.$inferSelect)[]
 
     const tree = buildCategoryTree(flat)
 
@@ -234,10 +234,7 @@ describe('listCategories', () => {
 
 describe('listCategoryTreeQuery', () => {
   it('returns a tree of categories', async () => {
-    const [root] = await db
-      .insert(categories)
-      .values({ name: 'Root', slug: 'root' })
-      .returning()
+    const [root] = await db.insert(categories).values({ name: 'Root', slug: 'root' }).returning()
     const [child] = await db
       .insert(categories)
       .values({ name: 'Child', slug: 'child', parentId: root.id })
@@ -265,10 +262,7 @@ describe('listCategoryTreeQuery', () => {
 
 describe('getCategoryBySlugQuery', () => {
   it('returns category with children and product count', async () => {
-    const [root] = await db
-      .insert(categories)
-      .values({ name: 'Root', slug: 'root' })
-      .returning()
+    const [root] = await db.insert(categories).values({ name: 'Root', slug: 'root' }).returning()
     await db
       .insert(categories)
       .values({ name: 'Child', slug: 'child', parentId: root.id })
@@ -393,10 +387,7 @@ describe('getCategoryBySlugQuery', () => {
   })
 
   it('returns breadcrumbs for nested category', async () => {
-    const [root] = await db
-      .insert(categories)
-      .values({ name: 'Root', slug: 'root' })
-      .returning()
+    const [root] = await db.insert(categories).values({ name: 'Root', slug: 'root' }).returning()
     const [child] = await db
       .insert(categories)
       .values({ name: 'Child', slug: 'child', parentId: root.id })
@@ -453,10 +444,7 @@ describe('getDescendantCategoryIds', () => {
 
 describe('getCategoryBreadcrumbs', () => {
   it('returns ancestor chain in root-to-current order', async () => {
-    const [root] = await db
-      .insert(categories)
-      .values({ name: 'Root', slug: 'root' })
-      .returning()
+    const [root] = await db.insert(categories).values({ name: 'Root', slug: 'root' }).returning()
     const [child] = await db
       .insert(categories)
       .values({ name: 'Child', slug: 'child', parentId: root.id })
@@ -474,10 +462,7 @@ describe('getCategoryBreadcrumbs', () => {
   })
 
   it('returns empty array for root category', async () => {
-    const [root] = await db
-      .insert(categories)
-      .values({ name: 'Root', slug: 'root' })
-      .returning()
+    const [root] = await db.insert(categories).values({ name: 'Root', slug: 'root' }).returning()
 
     const breadcrumbs = await getCategoryBreadcrumbs(root.id)
 
@@ -487,10 +472,7 @@ describe('getCategoryBreadcrumbs', () => {
 
 describe('detectCircularReference', () => {
   it('detects direct self-reference', async () => {
-    const [cat] = await db
-      .insert(categories)
-      .values({ name: 'A', slug: 'a' })
-      .returning()
+    const [cat] = await db.insert(categories).values({ name: 'A', slug: 'a' }).returning()
 
     const result = await detectCircularReference(cat.id, cat.id)
     expect(result).toBe(true)
@@ -569,15 +551,9 @@ describe('category update operations', () => {
       .insert(categories)
       .values({ name: 'Parent', slug: 'parent' })
       .returning()
-    const [child] = await db
-      .insert(categories)
-      .values({ name: 'Child', slug: 'child' })
-      .returning()
+    const [child] = await db.insert(categories).values({ name: 'Child', slug: 'child' }).returning()
 
-    await db
-      .update(categories)
-      .set({ parentId: parent.id })
-      .where(eq(categories.id, child.id))
+    await db.update(categories).set({ parentId: parent.id }).where(eq(categories.id, child.id))
 
     const [updated] = await db.select().from(categories).where(eq(categories.id, child.id))
     expect(updated.parentId).toBe(parent.id)
@@ -886,8 +862,7 @@ describe('updateCategoryInternal', () => {
 describe('deleteCategoryInternal', () => {
   it('rejects unauthenticated user', async () => {
     await expect(
-      (async () =>
-        deleteCategoryInternal(null, { id: '550e8400-e29b-41d4-a716-446655440000' }))(),
+      (async () => deleteCategoryInternal(null, { id: '550e8400-e29b-41d4-a716-446655440000' }))(),
     ).rejects.toThrow('Unauthorized: admin access required')
   })
 
