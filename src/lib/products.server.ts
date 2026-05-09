@@ -2,6 +2,14 @@ import { and, eq } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { categories, product, shop } from '#/db/schema'
 
+function parsePriceToCents(price: string): number {
+  const parsed = parseFloat(price.trim())
+  if (Number.isNaN(parsed) || parsed < 0) {
+    throw new Error('Invalid price value')
+  }
+  return Math.round(parsed * 100)
+}
+
 export async function listProductsByShopQuery(shopId: string) {
   return db.select().from(product).where(eq(product.shopId, shopId))
 }
@@ -19,7 +27,7 @@ export async function listProductsByCategorySlugQuery(slug: string) {
       name: product.name,
       description: product.description,
       slug: product.slug,
-      price: product.price,
+      priceCents: product.priceCents,
       shopId: product.shopId,
       categoryId: product.categoryId,
       createdAt: product.createdAt,
@@ -30,7 +38,13 @@ export async function listProductsByCategorySlugQuery(slug: string) {
     .from(product)
     .innerJoin(categories, eq(product.categoryId, categories.id))
     .innerJoin(shop, eq(product.shopId, shop.id))
-    .where(eq(product.categoryId, category[0].id))
+    .where(
+      and(
+        eq(product.categoryId, category[0].id),
+        eq(shop.isSuspended, false),
+        eq(product.isActive, true),
+      ),
+    )
 }
 
 export async function getProductBySlugQuery(shopId: string, slug: string) {
@@ -40,7 +54,7 @@ export async function getProductBySlugQuery(shopId: string, slug: string) {
       name: product.name,
       description: product.description,
       slug: product.slug,
-      price: product.price,
+      priceCents: product.priceCents,
       shopId: product.shopId,
       categoryId: product.categoryId,
       createdAt: product.createdAt,
@@ -48,8 +62,16 @@ export async function getProductBySlugQuery(shopId: string, slug: string) {
       categoryName: categories.name,
     })
     .from(product)
+    .innerJoin(shop, eq(product.shopId, shop.id))
     .leftJoin(categories, eq(product.categoryId, categories.id))
-    .where(and(eq(product.shopId, shopId), eq(product.slug, slug)))
+    .where(
+      and(
+        eq(product.shopId, shopId),
+        eq(product.slug, slug),
+        eq(shop.isSuspended, false),
+        eq(product.isActive, true),
+      ),
+    )
     .limit(1)
 
   return result ?? null
@@ -80,7 +102,7 @@ export async function createProductInternal(data: {
       name: data.name.trim(),
       description: data.description?.trim() ?? null,
       slug: data.slug.trim(),
-      price: data.price.trim(),
+      priceCents: parsePriceToCents(data.price),
       shopId: data.shopId,
       categoryId: data.categoryId ?? null,
     })

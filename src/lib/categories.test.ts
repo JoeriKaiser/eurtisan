@@ -311,7 +311,7 @@ describe('getCategoryBySlugQuery', () => {
       id: 'prod-1',
       name: 'Vase',
       slug: 'vase',
-      price: '29.99',
+      priceCents: 2999,
       shopId: s.id,
       categoryId: cat.id,
     })
@@ -320,7 +320,7 @@ describe('getCategoryBySlugQuery', () => {
       id: 'prod-2',
       name: 'Bowl',
       slug: 'bowl',
-      price: '19.99',
+      priceCents: 1999,
       shopId: s.id,
       categoryId: cat.id,
     })
@@ -367,7 +367,7 @@ describe('getCategoryBySlugQuery', () => {
       id: 'prod-1',
       name: 'Vase',
       slug: 'vase',
-      price: '29.99',
+      priceCents: 2999,
       shopId: s.id,
       categoryId: parent.id,
     })
@@ -376,7 +376,7 @@ describe('getCategoryBySlugQuery', () => {
       id: 'prod-2',
       name: 'Tall Vase',
       slug: 'tall-vase',
-      price: '39.99',
+      priceCents: 3999,
       shopId: s.id,
       categoryId: child.id,
     })
@@ -634,7 +634,7 @@ describe('category delete operations', () => {
       id: 'prod-1',
       name: 'Vase',
       slug: 'vase',
-      price: '29.99',
+      priceCents: 2999,
       shopId: s.id,
       categoryId: cat.id,
     })
@@ -684,7 +684,7 @@ describe('category delete operations', () => {
       id: 'prod-1',
       name: 'Vase',
       slug: 'vase',
-      price: '29.99',
+      priceCents: 2999,
       shopId: s.id,
       categoryId: child.id,
     })
@@ -729,7 +729,7 @@ describe('category delete operations', () => {
       id: 'prod-1',
       name: 'Vase',
       slug: 'vase',
-      price: '29.99',
+      priceCents: 2999,
       shopId: s.id,
       categoryId: cat.id,
     })
@@ -919,7 +919,7 @@ describe('deleteCategoryInternal', () => {
       id: 'prod-1',
       name: 'Vase',
       slug: 'vase',
-      price: '29.99',
+      priceCents: 2999,
       shopId: s.id,
       categoryId: cat.id,
     })
@@ -968,7 +968,7 @@ describe('deleteCategoryInternal', () => {
       id: 'prod-1',
       name: 'Vase',
       slug: 'vase',
-      price: '29.99',
+      priceCents: 2999,
       shopId: s.id,
       categoryId: child.id,
     })

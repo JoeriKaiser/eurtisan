@@ -3,6 +3,13 @@ import { getCategoryBySlug } from '#/lib/categories'
 import { listProductsByCategorySlug } from '#/lib/products'
 import { m } from '#/paraglide/messages'
 
+function formatPrice(cents: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'EUR',
+  }).format(cents / 100)
+}
+
 export const Route = createFileRoute('/category/$slug')({
   loader: async ({ params }) => {
     const category = await getCategoryBySlug({ data: { slug: params.slug } })
@@ -100,7 +107,7 @@ function CategoryPage() {
                     </p>
                     <div className='flex items-center justify-between'>
                       <span className='text-sm font-medium text-[var(--sea-ink)]'>
-                        {product.price}
+                        {formatPrice(product.priceCents)}
                       </span>
                       <span className='rounded-full bg-[var(--chip-bg)] px-2 py-1 text-xs text-[var(--sea-ink-soft)]'>
                         {product.categoryName}

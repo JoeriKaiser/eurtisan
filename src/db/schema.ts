@@ -2,6 +2,7 @@ import {
   boolean,
   foreignKey,
   index,
+  integer,
   pgEnum,
   pgTable,
   serial,
@@ -86,6 +87,7 @@ export const shop = pgTable(
     ownerId: text()
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
+    isSuspended: boolean('is_suspended').notNull().default(false),
     createdAt: timestamp().notNull().defaultNow(),
     updatedAt: timestamp().notNull().defaultNow(),
   },
@@ -127,7 +129,9 @@ export const product = pgTable(
     name: text().notNull(),
     description: text(),
     slug: text().notNull(),
-    price: text().notNull().default('0'),
+    priceCents: integer('price_cents').notNull().default(0),
+    stockCount: integer('stock_count').notNull().default(0),
+    isActive: boolean('is_active').notNull().default(true),
     shopId: text('shop_id')
       .notNull()
       .references(() => shop.id, { onDelete: 'cascade' }),
@@ -138,6 +142,23 @@ export const product = pgTable(
   (table) => [
     index('product_shop_id_idx').on(table.shopId),
     index('product_category_id_idx').on(table.categoryId),
+    index('product_category_is_active_created_at_idx').on(table.categoryId, table.isActive, table.createdAt),
     uniqueIndex('product_shop_slug_unique').on(table.shopId, table.slug),
+  ],
+)
+
+export const productImage = pgTable(
+  'product_image',
+  {
+    id: text().primaryKey(),
+    productId: text('product_id')
+      .notNull()
+      .references(() => product.id, { onDelete: 'cascade' }),
+    url: text().notNull(),
+    altText: text('alt_text'),
+    sortOrder: integer('sort_order').notNull().default(0),
+  },
+  (table) => [
+    index('product_image_product_id_sort_order_idx').on(table.productId, table.sortOrder),
   ],
 )
