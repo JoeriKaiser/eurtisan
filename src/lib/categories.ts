@@ -27,7 +27,13 @@ export type CategoryTreeNode = {
 }
 
 export function buildCategoryTree(
-  flatCategories: { id: string; name: string; slug: string; parentId: string | null; createdAt: Date | null }[],
+  flatCategories: {
+    id: string
+    name: string
+    slug: string
+    parentId: string | null
+    createdAt: Date | null
+  }[],
 ): CategoryTreeNode[] {
   const map = new Map<string, CategoryTreeNode>()
 
@@ -118,7 +124,13 @@ export type CategoryWithDetails = {
   slug: string
   parentId: string | null
   createdAt: Date | null
-  children: { id: string; name: string; slug: string; parentId: string | null; createdAt: Date | null }[]
+  children: {
+    id: string
+    name: string
+    slug: string
+    parentId: string | null
+    createdAt: Date | null
+  }[]
   productCount: number
   breadcrumbs: { id: string; name: string; slug: string }[]
 }

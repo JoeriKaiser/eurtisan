@@ -4,7 +4,7 @@ export default function Footer() {
   const year = new Date().getFullYear()
 
   return (
-    <footer className='mt-20 border-t border-[var(--line)] px-4 pb-14 pt-10 text-[var(--sea-ink-soft)]'>
+    <footer className='site-footer mt-20 px-4 pb-14 pt-10 text-text-secondary'>
       <div className='page-wrap flex flex-col items-center justify-between gap-4 text-center sm:flex-row sm:text-left'>
         <p className='m-0 text-sm'>{m.footer_copyright({ year: year.toString() })}</p>
         <p className='island-kicker m-0'>{m.footer_built_with()}</p>
@@ -14,7 +14,7 @@ export default function Footer() {
           href='https://x.com/tan_stack'
           target='_blank'
           rel='noreferrer'
-          className='rounded-xl p-2 text-[var(--sea-ink-soft)] transition hover:bg-[var(--link-bg-hover)] hover:text-[var(--sea-ink)]'
+          className='rounded-xl p-2 text-text-secondary transition-colors duration-fast ease-out hover:bg-bg-inset hover:text-text-primary'
         >
           <span className='sr-only'>{m.sr_follow_x()}</span>
           <svg viewBox='0 0 16 16' aria-hidden='true' width='32' height='32'>
@@ -28,7 +28,7 @@ export default function Footer() {
           href='https://github.com/TanStack'
           target='_blank'
           rel='noreferrer'
-          className='rounded-xl p-2 text-[var(--sea-ink-soft)] transition hover:bg-[var(--link-bg-hover)] hover:text-[var(--sea-ink)]'
+          className='rounded-xl p-2 text-text-secondary transition-colors duration-fast ease-out hover:bg-bg-inset hover:text-text-primary'
         >
           <span className='sr-only'>{m.sr_github()}</span>
           <svg viewBox='0 0 16 16' aria-hidden='true' width='32' height='32'>

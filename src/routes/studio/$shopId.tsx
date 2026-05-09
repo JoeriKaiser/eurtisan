@@ -13,10 +13,10 @@ function ShopDashboard() {
   return (
     <main className='page-wrap px-4 py-12'>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
-        <h1 className='display-title mb-4 text-3xl font-bold text-[var(--sea-ink)]'>
+        <h1 className='display-title mb-4 text-3xl font-bold text-text-primary'>
           {m.studio_title()}
         </h1>
-        <p className='text-[var(--sea-ink-soft)]'>
+        <p className='text-text-secondary'>
           Shop dashboard for{' '}
           <code className='rounded bg-neutral-100 px-1 py-0.5 text-sm dark:bg-neutral-800'>
             {shopId}

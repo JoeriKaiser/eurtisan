@@ -2,14 +2,14 @@ import { getLocale, locales, setLocale } from '#/paraglide/runtime'
 
 export default function LocaleSwitcher() {
   return (
-    <div className='fixed bottom-4 right-4 z-50 flex items-center gap-1 rounded-full border border-[var(--chip-line)] bg-[var(--chip-bg)] px-2 py-1 shadow-[0_8px_24px_rgba(30,90,72,0.08)]'>
+    <div className='fixed bottom-4 right-4 z-50 flex items-center gap-1 rounded-full border border-border-default bg-surface-default px-2 py-1 shadow-sm'>
       {locales.map((locale) => (
         <button
           key={locale}
           type='button'
           onClick={() => setLocale(locale)}
           data-active-locale={locale === getLocale()}
-          className='rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-[var(--sea-ink-soft)] transition hover:bg-[var(--link-bg-hover)] hover:text-[var(--sea-ink)] data-[active-locale=true]:bg-[var(--sea-ink)] data-[active-locale=true]:text-white'
+          className='rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-wide text-text-secondary transition hover:bg-bg-inset hover:text-text-primary data-[active-locale=true]:bg-text-primary data-[active-locale=true]:text-text-on-primary'
         >
           {locale}
         </button>

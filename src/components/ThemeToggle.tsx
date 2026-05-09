@@ -1,3 +1,4 @@
+import { Monitor, Moon, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { m } from '#/paraglide/messages'
 
@@ -69,15 +70,17 @@ export default function ThemeToggle() {
         ? m.theme_label_light()
         : m.theme_label_dark()
 
+  const Icon = mode === 'auto' ? Monitor : mode === 'dark' ? Moon : Sun
+
   return (
     <button
       type='button'
       onClick={toggleMode}
       aria-label={label}
       title={label}
-      className='rounded-full border border-[var(--chip-line)] bg-[var(--chip-bg)] px-3 py-1.5 text-sm font-semibold text-[var(--sea-ink)] shadow-[0_8px_22px_rgba(30,90,72,0.08)] transition hover:-translate-y-0.5'
+      className='inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-secondary transition-colors duration-fast ease-out hover:bg-bg-inset hover:text-text-primary'
     >
-      {mode === 'auto' ? m.theme_auto() : mode === 'dark' ? m.theme_dark() : m.theme_light()}
+      <Icon size={16} />
     </button>
   )
 }

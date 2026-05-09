@@ -16,6 +16,20 @@ interface MyRouterContext {
 
 const THEME_INIT_SCRIPT = `(function(){try{var stored=window.localStorage.getItem('theme');var mode=(stored==='light'||stored==='dark'||stored==='auto')?stored:'auto';var prefersDark=window.matchMedia('(prefers-color-scheme: dark)').matches;var resolved=mode==='auto'?(prefersDark?'dark':'light'):mode;var root=document.documentElement;root.classList.remove('light','dark');root.classList.add(resolved);if(mode==='auto'){root.removeAttribute('data-theme')}else{root.setAttribute('data-theme',mode)}root.style.colorScheme=resolved;}catch(e){}})();`
 
+function RootError({ error }: { error: Error }) {
+  return (
+    <div className='page-wrap px-4 py-20 text-center'>
+      <h1 className='display-title mb-4 text-3xl font-bold text-text-primary'>
+        Something went wrong
+      </h1>
+      <p className='mb-6 text-text-secondary'>{error.message}</p>
+      <pre className='mx-auto max-w-2xl overflow-auto rounded-xl bg-surface-inset p-4 text-left text-xs text-text-secondary'>
+        {error.stack}
+      </pre>
+    </div>
+  )
+}
+
 export const Route = createRootRouteWithContext<MyRouterContext>()({
   head: () => ({
     meta: [
@@ -37,6 +51,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       },
     ],
   }),
+  errorComponent: RootError,
   shellComponent: RootDocument,
 })
 
@@ -48,7 +63,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <HeadContent />
       </head>
-      <body className='font-sans antialiased [overflow-wrap:anywhere] selection:bg-[rgba(79,184,178,0.24)]'>
+      <body className='font-sans antialiased [overflow-wrap:anywhere]'>
         <Header />
         {children}
         <Footer />

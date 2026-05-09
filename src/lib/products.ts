@@ -35,3 +35,12 @@ export const listProductsByCategorySlug = createServerFn({
     const { listProductsByCategorySlugQuery } = await import('./products.server')
     return listProductsByCategorySlugQuery(data.slug)
   })
+
+export const listRecentProducts = createServerFn({
+  method: 'GET',
+})
+  .inputValidator(z.object({ limit: z.number().min(1).max(24).optional() }))
+  .handler(async ({ data }) => {
+    const { listRecentProductsQuery } = await import('./products.server')
+    return listRecentProductsQuery(data.limit ?? 8)
+  })

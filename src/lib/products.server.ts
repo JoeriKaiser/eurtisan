@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm'
+import { and, desc, eq, inArray } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { categories, product, shop } from '#/db/schema'
 
@@ -75,6 +75,61 @@ export async function getProductBySlugQuery(shopId: string, slug: string) {
     .limit(1)
 
   return result ?? null
+}
+
+function formatPriceCents(cents: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'EUR',
+  }).format(cents / 100)
+}
+
+export async function listRecentProductsQuery(limit = 8) {
+  // Avoid join column-name collisions by querying in two steps.
+  // N+2 is fine for a landing page with ≤8 products.
+  const productsList = await db
+    .select()
+    .from(product)
+    .where(eq(product.isActive, true))
+    .orderBy(desc(product.createdAt))
+    .limit(limit)
+
+  if (productsList.length === 0) {
+    return []
+  }
+
+  const shopIds = [...new Set(productsList.map((p) => p.shopId))]
+  const shops =
+    shopIds.length > 0
+      ? await db
+          .select({ id: shop.id, name: shop.name })
+          .from(shop)
+          .where(inArray(shop.id, shopIds))
+      : []
+  const shopMap = new Map(shops.map((s) => [s.id, s.name]))
+
+  const categoryIds = [...new Set(productsList.map((p) => p.categoryId).filter(Boolean))]
+  const categoryList =
+    categoryIds.length > 0
+      ? await db
+          .select({ id: categories.id, name: categories.name })
+          .from(categories)
+          .where(inArray(categories.id, categoryIds as string[]))
+      : []
+  const categoryMap = new Map(categoryList.map((c) => [c.id, c.name]))
+
+  return productsList.map((p) => ({
+    id: p.id,
+    name: p.name,
+    description: p.description,
+    slug: p.slug,
+    price: formatPriceCents(p.priceCents),
+    shopId: p.shopId,
+    categoryId: p.categoryId,
+    createdAt: p.createdAt,
+    shopName: shopMap.get(p.shopId) ?? 'Unknown',
+    categoryName: p.categoryId ? (categoryMap.get(p.categoryId) ?? null) : null,
+  }))
 }
 
 export async function createProductInternal(data: {

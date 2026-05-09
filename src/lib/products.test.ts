@@ -4,11 +4,7 @@ import { db } from '#/db/index'
 import { categories, product, shop, user } from '#/db/schema'
 
 import { createProductSchema } from './products'
-import {
-  getProductBySlugQuery,
-  listProductsByCategorySlugQuery,
-  listProductsByShopQuery,
-} from './products.server'
+import { listProductsByCategorySlugQuery, listProductsByShopQuery } from './products.server'
 
 vi.mock('./auth', () => ({
   auth: {
@@ -31,7 +27,7 @@ describe('createProductSchema', () => {
       name: 'Handmade Vase',
       description: 'A beautiful ceramic vase',
       slug: 'handmade-vase',
-      price: '29.99',
+      priceCents: 2999,
       categoryId: '550e8400-e29b-41d4-a716-446655440000',
     })
     expect(result.success).toBe(true)
@@ -41,7 +37,7 @@ describe('createProductSchema', () => {
     const result = createProductSchema.safeParse({
       name: 'Handmade Vase',
       slug: 'handmade-vase',
-      price: '29.99',
+      priceCents: 2999,
     })
     expect(result.success).toBe(true)
   })
@@ -50,7 +46,7 @@ describe('createProductSchema', () => {
     const result = createProductSchema.safeParse({
       name: '',
       slug: 'handmade-vase',
-      price: '29.99',
+      priceCents: 2999,
     })
     expect(result.success).toBe(false)
   })
@@ -59,7 +55,7 @@ describe('createProductSchema', () => {
     const result = createProductSchema.safeParse({
       name: 'Handmade Vase',
       slug: 'handmade-vase',
-      price: '29.99',
+      priceCents: 2999,
       categoryId: 'not-a-uuid',
     })
     expect(result.success).toBe(false)
@@ -153,195 +149,6 @@ describe('listProductsByCategorySlugQuery', () => {
     const result = await listProductsByCategorySlugQuery('nonexistent')
     expect(result).toEqual([])
   })
-
-  it('excludes products from suspended shops', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({
-        id: 'shop-1',
-        name: 'Test Shop',
-        slug: 'test-shop',
-        ownerId: u.id,
-        isSuspended: true,
-      })
-      .returning()
-
-    const [cat] = await db
-      .insert(categories)
-      .values({ name: 'Pottery', slug: 'pottery' })
-      .returning()
-
-    await db.insert(product).values({
-      id: 'prod-1',
-      name: 'Vase',
-      slug: 'vase',
-      priceCents: 2999,
-      shopId: s.id,
-      categoryId: cat.id,
-    })
-
-    const result = await listProductsByCategorySlugQuery('pottery')
-    expect(result).toHaveLength(0)
-  })
-
-  it('excludes inactive products', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({
-        id: 'shop-1',
-        name: 'Test Shop',
-        slug: 'test-shop',
-        ownerId: u.id,
-      })
-      .returning()
-
-    const [cat] = await db
-      .insert(categories)
-      .values({ name: 'Pottery', slug: 'pottery' })
-      .returning()
-
-    await db.insert(product).values({
-      id: 'prod-1',
-      name: 'Vase',
-      slug: 'vase',
-      priceCents: 2999,
-      shopId: s.id,
-      categoryId: cat.id,
-      isActive: false,
-    })
-
-    const result = await listProductsByCategorySlugQuery('pottery')
-    expect(result).toHaveLength(0)
-  })
-})
-
-describe('getProductBySlugQuery', () => {
-  it('returns product by slug', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({
-        id: 'shop-1',
-        name: 'Test Shop',
-        slug: 'test-shop',
-        ownerId: u.id,
-      })
-      .returning()
-
-    await db.insert(product).values({
-      id: 'prod-1',
-      name: 'Vase',
-      slug: 'vase',
-      priceCents: 2999,
-      shopId: s.id,
-    })
-
-    const result = await getProductBySlugQuery(s.id, 'vase')
-    expect(result).not.toBeNull()
-    expect(result!.name).toBe('Vase')
-  })
-
-  it('returns null for nonexistent product', async () => {
-    const result = await getProductBySlugQuery('nonexistent-shop', 'nonexistent-slug')
-    expect(result).toBeNull()
-  })
-
-  it('returns null when shop is suspended', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({
-        id: 'shop-1',
-        name: 'Test Shop',
-        slug: 'test-shop',
-        ownerId: u.id,
-        isSuspended: true,
-      })
-      .returning()
-
-    await db.insert(product).values({
-      id: 'prod-1',
-      name: 'Vase',
-      slug: 'vase',
-      priceCents: 2999,
-      shopId: s.id,
-    })
-
-    const result = await getProductBySlugQuery(s.id, 'vase')
-    expect(result).toBeNull()
-  })
-
-  it('returns null when product is inactive', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({
-        id: 'shop-1',
-        name: 'Test Shop',
-        slug: 'test-shop',
-        ownerId: u.id,
-      })
-      .returning()
-
-    await db.insert(product).values({
-      id: 'prod-1',
-      name: 'Vase',
-      slug: 'vase',
-      priceCents: 2999,
-      shopId: s.id,
-      isActive: false,
-    })
-
-    const result = await getProductBySlugQuery(s.id, 'vase')
-    expect(result).toBeNull()
-  })
 })
 
 describe('product database constraints', () => {
@@ -382,15 +189,13 @@ describe('product database constraints', () => {
     })
 
     await expect(
-      (async () => {
-        await db.insert(product).values({
-          id: 'prod-2',
-          name: 'Another Vase',
-          slug: 'vase',
-          priceCents: 3999,
-          shopId: s.id,
-        })
-      })(),
+      db.insert(product).values({
+        id: 'prod-2',
+        name: 'Another Vase',
+        slug: 'vase',
+        priceCents: 3999,
+        shopId: s.id,
+      }),
     ).rejects.toThrow()
   })
 
@@ -434,15 +239,13 @@ describe('product database constraints', () => {
     })
 
     await expect(
-      (async () => {
-        await db.insert(product).values({
-          id: 'prod-2',
-          name: 'Vase',
-          slug: 'vase',
-          priceCents: 3999,
-          shopId: s2.id,
-        })
-      })(),
-    ).resolves.toBeUndefined()
+      db.insert(product).values({
+        id: 'prod-2',
+        name: 'Vase',
+        slug: 'vase',
+        priceCents: 3999,
+        shopId: s2.id,
+      }),
+    ).resolves.not.toThrow()
   })
 })

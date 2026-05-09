@@ -1,10 +1,10 @@
 import { count, eq, inArray, isNull, sql } from 'drizzle-orm'
+import type { z } from 'zod'
 import { db } from '#/db/index'
 import { categories, product } from '#/db/schema'
+import type { deleteCategorySchema, updateCategorySchema } from './categories'
 import { buildCategoryTree } from './categories'
 import type { SafeUser } from './server-auth'
-import type { z } from 'zod'
-import type { updateCategorySchema, deleteCategorySchema } from './categories'
 
 export async function detectCircularReference(
   categoryId: string | null,

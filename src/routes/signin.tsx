@@ -50,10 +50,10 @@ function SignIn() {
     <main className='page-wrap px-4 py-12'>
       <div className='mx-auto max-w-md'>
         <div className='island-shell rounded-2xl p-6 sm:p-8'>
-          <h1 className='display-title mb-2 text-2xl font-bold text-[var(--sea-ink)]'>
+          <h1 className='display-title mb-2 text-2xl font-bold text-text-primary'>
             {isSignUp ? m.sign_up_title() : m.sign_in_title()}
           </h1>
-          <p className='mb-6 text-sm text-[var(--sea-ink-soft)]'>
+          <p className='mb-6 text-sm text-text-secondary'>
             {isSignUp ? m.sign_up_description() : m.sign_in_description()}
           </p>
 
