@@ -1215,7 +1215,7 @@ describe('getFeaturedShopsQuery', () => {
       })
       .returning()
 
-    const [s] = await db
+    await db
       .insert(shop)
       .values({
         id: 'shop-1',
@@ -1392,20 +1392,58 @@ describe('searchProductsQuery', () => {
       })
       .returning()
 
+    const [c1] = await db
+      .insert(categories)
+      .values({ id: 'cat-1', name: 'Pottery', slug: 'pottery' })
+      .returning()
+
+    const [c2] = await db
+      .insert(categories)
+      .values({ id: 'cat-2', name: 'Tableware', slug: 'tableware' })
+      .returning()
+
     await db.insert(product).values([
-      { id: 'prod-1', name: 'Ceramic Vase', slug: 'ceramic-vase', priceCents: 2999, shopId: s1.id },
-      { id: 'prod-2', name: 'Wooden Bowl', slug: 'wooden-bowl', priceCents: 1999, shopId: s1.id },
-      { id: 'prod-3', name: 'Glass Plate', slug: 'glass-plate', priceCents: 4999, shopId: s2.id },
-      { id: 'prod-4', name: 'vase-like', slug: 'vase-like', priceCents: 999, shopId: s2.id },
+      {
+        id: 'prod-1',
+        name: 'Ceramic Vase',
+        slug: 'ceramic-vase',
+        priceCents: 2999,
+        shopId: s1.id,
+        categoryId: c1.id,
+      },
+      {
+        id: 'prod-2',
+        name: 'Wooden Bowl',
+        slug: 'wooden-bowl',
+        priceCents: 1999,
+        shopId: s1.id,
+        categoryId: c2.id,
+      },
+      {
+        id: 'prod-3',
+        name: 'Glass Plate',
+        slug: 'glass-plate',
+        priceCents: 4999,
+        shopId: s2.id,
+        categoryId: c2.id,
+      },
+      {
+        id: 'prod-4',
+        name: 'vase-like',
+        slug: 'vase-like',
+        priceCents: 999,
+        shopId: s2.id,
+        categoryId: c1.id,
+      },
     ])
 
-    return { s1, s2 }
+    return { s1, s2, c1, c2 }
   }
 
-  it('returns products matching case-insensitive partial name', async () => {
+  it('returns products matching case-insensitive name', async () => {
     await seedSearchProducts()
 
-    const result = await searchProductsQuery('vase', { page: 1, pageSize: 10 })
+    const result = await searchProductsQuery('vase', {}, 'relevance', { page: 1, pageSize: 10 })
     expect(result.products).toHaveLength(2)
     expect(result.products.map((p) => p.name)).toContain('Ceramic Vase')
     expect(result.products.map((p) => p.name)).toContain('vase-like')
@@ -1414,19 +1452,25 @@ describe('searchProductsQuery', () => {
   it('is case-insensitive', async () => {
     await seedSearchProducts()
 
-    const lowerResult = await searchProductsQuery('bowl', { page: 1, pageSize: 10 })
+    const lowerResult = await searchProductsQuery('bowl', {}, 'relevance', {
+      page: 1,
+      pageSize: 10,
+    })
     expect(lowerResult.products).toHaveLength(1)
     expect(lowerResult.products[0].name).toBe('Wooden Bowl')
 
-    const upperResult = await searchProductsQuery('BOWL', { page: 1, pageSize: 10 })
+    const upperResult = await searchProductsQuery('BOWL', {}, 'relevance', {
+      page: 1,
+      pageSize: 10,
+    })
     expect(upperResult.products).toHaveLength(1)
     expect(upperResult.products[0].name).toBe('Wooden Bowl')
   })
 
-  it('matches partial names', async () => {
+  it('matches full-word names with FTS', async () => {
     await seedSearchProducts()
 
-    const result = await searchProductsQuery('cer', { page: 1, pageSize: 10 })
+    const result = await searchProductsQuery('ceramic', {}, 'relevance', { page: 1, pageSize: 10 })
     expect(result.products).toHaveLength(1)
     expect(result.products[0].name).toBe('Ceramic Vase')
   })
@@ -1434,7 +1478,7 @@ describe('searchProductsQuery', () => {
   it('returns empty array when no matches', async () => {
     await seedSearchProducts()
 
-    const result = await searchProductsQuery('xyz', { page: 1, pageSize: 10 })
+    const result = await searchProductsQuery('xyz', {}, 'relevance', { page: 1, pageSize: 10 })
     expect(result.products).toHaveLength(0)
     expect(result.total).toBe(0)
   })
@@ -1444,7 +1488,7 @@ describe('searchProductsQuery', () => {
 
     await db.update(shop).set({ isSuspended: true }).where(eq(shop.id, s1.id))
 
-    const result = await searchProductsQuery('vase', { page: 1, pageSize: 10 })
+    const result = await searchProductsQuery('vase', {}, 'relevance', { page: 1, pageSize: 10 })
     expect(result.products).toHaveLength(1)
     expect(result.products[0].name).toBe('vase-like')
   })
@@ -1454,7 +1498,7 @@ describe('searchProductsQuery', () => {
 
     await db.update(product).set({ isActive: false }).where(eq(product.id, 'prod-1'))
 
-    const result = await searchProductsQuery('vase', { page: 1, pageSize: 10 })
+    const result = await searchProductsQuery('vase', {}, 'relevance', { page: 1, pageSize: 10 })
     expect(result.products).toHaveLength(1)
     expect(result.products[0].name).toBe('vase-like')
   })
@@ -1462,7 +1506,7 @@ describe('searchProductsQuery', () => {
   it('applies pagination correctly', async () => {
     await seedSearchProducts()
 
-    const result = await searchProductsQuery('', { page: 1, pageSize: 2 })
+    const result = await searchProductsQuery(undefined, {}, 'relevance', { page: 1, pageSize: 2 })
     expect(result.products).toHaveLength(2)
     expect(result.total).toBe(4)
     expect(result.totalPages).toBe(2)
@@ -1471,7 +1515,125 @@ describe('searchProductsQuery', () => {
   it('returns all active products when query is empty', async () => {
     await seedSearchProducts()
 
-    const result = await searchProductsQuery('', { page: 1, pageSize: 10 })
+    const result = await searchProductsQuery(undefined, {}, 'relevance', { page: 1, pageSize: 10 })
     expect(result.products).toHaveLength(4)
+  })
+
+  it('returns all active products when query is undefined', async () => {
+    await seedSearchProducts()
+
+    const result = await searchProductsQuery(undefined, {}, 'relevance', { page: 1, pageSize: 10 })
+    expect(result.products).toHaveLength(4)
+  })
+
+  it('filters by shop slug', async () => {
+    await seedSearchProducts()
+
+    const result = await searchProductsQuery(undefined, { shopSlug: 'test-shop-1' }, 'relevance', {
+      page: 1,
+      pageSize: 10,
+    })
+    expect(result.products).toHaveLength(2)
+    expect(result.products.map((p) => p.name)).toContain('Ceramic Vase')
+    expect(result.products.map((p) => p.name)).toContain('Wooden Bowl')
+  })
+
+  it('filters by category slug', async () => {
+    await seedSearchProducts()
+
+    const result = await searchProductsQuery(undefined, { categorySlug: 'pottery' }, 'relevance', {
+      page: 1,
+      pageSize: 10,
+    })
+    expect(result.products).toHaveLength(2)
+    expect(result.products.map((p) => p.name)).toContain('Ceramic Vase')
+    expect(result.products.map((p) => p.name)).toContain('vase-like')
+  })
+
+  it('filters by min price', async () => {
+    await seedSearchProducts()
+
+    const result = await searchProductsQuery(undefined, { minPriceCents: 2000 }, 'relevance', {
+      page: 1,
+      pageSize: 10,
+    })
+    expect(result.products).toHaveLength(2)
+    expect(result.products.every((p) => p.priceCents >= 2000)).toBe(true)
+  })
+
+  it('filters by max price', async () => {
+    await seedSearchProducts()
+
+    const result = await searchProductsQuery(undefined, { maxPriceCents: 2000 }, 'relevance', {
+      page: 1,
+      pageSize: 10,
+    })
+    expect(result.products).toHaveLength(2)
+    expect(result.products.every((p) => p.priceCents <= 2000)).toBe(true)
+  })
+
+  it('filters by price range', async () => {
+    await seedSearchProducts()
+
+    const result = await searchProductsQuery(
+      undefined,
+      { minPriceCents: 1500, maxPriceCents: 3000 },
+      'relevance',
+      { page: 1, pageSize: 10 },
+    )
+    expect(result.products).toHaveLength(2)
+    expect(result.products.every((p) => p.priceCents >= 1500 && p.priceCents <= 3000)).toBe(true)
+  })
+
+  it('combines query and filters', async () => {
+    await seedSearchProducts()
+
+    const result = await searchProductsQuery('vase', { shopSlug: 'test-shop-1' }, 'relevance', {
+      page: 1,
+      pageSize: 10,
+    })
+    expect(result.products).toHaveLength(1)
+    expect(result.products[0].name).toBe('Ceramic Vase')
+  })
+
+  it('sorts by price ascending', async () => {
+    await seedSearchProducts()
+
+    const result = await searchProductsQuery(undefined, {}, 'price_asc', { page: 1, pageSize: 10 })
+    expect(result.products).toHaveLength(4)
+    const prices = result.products.map((p) => p.priceCents)
+    expect(prices).toEqual([999, 1999, 2999, 4999])
+  })
+
+  it('sorts by price descending', async () => {
+    await seedSearchProducts()
+
+    const result = await searchProductsQuery(undefined, {}, 'price_desc', { page: 1, pageSize: 10 })
+    expect(result.products).toHaveLength(4)
+    const prices = result.products.map((p) => p.priceCents)
+    expect(prices).toEqual([4999, 2999, 1999, 999])
+  })
+
+  it('sorts by newest', async () => {
+    await seedSearchProducts()
+
+    const result = await searchProductsQuery(undefined, {}, 'newest', { page: 1, pageSize: 10 })
+    expect(result.products).toHaveLength(4)
+  })
+
+  it('defaults pageSize to 24', async () => {
+    await seedSearchProducts()
+
+    const result = await searchProductsQuery(undefined, {}, 'relevance')
+    expect(result.pageSize).toBe(24)
+  })
+
+  it('truncates queries longer than 100 characters', async () => {
+    await seedSearchProducts()
+
+    const longQuery = 'a'.repeat(150)
+    const result = await searchProductsQuery(longQuery, {}, 'relevance', { page: 1, pageSize: 10 })
+    expect(result.products).toHaveLength(0)
+    expect(result.total).toBe(0)
   })
 })

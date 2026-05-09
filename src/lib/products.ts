@@ -169,9 +169,14 @@ export const getShopProducts = createServerFn({
   })
 
 export const searchProductsSchema = z.object({
-  query: z.string().min(1).max(255),
+  query: z.string().max(255).optional(),
+  categorySlug: z.string().min(1).optional(),
+  shopSlug: z.string().min(1).optional(),
+  minPriceCents: z.coerce.number().int().min(0).optional(),
+  maxPriceCents: z.coerce.number().int().min(0).optional(),
+  sort: z.enum(['relevance', 'price_asc', 'price_desc', 'newest']).optional().default('relevance'),
   page: z.coerce.number().int().min(1).optional().default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
+  pageSize: z.coerce.number().int().min(1).max(100).optional().default(24),
 })
 
 export const searchProducts = createServerFn({
@@ -180,5 +185,15 @@ export const searchProducts = createServerFn({
   .inputValidator(searchProductsSchema)
   .handler(async ({ data }) => {
     const { searchProductsQuery } = await import('./products.server')
-    return searchProductsQuery(data.query, { page: data.page, pageSize: data.pageSize })
+    return searchProductsQuery(
+      data.query,
+      {
+        categorySlug: data.categorySlug,
+        shopSlug: data.shopSlug,
+        minPriceCents: data.minPriceCents,
+        maxPriceCents: data.maxPriceCents,
+      },
+      data.sort,
+      { page: data.page, pageSize: data.pageSize },
+    )
   })

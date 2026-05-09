@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, ilike, inArray, lte } from 'drizzle-orm'
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { categories, product, productImage, shop } from '#/db/schema'
 
@@ -74,6 +74,15 @@ export type Pagination = {
 }
 
 export type SortOption = 'newest' | 'price_asc' | 'price_desc'
+
+export type SearchSortOption = 'relevance' | 'price_asc' | 'price_desc' | 'newest'
+
+export type SearchFilters = {
+  categorySlug?: string
+  shopSlug?: string
+  minPriceCents?: number
+  maxPriceCents?: number
+}
 
 export type PaginatedProducts = {
   products: PublicProduct[]
@@ -374,19 +383,84 @@ export async function getFeaturedShopsQuery(limit: number): Promise<FeaturedShop
   }))
 }
 
+let tsvectorAvailable: boolean | null = null
+
+async function isTsvectorAvailable(): Promise<boolean> {
+  if (tsvectorAvailable !== null) return tsvectorAvailable
+  try {
+    await db.execute(sql`SELECT to_tsvector('english', 'test')`)
+    tsvectorAvailable = true
+    return true
+  } catch {
+    tsvectorAvailable = false
+    return false
+  }
+}
+
+function buildSearchOrderBy(sort: SearchSortOption, useFts: boolean) {
+  switch (sort) {
+    case 'relevance':
+      if (useFts) {
+        return undefined // rank is applied dynamically
+      }
+      return desc(product.createdAt)
+    case 'price_asc':
+      return asc(product.priceCents)
+    case 'price_desc':
+      return desc(product.priceCents)
+    default:
+      return desc(product.createdAt)
+  }
+}
+
 export async function searchProductsQuery(
-  query: string,
-  pagination: Pagination = { page: 1, pageSize: 20 },
+  query: string | undefined,
+  filters: SearchFilters = {},
+  sort: SearchSortOption = 'relevance',
+  pagination: Pagination = { page: 1, pageSize: 24 },
 ): Promise<PaginatedProducts> {
-  const trimmedQuery = query.trim()
+  const trimmedQuery = (query ?? '').trim().slice(0, 100)
   const page = Math.max(1, pagination.page)
   const pageSize = Math.min(100, Math.max(1, pagination.pageSize))
   const offset = (page - 1) * pageSize
 
   const conditions = [eq(shop.isSuspended, false), eq(product.isActive, true)]
 
+  if (filters.shopSlug) {
+    conditions.push(eq(shop.slug, filters.shopSlug))
+  }
+
+  if (filters.categorySlug) {
+    conditions.push(eq(categories.slug, filters.categorySlug))
+  }
+
+  if (filters.minPriceCents !== undefined) {
+    conditions.push(gte(product.priceCents, filters.minPriceCents))
+  }
+
+  if (filters.maxPriceCents !== undefined) {
+    conditions.push(lte(product.priceCents, filters.maxPriceCents))
+  }
+
+  const useFts = trimmedQuery.length > 0 && (await isTsvectorAvailable())
+
+  let searchVector: ReturnType<typeof sql> | undefined
+  let plainQuery: ReturnType<typeof sql> | undefined
+
   if (trimmedQuery.length > 0) {
-    conditions.push(ilike(product.name, `%${trimmedQuery}%`))
+    if (useFts) {
+      searchVector = sql`to_tsvector('english', ${product.name} || ' ' || coalesce(${product.description}, ''))`
+      plainQuery = sql`plainto_tsquery('english', ${trimmedQuery})`
+      conditions.push(sql`${searchVector} @@ ${plainQuery}`)
+    } else {
+      const searchCondition = or(
+        ilike(product.name, `%${trimmedQuery}%`),
+        ilike(product.description, `%${trimmedQuery}%`),
+      )
+      if (searchCondition) {
+        conditions.push(searchCondition)
+      }
+    }
   }
 
   const where = and(...conditions)
@@ -400,15 +474,27 @@ export async function searchProductsQuery(
 
   const total = totalResult?.total ?? 0
 
-  const products = await db
-    .select(publicProductColumns)
-    .from(product)
-    .innerJoin(shop, eq(product.shopId, shop.id))
-    .leftJoin(categories, eq(product.categoryId, categories.id))
-    .where(where)
-    .orderBy(desc(product.createdAt))
-    .limit(pageSize)
-    .offset(offset)
+  const orderBy = buildSearchOrderBy(sort, useFts)
+
+  const products = await (() => {
+    const base = db
+      .select(publicProductColumns)
+      .from(product)
+      .innerJoin(shop, eq(product.shopId, shop.id))
+      .leftJoin(categories, eq(product.categoryId, categories.id))
+      .where(where)
+
+    if (sort === 'relevance' && useFts && searchVector && plainQuery) {
+      const rank = sql`ts_rank(${searchVector}, ${plainQuery})`
+      return base.orderBy(desc(rank)).limit(pageSize).offset(offset)
+    }
+
+    if (orderBy) {
+      return base.orderBy(orderBy).limit(pageSize).offset(offset)
+    }
+
+    return base.limit(pageSize).offset(offset)
+  })()
 
   return {
     products: products as PublicProduct[],

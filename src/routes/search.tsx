@@ -9,18 +9,32 @@ import { m } from '#/paraglide/messages'
 
 export const Route = createFileRoute('/search')({
   loader: async ({ search }) => {
-    const query = typeof search.q === 'string' ? search.q.trim() : ''
+    const query = typeof search.q === 'string' ? search.q.trim() : undefined
     const page = typeof search.page === 'string' ? Number.parseInt(search.page, 10) || 1 : 1
-
-    if (query.length === 0) {
-      return { query: '', products: null, page }
-    }
+    const categorySlug = typeof search.category === 'string' ? search.category.trim() : undefined
+    const shopSlug = typeof search.shop === 'string' ? search.shop.trim() : undefined
+    const parsedMin =
+      typeof search.minPrice === 'string' ? Number.parseInt(search.minPrice, 10) : Number.NaN
+    const minPriceCents = Number.isNaN(parsedMin) ? undefined : parsedMin
+    const parsedMax =
+      typeof search.maxPrice === 'string' ? Number.parseInt(search.maxPrice, 10) : Number.NaN
+    const maxPriceCents = Number.isNaN(parsedMax) ? undefined : parsedMax
+    const sort = typeof search.sort === 'string' ? search.sort : 'relevance'
 
     const result = await searchProducts({
-      data: { query, page, pageSize: 12 },
+      data: {
+        query,
+        page,
+        pageSize: 24,
+        categorySlug,
+        shopSlug,
+        minPriceCents,
+        maxPriceCents,
+        sort: sort as 'relevance' | 'price_asc' | 'price_desc' | 'newest',
+      },
     })
 
-    return { query, products: result, page }
+    return { query: query ?? '', products: result, page }
   },
   head: ({ loaderData }) => {
     const query = loaderData?.query ?? ''
@@ -43,6 +57,7 @@ export const Route = createFileRoute('/search')({
 
 function SearchPage() {
   const { query, products, page } = Route.useLoaderData()
+  const currentSearch = Route.useSearch()
   const router = useRouter()
   const [localQuery, setLocalQuery] = useState(query)
 
@@ -50,21 +65,23 @@ function SearchPage() {
     const trimmed = localQuery.trim()
     router.navigate({
       to: '/search',
-      search: trimmed ? { q: trimmed } : {},
+      search: trimmed ? { ...currentSearch, q: trimmed, page: 1 } : {},
       replace: true,
     })
-  }, [router, localQuery])
+  }, [router, localQuery, currentSearch])
 
   const handlePageChange = useCallback(
     (newPage: number) => {
       const trimmed = query.trim()
       router.navigate({
         to: '/search',
-        search: trimmed ? { q: trimmed, page: newPage } : { page: newPage },
+        search: trimmed
+          ? { ...currentSearch, q: trimmed, page: newPage }
+          : { ...currentSearch, page: newPage },
         replace: true,
       })
     },
-    [router, query],
+    [router, query, currentSearch],
   )
 
   return (
