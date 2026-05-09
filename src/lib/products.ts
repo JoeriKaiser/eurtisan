@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
 
-export type { PublicProduct } from './products.server'
+export type { PaginatedProducts, PublicProduct, ShopSummary } from './products.server'
 
 export const createProductSchema = z.object({
   name: z.string().min(1).max(255),

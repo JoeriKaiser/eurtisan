@@ -87,5 +87,12 @@
   "pagination_previous": "Previous",
   "pagination_next": "Next",
   "pagination_page_of": "Page {page} of {totalPages}",
-  "product_pagination": "Product pagination"
+  "product_pagination": "Product pagination",
+  "shop_kicker": "Shop",
+  "shop_products_title": "Products",
+  "shop_search_placeholder": "Search products...",
+  "shop_search_button": "Search",
+  "shop_no_search_results": "No products match your search.",
+  "shop_no_products": "No products yet",
+  "shop_browse_marketplace": "Browse the marketplace"
 }

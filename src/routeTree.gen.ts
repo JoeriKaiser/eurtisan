@@ -17,6 +17,7 @@ import { Route as StudioIndexRouteImport } from './routes/studio/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AccountIndexRouteImport } from './routes/account/index'
 import { Route as StudioShopIdRouteImport } from './routes/studio/$shopId'
+import { Route as ShopsShopSlugRouteImport } from './routes/shops/$shopSlug'
 import { Route as ProductsProductSlugRouteImport } from './routes/products/$productSlug'
 import { Route as CategorySlugRouteImport } from './routes/category/$slug'
 import { Route as ApiProductsRouteImport } from './routes/api/products'
@@ -27,6 +28,7 @@ import { Route as ApiShopsShopIdSettingsRouteImport } from './routes/api/shops/$
 import { Route as ApiShopsShopIdProductsRouteImport } from './routes/api/shops/$shopId/products'
 import { Route as ApiShopsShopIdOrdersRouteImport } from './routes/api/shops/$shopId/orders'
 import { Route as ApiShopsShopIdDashboardRouteImport } from './routes/api/shops/$shopId/dashboard'
+import { Route as ApiShopsShopIdProductsProductIdRouteImport } from './routes/api/shops/$shopId/products.$productId'
 
 const SigninRoute = SigninRouteImport.update({
   id: '/signin',
@@ -66,6 +68,11 @@ const AccountIndexRoute = AccountIndexRouteImport.update({
 const StudioShopIdRoute = StudioShopIdRouteImport.update({
   id: '/studio/$shopId',
   path: '/studio/$shopId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShopsShopSlugRoute = ShopsShopSlugRouteImport.update({
+  id: '/shops/$shopSlug',
+  path: '/shops/$shopSlug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProductsProductSlugRoute = ProductsProductSlugRouteImport.update({
@@ -118,6 +125,12 @@ const ApiShopsShopIdDashboardRoute = ApiShopsShopIdDashboardRouteImport.update({
   path: '/api/shops/$shopId/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiShopsShopIdProductsProductIdRoute =
+  ApiShopsShopIdProductsProductIdRouteImport.update({
+    id: '/$productId',
+    path: '/$productId',
+    getParentRoute: () => ApiShopsShopIdProductsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -129,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/products/$productSlug': typeof ProductsProductSlugRoute
+  '/shops/$shopSlug': typeof ShopsShopSlugRoute
   '/studio/$shopId': typeof StudioShopIdRoute
   '/account/': typeof AccountIndexRoute
   '/admin/': typeof AdminIndexRoute
@@ -136,8 +150,9 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/shops/$shopId/dashboard': typeof ApiShopsShopIdDashboardRoute
   '/api/shops/$shopId/orders': typeof ApiShopsShopIdOrdersRoute
-  '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRoute
+  '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRouteWithChildren
   '/api/shops/$shopId/settings': typeof ApiShopsShopIdSettingsRoute
+  '/api/shops/$shopId/products/$productId': typeof ApiShopsShopIdProductsProductIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -149,6 +164,7 @@ export interface FileRoutesByTo {
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/products/$productSlug': typeof ProductsProductSlugRoute
+  '/shops/$shopSlug': typeof ShopsShopSlugRoute
   '/studio/$shopId': typeof StudioShopIdRoute
   '/account': typeof AccountIndexRoute
   '/admin': typeof AdminIndexRoute
@@ -156,8 +172,9 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/shops/$shopId/dashboard': typeof ApiShopsShopIdDashboardRoute
   '/api/shops/$shopId/orders': typeof ApiShopsShopIdOrdersRoute
-  '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRoute
+  '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRouteWithChildren
   '/api/shops/$shopId/settings': typeof ApiShopsShopIdSettingsRoute
+  '/api/shops/$shopId/products/$productId': typeof ApiShopsShopIdProductsProductIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -170,6 +187,7 @@ export interface FileRoutesById {
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/products/$productSlug': typeof ProductsProductSlugRoute
+  '/shops/$shopSlug': typeof ShopsShopSlugRoute
   '/studio/$shopId': typeof StudioShopIdRoute
   '/account/': typeof AccountIndexRoute
   '/admin/': typeof AdminIndexRoute
@@ -177,8 +195,9 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/shops/$shopId/dashboard': typeof ApiShopsShopIdDashboardRoute
   '/api/shops/$shopId/orders': typeof ApiShopsShopIdOrdersRoute
-  '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRoute
+  '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRouteWithChildren
   '/api/shops/$shopId/settings': typeof ApiShopsShopIdSettingsRoute
+  '/api/shops/$shopId/products/$productId': typeof ApiShopsShopIdProductsProductIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -192,6 +211,7 @@ export interface FileRouteTypes {
     | '/api/products'
     | '/category/$slug'
     | '/products/$productSlug'
+    | '/shops/$shopSlug'
     | '/studio/$shopId'
     | '/account/'
     | '/admin/'
@@ -201,6 +221,7 @@ export interface FileRouteTypes {
     | '/api/shops/$shopId/orders'
     | '/api/shops/$shopId/products'
     | '/api/shops/$shopId/settings'
+    | '/api/shops/$shopId/products/$productId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -212,6 +233,7 @@ export interface FileRouteTypes {
     | '/api/products'
     | '/category/$slug'
     | '/products/$productSlug'
+    | '/shops/$shopSlug'
     | '/studio/$shopId'
     | '/account'
     | '/admin'
@@ -221,6 +243,7 @@ export interface FileRouteTypes {
     | '/api/shops/$shopId/orders'
     | '/api/shops/$shopId/products'
     | '/api/shops/$shopId/settings'
+    | '/api/shops/$shopId/products/$productId'
   id:
     | '__root__'
     | '/'
@@ -232,6 +255,7 @@ export interface FileRouteTypes {
     | '/api/products'
     | '/category/$slug'
     | '/products/$productSlug'
+    | '/shops/$shopSlug'
     | '/studio/$shopId'
     | '/account/'
     | '/admin/'
@@ -241,6 +265,7 @@ export interface FileRouteTypes {
     | '/api/shops/$shopId/orders'
     | '/api/shops/$shopId/products'
     | '/api/shops/$shopId/settings'
+    | '/api/shops/$shopId/products/$productId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -253,6 +278,7 @@ export interface RootRouteChildren {
   ApiProductsRoute: typeof ApiProductsRoute
   CategorySlugRoute: typeof CategorySlugRoute
   ProductsProductSlugRoute: typeof ProductsProductSlugRoute
+  ShopsShopSlugRoute: typeof ShopsShopSlugRoute
   StudioShopIdRoute: typeof StudioShopIdRoute
   AccountIndexRoute: typeof AccountIndexRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -260,7 +286,7 @@ export interface RootRouteChildren {
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiShopsShopIdDashboardRoute: typeof ApiShopsShopIdDashboardRoute
   ApiShopsShopIdOrdersRoute: typeof ApiShopsShopIdOrdersRoute
-  ApiShopsShopIdProductsRoute: typeof ApiShopsShopIdProductsRoute
+  ApiShopsShopIdProductsRoute: typeof ApiShopsShopIdProductsRouteWithChildren
   ApiShopsShopIdSettingsRoute: typeof ApiShopsShopIdSettingsRoute
 }
 
@@ -320,6 +346,13 @@ declare module '@tanstack/react-router' {
       path: '/studio/$shopId'
       fullPath: '/studio/$shopId'
       preLoaderRoute: typeof StudioShopIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/shops/$shopSlug': {
+      id: '/shops/$shopSlug'
+      path: '/shops/$shopSlug'
+      fullPath: '/shops/$shopSlug'
+      preLoaderRoute: typeof ShopsShopSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/products/$productSlug': {
@@ -392,8 +425,29 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiShopsShopIdDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/shops/$shopId/products/$productId': {
+      id: '/api/shops/$shopId/products/$productId'
+      path: '/$productId'
+      fullPath: '/api/shops/$shopId/products/$productId'
+      preLoaderRoute: typeof ApiShopsShopIdProductsProductIdRouteImport
+      parentRoute: typeof ApiShopsShopIdProductsRoute
+    }
   }
 }
+
+interface ApiShopsShopIdProductsRouteChildren {
+  ApiShopsShopIdProductsProductIdRoute: typeof ApiShopsShopIdProductsProductIdRoute
+}
+
+const ApiShopsShopIdProductsRouteChildren: ApiShopsShopIdProductsRouteChildren =
+  {
+    ApiShopsShopIdProductsProductIdRoute: ApiShopsShopIdProductsProductIdRoute,
+  }
+
+const ApiShopsShopIdProductsRouteWithChildren =
+  ApiShopsShopIdProductsRoute._addFileChildren(
+    ApiShopsShopIdProductsRouteChildren,
+  )
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -405,6 +459,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiProductsRoute: ApiProductsRoute,
   CategorySlugRoute: CategorySlugRoute,
   ProductsProductSlugRoute: ProductsProductSlugRoute,
+  ShopsShopSlugRoute: ShopsShopSlugRoute,
   StudioShopIdRoute: StudioShopIdRoute,
   AccountIndexRoute: AccountIndexRoute,
   AdminIndexRoute: AdminIndexRoute,
@@ -412,7 +467,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiShopsShopIdDashboardRoute: ApiShopsShopIdDashboardRoute,
   ApiShopsShopIdOrdersRoute: ApiShopsShopIdOrdersRoute,
-  ApiShopsShopIdProductsRoute: ApiShopsShopIdProductsRoute,
+  ApiShopsShopIdProductsRoute: ApiShopsShopIdProductsRouteWithChildren,
   ApiShopsShopIdSettingsRoute: ApiShopsShopIdSettingsRoute,
 }
 export const routeTree = rootRouteImport
