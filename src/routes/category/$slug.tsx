@@ -1,16 +1,9 @@
 import { createFileRoute, Link, notFound } from '@tanstack/react-router'
+import ProductGrid from '#/components/ProductGrid'
 import { getCategoryBySlug } from '#/lib/categories'
 import { listProductsByCategorySlug } from '#/lib/products'
 import { m } from '#/paraglide/messages'
 import CategoryCard from '../../components/CategoryCard'
-import ProductCard from '../../components/ProductCard'
-
-function formatPrice(cents: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'EUR',
-  }).format(cents / 100)
-}
 
 export const Route = createFileRoute('/category/$slug')({
   loader: async ({ params }) => {
@@ -86,28 +79,7 @@ function CategoryPage() {
 
           <section className='mt-8'>
             <h2 className='mb-4 text-xl font-semibold text-text-primary'>Products</h2>
-            {products.length === 0 ? (
-              <div className='island-shell rounded-2xl p-8 text-center'>
-                <p className='text-text-secondary'>
-                  No products in this category yet. Check back soon.
-                </p>
-              </div>
-            ) : (
-              <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
-                {products.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    id={product.id}
-                    name={product.name}
-                    shopId={product.shopId}
-                    shopName={product.shopName}
-                    price={formatPrice(product.priceCents)}
-                    description={product.description}
-                    categoryName={product.categoryName}
-                  />
-                ))}
-              </div>
-            )}
+            <ProductGrid products={products} emptyMessage='No products in this category yet.' />
           </section>
         </div>
 

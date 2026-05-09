@@ -1,82 +1,71 @@
-import { Link } from '@tanstack/react-router'
-import { Badge } from './ui/badge'
+import { ImageOff, PackageX, Store } from 'lucide-react'
+import { formatPriceEUR } from '#/lib/pricing'
+import type { PublicProduct } from '#/lib/products'
+import { m } from '#/paraglide/messages'
 
-interface ProductCardProps {
-  id: string
-  name: string
-  shopId: string
-  shopName: string
-  price: string
-  description: string | null
-  categoryName: string | null
+export interface ProductCardProps {
+  product: PublicProduct
+  imageUrl?: string | null
 }
 
-export default function ProductCard({
-  name,
-  shopId,
-  shopName,
-  price,
-  description,
-  categoryName,
-}: ProductCardProps) {
-  return (
-    <article className='group flex flex-col overflow-hidden rounded-2xl border border-border-default bg-surface-default shadow-sm transition-all duration-fast ease-out hover:-translate-y-0.5 hover:shadow-md hover:border-border-strong'>
-      {/* Image area — warm placeholder, shorter ratio */}
-      <Link
-        to='/studio/$shopId'
-        params={{ shopId }}
-        className='relative block aspect-[3/2] overflow-hidden no-underline'
-      >
-        {/* Warm gradient placeholder instead of gray */}
-        <div
-          className='h-full w-full transition-transform duration-slow ease-out group-hover:scale-[1.03]'
-          style={{
-            background:
-              'linear-gradient(135deg, oklch(93% 0.02 75) 0%, oklch(90% 0.03 145) 50%, oklch(88% 0.04 175) 100%)',
-          }}
-        />
-        {/* Subtle texture overlay */}
-        <div
-          className='pointer-events-none absolute inset-0 opacity-40'
-          style={{
-            backgroundImage:
-              'repeating-linear-gradient(45deg, transparent, transparent 10px, oklch(100% 0 0 / 0.06) 10px, oklch(100% 0 0 / 0.06) 20px)',
-          }}
-        />
-        {/* Hover tint */}
-        <div className='absolute inset-0 bg-accent-primary/0 transition-colors duration-fast group-hover:bg-accent-primary/5' />
-      </Link>
+export default function ProductCard({ product, imageUrl }: ProductCardProps) {
+  const isOutOfStock = product.stockCount <= 0
 
+  return (
+    <article
+      className={`island-shell group relative flex flex-col overflow-hidden rounded-2xl transition hover:border-[color-mix(in_oklab,var(--lagoon-deep)_35%,var(--line))] ${isOutOfStock ? 'opacity-75' : ''}`}
+      aria-label={m.product_card_label({ name: product.name })}
+    >
+      {/* Image */}
+      <div className='relative aspect-[4/3] w-full overflow-hidden bg-[var(--sand)]'>
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={product.name}
+            className='h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]'
+            loading='lazy'
+          />
+        ) : (
+          <div className='flex h-full w-full items-center justify-center text-[var(--sea-ink-soft)]'>
+            <ImageOff size={40} strokeWidth={1.5} aria-hidden='true' />
+            <span className='sr-only'>{m.product_no_image()}</span>
+          </div>
+        )}
+
+        {isOutOfStock && (
+          <div className='absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[1px]'>
+            <span className='rounded-full bg-[var(--surface-strong)] px-3 py-1 text-xs font-semibold text-[var(--sea-ink)] shadow-sm'>
+              <PackageX size={14} className='inline align-text-bottom mr-1' aria-hidden='true' />
+              {m.product_out_of_stock()}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Content */}
       <div className='flex flex-1 flex-col p-4'>
-        <h3 className='mb-1 text-sm font-semibold leading-snug text-text-primary'>
-          <Link to='/studio/$shopId' params={{ shopId }} className='no-underline hover:underline'>
-            {name}
-          </Link>
+        <h3 className='mb-1 text-base font-semibold text-[var(--sea-ink)] line-clamp-1'>
+          {product.name}
         </h3>
 
-        <p className='mb-3 line-clamp-2 text-xs text-text-secondary'>
-          {description ?? 'Handcrafted with care'}
-        </p>
+        {product.description && (
+          <p className='mb-3 text-sm text-[var(--sea-ink-soft)] line-clamp-2'>
+            {product.description}
+          </p>
+        )}
 
-        <div className='mt-auto flex items-center justify-between gap-2'>
-          <span className='text-sm font-bold tabular-nums text-text-primary'>{price}</span>
-          {categoryName && (
-            <Badge variant='default' className='text-[10px]'>
-              {categoryName}
-            </Badge>
-          )}
+        <div className='mt-auto flex items-end justify-between gap-2'>
+          <span className='text-base font-bold text-[var(--sea-ink)]'>
+            {formatPriceEUR(product.priceCents)}
+          </span>
+
+          <span className='inline-flex items-center gap-1 rounded-full bg-[var(--chip-bg)] px-2 py-1 text-xs text-[var(--sea-ink-soft)] border border-[var(--chip-line)]'>
+            <Store size={12} aria-hidden='true' />
+            <span className='max-w-[120px] truncate'>
+              {product.shopName ?? m.product_unknown_shop()}
+            </span>
+          </span>
         </div>
-
-        <p className='mt-2 text-xs text-text-muted'>
-          by{' '}
-          <Link
-            to='/studio/$shopId'
-            params={{ shopId }}
-            className='font-medium text-text-secondary no-underline hover:text-text-primary hover:underline'
-          >
-            {shopName}
-          </Link>
-        </p>
       </div>
     </article>
   )

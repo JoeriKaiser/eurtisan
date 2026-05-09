@@ -168,16 +168,7 @@ function Home() {
               ) : (
                 <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
                   {products.map((product) => (
-                    <ProductCard
-                      key={product.id}
-                      id={product.id}
-                      name={product.name}
-                      shopId={product.shopId}
-                      shopName={product.shopName}
-                      price={product.price}
-                      description={product.description}
-                      categoryName={product.categoryName}
-                    />
+                    <ProductCard key={product.id} product={product} />
                   ))}
                 </div>
               )}
