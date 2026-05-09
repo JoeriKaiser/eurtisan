@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, gte, ilike, lte } from 'drizzle-orm'
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { categories, product, productImage, shop } from '#/db/schema'
 
@@ -40,6 +40,18 @@ export type PublicProduct = {
   categorySlug: string | null
   shopName: string | null
   shopSlug: string | null
+}
+
+export type RecentProduct = PublicProduct & {
+  image: { id: string; url: string; altText: string | null; sortOrder: number } | null
+}
+
+export type FeaturedShop = {
+  id: string
+  name: string
+  description: string | null
+  slug: string
+  productCount: number
 }
 
 export type ProductDetail = PublicProduct & {
@@ -304,9 +316,57 @@ export async function listProductsByCategorySlugQuery(slug: string) {
     )
 }
 
-export async function listRecentProductsQuery(limit = 8): Promise<PublicProduct[]> {
-  const result = await listProductsQuery({}, { page: 1, pageSize: limit }, 'newest')
-  return result.products
+export async function listRecentProductsQuery(limit = 8): Promise<RecentProduct[]> {
+  const productsResult = await listProductsQuery({}, { page: 1, pageSize: limit }, 'newest')
+  const products = productsResult.products
+
+  if (products.length === 0) return []
+
+  const images = await db
+    .select({
+      productId: productImage.productId,
+      id: productImage.id,
+      url: productImage.url,
+      altText: productImage.altText,
+      sortOrder: productImage.sortOrder,
+    })
+    .from(productImage)
+    .where(inArray(productImage.productId, products.map((p) => p.id)))
+    .orderBy(asc(productImage.sortOrder))
+
+  const firstImageByProduct = new Map<string, (typeof images)[number]>()
+  for (const img of images) {
+    if (!firstImageByProduct.has(img.productId)) {
+      firstImageByProduct.set(img.productId, img)
+    }
+  }
+
+  return products.map((p) => ({
+    ...p,
+    image: firstImageByProduct.get(p.id) ?? null,
+  }))
+}
+
+export async function getFeaturedShopsQuery(limit: number): Promise<FeaturedShop[]> {
+  const result = await db
+    .select({
+      id: shop.id,
+      name: shop.name,
+      description: shop.description,
+      slug: shop.slug,
+      productCount: count(product.id),
+    })
+    .from(shop)
+    .leftJoin(product, eq(product.shopId, shop.id))
+    .where(eq(shop.isSuspended, false))
+    .groupBy(shop.id)
+    .orderBy(desc(shop.createdAt))
+    .limit(limit)
+
+  return result.map((r) => ({
+    ...r,
+    productCount: Number(r.productCount),
+  }))
 }
 
 export async function createProductInternal(data: {

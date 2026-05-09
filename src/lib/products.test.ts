@@ -7,6 +7,7 @@ import { categories, product, productImage, shop, user } from '#/db/schema'
 import { createProductSchema } from './products'
 import {
   createProductInternal,
+  getFeaturedShopsQuery,
   getProductBySlugQuery,
   getProductsByShopSlugQuery,
   getShopBySlugQuery,
@@ -14,6 +15,7 @@ import {
   listProductsByCategorySlugQuery,
   listProductsByShopQuery,
   listProductsQuery,
+  listRecentProductsQuery,
 } from './products.server'
 
 vi.mock('./auth', () => ({
@@ -937,6 +939,316 @@ describe('getShopProductsQuery', () => {
     expect(result.products).toHaveLength(1)
     expect(result.total).toBe(2)
     expect(result.totalPages).toBe(2)
+  })
+})
+
+describe('listRecentProductsQuery', () => {
+  beforeEach(async () => {
+    await db.delete(productImage)
+    await db.delete(product)
+    await db.delete(categories)
+    await db.delete(shop)
+    await db.delete(user)
+  })
+
+  it('includes the primary image for each product', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Test Shop',
+        slug: 'test-shop',
+        ownerId: u.id,
+      })
+      .returning()
+
+    const [p] = await db
+      .insert(product)
+      .values({
+        id: 'prod-1',
+        name: 'Vase',
+        slug: 'vase',
+        priceCents: 2999,
+        shopId: s.id,
+      })
+      .returning()
+
+    await db.insert(productImage).values([
+      {
+        id: 'img-1',
+        productId: p.id,
+        url: 'http://example.com/1.jpg',
+        altText: 'First',
+        sortOrder: 1,
+      },
+      {
+        id: 'img-2',
+        productId: p.id,
+        url: 'http://example.com/2.jpg',
+        altText: 'Second',
+        sortOrder: 0,
+      },
+    ])
+
+    const result = await listRecentProductsQuery(8)
+    expect(result).toHaveLength(1)
+    expect(result[0].name).toBe('Vase')
+    expect(result[0].image).not.toBeNull()
+    expect(result[0].image?.id).toBe('img-2')
+    expect(result[0].image?.url).toBe('http://example.com/2.jpg')
+    expect(result[0].image?.sortOrder).toBe(0)
+  })
+
+  it('returns null image when product has no images', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Test Shop',
+        slug: 'test-shop',
+        ownerId: u.id,
+      })
+      .returning()
+
+    await db.insert(product).values({
+      id: 'prod-1',
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 2999,
+      shopId: s.id,
+    })
+
+    const result = await listRecentProductsQuery(8)
+    expect(result).toHaveLength(1)
+    expect(result[0].image).toBeNull()
+  })
+
+  it('excludes products from suspended shops', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Test Shop',
+        slug: 'test-shop',
+        ownerId: u.id,
+        isSuspended: true,
+      })
+      .returning()
+
+    await db.insert(product).values({
+      id: 'prod-1',
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 2999,
+      shopId: s.id,
+    })
+
+    const result = await listRecentProductsQuery(8)
+    expect(result).toHaveLength(0)
+  })
+
+  it('excludes inactive products', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Test Shop',
+        slug: 'test-shop',
+        ownerId: u.id,
+      })
+      .returning()
+
+    await db.insert(product).values({
+      id: 'prod-1',
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 2999,
+      shopId: s.id,
+      isActive: false,
+    })
+
+    const result = await listRecentProductsQuery(8)
+    expect(result).toHaveLength(0)
+  })
+})
+
+describe('getFeaturedShopsQuery', () => {
+  beforeEach(async () => {
+    await db.delete(productImage)
+    await db.delete(product)
+    await db.delete(categories)
+    await db.delete(shop)
+    await db.delete(user)
+  })
+
+  it('returns active shops ordered by newest first with productCount', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [s1] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Old Shop',
+        slug: 'old-shop',
+        ownerId: u.id,
+      })
+      .returning()
+
+    const [s2] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-2',
+        name: 'New Shop',
+        slug: 'new-shop',
+        ownerId: u.id,
+      })
+      .returning()
+
+    await db.insert(product).values([
+      { id: 'prod-1', name: 'Vase', slug: 'vase', priceCents: 2999, shopId: s1.id },
+      { id: 'prod-2', name: 'Bowl', slug: 'bowl', priceCents: 1999, shopId: s2.id },
+      { id: 'prod-3', name: 'Plate', slug: 'plate', priceCents: 4999, shopId: s2.id },
+    ])
+
+    const result = await getFeaturedShopsQuery(10)
+    expect(result).toHaveLength(2)
+    expect(result[0].name).toBe('New Shop')
+    expect(result[0].productCount).toBe(2)
+    expect(result[1].name).toBe('Old Shop')
+    expect(result[1].productCount).toBe(1)
+  })
+
+  it('excludes suspended shops', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Active Shop',
+        slug: 'active-shop',
+        ownerId: u.id,
+      })
+      .returning()
+
+    await db
+      .insert(shop)
+      .values({
+        id: 'shop-2',
+        name: 'Suspended Shop',
+        slug: 'suspended-shop',
+        ownerId: u.id,
+        isSuspended: true,
+      })
+      .returning()
+
+    const result = await getFeaturedShopsQuery(10)
+    expect(result).toHaveLength(1)
+    expect(result[0].name).toBe('Active Shop')
+  })
+
+  it('returns shops with zero products', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Empty Shop',
+        slug: 'empty-shop',
+        ownerId: u.id,
+      })
+      .returning()
+
+    const result = await getFeaturedShopsQuery(10)
+    expect(result).toHaveLength(1)
+    expect(result[0].name).toBe('Empty Shop')
+    expect(result[0].productCount).toBe(0)
+  })
+
+  it('respects the limit', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    await db.insert(shop).values([
+      { id: 'shop-1', name: 'Shop 1', slug: 'shop-1', ownerId: u.id },
+      { id: 'shop-2', name: 'Shop 2', slug: 'shop-2', ownerId: u.id },
+      { id: 'shop-3', name: 'Shop 3', slug: 'shop-3', ownerId: u.id },
+    ])
+
+    const result = await getFeaturedShopsQuery(2)
+    expect(result).toHaveLength(2)
   })
 })
 
