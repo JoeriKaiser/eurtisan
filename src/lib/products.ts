@@ -2,7 +2,13 @@ import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
 
-export type { PublicProduct } from './products.server'
+export type {
+  FeaturedShop,
+  PaginatedProducts,
+  PublicProduct,
+  RecentProduct,
+  ShopSummary,
+} from './products.server'
 
 export const createProductSchema = z.object({
   name: z.string().min(1).max(255),
@@ -45,6 +51,15 @@ export const listRecentProducts = createServerFn({
   .handler(async ({ data }) => {
     const { listRecentProductsQuery } = await import('./products.server')
     return listRecentProductsQuery(data.limit ?? 8)
+  })
+
+export const getFeaturedShops = createServerFn({
+  method: 'GET',
+})
+  .inputValidator(z.object({ limit: z.number().min(1).max(24) }))
+  .handler(async ({ data }) => {
+    const { getFeaturedShopsQuery } = await import('./products.server')
+    return getFeaturedShopsQuery(data.limit)
   })
 
 export const listProductsSchema = z.object({
@@ -151,4 +166,41 @@ export const getShopProducts = createServerFn({
       page: data.page,
       pageSize: data.pageSize,
     })
+  })
+
+export const searchProductsSchema = z.object({
+  query: z.string().max(255).optional(),
+  categorySlug: z.string().min(1).optional(),
+  shopSlug: z.string().min(1).optional(),
+  minPriceCents: z.coerce.number().int().min(0).optional(),
+  maxPriceCents: z.coerce.number().int().min(0).optional(),
+  sort: z.enum(['relevance', 'price_asc', 'price_desc', 'newest']).optional().default('relevance'),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).optional().default(24),
+})
+
+export const listShops = createServerFn({
+  method: 'GET',
+}).handler(async () => {
+  const { listShopsQuery } = await import('./products.server')
+  return listShopsQuery()
+})
+
+export const searchProducts = createServerFn({
+  method: 'GET',
+})
+  .inputValidator(searchProductsSchema)
+  .handler(async ({ data }) => {
+    const { searchProductsQuery } = await import('./products.server')
+    return searchProductsQuery(
+      data.query,
+      {
+        categorySlug: data.categorySlug,
+        shopSlug: data.shopSlug,
+        minPriceCents: data.minPriceCents,
+        maxPriceCents: data.maxPriceCents,
+      },
+      data.sort,
+      { page: data.page, pageSize: data.pageSize },
+    )
   })

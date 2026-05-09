@@ -14,6 +14,7 @@ export function sanitizeSlug(input: string): string {
 export const createCategorySchema = z.object({
   name: z.string().min(1).max(255),
   slug: z.string().min(1).max(255).optional(),
+  description: z.string().max(1000).optional(),
   parentId: z.string().uuid().optional(),
 })
 
@@ -99,6 +100,7 @@ export const createCategory = createServerFn({
       .values({
         name: data.name.trim(),
         slug,
+        description: data.description?.trim() ?? null,
         parentId: data.parentId ?? null,
       })
       .returning()
@@ -117,6 +119,13 @@ export const listCategories = createServerFn({
     }
     return listCategoriesQuery()
   })
+
+export const listCategoriesWithCounts = createServerFn({
+  method: 'GET',
+}).handler(async () => {
+  const { listCategoriesWithCountsQuery } = await import('./categories.server')
+  return listCategoriesWithCountsQuery()
+})
 
 export type CategoryWithDetails = {
   id: string
@@ -148,6 +157,7 @@ export const updateCategorySchema = z.object({
   id: z.string().uuid(),
   name: z.string().min(1).max(255).optional(),
   slug: z.string().min(1).max(255).optional(),
+  description: z.string().max(1000).optional().nullable(),
   parentId: z.string().uuid().optional().nullable(),
 })
 

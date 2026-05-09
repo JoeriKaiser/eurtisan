@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useRouter } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { listCategories } from '#/lib/categories'
@@ -7,14 +7,35 @@ import { Input } from './ui/input'
 import { Skeleton } from './ui/skeleton'
 
 export default function SearchSidebar() {
+  const router = useRouter()
+  const [query, setQuery] = useState('')
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = query.trim()
+    if (trimmed) {
+      router.navigate({
+        to: '/search',
+        search: { q: trimmed },
+      })
+    }
+  }
+
   return (
     <aside className='island-shell p-5 sm:p-6'>
-      <div className='mb-5'>
+      <form onSubmit={handleSubmit} className='mb-5'>
         <div className='relative'>
           <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted' />
-          <Input type='search' placeholder={m.sidebar_search_placeholder()} className='pl-9' />
+          <Input
+            type='search'
+            placeholder={m.sidebar_search_placeholder()}
+            className='pl-9'
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label={m.sidebar_search_placeholder()}
+          />
         </div>
-      </div>
+      </form>
 
       <div>
         <h3 className='mb-3 text-sm font-semibold text-text-primary'>

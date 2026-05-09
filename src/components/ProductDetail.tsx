@@ -1,11 +1,11 @@
 import { ImageOff, Minus, PackageCheck, PackageX, Plus, ShoppingCart, Store } from 'lucide-react'
 import { useState } from 'react'
 import { formatPriceEUR } from '#/lib/pricing'
-import type { ProductDetail } from '#/lib/products.server'
+import type { ProductDetail as ProductDetailType } from '#/lib/products.server'
 import { m } from '#/paraglide/messages'
 
 export interface ProductDetailProps {
-  product: ProductDetail
+  product: ProductDetailType
 }
 
 export default function ProductDetail({ product }: ProductDetailProps) {
