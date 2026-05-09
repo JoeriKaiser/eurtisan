@@ -35,3 +35,68 @@ export const listProductsByCategorySlug = createServerFn({
     const { listProductsByCategorySlugQuery } = await import('./products.server')
     return listProductsByCategorySlugQuery(data.slug)
   })
+
+export const listProductsSchema = z.object({
+  shopSlug: z.string().min(1).optional(),
+  categorySlug: z.string().min(1).optional(),
+  minPriceCents: z.coerce.number().int().min(0).optional(),
+  maxPriceCents: z.coerce.number().int().min(0).optional(),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
+  sort: z.enum(['newest', 'price_asc', 'price_desc']).optional().default('newest'),
+})
+
+export const listProducts = createServerFn({
+  method: 'GET',
+})
+  .inputValidator(listProductsSchema)
+  .handler(async ({ data }) => {
+    const { listProductsQuery } = await import('./products.server')
+    return listProductsQuery(
+      {
+        shopSlug: data.shopSlug,
+        categorySlug: data.categorySlug,
+        minPriceCents: data.minPriceCents,
+        maxPriceCents: data.maxPriceCents,
+      },
+      { page: data.page, pageSize: data.pageSize },
+      data.sort,
+    )
+  })
+
+export const getProductBySlugSchema = z.object({
+  slug: z.string().min(1),
+})
+
+export const getProductBySlug = createServerFn({
+  method: 'GET',
+})
+  .inputValidator(getProductBySlugSchema)
+  .handler(async ({ data }) => {
+    const { getProductBySlugQuery } = await import('./products.server')
+    const result = await getProductBySlugQuery(data.slug)
+
+    if (!result) {
+      throw new Response(
+        JSON.stringify({ error: 'Not Found', message: 'Product not found or unavailable' }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    return result
+  })
+
+export const getProductsByShopSchema = z.object({
+  shopSlug: z.string().min(1),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
+})
+
+export const getProductsByShop = createServerFn({
+  method: 'GET',
+})
+  .inputValidator(getProductsByShopSchema)
+  .handler(async ({ data }) => {
+    const { getProductsByShopSlugQuery } = await import('./products.server')
+    return getProductsByShopSlugQuery(data.shopSlug, { page: data.page, pageSize: data.pageSize })
+  })
