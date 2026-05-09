@@ -90,7 +90,11 @@ describe('ShopPage', () => {
 
   it('renders shop name without description when null', () => {
     render(
-      <ShopPage shop={makeShop({ description: null })} products={makePaginatedProducts()} searchQuery='' />,
+      <ShopPage
+        shop={makeShop({ description: null })}
+        products={makePaginatedProducts()}
+        searchQuery=''
+      />,
     )
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Test Shop')
     expect(screen.queryByText('A test shop description')).toBeNull()

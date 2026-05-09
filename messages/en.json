@@ -94,5 +94,16 @@
   "shop_search_button": "Search",
   "shop_no_search_results": "No products match your search.",
   "shop_no_products": "No products yet",
-  "shop_browse_marketplace": "Browse the marketplace"
+  "shop_browse_marketplace": "Browse the marketplace",
+  "search_kicker": "Search",
+  "search_title": "Find handmade products",
+  "search_input_placeholder": "Search products...",
+  "search_button": "Search",
+  "search_prompt_title": "Enter a search term",
+  "search_prompt_description": "Type a product name above to find handmade goods from European artisans.",
+  "search_no_results_title": "No results found",
+  "search_no_results_description": "We couldn't find any products matching \"{query}\". Try a different term or browse categories below.",
+  "search_browse_categories": "Browse categories",
+  "search_meta_title": "{query} — Search Results | Eurtisan",
+  "search_meta_description": "Search results for {query} on Eurtisan. Discover handmade products from European artisans."
 }

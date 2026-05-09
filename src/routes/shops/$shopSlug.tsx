@@ -8,8 +8,7 @@ export const Route = createFileRoute('/shops/$shopSlug')({
     try {
       const shop = await getShopBySlug({ data: { slug: params.shopSlug } })
 
-      const page =
-        typeof search.page === 'string' ? Number.parseInt(search.page, 10) || 1 : 1
+      const page = typeof search.page === 'string' ? Number.parseInt(search.page, 10) || 1 : 1
       const searchQuery = typeof search.search === 'string' ? search.search : ''
 
       const products = await getShopProducts({

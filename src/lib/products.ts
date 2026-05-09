@@ -2,7 +2,13 @@ import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
 
-export type { FeaturedShop, PaginatedProducts, PublicProduct, RecentProduct, ShopSummary } from './products.server'
+export type {
+  FeaturedShop,
+  PaginatedProducts,
+  PublicProduct,
+  RecentProduct,
+  ShopSummary,
+} from './products.server'
 
 export const createProductSchema = z.object({
   name: z.string().min(1).max(255),
@@ -160,4 +166,19 @@ export const getShopProducts = createServerFn({
       page: data.page,
       pageSize: data.pageSize,
     })
+  })
+
+export const searchProductsSchema = z.object({
+  query: z.string().min(1).max(255),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
+})
+
+export const searchProducts = createServerFn({
+  method: 'GET',
+})
+  .inputValidator(searchProductsSchema)
+  .handler(async ({ data }) => {
+    const { searchProductsQuery } = await import('./products.server')
+    return searchProductsQuery(data.query, { page: data.page, pageSize: data.pageSize })
   })

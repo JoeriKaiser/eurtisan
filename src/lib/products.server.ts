@@ -331,7 +331,12 @@ export async function listRecentProductsQuery(limit = 8): Promise<RecentProduct[
       sortOrder: productImage.sortOrder,
     })
     .from(productImage)
-    .where(inArray(productImage.productId, products.map((p) => p.id)))
+    .where(
+      inArray(
+        productImage.productId,
+        products.map((p) => p.id),
+      ),
+    )
     .orderBy(asc(productImage.sortOrder))
 
   const firstImageByProduct = new Map<string, (typeof images)[number]>()
@@ -367,6 +372,51 @@ export async function getFeaturedShopsQuery(limit: number): Promise<FeaturedShop
     ...r,
     productCount: Number(r.productCount),
   }))
+}
+
+export async function searchProductsQuery(
+  query: string,
+  pagination: Pagination = { page: 1, pageSize: 20 },
+): Promise<PaginatedProducts> {
+  const trimmedQuery = query.trim()
+  const page = Math.max(1, pagination.page)
+  const pageSize = Math.min(100, Math.max(1, pagination.pageSize))
+  const offset = (page - 1) * pageSize
+
+  const conditions = [eq(shop.isSuspended, false), eq(product.isActive, true)]
+
+  if (trimmedQuery.length > 0) {
+    conditions.push(ilike(product.name, `%${trimmedQuery}%`))
+  }
+
+  const where = and(...conditions)
+
+  const [totalResult] = await db
+    .select({ total: count() })
+    .from(product)
+    .innerJoin(shop, eq(product.shopId, shop.id))
+    .leftJoin(categories, eq(product.categoryId, categories.id))
+    .where(where)
+
+  const total = totalResult?.total ?? 0
+
+  const products = await db
+    .select(publicProductColumns)
+    .from(product)
+    .innerJoin(shop, eq(product.shopId, shop.id))
+    .leftJoin(categories, eq(product.categoryId, categories.id))
+    .where(where)
+    .orderBy(desc(product.createdAt))
+    .limit(pageSize)
+    .offset(offset)
+
+  return {
+    products: products as PublicProduct[],
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
+  }
 }
 
 export async function createProductInternal(data: {

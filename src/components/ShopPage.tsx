@@ -3,9 +3,9 @@ import { Search, Store } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import type { PaginatedProducts, ShopSummary } from '#/lib/products.server'
 import { m } from '#/paraglide/messages'
+import ProductGrid from './ProductGrid'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
-import ProductGrid from './ProductGrid'
 
 export interface ShopPageProps {
   shop: ShopSummary

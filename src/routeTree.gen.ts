@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SigninRouteImport } from './routes/signin'
+import { Route as SearchRouteImport } from './routes/search'
 import { Route as ForbiddenRouteImport } from './routes/forbidden'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
@@ -33,6 +34,11 @@ import { Route as ApiShopsShopIdProductsProductIdRouteImport } from './routes/ap
 const SigninRoute = SigninRouteImport.update({
   id: '/signin',
   path: '/signin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForbiddenRoute = ForbiddenRouteImport.update({
@@ -136,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/forbidden': typeof ForbiddenRoute
+  '/search': typeof SearchRoute
   '/signin': typeof SigninRoute
   '/account/orders': typeof AccountOrdersRoute
   '/account/settings': typeof AccountSettingsRoute
@@ -158,6 +165,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/forbidden': typeof ForbiddenRoute
+  '/search': typeof SearchRoute
   '/signin': typeof SigninRoute
   '/account/orders': typeof AccountOrdersRoute
   '/account/settings': typeof AccountSettingsRoute
@@ -181,6 +189,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/forbidden': typeof ForbiddenRoute
+  '/search': typeof SearchRoute
   '/signin': typeof SigninRoute
   '/account/orders': typeof AccountOrdersRoute
   '/account/settings': typeof AccountSettingsRoute
@@ -205,6 +214,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/forbidden'
+    | '/search'
     | '/signin'
     | '/account/orders'
     | '/account/settings'
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/forbidden'
+    | '/search'
     | '/signin'
     | '/account/orders'
     | '/account/settings'
@@ -249,6 +260,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/forbidden'
+    | '/search'
     | '/signin'
     | '/account/orders'
     | '/account/settings'
@@ -272,6 +284,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   ForbiddenRoute: typeof ForbiddenRoute
+  SearchRoute: typeof SearchRoute
   SigninRoute: typeof SigninRoute
   AccountOrdersRoute: typeof AccountOrdersRoute
   AccountSettingsRoute: typeof AccountSettingsRoute
@@ -297,6 +310,13 @@ declare module '@tanstack/react-router' {
       path: '/signin'
       fullPath: '/signin'
       preLoaderRoute: typeof SigninRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forbidden': {
@@ -453,6 +473,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   ForbiddenRoute: ForbiddenRoute,
+  SearchRoute: SearchRoute,
   SigninRoute: SigninRoute,
   AccountOrdersRoute: AccountOrdersRoute,
   AccountSettingsRoute: AccountSettingsRoute,
