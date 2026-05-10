@@ -1,6 +1,6 @@
 import { and, eq, gt, inArray, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { cart, cartItem, product } from '#/db/schema'
+import { cart, cartItem, product, productImage, shop } from '#/db/schema'
 
 export const ANONYMOUS_SESSION_COOKIE = 'eurtisan_session'
 export const AUTH_CART_DAYS = 30
@@ -13,6 +13,50 @@ function daysFromNow(days: number): Date {
 export function generateSessionId(): string {
   return crypto.randomUUID()
 }
+
+/* -------------------------------------------------------------------------- */
+/*                                  Types                                     */
+/* -------------------------------------------------------------------------- */
+
+export interface CartProductDetail {
+  id: string
+  name: string
+  slug: string
+  priceCents: number
+  stockCount: number
+  imageUrl: string | null
+}
+
+export interface CartItemDetail {
+  id: string
+  productId: string
+  quantity: number
+  product: CartProductDetail | null
+  unavailable: boolean
+  stockWarning: boolean
+}
+
+export interface CartShopGroup {
+  shopId: string | null
+  shopName: string | null
+  shopSlug: string | null
+  items: CartItemDetail[]
+  subtotalCents: number
+}
+
+export interface CartDetail {
+  id: string
+  userId: string | null
+  sessionId: string | null
+  expiresAt: Date | null
+  shops: CartShopGroup[]
+  totalCents: number
+  totalItems: number
+}
+
+/* -------------------------------------------------------------------------- */
+/*                               Cart Retrieval                               */
+/* -------------------------------------------------------------------------- */
 
 export async function getCartWithItemsBySessionId(sessionId: string) {
   const cartRecord = await db.select().from(cart).where(eq(cart.sessionId, sessionId)).limit(1)
@@ -29,6 +73,119 @@ export async function getCartWithItemsByUserId(userId: string) {
   const items = await db.select().from(cartItem).where(eq(cartItem.cartId, cartRecord[0].id))
   return { ...cartRecord[0], items }
 }
+
+export async function getCartDetailsBySessionId(sessionId: string): Promise<CartDetail | null> {
+  const cartRecord = await db.select().from(cart).where(eq(cart.sessionId, sessionId)).limit(1)
+  if (cartRecord.length === 0) return null
+  return buildCartDetail(cartRecord[0])
+}
+
+export async function getCartDetailsByUserId(userId: string): Promise<CartDetail | null> {
+  const cartRecord = await db.select().from(cart).where(eq(cart.userId, userId)).limit(1)
+  if (cartRecord.length === 0) return null
+  return buildCartDetail(cartRecord[0])
+}
+
+async function buildCartDetail(cartRecord: typeof cart.$inferSelect): Promise<CartDetail> {
+  const rows = await db
+    .select({
+      item: cartItem,
+      product: product,
+      shop: shop,
+    })
+    .from(cartItem)
+    .leftJoin(product, eq(cartItem.productId, product.id))
+    .leftJoin(shop, eq(product.shopId, shop.id))
+    .where(eq(cartItem.cartId, cartRecord.id))
+
+  const productIds = rows
+    .map((r) => r.product?.id)
+    .filter((id): id is string => !!id)
+
+  const images =
+    productIds.length > 0
+      ? await db
+          .select()
+          .from(productImage)
+          .where(and(inArray(productImage.productId, productIds), eq(productImage.sortOrder, 0)))
+      : []
+
+  // Deduplicate to one image per product (defensive against duplicate sortOrder = 0)
+  const imageByProduct = new Map<string, string>()
+  for (const img of images) {
+    if (!imageByProduct.has(img.productId)) {
+      imageByProduct.set(img.productId, img.url)
+    }
+  }
+
+  const groups = new Map<string | null, CartShopGroup>()
+
+  for (const row of rows) {
+    const productRecord = row.product
+    const shopRecord = row.shop
+
+    const isUnavailable =
+      !productRecord || productRecord.isActive === false || shopRecord?.isSuspended === true
+
+    const itemDetail: CartItemDetail = {
+      id: row.item.id,
+      productId: row.item.productId,
+      quantity: row.item.quantity,
+      product: productRecord
+        ? {
+            id: productRecord.id,
+            name: productRecord.name,
+            slug: productRecord.slug,
+            priceCents: productRecord.priceCents,
+            stockCount: productRecord.stockCount,
+            imageUrl: productRecord ? (imageByProduct.get(productRecord.id) ?? null) : null,
+          }
+        : null,
+      unavailable: isUnavailable,
+      stockWarning:
+        !isUnavailable && productRecord ? row.item.quantity > productRecord.stockCount : false,
+    }
+
+    const shopId = shopRecord?.id ?? null
+    const existing = groups.get(shopId)
+
+    if (existing) {
+      existing.items.push(itemDetail)
+      if (!isUnavailable && productRecord) {
+        existing.subtotalCents += productRecord.priceCents * Math.min(row.item.quantity, productRecord.stockCount)
+      }
+    } else {
+      groups.set(shopId, {
+        shopId,
+        shopName: shopRecord?.name ?? (isUnavailable ? 'Unavailable' : null),
+        shopSlug: shopRecord?.slug ?? null,
+        items: [itemDetail],
+        subtotalCents:
+          !isUnavailable && productRecord
+            ? productRecord.priceCents * Math.min(row.item.quantity, productRecord.stockCount)
+            : 0,
+      })
+    }
+  }
+
+  const shopGroups = Array.from(groups.values())
+  const totalCents = shopGroups.reduce((sum, g) => sum + g.subtotalCents, 0)
+  const totalItems = rows.reduce((sum, r) => sum + r.item.quantity, 0)
+
+  return {
+    id: cartRecord.id,
+    userId: cartRecord.userId,
+    sessionId: cartRecord.sessionId,
+    expiresAt: cartRecord.expiresAt,
+    shops: shopGroups,
+    totalCents,
+    totalItems,
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                               Cart Creation                                */
+/* -------------------------------------------------------------------------- */
 
 export async function createAnonymousCart(sessionId: string) {
   const [newCart] = await db
@@ -52,7 +209,14 @@ export async function createUserCart(userId: string) {
   return newCart
 }
 
+/* -------------------------------------------------------------------------- */
+/*                               Cart Mutations                               */
+/* -------------------------------------------------------------------------- */
+
 export async function addItemToCart(cartId: string, productId: string, quantity: number) {
+  const productRecord = await db.select().from(product).where(eq(product.id, productId)).limit(1)
+  const stock = productRecord.length > 0 ? productRecord[0].stockCount : 0
+
   const existing = await db
     .select()
     .from(cartItem)
@@ -60,7 +224,11 @@ export async function addItemToCart(cartId: string, productId: string, quantity:
     .limit(1)
 
   if (existing.length > 0) {
-    const newQty = existing[0].quantity + quantity
+    const newQty = Math.min(existing[0].quantity + quantity, stock)
+    if (newQty <= 0) {
+      await db.delete(cartItem).where(eq(cartItem.id, existing[0].id))
+      return null
+    }
     const [updated] = await db
       .update(cartItem)
       .set({ quantity: newQty, updatedAt: new Date() })
@@ -69,15 +237,75 @@ export async function addItemToCart(cartId: string, productId: string, quantity:
     return updated
   }
 
+  const finalQty = Math.min(quantity, stock)
+  if (finalQty <= 0) {
+    return null
+  }
+
   const [newItem] = await db
     .insert(cartItem)
     .values({
       cartId,
       productId,
-      quantity,
+      quantity: finalQty,
     })
     .returning()
   return newItem
+}
+
+export async function updateCartItemQuantity(
+  cartId: string,
+  productId: string,
+  quantity: number,
+) {
+  if (quantity <= 0) {
+    await db
+      .delete(cartItem)
+      .where(and(eq(cartItem.cartId, cartId), eq(cartItem.productId, productId)))
+    return null
+  }
+
+  const productRecord = await db.select().from(product).where(eq(product.id, productId)).limit(1)
+  const stock = productRecord.length > 0 ? productRecord[0].stockCount : 0
+  const cappedQty = Math.min(quantity, stock)
+
+  if (cappedQty <= 0) {
+    await db
+      .delete(cartItem)
+      .where(and(eq(cartItem.cartId, cartId), eq(cartItem.productId, productId)))
+    return null
+  }
+
+  const existing = await db
+    .select()
+    .from(cartItem)
+    .where(and(eq(cartItem.cartId, cartId), eq(cartItem.productId, productId)))
+    .limit(1)
+
+  if (existing.length === 0) {
+    const [newItem] = await db
+      .insert(cartItem)
+      .values({
+        cartId,
+        productId,
+        quantity: cappedQty,
+      })
+      .returning()
+    return newItem
+  }
+
+  const [updated] = await db
+    .update(cartItem)
+    .set({ quantity: cappedQty, updatedAt: new Date() })
+    .where(eq(cartItem.id, existing[0].id))
+    .returning()
+  return updated
+}
+
+export async function removeItemFromCart(cartId: string, productId: string) {
+  await db
+    .delete(cartItem)
+    .where(and(eq(cartItem.cartId, cartId), eq(cartItem.productId, productId)))
 }
 
 export async function touchCartExpiry(cartId: string, days: number = AUTH_CART_DAYS) {
@@ -86,6 +314,10 @@ export async function touchCartExpiry(cartId: string, days: number = AUTH_CART_D
     .set({ expiresAt: daysFromNow(days), updatedAt: new Date() })
     .where(eq(cart.id, cartId))
 }
+
+/* -------------------------------------------------------------------------- */
+/*                               Cart Merge                                   */
+/* -------------------------------------------------------------------------- */
 
 export async function mergeAnonymousCartIntoUserCart(sessionId: string, userId: string) {
   await db.transaction(async (tx) => {
@@ -171,7 +403,14 @@ export async function handlePostLoginCartMerge(
   }
 }
 
-export async function cleanupExpiredCarts() {
+/* -------------------------------------------------------------------------- */
+/*                            Expired Cart Cleanup                            */
+/* -------------------------------------------------------------------------- */
+
+export async function clearExpiredCarts() {
   const now = new Date()
   await db.delete(cart).where(and(gt(cart.expiresAt, new Date(0)), gt(sql`${now}`, cart.expiresAt)))
 }
+
+// Backward-compatible alias
+export const cleanupExpiredCarts = clearExpiredCarts

@@ -2,21 +2,26 @@ import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { db } from '#/db/index'
-import { cart, cartItem, product, shop, user } from '#/db/schema'
+import { cart, cartItem, product, productImage, shop, user } from '#/db/schema'
 
 import {
   ANON_CART_DAYS,
   AUTH_CART_DAYS,
   addItemToCart,
   cleanupExpiredCarts,
+  clearExpiredCarts,
   createAnonymousCart,
   createUserCart,
   generateSessionId,
+  getCartDetailsBySessionId,
+  getCartDetailsByUserId,
   getCartWithItemsBySessionId,
   getCartWithItemsByUserId,
   handlePostLoginCartMerge,
   mergeAnonymousCartIntoUserCart,
+  removeItemFromCart,
   touchCartExpiry,
+  updateCartItemQuantity,
 } from './cart.server'
 
 beforeEach(async () => {
@@ -163,8 +168,8 @@ describe('addItemToCart', () => {
     const p = await seedProduct()
 
     const item = await addItemToCart(c.id, p.id, 5)
-    expect(item.productId).toBe(p.id)
-    expect(item.quantity).toBe(5)
+    expect(item!.productId).toBe(p.id)
+    expect(item!.quantity).toBe(5)
   })
 
   it('increments quantity for existing item', async () => {
@@ -176,7 +181,56 @@ describe('addItemToCart', () => {
 
     await addItemToCart(c.id, p.id, 3)
     const item = await addItemToCart(c.id, p.id, 2)
-    expect(item.quantity).toBe(5)
+    expect(item!.quantity).toBe(5)
+  })
+
+  it('caps quantity at product stock', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct({ stockCount: 5 })
+
+    const item = await addItemToCart(c.id, p.id, 10)
+    expect(item!.quantity).toBe(5)
+  })
+
+  it('caps existing + new quantity at stock', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct({ stockCount: 5 })
+
+    await addItemToCart(c.id, p.id, 3)
+    const item = await addItemToCart(c.id, p.id, 5)
+    expect(item!.quantity).toBe(5)
+  })
+
+  it('returns null when stock is zero', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct({ stockCount: 0 })
+
+    const item = await addItemToCart(c.id, p.id, 3)
+    expect(item).toBeNull()
+  })
+
+  it('deletes existing item when capped to zero stock', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct({ stockCount: 0 })
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
+    const item = await addItemToCart(c.id, p.id, 1)
+    expect(item).toBeNull()
+
+    const remaining = await db.select().from(cartItem).where(eq(cartItem.cartId, c.id))
+    expect(remaining).toHaveLength(0)
   })
 })
 
@@ -374,7 +428,252 @@ describe('handlePostLoginCartMerge', () => {
   })
 })
 
-describe('cleanupExpiredCarts', () => {
+describe('updateCartItemQuantity', () => {
+  it('updates quantity for existing item', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct()
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
+    const updated = await updateCartItemQuantity(c.id, p.id, 7)
+    expect(updated!.quantity).toBe(7)
+  })
+
+  it('removes item when quantity is zero', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct()
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
+    const result = await updateCartItemQuantity(c.id, p.id, 0)
+    expect(result).toBeNull()
+
+    const remaining = await db.select().from(cartItem).where(eq(cartItem.cartId, c.id))
+    expect(remaining).toHaveLength(0)
+  })
+
+  it('caps quantity at product stock', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct({ stockCount: 5 })
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
+    const updated = await updateCartItemQuantity(c.id, p.id, 10)
+    expect(updated!.quantity).toBe(5)
+  })
+
+  it('creates item when it does not exist', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct()
+
+    const result = await updateCartItemQuantity(c.id, p.id, 3)
+    expect(result!.productId).toBe(p.id)
+    expect(result!.quantity).toBe(3)
+  })
+
+  it('removes item when stock is zero', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct({ stockCount: 0 })
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
+    const result = await updateCartItemQuantity(c.id, p.id, 1)
+    expect(result).toBeNull()
+
+    const remaining = await db.select().from(cartItem).where(eq(cartItem.cartId, c.id))
+    expect(remaining).toHaveLength(0)
+  })
+})
+
+describe('removeItemFromCart', () => {
+  it('removes item from cart', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct()
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
+    await removeItemFromCart(c.id, p.id)
+
+    const remaining = await db.select().from(cartItem).where(eq(cartItem.cartId, c.id))
+    expect(remaining).toHaveLength(0)
+  })
+
+  it('does nothing when item does not exist', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+
+    await removeItemFromCart(c.id, 'nonexistent')
+
+    const remaining = await db.select().from(cartItem).where(eq(cartItem.cartId, c.id))
+    expect(remaining).toHaveLength(0)
+  })
+})
+
+describe('getCartDetailsBySessionId', () => {
+  it('returns null for nonexistent session', async () => {
+    const result = await getCartDetailsBySessionId('nonexistent')
+    expect(result).toBeNull()
+  })
+
+  it('returns cart grouped by shop with subtotals', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p1 = await seedProduct({ id: 'prod-1', name: 'Vase', slug: 'vase', priceCents: 1000 })
+    const p2 = await seedProduct({ id: 'prod-2', name: 'Bowl', slug: 'bowl', priceCents: 2000 })
+
+    await db.insert(cartItem).values([
+      { cartId: c.id, productId: p1.id, quantity: 2 },
+      { cartId: c.id, productId: p2.id, quantity: 1 },
+    ])
+
+    const result = await getCartDetailsBySessionId(sessionId)
+    expect(result).not.toBeNull()
+    expect(result!.shops).toHaveLength(1)
+    expect(result!.shops[0].shopName).toBe('Test Shop')
+    expect(result!.shops[0].items).toHaveLength(2)
+    expect(result!.shops[0].subtotalCents).toBe(4000)
+    expect(result!.totalCents).toBe(4000)
+    expect(result!.totalItems).toBe(3)
+  })
+
+  it('marks deleted products as unavailable', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct({ id: 'prod-1' })
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
+    await db.delete(product).where(eq(product.id, p.id))
+
+    const result = await getCartDetailsBySessionId(sessionId)
+    expect(result).not.toBeNull()
+    expect(result!.shops[0].items[0].unavailable).toBe(true)
+    expect(result!.shops[0].items[0].product).toBeNull()
+  })
+
+  it('marks inactive products as unavailable', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct({ id: 'prod-1', isActive: false })
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
+
+    const result = await getCartDetailsBySessionId(sessionId)
+    expect(result!.shops[0].items[0].unavailable).toBe(true)
+  })
+
+  it('marks items from suspended shops as unavailable', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct({ id: 'prod-1' })
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
+    await db.update(shop).set({ isSuspended: true }).where(eq(shop.id, 'shop-1'))
+
+    const result = await getCartDetailsBySessionId(sessionId)
+    expect(result!.shops[0].items[0].unavailable).toBe(true)
+  })
+
+  it('surfaces stock warning when cart quantity exceeds stock', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct({ id: 'prod-1', stockCount: 3 })
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 5 })
+
+    const result = await getCartDetailsBySessionId(sessionId)
+    expect(result!.shops[0].items[0].stockWarning).toBe(true)
+    expect(result!.shops[0].subtotalCents).toBe(3000) // capped at stock
+  })
+
+  it('includes product image url', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct({ id: 'prod-1' })
+
+    await db.insert(productImage).values({
+      id: 'img-1',
+      productId: p.id,
+      url: 'http://example.com/vase.jpg',
+      sortOrder: 0,
+    })
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+
+    const result = await getCartDetailsBySessionId(sessionId)
+    expect(result!.shops[0].items[0].product!.imageUrl).toBe('http://example.com/vase.jpg')
+  })
+
+  it('does not duplicate items when multiple primary images exist', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct({ id: 'prod-1' })
+
+    await db.insert(productImage).values([
+      { id: 'img-1', productId: p.id, url: 'http://example.com/a.jpg', sortOrder: 0 },
+      { id: 'img-2', productId: p.id, url: 'http://example.com/b.jpg', sortOrder: 0 },
+    ])
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
+
+    const result = await getCartDetailsBySessionId(sessionId)
+    expect(result).not.toBeNull()
+    expect(result!.shops).toHaveLength(1)
+    expect(result!.shops[0].items).toHaveLength(1)
+    expect(result!.totalItems).toBe(2)
+    expect(result!.totalCents).toBe(2000)
+  })
+})
+
+describe('getCartDetailsByUserId', () => {
+  it('returns null for user without cart', async () => {
+    const result = await getCartDetailsByUserId('nonexistent')
+    expect(result).toBeNull()
+  })
+
+  it('returns user cart with grouped shops', async () => {
+    await seedUser()
+    await seedShop()
+    const u = await db.select().from(user).where(eq(user.id, 'user-1')).limit(1).then((rows) => rows[0])
+    const c = await createUserCart(u.id)
+    const p = await seedProduct()
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 4 })
+
+    const result = await getCartDetailsByUserId(u.id)
+    expect(result).not.toBeNull()
+    expect(result!.shops).toHaveLength(1)
+    expect(result!.totalCents).toBe(4000)
+  })
+})
+
+describe('clearExpiredCarts', () => {
   it('deletes carts past their expiry', async () => {
     const sessionId = generateSessionId()
     const [expiredCart] = await db
@@ -385,7 +684,7 @@ describe('cleanupExpiredCarts', () => {
       })
       .returning()
 
-    await cleanupExpiredCarts()
+    await clearExpiredCarts()
 
     const remaining = await db.select().from(cart).where(eq(cart.id, expiredCart.id))
     expect(remaining).toHaveLength(0)
@@ -401,9 +700,27 @@ describe('cleanupExpiredCarts', () => {
       })
       .returning()
 
-    await cleanupExpiredCarts()
+    await clearExpiredCarts()
 
     const remaining = await db.select().from(cart).where(eq(cart.id, freshCart.id))
     expect(remaining).toHaveLength(1)
+  })
+})
+
+describe('cleanupExpiredCarts alias', () => {
+  it('still works as an alias for clearExpiredCarts', async () => {
+    const sessionId = generateSessionId()
+    const [expiredCart] = await db
+      .insert(cart)
+      .values({
+        sessionId,
+        expiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      })
+      .returning()
+
+    await cleanupExpiredCarts()
+
+    const remaining = await db.select().from(cart).where(eq(cart.id, expiredCart.id))
+    expect(remaining).toHaveLength(0)
   })
 })

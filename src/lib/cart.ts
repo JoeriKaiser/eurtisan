@@ -6,13 +6,18 @@ import {
   ANONYMOUS_SESSION_COOKIE,
   AUTH_CART_DAYS,
   addItemToCart,
+  clearExpiredCarts,
   createAnonymousCart,
   createUserCart,
   generateSessionId,
+  getCartDetailsBySessionId,
+  getCartDetailsByUserId,
   getCartWithItemsBySessionId,
   getCartWithItemsByUserId,
   mergeAnonymousCartIntoUserCart,
+  removeItemFromCart,
   touchCartExpiry,
+  updateCartItemQuantity,
 } from './cart.server'
 
 const COOKIE_OPTIONS = {
@@ -53,11 +58,11 @@ export const getCart = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     if (context.user) {
-      return getCartWithItemsByUserId(context.user.id)
+      return getCartDetailsByUserId(context.user.id)
     }
     const sessionId = getAnonymousSessionIdFromCookie()
     if (!sessionId) return null
-    return getCartWithItemsBySessionId(sessionId)
+    return getCartDetailsBySessionId(sessionId)
   })
 
 export const addToCart = createServerFn({ method: 'POST' })
@@ -85,7 +90,66 @@ export const addToCart = createServerFn({ method: 'POST' })
 
     const anonCart = await getCartWithItemsBySessionId(sessionId)
     const cartId = anonCart ? anonCart.id : (await createAnonymousCart(sessionId)).id
-    return addItemToCart(cartId, data.productId, data.quantity)
+    const result = await addItemToCart(cartId, data.productId, data.quantity)
+    await touchCartExpiry(cartId, ANON_CART_DAYS)
+    return result
+  })
+
+export const updateCartItem = createServerFn({ method: 'POST' })
+  .middleware([authMiddleware])
+  .inputValidator(
+    z.object({
+      productId: z.string().min(1),
+      quantity: z.number().int().min(0),
+    }),
+  )
+  .handler(async ({ context, data }) => {
+    if (context.user) {
+      const userCart = await getCartWithItemsByUserId(context.user.id)
+      if (!userCart) {
+        throw new Error('CART_NOT_FOUND')
+      }
+      return updateCartItemQuantity(userCart.id, data.productId, data.quantity)
+    }
+
+    const sessionId = getAnonymousSessionIdFromCookie()
+    if (!sessionId) {
+      throw new Error('CART_NOT_FOUND')
+    }
+    const anonCart = await getCartWithItemsBySessionId(sessionId)
+    if (!anonCart) {
+      throw new Error('CART_NOT_FOUND')
+    }
+    return updateCartItemQuantity(anonCart.id, data.productId, data.quantity)
+  })
+
+export const removeCartItem = createServerFn({ method: 'POST' })
+  .middleware([authMiddleware])
+  .inputValidator(
+    z.object({
+      productId: z.string().min(1),
+    }),
+  )
+  .handler(async ({ context, data }) => {
+    if (context.user) {
+      const userCart = await getCartWithItemsByUserId(context.user.id)
+      if (!userCart) {
+        throw new Error('CART_NOT_FOUND')
+      }
+      await removeItemFromCart(userCart.id, data.productId)
+      return { success: true }
+    }
+
+    const sessionId = getAnonymousSessionIdFromCookie()
+    if (!sessionId) {
+      throw new Error('CART_NOT_FOUND')
+    }
+    const anonCart = await getCartWithItemsBySessionId(sessionId)
+    if (!anonCart) {
+      throw new Error('CART_NOT_FOUND')
+    }
+    await removeItemFromCart(anonCart.id, data.productId)
+    return { success: true }
   })
 
 export const mergeCartOnLogin = createServerFn({ method: 'POST' })
@@ -99,5 +163,15 @@ export const mergeCartOnLogin = createServerFn({ method: 'POST' })
       await mergeAnonymousCartIntoUserCart(sessionId, context.user.id)
       clearAnonymousSessionCookie()
     }
+    return { success: true }
+  })
+
+export const runClearExpiredCarts = createServerFn({ method: 'POST' })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    if (!context.user || context.user.role !== 'admin') {
+      throw new Error('FORBIDDEN')
+    }
+    await clearExpiredCarts()
     return { success: true }
   })
