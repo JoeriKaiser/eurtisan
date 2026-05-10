@@ -273,3 +273,27 @@ export const orderItem = pgTable(
   },
   (table) => [index('order_item_shop_order_id_idx').on(table.shopOrderId)],
 )
+
+export const inventoryReservation = pgTable(
+  'inventory_reservation',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    productId: text('product_id')
+      .notNull()
+      .references(() => product.id, { onDelete: 'cascade' }),
+    quantity: integer().notNull(),
+    platformOrderId: uuid('platform_order_id')
+      .notNull()
+      .references(() => platformOrder.id, { onDelete: 'cascade' }),
+    expiresAt: timestamp('expires_at').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('inventory_reservation_product_id_idx').on(table.productId),
+    index('inventory_reservation_expires_at_idx').on(table.expiresAt),
+    uniqueIndex('inventory_reservation_product_order_unique').on(
+      table.productId,
+      table.platformOrderId,
+    ),
+  ],
+)

@@ -6,8 +6,8 @@ import { z } from 'zod'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { createCheckout } from '#/lib/checkout'
-import { formatPriceEUR } from '#/lib/pricing'
 import type { CheckoutSummary } from '#/lib/checkout.server'
+import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 
 function getFieldError(error: unknown): string | undefined {
