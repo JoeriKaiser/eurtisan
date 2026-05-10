@@ -59,10 +59,7 @@ vi.mock('@tanstack/react-router', () => ({
     params?: Record<string, string>
     className?: string
   }) => (
-    <a
-      href={props.to}
-      className={props.className}
-    >
+    <a href={props.to} className={props.className}>
       {props.children}
     </a>
   ),
@@ -126,7 +123,9 @@ describe('CartPage', () => {
   it('renders empty cart state', () => {
     render(<CartPage cart={null} />)
     expect(screen.getByText('Your cart is empty')).toBeDefined()
-    expect(screen.getByText("Looks like you haven't added anything to your cart yet.")).toBeDefined()
+    expect(
+      screen.getByText("Looks like you haven't added anything to your cart yet."),
+    ).toBeDefined()
     expect(screen.getByRole('link', { name: 'Browse products' })).toBeDefined()
   })
 
@@ -190,7 +189,9 @@ describe('CartPage', () => {
     render(<CartPage cart={makeCart()} />)
     fireEvent.click(screen.getByLabelText('Increase quantity'))
     await waitFor(() => {
-      expect(mockUpdateCartItem).toHaveBeenCalledWith({ data: { productId: 'prod-1', quantity: 3 } })
+      expect(mockUpdateCartItem).toHaveBeenCalledWith({
+        data: { productId: 'prod-1', quantity: 3 },
+      })
     })
   })
 
@@ -198,7 +199,9 @@ describe('CartPage', () => {
     render(<CartPage cart={makeCart()} />)
     fireEvent.click(screen.getByLabelText('Decrease quantity'))
     await waitFor(() => {
-      expect(mockUpdateCartItem).toHaveBeenCalledWith({ data: { productId: 'prod-1', quantity: 1 } })
+      expect(mockUpdateCartItem).toHaveBeenCalledWith({
+        data: { productId: 'prod-1', quantity: 1 },
+      })
     })
   })
 
@@ -208,7 +211,9 @@ describe('CartPage', () => {
     fireEvent.click(removeButton)
     await waitFor(() => {
       expect(screen.getByText('Remove item')).toBeDefined()
-      expect(screen.getByText('Are you sure you want to remove this item from your cart?')).toBeDefined()
+      expect(
+        screen.getByText('Are you sure you want to remove this item from your cart?'),
+      ).toBeDefined()
     })
   })
 

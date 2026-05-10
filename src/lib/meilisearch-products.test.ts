@@ -398,15 +398,10 @@ describe('searchProductsMeilisearch', () => {
       estimatedTotalHits: 1,
     })
 
-    await searchProductsMeilisearch(
-      undefined,
-      { categorySlug: 'pottery' },
-      'relevance',
-      {
-        page: 1,
-        pageSize: 10,
-      },
-    )
+    await searchProductsMeilisearch(undefined, { categorySlug: 'pottery' }, 'relevance', {
+      page: 1,
+      pageSize: 10,
+    })
 
     expect(mockSearch).toHaveBeenCalledWith(
       '',

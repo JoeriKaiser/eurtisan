@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SigninRouteImport } from './routes/signin'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as ForbiddenRouteImport } from './routes/forbidden'
+import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as CartRouteImport } from './routes/cart'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
@@ -26,6 +27,7 @@ import { Route as CategorySlugRouteImport } from './routes/category/$slug'
 import { Route as ApiProductsRouteImport } from './routes/api/products'
 import { Route as AccountSettingsRouteImport } from './routes/account/settings'
 import { Route as AccountOrdersRouteImport } from './routes/account/orders'
+import { Route as OrdersPlatformOrderIdSuccessRouteImport } from './routes/orders.$platformOrderId.success'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiShopsShopIdSettingsRouteImport } from './routes/api/shops/$shopId/settings'
 import { Route as ApiShopsShopIdProductsRouteImport } from './routes/api/shops/$shopId/products'
@@ -46,6 +48,11 @@ const SearchRoute = SearchRouteImport.update({
 const ForbiddenRoute = ForbiddenRouteImport.update({
   id: '/forbidden',
   path: '/forbidden',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutRoute = CheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CartRoute = CartRouteImport.update({
@@ -118,6 +125,12 @@ const AccountOrdersRoute = AccountOrdersRouteImport.update({
   path: '/account/orders',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrdersPlatformOrderIdSuccessRoute =
+  OrdersPlatformOrderIdSuccessRouteImport.update({
+    id: '/orders/$platformOrderId/success',
+    path: '/orders/$platformOrderId/success',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -154,6 +167,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/cart': typeof CartRoute
+  '/checkout': typeof CheckoutRoute
   '/forbidden': typeof ForbiddenRoute
   '/search': typeof SearchRoute
   '/signin': typeof SigninRoute
@@ -169,6 +183,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/studio/': typeof StudioIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
   '/api/shops/$shopId/dashboard': typeof ApiShopsShopIdDashboardRoute
   '/api/shops/$shopId/orders': typeof ApiShopsShopIdOrdersRoute
   '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRouteWithChildren
@@ -179,6 +194,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/cart': typeof CartRoute
+  '/checkout': typeof CheckoutRoute
   '/forbidden': typeof ForbiddenRoute
   '/search': typeof SearchRoute
   '/signin': typeof SigninRoute
@@ -194,6 +210,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/studio': typeof StudioIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
   '/api/shops/$shopId/dashboard': typeof ApiShopsShopIdDashboardRoute
   '/api/shops/$shopId/orders': typeof ApiShopsShopIdOrdersRoute
   '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRouteWithChildren
@@ -205,6 +222,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/cart': typeof CartRoute
+  '/checkout': typeof CheckoutRoute
   '/forbidden': typeof ForbiddenRoute
   '/search': typeof SearchRoute
   '/signin': typeof SigninRoute
@@ -220,6 +238,7 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/studio/': typeof StudioIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
   '/api/shops/$shopId/dashboard': typeof ApiShopsShopIdDashboardRoute
   '/api/shops/$shopId/orders': typeof ApiShopsShopIdOrdersRoute
   '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRouteWithChildren
@@ -232,6 +251,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/cart'
+    | '/checkout'
     | '/forbidden'
     | '/search'
     | '/signin'
@@ -247,6 +267,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/studio/'
     | '/api/auth/$'
+    | '/orders/$platformOrderId/success'
     | '/api/shops/$shopId/dashboard'
     | '/api/shops/$shopId/orders'
     | '/api/shops/$shopId/products'
@@ -257,6 +278,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/cart'
+    | '/checkout'
     | '/forbidden'
     | '/search'
     | '/signin'
@@ -272,6 +294,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/studio'
     | '/api/auth/$'
+    | '/orders/$platformOrderId/success'
     | '/api/shops/$shopId/dashboard'
     | '/api/shops/$shopId/orders'
     | '/api/shops/$shopId/products'
@@ -282,6 +305,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/cart'
+    | '/checkout'
     | '/forbidden'
     | '/search'
     | '/signin'
@@ -297,6 +321,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/studio/'
     | '/api/auth/$'
+    | '/orders/$platformOrderId/success'
     | '/api/shops/$shopId/dashboard'
     | '/api/shops/$shopId/orders'
     | '/api/shops/$shopId/products'
@@ -308,6 +333,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   CartRoute: typeof CartRoute
+  CheckoutRoute: typeof CheckoutRoute
   ForbiddenRoute: typeof ForbiddenRoute
   SearchRoute: typeof SearchRoute
   SigninRoute: typeof SigninRoute
@@ -323,6 +349,7 @@ export interface RootRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
   StudioIndexRoute: typeof StudioIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  OrdersPlatformOrderIdSuccessRoute: typeof OrdersPlatformOrderIdSuccessRoute
   ApiShopsShopIdDashboardRoute: typeof ApiShopsShopIdDashboardRoute
   ApiShopsShopIdOrdersRoute: typeof ApiShopsShopIdOrdersRoute
   ApiShopsShopIdProductsRoute: typeof ApiShopsShopIdProductsRouteWithChildren
@@ -350,6 +377,13 @@ declare module '@tanstack/react-router' {
       path: '/forbidden'
       fullPath: '/forbidden'
       preLoaderRoute: typeof ForbiddenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout': {
+      id: '/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof CheckoutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cart': {
@@ -450,6 +484,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountOrdersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/orders/$platformOrderId/success': {
+      id: '/orders/$platformOrderId/success'
+      path: '/orders/$platformOrderId/success'
+      fullPath: '/orders/$platformOrderId/success'
+      preLoaderRoute: typeof OrdersPlatformOrderIdSuccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -513,6 +554,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   CartRoute: CartRoute,
+  CheckoutRoute: CheckoutRoute,
   ForbiddenRoute: ForbiddenRoute,
   SearchRoute: SearchRoute,
   SigninRoute: SigninRoute,
@@ -528,6 +570,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
   StudioIndexRoute: StudioIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  OrdersPlatformOrderIdSuccessRoute: OrdersPlatformOrderIdSuccessRoute,
   ApiShopsShopIdDashboardRoute: ApiShopsShopIdDashboardRoute,
   ApiShopsShopIdOrdersRoute: ApiShopsShopIdOrdersRoute,
   ApiShopsShopIdProductsRoute: ApiShopsShopIdProductsRouteWithChildren,

@@ -1,16 +1,27 @@
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
+import { z } from 'zod'
 import { authClient } from '#/lib/auth-client'
 import { guardGuest } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
 
+const signinSearchSchema = z.object({
+  redirect: z.string().optional(),
+})
+
+export function isLocalRedirect(path: string): boolean {
+  return path.startsWith('/') && !path.startsWith('//')
+}
+
 export const Route = createFileRoute('/signin')({
   beforeLoad: async () => guardGuest(),
+  validateSearch: signinSearchSchema,
   component: SignIn,
 })
 
 function SignIn() {
   const router = useRouter()
+  const { redirect } = Route.useSearch()
   const [isSignUp, setIsSignUp] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -46,14 +57,20 @@ function SignIn() {
         if (result.error) {
           setError(result.error.message || m.error_sign_up_failed())
         } else {
-          router.invalidate()
+          await router.invalidate()
+          if (redirect && isLocalRedirect(redirect)) {
+            await router.navigate({ to: redirect })
+          }
         }
       } else {
         const result = await authClient.signIn.email({ email: formEmail, password: formPassword })
         if (result.error) {
           setError(result.error.message || m.error_sign_in_failed())
         } else {
-          router.invalidate()
+          await router.invalidate()
+          if (redirect && isLocalRedirect(redirect)) {
+            await router.navigate({ to: redirect })
+          }
         }
       }
     } catch {

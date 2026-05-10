@@ -660,7 +660,12 @@ describe('getCartDetailsByUserId', () => {
   it('returns user cart with grouped shops', async () => {
     await seedUser()
     await seedShop()
-    const u = await db.select().from(user).where(eq(user.id, 'user-1')).limit(1).then((rows) => rows[0])
+    const u = await db
+      .select()
+      .from(user)
+      .where(eq(user.id, 'user-1'))
+      .limit(1)
+      .then((rows) => rows[0])
     const c = await createUserCart(u.id)
     const p = await seedProduct()
 

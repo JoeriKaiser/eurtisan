@@ -73,7 +73,7 @@ const SHIPPING_OPTIONS: ShippingOption[] = [
   { method: 'express', costCents: 1000, label: 'Express' },
 ]
 
-function getShippingCost(method: 'standard' | 'express'): number {
+export function getShippingCost(method: 'standard' | 'express'): number {
   return method === 'express' ? 1000 : 500
 }
 

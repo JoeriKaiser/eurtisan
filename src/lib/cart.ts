@@ -10,11 +10,8 @@ export type {
 } from './cart.server'
 
 export const ensureAnonymousSession = createServerFn({ method: 'GET' }).handler(async () => {
-  const {
-    getAnonymousSessionIdFromCookie,
-    setAnonymousSessionCookie,
-    generateSessionId,
-  } = await import('./cart.server')
+  const { getAnonymousSessionIdFromCookie, setAnonymousSessionCookie, generateSessionId } =
+    await import('./cart.server')
   const existing = getAnonymousSessionIdFromCookie()
   if (existing) {
     return { sessionId: existing }
@@ -28,11 +25,8 @@ export const ensureAnonymousSession = createServerFn({ method: 'GET' }).handler(
 export const getCart = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
-    const {
-      getAnonymousSessionIdFromCookie,
-      getCartDetailsByUserId,
-      getCartDetailsBySessionId,
-    } = await import('./cart.server')
+    const { getAnonymousSessionIdFromCookie, getCartDetailsByUserId, getCartDetailsBySessionId } =
+      await import('./cart.server')
     if (context.user) {
       return getCartDetailsByUserId(context.user.id)
     }

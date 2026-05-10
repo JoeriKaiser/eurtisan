@@ -65,6 +65,17 @@ describe('guardAuth', () => {
       assertRedirect(err, 307)
     }
   })
+
+  it('redirects to /signin with redirect search param when provided', async () => {
+    mockRequireAuthUser.mockRejectedValue(new Error('UNAUTHENTICATED'))
+
+    try {
+      await guardAuth('/checkout')
+      expect.fail('should have thrown')
+    } catch (err) {
+      assertRedirect(err, 307)
+    }
+  })
 })
 
 describe('guardRole', () => {
@@ -80,6 +91,17 @@ describe('guardRole', () => {
 
     try {
       await guardRole('creator')
+      expect.fail('should have thrown')
+    } catch (err) {
+      assertRedirect(err, 307)
+    }
+  })
+
+  it('redirects to /signin with redirect search param when provided', async () => {
+    mockRequireRoleUser.mockRejectedValue(new Error('UNAUTHENTICATED'))
+
+    try {
+      await guardRole('creator', '/studio')
       expect.fail('should have thrown')
     } catch (err) {
       assertRedirect(err, 307)
@@ -111,6 +133,17 @@ describe('guardShopOwnership', () => {
 
     try {
       await guardShopOwnership('shop-1')
+      expect.fail('should have thrown')
+    } catch (err) {
+      assertRedirect(err, 307)
+    }
+  })
+
+  it('redirects to /signin with redirect search param when provided', async () => {
+    mockVerifyShopOwnership.mockRejectedValue(new Error('UNAUTHENTICATED'))
+
+    try {
+      await guardShopOwnership('shop-1', '/checkout')
       expect.fail('should have thrown')
     } catch (err) {
       assertRedirect(err, 307)

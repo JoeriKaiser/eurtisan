@@ -1,5 +1,5 @@
-import { and, eq, gt, inArray, sql } from 'drizzle-orm'
 import { getCookie, setCookie } from '@tanstack/react-start/server'
+import { and, eq, gt, inArray, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { cart, cartItem, product, productImage, shop } from '#/db/schema'
 
@@ -122,9 +122,7 @@ async function buildCartDetail(cartRecord: typeof cart.$inferSelect): Promise<Ca
     .leftJoin(shop, eq(product.shopId, shop.id))
     .where(eq(cartItem.cartId, cartRecord.id))
 
-  const productIds = rows
-    .map((r) => r.product?.id)
-    .filter((id): id is string => !!id)
+  const productIds = rows.map((r) => r.product?.id).filter((id): id is string => !!id)
 
   const images =
     productIds.length > 0
@@ -176,7 +174,8 @@ async function buildCartDetail(cartRecord: typeof cart.$inferSelect): Promise<Ca
     if (existing) {
       existing.items.push(itemDetail)
       if (!isUnavailable && productRecord) {
-        existing.subtotalCents += productRecord.priceCents * Math.min(row.item.quantity, productRecord.stockCount)
+        existing.subtotalCents +=
+          productRecord.priceCents * Math.min(row.item.quantity, productRecord.stockCount)
       }
     } else {
       groups.set(shopId, {
@@ -277,11 +276,7 @@ export async function addItemToCart(cartId: string, productId: string, quantity:
   return newItem
 }
 
-export async function updateCartItemQuantity(
-  cartId: string,
-  productId: string,
-  quantity: number,
-) {
+export async function updateCartItemQuantity(cartId: string, productId: string, quantity: number) {
   if (quantity <= 0) {
     await db
       .delete(cartItem)

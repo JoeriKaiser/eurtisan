@@ -1,11 +1,22 @@
 import { Link } from '@tanstack/react-router'
-import { AlertTriangle, ImageOff, Loader2, Minus, PackageX, Plus, ShoppingBag, Trash2 } from 'lucide-react'
+import {
+  AlertTriangle,
+  ImageOff,
+  Loader2,
+  Minus,
+  PackageX,
+  Plus,
+  ShoppingBag,
+  Trash2,
+} from 'lucide-react'
 import { useState } from 'react'
 import { useCart } from '#/components/CartProvider'
 import { removeCartItem, updateCartItem } from '#/lib/cart'
-import { formatPriceEUR } from '#/lib/pricing'
 import type { CartDetail, CartItemDetail, CartShopGroup } from '#/lib/cart.server'
+import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
+import { Badge } from './ui/badge'
+import { Button } from './ui/button'
 import {
   Dialog,
   DialogBackdrop,
@@ -14,14 +25,13 @@ import {
   DialogPortal,
   DialogTitle,
 } from './ui/primitives/dialog'
-import { Badge } from './ui/badge'
-import { Button } from './ui/button'
 
 export interface CartPageProps {
   cart: CartDetail | null
+  showEmptyMessage?: boolean
 }
 
-export default function CartPage({ cart: initialCart }: CartPageProps) {
+export default function CartPage({ cart: initialCart, showEmptyMessage }: CartPageProps) {
   const { cart: liveCart, refreshCart } = useCart()
   const cart = liveCart ?? initialCart
 
@@ -31,9 +41,8 @@ export default function CartPage({ cart: initialCart }: CartPageProps) {
   const [updateErrorItemId, setUpdateErrorItemId] = useState<string | null>(null)
   const [removeErrorItemId, setRemoveErrorItemId] = useState<string | null>(null)
 
-  const hasUnavailableItems = cart?.shops.some((shop) =>
-    shop.items.some((item) => item.unavailable),
-  ) ?? false
+  const hasUnavailableItems =
+    cart?.shops.some((shop) => shop.items.some((item) => item.unavailable)) ?? false
 
   const handleUpdateQuantity = async (productId: string, quantity: number) => {
     setUpdateErrorItemId(null)
@@ -63,11 +72,16 @@ export default function CartPage({ cart: initialCart }: CartPageProps) {
   }
 
   if (!cart || cart.shops.length === 0) {
-    return <EmptyCart />
+    return <EmptyCart showEmptyMessage={showEmptyMessage} />
   }
 
   return (
     <main className='page-wrap px-4 pb-16 pt-14'>
+      {showEmptyMessage && (
+        <div className='mb-4 rounded-lg border border-warning bg-warning-subtle px-4 py-3 text-sm text-warning'>
+          {m.cart_empty_checkout_message()}
+        </div>
+      )}
       <div className='mb-8'>
         <h1 className='display-title text-3xl font-bold text-text-primary sm:text-4xl'>
           {m.cart_title()}
@@ -123,14 +137,16 @@ export default function CartPage({ cart: initialCart }: CartPageProps) {
               </span>
             </div>
 
-            <Button
-              size='lg'
-              className='mt-6 w-full'
-              disabled={hasUnavailableItems}
-              title={hasUnavailableItems ? m.cart_checkout_disabled_unavailable() : undefined}
-            >
-              {m.cart_proceed_to_checkout()}
-            </Button>
+            <Link to='/checkout' className='no-underline'>
+              <Button
+                size='lg'
+                className='mt-6 w-full'
+                disabled={hasUnavailableItems}
+                title={hasUnavailableItems ? m.cart_checkout_disabled_unavailable() : undefined}
+              >
+                {m.cart_proceed_to_checkout()}
+              </Button>
+            </Link>
 
             {hasUnavailableItems && (
               <p className='mt-2 flex items-center gap-1.5 text-xs text-error'>
@@ -148,9 +164,7 @@ export default function CartPage({ cart: initialCart }: CartPageProps) {
           <DialogBackdrop />
           <DialogPopup>
             <DialogTitle>{m.cart_item_remove_confirm_title()}</DialogTitle>
-            <DialogDescription>
-              {m.cart_item_remove_confirm_description()}
-            </DialogDescription>
+            <DialogDescription>{m.cart_item_remove_confirm_description()}</DialogDescription>
             <div className='mt-6 flex justify-end gap-3'>
               <Button variant='secondary' onClick={() => setConfirmRemoveItem(null)}>
                 {m.cart_item_remove_cancel_button()}
@@ -174,10 +188,15 @@ export default function CartPage({ cart: initialCart }: CartPageProps) {
   )
 }
 
-function EmptyCart() {
+function EmptyCart({ showEmptyMessage }: { showEmptyMessage?: boolean }) {
   return (
     <main className='page-wrap px-4 py-20 text-center'>
       <div className='mx-auto max-w-md'>
+        {showEmptyMessage && (
+          <div className='mb-6 rounded-lg border border-warning bg-warning-subtle px-4 py-3 text-sm text-warning'>
+            {m.cart_empty_checkout_message()}
+          </div>
+        )}
         <div className='mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-surface-inset text-text-muted'>
           <ShoppingBag size={28} aria-hidden='true' />
         </div>
@@ -222,9 +241,7 @@ function ShopGroup({
           <h2 className='text-base font-semibold text-text-primary'>
             {shop.shopName ?? m.cart_item_unavailable()}
           </h2>
-          {shopHasUnavailable && (
-            <Badge variant='error'>{m.cart_item_unavailable()}</Badge>
-          )}
+          {shopHasUnavailable && <Badge variant='error'>{m.cart_item_unavailable()}</Badge>}
         </div>
         <div className='text-right'>
           <p className='text-sm text-text-secondary'>
@@ -295,7 +312,9 @@ function CartItemRow({
             loading='lazy'
           />
         ) : (
-          <div className={`flex flex-col items-center justify-center text-text-muted ${item.unavailable ? 'opacity-50' : ''}`}>
+          <div
+            className={`flex flex-col items-center justify-center text-text-muted ${item.unavailable ? 'opacity-50' : ''}`}
+          >
             <ImageOff size={24} strokeWidth={1.5} aria-hidden='true' />
             <span className='sr-only'>{m.product_no_image()}</span>
           </div>
@@ -397,12 +416,8 @@ function CartItemRow({
         )}
 
         {/* Errors */}
-        {hasUpdateError && (
-          <p className='text-xs text-error'>{m.cart_error_updating()}</p>
-        )}
-        {hasRemoveError && (
-          <p className='text-xs text-error'>{m.cart_error_removing()}</p>
-        )}
+        {hasUpdateError && <p className='text-xs text-error'>{m.cart_error_updating()}</p>}
+        {hasRemoveError && <p className='text-xs text-error'>{m.cart_error_removing()}</p>}
       </div>
     </li>
   )

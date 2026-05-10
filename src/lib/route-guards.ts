@@ -19,14 +19,18 @@ function isAuthError(err: unknown): err is Error {
 /**
  * beforeLoad guard: redirects unauthenticated users to /signin.
  * Returns the authenticated user on success.
+ * @param redirectTo - optional path to redirect back to after sign-in
  */
-export async function guardAuth(): Promise<AuthRouteContext> {
+export async function guardAuth(redirectTo?: string): Promise<AuthRouteContext> {
   try {
     const user = await requireAuthUser()
     return { user }
   } catch (err) {
     if (isAuthError(err) && err.message === 'UNAUTHENTICATED') {
-      throw redirect({ to: '/signin' })
+      throw redirect({
+        to: '/signin',
+        search: redirectTo ? { redirect: redirectTo } : undefined,
+      })
     }
     throw err
   }
@@ -36,15 +40,20 @@ export async function guardAuth(): Promise<AuthRouteContext> {
  * beforeLoad guard: redirects unauthenticated users to /signin
  * and users with insufficient role to /forbidden.
  * Returns the authenticated user on success.
+ * @param minRole - minimum required role
+ * @param redirectTo - optional path to redirect back to after sign-in
  */
-export async function guardRole(minRole: UserRole): Promise<AuthRouteContext> {
+export async function guardRole(minRole: UserRole, redirectTo?: string): Promise<AuthRouteContext> {
   try {
     const user = await requireRoleUser({ data: { minRole } })
     return { user }
   } catch (err) {
     if (isAuthError(err)) {
       if (err.message === 'UNAUTHENTICATED') {
-        throw redirect({ to: '/signin' })
+        throw redirect({
+          to: '/signin',
+          search: redirectTo ? { redirect: redirectTo } : undefined,
+        })
       }
       throw redirect({ to: '/forbidden' })
     }
@@ -56,15 +65,23 @@ export async function guardRole(minRole: UserRole): Promise<AuthRouteContext> {
  * beforeLoad guard for shop ownership routes.
  * Redirects unauthenticated to /signin, unauthorized to /forbidden.
  * Returns the authenticated user on success.
+ * @param shopId - shop to verify ownership for
+ * @param redirectTo - optional path to redirect back to after sign-in
  */
-export async function guardShopOwnership(shopId: string): Promise<AuthRouteContext> {
+export async function guardShopOwnership(
+  shopId: string,
+  redirectTo?: string,
+): Promise<AuthRouteContext> {
   try {
     const user = await verifyShopOwnership({ data: { shopId } })
     return { user }
   } catch (err) {
     if (isAuthError(err)) {
       if (err.message === 'UNAUTHENTICATED') {
-        throw redirect({ to: '/signin' })
+        throw redirect({
+          to: '/signin',
+          search: redirectTo ? { redirect: redirectTo } : undefined,
+        })
       }
       throw redirect({ to: '/forbidden' })
     }
