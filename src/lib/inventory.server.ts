@@ -1,4 +1,4 @@
-import { and, eq, gte, sql, sum } from 'drizzle-orm'
+import { and, eq, gte, lt, sql, sum } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { inventoryReservation, product } from '#/db/schema'
 
@@ -108,5 +108,49 @@ export async function releaseStock(platformOrderId: string): Promise<void> {
     await tx
       .delete(inventoryReservation)
       .where(eq(inventoryReservation.platformOrderId, platformOrderId))
+  })
+}
+
+export interface ReleaseExpiredResult {
+  releasedCount: number
+}
+
+/**
+ * Find and delete all inventory reservations whose `expiresAt` is in the past.
+ *
+ * This is idempotent: running it multiple times in a row simply finds zero
+ * remaining expired rows after the first successful call.
+ *
+ * Because the available inventory for a product is computed as
+ * `product.stockCount − sum(active reservations)`, deleting expired
+ * reservations automatically restores the held stock to the available pool.
+ *
+ * Products deleted since the reservation was created are handled gracefully
+ * by the foreign-key `ON DELETE CASCADE`; any remaining orphaned rows are
+ * still removed safely.
+ */
+export async function releaseExpiredReservations(batchSize = 100): Promise<ReleaseExpiredResult> {
+  return db.transaction(async (tx) => {
+    const expired = await tx
+      .select({ id: inventoryReservation.id })
+      .from(inventoryReservation)
+      .where(lt(inventoryReservation.expiresAt, sql`now()`))
+      .limit(batchSize)
+
+    if (expired.length === 0) {
+      return { releasedCount: 0 }
+    }
+
+    const ids = expired.map((r) => r.id)
+
+    await tx
+      .delete(inventoryReservation)
+      .where(
+        ids.length === 1
+          ? eq(inventoryReservation.id, ids[0])
+          : sql`${inventoryReservation.id} in ${ids}`,
+      )
+
+    return { releasedCount: expired.length }
   })
 }

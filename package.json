@@ -16,6 +16,7 @@
     "db:push": "drizzle-kit push",
     "db:pull": "drizzle-kit pull",
     "db:seed": "bun run src/db/seed.ts",
+    "job:inventory-cleanup": "bun run src/jobs/inventory-cleanup.ts",
     "db:studio": "drizzle-kit studio",
     "lint": "biome lint --write ./src",
     "format": "biome format --write ./src",
