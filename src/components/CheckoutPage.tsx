@@ -10,6 +10,12 @@ import { formatPriceEUR } from '#/lib/pricing'
 import type { CheckoutSummary } from '#/lib/checkout.server'
 import { m } from '#/paraglide/messages'
 
+function getFieldError(error: unknown): string | undefined {
+  if (typeof error === 'string') return error
+  if (error && typeof error === 'object' && 'message' in error) return String(error.message)
+  return undefined
+}
+
 export interface CheckoutPageProps {
   summary: CheckoutSummary
   cartId: string
@@ -133,12 +139,12 @@ export default function CheckoutPage({ summary, cartId }: CheckoutPageProps) {
                       value={field.state.value}
                       onChange={(e) => field.handleChange(e.target.value)}
                       onBlur={field.handleBlur}
-                      error={field.state.meta.errors[0]}
+                      error={getFieldError(field.state.meta.errors[0])}
                       autoComplete='name'
                     />
                     {field.state.meta.errors[0] && (
                       <p id={`${field.name}-error`} className='text-xs text-error'>
-                        {field.state.meta.errors[0]}
+                        {getFieldError(field.state.meta.errors[0])}
                       </p>
                     )}
                   </div>
@@ -157,12 +163,12 @@ export default function CheckoutPage({ summary, cartId }: CheckoutPageProps) {
                       value={field.state.value}
                       onChange={(e) => field.handleChange(e.target.value)}
                       onBlur={field.handleBlur}
-                      error={field.state.meta.errors[0]}
+                      error={getFieldError(field.state.meta.errors[0])}
                       autoComplete='street-address'
                     />
                     {field.state.meta.errors[0] && (
                       <p id={`${field.name}-error`} className='text-xs text-error'>
-                        {field.state.meta.errors[0]}
+                        {getFieldError(field.state.meta.errors[0])}
                       </p>
                     )}
                   </div>
@@ -181,12 +187,12 @@ export default function CheckoutPage({ summary, cartId }: CheckoutPageProps) {
                       value={field.state.value}
                       onChange={(e) => field.handleChange(e.target.value)}
                       onBlur={field.handleBlur}
-                      error={field.state.meta.errors[0]}
+                      error={getFieldError(field.state.meta.errors[0])}
                       autoComplete='address-level2'
                     />
                     {field.state.meta.errors[0] && (
                       <p id={`${field.name}-error`} className='text-xs text-error'>
-                        {field.state.meta.errors[0]}
+                        {getFieldError(field.state.meta.errors[0])}
                       </p>
                     )}
                   </div>
@@ -205,12 +211,12 @@ export default function CheckoutPage({ summary, cartId }: CheckoutPageProps) {
                       value={field.state.value}
                       onChange={(e) => field.handleChange(e.target.value)}
                       onBlur={field.handleBlur}
-                      error={field.state.meta.errors[0]}
+                      error={getFieldError(field.state.meta.errors[0])}
                       autoComplete='postal-code'
                     />
                     {field.state.meta.errors[0] && (
                       <p id={`${field.name}-error`} className='text-xs text-error'>
-                        {field.state.meta.errors[0]}
+                        {getFieldError(field.state.meta.errors[0])}
                       </p>
                     )}
                   </div>
@@ -229,12 +235,12 @@ export default function CheckoutPage({ summary, cartId }: CheckoutPageProps) {
                       value={field.state.value}
                       onChange={(e) => field.handleChange(e.target.value)}
                       onBlur={field.handleBlur}
-                      error={field.state.meta.errors[0]}
+                      error={getFieldError(field.state.meta.errors[0])}
                       autoComplete='country-name'
                     />
                     {field.state.meta.errors[0] && (
                       <p id={`${field.name}-error`} className='text-xs text-error'>
-                        {field.state.meta.errors[0]}
+                        {getFieldError(field.state.meta.errors[0])}
                       </p>
                     )}
                   </div>
