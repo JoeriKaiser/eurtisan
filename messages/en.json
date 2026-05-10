@@ -162,6 +162,8 @@
   "cart_empty_checkout_message": "Your cart is empty. Add some items before checking out.",
   "checkout_title": "Checkout",
   "checkout_shipping_address": "Shipping address",
+  "checkout_billing_address": "Billing address",
+  "checkout_billing_same_as_shipping": "Same as shipping address",
   "checkout_field_full_name": "Full name",
   "checkout_field_street": "Street address",
   "checkout_field_city": "City",

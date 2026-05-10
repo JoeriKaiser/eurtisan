@@ -19,6 +19,8 @@ vi.mock('#/paraglide/messages', () => ({
   m: {
     checkout_title: () => 'Checkout',
     checkout_shipping_address: () => 'Shipping address',
+    checkout_billing_address: () => 'Billing address',
+    checkout_billing_same_as_shipping: () => 'Same as shipping address',
     checkout_field_full_name: () => 'Full name',
     checkout_field_street: () => 'Street address',
     checkout_field_city: () => 'City',
@@ -155,12 +157,78 @@ describe('CheckoutPage', () => {
             postalCode: '10115',
             country: 'Germany',
           },
+          billingAddress: {
+            name: 'Test User',
+            street: '123 Main St',
+            city: 'Berlin',
+            postalCode: '10115',
+            country: 'Germany',
+          },
           shippingSelections: [{ shopId: 'shop-1', method: 'standard' }],
         },
       })
       expect(mockNavigate).toHaveBeenCalledWith({
         to: '/orders/$platformOrderId/success',
         params: { platformOrderId: 'order-1' },
+      })
+    })
+  })
+
+  it('renders billing address section with same-as-shipping toggle', () => {
+    render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
+    expect(screen.getByRole('heading', { name: 'Billing address' })).toBeDefined()
+    expect(screen.getByLabelText('Same as shipping address')).toBeDefined()
+  })
+
+  it('shows billing address fields when same-as-shipping is unchecked', async () => {
+    render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
+    const checkbox = screen.getByLabelText('Same as shipping address')
+    fireEvent.click(checkbox)
+
+    await waitFor(() => {
+      expect(screen.getAllByLabelText('Full name').length).toBe(2)
+      expect(screen.getAllByLabelText('Street address').length).toBe(2)
+    })
+  })
+
+  it('submits distinct billing address when same-as-shipping is unchecked', async () => {
+    render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
+
+    fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Test User' } })
+    fireEvent.change(screen.getByLabelText('Street address'), { target: { value: '123 Main St' } })
+    fireEvent.change(screen.getByLabelText('City'), { target: { value: 'Berlin' } })
+    fireEvent.change(screen.getByLabelText('Postal code'), { target: { value: '10115' } })
+    fireEvent.change(screen.getByLabelText('Country'), { target: { value: 'Germany' } })
+
+    fireEvent.click(screen.getByLabelText('Same as shipping address'))
+
+    const billingName = screen.getAllByLabelText('Full name')[1]
+    const billingStreet = screen.getAllByLabelText('Street address')[1]
+    fireEvent.change(billingName, { target: { value: 'Billing User' } })
+    fireEvent.change(billingStreet, { target: { value: '456 Oak Ave' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm purchase' }))
+
+    await waitFor(() => {
+      expect(mockCreateCheckout).toHaveBeenCalledWith({
+        data: {
+          cartId: 'cart-1',
+          shippingAddress: {
+            name: 'Test User',
+            street: '123 Main St',
+            city: 'Berlin',
+            postalCode: '10115',
+            country: 'Germany',
+          },
+          billingAddress: {
+            name: 'Billing User',
+            street: '456 Oak Ave',
+            city: '',
+            postalCode: '',
+            country: '',
+          },
+          shippingSelections: [{ shopId: 'shop-1', method: 'standard' }],
+        },
       })
     })
   })

@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
-import { categories, product, productImage, shop, user } from '#/db/schema'
+import { cart, cartItem, categories, inventoryReservation, orderItem, platformOrder, product, productImage, shop, shopOrder, user } from '#/db/schema'
 
 import { createProductSchema } from './products'
 import {
@@ -28,6 +28,12 @@ vi.mock('./auth', () => ({
 }))
 
 beforeEach(async () => {
+  await db.delete(inventoryReservation)
+  await db.delete(orderItem)
+  await db.delete(shopOrder)
+  await db.delete(platformOrder)
+  await db.delete(cartItem)
+  await db.delete(cart)
   await db.delete(productImage)
   await db.delete(product)
   await db.delete(categories)
@@ -945,6 +951,12 @@ describe('getShopProductsQuery', () => {
 
 describe('listRecentProductsQuery', () => {
   beforeEach(async () => {
+    await db.delete(inventoryReservation)
+    await db.delete(orderItem)
+    await db.delete(shopOrder)
+    await db.delete(platformOrder)
+    await db.delete(cartItem)
+    await db.delete(cart)
     await db.delete(productImage)
     await db.delete(product)
     await db.delete(categories)
@@ -1115,6 +1127,12 @@ describe('listRecentProductsQuery', () => {
 
 describe('getFeaturedShopsQuery', () => {
   beforeEach(async () => {
+    await db.delete(inventoryReservation)
+    await db.delete(orderItem)
+    await db.delete(shopOrder)
+    await db.delete(platformOrder)
+    await db.delete(cartItem)
+    await db.delete(cart)
     await db.delete(productImage)
     await db.delete(product)
     await db.delete(categories)
@@ -1255,6 +1273,12 @@ describe('getFeaturedShopsQuery', () => {
 
 describe('product database constraints', () => {
   beforeEach(async () => {
+    await db.delete(inventoryReservation)
+    await db.delete(orderItem)
+    await db.delete(shopOrder)
+    await db.delete(platformOrder)
+    await db.delete(cartItem)
+    await db.delete(cart)
     await db.delete(productImage)
     await db.delete(product)
     await db.delete(categories)

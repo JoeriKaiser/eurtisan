@@ -60,8 +60,9 @@ describe('reserveStock', () => {
       .values({
         userId: u.id,
         shippingAddress: { street: '123 Main' },
+        billingAddress: { street: '123 Main' },
         totalCents: 2999,
-        status: 'pending',
+        status: 'pending_payment',
       })
       .returning()
 
@@ -110,8 +111,9 @@ describe('reserveStock', () => {
       .values({
         userId: order1.userId,
         shippingAddress: { street: '456 Oak' },
+        billingAddress: { street: '456 Oak' },
         totalCents: 2999,
-        status: 'pending',
+        status: 'pending_payment',
       })
       .returning()
 
@@ -152,8 +154,9 @@ describe('reserveStock', () => {
       .values({
         userId: order1.userId,
         shippingAddress: { street: '456 Oak' },
+        billingAddress: { street: '456 Oak' },
         totalCents: 2999,
-        status: 'pending',
+        status: 'pending_payment',
       })
       .returning()
 
@@ -202,8 +205,9 @@ describe('reserveStock', () => {
       .values({
         userId: 'user-1',
         shippingAddress: { street: '123 Main' },
+        billingAddress: { street: '123 Main' },
         totalCents: 2999,
-        status: 'pending',
+        status: 'pending_payment',
       })
       .returning()
 
@@ -212,8 +216,9 @@ describe('reserveStock', () => {
       .values({
         userId: 'user-1',
         shippingAddress: { street: '456 Oak' },
+        billingAddress: { street: '456 Oak' },
         totalCents: 2999,
-        status: 'pending',
+        status: 'pending_payment',
       })
       .returning()
 
@@ -251,8 +256,9 @@ describe('reserveStock', () => {
       .values({
         userId: order1.userId,
         shippingAddress: { street: '456 Oak' },
+        billingAddress: { street: '456 Oak' },
         totalCents: 2999,
-        status: 'pending',
+        status: 'pending_payment',
       })
       .returning()
 
@@ -316,8 +322,9 @@ describe('releaseStock', () => {
       .values({
         userId: u.id,
         shippingAddress: { street: '123 Main' },
+        billingAddress: { street: '123 Main' },
         totalCents: 2999,
-        status: 'pending',
+        status: 'pending_payment',
       })
       .returning()
 
@@ -360,8 +367,9 @@ describe('releaseStock', () => {
       .values({
         userId: u.id,
         shippingAddress: { street: '123 Main' },
+        billingAddress: { street: '123 Main' },
         totalCents: 0,
-        status: 'pending',
+        status: 'pending_payment',
       })
       .returning()
 
@@ -376,8 +384,9 @@ describe('releaseStock', () => {
       .values({
         userId: order1.userId,
         shippingAddress: { street: '456 Oak' },
+        billingAddress: { street: '456 Oak' },
         totalCents: 2999,
-        status: 'pending',
+        status: 'pending_payment',
       })
       .returning()
 
@@ -450,8 +459,9 @@ describe('getAvailableStock', () => {
       .values({
         userId: 'user-1',
         shippingAddress: { street: '123 Main' },
+        billingAddress: { street: '123 Main' },
         totalCents: 2999,
-        status: 'pending',
+        status: 'pending_payment',
       })
       .returning()
 
@@ -473,8 +483,9 @@ describe('getAvailableStock', () => {
       .values({
         userId: 'user-1',
         shippingAddress: { street: '123 Main' },
+        billingAddress: { street: '123 Main' },
         totalCents: 2999,
-        status: 'pending',
+        status: 'pending_payment',
       })
       .returning()
 
@@ -501,8 +512,9 @@ describe('getAvailableStock', () => {
       .values({
         userId: 'user-1',
         shippingAddress: { street: '123 Main' },
+        billingAddress: { street: '123 Main' },
         totalCents: 2999,
-        status: 'pending',
+        status: 'pending_payment',
       })
       .returning()
 
@@ -569,8 +581,9 @@ describe('getAvailableStockForProducts', () => {
       .values({
         userId: u.id,
         shippingAddress: { street: '123 Main' },
+        billingAddress: { street: '123 Main' },
         totalCents: 2999,
-        status: 'pending',
+        status: 'pending_payment',
       })
       .returning()
 
@@ -631,8 +644,9 @@ describe('releaseExpiredReservations', () => {
       .values({
         userId: u.id,
         shippingAddress: { street: '123 Main' },
+        billingAddress: { street: '123 Main' },
         totalCents: 2999,
-        status: 'pending',
+        status: 'pending_payment',
       })
       .returning()
 
@@ -725,8 +739,9 @@ describe('releaseExpiredReservations', () => {
       .values({
         userId: order1.userId,
         shippingAddress: { street: '456 Oak' },
+        billingAddress: { street: '456 Oak' },
         totalCents: 2999,
-        status: 'pending',
+        status: 'pending_payment',
       })
       .returning()
 
@@ -756,8 +771,9 @@ describe('releaseExpiredReservations', () => {
         .values({
           userId: 'user-1',
           shippingAddress: { street: `${i} Oak` },
+          billingAddress: { street: `${i} Oak` },
           totalCents: 100,
-          status: 'pending',
+          status: 'pending_payment',
         })
         .returning()
       orders.push(order)

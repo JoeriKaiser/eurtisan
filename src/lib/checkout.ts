@@ -30,6 +30,7 @@ export const checkoutInputSchema = z.object({
     }),
   ),
   shippingAddress: shippingAddressSchema,
+  billingAddress: shippingAddressSchema,
 })
 
 export const getCheckoutSummary = createServerFn({ method: 'GET' })

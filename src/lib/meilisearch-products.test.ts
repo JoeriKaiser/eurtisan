@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
-import { categories, product, productImage, shop, user } from '#/db/schema'
+import { categories, inventoryReservation, orderItem, platformOrder, product, productImage, shop, shopOrder, user } from '#/db/schema'
 
 import {
   configureProductsIndex,
@@ -45,6 +45,10 @@ vi.mock('./meilisearch.server', () => ({
 }))
 
 beforeEach(async () => {
+  await db.delete(inventoryReservation)
+  await db.delete(orderItem)
+  await db.delete(shopOrder)
+  await db.delete(platformOrder)
   await db.delete(productImage)
   await db.delete(product)
   await db.delete(categories)

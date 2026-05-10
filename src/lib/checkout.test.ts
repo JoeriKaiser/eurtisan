@@ -218,6 +218,13 @@ describe('createCheckoutQuery', () => {
         postalCode: '10115',
         country: 'Germany',
       },
+      billingAddress: {
+        name: 'Test User',
+        street: '123 Main St',
+        city: 'Berlin',
+        postalCode: '10115',
+        country: 'Germany',
+      },
       ...overrides,
     }
   }
@@ -374,8 +381,15 @@ describe('createCheckoutQuery', () => {
     expect(platformOrders).toHaveLength(1)
     expect(platformOrders[0].userId).toBe('user-1')
     expect(platformOrders[0].totalCents).toBe(2500) // 2 * 1000 + 500 shipping
-    expect(platformOrders[0].status).toBe('pending')
+    expect(platformOrders[0].status).toBe('pending_payment')
     expect(platformOrders[0].shippingAddress).toEqual({
+      name: 'Test User',
+      street: '123 Main St',
+      city: 'Berlin',
+      postalCode: '10115',
+      country: 'Germany',
+    })
+    expect(platformOrders[0].billingAddress).toEqual({
       name: 'Test User',
       street: '123 Main St',
       city: 'Berlin',
@@ -392,7 +406,7 @@ describe('createCheckoutQuery', () => {
     expect(shopOrders[0].shippingMethod).toBe('standard')
     expect(shopOrders[0].shippingCostCents).toBe(500)
     expect(shopOrders[0].subtotalCents).toBe(2000)
-    expect(shopOrders[0].status).toBe('pending')
+    expect(shopOrders[0].status).toBe('pending_payment')
 
     const orderItems = await db
       .select()
@@ -595,8 +609,9 @@ describe('createCheckoutQuery', () => {
       .values({
         userId: 'user-1',
         shippingAddress: { name: 'Other', street: 'St', city: 'City', postalCode: '00000', country: 'DE' },
+        billingAddress: { name: 'Other', street: 'St', city: 'City', postalCode: '00000', country: 'DE' },
         totalCents: 1000,
-        status: 'pending',
+        status: 'pending_payment',
       })
       .returning()
 

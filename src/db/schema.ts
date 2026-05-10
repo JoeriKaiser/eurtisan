@@ -205,13 +205,15 @@ export const cartItem = pgTable(
 )
 
 export const orderStatusEnum = pgEnum('order_status', [
-  'pending',
-  'confirmed',
+  'pending_payment',
+  'paid',
   'processing',
   'shipped',
   'delivered',
+  'completed',
   'cancelled',
   'refunded',
+  'disputed',
 ])
 
 export const shippingMethodEnum = pgEnum('shipping_method', ['standard', 'express'])
@@ -224,12 +226,17 @@ export const platformOrder = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     shippingAddress: jsonb('shipping_address').notNull(),
+    billingAddress: jsonb('billing_address').notNull(),
     totalCents: integer('total_cents').notNull().default(0),
-    status: orderStatusEnum().notNull().default('pending'),
+    status: orderStatusEnum().notNull().default('pending_payment'),
+    molliePaymentId: text('mollie_payment_id'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
-  (table) => [index('platform_order_user_id_idx').on(table.userId)],
+  (table) => [
+    index('platform_order_user_id_idx').on(table.userId),
+    index('platform_order_status_idx').on(table.status),
+  ],
 )
 
 export const shopOrder = pgTable(
@@ -245,13 +252,16 @@ export const shopOrder = pgTable(
     shippingMethod: shippingMethodEnum('shipping_method').notNull().default('standard'),
     shippingCostCents: integer('shipping_cost_cents').notNull().default(0),
     subtotalCents: integer('subtotal_cents').notNull().default(0),
-    status: orderStatusEnum().notNull().default('pending'),
+    status: orderStatusEnum().notNull().default('pending_payment'),
+    trackingNumber: text('tracking_number'),
+    trackingUrl: text('tracking_url'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
   (table) => [
     index('shop_order_platform_order_id_idx').on(table.platformOrderId),
     index('shop_order_shop_id_idx').on(table.shopId),
+    index('shop_order_status_idx').on(table.status),
   ],
 )
 

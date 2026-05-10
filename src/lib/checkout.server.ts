@@ -63,6 +63,7 @@ export interface CheckoutInput {
   cartId: string
   shippingSelections: ShippingSelection[]
   shippingAddress: ShippingAddress
+  billingAddress: ShippingAddress
 }
 
 /* -------------------------------------------------------------------------- */
@@ -290,8 +291,9 @@ export async function createCheckoutQuery(
       .values({
         userId,
         shippingAddress: input.shippingAddress,
+        billingAddress: input.billingAddress,
         totalCents: grandTotalCents,
-        status: 'pending',
+        status: 'pending_payment',
       })
       .returning()
 
@@ -308,7 +310,7 @@ export async function createCheckoutQuery(
           shippingMethod: method,
           shippingCostCents: shippingCost,
           subtotalCents: group.subtotalCents,
-          status: 'pending',
+          status: 'pending_payment',
         })
         .returning()
 

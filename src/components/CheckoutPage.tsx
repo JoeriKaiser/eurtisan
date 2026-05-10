@@ -31,6 +31,8 @@ const shippingAddressSchema = z.object({
 
 const checkoutFormSchema = z.object({
   shippingAddress: shippingAddressSchema,
+  billingAddress: shippingAddressSchema,
+  sameAsShipping: z.boolean(),
   shippingSelections: z.array(
     z.object({
       shopId: z.string().min(1),
@@ -59,6 +61,14 @@ export default function CheckoutPage({ summary, cartId }: CheckoutPageProps) {
         postalCode: '',
         country: '',
       },
+      billingAddress: {
+        name: '',
+        street: '',
+        city: '',
+        postalCode: '',
+        country: '',
+      },
+      sameAsShipping: true,
       shippingSelections: defaultShippingSelections,
     } satisfies CheckoutFormValues,
     validators: {
@@ -68,10 +78,14 @@ export default function CheckoutPage({ summary, cartId }: CheckoutPageProps) {
     onSubmit: async ({ value }) => {
       setSubmitError(null)
       try {
+        const billingAddress = value.sameAsShipping
+          ? value.shippingAddress
+          : value.billingAddress
         const result = await createCheckout({
           data: {
             cartId,
             shippingAddress: value.shippingAddress,
+            billingAddress,
             shippingSelections: value.shippingSelections,
           },
         })
@@ -247,6 +261,176 @@ export default function CheckoutPage({ summary, cartId }: CheckoutPageProps) {
                 )}
               </form.Field>
             </div>
+          </section>
+
+          {/* Billing Address */}
+          <section className='island-shell rounded-2xl p-4 sm:p-6'>
+            <div className='mb-4 flex items-center gap-2'>
+              <MapPin size={18} className='text-accent-primary' aria-hidden='true' />
+              <h2 className='text-lg font-semibold text-text-primary'>
+                {m.checkout_billing_address()}
+              </h2>
+            </div>
+
+            <form.Field name='sameAsShipping'>
+              {(field) => (
+                <label className='mb-4 flex cursor-pointer items-center gap-2'>
+                  <input
+                    type='checkbox'
+                    name={field.name}
+                    checked={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.checked)}
+                    className='h-4 w-4 accent-accent-primary'
+                  />
+                  <span className='text-sm text-text-primary'>
+                    {m.checkout_billing_same_as_shipping()}
+                  </span>
+                </label>
+              )}
+            </form.Field>
+
+            <form.Subscribe selector={(state) => !state.values.sameAsShipping}>
+              {(showBilling) =>
+                showBilling ? (
+                  <div className='grid gap-4 sm:grid-cols-2'>
+                    <form.Field name='billingAddress.name'>
+                      {(field) => (
+                        <div className='grid gap-2 sm:col-span-2'>
+                          <label
+                            htmlFor={field.name}
+                            className='text-sm font-medium text-text-primary'
+                          >
+                            {m.checkout_field_full_name()}
+                          </label>
+                          <Input
+                            id={field.name}
+                            name={field.name}
+                            value={field.state.value}
+                            onChange={(e) => field.handleChange(e.target.value)}
+                            onBlur={field.handleBlur}
+                            error={getFieldError(field.state.meta.errors[0])}
+                            autoComplete='name'
+                          />
+                          {field.state.meta.errors[0] && (
+                            <p id={`${field.name}-error`} className='text-xs text-error'>
+                              {getFieldError(field.state.meta.errors[0])}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </form.Field>
+
+                    <form.Field name='billingAddress.street'>
+                      {(field) => (
+                        <div className='grid gap-2 sm:col-span-2'>
+                          <label
+                            htmlFor={field.name}
+                            className='text-sm font-medium text-text-primary'
+                          >
+                            {m.checkout_field_street()}
+                          </label>
+                          <Input
+                            id={field.name}
+                            name={field.name}
+                            value={field.state.value}
+                            onChange={(e) => field.handleChange(e.target.value)}
+                            onBlur={field.handleBlur}
+                            error={getFieldError(field.state.meta.errors[0])}
+                            autoComplete='street-address'
+                          />
+                          {field.state.meta.errors[0] && (
+                            <p id={`${field.name}-error`} className='text-xs text-error'>
+                              {getFieldError(field.state.meta.errors[0])}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </form.Field>
+
+                    <form.Field name='billingAddress.city'>
+                      {(field) => (
+                        <div className='grid gap-2'>
+                          <label
+                            htmlFor={field.name}
+                            className='text-sm font-medium text-text-primary'
+                          >
+                            {m.checkout_field_city()}
+                          </label>
+                          <Input
+                            id={field.name}
+                            name={field.name}
+                            value={field.state.value}
+                            onChange={(e) => field.handleChange(e.target.value)}
+                            onBlur={field.handleBlur}
+                            error={getFieldError(field.state.meta.errors[0])}
+                            autoComplete='address-level2'
+                          />
+                          {field.state.meta.errors[0] && (
+                            <p id={`${field.name}-error`} className='text-xs text-error'>
+                              {getFieldError(field.state.meta.errors[0])}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </form.Field>
+
+                    <form.Field name='billingAddress.postalCode'>
+                      {(field) => (
+                        <div className='grid gap-2'>
+                          <label
+                            htmlFor={field.name}
+                            className='text-sm font-medium text-text-primary'
+                          >
+                            {m.checkout_field_postal_code()}
+                          </label>
+                          <Input
+                            id={field.name}
+                            name={field.name}
+                            value={field.state.value}
+                            onChange={(e) => field.handleChange(e.target.value)}
+                            onBlur={field.handleBlur}
+                            error={getFieldError(field.state.meta.errors[0])}
+                            autoComplete='postal-code'
+                          />
+                          {field.state.meta.errors[0] && (
+                            <p id={`${field.name}-error`} className='text-xs text-error'>
+                              {getFieldError(field.state.meta.errors[0])}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </form.Field>
+
+                    <form.Field name='billingAddress.country'>
+                      {(field) => (
+                        <div className='grid gap-2 sm:col-span-2'>
+                          <label
+                            htmlFor={field.name}
+                            className='text-sm font-medium text-text-primary'
+                          >
+                            {m.checkout_field_country()}
+                          </label>
+                          <Input
+                            id={field.name}
+                            name={field.name}
+                            value={field.state.value}
+                            onChange={(e) => field.handleChange(e.target.value)}
+                            onBlur={field.handleBlur}
+                            error={getFieldError(field.state.meta.errors[0])}
+                            autoComplete='country-name'
+                          />
+                          {field.state.meta.errors[0] && (
+                            <p id={`${field.name}-error`} className='text-xs text-error'>
+                              {getFieldError(field.state.meta.errors[0])}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </form.Field>
+                  </div>
+                ) : null
+              }
+            </form.Subscribe>
           </section>
 
           {/* Shipping Methods */}

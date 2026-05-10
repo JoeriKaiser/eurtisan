@@ -107,7 +107,7 @@ export async function cancelOrderQuery(
       )
     }
 
-    if (order.status !== 'pending') {
+    if (order.status !== 'pending_payment') {
       throw new Response(
         JSON.stringify({ error: 'Conflict', message: 'Order cannot be cancelled' }),
         { status: 409, headers: { 'Content-Type': 'application/json' } },

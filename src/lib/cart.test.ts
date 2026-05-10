@@ -262,8 +262,9 @@ describe('addItemToCart', () => {
       .values({
         userId: 'user-1',
         shippingAddress: { street: '123 Main' },
+        billingAddress: { street: '123 Main' },
         totalCents: 1000,
-        status: 'pending',
+        status: 'pending_payment',
       })
       .returning()
 
@@ -407,8 +408,9 @@ describe('mergeAnonymousCartIntoUserCart', () => {
       .values({
         userId: 'user-1',
         shippingAddress: { street: '123 Main' },
+        billingAddress: { street: '123 Main' },
         totalCents: 1000,
-        status: 'pending',
+        status: 'pending_payment',
       })
       .returning()
 
@@ -590,8 +592,9 @@ describe('updateCartItemQuantity', () => {
       .values({
         userId: 'user-1',
         shippingAddress: { street: '123 Main' },
+        billingAddress: { street: '123 Main' },
         totalCents: 1000,
-        status: 'pending',
+        status: 'pending_payment',
       })
       .returning()
 
@@ -735,8 +738,9 @@ describe('getCartDetailsBySessionId', () => {
       .values({
         userId: 'user-1',
         shippingAddress: { street: '123 Main' },
+        billingAddress: { street: '123 Main' },
         totalCents: 1000,
-        status: 'pending',
+        status: 'pending_payment',
       })
       .returning()
 

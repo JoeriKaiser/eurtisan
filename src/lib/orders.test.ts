@@ -86,6 +86,13 @@ describe('getOrderByIdQuery', () => {
           postalCode: '00000',
           country: 'DE',
         },
+        billingAddress: {
+          name: 'Other',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
         totalCents: 1000,
       })
       .returning()
@@ -104,6 +111,13 @@ describe('getOrderByIdQuery', () => {
       .values({
         userId: 'user-1',
         shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
           name: 'Test',
           street: 'St',
           city: 'City',
@@ -163,6 +177,13 @@ describe('getOrderByIdQuery', () => {
       .values({
         userId: 'user-1',
         shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
           name: 'Test',
           street: 'St',
           city: 'City',
@@ -247,8 +268,9 @@ describe('cancelOrderQuery', () => {
       .values({
         userId: otherUser.id,
         shippingAddress: { name: 'Other', street: 'St', city: 'City', postalCode: '00000', country: 'DE' },
+        billingAddress: { name: 'Other', street: 'St', city: 'City', postalCode: '00000', country: 'DE' },
         totalCents: 1000,
-        status: 'pending',
+        status: 'pending_payment',
       })
       .returning()
 
@@ -261,15 +283,16 @@ describe('cancelOrderQuery', () => {
     }
   })
 
-  it('throws 409 when order is not pending', async () => {
+  it('throws 409 when order is not pending_payment', async () => {
     await seedUser()
     const [order] = await db
       .insert(platformOrder)
       .values({
         userId: 'user-1',
         shippingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '12345', country: 'DE' },
+        billingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '12345', country: 'DE' },
         totalCents: 1000,
-        status: 'confirmed',
+        status: 'paid',
       })
       .returning()
 
@@ -292,8 +315,9 @@ describe('cancelOrderQuery', () => {
       .values({
         userId: 'user-1',
         shippingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '12345', country: 'DE' },
+        billingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '12345', country: 'DE' },
         totalCents: 2500,
-        status: 'pending',
+        status: 'pending_payment',
       })
       .returning()
 
@@ -305,7 +329,7 @@ describe('cancelOrderQuery', () => {
         shippingMethod: 'standard',
         shippingCostCents: 500,
         subtotalCents: 2000,
-        status: 'pending',
+        status: 'pending_payment',
       })
       .returning()
 

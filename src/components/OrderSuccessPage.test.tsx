@@ -30,7 +30,7 @@ function makeOrder(): OrderDetail {
   return {
     id: 'order-123',
     totalCents: 2500,
-    status: 'pending',
+    status: 'pending_payment',
     createdAt: new Date('2026-05-10T12:00:00Z'),
     shippingAddress: {
       name: 'Test User',
