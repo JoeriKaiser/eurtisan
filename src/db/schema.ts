@@ -3,6 +3,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   serial,
@@ -201,4 +202,74 @@ export const cartItem = pgTable(
     index('cart_item_cart_id_idx').on(table.cartId),
     uniqueIndex('cart_item_cart_id_product_id_unique').on(table.cartId, table.productId),
   ],
+)
+
+export const orderStatusEnum = pgEnum('order_status', [
+  'pending',
+  'confirmed',
+  'processing',
+  'shipped',
+  'delivered',
+  'cancelled',
+  'refunded',
+])
+
+export const shippingMethodEnum = pgEnum('shipping_method', ['standard', 'express'])
+
+export const platformOrder = pgTable(
+  'platform_order',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    shippingAddress: jsonb('shipping_address').notNull(),
+    totalCents: integer('total_cents').notNull().default(0),
+    status: orderStatusEnum().notNull().default('pending'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [index('platform_order_user_id_idx').on(table.userId)],
+)
+
+export const shopOrder = pgTable(
+  'shop_order',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    platformOrderId: uuid('platform_order_id')
+      .notNull()
+      .references(() => platformOrder.id, { onDelete: 'cascade' }),
+    shopId: text('shop_id')
+      .notNull()
+      .references(() => shop.id, { onDelete: 'cascade' }),
+    shippingMethod: shippingMethodEnum('shipping_method').notNull().default('standard'),
+    shippingCostCents: integer('shipping_cost_cents').notNull().default(0),
+    subtotalCents: integer('subtotal_cents').notNull().default(0),
+    status: orderStatusEnum().notNull().default('pending'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('shop_order_platform_order_id_idx').on(table.platformOrderId),
+    index('shop_order_shop_id_idx').on(table.shopId),
+  ],
+)
+
+export const orderItem = pgTable(
+  'order_item',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    shopOrderId: uuid('shop_order_id')
+      .notNull()
+      .references(() => shopOrder.id, { onDelete: 'cascade' }),
+    productId: text('product_id')
+      .notNull()
+      .references(() => product.id, { onDelete: 'restrict' }),
+    productName: text('product_name').notNull(),
+    unitPriceCents: integer('unit_price_cents').notNull().default(0),
+    quantity: integer().notNull(),
+    totalCents: integer('total_cents').notNull().default(0),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [index('order_item_shop_order_id_idx').on(table.shopOrderId)],
 )
