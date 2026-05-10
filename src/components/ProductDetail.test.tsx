@@ -1,9 +1,43 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import type { ProductDetail as ProductDetailType } from '#/lib/products.server'
 import ProductDetail from './ProductDetail'
+
+const mockRefreshCart = vi.fn()
+const mockAddToCart = vi.hoisted(() => vi.fn())
+
+vi.mock('#/components/CartProvider', () => ({
+  useCart: () => ({ cart: null, isLoading: false, refreshCart: mockRefreshCart }),
+}))
+
+vi.mock('#/lib/cart', () => ({
+  addToCart: mockAddToCart,
+}))
+
+vi.mock('#/paraglide/messages', () => ({
+  m: {
+    product_no_image: () => 'No image available',
+    product_gallery_label: () => 'Product images',
+    product_gallery_image: ({ index, total }: { index: string; total: string }) =>
+      `Image ${index} of ${total}`,
+    product_uncategorized: () => 'Uncategorized',
+    product_out_of_stock: () => 'Out of stock',
+    product_in_stock: ({ count }: { count: number }) => `${count} in stock`,
+    product_quantity: () => 'Quantity',
+    product_decrease_quantity: () => 'Decrease quantity',
+    product_increase_quantity: () => 'Increase quantity',
+    product_add_to_cart: () => 'Add to cart',
+    product_sold_by: () => 'Sold by',
+    product_unknown_shop: () => 'Unknown shop',
+    product_visit_shop: () => 'Visit shop',
+    cart_add_success: () => 'Added to cart',
+    cart_add_stock_limit: () => 'Updated to available stock limit',
+    cart_add_error: () => 'Could not add to cart. Please try again.',
+    cart_add_loading: () => 'Adding...',
+  },
+}))
 
 function makeProduct(overrides?: Partial<ProductDetailType>): ProductDetailType {
   return {
@@ -31,6 +65,11 @@ function makeProduct(overrides?: Partial<ProductDetailType>): ProductDetailType 
 }
 
 describe('ProductDetail', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockAddToCart.mockResolvedValue({ id: 'item-1', productId: 'prod-1', quantity: 1 })
+  })
+
   it('renders product name', () => {
     render(<ProductDetail product={makeProduct()} />)
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Handmade Vase')
@@ -141,5 +180,68 @@ describe('ProductDetail', () => {
     for (const tab of tabs) {
       expect(tab.tagName.toLowerCase()).toBe('button')
     }
+  })
+
+  it('calls addToCart and shows success message on submit', async () => {
+    render(<ProductDetail product={makeProduct({ stockCount: 5 })} />)
+    const button = screen.getByRole('button', { name: /Add to cart/i })
+    fireEvent.click(button)
+
+    await waitFor(() => {
+      expect(mockAddToCart).toHaveBeenCalledTimes(1)
+    })
+    expect(mockAddToCart).toHaveBeenCalledWith({
+      data: { productId: 'prod-1', quantity: 1 },
+    })
+    expect(mockRefreshCart).toHaveBeenCalledTimes(1)
+    expect(screen.getByText('Added to cart')).toBeDefined()
+  })
+
+  it('shows stock limit message when quantity is capped', async () => {
+    mockAddToCart.mockResolvedValue({ id: 'item-1', productId: 'prod-1', quantity: 3 })
+    render(<ProductDetail product={makeProduct({ stockCount: 5 })} />)
+    const increase = screen.getByRole('button', { name: /Increase quantity/i })
+    fireEvent.click(increase)
+    fireEvent.click(increase)
+    fireEvent.click(increase)
+    fireEvent.click(increase)
+    // quantity is now 5, but server caps at 3
+    const button = screen.getByRole('button', { name: /Add to cart/i })
+    fireEvent.click(button)
+
+    await waitFor(() => {
+      expect(screen.getByText('Updated to available stock limit')).toBeDefined()
+    })
+  })
+
+  it('shows error message when addToCart fails', async () => {
+    mockAddToCart.mockRejectedValue(new Error('fail'))
+    render(<ProductDetail product={makeProduct({ stockCount: 5 })} />)
+    const button = screen.getByRole('button', { name: /Add to cart/i })
+    fireEvent.click(button)
+
+    await waitFor(() => {
+      expect(screen.getByText('Could not add to cart. Please try again.')).toBeDefined()
+    })
+  })
+
+  it('disables add-to-cart button while adding', async () => {
+    let resolve: (value: unknown) => void
+    mockAddToCart.mockImplementation(
+      () =>
+        new Promise((res) => {
+          resolve = res
+        }),
+    )
+    render(<ProductDetail product={makeProduct({ stockCount: 5 })} />)
+    const button = screen.getByRole('button', { name: /Add to cart/i })
+    fireEvent.click(button)
+
+    await waitFor(() => {
+      expect(screen.getByText('Adding...')).toBeDefined()
+    })
+    expect(button.hasAttribute('disabled')).toBe(true)
+
+    resolve({ id: 'item-1', productId: 'prod-1', quantity: 1 })
   })
 })

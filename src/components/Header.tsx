@@ -1,6 +1,7 @@
 import { Link, useRouter } from '@tanstack/react-router'
-import { Search } from 'lucide-react'
+import { Search, ShoppingCart } from 'lucide-react'
 import { useState } from 'react'
+import { useCart } from '#/components/CartProvider'
 import { m } from '#/paraglide/messages'
 import ThemeToggle from './ThemeToggle'
 import UserMenu from './UserMenu'
@@ -10,6 +11,7 @@ import { Input } from './ui/input'
 export default function Header() {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
+  const { cart } = useCart()
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -21,6 +23,8 @@ export default function Header() {
       })
     }
   }
+
+  const distinctItems = cart?.shops.reduce((sum, shop) => sum + shop.items.length, 0) ?? 0
 
   return (
     <header className='sticky top-0 z-sticky border-b border-border-default bg-surface-default/80 backdrop-blur-lg'>
@@ -69,6 +73,20 @@ export default function Header() {
 
         {/* User actions */}
         <div className='ml-auto flex items-center gap-0.5'>
+          <div className='relative'>
+            <button
+              type='button'
+              className='inline-flex h-8 items-center rounded-lg px-2 text-sm font-medium text-text-primary transition-colors duration-fast ease-out hover:bg-bg-inset'
+              aria-label={m.cart_badge_label()}
+            >
+              <ShoppingCart size={18} aria-hidden='true' />
+              {distinctItems > 0 && (
+                <span className='absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-primary px-1 text-[10px] font-bold text-text-on-primary'>
+                  {distinctItems}
+                </span>
+              )}
+            </button>
+          </div>
           <UserMenu />
           <ThemeToggle />
         </div>

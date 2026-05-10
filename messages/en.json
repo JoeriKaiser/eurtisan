@@ -132,5 +132,10 @@
   "categories_all_title": "All Categories",
   "categories_all_description": "Browse all product categories and discover handmade goods from European artisans.",
   "categories_all_empty_title": "No categories yet",
-  "categories_all_empty_description": "Check back soon for new collections."
+  "categories_all_empty_description": "Check back soon for new collections.",
+  "cart_badge_label": "Shopping cart",
+  "cart_add_success": "Added to cart",
+  "cart_add_stock_limit": "Updated to available stock limit",
+  "cart_add_error": "Could not add to cart. Please try again.",
+  "cart_add_loading": "Adding..."
 }

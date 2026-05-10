@@ -1,5 +1,16 @@
-import { ImageOff, Minus, PackageCheck, PackageX, Plus, ShoppingCart, Store } from 'lucide-react'
-import { useState } from 'react'
+import {
+  ImageOff,
+  Loader2,
+  Minus,
+  PackageCheck,
+  PackageX,
+  Plus,
+  ShoppingCart,
+  Store,
+} from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { useCart } from '#/components/CartProvider'
+import { addToCart } from '#/lib/cart'
 import { formatPriceEUR } from '#/lib/pricing'
 import type { ProductDetail as ProductDetailType } from '#/lib/products.server'
 import { m } from '#/paraglide/messages'
@@ -8,12 +19,70 @@ export interface ProductDetailProps {
   product: ProductDetailType
 }
 
+type AddStatus = 'idle' | 'success' | 'error' | 'capped'
+
 export default function ProductDetail({ product }: ProductDetailProps) {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [quantity, setQuantity] = useState(1)
+  const [isAdding, setIsAdding] = useState(false)
+  const [addStatus, setAddStatus] = useState<AddStatus>('idle')
+  const { cart, refreshCart } = useCart()
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+    }
+  }, [])
 
   const isOutOfStock = product.stockCount <= 0
   const selectedImage = product.images[selectedImageIndex]
+
+  const handleAddToCart = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (isOutOfStock || isAdding) return
+
+    setIsAdding(true)
+    setAddStatus('idle')
+
+    let result: Awaited<ReturnType<typeof addToCart>> | null = null
+
+    try {
+      const existingQty =
+        cart?.shops.flatMap((s) => s.items).find((i) => i.productId === product.id)?.quantity ?? 0
+
+      result = await addToCart({
+        data: { productId: product.id, quantity },
+      })
+
+      if (result === null) {
+        setAddStatus('error')
+      } else if (result.quantity < existingQty + quantity) {
+        setAddStatus('capped')
+      } else {
+        setAddStatus('success')
+      }
+    } catch {
+      setAddStatus('error')
+    }
+
+    try {
+      await refreshCart()
+    } catch {
+      // Refresh failure should not mask a successful add
+      if (result !== null && addStatus !== 'error') {
+        // keep current success/capped status
+      }
+    } finally {
+      setIsAdding(false)
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+      }
+      timeoutRef.current = setTimeout(() => setAddStatus('idle'), 3000)
+    }
+  }
 
   return (
     <main className='page-wrap px-4 pb-8 pt-14'>
@@ -127,13 +196,7 @@ export default function ProductDetail({ product }: ProductDetailProps) {
             )}
 
             {/* Add to cart form */}
-            <form
-              className='space-y-4'
-              onSubmit={(e) => {
-                e.preventDefault()
-                // Cart logic is out of scope — UI placeholder only
-              }}
-            >
+            <form className='space-y-4' onSubmit={handleAddToCart}>
               <div className='flex items-center gap-3'>
                 <label htmlFor='quantity' className='text-sm font-medium text-[var(--sea-ink)]'>
                   {m.product_quantity()}
@@ -143,7 +206,7 @@ export default function ProductDetail({ product }: ProductDetailProps) {
                     type='button'
                     aria-label={m.product_decrease_quantity()}
                     className='px-3 py-2 text-[var(--sea-ink)] transition hover:bg-[var(--link-bg-hover)] disabled:opacity-40'
-                    disabled={quantity <= 1 || isOutOfStock}
+                    disabled={quantity <= 1 || isOutOfStock || isAdding}
                     onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                   >
                     <Minus size={14} aria-hidden='true' />
@@ -160,7 +223,7 @@ export default function ProductDetail({ product }: ProductDetailProps) {
                     type='button'
                     aria-label={m.product_increase_quantity()}
                     className='px-3 py-2 text-[var(--sea-ink)] transition hover:bg-[var(--link-bg-hover)] disabled:opacity-40'
-                    disabled={quantity >= product.stockCount || isOutOfStock}
+                    disabled={quantity >= product.stockCount || isOutOfStock || isAdding}
                     onClick={() => setQuantity((q) => Math.min(product.stockCount, q + 1))}
                   >
                     <Plus size={14} aria-hidden='true' />
@@ -170,12 +233,33 @@ export default function ProductDetail({ product }: ProductDetailProps) {
 
               <button
                 type='submit'
-                disabled={isOutOfStock}
+                disabled={isOutOfStock || isAdding}
                 className='inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--palm)] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50'
               >
-                <ShoppingCart size={16} aria-hidden='true' />
-                {isOutOfStock ? m.product_out_of_stock() : m.product_add_to_cart()}
+                {isAdding ? (
+                  <>
+                    <Loader2 size={16} className='animate-spin' aria-hidden='true' />
+                    {m.cart_add_loading()}
+                  </>
+                ) : (
+                  <>
+                    <ShoppingCart size={16} aria-hidden='true' />
+                    {isOutOfStock ? m.product_out_of_stock() : m.product_add_to_cart()}
+                  </>
+                )}
               </button>
+
+              {addStatus === 'success' && (
+                <p className='text-sm font-medium text-[var(--palm)]'>{m.cart_add_success()}</p>
+              )}
+              {addStatus === 'capped' && (
+                <p className='text-sm font-medium text-[var(--palm)]'>{m.cart_add_stock_limit()}</p>
+              )}
+              {addStatus === 'error' && (
+                <p className='text-sm font-medium text-red-600 dark:text-red-400'>
+                  {m.cart_add_error()}
+                </p>
+              )}
             </form>
           </section>
 

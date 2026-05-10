@@ -4,6 +4,7 @@ import { createRootRouteWithContext, HeadContent, Scripts } from '@tanstack/reac
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { m } from '#/paraglide/messages'
 import { getLocale } from '#/paraglide/runtime'
+import CartProvider from '../components/CartProvider'
 import Footer from '../components/Footer'
 import Header from '../components/Header'
 import LocaleSwitcher from '../components/LocaleSwitcher'
@@ -64,9 +65,11 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className='font-sans antialiased [overflow-wrap:anywhere]'>
-        <Header />
-        {children}
-        <Footer />
+        <CartProvider>
+          <Header />
+          {children}
+          <Footer />
+        </CartProvider>
         <LocaleSwitcher />
         <TanStackDevtools
           config={{
