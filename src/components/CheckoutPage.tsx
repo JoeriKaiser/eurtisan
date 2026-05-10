@@ -1,12 +1,13 @@
-import { Link, useNavigate } from '@tanstack/react-router'
-import { AlertTriangle, ArrowLeft, ImageOff, RefreshCw } from 'lucide-react'
+import { useForm } from '@tanstack/react-form'
+import { useRouter } from '@tanstack/react-router'
+import { Loader2, MapPin, Package, Truck } from 'lucide-react'
 import { useState } from 'react'
 import { z } from 'zod'
 import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
 import { createCheckout } from '#/lib/checkout'
-import type { CheckoutShopGroup, CheckoutSummary, ShippingAddress } from '#/lib/checkout.server'
-import { getShippingCost } from '#/lib/checkout.server'
 import { formatPriceEUR } from '#/lib/pricing'
+import type { CheckoutSummary } from '#/lib/checkout.server'
 import { m } from '#/paraglide/messages'
 
 export interface CheckoutPageProps {
@@ -15,369 +16,387 @@ export interface CheckoutPageProps {
 }
 
 const shippingAddressSchema = z.object({
-  name: z.string().min(1, m.checkout_name_required()),
-  street: z.string().min(1, m.checkout_street_required()),
-  city: z.string().min(1, m.checkout_city_required()),
-  postalCode: z.string().min(1, m.checkout_postal_code_required()),
-  country: z.string().min(1, m.checkout_country_required()),
+  name: z.string().min(1, m.checkout_error_name_required()).max(255),
+  street: z.string().min(1, m.checkout_error_street_required()).max(255),
+  city: z.string().min(1, m.checkout_error_city_required()).max(255),
+  postalCode: z.string().min(1, m.checkout_error_postal_required()).max(50),
+  country: z.string().min(1, m.checkout_error_country_required()).max(100),
 })
 
-type FieldErrors = Partial<Record<keyof ShippingAddress, string>>
+const checkoutFormSchema = z.object({
+  shippingAddress: shippingAddressSchema,
+  shippingSelections: z.array(
+    z.object({
+      shopId: z.string().min(1),
+      method: z.enum(['standard', 'express']),
+    }),
+  ),
+})
+
+type CheckoutFormValues = z.infer<typeof checkoutFormSchema>
 
 export default function CheckoutPage({ summary, cartId }: CheckoutPageProps) {
-  const navigate = useNavigate()
-  const [shippingSelections, setShippingSelections] = useState<
-    Record<string, 'standard' | 'express'>
-  >(() => {
-    const initial: Record<string, 'standard' | 'express'> = {}
-    for (const shop of summary.shops) {
-      initial[shop.shopId] = 'standard'
-    }
-    return initial
-  })
+  const router = useRouter()
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
-  const [address, setAddress] = useState<ShippingAddress>({
-    name: '',
-    street: '',
-    city: '',
-    postalCode: '',
-    country: '',
-  })
-  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
-  const [stockErrorProducts, setStockErrorProducts] = useState<
-    { productId: string; name: string }[] | null
-  >(null)
-  const [genericError, setGenericError] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const defaultShippingSelections = summary.shops.map((shop) => ({
+    shopId: shop.shopId,
+    method: 'standard' as const,
+  }))
 
-  const grandTotal = summary.shops.reduce((sum, shop) => {
-    const method = shippingSelections[shop.shopId] ?? 'standard'
-    return sum + shop.subtotalCents + getShippingCost(method)
-  }, 0)
-
-  const handleShippingChange = (shopId: string, method: 'standard' | 'express') => {
-    setShippingSelections((prev) => ({ ...prev, [shopId]: method }))
-  }
-
-  const handleAddressChange = (field: keyof ShippingAddress, value: string) => {
-    setAddress((prev) => ({ ...prev, [field]: value }))
-    if (fieldErrors[field]) {
-      setFieldErrors((prev) => ({ ...prev, [field]: undefined }))
-    }
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setFieldErrors({})
-    setStockErrorProducts(null)
-    setGenericError(null)
-
-    const parseResult = shippingAddressSchema.safeParse(address)
-    if (!parseResult.success) {
-      const errors: FieldErrors = {}
-      for (const issue of parseResult.error.issues) {
-        const field = issue.path[0] as keyof ShippingAddress
-        if (!errors[field]) {
-          errors[field] = issue.message
-        }
-      }
-      setFieldErrors(errors)
-      return
-    }
-
-    setIsSubmitting(true)
-    try {
-      const result = await createCheckout({
-        data: {
-          cartId,
-          shippingSelections: summary.shops.map((shop) => ({
-            shopId: shop.shopId,
-            method: shippingSelections[shop.shopId] ?? 'standard',
-          })),
-          shippingAddress: parseResult.data,
-        },
-      })
-      await navigate({
-        to: '/orders/$platformOrderId/success',
-        params: { platformOrderId: result.platformOrderId },
-      })
-    } catch (err) {
-      if (err instanceof Response) {
-        if (err.status === 409) {
-          try {
-            const body = (await err.json()) as { productIds?: string[]; message?: string }
-            if (body.productIds && body.productIds.length > 0) {
-              const products: { productId: string; name: string }[] = []
-              for (const pid of body.productIds) {
-                const name = findProductName(summary, pid)
-                products.push({ productId: pid, name: name ?? pid })
-              }
-              setStockErrorProducts(products)
-            } else {
-              setGenericError(body.message || m.checkout_error_stock_exhausted())
-            }
-          } catch {
-            setGenericError(m.checkout_error_stock_exhausted())
-          }
-        } else if (err.status === 401) {
-          await navigate({ to: '/signin', search: { redirect: '/checkout' } })
+  const form = useForm({
+    defaultValues: {
+      shippingAddress: {
+        name: '',
+        street: '',
+        city: '',
+        postalCode: '',
+        country: '',
+      },
+      shippingSelections: defaultShippingSelections,
+    } satisfies CheckoutFormValues,
+    validators: {
+      onChange: checkoutFormSchema,
+      onSubmit: checkoutFormSchema,
+    },
+    onSubmit: async ({ value }) => {
+      setSubmitError(null)
+      try {
+        const result = await createCheckout({
+          data: {
+            cartId,
+            shippingAddress: value.shippingAddress,
+            shippingSelections: value.shippingSelections,
+          },
+        })
+        router.navigate({
+          to: '/orders/$platformOrderId/success',
+          params: { platformOrderId: result.platformOrderId },
+        })
+      } catch (err) {
+        if (err instanceof Response) {
+          const body = await err.json().catch(() => ({}))
+          setSubmitError(body.message || m.checkout_error_submit())
         } else {
-          setGenericError(m.checkout_error_generic())
+          setSubmitError(m.checkout_error_submit())
         }
-      } else {
-        setGenericError(m.checkout_error_generic())
       }
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
+    },
+  })
+
+  const grandTotal = summary.shops.reduce((total, shop) => {
+    const selection = form.getFieldValue('shippingSelections').find((s) => s.shopId === shop.shopId)
+    const shippingCost =
+      shop.shippingOptions.find((o) => o.method === selection?.method)?.costCents ??
+      shop.shippingOptions[0].costCents
+    return total + shop.subtotalCents + shippingCost
+  }, 0)
 
   return (
     <main className='page-wrap px-4 pb-16 pt-14'>
-      <div className='mb-6'>
-        <Link
-          to='/cart'
-          className='inline-flex items-center gap-1.5 text-sm text-text-secondary transition-colors hover:text-text-primary'
-        >
-          <ArrowLeft size={16} aria-hidden='true' />
-          {m.cart_title()}
-        </Link>
+      <div className='mb-8'>
+        <h1 className='display-title text-3xl font-bold text-text-primary sm:text-4xl'>
+          {m.checkout_title()}
+        </h1>
       </div>
 
-      <h1 className='display-title mb-8 text-3xl font-bold text-text-primary sm:text-4xl'>
-        {m.checkout_title()}
-      </h1>
-
-      {genericError && (
-        <div
-          className='mb-6 rounded-lg border border-error bg-error-subtle px-4 py-3 text-sm text-error'
-          role='alert'
-        >
-          {genericError}
-        </div>
-      )}
-
-      {stockErrorProducts && stockErrorProducts.length > 0 && (
-        <div
-          className='mb-6 rounded-lg border border-error bg-error-subtle px-4 py-4 text-sm text-error'
-          role='alert'
-        >
-          <div className='flex items-start gap-2'>
-            <AlertTriangle size={18} className='mt-0.5 flex-shrink-0' aria-hidden='true' />
-            <div>
-              <p className='font-medium'>{m.checkout_error_stock_exhausted()}</p>
-              <ul className='mt-2 list-disc space-y-1 pl-5'>
-                {stockErrorProducts.map((p) => (
-                  <li key={p.productId}>{m.checkout_error_stock_item({ name: p.name })}</li>
-                ))}
-              </ul>
-              <div className='mt-3'>
-                <Link to='/cart' className='no-underline'>
-                  <Button variant='secondary' size='sm'>
-                    <RefreshCw size={14} className='mr-1.5' aria-hidden='true' />
-                    {m.checkout_retry()}
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className='grid gap-8 lg:grid-cols-[1fr_360px]'>
-        <form onSubmit={handleSubmit} className='space-y-6'>
-          {/* Shipping address */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          void form.handleSubmit()
+        }}
+        className='grid gap-8 lg:grid-cols-[1fr_360px]'
+        noValidate
+      >
+        {/* Left column: forms */}
+        <div className='space-y-6'>
+          {/* Shipping Address */}
           <section className='island-shell rounded-2xl p-4 sm:p-6'>
-            <h2 className='mb-4 text-lg font-semibold text-text-primary'>
-              {m.checkout_shipping_address()}
-            </h2>
+            <div className='mb-4 flex items-center gap-2'>
+              <MapPin size={18} className='text-accent-primary' aria-hidden='true' />
+              <h2 className='text-lg font-semibold text-text-primary'>
+                {m.checkout_shipping_address()}
+              </h2>
+            </div>
+
             <div className='grid gap-4 sm:grid-cols-2'>
-              <div className='sm:col-span-2'>
-                <label
-                  htmlFor='name'
-                  className='mb-1.5 block text-sm font-medium text-text-primary'
-                >
-                  {m.checkout_name()}
-                </label>
-                <input
-                  id='name'
-                  type='text'
-                  value={address.name}
-                  onChange={(e) => handleAddressChange('name', e.target.value)}
-                  className={`flex h-10 w-full rounded-lg border bg-surface-default px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary/30 ${fieldErrors.name ? 'border-error' : 'border-border-default'}`}
-                  aria-invalid={!!fieldErrors.name}
-                  aria-describedby={fieldErrors.name ? 'name-error' : undefined}
-                />
-                {fieldErrors.name && (
-                  <p id='name-error' className='mt-1 text-xs text-error'>
-                    {fieldErrors.name}
-                  </p>
+              <form.Field name='shippingAddress.name'>
+                {(field) => (
+                  <div className='grid gap-2 sm:col-span-2'>
+                    <label htmlFor={field.name} className='text-sm font-medium text-text-primary'>
+                      {m.checkout_field_full_name()}
+                    </label>
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      onBlur={field.handleBlur}
+                      error={field.state.meta.errors[0]}
+                      autoComplete='name'
+                    />
+                    {field.state.meta.errors[0] && (
+                      <p id={`${field.name}-error`} className='text-xs text-error'>
+                        {field.state.meta.errors[0]}
+                      </p>
+                    )}
+                  </div>
                 )}
-              </div>
-              <div className='sm:col-span-2'>
-                <label
-                  htmlFor='street'
-                  className='mb-1.5 block text-sm font-medium text-text-primary'
-                >
-                  {m.checkout_street()}
-                </label>
-                <input
-                  id='street'
-                  type='text'
-                  value={address.street}
-                  onChange={(e) => handleAddressChange('street', e.target.value)}
-                  className={`flex h-10 w-full rounded-lg border bg-surface-default px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary/30 ${fieldErrors.street ? 'border-error' : 'border-border-default'}`}
-                  aria-invalid={!!fieldErrors.street}
-                  aria-describedby={fieldErrors.street ? 'street-error' : undefined}
-                />
-                {fieldErrors.street && (
-                  <p id='street-error' className='mt-1 text-xs text-error'>
-                    {fieldErrors.street}
-                  </p>
+              </form.Field>
+
+              <form.Field name='shippingAddress.street'>
+                {(field) => (
+                  <div className='grid gap-2 sm:col-span-2'>
+                    <label htmlFor={field.name} className='text-sm font-medium text-text-primary'>
+                      {m.checkout_field_street()}
+                    </label>
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      onBlur={field.handleBlur}
+                      error={field.state.meta.errors[0]}
+                      autoComplete='street-address'
+                    />
+                    {field.state.meta.errors[0] && (
+                      <p id={`${field.name}-error`} className='text-xs text-error'>
+                        {field.state.meta.errors[0]}
+                      </p>
+                    )}
+                  </div>
                 )}
-              </div>
-              <div>
-                <label
-                  htmlFor='city'
-                  className='mb-1.5 block text-sm font-medium text-text-primary'
-                >
-                  {m.checkout_city()}
-                </label>
-                <input
-                  id='city'
-                  type='text'
-                  value={address.city}
-                  onChange={(e) => handleAddressChange('city', e.target.value)}
-                  className={`flex h-10 w-full rounded-lg border bg-surface-default px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary/30 ${fieldErrors.city ? 'border-error' : 'border-border-default'}`}
-                  aria-invalid={!!fieldErrors.city}
-                  aria-describedby={fieldErrors.city ? 'city-error' : undefined}
-                />
-                {fieldErrors.city && (
-                  <p id='city-error' className='mt-1 text-xs text-error'>
-                    {fieldErrors.city}
-                  </p>
+              </form.Field>
+
+              <form.Field name='shippingAddress.city'>
+                {(field) => (
+                  <div className='grid gap-2'>
+                    <label htmlFor={field.name} className='text-sm font-medium text-text-primary'>
+                      {m.checkout_field_city()}
+                    </label>
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      onBlur={field.handleBlur}
+                      error={field.state.meta.errors[0]}
+                      autoComplete='address-level2'
+                    />
+                    {field.state.meta.errors[0] && (
+                      <p id={`${field.name}-error`} className='text-xs text-error'>
+                        {field.state.meta.errors[0]}
+                      </p>
+                    )}
+                  </div>
                 )}
-              </div>
-              <div>
-                <label
-                  htmlFor='postalCode'
-                  className='mb-1.5 block text-sm font-medium text-text-primary'
-                >
-                  {m.checkout_postal_code()}
-                </label>
-                <input
-                  id='postalCode'
-                  type='text'
-                  value={address.postalCode}
-                  onChange={(e) => handleAddressChange('postalCode', e.target.value)}
-                  className={`flex h-10 w-full rounded-lg border bg-surface-default px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary/30 ${fieldErrors.postalCode ? 'border-error' : 'border-border-default'}`}
-                  aria-invalid={!!fieldErrors.postalCode}
-                  aria-describedby={fieldErrors.postalCode ? 'postalCode-error' : undefined}
-                />
-                {fieldErrors.postalCode && (
-                  <p id='postalCode-error' className='mt-1 text-xs text-error'>
-                    {fieldErrors.postalCode}
-                  </p>
+              </form.Field>
+
+              <form.Field name='shippingAddress.postalCode'>
+                {(field) => (
+                  <div className='grid gap-2'>
+                    <label htmlFor={field.name} className='text-sm font-medium text-text-primary'>
+                      {m.checkout_field_postal_code()}
+                    </label>
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      onBlur={field.handleBlur}
+                      error={field.state.meta.errors[0]}
+                      autoComplete='postal-code'
+                    />
+                    {field.state.meta.errors[0] && (
+                      <p id={`${field.name}-error`} className='text-xs text-error'>
+                        {field.state.meta.errors[0]}
+                      </p>
+                    )}
+                  </div>
                 )}
-              </div>
-              <div className='sm:col-span-2'>
-                <label
-                  htmlFor='country'
-                  className='mb-1.5 block text-sm font-medium text-text-primary'
-                >
-                  {m.checkout_country()}
-                </label>
-                <input
-                  id='country'
-                  type='text'
-                  value={address.country}
-                  onChange={(e) => handleAddressChange('country', e.target.value)}
-                  className={`flex h-10 w-full rounded-lg border bg-surface-default px-3 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent-primary/30 ${fieldErrors.country ? 'border-error' : 'border-border-default'}`}
-                  aria-invalid={!!fieldErrors.country}
-                  aria-describedby={fieldErrors.country ? 'country-error' : undefined}
-                />
-                {fieldErrors.country && (
-                  <p id='country-error' className='mt-1 text-xs text-error'>
-                    {fieldErrors.country}
-                  </p>
+              </form.Field>
+
+              <form.Field name='shippingAddress.country'>
+                {(field) => (
+                  <div className='grid gap-2 sm:col-span-2'>
+                    <label htmlFor={field.name} className='text-sm font-medium text-text-primary'>
+                      {m.checkout_field_country()}
+                    </label>
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      onBlur={field.handleBlur}
+                      error={field.state.meta.errors[0]}
+                      autoComplete='country-name'
+                    />
+                    {field.state.meta.errors[0] && (
+                      <p id={`${field.name}-error`} className='text-xs text-error'>
+                        {field.state.meta.errors[0]}
+                      </p>
+                    )}
+                  </div>
                 )}
-              </div>
+              </form.Field>
             </div>
           </section>
 
-          {/* Shipping method per shop */}
-          {summary.shops.map((shop) => (
-            <ShopShippingSection
-              key={shop.shopId}
-              shop={shop}
-              selectedMethod={shippingSelections[shop.shopId] ?? 'standard'}
-              onChange={(method) => handleShippingChange(shop.shopId, method)}
-            />
-          ))}
+          {/* Shipping Methods */}
+          <section className='island-shell rounded-2xl p-4 sm:p-6'>
+            <div className='mb-4 flex items-center gap-2'>
+              <Truck size={18} className='text-accent-primary' aria-hidden='true' />
+              <h2 className='text-lg font-semibold text-text-primary'>
+                {m.checkout_shipping_method()}
+              </h2>
+            </div>
 
-          <Button
-            type='submit'
-            size='lg'
-            className='w-full'
-            isLoading={isSubmitting}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? m.checkout_processing() : m.checkout_place_order()}
-          </Button>
-        </form>
+            <div className='space-y-6'>
+              {summary.shops.map((shop, shopIndex) => (
+                <div key={shop.shopId}>
+                  <h3 className='mb-3 text-sm font-medium text-text-secondary'>{shop.shopName}</h3>
+                  <div className='space-y-2'>
+                    {shop.shippingOptions.map((option) => (
+                      <form.Field
+                        key={option.method}
+                        name={`shippingSelections[${shopIndex}].method`}
+                      >
+                        {(field) => (
+                          <label
+                            className={`flex cursor-pointer items-center justify-between rounded-xl border p-4 transition-colors ${
+                              field.state.value === option.method
+                                ? 'border-accent-primary bg-accent-primary/5'
+                                : 'border-border-default hover:border-border-strong'
+                            }`}
+                          >
+                            <div className='flex items-center gap-3'>
+                              <input
+                                type='radio'
+                                name={field.name}
+                                value={option.method}
+                                checked={field.state.value === option.method}
+                                onChange={(e) =>
+                                  field.handleChange(e.target.value as 'standard' | 'express')
+                                }
+                                onBlur={field.handleBlur}
+                                className='h-4 w-4 accent-accent-primary'
+                              />
+                              <span className='text-sm font-medium text-text-primary'>
+                                {option.method === 'standard'
+                                  ? m.checkout_shipping_standard()
+                                  : m.checkout_shipping_express()}
+                              </span>
+                            </div>
+                            <span className='text-sm font-semibold text-text-primary'>
+                              {formatPriceEUR(option.costCents)}
+                            </span>
+                          </label>
+                        )}
+                      </form.Field>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
 
-        {/* Order summary sidebar */}
+          {/* Order items */}
+          <section className='island-shell rounded-2xl p-4 sm:p-6'>
+            <div className='mb-4 flex items-center gap-2'>
+              <Package size={18} className='text-accent-primary' aria-hidden='true' />
+              <h2 className='text-lg font-semibold text-text-primary'>
+                {m.checkout_order_items()}
+              </h2>
+            </div>
+
+            <div className='space-y-6'>
+              {summary.shops.map((shop) => (
+                <div key={shop.shopId}>
+                  <h3 className='mb-2 text-sm font-medium text-text-secondary'>{shop.shopName}</h3>
+                  <ul className='divide-y divide-border-subtle'>
+                    {shop.items.map((item) => (
+                      <li
+                        key={item.productId}
+                        className='flex items-center gap-4 py-3 first:pt-0 last:pb-0'
+                      >
+                        <div className='flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-inset'>
+                          {item.imageUrl ? (
+                            <img
+                              src={item.imageUrl}
+                              alt={item.name}
+                              className='h-full w-full object-cover'
+                              loading='lazy'
+                            />
+                          ) : (
+                            <span className='text-xs text-text-muted'>{m.product_no_image()}</span>
+                          )}
+                        </div>
+                        <div className='flex flex-1 flex-col'>
+                          <span className='text-sm font-medium text-text-primary'>{item.name}</span>
+                          <span className='text-xs text-text-secondary'>
+                            {m.checkout_quantity_label({ count: String(item.quantity) })}
+                          </span>
+                        </div>
+                        <span className='text-sm font-medium text-text-primary'>
+                          {formatPriceEUR(item.priceCents * item.quantity)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className='mt-2 flex justify-between text-sm'>
+                    <span className='text-text-secondary'>{m.cart_shop_subtotal()}</span>
+                    <span className='font-medium text-text-primary'>
+                      {formatPriceEUR(shop.subtotalCents)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        {/* Right column: order summary */}
         <div className='lg:sticky lg:top-24 lg:self-start'>
           <section className='island-shell rounded-2xl p-6'>
             <h2 className='mb-4 text-lg font-semibold text-text-primary'>
               {m.checkout_order_summary()}
             </h2>
-            <div className='space-y-4'>
+
+            <div className='space-y-2'>
               {summary.shops.map((shop) => {
-                const method = shippingSelections[shop.shopId] ?? 'standard'
-                const shippingCost = getShippingCost(method)
+                const selection = form
+                  .getFieldValue('shippingSelections')
+                  .find((s) => s.shopId === shop.shopId)
+                const shippingOption =
+                  shop.shippingOptions.find((o) => o.method === selection?.method) ??
+                  shop.shippingOptions[0]
+
                 return (
-                  <div key={shop.shopId} className='space-y-2'>
-                    <p className='text-sm font-medium text-text-primary'>{shop.shopName}</p>
-                    <ul className='space-y-1'>
-                      {shop.items.map((item) => (
-                        <li
-                          key={item.productId}
-                          className='flex items-center gap-2 text-sm text-text-secondary'
-                        >
-                          <div className='flex h-8 w-8 flex-shrink-0 items-center justify-center overflow-hidden rounded-md bg-surface-inset'>
-                            {item.imageUrl ? (
-                              <img
-                                src={item.imageUrl}
-                                alt={item.name}
-                                className='h-full w-full object-cover'
-                              />
-                            ) : (
-                              <ImageOff size={14} className='text-text-muted' aria-hidden='true' />
-                            )}
-                          </div>
-                          <span className='flex-1 truncate'>{item.name}</span>
-                          <span className='text-text-primary'>× {item.quantity}</span>
-                        </li>
-                      ))}
-                    </ul>
+                  <div key={shop.shopId} className='space-y-1'>
                     <div className='flex justify-between text-sm'>
-                      <span className='text-text-secondary'>{m.checkout_shipping()}</span>
+                      <span className='text-text-secondary truncate'>{shop.shopName}</span>
                       <span className='font-medium text-text-primary'>
-                        {formatPriceEUR(shippingCost)}
+                        {formatPriceEUR(shop.subtotalCents)}
                       </span>
                     </div>
                     <div className='flex justify-between text-sm'>
-                      <span className='text-text-secondary'>{m.cart_shop_subtotal()}</span>
+                      <span className='text-text-secondary'>
+                        {shippingOption.method === 'standard'
+                          ? m.checkout_shipping_standard()
+                          : m.checkout_shipping_express()}
+                      </span>
                       <span className='font-medium text-text-primary'>
-                        {formatPriceEUR(shop.subtotalCents)}
+                        {formatPriceEUR(shippingOption.costCents)}
                       </span>
                     </div>
                   </div>
                 )
               })}
             </div>
+
             <div className='my-4 border-t border-border-default' />
+
             <div className='flex items-center justify-between'>
               <span className='text-base font-semibold text-text-primary'>
                 {m.checkout_grand_total()}
@@ -386,66 +405,36 @@ export default function CheckoutPage({ summary, cartId }: CheckoutPageProps) {
                 {formatPriceEUR(grandTotal)}
               </span>
             </div>
+
+            {submitError && (
+              <p className='mt-3 text-sm text-error' role='alert'>
+                {submitError}
+              </p>
+            )}
+
+            <form.Subscribe selector={(state) => state.isSubmitting}>
+              {(isSubmitting) => (
+                <Button
+                  type='submit'
+                  size='lg'
+                  className='mt-6 w-full'
+                  isLoading={isSubmitting}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 size={16} className='animate-spin' aria-hidden='true' />
+                      {m.checkout_confirm_loading()}
+                    </>
+                  ) : (
+                    m.checkout_confirm_button()
+                  )}
+                </Button>
+              )}
+            </form.Subscribe>
           </section>
         </div>
-      </div>
+      </form>
     </main>
   )
-}
-
-function ShopShippingSection({
-  shop,
-  selectedMethod,
-  onChange,
-}: {
-  shop: CheckoutShopGroup
-  selectedMethod: 'standard' | 'express'
-  onChange: (method: 'standard' | 'express') => void
-}) {
-  return (
-    <section className='island-shell rounded-2xl p-4 sm:p-6'>
-      <h2 className='mb-4 text-lg font-semibold text-text-primary'>
-        {m.checkout_select_shipping_for_shop({ shopName: shop.shopName })}
-      </h2>
-      <div className='space-y-3'>
-        {shop.shippingOptions.map((option) => (
-          <label
-            key={option.method}
-            className={`flex cursor-pointer items-center gap-3 rounded-lg border p-4 transition-colors ${selectedMethod === option.method ? 'border-accent-primary bg-accent-primary/5' : 'border-border-default hover:border-border-strong'}`}
-          >
-            <input
-              type='radio'
-              name={`shipping-${shop.shopId}`}
-              value={option.method}
-              checked={selectedMethod === option.method}
-              onChange={() => onChange(option.method)}
-              className='h-4 w-4 accent-accent-primary'
-            />
-            <div className='flex-1'>
-              <p className='text-sm font-medium text-text-primary'>
-                {option.method === 'standard'
-                  ? m.checkout_shipping_standard()
-                  : m.checkout_shipping_express()}
-              </p>
-              <p className='text-xs text-text-secondary'>{option.label}</p>
-            </div>
-            <span className='text-sm font-semibold text-text-primary'>
-              {formatPriceEUR(option.costCents)}
-            </span>
-          </label>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function findProductName(summary: CheckoutSummary, productId: string): string | undefined {
-  for (const shop of summary.shops) {
-    for (const item of shop.items) {
-      if (item.productId === productId) {
-        return item.name
-      }
-    }
-  }
-  return undefined
 }

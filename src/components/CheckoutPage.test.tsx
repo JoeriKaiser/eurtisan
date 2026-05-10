@@ -4,57 +4,47 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import CheckoutPage from './CheckoutPage'
 
-const mockNavigate = vi.fn()
+const mockNavigate = vi.hoisted(() => vi.fn())
+const mockCreateCheckout = vi.hoisted(() => vi.fn())
 
 vi.mock('@tanstack/react-router', () => ({
-  Link: (props: { children: React.ReactNode; to: string; className?: string }) => (
-    <a href={props.to} className={props.className}>
-      {props.children}
-    </a>
-  ),
-  useNavigate: () => mockNavigate,
+  useRouter: () => ({ navigate: mockNavigate }),
 }))
 
 vi.mock('#/lib/checkout', () => ({
-  createCheckout: vi.fn(),
+  createCheckout: mockCreateCheckout,
 }))
-
-import { createCheckout } from '#/lib/checkout'
 
 vi.mock('#/paraglide/messages', () => ({
   m: {
     checkout_title: () => 'Checkout',
     checkout_shipping_address: () => 'Shipping address',
-    checkout_name: () => 'Full name',
-    checkout_street: () => 'Street address',
-    checkout_city: () => 'City',
-    checkout_postal_code: () => 'Postal code',
-    checkout_country: () => 'Country',
-    checkout_name_required: () => 'Full name is required',
-    checkout_street_required: () => 'Street address is required',
-    checkout_city_required: () => 'City is required',
-    checkout_postal_code_required: () => 'Postal code is required',
-    checkout_country_required: () => 'Country is required',
-    checkout_place_order: () => 'Place order',
-    checkout_processing: () => 'Processing…',
-    checkout_error_generic: () => 'Something went wrong. Please try again.',
-    checkout_error_stock_exhausted: () => 'Some items are no longer available.',
-    checkout_error_stock_item: (inputs: { name: string }) => `${inputs.name} — out of stock`,
-    checkout_retry: () => 'Update cart and retry',
-    checkout_order_summary: () => 'Order summary',
-    checkout_shipping: () => 'Shipping',
+    checkout_field_full_name: () => 'Full name',
+    checkout_field_street: () => 'Street address',
+    checkout_field_city: () => 'City',
+    checkout_field_postal_code: () => 'Postal code',
+    checkout_field_country: () => 'Country',
+    checkout_shipping_method: () => 'Shipping method',
     checkout_shipping_standard: () => 'Standard',
     checkout_shipping_express: () => 'Express',
-    checkout_select_shipping_for_shop: (inputs: { shopName: string }) =>
-      `Shipping for ${inputs.shopName}`,
+    checkout_order_items: () => 'Order items',
+    checkout_quantity_label: (inputs: { count: string }) => `Qty: ${inputs.count}`,
+    checkout_order_summary: () => 'Order summary',
     checkout_grand_total: () => 'Grand total',
-    cart_title: () => 'Your cart',
+    checkout_confirm_button: () => 'Confirm purchase',
+    checkout_confirm_loading: () => 'Processing…',
+    checkout_error_name_required: () => 'Full name is required',
+    checkout_error_street_required: () => 'Street address is required',
+    checkout_error_city_required: () => 'City is required',
+    checkout_error_postal_required: () => 'Postal code is required',
+    checkout_error_country_required: () => 'Country is required',
+    checkout_error_submit: () => 'Could not complete checkout. Please try again.',
+    product_no_image: () => 'No image available',
     cart_shop_subtotal: () => 'Subtotal',
-    product_no_image: () => 'No image',
   },
 }))
 
-function makeSummary() {
+function makeSummary(overrides?: Partial<Parameters<typeof CheckoutPage>[0]['summary']>) {
   return {
     cartId: 'cart-1',
     shops: [
@@ -79,14 +69,15 @@ function makeSummary() {
         ],
       },
     ],
-    grandTotalCents: 2500,
+    grandTotalCents: 2000,
+    ...overrides,
   }
 }
 
 describe('CheckoutPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockNavigate.mockResolvedValue(undefined)
+    mockCreateCheckout.mockResolvedValue({ platformOrderId: 'order-1' })
   })
 
   it('renders checkout title', () => {
@@ -103,46 +94,46 @@ describe('CheckoutPage', () => {
     expect(screen.getByLabelText('Country')).toBeDefined()
   })
 
-  it('renders order summary with shop items', () => {
+  it('renders shipping method options per shop', () => {
     render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
-    expect(screen.getByText('Test Shop')).toBeDefined()
+    expect(screen.getByRole('heading', { name: 'Test Shop' })).toBeDefined()
+    expect(screen.getByLabelText('Standard')).toBeDefined()
+    expect(screen.getByLabelText('Express')).toBeDefined()
+  })
+
+  it('renders order items', () => {
+    render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
     expect(screen.getByText('Vase')).toBeDefined()
-    expect(screen.getByText('× 2')).toBeDefined()
+    expect(screen.getByText('Qty: 2')).toBeDefined()
   })
 
-  it('renders shipping options per shop', () => {
+  it('renders order summary with totals', () => {
     render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
-    expect(screen.getByRole('radio', { name: /Standard/i })).toBeDefined()
-    expect(screen.getByRole('radio', { name: /Express/i })).toBeDefined()
+    expect(screen.getByText('Order summary')).toBeDefined()
+    expect(screen.getByText('Grand total')).toBeDefined()
   })
 
-  it('selects standard shipping by default', () => {
+  it('shows validation errors for empty required fields on submit', async () => {
     render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
-    const standard = screen.getByRole('radio', { name: /Standard/i }) as HTMLInputElement
-    expect(standard.checked).toBe(true)
-  })
-
-  it('allows switching shipping method', () => {
-    render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
-    const express = screen.getByRole('radio', { name: /Express/i }) as HTMLInputElement
-    fireEvent.click(express)
-    expect(express.checked).toBe(true)
-  })
-
-  it('shows validation errors when fields are empty on submit', async () => {
-    render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
-    const submitButton = screen.getByRole('button', { name: 'Place order' })
-    fireEvent.click(submitButton)
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm purchase' }))
 
     await waitFor(() => {
       expect(screen.getByText('Full name is required')).toBeDefined()
+      expect(screen.getByText('Street address is required')).toBeDefined()
+      expect(screen.getByText('City is required')).toBeDefined()
+      expect(screen.getByText('Postal code is required')).toBeDefined()
+      expect(screen.getByText('Country is required')).toBeDefined()
     })
   })
 
-  it('calls createCheckout with correct data when form is valid', async () => {
-    const mockCreateCheckout = createCheckout as unknown as ReturnType<typeof vi.fn>
-    mockCreateCheckout.mockResolvedValue({ platformOrderId: 'order-123' })
+  it('allows selecting express shipping', () => {
+    render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
+    const expressRadio = screen.getByLabelText('Express')
+    fireEvent.click(expressRadio)
+    expect(expressRadio).toHaveProperty('checked', true)
+  })
 
+  it('calls createCheckout and navigates on successful submit', async () => {
     render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
 
     fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Test User' } })
@@ -151,11 +142,11 @@ describe('CheckoutPage', () => {
     fireEvent.change(screen.getByLabelText('Postal code'), { target: { value: '10115' } })
     fireEvent.change(screen.getByLabelText('Country'), { target: { value: 'Germany' } })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Place order' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm purchase' }))
 
     await waitFor(() => {
       expect(mockCreateCheckout).toHaveBeenCalledWith({
-        data: expect.objectContaining({
+        data: {
           cartId: 'cart-1',
           shippingAddress: {
             name: 'Test User',
@@ -164,40 +155,20 @@ describe('CheckoutPage', () => {
             postalCode: '10115',
             country: 'Germany',
           },
-        }),
+          shippingSelections: [{ shopId: 'shop-1', method: 'standard' }],
+        },
       })
-    })
-  })
-
-  it('navigates to success page after successful order', async () => {
-    const mockCreateCheckout = createCheckout as unknown as ReturnType<typeof vi.fn>
-    mockCreateCheckout.mockResolvedValue({ platformOrderId: 'order-123' })
-
-    render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
-
-    fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Test User' } })
-    fireEvent.change(screen.getByLabelText('Street address'), { target: { value: '123 Main St' } })
-    fireEvent.change(screen.getByLabelText('City'), { target: { value: 'Berlin' } })
-    fireEvent.change(screen.getByLabelText('Postal code'), { target: { value: '10115' } })
-    fireEvent.change(screen.getByLabelText('Country'), { target: { value: 'Germany' } })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Place order' }))
-
-    await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith({
         to: '/orders/$platformOrderId/success',
-        params: { platformOrderId: 'order-123' },
+        params: { platformOrderId: 'order-1' },
       })
     })
   })
 
-  it('shows stock exhaustion error with product names on 409', async () => {
-    const mockCreateCheckout = createCheckout as unknown as ReturnType<typeof vi.fn>
-    const response = new Response(
-      JSON.stringify({ error: 'Conflict', message: 'Out of stock', productIds: ['prod-1'] }),
-      { status: 409, headers: { 'Content-Type': 'application/json' } },
+  it('displays submit error when createCheckout fails', async () => {
+    mockCreateCheckout.mockRejectedValue(
+      new Response(JSON.stringify({ message: 'Cart is empty' }), { status: 409 }),
     )
-    mockCreateCheckout.mockRejectedValue(response)
 
     render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
 
@@ -207,56 +178,72 @@ describe('CheckoutPage', () => {
     fireEvent.change(screen.getByLabelText('Postal code'), { target: { value: '10115' } })
     fireEvent.change(screen.getByLabelText('Country'), { target: { value: 'Germany' } })
 
-    fireEvent.click(screen.getByRole('button', { name: 'Place order' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm purchase' }))
 
     await waitFor(() => {
-      expect(screen.getByText('Some items are no longer available.')).toBeDefined()
-      expect(screen.getByText('Vase — out of stock')).toBeDefined()
+      expect(screen.getByRole('alert')).toBeDefined()
+      expect(screen.getByText('Cart is empty')).toBeDefined()
     })
   })
 
-  it('shows generic error for non-409 failures', async () => {
-    const mockCreateCheckout = createCheckout as unknown as ReturnType<typeof vi.fn>
-    mockCreateCheckout.mockRejectedValue(new Error('Network error'))
-
+  it('updates grand total when shipping method changes', () => {
     render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
+    // Standard shipping: 2000 + 500 = 2500
+    expect(screen.getAllByText('€25,00').length).toBeGreaterThanOrEqual(1)
 
-    fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Test User' } })
-    fireEvent.change(screen.getByLabelText('Street address'), { target: { value: '123 Main St' } })
-    fireEvent.change(screen.getByLabelText('City'), { target: { value: 'Berlin' } })
-    fireEvent.change(screen.getByLabelText('Postal code'), { target: { value: '10115' } })
-    fireEvent.change(screen.getByLabelText('Country'), { target: { value: 'Germany' } })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Place order' }))
-
-    await waitFor(() => {
-      expect(screen.getByText('Something went wrong. Please try again.')).toBeDefined()
-    })
+    fireEvent.click(screen.getByLabelText('Express'))
+    // Express shipping: 2000 + 1000 = 3000
+    expect(screen.getAllByText('€30,00').length).toBeGreaterThanOrEqual(1)
   })
 
-  it('redirects to signin on 401', async () => {
-    const mockCreateCheckout = createCheckout as unknown as ReturnType<typeof vi.fn>
-    const response = new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' },
+  it('renders multiple shop groups', () => {
+    const summary = makeSummary({
+      shops: [
+        {
+          shopId: 'shop-1',
+          shopName: 'Shop A',
+          shopSlug: 'shop-a',
+          items: [
+            {
+              productId: 'prod-1',
+              name: 'Vase',
+              slug: 'vase',
+              priceCents: 1000,
+              quantity: 1,
+              imageUrl: null,
+            },
+          ],
+          subtotalCents: 1000,
+          shippingOptions: [
+            { method: 'standard' as const, costCents: 500, label: 'Standard' },
+            { method: 'express' as const, costCents: 1000, label: 'Express' },
+          ],
+        },
+        {
+          shopId: 'shop-2',
+          shopName: 'Shop B',
+          shopSlug: 'shop-b',
+          items: [
+            {
+              productId: 'prod-2',
+              name: 'Bowl',
+              slug: 'bowl',
+              priceCents: 2000,
+              quantity: 1,
+              imageUrl: null,
+            },
+          ],
+          subtotalCents: 2000,
+          shippingOptions: [
+            { method: 'standard' as const, costCents: 500, label: 'Standard' },
+            { method: 'express' as const, costCents: 1000, label: 'Express' },
+          ],
+        },
+      ],
     })
-    mockCreateCheckout.mockRejectedValue(response)
 
-    render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
-
-    fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Test User' } })
-    fireEvent.change(screen.getByLabelText('Street address'), { target: { value: '123 Main St' } })
-    fireEvent.change(screen.getByLabelText('City'), { target: { value: 'Berlin' } })
-    fireEvent.change(screen.getByLabelText('Postal code'), { target: { value: '10115' } })
-    fireEvent.change(screen.getByLabelText('Country'), { target: { value: 'Germany' } })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Place order' }))
-
-    await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith({
-        to: '/signin',
-        search: { redirect: '/checkout' },
-      })
-    })
+    render(<CheckoutPage summary={summary} cartId='cart-1' />)
+    expect(screen.getByText('Shop A')).toBeDefined()
+    expect(screen.getByText('Shop B')).toBeDefined()
   })
 })
