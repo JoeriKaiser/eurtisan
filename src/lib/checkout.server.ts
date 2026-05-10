@@ -10,6 +10,7 @@ import {
   shop,
   shopOrder,
 } from '#/db/schema'
+import { getAvailableStockForProducts, InsufficientStockError, reserveStockInTx } from './inventory.server'
 
 /* -------------------------------------------------------------------------- */
 /*                                  Types                                     */
@@ -204,14 +205,18 @@ export async function createCheckoutQuery(
       })
     }
 
-    // 3. Validate stock for every product
+    // 3. Validate available stock for every product (accounting for reservations)
+    const productIds = items.map((r) => r.product?.id).filter((id): id is string => !!id)
+    const availableStockMap = await getAvailableStockForProducts(productIds)
+
     const outOfStockProductIds: string[] = []
     for (const row of items) {
       if (!row.product) {
         outOfStockProductIds.push(row.item.productId)
         continue
       }
-      if (row.product.stockCount < row.item.quantity) {
+      const availableStock = availableStockMap.get(row.product.id) ?? 0
+      if (availableStock < row.item.quantity) {
         outOfStockProductIds.push(row.product.id)
       }
     }
@@ -319,7 +324,35 @@ export async function createCheckoutQuery(
       }
     }
 
-    // 9. Clear cart and its items
+    // 9. Reserve stock for every cart item atomically
+    const reservationExpiresAt = new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
+    for (const [, group] of shopGroups) {
+      for (const lineItem of group.items) {
+        try {
+          await reserveStockInTx(
+            tx,
+            lineItem.product.id,
+            platformOrderRecord.id,
+            lineItem.quantity,
+            reservationExpiresAt,
+          )
+        } catch (err) {
+          if (err instanceof InsufficientStockError) {
+            throw new Response(
+              JSON.stringify({
+                error: 'Conflict',
+                message: 'Some items are out of stock',
+                productIds: [lineItem.product.id],
+              }),
+              { status: 409, headers: { 'Content-Type': 'application/json' } },
+            )
+          }
+          throw err
+        }
+      }
+    }
+
+    // 10. Clear cart and its items
     await tx.delete(cartItem).where(eq(cartItem.cartId, input.cartId))
     await tx.delete(cart).where(eq(cart.id, input.cartId))
 

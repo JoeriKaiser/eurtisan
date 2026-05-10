@@ -27,3 +27,18 @@ export const getOrderById = createServerFn({ method: 'GET' })
 
     return result
   })
+
+export const cancelOrder = createServerFn({ method: 'POST' })
+  .middleware([authMiddleware])
+  .inputValidator(z.object({ orderId: z.string().uuid() }))
+  .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Response(
+        JSON.stringify({ error: 'Unauthorized', message: 'Authentication required' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const { cancelOrderQuery } = await import('./orders.server')
+    return cancelOrderQuery(data.orderId, context.user.id)
+  })

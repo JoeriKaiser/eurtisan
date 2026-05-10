@@ -5,6 +5,8 @@ import { db } from '#/db/index'
 import { inventoryReservation, platformOrder, product, shop, user } from '#/db/schema'
 
 import {
+  getAvailableStock,
+  getAvailableStockForProducts,
   InsufficientStockError,
   releaseExpiredReservations,
   releaseStock,
@@ -395,6 +397,198 @@ describe('releaseStock', () => {
 
     expect(remaining).toHaveLength(1)
     expect(remaining[0].platformOrderId).toBe(order2.id)
+  })
+})
+
+describe('getAvailableStock', () => {
+  async function seedProduct(stockCount: number) {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Test Shop',
+        slug: 'test-shop',
+        ownerId: u.id,
+      })
+      .returning()
+
+    const [p] = await db
+      .insert(product)
+      .values({
+        id: 'prod-1',
+        name: 'Vase',
+        slug: 'vase',
+        priceCents: 2999,
+        shopId: s.id,
+        stockCount,
+      })
+      .returning()
+
+    return { user: u, shop: s, product: p }
+  }
+
+  it('returns full stock when no reservations exist', async () => {
+    const { product: p } = await seedProduct(10)
+    const available = await getAvailableStock(p.id)
+    expect(available).toBe(10)
+  })
+
+  it('subtracts active reservations from stock', async () => {
+    const { product: p } = await seedProduct(10)
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: { street: '123 Main' },
+        totalCents: 2999,
+        status: 'pending',
+      })
+      .returning()
+
+    await db.insert(inventoryReservation).values({
+      productId: p.id,
+      platformOrderId: order.id,
+      quantity: 3,
+      expiresAt: new Date(Date.now() + 60_000),
+    })
+
+    const available = await getAvailableStock(p.id)
+    expect(available).toBe(7)
+  })
+
+  it('ignores expired reservations', async () => {
+    const { product: p } = await seedProduct(10)
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: { street: '123 Main' },
+        totalCents: 2999,
+        status: 'pending',
+      })
+      .returning()
+
+    await db.insert(inventoryReservation).values({
+      productId: p.id,
+      platformOrderId: order.id,
+      quantity: 8,
+      expiresAt: new Date(Date.now() - 60_000),
+    })
+
+    const available = await getAvailableStock(p.id)
+    expect(available).toBe(10)
+  })
+
+  it('returns 0 for nonexistent product', async () => {
+    const available = await getAvailableStock('nonexistent')
+    expect(available).toBe(0)
+  })
+
+  it('returns 0 when reservations exceed stock', async () => {
+    const { product: p } = await seedProduct(5)
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: { street: '123 Main' },
+        totalCents: 2999,
+        status: 'pending',
+      })
+      .returning()
+
+    await db.insert(inventoryReservation).values({
+      productId: p.id,
+      platformOrderId: order.id,
+      quantity: 10,
+      expiresAt: new Date(Date.now() + 60_000),
+    })
+
+    const available = await getAvailableStock(p.id)
+    expect(available).toBe(0)
+  })
+})
+
+describe('getAvailableStockForProducts', () => {
+  it('returns available stock for multiple products', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Test Shop',
+        slug: 'test-shop',
+        ownerId: u.id,
+      })
+      .returning()
+
+    const [p1] = await db
+      .insert(product)
+      .values({
+        id: 'prod-1',
+        name: 'Vase',
+        slug: 'vase',
+        priceCents: 1000,
+        shopId: s.id,
+        stockCount: 10,
+      })
+      .returning()
+
+    const [p2] = await db
+      .insert(product)
+      .values({
+        id: 'prod-2',
+        name: 'Bowl',
+        slug: 'bowl',
+        priceCents: 2000,
+        shopId: s.id,
+        stockCount: 5,
+      })
+      .returning()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: u.id,
+        shippingAddress: { street: '123 Main' },
+        totalCents: 2999,
+        status: 'pending',
+      })
+      .returning()
+
+    await db.insert(inventoryReservation).values({
+      productId: p1.id,
+      platformOrderId: order.id,
+      quantity: 3,
+      expiresAt: new Date(Date.now() + 60_000),
+    })
+
+    const result = await getAvailableStockForProducts([p1.id, p2.id])
+    expect(result.get(p1.id)).toBe(7)
+    expect(result.get(p2.id)).toBe(5)
+  })
+
+  it('returns empty map for empty input', async () => {
+    const result = await getAvailableStockForProducts([])
+    expect(result.size).toBe(0)
   })
 })
 

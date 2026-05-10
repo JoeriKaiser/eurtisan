@@ -1,6 +1,10 @@
-import { and, eq, gte, lt, sql, sum } from 'drizzle-orm'
+import { and, eq, gte, inArray, lt, sql, sum } from 'drizzle-orm'
+import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { db } from '#/db/index'
+import * as schema from '#/db/schema'
 import { inventoryReservation, product } from '#/db/schema'
+
+type DbOrTx = NodePgDatabase<typeof schema>
 
 export class InsufficientStockError extends Error {
   constructor(
@@ -10,6 +14,133 @@ export class InsufficientStockError extends Error {
   ) {
     super(message)
     this.name = 'InsufficientStockError'
+  }
+}
+
+/**
+ * Calculate available stock for a single product, accounting for active
+ * reservations.
+ */
+export async function getAvailableStock(productId: string): Promise<number> {
+  const [productRow] = await db.select().from(product).where(eq(product.id, productId)).limit(1)
+
+  if (!productRow) return 0
+
+  const [reservationResult] = await db
+    .select({ totalReserved: sum(inventoryReservation.quantity) })
+    .from(inventoryReservation)
+    .where(
+      and(
+        eq(inventoryReservation.productId, productId),
+        gte(inventoryReservation.expiresAt, sql`now()`),
+      ),
+    )
+
+  const totalReserved = Number(reservationResult?.totalReserved ?? 0)
+  return Math.max(0, productRow.stockCount - totalReserved)
+}
+
+/**
+ * Batch calculate available stock for multiple products.
+ */
+export async function getAvailableStockForProducts(
+  productIds: string[],
+): Promise<Map<string, number>> {
+  if (productIds.length === 0) return new Map()
+
+  const products = await db.select().from(product).where(inArray(product.id, productIds))
+
+  const reservations = await db
+    .select({
+      productId: inventoryReservation.productId,
+      totalReserved: sum(inventoryReservation.quantity),
+    })
+    .from(inventoryReservation)
+    .where(
+      and(
+        inArray(inventoryReservation.productId, productIds),
+        gte(inventoryReservation.expiresAt, sql`now()`),
+      ),
+    )
+    .groupBy(inventoryReservation.productId)
+
+  const reservedMap = new Map<string, number>()
+  for (const r of reservations) {
+    reservedMap.set(r.productId, Number(r.totalReserved ?? 0))
+  }
+
+  const result = new Map<string, number>()
+  for (const p of products) {
+    const reserved = reservedMap.get(p.id) ?? 0
+    result.set(p.id, Math.max(0, p.stockCount - reserved))
+  }
+
+  return result
+}
+
+async function _reserveStock(
+  tx: DbOrTx,
+  productId: string,
+  platformOrderId: string,
+  quantity: number,
+  expiresAt: Date,
+): Promise<void> {
+  // 1. Lock product row to serialize reservations for this product
+  const [productRow] = await tx
+    .select()
+    .from(product)
+    .where(eq(product.id, productId))
+    .for('update')
+
+  if (!productRow) {
+    throw new Error(`Product ${productId} not found`)
+  }
+
+  // 2. Sum active reservations for this product
+  const [reservationResult] = await tx
+    .select({ totalReserved: sum(inventoryReservation.quantity) })
+    .from(inventoryReservation)
+    .where(
+      and(
+        eq(inventoryReservation.productId, productId),
+        gte(inventoryReservation.expiresAt, sql`now()`),
+      ),
+    )
+
+  const totalReserved = Number(reservationResult?.totalReserved ?? 0)
+  const availableQuantity = productRow.stockCount - totalReserved
+
+  if (quantity > availableQuantity) {
+    throw new InsufficientStockError(
+      `Requested ${quantity} but only ${availableQuantity} available`,
+      availableQuantity,
+      quantity,
+    )
+  }
+
+  // 3. Upsert reservation (unique per product + order)
+  const [existing] = await tx
+    .select()
+    .from(inventoryReservation)
+    .where(
+      and(
+        eq(inventoryReservation.productId, productId),
+        eq(inventoryReservation.platformOrderId, platformOrderId),
+      ),
+    )
+
+  if (existing) {
+    await tx
+      .update(inventoryReservation)
+      .set({ quantity, expiresAt })
+      .where(eq(inventoryReservation.id, existing.id))
+  } else {
+    await tx.insert(inventoryReservation).values({
+      productId,
+      platformOrderId,
+      quantity,
+      expiresAt,
+    })
   }
 }
 
@@ -37,64 +168,24 @@ export async function reserveStock(
   }
 
   return db.transaction(async (tx) => {
-    // 1. Lock product row to serialize reservations for this product
-    const [productRow] = await tx
-      .select()
-      .from(product)
-      .where(eq(product.id, productId))
-      .for('update')
-
-    if (!productRow) {
-      throw new Error(`Product ${productId} not found`)
-    }
-
-    // 2. Sum active reservations for this product
-    const [reservationResult] = await tx
-      .select({ totalReserved: sum(inventoryReservation.quantity) })
-      .from(inventoryReservation)
-      .where(
-        and(
-          eq(inventoryReservation.productId, productId),
-          gte(inventoryReservation.expiresAt, sql`now()`),
-        ),
-      )
-
-    const totalReserved = Number(reservationResult?.totalReserved ?? 0)
-    const availableQuantity = productRow.stockCount - totalReserved
-
-    if (quantity > availableQuantity) {
-      throw new InsufficientStockError(
-        `Requested ${quantity} but only ${availableQuantity} available`,
-        availableQuantity,
-        quantity,
-      )
-    }
-
-    // 3. Upsert reservation (unique per product + order)
-    const [existing] = await tx
-      .select()
-      .from(inventoryReservation)
-      .where(
-        and(
-          eq(inventoryReservation.productId, productId),
-          eq(inventoryReservation.platformOrderId, platformOrderId),
-        ),
-      )
-
-    if (existing) {
-      await tx
-        .update(inventoryReservation)
-        .set({ quantity, expiresAt })
-        .where(eq(inventoryReservation.id, existing.id))
-    } else {
-      await tx.insert(inventoryReservation).values({
-        productId,
-        platformOrderId,
-        quantity,
-        expiresAt,
-      })
-    }
+    await _reserveStock(tx, productId, platformOrderId, quantity, expiresAt)
   })
+}
+
+/**
+ * Reserve stock inside an existing transaction.
+ */
+export async function reserveStockInTx(
+  tx: DbOrTx,
+  productId: string,
+  platformOrderId: string,
+  quantity: number,
+  expiresAt: Date,
+): Promise<void> {
+  if (quantity <= 0) {
+    throw new Error('Quantity must be greater than 0')
+  }
+  await _reserveStock(tx, productId, platformOrderId, quantity, expiresAt)
 }
 
 /**
@@ -109,6 +200,15 @@ export async function releaseStock(platformOrderId: string): Promise<void> {
       .delete(inventoryReservation)
       .where(eq(inventoryReservation.platformOrderId, platformOrderId))
   })
+}
+
+/**
+ * Release stock reservations inside an existing transaction.
+ */
+export async function releaseStockInTx(tx: DbOrTx, platformOrderId: string): Promise<void> {
+  await tx
+    .delete(inventoryReservation)
+    .where(eq(inventoryReservation.platformOrderId, platformOrderId))
 }
 
 export interface ReleaseExpiredResult {

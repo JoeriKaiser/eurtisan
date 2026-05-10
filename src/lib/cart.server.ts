@@ -2,6 +2,7 @@ import { getCookie, setCookie } from '@tanstack/react-start/server'
 import { and, eq, gt, inArray, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { cart, cartItem, product, productImage, shop } from '#/db/schema'
+import { getAvailableStock, getAvailableStockForProducts } from './inventory.server'
 
 export const ANONYMOUS_SESSION_COOKIE = 'eurtisan_session'
 export const AUTH_CART_DAYS = 30
@@ -140,6 +141,8 @@ async function buildCartDetail(cartRecord: typeof cart.$inferSelect): Promise<Ca
     }
   }
 
+  const availableStockMap = await getAvailableStockForProducts(productIds)
+
   const groups = new Map<string | null, CartShopGroup>()
 
   for (const row of rows) {
@@ -148,6 +151,8 @@ async function buildCartDetail(cartRecord: typeof cart.$inferSelect): Promise<Ca
 
     const isUnavailable =
       !productRecord || productRecord.isActive === false || shopRecord?.isSuspended === true
+
+    const availableStock = productRecord ? (availableStockMap.get(productRecord.id) ?? 0) : 0
 
     const itemDetail: CartItemDetail = {
       id: row.item.id,
@@ -159,13 +164,12 @@ async function buildCartDetail(cartRecord: typeof cart.$inferSelect): Promise<Ca
             name: productRecord.name,
             slug: productRecord.slug,
             priceCents: productRecord.priceCents,
-            stockCount: productRecord.stockCount,
+            stockCount: availableStock,
             imageUrl: productRecord ? (imageByProduct.get(productRecord.id) ?? null) : null,
           }
         : null,
       unavailable: isUnavailable,
-      stockWarning:
-        !isUnavailable && productRecord ? row.item.quantity > productRecord.stockCount : false,
+      stockWarning: !isUnavailable && productRecord ? row.item.quantity > availableStock : false,
     }
 
     const shopId = shopRecord?.id ?? null
@@ -174,8 +178,7 @@ async function buildCartDetail(cartRecord: typeof cart.$inferSelect): Promise<Ca
     if (existing) {
       existing.items.push(itemDetail)
       if (!isUnavailable && productRecord) {
-        existing.subtotalCents +=
-          productRecord.priceCents * Math.min(row.item.quantity, productRecord.stockCount)
+        existing.subtotalCents += productRecord.priceCents * Math.min(row.item.quantity, availableStock)
       }
     } else {
       groups.set(shopId, {
@@ -185,7 +188,7 @@ async function buildCartDetail(cartRecord: typeof cart.$inferSelect): Promise<Ca
         items: [itemDetail],
         subtotalCents:
           !isUnavailable && productRecord
-            ? productRecord.priceCents * Math.min(row.item.quantity, productRecord.stockCount)
+            ? productRecord.priceCents * Math.min(row.item.quantity, availableStock)
             : 0,
       })
     }
@@ -237,8 +240,7 @@ export async function createUserCart(userId: string) {
 /* -------------------------------------------------------------------------- */
 
 export async function addItemToCart(cartId: string, productId: string, quantity: number) {
-  const productRecord = await db.select().from(product).where(eq(product.id, productId)).limit(1)
-  const stock = productRecord.length > 0 ? productRecord[0].stockCount : 0
+  const availableStock = await getAvailableStock(productId)
 
   const existing = await db
     .select()
@@ -247,7 +249,7 @@ export async function addItemToCart(cartId: string, productId: string, quantity:
     .limit(1)
 
   if (existing.length > 0) {
-    const newQty = Math.min(existing[0].quantity + quantity, stock)
+    const newQty = Math.min(existing[0].quantity + quantity, availableStock)
     if (newQty <= 0) {
       await db.delete(cartItem).where(eq(cartItem.id, existing[0].id))
       return null
@@ -260,7 +262,7 @@ export async function addItemToCart(cartId: string, productId: string, quantity:
     return updated
   }
 
-  const finalQty = Math.min(quantity, stock)
+  const finalQty = Math.min(quantity, availableStock)
   if (finalQty <= 0) {
     return null
   }
@@ -284,9 +286,8 @@ export async function updateCartItemQuantity(cartId: string, productId: string, 
     return null
   }
 
-  const productRecord = await db.select().from(product).where(eq(product.id, productId)).limit(1)
-  const stock = productRecord.length > 0 ? productRecord[0].stockCount : 0
-  const cappedQty = Math.min(quantity, stock)
+  const availableStock = await getAvailableStock(productId)
+  const cappedQty = Math.min(quantity, availableStock)
 
   if (cappedQty <= 0) {
     await db
@@ -372,6 +373,9 @@ export async function mergeAnonymousCartIntoUserCart(sessionId: string, userId: 
     const productIds = anonItems.map((item) => item.productId)
     const products = await tx.select().from(product).where(inArray(product.id, productIds))
 
+    // Fetch available stock for all products in the merge
+    const availableStockMap = await getAvailableStockForProducts(productIds)
+
     for (const anonItem of anonItems) {
       const productRecord = products.find((p) => p.id === anonItem.productId)
       if (!productRecord) continue
@@ -384,7 +388,8 @@ export async function mergeAnonymousCartIntoUserCart(sessionId: string, userId: 
 
       const combinedQuantity =
         existingItems.length > 0 ? existingItems[0].quantity + anonItem.quantity : anonItem.quantity
-      const cappedQuantity = Math.min(combinedQuantity, productRecord.stockCount)
+      const availableStock = availableStockMap.get(productRecord.id) ?? 0
+      const cappedQuantity = Math.min(combinedQuantity, availableStock)
 
       if (cappedQuantity <= 0) {
         if (existingItems.length > 0) {

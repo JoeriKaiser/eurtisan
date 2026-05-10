@@ -1,8 +1,8 @@
 import { eq } from 'drizzle-orm'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { db } from '#/db/index'
-import { cart, cartItem, product, productImage, shop, user } from '#/db/schema'
+import { cart, cartItem, inventoryReservation, orderItem, platformOrder, product, productImage, shop, shopOrder, user } from '#/db/schema'
 
 import {
   ANON_CART_DAYS,
@@ -25,6 +25,22 @@ import {
 } from './cart.server'
 
 beforeEach(async () => {
+  await db.delete(inventoryReservation)
+  await db.delete(orderItem)
+  await db.delete(shopOrder)
+  await db.delete(platformOrder)
+  await db.delete(cartItem)
+  await db.delete(cart)
+  await db.delete(product)
+  await db.delete(shop)
+  await db.delete(user)
+})
+
+afterAll(async () => {
+  await db.delete(inventoryReservation)
+  await db.delete(orderItem)
+  await db.delete(shopOrder)
+  await db.delete(platformOrder)
   await db.delete(cartItem)
   await db.delete(cart)
   await db.delete(product)
@@ -232,6 +248,35 @@ describe('addItemToCart', () => {
     const remaining = await db.select().from(cartItem).where(eq(cartItem.cartId, c.id))
     expect(remaining).toHaveLength(0)
   })
+
+  it('caps quantity at available stock accounting for reservations', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct({ stockCount: 10 })
+
+    // Reserve 7 units via another order
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: { street: '123 Main' },
+        totalCents: 1000,
+        status: 'pending',
+      })
+      .returning()
+
+    await db.insert(inventoryReservation).values({
+      productId: p.id,
+      platformOrderId: order.id,
+      quantity: 7,
+      expiresAt: new Date(Date.now() + 60_000),
+    })
+
+    const item = await addItemToCart(c.id, p.id, 10)
+    expect(item!.quantity).toBe(3)
+  })
 })
 
 describe('mergeAnonymousCartIntoUserCart', () => {
@@ -347,6 +392,43 @@ describe('mergeAnonymousCartIntoUserCart', () => {
     const mergedCart = await getCartWithItemsByUserId(u.id)
     const itemC = mergedCart?.items.find((i) => i.productId === 'prod-c')
     expect(itemC?.quantity).toBe(1)
+  })
+
+  it('caps merged quantity at available stock accounting for reservations', async () => {
+    const u = await seedUser()
+    await seedShop()
+    await seedProducts()
+    const userCart = await createUserCart(u.id)
+    await addItemToCart(userCart.id, 'prod-a', 2)
+
+    // Reserve 5 units of prod-a via another order
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: { street: '123 Main' },
+        totalCents: 1000,
+        status: 'pending',
+      })
+      .returning()
+
+    await db.insert(inventoryReservation).values({
+      productId: 'prod-a',
+      platformOrderId: order.id,
+      quantity: 5,
+      expiresAt: new Date(Date.now() + 60_000),
+    })
+
+    const sessionId = generateSessionId()
+    const anonCart = await createAnonymousCart(sessionId)
+    await addItemToCart(anonCart.id, 'prod-a', 5)
+
+    await mergeAnonymousCartIntoUserCart(sessionId, u.id)
+
+    const mergedCart = await getCartWithItemsByUserId(u.id)
+    const itemA = mergedCart?.items.find((i) => i.productId === 'prod-a')
+    // stock=10, reserved=5, available=5; user has 2, anon has 5, combined=7 -> capped at 5
+    expect(itemA?.quantity).toBe(5)
   })
 })
 
@@ -494,6 +576,36 @@ describe('updateCartItemQuantity', () => {
     const remaining = await db.select().from(cartItem).where(eq(cartItem.cartId, c.id))
     expect(remaining).toHaveLength(0)
   })
+
+  it('caps quantity at available stock accounting for reservations', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct({ stockCount: 10 })
+
+    // Reserve 6 units via another order
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: { street: '123 Main' },
+        totalCents: 1000,
+        status: 'pending',
+      })
+      .returning()
+
+    await db.insert(inventoryReservation).values({
+      productId: p.id,
+      platformOrderId: order.id,
+      quantity: 6,
+      expiresAt: new Date(Date.now() + 60_000),
+    })
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
+    const updated = await updateCartItemQuantity(c.id, p.id, 10)
+    expect(updated!.quantity).toBe(4)
+  })
 })
 
 describe('removeItemFromCart', () => {
@@ -608,6 +720,39 @@ describe('getCartDetailsBySessionId', () => {
     const result = await getCartDetailsBySessionId(sessionId)
     expect(result!.shops[0].items[0].stockWarning).toBe(true)
     expect(result!.shops[0].subtotalCents).toBe(3000) // capped at stock
+  })
+
+  it('surfaces stock warning when quantity exceeds available stock after reservations', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct({ id: 'prod-1', stockCount: 10 })
+
+    // Reserve 7 units via another order
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: { street: '123 Main' },
+        totalCents: 1000,
+        status: 'pending',
+      })
+      .returning()
+
+    await db.insert(inventoryReservation).values({
+      productId: p.id,
+      platformOrderId: order.id,
+      quantity: 7,
+      expiresAt: new Date(Date.now() + 60_000),
+    })
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 5 })
+
+    const result = await getCartDetailsBySessionId(sessionId)
+    expect(result!.shops[0].items[0].stockWarning).toBe(true)
+    expect(result!.shops[0].items[0].product!.stockCount).toBe(3)
+    expect(result!.shops[0].subtotalCents).toBe(3000) // capped at available stock
   })
 
   it('includes product image url', async () => {

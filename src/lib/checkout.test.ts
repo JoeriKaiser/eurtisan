@@ -5,6 +5,7 @@ import { db } from '#/db/index'
 import {
   cart,
   cartItem,
+  inventoryReservation,
   orderItem,
   platformOrder,
   product,
@@ -16,6 +17,7 @@ import {
 import { type CheckoutInput, createCheckoutQuery, getCheckoutSummaryQuery } from './checkout.server'
 
 beforeEach(async () => {
+  await db.delete(inventoryReservation)
   await db.delete(orderItem)
   await db.delete(shopOrder)
   await db.delete(platformOrder)
@@ -27,6 +29,7 @@ beforeEach(async () => {
 })
 
 afterAll(async () => {
+  await db.delete(inventoryReservation)
   await db.delete(orderItem)
   await db.delete(shopOrder)
   await db.delete(platformOrder)
@@ -547,5 +550,116 @@ describe('createCheckoutQuery', () => {
       .where(eq(platformOrder.id, result.platformOrderId))
     // 3 * 1234 + 500 = 4202
     expect(platformOrders[0].totalCents).toBe(4202)
+  })
+
+  it('creates inventory reservations for every cart item', async () => {
+    await seedUser()
+    await seedShop()
+    const c = await db
+      .insert(cart)
+      .values({ userId: 'user-1' })
+      .returning()
+      .then((rows) => rows[0])
+    const p = await seedProduct()
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
+
+    const input = makeInput(c.id)
+    const result = await createCheckoutQuery(input, 'user-1')
+
+    const reservations = await db
+      .select()
+      .from(inventoryReservation)
+      .where(eq(inventoryReservation.platformOrderId, result.platformOrderId))
+
+    expect(reservations).toHaveLength(1)
+    expect(reservations[0].productId).toBe(p.id)
+    expect(reservations[0].quantity).toBe(2)
+  })
+
+  it('throws 409 when existing reservations reduce available stock below cart quantity', async () => {
+    await seedUser()
+    await seedShop()
+    const c = await db
+      .insert(cart)
+      .values({ userId: 'user-1' })
+      .returning()
+      .then((rows) => rows[0])
+    const p = await seedProduct({ stockCount: 10 })
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 8 })
+
+    // Another order reserves 5 units
+    const [otherOrder] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: { name: 'Other', street: 'St', city: 'City', postalCode: '00000', country: 'DE' },
+        totalCents: 1000,
+        status: 'pending',
+      })
+      .returning()
+
+    await db.insert(inventoryReservation).values({
+      productId: p.id,
+      platformOrderId: otherOrder.id,
+      quantity: 5,
+      expiresAt: new Date(Date.now() + 60_000),
+    })
+
+    const input = makeInput(c.id)
+
+    try {
+      await createCheckoutQuery(input, 'user-1')
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(409)
+      const body = await (err as Response).json()
+      expect(body.productIds).toEqual([p.id])
+    }
+  })
+
+  it('creates reservations for items from multiple shops', async () => {
+    await seedUser()
+    await seedShop()
+    const shop2 = await seedShop({ id: 'shop-2', name: 'Second Shop', slug: 'second-shop' })
+    const c = await db
+      .insert(cart)
+      .values({ userId: 'user-1' })
+      .returning()
+      .then((rows) => rows[0])
+    const p1 = await seedProduct({ id: 'prod-1', shopId: 'shop-1', priceCents: 1000 })
+    const p2 = await seedProduct({
+      id: 'prod-2',
+      name: 'Bowl',
+      slug: 'bowl',
+      shopId: shop2.id,
+      priceCents: 2000,
+    })
+
+    await db.insert(cartItem).values([
+      { cartId: c.id, productId: p1.id, quantity: 1 },
+      { cartId: c.id, productId: p2.id, quantity: 2 },
+    ])
+
+    const input = makeInput(c.id, {
+      shippingSelections: [
+        { shopId: 'shop-1', method: 'standard' },
+        { shopId: 'shop-2', method: 'express' },
+      ],
+    })
+    const result = await createCheckoutQuery(input, 'user-1')
+
+    const reservations = await db
+      .select()
+      .from(inventoryReservation)
+      .where(eq(inventoryReservation.platformOrderId, result.platformOrderId))
+
+    expect(reservations).toHaveLength(2)
+    const r1 = reservations.find((r) => r.productId === p1.id)
+    const r2 = reservations.find((r) => r.productId === p2.id)
+    expect(r1?.quantity).toBe(1)
+    expect(r2?.quantity).toBe(2)
   })
 })

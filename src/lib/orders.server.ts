@@ -1,6 +1,7 @@
 import { eq, inArray } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { orderItem, platformOrder, shop, shopOrder } from '#/db/schema'
+import { releaseStockInTx } from './inventory.server'
 import type { ShippingAddress } from './checkout.server'
 
 export interface OrderItemDetail {
@@ -86,4 +87,45 @@ export async function getOrderByIdQuery(
     shippingAddress: order.shippingAddress as ShippingAddress,
     shops,
   }
+}
+
+export async function cancelOrderQuery(
+  platformOrderId: string,
+  userId: string,
+): Promise<{ success: boolean }> {
+  return db.transaction(async (tx) => {
+    const [order] = await tx
+      .select()
+      .from(platformOrder)
+      .where(eq(platformOrder.id, platformOrderId))
+      .limit(1)
+
+    if (!order || order.userId !== userId) {
+      throw new Response(
+        JSON.stringify({ error: 'Not Found', message: 'Order not found' }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    if (order.status !== 'pending') {
+      throw new Response(
+        JSON.stringify({ error: 'Conflict', message: 'Order cannot be cancelled' }),
+        { status: 409, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    await tx
+      .update(platformOrder)
+      .set({ status: 'cancelled', updatedAt: new Date() })
+      .where(eq(platformOrder.id, platformOrderId))
+
+    await tx
+      .update(shopOrder)
+      .set({ status: 'cancelled', updatedAt: new Date() })
+      .where(eq(shopOrder.platformOrderId, platformOrderId))
+
+    await releaseStockInTx(tx, platformOrderId)
+
+    return { success: true }
+  })
 }

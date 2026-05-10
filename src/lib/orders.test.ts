@@ -1,9 +1,11 @@
+import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { db } from '#/db/index'
 import {
   cart,
   cartItem,
+  inventoryReservation,
   orderItem,
   platformOrder,
   product,
@@ -12,9 +14,10 @@ import {
   user,
 } from '#/db/schema'
 
-import { getOrderByIdQuery } from './orders.server'
+import { cancelOrderQuery, getOrderByIdQuery } from './orders.server'
 
 beforeEach(async () => {
+  await db.delete(inventoryReservation)
   await db.delete(orderItem)
   await db.delete(shopOrder)
   await db.delete(platformOrder)
@@ -217,5 +220,131 @@ describe('getOrderByIdQuery', () => {
     const group2 = result?.shops.find((s) => s.shopId === 'shop-2')
     expect(group1?.shippingMethod).toBe('standard')
     expect(group2?.shippingMethod).toBe('express')
+  })
+})
+
+describe('cancelOrderQuery', () => {
+  it('throws 404 for nonexistent order', async () => {
+    try {
+      await cancelOrderQuery('550e8400-e29b-41d4-a716-446655440000', 'user-1')
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(404)
+    }
+  })
+
+  it('throws 404 when order belongs to another user', async () => {
+    await seedUser()
+    const otherUser = await db
+      .insert(user)
+      .values({ id: 'user-2', name: 'Other', email: 'other@example.com', emailVerified: true })
+      .returning()
+      .then((rows) => rows[0])
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: otherUser.id,
+        shippingAddress: { name: 'Other', street: 'St', city: 'City', postalCode: '00000', country: 'DE' },
+        totalCents: 1000,
+        status: 'pending',
+      })
+      .returning()
+
+    try {
+      await cancelOrderQuery(order.id, 'user-1')
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(404)
+    }
+  })
+
+  it('throws 409 when order is not pending', async () => {
+    await seedUser()
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '12345', country: 'DE' },
+        totalCents: 1000,
+        status: 'confirmed',
+      })
+      .returning()
+
+    try {
+      await cancelOrderQuery(order.id, 'user-1')
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(409)
+    }
+  })
+
+  it('cancels platform and shop orders and releases stock', async () => {
+    await seedUser()
+    await seedShop()
+    const p = await seedProduct()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '12345', country: 'DE' },
+        totalCents: 2500,
+        status: 'pending',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 500,
+        subtotalCents: 2000,
+        status: 'pending',
+      })
+      .returning()
+
+    await db.insert(orderItem).values({
+      shopOrderId: so.id,
+      productId: p.id,
+      productName: p.name,
+      unitPriceCents: p.priceCents,
+      quantity: 2,
+      totalCents: 2000,
+    })
+
+    // Create a reservation for this order
+    await db.insert(inventoryReservation).values({
+      productId: p.id,
+      platformOrderId: order.id,
+      quantity: 2,
+      expiresAt: new Date(Date.now() + 60_000),
+    })
+
+    const result = await cancelOrderQuery(order.id, 'user-1')
+    expect(result.success).toBe(true)
+
+    const [updatedOrder] = await db
+      .select()
+      .from(platformOrder)
+      .where(eq(platformOrder.id, order.id))
+    expect(updatedOrder.status).toBe('cancelled')
+
+    const [updatedShopOrder] = await db
+      .select()
+      .from(shopOrder)
+      .where(eq(shopOrder.id, so.id))
+    expect(updatedShopOrder.status).toBe('cancelled')
+
+    const reservations = await db
+      .select()
+      .from(inventoryReservation)
+      .where(eq(inventoryReservation.platformOrderId, order.id))
+    expect(reservations).toHaveLength(0)
   })
 })
