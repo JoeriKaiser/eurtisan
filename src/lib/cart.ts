@@ -1,49 +1,20 @@
 import { createServerFn } from '@tanstack/react-start'
-import { getCookie, setCookie } from '@tanstack/react-start/server'
 import { z } from 'zod'
 import { authMiddleware } from './auth-middleware'
-import {
-  ANONYMOUS_SESSION_COOKIE,
-  AUTH_CART_DAYS,
-  addItemToCart,
-  clearExpiredCarts,
-  createAnonymousCart,
-  createUserCart,
-  generateSessionId,
-  getCartDetailsBySessionId,
-  getCartDetailsByUserId,
-  getCartWithItemsBySessionId,
-  getCartWithItemsByUserId,
-  mergeAnonymousCartIntoUserCart,
-  removeItemFromCart,
-  touchCartExpiry,
-  updateCartItemQuantity,
+
+export type {
+  CartDetail,
+  CartItemDetail,
+  CartProductDetail,
+  CartShopGroup,
 } from './cart.server'
 
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: true,
-  sameSite: 'lax' as const,
-  maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
-  path: '/',
-}
-
-export function getAnonymousSessionIdFromCookie(): string | undefined {
-  return getCookie(ANONYMOUS_SESSION_COOKIE) ?? undefined
-}
-
-export function setAnonymousSessionCookie(sessionId: string): void {
-  setCookie(ANONYMOUS_SESSION_COOKIE, sessionId, COOKIE_OPTIONS)
-}
-
-export function clearAnonymousSessionCookie(): void {
-  setCookie(ANONYMOUS_SESSION_COOKIE, '', {
-    ...COOKIE_OPTIONS,
-    maxAge: 0,
-  })
-}
-
 export const ensureAnonymousSession = createServerFn({ method: 'GET' }).handler(async () => {
+  const {
+    getAnonymousSessionIdFromCookie,
+    setAnonymousSessionCookie,
+    generateSessionId,
+  } = await import('./cart.server')
   const existing = getAnonymousSessionIdFromCookie()
   if (existing) {
     return { sessionId: existing }
@@ -57,6 +28,11 @@ export const ensureAnonymousSession = createServerFn({ method: 'GET' }).handler(
 export const getCart = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
+    const {
+      getAnonymousSessionIdFromCookie,
+      getCartDetailsByUserId,
+      getCartDetailsBySessionId,
+    } = await import('./cart.server')
     if (context.user) {
       return getCartDetailsByUserId(context.user.id)
     }
@@ -74,6 +50,20 @@ export const addToCart = createServerFn({ method: 'POST' })
     }),
   )
   .handler(async ({ context, data }) => {
+    const {
+      AUTH_CART_DAYS,
+      ANON_CART_DAYS,
+      addItemToCart,
+      createAnonymousCart,
+      createUserCart,
+      getAnonymousSessionIdFromCookie,
+      getCartWithItemsBySessionId,
+      getCartWithItemsByUserId,
+      setAnonymousSessionCookie,
+      touchCartExpiry,
+      generateSessionId,
+    } = await import('./cart.server')
+
     if (context.user) {
       const userCart = await getCartWithItemsByUserId(context.user.id)
       const cartId = userCart ? userCart.id : (await createUserCart(context.user.id)).id
@@ -104,6 +94,13 @@ export const updateCartItem = createServerFn({ method: 'POST' })
     }),
   )
   .handler(async ({ context, data }) => {
+    const {
+      getAnonymousSessionIdFromCookie,
+      getCartWithItemsByUserId,
+      getCartWithItemsBySessionId,
+      updateCartItemQuantity,
+    } = await import('./cart.server')
+
     if (context.user) {
       const userCart = await getCartWithItemsByUserId(context.user.id)
       if (!userCart) {
@@ -131,6 +128,13 @@ export const removeCartItem = createServerFn({ method: 'POST' })
     }),
   )
   .handler(async ({ context, data }) => {
+    const {
+      getAnonymousSessionIdFromCookie,
+      getCartWithItemsByUserId,
+      getCartWithItemsBySessionId,
+      removeItemFromCart,
+    } = await import('./cart.server')
+
     if (context.user) {
       const userCart = await getCartWithItemsByUserId(context.user.id)
       if (!userCart) {
@@ -158,6 +162,11 @@ export const mergeCartOnLogin = createServerFn({ method: 'POST' })
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
     }
+    const {
+      getAnonymousSessionIdFromCookie,
+      clearAnonymousSessionCookie,
+      mergeAnonymousCartIntoUserCart,
+    } = await import('./cart.server')
     const sessionId = getAnonymousSessionIdFromCookie()
     if (sessionId) {
       await mergeAnonymousCartIntoUserCart(sessionId, context.user.id)
@@ -172,6 +181,7 @@ export const runClearExpiredCarts = createServerFn({ method: 'POST' })
     if (!context.user || context.user.role !== 'admin') {
       throw new Error('FORBIDDEN')
     }
+    const { clearExpiredCarts } = await import('./cart.server')
     await clearExpiredCarts()
     return { success: true }
   })

@@ -25,7 +25,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(true)
     setError(null)
     try {
-      const data = await getCart({ data: {} })
+      const data = await getCart()
       setCart(data)
     } catch (err) {
       setCart(null)
@@ -45,6 +45,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     </CartContext.Provider>
   )
 }
+
+export default CartProvider
 
 export function useCart(): CartContextType {
   return useContext(CartContext)

@@ -1,10 +1,34 @@
 import { and, eq, gt, inArray, sql } from 'drizzle-orm'
+import { getCookie, setCookie } from '@tanstack/react-start/server'
 import { db } from '#/db/index'
 import { cart, cartItem, product, productImage, shop } from '#/db/schema'
 
 export const ANONYMOUS_SESSION_COOKIE = 'eurtisan_session'
 export const AUTH_CART_DAYS = 30
 export const ANON_CART_DAYS = 7
+
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'lax' as const,
+  maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
+  path: '/',
+}
+
+export function getAnonymousSessionIdFromCookie(): string | undefined {
+  return getCookie(ANONYMOUS_SESSION_COOKIE) ?? undefined
+}
+
+export function setAnonymousSessionCookie(sessionId: string): void {
+  setCookie(ANONYMOUS_SESSION_COOKIE, sessionId, COOKIE_OPTIONS)
+}
+
+export function clearAnonymousSessionCookie(): void {
+  setCookie(ANONYMOUS_SESSION_COOKIE, '', {
+    ...COOKIE_OPTIONS,
+    maxAge: 0,
+  })
+}
 
 function daysFromNow(days: number): Date {
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000)

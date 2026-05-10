@@ -74,8 +74,8 @@ export default function Header() {
         {/* User actions */}
         <div className='ml-auto flex items-center gap-0.5'>
           <div className='relative'>
-            <button
-              type='button'
+            <Link
+              to='/cart'
               className='inline-flex h-8 items-center rounded-lg px-2 text-sm font-medium text-text-primary transition-colors duration-fast ease-out hover:bg-bg-inset'
               aria-label={m.cart_badge_label()}
             >
@@ -85,7 +85,7 @@ export default function Header() {
                   {distinctItems}
                 </span>
               )}
-            </button>
+            </Link>
           </div>
           <UserMenu />
           <ThemeToggle />

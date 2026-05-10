@@ -103,9 +103,9 @@ describe('Header', () => {
     expect(mockNavigate).not.toHaveBeenCalled()
   })
 
-  it('renders cart button with aria-label', () => {
+  it('renders cart link with aria-label', () => {
     render(<Header />)
-    expect(screen.getByRole('button', { name: 'Shopping cart' })).toBeDefined()
+    expect(screen.getByRole('link', { name: 'Shopping cart' })).toBeDefined()
   })
 
   it('shows cart badge with distinct item count', () => {
