@@ -1,10 +1,21 @@
 import { Link } from '@tanstack/react-router'
-import { ArrowLeft, ImageOff, MapPin, Package, Star, Truck } from 'lucide-react'
+import { ArrowLeft, ImageOff, MapPin, Package, Star, Truck, X } from 'lucide-react'
+import { useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { Skeleton } from '#/components/ui/skeleton'
+import {
+  Dialog,
+  DialogBackdrop,
+  DialogDescription,
+  DialogPopup,
+  DialogPortal,
+  DialogTitle,
+} from '#/components/ui/primitives/dialog'
 import type { OrderDetail, OrderStatus } from '#/lib/orders.server'
 import { statusBadgeVariant } from '#/lib/orders-ui'
+import { createReview } from '#/lib/reviews'
+import type { ReviewableItem } from '#/lib/reviews.server'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 
@@ -26,17 +37,6 @@ function isValidUrl(url: string | null): url is string {
   }
 }
 
-function canReview(deliveredAt: Date | null): boolean {
-  if (!deliveredAt) return false
-  const fourteenDaysAfter = new Date(deliveredAt.getTime() + 14 * 24 * 60 * 60 * 1000)
-  return new Date() >= fourteenDaysAfter
-}
-
-function getReviewAvailableDate(deliveredAt: Date): string {
-  const date = new Date(deliveredAt.getTime() + 14 * 24 * 60 * 60 * 1000)
-  return formatDate(date)
-}
-
 function getStatusProgress(status: OrderStatus): number {
   const steps: OrderStatus[] = [
     'pending_payment',
@@ -53,10 +53,68 @@ function getStatusProgress(status: OrderStatus): number {
 
 export interface BuyerOrderDetailPageProps {
   order: OrderDetail
+  reviewableItems: ReviewableItem[]
 }
 
-export default function BuyerOrderDetailPage({ order }: BuyerOrderDetailPageProps) {
+export default function BuyerOrderDetailPage({ order, reviewableItems = [] }: BuyerOrderDetailPageProps) {
   const isCancelled = order.status === 'cancelled'
+  const [reviews, setReviews] = useState<Record<string, ReviewableItem>>(
+    () => Object.fromEntries(reviewableItems.map((r) => [`${r.shopOrderId}-${r.productId}`, r])),
+  )
+  const [activeReviewItem, setActiveReviewItem] = useState<ReviewableItem | null>(null)
+  const [rating, setRating] = useState(0)
+  const [hoverRating, setHoverRating] = useState(0)
+  const [comment, setComment] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+
+  const handleOpenReview = (item: ReviewableItem) => {
+    if (!item.isEligible || item.hasReview) return
+    setRating(0)
+    setHoverRating(0)
+    setComment('')
+    setSubmitError(null)
+    setActiveReviewItem(item)
+  }
+
+  const handleCloseReview = () => {
+    setActiveReviewItem(null)
+    setRating(0)
+    setHoverRating(0)
+    setComment('')
+    setSubmitError(null)
+  }
+
+  const handleSubmitReview = async () => {
+    if (!activeReviewItem || rating < 1 || rating > 5) return
+    setIsSubmitting(true)
+    setSubmitError(null)
+    try {
+      await createReview({
+        data: {
+          shopOrderId: activeReviewItem.shopOrderId,
+          productId: activeReviewItem.productId,
+          rating,
+          comment: comment.trim() || null,
+        },
+      })
+      const key = `${activeReviewItem.shopOrderId}-${activeReviewItem.productId}`
+      setReviews((prev) => ({
+        ...prev,
+        [key]: { ...prev[key], hasReview: true },
+      }))
+      handleCloseReview()
+    } catch (err) {
+      if (err instanceof Response) {
+        const body = await err.json().catch(() => ({ message: 'Unknown error' }))
+        setSubmitError(body.message || 'Failed to submit review')
+      } else {
+        setSubmitError('Failed to submit review')
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <main className='page-wrap px-4 pb-16 pt-14'>
@@ -131,7 +189,7 @@ export default function BuyerOrderDetailPage({ order }: BuyerOrderDetailPageProp
 
           <div className='space-y-8'>
             {order.shops.map((shop) => (
-              <section key={shop.shopId} className='space-y-3'>
+              <section key={shop.shopOrderId} className='space-y-3'>
                 <div className='flex flex-wrap items-center justify-between gap-2'>
                   <h3 className='text-sm font-semibold text-text-primary'>{shop.shopName}</h3>
                   <Badge variant={statusBadgeVariant(shop.status)}>{shop.status}</Badge>
@@ -192,7 +250,9 @@ export default function BuyerOrderDetailPage({ order }: BuyerOrderDetailPageProp
                         <ImageOff size={16} className='text-text-muted' aria-hidden='true' />
                       </div>
                       <div className='flex-1'>
-                        <p className='text-sm font-medium text-text-primary'>{item.productName}</p>
+                        <p className='text-sm font-medium text-text-primary'>
+                          {item.productName}
+                        </p>
                         <p className='text-xs text-text-secondary'>
                           {formatPriceEUR(item.unitPriceCents)} × {item.quantity}
                         </p>
@@ -211,21 +271,57 @@ export default function BuyerOrderDetailPage({ order }: BuyerOrderDetailPageProp
                   </span>
                 </div>
 
-                {/* Review CTA placeholder for delivered/completed items */}
+                {/* Review CTA for delivered/completed items */}
                 {(shop.status === 'delivered' || shop.status === 'completed') && (
                   <div className='rounded-lg border border-border-default bg-surface-inset p-3'>
-                    {shop.deliveredAt && canReview(shop.deliveredAt) ? (
-                      <Button variant='secondary' size='sm' className='w-full' disabled>
-                        <Star size={14} className='mr-1' aria-hidden='true' />
-                        {m.order_detail_review()}
-                      </Button>
-                    ) : shop.deliveredAt ? (
-                      <p className='text-center text-xs text-text-secondary'>
-                        {m.order_detail_review_disabled({
-                          date: getReviewAvailableDate(shop.deliveredAt),
-                        })}
-                      </p>
-                    ) : null}
+                    {shop.items.map((item) => {
+                      const reviewKey = `${shop.shopOrderId}-${item.productId}`
+                      const reviewable = reviews[reviewKey]
+                      if (!reviewable) return null
+                      return (
+                        <div
+                          key={item.id}
+                          className='flex items-center justify-between gap-2 py-1.5 first:pt-0 last:pb-0'
+                        >
+                          <span className='text-sm text-text-secondary truncate'>
+                            {item.productName}
+                          </span>
+                          {reviewable.hasReview ? (
+                            <span className='inline-flex items-center gap-1 text-xs font-medium text-success'>
+                              <Star size={14} fill='currentColor' aria-hidden='true' />
+                              {m.review_submitted()}
+                            </span>
+                          ) : reviewable.isEligible ? (
+                            <Button
+                              variant='secondary'
+                              size='sm'
+                              onClick={() => handleOpenReview(reviewable)}
+                            >
+                              <Star size={14} className='mr-1' aria-hidden='true' />
+                              {m.order_detail_review()}
+                            </Button>
+                          ) : (
+                            <Button
+                              variant='secondary'
+                              size='sm'
+                              disabled
+                              title={m.order_detail_review_disabled_tooltip({
+                                days: String(reviewable.daysRemaining ?? 0),
+                              })}
+                            >
+                              <Star size={14} className='mr-1' aria-hidden='true' />
+                              {m.order_detail_review_disabled({
+                                date: reviewable.daysRemaining
+                                  ? m.review_days_remaining({
+                                      days: String(reviewable.daysRemaining),
+                                    })
+                                  : '',
+                              })}
+                            </Button>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </section>
@@ -239,6 +335,109 @@ export default function BuyerOrderDetailPage({ order }: BuyerOrderDetailPageProp
           </div>
         </div>
       </div>
+
+      {/* Review Modal */}
+      <Dialog open={activeReviewItem !== null} onOpenChange={(open) => !open && handleCloseReview()}>
+        <DialogPortal>
+          <DialogBackdrop />
+          <DialogPopup className='max-w-md'>
+            <div className='flex items-center justify-between'>
+              <DialogTitle>{m.review_modal_title()}</DialogTitle>
+              <button
+                type='button'
+                onClick={handleCloseReview}
+                className='rounded-lg p-1 text-text-muted transition-colors hover:bg-bg-inset hover:text-text-primary'
+                aria-label={m.review_modal_close()}
+              >
+                <X size={18} aria-hidden='true' />
+              </button>
+            </div>
+            <DialogDescription>{m.review_modal_description()}</DialogDescription>
+
+            {activeReviewItem && (
+              <div className='mt-4 space-y-4'>
+                <p className='text-sm font-medium text-text-primary'>
+                  {activeReviewItem.productName}
+                </p>
+
+                {/* Star Rating */}
+                <div className='flex items-center justify-center gap-1'>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type='button'
+                      onClick={() => setRating(star)}
+                      onMouseEnter={() => setHoverRating(star)}
+                      onMouseLeave={() => setHoverRating(0)}
+                      className='rounded p-0.5 transition-colors hover:bg-bg-inset focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary/40'
+                      aria-label={m.review_star_label({ star: String(star) })}
+                    >
+                      <Star
+                        size={28}
+                        className={`transition-colors ${
+                          (hoverRating ? star <= hoverRating : star <= rating)
+                            ? 'fill-warning text-warning'
+                            : 'text-text-muted'
+                        }`}
+                        aria-hidden='true'
+                      />
+                    </button>
+                  ))}
+                </div>
+                <p className='text-center text-xs text-text-secondary'>
+                  {rating > 0
+                    ? m.review_rating_selected({ rating: String(rating) })
+                    : m.review_rating_prompt()}
+                </p>
+
+                {/* Comment */}
+                <div>
+                  <label
+                    htmlFor='review-comment'
+                    className='mb-1 block text-sm font-medium text-text-primary'
+                  >
+                    {m.review_comment_label()}
+                  </label>
+                  <textarea
+                    id='review-comment'
+                    rows={4}
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    placeholder={m.review_comment_placeholder()}
+                    className='w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary placeholder:text-text-muted transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20 disabled:opacity-50 resize-none'
+                    maxLength={2000}
+                    disabled={isSubmitting}
+                  />
+                  <p className='mt-1 text-right text-xs text-text-muted'>
+                    {comment.length}/2000
+                  </p>
+                </div>
+
+                {submitError && (
+                  <p className='text-sm text-error'>{submitError}</p>
+                )}
+
+                <div className='flex justify-end gap-3'>
+                  <Button
+                    variant='secondary'
+                    onClick={handleCloseReview}
+                    disabled={isSubmitting}
+                  >
+                    {m.review_cancel()}
+                  </Button>
+                  <Button
+                    onClick={handleSubmitReview}
+                    isLoading={isSubmitting}
+                    disabled={rating < 1 || isSubmitting}
+                  >
+                    {m.review_submit()}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogPopup>
+        </DialogPortal>
+      </Dialog>
     </main>
   )
 }

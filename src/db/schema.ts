@@ -310,3 +310,27 @@ export const inventoryReservation = pgTable(
     ),
   ],
 )
+
+export const review = pgTable(
+  'review',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    shopOrderId: uuid('shop_order_id')
+      .notNull()
+      .references(() => shopOrder.id, { onDelete: 'cascade' }),
+    productId: text('product_id')
+      .notNull()
+      .references(() => product.id, { onDelete: 'cascade' }),
+    buyerUserId: text('buyer_user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    rating: integer().notNull(),
+    comment: text(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('review_product_id_idx').on(table.productId),
+    index('review_shop_order_id_idx').on(table.shopOrderId),
+    uniqueIndex('review_shop_order_product_unique').on(table.shopOrderId, table.productId),
+  ],
+)

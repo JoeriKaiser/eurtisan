@@ -25,6 +25,7 @@ export interface OrderItemDetail {
 }
 
 export interface OrderShopGroup {
+  shopOrderId: string
   shopId: string
   shopName: string
   shippingMethod: 'standard' | 'express'
@@ -103,6 +104,7 @@ export async function getBuyerOrderDetailQuery(
       : []
 
   const shops: OrderShopGroup[] = shopOrdersResult.map((so) => ({
+    shopOrderId: so.shopOrder.id,
     shopId: so.shopOrder.shopId,
     shopName: so.shop?.name ?? 'Unknown shop',
     shippingMethod: so.shopOrder.shippingMethod,

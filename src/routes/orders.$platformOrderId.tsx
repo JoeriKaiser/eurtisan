@@ -4,6 +4,7 @@ import BuyerOrderDetailPage, {
   BuyerOrderDetailLoading,
 } from '#/components/BuyerOrderDetailPage'
 import { getBuyerOrderDetail } from '#/lib/orders'
+import { getReviewableItems } from '#/lib/reviews'
 import { guardAuth } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
 
@@ -11,8 +12,11 @@ export const Route = createFileRoute('/orders/$platformOrderId')({
   beforeLoad: async () => guardAuth(),
   loader: async ({ params }) => {
     try {
-      const order = await getBuyerOrderDetail({ data: { orderId: params.platformOrderId } })
-      return { order }
+      const [order, reviewable] = await Promise.all([
+        getBuyerOrderDetail({ data: { orderId: params.platformOrderId } }),
+        getReviewableItems({ data: { platformOrderId: params.platformOrderId } }),
+      ])
+      return { order, reviewableItems: reviewable.items }
     } catch (err) {
       if (err instanceof Response && err.status === 404) {
         throw notFound()
@@ -42,6 +46,6 @@ export const Route = createFileRoute('/orders/$platformOrderId')({
 })
 
 function OrderDetailRouteComponent() {
-  const { order } = Route.useLoaderData()
-  return <BuyerOrderDetailPage order={order} />
+  const { order, reviewableItems } = Route.useLoaderData()
+  return <BuyerOrderDetailPage order={order} reviewableItems={reviewableItems} />
 }

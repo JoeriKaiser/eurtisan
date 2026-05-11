@@ -231,8 +231,21 @@
   "order_detail_cancellation_reason": "Reason: {reason}",
   "order_detail_review": "Write a review",
   "order_detail_review_disabled": "Review available from {date}",
+  "order_detail_review_disabled_tooltip": "Review available in {days} days",
   "order_detail_shop_status": "Status",
   "orders_title": "My orders",
   "orders_error": "Failed to load orders. Please try again.",
-  "orders_empty_cta": "Browse the marketplace"
+  "orders_empty_cta": "Browse the marketplace",
+  "review_modal_title": "Write a review",
+  "review_modal_description": "Share your experience with this product.",
+  "review_modal_close": "Close review form",
+  "review_star_label": "Rate {star} out of 5 stars",
+  "review_rating_prompt": "Click a star to rate",
+  "review_rating_selected": "You rated {rating} out of 5",
+  "review_comment_label": "Comment (optional)",
+  "review_comment_placeholder": "Tell others what you liked or didn't like...",
+  "review_submit": "Submit review",
+  "review_cancel": "Cancel",
+  "review_submitted": "Review submitted",
+  "review_days_remaining": "{days} days remaining"
 }

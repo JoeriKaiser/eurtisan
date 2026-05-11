@@ -43,6 +43,7 @@ function makeOrder(): OrderDetail {
     },
     shops: [
       {
+        shopOrderId: 'so-1',
         shopId: 'shop-1',
         shopName: 'Test Shop',
         shippingMethod: 'standard',
@@ -105,6 +106,7 @@ describe('OrderSuccessPage', () => {
   it('renders multiple shops', () => {
     const order = makeOrder()
     order.shops.push({
+      shopOrderId: 'so-2',
       shopId: 'shop-2',
       shopName: 'Second Shop',
       shippingMethod: 'express' as const,

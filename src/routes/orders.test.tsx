@@ -37,6 +37,19 @@ vi.mock('#/paraglide/messages', () => ({
     order_detail_cancellation_reason: ({ reason }: { reason: string }) => `Reason: ${reason}`,
     order_detail_review: () => 'Write a review',
     order_detail_review_disabled: ({ date }: { date: string }) => `Review available from ${date}`,
+    order_detail_review_disabled_tooltip: ({ days }: { days: string }) => `${days} days remaining`,
+    review_days_remaining: ({ days }: { days: string }) => `${days} days remaining`,
+    review_submitted: () => 'Review submitted',
+    review_modal_title: () => 'Write a review',
+    review_modal_description: () => 'Share your experience with this product.',
+    review_modal_close: () => 'Close review form',
+    review_star_label: ({ star }: { star: string }) => `Rate ${star} out of 5 stars`,
+    review_rating_prompt: () => 'Click a star to rate',
+    review_rating_selected: ({ rating }: { rating: string }) => `You rated ${rating} out of 5`,
+    review_comment_label: () => 'Comment (optional)',
+    review_comment_placeholder: () => "Tell others what you liked or didn't like...",
+    review_submit: () => 'Submit review',
+    review_cancel: () => 'Cancel',
     order_detail_shop_status: () => 'complete',
     orders_back_to_list: () => 'Back to orders',
     order_success_continue_shopping: () => 'Continue shopping',
@@ -83,6 +96,7 @@ function makeOrderDetail(overrides?: Partial<OrderDetail>): OrderDetail {
     },
     shops: [
       {
+        shopOrderId: 'so-1',
         shopId: 'shop-1',
         shopName: 'Test Shop',
         shippingMethod: 'standard',
@@ -186,6 +200,7 @@ describe('Order detail page', () => {
     const order = makeOrderDetail({
       shops: [
         {
+          shopOrderId: 'so-1',
           shopId: 'shop-1',
           shopName: 'Test Shop',
           shippingMethod: 'standard',
@@ -218,6 +233,7 @@ describe('Order detail page', () => {
     const order = makeOrderDetail({
       shops: [
         {
+          shopOrderId: 'so-1',
           shopId: 'shop-1',
           shopName: 'Test Shop',
           shippingMethod: 'standard',
@@ -257,12 +273,13 @@ describe('Order detail page', () => {
     expect(screen.getByText('Reason: Payment failed')).toBeDefined()
   })
 
-  it('renders review CTA placeholder for delivered orders after 14 days', () => {
+  it('renders review CTA for delivered orders after 14 days', () => {
     const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000)
     const order = makeOrderDetail({
       status: 'delivered',
       shops: [
         {
+          shopOrderId: 'so-1',
           shopId: 'shop-1',
           shopName: 'Test Shop',
           shippingMethod: 'standard',
@@ -285,10 +302,21 @@ describe('Order detail page', () => {
         },
       ],
     })
-    render(<BuyerOrderDetailPage order={order} />)
+    const reviewableItems = [
+      {
+        shopOrderId: 'so-1',
+        productId: 'prod-1',
+        productName: 'Vase',
+        deliveredAt: fifteenDaysAgo,
+        isEligible: true,
+        daysRemaining: null,
+        hasReview: false,
+      },
+    ]
+    render(<BuyerOrderDetailPage order={order} reviewableItems={reviewableItems} />)
     const reviewButton = screen.getByRole('button', { name: 'Write a review' })
     expect(reviewButton).toBeDefined()
-    expect(reviewButton.getAttribute('disabled')).not.toBeNull()
+    expect(reviewButton.hasAttribute('disabled')).toBe(false)
   })
 
   it('renders review disabled message for delivered orders within 14 days', () => {
@@ -297,6 +325,7 @@ describe('Order detail page', () => {
       status: 'delivered',
       shops: [
         {
+          shopOrderId: 'so-1',
           shopId: 'shop-1',
           shopName: 'Test Shop',
           shippingMethod: 'standard',
@@ -319,7 +348,18 @@ describe('Order detail page', () => {
         },
       ],
     })
-    render(<BuyerOrderDetailPage order={order} />)
+    const reviewableItems = [
+      {
+        shopOrderId: 'so-1',
+        productId: 'prod-1',
+        productName: 'Vase',
+        deliveredAt: fiveDaysAgo,
+        isEligible: false,
+        daysRemaining: 10,
+        hasReview: false,
+      },
+    ]
+    render(<BuyerOrderDetailPage order={order} reviewableItems={reviewableItems} />)
     expect(screen.getByText(/Review available from/)).toBeDefined()
   })
 
@@ -327,6 +367,7 @@ describe('Order detail page', () => {
     const order = makeOrderDetail({
       shops: [
         {
+          shopOrderId: 'so-1',
           shopId: 'shop-1',
           shopName: 'Test Shop',
           shippingMethod: 'standard',
