@@ -334,6 +334,26 @@ export const review = pgTable(
   ],
 )
 
+export const payoutStatusEnum = pgEnum('payout_status', ['pending', 'sent'])
+
+export const payout = pgTable(
+  'payout',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    shopId: text('shop_id')
+      .notNull()
+      .references(() => shop.id, { onDelete: 'cascade' }),
+    amountCents: integer('amount_cents').notNull().default(0),
+    status: payoutStatusEnum().notNull().default('pending'),
+    sentAt: timestamp('sent_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('payout_shop_id_idx').on(table.shopId),
+    index('payout_status_idx').on(table.status),
+  ],
+)
+
 export const notification = pgTable(
   'notification',
   {

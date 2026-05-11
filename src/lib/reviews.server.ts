@@ -1,6 +1,6 @@
 import { and, count, desc, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { orderItem, platformOrder, review, shopOrder, user } from '#/db/schema'
+import { orderItem, platformOrder, product, review, shop, shopOrder, user } from '#/db/schema'
 
 export interface ReviewableItem {
   shopOrderId: string
@@ -224,6 +224,27 @@ export async function createReviewQuery(
       )
     }
     throw err
+  }
+
+  // Notify seller after the review creation so errors don't break the transaction
+  try {
+    const { createNotification } = await import('./notifications.server')
+    const shopRecord = await db
+      .select()
+      .from(shop)
+      .where(eq(shop.id, shopOrderRecord.shopId))
+      .limit(1)
+    const productRecord = await db.select().from(product).where(eq(product.id, productId)).limit(1)
+    if (shopRecord[0]) {
+      await createNotification(shopRecord[0].ownerId, 'review_received', {
+        shopOrderId,
+        productId,
+        reviewId: created.id,
+        productName: productRecord[0]?.name ?? '',
+      })
+    }
+  } catch {
+    // Notification errors must not break the primary review creation
   }
 
   return {

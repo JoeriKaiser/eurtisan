@@ -323,18 +323,23 @@ export async function markShopOrderShippedQuery(
     }
   }
 
-  return db.transaction(async (tx) => {
-    const [record] = await tx
-      .select()
-      .from(shopOrder)
-      .where(eq(shopOrder.id, shopOrderId))
-      .limit(1)
+  // Fetch current status before transaction to know if this is a real transition
+  const [preRecord] = await db
+    .select()
+    .from(shopOrder)
+    .where(eq(shopOrder.id, shopOrderId))
+    .limit(1)
+
+  const wasAlreadyShipped = preRecord?.status === 'shipped'
+
+  const result = await db.transaction(async (tx) => {
+    const [record] = await tx.select().from(shopOrder).where(eq(shopOrder.id, shopOrderId)).limit(1)
 
     if (!record) {
-      throw new Response(
-        JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } },
-      )
+      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
     }
 
     const currentStatus = record.status as OrderStatus
@@ -399,21 +404,36 @@ export async function markShopOrderShippedQuery(
     }
     return updated
   })
+
+  // Notify buyer after the transaction so errors don't break the shipment update
+  // Only notify on actual status transition, not idempotent tracking updates
+  if (!wasAlreadyShipped && result.status === 'shipped') {
+    try {
+      const { createNotification } = await import('./notifications.server')
+      const order = await getShopOrderQuery(shopOrderId)
+      if (order) {
+        await createNotification(order.buyer.id, 'order_shipped', {
+          platformOrderId: order.platformOrderId,
+          shopOrderId,
+        })
+      }
+    } catch {
+      // Notification errors must not break the primary business transaction
+    }
+  }
+
+  return result
 }
 
 export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<ShopOrderDetail> {
   return db.transaction(async (tx) => {
-    const [record] = await tx
-      .select()
-      .from(shopOrder)
-      .where(eq(shopOrder.id, shopOrderId))
-      .limit(1)
+    const [record] = await tx.select().from(shopOrder).where(eq(shopOrder.id, shopOrderId)).limit(1)
 
     if (!record) {
-      throw new Response(
-        JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } },
-      )
+      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
     }
 
     const currentStatus = record.status as OrderStatus
@@ -461,7 +481,7 @@ export async function updateShopOrderStatusQuery(
   shopOrderId: string,
   input: UpdateShopOrderStatusInput,
 ): Promise<ShopOrderDetail> {
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const [record] = await tx.select().from(shopOrder).where(eq(shopOrder.id, shopOrderId)).limit(1)
 
     if (!record) {
@@ -514,4 +534,22 @@ export async function updateShopOrderStatusQuery(
 
     return updated
   })
+
+  // Notify buyer when a dispute is opened
+  if (input.status === 'disputed') {
+    try {
+      const { createNotification } = await import('./notifications.server')
+      const order = await getShopOrderQuery(shopOrderId)
+      if (order) {
+        await createNotification(order.buyer.id, 'dispute_opened', {
+          platformOrderId: order.platformOrderId,
+          shopOrderId,
+        })
+      }
+    } catch {
+      // Notification errors must not break the primary business transaction
+    }
+  }
+
+  return result
 }

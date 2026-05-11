@@ -183,7 +183,7 @@ export async function createCheckoutQuery(
   input: CheckoutInput,
   userId: string,
 ): Promise<CreateCheckoutResult> {
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     // 1. Verify cart ownership
     const [cartRecord] = await tx.select().from(cart).where(eq(cart.id, input.cartId)).limit(1)
     if (!cartRecord || cartRecord.userId !== userId) {
@@ -302,6 +302,7 @@ export async function createCheckoutQuery(
       .returning()
 
     // 8. Create shop orders and order items
+    const createdShopOrders: Array<{ shopOrderId: string; shopId: string }> = []
     for (const [, group] of shopGroups) {
       const method = selectionMap.get(group.shopId) ?? 'standard'
       const shippingCost = getShippingCost(method)
@@ -317,6 +318,8 @@ export async function createCheckoutQuery(
           status: 'pending_payment',
         })
         .returning()
+
+      createdShopOrders.push({ shopOrderId: shopOrderRecord.id, shopId: group.shopId })
 
       for (const lineItem of group.items) {
         await tx.insert(orderItem).values({
@@ -362,6 +365,31 @@ export async function createCheckoutQuery(
     await tx.delete(cartItem).where(eq(cartItem.cartId, input.cartId))
     await tx.delete(cart).where(eq(cart.id, input.cartId))
 
-    return { platformOrderId: platformOrderRecord.id }
+    return { platformOrderId: platformOrderRecord.id, createdShopOrders }
   })
+
+  // Create notifications after the transaction so errors don't break checkout
+  try {
+    const { createNotification } = await import('./notifications.server')
+
+    // Notify buyer
+    await createNotification(userId, 'order_placed', {
+      platformOrderId: result.platformOrderId,
+    })
+
+    // Notify each seller
+    for (const so of result.createdShopOrders) {
+      const shopRecord = await db.select().from(shop).where(eq(shop.id, so.shopId)).limit(1)
+      if (shopRecord[0]) {
+        await createNotification(shopRecord[0].ownerId, 'order_placed', {
+          platformOrderId: result.platformOrderId,
+          shopOrderId: so.shopOrderId,
+        })
+      }
+    }
+  } catch {
+    // Notification errors must not break the primary checkout transaction
+  }
+
+  return { platformOrderId: result.platformOrderId }
 }

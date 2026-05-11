@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import * as React from 'react'
+import type * as React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 const mockInvalidate = vi.fn()
@@ -78,9 +78,9 @@ vi.mock('#/lib/orders-ui', () => ({
 
 vi.mock('#/components/ui/primitives/dialog', () => ({
   Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) =>
-    open ? <div data-testid="dialog">{children}</div> : null,
-  DialogBackdrop: () => <div data-testid="dialog-backdrop" />,
-  DialogPopup: ({ children }: { children: React.ReactNode }) => <div role="dialog">{children}</div>,
+    open ? <div data-testid='dialog'>{children}</div> : null,
+  DialogBackdrop: () => <div data-testid='dialog-backdrop' />,
+  DialogPopup: ({ children }: { children: React.ReactNode }) => <div role='dialog'>{children}</div>,
   DialogPortal: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   DialogTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
   DialogDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,

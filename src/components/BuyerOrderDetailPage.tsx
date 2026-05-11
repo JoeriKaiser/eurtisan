@@ -3,7 +3,6 @@ import { ArrowLeft, ImageOff, MapPin, Package, Star, Truck, X } from 'lucide-rea
 import { useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
-import { Skeleton } from '#/components/ui/skeleton'
 import {
   Dialog,
   DialogBackdrop,
@@ -12,11 +11,12 @@ import {
   DialogPortal,
   DialogTitle,
 } from '#/components/ui/primitives/dialog'
+import { Skeleton } from '#/components/ui/skeleton'
 import type { OrderDetail, OrderStatus } from '#/lib/orders.server'
 import { statusBadgeVariant } from '#/lib/orders-ui'
+import { formatPriceEUR } from '#/lib/pricing'
 import { createReview } from '#/lib/reviews'
 import type { ReviewableItem } from '#/lib/reviews.server'
-import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 
 function formatDate(date: Date): string {
@@ -56,10 +56,13 @@ export interface BuyerOrderDetailPageProps {
   reviewableItems: ReviewableItem[]
 }
 
-export default function BuyerOrderDetailPage({ order, reviewableItems = [] }: BuyerOrderDetailPageProps) {
+export default function BuyerOrderDetailPage({
+  order,
+  reviewableItems = [],
+}: BuyerOrderDetailPageProps) {
   const isCancelled = order.status === 'cancelled'
-  const [reviews, setReviews] = useState<Record<string, ReviewableItem>>(
-    () => Object.fromEntries(reviewableItems.map((r) => [`${r.shopOrderId}-${r.productId}`, r])),
+  const [reviews, setReviews] = useState<Record<string, ReviewableItem>>(() =>
+    Object.fromEntries(reviewableItems.map((r) => [`${r.shopOrderId}-${r.productId}`, r])),
   )
   const [activeReviewItem, setActiveReviewItem] = useState<ReviewableItem | null>(null)
   const [rating, setRating] = useState(0)
@@ -250,9 +253,7 @@ export default function BuyerOrderDetailPage({ order, reviewableItems = [] }: Bu
                         <ImageOff size={16} className='text-text-muted' aria-hidden='true' />
                       </div>
                       <div className='flex-1'>
-                        <p className='text-sm font-medium text-text-primary'>
-                          {item.productName}
-                        </p>
+                        <p className='text-sm font-medium text-text-primary'>{item.productName}</p>
                         <p className='text-xs text-text-secondary'>
                           {formatPriceEUR(item.unitPriceCents)} × {item.quantity}
                         </p>
@@ -337,7 +338,10 @@ export default function BuyerOrderDetailPage({ order, reviewableItems = [] }: Bu
       </div>
 
       {/* Review Modal */}
-      <Dialog open={activeReviewItem !== null} onOpenChange={(open) => !open && handleCloseReview()}>
+      <Dialog
+        open={activeReviewItem !== null}
+        onOpenChange={(open) => !open && handleCloseReview()}
+      >
         <DialogPortal>
           <DialogBackdrop />
           <DialogPopup className='max-w-md'>
@@ -408,21 +412,13 @@ export default function BuyerOrderDetailPage({ order, reviewableItems = [] }: Bu
                     maxLength={2000}
                     disabled={isSubmitting}
                   />
-                  <p className='mt-1 text-right text-xs text-text-muted'>
-                    {comment.length}/2000
-                  </p>
+                  <p className='mt-1 text-right text-xs text-text-muted'>{comment.length}/2000</p>
                 </div>
 
-                {submitError && (
-                  <p className='text-sm text-error'>{submitError}</p>
-                )}
+                {submitError && <p className='text-sm text-error'>{submitError}</p>}
 
                 <div className='flex justify-end gap-3'>
-                  <Button
-                    variant='secondary'
-                    onClick={handleCloseReview}
-                    disabled={isSubmitting}
-                  >
+                  <Button variant='secondary' onClick={handleCloseReview} disabled={isSubmitting}>
                     {m.review_cancel()}
                   </Button>
                   <Button

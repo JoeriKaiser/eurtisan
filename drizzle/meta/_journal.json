@@ -134,6 +134,13 @@
       "when": 1778531781435,
       "tag": "0018_redundant_leopardon",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1778537300736,
+      "tag": "0019_hard_young_avengers",
+      "breakpoints": true
     }
   ]
 }

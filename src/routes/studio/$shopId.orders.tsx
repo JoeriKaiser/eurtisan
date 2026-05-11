@@ -45,9 +45,7 @@ const statusOptions = [
   { value: 'disputed', label: 'Disputed' },
 ]
 
-function getStatusBadgeVariant(
-  orderStatus: string,
-): React.ComponentProps<typeof Badge>['variant'] {
+function getStatusBadgeVariant(orderStatus: string): React.ComponentProps<typeof Badge>['variant'] {
   switch (orderStatus) {
     case 'completed':
     case 'delivered':

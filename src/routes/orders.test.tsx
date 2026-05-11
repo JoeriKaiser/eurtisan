@@ -7,7 +7,12 @@ import { OrdersPage } from '#/components/OrdersPage'
 import type { BuyerOrderListItem, OrderDetail } from '#/lib/orders.server'
 
 vi.mock('@tanstack/react-router', () => ({
-  Link: (props: { children: React.ReactNode; to: string; className?: string; params?: Record<string, string> }) => (
+  Link: (props: {
+    children: React.ReactNode
+    to: string
+    className?: string
+    params?: Record<string, string>
+  }) => (
     <a href={props.to} className={props.className}>
       {props.children}
     </a>

@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
+import { Input } from '#/components/ui/input'
 import {
   Dialog,
   DialogBackdrop,
@@ -21,20 +22,15 @@ import {
   DialogPortal,
   DialogTitle,
 } from '#/components/ui/primitives/dialog'
-import { Input } from '#/components/ui/input'
-import { formatPriceEUR } from '#/lib/pricing'
-import { guardAuth } from '#/lib/route-guards'
 import {
   FULFILLMENT_STATUSES,
   isStatusReached,
   isSupportedShippingCountry,
   statusTimelineLabel,
 } from '#/lib/orders-ui'
-import {
-  getShopOrderDetail,
-  markShopOrderDelivered,
-  markShopOrderShipped,
-} from '#/lib/shop-orders'
+import { formatPriceEUR } from '#/lib/pricing'
+import { guardAuth } from '#/lib/route-guards'
+import { getShopOrderDetail, markShopOrderDelivered, markShopOrderShipped } from '#/lib/shop-orders'
 
 export const Route = createFileRoute('/studio/$shopId/orders/$shopOrderId')({
   beforeLoad: async () => guardAuth(),
@@ -60,9 +56,7 @@ export const Route = createFileRoute('/studio/$shopId/orders/$shopOrderId')({
   errorComponent: ShopOrderDetailError,
 })
 
-function getStatusBadgeVariant(
-  orderStatus: string,
-): React.ComponentProps<typeof Badge>['variant'] {
+function getStatusBadgeVariant(orderStatus: string): React.ComponentProps<typeof Badge>['variant'] {
   switch (orderStatus) {
     case 'completed':
     case 'delivered':
@@ -92,7 +86,6 @@ function StatusTimeline({ status }: { status: string }) {
     <div className='space-y-4'>
       <h3 className='text-sm font-semibold text-text-primary'>Fulfillment Timeline</h3>
       <ol className='relative flex items-center justify-between before:absolute before:left-0 before:right-0 before:top-1/2 before:h-0.5 before:-translate-y-1/2 before:bg-border-subtle'>
-
         {FULFILLMENT_STATUSES.map((step, idx) => {
           const reached = isStatusReached(status as never, step)
           const isCurrent = status === step
@@ -268,10 +261,7 @@ function ShipOrderDialog({
                       error={fieldErrors.trackingUrl}
                     />
                     {fieldErrors.trackingUrl && (
-                      <p
-                        id='tracking-url-error'
-                        className='mt-1 text-xs text-error'
-                      >
+                      <p id='tracking-url-error' className='mt-1 text-xs text-error'>
                         {fieldErrors.trackingUrl}
                       </p>
                     )}
@@ -446,9 +436,7 @@ export function ShopOrderDetailPage() {
                 <p className='capitalize text-text-primary'>{order.shippingMethod}</p>
                 {order.trackingNumber && (
                   <div className='mt-2 space-y-1'>
-                    <p className='text-sm text-text-secondary'>
-                      Tracking: {order.trackingNumber}
-                    </p>
+                    <p className='text-sm text-text-secondary'>Tracking: {order.trackingNumber}</p>
                     {order.trackingUrl ? (
                       <a
                         href={order.trackingUrl}
@@ -504,10 +492,7 @@ export function ShopOrderDetailPage() {
             <CardContent>
               <ul className='divide-y divide-border-subtle'>
                 {order.items.map((item) => (
-                  <li
-                    key={item.id}
-                    className='flex items-center gap-3 py-3 first:pt-0 last:pb-0'
-                  >
+                  <li key={item.id} className='flex items-center gap-3 py-3 first:pt-0 last:pb-0'>
                     <div className='flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-inset'>
                       <ImageOff size={16} className='text-text-muted' aria-hidden='true' />
                     </div>
