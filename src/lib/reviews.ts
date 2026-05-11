@@ -2,7 +2,13 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { authMiddleware } from './auth-middleware'
 
-export type { ReviewableItem, ReviewEligibilityResult, CreatedReview } from './reviews.server'
+export type {
+  CreatedReview,
+  ProductReview,
+  ProductReviewsResult,
+  ReviewableItem,
+  ReviewEligibilityResult,
+} from './reviews.server'
 
 export const getReviewableItems = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
@@ -26,6 +32,19 @@ export const getReviewableItems = createServerFn({ method: 'GET' })
     }
 
     return result
+  })
+
+export const getProductReviews = createServerFn({ method: 'GET' })
+  .inputValidator(
+    z.object({
+      productId: z.string().min(1),
+      page: z.number().int().min(1).optional().default(1),
+      pageSize: z.number().int().min(1).max(100).optional().default(10),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const { getProductReviewsQuery } = await import('./reviews.server')
+    return getProductReviewsQuery(data.productId, data.page, data.pageSize)
   })
 
 export const createReview = createServerFn({ method: 'POST' })

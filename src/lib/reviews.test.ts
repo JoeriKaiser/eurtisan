@@ -2,17 +2,13 @@ import { eq } from 'drizzle-orm'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { db } from '#/db/index'
-import {
-  orderItem,
-  platformOrder,
-  product,
-  review,
-  shop,
-  shopOrder,
-  user,
-} from '#/db/schema'
+import { orderItem, platformOrder, product, review, shop, shopOrder, user } from '#/db/schema'
 
-import { createReviewQuery, getReviewableItemsQuery } from './reviews.server'
+import {
+  createReviewQuery,
+  getProductReviewsQuery,
+  getReviewableItemsQuery,
+} from './reviews.server'
 
 beforeEach(async () => {
   await db.delete(review)
@@ -80,10 +76,7 @@ async function seedProduct(overrides?: Partial<typeof product.$inferInsert>) {
 
 describe('getReviewableItemsQuery', () => {
   it('returns null for nonexistent order', async () => {
-    const result = await getReviewableItemsQuery(
-      '550e8400-e29b-41d4-a716-446655440000',
-      'user-1',
-    )
+    const result = await getReviewableItemsQuery('550e8400-e29b-41d4-a716-446655440000', 'user-1')
     expect(result).toBeNull()
   })
 
@@ -393,13 +386,7 @@ describe('getReviewableItemsQuery', () => {
 describe('createReviewQuery', () => {
   it('throws 404 for nonexistent shop order', async () => {
     try {
-      await createReviewQuery(
-        '550e8400-e29b-41d4-a716-446655440000',
-        'prod-1',
-        'user-1',
-        5,
-        null,
-      )
+      await createReviewQuery('550e8400-e29b-41d4-a716-446655440000', 'prod-1', 'user-1', 5, null)
       expect.fail('Should have thrown')
     } catch (err) {
       expect(err instanceof Response).toBe(true)
@@ -713,7 +700,13 @@ describe('createReviewQuery', () => {
       })
       .returning()
 
-    const result = await createReviewQuery(so.id, p.id, 'user-1', 4, '<script>alert("xss")</script>')
+    const result = await createReviewQuery(
+      so.id,
+      p.id,
+      'user-1',
+      4,
+      '<script>alert("xss")</script>',
+    )
     expect(result.comment).toBe('&lt;script&gt;alert(&quot;xss&quot;)&lt;&#x2F;script&gt;')
   })
 
@@ -759,5 +752,265 @@ describe('createReviewQuery', () => {
 
     const result = await createReviewQuery(so.id, p.id, 'user-1', 3, null)
     expect(result.comment).toBeNull()
+  })
+})
+
+describe('getProductReviewsQuery', () => {
+  it('returns empty result when no reviews exist', async () => {
+    const result = await getProductReviewsQuery('prod-1', 1, 10)
+    expect(result.reviews).toEqual([])
+    expect(result.total).toBe(0)
+    expect(result.averageRating).toBeNull()
+    expect(result.distribution).toEqual([
+      { rating: 5, count: 0 },
+      { rating: 4, count: 0 },
+      { rating: 3, count: 0 },
+      { rating: 2, count: 0 },
+      { rating: 1, count: 0 },
+    ])
+    expect(result.totalPages).toBe(0)
+  })
+
+  it('returns reviews ordered by newest first with buyer names', async () => {
+    await db.insert(user).values([
+      { id: 'user-1', name: 'Alice', email: 'alice@example.com', emailVerified: true },
+      { id: 'user-2', name: 'Bob', email: 'bob@example.com', emailVerified: true },
+    ])
+
+    await db.insert(shop).values({
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      ownerId: 'user-1',
+    })
+
+    await db.insert(product).values({
+      id: 'prod-1',
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 1000,
+      shopId: 'shop-1',
+    })
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Alice',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Alice',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 1000,
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 500,
+        subtotalCents: 1000,
+        status: 'delivered',
+        deliveredAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+      })
+      .returning()
+
+    await db.insert(review).values([
+      {
+        shopOrderId: so.id,
+        productId: 'prod-1',
+        buyerUserId: 'user-1',
+        rating: 5,
+        comment: 'Great!',
+        createdAt: new Date('2024-01-02'),
+      },
+      {
+        shopOrderId: so.id,
+        productId: 'prod-1',
+        buyerUserId: 'user-2',
+        rating: 3,
+        comment: 'Okay',
+        createdAt: new Date('2024-01-03'),
+      },
+    ])
+
+    const result = await getProductReviewsQuery('prod-1', 1, 10)
+    expect(result.reviews).toHaveLength(2)
+    expect(result.reviews[0].buyerName).toBe('Bob')
+    expect(result.reviews[0].rating).toBe(3)
+    expect(result.reviews[1].buyerName).toBe('Alice')
+    expect(result.reviews[1].rating).toBe(5)
+    expect(result.total).toBe(2)
+    expect(result.averageRating).toBe(4.0)
+    expect(result.reviews.every((r) => 'buyerName' in r && !('buyerUserId' in r))).toBe(true)
+  })
+
+  it('paginates results correctly', async () => {
+    await db
+      .insert(user)
+      .values([{ id: 'user-1', name: 'Alice', email: 'alice@example.com', emailVerified: true }])
+
+    await db.insert(shop).values({
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      ownerId: 'user-1',
+    })
+
+    await db.insert(product).values({
+      id: 'prod-1',
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 1000,
+      shopId: 'shop-1',
+    })
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Alice',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Alice',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 1000,
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 500,
+        subtotalCents: 1000,
+        status: 'delivered',
+        deliveredAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+      })
+      .returning()
+
+    for (let i = 0; i < 12; i++) {
+      await db.insert(review).values({
+        shopOrderId: so.id,
+        productId: 'prod-1',
+        buyerUserId: 'user-1',
+        rating: (i % 5) + 1,
+        comment: `Review ${i}`,
+      })
+    }
+
+    const page1 = await getProductReviewsQuery('prod-1', 1, 10)
+    expect(page1.reviews).toHaveLength(10)
+    expect(page1.total).toBe(12)
+    expect(page1.totalPages).toBe(2)
+    expect(page1.page).toBe(1)
+
+    const page2 = await getProductReviewsQuery('prod-1', 2, 10)
+    expect(page2.reviews).toHaveLength(2)
+    expect(page2.page).toBe(2)
+  })
+
+  it('calculates rating distribution correctly', async () => {
+    await db
+      .insert(user)
+      .values([{ id: 'user-1', name: 'Alice', email: 'alice@example.com', emailVerified: true }])
+
+    await db.insert(shop).values({
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      ownerId: 'user-1',
+    })
+
+    await db.insert(product).values({
+      id: 'prod-1',
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 1000,
+      shopId: 'shop-1',
+    })
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Alice',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Alice',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 1000,
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 500,
+        subtotalCents: 1000,
+        status: 'delivered',
+        deliveredAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+      })
+      .returning()
+
+    await db.insert(review).values([
+      { shopOrderId: so.id, productId: 'prod-1', buyerUserId: 'user-1', rating: 5 },
+      { shopOrderId: so.id, productId: 'prod-1', buyerUserId: 'user-1', rating: 5 },
+      { shopOrderId: so.id, productId: 'prod-1', buyerUserId: 'user-1', rating: 4 },
+      { shopOrderId: so.id, productId: 'prod-1', buyerUserId: 'user-1', rating: 3 },
+      { shopOrderId: so.id, productId: 'prod-1', buyerUserId: 'user-1', rating: 1 },
+    ])
+
+    const result = await getProductReviewsQuery('prod-1', 1, 10)
+    expect(result.averageRating).toBe(3.6)
+    expect(result.distribution).toEqual([
+      { rating: 5, count: 2 },
+      { rating: 4, count: 1 },
+      { rating: 3, count: 1 },
+      { rating: 2, count: 0 },
+      { rating: 1, count: 1 },
+    ])
+  })
+
+  it('validates page and pageSize boundaries', async () => {
+    const result = await getProductReviewsQuery('prod-1', 0, 0)
+    expect(result.page).toBe(1)
+    expect(result.pageSize).toBe(1)
+    expect(result.totalPages).toBe(0)
   })
 })

@@ -16,6 +16,12 @@ vi.mock('#/lib/cart', () => ({
   addToCart: mockAddToCart,
 }))
 
+vi.mock('#/components/ProductReviews', () => ({
+  default: ({ productId }: { productId: string }) => (
+    <div data-testid='product-reviews' data-product-id={productId} />
+  ),
+}))
+
 vi.mock('#/paraglide/messages', () => ({
   m: {
     product_no_image: () => 'No image available',
@@ -172,6 +178,12 @@ describe('ProductDetail', () => {
   it('renders uncategorized when category is null', () => {
     render(<ProductDetail product={makeProduct({ categoryName: null })} />)
     expect(screen.getByText('Uncategorized')).toBeDefined()
+  })
+
+  it('renders ProductReviews with product id', () => {
+    render(<ProductDetail product={makeProduct()} />)
+    const reviews = screen.getByTestId('product-reviews')
+    expect(reviews.getAttribute('data-product-id')).toBe('prod-1')
   })
 
   it('has keyboard-accessible thumbnail buttons', () => {

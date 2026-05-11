@@ -1,6 +1,6 @@
-import { and, eq, gte, inArray } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { orderItem, platformOrder, product, review, shopOrder } from '#/db/schema'
+import { orderItem, platformOrder, review, shopOrder, user } from '#/db/schema'
 
 export interface ReviewableItem {
   shopOrderId: string
@@ -23,6 +23,29 @@ export interface CreatedReview {
   rating: number
   comment: string | null
   createdAt: Date
+}
+
+export interface ProductReview {
+  id: string
+  buyerName: string
+  rating: number
+  comment: string | null
+  createdAt: Date
+}
+
+export interface ReviewDistribution {
+  rating: number
+  count: number
+}
+
+export interface ProductReviewsResult {
+  reviews: ProductReview[]
+  total: number
+  averageRating: number | null
+  distribution: ReviewDistribution[]
+  page: number
+  pageSize: number
+  totalPages: number
 }
 
 const ELIGIBILITY_DAYS = 14
@@ -210,6 +233,75 @@ export async function createReviewQuery(
     rating: created.rating,
     comment: created.comment,
     createdAt: created.createdAt,
+  }
+}
+
+export async function getProductReviewsQuery(
+  productId: string,
+  page: number,
+  pageSize: number,
+): Promise<ProductReviewsResult> {
+  const validatedPageSize = Math.min(100, Math.max(1, pageSize))
+
+  const [totalResult] = await db
+    .select({ total: count() })
+    .from(review)
+    .where(eq(review.productId, productId))
+
+  const total = totalResult?.total ?? 0
+  const totalPages = Math.ceil(total / validatedPageSize)
+  const validatedPage = totalPages > 0 ? Math.min(Math.max(1, page), totalPages) : Math.max(1, page)
+  const offset = (validatedPage - 1) * validatedPageSize
+
+  const reviewsResult = await db
+    .select({
+      id: review.id,
+      buyerName: user.name,
+      rating: review.rating,
+      comment: review.comment,
+      createdAt: review.createdAt,
+    })
+    .from(review)
+    .innerJoin(user, eq(review.buyerUserId, user.id))
+    .where(eq(review.productId, productId))
+    .orderBy(desc(review.createdAt))
+    .limit(validatedPageSize)
+    .offset(offset)
+
+  const [avgResult] = await db
+    .select({ average: sql<number | null>`round(avg(${review.rating})::numeric, 1)` })
+    .from(review)
+    .where(eq(review.productId, productId))
+
+  const distributionResult = await db
+    .select({
+      rating: review.rating,
+      count: count(),
+    })
+    .from(review)
+    .where(eq(review.productId, productId))
+    .groupBy(review.rating)
+
+  const distribution: ReviewDistribution[] = []
+  for (let i = 5; i >= 1; i--) {
+    const found = distributionResult.find((d) => d.rating === i)
+    distribution.push({ rating: i, count: found ? Number(found.count) : 0 })
+  }
+
+  return {
+    reviews: reviewsResult.map((r) => ({
+      id: r.id,
+      buyerName: r.buyerName,
+      rating: r.rating,
+      comment: r.comment,
+      createdAt: r.createdAt,
+    })),
+    total,
+    averageRating: avgResult?.average ?? null,
+    distribution,
+    page: validatedPage,
+    pageSize: validatedPageSize,
+    totalPages: Math.ceil(total / validatedPageSize),
   }
 }
 

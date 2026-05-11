@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useCart } from '#/components/CartProvider'
+import ProductReviews from '#/components/ProductReviews'
 import { addToCart } from '#/lib/cart'
 import { formatPriceEUR } from '#/lib/pricing'
 import type { ProductDetail as ProductDetailType } from '#/lib/products.server'
@@ -291,6 +292,11 @@ export default function ProductDetail({ product }: ProductDetailProps) {
             </div>
           </section>
         </div>
+      </div>
+
+      {/* Reviews */}
+      <div className='mt-8'>
+        <ProductReviews productId={product.id} />
       </div>
     </main>
   )

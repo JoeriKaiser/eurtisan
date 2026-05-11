@@ -318,9 +318,7 @@ export const review = pgTable(
     shopOrderId: uuid('shop_order_id')
       .notNull()
       .references(() => shopOrder.id, { onDelete: 'cascade' }),
-    productId: text('product_id')
-      .notNull()
-      .references(() => product.id, { onDelete: 'cascade' }),
+    productId: text('product_id').notNull(),
     buyerUserId: text('buyer_user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),

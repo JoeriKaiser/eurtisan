@@ -247,5 +247,10 @@
   "review_submit": "Submit review",
   "review_cancel": "Cancel",
   "review_submitted": "Review submitted",
-  "review_days_remaining": "{days} days remaining"
+  "review_days_remaining": "{days} days remaining",
+  "reviews_title": "Reviews",
+  "reviews_empty_title": "No reviews yet",
+  "reviews_empty_description": "Be the first to share your experience with this product.",
+  "reviews_count": "{count} reviews",
+  "reviews_load_error": "Failed to load reviews. Please try again."
 }
