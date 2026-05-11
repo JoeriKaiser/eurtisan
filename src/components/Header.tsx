@@ -1,7 +1,9 @@
 import { Link, useRouter } from '@tanstack/react-router'
-import { Search, ShoppingCart } from 'lucide-react'
+import { Bell, Search, ShoppingCart } from 'lucide-react'
 import { useState } from 'react'
 import { useCart } from '#/components/CartProvider'
+import { useAuth } from '#/lib/auth-hooks'
+import { useUnreadNotificationCount } from '#/lib/notifications-hooks'
 import { m } from '#/paraglide/messages'
 import ThemeToggle from './ThemeToggle'
 import UserMenu from './UserMenu'
@@ -12,6 +14,9 @@ export default function Header() {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState('')
   const { cart } = useCart()
+  const { isAuthenticated } = useAuth()
+  const { data: unreadData } = useUnreadNotificationCount()
+  const unreadCount = unreadData?.count ?? 0
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -73,6 +78,22 @@ export default function Header() {
 
         {/* User actions */}
         <div className='ml-auto flex items-center gap-0.5'>
+          {isAuthenticated && (
+            <div className='relative'>
+              <Link
+                to='/notifications'
+                className='inline-flex h-8 items-center rounded-lg px-2 text-sm font-medium text-text-primary transition-colors duration-fast ease-out hover:bg-bg-inset'
+                aria-label={m.notifications_badge_label()}
+              >
+                <Bell size={18} aria-hidden='true' />
+                {unreadCount > 0 && (
+                  <span className='absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-error px-1 text-[10px] font-bold text-text-on-primary'>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </Link>
+            </div>
+          )}
           <div className='relative'>
             <Link
               to='/cart'

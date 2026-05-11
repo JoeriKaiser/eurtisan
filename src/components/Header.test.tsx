@@ -6,6 +6,8 @@ import Header from './Header'
 
 const mockNavigate = vi.hoisted(() => vi.fn())
 const mockUseCart = vi.hoisted(() => vi.fn())
+const mockUseAuth = vi.hoisted(() => vi.fn())
+const mockUseUnreadNotificationCount = vi.hoisted(() => vi.fn())
 
 vi.mock('@tanstack/react-router', () => ({
   Link: (props: {
@@ -36,6 +38,7 @@ vi.mock('#/paraglide/messages', () => ({
     search_header_placeholder: () => 'Search products...',
     search_header_button: () => 'Search',
     cart_badge_label: () => 'Shopping cart',
+    notifications_badge_label: () => 'Notifications',
   },
 }))
 
@@ -51,12 +54,29 @@ vi.mock('#/components/CartProvider', () => ({
   useCart: () => mockUseCart(),
 }))
 
+vi.mock('#/lib/auth-hooks', () => ({
+  useAuth: () => mockUseAuth(),
+}))
+
+vi.mock('#/lib/notifications-hooks', () => ({
+  useUnreadNotificationCount: () => mockUseUnreadNotificationCount(),
+}))
+
 describe('Header', () => {
   beforeEach(() => {
     mockUseCart.mockReturnValue({
       cart: null,
       isLoading: false,
       refreshCart: vi.fn(),
+    })
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: false,
+      user: null,
+      isPending: false,
+    })
+    mockUseUnreadNotificationCount.mockReturnValue({
+      data: { count: 0 },
+      isPending: false,
     })
   })
 
@@ -169,5 +189,72 @@ describe('Header', () => {
 
     render(<Header />)
     expect(screen.queryByText('0')).toBeNull()
+  })
+
+  it('does not show notification bell when unauthenticated', () => {
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: false,
+      user: null,
+      isPending: false,
+    })
+
+    render(<Header />)
+    expect(screen.queryByRole('link', { name: 'Notifications' })).toBeNull()
+  })
+
+  it('shows notification bell when authenticated', () => {
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      user: { id: 'user-1', name: 'Test' },
+      isPending: false,
+    })
+
+    render(<Header />)
+    expect(screen.getByRole('link', { name: 'Notifications' })).toBeDefined()
+  })
+
+  it('shows unread notification count badge', () => {
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      user: { id: 'user-1', name: 'Test' },
+      isPending: false,
+    })
+    mockUseUnreadNotificationCount.mockReturnValue({
+      data: { count: 5 },
+      isPending: false,
+    })
+
+    render(<Header />)
+    expect(screen.getByText('5')).toBeDefined()
+  })
+
+  it('hides notification badge when count is zero', () => {
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      user: { id: 'user-1', name: 'Test' },
+      isPending: false,
+    })
+    mockUseUnreadNotificationCount.mockReturnValue({
+      data: { count: 0 },
+      isPending: false,
+    })
+
+    render(<Header />)
+    expect(screen.queryByText('0')).toBeNull()
+  })
+
+  it('caps notification badge at 99+', () => {
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: true,
+      user: { id: 'user-1', name: 'Test' },
+      isPending: false,
+    })
+    mockUseUnreadNotificationCount.mockReturnValue({
+      data: { count: 150 },
+      isPending: false,
+    })
+
+    render(<Header />)
+    expect(screen.getByText('99+')).toBeDefined()
   })
 })

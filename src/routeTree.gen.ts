@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SigninRouteImport } from './routes/signin'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as OrdersRouteImport } from './routes/orders'
+import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as ForbiddenRouteImport } from './routes/forbidden'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as CartRouteImport } from './routes/cart'
@@ -54,6 +55,11 @@ const SearchRoute = SearchRouteImport.update({
 const OrdersRoute = OrdersRouteImport.update({
   id: '/orders',
   path: '/orders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForbiddenRoute = ForbiddenRouteImport.update({
@@ -207,6 +213,7 @@ export interface FileRoutesByFullPath {
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
   '/forbidden': typeof ForbiddenRoute
+  '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRouteWithChildren
   '/search': typeof SearchRoute
   '/signin': typeof SigninRoute
@@ -240,6 +247,7 @@ export interface FileRoutesByTo {
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
   '/forbidden': typeof ForbiddenRoute
+  '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRouteWithChildren
   '/search': typeof SearchRoute
   '/signin': typeof SigninRoute
@@ -274,6 +282,7 @@ export interface FileRoutesById {
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
   '/forbidden': typeof ForbiddenRoute
+  '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRouteWithChildren
   '/search': typeof SearchRoute
   '/signin': typeof SigninRoute
@@ -309,6 +318,7 @@ export interface FileRouteTypes {
     | '/cart'
     | '/checkout'
     | '/forbidden'
+    | '/notifications'
     | '/orders'
     | '/search'
     | '/signin'
@@ -342,6 +352,7 @@ export interface FileRouteTypes {
     | '/cart'
     | '/checkout'
     | '/forbidden'
+    | '/notifications'
     | '/orders'
     | '/search'
     | '/signin'
@@ -375,6 +386,7 @@ export interface FileRouteTypes {
     | '/cart'
     | '/checkout'
     | '/forbidden'
+    | '/notifications'
     | '/orders'
     | '/search'
     | '/signin'
@@ -409,6 +421,7 @@ export interface RootRouteChildren {
   CartRoute: typeof CartRoute
   CheckoutRoute: typeof CheckoutRoute
   ForbiddenRoute: typeof ForbiddenRoute
+  NotificationsRoute: typeof NotificationsRoute
   OrdersRoute: typeof OrdersRouteWithChildren
   SearchRoute: typeof SearchRoute
   SigninRoute: typeof SigninRoute
@@ -451,6 +464,13 @@ declare module '@tanstack/react-router' {
       path: '/orders'
       fullPath: '/orders'
       preLoaderRoute: typeof OrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forbidden': {
@@ -742,6 +762,7 @@ const rootRouteChildren: RootRouteChildren = {
   CartRoute: CartRoute,
   CheckoutRoute: CheckoutRoute,
   ForbiddenRoute: ForbiddenRoute,
+  NotificationsRoute: NotificationsRoute,
   OrdersRoute: OrdersRouteWithChildren,
   SearchRoute: SearchRoute,
   SigninRoute: SigninRoute,

@@ -252,5 +252,19 @@
   "reviews_empty_title": "No reviews yet",
   "reviews_empty_description": "Be the first to share your experience with this product.",
   "reviews_count": "{count} reviews",
-  "reviews_load_error": "Failed to load reviews. Please try again."
+  "reviews_load_error": "Failed to load reviews. Please try again.",
+  "notifications_title": "Notifications",
+  "notifications_empty": "You have no notifications yet.",
+  "notifications_error": "Failed to load notifications. Please try again.",
+  "notifications_mark_all_read": "Mark all as read",
+  "notifications_badge_label": "Notifications",
+  "notification_order_placed": "Order placed: {orderId}",
+  "notification_order_shipped": "Order shipped: {orderId}",
+  "notification_review_received": "New review on {productName}",
+  "notification_dispute_opened": "Dispute opened for order {orderId}",
+  "notification_payout_sent": "Payout sent: {amount}",
+  "time_just_now": "Just now",
+  "time_minutes_ago": "{count} min ago",
+  "time_hours_ago": "{count} hr ago",
+  "time_days_ago": "{count} days ago"
 }
