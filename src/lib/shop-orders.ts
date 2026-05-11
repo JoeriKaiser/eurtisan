@@ -115,6 +115,144 @@ export const updateShopOrderStatus = createServerFn({ method: 'POST' })
     })
   })
 
+export const getShopOrderDetail = createServerFn({ method: 'GET' })
+  .middleware([authMiddleware])
+  .inputValidator(z.object({ shopOrderId: z.string().uuid() }))
+  .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Response(
+        JSON.stringify({ error: 'Unauthorized', message: 'Authentication required' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const { getShopOrderDetailQuery } = await import('./shop-orders.server')
+    const order = await getShopOrderDetailQuery(data.shopOrderId)
+
+    if (!order) {
+      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Order not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const isAdmin = context.user.role === 'admin'
+    let isOwner = false
+    if (!isAdmin) {
+      const shopRecord = await db.query.shop.findFirst({
+        where: eq(shop.id, order.shopId),
+      })
+      isOwner = shopRecord?.ownerId === context.user.id
+    }
+
+    if (!isAdmin && !isOwner) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Forbidden',
+          message: 'You do not have permission to view this order',
+        }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    return order
+  })
+
+export const markShopOrderShipped = createServerFn({ method: 'POST' })
+  .middleware([authMiddleware])
+  .inputValidator(
+    z.object({
+      shopOrderId: z.string().uuid(),
+      trackingNumber: z.string().optional().nullable(),
+      trackingUrl: z.string().url().optional().nullable(),
+    }),
+  )
+  .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Response(
+        JSON.stringify({ error: 'Unauthorized', message: 'Authentication required' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const { getShopOrderQuery, markShopOrderShippedQuery } = await import('./shop-orders.server')
+
+    const order = await getShopOrderQuery(data.shopOrderId)
+    if (!order) {
+      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Order not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const isAdmin = context.user.role === 'admin'
+    let isOwner = false
+    if (!isAdmin) {
+      const shopRecord = await db.query.shop.findFirst({
+        where: eq(shop.id, order.shopId),
+      })
+      isOwner = shopRecord?.ownerId === context.user.id
+    }
+
+    if (!isAdmin && !isOwner) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Forbidden',
+          message: 'You do not have permission to update this order',
+        }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    return markShopOrderShippedQuery(data.shopOrderId, {
+      trackingNumber: data.trackingNumber,
+      trackingUrl: data.trackingUrl,
+    })
+  })
+
+export const markShopOrderDelivered = createServerFn({ method: 'POST' })
+  .middleware([authMiddleware])
+  .inputValidator(z.object({ shopOrderId: z.string().uuid() }))
+  .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Response(
+        JSON.stringify({ error: 'Unauthorized', message: 'Authentication required' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const { getShopOrderQuery, markShopOrderDeliveredQuery } = await import('./shop-orders.server')
+
+    const order = await getShopOrderQuery(data.shopOrderId)
+    if (!order) {
+      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Order not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const isAdmin = context.user.role === 'admin'
+    let isOwner = false
+    if (!isAdmin) {
+      const shopRecord = await db.query.shop.findFirst({
+        where: eq(shop.id, order.shopId),
+      })
+      isOwner = shopRecord?.ownerId === context.user.id
+    }
+
+    if (!isAdmin && !isOwner) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Forbidden',
+          message: 'You do not have permission to update this order',
+        }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    return markShopOrderDeliveredQuery(data.shopOrderId)
+  })
+
 export const listShopOrders = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .inputValidator(

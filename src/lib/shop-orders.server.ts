@@ -1,8 +1,16 @@
 import { and, count, desc, eq } from 'drizzle-orm'
+import { z } from 'zod'
 import { db } from '#/db/index'
 import { orderItem, platformOrder, shopOrder, user } from '#/db/schema'
 import type { ShippingAddress } from './checkout.server'
 import type { OrderStatus } from './orders.server'
+
+function maskEmail(email: string): string {
+  const [local, domain] = email.split('@')
+  if (!domain) return email
+  const maskedLocal = local.length > 1 ? local[0] + '***' : '***'
+  return `${maskedLocal}@${domain}`
+}
 
 export interface ShopOrderItemDetail {
   id: string
@@ -57,7 +65,7 @@ export interface ShopOrderListItem {
 
 const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   pending_payment: ['paid', 'cancelled'],
-  paid: ['processing', 'cancelled', 'refunded'],
+  paid: ['processing', 'shipped', 'cancelled', 'refunded'],
   processing: ['shipped', 'cancelled', 'refunded'],
   shipped: ['delivered', 'disputed', 'cancelled', 'refunded'],
   delivered: ['completed', 'disputed', 'cancelled', 'refunded'],
@@ -189,6 +197,22 @@ export async function getShopOrderQuery(
   }
 }
 
+export async function getShopOrderDetailQuery(
+  shopOrderId: string,
+  tx: Omit<typeof db, '$client'> = db,
+): Promise<ShopOrderDetail | null> {
+  const order = await getShopOrderQuery(shopOrderId, tx)
+  if (!order) return null
+
+  return {
+    ...order,
+    buyer: {
+      ...order.buyer,
+      email: maskEmail(order.buyer.email),
+    },
+  }
+}
+
 export async function listShopOrdersQuery(
   shopId: string,
   options: {
@@ -263,6 +287,157 @@ export interface UpdateShopOrderStatusInput {
   status: OrderStatus
   trackingNumber?: string | null
   trackingUrl?: string | null
+}
+
+export async function markShopOrderShippedQuery(
+  shopOrderId: string,
+  input: {
+    trackingNumber?: string | null
+    trackingUrl?: string | null
+  },
+): Promise<ShopOrderDetail> {
+  if (input.trackingUrl) {
+    const urlResult = z.string().url().safeParse(input.trackingUrl)
+    if (!urlResult.success) {
+      throw new Response(
+        JSON.stringify({ error: 'Bad Request', message: 'Invalid tracking URL format' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+  }
+
+  return db.transaction(async (tx) => {
+    const [record] = await tx
+      .select()
+      .from(shopOrder)
+      .where(eq(shopOrder.id, shopOrderId))
+      .limit(1)
+
+    if (!record) {
+      throw new Response(
+        JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const currentStatus = record.status as OrderStatus
+
+    // Idempotency: already shipped — allow updating tracking info
+    if (currentStatus === 'shipped') {
+      const updateData: Partial<typeof shopOrder.$inferInsert> = {
+        updatedAt: new Date(),
+      }
+      if (input.trackingNumber !== undefined) {
+        updateData.trackingNumber = input.trackingNumber
+      }
+      if (input.trackingUrl !== undefined) {
+        updateData.trackingUrl = input.trackingUrl
+      }
+
+      if (Object.keys(updateData).length > 1) {
+        await tx.update(shopOrder).set(updateData).where(eq(shopOrder.id, shopOrderId))
+      }
+
+      const updated = await getShopOrderQuery(shopOrderId, tx)
+      if (!updated) {
+        throw new Response(
+          JSON.stringify({ error: 'Not Found', message: 'Shop order not found after update' }),
+          { status: 404, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+      return updated
+    }
+
+    if (!isValidStatusTransition(currentStatus, 'shipped')) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Bad Request',
+          message: `Invalid status transition from '${currentStatus}' to 'shipped'`,
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const updateData: Partial<typeof shopOrder.$inferInsert> = {
+      status: 'shipped',
+      updatedAt: new Date(),
+    }
+    if (input.trackingNumber !== undefined) {
+      updateData.trackingNumber = input.trackingNumber
+    }
+    if (input.trackingUrl !== undefined) {
+      updateData.trackingUrl = input.trackingUrl
+    }
+
+    await tx.update(shopOrder).set(updateData).where(eq(shopOrder.id, shopOrderId))
+
+    await recalcPlatformOrderStatus(tx, record.platformOrderId)
+
+    const updated = await getShopOrderQuery(shopOrderId, tx)
+    if (!updated) {
+      throw new Response(
+        JSON.stringify({ error: 'Not Found', message: 'Shop order not found after update' }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+    return updated
+  })
+}
+
+export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<ShopOrderDetail> {
+  return db.transaction(async (tx) => {
+    const [record] = await tx
+      .select()
+      .from(shopOrder)
+      .where(eq(shopOrder.id, shopOrderId))
+      .limit(1)
+
+    if (!record) {
+      throw new Response(
+        JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const currentStatus = record.status as OrderStatus
+
+    if (currentStatus === 'delivered') {
+      const order = await getShopOrderQuery(shopOrderId, tx)
+      if (!order) {
+        throw new Response(
+          JSON.stringify({ error: 'Not Found', message: 'Shop order not found after update' }),
+          { status: 404, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+      return order
+    }
+
+    if (!isValidStatusTransition(currentStatus, 'delivered')) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Bad Request',
+          message: `Invalid status transition from '${currentStatus}' to 'delivered'`,
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    await tx
+      .update(shopOrder)
+      .set({ status: 'delivered', updatedAt: new Date() })
+      .where(eq(shopOrder.id, shopOrderId))
+
+    await recalcPlatformOrderStatus(tx, record.platformOrderId)
+
+    const updated = await getShopOrderQuery(shopOrderId, tx)
+    if (!updated) {
+      throw new Response(
+        JSON.stringify({ error: 'Not Found', message: 'Shop order not found after update' }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+    return updated
+  })
 }
 
 export async function updateShopOrderStatusQuery(
