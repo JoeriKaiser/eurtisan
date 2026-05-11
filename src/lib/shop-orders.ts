@@ -51,6 +51,70 @@ export const getShopOrder = createServerFn({ method: 'GET' })
     return order
   })
 
+export const updateShopOrderStatus = createServerFn({ method: 'POST' })
+  .middleware([authMiddleware])
+  .inputValidator(
+    z.object({
+      shopOrderId: z.string().uuid(),
+      status: z.enum([
+        'pending_payment',
+        'paid',
+        'processing',
+        'shipped',
+        'delivered',
+        'completed',
+        'cancelled',
+        'refunded',
+        'disputed',
+      ]),
+      trackingNumber: z.string().optional().nullable(),
+      trackingUrl: z.string().url().optional().nullable(),
+    }),
+  )
+  .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Response(
+        JSON.stringify({ error: 'Unauthorized', message: 'Authentication required' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const { getShopOrderQuery, updateShopOrderStatusQuery } = await import('./shop-orders.server')
+
+    const order = await getShopOrderQuery(data.shopOrderId)
+    if (!order) {
+      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Order not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const isAdmin = context.user.role === 'admin'
+    let isOwner = false
+    if (!isAdmin) {
+      const shopRecord = await db.query.shop.findFirst({
+        where: eq(shop.id, order.shopId),
+      })
+      isOwner = shopRecord?.ownerId === context.user.id
+    }
+
+    if (!isAdmin && !isOwner) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Forbidden',
+          message: 'You do not have permission to update this order',
+        }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    return updateShopOrderStatusQuery(data.shopOrderId, {
+      status: data.status,
+      trackingNumber: data.trackingNumber,
+      trackingUrl: data.trackingUrl,
+    })
+  })
+
 export const listShopOrders = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .inputValidator(

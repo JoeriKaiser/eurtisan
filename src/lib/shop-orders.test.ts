@@ -1,9 +1,17 @@
+import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { db } from '#/db/index'
 import { orderItem, platformOrder, product, shop, shopOrder, user } from '#/db/schema'
 
-import { getShopOrderQuery, listShopOrdersQuery } from './shop-orders.server'
+import {
+  derivePlatformStatus,
+  getShopOrderQuery,
+  isValidStatusTransition,
+  listShopOrdersQuery,
+  recalcPlatformOrderStatus,
+  updateShopOrderStatusQuery,
+} from './shop-orders.server'
 
 beforeEach(async () => {
   await db.delete(orderItem)
@@ -471,5 +479,415 @@ describe('listShopOrdersQuery', () => {
 
     const result = await listShopOrdersQuery('shop-1')
     expect(result.orders[0].itemCount).toBe(2)
+  })
+})
+
+describe('isValidStatusTransition', () => {
+  it('allows valid forward transitions', () => {
+    expect(isValidStatusTransition('pending_payment', 'paid')).toBe(true)
+    expect(isValidStatusTransition('paid', 'processing')).toBe(true)
+    expect(isValidStatusTransition('processing', 'shipped')).toBe(true)
+    expect(isValidStatusTransition('shipped', 'delivered')).toBe(true)
+    expect(isValidStatusTransition('delivered', 'completed')).toBe(true)
+  })
+
+  it('allows cancellation from most statuses', () => {
+    expect(isValidStatusTransition('pending_payment', 'cancelled')).toBe(true)
+    expect(isValidStatusTransition('paid', 'cancelled')).toBe(true)
+    expect(isValidStatusTransition('processing', 'cancelled')).toBe(true)
+    expect(isValidStatusTransition('shipped', 'cancelled')).toBe(true)
+    expect(isValidStatusTransition('delivered', 'cancelled')).toBe(true)
+    expect(isValidStatusTransition('completed', 'cancelled')).toBe(true)
+  })
+
+  it('allows refund from most statuses', () => {
+    expect(isValidStatusTransition('paid', 'refunded')).toBe(true)
+    expect(isValidStatusTransition('processing', 'refunded')).toBe(true)
+    expect(isValidStatusTransition('shipped', 'refunded')).toBe(true)
+    expect(isValidStatusTransition('delivered', 'refunded')).toBe(true)
+    expect(isValidStatusTransition('completed', 'refunded')).toBe(true)
+  })
+
+  it('allows disputed from shipped and delivered', () => {
+    expect(isValidStatusTransition('shipped', 'disputed')).toBe(true)
+    expect(isValidStatusTransition('delivered', 'disputed')).toBe(true)
+    expect(isValidStatusTransition('processing', 'disputed')).toBe(false)
+  })
+
+  it('rejects invalid transitions', () => {
+    expect(isValidStatusTransition('paid', 'pending_payment')).toBe(false)
+    expect(isValidStatusTransition('shipped', 'processing')).toBe(false)
+    expect(isValidStatusTransition('completed', 'shipped')).toBe(false)
+    expect(isValidStatusTransition('cancelled', 'paid')).toBe(false)
+    expect(isValidStatusTransition('refunded', 'cancelled')).toBe(false)
+  })
+})
+
+describe('derivePlatformStatus', () => {
+  it('returns pending_payment when any child is pending_payment', () => {
+    expect(derivePlatformStatus(['pending_payment', 'paid'])).toBe('pending_payment')
+    expect(derivePlatformStatus(['pending_payment', 'completed'])).toBe('pending_payment')
+  })
+
+  it('returns paid when all children are paid or further and none are pending or processing', () => {
+    expect(derivePlatformStatus(['paid', 'paid'])).toBe('paid')
+    expect(derivePlatformStatus(['paid', 'shipped'])).toBe('paid')
+  })
+
+  it('returns processing when any child is processing and none are pending_payment', () => {
+    expect(derivePlatformStatus(['processing', 'paid'])).toBe('processing')
+    expect(derivePlatformStatus(['processing', 'shipped'])).toBe('processing')
+  })
+
+  it('returns shipped when all children are shipped or further', () => {
+    expect(derivePlatformStatus(['shipped', 'shipped'])).toBe('shipped')
+    expect(derivePlatformStatus(['shipped', 'delivered'])).toBe('shipped')
+    expect(derivePlatformStatus(['shipped', 'completed'])).toBe('shipped')
+  })
+
+  it('returns delivered when all children are delivered or further', () => {
+    expect(derivePlatformStatus(['delivered', 'delivered'])).toBe('delivered')
+    expect(derivePlatformStatus(['delivered', 'completed'])).toBe('delivered')
+  })
+
+  it('returns completed when all children are completed', () => {
+    expect(derivePlatformStatus(['completed', 'completed'])).toBe('completed')
+  })
+
+  it('returns refunded when all children are refunded', () => {
+    expect(derivePlatformStatus(['refunded', 'refunded'])).toBe('refunded')
+  })
+
+  it('returns disputed when any child is disputed', () => {
+    expect(derivePlatformStatus(['disputed', 'paid'])).toBe('disputed')
+    expect(derivePlatformStatus(['disputed', 'completed'])).toBe('disputed')
+  })
+
+  it('returns cancelled when all children are cancelled', () => {
+    expect(derivePlatformStatus(['cancelled', 'cancelled'])).toBe('cancelled')
+  })
+
+  it('returns pending_payment for empty array', () => {
+    expect(derivePlatformStatus([])).toBe('pending_payment')
+  })
+})
+
+describe('updateShopOrderStatusQuery', () => {
+  it('throws 404 for nonexistent order', async () => {
+    try {
+      await updateShopOrderStatusQuery('550e8400-e29b-41d4-a716-446655440000', {
+        status: 'paid',
+      })
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(404)
+    }
+  })
+
+  it('throws 400 for invalid transition', async () => {
+    await seedUser()
+    await seedShop()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        totalCents: 1000,
+        status: 'pending_payment',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 100,
+        subtotalCents: 900,
+        status: 'pending_payment',
+      })
+      .returning()
+
+    try {
+      await updateShopOrderStatusQuery(so.id, { status: 'shipped' })
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(400)
+    }
+  })
+
+  it('updates status and recalculates platform status', async () => {
+    await seedUser()
+    await seedShop()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        totalCents: 1000,
+        status: 'paid',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 100,
+        subtotalCents: 900,
+        status: 'paid',
+      })
+      .returning()
+
+    const updated = await updateShopOrderStatusQuery(so.id, { status: 'processing' })
+    expect(updated.status).toBe('processing')
+
+    const [platformRecord] = await db
+      .select()
+      .from(platformOrder)
+      .where(eq(platformOrder.id, order.id))
+    expect(platformRecord.status).toBe('processing')
+  })
+
+  it('sets tracking info when transitioning to shipped', async () => {
+    await seedUser()
+    await seedShop()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        totalCents: 1000,
+        status: 'processing',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 100,
+        subtotalCents: 900,
+        status: 'processing',
+      })
+      .returning()
+
+    const updated = await updateShopOrderStatusQuery(so.id, {
+      status: 'shipped',
+      trackingNumber: 'TRACK-123',
+      trackingUrl: 'https://track.example.com/123',
+    })
+
+    expect(updated.status).toBe('shipped')
+    expect(updated.trackingNumber).toBe('TRACK-123')
+    expect(updated.trackingUrl).toBe('https://track.example.com/123')
+  })
+
+  it('does not set tracking info for non-shipped transitions', async () => {
+    await seedUser()
+    await seedShop()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        totalCents: 1000,
+        status: 'paid',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 100,
+        subtotalCents: 900,
+        status: 'paid',
+      })
+      .returning()
+
+    const updated = await updateShopOrderStatusQuery(so.id, {
+      status: 'processing',
+      trackingNumber: 'TRACK-123',
+    })
+
+    expect(updated.status).toBe('processing')
+    expect(updated.trackingNumber).toBeNull()
+  })
+})
+
+describe('recalcPlatformOrderStatus', () => {
+  it('updates platform order to shipped when all shop orders are shipped', async () => {
+    await seedUser()
+    await seedShop()
+    const shop2 = await db
+      .insert(shop)
+      .values({
+        id: 'shop-2',
+        name: 'Other Shop',
+        slug: 'other-shop',
+        ownerId: 'user-1',
+      })
+      .returning()
+      .then((rows) => rows[0])
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        totalCents: 2000,
+        status: 'processing',
+      })
+      .returning()
+
+    await db.insert(shopOrder).values({
+      platformOrderId: order.id,
+      shopId: 'shop-1',
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'shipped',
+    })
+
+    await db.insert(shopOrder).values({
+      platformOrderId: order.id,
+      shopId: shop2.id,
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'shipped',
+    })
+
+    await recalcPlatformOrderStatus(db, order.id)
+
+    const [updated] = await db
+      .select()
+      .from(platformOrder)
+      .where(eq(platformOrder.id, order.id))
+    expect(updated.status).toBe('shipped')
+  })
+
+  it('updates platform order to delivered when all shop orders are delivered', async () => {
+    await seedUser()
+    await seedShop()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        totalCents: 1000,
+        status: 'shipped',
+      })
+      .returning()
+
+    await db.insert(shopOrder).values({
+      platformOrderId: order.id,
+      shopId: 'shop-1',
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'delivered',
+    })
+
+    await recalcPlatformOrderStatus(db, order.id)
+
+    const [updated] = await db
+      .select()
+      .from(platformOrder)
+      .where(eq(platformOrder.id, order.id))
+    expect(updated.status).toBe('delivered')
   })
 })
