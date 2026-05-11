@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm'
 import {
   boolean,
   foreignKey,
@@ -330,5 +331,23 @@ export const review = pgTable(
     index('review_product_id_idx').on(table.productId),
     index('review_shop_order_id_idx').on(table.shopOrderId),
     uniqueIndex('review_shop_order_product_unique').on(table.shopOrderId, table.productId),
+  ],
+)
+
+export const notification = pgTable(
+  'notification',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    type: text().notNull(),
+    data: jsonb('data').notNull().default(sql`'{}'::jsonb`),
+    readAt: timestamp('read_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('notification_user_id_read_at_idx').on(table.userId, table.readAt),
+    index('notification_user_id_created_at_idx').on(table.userId, table.createdAt),
   ],
 )

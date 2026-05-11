@@ -127,6 +127,13 @@
       "when": 1778530971761,
       "tag": "0017_breezy_vampiro",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1778531781435,
+      "tag": "0018_redundant_leopardon",
+      "breakpoints": true
     }
   ]
 }
