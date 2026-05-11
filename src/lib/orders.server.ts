@@ -1,8 +1,19 @@
-import { eq, inArray } from 'drizzle-orm'
+import { count, desc, eq, inArray } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { orderItem, platformOrder, shop, shopOrder } from '#/db/schema'
-import { releaseStockInTx } from './inventory.server'
 import type { ShippingAddress } from './checkout.server'
+import { releaseStockInTx } from './inventory.server'
+
+export type OrderStatus =
+  | 'pending_payment'
+  | 'paid'
+  | 'processing'
+  | 'shipped'
+  | 'delivered'
+  | 'completed'
+  | 'cancelled'
+  | 'refunded'
+  | 'disputed'
 
 export interface OrderItemDetail {
   id: string
@@ -19,16 +30,36 @@ export interface OrderShopGroup {
   shippingMethod: 'standard' | 'express'
   shippingCostCents: number
   subtotalCents: number
+  status: OrderStatus
+  trackingNumber: string | null
+  trackingUrl: string | null
   items: OrderItemDetail[]
 }
 
 export interface OrderDetail {
   id: string
   totalCents: number
-  status: string
+  status: OrderStatus
   createdAt: Date
   shippingAddress: ShippingAddress
   shops: OrderShopGroup[]
+}
+
+export interface BuyerOrderListItem {
+  id: string
+  totalCents: number
+  status: OrderStatus
+  createdAt: Date
+  shopCount: number
+}
+
+export async function getOrderOwnerId(platformOrderId: string): Promise<string | null> {
+  const [order] = await db
+    .select({ userId: platformOrder.userId })
+    .from(platformOrder)
+    .where(eq(platformOrder.id, platformOrderId))
+    .limit(1)
+  return order?.userId ?? null
 }
 
 export async function getOrderByIdQuery(
@@ -67,6 +98,9 @@ export async function getOrderByIdQuery(
     shippingMethod: so.shopOrder.shippingMethod,
     shippingCostCents: so.shopOrder.shippingCostCents,
     subtotalCents: so.shopOrder.subtotalCents,
+    status: so.shopOrder.status,
+    trackingNumber: so.shopOrder.trackingNumber,
+    trackingUrl: so.shopOrder.trackingUrl,
     items: itemsResult
       .filter((item) => item.shopOrderId === so.shopOrder.id)
       .map((item) => ({
@@ -89,6 +123,50 @@ export async function getOrderByIdQuery(
   }
 }
 
+export async function listBuyerOrdersQuery(
+  userId: string,
+  limit: number,
+  offset: number,
+): Promise<{ orders: BuyerOrderListItem[]; total: number }> {
+  const ordersResult = await db
+    .select({
+      id: platformOrder.id,
+      totalCents: platformOrder.totalCents,
+      status: platformOrder.status,
+      createdAt: platformOrder.createdAt,
+    })
+    .from(platformOrder)
+    .where(eq(platformOrder.userId, userId))
+    .orderBy(desc(platformOrder.createdAt))
+    .limit(limit)
+    .offset(offset)
+
+  const [{ count: totalCount }] = await db
+    .select({ count: count() })
+    .from(platformOrder)
+    .where(eq(platformOrder.userId, userId))
+
+  const shopCounts = await Promise.all(
+    ordersResult.map((order) =>
+      db
+        .select({ count: count() })
+        .from(shopOrder)
+        .where(eq(shopOrder.platformOrderId, order.id))
+        .then(([{ count }]) => count),
+    ),
+  )
+
+  const orders: BuyerOrderListItem[] = ordersResult.map((order, index) => ({
+    id: order.id,
+    totalCents: order.totalCents,
+    status: order.status,
+    createdAt: order.createdAt,
+    shopCount: shopCounts[index],
+  }))
+
+  return { orders, total: totalCount }
+}
+
 export async function cancelOrderQuery(
   platformOrderId: string,
   userId: string,
@@ -101,10 +179,10 @@ export async function cancelOrderQuery(
       .limit(1)
 
     if (!order || order.userId !== userId) {
-      throw new Response(
-        JSON.stringify({ error: 'Not Found', message: 'Order not found' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } },
-      )
+      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Order not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
     }
 
     if (order.status !== 'pending_payment') {

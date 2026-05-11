@@ -46,6 +46,9 @@ function makeOrder(): OrderDetail {
         shippingMethod: 'standard',
         shippingCostCents: 500,
         subtotalCents: 2000,
+        status: 'pending_payment',
+        trackingNumber: null,
+        trackingUrl: null,
         items: [
           {
             id: 'item-1',
@@ -104,6 +107,9 @@ describe('OrderSuccessPage', () => {
       shippingMethod: 'express' as const,
       shippingCostCents: 1000,
       subtotalCents: 3000,
+      status: 'shipped',
+      trackingNumber: 'TRACK123',
+      trackingUrl: 'https://example.com/track',
       items: [
         {
           id: 'item-2',

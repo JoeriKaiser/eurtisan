@@ -215,5 +215,14 @@
   "checkout_success_view_orders": "View my orders",
   "error_not_found": "Page not found",
   "error_not_found_description": "The page you are looking for does not exist.",
-  "error_go_home": "Go back home"
+  "error_go_home": "Go back home",
+  "orders_empty": "You haven't placed any orders yet.",
+  "orders_order_id": "Order",
+  "orders_shop_count": "{count} shops",
+  "orders_back_to_list": "Back to orders",
+  "order_detail_title": "Order details",
+  "order_detail_date": "Order date",
+  "order_detail_total": "Total",
+  "order_detail_items": "Items",
+  "order_detail_tracking": "Tracking"
 }

@@ -14,7 +14,12 @@ import {
   user,
 } from '#/db/schema'
 
-import { cancelOrderQuery, getOrderByIdQuery } from './orders.server'
+import {
+  cancelOrderQuery,
+  getOrderByIdQuery,
+  getOrderOwnerId,
+  listBuyerOrdersQuery,
+} from './orders.server'
 
 beforeEach(async () => {
   await db.delete(inventoryReservation)
@@ -244,6 +249,196 @@ describe('getOrderByIdQuery', () => {
   })
 })
 
+describe('getOrderOwnerId', () => {
+  it('returns null for nonexistent order', async () => {
+    const result = await getOrderOwnerId('550e8400-e29b-41d4-a716-446655440000')
+    expect(result).toBeNull()
+  })
+
+  it('returns owner id for existing order', async () => {
+    await seedUser()
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 1000,
+      })
+      .returning()
+
+    const result = await getOrderOwnerId(order.id)
+    expect(result).toBe('user-1')
+  })
+})
+
+describe('listBuyerOrdersQuery', () => {
+  it('returns empty list when user has no orders', async () => {
+    const result = await listBuyerOrdersQuery('user-1', 10, 0)
+    expect(result.orders).toHaveLength(0)
+    expect(result.total).toBe(0)
+  })
+
+  it('returns paginated orders ordered by created_at desc', async () => {
+    await seedUser()
+    await seedShop()
+
+    const order1 = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 1000,
+        status: 'paid',
+      })
+      .returning()
+      .then((rows) => rows[0])
+
+    const order2 = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 2000,
+        status: 'shipped',
+      })
+      .returning()
+      .then((rows) => rows[0])
+
+    await db.insert(shopOrder).values({
+      platformOrderId: order1.id,
+      shopId: 'shop-1',
+      shippingMethod: 'standard',
+      shippingCostCents: 500,
+      subtotalCents: 1000,
+    })
+
+    await db.insert(shopOrder).values({
+      platformOrderId: order2.id,
+      shopId: 'shop-1',
+      shippingMethod: 'express',
+      shippingCostCents: 1000,
+      subtotalCents: 2000,
+    })
+
+    const result = await listBuyerOrdersQuery('user-1', 10, 0)
+    expect(result.total).toBe(2)
+    expect(result.orders).toHaveLength(2)
+    // Most recent first
+    expect(result.orders[0].id).toBe(order2.id)
+    expect(result.orders[0].status).toBe('shipped')
+    expect(result.orders[0].totalCents).toBe(2000)
+    expect(result.orders[0].shopCount).toBe(1)
+    expect(result.orders[1].id).toBe(order1.id)
+    expect(result.orders[1].status).toBe('paid')
+  })
+
+  it('respects limit and offset', async () => {
+    await seedUser()
+    await seedShop()
+
+    for (let i = 0; i < 3; i++) {
+      await db.insert(platformOrder).values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: (i + 1) * 1000,
+      })
+    }
+
+    const page1 = await listBuyerOrdersQuery('user-1', 2, 0)
+    expect(page1.orders).toHaveLength(2)
+    expect(page1.total).toBe(3)
+
+    const page2 = await listBuyerOrdersQuery('user-1', 2, 2)
+    expect(page2.orders).toHaveLength(1)
+    expect(page2.total).toBe(3)
+  })
+
+  it('does not return other users orders', async () => {
+    await seedUser()
+    await seedShop()
+    const otherUser = await db
+      .insert(user)
+      .values({ id: 'user-2', name: 'Other', email: 'other@example.com', emailVerified: true })
+      .returning()
+      .then((rows) => rows[0])
+
+    await db.insert(platformOrder).values({
+      userId: otherUser.id,
+      shippingAddress: {
+        name: 'Other',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      },
+      billingAddress: {
+        name: 'Other',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      },
+      totalCents: 1000,
+    })
+
+    const result = await listBuyerOrdersQuery('user-1', 10, 0)
+    expect(result.orders).toHaveLength(0)
+    expect(result.total).toBe(0)
+  })
+})
+
 describe('cancelOrderQuery', () => {
   it('throws 404 for nonexistent order', async () => {
     try {
@@ -267,8 +462,20 @@ describe('cancelOrderQuery', () => {
       .insert(platformOrder)
       .values({
         userId: otherUser.id,
-        shippingAddress: { name: 'Other', street: 'St', city: 'City', postalCode: '00000', country: 'DE' },
-        billingAddress: { name: 'Other', street: 'St', city: 'City', postalCode: '00000', country: 'DE' },
+        shippingAddress: {
+          name: 'Other',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Other',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
         totalCents: 1000,
         status: 'pending_payment',
       })
@@ -289,8 +496,20 @@ describe('cancelOrderQuery', () => {
       .insert(platformOrder)
       .values({
         userId: 'user-1',
-        shippingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '12345', country: 'DE' },
-        billingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '12345', country: 'DE' },
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
         totalCents: 1000,
         status: 'paid',
       })
@@ -314,8 +533,20 @@ describe('cancelOrderQuery', () => {
       .insert(platformOrder)
       .values({
         userId: 'user-1',
-        shippingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '12345', country: 'DE' },
-        billingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '12345', country: 'DE' },
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
         totalCents: 2500,
         status: 'pending_payment',
       })
@@ -359,10 +590,7 @@ describe('cancelOrderQuery', () => {
       .where(eq(platformOrder.id, order.id))
     expect(updatedOrder.status).toBe('cancelled')
 
-    const [updatedShopOrder] = await db
-      .select()
-      .from(shopOrder)
-      .where(eq(shopOrder.id, so.id))
+    const [updatedShopOrder] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
     expect(updatedShopOrder.status).toBe('cancelled')
 
     const reservations = await db
