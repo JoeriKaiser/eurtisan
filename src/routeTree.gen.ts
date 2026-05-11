@@ -27,14 +27,17 @@ import { Route as CategorySlugRouteImport } from './routes/category/$slug'
 import { Route as ApiProductsRouteImport } from './routes/api/products'
 import { Route as AccountSettingsRouteImport } from './routes/account/settings'
 import { Route as AccountOrdersRouteImport } from './routes/account/orders'
+import { Route as StudioShopIdOrdersRouteImport } from './routes/studio/$shopId.orders'
 import { Route as OrdersPlatformOrderIdSuccessRouteImport } from './routes/orders.$platformOrderId.success'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AccountOrdersOrderIdRouteImport } from './routes/account/orders.$orderId'
+import { Route as StudioShopIdOrdersShopOrderIdRouteImport } from './routes/studio/$shopId.orders.$shopOrderId'
 import { Route as ApiShopsShopIdSettingsRouteImport } from './routes/api/shops/$shopId/settings'
 import { Route as ApiShopsShopIdProductsRouteImport } from './routes/api/shops/$shopId/products'
 import { Route as ApiShopsShopIdOrdersRouteImport } from './routes/api/shops/$shopId/orders'
 import { Route as ApiShopsShopIdDashboardRouteImport } from './routes/api/shops/$shopId/dashboard'
 import { Route as ApiShopsShopIdProductsProductIdRouteImport } from './routes/api/shops/$shopId/products.$productId'
+import { Route as ApiShopsShopIdOrdersShopOrderIdRouteImport } from './routes/api/shops/$shopId/orders.$shopOrderId'
 
 const SigninRoute = SigninRouteImport.update({
   id: '/signin',
@@ -126,6 +129,11 @@ const AccountOrdersRoute = AccountOrdersRouteImport.update({
   path: '/account/orders',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StudioShopIdOrdersRoute = StudioShopIdOrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => StudioShopIdRoute,
+} as any)
 const OrdersPlatformOrderIdSuccessRoute =
   OrdersPlatformOrderIdSuccessRouteImport.update({
     id: '/orders/$platformOrderId/success',
@@ -142,6 +150,12 @@ const AccountOrdersOrderIdRoute = AccountOrdersOrderIdRouteImport.update({
   path: '/$orderId',
   getParentRoute: () => AccountOrdersRoute,
 } as any)
+const StudioShopIdOrdersShopOrderIdRoute =
+  StudioShopIdOrdersShopOrderIdRouteImport.update({
+    id: '/$shopOrderId',
+    path: '/$shopOrderId',
+    getParentRoute: () => StudioShopIdOrdersRoute,
+  } as any)
 const ApiShopsShopIdSettingsRoute = ApiShopsShopIdSettingsRouteImport.update({
   id: '/api/shops/$shopId/settings',
   path: '/api/shops/$shopId/settings',
@@ -168,6 +182,12 @@ const ApiShopsShopIdProductsProductIdRoute =
     path: '/$productId',
     getParentRoute: () => ApiShopsShopIdProductsRoute,
   } as any)
+const ApiShopsShopIdOrdersShopOrderIdRoute =
+  ApiShopsShopIdOrdersShopOrderIdRouteImport.update({
+    id: '/$shopOrderId',
+    path: '/$shopOrderId',
+    getParentRoute: () => ApiShopsShopIdOrdersRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -184,17 +204,20 @@ export interface FileRoutesByFullPath {
   '/category/all': typeof CategoryAllRoute
   '/products/$productSlug': typeof ProductsProductSlugRoute
   '/shops/$shopSlug': typeof ShopsShopSlugRoute
-  '/studio/$shopId': typeof StudioShopIdRoute
+  '/studio/$shopId': typeof StudioShopIdRouteWithChildren
   '/account/': typeof AccountIndexRoute
   '/admin/': typeof AdminIndexRoute
   '/studio/': typeof StudioIndexRoute
   '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
+  '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
   '/api/shops/$shopId/dashboard': typeof ApiShopsShopIdDashboardRoute
-  '/api/shops/$shopId/orders': typeof ApiShopsShopIdOrdersRoute
+  '/api/shops/$shopId/orders': typeof ApiShopsShopIdOrdersRouteWithChildren
   '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRouteWithChildren
   '/api/shops/$shopId/settings': typeof ApiShopsShopIdSettingsRoute
+  '/studio/$shopId/orders/$shopOrderId': typeof StudioShopIdOrdersShopOrderIdRoute
+  '/api/shops/$shopId/orders/$shopOrderId': typeof ApiShopsShopIdOrdersShopOrderIdRoute
   '/api/shops/$shopId/products/$productId': typeof ApiShopsShopIdProductsProductIdRoute
 }
 export interface FileRoutesByTo {
@@ -212,17 +235,20 @@ export interface FileRoutesByTo {
   '/category/all': typeof CategoryAllRoute
   '/products/$productSlug': typeof ProductsProductSlugRoute
   '/shops/$shopSlug': typeof ShopsShopSlugRoute
-  '/studio/$shopId': typeof StudioShopIdRoute
+  '/studio/$shopId': typeof StudioShopIdRouteWithChildren
   '/account': typeof AccountIndexRoute
   '/admin': typeof AdminIndexRoute
   '/studio': typeof StudioIndexRoute
   '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
+  '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
   '/api/shops/$shopId/dashboard': typeof ApiShopsShopIdDashboardRoute
-  '/api/shops/$shopId/orders': typeof ApiShopsShopIdOrdersRoute
+  '/api/shops/$shopId/orders': typeof ApiShopsShopIdOrdersRouteWithChildren
   '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRouteWithChildren
   '/api/shops/$shopId/settings': typeof ApiShopsShopIdSettingsRoute
+  '/studio/$shopId/orders/$shopOrderId': typeof StudioShopIdOrdersShopOrderIdRoute
+  '/api/shops/$shopId/orders/$shopOrderId': typeof ApiShopsShopIdOrdersShopOrderIdRoute
   '/api/shops/$shopId/products/$productId': typeof ApiShopsShopIdProductsProductIdRoute
 }
 export interface FileRoutesById {
@@ -241,17 +267,20 @@ export interface FileRoutesById {
   '/category/all': typeof CategoryAllRoute
   '/products/$productSlug': typeof ProductsProductSlugRoute
   '/shops/$shopSlug': typeof ShopsShopSlugRoute
-  '/studio/$shopId': typeof StudioShopIdRoute
+  '/studio/$shopId': typeof StudioShopIdRouteWithChildren
   '/account/': typeof AccountIndexRoute
   '/admin/': typeof AdminIndexRoute
   '/studio/': typeof StudioIndexRoute
   '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
+  '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
   '/api/shops/$shopId/dashboard': typeof ApiShopsShopIdDashboardRoute
-  '/api/shops/$shopId/orders': typeof ApiShopsShopIdOrdersRoute
+  '/api/shops/$shopId/orders': typeof ApiShopsShopIdOrdersRouteWithChildren
   '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRouteWithChildren
   '/api/shops/$shopId/settings': typeof ApiShopsShopIdSettingsRoute
+  '/studio/$shopId/orders/$shopOrderId': typeof StudioShopIdOrdersShopOrderIdRoute
+  '/api/shops/$shopId/orders/$shopOrderId': typeof ApiShopsShopIdOrdersShopOrderIdRoute
   '/api/shops/$shopId/products/$productId': typeof ApiShopsShopIdProductsProductIdRoute
 }
 export interface FileRouteTypes {
@@ -278,10 +307,13 @@ export interface FileRouteTypes {
     | '/account/orders/$orderId'
     | '/api/auth/$'
     | '/orders/$platformOrderId/success'
+    | '/studio/$shopId/orders'
     | '/api/shops/$shopId/dashboard'
     | '/api/shops/$shopId/orders'
     | '/api/shops/$shopId/products'
     | '/api/shops/$shopId/settings'
+    | '/studio/$shopId/orders/$shopOrderId'
+    | '/api/shops/$shopId/orders/$shopOrderId'
     | '/api/shops/$shopId/products/$productId'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -306,10 +338,13 @@ export interface FileRouteTypes {
     | '/account/orders/$orderId'
     | '/api/auth/$'
     | '/orders/$platformOrderId/success'
+    | '/studio/$shopId/orders'
     | '/api/shops/$shopId/dashboard'
     | '/api/shops/$shopId/orders'
     | '/api/shops/$shopId/products'
     | '/api/shops/$shopId/settings'
+    | '/studio/$shopId/orders/$shopOrderId'
+    | '/api/shops/$shopId/orders/$shopOrderId'
     | '/api/shops/$shopId/products/$productId'
   id:
     | '__root__'
@@ -334,10 +369,13 @@ export interface FileRouteTypes {
     | '/account/orders/$orderId'
     | '/api/auth/$'
     | '/orders/$platformOrderId/success'
+    | '/studio/$shopId/orders'
     | '/api/shops/$shopId/dashboard'
     | '/api/shops/$shopId/orders'
     | '/api/shops/$shopId/products'
     | '/api/shops/$shopId/settings'
+    | '/studio/$shopId/orders/$shopOrderId'
+    | '/api/shops/$shopId/orders/$shopOrderId'
     | '/api/shops/$shopId/products/$productId'
   fileRoutesById: FileRoutesById
 }
@@ -356,14 +394,14 @@ export interface RootRouteChildren {
   CategoryAllRoute: typeof CategoryAllRoute
   ProductsProductSlugRoute: typeof ProductsProductSlugRoute
   ShopsShopSlugRoute: typeof ShopsShopSlugRoute
-  StudioShopIdRoute: typeof StudioShopIdRoute
+  StudioShopIdRoute: typeof StudioShopIdRouteWithChildren
   AccountIndexRoute: typeof AccountIndexRoute
   AdminIndexRoute: typeof AdminIndexRoute
   StudioIndexRoute: typeof StudioIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   OrdersPlatformOrderIdSuccessRoute: typeof OrdersPlatformOrderIdSuccessRoute
   ApiShopsShopIdDashboardRoute: typeof ApiShopsShopIdDashboardRoute
-  ApiShopsShopIdOrdersRoute: typeof ApiShopsShopIdOrdersRoute
+  ApiShopsShopIdOrdersRoute: typeof ApiShopsShopIdOrdersRouteWithChildren
   ApiShopsShopIdProductsRoute: typeof ApiShopsShopIdProductsRouteWithChildren
   ApiShopsShopIdSettingsRoute: typeof ApiShopsShopIdSettingsRoute
 }
@@ -496,6 +534,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountOrdersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/studio/$shopId/orders': {
+      id: '/studio/$shopId/orders'
+      path: '/orders'
+      fullPath: '/studio/$shopId/orders'
+      preLoaderRoute: typeof StudioShopIdOrdersRouteImport
+      parentRoute: typeof StudioShopIdRoute
+    }
     '/orders/$platformOrderId/success': {
       id: '/orders/$platformOrderId/success'
       path: '/orders/$platformOrderId/success'
@@ -516,6 +561,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/account/orders/$orderId'
       preLoaderRoute: typeof AccountOrdersOrderIdRouteImport
       parentRoute: typeof AccountOrdersRoute
+    }
+    '/studio/$shopId/orders/$shopOrderId': {
+      id: '/studio/$shopId/orders/$shopOrderId'
+      path: '/$shopOrderId'
+      fullPath: '/studio/$shopId/orders/$shopOrderId'
+      preLoaderRoute: typeof StudioShopIdOrdersShopOrderIdRouteImport
+      parentRoute: typeof StudioShopIdOrdersRoute
     }
     '/api/shops/$shopId/settings': {
       id: '/api/shops/$shopId/settings'
@@ -552,6 +604,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiShopsShopIdProductsProductIdRouteImport
       parentRoute: typeof ApiShopsShopIdProductsRoute
     }
+    '/api/shops/$shopId/orders/$shopOrderId': {
+      id: '/api/shops/$shopId/orders/$shopOrderId'
+      path: '/$shopOrderId'
+      fullPath: '/api/shops/$shopId/orders/$shopOrderId'
+      preLoaderRoute: typeof ApiShopsShopIdOrdersShopOrderIdRouteImport
+      parentRoute: typeof ApiShopsShopIdOrdersRoute
+    }
   }
 }
 
@@ -566,6 +625,40 @@ const AccountOrdersRouteChildren: AccountOrdersRouteChildren = {
 const AccountOrdersRouteWithChildren = AccountOrdersRoute._addFileChildren(
   AccountOrdersRouteChildren,
 )
+
+interface StudioShopIdOrdersRouteChildren {
+  StudioShopIdOrdersShopOrderIdRoute: typeof StudioShopIdOrdersShopOrderIdRoute
+}
+
+const StudioShopIdOrdersRouteChildren: StudioShopIdOrdersRouteChildren = {
+  StudioShopIdOrdersShopOrderIdRoute: StudioShopIdOrdersShopOrderIdRoute,
+}
+
+const StudioShopIdOrdersRouteWithChildren =
+  StudioShopIdOrdersRoute._addFileChildren(StudioShopIdOrdersRouteChildren)
+
+interface StudioShopIdRouteChildren {
+  StudioShopIdOrdersRoute: typeof StudioShopIdOrdersRouteWithChildren
+}
+
+const StudioShopIdRouteChildren: StudioShopIdRouteChildren = {
+  StudioShopIdOrdersRoute: StudioShopIdOrdersRouteWithChildren,
+}
+
+const StudioShopIdRouteWithChildren = StudioShopIdRoute._addFileChildren(
+  StudioShopIdRouteChildren,
+)
+
+interface ApiShopsShopIdOrdersRouteChildren {
+  ApiShopsShopIdOrdersShopOrderIdRoute: typeof ApiShopsShopIdOrdersShopOrderIdRoute
+}
+
+const ApiShopsShopIdOrdersRouteChildren: ApiShopsShopIdOrdersRouteChildren = {
+  ApiShopsShopIdOrdersShopOrderIdRoute: ApiShopsShopIdOrdersShopOrderIdRoute,
+}
+
+const ApiShopsShopIdOrdersRouteWithChildren =
+  ApiShopsShopIdOrdersRoute._addFileChildren(ApiShopsShopIdOrdersRouteChildren)
 
 interface ApiShopsShopIdProductsRouteChildren {
   ApiShopsShopIdProductsProductIdRoute: typeof ApiShopsShopIdProductsProductIdRoute
@@ -596,17 +689,26 @@ const rootRouteChildren: RootRouteChildren = {
   CategoryAllRoute: CategoryAllRoute,
   ProductsProductSlugRoute: ProductsProductSlugRoute,
   ShopsShopSlugRoute: ShopsShopSlugRoute,
-  StudioShopIdRoute: StudioShopIdRoute,
+  StudioShopIdRoute: StudioShopIdRouteWithChildren,
   AccountIndexRoute: AccountIndexRoute,
   AdminIndexRoute: AdminIndexRoute,
   StudioIndexRoute: StudioIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   OrdersPlatformOrderIdSuccessRoute: OrdersPlatformOrderIdSuccessRoute,
   ApiShopsShopIdDashboardRoute: ApiShopsShopIdDashboardRoute,
-  ApiShopsShopIdOrdersRoute: ApiShopsShopIdOrdersRoute,
+  ApiShopsShopIdOrdersRoute: ApiShopsShopIdOrdersRouteWithChildren,
   ApiShopsShopIdProductsRoute: ApiShopsShopIdProductsRouteWithChildren,
   ApiShopsShopIdSettingsRoute: ApiShopsShopIdSettingsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
