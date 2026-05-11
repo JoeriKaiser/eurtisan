@@ -32,6 +32,8 @@ function makeOrder(): OrderDetail {
     totalCents: 2500,
     status: 'pending_payment',
     createdAt: new Date('2026-05-10T12:00:00Z'),
+    cancelledAt: null,
+    cancellationReason: null,
     shippingAddress: {
       name: 'Test User',
       street: '123 Main St',
@@ -49,6 +51,7 @@ function makeOrder(): OrderDetail {
         status: 'pending_payment',
         trackingNumber: null,
         trackingUrl: null,
+        deliveredAt: null,
         items: [
           {
             id: 'item-1',
@@ -110,6 +113,7 @@ describe('OrderSuccessPage', () => {
       status: 'shipped',
       trackingNumber: 'TRACK123',
       trackingUrl: 'https://example.com/track',
+      deliveredAt: null,
       items: [
         {
           id: 'item-2',

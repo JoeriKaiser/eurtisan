@@ -33,6 +33,7 @@ export interface OrderShopGroup {
   status: OrderStatus
   trackingNumber: string | null
   trackingUrl: string | null
+  deliveredAt: Date | null
   items: OrderItemDetail[]
 }
 
@@ -41,6 +42,8 @@ export interface OrderDetail {
   totalCents: number
   status: OrderStatus
   createdAt: Date
+  cancelledAt: Date | null
+  cancellationReason: string | null
   shippingAddress: ShippingAddress
   shops: OrderShopGroup[]
 }
@@ -108,6 +111,7 @@ export async function getBuyerOrderDetailQuery(
     status: so.shopOrder.status,
     trackingNumber: so.shopOrder.trackingNumber,
     trackingUrl: so.shopOrder.trackingUrl,
+    deliveredAt: so.shopOrder.deliveredAt,
     items: itemsResult
       .filter((item) => item.shopOrderId === so.shopOrder.id)
       .map((item) => ({
@@ -125,6 +129,8 @@ export async function getBuyerOrderDetailQuery(
     totalCents: order.totalCents,
     status: order.status,
     createdAt: order.createdAt,
+    cancelledAt: order.cancelledAt,
+    cancellationReason: order.cancellationReason,
     shippingAddress: order.shippingAddress as ShippingAddress,
     shops,
   }
@@ -224,7 +230,7 @@ export async function cancelOrderQuery(
 
     await tx
       .update(platformOrder)
-      .set({ status: 'cancelled', updatedAt: new Date() })
+      .set({ status: 'cancelled', cancelledAt: new Date(), updatedAt: new Date() })
       .where(eq(platformOrder.id, platformOrderId))
 
     await tx

@@ -224,5 +224,15 @@
   "order_detail_date": "Order date",
   "order_detail_total": "Total",
   "order_detail_items": "Items",
-  "order_detail_tracking": "Tracking"
+  "order_detail_tracking": "Tracking",
+  "order_detail_shipping_address": "Shipping address",
+  "order_detail_cancelled": "Cancelled",
+  "order_detail_cancelled_at": "Cancelled on {date}",
+  "order_detail_cancellation_reason": "Reason: {reason}",
+  "order_detail_review": "Write a review",
+  "order_detail_review_disabled": "Review available from {date}",
+  "order_detail_shop_status": "Status",
+  "orders_title": "My orders",
+  "orders_error": "Failed to load orders. Please try again.",
+  "orders_empty_cta": "Browse the marketplace"
 }

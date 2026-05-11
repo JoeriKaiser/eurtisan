@@ -424,7 +424,7 @@ export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<
 
     await tx
       .update(shopOrder)
-      .set({ status: 'delivered', updatedAt: new Date() })
+      .set({ status: 'delivered', deliveredAt: new Date(), updatedAt: new Date() })
       .where(eq(shopOrder.id, shopOrderId))
 
     await recalcPlatformOrderStatus(tx, record.platformOrderId)

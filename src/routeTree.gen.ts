@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SigninRouteImport } from './routes/signin'
 import { Route as SearchRouteImport } from './routes/search'
+import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as ForbiddenRouteImport } from './routes/forbidden'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as CartRouteImport } from './routes/cart'
@@ -22,6 +23,7 @@ import { Route as AccountIndexRouteImport } from './routes/account/index'
 import { Route as StudioShopIdRouteImport } from './routes/studio/$shopId'
 import { Route as ShopsShopSlugRouteImport } from './routes/shops/$shopSlug'
 import { Route as ProductsProductSlugRouteImport } from './routes/products/$productSlug'
+import { Route as OrdersPlatformOrderIdRouteImport } from './routes/orders.$platformOrderId'
 import { Route as CategoryAllRouteImport } from './routes/category/all'
 import { Route as CategorySlugRouteImport } from './routes/category/$slug'
 import { Route as ApiProductsRouteImport } from './routes/api/products'
@@ -47,6 +49,11 @@ const SigninRoute = SigninRouteImport.update({
 const SearchRoute = SearchRouteImport.update({
   id: '/search',
   path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrdersRoute = OrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForbiddenRoute = ForbiddenRouteImport.update({
@@ -104,6 +111,11 @@ const ProductsProductSlugRoute = ProductsProductSlugRouteImport.update({
   path: '/products/$productSlug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrdersPlatformOrderIdRoute = OrdersPlatformOrderIdRouteImport.update({
+  id: '/$platformOrderId',
+  path: '/$platformOrderId',
+  getParentRoute: () => OrdersRoute,
+} as any)
 const CategoryAllRoute = CategoryAllRouteImport.update({
   id: '/category/all',
   path: '/category/all',
@@ -136,9 +148,9 @@ const StudioShopIdOrdersRoute = StudioShopIdOrdersRouteImport.update({
 } as any)
 const OrdersPlatformOrderIdSuccessRoute =
   OrdersPlatformOrderIdSuccessRouteImport.update({
-    id: '/orders/$platformOrderId/success',
-    path: '/orders/$platformOrderId/success',
-    getParentRoute: () => rootRouteImport,
+    id: '/success',
+    path: '/success',
+    getParentRoute: () => OrdersPlatformOrderIdRoute,
   } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
@@ -195,6 +207,7 @@ export interface FileRoutesByFullPath {
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
   '/forbidden': typeof ForbiddenRoute
+  '/orders': typeof OrdersRouteWithChildren
   '/search': typeof SearchRoute
   '/signin': typeof SigninRoute
   '/account/orders': typeof AccountOrdersRouteWithChildren
@@ -202,6 +215,7 @@ export interface FileRoutesByFullPath {
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
+  '/orders/$platformOrderId': typeof OrdersPlatformOrderIdRouteWithChildren
   '/products/$productSlug': typeof ProductsProductSlugRoute
   '/shops/$shopSlug': typeof ShopsShopSlugRoute
   '/studio/$shopId': typeof StudioShopIdRouteWithChildren
@@ -226,6 +240,7 @@ export interface FileRoutesByTo {
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
   '/forbidden': typeof ForbiddenRoute
+  '/orders': typeof OrdersRouteWithChildren
   '/search': typeof SearchRoute
   '/signin': typeof SigninRoute
   '/account/orders': typeof AccountOrdersRouteWithChildren
@@ -233,6 +248,7 @@ export interface FileRoutesByTo {
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
+  '/orders/$platformOrderId': typeof OrdersPlatformOrderIdRouteWithChildren
   '/products/$productSlug': typeof ProductsProductSlugRoute
   '/shops/$shopSlug': typeof ShopsShopSlugRoute
   '/studio/$shopId': typeof StudioShopIdRouteWithChildren
@@ -258,6 +274,7 @@ export interface FileRoutesById {
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
   '/forbidden': typeof ForbiddenRoute
+  '/orders': typeof OrdersRouteWithChildren
   '/search': typeof SearchRoute
   '/signin': typeof SigninRoute
   '/account/orders': typeof AccountOrdersRouteWithChildren
@@ -265,6 +282,7 @@ export interface FileRoutesById {
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
+  '/orders/$platformOrderId': typeof OrdersPlatformOrderIdRouteWithChildren
   '/products/$productSlug': typeof ProductsProductSlugRoute
   '/shops/$shopSlug': typeof ShopsShopSlugRoute
   '/studio/$shopId': typeof StudioShopIdRouteWithChildren
@@ -291,6 +309,7 @@ export interface FileRouteTypes {
     | '/cart'
     | '/checkout'
     | '/forbidden'
+    | '/orders'
     | '/search'
     | '/signin'
     | '/account/orders'
@@ -298,6 +317,7 @@ export interface FileRouteTypes {
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
+    | '/orders/$platformOrderId'
     | '/products/$productSlug'
     | '/shops/$shopSlug'
     | '/studio/$shopId'
@@ -322,6 +342,7 @@ export interface FileRouteTypes {
     | '/cart'
     | '/checkout'
     | '/forbidden'
+    | '/orders'
     | '/search'
     | '/signin'
     | '/account/orders'
@@ -329,6 +350,7 @@ export interface FileRouteTypes {
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
+    | '/orders/$platformOrderId'
     | '/products/$productSlug'
     | '/shops/$shopSlug'
     | '/studio/$shopId'
@@ -353,6 +375,7 @@ export interface FileRouteTypes {
     | '/cart'
     | '/checkout'
     | '/forbidden'
+    | '/orders'
     | '/search'
     | '/signin'
     | '/account/orders'
@@ -360,6 +383,7 @@ export interface FileRouteTypes {
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
+    | '/orders/$platformOrderId'
     | '/products/$productSlug'
     | '/shops/$shopSlug'
     | '/studio/$shopId'
@@ -385,6 +409,7 @@ export interface RootRouteChildren {
   CartRoute: typeof CartRoute
   CheckoutRoute: typeof CheckoutRoute
   ForbiddenRoute: typeof ForbiddenRoute
+  OrdersRoute: typeof OrdersRouteWithChildren
   SearchRoute: typeof SearchRoute
   SigninRoute: typeof SigninRoute
   AccountOrdersRoute: typeof AccountOrdersRouteWithChildren
@@ -399,7 +424,6 @@ export interface RootRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
   StudioIndexRoute: typeof StudioIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
-  OrdersPlatformOrderIdSuccessRoute: typeof OrdersPlatformOrderIdSuccessRoute
   ApiShopsShopIdDashboardRoute: typeof ApiShopsShopIdDashboardRoute
   ApiShopsShopIdOrdersRoute: typeof ApiShopsShopIdOrdersRouteWithChildren
   ApiShopsShopIdProductsRoute: typeof ApiShopsShopIdProductsRouteWithChildren
@@ -420,6 +444,13 @@ declare module '@tanstack/react-router' {
       path: '/search'
       fullPath: '/search'
       preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orders': {
+      id: '/orders'
+      path: '/orders'
+      fullPath: '/orders'
+      preLoaderRoute: typeof OrdersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forbidden': {
@@ -499,6 +530,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProductsProductSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/orders/$platformOrderId': {
+      id: '/orders/$platformOrderId'
+      path: '/$platformOrderId'
+      fullPath: '/orders/$platformOrderId'
+      preLoaderRoute: typeof OrdersPlatformOrderIdRouteImport
+      parentRoute: typeof OrdersRoute
+    }
     '/category/all': {
       id: '/category/all'
       path: '/category/all'
@@ -543,10 +581,10 @@ declare module '@tanstack/react-router' {
     }
     '/orders/$platformOrderId/success': {
       id: '/orders/$platformOrderId/success'
-      path: '/orders/$platformOrderId/success'
+      path: '/success'
       fullPath: '/orders/$platformOrderId/success'
       preLoaderRoute: typeof OrdersPlatformOrderIdSuccessRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof OrdersPlatformOrderIdRoute
     }
     '/api/auth/$': {
       id: '/api/auth/$'
@@ -614,6 +652,30 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface OrdersPlatformOrderIdRouteChildren {
+  OrdersPlatformOrderIdSuccessRoute: typeof OrdersPlatformOrderIdSuccessRoute
+}
+
+const OrdersPlatformOrderIdRouteChildren: OrdersPlatformOrderIdRouteChildren = {
+  OrdersPlatformOrderIdSuccessRoute: OrdersPlatformOrderIdSuccessRoute,
+}
+
+const OrdersPlatformOrderIdRouteWithChildren =
+  OrdersPlatformOrderIdRoute._addFileChildren(
+    OrdersPlatformOrderIdRouteChildren,
+  )
+
+interface OrdersRouteChildren {
+  OrdersPlatformOrderIdRoute: typeof OrdersPlatformOrderIdRouteWithChildren
+}
+
+const OrdersRouteChildren: OrdersRouteChildren = {
+  OrdersPlatformOrderIdRoute: OrdersPlatformOrderIdRouteWithChildren,
+}
+
+const OrdersRouteWithChildren =
+  OrdersRoute._addFileChildren(OrdersRouteChildren)
+
 interface AccountOrdersRouteChildren {
   AccountOrdersOrderIdRoute: typeof AccountOrdersOrderIdRoute
 }
@@ -680,6 +742,7 @@ const rootRouteChildren: RootRouteChildren = {
   CartRoute: CartRoute,
   CheckoutRoute: CheckoutRoute,
   ForbiddenRoute: ForbiddenRoute,
+  OrdersRoute: OrdersRouteWithChildren,
   SearchRoute: SearchRoute,
   SigninRoute: SigninRoute,
   AccountOrdersRoute: AccountOrdersRouteWithChildren,
@@ -694,7 +757,6 @@ const rootRouteChildren: RootRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
   StudioIndexRoute: StudioIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
-  OrdersPlatformOrderIdSuccessRoute: OrdersPlatformOrderIdSuccessRoute,
   ApiShopsShopIdDashboardRoute: ApiShopsShopIdDashboardRoute,
   ApiShopsShopIdOrdersRoute: ApiShopsShopIdOrdersRouteWithChildren,
   ApiShopsShopIdProductsRoute: ApiShopsShopIdProductsRouteWithChildren,
