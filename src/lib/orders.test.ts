@@ -16,7 +16,7 @@ import {
 
 import {
   cancelOrderQuery,
-  getOrderByIdQuery,
+  getBuyerOrderDetailQuery,
   getOrderOwnerId,
   listBuyerOrdersQuery,
 } from './orders.server'
@@ -65,9 +65,9 @@ async function seedProduct(overrides?: Partial<typeof product.$inferInsert>) {
     .then((rows) => rows[0])
 }
 
-describe('getOrderByIdQuery', () => {
+describe('getBuyerOrderDetailQuery', () => {
   it('returns null for nonexistent order', async () => {
-    const result = await getOrderByIdQuery('550e8400-e29b-41d4-a716-446655440000', 'user-1')
+    const result = await getBuyerOrderDetailQuery('550e8400-e29b-41d4-a716-446655440000', 'user-1')
     expect(result).toBeNull()
   })
 
@@ -102,7 +102,7 @@ describe('getOrderByIdQuery', () => {
       })
       .returning()
 
-    const result = await getOrderByIdQuery(order.id, 'user-1')
+    const result = await getBuyerOrderDetailQuery(order.id, 'user-1')
     expect(result).toBeNull()
   })
 
@@ -153,7 +153,7 @@ describe('getOrderByIdQuery', () => {
       totalCents: 2000,
     })
 
-    const result = await getOrderByIdQuery(order.id, 'user-1')
+    const result = await getBuyerOrderDetailQuery(order.id, 'user-1')
     expect(result).not.toBeNull()
     expect(result?.id).toBe(order.id)
     expect(result?.totalCents).toBe(2500)
@@ -240,7 +240,7 @@ describe('getOrderByIdQuery', () => {
       },
     ])
 
-    const result = await getOrderByIdQuery(order.id, 'user-1')
+    const result = await getBuyerOrderDetailQuery(order.id, 'user-1')
     expect(result?.shops).toHaveLength(2)
     const group1 = result?.shops.find((s) => s.shopId === 'shop-1')
     const group2 = result?.shops.find((s) => s.shopId === 'shop-2')
@@ -349,6 +349,7 @@ describe('listBuyerOrdersQuery', () => {
       shippingMethod: 'standard',
       shippingCostCents: 500,
       subtotalCents: 1000,
+      status: 'paid',
     })
 
     await db.insert(shopOrder).values({
@@ -357,6 +358,7 @@ describe('listBuyerOrdersQuery', () => {
       shippingMethod: 'express',
       shippingCostCents: 1000,
       subtotalCents: 2000,
+      status: 'shipped',
     })
 
     const result = await listBuyerOrdersQuery('user-1', 10, 0)
@@ -367,8 +369,13 @@ describe('listBuyerOrdersQuery', () => {
     expect(result.orders[0].status).toBe('shipped')
     expect(result.orders[0].totalCents).toBe(2000)
     expect(result.orders[0].shopCount).toBe(1)
+    expect(result.orders[0].shopSummary).toHaveLength(1)
+    expect(result.orders[0].shopSummary[0].shopId).toBe('shop-1')
+    expect(result.orders[0].shopSummary[0].status).toBe('shipped')
     expect(result.orders[1].id).toBe(order1.id)
     expect(result.orders[1].status).toBe('paid')
+    expect(result.orders[1].shopSummary).toHaveLength(1)
+    expect(result.orders[1].shopSummary[0].status).toBe('paid')
   })
 
   it('respects limit and offset', async () => {
@@ -436,6 +443,68 @@ describe('listBuyerOrdersQuery', () => {
     const result = await listBuyerOrdersQuery('user-1', 10, 0)
     expect(result.orders).toHaveLength(0)
     expect(result.total).toBe(0)
+  })
+
+  it('returns per-shop status summary for multi-shop orders', async () => {
+    await seedUser()
+    await seedShop()
+    const shop2 = await db
+      .insert(shop)
+      .values({ id: 'shop-2', name: 'Second Shop', slug: 'second-shop', ownerId: 'user-1' })
+      .returning()
+      .then((rows) => rows[0])
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 3000,
+        status: 'paid',
+      })
+      .returning()
+
+    await db.insert(shopOrder).values({
+      platformOrderId: order.id,
+      shopId: 'shop-1',
+      shippingMethod: 'standard',
+      shippingCostCents: 500,
+      subtotalCents: 1000,
+      status: 'paid',
+    })
+
+    await db.insert(shopOrder).values({
+      platformOrderId: order.id,
+      shopId: shop2.id,
+      shippingMethod: 'express',
+      shippingCostCents: 1000,
+      subtotalCents: 1500,
+      status: 'processing',
+    })
+
+    const result = await listBuyerOrdersQuery('user-1', 10, 0)
+    expect(result.orders).toHaveLength(1)
+    expect(result.orders[0].shopCount).toBe(2)
+    expect(result.orders[0].shopSummary).toHaveLength(2)
+    const s1 = result.orders[0].shopSummary.find((s) => s.shopId === 'shop-1')
+    const s2 = result.orders[0].shopSummary.find((s) => s.shopId === 'shop-2')
+    expect(s1?.shopName).toBe('Test Shop')
+    expect(s1?.status).toBe('paid')
+    expect(s2?.shopName).toBe('Second Shop')
+    expect(s2?.status).toBe('processing')
   })
 })
 

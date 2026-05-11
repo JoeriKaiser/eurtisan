@@ -1,6 +1,6 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import OrderSuccessPage from '#/components/OrderSuccessPage'
-import { getOrderById } from '#/lib/orders'
+import { getBuyerOrderDetail } from '#/lib/orders'
 import { guardAuth } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
 
@@ -8,7 +8,7 @@ export const Route = createFileRoute('/orders/$platformOrderId/success')({
   beforeLoad: async () => guardAuth(),
   loader: async ({ params }) => {
     try {
-      const order = await getOrderById({ data: { orderId: params.platformOrderId } })
+      const order = await getBuyerOrderDetail({ data: { orderId: params.platformOrderId } })
       return { order }
     } catch (err) {
       if (err instanceof Response && err.status === 404) {

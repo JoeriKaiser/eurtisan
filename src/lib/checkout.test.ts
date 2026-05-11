@@ -608,8 +608,20 @@ describe('createCheckoutQuery', () => {
       .insert(platformOrder)
       .values({
         userId: 'user-1',
-        shippingAddress: { name: 'Other', street: 'St', city: 'City', postalCode: '00000', country: 'DE' },
-        billingAddress: { name: 'Other', street: 'St', city: 'City', postalCode: '00000', country: 'DE' },
+        shippingAddress: {
+          name: 'Other',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Other',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
         totalCents: 1000,
         status: 'pending_payment',
       })

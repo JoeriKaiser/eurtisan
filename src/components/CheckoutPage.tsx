@@ -78,9 +78,7 @@ export default function CheckoutPage({ summary, cartId }: CheckoutPageProps) {
     onSubmit: async ({ value }) => {
       setSubmitError(null)
       try {
-        const billingAddress = value.sameAsShipping
-          ? value.shippingAddress
-          : value.billingAddress
+        const billingAddress = value.sameAsShipping ? value.shippingAddress : value.billingAddress
         const result = await createCheckout({
           data: {
             cartId,

@@ -1,7 +1,7 @@
 import { and, eq, gte, inArray, lt, sql, sum } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { db } from '#/db/index'
-import * as schema from '#/db/schema'
+import type * as schema from '#/db/schema'
 import { inventoryReservation, product } from '#/db/schema'
 
 type DbOrTx = NodePgDatabase<typeof schema>

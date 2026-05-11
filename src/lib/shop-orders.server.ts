@@ -1,8 +1,8 @@
 import { and, count, desc, eq } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { orderItem, platformOrder, shopOrder, user } from '#/db/schema'
-import type { OrderStatus } from './orders.server'
 import type { ShippingAddress } from './checkout.server'
+import type { OrderStatus } from './orders.server'
 
 export interface ShopOrderItemDetail {
   id: string
@@ -87,8 +87,12 @@ export function derivePlatformStatus(shopOrderStatuses: OrderStatus[]): OrderSta
   if (shopOrderStatuses.some((s) => s === 'pending_payment')) return 'pending_payment'
   if (shopOrderStatuses.every((s) => s === 'completed')) return 'completed'
   if (shopOrderStatuses.every((s) => s === 'delivered' || s === 'completed')) return 'delivered'
-  if (shopOrderStatuses.every((s) => ['shipped', 'delivered', 'completed'].includes(s))) return 'shipped'
-  if (shopOrderStatuses.some((s) => s === 'processing') && !shopOrderStatuses.some((s) => s === 'pending_payment')) {
+  if (shopOrderStatuses.every((s) => ['shipped', 'delivered', 'completed'].includes(s)))
+    return 'shipped'
+  if (
+    shopOrderStatuses.some((s) => s === 'processing') &&
+    !shopOrderStatuses.some((s) => s === 'pending_payment')
+  ) {
     return 'processing'
   }
   if (
@@ -266,17 +270,13 @@ export async function updateShopOrderStatusQuery(
   input: UpdateShopOrderStatusInput,
 ): Promise<ShopOrderDetail> {
   return db.transaction(async (tx) => {
-    const [record] = await tx
-      .select()
-      .from(shopOrder)
-      .where(eq(shopOrder.id, shopOrderId))
-      .limit(1)
+    const [record] = await tx.select().from(shopOrder).where(eq(shopOrder.id, shopOrderId)).limit(1)
 
     if (!record) {
-      throw new Response(
-        JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } },
-      )
+      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
     }
 
     const currentStatus = record.status as OrderStatus

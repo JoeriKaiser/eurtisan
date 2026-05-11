@@ -839,10 +839,7 @@ describe('recalcPlatformOrderStatus', () => {
 
     await recalcPlatformOrderStatus(db, order.id)
 
-    const [updated] = await db
-      .select()
-      .from(platformOrder)
-      .where(eq(platformOrder.id, order.id))
+    const [updated] = await db.select().from(platformOrder).where(eq(platformOrder.id, order.id))
     expect(updated.status).toBe('shipped')
   })
 
@@ -884,10 +881,7 @@ describe('recalcPlatformOrderStatus', () => {
 
     await recalcPlatformOrderStatus(db, order.id)
 
-    const [updated] = await db
-      .select()
-      .from(platformOrder)
-      .where(eq(platformOrder.id, order.id))
+    const [updated] = await db.select().from(platformOrder).where(eq(platformOrder.id, order.id))
     expect(updated.status).toBe('delivered')
   })
 })

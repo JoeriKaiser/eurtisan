@@ -2,7 +2,18 @@ import { eq } from 'drizzle-orm'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { db } from '#/db/index'
-import { cart, cartItem, inventoryReservation, orderItem, platformOrder, product, productImage, shop, shopOrder, user } from '#/db/schema'
+import {
+  cart,
+  cartItem,
+  inventoryReservation,
+  orderItem,
+  platformOrder,
+  product,
+  productImage,
+  shop,
+  shopOrder,
+  user,
+} from '#/db/schema'
 
 import {
   ANON_CART_DAYS,

@@ -2,7 +2,17 @@ import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
-import { categories, inventoryReservation, orderItem, platformOrder, product, productImage, shop, shopOrder, user } from '#/db/schema'
+import {
+  categories,
+  inventoryReservation,
+  orderItem,
+  platformOrder,
+  product,
+  productImage,
+  shop,
+  shopOrder,
+  user,
+} from '#/db/schema'
 
 import {
   configureProductsIndex,

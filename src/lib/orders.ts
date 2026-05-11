@@ -4,13 +4,14 @@ import { authMiddleware } from './auth-middleware'
 
 export type {
   BuyerOrderListItem,
+  BuyerOrderShopSummary,
   OrderDetail,
   OrderItemDetail,
   OrderShopGroup,
   OrderStatus,
 } from './orders.server'
 
-export const getOrderById = createServerFn({ method: 'GET' })
+export const getBuyerOrderDetail = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .inputValidator(z.object({ orderId: z.string().uuid() }))
   .handler(async ({ context, data }) => {
@@ -21,8 +22,8 @@ export const getOrderById = createServerFn({ method: 'GET' })
       )
     }
 
-    const { getOrderByIdQuery, getOrderOwnerId } = await import('./orders.server')
-    const result = await getOrderByIdQuery(data.orderId, context.user.id)
+    const { getBuyerOrderDetailQuery, getOrderOwnerId } = await import('./orders.server')
+    const result = await getBuyerOrderDetailQuery(data.orderId, context.user.id)
 
     if (!result) {
       const ownerId = await getOrderOwnerId(data.orderId)

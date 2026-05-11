@@ -45,12 +45,19 @@ export interface OrderDetail {
   shops: OrderShopGroup[]
 }
 
+export interface BuyerOrderShopSummary {
+  shopId: string
+  shopName: string
+  status: OrderStatus
+}
+
 export interface BuyerOrderListItem {
   id: string
   totalCents: number
   status: OrderStatus
   createdAt: Date
   shopCount: number
+  shopSummary: BuyerOrderShopSummary[]
 }
 
 export async function getOrderOwnerId(platformOrderId: string): Promise<string | null> {
@@ -62,7 +69,7 @@ export async function getOrderOwnerId(platformOrderId: string): Promise<string |
   return order?.userId ?? null
 }
 
-export async function getOrderByIdQuery(
+export async function getBuyerOrderDetailQuery(
   platformOrderId: string,
   userId: string,
 ): Promise<OrderDetail | null> {
@@ -146,23 +153,46 @@ export async function listBuyerOrdersQuery(
     .from(platformOrder)
     .where(eq(platformOrder.userId, userId))
 
-  const shopCounts = await Promise.all(
-    ordersResult.map((order) =>
-      db
-        .select({ count: count() })
-        .from(shopOrder)
-        .where(eq(shopOrder.platformOrderId, order.id))
-        .then(([{ count }]) => count),
-    ),
-  )
+  if (ordersResult.length === 0) {
+    return { orders: [], total: totalCount }
+  }
 
-  const orders: BuyerOrderListItem[] = ordersResult.map((order, index) => ({
-    id: order.id,
-    totalCents: order.totalCents,
-    status: order.status,
-    createdAt: order.createdAt,
-    shopCount: shopCounts[index],
-  }))
+  const orderIds = ordersResult.map((o) => o.id)
+
+  const shopOrdersResult = await db
+    .select({
+      platformOrderId: shopOrder.platformOrderId,
+      shopId: shopOrder.shopId,
+      shopName: shop.name,
+      status: shopOrder.status,
+    })
+    .from(shopOrder)
+    .leftJoin(shop, eq(shopOrder.shopId, shop.id))
+    .where(inArray(shopOrder.platformOrderId, orderIds))
+
+  const shopMap = new Map<string, BuyerOrderShopSummary[]>()
+  for (const so of shopOrdersResult) {
+    if (!so.platformOrderId) continue
+    const list = shopMap.get(so.platformOrderId) ?? []
+    list.push({
+      shopId: so.shopId,
+      shopName: so.shopName ?? 'Unknown shop',
+      status: so.status,
+    })
+    shopMap.set(so.platformOrderId, list)
+  }
+
+  const orders: BuyerOrderListItem[] = ordersResult.map((order) => {
+    const summary = shopMap.get(order.id) ?? []
+    return {
+      id: order.id,
+      totalCents: order.totalCents,
+      status: order.status,
+      createdAt: order.createdAt,
+      shopCount: summary.length,
+      shopSummary: summary,
+    }
+  })
 
   return { orders, total: totalCount }
 }

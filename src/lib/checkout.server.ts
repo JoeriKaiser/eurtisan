@@ -10,7 +10,11 @@ import {
   shop,
   shopOrder,
 } from '#/db/schema'
-import { getAvailableStockForProducts, InsufficientStockError, reserveStockInTx } from './inventory.server'
+import {
+  getAvailableStockForProducts,
+  InsufficientStockError,
+  reserveStockInTx,
+} from './inventory.server'
 
 /* -------------------------------------------------------------------------- */
 /*                                  Types                                     */

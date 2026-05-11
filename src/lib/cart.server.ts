@@ -178,7 +178,8 @@ async function buildCartDetail(cartRecord: typeof cart.$inferSelect): Promise<Ca
     if (existing) {
       existing.items.push(itemDetail)
       if (!isUnavailable && productRecord) {
-        existing.subtotalCents += productRecord.priceCents * Math.min(row.item.quantity, availableStock)
+        existing.subtotalCents +=
+          productRecord.priceCents * Math.min(row.item.quantity, availableStock)
       }
     } else {
       groups.set(shopId, {
