@@ -1,4 +1,4 @@
-import { and, count, desc, eq } from 'drizzle-orm'
+import { and, count, desc, eq, ilike, or, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '#/db/index'
 import { orderItem, platformOrder, shopOrder, user } from '#/db/schema'
@@ -217,6 +217,7 @@ export async function listShopOrdersQuery(
   shopId: string,
   options: {
     status?: string
+    search?: string
     page?: number
     pageSize?: number
   } = {},
@@ -237,9 +238,24 @@ export async function listShopOrdersQuery(
     conditions.push(eq(shopOrder.status, options.status as typeof shopOrder.$inferSelect.status))
   }
 
+  if (options.search?.trim()) {
+    const searchTerm = `%${options.search.trim()}%`
+    conditions.push(
+      or(
+        ilike(user.name, searchTerm),
+        ilike(sql<string>`CAST(${shopOrder.id} AS TEXT)`, searchTerm),
+      )!,
+    )
+  }
+
   const where = and(...conditions)
 
-  const [totalResult] = await db.select({ total: count() }).from(shopOrder).where(where)
+  const [totalResult] = await db
+    .select({ total: count() })
+    .from(shopOrder)
+    .innerJoin(platformOrder, eq(shopOrder.platformOrderId, platformOrder.id))
+    .innerJoin(user, eq(platformOrder.userId, user.id))
+    .where(where)
   const total = totalResult?.total ?? 0
 
   const orders = await db
@@ -269,6 +285,7 @@ export async function listShopOrdersQuery(
   return {
     orders: orders.map((o) => ({
       ...o,
+      buyerEmail: maskEmail(o.buyerEmail),
       totalCents: o.subtotalCents + o.shippingCostCents,
       itemCount: Number(o.itemCount),
     })),

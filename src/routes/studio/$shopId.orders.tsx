@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { ChevronLeft, ChevronRight, Package } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Package, Search } from 'lucide-react'
+import { useCallback, useEffect, useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { formatPriceEUR } from '#/lib/pricing'
 import { guardShopOwnership } from '#/lib/route-guards'
@@ -11,82 +12,120 @@ export const Route = createFileRoute('/studio/$shopId/orders')({
   loader: async ({ params, search }) => {
     const page = typeof search.page === 'string' ? Number.parseInt(search.page, 10) || 1 : 1
     const status = typeof search.status === 'string' ? search.status : undefined
+    const searchQuery = typeof search.search === 'string' ? search.search : undefined
     const result = await listShopOrders({
       data: {
         shopId: params.shopId,
         status,
+        search: searchQuery,
         page,
         pageSize: 20,
       },
     })
-    return { result, status }
+    return { result, status, searchQuery }
   },
   head: () => ({
     meta: [{ title: 'Orders | Studio' }],
   }),
   component: ShopOrdersPage,
+  pendingComponent: ShopOrdersPending,
+  errorComponent: ShopOrdersError,
 })
 
-function ShopOrdersPage() {
+const statusOptions = [
+  { value: '', label: 'All Statuses' },
+  { value: 'pending_payment', label: 'Pending Payment' },
+  { value: 'paid', label: 'Paid' },
+  { value: 'processing', label: 'Processing' },
+  { value: 'shipped', label: 'Shipped' },
+  { value: 'delivered', label: 'Delivered' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'refunded', label: 'Refunded' },
+  { value: 'disputed', label: 'Disputed' },
+]
+
+function getStatusBadgeVariant(
+  orderStatus: string,
+): React.ComponentProps<typeof Badge>['variant'] {
+  switch (orderStatus) {
+    case 'completed':
+    case 'delivered':
+      return 'success'
+    case 'cancelled':
+    case 'refunded':
+    case 'disputed':
+      return 'error'
+    case 'shipped':
+      return 'primary'
+    case 'paid':
+    case 'processing':
+      return 'warning'
+    default:
+      return 'default'
+  }
+}
+
+export function ShopOrdersPage() {
   const { shopId } = Route.useParams()
-  const { result, status } = Route.useLoaderData()
+  const { result, status, searchQuery } = Route.useLoaderData()
   const navigate = Route.useNavigate()
 
-  const statusOptions = [
-    { value: '', label: 'All' },
-    { value: 'pending_payment', label: 'Pending Payment' },
-    { value: 'paid', label: 'Paid' },
-    { value: 'processing', label: 'Processing' },
-    { value: 'shipped', label: 'Shipped' },
-    { value: 'delivered', label: 'Delivered' },
-    { value: 'completed', label: 'Completed' },
-    { value: 'cancelled', label: 'Cancelled' },
-  ]
+  const [localSearch, setLocalSearch] = useState(searchQuery ?? '')
+  const [localStatus, setLocalStatus] = useState(status ?? '')
 
-  const handleStatusChange = (nextStatus: string) => {
-    navigate({
-      search: (prev: Record<string, unknown>) => ({
-        ...prev,
-        status: nextStatus || undefined,
-        page: undefined,
-      }),
-    })
-  }
+  useEffect(() => {
+    setLocalSearch(searchQuery ?? '')
+    setLocalStatus(status ?? '')
+  }, [searchQuery, status])
 
-  const handlePageChange = (nextPage: number) => {
-    navigate({
-      search: (prev: Record<string, unknown>) => ({
-        ...prev,
-        page: nextPage === 1 ? undefined : nextPage,
-      }),
-    })
-  }
+  const handleNavigate = useCallback(
+    (updates: { status?: string; search?: string; page?: number }) => {
+      navigate({
+        search: (prev: Record<string, unknown>) => {
+          const next: Record<string, unknown> = { ...prev }
+          if (updates.status !== undefined) {
+            if (updates.status) next.status = updates.status
+            else delete next.status
+          }
+          if (updates.search !== undefined) {
+            if (updates.search.trim()) next.search = updates.search.trim()
+            else delete next.search
+          }
+          if (updates.page !== undefined) {
+            if (updates.page === 1) delete next.page
+            else next.page = updates.page
+          }
+          return next
+        },
+      })
+    },
+    [navigate],
+  )
 
-  const getStatusBadgeVariant = (
-    orderStatus: string,
-  ): React.ComponentProps<typeof Badge>['variant'] => {
-    switch (orderStatus) {
-      case 'completed':
-      case 'delivered':
-        return 'success'
-      case 'cancelled':
-      case 'refunded':
-      case 'disputed':
-        return 'error'
-      case 'shipped':
-        return 'primary'
-      case 'paid':
-      case 'processing':
-        return 'warning'
-      default:
-        return 'default'
-    }
-  }
+  const handleSearchSubmit = useCallback(() => {
+    handleNavigate({ search: localSearch, page: 1 })
+  }, [handleNavigate, localSearch])
+
+  const handleStatusChange = useCallback(
+    (nextStatus: string) => {
+      setLocalStatus(nextStatus)
+      handleNavigate({ status: nextStatus, page: 1 })
+    },
+    [handleNavigate],
+  )
+
+  const handlePageChange = useCallback(
+    (nextPage: number) => {
+      handleNavigate({ page: nextPage })
+    },
+    [handleNavigate],
+  )
 
   return (
     <main className='page-wrap px-4 py-12'>
       <div className='mx-auto max-w-5xl'>
-        <div className='mb-6 flex items-center justify-between'>
+        <div className='mb-6 flex flex-wrap items-center justify-between gap-4'>
           <h1 className='display-title text-2xl font-bold text-text-primary'>Shop Orders</h1>
           <Link
             to='/studio/$shopId'
@@ -97,56 +136,100 @@ function ShopOrdersPage() {
           </Link>
         </div>
 
-        <div className='mb-6 flex flex-wrap items-center gap-2'>
-          <span className='text-sm text-text-secondary'>Status:</span>
-          {statusOptions.map((opt) => (
-            <button
-              key={opt.value}
-              type='button'
-              onClick={() => handleStatusChange(opt.value)}
-              className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                (status || '') === opt.value
-                  ? 'bg-accent-primary text-text-on-primary'
-                  : 'bg-surface-inset text-text-secondary hover:bg-bg-inset'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
+        {/* Filters */}
+        <div className='mb-6 flex flex-col gap-3 sm:flex-row sm:items-center'>
+          <div className='relative flex-1'>
+            <Search
+              size={16}
+              className='absolute left-3 top-1/2 -translate-y-1/2 text-text-muted'
+              aria-hidden='true'
+            />
+            <input
+              type='search'
+              value={localSearch}
+              onChange={(e) => setLocalSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  handleSearchSubmit()
+                }
+              }}
+              placeholder='Search by buyer name or order ID...'
+              className='h-10 w-full rounded-lg border border-border-default bg-surface-default py-2 pl-9 pr-3 text-sm text-text-primary placeholder:text-text-muted transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
+              aria-label='Search orders'
+            />
+          </div>
+          <select
+            value={localStatus}
+            onChange={(e) => handleStatusChange(e.target.value)}
+            className='h-10 rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
+            aria-label='Filter by status'
+          >
+            {statusOptions.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
         </div>
 
+        {/* Results */}
         {result.orders.length === 0 ? (
           <div className='island-shell rounded-2xl p-8 text-center'>
-            <Package size={48} className='mx-auto mb-4 text-text-muted' />
-            <p className='text-text-secondary'>No orders found.</p>
+            <Package size={48} className='mx-auto mb-4 text-text-muted' aria-hidden='true' />
+            <p className='text-text-secondary'>
+              {searchQuery || status ? 'No orders match your filters.' : 'No orders found.'}
+            </p>
+            {(searchQuery || status) && (
+              <button
+                type='button'
+                onClick={() => {
+                  setLocalSearch('')
+                  setLocalStatus('')
+                  handleNavigate({ search: '', status: '', page: 1 })
+                }}
+                className='mt-4 text-sm font-medium text-accent-primary hover:underline'
+              >
+                Clear filters
+              </button>
+            )}
           </div>
         ) : (
           <div className='space-y-4'>
+            {/* Desktop table header */}
+            <div className='hidden rounded-lg bg-surface-inset px-5 py-2 text-xs font-medium text-text-secondary sm:grid sm:grid-cols-[1fr_1fr_120px_100px] sm:gap-4'>
+              <span>Order</span>
+              <span>Buyer</span>
+              <span>Status</span>
+              <span className='text-right'>Total</span>
+            </div>
+
             {result.orders.map((order) => (
               <Link
                 key={order.id}
                 to='/studio/$shopId/orders/$shopOrderId'
                 params={{ shopId, shopOrderId: order.id }}
-                className='island-shell flex flex-col gap-3 rounded-xl p-5 transition hover:bg-bg-inset sm:flex-row sm:items-center sm:justify-between'
+                className='island-shell flex flex-col gap-3 rounded-xl p-5 transition hover:bg-bg-inset sm:grid sm:grid-cols-[1fr_1fr_120px_100px] sm:items-center sm:gap-4'
               >
                 <div className='space-y-1'>
-                  <div className='flex items-center gap-2'>
-                    <span className='font-mono text-sm text-text-secondary'>
-                      {order.id.slice(0, 8)}…
-                    </span>
-                    <Badge variant={getStatusBadgeVariant(order.status)}>
-                      {order.status.replace('_', ' ')}
-                    </Badge>
-                  </div>
-                  <p className='text-sm text-text-secondary'>
-                    {order.buyerName} · {order.buyerEmail}
-                  </p>
+                  <span className='font-mono text-sm text-text-secondary'>
+                    {order.id.slice(0, 8)}…
+                  </span>
                   <p className='text-xs text-text-muted'>
                     {new Date(order.createdAt).toLocaleDateString()} · {order.itemCount} items
                   </p>
                 </div>
-                <div className='text-right'>
-                  <p className='text-lg font-semibold text-text-primary'>
+                <div>
+                  <p className='text-sm text-text-primary'>{order.buyerName}</p>
+                  <p className='text-xs text-text-secondary'>{order.buyerEmail}</p>
+                </div>
+                <div>
+                  <Badge variant={getStatusBadgeVariant(order.status)}>
+                    {order.status.replace('_', ' ')}
+                  </Badge>
+                </div>
+                <div className='text-left sm:text-right'>
+                  <p className='text-base font-semibold text-text-primary'>
                     {formatPriceEUR(order.totalCents)}
                   </p>
                   <p className='text-xs text-text-muted capitalize'>{order.shippingMethod}</p>
@@ -155,14 +238,17 @@ function ShopOrdersPage() {
             ))}
 
             {result.totalPages > 1 && (
-              <nav className='flex items-center justify-center gap-2 pt-4'>
+              <nav
+                className='flex items-center justify-center gap-2 pt-4'
+                aria-label='Order pagination'
+              >
                 <button
                   type='button'
                   onClick={() => handlePageChange(Math.max(1, result.page - 1))}
                   disabled={result.page <= 1}
                   className='inline-flex items-center gap-1 rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary transition hover:bg-bg-inset disabled:cursor-not-allowed disabled:opacity-40'
                 >
-                  <ChevronLeft size={16} />
+                  <ChevronLeft size={16} aria-hidden='true' />
                   {m.pagination_previous()}
                 </button>
                 <span className='text-sm text-text-secondary'>
@@ -175,12 +261,47 @@ function ShopOrdersPage() {
                   className='inline-flex items-center gap-1 rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary transition hover:bg-bg-inset disabled:cursor-not-allowed disabled:opacity-40'
                 >
                   {m.pagination_next()}
-                  <ChevronRight size={16} />
+                  <ChevronRight size={16} aria-hidden='true' />
                 </button>
               </nav>
             )}
           </div>
         )}
+      </div>
+    </main>
+  )
+}
+
+function ShopOrdersPending() {
+  return (
+    <main className='page-wrap px-4 py-12'>
+      <div className='mx-auto max-w-5xl'>
+        <div className='mb-6 flex items-center justify-between'>
+          <div className='h-8 w-40 animate-pulse rounded bg-[var(--sand)]' />
+          <div className='h-4 w-24 animate-pulse rounded bg-[var(--sand)]' />
+        </div>
+        <div className='mb-6 flex gap-3'>
+          <div className='h-10 flex-1 animate-pulse rounded bg-[var(--sand)]' />
+          <div className='h-10 w-40 animate-pulse rounded bg-[var(--sand)]' />
+        </div>
+        <div className='space-y-4'>
+          {[1, 2, 3].map((n) => (
+            <div key={n} className='island-shell h-20 animate-pulse rounded-xl bg-[var(--sand)]' />
+          ))}
+        </div>
+      </div>
+    </main>
+  )
+}
+
+function ShopOrdersError({ error }: { error: Error }) {
+  return (
+    <main className='page-wrap px-4 py-12'>
+      <div className='mx-auto max-w-5xl text-center'>
+        <h1 className='display-title mb-4 text-2xl font-bold text-text-primary'>
+          Failed to load orders
+        </h1>
+        <p className='mb-6 text-text-secondary'>{error.message}</p>
       </div>
     </main>
   )

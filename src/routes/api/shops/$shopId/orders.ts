@@ -9,6 +9,7 @@ export const Route = createFileRoute('/api/shops/$shopId/orders')({
       GET: async ({ request, params }) => {
         const url = new URL(request.url)
         const status = url.searchParams.get('status') ?? undefined
+        const search = url.searchParams.get('search') ?? undefined
         const page = Number(url.searchParams.get('page') ?? '1')
         const pageSize = Number(url.searchParams.get('pageSize') ?? '20')
 
@@ -18,6 +19,7 @@ export const Route = createFileRoute('/api/shops/$shopId/orders')({
           async () => {
             const result = await listShopOrdersQuery(params.shopId, {
               status,
+              search,
               page,
               pageSize,
             })

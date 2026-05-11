@@ -259,6 +259,7 @@ export const listShopOrders = createServerFn({ method: 'GET' })
     z.object({
       shopId: z.string().min(1),
       status: z.string().optional(),
+      search: z.string().optional(),
       page: z.coerce.number().int().min(1).optional().default(1),
       pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
     }),
@@ -278,6 +279,7 @@ export const listShopOrders = createServerFn({ method: 'GET' })
     const { listShopOrdersQuery } = await import('./shop-orders.server')
     return listShopOrdersQuery(data.shopId, {
       status: data.status,
+      search: data.search,
       page: data.page,
       pageSize: data.pageSize,
     })
