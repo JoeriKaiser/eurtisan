@@ -29,11 +29,13 @@ import { Route as DisputesDisputeIdRouteImport } from './routes/disputes.$disput
 import { Route as CategoryAllRouteImport } from './routes/category/all'
 import { Route as CategorySlugRouteImport } from './routes/category/$slug'
 import { Route as ApiProductsRouteImport } from './routes/api/products'
+import { Route as AdminDisputesRouteImport } from './routes/admin/disputes'
 import { Route as AccountSettingsRouteImport } from './routes/account/settings'
 import { Route as AccountOrdersRouteImport } from './routes/account/orders'
 import { Route as StudioShopIdOrdersRouteImport } from './routes/studio/$shopId.orders'
 import { Route as OrdersPlatformOrderIdSuccessRouteImport } from './routes/orders.$platformOrderId.success'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as AdminDisputesDisputeIdRouteImport } from './routes/admin/disputes/$disputeId'
 import { Route as AccountOrdersOrderIdRouteImport } from './routes/account/orders.$orderId'
 import { Route as StudioShopIdOrdersShopOrderIdRouteImport } from './routes/studio/$shopId.orders.$shopOrderId'
 import { Route as ApiShopsShopIdSettingsRouteImport } from './routes/api/shops/$shopId/settings'
@@ -144,6 +146,11 @@ const ApiProductsRoute = ApiProductsRouteImport.update({
   path: '/api/products',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminDisputesRoute = AdminDisputesRouteImport.update({
+  id: '/admin/disputes',
+  path: '/admin/disputes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AccountSettingsRoute = AccountSettingsRouteImport.update({
   id: '/account/settings',
   path: '/account/settings',
@@ -169,6 +176,11 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AdminDisputesDisputeIdRoute = AdminDisputesDisputeIdRouteImport.update({
+  id: '/$disputeId',
+  path: '/$disputeId',
+  getParentRoute: () => AdminDisputesRoute,
 } as any)
 const AccountOrdersOrderIdRoute = AccountOrdersOrderIdRouteImport.update({
   id: '/$orderId',
@@ -231,6 +243,7 @@ export interface FileRoutesByFullPath {
   '/signin': typeof SigninRoute
   '/account/orders': typeof AccountOrdersRouteWithChildren
   '/account/settings': typeof AccountSettingsRoute
+  '/admin/disputes': typeof AdminDisputesRouteWithChildren
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
@@ -243,6 +256,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/studio/': typeof StudioIndexRoute
   '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
+  '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
@@ -267,6 +281,7 @@ export interface FileRoutesByTo {
   '/signin': typeof SigninRoute
   '/account/orders': typeof AccountOrdersRouteWithChildren
   '/account/settings': typeof AccountSettingsRoute
+  '/admin/disputes': typeof AdminDisputesRouteWithChildren
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
@@ -279,6 +294,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/studio': typeof StudioIndexRoute
   '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
+  '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
@@ -304,6 +320,7 @@ export interface FileRoutesById {
   '/signin': typeof SigninRoute
   '/account/orders': typeof AccountOrdersRouteWithChildren
   '/account/settings': typeof AccountSettingsRoute
+  '/admin/disputes': typeof AdminDisputesRouteWithChildren
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
@@ -316,6 +333,7 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/studio/': typeof StudioIndexRoute
   '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
+  '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
@@ -342,6 +360,7 @@ export interface FileRouteTypes {
     | '/signin'
     | '/account/orders'
     | '/account/settings'
+    | '/admin/disputes'
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
@@ -354,6 +373,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/studio/'
     | '/account/orders/$orderId'
+    | '/admin/disputes/$disputeId'
     | '/api/auth/$'
     | '/orders/$platformOrderId/success'
     | '/studio/$shopId/orders'
@@ -378,6 +398,7 @@ export interface FileRouteTypes {
     | '/signin'
     | '/account/orders'
     | '/account/settings'
+    | '/admin/disputes'
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
@@ -390,6 +411,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/studio'
     | '/account/orders/$orderId'
+    | '/admin/disputes/$disputeId'
     | '/api/auth/$'
     | '/orders/$platformOrderId/success'
     | '/studio/$shopId/orders'
@@ -414,6 +436,7 @@ export interface FileRouteTypes {
     | '/signin'
     | '/account/orders'
     | '/account/settings'
+    | '/admin/disputes'
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
@@ -426,6 +449,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/studio/'
     | '/account/orders/$orderId'
+    | '/admin/disputes/$disputeId'
     | '/api/auth/$'
     | '/orders/$platformOrderId/success'
     | '/studio/$shopId/orders'
@@ -451,6 +475,7 @@ export interface RootRouteChildren {
   SigninRoute: typeof SigninRoute
   AccountOrdersRoute: typeof AccountOrdersRouteWithChildren
   AccountSettingsRoute: typeof AccountSettingsRoute
+  AdminDisputesRoute: typeof AdminDisputesRouteWithChildren
   ApiProductsRoute: typeof ApiProductsRoute
   CategorySlugRoute: typeof CategorySlugRoute
   CategoryAllRoute: typeof CategoryAllRoute
@@ -611,6 +636,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProductsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/disputes': {
+      id: '/admin/disputes'
+      path: '/admin/disputes'
+      fullPath: '/admin/disputes'
+      preLoaderRoute: typeof AdminDisputesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/account/settings': {
       id: '/account/settings'
       path: '/account/settings'
@@ -645,6 +677,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/auth/$'
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/disputes/$disputeId': {
+      id: '/admin/disputes/$disputeId'
+      path: '/$disputeId'
+      fullPath: '/admin/disputes/$disputeId'
+      preLoaderRoute: typeof AdminDisputesDisputeIdRouteImport
+      parentRoute: typeof AdminDisputesRoute
     }
     '/account/orders/$orderId': {
       id: '/account/orders/$orderId'
@@ -748,6 +787,18 @@ const AccountOrdersRouteWithChildren = AccountOrdersRoute._addFileChildren(
   AccountOrdersRouteChildren,
 )
 
+interface AdminDisputesRouteChildren {
+  AdminDisputesDisputeIdRoute: typeof AdminDisputesDisputeIdRoute
+}
+
+const AdminDisputesRouteChildren: AdminDisputesRouteChildren = {
+  AdminDisputesDisputeIdRoute: AdminDisputesDisputeIdRoute,
+}
+
+const AdminDisputesRouteWithChildren = AdminDisputesRoute._addFileChildren(
+  AdminDisputesRouteChildren,
+)
+
 interface StudioShopIdOrdersRouteChildren {
   StudioShopIdOrdersShopOrderIdRoute: typeof StudioShopIdOrdersShopOrderIdRoute
 }
@@ -808,6 +859,7 @@ const rootRouteChildren: RootRouteChildren = {
   SigninRoute: SigninRoute,
   AccountOrdersRoute: AccountOrdersRouteWithChildren,
   AccountSettingsRoute: AccountSettingsRoute,
+  AdminDisputesRoute: AdminDisputesRouteWithChildren,
   ApiProductsRoute: ApiProductsRoute,
   CategorySlugRoute: CategorySlugRoute,
   CategoryAllRoute: CategoryAllRoute,
