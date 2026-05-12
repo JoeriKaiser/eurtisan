@@ -371,3 +371,44 @@ export const notification = pgTable(
     index('notification_user_id_created_at_idx').on(table.userId, table.createdAt),
   ],
 )
+
+export const dispute = pgTable(
+  'dispute',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    shopOrderId: uuid('shop_order_id')
+      .notNull()
+      .references(() => shopOrder.id, { onDelete: 'cascade' }),
+    buyerUserId: text('buyer_user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    reason: text().notNull(),
+    description: text().notNull(),
+    status: text().notNull().default('open'),
+    resolution: text(),
+    refundCents: integer('refund_cents'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('dispute_status_idx').on(table.status),
+    index('dispute_buyer_user_id_idx').on(table.buyerUserId),
+    uniqueIndex('dispute_shop_order_id_unique').on(table.shopOrderId),
+  ],
+)
+
+export const disputeMessage = pgTable(
+  'dispute_message',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    disputeId: uuid('dispute_id')
+      .notNull()
+      .references(() => dispute.id, { onDelete: 'cascade' }),
+    senderUserId: text('sender_user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    message: text().notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [index('dispute_message_dispute_id_idx').on(table.disputeId)],
+)
