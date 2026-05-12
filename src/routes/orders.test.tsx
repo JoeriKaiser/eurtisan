@@ -17,6 +17,7 @@ vi.mock('@tanstack/react-router', () => ({
       {props.children}
     </a>
   ),
+  useRouter: () => ({ invalidate: vi.fn() }),
 }))
 
 vi.mock('#/paraglide/messages', () => ({
@@ -61,6 +62,20 @@ vi.mock('#/paraglide/messages', () => ({
     cart_shop_subtotal: () => 'Subtotal',
     error_not_found: () => 'Page not found',
     error_not_found_description: () => 'The page you are looking for does not exist.',
+    order_detail_open_dispute: () => 'Open dispute',
+    order_detail_dispute_disabled_tooltip: () => 'Dispute window has expired (30 days)',
+    dispute_modal_title: () => 'Open a dispute',
+    dispute_modal_description: () => 'Describe the issue with your order.',
+    dispute_reason_label: () => 'Reason',
+    dispute_reason_item_not_received: () => 'Item not received',
+    dispute_reason_not_as_described: () => 'Not as described',
+    dispute_reason_damaged: () => 'Damaged',
+    dispute_reason_other: () => 'Other',
+    dispute_description_label: () => 'Description',
+    dispute_description_placeholder: () => 'Please describe the issue in detail...',
+    dispute_submit: () => 'Submit dispute',
+    dispute_cancel: () => 'Cancel',
+    dispute_modal_close: () => 'Close dispute form',
   },
 }))
 
@@ -70,6 +85,10 @@ vi.mock('#/lib/orders-ui', () => ({
     if (status === 'cancelled') return 'error'
     return 'default'
   },
+}))
+
+vi.mock('#/lib/disputes', () => ({
+  openDispute: vi.fn(),
 }))
 
 function makeOrderListItem(overrides?: Partial<BuyerOrderListItem>): BuyerOrderListItem {
@@ -397,5 +416,107 @@ describe('Order detail page', () => {
     })
     render(<BuyerOrderDetailPage order={order} />)
     expect(screen.getByRole('progressbar')).toBeDefined()
+  })
+
+  it('renders open dispute button for delivered orders within 30 days', () => {
+    const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
+    const order = makeOrderDetail({
+      status: 'delivered',
+      shops: [
+        {
+          shopOrderId: 'so-1',
+          shopId: 'shop-1',
+          shopName: 'Test Shop',
+          shippingMethod: 'standard',
+          shippingCostCents: 500,
+          subtotalCents: 2000,
+          status: 'delivered',
+          trackingNumber: null,
+          trackingUrl: null,
+          deliveredAt: fiveDaysAgo,
+          items: [
+            {
+              id: 'item-1',
+              productId: 'prod-1',
+              productName: 'Vase',
+              unitPriceCents: 1000,
+              quantity: 2,
+              totalCents: 2000,
+            },
+          ],
+        },
+      ],
+    })
+    render(<BuyerOrderDetailPage order={order} />)
+    const disputeButton = screen.getByRole('button', { name: 'Open dispute' })
+    expect(disputeButton).toBeDefined()
+    expect(disputeButton.hasAttribute('disabled')).toBe(false)
+  })
+
+  it('does not render dispute button for non-delivered orders', () => {
+    const order = makeOrderDetail({
+      status: 'paid',
+      shops: [
+        {
+          shopOrderId: 'so-1',
+          shopId: 'shop-1',
+          shopName: 'Test Shop',
+          shippingMethod: 'standard',
+          shippingCostCents: 500,
+          subtotalCents: 2000,
+          status: 'paid',
+          trackingNumber: null,
+          trackingUrl: null,
+          deliveredAt: null,
+          items: [
+            {
+              id: 'item-1',
+              productId: 'prod-1',
+              productName: 'Vase',
+              unitPriceCents: 1000,
+              quantity: 2,
+              totalCents: 2000,
+            },
+          ],
+        },
+      ],
+    })
+    render(<BuyerOrderDetailPage order={order} />)
+    expect(screen.queryByRole('button', { name: 'Open dispute' })).toBeNull()
+  })
+
+  it('renders disabled dispute button with tooltip for delivered orders past 30 days', () => {
+    const fortyDaysAgo = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000)
+    const order = makeOrderDetail({
+      status: 'delivered',
+      shops: [
+        {
+          shopOrderId: 'so-1',
+          shopId: 'shop-1',
+          shopName: 'Test Shop',
+          shippingMethod: 'standard',
+          shippingCostCents: 500,
+          subtotalCents: 2000,
+          status: 'delivered',
+          trackingNumber: null,
+          trackingUrl: null,
+          deliveredAt: fortyDaysAgo,
+          items: [
+            {
+              id: 'item-1',
+              productId: 'prod-1',
+              productName: 'Vase',
+              unitPriceCents: 1000,
+              quantity: 2,
+              totalCents: 2000,
+            },
+          ],
+        },
+      ],
+    })
+    render(<BuyerOrderDetailPage order={order} />)
+    const disputeButton = screen.getByRole('button', { name: 'Open dispute' })
+    expect(disputeButton).toBeDefined()
+    expect(disputeButton.hasAttribute('disabled')).toBe(true)
   })
 })

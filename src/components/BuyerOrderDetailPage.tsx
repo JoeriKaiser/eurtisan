@@ -1,5 +1,5 @@
-import { Link } from '@tanstack/react-router'
-import { ArrowLeft, ImageOff, MapPin, Package, Star, Truck, X } from 'lucide-react'
+import { Link, useRouter } from '@tanstack/react-router'
+import { AlertTriangle, ArrowLeft, ImageOff, MapPin, Package, Star, Truck, X } from 'lucide-react'
 import { useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
@@ -12,9 +12,10 @@ import {
   DialogTitle,
 } from '#/components/ui/primitives/dialog'
 import { Skeleton } from '#/components/ui/skeleton'
-import type { OrderDetail, OrderStatus } from '#/lib/orders.server'
+import type { OrderDetail, OrderShopGroup, OrderStatus } from '#/lib/orders.server'
 import { statusBadgeVariant } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
+import { openDispute } from '#/lib/disputes'
 import { createReview } from '#/lib/reviews'
 import type { ReviewableItem } from '#/lib/reviews.server'
 import { m } from '#/paraglide/messages'
@@ -37,6 +38,12 @@ function isValidUrl(url: string | null): url is string {
   }
 }
 
+function isDisputeEligible(deliveredAt: Date | null): boolean {
+  if (!deliveredAt) return false
+  const daysSinceDelivery = (Date.now() - deliveredAt.getTime()) / (24 * 60 * 60 * 1000)
+  return daysSinceDelivery <= 30
+}
+
 function getStatusProgress(status: OrderStatus): number {
   const steps: OrderStatus[] = [
     'pending_payment',
@@ -53,7 +60,7 @@ function getStatusProgress(status: OrderStatus): number {
 
 export interface BuyerOrderDetailPageProps {
   order: OrderDetail
-  reviewableItems: ReviewableItem[]
+  reviewableItems?: ReviewableItem[]
 }
 
 export default function BuyerOrderDetailPage({
@@ -64,12 +71,19 @@ export default function BuyerOrderDetailPage({
   const [reviews, setReviews] = useState<Record<string, ReviewableItem>>(() =>
     Object.fromEntries(reviewableItems.map((r) => [`${r.shopOrderId}-${r.productId}`, r])),
   )
+  const router = useRouter()
   const [activeReviewItem, setActiveReviewItem] = useState<ReviewableItem | null>(null)
   const [rating, setRating] = useState(0)
   const [hoverRating, setHoverRating] = useState(0)
   const [comment, setComment] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
+
+  const [activeDisputeShop, setActiveDisputeShop] = useState<OrderShopGroup | null>(null)
+  const [disputeReason, setDisputeReason] = useState('item_not_received')
+  const [disputeDescription, setDisputeDescription] = useState('')
+  const [isDisputeSubmitting, setIsDisputeSubmitting] = useState(false)
+  const [disputeError, setDisputeError] = useState<string | null>(null)
 
   const handleOpenReview = (item: ReviewableItem) => {
     if (!item.isEligible || item.hasReview) return
@@ -78,6 +92,47 @@ export default function BuyerOrderDetailPage({
     setComment('')
     setSubmitError(null)
     setActiveReviewItem(item)
+  }
+
+  const handleOpenDispute = (shop: OrderShopGroup) => {
+    if (shop.status !== 'delivered' || !isDisputeEligible(shop.deliveredAt)) return
+    setDisputeReason('item_not_received')
+    setDisputeDescription('')
+    setDisputeError(null)
+    setActiveDisputeShop(shop)
+  }
+
+  const handleCloseDispute = () => {
+    setActiveDisputeShop(null)
+    setDisputeReason('item_not_received')
+    setDisputeDescription('')
+    setDisputeError(null)
+  }
+
+  const handleSubmitDispute = async () => {
+    if (!activeDisputeShop || !disputeDescription.trim()) return
+    setIsDisputeSubmitting(true)
+    setDisputeError(null)
+    try {
+      await openDispute({
+        data: {
+          shopOrderId: activeDisputeShop.shopOrderId,
+          reason: disputeReason,
+          description: disputeDescription.trim(),
+        },
+      })
+      router.invalidate()
+      handleCloseDispute()
+    } catch (err) {
+      if (err instanceof Response) {
+        const body = await err.json().catch(() => ({ message: 'Unknown error' }))
+        setDisputeError(body.message || 'Failed to open dispute')
+      } else {
+        setDisputeError('Failed to open dispute')
+      }
+    } finally {
+      setIsDisputeSubmitting(false)
+    }
   }
 
   const handleCloseReview = () => {
@@ -325,6 +380,34 @@ export default function BuyerOrderDetailPage({
                     })}
                   </div>
                 )}
+
+                {/* Dispute CTA for delivered items */}
+                {shop.status === 'delivered' && (
+                  <div className='flex justify-end'>
+                    {isDisputeEligible(shop.deliveredAt) ? (
+                      <Button
+                        variant='ghost'
+                        size='sm'
+                        onClick={() => handleOpenDispute(shop)}
+                        className='text-error hover:bg-error/5 hover:text-error'
+                      >
+                        <AlertTriangle size={14} className='mr-1' aria-hidden='true' />
+                        {m.order_detail_open_dispute()}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant='ghost'
+                        size='sm'
+                        disabled
+                        title={m.order_detail_dispute_disabled_tooltip()}
+                        className='text-text-muted'
+                      >
+                        <AlertTriangle size={14} className='mr-1' aria-hidden='true' />
+                        {m.order_detail_open_dispute()}
+                      </Button>
+                    )}
+                  </div>
+                )}
               </section>
             ))}
           </div>
@@ -430,6 +513,104 @@ export default function BuyerOrderDetailPage({
                   </Button>
                 </div>
               </div>
+            )}
+          </DialogPopup>
+        </DialogPortal>
+      </Dialog>
+
+      {/* Dispute Modal */}
+      <Dialog
+        open={activeDisputeShop !== null}
+        onOpenChange={(open) => !open && handleCloseDispute()}
+      >
+        <DialogPortal>
+          <DialogBackdrop />
+          <DialogPopup className='max-w-md'>
+            <div className='flex items-center justify-between'>
+              <DialogTitle>{m.dispute_modal_title()}</DialogTitle>
+              <button
+                type='button'
+                onClick={handleCloseDispute}
+                className='rounded-lg p-1 text-text-muted transition-colors hover:bg-bg-inset hover:text-text-primary'
+                aria-label={m.dispute_modal_close()}
+              >
+                <X size={18} aria-hidden='true' />
+              </button>
+            </div>
+            <DialogDescription>{m.dispute_modal_description()}</DialogDescription>
+
+            {activeDisputeShop && (
+              <form
+                className='mt-4 space-y-4'
+                onSubmit={(e) => {
+                  e.preventDefault()
+                  handleSubmitDispute()
+                }}
+              >
+                <div>
+                  <label
+                    htmlFor='dispute-reason'
+                    className='mb-1.5 block text-sm font-medium text-text-primary'
+                  >
+                    {m.dispute_reason_label()}
+                  </label>
+                  <select
+                    id='dispute-reason'
+                    value={disputeReason}
+                    onChange={(e) => setDisputeReason(e.target.value)}
+                    disabled={isDisputeSubmitting}
+                    className='h-10 w-full rounded-lg border border-border-default bg-surface-default px-3 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20 disabled:opacity-50'
+                  >
+                    <option value='item_not_received'>{m.dispute_reason_item_not_received()}</option>
+                    <option value='not_as_described'>{m.dispute_reason_not_as_described()}</option>
+                    <option value='damaged'>{m.dispute_reason_damaged()}</option>
+                    <option value='other'>{m.dispute_reason_other()}</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor='dispute-description'
+                    className='mb-1.5 block text-sm font-medium text-text-primary'
+                  >
+                    {m.dispute_description_label()}
+                  </label>
+                  <textarea
+                    id='dispute-description'
+                    rows={4}
+                    value={disputeDescription}
+                    onChange={(e) => setDisputeDescription(e.target.value)}
+                    placeholder={m.dispute_description_placeholder()}
+                    className='w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary placeholder:text-text-muted transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20 disabled:opacity-50 resize-none'
+                    maxLength={5000}
+                    disabled={isDisputeSubmitting}
+                    required
+                  />
+                  <p className='mt-1 text-right text-xs text-text-muted'>
+                    {disputeDescription.length}/5000
+                  </p>
+                </div>
+
+                {disputeError && <p className='text-sm text-error'>{disputeError}</p>}
+
+                <div className='flex justify-end gap-3'>
+                  <Button
+                    variant='secondary'
+                    onClick={handleCloseDispute}
+                    disabled={isDisputeSubmitting}
+                    type='button'
+                  >
+                    {m.dispute_cancel()}
+                  </Button>
+                  <Button
+                    type='submit'
+                    isLoading={isDisputeSubmitting}
+                    disabled={!disputeDescription.trim() || isDisputeSubmitting}
+                  >
+                    {m.dispute_submit()}
+                  </Button>
+                </div>
+              </form>
             )}
           </DialogPopup>
         </DialogPortal>

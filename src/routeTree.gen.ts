@@ -25,6 +25,7 @@ import { Route as StudioShopIdRouteImport } from './routes/studio/$shopId'
 import { Route as ShopsShopSlugRouteImport } from './routes/shops/$shopSlug'
 import { Route as ProductsProductSlugRouteImport } from './routes/products/$productSlug'
 import { Route as OrdersPlatformOrderIdRouteImport } from './routes/orders.$platformOrderId'
+import { Route as DisputesDisputeIdRouteImport } from './routes/disputes.$disputeId'
 import { Route as CategoryAllRouteImport } from './routes/category/all'
 import { Route as CategorySlugRouteImport } from './routes/category/$slug'
 import { Route as ApiProductsRouteImport } from './routes/api/products'
@@ -39,6 +40,7 @@ import { Route as ApiShopsShopIdSettingsRouteImport } from './routes/api/shops/$
 import { Route as ApiShopsShopIdProductsRouteImport } from './routes/api/shops/$shopId/products'
 import { Route as ApiShopsShopIdOrdersRouteImport } from './routes/api/shops/$shopId/orders'
 import { Route as ApiShopsShopIdDashboardRouteImport } from './routes/api/shops/$shopId/dashboard'
+import { Route as ApiAdminPayoutsPayoutIdRouteImport } from './routes/api/admin/payouts.$payoutId'
 import { Route as ApiShopsShopIdProductsProductIdRouteImport } from './routes/api/shops/$shopId/products.$productId'
 import { Route as ApiShopsShopIdOrdersShopOrderIdRouteImport } from './routes/api/shops/$shopId/orders.$shopOrderId'
 
@@ -122,6 +124,11 @@ const OrdersPlatformOrderIdRoute = OrdersPlatformOrderIdRouteImport.update({
   path: '/$platformOrderId',
   getParentRoute: () => OrdersRoute,
 } as any)
+const DisputesDisputeIdRoute = DisputesDisputeIdRouteImport.update({
+  id: '/disputes/$disputeId',
+  path: '/disputes/$disputeId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CategoryAllRoute = CategoryAllRouteImport.update({
   id: '/category/all',
   path: '/category/all',
@@ -194,6 +201,11 @@ const ApiShopsShopIdDashboardRoute = ApiShopsShopIdDashboardRouteImport.update({
   path: '/api/shops/$shopId/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminPayoutsPayoutIdRoute = ApiAdminPayoutsPayoutIdRouteImport.update({
+  id: '/api/admin/payouts/$payoutId',
+  path: '/api/admin/payouts/$payoutId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiShopsShopIdProductsProductIdRoute =
   ApiShopsShopIdProductsProductIdRouteImport.update({
     id: '/$productId',
@@ -222,6 +234,7 @@ export interface FileRoutesByFullPath {
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
+  '/disputes/$disputeId': typeof DisputesDisputeIdRoute
   '/orders/$platformOrderId': typeof OrdersPlatformOrderIdRouteWithChildren
   '/products/$productSlug': typeof ProductsProductSlugRoute
   '/shops/$shopSlug': typeof ShopsShopSlugRoute
@@ -233,6 +246,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
+  '/api/admin/payouts/$payoutId': typeof ApiAdminPayoutsPayoutIdRoute
   '/api/shops/$shopId/dashboard': typeof ApiShopsShopIdDashboardRoute
   '/api/shops/$shopId/orders': typeof ApiShopsShopIdOrdersRouteWithChildren
   '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRouteWithChildren
@@ -256,6 +270,7 @@ export interface FileRoutesByTo {
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
+  '/disputes/$disputeId': typeof DisputesDisputeIdRoute
   '/orders/$platformOrderId': typeof OrdersPlatformOrderIdRouteWithChildren
   '/products/$productSlug': typeof ProductsProductSlugRoute
   '/shops/$shopSlug': typeof ShopsShopSlugRoute
@@ -267,6 +282,7 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
+  '/api/admin/payouts/$payoutId': typeof ApiAdminPayoutsPayoutIdRoute
   '/api/shops/$shopId/dashboard': typeof ApiShopsShopIdDashboardRoute
   '/api/shops/$shopId/orders': typeof ApiShopsShopIdOrdersRouteWithChildren
   '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRouteWithChildren
@@ -291,6 +307,7 @@ export interface FileRoutesById {
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
+  '/disputes/$disputeId': typeof DisputesDisputeIdRoute
   '/orders/$platformOrderId': typeof OrdersPlatformOrderIdRouteWithChildren
   '/products/$productSlug': typeof ProductsProductSlugRoute
   '/shops/$shopSlug': typeof ShopsShopSlugRoute
@@ -302,6 +319,7 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
+  '/api/admin/payouts/$payoutId': typeof ApiAdminPayoutsPayoutIdRoute
   '/api/shops/$shopId/dashboard': typeof ApiShopsShopIdDashboardRoute
   '/api/shops/$shopId/orders': typeof ApiShopsShopIdOrdersRouteWithChildren
   '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRouteWithChildren
@@ -327,6 +345,7 @@ export interface FileRouteTypes {
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
+    | '/disputes/$disputeId'
     | '/orders/$platformOrderId'
     | '/products/$productSlug'
     | '/shops/$shopSlug'
@@ -338,6 +357,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/orders/$platformOrderId/success'
     | '/studio/$shopId/orders'
+    | '/api/admin/payouts/$payoutId'
     | '/api/shops/$shopId/dashboard'
     | '/api/shops/$shopId/orders'
     | '/api/shops/$shopId/products'
@@ -361,6 +381,7 @@ export interface FileRouteTypes {
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
+    | '/disputes/$disputeId'
     | '/orders/$platformOrderId'
     | '/products/$productSlug'
     | '/shops/$shopSlug'
@@ -372,6 +393,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/orders/$platformOrderId/success'
     | '/studio/$shopId/orders'
+    | '/api/admin/payouts/$payoutId'
     | '/api/shops/$shopId/dashboard'
     | '/api/shops/$shopId/orders'
     | '/api/shops/$shopId/products'
@@ -395,6 +417,7 @@ export interface FileRouteTypes {
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
+    | '/disputes/$disputeId'
     | '/orders/$platformOrderId'
     | '/products/$productSlug'
     | '/shops/$shopSlug'
@@ -406,6 +429,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/orders/$platformOrderId/success'
     | '/studio/$shopId/orders'
+    | '/api/admin/payouts/$payoutId'
     | '/api/shops/$shopId/dashboard'
     | '/api/shops/$shopId/orders'
     | '/api/shops/$shopId/products'
@@ -430,6 +454,7 @@ export interface RootRouteChildren {
   ApiProductsRoute: typeof ApiProductsRoute
   CategorySlugRoute: typeof CategorySlugRoute
   CategoryAllRoute: typeof CategoryAllRoute
+  DisputesDisputeIdRoute: typeof DisputesDisputeIdRoute
   ProductsProductSlugRoute: typeof ProductsProductSlugRoute
   ShopsShopSlugRoute: typeof ShopsShopSlugRoute
   StudioShopIdRoute: typeof StudioShopIdRouteWithChildren
@@ -437,6 +462,7 @@ export interface RootRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
   StudioIndexRoute: typeof StudioIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiAdminPayoutsPayoutIdRoute: typeof ApiAdminPayoutsPayoutIdRoute
   ApiShopsShopIdDashboardRoute: typeof ApiShopsShopIdDashboardRoute
   ApiShopsShopIdOrdersRoute: typeof ApiShopsShopIdOrdersRouteWithChildren
   ApiShopsShopIdProductsRoute: typeof ApiShopsShopIdProductsRouteWithChildren
@@ -557,6 +583,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrdersPlatformOrderIdRouteImport
       parentRoute: typeof OrdersRoute
     }
+    '/disputes/$disputeId': {
+      id: '/disputes/$disputeId'
+      path: '/disputes/$disputeId'
+      fullPath: '/disputes/$disputeId'
+      preLoaderRoute: typeof DisputesDisputeIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/category/all': {
       id: '/category/all'
       path: '/category/all'
@@ -653,6 +686,13 @@ declare module '@tanstack/react-router' {
       path: '/api/shops/$shopId/dashboard'
       fullPath: '/api/shops/$shopId/dashboard'
       preLoaderRoute: typeof ApiShopsShopIdDashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/payouts/$payoutId': {
+      id: '/api/admin/payouts/$payoutId'
+      path: '/api/admin/payouts/$payoutId'
+      fullPath: '/api/admin/payouts/$payoutId'
+      preLoaderRoute: typeof ApiAdminPayoutsPayoutIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/shops/$shopId/products/$productId': {
@@ -771,6 +811,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiProductsRoute: ApiProductsRoute,
   CategorySlugRoute: CategorySlugRoute,
   CategoryAllRoute: CategoryAllRoute,
+  DisputesDisputeIdRoute: DisputesDisputeIdRoute,
   ProductsProductSlugRoute: ProductsProductSlugRoute,
   ShopsShopSlugRoute: ShopsShopSlugRoute,
   StudioShopIdRoute: StudioShopIdRouteWithChildren,
@@ -778,6 +819,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
   StudioIndexRoute: StudioIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiAdminPayoutsPayoutIdRoute: ApiAdminPayoutsPayoutIdRoute,
   ApiShopsShopIdDashboardRoute: ApiShopsShopIdDashboardRoute,
   ApiShopsShopIdOrdersRoute: ApiShopsShopIdOrdersRouteWithChildren,
   ApiShopsShopIdProductsRoute: ApiShopsShopIdProductsRouteWithChildren,
@@ -786,12 +828,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}

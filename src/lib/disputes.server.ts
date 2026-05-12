@@ -23,6 +23,7 @@ export interface DisputeMessageItem {
 
 export interface DisputeOrderInfo {
   id: string
+  platformOrderId: string
   shopId: string
   shopName: string
   status: string
@@ -418,6 +419,7 @@ export async function getDisputeDetailQuery(
     shop: ownerRecord ?? { id: shopRecord?.ownerId ?? '', name: 'Unknown' },
     order: {
       id: shopOrderRecord.id,
+      platformOrderId: shopOrderRecord.platformOrderId,
       shopId: shopOrderRecord.shopId,
       shopName: shopRecord?.name ?? 'Unknown shop',
       status: shopOrderRecord.status,
