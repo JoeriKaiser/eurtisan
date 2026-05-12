@@ -5,6 +5,7 @@ import { authMiddleware } from './auth-middleware'
 export type {
   CreatorActivity,
   CreatorDashboardStats,
+  CreatorShop,
   OrderActivity,
   ReviewActivity,
 } from './creator-dashboard.server'
@@ -31,6 +32,29 @@ export const getCreatorDashboardStats = createServerFn({ method: 'GET' })
 
     const { getCreatorDashboardStatsQuery } = await import('./creator-dashboard.server')
     return getCreatorDashboardStatsQuery(context.user.id)
+  })
+
+/**
+ * Returns the list of shops owned by the authenticated creator.
+ */
+export const getCreatorShops = createServerFn({ method: 'GET' })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    if (!context.user) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Unauthorized',
+          message: 'Authentication required. Please sign in.',
+        }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const { requireRole } = await import('./authz')
+    requireRole('creator')({ user: context.user as never, session: {} as never })
+
+    const { getCreatorShopsQuery } = await import('./creator-dashboard.server')
+    return getCreatorShopsQuery(context.user.id)
   })
 
 /**

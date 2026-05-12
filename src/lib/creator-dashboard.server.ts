@@ -2,6 +2,12 @@ import { and, count, desc, eq, gte, inArray, lt, sum } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { platformOrder, product, review, shop, shopOrder, user } from '#/db/schema'
 
+export interface CreatorShop {
+  id: string
+  name: string
+  slug: string
+}
+
 /* -------------------------------------------------------------------------- */
 /*                                    Types                                   */
 /* -------------------------------------------------------------------------- */
@@ -106,6 +112,18 @@ export async function getCreatorDashboardStatsQuery(
     lowStockProductCount: Number(lowStockResult?.count ?? 0),
     totalShopCount,
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                             Creator Shops Query                            */
+/* -------------------------------------------------------------------------- */
+
+export async function getCreatorShopsQuery(userId: string): Promise<CreatorShop[]> {
+  return db
+    .select({ id: shop.id, name: shop.name, slug: shop.slug })
+    .from(shop)
+    .where(eq(shop.ownerId, userId))
+    .orderBy(shop.name)
 }
 
 /* -------------------------------------------------------------------------- */
