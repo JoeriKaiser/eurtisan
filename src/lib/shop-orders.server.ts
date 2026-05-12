@@ -72,7 +72,7 @@ const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   completed: ['cancelled', 'refunded'],
   cancelled: [],
   refunded: [],
-  disputed: ['cancelled', 'refunded'],
+  disputed: ['cancelled', 'refunded', 'completed'],
 }
 
 export function isValidStatusTransition(from: OrderStatus, to: OrderStatus): boolean {
