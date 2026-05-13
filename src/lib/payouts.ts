@@ -20,6 +20,7 @@ export const listCreatorPayouts = createServerFn({ method: 'GET' })
       shopId: z.string().min(1, 'Shop ID is required.'),
       page: z.coerce.number().int().min(1).optional().default(1),
       pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
+      status: z.enum(['pending', 'processing', 'sent', 'all']).optional(),
     }),
   )
   .handler(async ({ context, data }) => {
@@ -41,5 +42,6 @@ export const listCreatorPayouts = createServerFn({ method: 'GET' })
     return listCreatorPayoutsQuery(data.shopId, {
       page: data.page,
       pageSize: data.pageSize,
+      status: data.status,
     })
   })

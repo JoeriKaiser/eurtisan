@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray } from 'drizzle-orm'
+import { and, desc, eq, inArray } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { payout, shop, shopOrder } from '#/db/schema'
 
@@ -81,6 +81,41 @@ export async function markPayoutSentQuery(payoutId: string): Promise<{ success: 
 /* -------------------------------------------------------------------------- */
 
 /**
+ * Helper: derives a single CreatorPayoutLine from a raw order row.
+ */
+function derivePayoutLine(
+  order: { id: string; subtotalCents: number; status: string; createdAt: Date },
+  hasSentPayout: boolean,
+): CreatorPayoutLine {
+  const isRefund = order.status === 'refunded'
+
+  // Compute the creator's cut: subtotal minus platform fee.
+  const feeCents = Math.round(order.subtotalCents * (PLATFORM_FEE_PERCENT / 100))
+  const netAmount = order.subtotalCents - feeCents
+  const amountCents = isRefund ? -Math.abs(netAmount) : netAmount
+
+  // Derive payout status from the underlying order status and any payout records
+  let payoutStatus: CreatorPayoutLine['status'] = 'pending'
+  if (isRefund) {
+    // Refunds are adjustments — status is not meaningful; use 'processing' as neutral default
+    payoutStatus = 'processing'
+  } else if (order.status === 'completed') {
+    payoutStatus = hasSentPayout ? 'sent' : 'processing'
+  } else if (order.status === 'delivered') {
+    payoutStatus = hasSentPayout ? 'sent' : 'pending'
+  }
+
+  return {
+    orderId: order.id,
+    date: order.createdAt,
+    amountCents,
+    status: payoutStatus,
+    orderStatus: order.status,
+    isRefund,
+  }
+}
+
+/**
  * Derives paginated payout line items for a creator's shop from shop_order records.
  *
  * - Completed and delivered orders produce positive earning lines.
@@ -90,6 +125,8 @@ export async function markPayoutSentQuery(payoutId: string): Promise<{ success: 
  *   - `delivered` → `pending`
  *   - `completed` → `processing`
  *   - If a matching payout record exists with status `sent` → `sent`
+ * - When `status` filter is provided, all matching orders are fetched, statuses derived,
+ *   and results are filtered in-memory before pagination.
  *
  * This is a pure query function — callers are responsible for authorization.
  */
@@ -98,6 +135,8 @@ export async function listCreatorPayoutsQuery(
   options: {
     page?: number
     pageSize?: number
+    /** Filter by derived payout status. Omit or pass 'all' for no filtering. */
+    status?: 'pending' | 'processing' | 'sent' | 'all'
   } = {},
 ): Promise<{
   payouts: CreatorPayoutLine[]
@@ -108,22 +147,10 @@ export async function listCreatorPayoutsQuery(
 }> {
   const page = Math.max(1, options.page ?? 1)
   const pageSize = Math.min(100, Math.max(1, options.pageSize ?? 20))
-  const offset = (page - 1) * pageSize
+  const statusFilter = options.status && options.status !== 'all' ? options.status : undefined
 
-  // Fetch total count for pagination
-  const [totalResult] = await db
-    .select({ total: count() })
-    .from(shopOrder)
-    .where(
-      and(
-        eq(shopOrder.shopId, shopId),
-        inArray(shopOrder.status, ['completed', 'delivered', 'refunded']),
-      ),
-    )
-  const total = totalResult?.total ?? 0
-
-  // Fetch the page of orders
-  const orders = await db
+  // Fetch all orders for this shop that are relevant for payouts
+  const allOrders = await db
     .select({
       id: shopOrder.id,
       subtotalCents: shopOrder.subtotalCents,
@@ -138,23 +165,18 @@ export async function listCreatorPayoutsQuery(
       ),
     )
     .orderBy(desc(shopOrder.createdAt))
-    .limit(pageSize)
-    .offset(offset)
 
-  if (orders.length === 0) {
+  if (allOrders.length === 0) {
     return {
       payouts: [],
-      total,
+      total: 0,
       page,
       pageSize,
-      totalPages: Math.ceil(total / pageSize),
+      totalPages: 0,
     }
   }
 
   // Fetch existing payout records for this shop to determine which orders have been paid out.
-  // In v1.0 the payout table stores aggregate amounts, not per-order links, so we use it
-  // as a boolean flag: if any payout exists with status 'sent', ALL completed orders
-  // are shown as 'sent' (simplified for v1.0).
   const [sentPayout] = await db
     .select({ id: payout.id })
     .from(payout)
@@ -163,38 +185,23 @@ export async function listCreatorPayoutsQuery(
 
   const hasSentPayout = !!sentPayout
 
-  const payouts: CreatorPayoutLine[] = orders.map((order) => {
-    const isRefund = order.status === 'refunded'
+  // Derive payout lines for all orders and filter by status if requested
+  let payouts: CreatorPayoutLine[] = allOrders.map((order) =>
+    derivePayoutLine(order, hasSentPayout),
+  )
 
-    // Compute the creator's cut: subtotal minus platform fee.
-    // Fee applies to both earnings and refunds — a refund reverses the net earnings.
-    const feeCents = Math.round(order.subtotalCents * (PLATFORM_FEE_PERCENT / 100))
-    const netAmount = order.subtotalCents - feeCents
-    const amountCents = isRefund ? -Math.abs(netAmount) : netAmount
+  if (statusFilter) {
+    payouts = payouts.filter((p) => p.status === statusFilter)
+  }
 
-    // Derive payout status from the underlying order status and any payout records
-    let payoutStatus: CreatorPayoutLine['status'] = 'pending'
-    if (isRefund) {
-      // Refunds are adjustments — status is not meaningful; use 'processing' as neutral default
-      payoutStatus = 'processing'
-    } else if (order.status === 'completed') {
-      payoutStatus = hasSentPayout ? 'sent' : 'processing'
-    } else if (order.status === 'delivered') {
-      payoutStatus = hasSentPayout ? 'sent' : 'pending'
-    }
+  const total = payouts.length
 
-    return {
-      orderId: order.id,
-      date: order.createdAt,
-      amountCents,
-      status: payoutStatus,
-      orderStatus: order.status,
-      isRefund,
-    }
-  })
+  // Paginate in memory
+  const offset = (page - 1) * pageSize
+  const pageItems = payouts.slice(offset, offset + pageSize)
 
   return {
-    payouts,
+    payouts: pageItems,
     total,
     page,
     pageSize,

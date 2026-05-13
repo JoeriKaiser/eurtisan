@@ -29,6 +29,7 @@ import { Route as OrdersPlatformOrderIdRouteImport } from './routes/orders.$plat
 import { Route as DisputesDisputeIdRouteImport } from './routes/disputes.$disputeId'
 import { Route as CreatorShopRouteImport } from './routes/creator/shop'
 import { Route as CreatorProductsRouteImport } from './routes/creator/products'
+import { Route as CreatorPayoutsRouteImport } from './routes/creator/payouts'
 import { Route as CategoryAllRouteImport } from './routes/category/all'
 import { Route as CategorySlugRouteImport } from './routes/category/$slug'
 import { Route as ApiProductsRouteImport } from './routes/api/products'
@@ -150,6 +151,11 @@ const CreatorShopRoute = CreatorShopRouteImport.update({
 const CreatorProductsRoute = CreatorProductsRouteImport.update({
   id: '/products',
   path: '/products',
+  getParentRoute: () => CreatorRoute,
+} as any)
+const CreatorPayoutsRoute = CreatorPayoutsRouteImport.update({
+  id: '/payouts',
+  path: '/payouts',
   getParentRoute: () => CreatorRoute,
 } as any)
 const CategoryAllRoute = CategoryAllRouteImport.update({
@@ -285,6 +291,7 @@ export interface FileRoutesByFullPath {
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
+  '/creator/payouts': typeof CreatorPayoutsRoute
   '/creator/products': typeof CreatorProductsRouteWithChildren
   '/creator/shop': typeof CreatorShopRoute
   '/disputes/$disputeId': typeof DisputesDisputeIdRoute
@@ -329,6 +336,7 @@ export interface FileRoutesByTo {
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
+  '/creator/payouts': typeof CreatorPayoutsRoute
   '/creator/shop': typeof CreatorShopRoute
   '/disputes/$disputeId': typeof DisputesDisputeIdRoute
   '/orders/$platformOrderId': typeof OrdersPlatformOrderIdRouteWithChildren
@@ -373,6 +381,7 @@ export interface FileRoutesById {
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
+  '/creator/payouts': typeof CreatorPayoutsRoute
   '/creator/products': typeof CreatorProductsRouteWithChildren
   '/creator/shop': typeof CreatorShopRoute
   '/disputes/$disputeId': typeof DisputesDisputeIdRoute
@@ -419,6 +428,7 @@ export interface FileRouteTypes {
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
+    | '/creator/payouts'
     | '/creator/products'
     | '/creator/shop'
     | '/disputes/$disputeId'
@@ -463,6 +473,7 @@ export interface FileRouteTypes {
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
+    | '/creator/payouts'
     | '/creator/shop'
     | '/disputes/$disputeId'
     | '/orders/$platformOrderId'
@@ -506,6 +517,7 @@ export interface FileRouteTypes {
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
+    | '/creator/payouts'
     | '/creator/products'
     | '/creator/shop'
     | '/disputes/$disputeId'
@@ -708,6 +720,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CreatorProductsRouteImport
       parentRoute: typeof CreatorRoute
     }
+    '/creator/payouts': {
+      id: '/creator/payouts'
+      path: '/payouts'
+      fullPath: '/creator/payouts'
+      preLoaderRoute: typeof CreatorPayoutsRouteImport
+      parentRoute: typeof CreatorRoute
+    }
     '/category/all': {
       id: '/category/all'
       path: '/category/all'
@@ -882,11 +901,13 @@ const CreatorProductsRouteWithChildren = CreatorProductsRoute._addFileChildren(
 )
 
 interface CreatorRouteChildren {
+  CreatorPayoutsRoute: typeof CreatorPayoutsRoute
   CreatorProductsRoute: typeof CreatorProductsRouteWithChildren
   CreatorShopRoute: typeof CreatorShopRoute
 }
 
 const CreatorRouteChildren: CreatorRouteChildren = {
+  CreatorPayoutsRoute: CreatorPayoutsRoute,
   CreatorProductsRoute: CreatorProductsRouteWithChildren,
   CreatorShopRoute: CreatorShopRoute,
 }
