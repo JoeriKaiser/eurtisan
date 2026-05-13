@@ -249,6 +249,7 @@ export async function updateProductInternal(data: {
   priceCents?: number
   stockCount?: number
   categoryId?: string
+  isActive?: boolean
   images?: ProductImageInput[]
 }) {
   const productRecord = await verifyProductOwnership(data.productId, data.userId)
@@ -280,6 +281,7 @@ export async function updateProductInternal(data: {
   if (data.priceCents !== undefined) updateData.priceCents = data.priceCents
   if (data.stockCount !== undefined) updateData.stockCount = data.stockCount
   if (data.categoryId !== undefined) updateData.categoryId = data.categoryId ?? null
+  if (data.isActive !== undefined) updateData.isActive = data.isActive
 
   // Remember old image URLs so we can clean up files after a successful commit
   let oldImageUrls: string[] = []
@@ -487,6 +489,52 @@ export const deleteProduct = createServerFn({ method: 'POST' })
 
     return deleteProductInternal({ ...data, userId: context.user.id })
   })
+
+/* -------------------------------------------------------------------------- */
+/*                            Get Product Detail                              */
+/* -------------------------------------------------------------------------- */
+
+export const getCreatorProductDetailSchema = z.object({
+  productId: z.string().min(1),
+})
+
+export async function getCreatorProductDetailInternal(
+  productId: string,
+  userId: string,
+) {
+  const productRecord = await verifyProductOwnership(productId, userId)
+
+  const images = await db
+    .select({
+      id: productImage.id,
+      url: productImage.url,
+      altText: productImage.altText,
+      sortOrder: productImage.sortOrder,
+    })
+    .from(productImage)
+    .where(eq(productImage.productId, productId))
+    .orderBy(productImage.sortOrder)
+
+  return { ...productRecord, images }
+}
+
+export const getCreatorProductDetail = createServerFn({ method: 'GET' })
+  .middleware([authMiddleware])
+  .inputValidator(getCreatorProductDetailSchema)
+  .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Error('UNAUTHENTICATED')
+    }
+
+    const { requireRole } = await import('./authz')
+    requireRole('creator')({ user: context.user as never, session: {} as never })
+
+    return getCreatorProductDetailInternal(data.productId, context.user.id)
+  })
+
+/* -------------------------------------------------------------------------- */
+/*                             List Products                                  */
+/* -------------------------------------------------------------------------- */
 
 export const listCreatorProducts = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])

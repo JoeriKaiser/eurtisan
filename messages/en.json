@@ -427,5 +427,22 @@
   "creator_product_new_unsaved_confirm": "Leave",
   "creator_product_new_unsaved_cancel": "Stay",
   "creator_product_new_no_shops_title": "No shops yet",
-  "creator_product_new_no_shops_description": "Create a shop first before adding products."
+  "creator_product_new_no_shops_description": "Create a shop first before adding products.",
+  "creator_product_edit_title": "Edit Product",
+  "creator_product_edit_description": "Update your product details, images, and status.",
+  "creator_product_edit_images_hint": "Hover over an image to reorder with arrow buttons or remove it. Upload up to 10 images total.",
+  "creator_product_edit_image_move_up": "Move image up",
+  "creator_product_edit_image_move_down": "Move image down",
+  "creator_product_edit_image_remove": "Remove image",
+  "creator_product_edit_save": "Save changes",
+  "creator_product_edit_saving": "Saving…",
+  "creator_product_edit_save_success": "Product updated successfully.",
+  "creator_product_edit_save_error": "Failed to update product. Please try again.",
+  "creator_product_edit_delete_button": "Delete product",
+  "creator_product_edit_delete_error": "Failed to delete product. Please try again.",
+  "creator_product_edit_delete_confirm_title": "Delete product",
+  "creator_product_edit_delete_confirm_description": "Are you sure you want to delete this product? This will deactivate it and remove it from your catalog.",
+  "creator_product_edit_delete_confirm_button": "Delete",
+  "creator_product_edit_delete_confirm_cancel": "Cancel",
+  "creator_product_edit_image_fetch_error": "Failed to read one or more existing images. Please check your connection and try again."
 }

@@ -43,6 +43,7 @@ import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AdminDisputesDisputeIdRouteImport } from './routes/admin/disputes/$disputeId'
 import { Route as AccountOrdersOrderIdRouteImport } from './routes/account/orders.$orderId'
 import { Route as StudioShopIdOrdersShopOrderIdRouteImport } from './routes/studio/$shopId.orders.$shopOrderId'
+import { Route as CreatorProductsProductIdEditRouteImport } from './routes/creator/products/$productId/edit'
 import { Route as ApiShopsShopIdSettingsRouteImport } from './routes/api/shops/$shopId/settings'
 import { Route as ApiShopsShopIdProductsRouteImport } from './routes/api/shops/$shopId/products'
 import { Route as ApiShopsShopIdOrdersRouteImport } from './routes/api/shops/$shopId/orders'
@@ -223,6 +224,12 @@ const StudioShopIdOrdersShopOrderIdRoute =
     path: '/$shopOrderId',
     getParentRoute: () => StudioShopIdOrdersRoute,
   } as any)
+const CreatorProductsProductIdEditRoute =
+  CreatorProductsProductIdEditRouteImport.update({
+    id: '/$productId/edit',
+    path: '/$productId/edit',
+    getParentRoute: () => CreatorProductsRoute,
+  } as any)
 const ApiShopsShopIdSettingsRoute = ApiShopsShopIdSettingsRouteImport.update({
   id: '/api/shops/$shopId/settings',
   path: '/api/shops/$shopId/settings',
@@ -300,6 +307,7 @@ export interface FileRoutesByFullPath {
   '/api/shops/$shopId/orders': typeof ApiShopsShopIdOrdersRouteWithChildren
   '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRouteWithChildren
   '/api/shops/$shopId/settings': typeof ApiShopsShopIdSettingsRoute
+  '/creator/products/$productId/edit': typeof CreatorProductsProductIdEditRoute
   '/studio/$shopId/orders/$shopOrderId': typeof StudioShopIdOrdersShopOrderIdRoute
   '/api/shops/$shopId/orders/$shopOrderId': typeof ApiShopsShopIdOrdersShopOrderIdRoute
   '/api/shops/$shopId/products/$productId': typeof ApiShopsShopIdProductsProductIdRoute
@@ -342,6 +350,7 @@ export interface FileRoutesByTo {
   '/api/shops/$shopId/orders': typeof ApiShopsShopIdOrdersRouteWithChildren
   '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRouteWithChildren
   '/api/shops/$shopId/settings': typeof ApiShopsShopIdSettingsRoute
+  '/creator/products/$productId/edit': typeof CreatorProductsProductIdEditRoute
   '/studio/$shopId/orders/$shopOrderId': typeof StudioShopIdOrdersShopOrderIdRoute
   '/api/shops/$shopId/orders/$shopOrderId': typeof ApiShopsShopIdOrdersShopOrderIdRoute
   '/api/shops/$shopId/products/$productId': typeof ApiShopsShopIdProductsProductIdRoute
@@ -386,6 +395,7 @@ export interface FileRoutesById {
   '/api/shops/$shopId/orders': typeof ApiShopsShopIdOrdersRouteWithChildren
   '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRouteWithChildren
   '/api/shops/$shopId/settings': typeof ApiShopsShopIdSettingsRoute
+  '/creator/products/$productId/edit': typeof CreatorProductsProductIdEditRoute
   '/studio/$shopId/orders/$shopOrderId': typeof StudioShopIdOrdersShopOrderIdRoute
   '/api/shops/$shopId/orders/$shopOrderId': typeof ApiShopsShopIdOrdersShopOrderIdRoute
   '/api/shops/$shopId/products/$productId': typeof ApiShopsShopIdProductsProductIdRoute
@@ -431,6 +441,7 @@ export interface FileRouteTypes {
     | '/api/shops/$shopId/orders'
     | '/api/shops/$shopId/products'
     | '/api/shops/$shopId/settings'
+    | '/creator/products/$productId/edit'
     | '/studio/$shopId/orders/$shopOrderId'
     | '/api/shops/$shopId/orders/$shopOrderId'
     | '/api/shops/$shopId/products/$productId'
@@ -473,6 +484,7 @@ export interface FileRouteTypes {
     | '/api/shops/$shopId/orders'
     | '/api/shops/$shopId/products'
     | '/api/shops/$shopId/settings'
+    | '/creator/products/$productId/edit'
     | '/studio/$shopId/orders/$shopOrderId'
     | '/api/shops/$shopId/orders/$shopOrderId'
     | '/api/shops/$shopId/products/$productId'
@@ -516,6 +528,7 @@ export interface FileRouteTypes {
     | '/api/shops/$shopId/orders'
     | '/api/shops/$shopId/products'
     | '/api/shops/$shopId/settings'
+    | '/creator/products/$productId/edit'
     | '/studio/$shopId/orders/$shopOrderId'
     | '/api/shops/$shopId/orders/$shopOrderId'
     | '/api/shops/$shopId/products/$productId'
@@ -793,6 +806,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioShopIdOrdersShopOrderIdRouteImport
       parentRoute: typeof StudioShopIdOrdersRoute
     }
+    '/creator/products/$productId/edit': {
+      id: '/creator/products/$productId/edit'
+      path: '/$productId/edit'
+      fullPath: '/creator/products/$productId/edit'
+      preLoaderRoute: typeof CreatorProductsProductIdEditRouteImport
+      parentRoute: typeof CreatorProductsRoute
+    }
     '/api/shops/$shopId/settings': {
       id: '/api/shops/$shopId/settings'
       path: '/api/shops/$shopId/settings'
@@ -848,11 +868,13 @@ declare module '@tanstack/react-router' {
 interface CreatorProductsRouteChildren {
   CreatorProductsNewRoute: typeof CreatorProductsNewRoute
   CreatorProductsIndexRoute: typeof CreatorProductsIndexRoute
+  CreatorProductsProductIdEditRoute: typeof CreatorProductsProductIdEditRoute
 }
 
 const CreatorProductsRouteChildren: CreatorProductsRouteChildren = {
   CreatorProductsNewRoute: CreatorProductsNewRoute,
   CreatorProductsIndexRoute: CreatorProductsIndexRoute,
+  CreatorProductsProductIdEditRoute: CreatorProductsProductIdEditRoute,
 }
 
 const CreatorProductsRouteWithChildren = CreatorProductsRoute._addFileChildren(
