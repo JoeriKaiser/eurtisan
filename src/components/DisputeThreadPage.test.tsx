@@ -2,8 +2,8 @@
 
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import DisputeThreadPage, { DisputeThreadError, DisputeThreadLoading } from './DisputeThreadPage'
 import type { DisputeDetail } from '#/lib/disputes.server'
+import DisputeThreadPage, { DisputeThreadError, DisputeThreadLoading } from './DisputeThreadPage'
 
 vi.mock('@tanstack/react-router', () => ({
   Link: (props: {
@@ -147,9 +147,7 @@ describe('DisputeThreadError', () => {
 
   it('renders forbidden error', () => {
     render(<DisputeThreadError error={new Error('Forbidden: permission denied')} />)
-    expect(
-      screen.getByText('You do not have permission to view this dispute.'),
-    ).toBeDefined()
+    expect(screen.getByText('You do not have permission to view this dispute.')).toBeDefined()
   })
 
   it('renders generic load error', () => {

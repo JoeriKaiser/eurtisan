@@ -12,10 +12,10 @@ import {
   DialogTitle,
 } from '#/components/ui/primitives/dialog'
 import { Skeleton } from '#/components/ui/skeleton'
+import { openDispute } from '#/lib/disputes'
 import type { OrderDetail, OrderShopGroup, OrderStatus } from '#/lib/orders.server'
 import { statusBadgeVariant } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
-import { openDispute } from '#/lib/disputes'
 import { createReview } from '#/lib/reviews'
 import type { ReviewableItem } from '#/lib/reviews.server'
 import { m } from '#/paraglide/messages'
@@ -561,7 +561,9 @@ export default function BuyerOrderDetailPage({
                     disabled={isDisputeSubmitting}
                     className='h-10 w-full rounded-lg border border-border-default bg-surface-default px-3 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20 disabled:opacity-50'
                   >
-                    <option value='item_not_received'>{m.dispute_reason_item_not_received()}</option>
+                    <option value='item_not_received'>
+                      {m.dispute_reason_item_not_received()}
+                    </option>
                     <option value='not_as_described'>{m.dispute_reason_not_as_described()}</option>
                     <option value='damaged'>{m.dispute_reason_damaged()}</option>
                     <option value='other'>{m.dispute_reason_other()}</option>

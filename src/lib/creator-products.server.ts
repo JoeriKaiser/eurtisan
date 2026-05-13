@@ -1,7 +1,7 @@
 import { rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { createServerFn } from '@tanstack/react-start'
-import { and, count, desc, eq, sql } from 'drizzle-orm'
+import { and, count, desc, eq, ilike, inArray, sql } from 'drizzle-orm'
 import z from 'zod'
 import { db } from '#/db/index'
 import { categories, product, productImage, shop } from '#/db/schema'
@@ -62,6 +62,12 @@ export const listCreatorProductsSchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
   active: z.enum(['true', 'false', 'all']).optional().default('all'),
   categoryId: z.string().uuid().optional(),
+  search: z.string().max(200).optional(),
+})
+
+export const toggleProductActiveSchema = z.object({
+  productId: z.string().min(1),
+  shopId: z.string().min(1),
 })
 
 /* -------------------------------------------------------------------------- */
@@ -359,6 +365,7 @@ export async function listCreatorProductsInternal(data: {
   pageSize: number
   active: 'true' | 'false' | 'all'
   categoryId?: string
+  search?: string
 }) {
   const page = Math.max(1, data.page)
   const pageSize = Math.min(100, Math.max(1, data.pageSize))
@@ -374,6 +381,10 @@ export async function listCreatorProductsInternal(data: {
 
   if (data.categoryId) {
     conditions.push(eq(product.categoryId, data.categoryId))
+  }
+
+  if (data.search && data.search.trim().length > 0) {
+    conditions.push(ilike(product.name, `%${data.search.trim()}%`))
   }
 
   const where = and(...conditions)
@@ -404,10 +415,24 @@ export async function listCreatorProductsInternal(data: {
     .limit(pageSize)
     .offset(offset)
 
+  // Fetch first image (thumbnail) for each product
+  const thumbnailMap = new Map<string, string>()
+  if (products.length > 0) {
+    const productIds = products.map((p) => p.id)
+    const thumbnails = await db
+      .select({ productId: productImage.productId, url: productImage.url })
+      .from(productImage)
+      .where(and(inArray(productImage.productId, productIds), eq(productImage.sortOrder, 0)))
+    for (const thumb of thumbnails) {
+      thumbnailMap.set(thumb.productId, thumb.url)
+    }
+  }
+
   return {
     products: products.map((p) => ({
       ...p,
       imageCount: Number(p.imageCount),
+      thumbnailUrl: thumbnailMap.get(p.id) ?? null,
     })),
     total,
     page,
@@ -476,4 +501,47 @@ export const listCreatorProducts = createServerFn({ method: 'GET' })
     ctx = await requireShopOwnership(ctx, data.shopId)
 
     return listCreatorProductsInternal(data)
+  })
+
+/* -------------------------------------------------------------------------- */
+/*                               Toggle Active                                */
+/* -------------------------------------------------------------------------- */
+
+export async function toggleProductActiveInternal(data: {
+  productId: string
+  shopId: string
+  userId: string
+}) {
+  const productRecord = await verifyProductOwnership(data.productId, data.userId)
+
+  if (productRecord.shopId !== data.shopId) {
+    throw new Error('FORBIDDEN')
+  }
+
+  const newActive = !productRecord.isActive
+
+  const [updated] = await db
+    .update(product)
+    .set({ isActive: newActive, updatedAt: new Date() })
+    .where(eq(product.id, data.productId))
+    .returning()
+
+  const { syncProductToMeilisearch } = await import('./meilisearch-products.server')
+  await syncProductToMeilisearch(updated)
+
+  return { productId: updated.id, isActive: updated.isActive }
+}
+
+export const toggleProductActive = createServerFn({ method: 'POST' })
+  .middleware([authMiddleware])
+  .inputValidator(toggleProductActiveSchema)
+  .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Error('UNAUTHENTICATED')
+    }
+
+    const { requireRole } = await import('./authz')
+    requireRole('creator')({ user: context.user as never, session: {} as never })
+
+    return toggleProductActiveInternal({ ...data, userId: context.user.id })
   })

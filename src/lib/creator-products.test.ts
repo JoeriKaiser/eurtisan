@@ -1320,3 +1320,335 @@ describe('description sanitization', () => {
     expect(result.description).toBeNull()
   })
 })
+
+/* -------------------------------------------------------------------------- */
+/*                           toggleProductActive                              */
+/* -------------------------------------------------------------------------- */
+
+import { toggleProductActiveInternal } from './creator-products.server'
+
+describe('toggleProductActiveInternal', () => {
+  it('toggles from active to inactive', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
+      .returning()
+
+    const [p] = await db
+      .insert(product)
+      .values({
+        id: 'prod-1',
+        name: 'Vase',
+        slug: 'vase',
+        priceCents: 2999,
+        shopId: s.id,
+        isActive: true,
+      })
+      .returning()
+
+    const result = await toggleProductActiveInternal({
+      productId: p.id,
+      shopId: s.id,
+      userId: u.id,
+    })
+
+    expect(result.isActive).toBe(false)
+
+    const [updated] = await db.select().from(product).where(eq(product.id, p.id)).limit(1)
+    expect(updated.isActive).toBe(false)
+  })
+
+  it('toggles from inactive to active', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
+      .returning()
+
+    const [p] = await db
+      .insert(product)
+      .values({
+        id: 'prod-1',
+        name: 'Vase',
+        slug: 'vase',
+        priceCents: 2999,
+        shopId: s.id,
+        isActive: false,
+      })
+      .returning()
+
+    const result = await toggleProductActiveInternal({
+      productId: p.id,
+      shopId: s.id,
+      userId: u.id,
+    })
+
+    expect(result.isActive).toBe(true)
+
+    const [updated] = await db.select().from(product).where(eq(product.id, p.id)).limit(1)
+    expect(updated.isActive).toBe(true)
+  })
+
+  it('throws NOT_FOUND for nonexistent product', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
+      .returning()
+
+    await expect(
+      toggleProductActiveInternal({
+        productId: 'nonexistent',
+        shopId: s.id,
+        userId: u.id,
+      }),
+    ).rejects.toThrow('NOT_FOUND')
+  })
+
+  it('throws FORBIDDEN when product does not belong to shop', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
+      .returning()
+
+    const [s1] = await db
+      .insert(shop)
+      .values({ id: 'shop-1', name: 'Test Shop 1', slug: 'test-shop-1', ownerId: u.id })
+      .returning()
+
+    const [s2] = await db
+      .insert(shop)
+      .values({ id: 'shop-2', name: 'Test Shop 2', slug: 'test-shop-2', ownerId: u.id })
+      .returning()
+
+    const [p] = await db
+      .insert(product)
+      .values({
+        id: 'prod-1',
+        name: 'Vase',
+        slug: 'vase',
+        priceCents: 2999,
+        shopId: s1.id,
+      })
+      .returning()
+
+    await expect(
+      toggleProductActiveInternal({
+        productId: p.id,
+        shopId: s2.id,
+        userId: u.id,
+      }),
+    ).rejects.toThrow('FORBIDDEN')
+  })
+
+  it('throws FORBIDDEN when user does not own the product shop', async () => {
+    const [u1] = await db
+      .insert(user)
+      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
+      .returning()
+
+    const [u2] = await db
+      .insert(user)
+      .values({ id: 'user-2', name: 'Test2', email: 'test2@example.com', emailVerified: true })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u1.id })
+      .returning()
+
+    const [p] = await db
+      .insert(product)
+      .values({
+        id: 'prod-1',
+        name: 'Vase',
+        slug: 'vase',
+        priceCents: 2999,
+        shopId: s.id,
+      })
+      .returning()
+
+    await expect(
+      toggleProductActiveInternal({
+        productId: p.id,
+        shopId: s.id,
+        userId: u2.id,
+      }),
+    ).rejects.toThrow('FORBIDDEN')
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/*                      listCreatorProducts with search                        */
+/* -------------------------------------------------------------------------- */
+
+describe('listCreatorProductsInternal with search', () => {
+  async function seedShopWithProducts() {
+    const [u] = await db
+      .insert(user)
+      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
+      .returning()
+
+    await db.insert(product).values([
+      {
+        id: 'prod-1',
+        name: 'Ceramic Vase',
+        slug: 'ceramic-vase',
+        priceCents: 2999,
+        shopId: s.id,
+        isActive: true,
+      },
+      {
+        id: 'prod-2',
+        name: 'Wooden Bowl',
+        slug: 'wooden-bowl',
+        priceCents: 1999,
+        shopId: s.id,
+        isActive: true,
+      },
+      {
+        id: 'prod-3',
+        name: 'Ceramic Plate',
+        slug: 'ceramic-plate',
+        priceCents: 1599,
+        shopId: s.id,
+        isActive: false,
+      },
+    ])
+
+    return { u, s }
+  }
+
+  it('filters products by name search', async () => {
+    const { s } = await seedShopWithProducts()
+
+    const result = await listCreatorProductsInternal({
+      shopId: s.id,
+      page: 1,
+      pageSize: 10,
+      active: 'all',
+      search: 'ceramic',
+    })
+
+    expect(result.products).toHaveLength(2)
+    expect(result.products.map((p) => p.slug).sort()).toEqual(['ceramic-plate', 'ceramic-vase'])
+  })
+
+  it('returns empty when search matches nothing', async () => {
+    const { s } = await seedShopWithProducts()
+
+    const result = await listCreatorProductsInternal({
+      shopId: s.id,
+      page: 1,
+      pageSize: 10,
+      active: 'all',
+      search: 'nonexistent',
+    })
+
+    expect(result.products).toHaveLength(0)
+    expect(result.total).toBe(0)
+  })
+
+  it('combines search with active filter', async () => {
+    const { s } = await seedShopWithProducts()
+
+    const result = await listCreatorProductsInternal({
+      shopId: s.id,
+      page: 1,
+      pageSize: 10,
+      active: 'true',
+      search: 'ceramic',
+    })
+
+    expect(result.products).toHaveLength(1)
+    expect(result.products[0].slug).toBe('ceramic-vase')
+  })
+
+  it('handles empty search string', async () => {
+    const { s } = await seedShopWithProducts()
+
+    const result = await listCreatorProductsInternal({
+      shopId: s.id,
+      page: 1,
+      pageSize: 10,
+      active: 'all',
+      search: '',
+    })
+
+    expect(result.products).toHaveLength(3)
+  })
+
+  it('handles whitespace-only search', async () => {
+    const { s } = await seedShopWithProducts()
+
+    const result = await listCreatorProductsInternal({
+      shopId: s.id,
+      page: 1,
+      pageSize: 10,
+      active: 'all',
+      search: '   ',
+    })
+
+    expect(result.products).toHaveLength(3)
+  })
+
+  it('returns thumbnail URL for products with images', async () => {
+    const { s } = await seedShopWithProducts()
+
+    await db.insert(productImage).values([
+      { id: 'img-1', productId: 'prod-1', url: '/uploads/vase.jpg', sortOrder: 0 },
+      { id: 'img-2', productId: 'prod-1', url: '/uploads/vase-back.jpg', sortOrder: 1 },
+      { id: 'img-3', productId: 'prod-2', url: '/uploads/bowl.jpg', sortOrder: 0 },
+    ])
+
+    const result = await listCreatorProductsInternal({
+      shopId: s.id,
+      page: 1,
+      pageSize: 10,
+      active: 'all',
+    })
+
+    const vase = result.products.find((p) => p.slug === 'ceramic-vase')
+    expect(vase?.thumbnailUrl).toBe('/uploads/vase.jpg')
+
+    const bowl = result.products.find((p) => p.slug === 'wooden-bowl')
+    expect(bowl?.thumbnailUrl).toBe('/uploads/bowl.jpg')
+
+    const plate = result.products.find((p) => p.slug === 'ceramic-plate')
+    expect(plate?.thumbnailUrl).toBeNull()
+  })
+
+  it('paginates correctly with search', async () => {
+    const { s } = await seedShopWithProducts()
+
+    const result = await listCreatorProductsInternal({
+      shopId: s.id,
+      page: 1,
+      pageSize: 1,
+      active: 'all',
+      search: 'ceramic',
+    })
+
+    expect(result.products).toHaveLength(1)
+    expect(result.total).toBe(2)
+    expect(result.totalPages).toBe(2)
+  })
+})
