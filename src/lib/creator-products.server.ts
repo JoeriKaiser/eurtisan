@@ -40,6 +40,7 @@ export const createProductSchema = z.object({
   priceCents: z.number().int().positive(),
   stockCount: z.number().int().min(0).default(0),
   categoryId: z.string().uuid().optional(),
+  isActive: z.boolean().optional().default(true),
   images: z.array(productImageInputSchema).max(10).optional().default([]),
 })
 
@@ -186,6 +187,7 @@ export async function createProductInternal(data: {
   stockCount: number
   shopId: string
   categoryId?: string
+  isActive?: boolean
   images?: ProductImageInput[]
 }) {
   const categoryValid = await validateCategory(data.categoryId)
@@ -210,7 +212,7 @@ export async function createProductInternal(data: {
         stockCount: data.stockCount,
         shopId: data.shopId,
         categoryId: data.categoryId ?? null,
-        isActive: true,
+        isActive: data.isActive ?? true,
       })
       .returning()
 

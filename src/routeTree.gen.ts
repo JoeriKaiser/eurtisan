@@ -28,6 +28,7 @@ import { Route as ProductsProductSlugRouteImport } from './routes/products/$prod
 import { Route as OrdersPlatformOrderIdRouteImport } from './routes/orders.$platformOrderId'
 import { Route as DisputesDisputeIdRouteImport } from './routes/disputes.$disputeId'
 import { Route as CreatorShopRouteImport } from './routes/creator/shop'
+import { Route as CreatorProductsRouteImport } from './routes/creator/products'
 import { Route as CategoryAllRouteImport } from './routes/category/all'
 import { Route as CategorySlugRouteImport } from './routes/category/$slug'
 import { Route as ApiProductsRouteImport } from './routes/api/products'
@@ -36,6 +37,7 @@ import { Route as AccountSettingsRouteImport } from './routes/account/settings'
 import { Route as AccountOrdersRouteImport } from './routes/account/orders'
 import { Route as StudioShopIdOrdersRouteImport } from './routes/studio/$shopId.orders'
 import { Route as OrdersPlatformOrderIdSuccessRouteImport } from './routes/orders.$platformOrderId.success'
+import { Route as CreatorProductsNewRouteImport } from './routes/creator/products/new'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AdminDisputesDisputeIdRouteImport } from './routes/admin/disputes/$disputeId'
 import { Route as AccountOrdersOrderIdRouteImport } from './routes/account/orders.$orderId'
@@ -143,6 +145,11 @@ const CreatorShopRoute = CreatorShopRouteImport.update({
   path: '/shop',
   getParentRoute: () => CreatorRoute,
 } as any)
+const CreatorProductsRoute = CreatorProductsRouteImport.update({
+  id: '/products',
+  path: '/products',
+  getParentRoute: () => CreatorRoute,
+} as any)
 const CategoryAllRoute = CategoryAllRouteImport.update({
   id: '/category/all',
   path: '/category/all',
@@ -184,6 +191,11 @@ const OrdersPlatformOrderIdSuccessRoute =
     path: '/success',
     getParentRoute: () => OrdersPlatformOrderIdRoute,
   } as any)
+const CreatorProductsNewRoute = CreatorProductsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => CreatorProductsRoute,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -260,6 +272,7 @@ export interface FileRoutesByFullPath {
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
+  '/creator/products': typeof CreatorProductsRouteWithChildren
   '/creator/shop': typeof CreatorShopRoute
   '/disputes/$disputeId': typeof DisputesDisputeIdRoute
   '/orders/$platformOrderId': typeof OrdersPlatformOrderIdRouteWithChildren
@@ -272,6 +285,7 @@ export interface FileRoutesByFullPath {
   '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
   '/api/admin/payouts/$payoutId': typeof ApiAdminPayoutsPayoutIdRoute
@@ -300,6 +314,7 @@ export interface FileRoutesByTo {
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
+  '/creator/products': typeof CreatorProductsRouteWithChildren
   '/creator/shop': typeof CreatorShopRoute
   '/disputes/$disputeId': typeof DisputesDisputeIdRoute
   '/orders/$platformOrderId': typeof OrdersPlatformOrderIdRouteWithChildren
@@ -312,6 +327,7 @@ export interface FileRoutesByTo {
   '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
   '/api/admin/payouts/$payoutId': typeof ApiAdminPayoutsPayoutIdRoute
@@ -341,6 +357,7 @@ export interface FileRoutesById {
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
+  '/creator/products': typeof CreatorProductsRouteWithChildren
   '/creator/shop': typeof CreatorShopRoute
   '/disputes/$disputeId': typeof DisputesDisputeIdRoute
   '/orders/$platformOrderId': typeof OrdersPlatformOrderIdRouteWithChildren
@@ -353,6 +370,7 @@ export interface FileRoutesById {
   '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
   '/api/admin/payouts/$payoutId': typeof ApiAdminPayoutsPayoutIdRoute
@@ -383,6 +401,7 @@ export interface FileRouteTypes {
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
+    | '/creator/products'
     | '/creator/shop'
     | '/disputes/$disputeId'
     | '/orders/$platformOrderId'
@@ -395,6 +414,7 @@ export interface FileRouteTypes {
     | '/account/orders/$orderId'
     | '/admin/disputes/$disputeId'
     | '/api/auth/$'
+    | '/creator/products/new'
     | '/orders/$platformOrderId/success'
     | '/studio/$shopId/orders'
     | '/api/admin/payouts/$payoutId'
@@ -423,6 +443,7 @@ export interface FileRouteTypes {
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
+    | '/creator/products'
     | '/creator/shop'
     | '/disputes/$disputeId'
     | '/orders/$platformOrderId'
@@ -435,6 +456,7 @@ export interface FileRouteTypes {
     | '/account/orders/$orderId'
     | '/admin/disputes/$disputeId'
     | '/api/auth/$'
+    | '/creator/products/new'
     | '/orders/$platformOrderId/success'
     | '/studio/$shopId/orders'
     | '/api/admin/payouts/$payoutId'
@@ -463,6 +485,7 @@ export interface FileRouteTypes {
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
+    | '/creator/products'
     | '/creator/shop'
     | '/disputes/$disputeId'
     | '/orders/$platformOrderId'
@@ -475,6 +498,7 @@ export interface FileRouteTypes {
     | '/account/orders/$orderId'
     | '/admin/disputes/$disputeId'
     | '/api/auth/$'
+    | '/creator/products/new'
     | '/orders/$platformOrderId/success'
     | '/studio/$shopId/orders'
     | '/api/admin/payouts/$payoutId'
@@ -654,6 +678,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CreatorShopRouteImport
       parentRoute: typeof CreatorRoute
     }
+    '/creator/products': {
+      id: '/creator/products'
+      path: '/products'
+      fullPath: '/creator/products'
+      preLoaderRoute: typeof CreatorProductsRouteImport
+      parentRoute: typeof CreatorRoute
+    }
     '/category/all': {
       id: '/category/all'
       path: '/category/all'
@@ -709,6 +740,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/orders/$platformOrderId/success'
       preLoaderRoute: typeof OrdersPlatformOrderIdSuccessRouteImport
       parentRoute: typeof OrdersPlatformOrderIdRoute
+    }
+    '/creator/products/new': {
+      id: '/creator/products/new'
+      path: '/new'
+      fullPath: '/creator/products/new'
+      preLoaderRoute: typeof CreatorProductsNewRouteImport
+      parentRoute: typeof CreatorProductsRoute
     }
     '/api/auth/$': {
       id: '/api/auth/$'
@@ -790,11 +828,25 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface CreatorProductsRouteChildren {
+  CreatorProductsNewRoute: typeof CreatorProductsNewRoute
+}
+
+const CreatorProductsRouteChildren: CreatorProductsRouteChildren = {
+  CreatorProductsNewRoute: CreatorProductsNewRoute,
+}
+
+const CreatorProductsRouteWithChildren = CreatorProductsRoute._addFileChildren(
+  CreatorProductsRouteChildren,
+)
+
 interface CreatorRouteChildren {
+  CreatorProductsRoute: typeof CreatorProductsRouteWithChildren
   CreatorShopRoute: typeof CreatorShopRoute
 }
 
 const CreatorRouteChildren: CreatorRouteChildren = {
+  CreatorProductsRoute: CreatorProductsRouteWithChildren,
   CreatorShopRoute: CreatorShopRoute,
 }
 
