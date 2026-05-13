@@ -33,6 +33,17 @@ export const uploadShopImageSchema = z.object({
     }),
 })
 
+export const checkSlugSchema = z.object({
+  slug: z
+    .string()
+    .min(1)
+    .max(100)
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+      message: 'Slug must be URL-safe: lowercase letters, numbers, and hyphens only.',
+    }),
+  excludeShopId: z.string().optional(),
+})
+
 /* -------------------------------------------------------------------------- */
 /*                              Server Functions                              */
 /* -------------------------------------------------------------------------- */
@@ -79,6 +90,35 @@ export const updateShop = createServerFn({ method: 'POST' })
       }
       throw err
     }
+  })
+
+/**
+ * Checks whether a slug is available for use.
+ *
+ * - Protected: only authenticated creators (or higher) can call it.
+ * - When `excludeShopId` is provided, that shop's slug is ignored (for updates).
+ * - Returns `{ available: true }` if the slug is not in use.
+ */
+export const checkShopSlug = createServerFn({ method: 'GET' })
+  .middleware([authMiddleware])
+  .inputValidator(checkSlugSchema)
+  .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Unauthorized',
+          message: 'Authentication required. Please sign in.',
+        }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const { requireRole } = await import('./authz')
+    requireRole('creator')({ user: context.user as never, session: {} as never })
+
+    const { checkSlugUniquePlatformWide } = await import('./shop-settings.server')
+    const available = await checkSlugUniquePlatformWide(data.slug, data.excludeShopId)
+    return { available }
   })
 
 /**

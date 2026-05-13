@@ -27,6 +27,7 @@ import { Route as ShopsShopSlugRouteImport } from './routes/shops/$shopSlug'
 import { Route as ProductsProductSlugRouteImport } from './routes/products/$productSlug'
 import { Route as OrdersPlatformOrderIdRouteImport } from './routes/orders.$platformOrderId'
 import { Route as DisputesDisputeIdRouteImport } from './routes/disputes.$disputeId'
+import { Route as CreatorShopRouteImport } from './routes/creator/shop'
 import { Route as CategoryAllRouteImport } from './routes/category/all'
 import { Route as CategorySlugRouteImport } from './routes/category/$slug'
 import { Route as ApiProductsRouteImport } from './routes/api/products'
@@ -137,6 +138,11 @@ const DisputesDisputeIdRoute = DisputesDisputeIdRouteImport.update({
   path: '/disputes/$disputeId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CreatorShopRoute = CreatorShopRouteImport.update({
+  id: '/shop',
+  path: '/shop',
+  getParentRoute: () => CreatorRoute,
+} as any)
 const CategoryAllRoute = CategoryAllRouteImport.update({
   id: '/category/all',
   path: '/category/all',
@@ -242,7 +248,7 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
-  '/creator': typeof CreatorRoute
+  '/creator': typeof CreatorRouteWithChildren
   '/forbidden': typeof ForbiddenRoute
   '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRouteWithChildren
@@ -254,6 +260,7 @@ export interface FileRoutesByFullPath {
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
+  '/creator/shop': typeof CreatorShopRoute
   '/disputes/$disputeId': typeof DisputesDisputeIdRoute
   '/orders/$platformOrderId': typeof OrdersPlatformOrderIdRouteWithChildren
   '/products/$productSlug': typeof ProductsProductSlugRoute
@@ -281,7 +288,7 @@ export interface FileRoutesByTo {
   '/about': typeof AboutRoute
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
-  '/creator': typeof CreatorRoute
+  '/creator': typeof CreatorRouteWithChildren
   '/forbidden': typeof ForbiddenRoute
   '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRouteWithChildren
@@ -293,6 +300,7 @@ export interface FileRoutesByTo {
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
+  '/creator/shop': typeof CreatorShopRoute
   '/disputes/$disputeId': typeof DisputesDisputeIdRoute
   '/orders/$platformOrderId': typeof OrdersPlatformOrderIdRouteWithChildren
   '/products/$productSlug': typeof ProductsProductSlugRoute
@@ -321,7 +329,7 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
-  '/creator': typeof CreatorRoute
+  '/creator': typeof CreatorRouteWithChildren
   '/forbidden': typeof ForbiddenRoute
   '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRouteWithChildren
@@ -333,6 +341,7 @@ export interface FileRoutesById {
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
+  '/creator/shop': typeof CreatorShopRoute
   '/disputes/$disputeId': typeof DisputesDisputeIdRoute
   '/orders/$platformOrderId': typeof OrdersPlatformOrderIdRouteWithChildren
   '/products/$productSlug': typeof ProductsProductSlugRoute
@@ -374,6 +383,7 @@ export interface FileRouteTypes {
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
+    | '/creator/shop'
     | '/disputes/$disputeId'
     | '/orders/$platformOrderId'
     | '/products/$productSlug'
@@ -413,6 +423,7 @@ export interface FileRouteTypes {
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
+    | '/creator/shop'
     | '/disputes/$disputeId'
     | '/orders/$platformOrderId'
     | '/products/$productSlug'
@@ -452,6 +463,7 @@ export interface FileRouteTypes {
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
+    | '/creator/shop'
     | '/disputes/$disputeId'
     | '/orders/$platformOrderId'
     | '/products/$productSlug'
@@ -480,7 +492,7 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   CartRoute: typeof CartRoute
   CheckoutRoute: typeof CheckoutRoute
-  CreatorRoute: typeof CreatorRoute
+  CreatorRoute: typeof CreatorRouteWithChildren
   ForbiddenRoute: typeof ForbiddenRoute
   NotificationsRoute: typeof NotificationsRoute
   OrdersRoute: typeof OrdersRouteWithChildren
@@ -635,6 +647,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DisputesDisputeIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/creator/shop': {
+      id: '/creator/shop'
+      path: '/shop'
+      fullPath: '/creator/shop'
+      preLoaderRoute: typeof CreatorShopRouteImport
+      parentRoute: typeof CreatorRoute
+    }
     '/category/all': {
       id: '/category/all'
       path: '/category/all'
@@ -771,6 +790,17 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface CreatorRouteChildren {
+  CreatorShopRoute: typeof CreatorShopRoute
+}
+
+const CreatorRouteChildren: CreatorRouteChildren = {
+  CreatorShopRoute: CreatorShopRoute,
+}
+
+const CreatorRouteWithChildren =
+  CreatorRoute._addFileChildren(CreatorRouteChildren)
+
 interface OrdersPlatformOrderIdRouteChildren {
   OrdersPlatformOrderIdSuccessRoute: typeof OrdersPlatformOrderIdSuccessRoute
 }
@@ -872,7 +902,7 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   CartRoute: CartRoute,
   CheckoutRoute: CheckoutRoute,
-  CreatorRoute: CreatorRoute,
+  CreatorRoute: CreatorRouteWithChildren,
   ForbiddenRoute: ForbiddenRoute,
   NotificationsRoute: NotificationsRoute,
   OrdersRoute: OrdersRouteWithChildren,

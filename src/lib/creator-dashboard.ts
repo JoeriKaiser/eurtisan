@@ -6,6 +6,7 @@ export type {
   CreatorActivity,
   CreatorDashboardStats,
   CreatorShop,
+  CreatorShopDetail,
   OrderActivity,
   ReviewActivity,
 } from './creator-dashboard.server'
@@ -55,6 +56,35 @@ export const getCreatorShops = createServerFn({ method: 'GET' })
 
     const { getCreatorShopsQuery } = await import('./creator-dashboard.server')
     return getCreatorShopsQuery(context.user.id)
+  })
+
+/**
+ * Returns the full details for a specific shop owned by the authenticated creator.
+ * Returns null if the shop does not exist or is not owned by the user.
+ */
+export const getCreatorShop = createServerFn({ method: 'GET' })
+  .middleware([authMiddleware])
+  .inputValidator(
+    z.object({
+      shopId: z.string().min(1, 'Shop ID is required.'),
+    }),
+  )
+  .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Unauthorized',
+          message: 'Authentication required. Please sign in.',
+        }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const { requireRole } = await import('./authz')
+    requireRole('creator')({ user: context.user as never, session: {} as never })
+
+    const { getCreatorShopQuery } = await import('./creator-dashboard.server')
+    return getCreatorShopQuery(context.user.id, data.shopId)
   })
 
 /**

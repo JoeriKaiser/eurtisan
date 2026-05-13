@@ -8,6 +8,17 @@ export interface CreatorShop {
   slug: string
 }
 
+export interface CreatorShopDetail {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  image: string | null
+  ownerId: string
+  createdAt: Date
+  updatedAt: Date
+}
+
 /* -------------------------------------------------------------------------- */
 /*                                    Types                                   */
 /* -------------------------------------------------------------------------- */
@@ -124,6 +135,34 @@ export async function getCreatorShopsQuery(userId: string): Promise<CreatorShop[
     .from(shop)
     .where(eq(shop.ownerId, userId))
     .orderBy(shop.name)
+}
+
+/**
+ * Returns the full shop record for a specific shop owned by the user.
+ * Returns null if the shop does not exist or is not owned by the user.
+ */
+export async function getCreatorShopQuery(
+  userId: string,
+  shopId: string,
+): Promise<CreatorShopDetail | null> {
+  const [record] = await db
+    .select()
+    .from(shop)
+    .where(and(eq(shop.id, shopId), eq(shop.ownerId, userId)))
+    .limit(1)
+
+  if (!record) return null
+
+  return {
+    id: record.id,
+    name: record.name,
+    slug: record.slug,
+    description: record.description,
+    image: record.image,
+    ownerId: record.ownerId,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+  }
 }
 
 /* -------------------------------------------------------------------------- */
