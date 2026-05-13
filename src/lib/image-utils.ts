@@ -77,7 +77,7 @@ export function validateImageInput(input: ProductImageInput): {
   return { buffer, mimeType, altText: input.altText }
 }
 
-function getExtensionFromMimeType(mimeType: string): string {
+export function getExtensionFromMimeType(mimeType: string): string {
   switch (mimeType) {
     case 'image/jpeg':
       return 'jpg'

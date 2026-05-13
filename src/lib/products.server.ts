@@ -219,6 +219,7 @@ export type ShopSummary = {
   name: string
   description: string | null
   slug: string
+  image: string | null
 }
 
 export async function getShopBySlugQuery(slug: string): Promise<ShopSummary | null> {
@@ -228,6 +229,7 @@ export async function getShopBySlugQuery(slug: string): Promise<ShopSummary | nu
       name: shop.name,
       description: shop.description,
       slug: shop.slug,
+      image: shop.image,
       isSuspended: shop.isSuspended,
     })
     .from(shop)

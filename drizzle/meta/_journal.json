@@ -148,6 +148,13 @@
       "when": 1778566284024,
       "tag": "0020_ambitious_scarlet_witch",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1778691051996,
+      "tag": "0021_majestic_skaar",
+      "breakpoints": true
     }
   ]
 }

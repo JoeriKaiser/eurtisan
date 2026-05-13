@@ -86,6 +86,7 @@ export const shop = pgTable(
     name: text().notNull(),
     description: text(),
     slug: text().notNull(),
+    image: text(),
     ownerId: text()
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),

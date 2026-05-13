@@ -47,6 +47,7 @@ function makeShop(overrides?: Partial<ShopSummary>): ShopSummary {
     name: 'Test Shop',
     description: 'A test shop description',
     slug: 'test-shop',
+    image: null,
     ...overrides,
   }
 }
