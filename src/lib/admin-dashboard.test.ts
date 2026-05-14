@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
 import { dispute, payout, platformOrder, shop, shopOrder, user } from '#/db/schema'
-import { getAdminDashboardStatsQuery } from './admin-dashboard.server'
+import { getAdminDashboardStatsQuery, getRecentOrdersQuery, getRecentSignupsQuery } from './admin-dashboard.server'
 
 vi.mock('./auth', () => ({
   auth: {
@@ -247,5 +247,97 @@ describe('getAdminDashboardStatsQuery', () => {
     expect(result.activeShops).toBeGreaterThanOrEqual(0)
     expect(result.openDisputes).toBeGreaterThanOrEqual(0)
     expect(result.pendingPayouts).toBeGreaterThanOrEqual(0)
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/*                            getRecentSignupsQuery                           */
+/* -------------------------------------------------------------------------- */
+
+describe('getRecentSignupsQuery', () => {
+  it('returns an empty array when there are no users', async () => {
+    const result = await getRecentSignupsQuery(5)
+    expect(result).toEqual([])
+  })
+
+  it('returns users sorted by createdAt descending', async () => {
+    await seedUser({ id: 'user-1', email: 'old@test.com' })
+    await seedUser({ id: 'user-2', email: 'mid@test.com' })
+    await seedUser({ id: 'user-3', email: 'new@test.com' })
+
+    const result = await getRecentSignupsQuery(5)
+
+    expect(result).toHaveLength(3)
+    // All should have expected shape
+    for (const signup of result) {
+      expect(signup).toHaveProperty('id')
+      expect(signup).toHaveProperty('name')
+      expect(signup).toHaveProperty('email')
+      expect(signup).toHaveProperty('createdAt')
+      expect(signup.createdAt).toBeInstanceOf(Date)
+    }
+  })
+
+  it('respects the limit parameter', async () => {
+    await seedUser({ id: 'u1', email: '1@test.com' })
+    await seedUser({ id: 'u2', email: '2@test.com' })
+    await seedUser({ id: 'u3', email: '3@test.com' })
+    await seedUser({ id: 'u4', email: '4@test.com' })
+    await seedUser({ id: 'u5', email: '5@test.com' })
+
+    const result = await getRecentSignupsQuery(2)
+    expect(result).toHaveLength(2)
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/*                             getRecentOrdersQuery                           */
+/* -------------------------------------------------------------------------- */
+
+describe('getRecentOrdersQuery', () => {
+  it('returns an empty array when there are no orders', async () => {
+    const result = await getRecentOrdersQuery(5)
+    expect(result).toEqual([])
+  })
+
+  it('returns orders sorted by createdAt descending', async () => {
+    await seedUser()
+    await seedPlatformOrder()
+    await seedPlatformOrder({ totalCents: 2000 })
+    await seedPlatformOrder({ totalCents: 3000 })
+
+    const result = await getRecentOrdersQuery(5)
+
+    expect(result).toHaveLength(3)
+    for (const order of result) {
+      expect(order).toHaveProperty('id')
+      expect(order).toHaveProperty('status')
+      expect(order).toHaveProperty('totalCents')
+      expect(order).toHaveProperty('createdAt')
+      expect(order.createdAt).toBeInstanceOf(Date)
+      expect(typeof order.status).toBe('string')
+      expect(typeof order.totalCents).toBe('number')
+    }
+  })
+
+  it('respects the limit parameter', async () => {
+    await seedUser()
+    await seedPlatformOrder()
+    await seedPlatformOrder({ totalCents: 2000 })
+    await seedPlatformOrder({ totalCents: 3000 })
+    await seedPlatformOrder({ totalCents: 4000 })
+    await seedPlatformOrder({ totalCents: 5000 })
+
+    const result = await getRecentOrdersQuery(3)
+    expect(result).toHaveLength(3)
+  })
+
+  it('returns zero totalCents for orders with no value', async () => {
+    await seedUser()
+    await seedPlatformOrder({ totalCents: 0 })
+
+    const result = await getRecentOrdersQuery(1)
+    expect(result).toHaveLength(1)
+    expect(result[0].totalCents).toBe(0)
   })
 })

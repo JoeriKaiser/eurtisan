@@ -1,6 +1,7 @@
-import { count, eq } from 'drizzle-orm'
+import { count, desc, eq } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { dispute, payout, shop, user } from '#/db/schema'
+import { dispute, payout, platformOrder, shop, user } from '#/db/schema'
+import type { OrderStatus } from './orders.server'
 
 /* -------------------------------------------------------------------------- */
 /*                                    Types                                   */
@@ -36,4 +37,62 @@ export async function getAdminDashboardStatsQuery(): Promise<AdminDashboardStats
     openDisputes: Number(openDisputesResult?.count ?? 0),
     pendingPayouts: Number(pendingPayoutsResult?.count ?? 0),
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                               Recent Signups                               */
+/* -------------------------------------------------------------------------- */
+
+export interface RecentSignup {
+  id: string
+  name: string
+  email: string
+  createdAt: Date
+}
+
+/**
+ * Returns the most recently registered users, sorted newest first.
+ */
+export async function getRecentSignupsQuery(limit: number): Promise<RecentSignup[]> {
+  const rows = await db
+    .select({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      createdAt: user.createdAt,
+    })
+    .from(user)
+    .orderBy(desc(user.createdAt))
+    .limit(limit)
+
+  return rows
+}
+
+/* -------------------------------------------------------------------------- */
+/*                               Recent Orders                                */
+/* -------------------------------------------------------------------------- */
+
+export interface RecentOrder {
+  id: string
+  status: OrderStatus
+  totalCents: number
+  createdAt: Date
+}
+
+/**
+ * Returns the most recently created platform orders, sorted newest first.
+ */
+export async function getRecentOrdersQuery(limit: number): Promise<RecentOrder[]> {
+  const rows = await db
+    .select({
+      id: platformOrder.id,
+      status: platformOrder.status,
+      totalCents: platformOrder.totalCents,
+      createdAt: platformOrder.createdAt,
+    })
+    .from(platformOrder)
+    .orderBy(desc(platformOrder.createdAt))
+    .limit(limit)
+
+  return rows
 }
