@@ -155,6 +155,13 @@
       "when": 1778691051996,
       "tag": "0021_majestic_skaar",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1778747518798,
+      "tag": "0022_moaning_talisman",
+      "breakpoints": true
     }
   ]
 }

@@ -91,6 +91,7 @@ export const shop = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
     isSuspended: boolean('is_suspended').notNull().default(false),
+    moderationNote: text('moderation_note'),
     createdAt: timestamp().notNull().defaultNow(),
     updatedAt: timestamp().notNull().defaultNow(),
   },
