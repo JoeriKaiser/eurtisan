@@ -473,10 +473,13 @@ describe('addDisputeMessageQuery', () => {
 /*                             listOpenDisputesQuery                          */
 /* -------------------------------------------------------------------------- */
 
+const DEFAULT_PAGE = { page: 1, pageSize: 20 }
+
 describe('listOpenDisputesQuery', () => {
-  it('returns empty array when no open disputes', async () => {
-    const result = await listOpenDisputesQuery()
-    expect(result).toEqual([])
+  it('returns empty disputes array when no open disputes', async () => {
+    const result = await listOpenDisputesQuery(DEFAULT_PAGE)
+    expect(result.disputes).toEqual([])
+    expect(result.total).toBe(0)
   })
 
   it('returns open disputes with participant names and order info', async () => {
@@ -489,14 +492,16 @@ describe('listOpenDisputesQuery', () => {
       'user-1',
     )
 
-    const result = await listOpenDisputesQuery()
-    expect(result).toHaveLength(1)
-    expect(result[0].id).toBe(d.id)
-    expect(result[0].buyerName).toBe('Test')
-    expect(result[0].shopName).toBe('Test Shop')
-    expect(result[0].reason).toBe('Damaged')
-    expect(result[0].status).toBe('open')
-    expect(result[0].orderTotalCents).toBe(2500)
+    const result = await listOpenDisputesQuery(DEFAULT_PAGE)
+    expect(result.disputes).toHaveLength(1)
+    expect(result.total).toBe(1)
+    expect(result.disputes[0].id).toBe(d.id)
+    expect(result.disputes[0].buyerName).toBe('Test')
+    expect(result.disputes[0].creatorName).toBe('Test')
+    expect(result.disputes[0].shopName).toBe('Test Shop')
+    expect(result.disputes[0].reason).toBe('Damaged')
+    expect(result.disputes[0].status).toBe('open')
+    expect(result.disputes[0].orderTotalCents).toBe(2500)
   })
 
   it('does not include resolved disputes', async () => {
@@ -517,8 +522,9 @@ describe('listOpenDisputesQuery', () => {
 
     await resolveDisputeQuery(d.id, { resolution: 'close' })
 
-    const result = await listOpenDisputesQuery()
-    expect(result).toHaveLength(0)
+    const result = await listOpenDisputesQuery(DEFAULT_PAGE)
+    expect(result.disputes).toHaveLength(0)
+    expect(result.total).toBe(0)
   })
 
   it('orders by created_at ascending', async () => {
@@ -540,10 +546,50 @@ describe('listOpenDisputesQuery', () => {
       'user-1',
     )
 
-    const result = await listOpenDisputesQuery()
-    expect(result).toHaveLength(2)
-    expect(result[0].id).toBe(d1.id)
-    expect(result[1].id).toBe(d2.id)
+    const result = await listOpenDisputesQuery(DEFAULT_PAGE)
+    expect(result.disputes).toHaveLength(2)
+    expect(result.disputes[0].id).toBe(d1.id)
+    expect(result.disputes[1].id).toBe(d2.id)
+  })
+
+  it('supports pagination', async () => {
+    await seedUser()
+    await seedShop()
+
+    // Create 3 disputes
+    for (let i = 0; i < 3; i++) {
+      const { shopOrder: so } = await seedDeliveredOrder()
+      await openDisputeQuery(
+        { shopOrderId: so.id, reason: 'Issue', description: `Dispute ${i}` },
+        'user-1',
+      )
+    }
+
+    const page1 = await listOpenDisputesQuery({ page: 1, pageSize: 2 })
+    expect(page1.disputes).toHaveLength(2)
+    expect(page1.total).toBe(3)
+    expect(page1.page).toBe(1)
+    expect(page1.pageSize).toBe(2)
+
+    const page2 = await listOpenDisputesQuery({ page: 2, pageSize: 2 })
+    expect(page2.disputes).toHaveLength(1)
+    expect(page2.total).toBe(3)
+    expect(page2.page).toBe(2)
+  })
+
+  it('returns empty disputes for page beyond total', async () => {
+    await seedUser()
+    await seedShop()
+
+    const { shopOrder: so } = await seedDeliveredOrder()
+    await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Issue', description: 'Dispute' },
+      'user-1',
+    )
+
+    const result = await listOpenDisputesQuery({ page: 10, pageSize: 20 })
+    expect(result.disputes).toHaveLength(0)
+    expect(result.total).toBe(1)
   })
 })
 

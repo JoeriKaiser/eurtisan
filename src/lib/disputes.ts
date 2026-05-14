@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { z } from 'zod'
 import { authMiddleware } from './auth-middleware'
 import { addDisputeMessageSchema, openDisputeSchema, resolveDisputeSchema } from './disputes.server'
 
@@ -7,6 +8,7 @@ export type {
   CreatedDisputeMessage,
   DisputeDetail,
   DisputeListItem,
+  PaginatedDisputes,
   ResolvedDispute,
 } from './disputes.server'
 
@@ -40,9 +42,15 @@ export const addDisputeMessage = createServerFn({ method: 'POST' })
     return addDisputeMessageQuery(data.disputeId, data.message, context.user.id, context.user.role)
   })
 
+const listOpenDisputesInputSchema = z.object({
+  page: z.number().int().min(1).default(1),
+  pageSize: z.number().int().min(1).max(100).default(20),
+})
+
 export const listOpenDisputes = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .handler(async ({ context }) => {
+  .inputValidator((data: unknown) => listOpenDisputesInputSchema.parse(data))
+  .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
         JSON.stringify({ error: 'Unauthorized', message: 'Authentication required' }),
@@ -58,7 +66,7 @@ export const listOpenDisputes = createServerFn({ method: 'GET' })
     }
 
     const { listOpenDisputesQuery } = await import('./disputes.server')
-    return listOpenDisputesQuery()
+    return listOpenDisputesQuery({ page: data.page, pageSize: data.pageSize })
   })
 
 export const getDisputeDetail = createServerFn({ method: 'GET' })

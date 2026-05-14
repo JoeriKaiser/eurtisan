@@ -1,15 +1,31 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { AlertTriangle, Clock, Gavel, Inbox } from 'lucide-react'
+import {
+  AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Gavel,
+  Hash,
+  Inbox,
+  User,
+} from 'lucide-react'
 import { Badge } from '#/components/ui/badge'
 import { listOpenDisputes } from '#/lib/disputes'
-import { formatPriceEUR } from '#/lib/pricing'
 import { guardRole } from '#/lib/route-guards'
+
+const PAGE_SIZE = 20
 
 export const Route = createFileRoute('/admin/disputes')({
   beforeLoad: async () => guardRole('admin'),
-  loader: async () => {
-    const disputes = await listOpenDisputes()
-    return { disputes }
+  validateSearch: (search: Record<string, unknown>) => ({
+    page: Number(search.page) || 1,
+  }),
+  loaderDeps: ({ search: { page } }) => ({ page }),
+  loader: async ({ deps }) => {
+    const result = await listOpenDisputes({
+      data: { page: deps.page, pageSize: PAGE_SIZE },
+    })
+    return result
   },
   head: () => ({
     meta: [{ title: 'Disputes | Admin' }],
@@ -19,14 +35,14 @@ export const Route = createFileRoute('/admin/disputes')({
   errorComponent: AdminDisputesError,
 })
 
-function getReasonLabel(reason: string): string {
-  const labels: Record<string, string> = {
-    item_not_received: 'Item not received',
-    not_as_described: 'Not as described',
-    damaged: 'Damaged',
-    other: 'Other',
-  }
-  return labels[reason] ?? reason
+/* -------------------------------------------------------------------------- */
+/*                                  Helpers                                   */
+/* -------------------------------------------------------------------------- */
+
+function getStatusBadge(status: string): { variant: 'warning' | 'success'; label: string } {
+  if (status === 'open') return { variant: 'warning', label: 'Open' }
+  if (status === 'resolved') return { variant: 'success', label: 'Resolved' }
+  return { variant: 'warning', label: status }
 }
 
 function getDisputeAge(createdAt: Date | string): string {
@@ -42,79 +58,165 @@ function getDisputeAge(createdAt: Date | string): string {
   return `${diffMinutes}m`
 }
 
+/* -------------------------------------------------------------------------- */
+/*                              Main Component                                */
+/* -------------------------------------------------------------------------- */
+
 export function AdminDisputesPage() {
-  const { disputes } = Route.useLoaderData()
+  const result = Route.useLoaderData()
+  const { disputes, total, page, pageSize } = result
+  const totalPages = Math.ceil(total / pageSize)
 
   return (
     <main className='page-wrap px-4 py-12'>
       <div className='mx-auto max-w-6xl'>
+        {/* Header */}
         <div className='mb-6 flex flex-wrap items-center justify-between gap-4'>
           <div className='flex items-center gap-3'>
             <Gavel size={24} className='text-text-secondary' aria-hidden='true' />
             <h1 className='display-title text-2xl font-bold text-text-primary'>Dispute Queue</h1>
+            {total > 0 && (
+              <span className='text-sm text-text-muted'>
+                {total} open dispute{total !== 1 ? 's' : ''}
+              </span>
+            )}
           </div>
           <Link to='/admin' className='text-sm text-text-secondary hover:text-text-primary'>
             Back to dashboard
           </Link>
         </div>
 
+        {/* Empty state */}
         {disputes.length === 0 ? (
           <div className='island-shell rounded-2xl p-8 text-center'>
             <Inbox size={48} className='mx-auto mb-4 text-text-muted' aria-hidden='true' />
-            <p className='text-text-secondary'>No open disputes.</p>
+            <p className='text-lg font-medium text-text-primary'>No open disputes</p>
+            <p className='mt-1 text-sm text-text-secondary'>
+              When buyers open disputes, they will appear here.
+            </p>
           </div>
         ) : (
           <div className='space-y-4'>
             {/* Desktop table header */}
-            <div className='hidden rounded-lg bg-surface-inset px-5 py-2 text-xs font-medium text-text-secondary sm:grid sm:grid-cols-[80px_1fr_1fr_1fr_120px_100px] sm:gap-4'>
+            <div className='hidden rounded-lg bg-surface-inset px-5 py-2 text-xs font-medium text-text-secondary sm:grid sm:grid-cols-[80px_1fr_1fr_1fr_1fr_80px_100px] sm:gap-4'>
               <span>Age</span>
-              <span>Reason</span>
-              <span>Buyer</span>
-              <span>Shop</span>
-              <span>Order</span>
-              <span className='text-right'>Total</span>
+              <span className='flex items-center gap-1'>
+                <Hash size={12} aria-hidden='true' />
+                Dispute ID
+              </span>
+              <span className='flex items-center gap-1'>
+                <User size={12} aria-hidden='true' />
+                Buyer
+              </span>
+              <span className='flex items-center gap-1'>
+                <User size={12} aria-hidden='true' />
+                Creator
+              </span>
+              <span>Order Ref</span>
+              <span>Status</span>
+              <span />
             </div>
 
-            {disputes.map((dispute) => (
-              <Link
-                key={dispute.id}
-                to='/admin/disputes/$disputeId'
-                params={{ disputeId: dispute.id }}
-                className='island-shell flex flex-col gap-3 rounded-xl p-5 transition hover:bg-bg-inset sm:grid sm:grid-cols-[80px_1fr_1fr_1fr_120px_100px] sm:items-center sm:gap-4'
+            {/* Dispute rows */}
+            {disputes.map((dispute) => {
+              const statusBadge = getStatusBadge(dispute.status)
+              return (
+                <Link
+                  key={dispute.id}
+                  to='/admin/disputes/$disputeId'
+                  params={{ disputeId: dispute.id }}
+                  className='island-shell flex flex-col gap-3 rounded-xl p-5 transition hover:bg-bg-inset sm:grid sm:grid-cols-[80px_1fr_1fr_1fr_1fr_80px_100px] sm:items-center sm:gap-4'
+                >
+                  {/* Age */}
+                  <div className='flex items-center gap-2'>
+                    <Clock size={14} className='text-text-muted' aria-hidden='true' />
+                    <span className='font-mono text-sm text-text-secondary'>
+                      {getDisputeAge(dispute.createdAt)}
+                    </span>
+                  </div>
+
+                  {/* Dispute ID */}
+                  <div>
+                    <span className='font-mono text-xs text-text-muted'>
+                      {dispute.id.slice(0, 8)}…
+                    </span>
+                  </div>
+
+                  {/* Buyer */}
+                  <div>
+                    <p className='text-sm text-text-primary'>{dispute.buyerName}</p>
+                  </div>
+
+                  {/* Creator */}
+                  <div>
+                    <p className='text-sm text-text-primary'>{dispute.creatorName}</p>
+                  </div>
+
+                  {/* Order Ref */}
+                  <div>
+                    <span className='font-mono text-sm text-text-secondary'>
+                      {dispute.shopOrderId.slice(0, 8)}…
+                    </span>
+                  </div>
+
+                  {/* Status */}
+                  <div>
+                    <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
+                  </div>
+
+                  {/* Arrow indicator */}
+                  <div className='flex justify-end'>
+                    <ChevronRight size={18} className='text-text-muted' aria-hidden='true' />
+                  </div>
+                </Link>
+              )
+            })}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <nav
+                className='flex items-center justify-between gap-4 pt-2'
+                aria-label='Dispute queue pagination'
               >
+                <div className='text-sm text-text-muted'>
+                  Page {page} of {totalPages}
+                </div>
                 <div className='flex items-center gap-2'>
-                  <Clock size={14} className='text-text-muted' aria-hidden='true' />
-                  <span className='font-mono text-sm text-text-secondary'>
-                    {getDisputeAge(dispute.createdAt)}
-                  </span>
+                  <Link
+                    to='/admin/disputes'
+                    search={{ page: page - 1 }}
+                    disabled={page <= 1}
+                    className='inline-flex items-center gap-1 rounded-lg border border-border-default px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-inset aria-disabled:pointer-events-none aria-disabled:opacity-40'
+                    aria-disabled={page <= 1}
+                    aria-label='Previous page'
+                  >
+                    <ChevronLeft size={16} aria-hidden='true' />
+                    Previous
+                  </Link>
+                  <Link
+                    to='/admin/disputes'
+                    search={{ page: page + 1 }}
+                    disabled={page >= totalPages}
+                    className='inline-flex items-center gap-1 rounded-lg border border-border-default px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-inset aria-disabled:pointer-events-none aria-disabled:opacity-40'
+                    aria-disabled={page >= totalPages}
+                    aria-label='Next page'
+                  >
+                    Next
+                    <ChevronRight size={16} aria-hidden='true' />
+                  </Link>
                 </div>
-                <div>
-                  <Badge variant='warning'>{getReasonLabel(dispute.reason)}</Badge>
-                </div>
-                <div>
-                  <p className='text-sm text-text-primary'>{dispute.buyerName}</p>
-                </div>
-                <div>
-                  <p className='text-sm text-text-primary'>{dispute.shopName}</p>
-                </div>
-                <div>
-                  <span className='font-mono text-sm text-text-secondary'>
-                    {dispute.shopOrderId.slice(0, 8)}…
-                  </span>
-                </div>
-                <div className='text-left sm:text-right'>
-                  <p className='text-base font-semibold text-text-primary'>
-                    {formatPriceEUR(dispute.orderTotalCents)}
-                  </p>
-                </div>
-              </Link>
-            ))}
+              </nav>
+            )}
           </div>
         )}
       </div>
     </main>
   )
 }
+
+/* -------------------------------------------------------------------------- */
+/*                             Pending Component                              */
+/* -------------------------------------------------------------------------- */
 
 function AdminDisputesPending() {
   return (
@@ -133,6 +235,10 @@ function AdminDisputesPending() {
     </main>
   )
 }
+
+/* -------------------------------------------------------------------------- */
+/*                              Error Component                               */
+/* -------------------------------------------------------------------------- */
 
 function AdminDisputesError({ error }: { error: Error }) {
   return (

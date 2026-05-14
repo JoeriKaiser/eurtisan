@@ -1,9 +1,12 @@
-import { asc, eq } from 'drizzle-orm'
+import { asc, count, eq } from 'drizzle-orm'
+import { alias } from 'drizzle-orm/pg-core'
 import { z } from 'zod'
 import { db } from '#/db/index'
 import { dispute, disputeMessage, platformOrder, shop, shopOrder, user } from '#/db/schema'
 import type { OrderStatus } from './orders.server'
 import { recalcPlatformOrderStatus } from './shop-orders.server'
+
+const creatorUser = alias(user, 'creator')
 
 const DISPUTE_WINDOW_DAYS = 30
 const MS_PER_DAY = 24 * 60 * 60 * 1000
@@ -54,12 +57,20 @@ export interface DisputeListItem {
   shopOrderId: string
   buyerUserId: string
   buyerName: string
+  creatorName: string
   shopId: string
   shopName: string
   reason: string
   status: string
   createdAt: Date
   orderTotalCents: number
+}
+
+export interface PaginatedDisputes {
+  disputes: DisputeListItem[]
+  total: number
+  page: number
+  pageSize: number
 }
 
 export interface CreatedDispute {
@@ -294,13 +305,20 @@ export async function addDisputeMessageQuery(
   }
 }
 
-export async function listOpenDisputesQuery(): Promise<DisputeListItem[]> {
-  const rows = await db
+export async function listOpenDisputesQuery(params: {
+  page: number
+  pageSize: number
+}): Promise<PaginatedDisputes> {
+  const { page, pageSize } = params
+  const offset = (page - 1) * pageSize
+
+  const baseQuery = db
     .select({
       id: dispute.id,
       shopOrderId: dispute.shopOrderId,
       buyerUserId: dispute.buyerUserId,
       buyerName: user.name,
+      creatorName: creatorUser.name,
       shopId: shopOrder.shopId,
       shopName: shop.name,
       reason: dispute.reason,
@@ -314,21 +332,32 @@ export async function listOpenDisputesQuery(): Promise<DisputeListItem[]> {
     .innerJoin(platformOrder, eq(shopOrder.platformOrderId, platformOrder.id))
     .innerJoin(user, eq(dispute.buyerUserId, user.id))
     .innerJoin(shop, eq(shopOrder.shopId, shop.id))
+    .leftJoin(creatorUser, eq(shop.ownerId, creatorUser.id))
     .where(eq(dispute.status, 'open'))
-    .orderBy(asc(dispute.createdAt))
 
-  return rows.map((row) => ({
-    id: row.id,
-    shopOrderId: row.shopOrderId,
-    buyerUserId: row.buyerUserId,
-    buyerName: row.buyerName,
-    shopId: row.shopId,
-    shopName: row.shopName,
-    reason: row.reason,
-    status: row.status,
-    createdAt: row.createdAt,
-    orderTotalCents: row.subtotalCents + row.shippingCostCents,
-  }))
+  const [rows, totalResult] = await Promise.all([
+    baseQuery.orderBy(asc(dispute.createdAt)).limit(pageSize).offset(offset),
+    db.select({ count: count() }).from(dispute).where(eq(dispute.status, 'open')),
+  ])
+
+  return {
+    disputes: rows.map((row) => ({
+      id: row.id,
+      shopOrderId: row.shopOrderId,
+      buyerUserId: row.buyerUserId,
+      buyerName: row.buyerName,
+      creatorName: row.creatorName,
+      shopId: row.shopId,
+      shopName: row.shopName,
+      reason: row.reason,
+      status: row.status,
+      createdAt: row.createdAt,
+      orderTotalCents: row.subtotalCents + row.shippingCostCents,
+    })),
+    total: Number(totalResult[0]?.count ?? 0),
+    page,
+    pageSize,
+  }
 }
 
 export async function getDisputeDetailQuery(
