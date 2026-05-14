@@ -137,19 +137,25 @@ export default function CartPage({ cart: initialCart, showEmptyMessage }: CartPa
               </span>
             </div>
 
-            <Link to='/checkout' className='no-underline'>
+            {hasUnavailableItems ? (
               <Button
                 size='lg'
                 className='mt-6 w-full'
-                disabled={hasUnavailableItems}
-                title={hasUnavailableItems ? m.cart_checkout_disabled_unavailable() : undefined}
+                disabled
+                aria-describedby='checkout-disabled-reason'
               >
                 {m.cart_proceed_to_checkout()}
               </Button>
-            </Link>
+            ) : (
+              <Link to='/checkout' className='no-underline'>
+                <Button size='lg' className='mt-6 w-full'>
+                  {m.cart_proceed_to_checkout()}
+                </Button>
+              </Link>
+            )}
 
             {hasUnavailableItems && (
-              <p className='mt-2 flex items-center gap-1.5 text-xs text-error'>
+              <p id='checkout-disabled-reason' className='mt-2 flex items-center gap-1.5 text-xs text-error'>
                 <AlertTriangle size={14} aria-hidden='true' />
                 {m.cart_checkout_disabled_unavailable()}
               </p>
