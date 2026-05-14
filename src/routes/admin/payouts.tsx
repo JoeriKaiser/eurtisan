@@ -1,0 +1,552 @@
+import { createFileRoute, Link } from '@tanstack/react-router'
+import {
+  AlertTriangle,
+  Banknote,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  Inbox,
+} from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Badge } from '#/components/ui/badge'
+import { Button } from '#/components/ui/button'
+import { Skeleton } from '#/components/ui/skeleton'
+import type { AdminPayoutRow } from '#/lib/admin-payouts'
+import { listPayoutHistory, listPendingPayouts, markPayoutSent } from '#/lib/admin-payouts'
+import { cn } from '#/lib/cn'
+import { formatPriceEUR } from '#/lib/pricing'
+import { guardRole } from '#/lib/route-guards'
+import { m } from '#/paraglide/messages'
+
+/* -------------------------------------------------------------------------- */
+/*                              Route Definition                              */
+/* -------------------------------------------------------------------------- */
+
+type Tab = 'pending' | 'history'
+
+export const Route = createFileRoute('/admin/payouts')({
+  beforeLoad: async () => guardRole('admin'),
+  validateSearch: (search: Record<string, unknown>) => ({
+    tab: ((search.tab as string) === 'history' ? 'history' : 'pending') as Tab,
+    page: Number(search.page) || 1,
+    pageSize: Number(search.pageSize) || 20,
+  }),
+  loaderDeps: ({ search: { tab, page, pageSize } }) => ({ tab, page, pageSize }),
+  loader: async ({ deps }) => {
+    if (deps.tab === 'pending') {
+      const payouts = await listPendingPayouts()
+      return { tab: 'pending' as const, payouts }
+    }
+
+    const history = await listPayoutHistory({
+      data: { page: deps.page, pageSize: deps.pageSize },
+    })
+    return { tab: 'history' as const, history }
+  },
+  head: () => ({
+    meta: [{ title: `${m.admin_payouts_title()} | Admin | Eurtisan` }],
+  }),
+  component: AdminPayoutsPage,
+  pendingComponent: AdminPayoutsPending,
+  errorComponent: AdminPayoutsError,
+})
+
+/* -------------------------------------------------------------------------- */
+/*                                   Helpers                                  */
+/* -------------------------------------------------------------------------- */
+
+const PAGE_SIZES = [10, 20, 50] as const
+
+function formatDate(date: Date | string | null): string {
+  if (!date) return '—'
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(date))
+}
+
+/* -------------------------------------------------------------------------- */
+/*                               Main Component                               */
+/* -------------------------------------------------------------------------- */
+
+export function AdminPayoutsPage() {
+  const initialData = Route.useLoaderData()
+  const navigate = Route.useNavigate()
+  const search = Route.useSearch()
+
+  // Derive history data fresh on every render so pagination works.
+  const historyData = initialData.tab === 'history' ? initialData.history : null
+
+  // --- Local state ---
+  const [payouts, setPayouts] = useState<AdminPayoutRow[]>(
+    initialData.tab === 'pending' ? initialData.payouts : [],
+  )
+  const [actionPayoutId, setActionPayoutId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+
+  // Keep payouts in sync when the loader returns fresh pending data (tab switch, remount).
+  useEffect(() => {
+    if (initialData.tab === 'pending') {
+      setPayouts(initialData.payouts)
+    }
+  }, [initialData.tab === 'pending' ? initialData.payouts : null])
+
+  // --- Refs for stale-closure safety ---
+  const successTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  /* ---- Navigation helpers ---- */
+  const navigateWithParams = useCallback(
+    (overrides: Record<string, string | number>) => {
+      navigate({
+        to: '/admin/payouts',
+        search: { ...search, ...overrides },
+        replace: true,
+      })
+    },
+    [navigate, search],
+  )
+
+  const handleTabChange = useCallback(
+    (tab: Tab) => {
+      navigate({ to: '/admin/payouts', search: { tab, page: 1, pageSize: 20 }, replace: true })
+    },
+    [navigate],
+  )
+
+  const handlePageChange = useCallback(
+    (page: number) => {
+      navigateWithParams({ page })
+    },
+    [navigateWithParams],
+  )
+
+  const handlePageSizeChange = useCallback(
+    (pageSize: number) => {
+      navigateWithParams({ pageSize, page: 1 })
+    },
+    [navigateWithParams],
+  )
+
+  /* ---- Mark as sent ---- */
+  const handleMarkSent = useCallback(async (payoutId: string) => {
+    setActionPayoutId(payoutId)
+    setActionError(null)
+    setSuccessMessage(null)
+
+    try {
+      await markPayoutSent({ data: { payoutId } })
+
+      // Remove from the pending list immediately
+      setPayouts((prev) => prev.filter((p) => p.payoutId !== payoutId))
+
+      setSuccessMessage(m.admin_payouts_marked_sent_success())
+
+      if (successTimerRef.current) clearTimeout(successTimerRef.current)
+      successTimerRef.current = setTimeout(() => setSuccessMessage(null), 3000)
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : m.admin_payouts_action_error())
+    } finally {
+      setActionPayoutId(null)
+    }
+  }, [])
+
+  /* ---- Derived data ---- */
+  const currentTab = search.tab as Tab
+  const isPendingTab = currentTab === 'pending'
+  const totalPages = historyData && historyData.totalPages > 0 ? historyData.totalPages : 1
+  const showingFrom = historyData ? (historyData.page - 1) * historyData.pageSize + 1 : 0
+  const showingTo = historyData
+    ? Math.min(historyData.page * historyData.pageSize, historyData.total)
+    : 0
+
+  return (
+    <main className='page-wrap px-4 py-12'>
+      <div className='mx-auto max-w-6xl space-y-6'>
+        {/* Header */}
+        <div>
+          <h1 className='display-title text-3xl font-bold text-text-primary'>
+            {m.admin_payouts_title()}
+          </h1>
+          <p className='mt-1 text-text-secondary'>{m.admin_payouts_description()}</p>
+        </div>
+
+        {/* Success / Error feedback */}
+        {successMessage && (
+          <div
+            role='status'
+            className='island-shell rounded-xl border border-success/30 bg-success-subtle p-4 text-sm text-success'
+          >
+            <CheckCircle size={16} className='mr-2 inline-block' aria-hidden='true' />
+            {successMessage}
+          </div>
+        )}
+
+        {actionError && (
+          <div
+            role='alert'
+            className='island-shell rounded-xl border border-error/30 bg-error-subtle p-4 text-sm text-error'
+          >
+            <AlertTriangle size={16} className='mr-2 inline-block' aria-hidden='true' />
+            {actionError}
+            <button
+              type='button'
+              onClick={() => setActionError(null)}
+              className='ml-2 underline hover:no-underline'
+            >
+              {m.admin_payouts_dismiss()}
+            </button>
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div
+          className='flex gap-1 rounded-lg border border-border-default bg-surface-inset p-1 w-fit'
+          role='tablist'
+          aria-label={m.admin_payouts_tab_label()}
+        >
+          <button
+            type='button'
+            role='tab'
+            aria-selected={isPendingTab}
+            onClick={() => handleTabChange('pending')}
+            className={cn(
+              'rounded-md px-4 py-1.5 text-sm font-medium transition-colors',
+              isPendingTab
+                ? 'bg-surface-default text-text-primary shadow-sm'
+                : 'text-text-secondary hover:text-text-primary',
+            )}
+          >
+            {m.admin_payouts_tab_pending()}
+          </button>
+          <button
+            type='button'
+            role='tab'
+            aria-selected={!isPendingTab}
+            onClick={() => handleTabChange('history')}
+            className={cn(
+              'rounded-md px-4 py-1.5 text-sm font-medium transition-colors',
+              !isPendingTab
+                ? 'bg-surface-default text-text-primary shadow-sm'
+                : 'text-text-secondary hover:text-text-primary',
+            )}
+          >
+            {m.admin_payouts_tab_history()}
+          </button>
+        </div>
+
+        {/* ---- Pending Tab ---- */}
+        {isPendingTab &&
+          (payouts.length === 0 ? (
+            <div className='py-16 text-center'>
+              <Banknote size={48} className='mx-auto mb-4 text-text-muted' aria-hidden='true' />
+              <h2 className='mb-2 text-lg font-semibold text-text-primary'>
+                {m.admin_payouts_pending_empty()}
+              </h2>
+              <p className='text-text-secondary'>{m.admin_payouts_pending_empty_desc()}</p>
+            </div>
+          ) : (
+            <div className='overflow-x-auto'>
+              <table className='w-full text-left text-sm'>
+                <thead>
+                  <tr className='border-b border-border-default'>
+                    <th className='pb-3 pr-4 font-medium text-text-secondary'>
+                      {m.admin_payouts_col_creator()}
+                    </th>
+                    <th className='pb-3 pr-4 font-medium text-text-secondary'>
+                      {m.admin_payouts_col_shop()}
+                    </th>
+                    <th className='pb-3 pr-4 font-medium text-text-secondary text-right'>
+                      {m.admin_payouts_col_amount()}
+                    </th>
+                    <th className='pb-3 pr-4 font-medium text-text-secondary hidden sm:table-cell'>
+                      {m.admin_payouts_col_created()}
+                    </th>
+                    <th className='pb-3 font-medium text-text-secondary text-right'>
+                      <span className='sr-only'>{m.admin_payouts_col_actions()}</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payouts.map((payout) => {
+                    const isProcessing = actionPayoutId === payout.payoutId
+
+                    return (
+                      <tr
+                        key={payout.payoutId}
+                        className='border-b border-border-subtle transition-colors hover:bg-bg-inset'
+                      >
+                        {/* Creator */}
+                        <td className='py-3 pr-4'>
+                          <span className='font-medium text-text-primary'>
+                            {payout.creatorName}
+                          </span>
+                        </td>
+
+                        {/* Shop — links to shop moderation */}
+                        <td className='py-3 pr-4'>
+                          <Link
+                            to='/admin/shops'
+                            search={{ filter: 'all' }}
+                            className='text-sm text-accent-primary hover:underline'
+                          >
+                            {payout.shopName}
+                          </Link>
+                        </td>
+
+                        {/* Amount */}
+                        <td className='py-3 pr-4 text-right font-semibold tabular-nums text-text-primary'>
+                          {formatPriceEUR(payout.amountCents)}
+                        </td>
+
+                        {/* Created */}
+                        <td className='py-3 pr-4 hidden sm:table-cell text-text-secondary'>
+                          {formatDate(payout.createdAt)}
+                        </td>
+
+                        {/* Actions */}
+                        <td className='py-3 text-right'>
+                          <Button
+                            variant='primary'
+                            size='sm'
+                            onClick={() => handleMarkSent(payout.payoutId)}
+                            disabled={isProcessing}
+                            isLoading={isProcessing}
+                            aria-label={m.admin_payouts_mark_sent_aria({
+                              creator: payout.creatorName,
+                            })}
+                          >
+                            {m.admin_payouts_mark_sent()}
+                          </Button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ))}
+
+        {/* ---- History Tab ---- */}
+        {!isPendingTab &&
+          (!historyData || historyData.payouts.length === 0 ? (
+            <div className='py-16 text-center'>
+              <Inbox size={48} className='mx-auto mb-4 text-text-muted' aria-hidden='true' />
+              <h2 className='mb-2 text-lg font-semibold text-text-primary'>
+                {m.admin_payouts_history_empty()}
+              </h2>
+              <p className='text-text-secondary'>{m.admin_payouts_history_empty_desc()}</p>
+            </div>
+          ) : (
+            <>
+              <div className='overflow-x-auto'>
+                <table className='w-full text-left text-sm'>
+                  <thead>
+                    <tr className='border-b border-border-default'>
+                      <th className='pb-3 pr-4 font-medium text-text-secondary'>
+                        {m.admin_payouts_col_creator()}
+                      </th>
+                      <th className='pb-3 pr-4 font-medium text-text-secondary'>
+                        {m.admin_payouts_col_shop()}
+                      </th>
+                      <th className='pb-3 pr-4 font-medium text-text-secondary text-right'>
+                        {m.admin_payouts_col_amount()}
+                      </th>
+                      <th className='pb-3 pr-4 font-medium text-text-secondary'>
+                        {m.admin_payouts_col_status()}
+                      </th>
+                      <th className='pb-3 pr-4 font-medium text-text-secondary hidden md:table-cell'>
+                        {m.admin_payouts_col_sent_at()}
+                      </th>
+                      <th className='pb-3 font-medium text-text-secondary hidden sm:table-cell'>
+                        {m.admin_payouts_col_created()}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {historyData.payouts.map((payout) => (
+                      <tr
+                        key={payout.payoutId}
+                        className='border-b border-border-subtle transition-colors hover:bg-bg-inset'
+                      >
+                        {/* Creator */}
+                        <td className='py-3 pr-4'>
+                          <span className='font-medium text-text-primary'>
+                            {payout.creatorName}
+                          </span>
+                        </td>
+
+                        {/* Shop */}
+                        <td className='py-3 pr-4'>
+                          <Link
+                            to='/admin/shops'
+                            search={{ filter: 'all' }}
+                            className='text-sm text-accent-primary hover:underline'
+                          >
+                            {payout.shopName}
+                          </Link>
+                        </td>
+
+                        {/* Amount */}
+                        <td className='py-3 pr-4 text-right font-semibold tabular-nums text-text-primary'>
+                          {formatPriceEUR(payout.amountCents)}
+                        </td>
+
+                        {/* Status */}
+                        <td className='py-3 pr-4'>
+                          <Badge variant={payout.status === 'sent' ? 'success' : 'warning'}>
+                            {payout.status === 'sent'
+                              ? m.admin_payouts_status_sent()
+                              : m.admin_payouts_status_pending()}
+                          </Badge>
+                        </td>
+
+                        {/* Sent at */}
+                        <td className='py-3 pr-4 hidden md:table-cell text-text-secondary'>
+                          {formatDate(payout.sentAt)}
+                        </td>
+
+                        {/* Created */}
+                        <td className='py-3 pr-4 hidden sm:table-cell text-text-secondary'>
+                          {formatDate(payout.createdAt)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              <div className='flex flex-col items-center gap-3 sm:flex-row sm:justify-between'>
+                <div className='flex items-center gap-3'>
+                  <p className='text-sm text-text-secondary'>
+                    {m.admin_payouts_showing({
+                      from: showingFrom,
+                      to: showingTo,
+                      total: historyData.total,
+                    })}
+                  </p>
+                  <select
+                    value={historyData.pageSize}
+                    onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                    className='h-8 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary'
+                    aria-label={m.admin_payouts_page_size_label()}
+                  >
+                    {PAGE_SIZES.map((size) => (
+                      <option key={size} value={size}>
+                        {size}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {totalPages > 1 && (
+                  <nav
+                    className='flex items-center gap-4'
+                    aria-label={m.admin_payouts_pagination()}
+                  >
+                    <Button
+                      variant='secondary'
+                      size='sm'
+                      disabled={historyData.page <= 1}
+                      onClick={() => handlePageChange(historyData.page - 1)}
+                      aria-label={m.pagination_previous()}
+                    >
+                      <ChevronLeft size={16} aria-hidden='true' />
+                      {m.pagination_previous()}
+                    </Button>
+                    <span className='text-sm text-text-secondary'>
+                      {m.pagination_page_of({
+                        page: historyData.page,
+                        totalPages,
+                      })}
+                    </span>
+                    <Button
+                      variant='secondary'
+                      size='sm'
+                      disabled={historyData.page >= totalPages}
+                      onClick={() => handlePageChange(historyData.page + 1)}
+                      aria-label={m.pagination_next()}
+                    >
+                      {m.pagination_next()}
+                      <ChevronRight size={16} aria-hidden='true' />
+                    </Button>
+                  </nav>
+                )}
+              </div>
+            </>
+          ))}
+      </div>
+    </main>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+/*                             Loading Skeleton                               */
+/* -------------------------------------------------------------------------- */
+
+function AdminPayoutsPending() {
+  return (
+    <main className='page-wrap px-4 py-12'>
+      <div className='mx-auto max-w-6xl space-y-6'>
+        <div>
+          <Skeleton className='mb-2 h-9 w-64' />
+          <Skeleton className='h-5 w-80' />
+        </div>
+
+        {/* Tabs skeleton */}
+        <Skeleton className='h-10 w-48 rounded-lg' />
+
+        {/* Table skeleton */}
+        <div className='overflow-x-auto' aria-hidden='true'>
+          <table className='w-full text-left text-sm'>
+            <thead>
+              <tr className='border-b border-border-default'>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <th key={n} className='pb-3 pr-4'>
+                    <Skeleton className='h-4 w-20' />
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 5 }).map((_, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton rows
+                <tr key={i} className='border-b border-border-subtle'>
+                  {[1, 2, 3, 4, 5].map((col) => (
+                    <td key={col} className='py-3 pr-4'>
+                      <Skeleton className='h-5 w-24' />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                Error State                                 */
+/* -------------------------------------------------------------------------- */
+
+function AdminPayoutsError({ error, reset }: { error: Error; reset?: () => void }) {
+  return (
+    <main className='page-wrap px-4 py-12'>
+      <div className='mx-auto max-w-6xl text-center'>
+        <AlertTriangle size={48} className='mx-auto mb-4 text-error' aria-hidden='true' />
+        <h1 className='display-title mb-2 text-2xl font-bold text-text-primary'>
+          {m.admin_payouts_error_load()}
+        </h1>
+        <p className='mb-6 text-text-secondary'>{error.message}</p>
+        {reset && (
+          <Button variant='secondary' onClick={reset}>
+            {m.admin_payouts_error_retry()}
+          </Button>
+        )}
+      </div>
+    </main>
+  )
+}

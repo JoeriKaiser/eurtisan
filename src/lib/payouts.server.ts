@@ -1,6 +1,6 @@
-import { and, desc, eq, inArray } from 'drizzle-orm'
+import { and, count, desc, eq, inArray } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { payout, shop, shopOrder } from '#/db/schema'
+import { payout, shop, shopOrder, user } from '#/db/schema'
 
 /* -------------------------------------------------------------------------- */
 /*                               Platform Fee                                 */
@@ -112,6 +112,112 @@ function derivePayoutLine(
     status: payoutStatus,
     orderStatus: order.status,
     isRefund,
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                       Admin Payout Row Type                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A payout record enriched with creator and shop details for the admin oversight view.
+ */
+export interface AdminPayoutRow {
+  payoutId: string
+  amountCents: number
+  status: 'pending' | 'sent'
+  sentAt: Date | null
+  createdAt: Date
+  shopName: string
+  shopId: string
+  creatorName: string
+  creatorId: string
+}
+
+/* -------------------------------------------------------------------------- */
+/*                       List Pending Payouts Query                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Returns all pending payouts enriched with creator and shop details.
+ * Sorted oldest first so admins process the longest-waiting payouts first.
+ *
+ * This is a pure query function — callers are responsible for authorization.
+ */
+export async function listPendingPayoutsQuery(): Promise<AdminPayoutRow[]> {
+  const rows = await db
+    .select({
+      payoutId: payout.id,
+      amountCents: payout.amountCents,
+      status: payout.status,
+      sentAt: payout.sentAt,
+      createdAt: payout.createdAt,
+      shopName: shop.name,
+      shopId: shop.id,
+      creatorName: user.name,
+      creatorId: user.id,
+    })
+    .from(payout)
+    .innerJoin(shop, eq(payout.shopId, shop.id))
+    .innerJoin(user, eq(shop.ownerId, user.id))
+    .where(eq(payout.status, 'pending'))
+    .orderBy(payout.createdAt)
+
+  return rows
+}
+
+/* -------------------------------------------------------------------------- */
+/*                       List Payout History Query                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Returns paginated payout history (all statuses) enriched with creator and shop details.
+ * Sorted most recent first.
+ *
+ * This is a pure query function — callers are responsible for authorization.
+ */
+export async function listPayoutHistoryQuery(
+  options: { page?: number; pageSize?: number } = {},
+): Promise<{
+  payouts: AdminPayoutRow[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}> {
+  const page = Math.max(1, options.page ?? 1)
+  const pageSize = Math.min(100, Math.max(1, options.pageSize ?? 20))
+  const offset = (page - 1) * pageSize
+
+  const [countRow] = await db.select({ total: count() }).from(payout)
+
+  const total = Number(countRow?.total ?? 0)
+
+  const rows = await db
+    .select({
+      payoutId: payout.id,
+      amountCents: payout.amountCents,
+      status: payout.status,
+      sentAt: payout.sentAt,
+      createdAt: payout.createdAt,
+      shopName: shop.name,
+      shopId: shop.id,
+      creatorName: user.name,
+      creatorId: user.id,
+    })
+    .from(payout)
+    .innerJoin(shop, eq(payout.shopId, shop.id))
+    .innerJoin(user, eq(shop.ownerId, user.id))
+    .orderBy(desc(payout.createdAt))
+    .limit(pageSize)
+    .offset(offset)
+
+  return {
+    payouts: rows,
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
   }
 }
 

@@ -33,6 +33,7 @@ import { Route as CreatorPayoutsRouteImport } from './routes/creator/payouts'
 import { Route as CategoryAllRouteImport } from './routes/category/all'
 import { Route as CategorySlugRouteImport } from './routes/category/$slug'
 import { Route as ApiProductsRouteImport } from './routes/api/products'
+import { Route as AdminPayoutsRouteImport } from './routes/admin/payouts'
 import { Route as AdminShopsRouteImport } from './routes/admin/shops'
 import { Route as AdminDisputesRouteImport } from './routes/admin/disputes'
 import { Route as AccountSettingsRouteImport } from './routes/account/settings'
@@ -174,6 +175,11 @@ const ApiProductsRoute = ApiProductsRouteImport.update({
   path: '/api/products',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminPayoutsRoute = AdminPayoutsRouteImport.update({
+  id: '/admin/payouts',
+  path: '/admin/payouts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminShopsRoute = AdminShopsRouteImport.update({
   id: '/admin/shops',
   path: '/admin/shops',
@@ -294,6 +300,7 @@ export interface FileRoutesByFullPath {
   '/account/orders': typeof AccountOrdersRouteWithChildren
   '/account/settings': typeof AccountSettingsRoute
   '/admin/disputes': typeof AdminDisputesRouteWithChildren
+  '/admin/payouts': typeof AdminPayoutsRoute
   '/admin/shops': typeof AdminShopsRoute
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
@@ -434,6 +441,7 @@ export interface FileRouteTypes {
     | '/account/orders'
     | '/account/settings'
     | '/admin/disputes'
+    | '/admin/payouts'
     | '/admin/shops'
     | '/api/products'
     | '/category/$slug'
@@ -572,6 +580,7 @@ export interface RootRouteChildren {
   AccountOrdersRoute: typeof AccountOrdersRouteWithChildren
   AccountSettingsRoute: typeof AccountSettingsRoute
   AdminDisputesRoute: typeof AdminDisputesRouteWithChildren
+  AdminPayoutsRoute: typeof AdminPayoutsRoute
   AdminShopsRoute: typeof AdminShopsRoute
   ApiProductsRoute: typeof ApiProductsRoute
   CategorySlugRoute: typeof CategorySlugRoute
@@ -759,6 +768,13 @@ declare module '@tanstack/react-router' {
       path: '/api/products'
       fullPath: '/api/products'
       preLoaderRoute: typeof ApiProductsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/payouts': {
+      id: '/admin/payouts'
+      path: '/admin/payouts'
+      fullPath: '/admin/payouts'
+      preLoaderRoute: typeof AdminPayoutsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/shops': {
@@ -1045,6 +1061,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccountOrdersRoute: AccountOrdersRouteWithChildren,
   AccountSettingsRoute: AccountSettingsRoute,
   AdminDisputesRoute: AdminDisputesRouteWithChildren,
+  AdminPayoutsRoute: AdminPayoutsRoute,
   AdminShopsRoute: AdminShopsRoute,
   ApiProductsRoute: ApiProductsRoute,
   CategorySlugRoute: CategorySlugRoute,

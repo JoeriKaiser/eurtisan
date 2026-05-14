@@ -45,11 +45,7 @@ vi.mock('@tanstack/react-router', () => ({
     }),
     useNavigate: () => mockNavigate,
   }),
-  Link: (props: {
-    children: React.ReactNode
-    to: string
-    className?: string
-  }) => (
+  Link: (props: { children: React.ReactNode; to: string; className?: string }) => (
     <a href={props.to} className={props.className}>
       {props.children}
     </a>
@@ -73,6 +69,8 @@ vi.mock('#/paraglide/messages', () => ({
     admin_nav_section: () => 'Quick Links',
     admin_nav_disputes: () => 'Dispute Queue',
     admin_nav_disputes_desc: () => 'Review and resolve open disputes.',
+    admin_nav_payouts: () => 'Payout Oversight',
+    admin_nav_payouts_desc: () => 'Review and process creator payouts.',
     admin_nav_shops: () => 'Shop Moderation',
     admin_nav_shops_desc: () => 'Review and moderate shops.',
   },

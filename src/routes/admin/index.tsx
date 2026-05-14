@@ -1,18 +1,14 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { AlertTriangle, Gavel, ShoppingBag, Store, Users } from 'lucide-react'
+import { AlertTriangle, Banknote, Gavel, ShoppingBag, Store, Users } from 'lucide-react'
+import { Badge } from '#/components/ui/badge'
+import { Button } from '#/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
 import { Separator } from '#/components/ui/separator'
 import { Skeleton } from '#/components/ui/skeleton'
-import { Button } from '#/components/ui/button'
-import { Badge } from '#/components/ui/badge'
-import { guardRole } from '#/lib/route-guards'
-import {
-  getAdminDashboardStats,
-  getRecentOrders,
-  getRecentSignups,
-} from '#/lib/admin-dashboard'
-import { formatPriceEUR } from '#/lib/pricing'
+import { getAdminDashboardStats, getRecentOrders, getRecentSignups } from '#/lib/admin-dashboard'
 import { statusBadgeVariant } from '#/lib/orders-ui'
+import { formatPriceEUR } from '#/lib/pricing'
+import { guardRole } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
 
 export const Route = createFileRoute('/admin/')({
@@ -85,9 +81,7 @@ export function AdminDashboard() {
       <div className='mx-auto max-w-6xl space-y-8'>
         {/* Header */}
         <div>
-          <h1 className='display-title text-3xl font-bold text-text-primary'>
-            {m.admin_title()}
-          </h1>
+          <h1 className='display-title text-3xl font-bold text-text-primary'>{m.admin_title()}</h1>
           <p className='mt-1 text-text-secondary'>{m.admin_description()}</p>
         </div>
 
@@ -142,9 +136,7 @@ export function AdminDashboard() {
                       <li key={signup.id}>
                         {i > 0 && <Separator className='mb-3' />}
                         <div>
-                          <p className='text-sm font-medium text-text-primary'>
-                            {signup.name}
-                          </p>
+                          <p className='text-sm font-medium text-text-primary'>{signup.name}</p>
                           <p className='text-xs text-text-muted'>{signup.email}</p>
                           <p className='mt-0.5 text-xs text-text-muted'>
                             {formatDate(signup.createdAt)}
@@ -211,28 +203,44 @@ export function AdminDashboard() {
                   to='/admin/disputes'
                   className='flex items-start gap-3 rounded-lg p-3 transition-colors hover:bg-bg-inset'
                 >
-                  <Gavel size={18} className='mt-0.5 shrink-0 text-text-secondary' aria-hidden='true' />
+                  <Gavel
+                    size={18}
+                    className='mt-0.5 shrink-0 text-text-secondary'
+                    aria-hidden='true'
+                  />
                   <div>
                     <p className='text-sm font-medium text-text-primary'>
                       {m.admin_nav_disputes()}
                     </p>
-                    <p className='text-xs text-text-muted'>
-                      {m.admin_nav_disputes_desc()}
-                    </p>
+                    <p className='text-xs text-text-muted'>{m.admin_nav_disputes_desc()}</p>
+                  </div>
+                </Link>
+                <Link
+                  to='/admin/payouts'
+                  className='flex items-start gap-3 rounded-lg p-3 transition-colors hover:bg-bg-inset'
+                >
+                  <Banknote
+                    size={18}
+                    className='mt-0.5 shrink-0 text-text-secondary'
+                    aria-hidden='true'
+                  />
+                  <div>
+                    <p className='text-sm font-medium text-text-primary'>{m.admin_nav_payouts()}</p>
+                    <p className='text-xs text-text-muted'>{m.admin_nav_payouts_desc()}</p>
                   </div>
                 </Link>
                 <Link
                   to='/admin/shops'
                   className='flex items-start gap-3 rounded-lg p-3 transition-colors hover:bg-bg-inset'
                 >
-                  <Store size={18} className='mt-0.5 shrink-0 text-text-secondary' aria-hidden='true' />
+                  <Store
+                    size={18}
+                    className='mt-0.5 shrink-0 text-text-secondary'
+                    aria-hidden='true'
+                  />
                   <div>
-                    <p className='text-sm font-medium text-text-primary'>
-                      {m.admin_nav_shops()}
-                    </p>
-                    <p className='text-xs text-text-muted'>
-                      {m.admin_nav_shops_desc()}
-                    </p>
+                    <p className='text-sm font-medium text-text-primary'>{m.admin_nav_shops()}</p>
+                    <p className='text-xs text-text-muted'>{m.admin_nav_shops_desc()}</p>
                   </div>
                 </Link>
               </CardContent>
