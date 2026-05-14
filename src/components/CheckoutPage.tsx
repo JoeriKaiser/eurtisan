@@ -1,5 +1,4 @@
 import { useForm } from '@tanstack/react-form'
-import { useRouter } from '@tanstack/react-router'
 import { Loader2, MapPin, Package, Truck } from 'lucide-react'
 import { useState } from 'react'
 import { z } from 'zod'
@@ -44,7 +43,6 @@ const checkoutFormSchema = z.object({
 type CheckoutFormValues = z.infer<typeof checkoutFormSchema>
 
 export default function CheckoutPage({ summary, cartId }: CheckoutPageProps) {
-  const router = useRouter()
   const [submitError, setSubmitError] = useState<string | null>(null)
 
   const defaultShippingSelections = summary.shops.map((shop) => ({
@@ -87,10 +85,10 @@ export default function CheckoutPage({ summary, cartId }: CheckoutPageProps) {
             shippingSelections: value.shippingSelections,
           },
         })
-        router.navigate({
-          to: '/orders/$platformOrderId/success',
-          params: { platformOrderId: result.platformOrderId },
-        })
+        // Redirect the buyer to Mollie's hosted checkout page. Only after
+        // Mollie processes payment and fires the webhook will the order
+        // status be updated to 'paid' and the success page shown.
+        window.location.href = result.checkoutUrl
       } catch (err) {
         if (err instanceof Response) {
           const body = await err.json().catch(() => ({}))

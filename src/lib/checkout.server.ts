@@ -10,9 +10,12 @@ import {
   shop,
   shopOrder,
 } from '#/db/schema'
+import { molliePaymentProvider } from '#/integrations/mollie'
+import { getBaseUrl } from './env.server'
 import {
   getAvailableStockForProducts,
   InsufficientStockError,
+  releaseStockInTx,
   reserveStockInTx,
 } from './inventory.server'
 
@@ -177,12 +180,29 @@ export async function getCheckoutSummaryQuery(
 
 export interface CreateCheckoutResult {
   platformOrderId: string
+  /** URL the buyer must visit to complete the Mollie payment. */
+  checkoutUrl: string
 }
 
 export async function createCheckoutQuery(
   input: CheckoutInput,
   userId: string,
 ): Promise<CreateCheckoutResult> {
+  return createCheckoutWithProvider(input, userId, molliePaymentProvider)
+}
+
+/**
+ * Internal implementation that accepts an explicit payment provider so tests
+ * can inject a controlled mock.
+ */
+export async function createCheckoutWithProvider(
+  input: CheckoutInput,
+  userId: string,
+  paymentProvider: typeof molliePaymentProvider,
+): Promise<CreateCheckoutResult> {
+  let platformOrderId = ''
+
+  // 1. Create the order inside a database transaction
   const result = await db.transaction(async (tx) => {
     // 1. Verify cart ownership
     const [cartRecord] = await tx.select().from(cart).where(eq(cart.id, input.cartId)).limit(1)
@@ -365,16 +385,72 @@ export async function createCheckoutQuery(
     await tx.delete(cartItem).where(eq(cartItem.cartId, input.cartId))
     await tx.delete(cart).where(eq(cart.id, input.cartId))
 
-    return { platformOrderId: platformOrderRecord.id, createdShopOrders }
+    return { platformOrderId: platformOrderRecord.id, createdShopOrders, grandTotalCents }
   })
 
-  // Create notifications after the transaction so errors don't break checkout
+  platformOrderId = result.platformOrderId
+
+  // 2. Initiate payment with Mollie (OUTSIDE the transaction — this is an
+  //    external API call that must not hold a database lock).
+  const baseUrl = getBaseUrl()
+  const redirectUrl = `${baseUrl}/orders/${platformOrderId}/success`
+  const webhookUrl = `${baseUrl}/api/webhooks/mollie`
+
+  let checkoutUrl: string
+
+  try {
+    const payment = await paymentProvider.createPayment(
+      result.grandTotalCents,
+      'EUR',
+      `Eurtisan order ${platformOrderId}`,
+      redirectUrl,
+      webhookUrl,
+    )
+
+    // Persist the Mollie payment ID on the platform order
+    await db
+      .update(platformOrder)
+      .set({ molliePaymentId: payment.paymentId, updatedAt: new Date() })
+      .where(eq(platformOrder.id, platformOrderId))
+
+    checkoutUrl = payment.checkoutUrl
+  } catch (err) {
+    // Payment initiation failed — cancel the order and restore inventory
+    await db.transaction(async (tx) => {
+      await tx
+        .update(platformOrder)
+        .set({
+          status: 'cancelled',
+          cancelledAt: new Date(),
+          cancellationReason: 'Payment provider error',
+          updatedAt: new Date(),
+        })
+        .where(eq(platformOrder.id, platformOrderId))
+
+      await tx
+        .update(shopOrder)
+        .set({ status: 'cancelled', updatedAt: new Date() })
+        .where(eq(shopOrder.platformOrderId, platformOrderId))
+
+      await releaseStockInTx(tx, platformOrderId)
+    })
+
+    throw new Response(
+      JSON.stringify({
+        error: 'Service Unavailable',
+        message: 'Payment could not be initiated. Please try again.',
+      }),
+      { status: 503, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  // 3. Create notifications after the transaction so errors don't break checkout
   try {
     const { createNotification } = await import('./notifications.server')
 
     // Notify buyer
     await createNotification(userId, 'order_placed', {
-      platformOrderId: result.platformOrderId,
+      platformOrderId,
     })
 
     // Notify each seller
@@ -382,7 +458,7 @@ export async function createCheckoutQuery(
       const shopRecord = await db.select().from(shop).where(eq(shop.id, so.shopId)).limit(1)
       if (shopRecord[0]) {
         await createNotification(shopRecord[0].ownerId, 'order_placed', {
-          platformOrderId: result.platformOrderId,
+          platformOrderId,
           shopOrderId: so.shopOrderId,
         })
       }
@@ -391,5 +467,5 @@ export async function createCheckoutQuery(
     // Notification errors must not break the primary checkout transaction
   }
 
-  return { platformOrderId: result.platformOrderId }
+  return { platformOrderId, checkoutUrl }
 }

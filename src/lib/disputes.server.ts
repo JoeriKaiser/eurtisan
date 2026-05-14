@@ -3,6 +3,7 @@ import { alias } from 'drizzle-orm/pg-core'
 import { z } from 'zod'
 import { db } from '#/db/index'
 import { dispute, disputeMessage, orderItem, platformOrder, shop, shopOrder, user } from '#/db/schema'
+import { molliePaymentProvider } from '#/integrations/mollie'
 import type { OrderStatus } from './orders.server'
 import { recalcPlatformOrderStatus } from './shop-orders.server'
 
@@ -533,6 +534,15 @@ export async function resolveDisputeQuery(
     })
   }
 
+  // Fetch the Mollie payment ID for potential refund
+  const [platformOrderRecord] = await db
+    .select({ molliePaymentId: platformOrder.molliePaymentId })
+    .from(platformOrder)
+    .where(eq(platformOrder.id, shopOrderRecord.platformOrderId))
+    .limit(1)
+
+  const molliePaymentId = platformOrderRecord?.molliePaymentId ?? null
+
   const orderTotalCents = shopOrderRecord.subtotalCents + shopOrderRecord.shippingCostCents
 
   let refundCents: number | null = null
@@ -579,7 +589,7 @@ export async function resolveDisputeQuery(
 
   const creatorUserId = shopRecord?.ownerId ?? null
 
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const [updated] = await tx
       .update(dispute)
       .set({
@@ -632,6 +642,22 @@ export async function resolveDisputeQuery(
       updatedAt: updated.updatedAt,
     }
   })
+
+  // 2. Process refund through Mollie (outside the transaction — external API call).
+  //    Refund failures are logged but must not undo the dispute resolution.
+  if (refundCents !== null && refundCents > 0 && molliePaymentId) {
+    try {
+      await molliePaymentProvider.refundPayment(molliePaymentId, refundCents)
+    } catch {
+      // Refund API call failed but the dispute has been resolved internally.
+      // In production this should trigger an alert for manual intervention.
+      console.error(
+        `Mollie refund failed for payment ${molliePaymentId}, dispute ${disputeId}, amount ${refundCents} cents`,
+      )
+    }
+  }
+
+  return result
 }
 
 function sanitizeMessage(input: string): string {

@@ -13,8 +13,29 @@ import {
   shopOrder,
   user,
 } from '#/db/schema'
+import type { PaymentProvider } from './payment-provider'
 
-import { type CheckoutInput, createCheckoutQuery, getCheckoutSummaryQuery } from './checkout.server'
+import { type CheckoutInput, createCheckoutWithProvider, getCheckoutSummaryQuery } from './checkout.server'
+
+// ---------------------------------------------------------------------------
+// Test stub for the payment provider
+// ---------------------------------------------------------------------------
+
+let stubPaymentIdCounter = 0
+
+function createStubPaymentProvider(): PaymentProvider {
+  const testPaymentId = `test_payment_${++stubPaymentIdCounter}`
+  const testCheckoutUrl = `https://checkout.mollie.com/pay/${testPaymentId}`
+
+  return {
+    createPayment: async () => ({
+      paymentId: testPaymentId,
+      checkoutUrl: testCheckoutUrl,
+    }),
+    verifyWebhook: async () => false,
+    refundPayment: async () => undefined,
+  }
+}
 
 beforeEach(async () => {
   await db.delete(inventoryReservation)
@@ -233,7 +254,7 @@ describe('createCheckoutQuery', () => {
     const input = makeInput('550e8400-e29b-41d4-a716-446655440000')
 
     try {
-      await createCheckoutQuery(input, 'user-1')
+      await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
       expect.fail('Should have thrown')
     } catch (err) {
       expect(err instanceof Response).toBe(true)
@@ -252,7 +273,7 @@ describe('createCheckoutQuery', () => {
     const input = makeInput(c.id)
 
     try {
-      await createCheckoutQuery(input, 'user-1')
+      await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
       expect.fail('Should have thrown')
     } catch (err) {
       expect(err instanceof Response).toBe(true)
@@ -270,7 +291,7 @@ describe('createCheckoutQuery', () => {
     const input = makeInput(c.id)
 
     try {
-      await createCheckoutQuery(input, 'user-1')
+      await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
       expect.fail('Should have thrown')
     } catch (err) {
       expect(err instanceof Response).toBe(true)
@@ -293,7 +314,7 @@ describe('createCheckoutQuery', () => {
     const input = makeInput(c.id)
 
     try {
-      await createCheckoutQuery(input, 'user-1')
+      await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
       expect.fail('Should have thrown')
     } catch (err) {
       expect(err instanceof Response).toBe(true)
@@ -322,7 +343,7 @@ describe('createCheckoutQuery', () => {
     const input = makeInput(c.id)
 
     try {
-      await createCheckoutQuery(input, 'user-1')
+      await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
       expect.fail('Should have thrown')
     } catch (err) {
       expect(err instanceof Response).toBe(true)
@@ -349,7 +370,7 @@ describe('createCheckoutQuery', () => {
     const input = makeInput(c.id, { shippingSelections: [] })
 
     try {
-      await createCheckoutQuery(input, 'user-1')
+      await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
       expect.fail('Should have thrown')
     } catch (err) {
       expect(err instanceof Response).toBe(true)
@@ -370,7 +391,7 @@ describe('createCheckoutQuery', () => {
     await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
 
     const input = makeInput(c.id)
-    const result = await createCheckoutQuery(input, 'user-1')
+    const result = await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
 
     expect(result.platformOrderId).toBeDefined()
 
@@ -435,7 +456,7 @@ describe('createCheckoutQuery', () => {
     const input = makeInput(c.id, {
       shippingSelections: [{ shopId: 'shop-1', method: 'express' }],
     })
-    const result = await createCheckoutQuery(input, 'user-1')
+    const result = await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
 
     const platformOrders = await db
       .select()
@@ -480,7 +501,7 @@ describe('createCheckoutQuery', () => {
         { shopId: 'shop-2', method: 'express' },
       ],
     })
-    const result = await createCheckoutQuery(input, 'user-1')
+    const result = await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
 
     const platformOrders = await db
       .select()
@@ -515,7 +536,7 @@ describe('createCheckoutQuery', () => {
     await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
 
     const input = makeInput(c.id)
-    await createCheckoutQuery(input, 'user-1')
+    await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
 
     const cartsAfter = await db.select().from(cart).where(eq(cart.id, c.id))
     expect(cartsAfter).toHaveLength(0)
@@ -524,7 +545,7 @@ describe('createCheckoutQuery', () => {
     expect(itemsAfter).toHaveLength(0)
   })
 
-  it('returns platformOrderId on success', async () => {
+  it('returns platformOrderId and checkoutUrl on success', async () => {
     await seedUser()
     await seedShop()
     const c = await db
@@ -537,10 +558,79 @@ describe('createCheckoutQuery', () => {
     await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
 
     const input = makeInput(c.id)
-    const result = await createCheckoutQuery(input, 'user-1')
+    const result = await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
 
     expect(result.platformOrderId).toBeDefined()
     expect(typeof result.platformOrderId).toBe('string')
+    expect(result.checkoutUrl).toBeDefined()
+    expect(typeof result.checkoutUrl).toBe('string')
+  })
+
+  it('stores molliePaymentId on the platform order', async () => {
+    await seedUser()
+    await seedShop()
+    const c = await db
+      .insert(cart)
+      .values({ userId: 'user-1' })
+      .returning()
+      .then((rows) => rows[0])
+    const p = await seedProduct()
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+
+    const input = makeInput(c.id)
+    const result = await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
+
+    const [order] = await db
+      .select({ molliePaymentId: platformOrder.molliePaymentId })
+      .from(platformOrder)
+      .where(eq(platformOrder.id, result.platformOrderId))
+
+    expect(order.molliePaymentId).toBeTruthy()
+    expect(order.molliePaymentId).toMatch(/^test_payment_/)
+  })
+
+  it('cancels order and releases stock when payment provider fails', async () => {
+    await seedUser()
+    await seedShop()
+    const c = await db
+      .insert(cart)
+      .values({ userId: 'user-1' })
+      .returning()
+      .then((rows) => rows[0])
+    const p = await seedProduct({ stockCount: 5 })
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
+
+    const failingProvider: PaymentProvider = {
+      createPayment: async () => {
+        throw new Error('Simulated provider failure')
+      },
+      verifyWebhook: async () => false,
+      refundPayment: async () => undefined,
+    }
+
+    const input = makeInput(c.id)
+
+    try {
+      await createCheckoutWithProvider(input, 'user-1', failingProvider)
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(503)
+    }
+
+    // Order should be cancelled
+    const platformOrders = await db.select().from(platformOrder)
+    expect(platformOrders).toHaveLength(1)
+    expect(platformOrders[0].status).toBe('cancelled')
+
+    // Inventory should be released
+    const reservations = await db
+      .select()
+      .from(inventoryReservation)
+      .where(eq(inventoryReservation.productId, p.id))
+    expect(reservations).toHaveLength(0)
   })
 
   it('does not trust client-provided totals', async () => {
@@ -556,7 +646,7 @@ describe('createCheckoutQuery', () => {
     await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 3 })
 
     const input = makeInput(c.id)
-    const result = await createCheckoutQuery(input, 'user-1')
+    const result = await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
 
     const platformOrders = await db
       .select()
@@ -579,7 +669,7 @@ describe('createCheckoutQuery', () => {
     await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
 
     const input = makeInput(c.id)
-    const result = await createCheckoutQuery(input, 'user-1')
+    const result = await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
 
     const reservations = await db
       .select()
@@ -637,7 +727,7 @@ describe('createCheckoutQuery', () => {
     const input = makeInput(c.id)
 
     try {
-      await createCheckoutQuery(input, 'user-1')
+      await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
       expect.fail('Should have thrown')
     } catch (err) {
       expect(err instanceof Response).toBe(true)
@@ -676,7 +766,7 @@ describe('createCheckoutQuery', () => {
         { shopId: 'shop-2', method: 'express' },
       ],
     })
-    const result = await createCheckoutQuery(input, 'user-1')
+    const result = await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
 
     const reservations = await db
       .select()

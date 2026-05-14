@@ -4,12 +4,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import CheckoutPage from './CheckoutPage'
 
-const mockNavigate = vi.hoisted(() => vi.fn())
 const mockCreateCheckout = vi.hoisted(() => vi.fn())
-
-vi.mock('@tanstack/react-router', () => ({
-  useRouter: () => ({ navigate: mockNavigate }),
-}))
 
 vi.mock('#/lib/checkout', () => ({
   createCheckout: mockCreateCheckout,
@@ -135,7 +130,18 @@ describe('CheckoutPage', () => {
     expect(expressRadio).toHaveProperty('checked', true)
   })
 
-  it('calls createCheckout and navigates on successful submit', async () => {
+  it('calls createCheckout and redirects to Mollie checkout URL on success', async () => {
+    const savedLocation = window.location
+    // jsdom doesn't support navigation, so we stub location.href assignment
+    delete (window as { location?: unknown }).location
+    window.location = { ...savedLocation, href: '' } as Location
+
+    const checkoutUrl = 'https://checkout.mollie.com/pay/test_payment_1'
+    mockCreateCheckout.mockResolvedValue({
+      platformOrderId: 'order-1',
+      checkoutUrl,
+    })
+
     render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
 
     fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Test User' } })
@@ -167,11 +173,11 @@ describe('CheckoutPage', () => {
           shippingSelections: [{ shopId: 'shop-1', method: 'standard' }],
         },
       })
-      expect(mockNavigate).toHaveBeenCalledWith({
-        to: '/orders/$platformOrderId/success',
-        params: { platformOrderId: 'order-1' },
-      })
+      expect(window.location.href).toBe(checkoutUrl)
     })
+
+    // Restore original location after test
+    window.location = savedLocation
   })
 
   it('renders billing address section with same-as-shipping toggle', () => {
