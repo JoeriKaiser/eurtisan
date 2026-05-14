@@ -73,6 +73,8 @@ vi.mock('#/paraglide/messages', () => ({
     admin_nav_section: () => 'Quick Links',
     admin_nav_disputes: () => 'Dispute Queue',
     admin_nav_disputes_desc: () => 'Review and resolve open disputes.',
+    admin_nav_shops: () => 'Shop Moderation',
+    admin_nav_shops_desc: () => 'Review and moderate shops.',
   },
 }))
 
@@ -124,12 +126,13 @@ describe('AdminDashboard', () => {
     expect(screen.getByText('€50,00')).toBeDefined()
   })
 
-  it('renders navigation link to disputes', () => {
+  it('renders navigation links', () => {
     render(<AdminDashboard />)
 
     expect(screen.getByText('Quick Links')).toBeDefined()
-    const disputeLink = screen.getByText('Dispute Queue')
-    expect(disputeLink).toBeDefined()
+    expect(screen.getByText('Dispute Queue')).toBeDefined()
+    expect(screen.getByText('Shop Moderation')).toBeDefined()
+    expect(screen.getByText('Review and moderate shops.')).toBeDefined()
   })
 
   it('renders zero values as "0"', () => {

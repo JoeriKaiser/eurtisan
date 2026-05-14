@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { AlertTriangle, Gavel, ShoppingBag, Users } from 'lucide-react'
+import { AlertTriangle, Gavel, ShoppingBag, Store, Users } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
 import { Separator } from '#/components/ui/separator'
 import { Skeleton } from '#/components/ui/skeleton'
@@ -218,6 +218,20 @@ export function AdminDashboard() {
                     </p>
                     <p className='text-xs text-text-muted'>
                       {m.admin_nav_disputes_desc()}
+                    </p>
+                  </div>
+                </Link>
+                <Link
+                  to='/admin/shops'
+                  className='flex items-start gap-3 rounded-lg p-3 transition-colors hover:bg-bg-inset'
+                >
+                  <Store size={18} className='mt-0.5 shrink-0 text-text-secondary' aria-hidden='true' />
+                  <div>
+                    <p className='text-sm font-medium text-text-primary'>
+                      {m.admin_nav_shops()}
+                    </p>
+                    <p className='text-xs text-text-muted'>
+                      {m.admin_nav_shops_desc()}
                     </p>
                   </div>
                 </Link>

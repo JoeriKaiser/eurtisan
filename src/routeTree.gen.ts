@@ -33,6 +33,7 @@ import { Route as CreatorPayoutsRouteImport } from './routes/creator/payouts'
 import { Route as CategoryAllRouteImport } from './routes/category/all'
 import { Route as CategorySlugRouteImport } from './routes/category/$slug'
 import { Route as ApiProductsRouteImport } from './routes/api/products'
+import { Route as AdminShopsRouteImport } from './routes/admin/shops'
 import { Route as AdminDisputesRouteImport } from './routes/admin/disputes'
 import { Route as AccountSettingsRouteImport } from './routes/account/settings'
 import { Route as AccountOrdersRouteImport } from './routes/account/orders'
@@ -173,6 +174,11 @@ const ApiProductsRoute = ApiProductsRouteImport.update({
   path: '/api/products',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminShopsRoute = AdminShopsRouteImport.update({
+  id: '/admin/shops',
+  path: '/admin/shops',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminDisputesRoute = AdminDisputesRouteImport.update({
   id: '/admin/disputes',
   path: '/admin/disputes',
@@ -288,6 +294,7 @@ export interface FileRoutesByFullPath {
   '/account/orders': typeof AccountOrdersRouteWithChildren
   '/account/settings': typeof AccountSettingsRoute
   '/admin/disputes': typeof AdminDisputesRouteWithChildren
+  '/admin/shops': typeof AdminShopsRoute
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
@@ -333,6 +340,7 @@ export interface FileRoutesByTo {
   '/account/orders': typeof AccountOrdersRouteWithChildren
   '/account/settings': typeof AccountSettingsRoute
   '/admin/disputes': typeof AdminDisputesRouteWithChildren
+  '/admin/shops': typeof AdminShopsRoute
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
@@ -378,6 +386,7 @@ export interface FileRoutesById {
   '/account/orders': typeof AccountOrdersRouteWithChildren
   '/account/settings': typeof AccountSettingsRoute
   '/admin/disputes': typeof AdminDisputesRouteWithChildren
+  '/admin/shops': typeof AdminShopsRoute
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
@@ -425,6 +434,7 @@ export interface FileRouteTypes {
     | '/account/orders'
     | '/account/settings'
     | '/admin/disputes'
+    | '/admin/shops'
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
@@ -470,6 +480,7 @@ export interface FileRouteTypes {
     | '/account/orders'
     | '/account/settings'
     | '/admin/disputes'
+    | '/admin/shops'
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
@@ -514,6 +525,7 @@ export interface FileRouteTypes {
     | '/account/orders'
     | '/account/settings'
     | '/admin/disputes'
+    | '/admin/shops'
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
@@ -560,6 +572,7 @@ export interface RootRouteChildren {
   AccountOrdersRoute: typeof AccountOrdersRouteWithChildren
   AccountSettingsRoute: typeof AccountSettingsRoute
   AdminDisputesRoute: typeof AdminDisputesRouteWithChildren
+  AdminShopsRoute: typeof AdminShopsRoute
   ApiProductsRoute: typeof ApiProductsRoute
   CategorySlugRoute: typeof CategorySlugRoute
   CategoryAllRoute: typeof CategoryAllRoute
@@ -746,6 +759,13 @@ declare module '@tanstack/react-router' {
       path: '/api/products'
       fullPath: '/api/products'
       preLoaderRoute: typeof ApiProductsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/shops': {
+      id: '/admin/shops'
+      path: '/admin/shops'
+      fullPath: '/admin/shops'
+      preLoaderRoute: typeof AdminShopsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/disputes': {
@@ -1025,6 +1045,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccountOrdersRoute: AccountOrdersRouteWithChildren,
   AccountSettingsRoute: AccountSettingsRoute,
   AdminDisputesRoute: AdminDisputesRouteWithChildren,
+  AdminShopsRoute: AdminShopsRoute,
   ApiProductsRoute: ApiProductsRoute,
   CategorySlugRoute: CategorySlugRoute,
   CategoryAllRoute: CategoryAllRoute,
