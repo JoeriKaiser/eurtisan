@@ -1,20 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { categories, product, shop } from '#/db/schema'
-
-/**
- * Base URL for absolute sitemap URLs.
- * Uses PUBLIC_URL env var when set, otherwise falls back to localhost.
- */
-function getBaseUrl(): string {
-  if (typeof process !== 'undefined') {
-    const publicUrl = process.env.PUBLIC_URL
-    if (publicUrl) {
-      return publicUrl.replace(/\/+$/, '')
-    }
-  }
-  return 'http://localhost:3000'
-}
+import { getBaseUrl } from './env.server'
 
 const BASE_URL = getBaseUrl()
 
