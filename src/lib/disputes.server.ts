@@ -571,6 +571,14 @@ export async function resolveDisputeQuery(
 
   const newOrderStatus: OrderStatus = input.resolution === 'close' ? 'completed' : 'refunded'
 
+  const [shopRecord] = await db
+    .select({ ownerId: shop.ownerId })
+    .from(shop)
+    .where(eq(shop.id, shopOrderRecord.shopId))
+    .limit(1)
+
+  const creatorUserId = shopRecord?.ownerId ?? null
+
   return db.transaction(async (tx) => {
     const [updated] = await tx
       .update(dispute)
@@ -589,6 +597,32 @@ export async function resolveDisputeQuery(
       .where(eq(shopOrder.id, disputeRecord.shopOrderId))
 
     await recalcPlatformOrderStatus(tx, shopOrderRecord.platformOrderId)
+
+    const notificationData = {
+      disputeId,
+      shopOrderId: disputeRecord.shopOrderId,
+      platformOrderId: shopOrderRecord.platformOrderId,
+      resolution: input.resolution,
+      refundCents,
+    }
+
+    // Notify buyer
+    try {
+      const { createNotification } = await import('./notifications.server')
+      await createNotification(disputeRecord.buyerUserId, 'dispute_resolved', notificationData)
+    } catch {
+      // Notification errors must not break the primary business transaction
+    }
+
+    // Notify creator (shop owner)
+    if (creatorUserId) {
+      try {
+        const { createNotification } = await import('./notifications.server')
+        await createNotification(creatorUserId, 'dispute_resolved', notificationData)
+      } catch {
+        // Notification errors must not break the primary business transaction
+      }
+    }
 
     return {
       id: updated.id,

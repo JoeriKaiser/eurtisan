@@ -5,6 +5,7 @@ import { db } from '#/db/index'
 import {
   dispute,
   disputeMessage,
+  notification,
   orderItem,
   platformOrder,
   product,
@@ -22,6 +23,7 @@ import {
 } from './disputes.server'
 
 beforeEach(async () => {
+  await db.delete(notification)
   await db.delete(disputeMessage)
   await db.delete(dispute)
   await db.delete(orderItem)
@@ -33,6 +35,7 @@ beforeEach(async () => {
 })
 
 afterAll(async () => {
+  await db.delete(notification)
   await db.delete(disputeMessage)
   await db.delete(dispute)
   await db.delete(orderItem)
@@ -881,5 +884,129 @@ describe('resolveDisputeQuery', () => {
 
     const [updatedPo] = await db.select().from(platformOrder).where(eq(platformOrder.id, order.id))
     expect(updatedPo.status).toBe('refunded')
+  })
+
+  it('sends dispute_resolved notification to buyer on close resolution', async () => {
+    await seedUser()
+    const seller = await seedUser({
+      id: 'user-2',
+      name: 'Seller',
+      email: 'seller@example.com',
+    })
+    await seedShop({ ownerId: seller.id })
+
+    const { shopOrder: so } = await seedDeliveredOrder()
+    const d = await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
+      'user-1',
+    )
+
+    await resolveDisputeQuery(d.id, { resolution: 'close' })
+
+    const { getNotificationsQuery } = await import('./notifications.server')
+    const buyerNotifications = await getNotificationsQuery('user-1', 1, 10)
+    const resolvedNotifications = buyerNotifications.notifications.filter(
+      (n) => n.type === 'dispute_resolved',
+    )
+    expect(resolvedNotifications).toHaveLength(1)
+    expect(resolvedNotifications[0].type).toBe('dispute_resolved')
+    expect(resolvedNotifications[0].data).toMatchObject({
+      disputeId: d.id,
+      shopOrderId: so.id,
+      resolution: 'close',
+      refundCents: null,
+    })
+  })
+
+  it('sends dispute_resolved notification to creator (shop owner) on close resolution', async () => {
+    await seedUser()
+    const seller = await seedUser({
+      id: 'user-2',
+      name: 'Seller',
+      email: 'seller@example.com',
+    })
+    await seedShop({ ownerId: seller.id })
+
+    const { shopOrder: so } = await seedDeliveredOrder()
+    const d = await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
+      'user-1',
+    )
+
+    await resolveDisputeQuery(d.id, { resolution: 'close' })
+
+    const { getNotificationsQuery } = await import('./notifications.server')
+    const sellerNotifications = await getNotificationsQuery(seller.id, 1, 10)
+    expect(sellerNotifications.notifications).toHaveLength(1)
+    expect(sellerNotifications.notifications[0].type).toBe('dispute_resolved')
+    expect(sellerNotifications.notifications[0].data).toMatchObject({
+      disputeId: d.id,
+      shopOrderId: so.id,
+      resolution: 'close',
+      refundCents: null,
+    })
+  })
+
+  it('sends dispute_resolved notification with refundCents on full_refund', async () => {
+    await seedUser()
+    const seller = await seedUser({
+      id: 'user-2',
+      name: 'Seller',
+      email: 'seller@example.com',
+    })
+    await seedShop({ ownerId: seller.id })
+
+    const { shopOrder: so } = await seedDeliveredOrder()
+    const d = await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
+      'user-1',
+    )
+
+    await resolveDisputeQuery(d.id, { resolution: 'full_refund' })
+
+    const { getNotificationsQuery } = await import('./notifications.server')
+    const buyerNotifications = await getNotificationsQuery('user-1', 1, 10)
+    const buyerResolved = buyerNotifications.notifications.filter(
+      (n) => n.type === 'dispute_resolved',
+    )
+    expect(buyerResolved[0].data).toMatchObject({
+      resolution: 'full_refund',
+      refundCents: 2500,
+    })
+
+    const sellerNotifications = await getNotificationsQuery(seller.id, 1, 10)
+    const sellerResolved = sellerNotifications.notifications.filter(
+      (n) => n.type === 'dispute_resolved',
+    )
+    expect(sellerResolved).toHaveLength(1)
+    expect(sellerResolved[0].type).toBe('dispute_resolved')
+  })
+
+  it('sends dispute_resolved notification with refundCents on partial_refund', async () => {
+    await seedUser()
+    const seller = await seedUser({
+      id: 'user-2',
+      name: 'Seller',
+      email: 'seller@example.com',
+    })
+    await seedShop({ ownerId: seller.id })
+
+    const { shopOrder: so } = await seedDeliveredOrder()
+    const d = await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
+      'user-1',
+    )
+
+    await resolveDisputeQuery(d.id, { resolution: 'partial_refund', refundCents: 500 })
+
+    const { getNotificationsQuery } = await import('./notifications.server')
+    const buyerNotifications = await getNotificationsQuery('user-1', 1, 10)
+    const buyerResolved = buyerNotifications.notifications.filter(
+      (n) => n.type === 'dispute_resolved',
+    )
+    expect(buyerResolved[0].data).toMatchObject({
+      resolution: 'partial_refund',
+      refundCents: 500,
+    })
   })
 })

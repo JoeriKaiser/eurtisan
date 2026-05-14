@@ -138,4 +138,13 @@ describe('AdminDisputeDetailPage', () => {
 
     expect(screen.getByLabelText('Refund amount (EUR)')).toBeDefined()
   })
+
+  it('full_refund option is not disabled when order is not refunded', () => {
+    render(<AdminDisputeDetailPage />)
+
+    const select = screen.getByLabelText('Resolution')
+    const fullRefundOption = select.querySelector('option[value="full_refund"]') as HTMLOptionElement
+    expect(fullRefundOption).toBeDefined()
+    expect(fullRefundOption.disabled).toBe(false)
+  })
 })

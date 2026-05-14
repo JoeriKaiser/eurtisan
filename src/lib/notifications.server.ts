@@ -8,6 +8,7 @@ export const notificationTypeEnum = z.enum([
   'order_shipped',
   'review_received',
   'dispute_opened',
+  'dispute_resolved',
   'payout_sent',
 ])
 

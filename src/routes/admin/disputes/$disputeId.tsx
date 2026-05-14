@@ -87,10 +87,12 @@ function centsToEuros(cents: number): string {
 function ResolutionForm({
   disputeId,
   orderTotalCents,
+  orderStatus,
   onResolved,
 }: {
   disputeId: string
   orderTotalCents: number
+  orderStatus: string
   onResolved: () => void
 }) {
   const [resolution, setResolution] = useState<'close' | 'partial_refund' | 'full_refund'>('close')
@@ -185,7 +187,9 @@ function ResolutionForm({
             >
               <option value='close'>Close — no action</option>
               <option value='partial_refund'>Partial refund</option>
-              <option value='full_refund'>Full refund</option>
+              <option value='full_refund' disabled={orderStatus === 'refunded'}>
+                Full refund{orderStatus === 'refunded' ? ' — already refunded' : ''}
+              </option>
             </select>
           </div>
 
@@ -570,6 +574,7 @@ export function AdminDisputeDetailPage() {
             <ResolutionForm
               disputeId={dispute.id}
               orderTotalCents={dispute.order.totalCents}
+              orderStatus={dispute.order.status}
               onResolved={handleResolved}
             />
           )}
