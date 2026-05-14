@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { axe } from 'vitest-axe'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import CartPage from './CartPage'
 
@@ -356,5 +357,19 @@ describe('CartPage', () => {
     expect(screen.getByRole('heading', { name: 'Shop B' })).toBeDefined()
     expect(screen.getByText('Vase')).toBeDefined()
     expect(screen.getByText('Bowl')).toBeDefined()
+  })
+})
+
+describe('CartPage accessibility', () => {
+  it('has no axe violations when cart has items', async () => {
+    const { container } = render(<CartPage cart={makeCart()} />)
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
+  })
+
+  it('has no axe violations when cart is empty', async () => {
+    const { container } = render(<CartPage cart={null} />)
+    const results = await axe(container)
+    expect(results).toHaveNoViolations()
   })
 })
