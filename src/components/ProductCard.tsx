@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { ImageOff, PackageX, Store } from 'lucide-react'
 import { formatPriceEUR } from '#/lib/pricing'
 import type { PublicProduct } from '#/lib/products'
+import { ResponsiveImage } from '#/lib/responsive-image'
 import { m } from '#/paraglide/messages'
 
 export interface ProductCardProps {
@@ -22,11 +23,13 @@ export default function ProductCard({ product, imageUrl }: ProductCardProps) {
       {/* Image */}
       <div className='relative aspect-[4/3] w-full overflow-hidden bg-[var(--sand)]'>
         {imageUrl ? (
-          <img
+          <ResponsiveImage
             src={imageUrl}
             alt={product.name}
-            className='h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]'
             loading='lazy'
+            sizes='(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw'
+            className='h-full w-full'
+            imgClassName='h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]'
           />
         ) : (
           <div className='flex h-full w-full items-center justify-center text-[var(--sea-ink-soft)]'>

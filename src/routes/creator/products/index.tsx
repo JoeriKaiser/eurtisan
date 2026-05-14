@@ -1,13 +1,10 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, getRouteApi } from '@tanstack/react-router'
 import { z } from 'zod'
-import {
-  CreatorProductsError,
-  CreatorProductsLoading,
-  CreatorProductsPage,
-} from '#/components/CreatorProductsPage'
 import { getCreatorShops } from '#/lib/creator-dashboard'
 import { listCreatorProducts } from '#/lib/creator-products'
 import { m } from '#/paraglide/messages'
+
+const route = getRouteApi('/creator/products/')
 
 const productSearchSchema = z.object({
   shopId: z.string().optional(),
@@ -51,20 +48,30 @@ export const Route = createFileRoute('/creator/products/')({
       { name: 'description', content: m.creator_products_description() },
     ],
   }),
-  component: CreatorProductsRouteComponent,
-  pendingComponent: CreatorProductsLoading,
-  errorComponent: CreatorProductsError,
-})
+  lazy: async () => {
+    const {
+      CreatorProductsPage,
+      CreatorProductsLoading,
+      CreatorProductsError,
+    } = await import('#/components/CreatorProductsPage')
 
-function CreatorProductsRouteComponent() {
-  const { shops, products, currentShopId } = Route.useLoaderData()
-  const search = Route.useSearch()
-  return (
-    <CreatorProductsPage
-      shops={shops}
-      products={products}
-      currentShopId={currentShopId}
-      initialSearch={search}
-    />
-  )
-}
+    function CreatorProductsWrapper() {
+      const { shops, products, currentShopId } = route.useLoaderData()
+      const search = route.useSearch()
+      return (
+        <CreatorProductsPage
+          shops={shops}
+          products={products}
+          currentShopId={currentShopId}
+          initialSearch={search}
+        />
+      )
+    }
+
+    return {
+      component: CreatorProductsWrapper,
+      pendingComponent: CreatorProductsLoading,
+      errorComponent: CreatorProductsError,
+    }
+  },
+})

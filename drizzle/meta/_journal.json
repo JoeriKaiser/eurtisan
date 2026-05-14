@@ -162,6 +162,13 @@
       "when": 1778747518798,
       "tag": "0022_moaning_talisman",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1778776315393,
+      "tag": "0023_familiar_zaladane",
+      "breakpoints": true
     }
   ]
 }

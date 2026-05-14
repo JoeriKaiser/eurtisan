@@ -14,6 +14,7 @@ import ProductReviews from '#/components/ProductReviews'
 import { addToCart } from '#/lib/cart'
 import { formatPriceEUR } from '#/lib/pricing'
 import type { ProductDetail as ProductDetailType } from '#/lib/products.server'
+import { ResponsiveImage } from '#/lib/responsive-image'
 import { m } from '#/paraglide/messages'
 
 export interface ProductDetailProps {
@@ -93,10 +94,13 @@ export default function ProductDetail({ product }: ProductDetailProps) {
           {/* Main image */}
           <div className='island-shell relative aspect-[4/3] w-full overflow-hidden rounded-2xl'>
             {selectedImage ? (
-              <img
+              <ResponsiveImage
                 src={selectedImage.url}
                 alt={selectedImage.altText ?? product.name}
-                className='h-full w-full object-cover'
+                loading='eager'
+                sizes='(max-width: 768px) 100vw, 60vw'
+                className='h-full w-full'
+                imgClassName='h-full w-full object-cover'
               />
             ) : (
               <div
@@ -150,11 +154,14 @@ export default function ProductDetail({ product }: ProductDetailProps) {
                       : 'border-transparent hover:border-[var(--line)]'
                   }`}
                 >
-                  <img
+                  <ResponsiveImage
                     src={image.url}
                     alt={image.altText ?? ''}
-                    className='h-full w-full object-cover'
                     loading='lazy'
+                    sizes='80px'
+                    placeholder='none'
+                    className='h-full w-full'
+                    imgClassName='h-full w-full object-cover'
                   />
                 </button>
               ))}

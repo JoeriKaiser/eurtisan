@@ -147,6 +147,7 @@ export const product = pgTable(
   (table) => [
     index('product_shop_id_idx').on(table.shopId),
     index('product_category_id_idx').on(table.categoryId),
+    index('product_slug_idx').on(table.slug),
     index('product_category_is_active_created_at_idx').on(
       table.categoryId,
       table.isActive,
@@ -287,7 +288,10 @@ export const orderItem = pgTable(
     totalCents: integer('total_cents').notNull().default(0),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
-  (table) => [index('order_item_shop_order_id_idx').on(table.shopOrderId)],
+  (table) => [
+    index('order_item_shop_order_id_idx').on(table.shopOrderId),
+    index('order_item_product_id_idx').on(table.productId),
+  ],
 )
 
 export const inventoryReservation = pgTable(

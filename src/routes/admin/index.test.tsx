@@ -78,7 +78,8 @@ vi.mock('#/paraglide/messages', () => ({
   },
 }))
 
-import { AdminDashboard, StatCard } from './index'
+import { AdminDashboard } from './AdminDashboard'
+import { StatCard } from './AdminDashboard'
 
 describe('AdminDashboard', () => {
   it('renders the dashboard title', () => {

@@ -377,33 +377,43 @@ export async function mergeAnonymousCartIntoUserCart(sessionId: string, userId: 
     // Fetch available stock for all products in the merge
     const availableStockMap = await getAvailableStockForProducts(productIds)
 
+    // Batch-fetch all existing user cart items to avoid N+1 per anonymous item
+    const existingUserItems = await tx
+      .select()
+      .from(cartItem)
+      .where(
+        and(
+          eq(cartItem.cartId, userCartId),
+          inArray(cartItem.productId, productIds),
+        ),
+      )
+    const existingByProductId = new Map(
+      existingUserItems.map((item) => [item.productId, item]),
+    )
+
     for (const anonItem of anonItems) {
       const productRecord = products.find((p) => p.id === anonItem.productId)
       if (!productRecord) continue
 
-      const existingItems = await tx
-        .select()
-        .from(cartItem)
-        .where(and(eq(cartItem.cartId, userCartId), eq(cartItem.productId, anonItem.productId)))
-        .limit(1)
+      const existingItem = existingByProductId.get(anonItem.productId)
 
       const combinedQuantity =
-        existingItems.length > 0 ? existingItems[0].quantity + anonItem.quantity : anonItem.quantity
+        existingItem ? existingItem.quantity + anonItem.quantity : anonItem.quantity
       const availableStock = availableStockMap.get(productRecord.id) ?? 0
       const cappedQuantity = Math.min(combinedQuantity, availableStock)
 
       if (cappedQuantity <= 0) {
-        if (existingItems.length > 0) {
-          await tx.delete(cartItem).where(eq(cartItem.id, existingItems[0].id))
+        if (existingItem) {
+          await tx.delete(cartItem).where(eq(cartItem.id, existingItem.id))
         }
         continue
       }
 
-      if (existingItems.length > 0) {
+      if (existingItem) {
         await tx
           .update(cartItem)
           .set({ quantity: cappedQuantity, updatedAt: new Date() })
-          .where(eq(cartItem.id, existingItems[0].id))
+          .where(eq(cartItem.id, existingItem.id))
       } else {
         await tx.insert(cartItem).values({
           cartId: userCartId,

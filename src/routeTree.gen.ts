@@ -23,6 +23,7 @@ import { Route as StudioIndexRouteImport } from './routes/studio/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AccountIndexRouteImport } from './routes/account/index'
 import { Route as StudioShopIdRouteImport } from './routes/studio/$shopId'
+import { Route as SitemapXmlRouteImport } from './routes/sitemap.xml'
 import { Route as ShopsShopSlugRouteImport } from './routes/shops/$shopSlug'
 import { Route as ProductsProductSlugRouteImport } from './routes/products/$productSlug'
 import { Route as OrdersPlatformOrderIdRouteImport } from './routes/orders.$platformOrderId'
@@ -33,8 +34,9 @@ import { Route as CreatorPayoutsRouteImport } from './routes/creator/payouts'
 import { Route as CategoryAllRouteImport } from './routes/category/all'
 import { Route as CategorySlugRouteImport } from './routes/category/$slug'
 import { Route as ApiProductsRouteImport } from './routes/api/products'
-import { Route as AdminPayoutsRouteImport } from './routes/admin/payouts'
 import { Route as AdminShopsRouteImport } from './routes/admin/shops'
+import { Route as AdminPayoutsRouteImport } from './routes/admin/payouts'
+import { Route as AdminOrdersRouteImport } from './routes/admin/orders'
 import { Route as AdminDisputesRouteImport } from './routes/admin/disputes'
 import { Route as AccountSettingsRouteImport } from './routes/account/settings'
 import { Route as AccountOrdersRouteImport } from './routes/account/orders'
@@ -43,6 +45,7 @@ import { Route as StudioShopIdOrdersRouteImport } from './routes/studio/$shopId.
 import { Route as OrdersPlatformOrderIdSuccessRouteImport } from './routes/orders.$platformOrderId.success'
 import { Route as CreatorProductsNewRouteImport } from './routes/creator/products/new'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as AdminOrdersPlatformOrderIdRouteImport } from './routes/admin/orders.$platformOrderId'
 import { Route as AdminDisputesDisputeIdRouteImport } from './routes/admin/disputes/$disputeId'
 import { Route as AccountOrdersOrderIdRouteImport } from './routes/account/orders.$orderId'
 import { Route as StudioShopIdOrdersShopOrderIdRouteImport } from './routes/studio/$shopId.orders.$shopOrderId'
@@ -125,6 +128,11 @@ const StudioShopIdRoute = StudioShopIdRouteImport.update({
   path: '/studio/$shopId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SitemapXmlRoute = SitemapXmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ShopsShopSlugRoute = ShopsShopSlugRouteImport.update({
   id: '/shops/$shopSlug',
   path: '/shops/$shopSlug',
@@ -175,14 +183,19 @@ const ApiProductsRoute = ApiProductsRouteImport.update({
   path: '/api/products',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminShopsRoute = AdminShopsRouteImport.update({
+  id: '/admin/shops',
+  path: '/admin/shops',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminPayoutsRoute = AdminPayoutsRouteImport.update({
   id: '/admin/payouts',
   path: '/admin/payouts',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AdminShopsRoute = AdminShopsRouteImport.update({
-  id: '/admin/shops',
-  path: '/admin/shops',
+const AdminOrdersRoute = AdminOrdersRouteImport.update({
+  id: '/admin/orders',
+  path: '/admin/orders',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminDisputesRoute = AdminDisputesRouteImport.update({
@@ -226,6 +239,12 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminOrdersPlatformOrderIdRoute =
+  AdminOrdersPlatformOrderIdRouteImport.update({
+    id: '/$platformOrderId',
+    path: '/$platformOrderId',
+    getParentRoute: () => AdminOrdersRoute,
+  } as any)
 const AdminDisputesDisputeIdRoute = AdminDisputesDisputeIdRouteImport.update({
   id: '/$disputeId',
   path: '/$disputeId',
@@ -300,6 +319,7 @@ export interface FileRoutesByFullPath {
   '/account/orders': typeof AccountOrdersRouteWithChildren
   '/account/settings': typeof AccountSettingsRoute
   '/admin/disputes': typeof AdminDisputesRouteWithChildren
+  '/admin/orders': typeof AdminOrdersRouteWithChildren
   '/admin/payouts': typeof AdminPayoutsRoute
   '/admin/shops': typeof AdminShopsRoute
   '/api/products': typeof ApiProductsRoute
@@ -312,12 +332,14 @@ export interface FileRoutesByFullPath {
   '/orders/$platformOrderId': typeof OrdersPlatformOrderIdRouteWithChildren
   '/products/$productSlug': typeof ProductsProductSlugRoute
   '/shops/$shopSlug': typeof ShopsShopSlugRoute
+  '/sitemap.xml': typeof SitemapXmlRoute
   '/studio/$shopId': typeof StudioShopIdRouteWithChildren
   '/account/': typeof AccountIndexRoute
   '/admin/': typeof AdminIndexRoute
   '/studio/': typeof StudioIndexRoute
   '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
+  '/admin/orders/$platformOrderId': typeof AdminOrdersPlatformOrderIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
@@ -347,6 +369,8 @@ export interface FileRoutesByTo {
   '/account/orders': typeof AccountOrdersRouteWithChildren
   '/account/settings': typeof AccountSettingsRoute
   '/admin/disputes': typeof AdminDisputesRouteWithChildren
+  '/admin/orders': typeof AdminOrdersRouteWithChildren
+  '/admin/payouts': typeof AdminPayoutsRoute
   '/admin/shops': typeof AdminShopsRoute
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
@@ -357,12 +381,14 @@ export interface FileRoutesByTo {
   '/orders/$platformOrderId': typeof OrdersPlatformOrderIdRouteWithChildren
   '/products/$productSlug': typeof ProductsProductSlugRoute
   '/shops/$shopSlug': typeof ShopsShopSlugRoute
+  '/sitemap.xml': typeof SitemapXmlRoute
   '/studio/$shopId': typeof StudioShopIdRouteWithChildren
   '/account': typeof AccountIndexRoute
   '/admin': typeof AdminIndexRoute
   '/studio': typeof StudioIndexRoute
   '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
+  '/admin/orders/$platformOrderId': typeof AdminOrdersPlatformOrderIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
@@ -393,6 +419,8 @@ export interface FileRoutesById {
   '/account/orders': typeof AccountOrdersRouteWithChildren
   '/account/settings': typeof AccountSettingsRoute
   '/admin/disputes': typeof AdminDisputesRouteWithChildren
+  '/admin/orders': typeof AdminOrdersRouteWithChildren
+  '/admin/payouts': typeof AdminPayoutsRoute
   '/admin/shops': typeof AdminShopsRoute
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
@@ -404,12 +432,14 @@ export interface FileRoutesById {
   '/orders/$platformOrderId': typeof OrdersPlatformOrderIdRouteWithChildren
   '/products/$productSlug': typeof ProductsProductSlugRoute
   '/shops/$shopSlug': typeof ShopsShopSlugRoute
+  '/sitemap.xml': typeof SitemapXmlRoute
   '/studio/$shopId': typeof StudioShopIdRouteWithChildren
   '/account/': typeof AccountIndexRoute
   '/admin/': typeof AdminIndexRoute
   '/studio/': typeof StudioIndexRoute
   '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
+  '/admin/orders/$platformOrderId': typeof AdminOrdersPlatformOrderIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
@@ -441,6 +471,7 @@ export interface FileRouteTypes {
     | '/account/orders'
     | '/account/settings'
     | '/admin/disputes'
+    | '/admin/orders'
     | '/admin/payouts'
     | '/admin/shops'
     | '/api/products'
@@ -453,12 +484,14 @@ export interface FileRouteTypes {
     | '/orders/$platformOrderId'
     | '/products/$productSlug'
     | '/shops/$shopSlug'
+    | '/sitemap.xml'
     | '/studio/$shopId'
     | '/account/'
     | '/admin/'
     | '/studio/'
     | '/account/orders/$orderId'
     | '/admin/disputes/$disputeId'
+    | '/admin/orders/$platformOrderId'
     | '/api/auth/$'
     | '/creator/products/new'
     | '/orders/$platformOrderId/success'
@@ -488,6 +521,8 @@ export interface FileRouteTypes {
     | '/account/orders'
     | '/account/settings'
     | '/admin/disputes'
+    | '/admin/orders'
+    | '/admin/payouts'
     | '/admin/shops'
     | '/api/products'
     | '/category/$slug'
@@ -498,12 +533,14 @@ export interface FileRouteTypes {
     | '/orders/$platformOrderId'
     | '/products/$productSlug'
     | '/shops/$shopSlug'
+    | '/sitemap.xml'
     | '/studio/$shopId'
     | '/account'
     | '/admin'
     | '/studio'
     | '/account/orders/$orderId'
     | '/admin/disputes/$disputeId'
+    | '/admin/orders/$platformOrderId'
     | '/api/auth/$'
     | '/creator/products/new'
     | '/orders/$platformOrderId/success'
@@ -533,6 +570,8 @@ export interface FileRouteTypes {
     | '/account/orders'
     | '/account/settings'
     | '/admin/disputes'
+    | '/admin/orders'
+    | '/admin/payouts'
     | '/admin/shops'
     | '/api/products'
     | '/category/$slug'
@@ -544,12 +583,14 @@ export interface FileRouteTypes {
     | '/orders/$platformOrderId'
     | '/products/$productSlug'
     | '/shops/$shopSlug'
+    | '/sitemap.xml'
     | '/studio/$shopId'
     | '/account/'
     | '/admin/'
     | '/studio/'
     | '/account/orders/$orderId'
     | '/admin/disputes/$disputeId'
+    | '/admin/orders/$platformOrderId'
     | '/api/auth/$'
     | '/creator/products/new'
     | '/orders/$platformOrderId/success'
@@ -580,6 +621,7 @@ export interface RootRouteChildren {
   AccountOrdersRoute: typeof AccountOrdersRouteWithChildren
   AccountSettingsRoute: typeof AccountSettingsRoute
   AdminDisputesRoute: typeof AdminDisputesRouteWithChildren
+  AdminOrdersRoute: typeof AdminOrdersRouteWithChildren
   AdminPayoutsRoute: typeof AdminPayoutsRoute
   AdminShopsRoute: typeof AdminShopsRoute
   ApiProductsRoute: typeof ApiProductsRoute
@@ -588,6 +630,7 @@ export interface RootRouteChildren {
   DisputesDisputeIdRoute: typeof DisputesDisputeIdRoute
   ProductsProductSlugRoute: typeof ProductsProductSlugRoute
   ShopsShopSlugRoute: typeof ShopsShopSlugRoute
+  SitemapXmlRoute: typeof SitemapXmlRoute
   StudioShopIdRoute: typeof StudioShopIdRouteWithChildren
   AccountIndexRoute: typeof AccountIndexRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -700,6 +743,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioShopIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapXmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/shops/$shopSlug': {
       id: '/shops/$shopSlug'
       path: '/shops/$shopSlug'
@@ -770,6 +820,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProductsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/shops': {
+      id: '/admin/shops'
+      path: '/admin/shops'
+      fullPath: '/admin/shops'
+      preLoaderRoute: typeof AdminShopsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/payouts': {
       id: '/admin/payouts'
       path: '/admin/payouts'
@@ -777,11 +834,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminPayoutsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/shops': {
-      id: '/admin/shops'
-      path: '/admin/shops'
-      fullPath: '/admin/shops'
-      preLoaderRoute: typeof AdminShopsRouteImport
+    '/admin/orders': {
+      id: '/admin/orders'
+      path: '/admin/orders'
+      fullPath: '/admin/orders'
+      preLoaderRoute: typeof AdminOrdersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/disputes': {
@@ -839,6 +896,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/auth/$'
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/admin/orders/$platformOrderId': {
+      id: '/admin/orders/$platformOrderId'
+      path: '/$platformOrderId'
+      fullPath: '/admin/orders/$platformOrderId'
+      preLoaderRoute: typeof AdminOrdersPlatformOrderIdRouteImport
+      parentRoute: typeof AdminOrdersRoute
     }
     '/admin/disputes/$disputeId': {
       id: '/admin/disputes/$disputeId'
@@ -999,6 +1063,18 @@ const AdminDisputesRouteWithChildren = AdminDisputesRoute._addFileChildren(
   AdminDisputesRouteChildren,
 )
 
+interface AdminOrdersRouteChildren {
+  AdminOrdersPlatformOrderIdRoute: typeof AdminOrdersPlatformOrderIdRoute
+}
+
+const AdminOrdersRouteChildren: AdminOrdersRouteChildren = {
+  AdminOrdersPlatformOrderIdRoute: AdminOrdersPlatformOrderIdRoute,
+}
+
+const AdminOrdersRouteWithChildren = AdminOrdersRoute._addFileChildren(
+  AdminOrdersRouteChildren,
+)
+
 interface StudioShopIdOrdersRouteChildren {
   StudioShopIdOrdersShopOrderIdRoute: typeof StudioShopIdOrdersShopOrderIdRoute
 }
@@ -1061,6 +1137,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccountOrdersRoute: AccountOrdersRouteWithChildren,
   AccountSettingsRoute: AccountSettingsRoute,
   AdminDisputesRoute: AdminDisputesRouteWithChildren,
+  AdminOrdersRoute: AdminOrdersRouteWithChildren,
   AdminPayoutsRoute: AdminPayoutsRoute,
   AdminShopsRoute: AdminShopsRoute,
   ApiProductsRoute: ApiProductsRoute,
@@ -1069,6 +1146,7 @@ const rootRouteChildren: RootRouteChildren = {
   DisputesDisputeIdRoute: DisputesDisputeIdRoute,
   ProductsProductSlugRoute: ProductsProductSlugRoute,
   ShopsShopSlugRoute: ShopsShopSlugRoute,
+  SitemapXmlRoute: SitemapXmlRoute,
   StudioShopIdRoute: StudioShopIdRouteWithChildren,
   AccountIndexRoute: AccountIndexRoute,
   AdminIndexRoute: AdminIndexRoute,

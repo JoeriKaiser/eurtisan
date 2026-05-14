@@ -1,16 +1,9 @@
-import { createFileRoute } from '@tanstack/react-router'
-import {
-  CreatorDashboardError,
-  CreatorDashboardLoading,
-  CreatorDashboardPage,
-} from '#/components/CreatorDashboardPage'
-import {
-  getCreatorDashboardStats,
-  getCreatorRecentActivity,
-  getCreatorShops,
-} from '#/lib/creator-dashboard'
+import { createFileRoute, getRouteApi } from '@tanstack/react-router'
+import { getCreatorDashboardStats, getCreatorRecentActivity, getCreatorShops } from '#/lib/creator-dashboard'
 import { guardRole } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
+
+const route = getRouteApi('/creator')
 
 export const Route = createFileRoute('/creator')({
   beforeLoad: async () => guardRole('creator'),
@@ -28,12 +21,22 @@ export const Route = createFileRoute('/creator')({
       { name: 'description', content: m.creator_description() },
     ],
   }),
-  component: CreatorRouteComponent,
-  pendingComponent: CreatorDashboardLoading,
-  errorComponent: CreatorDashboardError,
-})
+  lazy: async () => {
+    const {
+      CreatorDashboardPage,
+      CreatorDashboardLoading,
+      CreatorDashboardError,
+    } = await import('#/components/CreatorDashboardPage')
 
-function CreatorRouteComponent() {
-  const { stats, activity, shops } = Route.useLoaderData()
-  return <CreatorDashboardPage stats={stats} activity={activity} shops={shops} />
-}
+    function CreatorWrapper() {
+      const { stats, activity, shops } = route.useLoaderData()
+      return <CreatorDashboardPage stats={stats} activity={activity} shops={shops} />
+    }
+
+    return {
+      component: CreatorWrapper,
+      pendingComponent: CreatorDashboardLoading,
+      errorComponent: CreatorDashboardError,
+    }
+  },
+})
