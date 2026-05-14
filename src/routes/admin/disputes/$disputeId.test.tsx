@@ -8,8 +8,8 @@ const mockInvalidate = vi.fn()
 vi.mock('@tanstack/react-router', () => ({
   createFileRoute: () => () => ({
     useParams: () => ({ disputeId: 'd1' }),
-    useLoaderData: () => ({
-      dispute: {
+    useLoaderData: () => {
+      const dispute = {
         id: 'd1',
         shopOrderId: 'so1',
         buyerUserId: 'u1',
@@ -20,16 +20,28 @@ vi.mock('@tanstack/react-router', () => ({
         refundCents: null,
         createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
         updatedAt: new Date().toISOString(),
-        buyer: { id: 'u1', name: 'Alice' },
-        shop: { id: 'u2', name: 'Bob' },
+        buyer: { id: 'u1', name: 'Alice', email: 'alice@example.com' },
+        shop: { id: 'u2', name: 'Bob', email: 'bob@example.com' },
         order: {
           id: 'so1',
+          platformOrderId: 'po1',
           shopId: 'shop-1',
           shopName: 'Ceramics Co',
           status: 'disputed',
           subtotalCents: 2000,
           shippingCostCents: 500,
           totalCents: 2500,
+          createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+          items: [
+            {
+              id: 'oi1',
+              productId: 'p1',
+              productName: 'Ceramic Vase',
+              unitPriceCents: 1000,
+              quantity: 2,
+              totalCents: 2000,
+            },
+          ],
         },
         messages: [
           {
@@ -39,8 +51,9 @@ vi.mock('@tanstack/react-router', () => ({
             createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
           },
         ],
-      },
-    }),
+      }
+      return { dispute }
+    },
     useNavigate: () => vi.fn(),
   }),
   Link: (props: {
@@ -59,6 +72,7 @@ vi.mock('@tanstack/react-router', () => ({
 
 vi.mock('#/lib/disputes', () => ({
   getDisputeDetail: vi.fn(),
+  addDisputeMessage: vi.fn().mockResolvedValue({}),
   resolveDispute: vi.fn().mockResolvedValue({}),
 }))
 
@@ -77,11 +91,35 @@ describe('AdminDisputeDetailPage', () => {
     expect(screen.getByText('Item arrived broken')).toBeDefined()
   })
 
+  it('renders order items', () => {
+    render(<AdminDisputeDetailPage />)
+
+    expect(screen.getByText('Items Purchased')).toBeDefined()
+    expect(screen.getByText('Ceramic Vase')).toBeDefined()
+    // €20,00 appears in both subtotal and item total — verify at least one exists
+    expect(screen.getAllByText('€20,00').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('renders participant emails', () => {
+    render(<AdminDisputeDetailPage />)
+
+    expect(screen.getByText('alice@example.com')).toBeDefined()
+    expect(screen.getByText('bob@example.com')).toBeDefined()
+  })
+
   it('renders message thread', () => {
     render(<AdminDisputeDetailPage />)
 
     expect(screen.getByText('Message Thread')).toBeDefined()
     expect(screen.getByText('The vase is cracked')).toBeDefined()
+  })
+
+  it('renders admin message input for open disputes', () => {
+    render(<AdminDisputeDetailPage />)
+
+    expect(screen.getByText('Send a message')).toBeDefined()
+    expect(screen.getByLabelText('Admin message')).toBeDefined()
+    expect(screen.getByText('Send')).toBeDefined()
   })
 
   it('renders resolution form with dropdown', () => {

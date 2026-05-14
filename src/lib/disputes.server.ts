@@ -2,7 +2,7 @@ import { asc, count, eq } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { z } from 'zod'
 import { db } from '#/db/index'
-import { dispute, disputeMessage, platformOrder, shop, shopOrder, user } from '#/db/schema'
+import { dispute, disputeMessage, orderItem, platformOrder, shop, shopOrder, user } from '#/db/schema'
 import type { OrderStatus } from './orders.server'
 import { recalcPlatformOrderStatus } from './shop-orders.server'
 
@@ -14,6 +14,7 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000
 export interface DisputeParticipant {
   id: string
   name: string
+  email: string
 }
 
 export interface DisputeMessageItem {
@@ -22,6 +23,15 @@ export interface DisputeMessageItem {
   senderName: string
   message: string
   createdAt: Date
+}
+
+export interface DisputeOrderItem {
+  id: string
+  productId: string
+  productName: string
+  unitPriceCents: number
+  quantity: number
+  totalCents: number
 }
 
 export interface DisputeOrderInfo {
@@ -33,6 +43,8 @@ export interface DisputeOrderInfo {
   subtotalCents: number
   shippingCostCents: number
   totalCents: number
+  createdAt: Date
+  items: DisputeOrderItem[]
 }
 
 export interface DisputeDetail {
@@ -422,16 +434,29 @@ export async function getDisputeDetailQuery(
     .orderBy(asc(disputeMessage.createdAt))
 
   const [buyerRecord] = await db
-    .select({ id: user.id, name: user.name })
+    .select({ id: user.id, name: user.name, email: user.email })
     .from(user)
     .where(eq(user.id, disputeRecord.buyerUserId))
     .limit(1)
 
   const [ownerRecord] = await db
-    .select({ id: user.id, name: user.name })
+    .select({ id: user.id, name: user.name, email: user.email })
     .from(user)
     .where(eq(user.id, shopRecord?.ownerId ?? ''))
     .limit(1)
+
+  const orderItems = await db
+    .select({
+      id: orderItem.id,
+      productId: orderItem.productId,
+      productName: orderItem.productName,
+      unitPriceCents: orderItem.unitPriceCents,
+      quantity: orderItem.quantity,
+      totalCents: orderItem.totalCents,
+    })
+    .from(orderItem)
+    .where(eq(orderItem.shopOrderId, disputeRecord.shopOrderId))
+    .orderBy(orderItem.productName)
 
   return {
     id: disputeRecord.id,
@@ -444,8 +469,8 @@ export async function getDisputeDetailQuery(
     refundCents: disputeRecord.refundCents,
     createdAt: disputeRecord.createdAt,
     updatedAt: disputeRecord.updatedAt,
-    buyer: buyerRecord ?? { id: disputeRecord.buyerUserId, name: 'Unknown' },
-    shop: ownerRecord ?? { id: shopRecord?.ownerId ?? '', name: 'Unknown' },
+    buyer: buyerRecord ?? { id: disputeRecord.buyerUserId, name: 'Unknown', email: '' },
+    shop: ownerRecord ?? { id: shopRecord?.ownerId ?? '', name: 'Unknown', email: '' },
     order: {
       id: shopOrderRecord.id,
       platformOrderId: shopOrderRecord.platformOrderId,
@@ -455,6 +480,15 @@ export async function getDisputeDetailQuery(
       subtotalCents: shopOrderRecord.subtotalCents,
       shippingCostCents: shopOrderRecord.shippingCostCents,
       totalCents: shopOrderRecord.subtotalCents + shopOrderRecord.shippingCostCents,
+      createdAt: shopOrderRecord.createdAt,
+      items: orderItems.map((item) => ({
+        id: item.id,
+        productId: item.productId,
+        productName: item.productName,
+        unitPriceCents: item.unitPriceCents,
+        quantity: item.quantity,
+        totalCents: item.totalCents,
+      })),
     },
     messages: messagesResult.map((m) => ({
       id: m.id,

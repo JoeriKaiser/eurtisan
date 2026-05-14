@@ -4,16 +4,19 @@ import {
   ArrowLeft,
   CheckCircle2,
   Clock,
+  Mail,
   MessageCircle,
   Package,
+  Send,
   ShieldCheck,
+  ShoppingBag,
 } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
 import { Input } from '#/components/ui/input'
-import { getDisputeDetail, resolveDispute } from '#/lib/disputes'
+import { getDisputeDetail, addDisputeMessage, resolveDispute } from '#/lib/disputes'
 import { formatPriceEUR } from '#/lib/pricing'
 import { guardRole } from '#/lib/route-guards'
 
@@ -272,6 +275,89 @@ function MessageThread({
 }
 
 /* -------------------------------------------------------------------------- */
+/*                           Admin Message Input                               */
+/* -------------------------------------------------------------------------- */
+
+function AdminMessageInput({
+  disputeId,
+  onMessageSent,
+}: {
+  disputeId: string
+  onMessageSent: () => void
+}) {
+  const [message, setMessage] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = message.trim()
+    if (!trimmed || isSubmitting) return
+
+    setIsSubmitting(true)
+    setError(null)
+
+    try {
+      await addDisputeMessage({
+        data: { disputeId, message: trimmed },
+      })
+      setMessage('')
+      onMessageSent()
+    } catch (err) {
+      if (err instanceof Response) {
+        try {
+          const body = await err.json()
+          setError(body.message || 'Failed to send message')
+        } catch {
+          setError('Failed to send message')
+        }
+      } else if (err instanceof Error) {
+        setError(err.message)
+      } else {
+        setError('An unexpected error occurred')
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className='mt-4 border-t border-border-default pt-4'>
+      {error && (
+        <div className='mb-3 rounded-lg bg-error/10 p-3 text-sm text-error' role='alert'>
+          {error}
+        </div>
+      )}
+      <label htmlFor='admin-message' className='mb-2 block text-sm font-medium text-text-secondary'>
+        Send a message
+      </label>
+      <textarea
+        id='admin-message'
+        value={message}
+        onChange={(e) => setMessage(e.target.value)}
+        placeholder='Type your message to the buyer and creator…'
+        rows={3}
+        maxLength={5000}
+        disabled={isSubmitting}
+        className='min-h-[5rem] w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary placeholder:text-text-muted transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20 disabled:opacity-50 resize-none'
+        aria-label='Admin message'
+      />
+      <div className='mt-2 flex items-center justify-between'>
+        <span className='text-xs text-text-muted'>{message.length} / 5000</span>
+        <Button
+          type='submit'
+          isLoading={isSubmitting}
+          disabled={!message.trim() || isSubmitting}
+        >
+          <Send size={16} aria-hidden='true' />
+          Send
+        </Button>
+      </div>
+    </form>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
 /*                           Main Page Component                              */
 /* -------------------------------------------------------------------------- */
 
@@ -287,6 +373,10 @@ export function AdminDisputeDetailPage() {
     router.invalidate()
   }, [router])
 
+  const handleMessageSent = useCallback(() => {
+    router.invalidate()
+  }, [router])
+
   return (
     <main className='page-wrap px-4 py-12'>
       <div className='mx-auto max-w-4xl'>
@@ -294,6 +384,7 @@ export function AdminDisputeDetailPage() {
         <div className='mb-6 flex flex-wrap items-center justify-between gap-4'>
           <Link
             to='/admin/disputes'
+            search={{ page: 1 }}
             className='inline-flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary'
           >
             <ArrowLeft size={16} aria-hidden='true' />
@@ -340,18 +431,60 @@ export function AdminDisputeDetailPage() {
                   </p>
                 </div>
                 <div>
+                  <p className='text-xs text-text-muted'>Date</p>
+                  <p className='text-sm text-text-primary'>
+                    {new Date(dispute.order.createdAt).toLocaleDateString()}
+                  </p>
+                </div>
+                <div>
                   <p className='text-xs text-text-muted'>Status</p>
                   <Badge variant='default' className='mt-1 capitalize'>
                     {dispute.order.status.replace('_', ' ')}
                   </Badge>
                 </div>
                 <div>
-                  <p className='text-xs text-text-muted'>Total</p>
-                  <p className='text-sm font-semibold text-text-primary'>
-                    {formatPriceEUR(dispute.order.totalCents)}
+                  <p className='text-xs text-text-muted'>Subtotal</p>
+                  <p className='text-sm text-text-primary'>
+                    {formatPriceEUR(dispute.order.subtotalCents)}
+                  </p>
+                </div>
+                <div>
+                  <p className='text-xs text-text-muted'>Shipping</p>
+                  <p className='text-sm text-text-primary'>
+                    {formatPriceEUR(dispute.order.shippingCostCents)}
                   </p>
                 </div>
               </div>
+
+              {/* Order Items */}
+              {dispute.order.items.length > 0 && (
+                <div className='mt-6 border-t border-border-default pt-4'>
+                  <h3 className='mb-3 flex items-center gap-2 text-sm font-medium text-text-secondary'>
+                    <ShoppingBag size={14} aria-hidden='true' />
+                    Items Purchased
+                  </h3>
+                  <div className='divide-y divide-border-default'>
+                    {dispute.order.items.map((item) => (
+                      <div key={item.id} className='flex items-center justify-between py-2'>
+                        <div>
+                          <p className='text-sm text-text-primary'>{item.productName}</p>
+                          <p className='text-xs text-text-muted'>
+                            {formatPriceEUR(item.unitPriceCents)} × {item.quantity}
+                          </p>
+                        </div>
+                        <p className='text-sm font-medium text-text-primary'>
+                          {formatPriceEUR(item.totalCents)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className='mt-2 flex justify-end border-t border-border-default pt-2'>
+                    <p className='text-sm font-semibold text-text-primary'>
+                      Total: {formatPriceEUR(dispute.order.totalCents)}
+                    </p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -368,10 +501,18 @@ export function AdminDisputeDetailPage() {
                 <div>
                   <p className='text-xs text-text-muted'>Buyer</p>
                   <p className='text-sm font-medium text-text-primary'>{dispute.buyer.name}</p>
+                  <p className='mt-1 flex items-center gap-1 text-xs text-text-muted'>
+                    <Mail size={12} aria-hidden='true' />
+                    {dispute.buyer.email}
+                  </p>
                 </div>
                 <div>
                   <p className='text-xs text-text-muted'>Shop Owner</p>
                   <p className='text-sm font-medium text-text-primary'>{dispute.shop.name}</p>
+                  <p className='mt-1 flex items-center gap-1 text-xs text-text-muted'>
+                    <Mail size={12} aria-hidden='true' />
+                    {dispute.shop.email}
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -393,6 +534,12 @@ export function AdminDisputeDetailPage() {
           <section>
             <h2 className='mb-4 text-lg font-semibold text-text-primary'>Message Thread</h2>
             <MessageThread messages={dispute.messages} />
+            {!isResolved && (
+              <AdminMessageInput
+                disputeId={dispute.id}
+                onMessageSent={handleMessageSent}
+              />
+            )}
           </section>
 
           {/* Resolution */}
@@ -459,6 +606,7 @@ function AdminDisputeDetailError({ error }: { error: Error }) {
         <p className='mb-6 text-text-secondary'>{error.message}</p>
         <Link
           to='/admin/disputes'
+          search={{ page: 1 }}
           className='inline-flex items-center gap-2 text-sm text-accent-primary hover:underline'
         >
           <ArrowLeft size={16} aria-hidden='true' />

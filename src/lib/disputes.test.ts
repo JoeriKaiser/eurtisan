@@ -642,17 +642,35 @@ describe('getDisputeDetailQuery', () => {
       'user-1',
     )
 
+    // Seed an order item to test items array
+    await db.insert(orderItem).values({
+      shopOrderId: so.id,
+      productId: 'product-1',
+      productName: 'Test Product',
+      unitPriceCents: 1000,
+      quantity: 2,
+      totalCents: 2000,
+    })
+
     await addDisputeMessageQuery(d.id, 'Message 1', 'user-1', 'customer')
 
     const result = await getDisputeDetailQuery(d.id, 'user-1', 'customer')
     expect(result).not.toBeNull()
     expect(result!.id).toBe(d.id)
     expect(result!.buyer.name).toBe('Test')
+    expect(result!.buyer.email).toBe('test@example.com')
     expect(result!.shop.name).toBe('Test')
+    expect(result!.shop.email).toBe('test@example.com')
     expect(result!.messages).toHaveLength(1)
     expect(result!.messages[0].message).toBe('Message 1')
     expect(result!.order.shopName).toBe('Test Shop')
     expect(result!.order.totalCents).toBe(2500)
+    expect(result!.order.createdAt).toBeDefined()
+    expect(result!.order.items).toHaveLength(1)
+    expect(result!.order.items[0].productName).toBe('Test Product')
+    expect(result!.order.items[0].unitPriceCents).toBe(1000)
+    expect(result!.order.items[0].quantity).toBe(2)
+    expect(result!.order.items[0].totalCents).toBe(2000)
   })
 
   it('returns detail for shop owner', async () => {
