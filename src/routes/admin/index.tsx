@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { AlertTriangle, Banknote, Gavel, ShoppingBag, Store, Users } from 'lucide-react'
+import { AlertTriangle, Banknote, Gavel, Search, ShoppingBag, Store, Users } from 'lucide-react'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
@@ -227,6 +227,22 @@ export function AdminDashboard() {
                   <div>
                     <p className='text-sm font-medium text-text-primary'>{m.admin_nav_payouts()}</p>
                     <p className='text-xs text-text-muted'>{m.admin_nav_payouts_desc()}</p>
+                  </div>
+                </Link>
+                <Link
+                  to='/admin/orders'
+                  className='flex items-start gap-3 rounded-lg p-3 transition-colors hover:bg-bg-inset'
+                >
+                  <Search
+                    size={18}
+                    className='mt-0.5 shrink-0 text-text-secondary'
+                    aria-hidden='true'
+                  />
+                  <div>
+                    <p className='text-sm font-medium text-text-primary'>
+                      {m.admin_nav_orders()}
+                    </p>
+                    <p className='text-xs text-text-muted'>{m.admin_nav_orders_desc()}</p>
                   </div>
                 </Link>
                 <Link

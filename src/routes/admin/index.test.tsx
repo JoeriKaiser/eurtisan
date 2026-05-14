@@ -73,6 +73,8 @@ vi.mock('#/paraglide/messages', () => ({
     admin_nav_payouts_desc: () => 'Review and process creator payouts.',
     admin_nav_shops: () => 'Shop Moderation',
     admin_nav_shops_desc: () => 'Review and moderate shops.',
+    admin_nav_orders: () => 'Order Inspector',
+    admin_nav_orders_desc: () => 'Search and inspect any order on the platform.',
   },
 }))
 
@@ -129,6 +131,8 @@ describe('AdminDashboard', () => {
 
     expect(screen.getByText('Quick Links')).toBeDefined()
     expect(screen.getByText('Dispute Queue')).toBeDefined()
+    expect(screen.getByText('Order Inspector')).toBeDefined()
+    expect(screen.getByText('Search and inspect any order on the platform.')).toBeDefined()
     expect(screen.getByText('Shop Moderation')).toBeDefined()
     expect(screen.getByText('Review and moderate shops.')).toBeDefined()
   })
