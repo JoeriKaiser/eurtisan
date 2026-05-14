@@ -1,6 +1,7 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import ProductDetail from '#/components/ProductDetail'
 import { createPageMeta } from '#/lib/seo'
+import { generateProductJsonLd } from '#/lib/seo-structured-data'
 import { getProductBySlug } from '#/lib/products'
 import { m } from '#/paraglide/messages'
 
@@ -40,28 +41,17 @@ export const Route = createFileRoute('/products/$productSlug')({
     const priceAmount = (product.priceCents / 100).toFixed(2)
 
     // JSON-LD Product structured data
-    const jsonLd = {
-      '@context': 'https://schema.org',
-      '@type': 'Product',
+    const jsonLd = generateProductJsonLd({
+      productId: product.id,
       name: product.name,
-      description: product.description ?? '',
-      ...(primaryImage ? { image: primaryImage } : {}),
-      ...(product.categoryName ? { category: product.categoryName } : {}),
-      offers: {
-        '@type': 'Offer',
-        price: priceAmount,
-        priceCurrency: 'EUR',
-        availability: product.stockCount > 0
-          ? 'https://schema.org/InStock'
-          : 'https://schema.org/OutOfStock',
-      },
-      ...(product.shopName ? {
-        brand: {
-          '@type': 'Brand',
-          name: product.shopName,
-        },
-      } : {}),
-    }
+      description: product.description,
+      canonicalPath,
+      images: product.images,
+      price: priceAmount,
+      stockCount: product.stockCount,
+      brandName: product.shopName ?? undefined,
+      categoryName: product.categoryName,
+    })
 
     const { meta, links, script } = createPageMeta({
       title,

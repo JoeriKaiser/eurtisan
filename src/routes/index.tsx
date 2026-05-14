@@ -4,6 +4,7 @@ import { listCategories } from '#/lib/categories'
 import { getFeaturedShops, listRecentProducts } from '#/lib/products'
 import { m } from '#/paraglide/messages'
 import { createPageMeta } from '#/lib/seo'
+import { generateWebSiteJsonLd } from '#/lib/seo-structured-data'
 
 function HomeError({ error }: { error: Error }) {
   return (
@@ -29,12 +30,16 @@ export const Route = createFileRoute('/')({
     return { categories, products, shops }
   },
   head: () => {
-    const { meta, links } = createPageMeta({
+    // JSON-LD WebSite structured data
+    const jsonLd = generateWebSiteJsonLd()
+
+    const { meta, links, script } = createPageMeta({
       title: m.meta_title_default(),
       description: m.home_description(),
       canonicalPath: '/',
+      jsonLd,
     })
-    return { meta, links }
+    return { meta, links, script }
   },
   component: Home,
   errorComponent: HomeError,

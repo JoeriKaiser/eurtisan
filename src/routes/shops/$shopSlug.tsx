@@ -2,6 +2,7 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 import ShopPage from '#/components/ShopPage'
 import { getShopBySlug, getShopProducts } from '#/lib/products'
 import { createPageMeta } from '#/lib/seo'
+import { generateStoreJsonLd } from '#/lib/seo-structured-data'
 import { m } from '#/paraglide/messages'
 
 export const Route = createFileRoute('/shops/$shopSlug')({
@@ -44,14 +45,23 @@ export const Route = createFileRoute('/shops/$shopSlug')({
     const description = shop.description ?? m.meta_default_description()
     const canonicalPath = `/shops/${shop.slug}`
 
-    const { meta, links } = createPageMeta({
+    // JSON-LD Store structured data
+    const jsonLd = generateStoreJsonLd({
+      shopName: shop.name,
+      description: shop.description,
+      canonicalPath,
+      image: shop.image,
+    })
+
+    const { meta, links, script } = createPageMeta({
       title,
       description,
       canonicalPath,
       ogImageUrl: shop.image ?? undefined,
+      jsonLd,
     })
 
-    return { meta, links }
+    return { meta, links, script }
   },
   component: ShopRouteComponent,
   errorComponent: ShopError,
