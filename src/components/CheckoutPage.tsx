@@ -1,11 +1,11 @@
 import { useForm } from '@tanstack/react-form'
 import { Loader2, MapPin, Package, Truck } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { z } from 'zod'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
-import { createCheckout } from '#/lib/checkout'
-import type { CheckoutSummary } from '#/lib/checkout.server'
+import { createCheckout, getCheckoutSummary } from '#/lib/checkout'
+import type { CheckoutShopGroup, CheckoutSummary, ShippingOption } from '#/lib/checkout.server'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 
@@ -35,20 +35,48 @@ const checkoutFormSchema = z.object({
   shippingSelections: z.array(
     z.object({
       shopId: z.string().min(1),
-      method: z.enum(['standard', 'express']),
+      rateId: z.string().optional(),
+      method: z.enum(['standard', 'express', 'manual']),
     }),
   ),
 })
 
 type CheckoutFormValues = z.infer<typeof checkoutFormSchema>
 
-export default function CheckoutPage({ summary, cartId }: CheckoutPageProps) {
-  const [submitError, setSubmitError] = useState<string | null>(null)
-
-  const defaultShippingSelections = summary.shops.map((shop) => ({
+/**
+ * Build a default shipping selection for a shop based on available options.
+ * Picks the first non-fallback option, or the first option if all are fallbacks.
+ */
+function getDefaultShippingSelection(
+  shop: CheckoutShopGroup,
+): CheckoutFormValues['shippingSelections'][number] {
+  const firstReal = shop.shippingOptions.find((o) => !o.fallback)
+  const option = firstReal ?? shop.shippingOptions[0]
+  return {
     shopId: shop.shopId,
-    method: 'standard' as const,
-  }))
+    method: option?.method ?? 'standard',
+    rateId: option?.rateId,
+  }
+}
+
+/**
+ * Format estimated delivery days as a human-readable string.
+ */
+function formatEstimatedDays(days: ShippingOption['estimatedDays']): string | null {
+  if (!days) return null
+  if (days.min === days.max) return `${days.min} business day${days.min > 1 ? 's' : ''}`
+  return `${days.min}–${days.max} business days`
+}
+
+export default function CheckoutPage({ summary: initialSummary, cartId }: CheckoutPageProps) {
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [currentSummary, setCurrentSummary] = useState<CheckoutSummary>(initialSummary)
+  const [isFetchingRates, setIsFetchingRates] = useState(false)
+  const [rateError, setRateError] = useState<string | null>(null)
+  const fetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastFetchedAddressRef = useRef<string>('')
+
+  const defaultShippingSelections = currentSummary.shops.map(getDefaultShippingSelection)
 
   const form = useForm({
     defaultValues: {
@@ -85,9 +113,6 @@ export default function CheckoutPage({ summary, cartId }: CheckoutPageProps) {
             shippingSelections: value.shippingSelections,
           },
         })
-        // Redirect the buyer to Mollie's hosted checkout page. Only after
-        // Mollie processes payment and fires the webhook will the order
-        // status be updated to 'paid' and the success page shown.
         window.location.href = result.checkoutUrl
       } catch (err) {
         if (err instanceof Response) {
@@ -100,13 +125,105 @@ export default function CheckoutPage({ summary, cartId }: CheckoutPageProps) {
     },
   })
 
-  const grandTotal = summary.shops.reduce((total, shop) => {
+  // -----------------------------------------------------------------------
+  // Fetch shipping rates when relevant address fields change and are valid
+  // -----------------------------------------------------------------------
+
+  const fetchRates = useCallback(
+    async (address: CheckoutFormValues['shippingAddress']) => {
+      const addressKey = `${address.country}:${address.postalCode}:${address.city}`
+      if (addressKey === lastFetchedAddressRef.current) return
+      lastFetchedAddressRef.current = addressKey
+
+      setIsFetchingRates(true)
+      setRateError(null)
+
+      try {
+        const updatedSummary = await getCheckoutSummary({
+          data: {
+            cartId,
+            shippingAddress: address,
+          },
+        })
+        setCurrentSummary(updatedSummary)
+
+        // Update shipping selections to match the new options
+        for (let i = 0; i < updatedSummary.shops.length; i++) {
+          const shop = updatedSummary.shops[i]
+          const defaultSel = getDefaultShippingSelection(shop)
+          form.setFieldValue(`shippingSelections[${i}].shopId`, defaultSel.shopId)
+          form.setFieldValue(`shippingSelections[${i}].method`, defaultSel.method)
+          form.setFieldValue(`shippingSelections[${i}].rateId`, defaultSel.rateId)
+        }
+
+        // Check if any shop has only unsupported fallbacks
+        for (const shop of updatedSummary.shops) {
+          if (
+            shop.shippingOptions.length === 1 &&
+            shop.shippingOptions[0].fallback &&
+            shop.shippingOptions[0].label.includes('cannot ship')
+          ) {
+            setRateError(`We cannot ship to this address for "${shop.shopName}".`)
+            break
+          }
+        }
+      } catch {
+        setRateError('Could not fetch shipping rates. Please try again.')
+      } finally {
+        setIsFetchingRates(false)
+      }
+    },
+    [cartId, form],
+  )
+
+  // Listen for address field changes and debounce rate fetching
+  const subscribeToAddressChanges = useCallback(() => {
+    const unsub = form.store.subscribe(() => {
+      const state = form.store.state
+      const addr = state.values.shippingAddress
+
+      // Only fetch rates once the address has country + postalCode + city (minimum)
+      if (!addr.country || !addr.postalCode || !addr.city) return
+
+      // Validate the partial address before fetching
+      const result = shippingAddressSchema.safeParse(addr)
+      if (!result.success) return
+
+      // Debounce: wait 600ms after the last keystroke
+      if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current)
+      fetchTimerRef.current = setTimeout(() => {
+        fetchRates(addr)
+      }, 600)
+    })
+
+    return unsub as unknown as () => void
+  }, [form.store, fetchRates])
+
+  const unsubRef = useRef<(() => void) | null>(null)
+  useEffect(() => {
+    unsubRef.current = subscribeToAddressChanges()
+    return () => {
+      unsubRef.current?.()
+      if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current)
+    }
+  }, [subscribeToAddressChanges])
+
+  // -----------------------------------------------------------------------
+  // Grand total calculation
+  // -----------------------------------------------------------------------
+
+  const grandTotal = currentSummary.shops.reduce((total, shop) => {
     const selection = form.getFieldValue('shippingSelections').find((s) => s.shopId === shop.shopId)
-    const shippingCost =
-      shop.shippingOptions.find((o) => o.method === selection?.method)?.costCents ??
-      shop.shippingOptions[0].costCents
-    return total + shop.subtotalCents + shippingCost
+    const shippingOption =
+      shop.shippingOptions.find((o) => o.rateId === selection?.rateId) ??
+      shop.shippingOptions.find((o) => o.method === selection?.method) ??
+      shop.shippingOptions[0]
+    return total + shop.subtotalCents + (shippingOption?.costCents ?? 0)
   }, 0)
+
+  // -----------------------------------------------------------------------
+  // Render
+  // -----------------------------------------------------------------------
 
   return (
     <main className='page-wrap px-4 pb-16 pt-14'>
@@ -436,52 +553,96 @@ export default function CheckoutPage({ summary, cartId }: CheckoutPageProps) {
               <h2 className='text-lg font-semibold text-text-primary'>
                 {m.checkout_shipping_method()}
               </h2>
+              {isFetchingRates && (
+                <Loader2 size={14} className='animate-spin text-text-muted' aria-hidden='true' />
+              )}
             </div>
 
+            {rateError && (
+              <p className='mb-4 text-sm text-error' role='alert'>
+                {rateError}
+              </p>
+            )}
+
             <div className='space-y-6'>
-              {summary.shops.map((shop, shopIndex) => (
+              {currentSummary.shops.map((shop, shopIndex) => (
                 <div key={shop.shopId}>
                   <h3 className='mb-3 text-sm font-medium text-text-secondary'>{shop.shopName}</h3>
-                  <div className='space-y-2'>
-                    {shop.shippingOptions.map((option) => (
-                      <form.Field
-                        key={option.method}
-                        name={`shippingSelections[${shopIndex}].method`}
-                      >
-                        {(field) => (
-                          <label
-                            className={`flex cursor-pointer items-center justify-between rounded-xl border p-4 transition-colors ${
-                              field.state.value === option.method
-                                ? 'border-accent-primary bg-accent-primary/5'
-                                : 'border-border-default hover:border-border-strong'
-                            }`}
+                  {shop.shippingOptions.length === 0 ? (
+                    <p className='text-sm text-text-muted italic'>
+                      Enter your shipping address to see available rates.
+                    </p>
+                  ) : (
+                    <div className='space-y-2'>
+                      {shop.shippingOptions.map((option) => {
+                        const isManualFallback = option.fallback && option.method === 'manual'
+                        const estimatedDaysStr = formatEstimatedDays(option.estimatedDays)
+
+                        return (
+                          <form.Field
+                            key={`${shop.shopId}-${option.rateId ?? option.method}`}
+                            name={`shippingSelections[${shopIndex}]`}
                           >
-                            <div className='flex items-center gap-3'>
-                              <input
-                                type='radio'
-                                name={field.name}
-                                value={option.method}
-                                checked={field.state.value === option.method}
-                                onChange={(e) =>
-                                  field.handleChange(e.target.value as 'standard' | 'express')
-                                }
-                                onBlur={field.handleBlur}
-                                className='h-4 w-4 accent-accent-primary'
-                              />
-                              <span className='text-sm font-medium text-text-primary'>
-                                {option.method === 'standard'
-                                  ? m.checkout_shipping_standard()
-                                  : m.checkout_shipping_express()}
-                              </span>
-                            </div>
-                            <span className='text-sm font-semibold text-text-primary'>
-                              {formatPriceEUR(option.costCents)}
-                            </span>
-                          </label>
-                        )}
-                      </form.Field>
-                    ))}
-                  </div>
+                            {(field) => {
+                              const isSelected =
+                                field.state.value?.rateId === option.rateId &&
+                                field.state.value?.method === option.method
+
+                              return (
+                                <label
+                                  className={`flex cursor-pointer flex-col rounded-xl border p-4 transition-colors ${
+                                    isSelected
+                                      ? 'border-accent-primary bg-accent-primary/5'
+                                      : isManualFallback
+                                        ? 'border-border-default bg-surface-inset'
+                                        : 'border-border-default hover:border-border-strong'
+                                  }`}
+                                >
+                                  <div className='flex items-center justify-between'>
+                                    <div className='flex items-center gap-3'>
+                                      <input
+                                        type='radio'
+                                        name={`shipping-shop-${shop.shopId}`}
+                                        checked={isSelected}
+                                        onChange={() => {
+                                          field.handleChange({
+                                            shopId: shop.shopId,
+                                            rateId: option.rateId,
+                                            method: option.method,
+                                          })
+                                        }}
+                                        className='h-4 w-4 accent-accent-primary'
+                                      />
+                                      <div>
+                                        <span className='text-sm font-medium text-text-primary'>
+                                          {option.serviceName ?? option.label}
+                                        </span>
+                                        {option.carrier && (
+                                          <span className='ml-2 text-xs text-text-muted capitalize'>
+                                            {option.carrier.replace(/_/g, ' ')}
+                                          </span>
+                                        )}
+                                        {estimatedDaysStr && (
+                                          <span className='ml-1 block text-xs text-text-secondary'>
+                                            {estimatedDaysStr}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <span className='text-sm font-semibold text-text-primary'>
+                                      {option.costCents === 0
+                                        ? '—'
+                                        : formatPriceEUR(option.costCents)}
+                                    </span>
+                                  </div>
+                                </label>
+                              )
+                            }}
+                          </form.Field>
+                        )
+                      })}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -497,7 +658,7 @@ export default function CheckoutPage({ summary, cartId }: CheckoutPageProps) {
             </div>
 
             <div className='space-y-6'>
-              {summary.shops.map((shop) => (
+              {currentSummary.shops.map((shop) => (
                 <div key={shop.shopId}>
                   <h3 className='mb-2 text-sm font-medium text-text-secondary'>{shop.shopName}</h3>
                   <ul className='divide-y divide-border-subtle'>
@@ -550,11 +711,12 @@ export default function CheckoutPage({ summary, cartId }: CheckoutPageProps) {
             </h2>
 
             <div className='space-y-2'>
-              {summary.shops.map((shop) => {
+              {currentSummary.shops.map((shop) => {
                 const selection = form
                   .getFieldValue('shippingSelections')
                   .find((s) => s.shopId === shop.shopId)
                 const shippingOption =
+                  shop.shippingOptions.find((o) => o.rateId === selection?.rateId) ??
                   shop.shippingOptions.find((o) => o.method === selection?.method) ??
                   shop.shippingOptions[0]
 
@@ -567,13 +729,13 @@ export default function CheckoutPage({ summary, cartId }: CheckoutPageProps) {
                       </span>
                     </div>
                     <div className='flex justify-between text-sm'>
-                      <span className='text-text-secondary'>
-                        {shippingOption.method === 'standard'
-                          ? m.checkout_shipping_standard()
-                          : m.checkout_shipping_express()}
+                      <span className='text-text-secondary truncate'>
+                        {shippingOption?.serviceName ?? shippingOption?.label ?? 'Shipping'}
                       </span>
                       <span className='font-medium text-text-primary'>
-                        {formatPriceEUR(shippingOption.costCents)}
+                        {shippingOption?.costCents === 0
+                          ? '—'
+                          : formatPriceEUR(shippingOption?.costCents ?? 0)}
                       </span>
                     </div>
                   </div>

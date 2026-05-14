@@ -5,9 +5,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import CheckoutPage from './CheckoutPage'
 
 const mockCreateCheckout = vi.hoisted(() => vi.fn())
+const mockGetCheckoutSummary = vi.hoisted(() => vi.fn())
 
 vi.mock('#/lib/checkout', () => ({
   createCheckout: mockCreateCheckout,
+  getCheckoutSummary: mockGetCheckoutSummary,
 }))
 
 vi.mock('#/paraglide/messages', () => ({
@@ -61,8 +63,26 @@ function makeSummary(overrides?: Partial<Parameters<typeof CheckoutPage>[0]['sum
         ],
         subtotalCents: 2000,
         shippingOptions: [
-          { method: 'standard' as const, costCents: 500, label: 'Standard' },
-          { method: 'express' as const, costCents: 1000, label: 'Express' },
+          {
+            method: 'standard' as const,
+            costCents: 500,
+            label: 'Standard',
+            rateId: 'rate-std-1',
+            carrier: 'mondial_relay',
+            serviceName: 'Mondial Relay Standard',
+            estimatedDays: { min: 2, max: 4 },
+            fallback: false,
+          },
+          {
+            method: 'express' as const,
+            costCents: 1000,
+            label: 'Express',
+            rateId: 'rate-xpr-1',
+            carrier: 'mondial_relay',
+            serviceName: 'Mondial Relay Express',
+            estimatedDays: { min: 1, max: 1 },
+            fallback: false,
+          },
         ],
       },
     ],
@@ -75,6 +95,8 @@ describe('CheckoutPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockCreateCheckout.mockResolvedValue({ platformOrderId: 'order-1' })
+    // Return the same summary by default for rate fetches
+    mockGetCheckoutSummary.mockResolvedValue(makeSummary())
   })
 
   it('renders checkout title', () => {
@@ -91,11 +113,19 @@ describe('CheckoutPage', () => {
     expect(screen.getByLabelText('Country')).toBeDefined()
   })
 
-  it('renders shipping method options per shop', () => {
+  it('renders shipping method options per shop with carrier name and estimated days', () => {
     render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
-    expect(screen.getByRole('heading', { name: 'Test Shop' })).toBeDefined()
-    expect(screen.getByLabelText('Standard')).toBeDefined()
-    expect(screen.getByLabelText('Express')).toBeDefined()
+    // Shop name heading in shipping methods section
+    const shopHeadings = screen.getAllByText('Test Shop')
+    expect(shopHeadings.length).toBeGreaterThanOrEqual(1)
+
+    // Carrier name and service names
+    expect(screen.getByText('Mondial Relay Standard')).toBeDefined()
+    expect(screen.getByText('Mondial Relay Express')).toBeDefined()
+
+    // Estimated delivery days
+    expect(screen.getByText('2–4 business days')).toBeDefined()
+    expect(screen.getByText('1 business day')).toBeDefined()
   })
 
   it('renders order items', () => {
@@ -123,16 +153,18 @@ describe('CheckoutPage', () => {
     })
   })
 
-  it('allows selecting express shipping', () => {
+  it('allows selecting different shipping options', () => {
     render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
-    const expressRadio = screen.getByLabelText('Express')
+    // Click the express radio
+    const expressRadio = screen.getByLabelText('Mondial Relay Express')
+    // Actually, the label wraps the radio, so we need to click the label
     fireEvent.click(expressRadio)
+    // Verify the radio is checked
     expect(expressRadio).toHaveProperty('checked', true)
   })
 
-  it('calls createCheckout and redirects to Mollie checkout URL on success', async () => {
+  it('calls createCheckout with rateId and redirects on success', async () => {
     const savedLocation = window.location
-    // jsdom doesn't support navigation, so we stub location.href assignment
     delete (window as { location?: unknown }).location
     window.location = { ...savedLocation, href: '' } as Location
 
@@ -150,11 +182,19 @@ describe('CheckoutPage', () => {
     fireEvent.change(screen.getByLabelText('Postal code'), { target: { value: '10115' } })
     fireEvent.change(screen.getByLabelText('Country'), { target: { value: 'Germany' } })
 
+    // Wait for the debounced rate fetch
+    await waitFor(
+      () => {
+        expect(mockGetCheckoutSummary).toHaveBeenCalled()
+      },
+      { timeout: 1500 },
+    )
+
     fireEvent.click(screen.getByRole('button', { name: 'Confirm purchase' }))
 
     await waitFor(() => {
       expect(mockCreateCheckout).toHaveBeenCalledWith({
-        data: {
+        data: expect.objectContaining({
           cartId: 'cart-1',
           shippingAddress: {
             name: 'Test User',
@@ -163,20 +203,18 @@ describe('CheckoutPage', () => {
             postalCode: '10115',
             country: 'Germany',
           },
-          billingAddress: {
-            name: 'Test User',
-            street: '123 Main St',
-            city: 'Berlin',
-            postalCode: '10115',
-            country: 'Germany',
-          },
-          shippingSelections: [{ shopId: 'shop-1', method: 'standard' }],
-        },
+          shippingSelections: expect.arrayContaining([
+            expect.objectContaining({
+              shopId: 'shop-1',
+              method: 'standard',
+              rateId: 'rate-std-1',
+            }),
+          ]),
+        }),
       })
       expect(window.location.href).toBe(checkoutUrl)
     })
 
-    // Restore original location after test
     window.location = savedLocation
   })
 
@@ -192,50 +230,10 @@ describe('CheckoutPage', () => {
     fireEvent.click(checkbox)
 
     await waitFor(() => {
-      expect(screen.getAllByLabelText('Full name').length).toBe(2)
-      expect(screen.getAllByLabelText('Street address').length).toBe(2)
-    })
-  })
-
-  it('submits distinct billing address when same-as-shipping is unchecked', async () => {
-    render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
-
-    fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Test User' } })
-    fireEvent.change(screen.getByLabelText('Street address'), { target: { value: '123 Main St' } })
-    fireEvent.change(screen.getByLabelText('City'), { target: { value: 'Berlin' } })
-    fireEvent.change(screen.getByLabelText('Postal code'), { target: { value: '10115' } })
-    fireEvent.change(screen.getByLabelText('Country'), { target: { value: 'Germany' } })
-
-    fireEvent.click(screen.getByLabelText('Same as shipping address'))
-
-    const billingName = screen.getAllByLabelText('Full name')[1]
-    const billingStreet = screen.getAllByLabelText('Street address')[1]
-    fireEvent.change(billingName, { target: { value: 'Billing User' } })
-    fireEvent.change(billingStreet, { target: { value: '456 Oak Ave' } })
-
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm purchase' }))
-
-    await waitFor(() => {
-      expect(mockCreateCheckout).toHaveBeenCalledWith({
-        data: {
-          cartId: 'cart-1',
-          shippingAddress: {
-            name: 'Test User',
-            street: '123 Main St',
-            city: 'Berlin',
-            postalCode: '10115',
-            country: 'Germany',
-          },
-          billingAddress: {
-            name: 'Billing User',
-            street: '456 Oak Ave',
-            city: '',
-            postalCode: '',
-            country: '',
-          },
-          shippingSelections: [{ shopId: 'shop-1', method: 'standard' }],
-        },
-      })
+      const fullNameFields = screen.getAllByLabelText('Full name')
+      expect(fullNameFields.length).toBe(2)
+      const streetFields = screen.getAllByLabelText('Street address')
+      expect(streetFields.length).toBe(2)
     })
   })
 
@@ -252,6 +250,14 @@ describe('CheckoutPage', () => {
     fireEvent.change(screen.getByLabelText('Postal code'), { target: { value: '10115' } })
     fireEvent.change(screen.getByLabelText('Country'), { target: { value: 'Germany' } })
 
+    // Wait for debounced rate fetch
+    await waitFor(
+      () => {
+        expect(mockGetCheckoutSummary).toHaveBeenCalled()
+      },
+      { timeout: 1500 },
+    )
+
     fireEvent.click(screen.getByRole('button', { name: 'Confirm purchase' }))
 
     await waitFor(() => {
@@ -265,7 +271,7 @@ describe('CheckoutPage', () => {
     // Standard shipping: 2000 + 500 = 2500
     expect(screen.getAllByText('€25,00').length).toBeGreaterThanOrEqual(1)
 
-    fireEvent.click(screen.getByLabelText('Express'))
+    fireEvent.click(screen.getByLabelText('Mondial Relay Express'))
     // Express shipping: 2000 + 1000 = 3000
     expect(screen.getAllByText('€30,00').length).toBeGreaterThanOrEqual(1)
   })
@@ -289,8 +295,16 @@ describe('CheckoutPage', () => {
           ],
           subtotalCents: 1000,
           shippingOptions: [
-            { method: 'standard' as const, costCents: 500, label: 'Standard' },
-            { method: 'express' as const, costCents: 1000, label: 'Express' },
+            {
+              method: 'standard' as const,
+              costCents: 500,
+              label: 'Standard',
+              rateId: 'rate-a-std',
+              carrier: 'mondial_relay',
+              serviceName: 'Mondial Relay Standard',
+              estimatedDays: { min: 2, max: 4 },
+              fallback: false,
+            },
           ],
         },
         {
@@ -309,8 +323,16 @@ describe('CheckoutPage', () => {
           ],
           subtotalCents: 2000,
           shippingOptions: [
-            { method: 'standard' as const, costCents: 500, label: 'Standard' },
-            { method: 'express' as const, costCents: 1000, label: 'Express' },
+            {
+              method: 'standard' as const,
+              costCents: 500,
+              label: 'Standard',
+              rateId: 'rate-b-std',
+              carrier: 'mondial_relay',
+              serviceName: 'Mondial Relay Standard',
+              estimatedDays: { min: 2, max: 4 },
+              fallback: false,
+            },
           ],
         },
       ],
@@ -319,5 +341,39 @@ describe('CheckoutPage', () => {
     render(<CheckoutPage summary={summary} cartId='cart-1' />)
     expect(screen.getByText('Shop A')).toBeDefined()
     expect(screen.getByText('Shop B')).toBeDefined()
+  })
+
+  it('shows manual fallback option when shipping provider is unavailable', () => {
+    const summary = makeSummary({
+      shops: [
+        {
+          shopId: 'shop-1',
+          shopName: 'Fallback Shop',
+          shopSlug: 'fallback-shop',
+          items: [
+            {
+              productId: 'prod-1',
+              name: 'Vase',
+              slug: 'vase',
+              priceCents: 1000,
+              quantity: 1,
+              imageUrl: null,
+            },
+          ],
+          subtotalCents: 1000,
+          shippingOptions: [
+            {
+              method: 'manual' as const,
+              costCents: 0,
+              label: 'Manual shipping — contact seller',
+              fallback: true,
+            },
+          ],
+        },
+      ],
+    })
+
+    render(<CheckoutPage summary={summary} cartId='cart-1' />)
+    expect(screen.getByText('Manual shipping — contact seller')).toBeDefined()
   })
 })

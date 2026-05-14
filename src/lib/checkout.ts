@@ -26,16 +26,22 @@ export const checkoutInputSchema = z.object({
   shippingSelections: z.array(
     z.object({
       shopId: z.string().min(1),
-      method: z.enum(['standard', 'express']),
+      rateId: z.string().optional(),
+      method: z.enum(['standard', 'express', 'manual']),
     }),
   ),
   shippingAddress: shippingAddressSchema,
   billingAddress: shippingAddressSchema,
 })
 
-export const getCheckoutSummary = createServerFn({ method: 'GET' })
+export const getCheckoutSummary = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ cartId: z.string().uuid() }))
+  .inputValidator(
+    z.object({
+      cartId: z.string().uuid(),
+      shippingAddress: shippingAddressSchema.optional(),
+    }),
+  )
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
@@ -45,7 +51,7 @@ export const getCheckoutSummary = createServerFn({ method: 'GET' })
     }
 
     const { getCheckoutSummaryQuery } = await import('./checkout.server')
-    const result = await getCheckoutSummaryQuery(data.cartId, context.user.id)
+    const result = await getCheckoutSummaryQuery(data.cartId, context.user.id, data.shippingAddress)
 
     if (!result) {
       throw new Response(

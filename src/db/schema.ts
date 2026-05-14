@@ -220,7 +220,7 @@ export const orderStatusEnum = pgEnum('order_status', [
   'disputed',
 ])
 
-export const shippingMethodEnum = pgEnum('shipping_method', ['standard', 'express'])
+export const shippingMethodEnum = pgEnum('shipping_method', ['standard', 'express', 'manual'])
 
 export const platformOrder = pgTable(
   'platform_order',

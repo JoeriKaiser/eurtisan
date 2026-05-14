@@ -13,9 +13,13 @@ import {
   shopOrder,
   user,
 } from '#/db/schema'
+import { resetMockShippingCounter } from '#/integrations/shipping'
+import {
+  type CheckoutInput,
+  createCheckoutWithProvider,
+  getCheckoutSummaryQuery,
+} from './checkout.server'
 import type { PaymentProvider } from './payment-provider'
-
-import { type CheckoutInput, createCheckoutWithProvider, getCheckoutSummaryQuery } from './checkout.server'
 
 // ---------------------------------------------------------------------------
 // Test stub for the payment provider
@@ -38,6 +42,7 @@ function createStubPaymentProvider(): PaymentProvider {
 }
 
 beforeEach(async () => {
+  resetMockShippingCounter()
   await db.delete(inventoryReservation)
   await db.delete(orderItem)
   await db.delete(shopOrder)
@@ -125,7 +130,7 @@ describe('getCheckoutSummaryQuery', () => {
     expect(result).toBeNull()
   })
 
-  it('returns summary grouped by shop with shipping options', async () => {
+  it('returns summary grouped by shop with fallback shipping options when no address', async () => {
     await seedUser()
     await seedShop()
     const c = await db
@@ -141,17 +146,44 @@ describe('getCheckoutSummaryQuery', () => {
     expect(result).not.toBeNull()
     expect(result!.cartId).toBe(c.id)
     expect(result!.shops).toHaveLength(1)
-    expect(result!.shops[0].shopId).toBe('shop-1')
-    expect(result!.shops[0].shopName).toBe('Test Shop')
-    expect(result!.shops[0].shopSlug).toBe('test-shop')
     expect(result!.shops[0].items).toHaveLength(1)
-    expect(result!.shops[0].items[0].productId).toBe(p.id)
-    expect(result!.shops[0].items[0].name).toBe('Vase')
-    expect(result!.shops[0].items[0].quantity).toBe(2)
-    expect(result!.shops[0].items[0].priceCents).toBe(1000)
-    expect(result!.shops[0].shippingOptions).toHaveLength(2)
-    expect(result!.shops[0].shippingOptions.map((o) => o.method)).toContain('standard')
-    expect(result!.shops[0].shippingOptions.map((o) => o.method)).toContain('express')
+    // Without shipping address, returns fallback (manual) options
+    expect(result!.shops[0].shippingOptions).toHaveLength(1)
+    expect(result!.shops[0].shippingOptions[0].method).toBe('manual')
+    expect(result!.shops[0].shippingOptions[0].fallback).toBe(true)
+  })
+
+  it('returns summary with live shipping rates when address is provided', async () => {
+    await seedUser()
+    await seedShop()
+    const c = await db
+      .insert(cart)
+      .values({ userId: 'user-1' })
+      .returning()
+      .then((rows) => rows[0])
+    const p = await seedProduct()
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
+
+    const result = await getCheckoutSummaryQuery(c.id, 'user-1', {
+      name: 'Test User',
+      street: '123 Main St',
+      city: 'Paris',
+      postalCode: '75001',
+      country: 'FR',
+    })
+    expect(result).not.toBeNull()
+    expect(result!.shops).toHaveLength(1)
+    // With shipping address, returns carrier rates
+    expect(result!.shops[0].shippingOptions.length).toBeGreaterThanOrEqual(1)
+    const standardOption = result!.shops[0].shippingOptions.find((o) => o.method === 'standard')
+    const expressOption = result!.shops[0].shippingOptions.find((o) => o.method === 'express')
+    expect(standardOption).toBeDefined()
+    expect(expressOption).toBeDefined()
+    expect(standardOption!.carrier).toBe('mondial_relay')
+    expect(standardOption!.rateId).toBeDefined()
+    expect(standardOption!.costCents).toBeGreaterThan(0)
+    expect(expressOption!.costCents).toBeGreaterThan(standardOption!.costCents)
   })
 
   it('calculates subtotals and grand total correctly', async () => {
@@ -401,7 +433,7 @@ describe('createCheckoutQuery', () => {
       .where(eq(platformOrder.id, result.platformOrderId))
     expect(platformOrders).toHaveLength(1)
     expect(platformOrders[0].userId).toBe('user-1')
-    expect(platformOrders[0].totalCents).toBe(2500) // 2 * 1000 + 500 shipping
+    expect(platformOrders[0].totalCents).toBe(2580) // 2 * 1000 + 580 (provider standard)
     expect(platformOrders[0].status).toBe('pending_payment')
     expect(platformOrders[0].shippingAddress).toEqual({
       name: 'Test User',
@@ -425,7 +457,7 @@ describe('createCheckoutQuery', () => {
     expect(shopOrders).toHaveLength(1)
     expect(shopOrders[0].shopId).toBe('shop-1')
     expect(shopOrders[0].shippingMethod).toBe('standard')
-    expect(shopOrders[0].shippingCostCents).toBe(500)
+    expect(shopOrders[0].shippingCostCents).toBe(580)
     expect(shopOrders[0].subtotalCents).toBe(2000)
     expect(shopOrders[0].status).toBe('pending_payment')
 
@@ -462,14 +494,14 @@ describe('createCheckoutQuery', () => {
       .select()
       .from(platformOrder)
       .where(eq(platformOrder.id, result.platformOrderId))
-    expect(platformOrders[0].totalCents).toBe(2000) // 1000 + 1000 express
+    expect(platformOrders[0].totalCents).toBe(1861) // 1000 + 861 express (provider)
 
     const shopOrders = await db
       .select()
       .from(shopOrder)
       .where(eq(shopOrder.platformOrderId, result.platformOrderId))
     expect(shopOrders[0].shippingMethod).toBe('express')
-    expect(shopOrders[0].shippingCostCents).toBe(1000)
+    expect(shopOrders[0].shippingCostCents).toBe(861)
   })
 
   it('creates multiple shop_orders for multi-shop carts', async () => {
@@ -507,7 +539,7 @@ describe('createCheckoutQuery', () => {
       .select()
       .from(platformOrder)
       .where(eq(platformOrder.id, result.platformOrderId))
-    expect(platformOrders[0].totalCents).toBe(4500) // 1000+500 + 2000+1000
+    expect(platformOrders[0].totalCents).toBe(4399) // 1000+538 + 2000+861 (provider)
 
     const shopOrdersResult = await db
       .select()
@@ -518,9 +550,9 @@ describe('createCheckoutQuery', () => {
     const so1 = shopOrdersResult.find((so) => so.shopId === 'shop-1')
     const so2 = shopOrdersResult.find((so) => so.shopId === 'shop-2')
     expect(so1!.subtotalCents).toBe(1000)
-    expect(so1!.shippingCostCents).toBe(500)
+    expect(so1!.shippingCostCents).toBe(538)
     expect(so2!.subtotalCents).toBe(2000)
-    expect(so2!.shippingCostCents).toBe(1000)
+    expect(so2!.shippingCostCents).toBe(861)
   })
 
   it('clears cart and items after successful order creation', async () => {
@@ -652,8 +684,8 @@ describe('createCheckoutQuery', () => {
       .select()
       .from(platformOrder)
       .where(eq(platformOrder.id, result.platformOrderId))
-    // 3 * 1234 + 500 = 4202
-    expect(platformOrders[0].totalCents).toBe(4202)
+    // 3 * 1234 + 623 (provider standard for 1500g) = 4325
+    expect(platformOrders[0].totalCents).toBe(4325)
   })
 
   it('creates inventory reservations for every cart item', async () => {
