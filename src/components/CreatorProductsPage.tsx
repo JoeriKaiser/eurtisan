@@ -298,6 +298,7 @@ export function CreatorProductsPage({
         {/* Table */}
         <div className='overflow-x-auto'>
           <table className='w-full text-left text-sm'>
+            <caption className='sr-only'>{m.creator_products_title()}</caption>
             <thead>
               <tr className='border-b border-border-default'>
                 <th className='pb-3 pr-4 font-medium text-text-secondary'>

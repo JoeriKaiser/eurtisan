@@ -32,13 +32,17 @@ vi.mock('@tanstack/react-router', () => ({
 
 vi.mock('#/paraglide/messages', () => ({
   m: {
+    nav_main: () => 'Main navigation',
     nav_logo: () => 'Eurtisan',
     nav_home: () => 'Home',
     nav_about: () => 'About',
     search_header_placeholder: () => 'Search products...',
     search_header_button: () => 'Search',
     cart_badge_label: () => 'Shopping cart',
+    cart_badge_items: ({ count }: { count: string }) => `${count} items in cart`,
     notifications_badge_label: () => 'Notifications',
+    notifications_badge_unread: ({ count }: { count: string }) =>
+      `${count} unread notifications`,
   },
 }))
 

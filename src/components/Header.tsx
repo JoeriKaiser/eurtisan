@@ -33,17 +33,17 @@ export default function Header() {
 
   return (
     <header className='sticky top-0 z-sticky border-b border-border-default bg-surface-default/80 backdrop-blur-lg'>
-      <nav className='page-wrap flex items-center gap-x-4 px-4 py-2.5'>
+      <nav className='page-wrap flex items-center gap-x-4 px-4 py-2.5' aria-label={m.nav_main()}>
         {/* Logo */}
-        <h2 className='m-0 flex-shrink-0 text-sm font-semibold tracking-tight'>
+        <span className='m-0 flex-shrink-0 text-sm font-semibold tracking-tight'>
           <Link
             to='/'
             className='inline-flex items-center gap-1.5 rounded-full border border-border-default bg-surface-default px-2.5 py-1 text-sm text-text-primary no-underline shadow-sm transition-all duration-fast ease-out hover:shadow-md'
           >
-            <span className='h-2 w-2 rounded-full bg-accent-primary' />
+            <span className='h-2 w-2 rounded-full bg-accent-primary' aria-hidden='true' />
             {m.nav_logo()}
           </Link>
-        </h2>
+        </span>
 
         {/* Nav links */}
         <div className='hidden items-center gap-x-4 text-sm font-medium sm:flex'>
@@ -87,7 +87,10 @@ export default function Header() {
               >
                 <Bell size={18} aria-hidden='true' />
                 {unreadCount > 0 && (
-                  <span className='absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-error px-1 text-[10px] font-bold text-text-on-primary'>
+                  <span
+                    className='absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-error px-1 text-[10px] font-bold text-text-on-primary'
+                    aria-label={m.notifications_badge_unread({ count: String(unreadCount) })}
+                  >
                     {unreadCount > 99 ? '99+' : unreadCount}
                   </span>
                 )}
@@ -102,7 +105,10 @@ export default function Header() {
             >
               <ShoppingCart size={18} aria-hidden='true' />
               {distinctItems > 0 && (
-                <span className='absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-primary px-1 text-[10px] font-bold text-text-on-primary'>
+                <span
+                  className='absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-primary px-1 text-[10px] font-bold text-text-on-primary'
+                  aria-label={m.cart_badge_items({ count: String(distinctItems) })}
+                >
                   {distinctItems}
                 </span>
               )}
