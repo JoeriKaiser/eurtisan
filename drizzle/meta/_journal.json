@@ -169,6 +169,13 @@
       "when": 1778776315393,
       "tag": "0023_familiar_zaladane",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1778820000000,
+      "tag": "0024_deep_argent",
+      "breakpoints": true
     }
   ]
 }

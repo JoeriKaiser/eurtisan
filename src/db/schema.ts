@@ -418,3 +418,18 @@ export const disputeMessage = pgTable(
   },
   (table) => [index('dispute_message_dispute_id_idx').on(table.disputeId)],
 )
+
+export const shippingLabel = pgTable(
+  'shipping_label',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    shopOrderId: uuid('shop_order_id')
+      .notNull()
+      .references(() => shopOrder.id, { onDelete: 'cascade' }),
+    carrier: text('carrier').notNull(),
+    trackingNumber: text('tracking_number'),
+    labelUrl: text('label_url'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [index('shipping_label_shop_order_id_idx').on(table.shopOrderId)],
+)
