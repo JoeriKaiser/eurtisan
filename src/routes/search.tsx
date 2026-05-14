@@ -6,6 +6,7 @@ import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { listCategories } from '#/lib/categories'
 import { listShops, searchProducts } from '#/lib/products'
+import { createPageMeta } from '#/lib/seo'
 import { m } from '#/paraglide/messages'
 
 export const Route = createFileRoute('/search')({
@@ -54,17 +55,19 @@ export const Route = createFileRoute('/search')({
   },
   head: ({ loaderData }) => {
     const query = loaderData?.query ?? ''
-    return {
-      meta: [
-        {
-          title: query ? m.search_meta_title({ query }) : m.meta_title_default(),
-        },
-        {
-          name: 'description',
-          content: query ? m.search_meta_description({ query }) : m.meta_title_default(),
-        },
-      ],
-    }
+    const title = query ? m.search_meta_title({ query }) : m.meta_title_default()
+    const description = query
+      ? m.search_meta_description({ query })
+      : m.home_description()
+    const canonicalPath = query ? `/search?q=${encodeURIComponent(query)}` : '/search'
+
+    const { meta, links } = createPageMeta({
+      title,
+      description,
+      canonicalPath,
+    })
+
+    return { meta, links }
   },
   component: SearchPage,
   errorComponent: SearchError,

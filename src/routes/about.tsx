@@ -1,7 +1,16 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { m } from '#/paraglide/messages'
+import { createPageMeta } from '#/lib/seo'
 
 export const Route = createFileRoute('/about')({
+  head: () => {
+    const { meta, links } = createPageMeta({
+      title: m.about_title(),
+      description: m.about_description(),
+      canonicalPath: '/about',
+    })
+    return { meta, links }
+  },
   component: About,
 })
 

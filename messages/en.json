@@ -1,6 +1,7 @@
 {
   "$schema": "https://inlang.com/schema/inlang-message-format",
   "meta_title_default": "Eurtisan — European Marketplace for Makers",
+  "meta_default_description": "Discover unique, handcrafted pieces from independent makers across Europe.",
   "home_kicker": "European marketplace",
   "home_title": "Handmade goods from European artisans",
   "home_description": "Discover unique, handcrafted pieces from independent makers across Europe.",

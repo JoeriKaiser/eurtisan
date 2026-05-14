@@ -1,5 +1,6 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import ProductDetail from '#/components/ProductDetail'
+import { createPageMeta } from '#/lib/seo'
 import { getProductBySlug } from '#/lib/products'
 import { m } from '#/paraglide/messages'
 
@@ -17,12 +18,62 @@ export const Route = createFileRoute('/products/$productSlug')({
   },
   head: ({ loaderData }) => {
     const product = loaderData?.product
-    return {
-      meta: [
-        { title: product ? `${product.name} | Eurtisan` : m.meta_title_default() },
-        { name: 'description', content: product?.description ?? '' },
-      ],
+    if (!product) {
+      const { meta, links } = createPageMeta({
+        title: m.meta_title_default(),
+        description: m.meta_default_description(),
+        canonicalPath: '/',
+      })
+      return { meta, links }
     }
+
+    const title = `${product.name} | Eurtisan`
+    const description = product.description ?? m.meta_default_description()
+    const canonicalPath = `/products/${product.slug}`
+
+    // Primary image (first by sortOrder)
+    const primaryImage = product.images.length > 0
+      ? product.images[0].url
+      : undefined
+
+    // Price in decimal string for OG (e.g. "29.99")
+    const priceAmount = (product.priceCents / 100).toFixed(2)
+
+    // JSON-LD Product structured data
+    const jsonLd = {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      name: product.name,
+      description: product.description ?? '',
+      ...(primaryImage ? { image: primaryImage } : {}),
+      ...(product.categoryName ? { category: product.categoryName } : {}),
+      offers: {
+        '@type': 'Offer',
+        price: priceAmount,
+        priceCurrency: 'EUR',
+        availability: product.stockCount > 0
+          ? 'https://schema.org/InStock'
+          : 'https://schema.org/OutOfStock',
+      },
+      ...(product.shopName ? {
+        brand: {
+          '@type': 'Brand',
+          name: product.shopName,
+        },
+      } : {}),
+    }
+
+    const { meta, links, script } = createPageMeta({
+      title,
+      description,
+      canonicalPath,
+      ogType: 'product',
+      ogImageUrl: primaryImage,
+      productPrice: { amount: priceAmount, currency: 'EUR' },
+      jsonLd,
+    })
+
+    return { meta, links, script }
   },
   component: ProductDetailPage,
 })
