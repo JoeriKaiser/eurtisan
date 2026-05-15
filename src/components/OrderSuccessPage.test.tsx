@@ -16,6 +16,10 @@ vi.mock('#/paraglide/messages', () => ({
   m: {
     order_success_title: () => 'Order placed successfully',
     order_success_description: () => 'Thank you for your purchase!',
+    order_pending_title: () => 'Confirming payment…',
+    order_pending_description: () => "We're waiting for your payment to be confirmed.",
+    order_failed_title: () => 'Payment failed',
+    order_failed_description: () => 'Your payment could not be processed.',
     order_success_order_id: () => 'Order ID',
     order_success_items: () => 'Ordered items',
     order_success_continue_shopping: () => 'Continue shopping',
@@ -26,11 +30,11 @@ vi.mock('#/paraglide/messages', () => ({
 
 import type { OrderDetail } from '#/lib/orders.server'
 
-function makeOrder(): OrderDetail {
+function makeOrder(status: OrderDetail['status'] = 'paid'): OrderDetail {
   return {
     id: 'order-123',
     totalCents: 2500,
-    status: 'pending_payment',
+    status,
     createdAt: new Date('2026-05-10T12:00:00Z'),
     cancelledAt: null,
     cancellationReason: null,
@@ -49,7 +53,7 @@ function makeOrder(): OrderDetail {
         shippingMethod: 'standard',
         shippingCostCents: 500,
         subtotalCents: 2000,
-        status: 'pending_payment',
+        status,
         trackingNumber: null,
         trackingUrl: null,
         deliveredAt: null,
@@ -69,24 +73,24 @@ function makeOrder(): OrderDetail {
 }
 
 describe('OrderSuccessPage', () => {
-  it('renders success title and description', () => {
-    render(<OrderSuccessPage order={makeOrder()} />)
+  it('renders success title and description for paid orders', () => {
+    render(<OrderSuccessPage order={makeOrder('paid')} />)
     expect(screen.getByRole('heading', { name: 'Order placed successfully' })).toBeDefined()
     expect(screen.getByText('Thank you for your purchase!')).toBeDefined()
   })
 
   it('renders order id', () => {
-    render(<OrderSuccessPage order={makeOrder()} />)
+    render(<OrderSuccessPage order={makeOrder('paid')} />)
     expect(screen.getByText('order-123')).toBeDefined()
   })
 
   it('renders total', () => {
-    render(<OrderSuccessPage order={makeOrder()} />)
+    render(<OrderSuccessPage order={makeOrder('paid')} />)
     expect(screen.getByText('€25,00')).toBeDefined()
   })
 
   it('renders shop name and items', () => {
-    render(<OrderSuccessPage order={makeOrder()} />)
+    render(<OrderSuccessPage order={makeOrder('paid')} />)
     expect(screen.getByText('Test Shop')).toBeDefined()
     expect(screen.getAllByText('Vase').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText('€10,00 × 2')).toBeDefined()
@@ -94,17 +98,17 @@ describe('OrderSuccessPage', () => {
   })
 
   it('renders shipping method and cost', () => {
-    render(<OrderSuccessPage order={makeOrder()} />)
+    render(<OrderSuccessPage order={makeOrder('paid')} />)
     expect(screen.getByText(/standard — €5,00/i)).toBeDefined()
   })
 
   it('renders continue shopping button', () => {
-    render(<OrderSuccessPage order={makeOrder()} />)
+    render(<OrderSuccessPage order={makeOrder('paid')} />)
     expect(screen.getByRole('link', { name: 'Continue shopping' })).toBeDefined()
   })
 
   it('renders multiple shops', () => {
-    const order = makeOrder()
+    const order = makeOrder('paid')
     order.shops.push({
       shopOrderId: 'so-2',
       shopId: 'shop-2',
@@ -133,5 +137,45 @@ describe('OrderSuccessPage', () => {
     expect(screen.getByText('Test Shop')).toBeDefined()
     expect(screen.getByText('Second Shop')).toBeDefined()
     expect(screen.getAllByText('Bowl').length).toBeGreaterThanOrEqual(1)
+  })
+
+  describe('pending payment state', () => {
+    it('renders pending title and description', () => {
+      render(<OrderSuccessPage order={makeOrder('pending_payment')} />)
+      expect(screen.getByRole('heading', { name: 'Confirming payment…' })).toBeDefined()
+      expect(screen.getByText("We're waiting for your payment to be confirmed.")).toBeDefined()
+    })
+
+    it('still renders order details while pending', () => {
+      render(<OrderSuccessPage order={makeOrder('pending_payment')} />)
+      expect(screen.getByText('order-123')).toBeDefined()
+      expect(screen.getByText('€25,00')).toBeDefined()
+      expect(screen.getByText('Test Shop')).toBeDefined()
+    })
+
+    it('renders continue shopping button while pending', () => {
+      render(<OrderSuccessPage order={makeOrder('pending_payment')} />)
+      expect(screen.getByRole('link', { name: 'Continue shopping' })).toBeDefined()
+    })
+  })
+
+  describe('cancelled state', () => {
+    it('renders failed title and description', () => {
+      render(<OrderSuccessPage order={makeOrder('cancelled')} />)
+      expect(screen.getByRole('heading', { name: 'Payment failed' })).toBeDefined()
+      expect(screen.getByText('Your payment could not be processed.')).toBeDefined()
+    })
+
+    it('still renders order details when cancelled', () => {
+      render(<OrderSuccessPage order={makeOrder('cancelled')} />)
+      expect(screen.getByText('order-123')).toBeDefined()
+      expect(screen.getByText('€25,00')).toBeDefined()
+      expect(screen.getByText('Test Shop')).toBeDefined()
+    })
+
+    it('renders continue shopping button when cancelled', () => {
+      render(<OrderSuccessPage order={makeOrder('cancelled')} />)
+      expect(screen.getByRole('link', { name: 'Continue shopping' })).toBeDefined()
+    })
   })
 })

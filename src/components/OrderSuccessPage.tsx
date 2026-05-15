@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { CheckCircle2, ImageOff } from 'lucide-react'
+import { CheckCircle2, ImageOff, Loader2, XCircle } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import type { OrderDetail } from '#/lib/orders.server'
 import { formatPriceEUR } from '#/lib/pricing'
@@ -10,17 +10,61 @@ export interface OrderSuccessPageProps {
 }
 
 export default function OrderSuccessPage({ order }: OrderSuccessPageProps) {
+  const isPending = order.status === 'pending_payment'
+  const isCancelled = order.status === 'cancelled'
+  const isPaid = order.status === 'paid'
+
   return (
     <main className='page-wrap px-4 pb-16 pt-14'>
       <div className='mx-auto max-w-2xl'>
         <div className='mb-8 text-center'>
-          <div className='mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-success-subtle text-success'>
-            <CheckCircle2 size={32} aria-hidden='true' />
-          </div>
-          <h1 className='display-title mb-2 text-2xl font-bold text-text-primary sm:text-3xl'>
-            {m.order_success_title()}
-          </h1>
-          <p className='text-text-secondary'>{m.order_success_description()}</p>
+          {isPaid && (
+            <>
+              <div className='mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-success-subtle text-success'>
+                <CheckCircle2 size={32} aria-hidden='true' />
+              </div>
+              <h1 className='display-title mb-2 text-2xl font-bold text-text-primary sm:text-3xl'>
+                {m.order_success_title()}
+              </h1>
+              <p className='text-text-secondary'>{m.order_success_description()}</p>
+            </>
+          )}
+
+          {isPending && (
+            <>
+              <div className='mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-warning-subtle text-warning'>
+                <Loader2 size={32} aria-hidden='true' className='animate-spin' />
+              </div>
+              <h1 className='display-title mb-2 text-2xl font-bold text-text-primary sm:text-3xl'>
+                {m.order_pending_title()}
+              </h1>
+              <p className='text-text-secondary'>{m.order_pending_description()}</p>
+            </>
+          )}
+
+          {isCancelled && (
+            <>
+              <div className='mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-error-subtle text-error'>
+                <XCircle size={32} aria-hidden='true' />
+              </div>
+              <h1 className='display-title mb-2 text-2xl font-bold text-text-primary sm:text-3xl'>
+                {m.order_failed_title()}
+              </h1>
+              <p className='text-text-secondary'>{m.order_failed_description()}</p>
+            </>
+          )}
+
+          {!isPaid && !isPending && !isCancelled && (
+            <>
+              <div className='mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-success-subtle text-success'>
+                <CheckCircle2 size={32} aria-hidden='true' />
+              </div>
+              <h1 className='display-title mb-2 text-2xl font-bold text-text-primary sm:text-3xl'>
+                {m.order_success_title()}
+              </h1>
+              <p className='text-text-secondary'>{m.order_success_description()}</p>
+            </>
+          )}
         </div>
 
         <div className='island-shell rounded-2xl p-6'>
