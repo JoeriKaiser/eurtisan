@@ -1,9 +1,10 @@
-import { afterAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
 import {
   cart,
   cartItem,
+  dispute,
   notification,
   orderItem,
   payout,
@@ -14,8 +15,10 @@ import {
   shopOrder,
   user,
 } from '#/db/schema'
+import { brevoEmailProvider } from '#/integrations/email'
 
 import { createCheckoutQuery } from './checkout.server'
+import { openDisputeQuery, resolveDisputeQuery } from './disputes.server'
 import { getNotificationsQuery } from './notifications.server'
 import { markPayoutSentQuery } from './payouts.server'
 import { createReviewQuery } from './reviews.server'
@@ -23,6 +26,7 @@ import { markShopOrderShippedQuery, updateShopOrderStatusQuery } from './shop-or
 
 beforeEach(async () => {
   await db.delete(notification)
+  await db.delete(dispute)
   await db.delete(review)
   await db.delete(payout)
   await db.delete(orderItem)
@@ -33,10 +37,12 @@ beforeEach(async () => {
   await db.delete(product)
   await db.delete(shop)
   await db.delete(user)
+  vi.restoreAllMocks()
 })
 
 afterAll(async () => {
   await db.delete(notification)
+  await db.delete(dispute)
   await db.delete(review)
   await db.delete(payout)
   await db.delete(orderItem)
@@ -427,6 +433,553 @@ describe('updateShopOrderStatusQuery dispute notification', () => {
       platformOrderId: order.id,
       shopOrderId: so.id,
     })
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/*                            Email Notification Tests                        */
+/* -------------------------------------------------------------------------- */
+
+describe('createCheckoutQuery emails', () => {
+  it('sends order_confirmation email to buyer', async () => {
+    const sendSpy = vi.spyOn(brevoEmailProvider, 'sendTransactional').mockResolvedValue({
+      messageId: 'msg-test',
+      accepted: true,
+    })
+
+    const buyer = await seedUser({ id: 'buyer-1', email: 'buyer@example.com' })
+    const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
+    await db.insert(shop).values({
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      ownerId: seller.id,
+    })
+    await seedProduct()
+
+    const [c] = await db
+      .insert(cart)
+      .values({ userId: buyer.id, expiresAt: new Date(Date.now() + 3600_000) })
+      .returning()
+
+    await db.insert(cartItem).values({
+      cartId: c.id,
+      productId: 'prod-1',
+      quantity: 1,
+    })
+
+    await createCheckoutQuery(
+      {
+        cartId: c.id,
+        shippingSelections: [{ shopId: 'shop-1', method: 'standard' }],
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+      },
+      buyer.id,
+    )
+
+    const buyerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'buyer@example.com')
+    expect(buyerEmailCall).toBeDefined()
+    expect(buyerEmailCall![1]).toBe('order_confirmation')
+  })
+
+  it('sends order_confirmation email to seller', async () => {
+    const sendSpy = vi.spyOn(brevoEmailProvider, 'sendTransactional').mockResolvedValue({
+      messageId: 'msg-test',
+      accepted: true,
+    })
+
+    const buyer = await seedUser({ id: 'buyer-1', email: 'buyer@example.com' })
+    const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
+    await db.insert(shop).values({
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      ownerId: seller.id,
+    })
+    await seedProduct()
+
+    const [c] = await db
+      .insert(cart)
+      .values({ userId: buyer.id, expiresAt: new Date(Date.now() + 3600_000) })
+      .returning()
+
+    await db.insert(cartItem).values({
+      cartId: c.id,
+      productId: 'prod-1',
+      quantity: 1,
+    })
+
+    await createCheckoutQuery(
+      {
+        cartId: c.id,
+        shippingSelections: [{ shopId: 'shop-1', method: 'standard' }],
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+      },
+      buyer.id,
+    )
+
+    const sellerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'seller@example.com')
+    expect(sellerEmailCall).toBeDefined()
+    expect(sellerEmailCall![1]).toBe('order_confirmation')
+  })
+
+  it('does not break checkout when email send fails', async () => {
+    vi.spyOn(brevoEmailProvider, 'sendTransactional').mockRejectedValue(
+      new Error('Simulated email failure'),
+    )
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const buyer = await seedUser({ id: 'buyer-1', email: 'buyer@example.com' })
+    const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
+    await db.insert(shop).values({
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      ownerId: seller.id,
+    })
+    await seedProduct()
+
+    const [c] = await db
+      .insert(cart)
+      .values({ userId: buyer.id, expiresAt: new Date(Date.now() + 3600_000) })
+      .returning()
+
+    await db.insert(cartItem).values({
+      cartId: c.id,
+      productId: 'prod-1',
+      quantity: 1,
+    })
+
+    const result = await createCheckoutQuery(
+      {
+        cartId: c.id,
+        shippingSelections: [{ shopId: 'shop-1', method: 'standard' }],
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+      },
+      buyer.id,
+    )
+
+    expect(result.platformOrderId).toBeDefined()
+    expect(result.checkoutUrl).toBeDefined()
+    consoleSpy.mockRestore()
+  })
+})
+
+describe('markShopOrderShippedQuery emails', () => {
+  it('sends shipping_notification email to buyer', async () => {
+    const sendSpy = vi.spyOn(brevoEmailProvider, 'sendTransactional').mockResolvedValue({
+      messageId: 'msg-test',
+      accepted: true,
+    })
+
+    const buyer = await seedUser({ id: 'buyer-1', email: 'buyer@example.com' })
+    const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
+    await db.insert(shop).values({
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      ownerId: seller.id,
+    })
+    await seedProduct()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: buyer.id,
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 1000,
+        status: 'paid',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 500,
+        subtotalCents: 1000,
+        status: 'paid',
+      })
+      .returning()
+
+    await markShopOrderShippedQuery(so.id, { trackingNumber: 'TRACK-123' })
+
+    const buyerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'buyer@example.com')
+    expect(buyerEmailCall).toBeDefined()
+    expect(buyerEmailCall![1]).toBe('shipping_notification')
+    expect(buyerEmailCall![2]).toMatchObject({
+      trackingNumber: 'TRACK-123',
+      carrier: 'Mondial Relay',
+    })
+  })
+
+  it('does not break markShopOrderShippedQuery when email send fails', async () => {
+    vi.spyOn(brevoEmailProvider, 'sendTransactional').mockRejectedValue(
+      new Error('Simulated email failure'),
+    )
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const buyer = await seedUser({ id: 'buyer-1', email: 'buyer@example.com' })
+    const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
+    await db.insert(shop).values({
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      ownerId: seller.id,
+    })
+    await seedProduct()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: buyer.id,
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 1000,
+        status: 'paid',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 500,
+        subtotalCents: 1000,
+        status: 'paid',
+      })
+      .returning()
+
+    const result = await markShopOrderShippedQuery(so.id, { trackingNumber: 'TRACK-123' })
+
+    expect(result.status).toBe('shipped')
+    expect(result.trackingNumber).toBe('TRACK-123')
+    consoleSpy.mockRestore()
+  })
+})
+
+describe('dispute email notifications', () => {
+  it('sends dispute_update email when dispute is opened via openDisputeQuery', async () => {
+    const sendSpy = vi.spyOn(brevoEmailProvider, 'sendTransactional').mockResolvedValue({
+      messageId: 'msg-test',
+      accepted: true,
+    })
+
+    const buyer = await seedUser({ id: 'buyer-1', email: 'buyer@example.com' })
+    const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
+    await db.insert(shop).values({
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      ownerId: seller.id,
+    })
+
+    const [po] = await db
+      .insert(platformOrder)
+      .values({
+        userId: buyer.id,
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 1000,
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: po.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 500,
+        subtotalCents: 1000,
+        status: 'delivered',
+        deliveredAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+      })
+      .returning()
+
+    const disputeResult = await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Damaged', description: 'Box crushed' },
+      buyer.id,
+    )
+
+    const buyerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'buyer@example.com')
+    expect(buyerEmailCall).toBeDefined()
+    expect(buyerEmailCall![1]).toBe('dispute_update')
+    expect(buyerEmailCall![2]).toMatchObject({
+      status: 'opened',
+      message: 'Damaged',
+    })
+    expect(buyerEmailCall![2].disputeUrl).toContain(`/disputes/${disputeResult.id}`)
+  })
+
+  it('sends dispute_update email when dispute is opened via updateShopOrderStatusQuery', async () => {
+    const sendSpy = vi.spyOn(brevoEmailProvider, 'sendTransactional').mockResolvedValue({
+      messageId: 'msg-test',
+      accepted: true,
+    })
+
+    const buyer = await seedUser({ id: 'buyer-1', email: 'buyer@example.com' })
+    const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
+    await db.insert(shop).values({
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      ownerId: seller.id,
+    })
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: buyer.id,
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 1000,
+        status: 'shipped',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 500,
+        subtotalCents: 1000,
+        status: 'shipped',
+      })
+      .returning()
+
+    await updateShopOrderStatusQuery(so.id, { status: 'disputed' })
+
+    const buyerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'buyer@example.com')
+    expect(buyerEmailCall).toBeDefined()
+    expect(buyerEmailCall![1]).toBe('dispute_update')
+    expect(buyerEmailCall![2]).toMatchObject({
+      status: 'opened',
+    })
+  })
+
+  it('sends dispute_update emails to buyer and seller on resolve', async () => {
+    const sendSpy = vi.spyOn(brevoEmailProvider, 'sendTransactional').mockResolvedValue({
+      messageId: 'msg-test',
+      accepted: true,
+    })
+
+    const buyer = await seedUser({ id: 'buyer-1', email: 'buyer@example.com' })
+    const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
+    await db.insert(shop).values({
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      ownerId: seller.id,
+    })
+
+    const [po] = await db
+      .insert(platformOrder)
+      .values({
+        userId: buyer.id,
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 1000,
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: po.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 500,
+        subtotalCents: 1000,
+        status: 'delivered',
+        deliveredAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+      })
+      .returning()
+
+    const d = await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
+      buyer.id,
+    )
+
+    sendSpy.mockClear()
+
+    await resolveDisputeQuery(d.id, { resolution: 'close' })
+
+    const buyerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'buyer@example.com')
+    const sellerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'seller@example.com')
+
+    expect(buyerEmailCall).toBeDefined()
+    expect(buyerEmailCall![1]).toBe('dispute_update')
+    expect(sellerEmailCall).toBeDefined()
+    expect(sellerEmailCall![1]).toBe('dispute_update')
+  })
+
+  it('does not break dispute resolution when email send fails', async () => {
+    vi.spyOn(brevoEmailProvider, 'sendTransactional').mockRejectedValue(
+      new Error('Simulated email failure'),
+    )
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const buyer = await seedUser({ id: 'buyer-1', email: 'buyer@example.com' })
+    const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
+    await db.insert(shop).values({
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      ownerId: seller.id,
+    })
+
+    const [po] = await db
+      .insert(platformOrder)
+      .values({
+        userId: buyer.id,
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 1000,
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: po.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 500,
+        subtotalCents: 1000,
+        status: 'delivered',
+        deliveredAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+      })
+      .returning()
+
+    const d = await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
+      buyer.id,
+    )
+
+    const result = await resolveDisputeQuery(d.id, { resolution: 'close' })
+
+    expect(result.status).toBe('resolved')
+    expect(result.resolution).toBe('close')
+    consoleSpy.mockRestore()
   })
 })
 

@@ -2,8 +2,17 @@ import { asc, count, eq } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import { z } from 'zod'
 import { db } from '#/db/index'
-import { dispute, disputeMessage, orderItem, platformOrder, shop, shopOrder, user } from '#/db/schema'
+import {
+  dispute,
+  disputeMessage,
+  orderItem,
+  platformOrder,
+  shop,
+  shopOrder,
+  user,
+} from '#/db/schema'
 import { molliePaymentProvider } from '#/integrations/mollie'
+import { getBaseUrl } from './env.server'
 import type { OrderStatus } from './orders.server'
 import { recalcPlatformOrderStatus } from './shop-orders.server'
 
@@ -202,7 +211,7 @@ export async function openDisputeQuery(
     )
   }
 
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     let created: typeof dispute.$inferSelect
     try {
       const result = await tx
@@ -253,6 +262,34 @@ export async function openDisputeQuery(
       createdAt: created.createdAt,
     }
   })
+
+  // Send dispute update email after the transaction
+  try {
+    const { sendNotificationEmail } = await import('./notifications.server')
+    const [buyerRecord] = await db
+      .select({ name: user.name })
+      .from(user)
+      .where(eq(user.id, buyerUserId))
+      .limit(1)
+    const [shopRecord] = await db
+      .select()
+      .from(shop)
+      .where(eq(shop.id, shopOrderRecord.shopId))
+      .limit(1)
+
+    await sendNotificationEmail(buyerUserId, 'dispute_update', {
+      orderNumber: input.shopOrderId.slice(0, 8),
+      buyerName: buyerRecord?.name,
+      shopName: shopRecord?.name ?? 'Eurtisan',
+      status: 'opened',
+      message: input.reason,
+      disputeUrl: `${getBaseUrl()}/disputes/${result.id}`,
+    })
+  } catch {
+    // Email errors must not break the primary business flow
+  }
+
+  return result
 }
 
 export async function addDisputeMessageQuery(
@@ -642,6 +679,58 @@ export async function resolveDisputeQuery(
       updatedAt: updated.updatedAt,
     }
   })
+
+  // Send dispute update emails after the transaction
+  try {
+    const { sendNotificationEmail } = await import('./notifications.server')
+    const [buyerRecord] = await db
+      .select({ name: user.name })
+      .from(user)
+      .where(eq(user.id, disputeRecord.buyerUserId))
+      .limit(1)
+    const [sellerRecord] = await db
+      .select({ name: user.name })
+      .from(user)
+      .where(eq(user.id, creatorUserId ?? ''))
+      .limit(1)
+    const [shopRecord] = await db
+      .select()
+      .from(shop)
+      .where(eq(shop.id, shopOrderRecord.shopId))
+      .limit(1)
+
+    const baseUrl = getBaseUrl()
+    const message =
+      input.resolution === 'close'
+        ? 'The dispute has been closed.'
+        : input.resolution === 'full_refund'
+          ? 'A full refund has been issued.'
+          : input.resolution === 'partial_refund'
+            ? `A partial refund has been issued.`
+            : 'The dispute has been resolved.'
+
+    await sendNotificationEmail(disputeRecord.buyerUserId, 'dispute_update', {
+      orderNumber: disputeRecord.shopOrderId.slice(0, 8),
+      buyerName: buyerRecord?.name,
+      shopName: shopRecord?.name ?? 'Eurtisan',
+      status: input.resolution,
+      message,
+      disputeUrl: `${baseUrl}/disputes/${disputeId}`,
+    })
+
+    if (creatorUserId) {
+      await sendNotificationEmail(creatorUserId, 'dispute_update', {
+        orderNumber: disputeRecord.shopOrderId.slice(0, 8),
+        buyerName: sellerRecord?.name,
+        shopName: shopRecord?.name ?? 'Eurtisan',
+        status: input.resolution,
+        message,
+        disputeUrl: `${baseUrl}/disputes/${disputeId}`,
+      })
+    }
+  } catch {
+    // Email errors must not break the primary business flow
+  }
 
   // 2. Process refund through Mollie (outside the transaction — external API call).
   //    Refund failures are logged but must not undo the dispute resolution.

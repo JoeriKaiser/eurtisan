@@ -1,9 +1,18 @@
 import { and, count, desc, eq, ilike, or, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '#/db/index'
-import { orderItem, platformOrder, shop, shippingLabel, shopOrder, user } from '#/db/schema'
+import {
+  dispute,
+  orderItem,
+  platformOrder,
+  shippingLabel,
+  shop,
+  shopOrder,
+  user,
+} from '#/db/schema'
 import { mondialRelayProvider } from '#/integrations/shipping'
 import type { ShippingAddress } from './checkout.server'
+import { getBaseUrl } from './env.server'
 import type { OrderStatus } from './orders.server'
 
 function maskEmail(email: string): string {
@@ -432,16 +441,26 @@ export async function markShopOrderShippedQuery(
   // Only notify on actual status transition, not idempotent tracking updates
   if (!wasAlreadyShipped && result.status === 'shipped') {
     try {
-      const { createNotification } = await import('./notifications.server')
+      const { createNotification, sendNotificationEmail } = await import('./notifications.server')
       const order = await getShopOrderQuery(shopOrderId)
       if (order) {
         await createNotification(order.buyer.id, 'order_shipped', {
           platformOrderId: order.platformOrderId,
           shopOrderId,
         })
+
+        const [shopRecord] = await db.select().from(shop).where(eq(shop.id, order.shopId)).limit(1)
+        await sendNotificationEmail(order.buyer.id, 'shipping_notification', {
+          orderNumber: shopOrderId.slice(0, 8),
+          buyerName: order.buyer.name,
+          shopName: shopRecord?.name ?? 'Eurtisan',
+          trackingNumber: order.trackingNumber ?? undefined,
+          carrier: 'Mondial Relay',
+          trackingUrl: order.trackingUrl ?? undefined,
+        })
       }
     } catch {
-      // Notification errors must not break the primary business transaction
+      // Notification/email errors must not break the primary business transaction
     }
   }
 
@@ -476,9 +495,12 @@ export async function createShippingLabelForOrderQuery(
     })
   }
 
-  const origin = shopRecord.shippingOrigin as
-    | { street: string; city: string; postalCode: string; country: string }
-    | null
+  const origin = shopRecord.shippingOrigin as {
+    street: string
+    city: string
+    postalCode: string
+    country: string
+  } | null
 
   if (!origin) {
     throw new Response(
@@ -531,7 +553,9 @@ export async function createShippingLabelForOrderQuery(
       JSON.stringify({
         error: 'Service Unavailable',
         message:
-          err instanceof Error ? err.message : 'Shipping label generation failed. Please try again.',
+          err instanceof Error
+            ? err.message
+            : 'Shipping label generation failed. Please try again.',
       }),
       { status: 503, headers: { 'Content-Type': 'application/json' } },
     )
@@ -665,16 +689,35 @@ export async function updateShopOrderStatusQuery(
   // Notify buyer when a dispute is opened
   if (input.status === 'disputed') {
     try {
-      const { createNotification } = await import('./notifications.server')
+      const { createNotification, sendNotificationEmail } = await import('./notifications.server')
       const order = await getShopOrderQuery(shopOrderId)
       if (order) {
         await createNotification(order.buyer.id, 'dispute_opened', {
           platformOrderId: order.platformOrderId,
           shopOrderId,
         })
+
+        const [disputeRecord] = await db
+          .select()
+          .from(dispute)
+          .where(eq(dispute.shopOrderId, shopOrderId))
+          .limit(1)
+
+        const [shopRecord] = await db.select().from(shop).where(eq(shop.id, order.shopId)).limit(1)
+
+        const baseUrl = getBaseUrl()
+        await sendNotificationEmail(order.buyer.id, 'dispute_update', {
+          orderNumber: shopOrderId.slice(0, 8),
+          buyerName: order.buyer.name,
+          shopName: shopRecord?.name ?? 'Eurtisan',
+          status: 'opened',
+          disputeUrl: disputeRecord
+            ? `${baseUrl}/disputes/${disputeRecord.id}`
+            : `${baseUrl}/orders/${order.platformOrderId}`,
+        })
       }
     } catch {
-      // Notification errors must not break the primary business transaction
+      // Notification/email errors must not break the primary business transaction
     }
   }
 

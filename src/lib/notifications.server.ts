@@ -1,7 +1,9 @@
 import { and, count, desc, eq, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '#/db/index'
-import { notification } from '#/db/schema'
+import { notification, user } from '#/db/schema'
+import { createEmailProvider } from '#/integrations/email'
+import type { EmailTemplate } from '#/lib/email-provider'
 
 export const notificationTypeEnum = z.enum([
   'order_placed',
@@ -75,6 +77,44 @@ export async function createNotification(
     data: created.data as Record<string, unknown>,
     readAt: created.readAt,
     createdAt: created.createdAt,
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                            Notification Email                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Fire-and-forget email delivery for a notification recipient.
+ *
+ * Looks up the user's email address, renders the appropriate template, and
+ * hands the message to the active email provider. All errors are caught and
+ * logged so the enclosing business flow never breaks.
+ */
+export async function sendNotificationEmail(
+  userId: string,
+  template: EmailTemplate,
+  data: Record<string, unknown>,
+): Promise<void> {
+  try {
+    const [userRecord] = await db
+      .select({ email: user.email, name: user.name })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1)
+
+    if (!userRecord?.email) {
+      console.warn(`[NotificationEmail] No email found for user ${userId}`)
+      return
+    }
+
+    const provider = createEmailProvider()
+    await provider.sendTransactional(userRecord.email, template, {
+      ...data,
+      buyerName: data.buyerName ?? userRecord.name ?? 'Valued Customer',
+    })
+  } catch (err) {
+    console.error('[NotificationEmail] Failed to send email:', err)
   }
 }
 

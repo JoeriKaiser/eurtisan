@@ -9,9 +9,9 @@ import {
   productImage,
   shop,
   shopOrder,
+  user,
 } from '#/db/schema'
 import { molliePaymentProvider } from '#/integrations/mollie'
-import type { PaymentProvider } from './payment-provider'
 import type {
   Package,
   ShippingAddress as ProviderShippingAddress,
@@ -25,6 +25,8 @@ import {
   releaseStockInTx,
   reserveStockInTx,
 } from './inventory.server'
+import type { PaymentProvider } from './payment-provider'
+import { formatPriceEUR } from './pricing'
 
 /* -------------------------------------------------------------------------- */
 /*                                  Types                                     */
@@ -692,11 +694,45 @@ export async function createCheckoutWithProvider(
 
   // 3. Create notifications after the transaction so errors don't break checkout
   try {
-    const { createNotification } = await import('./notifications.server')
+    const { createNotification, sendNotificationEmail } = await import('./notifications.server')
+    const baseUrl = getBaseUrl()
+
+    // Fetch buyer details and all order items for the buyer email
+    const [buyerRecord] = await db
+      .select({ name: user.name })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1)
+
+    const allOrderItems = await db
+      .select({
+        productName: orderItem.productName,
+        quantity: orderItem.quantity,
+        totalCents: orderItem.totalCents,
+        shopName: shop.name,
+      })
+      .from(orderItem)
+      .innerJoin(shopOrder, eq(orderItem.shopOrderId, shopOrder.id))
+      .innerJoin(shop, eq(shopOrder.shopId, shop.id))
+      .where(eq(shopOrder.platformOrderId, platformOrderId))
+
+    const buyerItems = allOrderItems.map((item) => ({
+      name: item.productName,
+      quantity: item.quantity,
+      price: formatPriceEUR(item.totalCents),
+    }))
 
     // Notify buyer
     await createNotification(userId, 'order_placed', {
       platformOrderId,
+    })
+    await sendNotificationEmail(userId, 'order_confirmation', {
+      orderNumber: platformOrderId.slice(0, 8),
+      buyerName: buyerRecord?.name,
+      shopName: 'Eurtisan',
+      items: buyerItems,
+      total: formatPriceEUR(result.grandTotalCents),
+      orderUrl: `${baseUrl}/orders/${platformOrderId}`,
     })
 
     // Notify each seller
@@ -707,10 +743,41 @@ export async function createCheckoutWithProvider(
           platformOrderId,
           shopOrderId: so.shopOrderId,
         })
+
+        const sellerItems = allOrderItems
+          .filter((item) => item.shopName === shopRecord[0].name)
+          .map((item) => ({
+            name: item.productName,
+            quantity: item.quantity,
+            price: formatPriceEUR(item.totalCents),
+          }))
+
+        const [sellerRecord] = await db
+          .select({ name: user.name })
+          .from(user)
+          .where(eq(user.id, shopRecord[0].ownerId))
+          .limit(1)
+
+        await sendNotificationEmail(shopRecord[0].ownerId, 'order_confirmation', {
+          orderNumber: so.shopOrderId.slice(0, 8),
+          buyerName: sellerRecord?.name,
+          shopName: shopRecord[0].name,
+          items: sellerItems,
+          total: formatPriceEUR(
+            sellerItems.reduce((sum, item) => {
+              const cents =
+                allOrderItems.find(
+                  (i) => i.productName === item.name && i.shopName === shopRecord[0].name,
+                )?.totalCents ?? 0
+              return sum + cents
+            }, 0),
+          ),
+          orderUrl: `${baseUrl}/studio/${so.shopId}/orders/${so.shopOrderId}`,
+        })
       }
     }
   } catch {
-    // Notification errors must not break the primary checkout transaction
+    // Notification/email errors must not break the primary checkout transaction
   }
 
   return { platformOrderId, checkoutUrl }
