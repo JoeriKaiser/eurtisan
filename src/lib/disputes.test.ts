@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import { afterAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
 import {
@@ -13,6 +13,8 @@ import {
   shopOrder,
   user,
 } from '#/db/schema'
+
+import { molliePaymentProvider } from '#/integrations/mollie'
 
 import {
   addDisputeMessageQuery,
@@ -79,6 +81,7 @@ async function seedDeliveredOrder(overrides?: {
   deliveredAt?: Date
   subtotalCents?: number
   shippingCostCents?: number
+  molliePaymentId?: string
 }) {
   const u = overrides?.userId ?? 'user-1'
   const [order] = await db
@@ -100,6 +103,7 @@ async function seedDeliveredOrder(overrides?: {
         country: 'DE',
       },
       totalCents: 2500,
+      molliePaymentId: overrides?.molliePaymentId ?? null,
     })
     .returning()
 
@@ -1008,5 +1012,119 @@ describe('resolveDisputeQuery', () => {
       resolution: 'partial_refund',
       refundCents: 500,
     })
+  })
+
+  it('calls refundPayment for full_refund resolution', async () => {
+    await seedUser()
+    await seedShop()
+
+    const refundSpy = vi.spyOn(molliePaymentProvider, 'refundPayment').mockResolvedValue(undefined)
+
+    const { shopOrder: so } = await seedDeliveredOrder({ molliePaymentId: 'tr_mock_000001' })
+    const d = await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
+      'user-1',
+    )
+
+    await resolveDisputeQuery(d.id, { resolution: 'full_refund' })
+
+    expect(refundSpy).toHaveBeenCalledTimes(1)
+    expect(refundSpy).toHaveBeenCalledWith('tr_mock_000001', 2500)
+
+    refundSpy.mockRestore()
+  })
+
+  it('calls refundPayment for partial_refund resolution', async () => {
+    await seedUser()
+    await seedShop()
+
+    const refundSpy = vi.spyOn(molliePaymentProvider, 'refundPayment').mockResolvedValue(undefined)
+
+    const { shopOrder: so } = await seedDeliveredOrder({ molliePaymentId: 'tr_mock_000001' })
+    const d = await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
+      'user-1',
+    )
+
+    await resolveDisputeQuery(d.id, { resolution: 'partial_refund', refundCents: 1000 })
+
+    expect(refundSpy).toHaveBeenCalledTimes(1)
+    expect(refundSpy).toHaveBeenCalledWith('tr_mock_000001', 1000)
+
+    refundSpy.mockRestore()
+  })
+
+  it('logs but does not roll back when refundPayment fails', async () => {
+    await seedUser()
+    await seedShop()
+
+    const refundSpy = vi
+      .spyOn(molliePaymentProvider, 'refundPayment')
+      .mockRejectedValue(new Error('Mollie refund error'))
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const { order, shopOrder: so } = await seedDeliveredOrder({ molliePaymentId: 'tr_mock_000001' })
+    const d = await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
+      'user-1',
+    )
+
+    const result = await resolveDisputeQuery(d.id, { resolution: 'full_refund' })
+
+    expect(result.status).toBe('resolved')
+    expect(result.resolution).toBe('full_refund')
+    expect(result.refundCents).toBe(2500)
+
+    const [updatedSo] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
+    expect(updatedSo.status).toBe('refunded')
+
+    const [updatedPo] = await db.select().from(platformOrder).where(eq(platformOrder.id, order.id))
+    expect(updatedPo.status).toBe('refunded')
+
+    expect(refundSpy).toHaveBeenCalledTimes(1)
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Mollie refund failed for payment tr_mock_000001'),
+    )
+
+    refundSpy.mockRestore()
+    consoleSpy.mockRestore()
+  })
+
+  it('does not call refundPayment for close resolution', async () => {
+    await seedUser()
+    await seedShop()
+
+    const refundSpy = vi.spyOn(molliePaymentProvider, 'refundPayment').mockResolvedValue(undefined)
+
+    const { shopOrder: so } = await seedDeliveredOrder({ molliePaymentId: 'tr_mock_000001' })
+    const d = await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
+      'user-1',
+    )
+
+    await resolveDisputeQuery(d.id, { resolution: 'close' })
+
+    expect(refundSpy).not.toHaveBeenCalled()
+
+    refundSpy.mockRestore()
+  })
+
+  it('does not call refundPayment when molliePaymentId is null', async () => {
+    await seedUser()
+    await seedShop()
+
+    const refundSpy = vi.spyOn(molliePaymentProvider, 'refundPayment').mockResolvedValue(undefined)
+
+    const { shopOrder: so } = await seedDeliveredOrder()
+    const d = await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
+      'user-1',
+    )
+
+    await resolveDisputeQuery(d.id, { resolution: 'full_refund' })
+
+    expect(refundSpy).not.toHaveBeenCalled()
+
+    refundSpy.mockRestore()
   })
 })
