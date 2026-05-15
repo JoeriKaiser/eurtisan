@@ -73,15 +73,10 @@ export function ResponsiveImage({
     <div className={`relative overflow-hidden ${className ?? ''}`}>
       {/* Blur placeholder */}
       {placeholder === 'blur' && !isLoaded && (
-        <div
-          className='absolute inset-0 bg-[var(--sand)]'
-          style={{
-            backgroundImage: `url(${src}?w=40)`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            filter: 'blur(20px)',
-            transform: 'scale(1.1)',
-          }}
+        <img
+          src={`${src}?w=40`}
+          alt=''
+          className='absolute inset-0 h-full w-full scale-110 object-cover blur-[20px]'
           aria-hidden='true'
         />
       )}

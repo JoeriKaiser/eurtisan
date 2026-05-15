@@ -42,18 +42,8 @@ export default function HomePage({ categories, products, shops }: HomePageProps)
       <section className='relative overflow-hidden border-b border-border-default pt-20'>
         {/* Atmospheric background layers */}
         <div className='pointer-events-none absolute inset-0'>
-          <div
-            className='absolute -left-20 -top-20 h-[360px] w-[360px] rounded-full opacity-30'
-            style={{
-              background: 'radial-gradient(circle, oklch(62% 0.09 145 / 0.16), transparent 70%)',
-            }}
-          />
-          <div
-            className='absolute -bottom-20 -right-20 h-[400px] w-[400px] rounded-full opacity-25'
-            style={{
-              background: 'radial-gradient(circle, oklch(65% 0.1 175 / 0.12), transparent 70%)',
-            }}
-          />
+          <div className='absolute -left-20 -top-20 h-[360px] w-[360px] rounded-full opacity-30 radial-glow-moss' />
+          <div className='absolute -bottom-20 -right-20 h-[400px] w-[400px] rounded-full opacity-25 radial-glow-sage' />
         </div>
 
         <div className='page-wrap relative px-4 pb-10 pt-4 sm:pb-12 sm:pt-6 lg:pb-14 lg:pt-8'>
@@ -260,12 +250,7 @@ export default function HomePage({ categories, products, shops }: HomePageProps)
 
             {/* For makers — brand moment, committed */}
             <section className='relative overflow-hidden rounded-[2rem] border border-border-default bg-bg-inset px-6 py-14 sm:px-12 sm:py-20'>
-              <div
-                className='pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full opacity-30'
-                style={{
-                  background: 'radial-gradient(circle, oklch(62% 0.09 145 / 0.2), transparent 70%)',
-                }}
-              />
+              <div className='pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full opacity-30 radial-glow-moss-strong' />
               <div className='relative max-w-xl'>
                 <p className='island-kicker mb-4'>For makers</p>
                 <h2 className='display-title mb-4 text-3xl font-bold tracking-tight text-text-primary sm:text-4xl'>

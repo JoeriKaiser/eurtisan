@@ -15,6 +15,5 @@
     } else {
       root.setAttribute('data-theme', mode)
     }
-    root.style.colorScheme = resolved
   } catch (e) {}
 })()

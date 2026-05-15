@@ -1,7 +1,12 @@
 import { createStart, createMiddleware } from '@tanstack/react-start'
 import { buildCspHeader } from './lib/csp'
 
-const cspMiddleware = createMiddleware().server(async ({ next }) => {
+/** Core CSP middleware handler — extracted for testability. */
+export async function cspMiddlewareHandler({
+  next,
+}: {
+  next: () => Promise<{ response: Response }>
+}): Promise<{ response: Response }> {
   const result = await next()
   const response = result.response
 
@@ -15,8 +20,12 @@ const cspMiddleware = createMiddleware().server(async ({ next }) => {
   })
 
   return { ...result, response: newResponse }
-})
+}
 
+const cspMiddleware = createMiddleware().server(cspMiddlewareHandler)
+
+// startInstance is consumed by the TanStack Start Vite plugin at build time.
+// It has no explicit importers in source — the plugin discovers it via heuristics.
 export const startInstance = createStart(() => ({
   requestMiddleware: [cspMiddleware],
 }))

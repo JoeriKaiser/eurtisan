@@ -29,8 +29,6 @@ function applyThemeMode(mode: ThemeMode) {
   } else {
     document.documentElement.setAttribute('data-theme', mode)
   }
-
-  document.documentElement.style.colorScheme = resolved
 }
 
 export default function ThemeToggle() {

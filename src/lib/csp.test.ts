@@ -12,9 +12,10 @@ describe('buildCspHeader', () => {
     expect(csp).toContain("script-src 'self' 'unsafe-inline'")
   })
 
-  it('includes style-src with self and unsafe-inline', () => {
+  it('includes style-src with self only (no unsafe-inline)', () => {
     const csp = buildCspHeader()
-    expect(csp).toContain("style-src 'self' 'unsafe-inline'")
+    expect(csp).toContain("style-src 'self'")
+    expect(csp).not.toContain("style-src 'self' 'unsafe-inline'")
   })
 
   it('includes img-src with self and data only', () => {

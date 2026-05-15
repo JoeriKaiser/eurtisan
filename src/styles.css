@@ -311,6 +311,10 @@
   }
 }
 
+/* color-scheme is driven by class on <html> so it works under style-src 'self' */
+.light { color-scheme: light; }
+.dark { color-scheme: dark; }
+
 /* ─── Tailwind v4 Theme Registration ─── */
 @theme {
   /* Fonts */
@@ -579,6 +583,19 @@ pre code {
 .site-footer {
   border-top: 1px solid var(--ds-border-default);
   background: var(--ds-surface-default);
+}
+
+/* ─── Atmospheric radial glows ─── */
+.radial-glow-moss {
+  background: radial-gradient(circle, oklch(62% 0.09 145 / 0.16), transparent 70%);
+}
+
+.radial-glow-sage {
+  background: radial-gradient(circle, oklch(65% 0.1 175 / 0.12), transparent 70%);
+}
+
+.radial-glow-moss-strong {
+  background: radial-gradient(circle, oklch(62% 0.09 145 / 0.2), transparent 70%);
 }
 
 /* ─── Animation ─── */

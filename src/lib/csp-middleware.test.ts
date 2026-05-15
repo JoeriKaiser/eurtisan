@@ -1,14 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { buildCspHeader } from './csp'
-
-vi.mock('@tanstack/react-start', () => ({
-  createStart: (factory: () => any) => factory(),
-  createMiddleware: () => ({
-    server: (handler: any) => handler,
-  }),
-}))
-
-import { startInstance } from '../start'
+import { cspMiddlewareHandler } from '../start'
 
 describe('CSP middleware integration', () => {
   it('buildCspHeader produces a valid policy string', () => {
@@ -34,6 +26,8 @@ describe('CSP middleware integration', () => {
     expect(directiveMap.get('frame-ancestors')).toBe("'none'")
     expect(directiveMap.get('base-uri')).toBe("'self'")
     expect(directiveMap.get('form-action')).toBe("'self'")
+    expect(directiveMap.get('style-src')).toBe("'self'")
+    expect(directiveMap.get('script-src')).toBe("'self' 'unsafe-inline'")
   })
 
   it('does not contain eval-related unsafe directives', () => {
@@ -42,14 +36,13 @@ describe('CSP middleware integration', () => {
   })
 
   it('sets the Content-Security-Policy header on the response', async () => {
-    const handler = startInstance.requestMiddleware[0]
-    const originalResponse = new Response('ok', {
-      status: 200,
-      headers: { 'content-type': 'text/plain' },
-    })
-
-    const result = await handler({
-      next: async () => ({ response: originalResponse }),
+    const result = await cspMiddlewareHandler({
+      next: async () => ({
+        response: new Response('ok', {
+          status: 200,
+          headers: { 'content-type': 'text/plain' },
+        }),
+      }),
     })
     const csp = result.response.headers.get('content-security-policy')
 
@@ -61,17 +54,16 @@ describe('CSP middleware integration', () => {
   })
 
   it('preserves existing response headers while adding CSP', async () => {
-    const handler = startInstance.requestMiddleware[0]
-    const originalResponse = new Response('ok', {
-      status: 200,
-      headers: {
-        'content-type': 'application/json',
-        'x-custom': 'custom-value',
-      },
-    })
-
-    const result = await handler({
-      next: async () => ({ response: originalResponse }),
+    const result = await cspMiddlewareHandler({
+      next: async () => ({
+        response: new Response('ok', {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+            'x-custom': 'custom-value',
+          },
+        }),
+      }),
     })
     const headers = result.response.headers
 

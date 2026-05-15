@@ -6,20 +6,20 @@
  * - `script-src 'self' 'unsafe-inline'`
  *   TanStack Start injects inline hydration scripts during SSR (`window.$_TSR`
  *   bootstrap, streaming script buffers). These framework-internal scripts are
- *   required for the application to hydrate. Removing `'unsafe-inline'` would
- *   require a nonce-based approach, which needs custom server wiring to pass
- *   the nonce into `router.options.ssr.nonce` on every request. This is the
- *   recommended future migration path.
+ *   required for the application to hydrate. A nonce-based approach would
+ *   require custom server wiring to pass the nonce into
+ *   `router.options.ssr.nonce` on every request.
  *
- * - `style-src 'self' 'unsafe-inline'`
- *   React inline `style` props (e.g. dynamic width bars, background-image
- *   placeholders) generate inline `style` **attributes**. CSP nonces and hashes
- *   only apply to `<style>` **tags**, not to inline style attributes. A future
- *   refactor should move all inline styles to Tailwind utility classes or
- *   external CSS.
+ * - `style-src 'self'`
+ *   All React inline `style` props have been migrated to Tailwind utility
+ *   classes or external CSS. Dynamic widths (progress bars, distribution bars)
+ *   use SVG `<rect>` elements with presentation attributes, which are not
+ *   subject to `style-src`. The blur-up image placeholder uses an `<img>`
+ *   element with Tailwind `blur-[20px]` and `scale-110` classes.
  *
  * - JSON-LD structured data (`<script type="application/ld+json">`) is
- *   non-executable; it relies on the same `'unsafe-inline'` fallback.
+ *   non-executable; it relies on the same `'unsafe-inline'` fallback under
+ *   `script-src`.
  *
  * - `img-src 'self' data:`
  *   Product and shop images are self-hosted (`/uploads/...`). No external
@@ -70,7 +70,7 @@ export function buildCspHeader(): string {
   const directives: Record<string, string> = {
     'default-src': "'self'",
     'script-src': "'self' 'unsafe-inline'",
-    'style-src': "'self' 'unsafe-inline'",
+    'style-src': "'self'",
     'img-src': "'self' data:",
     'font-src': "'self' https://fonts.gstatic.com",
     'connect-src': Array.from(connectSrc).join(' '),

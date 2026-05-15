@@ -50,10 +50,13 @@ function DistributionBar({
       <span className='w-3 text-right tabular-nums text-[var(--ds-text-muted)]'>{rating}</span>
       <Star size={12} className='text-[--palette-ochre-400]' aria-hidden='true' />
       <div className='flex-1 h-2 rounded-full bg-[var(--ds-border-subtle)] overflow-hidden'>
-        <div
-          className='h-full rounded-full bg-[--palette-ochre-400] transition-all duration-500'
-          style={{ width: `${percentage}%` }}
-        />
+        <svg className='h-full w-full' preserveAspectRatio='none' viewBox='0 0 100 1'>
+          <rect
+            width={percentage}
+            height='1'
+            className='fill-[--palette-ochre-400]'
+          />
+        </svg>
       </div>
       <span className='w-6 text-right tabular-nums text-[var(--ds-text-muted)] text-xs'>
         {count}
