@@ -12,6 +12,7 @@ import { eq } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { platformOrder, shopOrder } from '#/db/schema'
 import { molliePaymentProvider } from '#/integrations/mollie'
+import { releaseStockInTx } from '#/lib/inventory.server'
 import type { PaymentProvider } from '#/lib/payment-provider'
 
 /** Expected webhook payload shape from Mollie. */
@@ -97,7 +98,7 @@ export async function processMollieWebhook(
     })
   }
 
-  // 5. Idempotency: skip if already processed
+  // 5. Idempotency: skip if already in a terminal state
   if (order.status !== 'pending_payment') {
     return new Response(JSON.stringify({ status: 'already_processed' }), {
       status: 200,
@@ -105,20 +106,51 @@ export async function processMollieWebhook(
     })
   }
 
-  // 6. Update order status to paid
-  await database.transaction(async (tx) => {
-    await tx
-      .update(platformOrder)
-      .set({ status: 'paid', updatedAt: new Date() })
-      .where(eq(platformOrder.id, order.id))
+  // 6. Query the actual payment status from the provider
+  const paymentStatus = await provider.getPaymentStatus(payload.id)
 
-    await tx
-      .update(shopOrder)
-      .set({ status: 'paid', updatedAt: new Date() })
-      .where(eq(shopOrder.platformOrderId, order.id))
-  })
+  if (paymentStatus === 'paid') {
+    await database.transaction(async (tx) => {
+      await tx
+        .update(platformOrder)
+        .set({ status: 'paid', updatedAt: new Date() })
+        .where(eq(platformOrder.id, order.id))
 
-  return new Response(JSON.stringify({ status: 'processed' }), {
+      await tx
+        .update(shopOrder)
+        .set({ status: 'paid', updatedAt: new Date() })
+        .where(eq(shopOrder.platformOrderId, order.id))
+    })
+
+    return new Response(JSON.stringify({ status: 'processed' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  if (paymentStatus === 'expired' || paymentStatus === 'failed' || paymentStatus === 'cancelled') {
+    await database.transaction(async (tx) => {
+      await tx
+        .update(platformOrder)
+        .set({ status: 'cancelled', cancelledAt: new Date(), updatedAt: new Date() })
+        .where(eq(platformOrder.id, order.id))
+
+      await tx
+        .update(shopOrder)
+        .set({ status: 'cancelled', updatedAt: new Date() })
+        .where(eq(shopOrder.platformOrderId, order.id))
+
+      await releaseStockInTx(tx, order.id)
+    })
+
+    return new Response(JSON.stringify({ status: 'cancelled' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  // Payment is still pending — acknowledge the webhook and wait for the next update
+  return new Response(JSON.stringify({ status: 'pending' }), {
     status: 200,
     headers: { 'Content-Type': 'application/json' },
   })
