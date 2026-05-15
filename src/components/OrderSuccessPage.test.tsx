@@ -57,6 +57,8 @@ function makeOrder(status: OrderDetail['status'] = 'paid'): OrderDetail {
         trackingNumber: null,
         trackingUrl: null,
         deliveredAt: null,
+        shippingLabel: null,
+        trackingStatus: null,
         items: [
           {
             id: 'item-1',
@@ -120,6 +122,8 @@ describe('OrderSuccessPage', () => {
       trackingNumber: 'TRACK123',
       trackingUrl: 'https://example.com/track',
       deliveredAt: null,
+      shippingLabel: null,
+      trackingStatus: null,
       items: [
         {
           id: 'item-2',

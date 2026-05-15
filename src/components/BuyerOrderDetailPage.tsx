@@ -1,5 +1,5 @@
 import { Link, useRouter } from '@tanstack/react-router'
-import { AlertTriangle, ArrowLeft, ImageOff, MapPin, Package, Star, Truck, X } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, ExternalLink, ImageOff, MapPin, Package, Star, Truck, X } from 'lucide-react'
 import { useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
@@ -16,6 +16,7 @@ import { openDispute } from '#/lib/disputes'
 import type { OrderDetail, OrderShopGroup, OrderStatus } from '#/lib/orders.server'
 import { statusBadgeVariant } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
+import { getCarrierTrackingUrl } from '#/lib/shipping'
 import { createReview } from '#/lib/reviews'
 import type { ReviewableItem } from '#/lib/reviews.server'
 import { m } from '#/paraglide/messages'
@@ -36,6 +37,28 @@ function isValidUrl(url: string | null): url is string {
   } catch {
     return false
   }
+}
+
+function formatCarrierName(carrier: string): string {
+  return carrier.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+function formatTrackingStatus(status: string): string {
+  const map: Record<string, string> = {
+    label_created: 'Label created',
+    in_transit: 'In transit',
+    out_for_delivery: 'Out for delivery',
+    delivered: 'Delivered',
+  }
+  return map[status] ?? status
+}
+
+function trackingStatusColorClass(status: string): string {
+  if (status === 'delivered') return 'text-success'
+  if (status === 'out_for_delivery') return 'text-warning'
+  if (status === 'in_transit') return 'text-accent-primary'
+  if (status === 'label_created') return 'text-text-secondary'
+  return 'text-text-secondary'
 }
 
 function isDisputeEligible(deliveredAt: Date | null): boolean {
@@ -280,25 +303,79 @@ export default function BuyerOrderDetailPage({
                     <Truck size={14} aria-hidden='true' />
                     {shop.shippingMethod} — {formatPriceEUR(shop.shippingCostCents)}
                   </span>
-                  {shop.trackingNumber && (
-                    <span className='inline-flex items-center gap-1'>
-                      <Package size={14} aria-hidden='true' />
-                      {m.order_detail_tracking()}:{' '}
-                      {isValidUrl(shop.trackingUrl) ? (
+                </div>
+
+                {/* Tracking Information */}
+                {shop.shippingLabel ? (
+                  <div className='rounded-lg border border-border-default bg-surface-inset p-3 space-y-2'>
+                    <div className='flex flex-wrap items-center justify-between gap-2'>
+                      <div className='space-y-0.5'>
+                        <p className='text-sm font-semibold text-text-primary'>
+                          {formatCarrierName(shop.shippingLabel.carrier)}
+                        </p>
+                        <p className='text-xs text-text-secondary'>
+                          {m.order_detail_tracking()}:{' '}
+                          <span className='font-mono text-text-primary'>
+                            {shop.shippingLabel.trackingNumber}
+                          </span>
+                        </p>
+                      </div>
+                      {(isValidUrl(shop.trackingUrl) ||
+                        (shop.shippingLabel.trackingNumber &&
+                          getCarrierTrackingUrl(shop.shippingLabel.carrier, shop.shippingLabel.trackingNumber))) && (
+                        <a
+                          href={
+                            isValidUrl(shop.trackingUrl)
+                              ? shop.trackingUrl
+                              : getCarrierTrackingUrl(shop.shippingLabel.carrier, shop.shippingLabel.trackingNumber!)!
+                          }
+                          target='_blank'
+                          rel='noopener noreferrer'
+                          className='inline-flex items-center gap-1 rounded-lg bg-accent-primary px-3 py-1.5 text-xs font-medium text-white transition hover:bg-accent-primary/90'
+                        >
+                          <ExternalLink size={12} aria-hidden='true' />
+                          {m.order_detail_track_package()}
+                        </a>
+                      )}
+                    </div>
+                    {shop.trackingStatus && (
+                      <div className='flex items-center gap-2'>
+                        <Package size={14} aria-hidden='true' className='text-text-muted' />
+                        <span className={`text-xs font-medium ${trackingStatusColorClass(shop.trackingStatus)}`}>
+                          {formatTrackingStatus(shop.trackingStatus)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : shop.trackingNumber ? (
+                  <div className='rounded-lg border border-border-default bg-surface-inset p-3 space-y-2'>
+                    <div className='flex flex-wrap items-center justify-between gap-2'>
+                      <p className='text-xs text-text-secondary'>
+                        {m.order_detail_tracking()}:{' '}
+                        <span className='font-mono text-text-primary'>{shop.trackingNumber}</span>
+                      </p>
+                      {isValidUrl(shop.trackingUrl) && (
                         <a
                           href={shop.trackingUrl}
                           target='_blank'
                           rel='noopener noreferrer'
-                          className='text-accent-primary hover:underline'
+                          className='inline-flex items-center gap-1 rounded-lg bg-accent-primary px-3 py-1.5 text-xs font-medium text-white transition hover:bg-accent-primary/90'
                         >
-                          {shop.trackingNumber}
+                          <ExternalLink size={12} aria-hidden='true' />
+                          {m.order_detail_track_package()}
                         </a>
-                      ) : (
-                        shop.trackingNumber
                       )}
-                    </span>
-                  )}
-                </div>
+                    </div>
+                  </div>
+                ) : (
+                  !['cancelled', 'refunded', 'pending_payment', 'paid'].includes(shop.status) && (
+                    <div className='rounded-lg border border-border-default bg-surface-inset p-3'>
+                      <p className='text-xs text-text-muted'>
+                        {m.order_detail_not_yet_shipped()}
+                      </p>
+                    </div>
+                  )
+                )}
 
                 <ul className='divide-y divide-border-subtle'>
                   {shop.items.map((item) => (

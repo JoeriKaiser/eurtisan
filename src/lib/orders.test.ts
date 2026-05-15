@@ -9,6 +9,7 @@ import {
   orderItem,
   platformOrder,
   product,
+  shippingLabel,
   shop,
   shopOrder,
   user,
@@ -249,6 +250,123 @@ describe('getBuyerOrderDetailQuery', () => {
     const group2 = result?.shops.find((s) => s.shopId === 'shop-2')
     expect(group1?.shippingMethod).toBe('standard')
     expect(group2?.shippingMethod).toBe('express')
+  })
+
+  it('populates shippingLabel and trackingStatus when a shipping label exists', async () => {
+    await seedUser()
+    await seedShop()
+    const p = await seedProduct()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 2500,
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 500,
+        subtotalCents: 2000,
+      })
+      .returning()
+
+    await db.insert(orderItem).values({
+      shopOrderId: so.id,
+      productId: p.id,
+      productName: p.name,
+      unitPriceCents: p.priceCents,
+      quantity: 2,
+      totalCents: 2000,
+    })
+
+    await db.insert(shippingLabel).values({
+      shopOrderId: so.id,
+      carrier: 'mondial_relay',
+      trackingNumber: 'MR12345678',
+      labelUrl: 'https://mock.mondialrelay.example.com/labels/mrlbl_MR12345678.pdf',
+    })
+
+    const result = await getBuyerOrderDetailQuery(order.id, 'user-1')
+    expect(result).not.toBeNull()
+    expect(result?.shops).toHaveLength(1)
+    expect(result?.shops[0].shippingLabel).not.toBeNull()
+    expect(result?.shops[0].shippingLabel?.carrier).toBe('mondial_relay')
+    expect(result?.shops[0].shippingLabel?.trackingNumber).toBe('MR12345678')
+    expect(result?.shops[0].trackingStatus).not.toBeNull()
+  })
+
+  it('returns null shippingLabel and trackingStatus when no shipping label exists', async () => {
+    await seedUser()
+    await seedShop()
+    const p = await seedProduct()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 2500,
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 500,
+        subtotalCents: 2000,
+      })
+      .returning()
+
+    await db.insert(orderItem).values({
+      shopOrderId: so.id,
+      productId: p.id,
+      productName: p.name,
+      unitPriceCents: p.priceCents,
+      quantity: 2,
+      totalCents: 2000,
+    })
+
+    const result = await getBuyerOrderDetailQuery(order.id, 'user-1')
+    expect(result).not.toBeNull()
+    expect(result?.shops).toHaveLength(1)
+    expect(result?.shops[0].shippingLabel).toBeNull()
+    expect(result?.shops[0].trackingStatus).toBeNull()
   })
 })
 

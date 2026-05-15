@@ -37,6 +37,8 @@ vi.mock('#/paraglide/messages', () => ({
     order_detail_total: () => 'Total',
     order_detail_items: () => 'Items',
     order_detail_tracking: () => 'Tracking',
+    order_detail_track_package: () => 'Track package',
+    order_detail_not_yet_shipped: () => 'Not yet shipped',
     order_detail_shipping_address: () => 'Shipping address',
     order_detail_cancelled: () => 'Cancelled',
     order_detail_cancelled_at: ({ date }: { date: string }) => `Cancelled on ${date}`,
@@ -130,6 +132,8 @@ function makeOrderDetail(overrides?: Partial<OrderDetail>): OrderDetail {
         trackingNumber: null,
         trackingUrl: null,
         deliveredAt: null,
+        shippingLabel: null,
+        trackingStatus: null,
         items: [
           {
             id: 'item-1',
@@ -220,7 +224,7 @@ describe('Order detail page', () => {
     expect(screen.getByText(/Berlin/)).toBeDefined()
   })
 
-  it('renders tracking link when URL is valid', () => {
+  it('renders carrier name and tracking number when shipping label exists', () => {
     const order = makeOrderDetail({
       shops: [
         {
@@ -234,6 +238,13 @@ describe('Order detail page', () => {
           trackingNumber: 'TRACK123',
           trackingUrl: 'https://track.example.com/123',
           deliveredAt: null,
+          shippingLabel: {
+            carrier: 'mondial_relay',
+            trackingNumber: 'TRACK123',
+            labelUrl: 'https://label.example.com/123',
+            createdAt: new Date('2026-05-10T12:00:00Z'),
+          },
+          trackingStatus: 'in_transit',
           items: [
             {
               id: 'item-1',
@@ -248,12 +259,13 @@ describe('Order detail page', () => {
       ],
     })
     render(<BuyerOrderDetailPage order={order} />)
-    const link = screen.getByRole('link', { name: 'TRACK123' })
-    expect(link).toBeDefined()
-    expect(link.getAttribute('href')).toBe('https://track.example.com/123')
+    expect(screen.getByText('Mondial Relay')).toBeDefined()
+    expect(screen.getByText('TRACK123')).toBeDefined()
+    expect(screen.getByRole('link', { name: 'Track package' })).toBeDefined()
+    expect(screen.getByText('In transit')).toBeDefined()
   })
 
-  it('renders tracking number as plain text when URL is invalid', () => {
+  it('renders tracking link using carrier URL when shop trackingUrl is invalid', () => {
     const order = makeOrderDetail({
       shops: [
         {
@@ -267,6 +279,13 @@ describe('Order detail page', () => {
           trackingNumber: 'TRACK123',
           trackingUrl: 'not-a-url',
           deliveredAt: null,
+          shippingLabel: {
+            carrier: 'mondial_relay',
+            trackingNumber: 'TRACK123',
+            labelUrl: 'https://label.example.com/123',
+            createdAt: new Date('2026-05-10T12:00:00Z'),
+          },
+          trackingStatus: 'in_transit',
           items: [
             {
               id: 'item-1',
@@ -281,8 +300,179 @@ describe('Order detail page', () => {
       ],
     })
     render(<BuyerOrderDetailPage order={order} />)
-    expect(screen.getByText(/TRACK123/)).toBeDefined()
-    expect(screen.queryByRole('link', { name: 'TRACK123' })).toBeNull()
+    const link = screen.getByRole('link', { name: 'Track package' })
+    expect(link).toBeDefined()
+    expect(link.getAttribute('href')).toContain('mondialrelay.com')
+  })
+
+  it('shows tracking status summary for delivered orders', () => {
+    const order = makeOrderDetail({
+      shops: [
+        {
+          shopOrderId: 'so-1',
+          shopId: 'shop-1',
+          shopName: 'Test Shop',
+          shippingMethod: 'standard',
+          shippingCostCents: 500,
+          subtotalCents: 2000,
+          status: 'delivered',
+          trackingNumber: null,
+          trackingUrl: null,
+          deliveredAt: new Date('2026-05-10T12:00:00Z'),
+          shippingLabel: {
+            carrier: 'mondial_relay',
+            trackingNumber: 'TRACK123',
+            labelUrl: 'https://label.example.com/123',
+            createdAt: new Date('2026-05-10T12:00:00Z'),
+          },
+          trackingStatus: 'delivered',
+          items: [
+            {
+              id: 'item-1',
+              productId: 'prod-1',
+              productName: 'Vase',
+              unitPriceCents: 1000,
+              quantity: 2,
+              totalCents: 2000,
+            },
+          ],
+        },
+      ],
+    })
+    render(<BuyerOrderDetailPage order={order} />)
+    expect(screen.getByText('Delivered')).toBeDefined()
+  })
+
+  it('shows not yet shipped for orders without a shipping label', () => {
+    const order = makeOrderDetail({
+      shops: [
+        {
+          shopOrderId: 'so-1',
+          shopId: 'shop-1',
+          shopName: 'Test Shop',
+          shippingMethod: 'standard',
+          shippingCostCents: 500,
+          subtotalCents: 2000,
+          status: 'processing',
+          trackingNumber: null,
+          trackingUrl: null,
+          deliveredAt: null,
+          shippingLabel: null,
+          trackingStatus: null,
+          items: [
+            {
+              id: 'item-1',
+              productId: 'prod-1',
+              productName: 'Vase',
+              unitPriceCents: 1000,
+              quantity: 2,
+              totalCents: 2000,
+            },
+          ],
+        },
+      ],
+    })
+    render(<BuyerOrderDetailPage order={order} />)
+    expect(screen.getByText('Not yet shipped')).toBeDefined()
+  })
+
+  it('does not show not yet shipped for paid orders', () => {
+    const order = makeOrderDetail({
+      shops: [
+        {
+          shopOrderId: 'so-1',
+          shopId: 'shop-1',
+          shopName: 'Test Shop',
+          shippingMethod: 'standard',
+          shippingCostCents: 500,
+          subtotalCents: 2000,
+          status: 'paid',
+          trackingNumber: null,
+          trackingUrl: null,
+          deliveredAt: null,
+          shippingLabel: null,
+          trackingStatus: null,
+          items: [
+            {
+              id: 'item-1',
+              productId: 'prod-1',
+              productName: 'Vase',
+              unitPriceCents: 1000,
+              quantity: 2,
+              totalCents: 2000,
+            },
+          ],
+        },
+      ],
+    })
+    render(<BuyerOrderDetailPage order={order} />)
+    expect(screen.queryByText('Not yet shipped')).toBeNull()
+  })
+
+  it('renders multiple shop orders with independent tracking info', () => {
+    const order = makeOrderDetail({
+      shops: [
+        {
+          shopOrderId: 'so-1',
+          shopId: 'shop-1',
+          shopName: 'Shop A',
+          shippingMethod: 'standard',
+          shippingCostCents: 500,
+          subtotalCents: 2000,
+          status: 'shipped',
+          trackingNumber: 'TRACK001',
+          trackingUrl: 'https://track.example.com/001',
+          deliveredAt: null,
+          shippingLabel: {
+            carrier: 'mondial_relay',
+            trackingNumber: 'TRACK001',
+            labelUrl: 'https://label.example.com/001',
+            createdAt: new Date('2026-05-10T12:00:00Z'),
+          },
+          trackingStatus: 'in_transit',
+          items: [
+            {
+              id: 'item-1',
+              productId: 'prod-1',
+              productName: 'Vase',
+              unitPriceCents: 1000,
+              quantity: 2,
+              totalCents: 2000,
+            },
+          ],
+        },
+        {
+          shopOrderId: 'so-2',
+          shopId: 'shop-2',
+          shopName: 'Shop B',
+          shippingMethod: 'express',
+          shippingCostCents: 800,
+          subtotalCents: 1500,
+          status: 'processing',
+          trackingNumber: null,
+          trackingUrl: null,
+          deliveredAt: null,
+          shippingLabel: null,
+          trackingStatus: null,
+          items: [
+            {
+              id: 'item-2',
+              productId: 'prod-2',
+              productName: 'Bowl',
+              unitPriceCents: 1500,
+              quantity: 1,
+              totalCents: 1500,
+            },
+          ],
+        },
+      ],
+    })
+    render(<BuyerOrderDetailPage order={order} />)
+    expect(screen.getByText('Shop A')).toBeDefined()
+    expect(screen.getByText('Shop B')).toBeDefined()
+    expect(screen.getAllByText('In transit').length).toBe(1)
+    expect(screen.getAllByText('Not yet shipped').length).toBe(1)
+    expect(screen.getAllByRole('link', { name: 'Track package' }).length).toBe(1)
   })
 
   it('renders cancellation info for cancelled orders', () => {
@@ -313,6 +503,8 @@ describe('Order detail page', () => {
           trackingNumber: null,
           trackingUrl: null,
           deliveredAt: fifteenDaysAgo,
+          shippingLabel: null,
+          trackingStatus: null,
           items: [
             {
               id: 'item-1',
@@ -359,6 +551,8 @@ describe('Order detail page', () => {
           trackingNumber: null,
           trackingUrl: null,
           deliveredAt: fiveDaysAgo,
+          shippingLabel: null,
+          trackingStatus: null,
           items: [
             {
               id: 'item-1',
@@ -401,6 +595,8 @@ describe('Order detail page', () => {
           trackingNumber: null,
           trackingUrl: null,
           deliveredAt: null,
+          shippingLabel: null,
+          trackingStatus: null,
           items: [
             {
               id: 'item-1',
@@ -434,6 +630,8 @@ describe('Order detail page', () => {
           trackingNumber: null,
           trackingUrl: null,
           deliveredAt: fiveDaysAgo,
+          shippingLabel: null,
+          trackingStatus: null,
           items: [
             {
               id: 'item-1',
@@ -468,6 +666,8 @@ describe('Order detail page', () => {
           trackingNumber: null,
           trackingUrl: null,
           deliveredAt: null,
+          shippingLabel: null,
+          trackingStatus: null,
           items: [
             {
               id: 'item-1',
@@ -501,6 +701,8 @@ describe('Order detail page', () => {
           trackingNumber: null,
           trackingUrl: null,
           deliveredAt: fortyDaysAgo,
+          shippingLabel: null,
+          trackingStatus: null,
           items: [
             {
               id: 'item-1',

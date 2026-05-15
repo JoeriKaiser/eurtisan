@@ -1,6 +1,7 @@
 import { count, desc, eq, inArray } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { orderItem, platformOrder, shop, shopOrder } from '#/db/schema'
+import { orderItem, platformOrder, shop, shippingLabel, shopOrder } from '#/db/schema'
+import { mondialRelayProvider } from '#/integrations/shipping'
 import type { ShippingAddress } from './checkout.server'
 import { releaseStockInTx } from './inventory.server'
 
@@ -24,6 +25,13 @@ export interface OrderItemDetail {
   totalCents: number
 }
 
+export interface ShippingLabelInfo {
+  carrier: string
+  trackingNumber: string | null
+  labelUrl: string | null
+  createdAt: Date
+}
+
 export interface OrderShopGroup {
   shopOrderId: string
   shopId: string
@@ -35,6 +43,8 @@ export interface OrderShopGroup {
   trackingNumber: string | null
   trackingUrl: string | null
   deliveredAt: Date | null
+  shippingLabel: ShippingLabelInfo | null
+  trackingStatus: string | null
   items: OrderItemDetail[]
 }
 
@@ -103,28 +113,66 @@ export async function getBuyerOrderDetailQuery(
       ? await db.select().from(orderItem).where(inArray(orderItem.shopOrderId, shopOrderIds))
       : []
 
-  const shops: OrderShopGroup[] = shopOrdersResult.map((so) => ({
-    shopOrderId: so.shopOrder.id,
-    shopId: so.shopOrder.shopId,
-    shopName: so.shop?.name ?? 'Unknown shop',
-    shippingMethod: so.shopOrder.shippingMethod,
-    shippingCostCents: so.shopOrder.shippingCostCents,
-    subtotalCents: so.shopOrder.subtotalCents,
-    status: so.shopOrder.status,
-    trackingNumber: so.shopOrder.trackingNumber,
-    trackingUrl: so.shopOrder.trackingUrl,
-    deliveredAt: so.shopOrder.deliveredAt,
-    items: itemsResult
-      .filter((item) => item.shopOrderId === so.shopOrder.id)
-      .map((item) => ({
-        id: item.id,
-        productId: item.productId,
-        productName: item.productName,
-        unitPriceCents: item.unitPriceCents,
-        quantity: item.quantity,
-        totalCents: item.totalCents,
-      })),
-  }))
+  const labelsResult =
+    shopOrderIds.length > 0
+      ? await db.select().from(shippingLabel).where(inArray(shippingLabel.shopOrderId, shopOrderIds))
+      : []
+
+  const labelMap = new Map(labelsResult.map((l) => [l.shopOrderId, l]))
+
+  const trackingStatuses = await Promise.all(
+    shopOrdersResult.map(async (so) => {
+      const label = labelMap.get(so.shopOrder.id)
+      if (!label?.trackingNumber) return null
+      try {
+        const info = await mondialRelayProvider.trackShipment(label.trackingNumber)
+        return { shopOrderId: so.shopOrder.id, status: info.status }
+      } catch {
+        return null
+      }
+    }),
+  )
+
+  const trackingStatusMap = new Map(
+    trackingStatuses
+      .filter((t): t is { shopOrderId: string; status: string } => t !== null)
+      .map((t) => [t.shopOrderId, t.status]),
+  )
+
+  const shops: OrderShopGroup[] = shopOrdersResult.map((so) => {
+    const label = labelMap.get(so.shopOrder.id)
+    return {
+      shopOrderId: so.shopOrder.id,
+      shopId: so.shopOrder.shopId,
+      shopName: so.shop?.name ?? 'Unknown shop',
+      shippingMethod: so.shopOrder.shippingMethod,
+      shippingCostCents: so.shopOrder.shippingCostCents,
+      subtotalCents: so.shopOrder.subtotalCents,
+      status: so.shopOrder.status,
+      trackingNumber: so.shopOrder.trackingNumber,
+      trackingUrl: so.shopOrder.trackingUrl,
+      deliveredAt: so.shopOrder.deliveredAt,
+      shippingLabel: label
+        ? {
+            carrier: label.carrier,
+            trackingNumber: label.trackingNumber,
+            labelUrl: label.labelUrl,
+            createdAt: label.createdAt,
+          }
+        : null,
+      trackingStatus: trackingStatusMap.get(so.shopOrder.id) ?? null,
+      items: itemsResult
+        .filter((item) => item.shopOrderId === so.shopOrder.id)
+        .map((item) => ({
+          id: item.id,
+          productId: item.productId,
+          productName: item.productName,
+          unitPriceCents: item.unitPriceCents,
+          quantity: item.quantity,
+          totalCents: item.totalCents,
+        })),
+    }
+  })
 
   return {
     id: order.id,

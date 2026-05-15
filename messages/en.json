@@ -247,6 +247,8 @@
   "order_detail_total": "Total",
   "order_detail_items": "Items",
   "order_detail_tracking": "Tracking",
+  "order_detail_track_package": "Track package",
+  "order_detail_not_yet_shipped": "Not yet shipped",
   "order_detail_shipping_address": "Shipping address",
   "order_detail_cancelled": "Cancelled",
   "order_detail_cancelled_at": "Cancelled on {date}",
