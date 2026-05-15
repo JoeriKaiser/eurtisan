@@ -86,7 +86,7 @@ async function seedPlatformOrder(overrides?: Partial<typeof platformOrder.$infer
       },
       totalCents: 2500,
       status: 'paid',
-      molliePaymentId: 'tr_test123',
+      molliePaymentId: null,
       ...overrides,
     })
     .returning()

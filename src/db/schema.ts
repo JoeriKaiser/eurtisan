@@ -243,6 +243,8 @@ export const platformOrder = pgTable(
   (table) => [
     index('platform_order_user_id_idx').on(table.userId),
     index('platform_order_status_idx').on(table.status),
+    index('platform_order_mollie_payment_id_idx').on(table.molliePaymentId),
+    uniqueIndex('platform_order_mollie_payment_id_unique').on(table.molliePaymentId),
   ],
 )
 
