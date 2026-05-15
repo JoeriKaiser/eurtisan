@@ -36,3 +36,70 @@ export function getMollieWebhookSecret(): string | undefined {
   }
   return undefined
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Email (Brevo)                                                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Brevo API key for transactional email delivery (server-only).
+ * When absent the mock provider is used.
+ */
+export function getBrevoApiKey(): string | undefined {
+  if (typeof process !== 'undefined') {
+    return process.env.BREVO_API_KEY
+  }
+  return undefined
+}
+
+/**
+ * From address for transactional emails (server-only).
+ */
+export function getEmailFromAddress(): string {
+  if (typeof process !== 'undefined') {
+    return process.env.EMAIL_FROM_ADDRESS ?? 'noreply@eurtisan.local'
+  }
+  return 'noreply@eurtisan.local'
+}
+
+/**
+ * From name for transactional emails (server-only).
+ */
+export function getEmailFromName(): string {
+  if (typeof process !== 'undefined') {
+    return process.env.EMAIL_FROM_NAME ?? 'Eurtisan'
+  }
+  return 'Eurtisan'
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Email (SMTP / Mailpit dev)                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * SMTP host for local development mail capture (e.g. mailpit).
+ * When set the SMTP provider is used instead of Brevo.
+ */
+export function getEmailSmtpHost(): string | undefined {
+  if (typeof process !== 'undefined') {
+    return process.env.EMAIL_SMTP_HOST
+  }
+  return undefined
+}
+
+/**
+ * SMTP port for local development mail capture.
+ * Defaults to 1025 (mailpit default).
+ */
+export function getEmailSmtpPort(): number {
+  if (typeof process !== 'undefined') {
+    const port = process.env.EMAIL_SMTP_PORT
+    if (port) {
+      const parsed = Number.parseInt(port, 10)
+      if (!Number.isNaN(parsed)) {
+        return parsed
+      }
+    }
+  }
+  return 1025
+}

@@ -35,6 +35,21 @@ services:
     networks:
       - eurtisan
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: eurtisan-mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    volumes:
+      - eurtisan_mailpit_data:/data
+    environment:
+      MP_DATA_FILE: /data/mailpit.db
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    networks:
+      - eurtisan
+
   app:
     build: .
     container_name: eurtisan-app
@@ -42,6 +57,8 @@ services:
       - "3000:3000"
     environment:
       BETTER_AUTH_URL: http://localhost:3000
+      EMAIL_SMTP_HOST: mailpit
+      EMAIL_SMTP_PORT: 1025
     depends_on:
       db:
         condition: service_healthy
@@ -57,6 +74,7 @@ services:
 volumes:
   eurtisan_postgres_data:
   eurtisan_meilisearch_data:
+  eurtisan_mailpit_data:
   eurtisan_node_modules:
 
 networks:
