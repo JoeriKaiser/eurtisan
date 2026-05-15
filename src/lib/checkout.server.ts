@@ -11,6 +11,7 @@ import {
   shopOrder,
 } from '#/db/schema'
 import { molliePaymentProvider } from '#/integrations/mollie'
+import type { PaymentProvider } from './payment-provider'
 import type {
   Package,
   ShippingAddress as ProviderShippingAddress,
@@ -358,7 +359,7 @@ export async function createCheckoutQuery(
 export async function createCheckoutWithProvider(
   input: CheckoutInput,
   userId: string,
-  paymentProvider: typeof molliePaymentProvider,
+  paymentProvider: PaymentProvider,
 ): Promise<CreateCheckoutResult> {
   let platformOrderId = ''
 
@@ -659,7 +660,7 @@ export async function createCheckoutWithProvider(
       .where(eq(platformOrder.id, platformOrderId))
 
     checkoutUrl = payment.checkoutUrl
-  } catch (err) {
+  } catch (_err) {
     // Payment initiation failed — cancel the order and restore inventory
     await db.transaction(async (tx) => {
       await tx

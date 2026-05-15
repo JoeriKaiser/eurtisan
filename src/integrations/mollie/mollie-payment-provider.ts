@@ -9,7 +9,7 @@
  * The mock generates predictable payment IDs and signatures so the webhook
  * handler can be tested deterministically.
  */
-import { getBaseUrl } from '#/lib/env.server'
+import { getBaseUrl, getMollieApiKey, getMollieWebhookSecret } from '#/lib/env.server'
 import type { CreatePaymentResult, PaymentProvider } from '#/lib/payment-provider'
 
 // ---------------------------------------------------------------------------
@@ -43,6 +43,33 @@ export function resetMockPaymentCounter(): void {
 }
 
 // ---------------------------------------------------------------------------
+// Mock status store (configurable per payment ID for testing)
+// ---------------------------------------------------------------------------
+
+const mockPaymentStatuses = new Map<
+  string,
+  'pending' | 'paid' | 'expired' | 'failed' | 'cancelled'
+>()
+
+/**
+ * Set a mock status for a specific payment ID.
+ * Used in tests to simulate different Mollie payment states.
+ */
+export function setMockPaymentStatus(
+  paymentId: string,
+  status: 'pending' | 'paid' | 'expired' | 'failed' | 'cancelled',
+): void {
+  mockPaymentStatuses.set(paymentId, status)
+}
+
+/**
+ * Clear all mock payment statuses.
+ */
+export function resetMockPaymentStatuses(): void {
+  mockPaymentStatuses.clear()
+}
+
+// ---------------------------------------------------------------------------
 // Provider
 // ---------------------------------------------------------------------------
 
@@ -54,7 +81,7 @@ export class MolliePaymentProvider implements PaymentProvider {
   private readonly mockMode: boolean
 
   constructor(options?: { mock?: boolean }) {
-    this.mockMode = options?.mock ?? true
+    this.mockMode = options?.mock ?? !getMollieApiKey()
   }
 
   // -----------------------------------------------------------------------
@@ -89,8 +116,12 @@ export class MolliePaymentProvider implements PaymentProvider {
     // Build a mock checkout URL that mimics Mollie's hosted checkout. In
     // development the buyer clicks this link and the webhook fires
     // immediately after to simulate the Mollie redirect flow.
+    // Extract the platform order ID from redirectUrl so the local
+    // end-to-end flow does not 404.
     const baseUrl = getBaseUrl()
-    const checkoutUrl = `${baseUrl}/orders/${paymentId}/success?mock_payment=${paymentId}`
+    const orderIdMatch = redirectUrl.match(/\/orders\/([^/]+)\/success/)
+    const orderId = orderIdMatch ? orderIdMatch[1] : paymentId
+    const checkoutUrl = `${baseUrl}/orders/${orderId}/success?mock_payment=${paymentId}`
 
     return { paymentId, checkoutUrl }
   }
@@ -102,7 +133,7 @@ export class MolliePaymentProvider implements PaymentProvider {
     redirectUrl: string,
     webhookUrl: string,
   ): Promise<CreatePaymentResult> {
-    const apiKey = process.env.MOLLIE_API_KEY
+    const apiKey = getMollieApiKey()
 
     if (!apiKey) {
       throw new Error('MOLLIE_API_KEY is not set')
@@ -173,7 +204,7 @@ export class MolliePaymentProvider implements PaymentProvider {
     signature: string,
     rawBody?: string,
   ): Promise<boolean> {
-    const secret = process.env.MOLLIE_WEBHOOK_SECRET
+    const secret = getMollieWebhookSecret()
 
     if (!secret) {
       throw new Error('MOLLIE_WEBHOOK_SECRET is not set')
@@ -189,15 +220,9 @@ export class MolliePaymentProvider implements PaymentProvider {
     }
 
     const cryptoModule = await import('node:crypto')
-    const computedHmac = cryptoModule
-      .createHmac('sha256', secret)
-      .update(rawBody)
-      .digest('base64')
+    const computedHmac = cryptoModule.createHmac('sha256', secret).update(rawBody).digest('base64')
 
-    return cryptoModule.timingSafeEqual(
-      Buffer.from(computedHmac),
-      Buffer.from(signature),
-    )
+    return cryptoModule.timingSafeEqual(Buffer.from(computedHmac), Buffer.from(signature))
   }
 
   // -----------------------------------------------------------------------
@@ -212,10 +237,7 @@ export class MolliePaymentProvider implements PaymentProvider {
     return this.refundPaymentReal(paymentId, amountCents)
   }
 
-  private async refundPaymentMock(
-    paymentId: string,
-    _amountCents?: number,
-  ): Promise<void> {
+  private async refundPaymentMock(paymentId: string, _amountCents?: number): Promise<void> {
     await delay(30)
 
     // In mock mode we only validate that the payment ID looks plausible.
@@ -225,11 +247,8 @@ export class MolliePaymentProvider implements PaymentProvider {
     }
   }
 
-  private async refundPaymentReal(
-    paymentId: string,
-    amountCents?: number,
-  ): Promise<void> {
-    const apiKey = process.env.MOLLIE_API_KEY
+  private async refundPaymentReal(paymentId: string, amountCents?: number): Promise<void> {
+    const apiKey = getMollieApiKey()
 
     if (!apiKey) {
       throw new Error('MOLLIE_API_KEY is not set')
@@ -244,22 +263,79 @@ export class MolliePaymentProvider implements PaymentProvider {
       }
     }
 
-    const response = await fetch(
-      `https://api.mollie.com/v2/payments/${paymentId}/refunds`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
+    const response = await fetch(`https://api.mollie.com/v2/payments/${paymentId}/refunds`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
       },
-    )
+      body: JSON.stringify(body),
+    })
 
     if (!response.ok) {
       const errorBody = await response.text()
       throw new Error(`Mollie refund error (${response.status}): ${errorBody}`)
     }
+  }
+
+  // -----------------------------------------------------------------------
+  // getPaymentStatus
+  // -----------------------------------------------------------------------
+
+  async getPaymentStatus(
+    paymentId: string,
+  ): Promise<'pending' | 'paid' | 'expired' | 'failed' | 'cancelled'> {
+    if (this.mockMode) {
+      return this.getPaymentStatusMock(paymentId)
+    }
+
+    return this.getPaymentStatusReal(paymentId)
+  }
+
+  private getPaymentStatusMock(
+    paymentId: string,
+  ): 'pending' | 'paid' | 'expired' | 'failed' | 'cancelled' {
+    // Return the configured status if one was set, otherwise default to paid
+    // for mock payments so the happy path works out of the box.
+    return mockPaymentStatuses.get(paymentId) ?? 'paid'
+  }
+
+  private async getPaymentStatusReal(
+    paymentId: string,
+  ): Promise<'pending' | 'paid' | 'expired' | 'failed' | 'cancelled'> {
+    const apiKey = getMollieApiKey()
+
+    if (!apiKey) {
+      throw new Error('MOLLIE_API_KEY is not set')
+    }
+
+    const response = await fetch(`https://api.mollie.com/v2/payments/${paymentId}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorBody = await response.text()
+      throw new Error(`Mollie API error (${response.status}): ${errorBody}`)
+    }
+
+    const data = (await response.json()) as { status: string; [key: string]: unknown }
+
+    const status = data.status
+    if (
+      status === 'pending' ||
+      status === 'paid' ||
+      status === 'expired' ||
+      status === 'failed' ||
+      status === 'cancelled'
+    ) {
+      return status
+    }
+
+    throw new Error(`Unexpected Mollie payment status: ${status}`)
   }
 }
 

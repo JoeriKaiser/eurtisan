@@ -29,6 +29,7 @@ function createStubPaymentProvider(overrides?: Partial<PaymentProvider>): Paymen
       checkoutUrl: 'https://checkout.mollie.com/pay/tr_mock_000001',
     }),
     verifyWebhook: async () => stubVerifyResult,
+    getPaymentStatus: async () => 'paid',
     refundPayment: async () => undefined,
     ...overrides,
   }
@@ -204,10 +205,7 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
 
       stubVerifyResult = false
       const provider = createStubPaymentProvider()
-      const req = mockRequest(
-        { id: 'tr_mock_000042' },
-        { 'X-Mollie-Signature': 'wrong_signature' },
-      )
+      const req = mockRequest({ id: 'tr_mock_000042' }, { 'X-Mollie-Signature': 'wrong_signature' })
 
       const res = await processMollieWebhook(req, { db, paymentProvider: provider })
 
@@ -335,10 +333,7 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
 
       const provider = createStubPaymentProvider()
       const req = () =>
-        mockRequest(
-          { id: 'tr_mock_000042' },
-          { 'X-Mollie-Signature': 'mock_sig_tr_mock_000042' },
-        )
+        mockRequest({ id: 'tr_mock_000042' }, { 'X-Mollie-Signature': 'mock_sig_tr_mock_000042' })
 
       // First delivery — should process
       const res1 = await processMollieWebhook(req(), { db, paymentProvider: provider })
@@ -368,6 +363,7 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
           receivedRawBody = rawBody
           return true
         },
+        getPaymentStatus: async () => 'paid',
         refundPayment: async () => undefined,
       }
 

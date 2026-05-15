@@ -46,6 +46,15 @@ export interface PaymentProvider {
   verifyWebhook(payload: unknown, signature: string, rawBody?: string): Promise<boolean>
 
   /**
+   * Query the status of an existing payment.
+   *
+   * Returns the current status as reported by the provider.
+   */
+  getPaymentStatus(
+    paymentId: string,
+  ): Promise<'pending' | 'paid' | 'expired' | 'failed' | 'cancelled'>
+
+  /**
    * Refund a previously created payment.
    *
    * Pass `amountCents` for a partial refund; omit for a full refund.

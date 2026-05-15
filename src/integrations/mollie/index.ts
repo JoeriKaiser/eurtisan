@@ -1,1 +1,7 @@
-export { MolliePaymentProvider, molliePaymentProvider, resetMockPaymentCounter } from './mollie-payment-provider'
+export {
+  MolliePaymentProvider,
+  molliePaymentProvider,
+  resetMockPaymentCounter,
+  resetMockPaymentStatuses,
+  setMockPaymentStatus,
+} from './mollie-payment-provider'

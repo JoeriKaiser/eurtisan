@@ -37,6 +37,7 @@ function createStubPaymentProvider(): PaymentProvider {
       checkoutUrl: testCheckoutUrl,
     }),
     verifyWebhook: async () => false,
+    getPaymentStatus: async () => 'paid',
     refundPayment: async () => undefined,
   }
 }
@@ -639,6 +640,7 @@ describe('createCheckoutQuery', () => {
         throw new Error('Simulated provider failure')
       },
       verifyWebhook: async () => false,
+      getPaymentStatus: async () => 'paid',
       refundPayment: async () => undefined,
     }
 
