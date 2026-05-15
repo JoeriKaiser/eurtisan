@@ -90,6 +90,7 @@ export const shop = pgTable(
     ownerId: text()
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
+    shippingOrigin: jsonb('shipping_origin'),
     isSuspended: boolean('is_suspended').notNull().default(false),
     moderationNote: text('moderation_note'),
     createdAt: timestamp().notNull().defaultNow(),

@@ -9,6 +9,16 @@ export { ImageValidationError, SlugCollisionError } from './shop-settings.server
 /*                                   Schemas                                  */
 /* -------------------------------------------------------------------------- */
 
+const shippingOriginSchema = z
+  .object({
+    street: z.string().min(1),
+    city: z.string().min(1),
+    postalCode: z.string().min(1),
+    country: z.string().length(2),
+  })
+  .optional()
+  .nullable()
+
 export const updateShopSchema = z.object({
   shopId: z.string().min(1, 'Shop ID is required.'),
   name: z.string().min(1).max(255).optional(),
@@ -21,6 +31,7 @@ export const updateShopSchema = z.object({
     })
     .optional(),
   description: z.string().max(2000).optional(),
+  shippingOrigin: shippingOriginSchema,
 })
 
 export const uploadShopImageSchema = z.object({
@@ -77,7 +88,13 @@ export const updateShop = createServerFn({ method: 'POST' })
 
     try {
       const { shopId, ...input } = data
-      return await updateShopInternal(shopId, input)
+      const record = await updateShopInternal(shopId, input)
+      return {
+        ...record,
+        shippingOrigin: record.shippingOrigin as
+          | { street: string; city: string; postalCode: string; country: string }
+          | null,
+      }
     } catch (err) {
       if (err instanceof SlugCollisionError) {
         throw new Response(

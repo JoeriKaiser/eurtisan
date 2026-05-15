@@ -2,11 +2,12 @@
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type * as React from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockInvalidate = vi.fn()
-const mockMarkShipped = vi.hoisted(() => vi.fn())
-const mockMarkDelivered = vi.hoisted(() => vi.fn())
+const mockMarkShipped = vi.fn()
+const mockMarkShippedWithLabel = vi.fn()
+const mockMarkDelivered = vi.fn()
 
 vi.mock('@tanstack/react-router', () => ({
   createFileRoute: () => () => ({
@@ -42,6 +43,7 @@ vi.mock('@tanstack/react-router', () => ({
             totalCents: 2000,
           },
         ],
+        label: null,
       },
     }),
     useNavigate: () => vi.fn(),
@@ -63,6 +65,8 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('#/lib/shop-orders', () => ({
   getShopOrderDetail: vi.fn(),
   markShopOrderShipped: (opts: { data: Record<string, unknown> }) => mockMarkShipped(opts.data),
+  markShopOrderShippedWithLabel: (opts: { data: Record<string, unknown> }) =>
+    mockMarkShippedWithLabel(opts.data),
   markShopOrderDelivered: (opts: { data: Record<string, unknown> }) => mockMarkDelivered(opts.data),
 }))
 
@@ -92,6 +96,7 @@ describe('ShopOrderDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockMarkShipped.mockResolvedValue({})
+    mockMarkShippedWithLabel.mockResolvedValue({})
     mockMarkDelivered.mockResolvedValue({})
   })
 
@@ -115,9 +120,12 @@ describe('ShopOrderDetailPage', () => {
     expect(screen.getByRole('heading', { name: 'Mark as Shipped' })).toBeDefined()
   })
 
-  it('submits tracking info and invalidates on success', async () => {
+  it('submits manual tracking info and invalidates on success', async () => {
     render(<ShopOrderDetailPage />)
     fireEvent.click(screen.getAllByRole('button', { name: /Mark as Shipped/i })[0])
+
+    // Switch to manual mode
+    fireEvent.click(screen.getByRole('button', { name: /Manual Tracking/i }))
 
     const trackingInput = screen.getByLabelText('Tracking Number')
     fireEvent.change(trackingInput, { target: { value: 'TRACK123' } })
@@ -139,9 +147,29 @@ describe('ShopOrderDetailPage', () => {
     })
   })
 
+  it('submits generate label and invalidates on success', async () => {
+    render(<ShopOrderDetailPage />)
+    fireEvent.click(screen.getAllByRole('button', { name: /Mark as Shipped/i })[0])
+
+    // Default mode is label generation
+    const form = screen.getByRole('dialog').querySelector('form')!
+    fireEvent.submit(form)
+
+    await waitFor(() => {
+      expect(mockMarkShippedWithLabel).toHaveBeenCalledWith(
+        expect.objectContaining({
+          shopOrderId: '550e8400-e29b-41d4-a716-446655440001',
+        }),
+      )
+    })
+  })
+
   it('shows validation error for invalid tracking URL', async () => {
     render(<ShopOrderDetailPage />)
     fireEvent.click(screen.getAllByRole('button', { name: /Mark as Shipped/i })[0])
+
+    // Switch to manual mode
+    fireEvent.click(screen.getByRole('button', { name: /Manual Tracking/i }))
 
     const urlInput = screen.getByLabelText('Tracking URL')
     fireEvent.change(urlInput, { target: { value: 'not-a-url' } })

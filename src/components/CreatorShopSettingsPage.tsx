@@ -73,6 +73,12 @@ function ShopSettingsForm({
   const [slug, setSlug] = useState(shop.slug)
   const [description, setDescription] = useState(shop.description ?? '')
 
+  // Shipping origin state
+  const [originStreet, setOriginStreet] = useState(shop.shippingOrigin?.street ?? '')
+  const [originCity, setOriginCity] = useState(shop.shippingOrigin?.city ?? '')
+  const [originPostal, setOriginPostal] = useState(shop.shippingOrigin?.postalCode ?? '')
+  const [originCountry, setOriginCountry] = useState(shop.shippingOrigin?.country ?? '')
+
   // Image state
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(shop.image ?? null)
@@ -95,8 +101,17 @@ function ShopSettingsForm({
 
   const slugChanged = slug !== shop.slug
   const imageChanged = imageFile !== null
+  const originChanged =
+    originStreet !== (shop.shippingOrigin?.street ?? '') ||
+    originCity !== (shop.shippingOrigin?.city ?? '') ||
+    originPostal !== (shop.shippingOrigin?.postalCode ?? '') ||
+    originCountry !== (shop.shippingOrigin?.country ?? '')
   const hasChanges =
-    name !== shop.name || slugChanged || description !== (shop.description ?? '') || imageChanged
+    name !== shop.name ||
+    slugChanged ||
+    description !== (shop.description ?? '') ||
+    imageChanged ||
+    originChanged
 
   /* ----------------------------- Slug validation ---------------------------- */
 
@@ -233,13 +248,30 @@ function ShopSettingsForm({
 
     try {
       // 1. Update shop metadata
-      const updatePayload: { shopId: string; name?: string; slug?: string; description?: string } =
-        { shopId: shop.id }
+      const updatePayload: {
+        shopId: string
+        name?: string
+        slug?: string
+        description?: string
+        shippingOrigin?: { street: string; city: string; postalCode: string; country: string } | null
+      } = { shopId: shop.id }
 
       if (name !== shop.name) updatePayload.name = name.trim()
       if (slug !== shop.slug) updatePayload.slug = slug.trim()
       if (description !== (shop.description ?? ''))
         updatePayload.description = description.trim() || ''
+
+      if (originChanged) {
+        updatePayload.shippingOrigin =
+          originStreet.trim() || originCity.trim() || originPostal.trim() || originCountry.trim()
+            ? {
+                street: originStreet.trim(),
+                city: originCity.trim(),
+                postalCode: originPostal.trim(),
+                country: originCountry.trim().toUpperCase(),
+              }
+            : null
+      }
 
       if (Object.keys(updatePayload).length > 1) {
         await updateShop({ data: updatePayload })
@@ -467,6 +499,83 @@ function ShopSettingsForm({
                   <p className='text-xs text-text-muted ml-auto'>{description.length}/2000</p>
                 </div>
               </div>
+
+              {/* Shipping Origin */}
+              <div className='rounded-xl border border-border-subtle p-4'>
+                <h3 className='mb-3 text-sm font-semibold text-text-primary'>
+                  Shipping Origin Address
+                </h3>
+                <p className='mb-3 text-xs text-text-muted'>
+                  Used to generate shipping labels for your orders.
+                </p>
+                <div className='space-y-3'>
+                  <div>
+                    <label
+                      htmlFor='origin-street'
+                      className='mb-1.5 block text-xs font-medium text-text-secondary'
+                    >
+                      Street
+                    </label>
+                    <Input
+                      id='origin-street'
+                      type='text'
+                      value={originStreet}
+                      onChange={(e) => setOriginStreet(e.target.value)}
+                      placeholder='123 Main St'
+                    />
+                  </div>
+                  <div className='grid grid-cols-2 gap-3'>
+                    <div>
+                      <label
+                        htmlFor='origin-city'
+                        className='mb-1.5 block text-xs font-medium text-text-secondary'
+                      >
+                        City
+                      </label>
+                      <Input
+                        id='origin-city'
+                        type='text'
+                        value={originCity}
+                        onChange={(e) => setOriginCity(e.target.value)}
+                        placeholder='Berlin'
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor='origin-postal'
+                        className='mb-1.5 block text-xs font-medium text-text-secondary'
+                      >
+                        Postal Code
+                      </label>
+                      <Input
+                        id='origin-postal'
+                        type='text'
+                        value={originPostal}
+                        onChange={(e) => setOriginPostal(e.target.value)}
+                        placeholder='10115'
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label
+                      htmlFor='origin-country'
+                      className='mb-1.5 block text-xs font-medium text-text-secondary'
+                    >
+                      Country (2-letter code)
+                    </label>
+                    <Input
+                      id='origin-country'
+                      type='text'
+                      value={originCountry}
+                      onChange={(e) =>
+                        setOriginCountry(e.target.value.toUpperCase().slice(0, 2))
+                      }
+                      placeholder='DE'
+                      maxLength={2}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Right column: image upload */}
@@ -552,6 +661,10 @@ function ShopSettingsForm({
                   setName(shop.name)
                   setSlug(shop.slug)
                   setDescription(shop.description ?? '')
+                  setOriginStreet(shop.shippingOrigin?.street ?? '')
+                  setOriginCity(shop.shippingOrigin?.city ?? '')
+                  setOriginPostal(shop.shippingOrigin?.postalCode ?? '')
+                  setOriginCountry(shop.shippingOrigin?.country ?? '')
                   setImageFile(null)
                   setImagePreview(shop.image ?? null)
                   setImageError(null)

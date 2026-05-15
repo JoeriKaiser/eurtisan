@@ -53,6 +53,13 @@ export async function checkSlugUniquePlatformWide(
 /*                               Internal Logic                               */
 /* -------------------------------------------------------------------------- */
 
+export interface ShippingOrigin {
+  street: string
+  city: string
+  postalCode: string
+  country: string
+}
+
 export type UpdateShopInput = {
   /** Shop display name (1–255 characters). */
   name?: string
@@ -60,6 +67,8 @@ export type UpdateShopInput = {
   slug?: string
   /** Optional shop description. */
   description?: string
+  /** Optional shipping origin address for label generation. */
+  shippingOrigin?: ShippingOrigin | null
 }
 
 export type ShopRecord = typeof shop.$inferSelect
@@ -116,6 +125,10 @@ export async function updateShopInternal(
 
   if (input.description !== undefined) {
     updateData.description = sanitizeDescription(input.description)
+  }
+
+  if (input.shippingOrigin !== undefined) {
+    updateData.shippingOrigin = input.shippingOrigin
   }
 
   const [updated] = await db.update(shop).set(updateData).where(eq(shop.id, shopId)).returning()

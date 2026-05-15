@@ -8,6 +8,13 @@ export interface CreatorShop {
   slug: string
 }
 
+export interface ShippingOrigin {
+  street: string
+  city: string
+  postalCode: string
+  country: string
+}
+
 export interface CreatorShopDetail {
   id: string
   name: string
@@ -15,6 +22,7 @@ export interface CreatorShopDetail {
   description: string | null
   image: string | null
   ownerId: string
+  shippingOrigin: ShippingOrigin | null
   createdAt: Date
   updatedAt: Date
 }
@@ -160,6 +168,7 @@ export async function getCreatorShopQuery(
     description: record.description,
     image: record.image,
     ownerId: record.ownerId,
+    shippingOrigin: (record.shippingOrigin as ShippingOrigin | null) ?? null,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   }

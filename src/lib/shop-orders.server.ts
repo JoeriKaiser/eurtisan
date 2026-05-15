@@ -1,7 +1,8 @@
 import { and, count, desc, eq, ilike, or, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '#/db/index'
-import { orderItem, platformOrder, shopOrder, user } from '#/db/schema'
+import { orderItem, platformOrder, shop, shippingLabel, shopOrder, user } from '#/db/schema'
+import { mondialRelayProvider } from '#/integrations/shipping'
 import type { ShippingAddress } from './checkout.server'
 import type { OrderStatus } from './orders.server'
 
@@ -27,12 +28,20 @@ export interface ShopOrderBuyer {
   email: string
 }
 
+export interface ShippingLabelDetail {
+  id: string
+  carrier: string
+  trackingNumber: string | null
+  labelUrl: string | null
+  createdAt: Date
+}
+
 export interface ShopOrderDetail {
   id: string
   platformOrderId: string
   shopId: string
   status: string
-  shippingMethod: 'standard' | 'express'
+  shippingMethod: 'standard' | 'express' | 'manual'
   shippingCostCents: number
   subtotalCents: number
   trackingNumber: string | null
@@ -42,13 +51,14 @@ export interface ShopOrderDetail {
   buyer: ShopOrderBuyer
   shippingAddress: ShippingAddress
   items: ShopOrderItemDetail[]
+  label: ShippingLabelDetail | null
 }
 
 export interface ShopOrderListItem {
   id: string
   platformOrderId: string
   status: string
-  shippingMethod: 'standard' | 'express'
+  shippingMethod: 'standard' | 'express' | 'manual'
   shippingCostCents: number
   subtotalCents: number
   totalCents: number
@@ -179,6 +189,18 @@ export async function getShopOrderQuery(
     .from(orderItem)
     .where(eq(orderItem.shopOrderId, shopOrderId))
 
+  const [labelRecord] = await tx
+    .select({
+      id: shippingLabel.id,
+      carrier: shippingLabel.carrier,
+      trackingNumber: shippingLabel.trackingNumber,
+      labelUrl: shippingLabel.labelUrl,
+      createdAt: shippingLabel.createdAt,
+    })
+    .from(shippingLabel)
+    .where(eq(shippingLabel.shopOrderId, shopOrderId))
+    .limit(1)
+
   return {
     id: shopOrderRecord.id,
     platformOrderId: shopOrderRecord.platformOrderId,
@@ -194,6 +216,7 @@ export async function getShopOrderQuery(
     buyer: buyerRecord ?? { id: platformOrderRecord.userId, name: 'Unknown', email: '' },
     shippingAddress: platformOrderRecord.shippingAddress as ShippingAddress,
     items,
+    label: labelRecord ?? null,
   }
 }
 
@@ -423,6 +446,110 @@ export async function markShopOrderShippedQuery(
   }
 
   return result
+}
+
+/* -------------------------------------------------------------------------- */
+/*                          Shipping Label Generation                         */
+/* -------------------------------------------------------------------------- */
+
+export interface CreateLabelInput {
+  shopOrderId: string
+}
+
+export async function createShippingLabelForOrderQuery(
+  shopOrderId: string,
+): Promise<ShippingLabelDetail> {
+  const order = await getShopOrderQuery(shopOrderId)
+  if (!order) {
+    throw new Response(JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  const [shopRecord] = await db.select().from(shop).where(eq(shop.id, order.shopId)).limit(1)
+
+  if (!shopRecord) {
+    throw new Response(JSON.stringify({ error: 'Not Found', message: 'Shop not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  const origin = shopRecord.shippingOrigin as
+    | { street: string; city: string; postalCode: string; country: string }
+    | null
+
+  if (!origin) {
+    throw new Response(
+      JSON.stringify({
+        error: 'Bad Request',
+        message: 'Shop shipping origin address is not configured',
+      }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  const destination = order.shippingAddress
+
+  // Build a sensible package estimate from order item count
+  const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0)
+  const weightGrams = Math.max(100, itemCount * 250)
+  const lengthCm = Math.max(10, itemCount * 5)
+  const widthCm = Math.max(10, itemCount * 4)
+  const heightCm = Math.max(5, itemCount * 3)
+
+  try {
+    const label = await mondialRelayProvider.createLabel({
+      origin,
+      destination,
+      package: { weightGrams, lengthCm, widthCm, heightCm },
+      carrierService: order.shippingMethod === 'express' ? 'mondial_xpr' : 'mondial_std',
+      reference: shopOrderId,
+    })
+
+    // Insert shipping_label row (provider may also insert, but we ensure it here)
+    const [record] = await db
+      .insert(shippingLabel)
+      .values({
+        shopOrderId,
+        carrier: label.carrier,
+        trackingNumber: label.trackingNumber,
+        labelUrl: label.labelUrl,
+      })
+      .returning()
+
+    return {
+      id: record.id,
+      carrier: record.carrier,
+      trackingNumber: record.trackingNumber,
+      labelUrl: record.labelUrl,
+      createdAt: record.createdAt,
+    }
+  } catch (err) {
+    throw new Response(
+      JSON.stringify({
+        error: 'Service Unavailable',
+        message:
+          err instanceof Error ? err.message : 'Shipping label generation failed. Please try again.',
+      }),
+      { status: 503, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+}
+
+export async function markShopOrderShippedWithLabelQuery(
+  shopOrderId: string,
+): Promise<ShopOrderDetail> {
+  // Step 1: create label first (outside transaction so provider network call
+  // doesn't hold a DB transaction open).
+  const label = await createShippingLabelForOrderQuery(shopOrderId)
+
+  // Step 2: mark as shipped using the generated tracking info.
+  return markShopOrderShippedQuery(shopOrderId, {
+    trackingNumber: label.trackingNumber,
+    trackingUrl: label.labelUrl,
+  })
 }
 
 export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<ShopOrderDetail> {

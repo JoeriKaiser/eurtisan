@@ -5,6 +5,7 @@ import { db } from '#/db/index'
 import { orderItem, platformOrder, product, shop, shopOrder, user } from '#/db/schema'
 
 import {
+  createShippingLabelForOrderQuery,
   derivePlatformStatus,
   getShopOrderDetailQuery,
   getShopOrderQuery,
@@ -12,6 +13,7 @@ import {
   listShopOrdersQuery,
   markShopOrderDeliveredQuery,
   markShopOrderShippedQuery,
+  markShopOrderShippedWithLabelQuery,
   recalcPlatformOrderStatus,
   updateShopOrderStatusQuery,
 } from './shop-orders.server'
@@ -361,7 +363,7 @@ describe('listShopOrdersQuery', () => {
     expect(result.orders[0].id).toBe(so.id)
     expect(result.orders[0].status).toBe('paid')
     expect(result.orders[0].buyerName).toBe('Test')
-    expect(result.orders[0].buyerEmail).toBe('test@example.com')
+    expect(result.orders[0].buyerEmail).toBe('t***@example.com')
     expect(result.orders[0].itemCount).toBe(1)
     expect(result.orders[0].totalCents).toBe(2500)
   })
@@ -1448,5 +1450,235 @@ describe('recalcPlatformOrderStatus', () => {
 
     const [updated] = await db.select().from(platformOrder).where(eq(platformOrder.id, order.id))
     expect(updated.status).toBe('delivered')
+  })
+})
+
+describe('createShippingLabelForOrderQuery', () => {
+  it('throws 404 for nonexistent order', async () => {
+    try {
+      await createShippingLabelForOrderQuery('550e8400-e29b-41d4-a716-446655440000')
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(404)
+    }
+  })
+
+  it('throws 400 when shop shipping origin is not configured', async () => {
+    await seedUser()
+    await seedShop()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test Buyer',
+          street: '123 Main St',
+          city: 'Berlin',
+          postalCode: '10115',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test Buyer',
+          street: '123 Main St',
+          city: 'Berlin',
+          postalCode: '10115',
+          country: 'DE',
+        },
+        totalCents: 1000,
+        status: 'paid',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 100,
+        subtotalCents: 900,
+        status: 'paid',
+      })
+      .returning()
+
+    try {
+      await createShippingLabelForOrderQuery(so.id)
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(400)
+      const body = await (err as Response).json()
+      expect(body.message).toContain('origin address is not configured')
+    }
+  })
+
+  it('creates a shipping label and stores it in the database', async () => {
+    await seedUser()
+    await seedShop({
+      shippingOrigin: {
+        street: '456 Warehouse Ave',
+        city: 'Paris',
+        postalCode: '75001',
+        country: 'FR',
+      },
+    })
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test Buyer',
+          street: '123 Main St',
+          city: 'Berlin',
+          postalCode: '10115',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test Buyer',
+          street: '123 Main St',
+          city: 'Berlin',
+          postalCode: '10115',
+          country: 'DE',
+        },
+        totalCents: 1000,
+        status: 'paid',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 100,
+        subtotalCents: 900,
+        status: 'paid',
+      })
+      .returning()
+
+    const label = await createShippingLabelForOrderQuery(so.id)
+    expect(label.carrier).toBe('mondial_relay')
+    expect(label.trackingNumber).toBeTruthy()
+    expect(label.labelUrl).toBeTruthy()
+
+    const orderWithLabel = await getShopOrderQuery(so.id)
+    expect(orderWithLabel?.label).not.toBeNull()
+    expect(orderWithLabel?.label?.carrier).toBe('mondial_relay')
+  })
+})
+
+describe('markShopOrderShippedWithLabelQuery', () => {
+  it('creates label, marks order shipped, and stores tracking info', async () => {
+    await seedUser()
+    await seedShop({
+      shippingOrigin: {
+        street: '456 Warehouse Ave',
+        city: 'Paris',
+        postalCode: '75001',
+        country: 'FR',
+      },
+    })
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test Buyer',
+          street: '123 Main St',
+          city: 'Berlin',
+          postalCode: '10115',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test Buyer',
+          street: '123 Main St',
+          city: 'Berlin',
+          postalCode: '10115',
+          country: 'DE',
+        },
+        totalCents: 1000,
+        status: 'paid',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 100,
+        subtotalCents: 900,
+        status: 'paid',
+      })
+      .returning()
+
+    const updated = await markShopOrderShippedWithLabelQuery(so.id)
+    expect(updated.status).toBe('shipped')
+    expect(updated.trackingNumber).toBeTruthy()
+    expect(updated.trackingUrl).toBeTruthy()
+    expect(updated.label).not.toBeNull()
+
+    const [platformRecord] = await db
+      .select()
+      .from(platformOrder)
+      .where(eq(platformOrder.id, order.id))
+    expect(platformRecord.status).toBe('shipped')
+  })
+
+  it('does not mark shipped when label generation fails', async () => {
+    await seedUser()
+    await seedShop() // no shipping origin
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test Buyer',
+          street: '123 Main St',
+          city: 'Berlin',
+          postalCode: '10115',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test Buyer',
+          street: '123 Main St',
+          city: 'Berlin',
+          postalCode: '10115',
+          country: 'DE',
+        },
+        totalCents: 1000,
+        status: 'paid',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 100,
+        subtotalCents: 900,
+        status: 'paid',
+      })
+      .returning()
+
+    try {
+      await markShopOrderShippedWithLabelQuery(so.id)
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(400)
+    }
+
+    const unchanged = await getShopOrderQuery(so.id)
+    expect(unchanged?.status).toBe('paid')
   })
 })

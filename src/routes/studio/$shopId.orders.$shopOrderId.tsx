@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   Circle,
+  FileText,
   ImageOff,
   MapPin,
   Package,
@@ -30,7 +31,12 @@ import {
 } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
 import { guardAuth } from '#/lib/route-guards'
-import { getShopOrderDetail, markShopOrderDelivered, markShopOrderShipped } from '#/lib/shop-orders'
+import {
+  getShopOrderDetail,
+  markShopOrderDelivered,
+  markShopOrderShipped,
+  markShopOrderShippedWithLabel,
+} from '#/lib/shop-orders'
 
 export const Route = createFileRoute('/studio/$shopId/orders/$shopOrderId')({
   beforeLoad: async () => guardAuth(),
@@ -145,6 +151,7 @@ function ShipOrderDialog({
   onOpenChange: (open: boolean) => void
   onShipped: () => void
 }) {
+  const [mode, setMode] = useState<'label' | 'manual'>('label')
   const [trackingNumber, setTrackingNumber] = useState('')
   const [trackingUrl, setTrackingUrl] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -153,6 +160,7 @@ function ShipOrderDialog({
 
   useEffect(() => {
     if (open) {
+      setMode('label')
       setTrackingNumber('')
       setTrackingUrl('')
       setError(null)
@@ -162,7 +170,7 @@ function ShipOrderDialog({
 
   const validate = useCallback(() => {
     const errors: { trackingUrl?: string } = {}
-    if (trackingUrl.trim()) {
+    if (mode === 'manual' && trackingUrl.trim()) {
       try {
         new URL(trackingUrl.trim())
       } catch {
@@ -171,7 +179,7 @@ function ShipOrderDialog({
     }
     setFieldErrors(errors)
     return Object.keys(errors).length === 0
-  }, [trackingUrl])
+  }, [trackingUrl, mode])
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -182,13 +190,17 @@ function ShipOrderDialog({
       setError(null)
 
       try {
-        await markShopOrderShipped({
-          data: {
-            shopOrderId: orderId,
-            trackingNumber: trackingNumber.trim() || null,
-            trackingUrl: trackingUrl.trim() || null,
-          },
-        })
+        if (mode === 'label') {
+          await markShopOrderShippedWithLabel({ data: { shopOrderId: orderId } })
+        } else {
+          await markShopOrderShipped({
+            data: {
+              shopOrderId: orderId,
+              trackingNumber: trackingNumber.trim() || null,
+              trackingUrl: trackingUrl.trim() || null,
+            },
+          })
+        }
         onOpenChange(false)
         onShipped()
       } catch (err) {
@@ -208,7 +220,7 @@ function ShipOrderDialog({
         setIsSubmitting(false)
       }
     },
-    [orderId, trackingNumber, trackingUrl, validate, onOpenChange, onShipped],
+    [orderId, trackingNumber, trackingUrl, mode, validate, onOpenChange, onShipped],
   )
 
   return (
@@ -221,51 +233,88 @@ function ShipOrderDialog({
               <form onSubmit={handleSubmit}>
                 <DialogTitle>Mark as Shipped</DialogTitle>
                 <DialogDescription>
-                  Enter tracking information to update the buyer.
+                  Choose how to provide tracking for this order.
                 </DialogDescription>
 
                 <div className='mt-4 space-y-4'>
-                  <div>
-                    <label
-                      htmlFor='tracking-number'
-                      className='mb-1.5 block text-sm font-medium text-text-secondary'
+                  {/* Mode toggle */}
+                  <div className='flex rounded-lg border border-border-default p-1'>
+                    <button
+                      type='button'
+                      onClick={() => setMode('label')}
+                      className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition ${
+                        mode === 'label'
+                          ? 'bg-accent-primary text-text-on-primary'
+                          : 'text-text-secondary hover:text-text-primary'
+                      }`}
                     >
-                      Tracking Number
-                    </label>
-                    <Input
-                      id='tracking-number'
-                      value={trackingNumber}
-                      onChange={(e) => setTrackingNumber(e.target.value)}
-                      placeholder='e.g. TRACK123456'
-                      disabled={isSubmitting}
-                    />
+                      Generate Label
+                    </button>
+                    <button
+                      type='button'
+                      onClick={() => setMode('manual')}
+                      className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition ${
+                        mode === 'manual'
+                          ? 'bg-accent-primary text-text-on-primary'
+                          : 'text-text-secondary hover:text-text-primary'
+                      }`}
+                    >
+                      Manual Tracking
+                    </button>
                   </div>
 
-                  <div>
-                    <label
-                      htmlFor='tracking-url'
-                      className='mb-1.5 block text-sm font-medium text-text-secondary'
-                    >
-                      Tracking URL
-                    </label>
-                    <Input
-                      id='tracking-url'
-                      type='url'
-                      value={trackingUrl}
-                      onChange={(e) => {
-                        setTrackingUrl(e.target.value)
-                        if (fieldErrors.trackingUrl) setFieldErrors({})
-                      }}
-                      placeholder='https://carrier.example.com/track'
-                      disabled={isSubmitting}
-                      error={fieldErrors.trackingUrl}
-                    />
-                    {fieldErrors.trackingUrl && (
-                      <p id='tracking-url-error' className='mt-1 text-xs text-error'>
-                        {fieldErrors.trackingUrl}
-                      </p>
-                    )}
-                  </div>
+                  {mode === 'manual' && (
+                    <>
+                      <div>
+                        <label
+                          htmlFor='tracking-number'
+                          className='mb-1.5 block text-sm font-medium text-text-secondary'
+                        >
+                          Tracking Number
+                        </label>
+                        <Input
+                          id='tracking-number'
+                          value={trackingNumber}
+                          onChange={(e) => setTrackingNumber(e.target.value)}
+                          placeholder='e.g. TRACK123456'
+                          disabled={isSubmitting}
+                        />
+                      </div>
+
+                      <div>
+                        <label
+                          htmlFor='tracking-url'
+                          className='mb-1.5 block text-sm font-medium text-text-secondary'
+                        >
+                          Tracking URL
+                        </label>
+                        <Input
+                          id='tracking-url'
+                          type='url'
+                          value={trackingUrl}
+                          onChange={(e) => {
+                            setTrackingUrl(e.target.value)
+                            if (fieldErrors.trackingUrl) setFieldErrors({})
+                          }}
+                          placeholder='https://carrier.example.com/track'
+                          disabled={isSubmitting}
+                          error={fieldErrors.trackingUrl}
+                        />
+                        {fieldErrors.trackingUrl && (
+                          <p id='tracking-url-error' className='mt-1 text-xs text-error'>
+                            {fieldErrors.trackingUrl}
+                          </p>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {mode === 'label' && (
+                    <p className='text-sm text-text-secondary'>
+                      The system will generate a shipping label via Mondial Relay using your shop's
+                      origin address and the buyer's shipping address.
+                    </p>
+                  )}
 
                   {error && (
                     <div className='rounded-lg bg-error/10 p-3 text-sm text-error' role='alert'>
@@ -455,6 +504,45 @@ export function ShopOrderDetailPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Shipping Label */}
+          {order.label && (
+            <Card>
+              <CardHeader>
+                <CardTitle className='flex items-center gap-2 text-sm'>
+                  <FileText size={16} className='text-text-muted' aria-hidden='true' />
+                  Shipping Label
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className='space-y-2'>
+                  <p className='text-sm text-text-secondary'>
+                    Carrier:{' '}
+                    <span className='font-medium text-text-primary'>{order.label.carrier}</span>
+                  </p>
+                  {order.label.trackingNumber && (
+                    <p className='text-sm text-text-secondary'>
+                      Tracking:{' '}
+                      <span className='font-medium text-text-primary'>
+                        {order.label.trackingNumber}
+                      </span>
+                    </p>
+                  )}
+                  {order.label.labelUrl && (
+                    <a
+                      href={order.label.labelUrl}
+                      target='_blank'
+                      rel='noopener noreferrer'
+                      className='inline-flex items-center gap-1 text-sm text-accent-primary hover:underline'
+                    >
+                      Download / print label
+                      <FileText size={14} aria-hidden='true' />
+                    </a>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Shipping Address */}
           <Card>

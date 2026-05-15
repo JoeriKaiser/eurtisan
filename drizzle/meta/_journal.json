@@ -183,6 +183,13 @@
       "when": 1778793087725,
       "tag": "0025_luxuriant_mikhail_rasputin",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1778867964657,
+      "tag": "0026_goofy_scarlet_witch",
+      "breakpoints": true
     }
   ]
 }
