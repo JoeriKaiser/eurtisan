@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { authMiddleware } from './auth-middleware'
+import { createUserRateLimitMiddleware } from './rate-limit'
 
 export type {
   CheckoutInput,
@@ -63,8 +64,10 @@ export const getCheckoutSummary = createServerFn({ method: 'POST' })
     return result
   })
 
+const checkoutRateLimitMiddleware = createUserRateLimitMiddleware(1, 5_000, 'checkout')
+
 export const createCheckout = createServerFn({ method: 'POST' })
-  .middleware([authMiddleware])
+  .middleware([authMiddleware, checkoutRateLimitMiddleware])
   .inputValidator(checkoutInputSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {

@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
+import { createIpRateLimitMiddleware } from './rate-limit'
 
 export type {
   FeaturedShop,
@@ -186,9 +187,12 @@ export const listShops = createServerFn({
   return listShopsQuery()
 })
 
+const searchRateLimitMiddleware = createIpRateLimitMiddleware(30, 60_000, 'search')
+
 export const searchProducts = createServerFn({
   method: 'GET',
 })
+  .middleware([searchRateLimitMiddleware])
   .inputValidator(searchProductsSchema)
   .handler(async ({ data }) => {
     const { searchProductsQuery } = await import('./products.server')

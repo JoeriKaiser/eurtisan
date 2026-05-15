@@ -436,3 +436,16 @@ export const shippingLabel = pgTable(
   },
   (table) => [index('shipping_label_shop_order_id_idx').on(table.shopOrderId)],
 )
+
+export const rateLimit = pgTable(
+  'rate_limit',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    key: text('key').notNull().unique(),
+    windowStart: timestamp('window_start').notNull(),
+    count: integer('count').notNull().default(1),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [index('rate_limit_key_idx').on(table.key)],
+)
