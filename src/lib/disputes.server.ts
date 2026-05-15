@@ -13,6 +13,7 @@ import {
 } from '#/db/schema'
 import { molliePaymentProvider } from '#/integrations/mollie'
 import { getBaseUrl } from './env.server'
+import { logOrderDisputed, logOrderResolved } from './order-logger'
 import type { OrderStatus } from './orders.server'
 import { recalcPlatformOrderStatus } from './shop-orders.server'
 
@@ -251,6 +252,13 @@ export async function openDisputeQuery(
     } catch {
       // Notification errors must not break the primary business transaction
     }
+
+    logOrderDisputed({
+      disputeId: created.id,
+      shopOrderId: created.shopOrderId,
+      platformOrderId: shopOrderRecord.platformOrderId,
+      reason: created.reason,
+    })
 
     return {
       id: created.id,
@@ -678,6 +686,14 @@ export async function resolveDisputeQuery(
       refundCents: updated.refundCents,
       updatedAt: updated.updatedAt,
     }
+  })
+
+  logOrderResolved({
+    disputeId,
+    shopOrderId: disputeRecord.shopOrderId,
+    platformOrderId: shopOrderRecord.platformOrderId,
+    resolution: input.resolution,
+    refundCents,
   })
 
   // Send dispute update emails after the transaction

@@ -13,6 +13,7 @@ import {
 import { mondialRelayProvider } from '#/integrations/shipping'
 import type { ShippingAddress } from './checkout.server'
 import { getBaseUrl } from './env.server'
+import { logOrderDelivered, logOrderShipped } from './order-logger'
 import type { OrderStatus } from './orders.server'
 
 function maskEmail(email: string): string {
@@ -464,6 +465,15 @@ export async function markShopOrderShippedQuery(
     }
   }
 
+  if (!wasAlreadyShipped && result.status === 'shipped') {
+    logOrderShipped({
+      shopOrderId,
+      platformOrderId: result.platformOrderId,
+      trackingNumber: result.trackingNumber,
+      trackingUrl: result.trackingUrl,
+    })
+  }
+
   return result
 }
 
@@ -577,7 +587,16 @@ export async function markShopOrderShippedWithLabelQuery(
 }
 
 export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<ShopOrderDetail> {
-  return db.transaction(async (tx) => {
+  // Fetch current status before transaction to know if this is a real transition
+  const [preRecord] = await db
+    .select()
+    .from(shopOrder)
+    .where(eq(shopOrder.id, shopOrderId))
+    .limit(1)
+
+  const wasAlreadyDelivered = preRecord?.status === 'delivered'
+
+  const result = await db.transaction(async (tx) => {
     const [record] = await tx.select().from(shopOrder).where(eq(shopOrder.id, shopOrderId)).limit(1)
 
     if (!record) {
@@ -626,6 +645,15 @@ export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<
     }
     return updated
   })
+
+  if (!wasAlreadyDelivered && result.status === 'delivered') {
+    logOrderDelivered({
+      shopOrderId,
+      platformOrderId: result.platformOrderId,
+    })
+  }
+
+  return result
 }
 
 export async function updateShopOrderStatusQuery(

@@ -25,6 +25,7 @@ import {
   releaseStockInTx,
   reserveStockInTx,
 } from './inventory.server'
+import { logOrderCreated } from './order-logger'
 import type { PaymentProvider } from './payment-provider'
 import { formatPriceEUR } from './pricing'
 
@@ -779,6 +780,13 @@ export async function createCheckoutWithProvider(
   } catch {
     // Notification/email errors must not break the primary checkout transaction
   }
+
+  logOrderCreated({
+    platformOrderId,
+    userId,
+    totalCents: result.grandTotalCents,
+    shopOrderCount: result.createdShopOrders.length,
+  })
 
   return { platformOrderId, checkoutUrl }
 }

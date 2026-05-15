@@ -12,6 +12,7 @@ import { eq } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { platformOrder, shopOrder } from '#/db/schema'
 import { molliePaymentProvider } from '#/integrations/mollie'
+import { logOrderPaid } from '#/lib/order-logger'
 import { releaseStockInTx } from '#/lib/inventory.server'
 import type { PaymentProvider } from '#/lib/payment-provider'
 
@@ -110,17 +111,25 @@ export async function processMollieWebhook(
   const paymentStatus = await provider.getPaymentStatus(payload.id)
 
   if (paymentStatus === 'paid') {
+    let totalCents = 0
     await database.transaction(async (tx) => {
-      await tx
+      const [platformOrderRecord] = await tx
         .update(platformOrder)
         .set({ status: 'paid', updatedAt: new Date() })
         .where(eq(platformOrder.id, order.id))
+        .returning()
+
+      if (platformOrderRecord) {
+        totalCents = platformOrderRecord.totalCents
+      }
 
       await tx
         .update(shopOrder)
         .set({ status: 'paid', updatedAt: new Date() })
         .where(eq(shopOrder.platformOrderId, order.id))
     })
+
+    logOrderPaid({ platformOrderId: order.id, totalCents, paymentStatus: 'paid' })
 
     return new Response(JSON.stringify({ status: 'processed' }), {
       status: 200,
