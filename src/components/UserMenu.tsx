@@ -26,7 +26,7 @@ export default function UserMenu() {
     return (
       <Link
         to='/signin'
-        className='inline-flex h-8 items-center rounded-lg px-3 text-sm font-medium text-text-primary transition-colors duration-fast ease-out hover:bg-bg-inset'
+        className='inline-flex items-center rounded-lg px-2 py-1.5 text-sm font-medium text-text-primary transition-colors duration-fast ease-out hover:bg-bg-inset'
       >
         {m.nav_sign_in()}
       </Link>
@@ -55,7 +55,7 @@ export default function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className='flex items-center gap-1.5 rounded-full border border-border-default bg-surface-default px-2 py-1 text-sm text-text-primary shadow-sm transition-colors duration-fast ease-out hover:bg-bg-inset'
+        className='flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-text-primary transition-colors duration-fast ease-out hover:bg-bg-inset'
         aria-haspopup='menu'
       >
         {user.image ? (

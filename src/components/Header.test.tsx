@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import Header from './Header'
 
@@ -9,6 +9,9 @@ const mockUseCart = vi.hoisted(() => vi.fn())
 const mockUseAuth = vi.hoisted(() => vi.fn())
 const mockUseUnreadNotificationCount = vi.hoisted(() => vi.fn())
 const mockUseLocation = vi.hoisted(() => vi.fn(() => ({ pathname: '/about' })))
+const mockListCategories = vi.hoisted(() =>
+  vi.fn(() => Promise.resolve<{ id: string; name: string; slug: string }[]>([])),
+)
 
 vi.mock('@tanstack/react-router', () => ({
   Link: (props: {
@@ -38,6 +41,7 @@ vi.mock('#/paraglide/messages', () => ({
     nav_logo: () => 'Eurtisan',
     nav_home: () => 'Home',
     nav_about: () => 'About',
+    nav_categories: () => 'Categories',
     search_header_placeholder: () => 'Search products...',
     search_header_button: () => 'Search',
     cart_badge_label: () => 'Shopping cart',
@@ -67,8 +71,14 @@ vi.mock('#/lib/notifications-hooks', () => ({
   useUnreadNotificationCount: () => mockUseUnreadNotificationCount(),
 }))
 
+vi.mock('#/lib/categories', () => ({
+  listCategories: () => mockListCategories(),
+}))
+
 describe('Header', () => {
   beforeEach(() => {
+    mockNavigate.mockClear()
+    mockListCategories.mockReturnValue(Promise.resolve([]))
     mockUseCart.mockReturnValue({
       cart: null,
       isLoading: false,
@@ -122,7 +132,6 @@ describe('Header', () => {
   })
 
   it('does not navigate on empty search', () => {
-    mockNavigate.mockClear()
     render(<Header />)
     fireEvent.click(screen.getByRole('button', { name: 'Search' }))
     expect(mockNavigate).not.toHaveBeenCalled()
@@ -268,5 +277,19 @@ describe('Header', () => {
 
     render(<Header />)
     expect(screen.getByText('99+')).toBeDefined()
+  })
+
+  it('shows categories dropdown when categories are available', async () => {
+    mockListCategories.mockReturnValue(
+      Promise.resolve([
+        { id: 'cat-1', name: 'Ceramics', slug: 'ceramics' },
+        { id: 'cat-2', name: 'Textiles', slug: 'textiles' },
+      ]),
+    )
+
+    render(<Header />)
+    await waitFor(() => {
+      expect(screen.getByText('Categories')).toBeDefined()
+    })
   })
 })

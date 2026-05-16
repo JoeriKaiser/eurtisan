@@ -13,7 +13,7 @@ export const DropdownMenuPopup = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
-  <Menu.Positioner className='z-dropdown' sideOffset={6}>
+  <Menu.Positioner className='z-sticky' sideOffset={6}>
     <Menu.Popup
       ref={ref}
       className={cn(
