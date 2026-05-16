@@ -382,7 +382,7 @@ describe('getSitemap cache', () => {
   })
 
   it('returns fresh sitemap after clearing cache', async () => {
-    const _first = await getSitemap()
+    await getSitemap()
 
     clearSitemapCache()
     const second = await getSitemap()

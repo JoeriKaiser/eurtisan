@@ -119,9 +119,9 @@ describe('CheckoutPage', () => {
     const shopHeadings = screen.getAllByText('Test Shop')
     expect(shopHeadings.length).toBeGreaterThanOrEqual(1)
 
-    // Carrier name and service names
-    expect(screen.getByText('Mondial Relay Standard')).toBeDefined()
-    expect(screen.getByText('Mondial Relay Express')).toBeDefined()
+    // Carrier name and service names (appear in both shipping options and sidebar summary)
+    expect(screen.getAllByText('Mondial Relay Standard').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Mondial Relay Express').length).toBeGreaterThanOrEqual(1)
 
     // Estimated delivery days
     expect(screen.getByText('2–4 business days')).toBeDefined()
@@ -155,9 +155,8 @@ describe('CheckoutPage', () => {
 
   it('allows selecting different shipping options', () => {
     render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
-    // Click the express radio
-    const expressRadio = screen.getByLabelText('Mondial Relay Express')
-    // Actually, the label wraps the radio, so we need to click the label
+    // Click the express radio (label text includes carrier/estimated days, so use regex)
+    const expressRadio = screen.getByLabelText(/Mondial Relay Express/i)
     fireEvent.click(expressRadio)
     // Verify the radio is checked
     expect(expressRadio).toHaveProperty('checked', true)
@@ -166,7 +165,7 @@ describe('CheckoutPage', () => {
   it('calls createCheckout with rateId and redirects on success', async () => {
     const savedLocation = window.location
     delete (window as { location?: unknown }).location
-    window.location = { ...savedLocation, href: '' } as Location
+    window.location = { ...savedLocation, href: '' } as Location & string
 
     const checkoutUrl = 'https://checkout.mollie.com/pay/test_payment_1'
     mockCreateCheckout.mockResolvedValue({
@@ -215,7 +214,7 @@ describe('CheckoutPage', () => {
       expect(window.location.href).toBe(checkoutUrl)
     })
 
-    window.location = savedLocation
+    window.location = savedLocation as Location & string
   })
 
   it('renders billing address section with same-as-shipping toggle', () => {
@@ -271,7 +270,7 @@ describe('CheckoutPage', () => {
     // Standard shipping: 2000 + 500 = 2500
     expect(screen.getAllByText('€25,00').length).toBeGreaterThanOrEqual(1)
 
-    fireEvent.click(screen.getByLabelText('Mondial Relay Express'))
+    fireEvent.click(screen.getByLabelText(/Mondial Relay Express/i))
     // Express shipping: 2000 + 1000 = 3000
     expect(screen.getAllByText('€30,00').length).toBeGreaterThanOrEqual(1)
   })
@@ -339,8 +338,8 @@ describe('CheckoutPage', () => {
     })
 
     render(<CheckoutPage summary={summary} cartId='cart-1' />)
-    expect(screen.getByText('Shop A')).toBeDefined()
-    expect(screen.getByText('Shop B')).toBeDefined()
+    expect(screen.getAllByText('Shop A').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Shop B').length).toBeGreaterThanOrEqual(1)
   })
 
   it('shows manual fallback option when shipping provider is unavailable', () => {
@@ -374,6 +373,6 @@ describe('CheckoutPage', () => {
     })
 
     render(<CheckoutPage summary={summary} cartId='cart-1' />)
-    expect(screen.getByText('Manual shipping — contact seller')).toBeDefined()
+    expect(screen.getAllByText('Manual shipping — contact seller').length).toBeGreaterThanOrEqual(1)
   })
 })

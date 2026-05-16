@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
-import { z } from 'zod'
+import z from 'zod'
 import {
   NotificationsError,
   NotificationsLoading,
@@ -9,6 +9,7 @@ import {
 import { getNotifications } from '#/lib/notifications'
 import { guardAuth } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
+import type { NotificationsResult } from '#/lib/notifications.server'
 
 const notificationsSearchSchema = z.object({
   page: z.coerce.number().int().min(1).optional().catch(1),
@@ -22,7 +23,9 @@ export const Route = createFileRoute('/notifications')({
   loaderDeps: ({ search }) => ({ page: search.page ?? 1 }),
   loader: async ({ deps }) => {
     const page = deps.page
-    const result = await getNotifications({ data: { page, pageSize: PAGE_SIZE } })
+    const result = (await getNotifications({
+      data: { page, pageSize: PAGE_SIZE },
+    })) as NotificationsResult
     return { ...result, page }
   },
   head: () => ({

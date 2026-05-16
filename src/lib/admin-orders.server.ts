@@ -28,7 +28,7 @@ export interface AdminOrderDetail {
   cancelledAt: Date | null
   cancellationReason: string | null
   shippingAddress: ShippingAddress
-  billingAddress: Record<string, unknown>
+  billingAddress: ShippingAddress
   molliePaymentId: string | null
   shops: OrderShopGroup[]
 }
@@ -177,13 +177,15 @@ export async function getPlatformOrderDetailQuery(
     shopOrderId: so.shopOrder.id,
     shopId: so.shopOrder.shopId,
     shopName: so.shop?.name ?? 'Unknown shop',
-    shippingMethod: so.shopOrder.shippingMethod as 'standard' | 'express',
+    shippingMethod: so.shopOrder.shippingMethod as 'standard' | 'express' | 'manual',
     shippingCostCents: so.shopOrder.shippingCostCents,
     subtotalCents: so.shopOrder.subtotalCents,
     status: so.shopOrder.status as OrderStatus,
     trackingNumber: so.shopOrder.trackingNumber,
     trackingUrl: so.shopOrder.trackingUrl,
     deliveredAt: so.shopOrder.deliveredAt,
+    shippingLabel: null,
+    trackingStatus: null,
     items: itemsResult
       .filter((item) => item.shopOrderId === so.shopOrder.id)
       .map((item) => ({
@@ -206,7 +208,7 @@ export async function getPlatformOrderDetailQuery(
     cancelledAt: order.cancelledAt,
     cancellationReason: order.cancellationReason,
     shippingAddress: order.shippingAddress as ShippingAddress,
-    billingAddress: (order.billingAddress ?? {}) as Record<string, unknown>,
+    billingAddress: (order.billingAddress ?? {}) as ShippingAddress,
     molliePaymentId: order.molliePaymentId,
     shops,
   }

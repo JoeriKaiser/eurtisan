@@ -1,10 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { eq } from 'drizzle-orm'
-import { z } from 'zod'
+import z from 'zod'
 
 import { db } from '#/db/index'
 import { shop, shopOrder } from '#/db/schema'
-import { authPipeline, requireAuth, requireRole, requireShopOwnership } from '#/lib/authz'
+import { authPipeline, requireRole, requireShopOwnership } from '#/lib/authz'
 import { getShopOrderQuery, updateShopOrderStatusQuery } from '#/lib/shop-orders.server'
 import { validatePlainText } from '#/lib/xss'
 
@@ -12,7 +12,7 @@ export const Route = createFileRoute('/api/shops/$shopId/orders/$shopOrderId')({
   server: {
     handlers: {
       GET: async ({ request, params }) =>
-        authPipeline(request, [requireAuth], async (ctx) => {
+        authPipeline(request, [], async (ctx) => {
           const order = await getShopOrderQuery(params.shopOrderId)
 
           if (!order) {
@@ -161,7 +161,7 @@ export const Route = createFileRoute('/api/shops/$shopId/orders/$shopOrderId')({
 
             const validatedTrackingNumber = parsed.data.trackingNumber
               ? validatePlainText(parsed.data.trackingNumber, 'Tracking number')
-              : parsed.data.trackingNumber ?? null
+              : (parsed.data.trackingNumber ?? null)
 
             await db
               .update(shopOrder)

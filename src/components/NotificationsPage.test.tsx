@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NotificationItem } from '#/lib/notifications.server'
 import { NotificationsError, NotificationsLoading, NotificationsPage } from './NotificationsPage'
 

@@ -649,6 +649,16 @@ describe('getDisputeDetailQuery', () => {
       'user-1',
     )
 
+    // Seed a product so the order item FK constraint is satisfied
+    await db.insert(product).values({
+      id: 'product-1',
+      name: 'Test Product',
+      slug: 'test-product',
+      priceCents: 1000,
+      stockCount: 10,
+      shopId: 'shop-1',
+    })
+
     // Seed an order item to test items array
     await db.insert(orderItem).values({
       shopOrderId: so.id,

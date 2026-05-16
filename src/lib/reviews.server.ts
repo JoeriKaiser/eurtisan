@@ -319,12 +319,10 @@ export async function getProductReviewsQuery(
       createdAt: r.createdAt,
     })),
     total,
-    averageRating: avgResult?.average ?? null,
+    averageRating: avgResult?.average != null ? Number(avgResult.average) : null,
     distribution,
     page: validatedPage,
     pageSize: validatedPageSize,
     totalPages: Math.ceil(total / validatedPageSize),
   }
 }
-
-

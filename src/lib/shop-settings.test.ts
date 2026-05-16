@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
-import { shop, user } from '#/db/schema'
+import { orderItem, platformOrder, product, shop, shopOrder, user } from '#/db/schema'
 
 import {
   checkSlugUniquePlatformWide,
@@ -33,6 +33,10 @@ async function cleanupUploadsDir() {
 
 beforeEach(async () => {
   await cleanupUploadsDir()
+  await db.delete(orderItem)
+  await db.delete(product)
+  await db.delete(shopOrder)
+  await db.delete(platformOrder)
   await db.delete(shop)
   await db.delete(user)
 })
@@ -161,7 +165,6 @@ describe('updateShopInternal', () => {
     const updated = await updateShopInternal(s.id, {
       description: '<script>alert("xss")</script>',
     })
-    expect(updated.description).not.toContain('<script>')
     expect(updated.description).toBeNull()
   })
 

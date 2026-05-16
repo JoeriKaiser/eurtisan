@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 import { Search, SlidersHorizontal, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
-import { z } from 'zod'
+import z from 'zod'
 import ProductGrid from '#/components/ProductGrid'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'

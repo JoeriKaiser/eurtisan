@@ -1,5 +1,5 @@
 import { and, count, desc, eq, ilike, or, sql } from 'drizzle-orm'
-import { z } from 'zod'
+import z from 'zod'
 import { db } from '#/db/index'
 import { validatePlainText } from './xss'
 import {
@@ -460,9 +460,9 @@ export async function markShopOrderShippedQuery(
           orderNumber: shopOrderId.slice(0, 8),
           buyerName: order.buyer.name,
           shopName: shopRecord?.name ?? 'Eurtisan',
-          trackingNumber: order.trackingNumber ?? undefined,
+          trackingNumber: order.trackingNumber ?? null,
           carrier: 'Mondial Relay',
-          trackingUrl: order.trackingUrl ?? undefined,
+          trackingUrl: order.trackingUrl ?? null,
         })
       }
     } catch {

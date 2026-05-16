@@ -1,28 +1,36 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
+import z from 'zod'
 import ShopPage from '#/components/ShopPage'
 import { getShopBySlug, getShopProducts } from '#/lib/products'
 import { createPageMeta } from '#/lib/seo'
 import { generateStoreJsonLd } from '#/lib/seo-structured-data'
 import { m } from '#/paraglide/messages'
 
+const shopSearchSchema = z.object({
+  page: z.coerce.number().int().min(1).optional().default(1),
+  search: z.string().max(255).optional(),
+})
+
 export const Route = createFileRoute('/shops/$shopSlug')({
-  loader: async ({ params, search }) => {
+  validateSearch: shopSearchSchema,
+  loaderDeps: ({ search: { page, search } }) => ({
+    page,
+    searchQuery: search ?? '',
+  }),
+  loader: async ({ params, deps }) => {
     try {
       const shop = await getShopBySlug({ data: { slug: params.shopSlug } })
-
-      const page = typeof search.page === 'string' ? Number.parseInt(search.page, 10) || 1 : 1
-      const searchQuery = typeof search.search === 'string' ? search.search : ''
 
       const products = await getShopProducts({
         data: {
           shopSlug: params.shopSlug,
-          search: searchQuery || undefined,
-          page,
+          search: deps.searchQuery || undefined,
+          page: deps.page,
           pageSize: 12,
         },
       })
 
-      return { shop, products, searchQuery }
+      return { shop, products, searchQuery: deps.searchQuery }
     } catch (err) {
       if (err instanceof Response && err.status === 404) {
         throw notFound()

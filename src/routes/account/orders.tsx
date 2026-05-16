@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useState } from 'react'
-import { z } from 'zod'
+import z from 'zod'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { listBuyerOrders } from '#/lib/orders'

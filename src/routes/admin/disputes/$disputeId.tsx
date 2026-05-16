@@ -361,7 +361,7 @@ function AdminMessageInput({
 /*                           Main Page Component                              */
 /* -------------------------------------------------------------------------- */
 
-function AdminDisputeDetailPage() {
+export function AdminDisputeDetailPage() {
   const { dispute } = Route.useLoaderData()
   const router = useRouter()
   const [justResolved, setJustResolved] = useState(false)
@@ -577,7 +577,7 @@ function AdminDisputeDetailPage() {
   )
 }
 
-function AdminDisputeDetailPending() {
+export function AdminDisputeDetailPending() {
   return (
     <main className='page-wrap px-4 py-12'>
       <div className='mx-auto max-w-4xl'>
@@ -593,7 +593,7 @@ function AdminDisputeDetailPending() {
   )
 }
 
-function AdminDisputeDetailError({ error }: { error: Error }) {
+export function AdminDisputeDetailError({ error }: { error: Error }) {
   return (
     <main className='page-wrap px-4 py-12'>
       <div className='mx-auto max-w-4xl text-center'>

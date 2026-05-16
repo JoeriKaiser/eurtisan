@@ -1,7 +1,7 @@
 import { useForm } from '@tanstack/react-form'
 import { Loader2, MapPin, Package, Truck } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { z } from 'zod'
+import z from 'zod'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { createCheckout, getCheckoutSummary } from '#/lib/checkout'
@@ -28,18 +28,38 @@ const shippingAddressSchema = z.object({
   country: z.string().min(1, m.checkout_error_country_required()).max(100),
 })
 
-const checkoutFormSchema = z.object({
-  shippingAddress: shippingAddressSchema,
-  billingAddress: shippingAddressSchema,
-  sameAsShipping: z.boolean(),
-  shippingSelections: z.array(
-    z.object({
-      shopId: z.string().min(1),
-      rateId: z.string().optional(),
-      method: z.enum(['standard', 'express', 'manual']),
+const checkoutFormSchema = z
+  .object({
+    shippingAddress: shippingAddressSchema,
+    sameAsShipping: z.boolean(),
+    billingAddress: z.object({
+      name: z.string().max(255),
+      street: z.string().max(255),
+      city: z.string().max(255),
+      postalCode: z.string().max(50),
+      country: z.string().max(100),
     }),
-  ),
-})
+    shippingSelections: z.array(
+      z.object({
+        shopId: z.string().min(1),
+        rateId: z.string().optional(),
+        method: z.enum(['standard', 'express', 'manual']),
+      }),
+    ),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.sameAsShipping) {
+      const result = shippingAddressSchema.safeParse(data.billingAddress)
+      if (!result.success) {
+        for (const issue of result.error.issues) {
+          ctx.addIssue({
+            ...issue,
+            path: ['billingAddress', ...issue.path],
+          })
+        }
+      }
+    }
+  })
 
 type CheckoutFormValues = z.infer<typeof checkoutFormSchema>
 
@@ -94,7 +114,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
         postalCode: '',
         country: '',
       },
-      sameAsShipping: true,
+      sameAsShipping: true as boolean,
       shippingSelections: defaultShippingSelections,
     } satisfies CheckoutFormValues,
     validators: {
@@ -178,7 +198,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
 
   // Listen for address field changes and debounce rate fetching
   const subscribeToAddressChanges = useCallback(() => {
-    const unsub = form.store.subscribe(() => {
+    const subscription = form.store.subscribe(() => {
       const state = form.store.state
       const addr = state.values.shippingAddress
 
@@ -196,7 +216,16 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
       }, 600)
     })
 
-    return unsub as unknown as () => void
+    return () => {
+      if (
+        subscription &&
+        typeof subscription === 'object' &&
+        'unsubscribe' in subscription &&
+        typeof subscription.unsubscribe === 'function'
+      ) {
+        subscription.unsubscribe()
+      }
+    }
   }, [form.store, fetchRates])
 
   const unsubRef = useRef<(() => void) | null>(null)
@@ -207,19 +236,6 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
       if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current)
     }
   }, [subscribeToAddressChanges])
-
-  // -----------------------------------------------------------------------
-  // Grand total calculation
-  // -----------------------------------------------------------------------
-
-  const grandTotal = currentSummary.shops.reduce((total, shop) => {
-    const selection = form.getFieldValue('shippingSelections').find((s) => s.shopId === shop.shopId)
-    const shippingOption =
-      shop.shippingOptions.find((o) => o.rateId === selection?.rateId) ??
-      shop.shippingOptions.find((o) => o.method === selection?.method) ??
-      shop.shippingOptions[0]
-    return total + shop.subtotalCents + (shippingOption?.costCents ?? 0)
-  }, 0)
 
   // -----------------------------------------------------------------------
   // Render
@@ -749,9 +765,23 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
               <span className='text-base font-semibold text-text-primary'>
                 {m.checkout_grand_total()}
               </span>
-              <span className='text-xl font-bold text-text-primary'>
-                {formatPriceEUR(grandTotal)}
-              </span>
+              <form.Subscribe selector={(state) => state.values.shippingSelections}>
+                {(shippingSelections) => {
+                  const total = currentSummary.shops.reduce((acc, shop) => {
+                    const selection = shippingSelections.find((s) => s.shopId === shop.shopId)
+                    const shippingOption =
+                      shop.shippingOptions.find((o) => o.rateId === selection?.rateId) ??
+                      shop.shippingOptions.find((o) => o.method === selection?.method) ??
+                      shop.shippingOptions[0]
+                    return acc + shop.subtotalCents + (shippingOption?.costCents ?? 0)
+                  }, 0)
+                  return (
+                    <span className='text-xl font-bold text-text-primary'>
+                      {formatPriceEUR(total)}
+                    </span>
+                  )
+                }}
+              </form.Subscribe>
             </div>
 
             {submitError && (

@@ -1,5 +1,5 @@
-import { mkdir, rm, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { rm } from 'node:fs/promises'
+import { join } from 'node:path'
 import {
   faker,
   fakerDA,
@@ -52,41 +52,6 @@ const PASSWORD_HASH =
 
 const PRODUCTS_UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'products')
 const SHOPS_UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'shops')
-const _IMAGE_DOWNLOAD_CONCURRENCY = 15
-
-async function _asyncPool<T, R>(
-  concurrency: number,
-  items: T[],
-  fn: (item: T) => Promise<R>,
-): Promise<R[]> {
-  const results = new Array<R>(items.length)
-  const iterator = items.entries()
-  async function worker() {
-    for (const [i, item] of iterator) {
-      results[i] = await fn(item)
-    }
-  }
-  await Promise.all(Array.from({ length: concurrency }, worker))
-  return results
-}
-
-async function _downloadImage(url: string, destPath: string): Promise<void> {
-  await mkdir(dirname(destPath), { recursive: true })
-  let lastErr: Error | undefined
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const res = await fetch(url)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const buffer = await res.arrayBuffer()
-      await writeFile(destPath, new Uint8Array(buffer))
-      return
-    } catch (err) {
-      lastErr = err instanceof Error ? err : new Error(String(err))
-      await new Promise((r) => setTimeout(r, 500))
-    }
-  }
-  throw new Error(`Failed to download ${url} after 2 attempts: ${lastErr?.message}`)
-}
 
 const LOCALES = [
   fakerDE,
@@ -861,7 +826,7 @@ async function seedOrders(
         if (usedProducts.has(p.id!)) continue
         usedProducts.add(p.id!)
         const quantity = faker.number.int({ min: 1, max: 4 })
-        const unitPriceCents = p.priceCents
+        const unitPriceCents = p.priceCents ?? 0
         orderItems.push({
           id: crypto.randomUUID(),
           shopOrderId,

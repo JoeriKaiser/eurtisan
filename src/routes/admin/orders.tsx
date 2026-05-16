@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { AlertTriangle, ChevronLeft, ChevronRight, Inbox, Search, X } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
+import z from 'zod'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
@@ -16,13 +17,15 @@ import { m } from '#/paraglide/messages'
 /*                              Route Definition                              */
 /* -------------------------------------------------------------------------- */
 
+const ordersSearchSchema = z.object({
+  query: z.string().optional().default(''),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  pageSize: z.coerce.number().int().min(1).optional().default(20),
+})
+
 export const Route = createFileRoute('/admin/orders')({
   beforeLoad: async () => guardRole('admin'),
-  validateSearch: (search: Record<string, unknown>) => ({
-    query: (search.query as string) ?? '',
-    page: Number(search.page) || 1,
-    pageSize: Number(search.pageSize) || 20,
-  }),
+  validateSearch: ordersSearchSchema,
   loaderDeps: ({ search: { query, page, pageSize } }) => ({
     query,
     page,

@@ -8,6 +8,7 @@ import {
   Inbox,
 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import z from 'zod'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { Skeleton } from '#/components/ui/skeleton'
@@ -24,13 +25,15 @@ import { m } from '#/paraglide/messages'
 
 type Tab = 'pending' | 'history'
 
+const payoutsSearchSchema = z.object({
+  tab: z.enum(['pending', 'history']).optional().default('pending'),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  pageSize: z.coerce.number().int().min(1).optional().default(20),
+})
+
 export const Route = createFileRoute('/admin/payouts')({
   beforeLoad: async () => guardRole('admin'),
-  validateSearch: (search: Record<string, unknown>) => ({
-    tab: ((search.tab as string) === 'history' ? 'history' : 'pending') as Tab,
-    page: Number(search.page) || 1,
-    pageSize: Number(search.pageSize) || 20,
-  }),
+  validateSearch: payoutsSearchSchema,
   loaderDeps: ({ search: { tab, page, pageSize } }) => ({ tab, page, pageSize }),
   loader: async ({ deps }) => {
     if (deps.tab === 'pending') {

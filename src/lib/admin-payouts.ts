@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
-import { z } from 'zod'
+import z from 'zod'
 import { authMiddleware } from './auth-middleware'
 
 export type { AdminPayoutRow } from './payouts.server'

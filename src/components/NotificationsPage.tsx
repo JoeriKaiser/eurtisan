@@ -11,6 +11,7 @@ const TYPE_ICONS: Record<NotificationType, React.ReactNode> = {
   order_shipped: <Truck size={18} aria-hidden='true' />,
   review_received: <Star size={18} aria-hidden='true' />,
   dispute_opened: <AlertTriangle size={18} aria-hidden='true' />,
+  dispute_resolved: <Bell size={18} aria-hidden='true' />,
   payout_sent: <Banknote size={18} aria-hidden='true' />,
 }
 

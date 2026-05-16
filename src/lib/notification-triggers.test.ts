@@ -17,6 +17,14 @@ import {
 } from '#/db/schema'
 import { brevoEmailProvider } from '#/integrations/email'
 
+vi.mock('#/integrations/email', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('#/integrations/email')>()
+  return {
+    ...mod,
+    createEmailProvider: () => brevoEmailProvider,
+  }
+})
+
 import { createCheckoutQuery } from './checkout.server'
 import { openDisputeQuery, resolveDisputeQuery } from './disputes.server'
 import { getNotificationsQuery } from './notifications.server'

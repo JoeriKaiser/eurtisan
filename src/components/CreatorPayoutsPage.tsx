@@ -35,7 +35,7 @@ export interface CreatorPayoutsPageProps {
   shops: CreatorShop[]
   payouts: PaginatedPayouts
   currentShopId: string | null
-  initialStatus: string
+  initialStatus: 'all' | 'pending' | 'processing' | 'sent'
 }
 
 export function CreatorPayoutsPage({
@@ -70,7 +70,7 @@ export function CreatorPayoutsPage({
   )
 
   const handleStatusFilter = useCallback(
-    (status: string) => {
+    (status: 'all' | 'pending' | 'processing' | 'sent') => {
       setStatusFilter(status)
       router.navigate({
         to: '/creator/payouts',

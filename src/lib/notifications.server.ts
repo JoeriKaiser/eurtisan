@@ -1,5 +1,5 @@
 import { and, count, desc, eq, isNull } from 'drizzle-orm'
-import { z } from 'zod'
+import z from 'zod'
 import { db } from '#/db/index'
 import { notification, user } from '#/db/schema'
 import { createEmailProvider } from '#/integrations/email'
@@ -16,11 +16,19 @@ export const notificationTypeEnum = z.enum([
 
 export type NotificationType = z.infer<typeof notificationTypeEnum>
 
+export type SerializableValue =
+  | string
+  | number
+  | boolean
+  | null
+  | SerializableValue[]
+  | { [key: string]: SerializableValue }
+
 export interface NotificationItem {
   id: string
   userId: string
   type: NotificationType
-  data: Record<string, unknown>
+  data: Record<string, SerializableValue>
   readAt: Date | null
   createdAt: Date
 }
@@ -48,7 +56,7 @@ export interface MarkReadResult {
 export async function createNotification(
   userId: string,
   type: NotificationType,
-  data: Record<string, unknown> = {},
+  data: Record<string, SerializableValue> = {},
 ): Promise<NotificationItem> {
   const typeResult = notificationTypeEnum.safeParse(type)
   if (!typeResult.success) {
@@ -74,7 +82,7 @@ export async function createNotification(
     id: created.id,
     userId: created.userId,
     type: created.type as NotificationType,
-    data: created.data as Record<string, unknown>,
+    data: created.data as Record<string, SerializableValue>,
     readAt: created.readAt,
     createdAt: created.createdAt,
   }
@@ -94,7 +102,7 @@ export async function createNotification(
 export async function sendNotificationEmail(
   userId: string,
   template: EmailTemplate,
-  data: Record<string, unknown>,
+  data: Record<string, SerializableValue>,
 ): Promise<void> {
   try {
     const [userRecord] = await db
@@ -151,7 +159,7 @@ export async function getNotificationsQuery(
       id: row.id,
       userId: row.userId,
       type: row.type as NotificationType,
-      data: row.data as Record<string, unknown>,
+      data: row.data as Record<string, SerializableValue>,
       readAt: row.readAt,
       createdAt: row.createdAt,
     })),

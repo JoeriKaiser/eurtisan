@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { render, screen, within } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockInvalidate = vi.fn()
 
@@ -149,11 +149,15 @@ describe('CreatorPayoutsPage', () => {
     )
 
     // Total earned = 4500 + 2000 = 6500 → €65,00
-    const earnedCard = screen.getByText('Total earned').closest('[class*="rounded-xl"]')
+    const earnedCard = screen
+      .getByText('Total earned')
+      .closest('[class*="rounded-xl"]') as HTMLElement | null
     expect(earnedCard).toBeDefined()
     if (earnedCard) expect(within(earnedCard).getByText('€65,00')).toBeDefined()
     // Pending amount = 4500 → €45,00
-    const pendingCard = screen.getByText('Pending payout').closest('[class*="rounded-xl"]')
+    const pendingCard = screen
+      .getByText('Pending payout')
+      .closest('[class*="rounded-xl"]') as HTMLElement | null
     expect(pendingCard).toBeDefined()
     if (pendingCard) expect(within(pendingCard).getByText('€45,00')).toBeDefined()
   })
@@ -222,7 +226,7 @@ describe('CreatorPayoutsPage', () => {
     )
 
     // Negative amount displayed with minus sign (text is split across nodes)
-    const refundTd = document.querySelector('td.text-error')
+    const refundTd = document.querySelector('td.text-error') as HTMLElement | null
     expect(refundTd).toBeDefined()
     if (!refundTd) throw new Error('refund td not found')
     expect(refundTd.textContent).toContain('−€15,00')

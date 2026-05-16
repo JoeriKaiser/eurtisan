@@ -406,7 +406,7 @@ describe('getPlatformOrderDetailQuery', () => {
     expect(result).not.toBeNull()
     if (!result) return
 
-    const ba = result.billingAddress as Record<string, string>
+    const ba = result.billingAddress
     expect(ba.name).toBe('Billing Person')
     expect(ba.city).toBe('Paris')
   })

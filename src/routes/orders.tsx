@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
-import { z } from 'zod'
+import z from 'zod'
 import { OrdersError, OrdersLoading, OrdersPage } from '#/components/OrdersPage'
 import { listBuyerOrders } from '#/lib/orders'
 import { guardAuth } from '#/lib/route-guards'

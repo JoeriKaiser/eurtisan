@@ -18,11 +18,7 @@ export function hasHtmlTags(input: string): boolean {
 }
 
 export function hasDangerousContent(input: string): boolean {
-  return (
-    /<script\b/i.test(input) ||
-    /javascript:/i.test(input) ||
-    EVENT_HANDLER_PATTERN.test(input)
-  )
+  return /<script\b/i.test(input) || /javascript:/i.test(input) || EVENT_HANDLER_PATTERN.test(input)
 }
 
 /* -------------------------------------------------------------------------- */

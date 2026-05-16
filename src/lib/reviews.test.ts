@@ -792,7 +792,8 @@ describe('getProductReviewsQuery', () => {
       shopId: 'shop-1',
     })
 
-    const [order] = await db
+    // Create two separate orders/shop-orders so each review has a unique (shopOrderId, productId)
+    const [order1] = await db
       .insert(platformOrder)
       .values({
         userId: 'user-1',
@@ -814,10 +815,45 @@ describe('getProductReviewsQuery', () => {
       })
       .returning()
 
-    const [so] = await db
+    const [so1] = await db
       .insert(shopOrder)
       .values({
-        platformOrderId: order.id,
+        platformOrderId: order1.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 500,
+        subtotalCents: 1000,
+        status: 'delivered',
+        deliveredAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+      })
+      .returning()
+
+    const [order2] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-2',
+        shippingAddress: {
+          name: 'Bob',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Bob',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 1000,
+      })
+      .returning()
+
+    const [so2] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order2.id,
         shopId: 'shop-1',
         shippingMethod: 'standard',
         shippingCostCents: 500,
@@ -829,7 +865,7 @@ describe('getProductReviewsQuery', () => {
 
     await db.insert(review).values([
       {
-        shopOrderId: so.id,
+        shopOrderId: so1.id,
         productId: 'prod-1',
         buyerUserId: 'user-1',
         rating: 5,
@@ -837,7 +873,7 @@ describe('getProductReviewsQuery', () => {
         createdAt: new Date('2024-01-02'),
       },
       {
-        shopOrderId: so.id,
+        shopOrderId: so2.id,
         productId: 'prod-1',
         buyerUserId: 'user-2',
         rating: 3,
@@ -877,42 +913,43 @@ describe('getProductReviewsQuery', () => {
       shopId: 'shop-1',
     })
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Alice',
-          street: 'St',
-          city: 'City',
-          postalCode: '12345',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Alice',
-          street: 'St',
-          city: 'City',
-          postalCode: '12345',
-          country: 'DE',
-        },
-        totalCents: 1000,
-      })
-      .returning()
-
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 500,
-        subtotalCents: 1000,
-        status: 'delivered',
-        deliveredAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
-      })
-      .returning()
-
+    // Create a separate shop-order per review to respect the unique constraint
     for (let i = 0; i < 12; i++) {
+      const [order] = await db
+        .insert(platformOrder)
+        .values({
+          userId: 'user-1',
+          shippingAddress: {
+            name: 'Alice',
+            street: 'St',
+            city: 'City',
+            postalCode: '12345',
+            country: 'DE',
+          },
+          billingAddress: {
+            name: 'Alice',
+            street: 'St',
+            city: 'City',
+            postalCode: '12345',
+            country: 'DE',
+          },
+          totalCents: 1000,
+        })
+        .returning()
+
+      const [so] = await db
+        .insert(shopOrder)
+        .values({
+          platformOrderId: order.id,
+          shopId: 'shop-1',
+          shippingMethod: 'standard',
+          shippingCostCents: 500,
+          subtotalCents: 1000,
+          status: 'delivered',
+          deliveredAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+        })
+        .returning()
+
       await db.insert(review).values({
         shopOrderId: so.id,
         productId: 'prod-1',
@@ -953,48 +990,51 @@ describe('getProductReviewsQuery', () => {
       shopId: 'shop-1',
     })
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Alice',
-          street: 'St',
-          city: 'City',
-          postalCode: '12345',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Alice',
-          street: 'St',
-          city: 'City',
-          postalCode: '12345',
-          country: 'DE',
-        },
-        totalCents: 1000,
-      })
-      .returning()
+    // Create a separate shop-order per review to respect the unique constraint
+    const ratings = [5, 5, 4, 3, 1]
+    for (const rating of ratings) {
+      const [order] = await db
+        .insert(platformOrder)
+        .values({
+          userId: 'user-1',
+          shippingAddress: {
+            name: 'Alice',
+            street: 'St',
+            city: 'City',
+            postalCode: '12345',
+            country: 'DE',
+          },
+          billingAddress: {
+            name: 'Alice',
+            street: 'St',
+            city: 'City',
+            postalCode: '12345',
+            country: 'DE',
+          },
+          totalCents: 1000,
+        })
+        .returning()
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 500,
-        subtotalCents: 1000,
-        status: 'delivered',
-        deliveredAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
-      })
-      .returning()
+      const [so] = await db
+        .insert(shopOrder)
+        .values({
+          platformOrderId: order.id,
+          shopId: 'shop-1',
+          shippingMethod: 'standard',
+          shippingCostCents: 500,
+          subtotalCents: 1000,
+          status: 'delivered',
+          deliveredAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+        })
+        .returning()
 
-    await db.insert(review).values([
-      { shopOrderId: so.id, productId: 'prod-1', buyerUserId: 'user-1', rating: 5 },
-      { shopOrderId: so.id, productId: 'prod-1', buyerUserId: 'user-1', rating: 5 },
-      { shopOrderId: so.id, productId: 'prod-1', buyerUserId: 'user-1', rating: 4 },
-      { shopOrderId: so.id, productId: 'prod-1', buyerUserId: 'user-1', rating: 3 },
-      { shopOrderId: so.id, productId: 'prod-1', buyerUserId: 'user-1', rating: 1 },
-    ])
+      await db.insert(review).values({
+        shopOrderId: so.id,
+        productId: 'prod-1',
+        buyerUserId: 'user-1',
+        rating,
+      })
+    }
 
     const result = await getProductReviewsQuery('prod-1', 1, 10)
     expect(result.averageRating).toBe(3.6)

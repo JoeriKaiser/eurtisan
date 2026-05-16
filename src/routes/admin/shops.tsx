@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { AlertTriangle, Ban, CheckCircle, ChevronLeft, ChevronRight, Inbox } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import z from 'zod'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
@@ -15,13 +16,15 @@ import { m } from '#/paraglide/messages'
 /*                              Route Definition                              */
 /* -------------------------------------------------------------------------- */
 
+const shopsSearchSchema = z.object({
+  filter: z.enum(['all', 'active', 'suspended']).optional().default('all'),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  pageSize: z.coerce.number().int().min(1).optional().default(20),
+})
+
 export const Route = createFileRoute('/admin/shops')({
   beforeLoad: async () => guardRole('admin'),
-  validateSearch: (search: Record<string, unknown>) => ({
-    filter: (search.filter as SuspensionFilter) ?? 'all',
-    page: Number(search.page) || 1,
-    pageSize: Number(search.pageSize) || 20,
-  }),
+  validateSearch: shopsSearchSchema,
   loaderDeps: ({ search: { filter, page, pageSize } }) => ({
     filter: filter as SuspensionFilter,
     page,

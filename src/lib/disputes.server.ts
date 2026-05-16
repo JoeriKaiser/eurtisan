@@ -1,6 +1,6 @@
 import { asc, count, eq } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
-import { z } from 'zod'
+import z from 'zod'
 import { db } from '#/db/index'
 import {
   dispute,
@@ -162,16 +162,6 @@ export async function openDisputeQuery(
     })
   }
 
-  if (shopOrderRecord.status !== 'delivered') {
-    throw new Response(
-      JSON.stringify({
-        error: 'Bad Request',
-        message: 'Order must be delivered before opening a dispute',
-      }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } },
-    )
-  }
-
   const [platformOrderRecord] = await db
     .select()
     .from(platformOrder)
@@ -183,6 +173,29 @@ export async function openDisputeQuery(
       status: 403,
       headers: { 'Content-Type': 'application/json' },
     })
+  }
+
+  const existingDispute = await db
+    .select()
+    .from(dispute)
+    .where(eq(dispute.shopOrderId, input.shopOrderId))
+    .limit(1)
+
+  if (existingDispute.length > 0) {
+    throw new Response(
+      JSON.stringify({ error: 'Conflict', message: 'A dispute already exists for this order' }),
+      { status: 409, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  if (shopOrderRecord.status !== 'delivered') {
+    throw new Response(
+      JSON.stringify({
+        error: 'Bad Request',
+        message: 'Order must be delivered before opening a dispute',
+      }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } },
+    )
   }
 
   if (!shopOrderRecord.deliveredAt) {
@@ -197,19 +210,6 @@ export async function openDisputeQuery(
     throw new Response(
       JSON.stringify({ error: 'Forbidden', message: 'Dispute window has expired (30 days)' }),
       { status: 403, headers: { 'Content-Type': 'application/json' } },
-    )
-  }
-
-  const existingDispute = await db
-    .select()
-    .from(dispute)
-    .where(eq(dispute.shopOrderId, input.shopOrderId))
-    .limit(1)
-
-  if (existingDispute.length > 0) {
-    throw new Response(
-      JSON.stringify({ error: 'Conflict', message: 'A dispute already exists for this order' }),
-      { status: 409, headers: { 'Content-Type': 'application/json' } },
     )
   }
 
@@ -351,7 +351,7 @@ export async function addDisputeMessageQuery(
     .values({
       disputeId,
       senderUserId,
-      message: sanitizeRichText(message) ?? ''
+      message: sanitizeRichText(message) ?? '',
     })
     .returning()
 
@@ -405,7 +405,7 @@ export async function listOpenDisputesQuery(params: {
       shopOrderId: row.shopOrderId,
       buyerUserId: row.buyerUserId,
       buyerName: row.buyerName,
-      creatorName: row.creatorName,
+      creatorName: row.creatorName ?? 'Unknown',
       shopId: row.shopId,
       shopName: row.shopName,
       reason: row.reason,
@@ -765,5 +765,3 @@ export async function resolveDisputeQuery(
 
   return result
 }
-
-

@@ -6,11 +6,7 @@ import z from 'zod'
 import { db } from '#/db/index'
 import { categories, product, productImage, shop } from '#/db/schema'
 import { authMiddleware } from './auth-middleware'
-import {
-  deleteProductImages,
-  type ProductImageInput,
-  saveProductImages,
-} from './image-utils'
+import { deleteProductImages, type ProductImageInput, saveProductImages } from './image-utils'
 import { sanitizeRichText, validatePlainText } from './xss'
 
 /* -------------------------------------------------------------------------- */

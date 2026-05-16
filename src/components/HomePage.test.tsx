@@ -42,7 +42,7 @@ vi.mock('./SearchSidebar', () => ({
 }))
 
 function makeCategory(id: string, name: string, slug: string) {
-  return { id, name, slug, parentId: null, createdAt: new Date() }
+  return { id, name, slug, description: null, parentId: null, createdAt: new Date() }
 }
 
 function makeProduct(id: string, overrides?: Partial<RecentProduct>): RecentProduct {

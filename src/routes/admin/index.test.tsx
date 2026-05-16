@@ -5,45 +5,50 @@ import { describe, expect, it, vi } from 'vitest'
 
 const mockNavigate = vi.fn()
 
+const mockLoaderData = {
+  stats: {
+    totalUsers: 42,
+    activeShops: 7,
+    openDisputes: 3,
+    pendingPayouts: 5,
+  },
+  signups: [
+    {
+      id: 'user-1',
+      name: 'Alice',
+      email: 'alice@example.com',
+      createdAt: new Date('2026-05-10T10:00:00Z'),
+    },
+    {
+      id: 'user-2',
+      name: 'Bob',
+      email: 'bob@example.com',
+      createdAt: new Date('2026-05-09T08:00:00Z'),
+    },
+  ],
+  orders: [
+    {
+      id: '00000000-0000-0000-0000-000000000001',
+      status: 'paid',
+      totalCents: 2500,
+      createdAt: new Date('2026-05-11T14:00:00Z'),
+    },
+    {
+      id: '00000000-0000-0000-0000-000000000002',
+      status: 'shipped',
+      totalCents: 5000,
+      createdAt: new Date('2026-05-11T10:00:00Z'),
+    },
+  ],
+}
+
 vi.mock('@tanstack/react-router', () => ({
   createFileRoute: () => () => ({
-    useLoaderData: () => ({
-      stats: {
-        totalUsers: 42,
-        activeShops: 7,
-        openDisputes: 3,
-        pendingPayouts: 5,
-      },
-      signups: [
-        {
-          id: 'user-1',
-          name: 'Alice',
-          email: 'alice@example.com',
-          createdAt: new Date('2026-05-10T10:00:00Z'),
-        },
-        {
-          id: 'user-2',
-          name: 'Bob',
-          email: 'bob@example.com',
-          createdAt: new Date('2026-05-09T08:00:00Z'),
-        },
-      ],
-      orders: [
-        {
-          id: '00000000-0000-0000-0000-000000000001',
-          status: 'paid',
-          totalCents: 2500,
-          createdAt: new Date('2026-05-11T14:00:00Z'),
-        },
-        {
-          id: '00000000-0000-0000-0000-000000000002',
-          status: 'shipped',
-          totalCents: 5000,
-          createdAt: new Date('2026-05-11T10:00:00Z'),
-        },
-      ],
-    }),
+    useLoaderData: () => mockLoaderData,
     useNavigate: () => mockNavigate,
+  }),
+  getRouteApi: () => ({
+    useLoaderData: () => mockLoaderData,
   }),
   Link: (props: { children: React.ReactNode; to: string; className?: string }) => (
     <a href={props.to} className={props.className}>

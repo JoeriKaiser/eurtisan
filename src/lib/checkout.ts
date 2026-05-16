@@ -1,5 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
-import { z } from 'zod'
+import z from 'zod'
 import { authMiddleware } from './auth-middleware'
 import { createUserRateLimitMiddleware } from './rate-limit'
 

@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { z } from 'zod'
+import z from 'zod'
 import {
   CreatorPayoutsError,
   CreatorPayoutsLoading,
@@ -17,14 +17,15 @@ const payoutSearchSchema = z.object({
 
 export const Route = createFileRoute('/creator/payouts')({
   validateSearch: payoutSearchSchema,
-  loader: async ({ search }) => {
+  loaderDeps: ({ search: { shopId, status, page } }) => ({ shopId, status, page }),
+  loader: async ({ deps }) => {
     const shops = await getCreatorShops()
-    const targetShop = shops.find((s) => s.id === search.shopId) ?? shops[0] ?? null
+    const targetShop = shops.find((s) => s.id === deps.shopId) ?? shops[0] ?? null
 
     let payouts: Awaited<ReturnType<typeof listCreatorPayouts>> = {
       payouts: [],
       total: 0,
-      page: search.page,
+      page: deps.page,
       pageSize: 20,
       totalPages: 0,
     }
@@ -33,9 +34,9 @@ export const Route = createFileRoute('/creator/payouts')({
       payouts = await listCreatorPayouts({
         data: {
           shopId: targetShop.id,
-          page: search.page,
+          page: deps.page,
           pageSize: 20,
-          status: search.status,
+          status: deps.status,
         },
       })
     }

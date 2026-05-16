@@ -42,7 +42,6 @@ describe('createProductSchema', () => {
       description: 'A beautiful ceramic vase',
       slug: 'handmade-vase',
       priceCents: 2999,
-      stockCount: 10,
       categoryId: '550e8400-e29b-41d4-a716-446655440000',
     })
     expect(result.success).toBe(true)
@@ -53,6 +52,7 @@ describe('createProductSchema', () => {
       name: 'Handmade Vase',
       slug: 'handmade-vase',
       priceCents: 2999,
+      stockCount: 10,
     })
     expect(result.success).toBe(true)
   })
@@ -62,6 +62,7 @@ describe('createProductSchema', () => {
       name: '',
       slug: 'handmade-vase',
       priceCents: 2999,
+      stockCount: 10,
     })
     expect(result.success).toBe(false)
   })
@@ -71,6 +72,7 @@ describe('createProductSchema', () => {
       name: 'a'.repeat(101),
       slug: 'handmade-vase',
       priceCents: 2999,
+      stockCount: 10,
     })
     expect(result.success).toBe(false)
   })
@@ -80,6 +82,7 @@ describe('createProductSchema', () => {
       name: 'Handmade Vase',
       slug: 'handmade_vase!!!',
       priceCents: 2999,
+      stockCount: 10,
     })
     expect(result.success).toBe(false)
   })
@@ -108,6 +111,7 @@ describe('createProductSchema', () => {
       name: 'Handmade Vase',
       slug: 'handmade-vase',
       priceCents: 2999,
+      stockCount: 10,
       categoryId: 'not-a-uuid',
     })
     expect(result.success).toBe(false)
@@ -167,6 +171,7 @@ describe('checkSlugUniqueness', () => {
       name: 'Vase',
       slug: 'vase',
       priceCents: 2999,
+      stockCount: 10,
       shopId: s.id,
     })
 
@@ -189,6 +194,7 @@ describe('checkSlugUniqueness', () => {
       name: 'Vase',
       slug: 'vase',
       priceCents: 2999,
+      stockCount: 10,
       shopId: s.id,
     })
 
@@ -292,6 +298,7 @@ describe('createProductInternal', () => {
       name: 'Vase',
       slug: 'vase',
       priceCents: 2999,
+      stockCount: 10,
       shopId: s.id,
     })
 
@@ -300,6 +307,7 @@ describe('createProductInternal', () => {
         name: 'Another Vase',
         slug: 'vase',
         priceCents: 3999,
+        stockCount: 10,
         shopId: s.id,
       }),
     ).rejects.toThrow('DUPLICATE_SLUG')
@@ -325,6 +333,7 @@ describe('createProductInternal', () => {
       name: 'Vase',
       slug: 'vase',
       priceCents: 2999,
+      stockCount: 10,
       shopId: s1.id,
     })
 
@@ -332,6 +341,7 @@ describe('createProductInternal', () => {
       name: 'Another Vase',
       slug: 'vase',
       priceCents: 3999,
+      stockCount: 10,
       shopId: s2.id,
     })
 
@@ -355,6 +365,7 @@ describe('createProductInternal', () => {
         name: 'Vase',
         slug: 'vase',
         priceCents: 2999,
+        stockCount: 10,
         shopId: s.id,
         categoryId: '550e8400-e29b-41d4-a716-446655440000',
       }),
@@ -385,6 +396,7 @@ describe('updateProductInternal', () => {
         name: 'Vase',
         slug: 'vase',
         priceCents: 2999,
+        stockCount: 10,
         shopId: s.id,
       })
       .returning()
@@ -451,6 +463,7 @@ describe('updateProductInternal', () => {
         name: 'Vase',
         slug: 'vase',
         priceCents: 2999,
+        stockCount: 10,
         shopId: s1.id,
       })
       .returning()
@@ -488,6 +501,7 @@ describe('updateProductInternal', () => {
         name: 'Vase',
         slug: 'vase',
         priceCents: 2999,
+        stockCount: 10,
         shopId: s.id,
       })
       .returning()
@@ -526,6 +540,7 @@ describe('deleteProductInternal', () => {
         name: 'Vase',
         slug: 'vase',
         priceCents: 2999,
+        stockCount: 10,
         shopId: s.id,
         isActive: true,
       })
@@ -563,6 +578,7 @@ describe('deleteProductInternal', () => {
         name: 'Vase',
         slug: 'vase',
         priceCents: 2999,
+        stockCount: 10,
         shopId: s.id,
       })
       .returning()
@@ -604,6 +620,7 @@ describe('deleteProductInternal', () => {
         name: 'Vase',
         slug: 'vase',
         priceCents: 2999,
+        stockCount: 10,
         shopId: s.id,
       })
       .returning()
@@ -647,6 +664,7 @@ describe('listCreatorProductsInternal', () => {
         name: 'Vase',
         slug: 'vase',
         priceCents: 2999,
+        stockCount: 10,
         shopId: s.id,
         categoryId: cat.id,
         isActive: true,
@@ -844,6 +862,7 @@ describe('image validation', () => {
       name: 'Vase',
       slug: 'vase',
       priceCents: 2999,
+      stockCount: 10,
       images: [{ dataUrl: makeJpegDataUrl(), altText: 'Front view' }],
     })
     expect(result.success).toBe(true)
@@ -854,6 +873,7 @@ describe('image validation', () => {
       name: 'Vase',
       slug: 'vase',
       priceCents: 2999,
+      stockCount: 10,
       images: [{ dataUrl: makePngDataUrl() }],
     })
     expect(result.success).toBe(true)
@@ -864,6 +884,7 @@ describe('image validation', () => {
       name: 'Vase',
       slug: 'vase',
       priceCents: 2999,
+      stockCount: 10,
       images: [{ dataUrl: makeWebpDataUrl() }],
     })
     expect(result.success).toBe(true)
@@ -874,6 +895,7 @@ describe('image validation', () => {
       name: 'Vase',
       slug: 'vase',
       priceCents: 2999,
+      stockCount: 10,
       images: [{ dataUrl: makeInvalidTypeDataUrl() }],
     })
     expect(result.success).toBe(false)
@@ -895,6 +917,7 @@ describe('image validation', () => {
         name: 'Vase',
         slug: 'vase',
         priceCents: 2999,
+        stockCount: 10,
         shopId: s.id,
         images: [{ dataUrl: makeOversizedDataUrl() }],
       }),
@@ -907,6 +930,7 @@ describe('image validation', () => {
       name: 'Vase',
       slug: 'vase',
       priceCents: 2999,
+      stockCount: 10,
       images,
     })
     expect(result.success).toBe(false)
@@ -928,6 +952,7 @@ describe('image validation', () => {
         name: 'Vase',
         slug: 'vase',
         priceCents: 2999,
+        stockCount: 10,
         shopId: s.id,
         images: [{ dataUrl: makeRiffNotWebpDataUrl() }],
       }),
@@ -997,6 +1022,7 @@ describe('createProductInternal with images', () => {
         name: 'Vase',
         slug: 'vase',
         priceCents: 2999,
+        stockCount: 10,
         shopId: s.id,
         images: [{ dataUrl: makeInvalidTypeDataUrl() }],
       }),
@@ -1019,6 +1045,7 @@ describe('createProductInternal with images', () => {
         name: 'Vase',
         slug: 'vase',
         priceCents: 2999,
+        stockCount: 10,
         shopId: s.id,
         images: [{ dataUrl: makeOversizedDataUrl() }],
       }),
@@ -1041,6 +1068,7 @@ describe('createProductInternal with images', () => {
         name: 'Vase',
         slug: 'vase',
         priceCents: 2999,
+        stockCount: 10,
         shopId: s.id,
         images: [{ dataUrl: makeMismatchedMagicBytesDataUrl() }],
       }),
@@ -1075,6 +1103,7 @@ describe('updateProductInternal with images', () => {
         name: 'Vase',
         slug: 'vase',
         priceCents: 2999,
+        stockCount: 10,
         shopId: s.id,
       })
       .returning()
@@ -1121,6 +1150,7 @@ describe('updateProductInternal with images', () => {
         name: 'Vase',
         slug: 'vase',
         priceCents: 2999,
+        stockCount: 10,
         shopId: s.id,
       })
       .returning()
@@ -1160,6 +1190,7 @@ describe('updateProductInternal with images', () => {
         name: 'Vase',
         slug: 'vase',
         priceCents: 2999,
+        stockCount: 10,
         shopId: s.id,
       })
       .returning()
@@ -1212,6 +1243,7 @@ describe('deleteProductInternal with images', () => {
         name: 'Vase',
         slug: 'vase',
         priceCents: 2999,
+        stockCount: 10,
         shopId: s.id,
       })
       .returning()
@@ -1260,6 +1292,7 @@ describe('description sanitization', () => {
       name: 'Vase',
       slug: 'vase',
       priceCents: 2999,
+      stockCount: 10,
       shopId: s.id,
       description: '<script>alert("xss")</script>',
     })
@@ -1285,6 +1318,7 @@ describe('description sanitization', () => {
         name: 'Vase',
         slug: 'vase',
         priceCents: 2999,
+        stockCount: 10,
         shopId: s.id,
       })
       .returning()
@@ -1314,6 +1348,7 @@ describe('description sanitization', () => {
       name: 'Vase',
       slug: 'vase',
       priceCents: 2999,
+      stockCount: 10,
       shopId: s.id,
     })
 
@@ -1346,6 +1381,7 @@ describe('toggleProductActiveInternal', () => {
         name: 'Vase',
         slug: 'vase',
         priceCents: 2999,
+        stockCount: 10,
         shopId: s.id,
         isActive: true,
       })
@@ -1381,6 +1417,7 @@ describe('toggleProductActiveInternal', () => {
         name: 'Vase',
         slug: 'vase',
         priceCents: 2999,
+        stockCount: 10,
         shopId: s.id,
         isActive: false,
       })
@@ -1441,6 +1478,7 @@ describe('toggleProductActiveInternal', () => {
         name: 'Vase',
         slug: 'vase',
         priceCents: 2999,
+        stockCount: 10,
         shopId: s1.id,
       })
       .returning()
@@ -1477,6 +1515,7 @@ describe('toggleProductActiveInternal', () => {
         name: 'Vase',
         slug: 'vase',
         priceCents: 2999,
+        stockCount: 10,
         shopId: s.id,
       })
       .returning()
@@ -1513,6 +1552,7 @@ describe('listCreatorProductsInternal with search', () => {
         name: 'Ceramic Vase',
         slug: 'ceramic-vase',
         priceCents: 2999,
+        stockCount: 10,
         shopId: s.id,
         isActive: true,
       },

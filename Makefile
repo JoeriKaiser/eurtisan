@@ -1,4 +1,4 @@
-.PHONY: up down logs dev build preview start install lint format check test shell auth-secret db-generate db-migrate db-push db-studio init db-seed
+.PHONY: up down stop logs dev build preview start install lint format check test shell auth-secret db-generate db-migrate db-push db-studio init db-seed
 
 # Docker Compose lifecycle
 up:
@@ -6,6 +6,9 @@ up:
 
 down:
 	docker compose down
+
+stop:
+	docker compose stop
 
 logs:
 	docker compose logs -f

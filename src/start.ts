@@ -5,13 +5,8 @@ function isDev(): boolean {
   return process.env.NODE_ENV === 'development'
 }
 
-/** Core CSP middleware handler — extracted for testability. */
-export async function cspMiddlewareHandler({
-  next,
-}: {
-  next: () => Promise<{ response: Response }>
-}): Promise<{ response: Response }> {
-  const result = await next()
+export async function cspMiddlewareHandler({ next }: { next: () => Promise<unknown> }) {
+  const result = (await next()) as { response: Response }
   const response = result.response
 
   const newHeaders = new Headers(response.headers)
@@ -29,7 +24,7 @@ export async function cspMiddlewareHandler({
   return { ...result, response: newResponse }
 }
 
-const cspMiddleware = createMiddleware().server(cspMiddlewareHandler)
+const cspMiddleware = createMiddleware().server(cspMiddlewareHandler as never)
 
 // startInstance is consumed by the TanStack Start Vite plugin at build time.
 // It has no explicit importers in source — the plugin discovers it via heuristics.

@@ -125,4 +125,3 @@ export async function deleteProductImages(productId: string): Promise<void> {
     // Directory may not exist; ignore
   }
 }
-

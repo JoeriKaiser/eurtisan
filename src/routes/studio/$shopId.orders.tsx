@@ -1,28 +1,38 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight, Package, Search } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
+import z from 'zod'
 import { Badge } from '#/components/ui/badge'
 import { formatPriceEUR } from '#/lib/pricing'
 import { guardShopOwnership } from '#/lib/route-guards'
 import { listShopOrders } from '#/lib/shop-orders'
 import { m } from '#/paraglide/messages'
 
+const ordersSearchSchema = z.object({
+  page: z.coerce.number().int().min(1).optional().default(1),
+  status: z.string().optional(),
+  search: z.string().optional(),
+})
+
 export const Route = createFileRoute('/studio/$shopId/orders')({
   beforeLoad: async ({ params }) => guardShopOwnership(params.shopId),
-  loader: async ({ params, search }) => {
-    const page = typeof search.page === 'string' ? Number.parseInt(search.page, 10) || 1 : 1
-    const status = typeof search.status === 'string' ? search.status : undefined
-    const searchQuery = typeof search.search === 'string' ? search.search : undefined
+  validateSearch: ordersSearchSchema,
+  loaderDeps: ({ search: { page, status, search } }) => ({
+    page,
+    status,
+    searchQuery: search,
+  }),
+  loader: async ({ params, deps }) => {
     const result = await listShopOrders({
       data: {
         shopId: params.shopId,
-        status,
-        search: searchQuery,
-        page,
+        status: deps.status,
+        search: deps.searchQuery,
+        page: deps.page,
         pageSize: 20,
       },
     })
-    return { result, status, searchQuery }
+    return { result, status: deps.status, searchQuery: deps.searchQuery }
   },
   head: () => ({
     meta: [{ title: 'Orders | Studio' }],

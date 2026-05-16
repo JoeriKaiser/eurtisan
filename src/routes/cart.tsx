@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { z } from 'zod'
+import z from 'zod'
 import CartPage from '#/components/CartPage'
 import { getCart } from '#/lib/cart'
 import { m } from '#/paraglide/messages'

@@ -1,10 +1,13 @@
-import { createFileRoute, getRouteApi } from '@tanstack/react-router'
-import { z } from 'zod'
+import { createFileRoute } from '@tanstack/react-router'
+import z from 'zod'
+import {
+  CreatorProductsError,
+  CreatorProductsLoading,
+  CreatorProductsPage,
+} from '#/components/CreatorProductsPage'
 import { getCreatorShops } from '#/lib/creator-dashboard'
 import { listCreatorProducts } from '#/lib/creator-products'
 import { m } from '#/paraglide/messages'
-
-const route = getRouteApi('/creator/products/')
 
 const productSearchSchema = z.object({
   shopId: z.string().optional(),
@@ -16,15 +19,22 @@ const productSearchSchema = z.object({
 
 export const Route = createFileRoute('/creator/products/')({
   validateSearch: productSearchSchema,
-  loader: async ({ search }) => {
+  loaderDeps: ({ search: { shopId, page, pageSize, active, search } }) => ({
+    shopId,
+    page,
+    pageSize,
+    active,
+    search,
+  }),
+  loader: async ({ deps }) => {
     const shops = await getCreatorShops()
-    const targetShop = shops.find((s) => s.id === search.shopId) ?? shops[0] ?? null
+    const targetShop = shops.find((s) => s.id === deps.shopId) ?? shops[0] ?? null
 
     let products: Awaited<ReturnType<typeof listCreatorProducts>> = {
       products: [],
       total: 0,
-      page: search.page,
-      pageSize: search.pageSize,
+      page: deps.page,
+      pageSize: deps.pageSize,
       totalPages: 0,
     }
 
@@ -32,10 +42,10 @@ export const Route = createFileRoute('/creator/products/')({
       products = await listCreatorProducts({
         data: {
           shopId: targetShop.id,
-          page: search.page,
-          pageSize: search.pageSize,
-          active: search.active,
-          search: search.search,
+          page: deps.page,
+          pageSize: deps.pageSize,
+          active: deps.active,
+          search: deps.search,
         },
       })
     }
@@ -48,28 +58,20 @@ export const Route = createFileRoute('/creator/products/')({
       { name: 'description', content: m.creator_products_description() },
     ],
   }),
-  lazy: async () => {
-    const { CreatorProductsPage, CreatorProductsLoading, CreatorProductsError } = await import(
-      '#/components/CreatorProductsPage'
-    )
-
-    function CreatorProductsWrapper() {
-      const { shops, products, currentShopId } = route.useLoaderData()
-      const search = route.useSearch()
-      return (
-        <CreatorProductsPage
-          shops={shops}
-          products={products}
-          currentShopId={currentShopId}
-          initialSearch={search}
-        />
-      )
-    }
-
-    return {
-      component: CreatorProductsWrapper,
-      pendingComponent: CreatorProductsLoading,
-      errorComponent: CreatorProductsError,
-    }
-  },
+  component: CreatorProductsRouteComponent,
+  pendingComponent: CreatorProductsLoading,
+  errorComponent: CreatorProductsError,
 })
+
+function CreatorProductsRouteComponent() {
+  const { shops, products, currentShopId } = Route.useLoaderData()
+  const search = Route.useSearch()
+  return (
+    <CreatorProductsPage
+      shops={shops}
+      products={products}
+      currentShopId={currentShopId}
+      initialSearch={search}
+    />
+  )
+}

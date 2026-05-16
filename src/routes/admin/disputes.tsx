@@ -9,17 +9,20 @@ import {
   Inbox,
   User,
 } from 'lucide-react'
+import z from 'zod'
 import { Badge } from '#/components/ui/badge'
 import { listOpenDisputes } from '#/lib/disputes'
 import { guardRole } from '#/lib/route-guards'
 
 const PAGE_SIZE = 20
 
+const disputesSearchSchema = z.object({
+  page: z.coerce.number().int().min(1).optional().default(1),
+})
+
 export const Route = createFileRoute('/admin/disputes')({
   beforeLoad: async () => guardRole('admin'),
-  validateSearch: (search: Record<string, unknown>) => ({
-    page: Number(search.page) || 1,
-  }),
+  validateSearch: disputesSearchSchema,
   loaderDeps: ({ search: { page } }) => ({ page }),
   loader: async ({ deps }) => {
     const result = await listOpenDisputes({

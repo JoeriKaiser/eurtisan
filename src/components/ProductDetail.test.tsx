@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ProductDetail as ProductDetailType } from '#/lib/products.server'
 import ProductDetail from './ProductDetail'
 
@@ -238,7 +238,7 @@ describe('ProductDetail', () => {
   })
 
   it('disables add-to-cart button while adding', async () => {
-    let resolve: (value: unknown) => void
+    let resolve: (value: unknown) => void = () => {}
     mockAddToCart.mockImplementation(
       () =>
         new Promise((res) => {

@@ -4,6 +4,7 @@ import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
 import { Skeleton } from '#/components/ui/skeleton'
+import type { AdminOrderDetail } from '#/lib/admin-orders'
 import { getPlatformOrderDetail } from '#/lib/admin-orders'
 import { statusBadgeVariant } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
@@ -79,7 +80,7 @@ function isValidUrl(url: string | null): url is string {
 /* -------------------------------------------------------------------------- */
 
 export function AdminOrderDetailPage() {
-  const order = Route.useLoaderData()
+  const order = Route.useLoaderData() as AdminOrderDetail
 
   const isCancelled = order.status === 'cancelled'
 
@@ -217,24 +218,16 @@ export function AdminOrderDetailPage() {
               </CardHeader>
               <CardContent>
                 <address className='not-italic text-sm text-text-secondary'>
-                  {(order.billingAddress as Record<string, string>).name && (
-                    <p className='text-text-primary'>
-                      {(order.billingAddress as Record<string, string>).name}
-                    </p>
+                  {order.billingAddress.name && (
+                    <p className='text-text-primary'>{order.billingAddress.name}</p>
                   )}
-                  {(order.billingAddress as Record<string, string>).street && (
-                    <p>{(order.billingAddress as Record<string, string>).street}</p>
-                  )}
-                  {((order.billingAddress as Record<string, string>).postalCode ||
-                    (order.billingAddress as Record<string, string>).city) && (
+                  {order.billingAddress.street && <p>{order.billingAddress.street}</p>}
+                  {(order.billingAddress.postalCode || order.billingAddress.city) && (
                     <p>
-                      {(order.billingAddress as Record<string, string>).postalCode}{' '}
-                      {(order.billingAddress as Record<string, string>).city}
+                      {order.billingAddress.postalCode} {order.billingAddress.city}
                     </p>
                   )}
-                  {(order.billingAddress as Record<string, string>).country && (
-                    <p>{(order.billingAddress as Record<string, string>).country}</p>
-                  )}
+                  {order.billingAddress.country && <p>{order.billingAddress.country}</p>}
                 </address>
               </CardContent>
             </Card>

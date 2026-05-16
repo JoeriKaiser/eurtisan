@@ -345,7 +345,7 @@ function ShipOrderDialog({
 /*                            Main Page Component                             */
 /* -------------------------------------------------------------------------- */
 
-function ShopOrderDetailPage() {
+export function ShopOrderDetailPage() {
   const { shopId, shopOrderId } = Route.useParams()
   const { order } = Route.useLoaderData()
   const router = useRouter()
@@ -622,7 +622,7 @@ function ShopOrderDetailPage() {
   )
 }
 
-function ShopOrderDetailPending() {
+export function ShopOrderDetailPending() {
   return (
     <main className='page-wrap px-4 py-12'>
       <div className='mx-auto max-w-3xl'>
@@ -648,7 +648,7 @@ function ShopOrderDetailPending() {
   )
 }
 
-function ShopOrderDetailError({ error }: { error: Error }) {
+export function ShopOrderDetailError({ error }: { error: Error }) {
   return (
     <main className='page-wrap px-4 py-12'>
       <div className='mx-auto max-w-3xl text-center'>

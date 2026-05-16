@@ -61,7 +61,9 @@ describe('sanitizeRichText', () => {
 
   it('removes attributes from allowed tags', () => {
     expect(sanitizeRichText('<p class="x">Hello</p>')).toBe('<p>Hello</p>')
-    expect(sanitizeRichText('<strong style="color:red">Bold</strong>')).toBe('<strong>Bold</strong>')
+    expect(sanitizeRichText('<strong style="color:red">Bold</strong>')).toBe(
+      '<strong>Bold</strong>',
+    )
   })
 
   it('strips script tags and their contents', () => {
@@ -82,7 +84,9 @@ describe('sanitizeRichText', () => {
   })
 
   it('handles mixed allowed and disallowed tags', () => {
-    expect(sanitizeRichText('<div><p><strong>Hi</strong></p></div>')).toBe('<p><strong>Hi</strong></p>')
+    expect(sanitizeRichText('<div><p><strong>Hi</strong></p></div>')).toBe(
+      '<p><strong>Hi</strong></p>',
+    )
   })
 
   it('neutralizes XSS payloads', () => {

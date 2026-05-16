@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
-import { z } from 'zod'
+import z from 'zod'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { authClient } from '#/lib/auth-client'

@@ -117,8 +117,8 @@ describe('listPendingPayoutsQuery', () => {
   })
 
   it('returns payouts from multiple shops and creators', async () => {
-    await seedUser({ id: 'user-a', name: 'Creator A' })
-    await seedUser({ id: 'user-b', name: 'Creator B' })
+    await seedUser({ id: 'user-a', name: 'Creator A', email: 'creator-a@example.com' })
+    await seedUser({ id: 'user-b', name: 'Creator B', email: 'creator-b@example.com' })
     await seedShop({ id: 'shop-a', name: 'Shop A', slug: 'shop-a', ownerId: 'user-a' })
     await seedShop({ id: 'shop-b', name: 'Shop B', slug: 'shop-b', ownerId: 'user-b' })
     await seedPayout({ shopId: 'shop-a', amountCents: 1000 })

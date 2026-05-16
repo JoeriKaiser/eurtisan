@@ -177,6 +177,9 @@ These rules are non-negotiable.
 - No unreviewable database schema changes.
 - No production-sensitive logic without tests.
 - No architectural drift from documented patterns.
+- Do not claim work is done if `make lint` or `make format` return errors or warnings.
+- Do not claim work is done if `make check` returns an error or warning.
+- Do not claim work is done if `make test` returns failures.
 
 Improve adjacent low-quality implementations only when they directly impact:
 
@@ -230,8 +233,10 @@ A task is only considered complete when:
 
 - The implementation works end-to-end.
 - Relevant tests exist and pass.
-- Linting and formatting pass.
+- `make lint` and `make format` run without errors or warnings.
+- `make check` runs without errors or warnings.
 - TypeScript passes cleanly.
+- `make test` is run as the final verification step and passes.
 - Accessibility concerns are addressed.
 - Loading, empty, and error states are handled.
 - Security implications are reviewed.

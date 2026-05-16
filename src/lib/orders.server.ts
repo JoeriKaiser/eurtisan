@@ -36,7 +36,7 @@ export interface OrderShopGroup {
   shopOrderId: string
   shopId: string
   shopName: string
-  shippingMethod: 'standard' | 'express'
+  shippingMethod: 'standard' | 'express' | 'manual'
   shippingCostCents: number
   subtotalCents: number
   status: OrderStatus

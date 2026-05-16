@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { z } from 'zod'
+import z from 'zod'
 import {
   CreatorShopSettingsError,
   CreatorShopSettingsLoading,
@@ -16,14 +16,15 @@ const shopSearchSchema = z.object({
 export const Route = createFileRoute('/creator/shop')({
   beforeLoad: async () => guardRole('creator'),
   validateSearch: shopSearchSchema,
-  loader: async ({ search }) => {
+  loaderDeps: ({ search: { shopId } }) => ({ shopId }),
+  loader: async ({ deps }) => {
     const shops = await getCreatorShops()
 
     if (shops.length === 0) {
       return { shop: null, allShops: [] }
     }
 
-    const targetShopId = search.shopId ?? shops[0].id
+    const targetShopId = deps.shopId ?? shops[0].id
     const shop = await getCreatorShop({ data: { shopId: targetShopId } })
 
     return { shop, allShops: shops }

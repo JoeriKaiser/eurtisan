@@ -536,9 +536,9 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
     it('is idempotent after cancellation via webhook', async () => {
       stubPaymentStatus = 'expired'
       const order = await seedPlatformOrder()
-      await seedShopOrder({ platformOrderId: order.id })
+      const shopOrd = await seedShopOrder({ platformOrderId: order.id })
       await seedProduct()
-      await seedOrderItem()
+      await seedOrderItem({ shopOrderId: shopOrd.id })
       await seedInventoryReservation()
 
       const provider = createStubPaymentProvider()
