@@ -49,11 +49,9 @@ export const Route = createFileRoute('/creator/products/')({
     ],
   }),
   lazy: async () => {
-    const {
-      CreatorProductsPage,
-      CreatorProductsLoading,
-      CreatorProductsError,
-    } = await import('#/components/CreatorProductsPage')
+    const { CreatorProductsPage, CreatorProductsLoading, CreatorProductsError } = await import(
+      '#/components/CreatorProductsPage'
+    )
 
     function CreatorProductsWrapper() {
       const { shops, products, currentShopId } = route.useLoaderData()

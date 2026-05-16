@@ -56,8 +56,7 @@ vi.mock('#/paraglide/messages', () => ({
       'The selected category is invalid. Please choose a different category.',
     creator_product_new_description_label: () => 'Description',
     creator_product_new_description_placeholder: () => 'Describe your product...',
-    creator_product_new_description_too_long: () =>
-      'Description must be 2000 characters or fewer.',
+    creator_product_new_description_too_long: () => 'Description must be 2000 characters or fewer.',
     creator_product_new_price_label: () => 'Price (EUR)',
     creator_product_new_price_placeholder: () => '0.00',
     creator_product_new_price_required: () => 'Price is required.',
@@ -91,8 +90,7 @@ vi.mock('#/paraglide/messages', () => ({
     creator_product_new_unsaved_confirm: () => 'Leave',
     creator_product_new_unsaved_cancel: () => 'Stay',
     creator_product_new_no_shops_title: () => 'No shops yet',
-    creator_product_new_no_shops_description: () =>
-      'Create a shop first before adding products.',
+    creator_product_new_no_shops_description: () => 'Create a shop first before adding products.',
     creator_shop_settings_title: () => 'Shop Settings',
     creator_error_load: () => 'Failed to load dashboard. Please try again.',
     creator_error_retry: () => 'Retry',
@@ -202,11 +200,7 @@ describe('CreatorProductEditPage', () => {
 
   it('renders empty state when creator has no shops', () => {
     render(
-      <CreatorProductEditPage
-        shops={[]}
-        categories={makeCategories()}
-        product={makeProduct()}
-      />,
+      <CreatorProductEditPage shops={[]} categories={makeCategories()} product={makeProduct()} />,
     )
     expect(screen.getByText('No shops yet')).toBeTruthy()
   })
@@ -345,9 +339,7 @@ describe('CreatorProductEditPage', () => {
     const removeButtons = screen.getAllByLabelText('Remove image')
     fireEvent.click(removeButtons[1])
 
-    const remainingImages = document.querySelectorAll(
-      'img[src*="/uploads/products/"]',
-    )
+    const remainingImages = document.querySelectorAll('img[src*="/uploads/products/"]')
     expect(remainingImages.length).toBe(1)
 
     const remainingRemoveButtons = screen.getAllByLabelText('Remove image')
@@ -573,9 +565,7 @@ describe('CreatorProductEditPage', () => {
   })
 
   it('shows generic error banner on unknown server error', async () => {
-    vi.mocked(updateProduct).mockRejectedValueOnce(
-      new Error('Something went wrong'),
-    )
+    vi.mocked(updateProduct).mockRejectedValueOnce(new Error('Something went wrong'))
 
     // Use a product with no images so no fetch calls are needed
     render(
@@ -593,9 +583,7 @@ describe('CreatorProductEditPage', () => {
     if (form) fireEvent.submit(form)
 
     await waitFor(() => {
-      expect(
-        screen.getByText('Failed to update product. Please try again.'),
-      ).toBeTruthy()
+      expect(screen.getByText('Failed to update product. Please try again.')).toBeTruthy()
     })
   })
 
@@ -678,9 +666,7 @@ describe('CreatorProductEditPage', () => {
     // The dialog Cancel is the last one rendered
     fireEvent.click(cancelButtons[cancelButtons.length - 1])
 
-    expect(
-      screen.queryByText('Are you sure you want to delete this product?'),
-    ).toBeNull()
+    expect(screen.queryByText('Are you sure you want to delete this product?')).toBeNull()
   })
 
   it('deletes product and navigates to products list', async () => {

@@ -8,6 +8,7 @@ const mockNavigate = vi.hoisted(() => vi.fn())
 const mockUseCart = vi.hoisted(() => vi.fn())
 const mockUseAuth = vi.hoisted(() => vi.fn())
 const mockUseUnreadNotificationCount = vi.hoisted(() => vi.fn())
+const mockUseLocation = vi.hoisted(() => vi.fn(() => ({ pathname: '/about' })))
 
 vi.mock('@tanstack/react-router', () => ({
   Link: (props: {
@@ -28,6 +29,7 @@ vi.mock('@tanstack/react-router', () => ({
   useRouter: () => ({
     navigate: mockNavigate,
   }),
+  useLocation: () => mockUseLocation(),
 }))
 
 vi.mock('#/paraglide/messages', () => ({
@@ -41,8 +43,7 @@ vi.mock('#/paraglide/messages', () => ({
     cart_badge_label: () => 'Shopping cart',
     cart_badge_items: ({ count }: { count: string }) => `${count} items in cart`,
     notifications_badge_label: () => 'Notifications',
-    notifications_badge_unread: ({ count }: { count: string }) =>
-      `${count} unread notifications`,
+    notifications_badge_unread: ({ count }: { count: string }) => `${count} unread notifications`,
   },
 }))
 
@@ -174,6 +175,13 @@ describe('Header', () => {
 
     render(<Header />)
     expect(screen.getByText('2')).toBeDefined()
+  })
+
+  it('hides search on homepage', () => {
+    mockUseLocation.mockReturnValue({ pathname: '/' })
+    render(<Header />)
+    expect(screen.queryByLabelText('Search products...')).toBeNull()
+    mockUseLocation.mockReturnValue({ pathname: '/about' })
   })
 
   it('hides badge when cart is empty', () => {

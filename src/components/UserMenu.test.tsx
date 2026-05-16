@@ -46,13 +46,6 @@ describe('UserMenu', () => {
     expect(container.textContent).toContain('Sign in')
   })
 
-  it('shows loading pulse while auth is loading', () => {
-    mockUseSession.mockReturnValue({ data: null, isPending: true })
-
-    const { container } = render(<UserMenu />)
-    expect(container.querySelector('.animate-pulse')).not.toBeNull()
-  })
-
   it('shows user name and menu when authenticated', () => {
     mockUseSession.mockReturnValue({
       data: {

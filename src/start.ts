@@ -1,5 +1,9 @@
-import { createStart, createMiddleware } from '@tanstack/react-start'
+import { createMiddleware, createStart } from '@tanstack/react-start'
 import { buildCspHeader } from './lib/csp'
+
+function isDev(): boolean {
+  return process.env.NODE_ENV === 'development'
+}
 
 /** Core CSP middleware handler — extracted for testability. */
 export async function cspMiddlewareHandler({
@@ -11,7 +15,10 @@ export async function cspMiddlewareHandler({
   const response = result.response
 
   const newHeaders = new Headers(response.headers)
-  newHeaders.set('content-security-policy', buildCspHeader())
+
+  if (!isDev()) {
+    newHeaders.set('content-security-policy', buildCspHeader())
+  }
 
   const newResponse = new Response(response.body, {
     status: response.status,

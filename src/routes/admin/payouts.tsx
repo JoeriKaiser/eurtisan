@@ -90,7 +90,7 @@ export function AdminPayoutsPage() {
     if (initialData.tab === 'pending') {
       setPayouts(initialData.payouts)
     }
-  }, [initialData.tab === 'pending' ? initialData.payouts : null])
+  }, [initialData.tab, initialData.payouts])
 
   // --- Refs for stale-closure safety ---
   const successTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)

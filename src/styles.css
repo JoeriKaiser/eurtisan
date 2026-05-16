@@ -1,6 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
+@custom-variant dark (&:where(.dark, .dark *));
 
 /* ═══════════════════════════════════════════════════════════════
    Eurtisan Design System Tokens
@@ -312,8 +313,12 @@
 }
 
 /* color-scheme is driven by class on <html> so it works under style-src 'self' */
-.light { color-scheme: light; }
-.dark { color-scheme: dark; }
+.light {
+  color-scheme: light;
+}
+.dark {
+  color-scheme: dark;
+}
 
 /* ─── Tailwind v4 Theme Registration ─── */
 @theme {

@@ -253,7 +253,12 @@ function ShopSettingsForm({
         name?: string
         slug?: string
         description?: string
-        shippingOrigin?: { street: string; city: string; postalCode: string; country: string } | null
+        shippingOrigin?: {
+          street: string
+          city: string
+          postalCode: string
+          country: string
+        } | null
       } = { shopId: shop.id }
 
       if (name !== shop.name) updatePayload.name = name.trim()
@@ -567,9 +572,7 @@ function ShopSettingsForm({
                       id='origin-country'
                       type='text'
                       value={originCountry}
-                      onChange={(e) =>
-                        setOriginCountry(e.target.value.toUpperCase().slice(0, 2))
-                      }
+                      onChange={(e) => setOriginCountry(e.target.value.toUpperCase().slice(0, 2))}
                       placeholder='DE'
                       maxLength={2}
                     />

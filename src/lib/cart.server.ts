@@ -381,15 +381,8 @@ export async function mergeAnonymousCartIntoUserCart(sessionId: string, userId: 
     const existingUserItems = await tx
       .select()
       .from(cartItem)
-      .where(
-        and(
-          eq(cartItem.cartId, userCartId),
-          inArray(cartItem.productId, productIds),
-        ),
-      )
-    const existingByProductId = new Map(
-      existingUserItems.map((item) => [item.productId, item]),
-    )
+      .where(and(eq(cartItem.cartId, userCartId), inArray(cartItem.productId, productIds)))
+    const existingByProductId = new Map(existingUserItems.map((item) => [item.productId, item]))
 
     for (const anonItem of anonItems) {
       const productRecord = products.find((p) => p.id === anonItem.productId)
@@ -397,8 +390,9 @@ export async function mergeAnonymousCartIntoUserCart(sessionId: string, userId: 
 
       const existingItem = existingByProductId.get(anonItem.productId)
 
-      const combinedQuantity =
-        existingItem ? existingItem.quantity + anonItem.quantity : anonItem.quantity
+      const combinedQuantity = existingItem
+        ? existingItem.quantity + anonItem.quantity
+        : anonItem.quantity
       const availableStock = availableStockMap.get(productRecord.id) ?? 0
       const cappedQuantity = Math.min(combinedQuantity, availableStock)
 

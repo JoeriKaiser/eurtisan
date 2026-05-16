@@ -2,9 +2,9 @@ import { createFileRoute } from '@tanstack/react-router'
 import HomePage from '#/components/HomePage'
 import { listCategories } from '#/lib/categories'
 import { getFeaturedShops, listRecentProducts } from '#/lib/products'
-import { m } from '#/paraglide/messages'
 import { createPageMeta } from '#/lib/seo'
 import { generateWebSiteJsonLd } from '#/lib/seo-structured-data'
+import { m } from '#/paraglide/messages'
 
 function HomeError({ error }: { error: Error }) {
   return (

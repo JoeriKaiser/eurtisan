@@ -1,4 +1,4 @@
-import { Link, useRouter } from '@tanstack/react-router'
+import { Link, useLocation, useRouter } from '@tanstack/react-router'
 import { Bell, Search, ShoppingCart } from 'lucide-react'
 import { useState } from 'react'
 import { useCart } from '#/components/CartProvider'
@@ -12,6 +12,8 @@ import { Input } from './ui/input'
 
 export default function Header() {
   const router = useRouter()
+  const location = useLocation()
+  const isHome = location.pathname === '/'
   const [searchQuery, setSearchQuery] = useState('')
   const { cart } = useCart()
   const { isAuthenticated } = useAuth()
@@ -56,25 +58,27 @@ export default function Header() {
         </div>
 
         {/* Search */}
-        <form
-          onSubmit={handleSearch}
-          className='mx-4 hidden flex-1 items-center gap-2 md:flex md:max-w-xs lg:max-w-sm'
-        >
-          <div className='relative flex-1'>
-            <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted' />
-            <Input
-              type='search'
-              placeholder={m.search_header_placeholder()}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className='h-9 pl-9 text-sm'
-              aria-label={m.search_header_placeholder()}
-            />
-          </div>
-          <Button type='submit' variant='secondary' size='sm' className='h-9'>
-            {m.search_header_button()}
-          </Button>
-        </form>
+        {!isHome && (
+          <form
+            onSubmit={handleSearch}
+            className='mx-4 hidden flex-1 items-center gap-2 md:flex md:max-w-xs lg:max-w-sm'
+          >
+            <div className='relative flex-1'>
+              <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted' />
+              <Input
+                type='search'
+                placeholder={m.search_header_placeholder()}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className='h-9 pl-9 text-sm'
+                aria-label={m.search_header_placeholder()}
+              />
+            </div>
+            <Button type='submit' variant='secondary' size='sm' className='h-9'>
+              {m.search_header_button()}
+            </Button>
+          </form>
+        )}
 
         {/* User actions */}
         <div className='ml-auto flex items-center gap-0.5'>
@@ -88,6 +92,7 @@ export default function Header() {
                 <Bell size={18} aria-hidden='true' />
                 {unreadCount > 0 && (
                   <span
+                    role='status'
                     className='absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-error px-1 text-[10px] font-bold text-text-on-primary'
                     aria-label={m.notifications_badge_unread({ count: String(unreadCount) })}
                   >
@@ -106,6 +111,7 @@ export default function Header() {
               <ShoppingCart size={18} aria-hidden='true' />
               {distinctItems > 0 && (
                 <span
+                  role='status'
                   className='absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-primary px-1 text-[10px] font-bold text-text-on-primary'
                   aria-label={m.cart_badge_items({ count: String(distinctItems) })}
                 >

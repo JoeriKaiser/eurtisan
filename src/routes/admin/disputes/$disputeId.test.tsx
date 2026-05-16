@@ -143,7 +143,9 @@ describe('AdminDisputeDetailPage', () => {
     render(<AdminDisputeDetailPage />)
 
     const select = screen.getByLabelText('Resolution')
-    const fullRefundOption = select.querySelector('option[value="full_refund"]') as HTMLOptionElement
+    const fullRefundOption = select.querySelector(
+      'option[value="full_refund"]',
+    ) as HTMLOptionElement
     expect(fullRefundOption).toBeDefined()
     expect(fullRefundOption.disabled).toBe(false)
   })

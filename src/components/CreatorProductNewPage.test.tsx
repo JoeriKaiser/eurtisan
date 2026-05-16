@@ -70,8 +70,7 @@ vi.mock('#/paraglide/messages', () => ({
     creator_product_new_unsaved_confirm: () => 'Leave',
     creator_product_new_unsaved_cancel: () => 'Stay',
     creator_product_new_no_shops_title: () => 'No shops yet',
-    creator_product_new_no_shops_description: () =>
-      'Create a shop first before adding products.',
+    creator_product_new_no_shops_description: () => 'Create a shop first before adding products.',
     creator_shop_settings_title: () => 'Shop Settings',
     creator_error_load: () => 'Failed to load dashboard. Please try again.',
     creator_error_retry: () => 'Retry',
@@ -102,9 +101,7 @@ function makeShops(overrides?: Partial<CreatorShop>[]): CreatorShop[] {
       slug: s.slug ?? 'test-shop',
     }))
   }
-  return [
-    { id: 'shop-1', name: 'Test Shop', slug: 'test-shop' },
-  ]
+  return [{ id: 'shop-1', name: 'Test Shop', slug: 'test-shop' }]
 }
 
 type CategoryItem = { id: string; name: string; slug: string }
@@ -516,7 +513,9 @@ describe('CreatorProductNewPage', () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText('A product with this slug already exists in this shop. Try a different name or edit the slug manually.'),
+        screen.getByText(
+          'A product with this slug already exists in this shop. Try a different name or edit the slug manually.',
+        ),
       ).toBeTruthy()
     })
   })
@@ -536,9 +535,7 @@ describe('CreatorProductNewPage', () => {
     if (form) fireEvent.submit(form)
 
     await waitFor(() => {
-      expect(
-        screen.getByText('Failed to publish product. Please try again.'),
-      ).toBeTruthy()
+      expect(screen.getByText('Failed to publish product. Please try again.')).toBeTruthy()
     })
   })
 })

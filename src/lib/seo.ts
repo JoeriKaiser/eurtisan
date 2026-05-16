@@ -71,9 +71,7 @@ export function createPageMeta(input: CreatePageMetaInput): PageMetaResult {
     )
   }
 
-  const links: Array<Record<string, string>> = [
-    { rel: 'canonical', href: fullCanonical },
-  ]
+  const links: Array<Record<string, string>> = [{ rel: 'canonical', href: fullCanonical }]
 
   const result: PageMetaResult = { meta, links }
 

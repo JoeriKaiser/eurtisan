@@ -16,7 +16,7 @@ import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
 import { Input } from '#/components/ui/input'
-import { getDisputeDetail, addDisputeMessage, resolveDispute } from '#/lib/disputes'
+import { addDisputeMessage, getDisputeDetail, resolveDispute } from '#/lib/disputes'
 import { formatPriceEUR } from '#/lib/pricing'
 import { guardRole } from '#/lib/route-guards'
 
@@ -348,11 +348,7 @@ function AdminMessageInput({
       />
       <div className='mt-2 flex items-center justify-between'>
         <span className='text-xs text-text-muted'>{message.length} / 5000</span>
-        <Button
-          type='submit'
-          isLoading={isSubmitting}
-          disabled={!message.trim() || isSubmitting}
-        >
+        <Button type='submit' isLoading={isSubmitting} disabled={!message.trim() || isSubmitting}>
           <Send size={16} aria-hidden='true' />
           Send
         </Button>
@@ -365,7 +361,7 @@ function AdminMessageInput({
 /*                           Main Page Component                              */
 /* -------------------------------------------------------------------------- */
 
-export function AdminDisputeDetailPage() {
+function AdminDisputeDetailPage() {
   const { dispute } = Route.useLoaderData()
   const router = useRouter()
   const [justResolved, setJustResolved] = useState(false)
@@ -539,10 +535,7 @@ export function AdminDisputeDetailPage() {
             <h2 className='mb-4 text-lg font-semibold text-text-primary'>Message Thread</h2>
             <MessageThread messages={dispute.messages} />
             {!isResolved && (
-              <AdminMessageInput
-                disputeId={dispute.id}
-                onMessageSent={handleMessageSent}
-              />
+              <AdminMessageInput disputeId={dispute.id} onMessageSent={handleMessageSent} />
             )}
           </section>
 

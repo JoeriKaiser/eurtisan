@@ -1,8 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { authMiddleware } from './auth-middleware'
 
-export type { AdminDashboardStats } from './admin-dashboard.server'
-export type { RecentOrder, RecentSignup } from './admin-dashboard.server'
+export type { AdminDashboardStats, RecentOrder, RecentSignup } from './admin-dashboard.server'
 
 /**
  * Shared admin auth guard — throws 401/403 if not authenticated or not admin.

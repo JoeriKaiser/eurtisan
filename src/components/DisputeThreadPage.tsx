@@ -130,7 +130,7 @@ export default function DisputeThreadPage({ dispute }: DisputeThreadPageProps) {
                 {m.dispute_messages_empty()}
               </p>
             ) : (
-              <ul className='space-y-4' role='list' aria-label={m.dispute_messages_title()}>
+              <ul className='space-y-4' aria-label={m.dispute_messages_title()}>
                 {dispute.messages.map((msg) => (
                   <li
                     key={msg.id}

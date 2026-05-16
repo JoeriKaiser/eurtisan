@@ -85,7 +85,7 @@ describe('configureProductsIndex', () => {
 
     expect(meilisearch?.index).toHaveBeenCalledWith(PRODUCTS_INDEX)
     const index = meilisearch?.index(PRODUCTS_INDEX)
-    expect(index!.updateSettings).toHaveBeenCalledWith({
+    expect(index?.updateSettings).toHaveBeenCalledWith({
       searchableAttributes: ['name', 'description'],
       filterableAttributes: [
         'categoryId',

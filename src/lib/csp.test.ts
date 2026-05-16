@@ -12,9 +12,9 @@ describe('buildCspHeader', () => {
     expect(csp).toContain("script-src 'self' 'unsafe-inline'")
   })
 
-  it('includes style-src with self only (no unsafe-inline)', () => {
+  it('includes style-src with self and Google Fonts (no unsafe-inline)', () => {
     const csp = buildCspHeader()
-    expect(csp).toContain("style-src 'self'")
+    expect(csp).toContain("style-src 'self' https://fonts.googleapis.com")
     expect(csp).not.toContain("style-src 'self' 'unsafe-inline'")
   })
 
@@ -24,7 +24,7 @@ describe('buildCspHeader', () => {
     // Ensure the broad https: scheme is not present in img-src
     const imgSrcMatch = csp.match(/img-src ([^;]+)/)
     expect(imgSrcMatch).toBeTruthy()
-    expect(imgSrcMatch![1]).not.toContain('https:')
+    expect(imgSrcMatch?.[1]).not.toContain('https:')
   })
 
   it('includes font-src with self and Google Fonts', () => {

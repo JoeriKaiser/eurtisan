@@ -226,120 +226,116 @@ function ShipOrderDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {open && (
-        <>
-          <DialogPortal>
-            <DialogBackdrop />
-            <DialogPopup className='w-full max-w-md'>
-              <form onSubmit={handleSubmit}>
-                <DialogTitle>Mark as Shipped</DialogTitle>
-                <DialogDescription>
-                  Choose how to provide tracking for this order.
-                </DialogDescription>
+        <DialogPortal>
+          <DialogBackdrop />
+          <DialogPopup className='w-full max-w-md'>
+            <form onSubmit={handleSubmit}>
+              <DialogTitle>Mark as Shipped</DialogTitle>
+              <DialogDescription>Choose how to provide tracking for this order.</DialogDescription>
 
-                <div className='mt-4 space-y-4'>
-                  {/* Mode toggle */}
-                  <div className='flex rounded-lg border border-border-default p-1'>
-                    <button
-                      type='button'
-                      onClick={() => setMode('label')}
-                      className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition ${
-                        mode === 'label'
-                          ? 'bg-accent-primary text-text-on-primary'
-                          : 'text-text-secondary hover:text-text-primary'
-                      }`}
-                    >
-                      Generate Label
-                    </button>
-                    <button
-                      type='button'
-                      onClick={() => setMode('manual')}
-                      className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition ${
-                        mode === 'manual'
-                          ? 'bg-accent-primary text-text-on-primary'
-                          : 'text-text-secondary hover:text-text-primary'
-                      }`}
-                    >
-                      Manual Tracking
-                    </button>
-                  </div>
-
-                  {mode === 'manual' && (
-                    <>
-                      <div>
-                        <label
-                          htmlFor='tracking-number'
-                          className='mb-1.5 block text-sm font-medium text-text-secondary'
-                        >
-                          Tracking Number
-                        </label>
-                        <Input
-                          id='tracking-number'
-                          value={trackingNumber}
-                          onChange={(e) => setTrackingNumber(e.target.value)}
-                          placeholder='e.g. TRACK123456'
-                          disabled={isSubmitting}
-                        />
-                      </div>
-
-                      <div>
-                        <label
-                          htmlFor='tracking-url'
-                          className='mb-1.5 block text-sm font-medium text-text-secondary'
-                        >
-                          Tracking URL
-                        </label>
-                        <Input
-                          id='tracking-url'
-                          type='url'
-                          value={trackingUrl}
-                          onChange={(e) => {
-                            setTrackingUrl(e.target.value)
-                            if (fieldErrors.trackingUrl) setFieldErrors({})
-                          }}
-                          placeholder='https://carrier.example.com/track'
-                          disabled={isSubmitting}
-                          error={fieldErrors.trackingUrl}
-                        />
-                        {fieldErrors.trackingUrl && (
-                          <p id='tracking-url-error' className='mt-1 text-xs text-error'>
-                            {fieldErrors.trackingUrl}
-                          </p>
-                        )}
-                      </div>
-                    </>
-                  )}
-
-                  {mode === 'label' && (
-                    <p className='text-sm text-text-secondary'>
-                      The system will generate a shipping label via Mondial Relay using your shop's
-                      origin address and the buyer's shipping address.
-                    </p>
-                  )}
-
-                  {error && (
-                    <div className='rounded-lg bg-error/10 p-3 text-sm text-error' role='alert'>
-                      {error}
-                    </div>
-                  )}
-                </div>
-
-                <div className='mt-6 flex justify-end gap-3'>
-                  <Button
+              <div className='mt-4 space-y-4'>
+                {/* Mode toggle */}
+                <div className='flex rounded-lg border border-border-default p-1'>
+                  <button
                     type='button'
-                    variant='ghost'
-                    disabled={isSubmitting}
-                    onClick={() => onOpenChange(false)}
+                    onClick={() => setMode('label')}
+                    className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition ${
+                      mode === 'label'
+                        ? 'bg-accent-primary text-text-on-primary'
+                        : 'text-text-secondary hover:text-text-primary'
+                    }`}
                   >
-                    Cancel
-                  </Button>
-                  <Button type='submit' isLoading={isSubmitting}>
-                    Mark as Shipped
-                  </Button>
+                    Generate Label
+                  </button>
+                  <button
+                    type='button'
+                    onClick={() => setMode('manual')}
+                    className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition ${
+                      mode === 'manual'
+                        ? 'bg-accent-primary text-text-on-primary'
+                        : 'text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    Manual Tracking
+                  </button>
                 </div>
-              </form>
-            </DialogPopup>
-          </DialogPortal>
-        </>
+
+                {mode === 'manual' && (
+                  <>
+                    <div>
+                      <label
+                        htmlFor='tracking-number'
+                        className='mb-1.5 block text-sm font-medium text-text-secondary'
+                      >
+                        Tracking Number
+                      </label>
+                      <Input
+                        id='tracking-number'
+                        value={trackingNumber}
+                        onChange={(e) => setTrackingNumber(e.target.value)}
+                        placeholder='e.g. TRACK123456'
+                        disabled={isSubmitting}
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor='tracking-url'
+                        className='mb-1.5 block text-sm font-medium text-text-secondary'
+                      >
+                        Tracking URL
+                      </label>
+                      <Input
+                        id='tracking-url'
+                        type='url'
+                        value={trackingUrl}
+                        onChange={(e) => {
+                          setTrackingUrl(e.target.value)
+                          if (fieldErrors.trackingUrl) setFieldErrors({})
+                        }}
+                        placeholder='https://carrier.example.com/track'
+                        disabled={isSubmitting}
+                        error={fieldErrors.trackingUrl}
+                      />
+                      {fieldErrors.trackingUrl && (
+                        <p id='tracking-url-error' className='mt-1 text-xs text-error'>
+                          {fieldErrors.trackingUrl}
+                        </p>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {mode === 'label' && (
+                  <p className='text-sm text-text-secondary'>
+                    The system will generate a shipping label via Mondial Relay using your shop's
+                    origin address and the buyer's shipping address.
+                  </p>
+                )}
+
+                {error && (
+                  <div className='rounded-lg bg-error/10 p-3 text-sm text-error' role='alert'>
+                    {error}
+                  </div>
+                )}
+              </div>
+
+              <div className='mt-6 flex justify-end gap-3'>
+                <Button
+                  type='button'
+                  variant='ghost'
+                  disabled={isSubmitting}
+                  onClick={() => onOpenChange(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type='submit' isLoading={isSubmitting}>
+                  Mark as Shipped
+                </Button>
+              </div>
+            </form>
+          </DialogPopup>
+        </DialogPortal>
       )}
     </Dialog>
   )
@@ -349,7 +345,7 @@ function ShipOrderDialog({
 /*                            Main Page Component                             */
 /* -------------------------------------------------------------------------- */
 
-export function ShopOrderDetailPage() {
+function ShopOrderDetailPage() {
   const { shopId, shopOrderId } = Route.useParams()
   const { order } = Route.useLoaderData()
   const router = useRouter()

@@ -10,8 +10,8 @@
  * tracking numbers and rates for testability.
  */
 
-import { shippingLabel } from '#/db/schema'
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'
+import { shippingLabel } from '#/db/schema'
 import type {
   Label,
   Package,
@@ -30,7 +30,7 @@ import type {
 /** Deterministic tracking number prefix. */
 const TRACKING_PREFIX = 'MR'
 
-let mockCounter = 0
+let _mockCounter = 0
 
 /**
  * Generate a deterministic tracking number from the destination country,
@@ -72,7 +72,7 @@ function timestampOffsetHours(offsetHours: number): string {
  * Resets the mock counter so tests are deterministic.
  */
 export function resetMockShippingCounter(): void {
-  mockCounter = 0
+  _mockCounter = 0
 }
 
 // ---------------------------------------------------------------------------
@@ -85,7 +85,7 @@ function calculateRates(
   destination: ShippingAddress,
   pkg: Package,
 ): Rate[] {
-  mockCounter += 1
+  _mockCounter += 1
 
   const weightKg = pkg.weightGrams / 1000
   const volumeCm3 = pkg.lengthCm * pkg.widthCm * pkg.heightCm
@@ -183,10 +183,7 @@ function buildTrackingEvents(_trackingNumber: string): TrackingEvent[] {
 // Label generation (mock)
 // ---------------------------------------------------------------------------
 
-function buildMockLabel(
-  trackingNumber: string,
-  _shipmentDetails: ShipmentDetails,
-): Label {
+function buildMockLabel(trackingNumber: string, _shipmentDetails: ShipmentDetails): Label {
   const labelId = deterministicLabelId(trackingNumber)
 
   return {

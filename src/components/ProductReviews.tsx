@@ -51,11 +51,7 @@ function DistributionBar({
       <Star size={12} className='text-[--palette-ochre-400]' aria-hidden='true' />
       <div className='flex-1 h-2 rounded-full bg-[var(--ds-border-subtle)] overflow-hidden'>
         <svg className='h-full w-full' preserveAspectRatio='none' viewBox='0 0 100 1'>
-          <rect
-            width={percentage}
-            height='1'
-            className='fill-[--palette-ochre-400]'
-          />
+          <rect width={percentage} height='1' className='fill-[--palette-ochre-400]' />
         </svg>
       </div>
       <span className='w-6 text-right tabular-nums text-[var(--ds-text-muted)] text-xs'>
@@ -73,7 +69,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
 
   useEffect(() => {
     setPage(1)
-  }, [productId])
+  }, [])
 
   useEffect(() => {
     let cancelled = false

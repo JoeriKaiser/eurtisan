@@ -1,7 +1,6 @@
 import { createServerFn } from '@tanstack/react-start'
 import { eq } from 'drizzle-orm'
 
-import { db } from '#/db/index'
 import { shop, user } from '#/db/schema'
 import { authMiddleware } from './auth-middleware'
 import type { UserRole } from './authz'
@@ -80,6 +79,7 @@ export const verifyShopOwnership = createServerFn({ method: 'GET' })
       return context.user
     }
 
+    const { db } = await import('#/db/index')
     const shopRecord = await db.query.shop.findFirst({
       where: eq(shop.id, data.shopId),
     })
@@ -107,6 +107,7 @@ export const becomeCreator = createServerFn({ method: 'POST' })
       throw new Error('FORBIDDEN')
     }
 
+    const { db } = await import('#/db/index')
     await db
       .update(user)
       .set({ role: 'creator', updatedAt: new Date() })

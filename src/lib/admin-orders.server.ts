@@ -1,8 +1,8 @@
-import { and, count, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm'
+import { count, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { orderItem, platformOrder, shop, shopOrder, user } from '#/db/schema'
 import type { ShippingAddress } from './checkout.server'
-import type { OrderItemDetail, OrderShopGroup, OrderStatus } from './orders.server'
+import type { OrderShopGroup, OrderStatus } from './orders.server'
 
 /* -------------------------------------------------------------------------- */
 /*                                    Types                                   */

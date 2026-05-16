@@ -1,4 +1,4 @@
-import { useRouter } from '@tanstack/react-router'
+import { Link, useRouter } from '@tanstack/react-router'
 import { LogOut, Settings, Shield, Sparkles, Store, User } from 'lucide-react'
 import { useState } from 'react'
 
@@ -19,21 +19,17 @@ import {
 
 export default function UserMenu() {
   const router = useRouter()
-  const { user, isPending } = useAuth()
+  const { user } = useAuth()
   const [upgrading, setUpgrading] = useState(false)
-
-  if (isPending) {
-    return <div className='h-7 w-7 animate-pulse rounded-full bg-surface-inset' />
-  }
 
   if (!user) {
     return (
-      <a
-        href='/signin'
+      <Link
+        to='/signin'
         className='inline-flex h-8 items-center rounded-lg px-3 text-sm font-medium text-text-primary transition-colors duration-fast ease-out hover:bg-bg-inset'
       >
         {m.nav_sign_in()}
-      </a>
+      </Link>
     )
   }
 

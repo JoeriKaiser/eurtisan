@@ -1,6 +1,6 @@
 import { count, desc, eq, inArray } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { orderItem, platformOrder, shop, shippingLabel, shopOrder } from '#/db/schema'
+import { orderItem, platformOrder, shippingLabel, shop, shopOrder } from '#/db/schema'
 import { mondialRelayProvider } from '#/integrations/shipping'
 import type { ShippingAddress } from './checkout.server'
 import { releaseStockInTx } from './inventory.server'
@@ -115,7 +115,10 @@ export async function getBuyerOrderDetailQuery(
 
   const labelsResult =
     shopOrderIds.length > 0
-      ? await db.select().from(shippingLabel).where(inArray(shippingLabel.shopOrderId, shopOrderIds))
+      ? await db
+          .select()
+          .from(shippingLabel)
+          .where(inArray(shippingLabel.shopOrderId, shopOrderIds))
       : []
 
   const labelMap = new Map(labelsResult.map((l) => [l.shopOrderId, l]))

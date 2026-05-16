@@ -19,10 +19,7 @@ describe('generateProductJsonLd', () => {
     name: 'Handmade Ceramic Vase',
     description: 'A beautiful hand-thrown ceramic vase.',
     canonicalPath: '/products/handmade-vase',
-    images: [
-      { url: '/uploads/vase-1.jpg' },
-      { url: '/uploads/vase-2.jpg' },
-    ],
+    images: [{ url: '/uploads/vase-1.jpg' }, { url: '/uploads/vase-2.jpg' }],
     price: '29.99',
     stockCount: 5,
     brandName: 'Clay & Kiln Studio',

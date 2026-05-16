@@ -195,8 +195,8 @@ describe('addItemToCart', () => {
     const p = await seedProduct()
 
     const item = await addItemToCart(c.id, p.id, 5)
-    expect(item!.productId).toBe(p.id)
-    expect(item!.quantity).toBe(5)
+    expect(item?.productId).toBe(p.id)
+    expect(item?.quantity).toBe(5)
   })
 
   it('increments quantity for existing item', async () => {
@@ -208,7 +208,7 @@ describe('addItemToCart', () => {
 
     await addItemToCart(c.id, p.id, 3)
     const item = await addItemToCart(c.id, p.id, 2)
-    expect(item!.quantity).toBe(5)
+    expect(item?.quantity).toBe(5)
   })
 
   it('caps quantity at product stock', async () => {
@@ -219,7 +219,7 @@ describe('addItemToCart', () => {
     const p = await seedProduct({ stockCount: 5 })
 
     const item = await addItemToCart(c.id, p.id, 10)
-    expect(item!.quantity).toBe(5)
+    expect(item?.quantity).toBe(5)
   })
 
   it('caps existing + new quantity at stock', async () => {
@@ -231,7 +231,7 @@ describe('addItemToCart', () => {
 
     await addItemToCart(c.id, p.id, 3)
     const item = await addItemToCart(c.id, p.id, 5)
-    expect(item!.quantity).toBe(5)
+    expect(item?.quantity).toBe(5)
   })
 
   it('returns null when stock is zero', async () => {
@@ -287,7 +287,7 @@ describe('addItemToCart', () => {
     })
 
     const item = await addItemToCart(c.id, p.id, 10)
-    expect(item!.quantity).toBe(3)
+    expect(item?.quantity).toBe(3)
   })
 })
 
@@ -533,7 +533,7 @@ describe('updateCartItemQuantity', () => {
 
     await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
     const updated = await updateCartItemQuantity(c.id, p.id, 7)
-    expect(updated!.quantity).toBe(7)
+    expect(updated?.quantity).toBe(7)
   })
 
   it('removes item when quantity is zero', async () => {
@@ -560,7 +560,7 @@ describe('updateCartItemQuantity', () => {
 
     await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
     const updated = await updateCartItemQuantity(c.id, p.id, 10)
-    expect(updated!.quantity).toBe(5)
+    expect(updated?.quantity).toBe(5)
   })
 
   it('creates item when it does not exist', async () => {
@@ -571,8 +571,8 @@ describe('updateCartItemQuantity', () => {
     const p = await seedProduct()
 
     const result = await updateCartItemQuantity(c.id, p.id, 3)
-    expect(result!.productId).toBe(p.id)
-    expect(result!.quantity).toBe(3)
+    expect(result?.productId).toBe(p.id)
+    expect(result?.quantity).toBe(3)
   })
 
   it('removes item when stock is zero', async () => {
@@ -618,7 +618,7 @@ describe('updateCartItemQuantity', () => {
 
     await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
     const updated = await updateCartItemQuantity(c.id, p.id, 10)
-    expect(updated!.quantity).toBe(4)
+    expect(updated?.quantity).toBe(4)
   })
 })
 
@@ -671,12 +671,12 @@ describe('getCartDetailsBySessionId', () => {
 
     const result = await getCartDetailsBySessionId(sessionId)
     expect(result).not.toBeNull()
-    expect(result!.shops).toHaveLength(1)
-    expect(result!.shops[0].shopName).toBe('Test Shop')
-    expect(result!.shops[0].items).toHaveLength(2)
-    expect(result!.shops[0].subtotalCents).toBe(4000)
-    expect(result!.totalCents).toBe(4000)
-    expect(result!.totalItems).toBe(3)
+    expect(result?.shops).toHaveLength(1)
+    expect(result?.shops[0].shopName).toBe('Test Shop')
+    expect(result?.shops[0].items).toHaveLength(2)
+    expect(result?.shops[0].subtotalCents).toBe(4000)
+    expect(result?.totalCents).toBe(4000)
+    expect(result?.totalItems).toBe(3)
   })
 
   it('marks deleted products as unavailable', async () => {
@@ -691,8 +691,8 @@ describe('getCartDetailsBySessionId', () => {
 
     const result = await getCartDetailsBySessionId(sessionId)
     expect(result).not.toBeNull()
-    expect(result!.shops[0].items[0].unavailable).toBe(true)
-    expect(result!.shops[0].items[0].product).toBeNull()
+    expect(result?.shops[0].items[0].unavailable).toBe(true)
+    expect(result?.shops[0].items[0].product).toBeNull()
   })
 
   it('marks inactive products as unavailable', async () => {
@@ -705,7 +705,7 @@ describe('getCartDetailsBySessionId', () => {
     await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
 
     const result = await getCartDetailsBySessionId(sessionId)
-    expect(result!.shops[0].items[0].unavailable).toBe(true)
+    expect(result?.shops[0].items[0].unavailable).toBe(true)
   })
 
   it('marks items from suspended shops as unavailable', async () => {
@@ -719,7 +719,7 @@ describe('getCartDetailsBySessionId', () => {
     await db.update(shop).set({ isSuspended: true }).where(eq(shop.id, 'shop-1'))
 
     const result = await getCartDetailsBySessionId(sessionId)
-    expect(result!.shops[0].items[0].unavailable).toBe(true)
+    expect(result?.shops[0].items[0].unavailable).toBe(true)
   })
 
   it('surfaces stock warning when cart quantity exceeds stock', async () => {
@@ -732,8 +732,8 @@ describe('getCartDetailsBySessionId', () => {
     await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 5 })
 
     const result = await getCartDetailsBySessionId(sessionId)
-    expect(result!.shops[0].items[0].stockWarning).toBe(true)
-    expect(result!.shops[0].subtotalCents).toBe(3000) // capped at stock
+    expect(result?.shops[0].items[0].stockWarning).toBe(true)
+    expect(result?.shops[0].subtotalCents).toBe(3000) // capped at stock
   })
 
   it('surfaces stock warning when quantity exceeds available stock after reservations', async () => {
@@ -765,9 +765,9 @@ describe('getCartDetailsBySessionId', () => {
     await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 5 })
 
     const result = await getCartDetailsBySessionId(sessionId)
-    expect(result!.shops[0].items[0].stockWarning).toBe(true)
-    expect(result!.shops[0].items[0].product!.stockCount).toBe(3)
-    expect(result!.shops[0].subtotalCents).toBe(3000) // capped at available stock
+    expect(result?.shops[0].items[0].stockWarning).toBe(true)
+    expect(result?.shops[0].items[0].product?.stockCount).toBe(3)
+    expect(result?.shops[0].subtotalCents).toBe(3000) // capped at available stock
   })
 
   it('includes product image url', async () => {
@@ -786,7 +786,7 @@ describe('getCartDetailsBySessionId', () => {
     await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
 
     const result = await getCartDetailsBySessionId(sessionId)
-    expect(result!.shops[0].items[0].product!.imageUrl).toBe('http://example.com/vase.jpg')
+    expect(result?.shops[0].items[0].product?.imageUrl).toBe('http://example.com/vase.jpg')
   })
 
   it('does not duplicate items when multiple primary images exist', async () => {
@@ -804,10 +804,10 @@ describe('getCartDetailsBySessionId', () => {
 
     const result = await getCartDetailsBySessionId(sessionId)
     expect(result).not.toBeNull()
-    expect(result!.shops).toHaveLength(1)
-    expect(result!.shops[0].items).toHaveLength(1)
-    expect(result!.totalItems).toBe(2)
-    expect(result!.totalCents).toBe(2000)
+    expect(result?.shops).toHaveLength(1)
+    expect(result?.shops[0].items).toHaveLength(1)
+    expect(result?.totalItems).toBe(2)
+    expect(result?.totalCents).toBe(2000)
   })
 })
 
@@ -833,8 +833,8 @@ describe('getCartDetailsByUserId', () => {
 
     const result = await getCartDetailsByUserId(u.id)
     expect(result).not.toBeNull()
-    expect(result!.shops).toHaveLength(1)
-    expect(result!.totalCents).toBe(4000)
+    expect(result?.shops).toHaveLength(1)
+    expect(result?.totalCents).toBe(4000)
   })
 })
 

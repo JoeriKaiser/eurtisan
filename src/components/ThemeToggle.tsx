@@ -1,84 +1,52 @@
-import { Monitor, Moon, Sun } from 'lucide-react'
+import { Moon, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { m } from '#/paraglide/messages'
 
-type ThemeMode = 'light' | 'dark' | 'auto'
-
-function getInitialMode(): ThemeMode {
+function getInitialMode(): 'light' | 'dark' {
   if (typeof window === 'undefined') {
-    return 'auto'
+    return 'light'
   }
-
   const stored = window.localStorage.getItem('theme')
-  if (stored === 'light' || stored === 'dark' || stored === 'auto') {
+  if (stored === 'light' || stored === 'dark') {
     return stored
   }
-
-  return 'auto'
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
 }
 
-function applyThemeMode(mode: ThemeMode) {
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-  const resolved = mode === 'auto' ? (prefersDark ? 'dark' : 'light') : mode
-
+function applyTheme(mode: 'light' | 'dark') {
   document.documentElement.classList.remove('light', 'dark')
-  document.documentElement.classList.add(resolved)
-
-  if (mode === 'auto') {
-    document.documentElement.removeAttribute('data-theme')
-  } else {
-    document.documentElement.setAttribute('data-theme', mode)
-  }
+  document.documentElement.classList.add(mode)
+  document.documentElement.setAttribute('data-theme', mode)
 }
 
 export default function ThemeToggle() {
-  const [mode, setMode] = useState<ThemeMode>('auto')
+  const [mode, setMode] = useState<'light' | 'dark'>('light')
 
   useEffect(() => {
-    const initialMode = getInitialMode()
-    setMode(initialMode)
-    applyThemeMode(initialMode)
+    const initial = getInitialMode()
+    setMode(initial)
+    applyTheme(initial)
   }, [])
 
-  useEffect(() => {
-    if (mode !== 'auto') {
-      return
-    }
-
-    const media = window.matchMedia('(prefers-color-scheme: dark)')
-    const onChange = () => applyThemeMode('auto')
-
-    media.addEventListener('change', onChange)
-    return () => {
-      media.removeEventListener('change', onChange)
-    }
-  }, [mode])
-
-  function toggleMode() {
-    const nextMode: ThemeMode = mode === 'light' ? 'dark' : mode === 'dark' ? 'auto' : 'light'
-    setMode(nextMode)
-    applyThemeMode(nextMode)
-    window.localStorage.setItem('theme', nextMode)
+  function toggle() {
+    const next = mode === 'light' ? 'dark' : 'light'
+    setMode(next)
+    applyTheme(next)
+    window.localStorage.setItem('theme', next)
   }
 
-  const label =
-    mode === 'auto'
-      ? m.theme_label_auto()
-      : mode === 'light'
-        ? m.theme_label_light()
-        : m.theme_label_dark()
-
-  const Icon = mode === 'auto' ? Monitor : mode === 'dark' ? Moon : Sun
+  const isDark = mode === 'dark'
 
   return (
     <button
       type='button'
-      onClick={toggleMode}
-      aria-label={label}
-      title={label}
-      className='inline-flex h-8 w-8 items-center justify-center rounded-lg text-text-secondary transition-colors duration-fast ease-out hover:bg-bg-inset hover:text-text-primary'
+      onClick={toggle}
+      aria-label={isDark ? m.theme_label_dark() : m.theme_label_light()}
+      aria-pressed={isDark}
+      title={isDark ? m.theme_label_dark() : m.theme_label_light()}
+      className='inline-flex h-9 w-9 items-center justify-center rounded-lg text-text-secondary transition-colors duration-fast ease-out hover:bg-bg-inset hover:text-text-primary'
     >
-      <Icon size={16} />
+      {isDark ? <Moon size={18} /> : <Sun size={18} />}
     </button>
   )
 }

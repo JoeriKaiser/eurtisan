@@ -166,11 +166,11 @@ describe('getReviewableItemsQuery', () => {
 
     const result = await getReviewableItemsQuery(order.id, 'user-1')
     expect(result).not.toBeNull()
-    expect(result!.items).toHaveLength(1)
-    expect(result!.items[0].productId).toBe(p.id)
-    expect(result!.items[0].isEligible).toBe(true)
-    expect(result!.items[0].daysRemaining).toBeNull()
-    expect(result!.items[0].hasReview).toBe(false)
+    expect(result?.items).toHaveLength(1)
+    expect(result?.items[0].productId).toBe(p.id)
+    expect(result?.items[0].isEligible).toBe(true)
+    expect(result?.items[0].daysRemaining).toBeNull()
+    expect(result?.items[0].hasReview).toBe(false)
   })
 
   it('marks items not eligible when within 14 days', async () => {
@@ -223,9 +223,9 @@ describe('getReviewableItemsQuery', () => {
     })
 
     const result = await getReviewableItemsQuery(order.id, 'user-1')
-    expect(result!.items[0].isEligible).toBe(false)
-    expect(result!.items[0].daysRemaining).toBeGreaterThan(0)
-    expect(result!.items[0].daysRemaining).toBeLessThanOrEqual(12)
+    expect(result?.items[0].isEligible).toBe(false)
+    expect(result?.items[0].daysRemaining).toBeGreaterThan(0)
+    expect(result?.items[0].daysRemaining).toBeLessThanOrEqual(12)
   })
 
   it('marks hasReview true when review exists', async () => {
@@ -286,8 +286,8 @@ describe('getReviewableItemsQuery', () => {
     })
 
     const result = await getReviewableItemsQuery(order.id, 'user-1')
-    expect(result!.items[0].hasReview).toBe(true)
-    expect(result!.items[0].isEligible).toBe(true)
+    expect(result?.items[0].hasReview).toBe(true)
+    expect(result?.items[0].isEligible).toBe(true)
   })
 
   it('handles mixed shop orders where some are not delivered', async () => {
@@ -369,17 +369,17 @@ describe('getReviewableItemsQuery', () => {
 
     const result = await getReviewableItemsQuery(order.id, 'user-1')
     expect(result).not.toBeNull()
-    expect(result!.items).toHaveLength(2)
+    expect(result?.items).toHaveLength(2)
 
-    const item1 = result!.items.find((i) => i.productId === p1.id)
-    const item2 = result!.items.find((i) => i.productId === p2.id)
+    const item1 = result?.items.find((i) => i.productId === p1.id)
+    const item2 = result?.items.find((i) => i.productId === p2.id)
 
-    expect(item1!.isEligible).toBe(true)
-    expect(item1!.daysRemaining).toBeNull()
+    expect(item1?.isEligible).toBe(true)
+    expect(item1?.daysRemaining).toBeNull()
 
-    expect(item2!.isEligible).toBe(false)
-    expect(item2!.daysRemaining).toBeNull()
-    expect(item2!.deliveredAt).toBeNull()
+    expect(item2?.isEligible).toBe(false)
+    expect(item2?.daysRemaining).toBeNull()
+    expect(item2?.deliveredAt).toBeNull()
   })
 })
 

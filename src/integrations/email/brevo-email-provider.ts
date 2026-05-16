@@ -9,12 +9,8 @@
  */
 
 import type { EmailProvider, EmailSendResult, EmailTemplate } from '#/lib/email-provider'
-import {
-  getBrevoApiKey,
-  getEmailFromAddress,
-  getEmailFromName,
-} from '#/lib/env.server'
 import { renderFallbackPlainText, renderTemplate } from '#/lib/email-templates'
+import { getBrevoApiKey, getEmailFromAddress, getEmailFromName } from '#/lib/env.server'
 
 /** Brevo SMTP API endpoint. */
 const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email'

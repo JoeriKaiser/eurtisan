@@ -155,7 +155,10 @@ export default function CartPage({ cart: initialCart, showEmptyMessage }: CartPa
             )}
 
             {hasUnavailableItems && (
-              <p id='checkout-disabled-reason' className='mt-2 flex items-center gap-1.5 text-xs text-error'>
+              <p
+                id='checkout-disabled-reason'
+                className='mt-2 flex items-center gap-1.5 text-xs text-error'
+              >
                 <AlertTriangle size={14} aria-hidden='true' />
                 {m.cart_checkout_disabled_unavailable()}
               </p>

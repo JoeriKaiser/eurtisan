@@ -224,9 +224,7 @@ export function AdminDashboard() {
                     aria-hidden='true'
                   />
                   <div>
-                    <p className='text-sm font-medium text-text-primary'>
-                      {m.admin_nav_orders()}
-                    </p>
+                    <p className='text-sm font-medium text-text-primary'>{m.admin_nav_orders()}</p>
                     <p className='text-xs text-text-muted'>{m.admin_nav_orders_desc()}</p>
                   </div>
                 </Link>

@@ -1,19 +1,12 @@
-(function () {
+;(function () {
+  var stored, prefersDark, mode, root
   try {
-    var stored = window.localStorage.getItem('theme')
-    var mode =
-      stored === 'light' || stored === 'dark' || stored === 'auto'
-        ? stored
-        : 'auto'
-    var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    var resolved = mode === 'auto' ? (prefersDark ? 'dark' : 'light') : mode
-    var root = document.documentElement
+    stored = window.localStorage.getItem('theme')
+    prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    mode = stored === 'light' || stored === 'dark' ? stored : prefersDark ? 'dark' : 'light'
+    root = document.documentElement
     root.classList.remove('light', 'dark')
-    root.classList.add(resolved)
-    if (mode === 'auto') {
-      root.removeAttribute('data-theme')
-    } else {
-      root.setAttribute('data-theme', mode)
-    }
-  } catch (e) {}
+    root.classList.add(mode)
+    root.setAttribute('data-theme', mode)
+  } catch (_e) {}
 })()

@@ -1,5 +1,15 @@
 import { Link, useRouter } from '@tanstack/react-router'
-import { AlertTriangle, ArrowLeft, ExternalLink, ImageOff, MapPin, Package, Star, Truck, X } from 'lucide-react'
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ExternalLink,
+  ImageOff,
+  MapPin,
+  Package,
+  Star,
+  Truck,
+  X,
+} from 'lucide-react'
 import { useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
@@ -16,9 +26,9 @@ import { openDispute } from '#/lib/disputes'
 import type { OrderDetail, OrderShopGroup, OrderStatus } from '#/lib/orders.server'
 import { statusBadgeVariant } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
-import { getCarrierTrackingUrl } from '#/lib/shipping'
 import { createReview } from '#/lib/reviews'
 import type { ReviewableItem } from '#/lib/reviews.server'
+import { getCarrierTrackingUrl } from '#/lib/shipping'
 import { m } from '#/paraglide/messages'
 
 function formatDate(date: Date): string {
@@ -325,12 +335,18 @@ export default function BuyerOrderDetailPage({
                       </div>
                       {(isValidUrl(shop.trackingUrl) ||
                         (shop.shippingLabel.trackingNumber &&
-                          getCarrierTrackingUrl(shop.shippingLabel.carrier, shop.shippingLabel.trackingNumber))) && (
+                          getCarrierTrackingUrl(
+                            shop.shippingLabel.carrier,
+                            shop.shippingLabel.trackingNumber,
+                          ))) && (
                         <a
                           href={
                             isValidUrl(shop.trackingUrl)
                               ? shop.trackingUrl
-                              : getCarrierTrackingUrl(shop.shippingLabel.carrier, shop.shippingLabel.trackingNumber!)!
+                              : getCarrierTrackingUrl(
+                                  shop.shippingLabel.carrier,
+                                  shop.shippingLabel.trackingNumber!,
+                                )!
                           }
                           target='_blank'
                           rel='noopener noreferrer'
@@ -344,7 +360,9 @@ export default function BuyerOrderDetailPage({
                     {shop.trackingStatus && (
                       <div className='flex items-center gap-2'>
                         <Package size={14} aria-hidden='true' className='text-text-muted' />
-                        <span className={`text-xs font-medium ${trackingStatusColorClass(shop.trackingStatus)}`}>
+                        <span
+                          className={`text-xs font-medium ${trackingStatusColorClass(shop.trackingStatus)}`}
+                        >
                           {formatTrackingStatus(shop.trackingStatus)}
                         </span>
                       </div>
@@ -373,9 +391,7 @@ export default function BuyerOrderDetailPage({
                 ) : (
                   !['cancelled', 'refunded', 'pending_payment', 'paid'].includes(shop.status) && (
                     <div className='rounded-lg border border-border-default bg-surface-inset p-3'>
-                      <p className='text-xs text-text-muted'>
-                        {m.order_detail_not_yet_shipped()}
-                      </p>
+                      <p className='text-xs text-text-muted'>{m.order_detail_not_yet_shipped()}</p>
                     </div>
                   )
                 )}

@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { axe } from 'vitest-axe'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
 import CartPage from './CartPage'
 
 const mockRefreshCart = vi.fn()

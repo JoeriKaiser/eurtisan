@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildCspHeader } from './csp'
 import { cspMiddlewareHandler } from '../start'
+import { buildCspHeader } from './csp'
 
 describe('CSP middleware integration', () => {
   it('buildCspHeader produces a valid policy string', () => {
@@ -26,7 +26,7 @@ describe('CSP middleware integration', () => {
     expect(directiveMap.get('frame-ancestors')).toBe("'none'")
     expect(directiveMap.get('base-uri')).toBe("'self'")
     expect(directiveMap.get('form-action')).toBe("'self'")
-    expect(directiveMap.get('style-src')).toBe("'self'")
+    expect(directiveMap.get('style-src')).toBe("'self' https://fonts.googleapis.com")
     expect(directiveMap.get('script-src')).toBe("'self' 'unsafe-inline'")
   })
 

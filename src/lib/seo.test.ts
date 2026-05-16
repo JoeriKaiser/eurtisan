@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from 'vitest'
 // Mock paraglide messages before importing the module under test
 vi.mock('#/paraglide/messages', () => ({
   m: {
-    meta_default_description: () => 'Discover unique, handcrafted pieces from independent makers across Europe.',
+    meta_default_description: () =>
+      'Discover unique, handcrafted pieces from independent makers across Europe.',
   },
 }))
 

@@ -1,8 +1,8 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import ProductDetail from '#/components/ProductDetail'
+import { getProductBySlug } from '#/lib/products'
 import { createPageMeta } from '#/lib/seo'
 import { generateProductJsonLd } from '#/lib/seo-structured-data'
-import { getProductBySlug } from '#/lib/products'
 import { m } from '#/paraglide/messages'
 
 export const Route = createFileRoute('/products/$productSlug')({
@@ -33,9 +33,7 @@ export const Route = createFileRoute('/products/$productSlug')({
     const canonicalPath = `/products/${product.slug}`
 
     // Primary image (first by sortOrder)
-    const primaryImage = product.images.length > 0
-      ? product.images[0].url
-      : undefined
+    const primaryImage = product.images.length > 0 ? product.images[0].url : undefined
 
     // Price in decimal string for OG (e.g. "29.99")
     const priceAmount = (product.priceCents / 100).toFixed(2)

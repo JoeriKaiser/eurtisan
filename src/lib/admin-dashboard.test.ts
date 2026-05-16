@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
 import { dispute, payout, platformOrder, shop, shopOrder, user } from '#/db/schema'
-import { getAdminDashboardStatsQuery, getRecentOrdersQuery, getRecentSignupsQuery } from './admin-dashboard.server'
+import {
+  getAdminDashboardStatsQuery,
+  getRecentOrdersQuery,
+  getRecentSignupsQuery,
+} from './admin-dashboard.server'
 
 vi.mock('./auth', () => ({
   auth: {

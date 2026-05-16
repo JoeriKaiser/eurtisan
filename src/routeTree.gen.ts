@@ -25,6 +25,7 @@ import { Route as AccountIndexRouteImport } from './routes/account/index'
 import { Route as StudioShopIdRouteImport } from './routes/studio/$shopId'
 import { Route as SitemapXmlRouteImport } from './routes/sitemap.xml'
 import { Route as ShopsShopSlugRouteImport } from './routes/shops/$shopSlug'
+import { Route as RobotsTxtRouteImport } from './routes/robots.txt'
 import { Route as ProductsProductSlugRouteImport } from './routes/products/$productSlug'
 import { Route as OrdersPlatformOrderIdRouteImport } from './routes/orders.$platformOrderId'
 import { Route as DisputesDisputeIdRouteImport } from './routes/disputes.$disputeId'
@@ -34,6 +35,7 @@ import { Route as CreatorPayoutsRouteImport } from './routes/creator/payouts'
 import { Route as CategoryAllRouteImport } from './routes/category/all'
 import { Route as CategorySlugRouteImport } from './routes/category/$slug'
 import { Route as ApiProductsRouteImport } from './routes/api/products'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as AdminShopsRouteImport } from './routes/admin/shops'
 import { Route as AdminPayoutsRouteImport } from './routes/admin/payouts'
 import { Route as AdminOrdersRouteImport } from './routes/admin/orders'
@@ -44,6 +46,7 @@ import { Route as CreatorProductsIndexRouteImport } from './routes/creator/produ
 import { Route as StudioShopIdOrdersRouteImport } from './routes/studio/$shopId.orders'
 import { Route as OrdersPlatformOrderIdSuccessRouteImport } from './routes/orders.$platformOrderId.success'
 import { Route as CreatorProductsNewRouteImport } from './routes/creator/products/new'
+import { Route as ApiWebhooksMollieRouteImport } from './routes/api/webhooks/mollie'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AdminOrdersPlatformOrderIdRouteImport } from './routes/admin/orders.$platformOrderId'
 import { Route as AdminDisputesDisputeIdRouteImport } from './routes/admin/disputes/$disputeId'
@@ -129,13 +132,18 @@ const StudioShopIdRoute = StudioShopIdRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapXmlRoute = SitemapXmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
+  id: '/sitemap/xml',
+  path: '/sitemap/xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ShopsShopSlugRoute = ShopsShopSlugRouteImport.update({
   id: '/shops/$shopSlug',
   path: '/shops/$shopSlug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RobotsTxtRoute = RobotsTxtRouteImport.update({
+  id: '/robots/txt',
+  path: '/robots/txt',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProductsProductSlugRoute = ProductsProductSlugRouteImport.update({
@@ -181,6 +189,11 @@ const CategorySlugRoute = CategorySlugRouteImport.update({
 const ApiProductsRoute = ApiProductsRouteImport.update({
   id: '/api/products',
   path: '/api/products',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminShopsRoute = AdminShopsRouteImport.update({
@@ -233,6 +246,11 @@ const CreatorProductsNewRoute = CreatorProductsNewRouteImport.update({
   id: '/new',
   path: '/new',
   getParentRoute: () => CreatorProductsRoute,
+} as any)
+const ApiWebhooksMollieRoute = ApiWebhooksMollieRouteImport.update({
+  id: '/api/webhooks/mollie',
+  path: '/api/webhooks/mollie',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
@@ -322,6 +340,7 @@ export interface FileRoutesByFullPath {
   '/admin/orders': typeof AdminOrdersRouteWithChildren
   '/admin/payouts': typeof AdminPayoutsRoute
   '/admin/shops': typeof AdminShopsRoute
+  '/api/health': typeof ApiHealthRoute
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
@@ -331,8 +350,9 @@ export interface FileRoutesByFullPath {
   '/disputes/$disputeId': typeof DisputesDisputeIdRoute
   '/orders/$platformOrderId': typeof OrdersPlatformOrderIdRouteWithChildren
   '/products/$productSlug': typeof ProductsProductSlugRoute
+  '/robots/txt': typeof RobotsTxtRoute
   '/shops/$shopSlug': typeof ShopsShopSlugRoute
-  '/sitemap.xml': typeof SitemapXmlRoute
+  '/sitemap/xml': typeof SitemapXmlRoute
   '/studio/$shopId': typeof StudioShopIdRouteWithChildren
   '/account/': typeof AccountIndexRoute
   '/admin/': typeof AdminIndexRoute
@@ -341,6 +361,7 @@ export interface FileRoutesByFullPath {
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/orders/$platformOrderId': typeof AdminOrdersPlatformOrderIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/webhooks/mollie': typeof ApiWebhooksMollieRoute
   '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
@@ -372,6 +393,7 @@ export interface FileRoutesByTo {
   '/admin/orders': typeof AdminOrdersRouteWithChildren
   '/admin/payouts': typeof AdminPayoutsRoute
   '/admin/shops': typeof AdminShopsRoute
+  '/api/health': typeof ApiHealthRoute
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
@@ -380,8 +402,9 @@ export interface FileRoutesByTo {
   '/disputes/$disputeId': typeof DisputesDisputeIdRoute
   '/orders/$platformOrderId': typeof OrdersPlatformOrderIdRouteWithChildren
   '/products/$productSlug': typeof ProductsProductSlugRoute
+  '/robots/txt': typeof RobotsTxtRoute
   '/shops/$shopSlug': typeof ShopsShopSlugRoute
-  '/sitemap.xml': typeof SitemapXmlRoute
+  '/sitemap/xml': typeof SitemapXmlRoute
   '/studio/$shopId': typeof StudioShopIdRouteWithChildren
   '/account': typeof AccountIndexRoute
   '/admin': typeof AdminIndexRoute
@@ -390,6 +413,7 @@ export interface FileRoutesByTo {
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/orders/$platformOrderId': typeof AdminOrdersPlatformOrderIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/webhooks/mollie': typeof ApiWebhooksMollieRoute
   '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
@@ -422,6 +446,7 @@ export interface FileRoutesById {
   '/admin/orders': typeof AdminOrdersRouteWithChildren
   '/admin/payouts': typeof AdminPayoutsRoute
   '/admin/shops': typeof AdminShopsRoute
+  '/api/health': typeof ApiHealthRoute
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
@@ -431,8 +456,9 @@ export interface FileRoutesById {
   '/disputes/$disputeId': typeof DisputesDisputeIdRoute
   '/orders/$platformOrderId': typeof OrdersPlatformOrderIdRouteWithChildren
   '/products/$productSlug': typeof ProductsProductSlugRoute
+  '/robots/txt': typeof RobotsTxtRoute
   '/shops/$shopSlug': typeof ShopsShopSlugRoute
-  '/sitemap.xml': typeof SitemapXmlRoute
+  '/sitemap/xml': typeof SitemapXmlRoute
   '/studio/$shopId': typeof StudioShopIdRouteWithChildren
   '/account/': typeof AccountIndexRoute
   '/admin/': typeof AdminIndexRoute
@@ -441,6 +467,7 @@ export interface FileRoutesById {
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/orders/$platformOrderId': typeof AdminOrdersPlatformOrderIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/webhooks/mollie': typeof ApiWebhooksMollieRoute
   '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
@@ -474,6 +501,7 @@ export interface FileRouteTypes {
     | '/admin/orders'
     | '/admin/payouts'
     | '/admin/shops'
+    | '/api/health'
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
@@ -483,8 +511,9 @@ export interface FileRouteTypes {
     | '/disputes/$disputeId'
     | '/orders/$platformOrderId'
     | '/products/$productSlug'
+    | '/robots/txt'
     | '/shops/$shopSlug'
-    | '/sitemap.xml'
+    | '/sitemap/xml'
     | '/studio/$shopId'
     | '/account/'
     | '/admin/'
@@ -493,6 +522,7 @@ export interface FileRouteTypes {
     | '/admin/disputes/$disputeId'
     | '/admin/orders/$platformOrderId'
     | '/api/auth/$'
+    | '/api/webhooks/mollie'
     | '/creator/products/new'
     | '/orders/$platformOrderId/success'
     | '/studio/$shopId/orders'
@@ -524,6 +554,7 @@ export interface FileRouteTypes {
     | '/admin/orders'
     | '/admin/payouts'
     | '/admin/shops'
+    | '/api/health'
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
@@ -532,8 +563,9 @@ export interface FileRouteTypes {
     | '/disputes/$disputeId'
     | '/orders/$platformOrderId'
     | '/products/$productSlug'
+    | '/robots/txt'
     | '/shops/$shopSlug'
-    | '/sitemap.xml'
+    | '/sitemap/xml'
     | '/studio/$shopId'
     | '/account'
     | '/admin'
@@ -542,6 +574,7 @@ export interface FileRouteTypes {
     | '/admin/disputes/$disputeId'
     | '/admin/orders/$platformOrderId'
     | '/api/auth/$'
+    | '/api/webhooks/mollie'
     | '/creator/products/new'
     | '/orders/$platformOrderId/success'
     | '/studio/$shopId/orders'
@@ -573,6 +606,7 @@ export interface FileRouteTypes {
     | '/admin/orders'
     | '/admin/payouts'
     | '/admin/shops'
+    | '/api/health'
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
@@ -582,8 +616,9 @@ export interface FileRouteTypes {
     | '/disputes/$disputeId'
     | '/orders/$platformOrderId'
     | '/products/$productSlug'
+    | '/robots/txt'
     | '/shops/$shopSlug'
-    | '/sitemap.xml'
+    | '/sitemap/xml'
     | '/studio/$shopId'
     | '/account/'
     | '/admin/'
@@ -592,6 +627,7 @@ export interface FileRouteTypes {
     | '/admin/disputes/$disputeId'
     | '/admin/orders/$platformOrderId'
     | '/api/auth/$'
+    | '/api/webhooks/mollie'
     | '/creator/products/new'
     | '/orders/$platformOrderId/success'
     | '/studio/$shopId/orders'
@@ -624,11 +660,13 @@ export interface RootRouteChildren {
   AdminOrdersRoute: typeof AdminOrdersRouteWithChildren
   AdminPayoutsRoute: typeof AdminPayoutsRoute
   AdminShopsRoute: typeof AdminShopsRoute
+  ApiHealthRoute: typeof ApiHealthRoute
   ApiProductsRoute: typeof ApiProductsRoute
   CategorySlugRoute: typeof CategorySlugRoute
   CategoryAllRoute: typeof CategoryAllRoute
   DisputesDisputeIdRoute: typeof DisputesDisputeIdRoute
   ProductsProductSlugRoute: typeof ProductsProductSlugRoute
+  RobotsTxtRoute: typeof RobotsTxtRoute
   ShopsShopSlugRoute: typeof ShopsShopSlugRoute
   SitemapXmlRoute: typeof SitemapXmlRoute
   StudioShopIdRoute: typeof StudioShopIdRouteWithChildren
@@ -636,6 +674,7 @@ export interface RootRouteChildren {
   AdminIndexRoute: typeof AdminIndexRoute
   StudioIndexRoute: typeof StudioIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiWebhooksMollieRoute: typeof ApiWebhooksMollieRoute
   ApiAdminPayoutsPayoutIdRoute: typeof ApiAdminPayoutsPayoutIdRoute
   ApiShopsShopIdDashboardRoute: typeof ApiShopsShopIdDashboardRoute
   ApiShopsShopIdOrdersRoute: typeof ApiShopsShopIdOrdersRouteWithChildren
@@ -743,10 +782,10 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioShopIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
+    '/sitemap/xml': {
+      id: '/sitemap/xml'
+      path: '/sitemap/xml'
+      fullPath: '/sitemap/xml'
       preLoaderRoute: typeof SitemapXmlRouteImport
       parentRoute: typeof rootRouteImport
     }
@@ -755,6 +794,13 @@ declare module '@tanstack/react-router' {
       path: '/shops/$shopSlug'
       fullPath: '/shops/$shopSlug'
       preLoaderRoute: typeof ShopsShopSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/robots/txt': {
+      id: '/robots/txt'
+      path: '/robots/txt'
+      fullPath: '/robots/txt'
+      preLoaderRoute: typeof RobotsTxtRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/products/$productSlug': {
@@ -818,6 +864,13 @@ declare module '@tanstack/react-router' {
       path: '/api/products'
       fullPath: '/api/products'
       preLoaderRoute: typeof ApiProductsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/shops': {
@@ -889,6 +942,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/creator/products/new'
       preLoaderRoute: typeof CreatorProductsNewRouteImport
       parentRoute: typeof CreatorProductsRoute
+    }
+    '/api/webhooks/mollie': {
+      id: '/api/webhooks/mollie'
+      path: '/api/webhooks/mollie'
+      fullPath: '/api/webhooks/mollie'
+      preLoaderRoute: typeof ApiWebhooksMollieRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
       id: '/api/auth/$'
@@ -1140,11 +1200,13 @@ const rootRouteChildren: RootRouteChildren = {
   AdminOrdersRoute: AdminOrdersRouteWithChildren,
   AdminPayoutsRoute: AdminPayoutsRoute,
   AdminShopsRoute: AdminShopsRoute,
+  ApiHealthRoute: ApiHealthRoute,
   ApiProductsRoute: ApiProductsRoute,
   CategorySlugRoute: CategorySlugRoute,
   CategoryAllRoute: CategoryAllRoute,
   DisputesDisputeIdRoute: DisputesDisputeIdRoute,
   ProductsProductSlugRoute: ProductsProductSlugRoute,
+  RobotsTxtRoute: RobotsTxtRoute,
   ShopsShopSlugRoute: ShopsShopSlugRoute,
   SitemapXmlRoute: SitemapXmlRoute,
   StudioShopIdRoute: StudioShopIdRouteWithChildren,
@@ -1152,6 +1214,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminIndexRoute: AdminIndexRoute,
   StudioIndexRoute: StudioIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiWebhooksMollieRoute: ApiWebhooksMollieRoute,
   ApiAdminPayoutsPayoutIdRoute: ApiAdminPayoutsPayoutIdRoute,
   ApiShopsShopIdDashboardRoute: ApiShopsShopIdDashboardRoute,
   ApiShopsShopIdOrdersRoute: ApiShopsShopIdOrdersRouteWithChildren,
@@ -1163,10 +1226,11 @@ export const routeTree = rootRouteImport
   ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
+import type { startInstance } from './start.ts'
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
     router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }

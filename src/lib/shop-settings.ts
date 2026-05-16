@@ -91,9 +91,12 @@ export const updateShop = createServerFn({ method: 'POST' })
       const record = await updateShopInternal(shopId, input)
       return {
         ...record,
-        shippingOrigin: record.shippingOrigin as
-          | { street: string; city: string; postalCode: string; country: string }
-          | null,
+        shippingOrigin: record.shippingOrigin as {
+          street: string
+          city: string
+          postalCode: string
+          country: string
+        } | null,
       }
     } catch (err) {
       if (err instanceof SlugCollisionError) {

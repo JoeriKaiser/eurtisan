@@ -137,7 +137,15 @@ describe('generateSitemapEntries', () => {
 
   it('prioritizes homepage at 1.0', async () => {
     const entries = await generateSitemapEntries()
-    const homeEntry = entries.find((e) => e.loc.endsWith('/') && !e.loc.includes('/about') && !e.loc.includes('/category') && !e.loc.includes('/search') && !e.loc.includes('/shops') && !e.loc.includes('/products'))
+    const homeEntry = entries.find(
+      (e) =>
+        e.loc.endsWith('/') &&
+        !e.loc.includes('/about') &&
+        !e.loc.includes('/category') &&
+        !e.loc.includes('/search') &&
+        !e.loc.includes('/shops') &&
+        !e.loc.includes('/products'),
+    )
 
     expect(homeEntry?.priority).toBe('1.0')
     expect(homeEntry?.changefreq).toBe('daily')
@@ -374,7 +382,7 @@ describe('getSitemap cache', () => {
   })
 
   it('returns fresh sitemap after clearing cache', async () => {
-    const first = await getSitemap()
+    const _first = await getSitemap()
 
     clearSitemapCache()
     const second = await getSitemap()

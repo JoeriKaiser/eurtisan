@@ -1,11 +1,18 @@
 import { createServerFn } from '@tanstack/react-start'
 import { eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { db } from '#/db/index'
 import { shop } from '#/db/schema'
 import { authMiddleware } from './auth-middleware'
 
 export type { ShopOrderDetail, ShopOrderItemDetail, ShopOrderListItem } from './shop-orders.server'
+
+async function isShopOwner(shopId: string, userId: string): Promise<boolean> {
+  const { db } = await import('#/db/index')
+  const record = await db.query.shop.findFirst({
+    where: eq(shop.id, shopId),
+  })
+  return record?.ownerId === userId
+}
 
 export const getShopOrder = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
@@ -29,13 +36,7 @@ export const getShopOrder = createServerFn({ method: 'GET' })
     }
 
     const isAdmin = context.user.role === 'admin'
-    let isOwner = false
-    if (!isAdmin) {
-      const shopRecord = await db.query.shop.findFirst({
-        where: eq(shop.id, order.shopId),
-      })
-      isOwner = shopRecord?.ownerId === context.user.id
-    }
+    const isOwner = isAdmin ? false : await isShopOwner(order.shopId, context.user.id)
     const isBuyer = order.buyer.id === context.user.id
 
     if (!isAdmin && !isOwner && !isBuyer) {
@@ -90,13 +91,7 @@ export const updateShopOrderStatus = createServerFn({ method: 'POST' })
     }
 
     const isAdmin = context.user.role === 'admin'
-    let isOwner = false
-    if (!isAdmin) {
-      const shopRecord = await db.query.shop.findFirst({
-        where: eq(shop.id, order.shopId),
-      })
-      isOwner = shopRecord?.ownerId === context.user.id
-    }
+    const isOwner = isAdmin ? false : await isShopOwner(order.shopId, context.user.id)
 
     if (!isAdmin && !isOwner) {
       throw new Response(
@@ -137,13 +132,7 @@ export const getShopOrderDetail = createServerFn({ method: 'GET' })
     }
 
     const isAdmin = context.user.role === 'admin'
-    let isOwner = false
-    if (!isAdmin) {
-      const shopRecord = await db.query.shop.findFirst({
-        where: eq(shop.id, order.shopId),
-      })
-      isOwner = shopRecord?.ownerId === context.user.id
-    }
+    const isOwner = isAdmin ? false : await isShopOwner(order.shopId, context.user.id)
 
     if (!isAdmin && !isOwner) {
       throw new Response(
@@ -186,13 +175,7 @@ export const markShopOrderShipped = createServerFn({ method: 'POST' })
     }
 
     const isAdmin = context.user.role === 'admin'
-    let isOwner = false
-    if (!isAdmin) {
-      const shopRecord = await db.query.shop.findFirst({
-        where: eq(shop.id, order.shopId),
-      })
-      isOwner = shopRecord?.ownerId === context.user.id
-    }
+    const isOwner = isAdmin ? false : await isShopOwner(order.shopId, context.user.id)
 
     if (!isAdmin && !isOwner) {
       throw new Response(
@@ -234,13 +217,7 @@ export const markShopOrderShippedWithLabel = createServerFn({ method: 'POST' })
     }
 
     const isAdmin = context.user.role === 'admin'
-    let isOwner = false
-    if (!isAdmin) {
-      const shopRecord = await db.query.shop.findFirst({
-        where: eq(shop.id, order.shopId),
-      })
-      isOwner = shopRecord?.ownerId === context.user.id
-    }
+    const isOwner = isAdmin ? false : await isShopOwner(order.shopId, context.user.id)
 
     if (!isAdmin && !isOwner) {
       throw new Response(
@@ -277,13 +254,7 @@ export const markShopOrderDelivered = createServerFn({ method: 'POST' })
     }
 
     const isAdmin = context.user.role === 'admin'
-    let isOwner = false
-    if (!isAdmin) {
-      const shopRecord = await db.query.shop.findFirst({
-        where: eq(shop.id, order.shopId),
-      })
-      isOwner = shopRecord?.ownerId === context.user.id
-    }
+    const isOwner = isAdmin ? false : await isShopOwner(order.shopId, context.user.id)
 
     if (!isAdmin && !isOwner) {
       throw new Response(

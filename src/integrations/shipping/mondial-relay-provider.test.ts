@@ -1,10 +1,11 @@
-import { describe, expect, it, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 
-import type {
-  Package,
-  ShippingAddress,
-} from '#/lib/shipping-provider'
-import { MondialRelayProvider, mondialRelayProvider, resetMockShippingCounter } from './mondial-relay-provider'
+import type { Package, ShippingAddress } from '#/lib/shipping-provider'
+import {
+  MondialRelayProvider,
+  mondialRelayProvider,
+  resetMockShippingCounter,
+} from './mondial-relay-provider'
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -244,9 +245,7 @@ describe('MondialRelayProvider', () => {
 
       // Events should be chronological (oldest first)
       for (let i = 1; i < tracking.events.length; i++) {
-        expect(
-          new Date(tracking.events[i].timestamp).getTime(),
-        ).toBeGreaterThanOrEqual(
+        expect(new Date(tracking.events[i].timestamp).getTime()).toBeGreaterThanOrEqual(
           new Date(tracking.events[i - 1].timestamp).getTime(),
         )
       }

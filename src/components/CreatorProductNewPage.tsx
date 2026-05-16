@@ -222,7 +222,9 @@ function ProductNewForm({
       try {
         const dataUrl = await readFileAsDataUrl(placeholder.file)
         setImages((prev) =>
-          prev.map((img) => (img.id === placeholder.id ? { ...img, dataUrl, reading: false } : img)),
+          prev.map((img) =>
+            img.id === placeholder.id ? { ...img, dataUrl, reading: false } : img,
+          ),
         )
       } catch {
         setImages((prev) =>
@@ -525,9 +527,7 @@ function ProductNewForm({
                       {fieldErrors.description}
                     </p>
                   )}
-                  <p className='text-xs text-text-muted ml-auto'>
-                    {description.length}/2000
-                  </p>
+                  <p className='text-xs text-text-muted ml-auto'>{description.length}/2000</p>
                 </div>
               </div>
 
@@ -659,9 +659,7 @@ function ProductNewForm({
               <label className='mb-2 block text-sm font-medium text-text-primary'>
                 {m.creator_product_new_images_label()}
               </label>
-              <p className='mb-3 text-xs text-text-muted'>
-                {m.creator_product_new_images_hint()}
-              </p>
+              <p className='mb-3 text-xs text-text-muted'>{m.creator_product_new_images_hint()}</p>
 
               {/* Image thumbnails */}
               {images.length > 0 && (
@@ -776,9 +774,7 @@ function ProductNewForm({
           <div className='mt-8 flex items-center gap-4 border-t border-border-subtle pt-6'>
             <Button type='submit' variant='primary' isLoading={submitting} disabled={submitting}>
               <Plus size={16} aria-hidden='true' />
-              {submitting
-                ? m.creator_product_new_submitting()
-                : m.creator_product_new_submit()}
+              {submitting ? m.creator_product_new_submitting() : m.creator_product_new_submit()}
             </Button>
             <Button type='button' variant='ghost' onClick={handleCancel} disabled={submitting}>
               {m.creator_product_new_cancel()}
@@ -797,16 +793,10 @@ function ProductNewForm({
           aria-describedby='cancel-dialog-description'
         >
           <div className='mx-4 w-full max-w-sm rounded-xl bg-surface-default p-6 shadow-lg'>
-            <h3
-              id='cancel-dialog-title'
-              className='mb-2 text-lg font-semibold text-text-primary'
-            >
+            <h3 id='cancel-dialog-title' className='mb-2 text-lg font-semibold text-text-primary'>
               {m.creator_product_new_unsaved_title()}
             </h3>
-            <p
-              id='cancel-dialog-description'
-              className='mb-6 text-sm text-text-secondary'
-            >
+            <p id='cancel-dialog-description' className='mb-6 text-sm text-text-secondary'>
               {m.creator_product_new_unsaved_description()}
             </p>
             <div className='flex justify-end gap-3'>
@@ -843,10 +833,7 @@ function NoShopState() {
             {m.creator_product_new_no_shops_description()}
           </p>
           <div className='mt-6'>
-            <Button
-              variant='primary'
-              onClick={() => router.navigate({ to: '/creator/shop' })}
-            >
+            <Button variant='primary' onClick={() => router.navigate({ to: '/creator/shop' })}>
               {m.creator_shop_settings_title()}
             </Button>
           </div>

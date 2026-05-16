@@ -56,9 +56,7 @@ export const Route = createFileRoute('/search')({
   head: ({ loaderData }) => {
     const query = loaderData?.query ?? ''
     const title = query ? m.search_meta_title({ query }) : m.meta_title_default()
-    const description = query
-      ? m.search_meta_description({ query })
-      : m.home_description()
+    const description = query ? m.search_meta_description({ query }) : m.home_description()
     const canonicalPath = query ? `/search?q=${encodeURIComponent(query)}` : '/search'
 
     const { meta, links } = createPageMeta({

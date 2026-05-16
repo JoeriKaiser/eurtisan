@@ -3,8 +3,8 @@
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createEmailProvider, brevoEmailProvider, smtpEmailProvider } from './index'
 import { BrevoEmailProvider } from './brevo-email-provider'
+import { brevoEmailProvider, createEmailProvider, smtpEmailProvider } from './index'
 import { SmtpEmailProvider } from './smtp-email-provider'
 
 afterEach(() => {

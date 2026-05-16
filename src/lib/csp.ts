@@ -29,11 +29,7 @@
  */
 
 /** External origins the frontend legitimately connects to. */
-const DEFAULT_CONNECT_SRC = [
-  "'self'",
-  'https://api.mollie.com',
-  'https://api.brevo.com',
-]
+const DEFAULT_CONNECT_SRC = ["'self'", 'https://api.mollie.com', 'https://api.brevo.com']
 
 function getSentryOrigin(): string | null {
   const dsn = process.env.VITE_SENTRY_DSN
@@ -70,7 +66,7 @@ export function buildCspHeader(): string {
   const directives: Record<string, string> = {
     'default-src': "'self'",
     'script-src': "'self' 'unsafe-inline'",
-    'style-src': "'self'",
+    'style-src': "'self' https://fonts.googleapis.com",
     'img-src': "'self' data:",
     'font-src': "'self' https://fonts.gstatic.com",
     'connect-src': Array.from(connectSrc).join(' '),

@@ -498,10 +498,7 @@ export const getCreatorProductDetailSchema = z.object({
   productId: z.string().min(1),
 })
 
-export async function getCreatorProductDetailInternal(
-  productId: string,
-  userId: string,
-) {
+export async function getCreatorProductDetailInternal(productId: string, userId: string) {
   const productRecord = await verifyProductOwnership(productId, userId)
 
   const images = await db

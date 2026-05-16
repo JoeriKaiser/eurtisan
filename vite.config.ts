@@ -1,11 +1,8 @@
 import { paraglideVitePlugin } from '@inlang/paraglide-js'
-import { defineConfig } from 'vite'
-import { devtools } from '@tanstack/devtools-vite'
-
-import { tanstackStart } from '@tanstack/react-start/plugin/vite'
-
-import viteReact from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { tanstackStart } from '@tanstack/react-start/plugin/vite'
+import viteReact from '@vitejs/plugin-react'
+import { defineConfig } from 'vite'
 
 const config = defineConfig({
   resolve: { tsconfigPaths: true },
@@ -26,7 +23,10 @@ const config = defineConfig({
         },
       ],
     }),
-    devtools(),
+    // devtools() disabled — its data-tsd-source instrumentation causes hydration
+    // mismatches in dev (server/client line numbers diverge). Re-enable when the
+    // plugin supports stable hashes or suppressHydrationWarning propagation.
+    // devtools(),
   ],
 })
 

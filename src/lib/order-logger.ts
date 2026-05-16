@@ -89,10 +89,7 @@ export function logOrderShipped(params: {
   })
 }
 
-export function logOrderDelivered(params: {
-  shopOrderId: string
-  platformOrderId: string
-}): void {
+export function logOrderDelivered(params: { shopOrderId: string; platformOrderId: string }): void {
   logOrderLifecycle({
     event: 'order_delivered',
     timestamp: new Date().toISOString(),
@@ -135,10 +132,7 @@ export function logOrderResolved(params: {
   })
 }
 
-export function logOrderCancelled(params: {
-  platformOrderId: string
-  reason?: string
-}): void {
+export function logOrderCancelled(params: { platformOrderId: string; reason?: string }): void {
   logOrderLifecycle({
     event: 'order_cancelled',
     timestamp: new Date().toISOString(),

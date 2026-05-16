@@ -1,6 +1,5 @@
 import { createMiddleware } from '@tanstack/react-start'
 
-import { auth } from './auth'
 import type { UserRole } from './authz'
 import type { SafeUser } from './server-auth'
 
@@ -10,6 +9,7 @@ export interface AuthMiddlewareContext {
 
 export const authMiddleware = createMiddleware({ type: 'request' }).server(
   async ({ request, next }) => {
+    const { auth } = await import('./auth')
     const result = await auth.api.getSession({ headers: request.headers })
 
     const user: SafeUser | null = result

@@ -5,7 +5,6 @@ import { Button } from '#/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
 import { Skeleton } from '#/components/ui/skeleton'
 import { getPlatformOrderDetail } from '#/lib/admin-orders'
-import type { AdminOrderDetail } from '#/lib/admin-orders'
 import { statusBadgeVariant } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
 import { guardRole } from '#/lib/route-guards'
@@ -302,9 +301,7 @@ export function AdminOrderDetailPage() {
                         <th className='pb-2 pr-4 font-medium text-text-secondary text-xs hidden sm:table-cell'>
                           Price
                         </th>
-                        <th className='pb-2 pr-4 font-medium text-text-secondary text-xs'>
-                          Qty
-                        </th>
+                        <th className='pb-2 pr-4 font-medium text-text-secondary text-xs'>Qty</th>
                         <th className='pb-2 font-medium text-text-secondary text-xs text-right'>
                           Total
                         </th>
@@ -312,10 +309,7 @@ export function AdminOrderDetailPage() {
                     </thead>
                     <tbody>
                       {shop.items.map((item) => (
-                        <tr
-                          key={item.id}
-                          className='border-b border-border-subtle last:border-b-0'
-                        >
+                        <tr key={item.id} className='border-b border-border-subtle last:border-b-0'>
                           <td className='py-2 pr-4'>
                             <p className='font-medium text-text-primary'>{item.productName}</p>
                             <p className='text-xs text-text-muted font-mono'>{item.productId}</p>

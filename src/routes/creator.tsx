@@ -1,5 +1,9 @@
 import { createFileRoute, getRouteApi } from '@tanstack/react-router'
-import { getCreatorDashboardStats, getCreatorRecentActivity, getCreatorShops } from '#/lib/creator-dashboard'
+import {
+  getCreatorDashboardStats,
+  getCreatorRecentActivity,
+  getCreatorShops,
+} from '#/lib/creator-dashboard'
 import { guardRole } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
 
@@ -22,11 +26,9 @@ export const Route = createFileRoute('/creator')({
     ],
   }),
   lazy: async () => {
-    const {
-      CreatorDashboardPage,
-      CreatorDashboardLoading,
-      CreatorDashboardError,
-    } = await import('#/components/CreatorDashboardPage')
+    const { CreatorDashboardPage, CreatorDashboardLoading, CreatorDashboardError } = await import(
+      '#/components/CreatorDashboardPage'
+    )
 
     function CreatorWrapper() {
       const { stats, activity, shops } = route.useLoaderData()

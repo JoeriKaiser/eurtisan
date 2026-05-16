@@ -19,7 +19,7 @@ import type { OrderStatus } from './orders.server'
 function maskEmail(email: string): string {
   const [local, domain] = email.split('@')
   if (!domain) return email
-  const maskedLocal = local.length > 1 ? local[0] + '***' : '***'
+  const maskedLocal = local.length > 1 ? `${local[0]}***` : '***'
   return `${maskedLocal}@${domain}`
 }
 

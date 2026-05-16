@@ -145,13 +145,13 @@ describe('getCheckoutSummaryQuery', () => {
 
     const result = await getCheckoutSummaryQuery(c.id, 'user-1')
     expect(result).not.toBeNull()
-    expect(result!.cartId).toBe(c.id)
-    expect(result!.shops).toHaveLength(1)
-    expect(result!.shops[0].items).toHaveLength(1)
+    expect(result?.cartId).toBe(c.id)
+    expect(result?.shops).toHaveLength(1)
+    expect(result?.shops[0].items).toHaveLength(1)
     // Without shipping address, returns fallback (manual) options
-    expect(result!.shops[0].shippingOptions).toHaveLength(1)
-    expect(result!.shops[0].shippingOptions[0].method).toBe('manual')
-    expect(result!.shops[0].shippingOptions[0].fallback).toBe(true)
+    expect(result?.shops[0].shippingOptions).toHaveLength(1)
+    expect(result?.shops[0].shippingOptions[0].method).toBe('manual')
+    expect(result?.shops[0].shippingOptions[0].fallback).toBe(true)
   })
 
   it('returns summary with live shipping rates when address is provided', async () => {
@@ -174,17 +174,17 @@ describe('getCheckoutSummaryQuery', () => {
       country: 'FR',
     })
     expect(result).not.toBeNull()
-    expect(result!.shops).toHaveLength(1)
+    expect(result?.shops).toHaveLength(1)
     // With shipping address, returns carrier rates
-    expect(result!.shops[0].shippingOptions.length).toBeGreaterThanOrEqual(1)
-    const standardOption = result!.shops[0].shippingOptions.find((o) => o.method === 'standard')
-    const expressOption = result!.shops[0].shippingOptions.find((o) => o.method === 'express')
+    expect(result?.shops[0].shippingOptions.length).toBeGreaterThanOrEqual(1)
+    const standardOption = result?.shops[0].shippingOptions.find((o) => o.method === 'standard')
+    const expressOption = result?.shops[0].shippingOptions.find((o) => o.method === 'express')
     expect(standardOption).toBeDefined()
     expect(expressOption).toBeDefined()
-    expect(standardOption!.carrier).toBe('mondial_relay')
-    expect(standardOption!.rateId).toBeDefined()
-    expect(standardOption!.costCents).toBeGreaterThan(0)
-    expect(expressOption!.costCents).toBeGreaterThan(standardOption!.costCents)
+    expect(standardOption?.carrier).toBe('mondial_relay')
+    expect(standardOption?.rateId).toBeDefined()
+    expect(standardOption?.costCents).toBeGreaterThan(0)
+    expect(expressOption?.costCents).toBeGreaterThan(standardOption?.costCents)
   })
 
   it('calculates subtotals and grand total correctly', async () => {
@@ -204,8 +204,8 @@ describe('getCheckoutSummaryQuery', () => {
     ])
 
     const result = await getCheckoutSummaryQuery(c.id, 'user-1')
-    expect(result!.shops[0].subtotalCents).toBe(4000)
-    expect(result!.grandTotalCents).toBe(4000)
+    expect(result?.shops[0].subtotalCents).toBe(4000)
+    expect(result?.grandTotalCents).toBe(4000)
   })
 
   it('groups items from multiple shops separately', async () => {
@@ -232,12 +232,12 @@ describe('getCheckoutSummaryQuery', () => {
     ])
 
     const result = await getCheckoutSummaryQuery(c.id, 'user-1')
-    expect(result!.shops).toHaveLength(2)
-    const shop1Group = result!.shops.find((s) => s.shopId === 'shop-1')
-    const shop2Group = result!.shops.find((s) => s.shopId === 'shop-2')
-    expect(shop1Group!.subtotalCents).toBe(1000)
-    expect(shop2Group!.subtotalCents).toBe(2000)
-    expect(result!.grandTotalCents).toBe(3000)
+    expect(result?.shops).toHaveLength(2)
+    const shop1Group = result?.shops.find((s) => s.shopId === 'shop-1')
+    const shop2Group = result?.shops.find((s) => s.shopId === 'shop-2')
+    expect(shop1Group?.subtotalCents).toBe(1000)
+    expect(shop2Group?.subtotalCents).toBe(2000)
+    expect(result?.grandTotalCents).toBe(3000)
   })
 
   it('skips unavailable items in checkout summary', async () => {
@@ -255,8 +255,8 @@ describe('getCheckoutSummaryQuery', () => {
 
     const result = await getCheckoutSummaryQuery(c.id, 'user-1')
     expect(result).not.toBeNull()
-    expect(result!.shops).toHaveLength(0)
-    expect(result!.grandTotalCents).toBe(0)
+    expect(result?.shops).toHaveLength(0)
+    expect(result?.grandTotalCents).toBe(0)
   })
 })
 
@@ -550,10 +550,10 @@ describe('createCheckoutQuery', () => {
 
     const so1 = shopOrdersResult.find((so) => so.shopId === 'shop-1')
     const so2 = shopOrdersResult.find((so) => so.shopId === 'shop-2')
-    expect(so1!.subtotalCents).toBe(1000)
-    expect(so1!.shippingCostCents).toBe(538)
-    expect(so2!.subtotalCents).toBe(2000)
-    expect(so2!.shippingCostCents).toBe(861)
+    expect(so1?.subtotalCents).toBe(1000)
+    expect(so1?.shippingCostCents).toBe(538)
+    expect(so2?.subtotalCents).toBe(2000)
+    expect(so2?.shippingCostCents).toBe(861)
   })
 
   it('clears cart and items after successful order creation', async () => {

@@ -5,8 +5,8 @@ import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
 import { Skeleton } from '#/components/ui/skeleton'
-import { listAllPlatformOrders } from '#/lib/admin-orders'
 import type { PaginatedAdminOrders } from '#/lib/admin-orders'
+import { listAllPlatformOrders } from '#/lib/admin-orders'
 import { statusBadgeVariant } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
 import { guardRole } from '#/lib/route-guards'
@@ -71,7 +71,7 @@ export function AdminOrdersPage() {
   const navigate = Route.useNavigate()
   const search = Route.useSearch()
 
-  const [orders, setOrders] = useState<PaginatedAdminOrders>(initialData)
+  const [orders, _setOrders] = useState<PaginatedAdminOrders>(initialData)
 
   // --- Search state ---
   const [searchValue, setSearchValue] = useState(search.query ?? '')
@@ -188,9 +188,7 @@ export function AdminOrdersPage() {
             <CardContent className='p-8 text-center'>
               <Inbox size={48} className='mx-auto mb-4 text-text-muted' aria-hidden='true' />
               <p className='text-text-secondary'>
-                {search.query
-                  ? m.admin_orders_empty_search()
-                  : m.admin_orders_empty()}
+                {search.query ? m.admin_orders_empty_search() : m.admin_orders_empty()}
               </p>
             </CardContent>
           </Card>
@@ -289,10 +287,7 @@ export function AdminOrdersPage() {
             </div>
 
             {totalPages > 1 && (
-              <nav
-                className='flex items-center gap-4'
-                aria-label={m.admin_orders_pagination()}
-              >
+              <nav className='flex items-center gap-4' aria-label={m.admin_orders_pagination()}>
                 <Button
                   variant='secondary'
                   size='sm'

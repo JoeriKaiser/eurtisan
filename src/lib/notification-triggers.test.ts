@@ -492,7 +492,7 @@ describe('createCheckoutQuery emails', () => {
 
     const buyerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'buyer@example.com')
     expect(buyerEmailCall).toBeDefined()
-    expect(buyerEmailCall![1]).toBe('order_confirmation')
+    expect(buyerEmailCall?.[1]).toBe('order_confirmation')
   })
 
   it('sends order_confirmation email to seller', async () => {
@@ -546,7 +546,7 @@ describe('createCheckoutQuery emails', () => {
 
     const sellerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'seller@example.com')
     expect(sellerEmailCall).toBeDefined()
-    expect(sellerEmailCall![1]).toBe('order_confirmation')
+    expect(sellerEmailCall?.[1]).toBe('order_confirmation')
   })
 
   it('does not break checkout when email send fails', async () => {
@@ -660,8 +660,8 @@ describe('markShopOrderShippedQuery emails', () => {
 
     const buyerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'buyer@example.com')
     expect(buyerEmailCall).toBeDefined()
-    expect(buyerEmailCall![1]).toBe('shipping_notification')
-    expect(buyerEmailCall![2]).toMatchObject({
+    expect(buyerEmailCall?.[1]).toBe('shipping_notification')
+    expect(buyerEmailCall?.[2]).toMatchObject({
       trackingNumber: 'TRACK-123',
       carrier: 'Mondial Relay',
     })
@@ -784,12 +784,12 @@ describe('dispute email notifications', () => {
 
     const buyerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'buyer@example.com')
     expect(buyerEmailCall).toBeDefined()
-    expect(buyerEmailCall![1]).toBe('dispute_update')
-    expect(buyerEmailCall![2]).toMatchObject({
+    expect(buyerEmailCall?.[1]).toBe('dispute_update')
+    expect(buyerEmailCall?.[2]).toMatchObject({
       status: 'opened',
       message: 'Damaged',
     })
-    expect(buyerEmailCall![2].disputeUrl).toContain(`/disputes/${disputeResult.id}`)
+    expect(buyerEmailCall?.[2].disputeUrl).toContain(`/disputes/${disputeResult.id}`)
   })
 
   it('sends dispute_update email when dispute is opened via updateShopOrderStatusQuery', async () => {
@@ -846,8 +846,8 @@ describe('dispute email notifications', () => {
 
     const buyerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'buyer@example.com')
     expect(buyerEmailCall).toBeDefined()
-    expect(buyerEmailCall![1]).toBe('dispute_update')
-    expect(buyerEmailCall![2]).toMatchObject({
+    expect(buyerEmailCall?.[1]).toBe('dispute_update')
+    expect(buyerEmailCall?.[2]).toMatchObject({
       status: 'opened',
     })
   })
@@ -915,9 +915,9 @@ describe('dispute email notifications', () => {
     const sellerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'seller@example.com')
 
     expect(buyerEmailCall).toBeDefined()
-    expect(buyerEmailCall![1]).toBe('dispute_update')
+    expect(buyerEmailCall?.[1]).toBe('dispute_update')
     expect(sellerEmailCall).toBeDefined()
-    expect(sellerEmailCall![1]).toBe('dispute_update')
+    expect(sellerEmailCall?.[1]).toBe('dispute_update')
   })
 
   it('does not break dispute resolution when email send fails', async () => {

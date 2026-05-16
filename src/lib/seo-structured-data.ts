@@ -56,9 +56,7 @@ export function generateProductJsonLd(input: ProductJsonLdInput): Record<string,
       price: input.price,
       priceCurrency: currency,
       availability:
-        input.stockCount > 0
-          ? 'https://schema.org/InStock'
-          : 'https://schema.org/OutOfStock',
+        input.stockCount > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
       url: fullUrl,
     },
   }

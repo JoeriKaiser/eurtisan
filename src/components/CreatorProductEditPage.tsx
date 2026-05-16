@@ -1,14 +1,5 @@
 import { useRouter } from '@tanstack/react-router'
-import {
-  ArrowDown,
-  ArrowUp,
-  Check,
-  ImageIcon,
-  Save,
-  Trash2,
-  Upload,
-  X,
-} from 'lucide-react'
+import { ArrowDown, ArrowUp, Check, ImageIcon, Save, Trash2, Upload, X } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CreatorShop } from '#/lib/creator-dashboard'
 import { deleteProduct, updateProduct } from '#/lib/creator-products.server'
@@ -90,9 +81,7 @@ export function CreatorProductEditPage({
     return <NoShopState />
   }
 
-  return (
-    <ProductEditForm shops={shops} categories={categories} product={product} />
-  )
+  return <ProductEditForm shops={shops} categories={categories} product={product} />
 }
 
 /* -------------------------------------------------------------------------- */
@@ -121,15 +110,14 @@ function ProductEditForm({
   const [isActive, setIsActive] = useState(product.isActive)
 
   // Image state — split into existing and new
-  const [existingImages, setExistingImages] = useState<ExistingImageEntry[]>(
-    () =>
-      product.images.map((img) => ({
-        type: 'existing' as const,
-        id: img.id,
-        url: img.url,
-        altText: img.altText ?? '',
-        sortOrder: img.sortOrder,
-      })),
+  const [existingImages, setExistingImages] = useState<ExistingImageEntry[]>(() =>
+    product.images.map((img) => ({
+      type: 'existing' as const,
+      id: img.id,
+      url: img.url,
+      altText: img.altText ?? '',
+      sortOrder: img.sortOrder,
+    })),
   )
   const [newImages, setNewImages] = useState<NewImageEntry[]>([])
 
@@ -569,9 +557,7 @@ function ProductEditForm({
             <h1 className='display-title mb-2 text-3xl font-bold text-text-primary'>
               {m.creator_product_edit_title()}
             </h1>
-            <p className='text-text-secondary'>
-              {m.creator_product_edit_description()}
-            </p>
+            <p className='text-text-secondary'>{m.creator_product_edit_description()}</p>
           </div>
           {/* Delete button */}
           <Button
@@ -582,9 +568,7 @@ function ProductEditForm({
             disabled={submitting || deleting}
           >
             <Trash2 size={16} aria-hidden='true' />
-            <span className='hidden sm:inline'>
-              {m.creator_product_edit_delete_button()}
-            </span>
+            <span className='hidden sm:inline'>{m.creator_product_edit_delete_button()}</span>
           </Button>
         </div>
 
@@ -726,9 +710,7 @@ function ProductEditForm({
                       {fieldErrors.description}
                     </p>
                   )}
-                  <p className='text-xs text-text-muted ml-auto'>
-                    {description.length}/2000
-                  </p>
+                  <p className='text-xs text-text-muted ml-auto'>{description.length}/2000</p>
                 </div>
               </div>
 
@@ -833,9 +815,7 @@ function ProductEditForm({
                   aria-checked={isActive}
                   onClick={() => setIsActive(!isActive)}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-fast ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary/20 ${
-                    isActive
-                      ? 'bg-accent-primary'
-                      : 'bg-surface-inset border border-border-default'
+                    isActive ? 'bg-accent-primary' : 'bg-surface-inset border border-border-default'
                   }`}
                 >
                   <span
@@ -862,9 +842,7 @@ function ProductEditForm({
               <label className='mb-2 block text-sm font-medium text-text-primary'>
                 {m.creator_product_new_images_label()}
               </label>
-              <p className='mb-3 text-xs text-text-muted'>
-                {m.creator_product_edit_images_hint()}
-              </p>
+              <p className='mb-3 text-xs text-text-muted'>{m.creator_product_edit_images_hint()}</p>
 
               {/* Image gallery */}
               {totalImages > 0 && (
@@ -1007,9 +985,7 @@ function ProductEditForm({
                   type='button'
                   variant='secondary'
                   size='sm'
-                  onClick={() =>
-                    document.getElementById('product-image-upload')?.click()
-                  }
+                  onClick={() => document.getElementById('product-image-upload')?.click()}
                   disabled={totalImages >= MAX_IMAGES}
                   className='w-full'
                 >
@@ -1029,23 +1005,11 @@ function ProductEditForm({
 
           {/* Submit */}
           <div className='mt-8 flex items-center gap-4 border-t border-border-subtle pt-6'>
-            <Button
-              type='submit'
-              variant='primary'
-              isLoading={submitting}
-              disabled={submitting}
-            >
+            <Button type='submit' variant='primary' isLoading={submitting} disabled={submitting}>
               <Save size={16} aria-hidden='true' />
-              {submitting
-                ? m.creator_product_edit_saving()
-                : m.creator_product_edit_save()}
+              {submitting ? m.creator_product_edit_saving() : m.creator_product_edit_save()}
             </Button>
-            <Button
-              type='button'
-              variant='ghost'
-              onClick={handleCancel}
-              disabled={submitting}
-            >
+            <Button type='button' variant='ghost' onClick={handleCancel} disabled={submitting}>
               {m.creator_product_new_cancel()}
             </Button>
           </div>
@@ -1062,16 +1026,10 @@ function ProductEditForm({
           aria-describedby='cancel-dialog-description'
         >
           <div className='mx-4 w-full max-w-sm rounded-xl bg-surface-default p-6 shadow-lg'>
-            <h3
-              id='cancel-dialog-title'
-              className='mb-2 text-lg font-semibold text-text-primary'
-            >
+            <h3 id='cancel-dialog-title' className='mb-2 text-lg font-semibold text-text-primary'>
               {m.creator_product_new_unsaved_title()}
             </h3>
-            <p
-              id='cancel-dialog-description'
-              className='mb-6 text-sm text-text-secondary'
-            >
+            <p id='cancel-dialog-description' className='mb-6 text-sm text-text-secondary'>
               {m.creator_product_new_unsaved_description()}
             </p>
             <div className='flex justify-end gap-3'>
@@ -1096,16 +1054,10 @@ function ProductEditForm({
           aria-describedby='delete-dialog-description'
         >
           <div className='mx-4 w-full max-w-sm rounded-xl bg-surface-default p-6 shadow-lg'>
-            <h3
-              id='delete-dialog-title'
-              className='mb-2 text-lg font-semibold text-text-primary'
-            >
+            <h3 id='delete-dialog-title' className='mb-2 text-lg font-semibold text-text-primary'>
               {m.creator_product_edit_delete_confirm_title()}
             </h3>
-            <p
-              id='delete-dialog-description'
-              className='mb-6 text-sm text-text-secondary'
-            >
+            <p id='delete-dialog-description' className='mb-6 text-sm text-text-secondary'>
               {m.creator_product_edit_delete_confirm_description()}
             </p>
             <div className='flex justify-end gap-3'>
@@ -1143,11 +1095,7 @@ function NoShopState() {
     <main className='page-wrap px-4 py-12'>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
         <div className='py-12 text-center'>
-          <ImageIcon
-            size={48}
-            className='mx-auto mb-4 text-text-muted'
-            aria-hidden='true'
-          />
+          <ImageIcon size={48} className='mx-auto mb-4 text-text-muted' aria-hidden='true' />
           <h2 className='mb-2 text-xl font-semibold text-text-primary'>
             {m.creator_product_new_no_shops_title()}
           </h2>
@@ -1155,10 +1103,7 @@ function NoShopState() {
             {m.creator_product_new_no_shops_description()}
           </p>
           <div className='mt-6'>
-            <Button
-              variant='primary'
-              onClick={() => router.navigate({ to: '/creator/shop' })}
-            >
+            <Button variant='primary' onClick={() => router.navigate({ to: '/creator/shop' })}>
               {m.creator_shop_settings_title()}
             </Button>
           </div>
@@ -1241,10 +1186,7 @@ export function CreatorProductEditError({ error }: { error: Error }) {
           <p className='text-text-secondary'>{m.creator_error_load()}</p>
           <p className='mt-2 text-sm text-text-muted'>{error.message}</p>
           <div className='mt-6'>
-            <Button
-              variant='secondary'
-              onClick={() => void router.invalidate()}
-            >
+            <Button variant='secondary' onClick={() => void router.invalidate()}>
               {m.creator_error_retry()}
             </Button>
           </div>

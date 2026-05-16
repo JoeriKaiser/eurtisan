@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { buildRobotsTxt } from '#/lib/robots-txt.server'
 
-export const Route = createFileRoute('/robots.txt')({
+export const Route = createFileRoute('/robots/txt')({
   server: {
     handlers: {
       GET: () => {

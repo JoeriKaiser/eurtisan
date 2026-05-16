@@ -1,6 +1,8 @@
 import { createFileRoute, useRouter } from '@tanstack/react-router'
 import { useState } from 'react'
 import { z } from 'zod'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
 import { authClient } from '#/lib/auth-client'
 import { guardGuest } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
@@ -97,13 +99,12 @@ function SignIn() {
                 <label htmlFor='name' className='text-sm font-medium'>
                   {m.field_name()}
                 </label>
-                <input
+                <Input
                   id='name'
                   name='name'
                   type='text'
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className='flex h-9 w-full border border-neutral-300 dark:border-neutral-700 bg-transparent px-3 text-sm focus:outline-none focus:border-neutral-900 dark:focus:border-neutral-100'
                   required
                 />
               </div>
@@ -113,13 +114,12 @@ function SignIn() {
               <label htmlFor='email' className='text-sm font-medium'>
                 {m.field_email()}
               </label>
-              <input
+              <Input
                 id='email'
                 name='email'
                 type='email'
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className='flex h-9 w-full border border-neutral-300 dark:border-neutral-700 bg-transparent px-3 text-sm focus:outline-none focus:border-neutral-900 dark:focus:border-neutral-100'
                 required
               />
             </div>
@@ -128,35 +128,26 @@ function SignIn() {
               <label htmlFor='password' className='text-sm font-medium'>
                 {m.field_password()}
               </label>
-              <input
+              <Input
                 id='password'
                 name='password'
                 type='password'
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className='flex h-9 w-full border border-neutral-300 dark:border-neutral-700 bg-transparent px-3 text-sm focus:outline-none focus:border-neutral-900 dark:focus:border-neutral-100'
                 required
                 minLength={8}
               />
             </div>
 
             {error && (
-              <div className='bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3'>
-                <p className='text-sm text-red-600 dark:text-red-400'>{error}</p>
+              <div className='rounded-lg border border-error bg-error-subtle p-3'>
+                <p className='text-sm text-error'>{error}</p>
               </div>
             )}
 
-            <button
-              type='submit'
-              disabled={loading}
-              className='w-full h-9 px-4 text-sm font-medium text-white bg-neutral-900 hover:bg-neutral-800 dark:bg-neutral-50 dark:text-neutral-900 dark:hover:bg-neutral-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
-            >
-              {loading
-                ? m.button_loading()
-                : isSignUp
-                  ? m.button_create_account()
-                  : m.button_sign_in()}
-            </button>
+            <Button type='submit' isLoading={loading} className='w-full'>
+              {isSignUp ? m.button_create_account() : m.button_sign_in()}
+            </Button>
           </form>
 
           <div className='mt-4 text-center'>
@@ -166,7 +157,7 @@ function SignIn() {
                 setIsSignUp(!isSignUp)
                 setError('')
               }}
-              className='text-sm text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100 transition-colors'
+              className='text-sm text-text-muted transition-colors duration-fast ease-out hover:text-text-primary'
             >
               {isSignUp ? m.link_switch_to_sign_in() : m.link_switch_to_sign_up()}
             </button>

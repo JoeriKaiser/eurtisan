@@ -14,8 +14,12 @@ vi.mock('nodemailer', () => ({
 }))
 
 import nodemailer from 'nodemailer'
-import { SmtpEmailProvider, smtpEmailProvider, resetSmtpMockEmailCounter } from './smtp-email-provider'
 import * as emailTemplates from '#/lib/email-templates'
+import {
+  resetSmtpMockEmailCounter,
+  SmtpEmailProvider,
+  smtpEmailProvider,
+} from './smtp-email-provider'
 
 beforeEach(() => {
   resetSmtpMockEmailCounter()
@@ -115,7 +119,9 @@ describe('SmtpEmailProvider real-mode detection', () => {
     vi.stubEnv('EMAIL_SMTP_PORT', '1025')
 
     const sendMailMock = vi.fn().mockResolvedValue({ messageId: 'smtp-msg-123' })
-    vi.mocked(nodemailer.createTransport).mockReturnValue({ sendMail: sendMailMock } as unknown as ReturnType<typeof nodemailer.createTransport>)
+    vi.mocked(nodemailer.createTransport).mockReturnValue({
+      sendMail: sendMailMock,
+    } as unknown as ReturnType<typeof nodemailer.createTransport>)
 
     const provider = new SmtpEmailProvider()
 
@@ -161,7 +167,9 @@ describe('SmtpEmailProvider (real with mocked nodemailer)', () => {
 
   it('calls the SMTP transport and returns a message ID', async () => {
     const sendMailMock = vi.fn().mockResolvedValue({ messageId: 'smtp-msg-123' })
-    vi.mocked(nodemailer.createTransport).mockReturnValue({ sendMail: sendMailMock } as unknown as ReturnType<typeof nodemailer.createTransport>)
+    vi.mocked(nodemailer.createTransport).mockReturnValue({
+      sendMail: sendMailMock,
+    } as unknown as ReturnType<typeof nodemailer.createTransport>)
 
     provider = new SmtpEmailProvider()
 
@@ -189,7 +197,9 @@ describe('SmtpEmailProvider (real with mocked nodemailer)', () => {
 
   it('falls back to plain text when template rendering throws', async () => {
     const sendMailMock = vi.fn().mockResolvedValue({ messageId: 'smtp-msg-789' })
-    vi.mocked(nodemailer.createTransport).mockReturnValue({ sendMail: sendMailMock } as unknown as ReturnType<typeof nodemailer.createTransport>)
+    vi.mocked(nodemailer.createTransport).mockReturnValue({
+      sendMail: sendMailMock,
+    } as unknown as ReturnType<typeof nodemailer.createTransport>)
 
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.spyOn(emailTemplates, 'renderTemplate').mockImplementation(() => {
@@ -217,7 +227,9 @@ describe('SmtpEmailProvider (real with mocked nodemailer)', () => {
     vi.stubEnv('EMAIL_FROM_NAME', 'Eurtisan Team')
 
     const sendMailMock = vi.fn().mockResolvedValue({ messageId: 'msg-abc' })
-    vi.mocked(nodemailer.createTransport).mockReturnValue({ sendMail: sendMailMock } as unknown as ReturnType<typeof nodemailer.createTransport>)
+    vi.mocked(nodemailer.createTransport).mockReturnValue({
+      sendMail: sendMailMock,
+    } as unknown as ReturnType<typeof nodemailer.createTransport>)
 
     provider = new SmtpEmailProvider()
 

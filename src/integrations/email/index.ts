@@ -13,9 +13,9 @@ export {
 } from './brevo-email-provider'
 
 export {
+  resetSmtpMockEmailCounter,
   SmtpEmailProvider,
   smtpEmailProvider,
-  resetSmtpMockEmailCounter,
 } from './smtp-email-provider'
 
 import type { EmailProvider } from '#/lib/email-provider'

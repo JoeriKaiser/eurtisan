@@ -3,12 +3,12 @@ import { AlertTriangle, Ban, CheckCircle, ChevronLeft, ChevronRight, Inbox } fro
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
+import { Card, CardContent } from '#/components/ui/card'
 import { Skeleton } from '#/components/ui/skeleton'
-import { guardRole } from '#/lib/route-guards'
-import { listAllShops, moderateShop } from '#/lib/shop-moderation'
-import type { PaginatedShops, ShopListItem, SuspensionFilter } from '#/lib/shop-moderation'
 import { cn } from '#/lib/cn'
+import { guardRole } from '#/lib/route-guards'
+import type { PaginatedShops, ShopListItem, SuspensionFilter } from '#/lib/shop-moderation'
+import { listAllShops, moderateShop } from '#/lib/shop-moderation'
 import { m } from '#/paraglide/messages'
 
 /* -------------------------------------------------------------------------- */
@@ -210,9 +210,7 @@ export function AdminShopsPage() {
         if (successTimerRef.current) clearTimeout(successTimerRef.current)
         successTimerRef.current = setTimeout(() => setSuccessMessage(null), 3000)
       } catch (err) {
-        setActionError(
-          err instanceof Error ? err.message : m.admin_shops_action_error(),
-        )
+        setActionError(err instanceof Error ? err.message : m.admin_shops_action_error())
       } finally {
         setActionShopId(null)
       }
@@ -260,7 +258,10 @@ export function AdminShopsPage() {
         )}
 
         {actionError && (
-          <div role='alert' className='island-shell rounded-xl border border-error/30 bg-error-subtle p-4 text-sm text-error'>
+          <div
+            role='alert'
+            className='island-shell rounded-xl border border-error/30 bg-error-subtle p-4 text-sm text-error'
+          >
             <AlertTriangle size={16} className='mr-2 inline-block' aria-hidden='true' />
             {actionError}
             <button
@@ -347,9 +348,7 @@ export function AdminShopsPage() {
                       <td className='py-3 pr-4'>
                         <div>
                           <p className='font-medium text-text-primary'>{shop.name}</p>
-                          <p className='text-xs text-text-muted sm:hidden'>
-                            {shop.ownerName}
-                          </p>
+                          <p className='text-xs text-text-muted sm:hidden'>{shop.ownerName}</p>
                         </div>
                       </td>
 
@@ -379,9 +378,7 @@ export function AdminShopsPage() {
 
                       {/* Creation date */}
                       <td className='py-3 pr-4 hidden md:table-cell'>
-                        <span className='text-text-secondary'>
-                          {formatDate(shop.createdAt)}
-                        </span>
+                        <span className='text-text-secondary'>{formatDate(shop.createdAt)}</span>
                       </td>
 
                       {/* Actions */}
@@ -445,10 +442,7 @@ export function AdminShopsPage() {
             </div>
 
             {totalPages > 1 && (
-              <nav
-                className='flex items-center gap-4'
-                aria-label={m.admin_shops_pagination()}
-              >
+              <nav className='flex items-center gap-4' aria-label={m.admin_shops_pagination()}>
                 <Button
                   variant='secondary'
                   size='sm'

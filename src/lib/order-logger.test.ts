@@ -21,7 +21,7 @@ describe('logOrderLifecycle', () => {
     })
 
     expect(consoleSpy).toHaveBeenCalledTimes(1)
-    const parsed = JSON.parse(consoleSpy.mock.calls[0]![0] as string)
+    const parsed = JSON.parse(consoleSpy.mock.calls[0]?.[0] as string)
     expect(parsed.level).toBe('info')
     expect(parsed.service).toBe('eurtisan')
     expect(parsed.event).toBe('order_created')
@@ -43,7 +43,7 @@ describe('logOrderCreated', () => {
       shopOrderCount: 2,
     })
 
-    const parsed = JSON.parse(consoleSpy.mock.calls[0]![0] as string)
+    const parsed = JSON.parse(consoleSpy.mock.calls[0]?.[0] as string)
     expect(parsed.event).toBe('order_created')
     expect(parsed.orderId).toBe('po-1')
     expect(parsed.userId).toBe('user-1')
@@ -65,7 +65,7 @@ describe('logOrderPaid', () => {
       paymentStatus: 'paid',
     })
 
-    const parsed = JSON.parse(consoleSpy.mock.calls[0]![0] as string)
+    const parsed = JSON.parse(consoleSpy.mock.calls[0]?.[0] as string)
     expect(parsed.event).toBe('order_paid')
     expect(parsed.orderId).toBe('po-1')
     expect(parsed.totalCents).toBe(5000)
@@ -86,7 +86,7 @@ describe('logOrderShipped', () => {
       trackingUrl: 'https://track.example.com/123',
     })
 
-    const parsed = JSON.parse(consoleSpy.mock.calls[0]![0] as string)
+    const parsed = JSON.parse(consoleSpy.mock.calls[0]?.[0] as string)
     expect(parsed.event).toBe('order_shipped')
     expect(parsed.orderId).toBe('po-1')
     expect(parsed.shopOrderId).toBe('so-1')
@@ -106,7 +106,7 @@ describe('logOrderShipped', () => {
       trackingUrl: null,
     })
 
-    const parsed = JSON.parse(consoleSpy.mock.calls[0]![0] as string)
+    const parsed = JSON.parse(consoleSpy.mock.calls[0]?.[0] as string)
     expect(parsed).not.toHaveProperty('trackingNumber')
     expect(parsed).not.toHaveProperty('trackingUrl')
 
@@ -123,7 +123,7 @@ describe('logOrderDelivered', () => {
       platformOrderId: 'po-1',
     })
 
-    const parsed = JSON.parse(consoleSpy.mock.calls[0]![0] as string)
+    const parsed = JSON.parse(consoleSpy.mock.calls[0]?.[0] as string)
     expect(parsed.event).toBe('order_delivered')
     expect(parsed.orderId).toBe('po-1')
     expect(parsed.shopOrderId).toBe('so-1')
@@ -143,7 +143,7 @@ describe('logOrderDisputed', () => {
       reason: 'Item not as described',
     })
 
-    const parsed = JSON.parse(consoleSpy.mock.calls[0]![0] as string)
+    const parsed = JSON.parse(consoleSpy.mock.calls[0]?.[0] as string)
     expect(parsed.event).toBe('order_disputed')
     expect(parsed.orderId).toBe('po-1')
     expect(parsed.shopOrderId).toBe('so-1')
@@ -166,7 +166,7 @@ describe('logOrderResolved', () => {
       refundCents: 2500,
     })
 
-    const parsed = JSON.parse(consoleSpy.mock.calls[0]![0] as string)
+    const parsed = JSON.parse(consoleSpy.mock.calls[0]?.[0] as string)
     expect(parsed.event).toBe('order_resolved')
     expect(parsed.orderId).toBe('po-1')
     expect(parsed.resolution).toBe('partial_refund')
@@ -185,7 +185,7 @@ describe('logOrderCancelled', () => {
       reason: 'Buyer requested cancellation',
     })
 
-    const parsed = JSON.parse(consoleSpy.mock.calls[0]![0] as string)
+    const parsed = JSON.parse(consoleSpy.mock.calls[0]?.[0] as string)
     expect(parsed.event).toBe('order_cancelled')
     expect(parsed.orderId).toBe('po-1')
     expect(parsed.reason).toBe('Buyer requested cancellation')
@@ -200,7 +200,7 @@ describe('logOrderCancelled', () => {
       platformOrderId: 'po-1',
     })
 
-    const parsed = JSON.parse(consoleSpy.mock.calls[0]![0] as string)
+    const parsed = JSON.parse(consoleSpy.mock.calls[0]?.[0] as string)
     expect(parsed.event).toBe('order_cancelled')
     expect(parsed.orderId).toBe('po-1')
     expect(parsed).not.toHaveProperty('reason')

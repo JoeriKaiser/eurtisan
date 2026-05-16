@@ -83,11 +83,7 @@ vi.mock('@tanstack/react-router', () => ({
     }
     return () => routeObj
   },
-  Link: (props: {
-    children: React.ReactNode
-    to: string
-    className?: string
-  }) => (
+  Link: (props: { children: React.ReactNode; to: string; className?: string }) => (
     <a href={props.to} className={props.className}>
       {props.children}
     </a>

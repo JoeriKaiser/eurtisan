@@ -8,10 +8,9 @@ export type {
   TrackingEvent,
   TrackingInfo,
 } from '#/lib/shipping-provider'
-
+export type { MondialRelayProviderDeps } from './mondial-relay-provider'
 export {
   MondialRelayProvider,
   mondialRelayProvider,
   resetMockShippingCounter,
 } from './mondial-relay-provider'
-export type { MondialRelayProviderDeps } from './mondial-relay-provider'

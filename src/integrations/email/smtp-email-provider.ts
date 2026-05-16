@@ -9,8 +9,13 @@
 
 import nodemailer from 'nodemailer'
 import type { EmailProvider, EmailSendResult, EmailTemplate } from '#/lib/email-provider'
-import { getEmailFromAddress, getEmailFromName, getEmailSmtpHost, getEmailSmtpPort } from '#/lib/env.server'
 import { renderFallbackPlainText, renderTemplate } from '#/lib/email-templates'
+import {
+  getEmailFromAddress,
+  getEmailFromName,
+  getEmailSmtpHost,
+  getEmailSmtpPort,
+} from '#/lib/env.server'
 
 let mockCounter = 0
 

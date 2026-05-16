@@ -18,9 +18,9 @@
     "db:seed": "bun run src/db/seed.ts",
     "job:inventory-cleanup": "bun run src/jobs/inventory-cleanup.ts",
     "db:studio": "drizzle-kit studio",
-    "lint": "biome lint --write ./src",
-    "format": "biome format --write ./src",
-    "check": "biome check --write ./src",
+    "lint": "biome lint --write --unsafe ./src",
+    "format": "biome format --write --unsafe ./src",
+    "check": "biome check --write --unsafe ./src",
     "i18n:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --strategy url cookie preferredLanguage baseLocale --emit-ts-declarations"
   },
   "dependencies": {
@@ -52,6 +52,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.14",
+    "@faker-js/faker": "^10.4.0",
     "@inlang/paraglide-js": "^2.18.0",
     "@tailwindcss/typography": "^0.5.19",
     "@tanstack/devtools-vite": "^0.6.0",

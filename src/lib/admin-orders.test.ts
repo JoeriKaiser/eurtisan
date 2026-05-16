@@ -3,10 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '#/db/index'
 import { orderItem, platformOrder, product, shop, shopOrder, user } from '#/db/schema'
 
-import {
-  getPlatformOrderDetailQuery,
-  listAllPlatformOrdersQuery,
-} from './admin-orders.server'
+import { getPlatformOrderDetailQuery, listAllPlatformOrdersQuery } from './admin-orders.server'
 
 /* -------------------------------------------------------------------------- */
 /*                                  Helpers                                   */

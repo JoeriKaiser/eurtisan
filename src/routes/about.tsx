@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { m } from '#/paraglide/messages'
 import { createPageMeta } from '#/lib/seo'
+import { m } from '#/paraglide/messages'
 
 export const Route = createFileRoute('/about')({
   head: () => {

@@ -12,8 +12,8 @@ import { eq } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { platformOrder, shopOrder } from '#/db/schema'
 import { molliePaymentProvider } from '#/integrations/mollie'
-import { logOrderPaid } from '#/lib/order-logger'
 import { releaseStockInTx } from '#/lib/inventory.server'
+import { logOrderPaid } from '#/lib/order-logger'
 import type { PaymentProvider } from '#/lib/payment-provider'
 
 /** Expected webhook payload shape from Mollie. */
@@ -50,33 +50,33 @@ export async function processMollieWebhook(
       const parsed = JSON.parse(rawBody) as MollieWebhookPayload
       payload = parsed
     } catch {
-      return new Response(
-        JSON.stringify({ error: 'Bad Request', message: 'Invalid JSON body' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } },
-      )
+      return new Response(JSON.stringify({ error: 'Bad Request', message: 'Invalid JSON body' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      })
     }
   } catch {
-    return new Response(
-      JSON.stringify({ error: 'Bad Request', message: 'Invalid JSON body' }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } },
-    )
+    return new Response(JSON.stringify({ error: 'Bad Request', message: 'Invalid JSON body' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
 
   if (!payload.id || typeof payload.id !== 'string') {
-    return new Response(
-      JSON.stringify({ error: 'Bad Request', message: 'Missing payment ID' }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } },
-    )
+    return new Response(JSON.stringify({ error: 'Bad Request', message: 'Missing payment ID' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
 
   // 3. Verify the webhook signature (mandatory security requirement)
   const isValid = await provider.verifyWebhook(payload, signature, rawBody)
 
   if (!isValid) {
-    return new Response(
-      JSON.stringify({ error: 'Unauthorized', message: 'Invalid signature' }),
-      { status: 401, headers: { 'Content-Type': 'application/json' } },
-    )
+    return new Response(JSON.stringify({ error: 'Unauthorized', message: 'Invalid signature' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
 
   // 4. Find the platform order by Mollie payment ID

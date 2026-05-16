@@ -1,6 +1,5 @@
-import { sql } from 'drizzle-orm'
 import { createMiddleware } from '@tanstack/react-start'
-import { db } from '#/db/index'
+import { sql } from 'drizzle-orm'
 
 /* -------------------------------------------------------------------------- */
 /*  Environment detection                                                     */
@@ -65,6 +64,8 @@ export async function checkRateLimitDb(
   const windowStart = new Date(Math.floor(nowMs / windowMs) * windowMs)
   const resetAt = new Date(windowStart.getTime() + windowMs)
   const retryAfterSeconds = Math.max(0, Math.ceil((resetAt.getTime() - nowMs) / 1000))
+
+  const { db } = await import('#/db/index')
 
   // Atomic upsert: increments count in a single statement, eliminating the
   // read-modify-write race condition. When the window has rolled over the
@@ -133,11 +134,7 @@ export async function checkRateLimit(
 /**
  * Convenience wrapper that throws a 429 Response when the limit is exceeded.
  */
-export async function assertRateLimit(
-  key: string,
-  limit: number,
-  windowMs: number,
-): Promise<void> {
+export async function assertRateLimit(key: string, limit: number, windowMs: number): Promise<void> {
   const result = await checkRateLimit(key, limit, windowMs)
   if (!result.allowed) {
     throw new Response(
@@ -163,11 +160,7 @@ export async function assertRateLimit(
 /**
  * Create middleware that rate-limits by client IP.
  */
-export function createIpRateLimitMiddleware(
-  limit: number,
-  windowMs: number,
-  prefix: string,
-) {
+export function createIpRateLimitMiddleware(limit: number, windowMs: number, prefix: string) {
   return createMiddleware({ type: 'request' }).server(async ({ request, next }) => {
     const ip = extractClientIp(request)
     const key = `${prefix}:${ip}`
@@ -180,15 +173,11 @@ export function createIpRateLimitMiddleware(
  * Create middleware that rate-limits by authenticated user ID.
  * Falls back to IP when the user is not authenticated.
  */
-export function createUserRateLimitMiddleware(
-  limit: number,
-  windowMs: number,
-  prefix: string,
-) {
+export function createUserRateLimitMiddleware(limit: number, windowMs: number, prefix: string) {
   return createMiddleware({ type: 'request' }).server(async ({ request, next, context }) => {
     const userId =
       context && typeof context === 'object' && 'user' in context
-        ? ((context as Record<string, unknown>).user as { id: string } | undefined)?.id ?? null
+        ? (((context as Record<string, unknown>).user as { id: string } | undefined)?.id ?? null)
         : null
 
     if (userId) {
