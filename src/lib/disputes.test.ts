@@ -472,7 +472,7 @@ describe('addDisputeMessageQuery', () => {
       'user-1',
       'customer',
     )
-    expect(result.message).toBe('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;')
+    expect(result.message).toBe('')
   })
 })
 

@@ -162,7 +162,7 @@ describe('updateShopInternal', () => {
       description: '<script>alert("xss")</script>',
     })
     expect(updated.description).not.toContain('<script>')
-    expect(updated.description).toContain('&lt;script&gt;')
+    expect(updated.description).toBeNull()
   })
 
   it('throws SlugCollisionError when slug is already in use by another shop', async () => {

@@ -707,7 +707,7 @@ describe('createReviewQuery', () => {
       4,
       '<script>alert("xss")</script>',
     )
-    expect(result.comment).toBe('&lt;script&gt;alert(&quot;xss&quot;)&lt;&#x2F;script&gt;')
+    expect(result.comment).toBeNull()
   })
 
   it('allows null comment', async () => {

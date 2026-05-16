@@ -1,6 +1,7 @@
 import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { categories, product, productImage, shop } from '#/db/schema'
+import { sanitizeRichText, validatePlainText } from './xss'
 
 function parsePriceToCents(price: string): number {
   const parsed = parseFloat(price.trim())
@@ -551,8 +552,8 @@ export async function createProductInternal(data: {
     .insert(product)
     .values({
       id: crypto.randomUUID(),
-      name: data.name.trim(),
-      description: data.description?.trim() ?? null,
+      name: validatePlainText(data.name, 'Product name'),
+      description: sanitizeRichText(data.description),
       slug: data.slug.trim(),
       priceCents: parsePriceToCents(data.price),
       shopId: data.shopId,

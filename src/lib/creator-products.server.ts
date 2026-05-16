@@ -9,9 +9,9 @@ import { authMiddleware } from './auth-middleware'
 import {
   deleteProductImages,
   type ProductImageInput,
-  sanitizeDescription,
   saveProductImages,
 } from './image-utils'
+import { sanitizeRichText, validatePlainText } from './xss'
 
 /* -------------------------------------------------------------------------- */
 /*                                   Schemas                                  */
@@ -211,8 +211,8 @@ export async function createProductInternal(data: {
       .insert(product)
       .values({
         id: crypto.randomUUID(),
-        name: data.name.trim(),
-        description: sanitizeDescription(data.description),
+        name: validatePlainText(data.name, 'Product name'),
+        description: sanitizeRichText(data.description),
         slug: data.slug.trim(),
         priceCents: data.priceCents,
         stockCount: data.stockCount,
@@ -275,8 +275,8 @@ export async function updateProductInternal(data: {
     updatedAt: new Date(),
   }
 
-  if (data.name !== undefined) updateData.name = data.name.trim()
-  if (data.description !== undefined) updateData.description = sanitizeDescription(data.description)
+  if (data.name !== undefined) updateData.name = validatePlainText(data.name, 'Product name')
+  if (data.description !== undefined) updateData.description = sanitizeRichText(data.description)
   if (data.slug !== undefined) updateData.slug = data.slug.trim()
   if (data.priceCents !== undefined) updateData.priceCents = data.priceCents
   if (data.stockCount !== undefined) updateData.stockCount = data.stockCount

@@ -1,6 +1,7 @@
 import { and, count, desc, eq } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { shop, user } from '#/db/schema'
+import { validatePlainText } from './xss'
 
 /* -------------------------------------------------------------------------- */
 /*                                    Types                                   */
@@ -137,7 +138,7 @@ export async function moderateShopQuery(
   // Only set moderation note when explicitly provided.
   // `undefined` means "don't touch it", `null` or `""` means "clear it".
   if (note !== undefined) {
-    updateData.moderationNote = note || null
+    updateData.moderationNote = note ? validatePlainText(note, 'Moderation note') : null
   }
 
   const [updated] = await db.update(shop).set(updateData).where(eq(shop.id, shopId)).returning({
