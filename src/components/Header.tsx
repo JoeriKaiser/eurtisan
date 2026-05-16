@@ -1,4 +1,4 @@
-import { Link, useLocation, useRouter } from '@tanstack/react-router'
+import { Link, useRouter } from '@tanstack/react-router'
 import { Bell, ChevronDown, Search, ShoppingCart } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useCart } from '#/components/CartProvider'
@@ -6,10 +6,9 @@ import { useAuth } from '#/lib/auth-hooks'
 import { listCategories } from '#/lib/categories'
 import { useUnreadNotificationCount } from '#/lib/notifications-hooks'
 import { m } from '#/paraglide/messages'
+import { SearchOverlay } from './search'
 import ThemeToggle from './ThemeToggle'
 import UserMenu from './UserMenu'
-import { Button } from './ui/button'
-import { Input } from './ui/input'
 import {
   DropdownMenu,
   DropdownMenuItem,
@@ -20,9 +19,7 @@ import {
 
 export default function Header() {
   const router = useRouter()
-  const location = useLocation()
-  const isHome = location.pathname === '/'
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchOverlayOpen, setSearchOverlayOpen] = useState(false)
   const { cart } = useCart()
   const { isAuthenticated } = useAuth()
   const { data: unreadData } = useUnreadNotificationCount()
@@ -45,16 +42,24 @@ export default function Header() {
       })
   }, [])
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    const trimmed = searchQuery.trim()
-    if (trimmed) {
-      router.navigate({
-        to: '/search',
-        search: { q: trimmed },
-      })
+  // Global keyboard shortcuts: / and Cmd+K to open search
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement
+      const isTypingInField =
+        target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
+
+      if (isTypingInField) return
+
+      if (e.key === '/' || (e.metaKey && e.key === 'k') || (e.ctrlKey && e.key === 'k')) {
+        e.preventDefault()
+        setSearchOverlayOpen(true)
+      }
     }
-  }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   const distinctItems = cart?.shops.reduce((sum, shop) => sum + shop.items.length, 0) ?? 0
 
@@ -110,28 +115,19 @@ export default function Header() {
           )}
         </div>
 
-        {/* Search */}
-        {!isHome && (
-          <form
-            onSubmit={handleSearch}
-            className='mx-4 hidden flex-1 items-center gap-2 md:flex md:max-w-xs lg:max-w-sm'
-          >
-            <div className='relative flex-1'>
-              <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted' />
-              <Input
-                type='search'
-                placeholder={m.search_header_placeholder()}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className='h-8 pl-9 text-sm'
-                aria-label={m.search_header_placeholder()}
-              />
-            </div>
-            <Button type='submit' variant='secondary' size='sm'>
-              {m.search_header_button()}
-            </Button>
-          </form>
-        )}
+        {/* Search trigger */}
+        <button
+          type='button'
+          onClick={() => setSearchOverlayOpen(true)}
+          className='mx-4 hidden flex-1 items-center gap-2 rounded-lg border border-border-default bg-surface-default px-3 py-1.5 text-sm text-text-muted transition-colors hover:border-border-strong hover:text-text-secondary md:flex md:max-w-xs lg:max-w-sm'
+          aria-label={m.search_header_placeholder()}
+        >
+          <Search className='h-4 w-4' aria-hidden='true' />
+          <span className='flex-1 text-left'>{m.search_header_placeholder()}</span>
+          <kbd className='hidden rounded border border-border-default bg-surface-inset px-1.5 py-0.5 text-[10px] font-medium lg:inline-block'>
+            /
+          </kbd>
+        </button>
 
         {/* User actions */}
         <div className='ml-auto flex items-center gap-1'>
@@ -177,6 +173,8 @@ export default function Header() {
           <ThemeToggle />
         </div>
       </nav>
+
+      <SearchOverlay isOpen={searchOverlayOpen} onClose={() => setSearchOverlayOpen(false)} />
     </header>
   )
 }

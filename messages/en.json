@@ -597,5 +597,16 @@
   "admin_order_detail_items": "Items",
   "admin_order_detail_item_quantity": "Qty: {count}",
   "admin_order_detail_not_found": "Order not found.",
-  "admin_order_detail_error_load": "Failed to load order details."
+  "admin_order_detail_error_load": "Failed to load order details.",
+  "search_overlay_title": "Search",
+  "search_recent_searches": "Recent searches",
+  "search_recent_clear": "Clear all",
+  "search_trending": "Trending now",
+  "search_suggestions_products": "Products",
+  "search_suggestions_categories": "Categories",
+  "search_view_all_in": "See all in {category}",
+  "search_press_enter": "Press Enter to search",
+  "search_cmd_k": "Cmd+K",
+  "search_no_recent": "No recent searches",
+  "search_featured_collections": "Featured collections"
 }

@@ -6,6 +6,15 @@ import type { FeaturedShop, RecentProduct } from '#/lib/products'
 import HomePage from './HomePage'
 
 const mockNavigate = vi.hoisted(() => vi.fn())
+const mockUseAuth = vi.hoisted(() => vi.fn())
+
+vi.mock('#/lib/auth-hooks', () => ({
+  useAuth: () => mockUseAuth(),
+}))
+
+vi.mock('#/lib/server-auth', () => ({
+  becomeCreator: vi.fn(),
+}))
 
 vi.mock('@tanstack/react-router', () => ({
   Link: (props: {
@@ -70,6 +79,11 @@ function makeShop(id: string, overrides?: Partial<FeaturedShop>): FeaturedShop {
 describe('HomePage', () => {
   beforeEach(() => {
     mockNavigate.mockClear()
+    mockUseAuth.mockReturnValue({
+      isAuthenticated: false,
+      user: null,
+      isPending: false,
+    })
   })
 
   it('renders hero section', () => {

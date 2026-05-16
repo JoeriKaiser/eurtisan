@@ -1,13 +1,83 @@
 import { Link, useRouter } from '@tanstack/react-router'
 import { ArrowRight, MapPin, Package, Search, ShieldCheck, Store, Truck } from 'lucide-react'
 import { useState } from 'react'
+import { useAuth } from '#/lib/auth-hooks'
 import type { listCategories } from '#/lib/categories'
 import type { FeaturedShop, RecentProduct } from '#/lib/products'
+import { becomeCreator } from '#/lib/server-auth'
 import CategoryCard from './CategoryCard'
 import ProductCard from './ProductCard'
 import SearchSidebar from './SearchSidebar'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
+
+function ShopCTA({
+  children,
+  variant = 'primary',
+}: {
+  children: React.ReactNode
+  variant?: 'primary' | 'secondary'
+}) {
+  const router = useRouter()
+  const { user } = useAuth()
+  const [upgrading, setUpgrading] = useState(false)
+
+  const handleBecomeCreator = async () => {
+    setUpgrading(true)
+    try {
+      await becomeCreator({ data: {} })
+      await router.invalidate()
+      window.location.reload()
+    } catch {
+      // Error handled by UI; user can retry
+    } finally {
+      setUpgrading(false)
+    }
+  }
+
+  if (!user) {
+    return (
+      <Link to='/signin' search={{ redirect: '/studio' }} className='no-underline'>
+        <Button
+          variant={variant === 'secondary' ? 'secondary' : undefined}
+          size='lg'
+          className={variant === 'primary' ? 'gap-2' : undefined}
+        >
+          {children}
+          {variant === 'primary' && <ArrowRight size={18} />}
+        </Button>
+      </Link>
+    )
+  }
+
+  if (user.role === 'customer') {
+    return (
+      <Button
+        variant={variant === 'secondary' ? 'secondary' : undefined}
+        size='lg'
+        className={variant === 'primary' ? 'gap-2' : undefined}
+        isLoading={upgrading}
+        onClick={handleBecomeCreator}
+      >
+        {children}
+        {variant === 'primary' && <ArrowRight size={18} />}
+      </Button>
+    )
+  }
+
+  return (
+    <Link to='/studio' className='no-underline'>
+      <Button
+        variant={variant === 'secondary' ? 'secondary' : undefined}
+        size='lg'
+        className={variant === 'primary' ? 'gap-2' : undefined}
+      >
+        {children}
+        {variant === 'primary' && <ArrowRight size={18} />}
+      </Button>
+    </Link>
+  )
+}
 
 export interface HomePageProps {
   categories: Awaited<ReturnType<typeof listCategories>>
@@ -94,11 +164,7 @@ export default function HomePage({ categories, products, shops }: HomePageProps)
                   <ArrowRight size={18} />
                 </Button>
               </Link>
-              <Link to='/signin' className='no-underline'>
-                <Button variant='secondary' size='lg'>
-                  Open your shop
-                </Button>
-              </Link>
+              <ShopCTA variant='secondary'>Open your shop</ShopCTA>
             </div>
 
             {/* Trust micro-bar */}
@@ -199,12 +265,7 @@ export default function HomePage({ categories, products, shops }: HomePageProps)
                 <p className='mb-6 text-text-secondary'>
                   No shops have opened yet. Start selling your handmade goods today.
                 </p>
-                <Link to='/signin' className='no-underline'>
-                  <Button size='lg' className='gap-2'>
-                    Open your shop
-                    <ArrowRight size={18} />
-                  </Button>
-                </Link>
+                <ShopCTA>Open your shop</ShopCTA>
               </section>
             )}
 
@@ -260,12 +321,7 @@ export default function HomePage({ categories, products, shops }: HomePageProps)
                   Eurtisan is built for artisans, not algorithms. Set up your shop in minutes, reach
                   buyers who value handmade, and keep more of what you earn.
                 </p>
-                <Link to='/signin' className='no-underline'>
-                  <Button size='lg' className='gap-2'>
-                    Start selling
-                    <ArrowRight size={18} />
-                  </Button>
-                </Link>
+                <ShopCTA>Start selling</ShopCTA>
               </div>
             </section>
           </div>

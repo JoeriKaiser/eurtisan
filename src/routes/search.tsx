@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
 import { Search, SlidersHorizontal, X } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
+import { z } from 'zod'
 import ProductGrid from '#/components/ProductGrid'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
@@ -9,19 +10,39 @@ import { listShops, searchProducts } from '#/lib/products'
 import { createPageMeta } from '#/lib/seo'
 import { m } from '#/paraglide/messages'
 
+const searchRouteSchema = z.object({
+  q: z.string().optional(),
+  page: z.string().optional(),
+  category: z.string().optional(),
+  shop: z.string().optional(),
+  minPrice: z.string().optional(),
+  maxPrice: z.string().optional(),
+  sort: z.string().optional(),
+})
+
 export const Route = createFileRoute('/search')({
-  loader: async ({ search }) => {
-    const query = typeof search.q === 'string' ? search.q.trim() : undefined
-    const page = typeof search.page === 'string' ? Number.parseInt(search.page, 10) || 1 : 1
-    const categorySlug = typeof search.category === 'string' ? search.category.trim() : undefined
-    const shopSlug = typeof search.shop === 'string' ? search.shop.trim() : undefined
-    const parsedMin =
-      typeof search.minPrice === 'string' ? Number.parseInt(search.minPrice, 10) : Number.NaN
-    const minPriceCents = Number.isNaN(parsedMin) ? undefined : parsedMin
-    const parsedMax =
-      typeof search.maxPrice === 'string' ? Number.parseInt(search.maxPrice, 10) : Number.NaN
-    const maxPriceCents = Number.isNaN(parsedMax) ? undefined : parsedMax
-    const sort = typeof search.sort === 'string' ? search.sort : 'relevance'
+  validateSearch: searchRouteSchema,
+  loaderDeps: ({ search: { q, page, category, shop, minPrice, maxPrice, sort } }) => ({
+    query: typeof q === 'string' ? q.trim() : undefined,
+    page: typeof page === 'string' ? Number.parseInt(page, 10) || 1 : 1,
+    categorySlug: typeof category === 'string' ? category.trim() : undefined,
+    shopSlug: typeof shop === 'string' ? shop.trim() : undefined,
+    minPriceCents:
+      typeof minPrice === 'string'
+        ? Number.isNaN(Number.parseInt(minPrice, 10))
+          ? undefined
+          : Number.parseInt(minPrice, 10)
+        : undefined,
+    maxPriceCents:
+      typeof maxPrice === 'string'
+        ? Number.isNaN(Number.parseInt(maxPrice, 10))
+          ? undefined
+          : Number.parseInt(maxPrice, 10)
+        : undefined,
+    sort: typeof sort === 'string' ? sort : 'relevance',
+  }),
+  loader: async ({ deps }) => {
+    const { query, page, categorySlug, shopSlug, minPriceCents, maxPriceCents, sort } = deps
 
     const [categories, shops, products] = await Promise.all([
       listCategories({ data: {} }),

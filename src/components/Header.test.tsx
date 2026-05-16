@@ -1,16 +1,30 @@
 // @vitest-environment jsdom
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Header from './Header'
 
-const mockNavigate = vi.hoisted(() => vi.fn())
-const mockUseCart = vi.hoisted(() => vi.fn())
-const mockUseAuth = vi.hoisted(() => vi.fn())
-const mockUseUnreadNotificationCount = vi.hoisted(() => vi.fn())
-const mockUseLocation = vi.hoisted(() => vi.fn(() => ({ pathname: '/about' })))
-const mockListCategories = vi.hoisted(() =>
-  vi.fn(() => Promise.resolve<{ id: string; name: string; slug: string }[]>([])),
+function createTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+    },
+  })
+}
+
+function renderWithProviders(ui: React.ReactNode) {
+  const queryClient = createTestQueryClient()
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
+}
+
+const mockNavigate = vi.fn()
+const mockUseCart = vi.fn()
+const mockUseAuth = vi.fn()
+const mockUseUnreadNotificationCount = vi.fn()
+const mockUseLocation = vi.fn(() => ({ pathname: '/about' }))
+const mockListCategories = vi.fn(() =>
+  Promise.resolve<{ id: string; name: string; slug: string }[]>([]),
 )
 
 vi.mock('@tanstack/react-router', () => ({
@@ -33,6 +47,7 @@ vi.mock('@tanstack/react-router', () => ({
     navigate: mockNavigate,
   }),
   useLocation: () => mockUseLocation(),
+  useNavigate: () => mockNavigate,
 }))
 
 vi.mock('#/paraglide/messages', () => ({
@@ -44,6 +59,17 @@ vi.mock('#/paraglide/messages', () => ({
     nav_categories: () => 'Categories',
     search_header_placeholder: () => 'Search products...',
     search_header_button: () => 'Search',
+    search_overlay_title: () => 'Search',
+    search_recent_searches: () => 'Recent searches',
+    search_recent_clear: () => 'Clear all',
+    search_trending: () => 'Trending now',
+    search_suggestions_products: () => 'Products',
+    search_suggestions_categories: () => 'Categories',
+    search_view_all_in: ({ category }: { category: string }) => `See all in ${category}`,
+    search_press_enter: () => 'Press Enter to search',
+    search_cmd_k: () => 'Cmd+K',
+    search_no_recent: () => 'No recent searches',
+    search_featured_collections: () => 'Featured collections',
     cart_badge_label: () => 'Shopping cart',
     cart_badge_items: ({ count }: { count: string }) => `${count} items in cart`,
     notifications_badge_label: () => 'Notifications',
@@ -75,6 +101,16 @@ vi.mock('#/lib/categories', () => ({
   listCategories: () => mockListCategories(),
 }))
 
+vi.mock('meilisearch', () => ({
+  Meilisearch: vi.fn(),
+}))
+
+vi.mock('#/lib/meilisearch-client', () => ({
+  meilisearchClient: null,
+  isMeilisearchClientConfigured: () => false,
+  PRODUCTS_INDEX: 'products',
+}))
+
 describe('Header', () => {
   beforeEach(() => {
     mockNavigate.mockClear()
@@ -96,49 +132,27 @@ describe('Header', () => {
   })
 
   it('renders logo and navigation links', () => {
-    render(<Header />)
+    renderWithProviders(<Header />)
     expect(screen.getByText('Eurtisan')).toBeDefined()
     expect(screen.getByText('Home')).toBeDefined()
     expect(screen.getByText('About')).toBeDefined()
   })
 
-  it('renders search input with aria-label', () => {
-    render(<Header />)
-    const input = screen.getByLabelText('Search products...')
-    expect(input).toBeDefined()
-    expect(input.getAttribute('type')).toBe('search')
+  it('renders search trigger button with aria-label', () => {
+    renderWithProviders(<Header />)
+    const trigger = screen.getByRole('button', { name: 'Search products...' })
+    expect(trigger).toBeDefined()
   })
 
-  it('navigates to search on submit with query', () => {
-    render(<Header />)
-    const input = screen.getByLabelText('Search products...')
-    fireEvent.change(input, { target: { value: 'vase' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Search' }))
-    expect(mockNavigate).toHaveBeenCalledWith({
-      to: '/search',
-      search: { q: 'vase' },
-    })
-  })
-
-  it('trims whitespace from search query', () => {
-    render(<Header />)
-    const input = screen.getByLabelText('Search products...')
-    fireEvent.change(input, { target: { value: '  vase  ' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Search' }))
-    expect(mockNavigate).toHaveBeenCalledWith({
-      to: '/search',
-      search: { q: 'vase' },
-    })
-  })
-
-  it('does not navigate on empty search', () => {
-    render(<Header />)
-    fireEvent.click(screen.getByRole('button', { name: 'Search' }))
-    expect(mockNavigate).not.toHaveBeenCalled()
+  it('opens search overlay on trigger click', () => {
+    renderWithProviders(<Header />)
+    const trigger = screen.getByRole('button', { name: 'Search products...' })
+    fireEvent.click(trigger)
+    expect(screen.getByRole('dialog', { name: 'Search' })).toBeDefined()
   })
 
   it('renders cart link with aria-label', () => {
-    render(<Header />)
+    renderWithProviders(<Header />)
     expect(screen.getByRole('link', { name: 'Shopping cart' })).toBeDefined()
   })
 
@@ -182,14 +196,14 @@ describe('Header', () => {
       refreshCart: vi.fn(),
     })
 
-    render(<Header />)
+    renderWithProviders(<Header />)
     expect(screen.getByText('2')).toBeDefined()
   })
 
-  it('hides search on homepage', () => {
+  it('renders search trigger on homepage', () => {
     mockUseLocation.mockReturnValue({ pathname: '/' })
-    render(<Header />)
-    expect(screen.queryByLabelText('Search products...')).toBeNull()
+    renderWithProviders(<Header />)
+    expect(screen.getByRole('button', { name: 'Search products...' })).toBeDefined()
     mockUseLocation.mockReturnValue({ pathname: '/about' })
   })
 
@@ -208,7 +222,7 @@ describe('Header', () => {
       refreshCart: vi.fn(),
     })
 
-    render(<Header />)
+    renderWithProviders(<Header />)
     expect(screen.queryByText('0')).toBeNull()
   })
 
@@ -219,7 +233,7 @@ describe('Header', () => {
       isPending: false,
     })
 
-    render(<Header />)
+    renderWithProviders(<Header />)
     expect(screen.queryByRole('link', { name: 'Notifications' })).toBeNull()
   })
 
@@ -230,7 +244,7 @@ describe('Header', () => {
       isPending: false,
     })
 
-    render(<Header />)
+    renderWithProviders(<Header />)
     expect(screen.getByRole('link', { name: 'Notifications' })).toBeDefined()
   })
 
@@ -245,7 +259,7 @@ describe('Header', () => {
       isPending: false,
     })
 
-    render(<Header />)
+    renderWithProviders(<Header />)
     expect(screen.getByText('5')).toBeDefined()
   })
 
@@ -260,7 +274,7 @@ describe('Header', () => {
       isPending: false,
     })
 
-    render(<Header />)
+    renderWithProviders(<Header />)
     expect(screen.queryByText('0')).toBeNull()
   })
 
@@ -275,7 +289,7 @@ describe('Header', () => {
       isPending: false,
     })
 
-    render(<Header />)
+    renderWithProviders(<Header />)
     expect(screen.getByText('99+')).toBeDefined()
   })
 
@@ -287,7 +301,7 @@ describe('Header', () => {
       ]),
     )
 
-    render(<Header />)
+    renderWithProviders(<Header />)
     await waitFor(() => {
       expect(screen.getByText('Categories')).toBeDefined()
     })

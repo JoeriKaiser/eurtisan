@@ -62,6 +62,8 @@ function SignIn() {
           await router.invalidate()
           if (redirect && isLocalRedirect(redirect)) {
             await router.navigate({ to: redirect })
+          } else {
+            await router.navigate({ to: '/' })
           }
         }
       } else {
@@ -72,6 +74,8 @@ function SignIn() {
           await router.invalidate()
           if (redirect && isLocalRedirect(redirect)) {
             await router.navigate({ to: redirect })
+          } else {
+            await router.navigate({ to: '/' })
           }
         }
       }
