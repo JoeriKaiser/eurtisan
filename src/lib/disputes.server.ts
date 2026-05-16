@@ -13,6 +13,7 @@ import {
 } from '#/db/schema'
 import { molliePaymentProvider } from '#/integrations/mollie'
 import { getBaseUrl } from './env.server'
+import { sanitizeRichText, validatePlainText } from './xss'
 import { logOrderDisputed, logOrderResolved } from './order-logger'
 import type { OrderStatus } from './orders.server'
 import { recalcPlatformOrderStatus } from './shop-orders.server'
@@ -220,8 +221,8 @@ export async function openDisputeQuery(
         .values({
           shopOrderId: input.shopOrderId,
           buyerUserId,
-          reason: input.reason,
-          description: input.description,
+          reason: validatePlainText(input.reason, 'Dispute reason'),
+          description: sanitizeRichText(input.description) ?? '',
         })
         .returning()
       created = result[0]
@@ -350,7 +351,7 @@ export async function addDisputeMessageQuery(
     .values({
       disputeId,
       senderUserId,
-      message: sanitizeMessage(message),
+      message: sanitizeRichText(message) ?? ''
     })
     .returning()
 
@@ -765,11 +766,4 @@ export async function resolveDisputeQuery(
   return result
 }
 
-function sanitizeMessage(input: string): string {
-  return input
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;')
-    .trim()
-}
+

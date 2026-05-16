@@ -1,6 +1,7 @@
 import { and, count, desc, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { orderItem, platformOrder, product, review, shop, shopOrder, user } from '#/db/schema'
+import { sanitizeRichText } from './xss'
 
 export interface ReviewableItem {
   shopOrderId: string
@@ -200,7 +201,7 @@ export async function createReviewQuery(
     )
   }
 
-  const sanitizedComment = comment ? sanitizeComment(comment) : null
+  const sanitizedComment = sanitizeRichText(comment)
 
   let created: typeof review.$inferSelect
   try {
@@ -326,12 +327,4 @@ export async function getProductReviewsQuery(
   }
 }
 
-function sanitizeComment(input: string): string {
-  return input
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;')
-    .replace(/\//g, '&#x2F;')
-    .trim()
-}
+

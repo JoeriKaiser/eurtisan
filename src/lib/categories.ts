@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
+import { sanitizeRichText, validatePlainText } from './xss'
 
 export function sanitizeSlug(input: string): string {
   return input
@@ -98,9 +99,9 @@ export const createCategory = createServerFn({
     const [category] = await db
       .insert(categories)
       .values({
-        name: data.name.trim(),
+        name: validatePlainText(data.name, 'Category name'),
         slug,
-        description: data.description?.trim() ?? null,
+        description: sanitizeRichText(data.description),
         parentId: data.parentId ?? null,
       })
       .returning()

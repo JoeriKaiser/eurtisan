@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm'
 import { shop, user } from '#/db/schema'
 import { authMiddleware } from './auth-middleware'
 import type { UserRole } from './authz'
+import { validatePlainText } from './xss'
 
 export interface SafeUser {
   id: string
@@ -116,7 +117,7 @@ export const becomeCreator = createServerFn({ method: 'POST' })
     if (data.shopName && data.shopSlug) {
       await db.insert(shop).values({
         id: crypto.randomUUID(),
-        name: data.shopName,
+        name: validatePlainText(data.shopName, 'Shop name'),
         slug: data.shopSlug,
         ownerId: context.user.id,
       })

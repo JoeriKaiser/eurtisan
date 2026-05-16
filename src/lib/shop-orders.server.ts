@@ -1,6 +1,7 @@
 import { and, count, desc, eq, ilike, or, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { db } from '#/db/index'
+import { validatePlainText } from './xss'
 import {
   dispute,
   orderItem,
@@ -384,6 +385,8 @@ export async function markShopOrderShippedQuery(
       }
       if (input.trackingNumber !== undefined) {
         updateData.trackingNumber = input.trackingNumber
+          ? validatePlainText(input.trackingNumber, 'Tracking number')
+          : input.trackingNumber
       }
       if (input.trackingUrl !== undefined) {
         updateData.trackingUrl = input.trackingUrl
@@ -419,6 +422,8 @@ export async function markShopOrderShippedQuery(
     }
     if (input.trackingNumber !== undefined) {
       updateData.trackingNumber = input.trackingNumber
+        ? validatePlainText(input.trackingNumber, 'Tracking number')
+        : input.trackingNumber
     }
     if (input.trackingUrl !== undefined) {
       updateData.trackingUrl = input.trackingUrl
@@ -692,6 +697,8 @@ export async function updateShopOrderStatusQuery(
     if (nextStatus === 'shipped') {
       if (input.trackingNumber !== undefined) {
         updateData.trackingNumber = input.trackingNumber
+          ? validatePlainText(input.trackingNumber, 'Tracking number')
+          : input.trackingNumber
       }
       if (input.trackingUrl !== undefined) {
         updateData.trackingUrl = input.trackingUrl

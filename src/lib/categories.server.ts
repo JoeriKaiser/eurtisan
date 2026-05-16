@@ -5,6 +5,7 @@ import { categories, product } from '#/db/schema'
 import type { deleteCategorySchema, updateCategorySchema } from './categories'
 import { buildCategoryTree } from './categories'
 import type { SafeUser } from './server-auth'
+import { sanitizeRichText, validatePlainText } from './xss'
 
 export async function detectCircularReference(
   categoryId: string | null,
@@ -168,9 +169,9 @@ export async function updateCategoryInternal(
   }
 
   const updateValues: Partial<typeof categories.$inferInsert> = {}
-  if (data.name !== undefined) updateValues.name = data.name.trim()
+  if (data.name !== undefined) updateValues.name = validatePlainText(data.name, 'Category name')
   if (slug !== undefined) updateValues.slug = slug
-  if (data.description !== undefined) updateValues.description = data.description?.trim() ?? null
+  if (data.description !== undefined) updateValues.description = sanitizeRichText(data.description)
   if (data.parentId !== undefined) updateValues.parentId = data.parentId
 
   const [updated] = await db

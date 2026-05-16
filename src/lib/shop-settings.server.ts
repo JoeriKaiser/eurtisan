@@ -3,7 +3,8 @@ import { join } from 'node:path'
 import { and, eq, ne } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { shop } from '#/db/schema'
-import { getExtensionFromMimeType, sanitizeDescription, validateImageInput } from './image-utils'
+import { getExtensionFromMimeType, validateImageInput } from './image-utils'
+import { sanitizeRichText, validatePlainText } from './xss'
 
 export { ImageValidationError } from './image-utils'
 
@@ -108,11 +109,11 @@ export async function updateShopInternal(
   }
 
   if (input.name !== undefined) {
-    const trimmed = input.name.trim()
-    if (trimmed.length === 0) {
+    const validated = validatePlainText(input.name, 'Shop name')
+    if (validated.length === 0) {
       throw new Error('Shop name cannot be empty.')
     }
-    updateData.name = trimmed
+    updateData.name = validated
   }
 
   if (input.slug !== undefined) {
@@ -124,7 +125,7 @@ export async function updateShopInternal(
   }
 
   if (input.description !== undefined) {
-    updateData.description = sanitizeDescription(input.description)
+    updateData.description = sanitizeRichText(input.description)
   }
 
   if (input.shippingOrigin !== undefined) {

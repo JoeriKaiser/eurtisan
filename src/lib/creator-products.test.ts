@@ -1264,7 +1264,7 @@ describe('description sanitization', () => {
       description: '<script>alert("xss")</script>',
     })
 
-    expect(result.description).toBe('&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;')
+    expect(result.description).toBeNull()
   })
 
   it('escapes HTML tags in description on update', async () => {
@@ -1296,7 +1296,7 @@ describe('description sanitization', () => {
       description: '<img src=x onerror=alert(1)>',
     })
 
-    expect(result.description).toBe('&lt;img src=x onerror=alert(1)&gt;')
+    expect(result.description).toBeNull()
   })
 
   it('handles null description', async () => {

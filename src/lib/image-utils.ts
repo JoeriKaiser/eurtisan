@@ -1,5 +1,6 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { validatePlainText } from './xss'
 
 const UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'products')
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
@@ -74,7 +75,8 @@ export function validateImageInput(input: ProductImageInput): {
     throw new ImageValidationError('File content does not match declared type')
   }
 
-  return { buffer, mimeType, altText: input.altText }
+  const altText = input.altText ? validatePlainText(input.altText, 'Alt text') : undefined
+  return { buffer, mimeType, altText }
 }
 
 export function getExtensionFromMimeType(mimeType: string): string {
@@ -124,12 +126,3 @@ export async function deleteProductImages(productId: string): Promise<void> {
   }
 }
 
-export function sanitizeDescription(input: string | null | undefined): string | null {
-  if (!input) return null
-  return input
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;')
-}
