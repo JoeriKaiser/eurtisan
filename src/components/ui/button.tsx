@@ -13,7 +13,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref,
   ) => {
     const baseStyles =
-      'inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all duration-fast ease-out focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none'
+      'inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium rounded-lg transition-all duration-fast ease-out focus-visible:outline-none disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none'
 
     const variants = {
       primary:
@@ -21,7 +21,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       secondary:
         'bg-surface-default text-text-primary border border-border-default hover:bg-bg-inset hover:border-border-strong shadow-sm',
       ghost: 'bg-transparent text-text-secondary hover:bg-bg-inset hover:text-text-primary',
-      danger: 'bg-error text-white hover:bg-error-hover active:opacity-90 shadow-sm',
+      danger: 'bg-error text-on-primary hover:bg-error-hover active:opacity-90 shadow-sm',
     }
 
     const sizes = {

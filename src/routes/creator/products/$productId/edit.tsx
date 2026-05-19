@@ -6,7 +6,7 @@ import {
 } from '#/components/CreatorProductEditPage'
 import { listCategories } from '#/lib/categories'
 import { getCreatorShops } from '#/lib/creator-dashboard'
-import { getCreatorProductDetail } from '#/lib/creator-products.server'
+import { getCreatorProductDetail } from '#/lib/creator-products'
 import { guardRole } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
 

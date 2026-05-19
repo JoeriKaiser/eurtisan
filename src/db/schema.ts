@@ -16,6 +16,16 @@ import {
 
 export const userRoleEnum = pgEnum('user_role', ['customer', 'creator', 'admin'])
 
+export const shopStatusEnum = pgEnum('shop_status', [
+  'draft',
+  'pending_review',
+  'changes_requested',
+  'approved',
+  'active',
+  'rejected',
+  'suspended',
+])
+
 export const user = pgTable('user', {
   id: text().primaryKey(),
   name: text().notNull(),
@@ -83,23 +93,77 @@ export const shop = pgTable(
   'shop',
   {
     id: text().primaryKey(),
+
+    // Core Identity
     name: text().notNull(),
-    description: text(),
     slug: text().notNull(),
+    tagline: text(),
+    description: text(),
+    category: text(),
+    tags: text('tags').array(),
+
+    // Visuals
     image: text(),
+    bannerImage: text('banner_image'),
+
+    // Identity & Credibility
+    productionType: text('production_type'),
+    hasProductionPartner: boolean('has_production_partner').default(false),
+    productionPartnerDetails: text('production_partner_details'),
+    languages: text('languages').array(),
+
+    // Location & Shipping
+    shippingOrigin: jsonb('shipping_origin'),
+    currency: text().notNull().default('EUR'),
+
+    // Policies
+    policies: jsonb('policies'),
+
+    // Announcements
+    announcement: text(),
+
+    // Onboarding State
+    status: shopStatusEnum('status').notNull().default('active'),
+    onboardingStep: integer('onboarding_step').notNull().default(1),
+    onboardingCompletedAt: timestamp('onboarding_completed_at'),
+
+    // Moderation
+    isSuspended: boolean('is_suspended').notNull().default(false),
+    moderationNote: text('moderation_note'),
+    submittedAt: timestamp('submitted_at'),
+    reviewedAt: timestamp('reviewed_at'),
+    reviewedBy: text('reviewed_by').references(() => user.id),
+    resubmissionCount: integer('resubmission_count').notNull().default(0),
+
+    // Payment
+    stripeAccountId: text('stripe_account_id'),
+    paymentConnected: boolean('payment_connected').notNull().default(false),
+    paymentConnectedAt: timestamp('payment_connected_at'),
+
     ownerId: text()
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
-    shippingOrigin: jsonb('shipping_origin'),
-    isSuspended: boolean('is_suspended').notNull().default(false),
-    moderationNote: text('moderation_note'),
     createdAt: timestamp().notNull().defaultNow(),
     updatedAt: timestamp().notNull().defaultNow(),
   },
   (table) => [
     index('shop_ownerId_idx').on(table.ownerId),
+    index('shop_status_idx').on(table.status),
     uniqueIndex('shop_slug_unique').on(table.slug),
   ],
+)
+
+export const shopSocials = pgTable(
+  'shop_socials',
+  {
+    id: text().primaryKey(),
+    shopId: text('shop_id')
+      .notNull()
+      .references(() => shop.id, { onDelete: 'cascade' }),
+    platform: text().notNull(),
+    url: text().notNull(),
+  },
+  (table) => [index('shop_socials_shop_id_idx').on(table.shopId)],
 )
 
 export const todos = pgTable('todos', {

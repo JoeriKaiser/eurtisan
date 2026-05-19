@@ -58,7 +58,7 @@ init:
 	docker compose up -d
 	docker compose exec app bun run i18n:compile
 	docker compose exec app bun run db:migrate
-	docker compose exec app bun run db:seed
+	docker compose exec app bun run db:seed -- --clear
 
 # Database
 db-generate: up

@@ -60,7 +60,7 @@ export function CreatorDashboardPage({ stats, activity, shops }: CreatorDashboar
               {m.creator_no_shops_description()}
             </p>
             <div className='mt-6'>
-              <Link to='/studio' className='no-underline'>
+              <Link to='/sell' className='no-underline'>
                 <Button variant='primary'>{m.creator_no_shops_cta()}</Button>
               </Link>
             </div>

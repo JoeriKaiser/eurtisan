@@ -1,16 +1,7 @@
 import { and, count, desc, eq, inArray } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { payout, shop, shopOrder, user } from '#/db/schema'
-
-/* -------------------------------------------------------------------------- */
-/*                               Platform Fee                                 */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Platform fee percentage deducted from creator earnings.
- * Configurable constant — update this value to change the platform cut.
- */
-export const PLATFORM_FEE_PERCENT = 10
+import { PLATFORM_FEE_PERCENT } from './payouts'
 
 /* -------------------------------------------------------------------------- */
 /*                                   Types                                    */

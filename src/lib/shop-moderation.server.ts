@@ -15,6 +15,7 @@ export interface ShopListItem {
   slug: string
   ownerName: string
   ownerEmail: string
+  status: string
   isSuspended: boolean
   moderationNote: string | null
   createdAt: Date
@@ -64,6 +65,7 @@ export async function listAllShopsQuery(params: {
         slug: shop.slug,
         ownerName: user.name,
         ownerEmail: user.email,
+        status: shop.status,
         isSuspended: shop.isSuspended,
         moderationNote: shop.moderationNote,
         createdAt: shop.createdAt,

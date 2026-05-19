@@ -103,7 +103,7 @@ vi.mock('#/lib/creator-products.server', () => ({
 }))
 
 import type { CreatorShop } from '#/lib/creator-dashboard'
-import { deleteProduct, updateProduct } from '#/lib/creator-products.server'
+import { deleteProduct, updateProduct } from '#/lib/creator-products'
 import {
   CreatorProductEditError,
   CreatorProductEditLoading,

@@ -204,6 +204,27 @@
       "when": 1778878398240,
       "tag": "0028_yielding_green_goblin",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1778958001720,
+      "tag": "0029_talented_virginia_dare",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1778958140371,
+      "tag": "0030_greedy_the_executioner",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1779222308420,
+      "tag": "0031_famous_blue_blade",
+      "breakpoints": true
     }
   ]
 }

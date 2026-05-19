@@ -171,6 +171,11 @@ async function clearAll() {
 // =============================================================================
 async function seedUsers() {
   console.log('Seeding users...')
+
+  // Check which emails already exist so we skip them (and their accounts)
+  const existingRows = await db.select({ email: schema.user.email }).from(schema.user)
+  const existingEmails = new Set(existingRows.map((r) => r.email))
+
   const users: (typeof schema.user.$inferInsert)[] = []
   const accounts: (typeof schema.account.$inferInsert)[] = []
 
@@ -182,6 +187,7 @@ async function seedUsers() {
   ]
 
   for (const k of known) {
+    if (existingEmails.has(k.email)) continue
     const id = crypto.randomUUID()
     users.push({
       id,
@@ -206,6 +212,7 @@ async function seedUsers() {
   for (let i = 0; i < CONFIG.admins; i++) {
     const locale = randomLocale()
     const email = `admin.${i + 1}@eurtisan.local`
+    if (existingEmails.has(email)) continue
     users.push({
       id: crypto.randomUUID(),
       name: `${locale.person.firstName()} ${locale.person.lastName()}`,
@@ -220,6 +227,7 @@ async function seedUsers() {
   for (let i = 0; i < CONFIG.creators; i++) {
     const locale = randomLocale()
     const email = `creator.${i + 1}@eurtisan.local`
+    if (existingEmails.has(email)) continue
     const id = crypto.randomUUID()
     users.push({
       id,
@@ -242,6 +250,7 @@ async function seedUsers() {
   for (let i = 0; i < CONFIG.customers; i++) {
     const locale = randomLocale()
     const email = `customer.${i + 1}@eurtisan.local`
+    if (existingEmails.has(email)) continue
     const id = crypto.randomUUID()
     users.push({
       id,
@@ -262,13 +271,17 @@ async function seedUsers() {
     }
   }
 
-  await db.insert(schema.user).values(users)
+  if (users.length > 0) {
+    await db.insert(schema.user).values(users)
+  }
   if (accounts.length > 0) {
-    await db.insert(schema.account).values(accounts)
+    await db.insert(schema.account).values(accounts).onConflictDoNothing()
   }
 
-  console.log(`  ${users.length} users, ${accounts.length} accounts`)
-  return users
+  console.log(`  ${users.length} new users, ${accounts.length} new accounts`)
+
+  // Return full user list (existing + new) so downstream seeders can reference them
+  return db.select().from(schema.user)
 }
 
 // =============================================================================
@@ -343,8 +356,10 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
     }
   }
 
-  // Ensure known creator has at least one shop
+  // Ensure known creator has at least one active shop
   const knownCreator = creators.find((u) => u.email === 'creator@eurtisan.local')
+  const knownAdmin = users.find((u) => u.email === 'admin@eurtisan.local')
+
   if (knownCreator && !shops.some((s) => s.ownerId === knownCreator.id)) {
     const slug = uniqueSlug('The Forge', shopSlugs)
     shops.push({
@@ -356,6 +371,123 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
       image: shopImageUrl('the-forge'),
       shippingOrigin: { city: 'Brussels', country: 'Belgium' },
       isSuspended: false,
+    })
+  }
+
+  // Demo shops in different onboarding / moderation statuses for the known creator
+  if (knownCreator) {
+    // 1. Draft — mid-onboarding (step 3, identity + story filled)
+    const draftSlug = uniqueSlug('Ceramic Dreams', shopSlugs)
+    shops.push({
+      id: crypto.randomUUID(),
+      ownerId: knownCreator.id,
+      name: 'Ceramic Dreams',
+      slug: draftSlug,
+      tagline: 'Hand-thrown pottery from Portugal',
+      description:
+        'Each piece is shaped on the wheel and fired in a wood-burning kiln. We use local Portuguese clay and natural glazes.',
+      category: 'home_living',
+      productionType: 'handmade',
+      tags: ['pottery', 'ceramics', 'handmade', 'portugal'],
+      languages: ['en', 'pt'],
+      image: shopImageUrl(draftSlug),
+      bannerImage: shopImageUrl(`${draftSlug}-banner`),
+      shippingOrigin: {
+        city: 'Lisbon',
+        country: 'PT',
+        postalCode: '1000-001',
+        processingTimeDays: { min: 3, max: 7 },
+        shipsInternational: true,
+      },
+      currency: 'EUR',
+      status: 'draft',
+      onboardingStep: 3,
+      hasProductionPartner: false,
+      isSuspended: false,
+      resubmissionCount: 0,
+      paymentConnected: false,
+    })
+
+    // 2. Pending Review — completed onboarding, submitted for admin review
+    const pendingSlug = uniqueSlug('Nordic Knits', shopSlugs)
+    shops.push({
+      id: crypto.randomUUID(),
+      ownerId: knownCreator.id,
+      name: 'Nordic Knits',
+      slug: pendingSlug,
+      tagline: 'Sustainable wool accessories from the Baltic',
+      description:
+        'We knit every scarf, hat, and mitten using ethically sourced wool from Estonian farms. Traditional patterns meet modern colours.',
+      category: 'clothing',
+      productionType: 'handmade',
+      tags: ['knitwear', 'wool', 'sustainable', 'baltic', 'accessories'],
+      languages: ['en', 'et'],
+      image: shopImageUrl(pendingSlug),
+      bannerImage: shopImageUrl(`${pendingSlug}-banner`),
+      shippingOrigin: {
+        city: 'Tallinn',
+        country: 'EE',
+        postalCode: '10111',
+        processingTimeDays: { min: 5, max: 10 },
+        shipsInternational: true,
+      },
+      currency: 'EUR',
+      policies: {
+        returns: { accepted: true, windowDays: 14, conditions: 'Items must be unworn with tags.' },
+        exchanges: { accepted: true, conditions: 'Size exchanges within 30 days.' },
+        customOrders: { accepted: true, details: 'Custom colours available on request.' },
+        paymentMethods: ['card', 'ideal'],
+        additionalInfo: 'All items are hand-wash only.',
+      },
+      status: 'pending_review',
+      onboardingStep: 8,
+      submittedAt: faker.date.recent({ days: 3 }),
+      hasProductionPartner: false,
+      isSuspended: false,
+      resubmissionCount: 0,
+      paymentConnected: false,
+    })
+
+    // 3. Approved — admin approved, waiting for Stripe Connect
+    const approvedSlug = uniqueSlug('Rustic Woodworks', shopSlugs)
+    shops.push({
+      id: crypto.randomUUID(),
+      ownerId: knownCreator.id,
+      name: 'Rustic Woodworks',
+      slug: approvedSlug,
+      tagline: 'Reclaimed timber furniture and décor',
+      description:
+        'We give old barn wood a second life. Every table, shelf, and bowl carries the history of the forest it came from.',
+      category: 'home_living',
+      productionType: 'handmade',
+      tags: ['woodwork', 'reclaimed', 'furniture', 'sustainable'],
+      languages: ['en', 'de'],
+      image: shopImageUrl(approvedSlug),
+      bannerImage: shopImageUrl(`${approvedSlug}-banner`),
+      shippingOrigin: {
+        city: 'Munich',
+        country: 'DE',
+        postalCode: '80331',
+        processingTimeDays: { min: 7, max: 14 },
+        shipsInternational: false,
+      },
+      currency: 'EUR',
+      policies: {
+        returns: { accepted: false, conditions: 'All sales are final due to custom sizing.' },
+        exchanges: { accepted: true, conditions: 'Exchange for store credit within 7 days.' },
+        customOrders: { accepted: true, details: 'Bespoke dimensions available.' },
+        paymentMethods: ['card', 'sofort'],
+      },
+      status: 'approved',
+      onboardingStep: 8,
+      submittedAt: faker.date.recent({ days: 7 }),
+      reviewedAt: faker.date.recent({ days: 5 }),
+      reviewedBy: knownAdmin?.id ?? knownCreator.id,
+      hasProductionPartner: true,
+      productionPartnerDetails: 'Local sawmill partner for reclaimed timber sourcing.',
+      isSuspended: false,
+      resubmissionCount: 0,
+      paymentConnected: false,
     })
   }
 
@@ -371,7 +503,7 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
   // })
 
   if (shops.length > 0) {
-    await db.insert(schema.shop).values(shops)
+    await db.insert(schema.shop).values(shops).onConflictDoNothing({ target: schema.shop.slug })
   }
 
   console.log(`  ${shops.length} shops`)
@@ -419,7 +551,10 @@ async function seedCategories() {
   }
 
   if (categories.length > 0) {
-    await db.insert(schema.categories).values(categories)
+    await db
+      .insert(schema.categories)
+      .values(categories)
+      .onConflictDoNothing({ target: schema.categories.slug })
   }
 
   const subCategories: (typeof schema.categories.$inferInsert)[] = []
@@ -441,7 +576,10 @@ async function seedCategories() {
   }
 
   if (subCategories.length > 0) {
-    await db.insert(schema.categories).values(subCategories)
+    await db
+      .insert(schema.categories)
+      .values(subCategories)
+      .onConflictDoNothing({ target: schema.categories.slug })
   }
 
   console.log(`  ${categories.length} categories, ${subCategories.length} subcategories`)
@@ -588,6 +726,9 @@ async function seedProducts(
   ]
 
   for (const shop of shops) {
+    // Skip non-active shops (draft / pending_review / approved demo shops)
+    if (shop.status && shop.status !== 'active') continue
+
     const count = faker.number.int(CONFIG.productsPerShop)
     if (!productSlugsByShop.has(shop.id!)) {
       productSlugsByShop.set(shop.id!, new Set())
@@ -645,10 +786,13 @@ async function seedProducts(
   // })
 
   for (const c of chunk(products, 100)) {
-    await db.insert(schema.product).values(c)
+    await db
+      .insert(schema.product)
+      .values(c)
+      .onConflictDoNothing({ target: [schema.product.shopId, schema.product.slug] })
   }
   for (const c of chunk(productImages, 200)) {
-    await db.insert(schema.productImage).values(c)
+    await db.insert(schema.productImage).values(c).onConflictDoNothing()
   }
 
   console.log(`  ${products.length} products, ${productImages.length} images`)
@@ -691,8 +835,8 @@ async function seedCarts(
     }
   }
 
-  if (carts.length > 0) await db.insert(schema.cart).values(carts)
-  if (cartItems.length > 0) await db.insert(schema.cartItem).values(cartItems)
+  if (carts.length > 0) await db.insert(schema.cart).values(carts).onConflictDoNothing()
+  if (cartItems.length > 0) await db.insert(schema.cartItem).values(cartItems).onConflictDoNothing()
 
   console.log(`  ${carts.length} carts, ${cartItems.length} items`)
 }
@@ -949,15 +1093,22 @@ async function seedOrders(
     }
   }
 
-  for (const c of chunk(platformOrders, 100)) await db.insert(schema.platformOrder).values(c)
-  for (const c of chunk(shopOrders, 100)) await db.insert(schema.shopOrder).values(c)
-  for (const c of chunk(orderItems, 200)) await db.insert(schema.orderItem).values(c)
+  for (const c of chunk(platformOrders, 100))
+    await db.insert(schema.platformOrder).values(c).onConflictDoNothing()
+  for (const c of chunk(shopOrders, 100))
+    await db.insert(schema.shopOrder).values(c).onConflictDoNothing()
+  for (const c of chunk(orderItems, 200))
+    await db.insert(schema.orderItem).values(c).onConflictDoNothing()
   for (const c of chunk(inventoryReservations, 100))
-    await db.insert(schema.inventoryReservation).values(c)
-  for (const c of chunk(shippingLabels, 100)) await db.insert(schema.shippingLabel).values(c)
-  for (const c of chunk(reviews, 100)) await db.insert(schema.review).values(c)
-  for (const c of chunk(disputes, 10)) await db.insert(schema.dispute).values(c)
-  for (const c of chunk(disputeMessages, 50)) await db.insert(schema.disputeMessage).values(c)
+    await db.insert(schema.inventoryReservation).values(c).onConflictDoNothing()
+  for (const c of chunk(shippingLabels, 100))
+    await db.insert(schema.shippingLabel).values(c).onConflictDoNothing()
+  for (const c of chunk(reviews, 100))
+    await db.insert(schema.review).values(c).onConflictDoNothing()
+  for (const c of chunk(disputes, 10))
+    await db.insert(schema.dispute).values(c).onConflictDoNothing()
+  for (const c of chunk(disputeMessages, 50))
+    await db.insert(schema.disputeMessage).values(c).onConflictDoNothing()
 
   console.log(`  ${platformOrders.length} platform orders`)
   console.log(`  ${shopOrders.length} shop orders`)
@@ -992,7 +1143,7 @@ async function seedPayouts(shops: (typeof schema.shop.$inferInsert)[]) {
 
   if (payouts.length > 0) {
     for (const c of chunk(payouts, 100)) {
-      await db.insert(schema.payout).values(c)
+      await db.insert(schema.payout).values(c).onConflictDoNothing()
     }
   }
 
@@ -1041,7 +1192,7 @@ async function seedNotifications(users: (typeof schema.user.$inferInsert)[]) {
 
   if (notifications.length > 0) {
     for (const c of chunk(notifications, 200)) {
-      await db.insert(schema.notification).values(c)
+      await db.insert(schema.notification).values(c).onConflictDoNothing()
     }
   }
 
@@ -1068,7 +1219,10 @@ async function seedTodos() {
     'Optimise product image lazy loading',
   ]
 
-  await db.insert(schema.todos).values(titles.slice(0, CONFIG.todos).map((title) => ({ title })))
+  await db
+    .insert(schema.todos)
+    .values(titles.slice(0, CONFIG.todos).map((title) => ({ title })))
+    .onConflictDoNothing()
   console.log(`  ${CONFIG.todos} todos`)
 }
 

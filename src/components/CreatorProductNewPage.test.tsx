@@ -82,7 +82,7 @@ vi.mock('#/lib/creator-products.server', () => ({
 }))
 
 import type { CreatorShop } from '#/lib/creator-dashboard'
-import { createProduct } from '#/lib/creator-products.server'
+import { createProduct } from '#/lib/creator-products'
 import {
   CreatorProductNewError,
   CreatorProductNewLoading,

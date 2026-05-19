@@ -365,11 +365,14 @@ export function AdminShopsPage() {
 
                       {/* Status badge */}
                       <td className='py-3 pr-4'>
-                        <Badge variant={shop.isSuspended ? 'error' : 'success'}>
-                          {shop.isSuspended
-                            ? m.admin_shops_status_suspended()
-                            : m.admin_shops_status_active()}
-                        </Badge>
+                        <div className='flex flex-col gap-1'>
+                          <Badge variant={shop.isSuspended ? 'error' : 'success'}>
+                            {shop.isSuspended
+                              ? m.admin_shops_status_suspended()
+                              : m.admin_shops_status_active()}
+                          </Badge>
+                          <span className='text-xs text-text-muted'>{shop.status}</span>
+                        </div>
                       </td>
 
                       {/* Moderation note */}

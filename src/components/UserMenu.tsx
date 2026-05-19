@@ -1,10 +1,8 @@
 import { Link, useRouter } from '@tanstack/react-router'
 import { LogOut, Settings, Shield, Sparkles, Store, User } from 'lucide-react'
-import { useState } from 'react'
 
 import { authClient } from '#/lib/auth-client'
 import { useAuth } from '#/lib/auth-hooks'
-import { becomeCreator } from '#/lib/server-auth'
 import { m } from '#/paraglide/messages'
 import {
   DropdownMenu,
@@ -20,7 +18,6 @@ import {
 export default function UserMenu() {
   const router = useRouter()
   const { user } = useAuth()
-  const [upgrading, setUpgrading] = useState(false)
 
   if (!user) {
     return (
@@ -35,19 +32,6 @@ export default function UserMenu() {
 
   const handleSignOut = () => {
     void authClient.signOut()
-  }
-
-  const handleBecomeCreator = async () => {
-    setUpgrading(true)
-    try {
-      await becomeCreator({ data: {} })
-      await router.invalidate()
-      window.location.reload()
-    } catch {
-      // Error handled by UI; user can retry
-    } finally {
-      setUpgrading(false)
-    }
   }
 
   const initials = user.name?.charAt(0).toUpperCase() || 'U'
@@ -85,9 +69,9 @@ export default function UserMenu() {
           </DropdownMenuItem>
 
           {user.role === 'customer' && (
-            <DropdownMenuItem disabled={upgrading} onClick={handleBecomeCreator}>
+            <DropdownMenuItem onClick={() => router.navigate({ to: '/sell' })}>
               <Sparkles size={16} />
-              {upgrading ? m.become_creator_loading() : m.become_creator()}
+              {m.become_creator()}
             </DropdownMenuItem>
           )}
 

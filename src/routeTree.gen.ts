@@ -20,6 +20,7 @@ import { Route as CartRouteImport } from './routes/cart'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as StudioIndexRouteImport } from './routes/studio/index'
+import { Route as SellIndexRouteImport } from './routes/sell/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AccountIndexRouteImport } from './routes/account/index'
 import { Route as StudioShopIdRouteImport } from './routes/studio/$shopId'
@@ -44,6 +45,8 @@ import { Route as AccountSettingsRouteImport } from './routes/account/settings'
 import { Route as AccountOrdersRouteImport } from './routes/account/orders'
 import { Route as CreatorProductsIndexRouteImport } from './routes/creator/products/index'
 import { Route as StudioShopIdOrdersRouteImport } from './routes/studio/$shopId.orders'
+import { Route as SellStatusShopIdRouteImport } from './routes/sell/status/$shopId'
+import { Route as SellOnboardingDraftIdRouteImport } from './routes/sell/onboarding/$draftId'
 import { Route as OrdersPlatformOrderIdSuccessRouteImport } from './routes/orders.$platformOrderId.success'
 import { Route as CreatorProductsNewRouteImport } from './routes/creator/products/new'
 import { Route as ApiWebhooksMollieRouteImport } from './routes/api/webhooks/mollie'
@@ -51,7 +54,16 @@ import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AdminOrdersPlatformOrderIdRouteImport } from './routes/admin/orders.$platformOrderId'
 import { Route as AdminDisputesDisputeIdRouteImport } from './routes/admin/disputes/$disputeId'
 import { Route as AccountOrdersOrderIdRouteImport } from './routes/account/orders.$orderId'
+import { Route as SellOnboardingDraftIdIndexRouteImport } from './routes/sell/onboarding/$draftId/index'
 import { Route as StudioShopIdOrdersShopOrderIdRouteImport } from './routes/studio/$shopId.orders.$shopOrderId'
+import { Route as SellOnboardingDraftIdVisualsRouteImport } from './routes/sell/onboarding/$draftId/visuals'
+import { Route as SellOnboardingDraftIdStoryRouteImport } from './routes/sell/onboarding/$draftId/story'
+import { Route as SellOnboardingDraftIdSocialsRouteImport } from './routes/sell/onboarding/$draftId/socials'
+import { Route as SellOnboardingDraftIdReviewRouteImport } from './routes/sell/onboarding/$draftId/review'
+import { Route as SellOnboardingDraftIdPoliciesRouteImport } from './routes/sell/onboarding/$draftId/policies'
+import { Route as SellOnboardingDraftIdLocationRouteImport } from './routes/sell/onboarding/$draftId/location'
+import { Route as SellOnboardingDraftIdListingRouteImport } from './routes/sell/onboarding/$draftId/listing'
+import { Route as SellOnboardingDraftIdIdentityRouteImport } from './routes/sell/onboarding/$draftId/identity'
 import { Route as CreatorProductsProductIdEditRouteImport } from './routes/creator/products/$productId/edit'
 import { Route as ApiShopsShopIdSettingsRouteImport } from './routes/api/shops/$shopId/settings'
 import { Route as ApiShopsShopIdProductsRouteImport } from './routes/api/shops/$shopId/products'
@@ -114,6 +126,11 @@ const IndexRoute = IndexRouteImport.update({
 const StudioIndexRoute = StudioIndexRouteImport.update({
   id: '/studio/',
   path: '/studio/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SellIndexRoute = SellIndexRouteImport.update({
+  id: '/sell/',
+  path: '/sell/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -236,6 +253,16 @@ const StudioShopIdOrdersRoute = StudioShopIdOrdersRouteImport.update({
   path: '/orders',
   getParentRoute: () => StudioShopIdRoute,
 } as any)
+const SellStatusShopIdRoute = SellStatusShopIdRouteImport.update({
+  id: '/sell/status/$shopId',
+  path: '/sell/status/$shopId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SellOnboardingDraftIdRoute = SellOnboardingDraftIdRouteImport.update({
+  id: '/sell/onboarding/$draftId',
+  path: '/sell/onboarding/$draftId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrdersPlatformOrderIdSuccessRoute =
   OrdersPlatformOrderIdSuccessRouteImport.update({
     id: '/success',
@@ -273,11 +300,65 @@ const AccountOrdersOrderIdRoute = AccountOrdersOrderIdRouteImport.update({
   path: '/$orderId',
   getParentRoute: () => AccountOrdersRoute,
 } as any)
+const SellOnboardingDraftIdIndexRoute =
+  SellOnboardingDraftIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => SellOnboardingDraftIdRoute,
+  } as any)
 const StudioShopIdOrdersShopOrderIdRoute =
   StudioShopIdOrdersShopOrderIdRouteImport.update({
     id: '/$shopOrderId',
     path: '/$shopOrderId',
     getParentRoute: () => StudioShopIdOrdersRoute,
+  } as any)
+const SellOnboardingDraftIdVisualsRoute =
+  SellOnboardingDraftIdVisualsRouteImport.update({
+    id: '/visuals',
+    path: '/visuals',
+    getParentRoute: () => SellOnboardingDraftIdRoute,
+  } as any)
+const SellOnboardingDraftIdStoryRoute =
+  SellOnboardingDraftIdStoryRouteImport.update({
+    id: '/story',
+    path: '/story',
+    getParentRoute: () => SellOnboardingDraftIdRoute,
+  } as any)
+const SellOnboardingDraftIdSocialsRoute =
+  SellOnboardingDraftIdSocialsRouteImport.update({
+    id: '/socials',
+    path: '/socials',
+    getParentRoute: () => SellOnboardingDraftIdRoute,
+  } as any)
+const SellOnboardingDraftIdReviewRoute =
+  SellOnboardingDraftIdReviewRouteImport.update({
+    id: '/review',
+    path: '/review',
+    getParentRoute: () => SellOnboardingDraftIdRoute,
+  } as any)
+const SellOnboardingDraftIdPoliciesRoute =
+  SellOnboardingDraftIdPoliciesRouteImport.update({
+    id: '/policies',
+    path: '/policies',
+    getParentRoute: () => SellOnboardingDraftIdRoute,
+  } as any)
+const SellOnboardingDraftIdLocationRoute =
+  SellOnboardingDraftIdLocationRouteImport.update({
+    id: '/location',
+    path: '/location',
+    getParentRoute: () => SellOnboardingDraftIdRoute,
+  } as any)
+const SellOnboardingDraftIdListingRoute =
+  SellOnboardingDraftIdListingRouteImport.update({
+    id: '/listing',
+    path: '/listing',
+    getParentRoute: () => SellOnboardingDraftIdRoute,
+  } as any)
+const SellOnboardingDraftIdIdentityRoute =
+  SellOnboardingDraftIdIdentityRouteImport.update({
+    id: '/identity',
+    path: '/identity',
+    getParentRoute: () => SellOnboardingDraftIdRoute,
   } as any)
 const CreatorProductsProductIdEditRoute =
   CreatorProductsProductIdEditRouteImport.update({
@@ -356,6 +437,7 @@ export interface FileRoutesByFullPath {
   '/studio/$shopId': typeof StudioShopIdRouteWithChildren
   '/account/': typeof AccountIndexRoute
   '/admin/': typeof AdminIndexRoute
+  '/sell/': typeof SellIndexRoute
   '/studio/': typeof StudioIndexRoute
   '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
@@ -364,6 +446,8 @@ export interface FileRoutesByFullPath {
   '/api/webhooks/mollie': typeof ApiWebhooksMollieRoute
   '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
+  '/sell/onboarding/$draftId': typeof SellOnboardingDraftIdRouteWithChildren
+  '/sell/status/$shopId': typeof SellStatusShopIdRoute
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
   '/creator/products/': typeof CreatorProductsIndexRoute
   '/api/admin/payouts/$payoutId': typeof ApiAdminPayoutsPayoutIdRoute
@@ -372,7 +456,16 @@ export interface FileRoutesByFullPath {
   '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRouteWithChildren
   '/api/shops/$shopId/settings': typeof ApiShopsShopIdSettingsRoute
   '/creator/products/$productId/edit': typeof CreatorProductsProductIdEditRoute
+  '/sell/onboarding/$draftId/identity': typeof SellOnboardingDraftIdIdentityRoute
+  '/sell/onboarding/$draftId/listing': typeof SellOnboardingDraftIdListingRoute
+  '/sell/onboarding/$draftId/location': typeof SellOnboardingDraftIdLocationRoute
+  '/sell/onboarding/$draftId/policies': typeof SellOnboardingDraftIdPoliciesRoute
+  '/sell/onboarding/$draftId/review': typeof SellOnboardingDraftIdReviewRoute
+  '/sell/onboarding/$draftId/socials': typeof SellOnboardingDraftIdSocialsRoute
+  '/sell/onboarding/$draftId/story': typeof SellOnboardingDraftIdStoryRoute
+  '/sell/onboarding/$draftId/visuals': typeof SellOnboardingDraftIdVisualsRoute
   '/studio/$shopId/orders/$shopOrderId': typeof StudioShopIdOrdersShopOrderIdRoute
+  '/sell/onboarding/$draftId/': typeof SellOnboardingDraftIdIndexRoute
   '/api/shops/$shopId/orders/$shopOrderId': typeof ApiShopsShopIdOrdersShopOrderIdRoute
   '/api/shops/$shopId/products/$productId': typeof ApiShopsShopIdProductsProductIdRoute
 }
@@ -408,6 +501,7 @@ export interface FileRoutesByTo {
   '/studio/$shopId': typeof StudioShopIdRouteWithChildren
   '/account': typeof AccountIndexRoute
   '/admin': typeof AdminIndexRoute
+  '/sell': typeof SellIndexRoute
   '/studio': typeof StudioIndexRoute
   '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
@@ -416,6 +510,7 @@ export interface FileRoutesByTo {
   '/api/webhooks/mollie': typeof ApiWebhooksMollieRoute
   '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
+  '/sell/status/$shopId': typeof SellStatusShopIdRoute
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
   '/creator/products': typeof CreatorProductsIndexRoute
   '/api/admin/payouts/$payoutId': typeof ApiAdminPayoutsPayoutIdRoute
@@ -424,7 +519,16 @@ export interface FileRoutesByTo {
   '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRouteWithChildren
   '/api/shops/$shopId/settings': typeof ApiShopsShopIdSettingsRoute
   '/creator/products/$productId/edit': typeof CreatorProductsProductIdEditRoute
+  '/sell/onboarding/$draftId/identity': typeof SellOnboardingDraftIdIdentityRoute
+  '/sell/onboarding/$draftId/listing': typeof SellOnboardingDraftIdListingRoute
+  '/sell/onboarding/$draftId/location': typeof SellOnboardingDraftIdLocationRoute
+  '/sell/onboarding/$draftId/policies': typeof SellOnboardingDraftIdPoliciesRoute
+  '/sell/onboarding/$draftId/review': typeof SellOnboardingDraftIdReviewRoute
+  '/sell/onboarding/$draftId/socials': typeof SellOnboardingDraftIdSocialsRoute
+  '/sell/onboarding/$draftId/story': typeof SellOnboardingDraftIdStoryRoute
+  '/sell/onboarding/$draftId/visuals': typeof SellOnboardingDraftIdVisualsRoute
   '/studio/$shopId/orders/$shopOrderId': typeof StudioShopIdOrdersShopOrderIdRoute
+  '/sell/onboarding/$draftId': typeof SellOnboardingDraftIdIndexRoute
   '/api/shops/$shopId/orders/$shopOrderId': typeof ApiShopsShopIdOrdersShopOrderIdRoute
   '/api/shops/$shopId/products/$productId': typeof ApiShopsShopIdProductsProductIdRoute
 }
@@ -462,6 +566,7 @@ export interface FileRoutesById {
   '/studio/$shopId': typeof StudioShopIdRouteWithChildren
   '/account/': typeof AccountIndexRoute
   '/admin/': typeof AdminIndexRoute
+  '/sell/': typeof SellIndexRoute
   '/studio/': typeof StudioIndexRoute
   '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
@@ -470,6 +575,8 @@ export interface FileRoutesById {
   '/api/webhooks/mollie': typeof ApiWebhooksMollieRoute
   '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
+  '/sell/onboarding/$draftId': typeof SellOnboardingDraftIdRouteWithChildren
+  '/sell/status/$shopId': typeof SellStatusShopIdRoute
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
   '/creator/products/': typeof CreatorProductsIndexRoute
   '/api/admin/payouts/$payoutId': typeof ApiAdminPayoutsPayoutIdRoute
@@ -478,7 +585,16 @@ export interface FileRoutesById {
   '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRouteWithChildren
   '/api/shops/$shopId/settings': typeof ApiShopsShopIdSettingsRoute
   '/creator/products/$productId/edit': typeof CreatorProductsProductIdEditRoute
+  '/sell/onboarding/$draftId/identity': typeof SellOnboardingDraftIdIdentityRoute
+  '/sell/onboarding/$draftId/listing': typeof SellOnboardingDraftIdListingRoute
+  '/sell/onboarding/$draftId/location': typeof SellOnboardingDraftIdLocationRoute
+  '/sell/onboarding/$draftId/policies': typeof SellOnboardingDraftIdPoliciesRoute
+  '/sell/onboarding/$draftId/review': typeof SellOnboardingDraftIdReviewRoute
+  '/sell/onboarding/$draftId/socials': typeof SellOnboardingDraftIdSocialsRoute
+  '/sell/onboarding/$draftId/story': typeof SellOnboardingDraftIdStoryRoute
+  '/sell/onboarding/$draftId/visuals': typeof SellOnboardingDraftIdVisualsRoute
   '/studio/$shopId/orders/$shopOrderId': typeof StudioShopIdOrdersShopOrderIdRoute
+  '/sell/onboarding/$draftId/': typeof SellOnboardingDraftIdIndexRoute
   '/api/shops/$shopId/orders/$shopOrderId': typeof ApiShopsShopIdOrdersShopOrderIdRoute
   '/api/shops/$shopId/products/$productId': typeof ApiShopsShopIdProductsProductIdRoute
 }
@@ -517,6 +633,7 @@ export interface FileRouteTypes {
     | '/studio/$shopId'
     | '/account/'
     | '/admin/'
+    | '/sell/'
     | '/studio/'
     | '/account/orders/$orderId'
     | '/admin/disputes/$disputeId'
@@ -525,6 +642,8 @@ export interface FileRouteTypes {
     | '/api/webhooks/mollie'
     | '/creator/products/new'
     | '/orders/$platformOrderId/success'
+    | '/sell/onboarding/$draftId'
+    | '/sell/status/$shopId'
     | '/studio/$shopId/orders'
     | '/creator/products/'
     | '/api/admin/payouts/$payoutId'
@@ -533,7 +652,16 @@ export interface FileRouteTypes {
     | '/api/shops/$shopId/products'
     | '/api/shops/$shopId/settings'
     | '/creator/products/$productId/edit'
+    | '/sell/onboarding/$draftId/identity'
+    | '/sell/onboarding/$draftId/listing'
+    | '/sell/onboarding/$draftId/location'
+    | '/sell/onboarding/$draftId/policies'
+    | '/sell/onboarding/$draftId/review'
+    | '/sell/onboarding/$draftId/socials'
+    | '/sell/onboarding/$draftId/story'
+    | '/sell/onboarding/$draftId/visuals'
     | '/studio/$shopId/orders/$shopOrderId'
+    | '/sell/onboarding/$draftId/'
     | '/api/shops/$shopId/orders/$shopOrderId'
     | '/api/shops/$shopId/products/$productId'
   fileRoutesByTo: FileRoutesByTo
@@ -569,6 +697,7 @@ export interface FileRouteTypes {
     | '/studio/$shopId'
     | '/account'
     | '/admin'
+    | '/sell'
     | '/studio'
     | '/account/orders/$orderId'
     | '/admin/disputes/$disputeId'
@@ -577,6 +706,7 @@ export interface FileRouteTypes {
     | '/api/webhooks/mollie'
     | '/creator/products/new'
     | '/orders/$platformOrderId/success'
+    | '/sell/status/$shopId'
     | '/studio/$shopId/orders'
     | '/creator/products'
     | '/api/admin/payouts/$payoutId'
@@ -585,7 +715,16 @@ export interface FileRouteTypes {
     | '/api/shops/$shopId/products'
     | '/api/shops/$shopId/settings'
     | '/creator/products/$productId/edit'
+    | '/sell/onboarding/$draftId/identity'
+    | '/sell/onboarding/$draftId/listing'
+    | '/sell/onboarding/$draftId/location'
+    | '/sell/onboarding/$draftId/policies'
+    | '/sell/onboarding/$draftId/review'
+    | '/sell/onboarding/$draftId/socials'
+    | '/sell/onboarding/$draftId/story'
+    | '/sell/onboarding/$draftId/visuals'
     | '/studio/$shopId/orders/$shopOrderId'
+    | '/sell/onboarding/$draftId'
     | '/api/shops/$shopId/orders/$shopOrderId'
     | '/api/shops/$shopId/products/$productId'
   id:
@@ -622,6 +761,7 @@ export interface FileRouteTypes {
     | '/studio/$shopId'
     | '/account/'
     | '/admin/'
+    | '/sell/'
     | '/studio/'
     | '/account/orders/$orderId'
     | '/admin/disputes/$disputeId'
@@ -630,6 +770,8 @@ export interface FileRouteTypes {
     | '/api/webhooks/mollie'
     | '/creator/products/new'
     | '/orders/$platformOrderId/success'
+    | '/sell/onboarding/$draftId'
+    | '/sell/status/$shopId'
     | '/studio/$shopId/orders'
     | '/creator/products/'
     | '/api/admin/payouts/$payoutId'
@@ -638,7 +780,16 @@ export interface FileRouteTypes {
     | '/api/shops/$shopId/products'
     | '/api/shops/$shopId/settings'
     | '/creator/products/$productId/edit'
+    | '/sell/onboarding/$draftId/identity'
+    | '/sell/onboarding/$draftId/listing'
+    | '/sell/onboarding/$draftId/location'
+    | '/sell/onboarding/$draftId/policies'
+    | '/sell/onboarding/$draftId/review'
+    | '/sell/onboarding/$draftId/socials'
+    | '/sell/onboarding/$draftId/story'
+    | '/sell/onboarding/$draftId/visuals'
     | '/studio/$shopId/orders/$shopOrderId'
+    | '/sell/onboarding/$draftId/'
     | '/api/shops/$shopId/orders/$shopOrderId'
     | '/api/shops/$shopId/products/$productId'
   fileRoutesById: FileRoutesById
@@ -672,9 +823,12 @@ export interface RootRouteChildren {
   StudioShopIdRoute: typeof StudioShopIdRouteWithChildren
   AccountIndexRoute: typeof AccountIndexRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  SellIndexRoute: typeof SellIndexRoute
   StudioIndexRoute: typeof StudioIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiWebhooksMollieRoute: typeof ApiWebhooksMollieRoute
+  SellOnboardingDraftIdRoute: typeof SellOnboardingDraftIdRouteWithChildren
+  SellStatusShopIdRoute: typeof SellStatusShopIdRoute
   ApiAdminPayoutsPayoutIdRoute: typeof ApiAdminPayoutsPayoutIdRoute
   ApiShopsShopIdDashboardRoute: typeof ApiShopsShopIdDashboardRoute
   ApiShopsShopIdOrdersRoute: typeof ApiShopsShopIdOrdersRouteWithChildren
@@ -759,6 +913,13 @@ declare module '@tanstack/react-router' {
       path: '/studio'
       fullPath: '/studio/'
       preLoaderRoute: typeof StudioIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sell/': {
+      id: '/sell/'
+      path: '/sell'
+      fullPath: '/sell/'
+      preLoaderRoute: typeof SellIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -929,6 +1090,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioShopIdOrdersRouteImport
       parentRoute: typeof StudioShopIdRoute
     }
+    '/sell/status/$shopId': {
+      id: '/sell/status/$shopId'
+      path: '/sell/status/$shopId'
+      fullPath: '/sell/status/$shopId'
+      preLoaderRoute: typeof SellStatusShopIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sell/onboarding/$draftId': {
+      id: '/sell/onboarding/$draftId'
+      path: '/sell/onboarding/$draftId'
+      fullPath: '/sell/onboarding/$draftId'
+      preLoaderRoute: typeof SellOnboardingDraftIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/orders/$platformOrderId/success': {
       id: '/orders/$platformOrderId/success'
       path: '/success'
@@ -978,12 +1153,75 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountOrdersOrderIdRouteImport
       parentRoute: typeof AccountOrdersRoute
     }
+    '/sell/onboarding/$draftId/': {
+      id: '/sell/onboarding/$draftId/'
+      path: '/'
+      fullPath: '/sell/onboarding/$draftId/'
+      preLoaderRoute: typeof SellOnboardingDraftIdIndexRouteImport
+      parentRoute: typeof SellOnboardingDraftIdRoute
+    }
     '/studio/$shopId/orders/$shopOrderId': {
       id: '/studio/$shopId/orders/$shopOrderId'
       path: '/$shopOrderId'
       fullPath: '/studio/$shopId/orders/$shopOrderId'
       preLoaderRoute: typeof StudioShopIdOrdersShopOrderIdRouteImport
       parentRoute: typeof StudioShopIdOrdersRoute
+    }
+    '/sell/onboarding/$draftId/visuals': {
+      id: '/sell/onboarding/$draftId/visuals'
+      path: '/visuals'
+      fullPath: '/sell/onboarding/$draftId/visuals'
+      preLoaderRoute: typeof SellOnboardingDraftIdVisualsRouteImport
+      parentRoute: typeof SellOnboardingDraftIdRoute
+    }
+    '/sell/onboarding/$draftId/story': {
+      id: '/sell/onboarding/$draftId/story'
+      path: '/story'
+      fullPath: '/sell/onboarding/$draftId/story'
+      preLoaderRoute: typeof SellOnboardingDraftIdStoryRouteImport
+      parentRoute: typeof SellOnboardingDraftIdRoute
+    }
+    '/sell/onboarding/$draftId/socials': {
+      id: '/sell/onboarding/$draftId/socials'
+      path: '/socials'
+      fullPath: '/sell/onboarding/$draftId/socials'
+      preLoaderRoute: typeof SellOnboardingDraftIdSocialsRouteImport
+      parentRoute: typeof SellOnboardingDraftIdRoute
+    }
+    '/sell/onboarding/$draftId/review': {
+      id: '/sell/onboarding/$draftId/review'
+      path: '/review'
+      fullPath: '/sell/onboarding/$draftId/review'
+      preLoaderRoute: typeof SellOnboardingDraftIdReviewRouteImport
+      parentRoute: typeof SellOnboardingDraftIdRoute
+    }
+    '/sell/onboarding/$draftId/policies': {
+      id: '/sell/onboarding/$draftId/policies'
+      path: '/policies'
+      fullPath: '/sell/onboarding/$draftId/policies'
+      preLoaderRoute: typeof SellOnboardingDraftIdPoliciesRouteImport
+      parentRoute: typeof SellOnboardingDraftIdRoute
+    }
+    '/sell/onboarding/$draftId/location': {
+      id: '/sell/onboarding/$draftId/location'
+      path: '/location'
+      fullPath: '/sell/onboarding/$draftId/location'
+      preLoaderRoute: typeof SellOnboardingDraftIdLocationRouteImport
+      parentRoute: typeof SellOnboardingDraftIdRoute
+    }
+    '/sell/onboarding/$draftId/listing': {
+      id: '/sell/onboarding/$draftId/listing'
+      path: '/listing'
+      fullPath: '/sell/onboarding/$draftId/listing'
+      preLoaderRoute: typeof SellOnboardingDraftIdListingRouteImport
+      parentRoute: typeof SellOnboardingDraftIdRoute
+    }
+    '/sell/onboarding/$draftId/identity': {
+      id: '/sell/onboarding/$draftId/identity'
+      path: '/identity'
+      fullPath: '/sell/onboarding/$draftId/identity'
+      preLoaderRoute: typeof SellOnboardingDraftIdIdentityRouteImport
+      parentRoute: typeof SellOnboardingDraftIdRoute
     }
     '/creator/products/$productId/edit': {
       id: '/creator/products/$productId/edit'
@@ -1158,6 +1396,35 @@ const StudioShopIdRouteWithChildren = StudioShopIdRoute._addFileChildren(
   StudioShopIdRouteChildren,
 )
 
+interface SellOnboardingDraftIdRouteChildren {
+  SellOnboardingDraftIdIdentityRoute: typeof SellOnboardingDraftIdIdentityRoute
+  SellOnboardingDraftIdListingRoute: typeof SellOnboardingDraftIdListingRoute
+  SellOnboardingDraftIdLocationRoute: typeof SellOnboardingDraftIdLocationRoute
+  SellOnboardingDraftIdPoliciesRoute: typeof SellOnboardingDraftIdPoliciesRoute
+  SellOnboardingDraftIdReviewRoute: typeof SellOnboardingDraftIdReviewRoute
+  SellOnboardingDraftIdSocialsRoute: typeof SellOnboardingDraftIdSocialsRoute
+  SellOnboardingDraftIdStoryRoute: typeof SellOnboardingDraftIdStoryRoute
+  SellOnboardingDraftIdVisualsRoute: typeof SellOnboardingDraftIdVisualsRoute
+  SellOnboardingDraftIdIndexRoute: typeof SellOnboardingDraftIdIndexRoute
+}
+
+const SellOnboardingDraftIdRouteChildren: SellOnboardingDraftIdRouteChildren = {
+  SellOnboardingDraftIdIdentityRoute: SellOnboardingDraftIdIdentityRoute,
+  SellOnboardingDraftIdListingRoute: SellOnboardingDraftIdListingRoute,
+  SellOnboardingDraftIdLocationRoute: SellOnboardingDraftIdLocationRoute,
+  SellOnboardingDraftIdPoliciesRoute: SellOnboardingDraftIdPoliciesRoute,
+  SellOnboardingDraftIdReviewRoute: SellOnboardingDraftIdReviewRoute,
+  SellOnboardingDraftIdSocialsRoute: SellOnboardingDraftIdSocialsRoute,
+  SellOnboardingDraftIdStoryRoute: SellOnboardingDraftIdStoryRoute,
+  SellOnboardingDraftIdVisualsRoute: SellOnboardingDraftIdVisualsRoute,
+  SellOnboardingDraftIdIndexRoute: SellOnboardingDraftIdIndexRoute,
+}
+
+const SellOnboardingDraftIdRouteWithChildren =
+  SellOnboardingDraftIdRoute._addFileChildren(
+    SellOnboardingDraftIdRouteChildren,
+  )
+
 interface ApiShopsShopIdOrdersRouteChildren {
   ApiShopsShopIdOrdersShopOrderIdRoute: typeof ApiShopsShopIdOrdersShopOrderIdRoute
 }
@@ -1212,9 +1479,12 @@ const rootRouteChildren: RootRouteChildren = {
   StudioShopIdRoute: StudioShopIdRouteWithChildren,
   AccountIndexRoute: AccountIndexRoute,
   AdminIndexRoute: AdminIndexRoute,
+  SellIndexRoute: SellIndexRoute,
   StudioIndexRoute: StudioIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiWebhooksMollieRoute: ApiWebhooksMollieRoute,
+  SellOnboardingDraftIdRoute: SellOnboardingDraftIdRouteWithChildren,
+  SellStatusShopIdRoute: SellStatusShopIdRoute,
   ApiAdminPayoutsPayoutIdRoute: ApiAdminPayoutsPayoutIdRoute,
   ApiShopsShopIdDashboardRoute: ApiShopsShopIdDashboardRoute,
   ApiShopsShopIdOrdersRoute: ApiShopsShopIdOrdersRouteWithChildren,

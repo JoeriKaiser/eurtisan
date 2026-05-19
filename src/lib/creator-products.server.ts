@@ -1,11 +1,9 @@
 import { rm } from 'node:fs/promises'
 import { join } from 'node:path'
-import { createServerFn } from '@tanstack/react-start'
 import { and, count, desc, eq, ilike, inArray, sql } from 'drizzle-orm'
 import z from 'zod'
 import { db } from '#/db/index'
 import { categories, product, productImage, shop } from '#/db/schema'
-import { authMiddleware } from './auth-middleware'
 import { deleteProductImages, type ProductImageInput, saveProductImages } from './image-utils'
 import { sanitizeRichText, validatePlainText } from './xss'
 
@@ -440,53 +438,6 @@ export async function listCreatorProductsInternal(data: {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                                Server Functions                            */
-/* -------------------------------------------------------------------------- */
-
-export const createProduct = createServerFn({ method: 'POST' })
-  .middleware([authMiddleware])
-  .inputValidator(createProductSchema.extend({ shopId: z.string().min(1) }))
-  .handler(async ({ context, data }) => {
-    if (!context.user) {
-      throw new Error('UNAUTHENTICATED')
-    }
-
-    const { requireRole, requireShopOwnership } = await import('./authz')
-    let ctx = requireRole('creator')({ user: context.user as never, session: {} as never })
-    ctx = await requireShopOwnership(ctx, data.shopId)
-
-    return createProductInternal(data)
-  })
-
-export const updateProduct = createServerFn({ method: 'POST' })
-  .middleware([authMiddleware])
-  .inputValidator(updateProductSchema)
-  .handler(async ({ context, data }) => {
-    if (!context.user) {
-      throw new Error('UNAUTHENTICATED')
-    }
-
-    const { requireRole } = await import('./authz')
-    requireRole('creator')({ user: context.user as never, session: {} as never })
-
-    return updateProductInternal({ ...data, shopId: data.shopId, userId: context.user.id })
-  })
-
-export const deleteProduct = createServerFn({ method: 'POST' })
-  .middleware([authMiddleware])
-  .inputValidator(deleteProductSchema)
-  .handler(async ({ context, data }) => {
-    if (!context.user) {
-      throw new Error('UNAUTHENTICATED')
-    }
-
-    const { requireRole } = await import('./authz')
-    requireRole('creator')({ user: context.user as never, session: {} as never })
-
-    return deleteProductInternal({ ...data, userId: context.user.id })
-  })
-
-/* -------------------------------------------------------------------------- */
 /*                            Get Product Detail                              */
 /* -------------------------------------------------------------------------- */
 
@@ -510,39 +461,6 @@ export async function getCreatorProductDetailInternal(productId: string, userId:
 
   return { ...productRecord, images }
 }
-
-export const getCreatorProductDetail = createServerFn({ method: 'GET' })
-  .middleware([authMiddleware])
-  .inputValidator(getCreatorProductDetailSchema)
-  .handler(async ({ context, data }) => {
-    if (!context.user) {
-      throw new Error('UNAUTHENTICATED')
-    }
-
-    const { requireRole } = await import('./authz')
-    requireRole('creator')({ user: context.user as never, session: {} as never })
-
-    return getCreatorProductDetailInternal(data.productId, context.user.id)
-  })
-
-/* -------------------------------------------------------------------------- */
-/*                             List Products                                  */
-/* -------------------------------------------------------------------------- */
-
-export const listCreatorProducts = createServerFn({ method: 'GET' })
-  .middleware([authMiddleware])
-  .inputValidator(listCreatorProductsSchema)
-  .handler(async ({ context, data }) => {
-    if (!context.user) {
-      throw new Error('UNAUTHENTICATED')
-    }
-
-    const { requireRole, requireShopOwnership } = await import('./authz')
-    let ctx = requireRole('creator')({ user: context.user as never, session: {} as never })
-    ctx = await requireShopOwnership(ctx, data.shopId)
-
-    return listCreatorProductsInternal(data)
-  })
 
 /* -------------------------------------------------------------------------- */
 /*                               Toggle Active                                */
@@ -572,17 +490,3 @@ export async function toggleProductActiveInternal(data: {
 
   return { productId: updated.id, isActive: updated.isActive }
 }
-
-export const toggleProductActive = createServerFn({ method: 'POST' })
-  .middleware([authMiddleware])
-  .inputValidator(toggleProductActiveSchema)
-  .handler(async ({ context, data }) => {
-    if (!context.user) {
-      throw new Error('UNAUTHENTICATED')
-    }
-
-    const { requireRole } = await import('./authz')
-    requireRole('creator')({ user: context.user as never, session: {} as never })
-
-    return toggleProductActiveInternal({ ...data, userId: context.user.id })
-  })

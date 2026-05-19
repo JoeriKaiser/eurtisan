@@ -3,7 +3,8 @@ import z from 'zod'
 import { authMiddleware } from './auth-middleware'
 
 export type { CreatorPayoutLine } from './payouts.server'
-export { PLATFORM_FEE_PERCENT } from './payouts.server'
+
+export const PLATFORM_FEE_PERCENT = 10
 
 /**
  * Returns paginated payout line items for a specific shop.

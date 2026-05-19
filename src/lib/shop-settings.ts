@@ -3,7 +3,6 @@ import z from 'zod'
 import { authMiddleware } from './auth-middleware'
 
 export type { ShopRecord, UpdateShopInput } from './shop-settings.server'
-export { ImageValidationError, SlugCollisionError } from './shop-settings.server'
 
 /* -------------------------------------------------------------------------- */
 /*                                   Schemas                                  */

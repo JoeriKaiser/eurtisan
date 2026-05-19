@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { useAuth } from '#/lib/auth-hooks'
 import type { listCategories } from '#/lib/categories'
 import type { FeaturedShop, RecentProduct } from '#/lib/products'
-import { becomeCreator } from '#/lib/server-auth'
 import CategoryCard from './CategoryCard'
 import ProductCard from './ProductCard'
 import SearchSidebar from './SearchSidebar'
@@ -18,26 +17,11 @@ function ShopCTA({
   children: React.ReactNode
   variant?: 'primary' | 'secondary'
 }) {
-  const router = useRouter()
   const { user } = useAuth()
-  const [upgrading, setUpgrading] = useState(false)
-
-  const handleBecomeCreator = async () => {
-    setUpgrading(true)
-    try {
-      await becomeCreator({ data: {} })
-      await router.invalidate()
-      window.location.reload()
-    } catch {
-      // Error handled by UI; user can retry
-    } finally {
-      setUpgrading(false)
-    }
-  }
 
   if (!user) {
     return (
-      <Link to='/signin' search={{ redirect: '/studio' }} className='no-underline'>
+      <Link to='/signin' search={{ redirect: '/sell' }} className='no-underline'>
         <Button
           variant={variant === 'secondary' ? 'secondary' : undefined}
           size='lg'
@@ -50,23 +34,8 @@ function ShopCTA({
     )
   }
 
-  if (user.role === 'customer') {
-    return (
-      <Button
-        variant={variant === 'secondary' ? 'secondary' : undefined}
-        size='lg'
-        className={variant === 'primary' ? 'gap-2' : undefined}
-        isLoading={upgrading}
-        onClick={handleBecomeCreator}
-      >
-        {children}
-        {variant === 'primary' && <ArrowRight size={18} />}
-      </Button>
-    )
-  }
-
   return (
-    <Link to='/studio' className='no-underline'>
+    <Link to='/sell' className='no-underline'>
       <Button
         variant={variant === 'secondary' ? 'secondary' : undefined}
         size='lg'
