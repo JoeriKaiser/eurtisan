@@ -60,12 +60,12 @@ function ImageUploader({
           <img
             src={value}
             alt={label}
-            className={`rounded-lg object-cover ${label.includes('Banner') ? 'h-40 w-full' : 'h-32 w-32'}`}
+            className={`rounded-lg object-cover shadow-md border border-border-default ${label.includes('Banner') ? 'h-40 w-full' : 'h-32 w-32'}`}
           />
           <button
             type='button'
             onClick={() => onChange('')}
-            className='absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-error text-on-primary shadow-sm transition hover:bg-error-hover'
+            className='absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-error text-text-on-primary shadow-md transition duration-fast hover:scale-115 hover:bg-error-hover'
             aria-label='Remove image'
           >
             <X size={14} />
@@ -77,13 +77,16 @@ function ImageUploader({
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
           onClick={() => inputRef.current?.click()}
-          className='mt-1 flex w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border-default bg-surface-default p-8 transition hover:border-accent-secondary hover:bg-bg-inset'
+          className='mt-1 flex w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border-default bg-surface-default p-8 shadow-sm transition-all duration-base ease-out hover:scale-[1.005] hover:border-accent-secondary hover:bg-accent-secondary/[0.03] hover:shadow-md'
         >
           {isUploading ? (
             <span className='text-sm text-text-muted'>Uploading…</span>
           ) : (
             <>
-              <ImagePlus size={32} className='mb-2 text-text-muted' />
+              <ImagePlus
+                size={32}
+                className='mb-2 text-text-muted transition-transform duration-base group-hover:scale-110'
+              />
               <span className='text-sm text-text-secondary'>Drag & drop or click to upload</span>
             </>
           )}

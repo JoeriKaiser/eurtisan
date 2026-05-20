@@ -252,20 +252,32 @@ export function Step1Identity() {
       <div>
         <Label required>Production type</Label>
         <div className='mt-2 grid gap-3 sm:grid-cols-2'>
-          {PRODUCTION_TYPES.map((type) => (
-            <button
-              key={type}
-              type='button'
-              onClick={() => setProductionType(type)}
-              className={`rounded-xl border p-4 text-left transition ${
-                productionType === type
-                  ? 'border-accent-primary bg-accent-primary/5'
-                  : 'border-border-default hover:border-accent-secondary'
-              }`}
-            >
-              <span className='font-medium text-text-primary'>{productionLabels[type]}</span>
-            </button>
-          ))}
+          {PRODUCTION_TYPES.map((type) => {
+            const isSelected = productionType === type
+            return (
+              <button
+                key={type}
+                type='button'
+                onClick={() => setProductionType(type)}
+                className={`flex items-center justify-between rounded-xl border-2 p-4 text-left shadow-sm transition-all duration-base ease-out hover:scale-[1.01] hover:shadow-md ${
+                  isSelected
+                    ? 'border-accent-primary bg-accent-primary/10'
+                    : 'border-border-default hover:border-accent-secondary bg-surface-default'
+                }`}
+              >
+                <span className='font-medium text-text-primary'>{productionLabels[type]}</span>
+                <span
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all duration-base ${
+                    isSelected
+                      ? 'border-accent-primary bg-accent-primary text-text-on-primary scale-110 shadow-sm'
+                      : 'border-border-strong bg-surface-elevated'
+                  }`}
+                >
+                  {isSelected && <Check size={12} strokeWidth={3} />}
+                </span>
+              </button>
+            )
+          })}
         </div>
         {errors.productionType && (
           <p className='mt-2 text-sm text-error'>{errors.productionType}</p>

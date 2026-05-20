@@ -1,3 +1,4 @@
+.antigravitycli
 node_modules
 .DS_Store
 dist
@@ -14,3 +15,9 @@ __unconfig*
 todos.json
 src/paraglide
 public/uploads
+e2e/test-results
+e2e/report
+e2e/.auth/*
+!e2e/.auth/.gitkeep
+e2e/screenshots
+

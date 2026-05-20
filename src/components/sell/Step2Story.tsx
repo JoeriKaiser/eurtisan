@@ -116,7 +116,7 @@ export function Step2Story() {
               key={prompt}
               type='button'
               onClick={() => setDescription((prev) => (prev ? `${prev}\n\n` : '') + prompt)}
-              className='rounded-full border border-border-default px-3 py-1 text-xs text-text-secondary transition hover:border-accent-secondary hover:text-text-primary'
+              className='rounded-full border border-border-default bg-surface-default px-3 py-1 text-xs text-text-secondary shadow-sm transition hover:scale-[1.02] hover:border-accent-primary hover:bg-accent-primary/5 hover:text-accent-primary duration-fast ease-out'
             >
               {prompt}
             </button>
@@ -131,9 +131,11 @@ export function Step2Story() {
           placeholder='Describe your shop, your process, and what buyers can expect...'
           error={errors.description}
         />
-        <div className='mt-1 flex justify-between text-xs text-text-muted'>
-          <span>{errors.description}</span>
-          <span>{description.length}/5000</span>
+        <div className='mt-1 flex items-center justify-between text-xs text-text-muted'>
+          <span className='text-error'>{errors.description}</span>
+          <span className='rounded border border-border-subtle bg-surface-inset px-2 py-0.5 font-mono text-[10px] font-medium text-text-secondary shadow-sm'>
+            {description.length} / 5000
+          </span>
         </div>
       </div>
 

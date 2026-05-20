@@ -1,4 +1,4 @@
-.PHONY: up down stop logs dev build preview start install lint format check test shell auth-secret db-generate db-migrate db-push db-studio init db-seed
+.PHONY: up down stop logs dev build preview start install lint format check test test-related shell auth-secret db-generate db-migrate db-push db-studio init db-seed FORCE
 
 # Docker Compose lifecycle
 up:
@@ -45,7 +45,31 @@ check: up
 
 # Testing
 test: up
-	docker compose exec app bun run test
+	docker compose exec app bun run test $(filter-out test,$(MAKECMDGOALS))
+
+test-related: up
+	docker compose exec app bunx vitest related $(filter-out test-related,$(MAKECMDGOALS)) --run
+
+e2e-install: up
+	docker compose exec app bunx playwright install --with-deps chromium
+
+e2e: up
+	docker compose exec app bunx playwright test
+
+e2e-ui:
+	@echo "Playwright UI mode requires a display server (X11/Wayland) and cannot run inside a headless Docker container."
+	@echo ""
+	@echo "Run it on your host machine after installing dependencies:"
+	@echo "  npx playwright install"
+	@echo "  npx playwright test --ui"
+	@echo ""
+	@echo "Alternatively, run the tests headless in Docker and view the report:"
+	@echo "  make e2e"
+	@echo "  make e2e-report"
+
+e2e-report: up
+	@if [ ! -f e2e/report/index.html ]; then echo "No report found. Run 'make e2e' first."; exit 1; fi
+	docker compose run --rm -p 9323:9323 app bun run e2e/serve-report.ts
 
 # Auth
 auth-secret: up
@@ -75,3 +99,10 @@ db-seed: up
 
 db-studio:
 	docker compose run --rm -p 4983:4983 app bun run db:studio
+
+# Catch-all rule to allow passing arbitrary arguments (like file paths) to test/other commands without Make complaining
+%: FORCE
+	@:
+
+FORCE:
+

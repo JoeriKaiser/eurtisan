@@ -77,7 +77,7 @@ vi.mock('#/paraglide/messages', () => ({
   },
 }))
 
-vi.mock('#/lib/creator-products.server', () => ({
+vi.mock('#/lib/creator-products', () => ({
   createProduct: vi.fn(),
 }))
 

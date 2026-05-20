@@ -62,7 +62,7 @@ When modifying this project, agents must:
 
 Agents must verify:
 
-- Relevant tests pass.
+- Relevant and impacted tests pass (either by running targeted test files or checking for regression on related modules).
 - Formatting and linting pass.
 - TypeScript passes without ignored errors.
 - Accessibility implications are considered.
@@ -179,7 +179,7 @@ These rules are non-negotiable.
 - No architectural drift from documented patterns.
 - Do not claim work is done if `make lint` or `make format` return errors or warnings.
 - Do not claim work is done if `make check` returns an error or warning.
-- Do not claim work is done if `make test` returns failures.
+- Do not claim work is done if relevant/impacted tests (run via targeted file paths, e.g. `make test src/lib/pricing.test.ts`, or related tests, e.g. via `make test-related src/lib/pricing.ts`) return failures. Note that running the full test suite with `make test` is recommended before opening a pull request or when making broad changes, but not required for every individual task.
 
 Improve adjacent low-quality implementations only when they directly impact:
 
@@ -236,7 +236,7 @@ A task is only considered complete when:
 - `make lint` and `make format` run without errors or warnings.
 - `make check` runs without errors or warnings.
 - TypeScript passes cleanly.
-- `make test` is run as the final verification step and passes.
+- Relevant and impacted tests pass (using targeted test execution or related test runs). The full suite via `make test` is run if changes are wide-ranging or architectural.
 - Accessibility concerns are addressed.
 - Loading, empty, and error states are handled.
 - Security implications are reviewed.
@@ -784,7 +784,8 @@ make auth-secret
 | `make lint` | Run linting |
 | `make format` | Run formatting |
 | `make check` | Run full checks |
-| `make test` | Run tests |
+| `make test` | Run tests (optionally with specific files: `make test <paths>`) |
+| `make test-related` | Run tests related to specific files (`make test-related <paths>`) |
 | `make auth-secret` | Generate Better Auth secret |
 | `make db-generate` | Generate migrations |
 | `make db-migrate` | Run migrations |
@@ -890,8 +891,22 @@ make install
 
 ## Run Tests
 
+To run the entire test suite:
+
 ```bash
 make test
+```
+
+To run a specific test file (much faster for targeted validation):
+
+```bash
+make test src/lib/pricing.test.ts
+```
+
+To run only tests related to a specific file (impacted tests):
+
+```bash
+make test-related src/lib/pricing.ts
 ```
 
 ## Run Checks

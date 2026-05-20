@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '#/db/index'
 import { payout, platformOrder, shop, shopOrder, user } from '#/db/schema'
 
-import { listCreatorPayoutsQuery, PLATFORM_FEE_PERCENT } from './payouts.server'
+import { listCreatorPayoutsQuery } from './payouts.server'
+import { PLATFORM_FEE_PERCENT } from './payouts'
 
 /* -------------------------------------------------------------------------- */
 /*                                  Helpers                                   */

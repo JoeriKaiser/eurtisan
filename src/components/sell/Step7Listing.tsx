@@ -38,14 +38,14 @@ function ImageUpload({
               className='h-full w-full rounded-lg object-cover'
             />
             {i === 0 && (
-              <span className='absolute left-1 top-1 rounded bg-accent-primary px-1.5 py-0.5 text-xs text-on-primary'>
+              <span className='absolute left-1 top-1 rounded bg-accent-primary px-1.5 py-0.5 text-xs text-text-on-primary'>
                 Cover
               </span>
             )}
             <button
               type='button'
               onClick={() => onChange(images.filter((_, idx) => idx !== i))}
-              className='absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-error text-on-primary transition hover:bg-error-hover'
+              className='absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-error text-text-on-primary transition hover:bg-error-hover'
               aria-label='Remove image'
             >
               <X size={12} />

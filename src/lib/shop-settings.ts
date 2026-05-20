@@ -89,7 +89,16 @@ export const updateShop = createServerFn({ method: 'POST' })
       const { shopId, ...input } = data
       const record = await updateShopInternal(shopId, input)
       return {
-        ...record,
+        id: record.id,
+        name: record.name,
+        slug: record.slug,
+        description: record.description,
+        status: record.status,
+        ownerId: record.ownerId,
+        image: record.image,
+        bannerImage: record.bannerImage,
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
         shippingOrigin: record.shippingOrigin as {
           street: string
           city: string

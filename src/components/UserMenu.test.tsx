@@ -4,8 +4,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { authClient } from '#/lib/auth-client'
-import { becomeCreator } from '#/lib/server-auth'
 import UserMenu from './UserMenu'
+
+const mockNavigate = vi.fn()
 
 vi.mock('@tanstack/react-router', () => ({
   Link: (props: { children: React.ReactNode; to: string }) => (
@@ -13,6 +14,7 @@ vi.mock('@tanstack/react-router', () => ({
   ),
   useRouter: () => ({
     invalidate: vi.fn().mockResolvedValue(undefined),
+    navigate: mockNavigate,
   }),
 }))
 
@@ -23,12 +25,7 @@ vi.mock('#/lib/auth-client', () => ({
   },
 }))
 
-vi.mock('#/lib/server-auth', () => ({
-  becomeCreator: vi.fn(),
-}))
-
 const mockUseSession = authClient.useSession as unknown as ReturnType<typeof vi.fn>
-const mockBecomeCreator = becomeCreator as unknown as ReturnType<typeof vi.fn>
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -153,7 +150,7 @@ describe('UserMenu', () => {
     expect(screen.getByText('My Studio')).toBeDefined()
   })
 
-  it('calls becomeCreator and reloads on success', async () => {
+  it('navigates to /sell when clicking Become a Creator', async () => {
     mockUseSession.mockReturnValue({
       data: {
         user: {
@@ -167,15 +164,13 @@ describe('UserMenu', () => {
       },
       isPending: false,
     })
-    mockBecomeCreator.mockResolvedValue({ id: 'user-1', role: 'creator' })
 
     render(<UserMenu />)
     fireEvent.click(screen.getByRole('button', { name: /open user menu/i }))
     fireEvent.click(screen.getByText('Become a Creator'))
 
     await waitFor(() => {
-      expect(mockBecomeCreator).toHaveBeenCalledTimes(1)
+      expect(mockNavigate).toHaveBeenCalledWith({ to: '/sell' })
     })
-    expect(window.location.reload).toHaveBeenCalledTimes(1)
   })
 })

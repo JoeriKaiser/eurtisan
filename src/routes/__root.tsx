@@ -5,6 +5,7 @@ import {
   createRootRouteWithContext,
   HeadContent,
   Scripts,
+  useLocation,
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { m } from '#/paraglide/messages'
@@ -60,6 +61,9 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  const location = useLocation()
+  const isOnboarding = location.pathname.includes('/sell/onboarding/')
+
   return (
     <html lang={getLocale()} suppressHydrationWarning>
       <head>
@@ -70,7 +74,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <CartProvider>
           <Header />
           {children}
-          <Footer />
+          {!isOnboarding && <Footer />}
         </CartProvider>
         <LocaleSwitcher />
         <ClientOnly>

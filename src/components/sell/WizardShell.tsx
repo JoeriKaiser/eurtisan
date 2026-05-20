@@ -75,9 +75,9 @@ export function WizardShell({ draftId, currentStep, saveIndicator, children }: P
         : 'Saved'
 
   return (
-    <div className='flex min-h-[calc(100vh-4rem)] flex-col md:flex-row'>
+    <div className='flex h-auto min-h-[calc(100vh-65px)] flex-col md:h-[calc(100vh-65px)] md:min-h-0 md:flex-row md:overflow-hidden'>
       {/* Sidebar / Mobile Stepper */}
-      <aside className='border-b border-border-default bg-surface-default md:w-64 md:border-b-0 md:border-r'>
+      <aside className='border-b border-border-default bg-surface-default md:w-64 md:border-b-0 md:border-r md:h-full md:overflow-y-auto'>
         <div className='p-4 md:p-6'>
           <h2 className='mb-4 hidden text-sm font-semibold uppercase tracking-wider text-text-muted md:block'>
             Shop Setup
@@ -93,7 +93,7 @@ export function WizardShell({ draftId, currentStep, saveIndicator, children }: P
                 disabled={!canNavigateToStep(step.id)}
                 className={`flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-sm transition ${
                   step.id === activeStep
-                    ? 'bg-accent-primary text-on-primary'
+                    ? 'bg-accent-primary text-text-on-primary'
                     : step.id < currentStep
                       ? 'text-accent-primary'
                       : 'text-text-muted'
@@ -102,7 +102,7 @@ export function WizardShell({ draftId, currentStep, saveIndicator, children }: P
                 <span
                   className={`flex h-5 w-5 items-center justify-center rounded-full text-xs ${
                     step.id <= currentStep
-                      ? 'bg-accent-primary text-on-primary'
+                      ? 'bg-accent-primary text-text-on-primary'
                       : 'bg-surface-inset text-text-muted'
                   }`}
                 >
@@ -137,9 +137,9 @@ export function WizardShell({ draftId, currentStep, saveIndicator, children }: P
                   <span
                     className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs ${
                       isActive
-                        ? 'bg-accent-primary text-on-primary'
+                        ? 'bg-accent-primary text-text-on-primary'
                         : isCompleted
-                          ? 'bg-success text-on-primary'
+                          ? 'bg-success text-text-on-primary'
                           : 'bg-surface-inset text-text-muted'
                     }`}
                   >
@@ -154,7 +154,7 @@ export function WizardShell({ draftId, currentStep, saveIndicator, children }: P
       </aside>
 
       {/* Main Content */}
-      <div className='flex flex-1 flex-col'>
+      <div className='flex flex-1 flex-col md:h-full md:overflow-hidden'>
         {/* Top Bar */}
         <header className='flex items-center justify-between border-b border-border-default px-4 py-3 md:px-8'>
           <div className='flex items-center gap-2 text-sm text-text-muted'>
@@ -168,7 +168,7 @@ export function WizardShell({ draftId, currentStep, saveIndicator, children }: P
         </header>
 
         {/* Step Content */}
-        <main className='flex-1 px-4 py-6 md:px-8'>
+        <main className='flex-1 overflow-y-auto px-4 py-6 md:px-8'>
           <div className='mx-auto max-w-2xl'>{children}</div>
         </main>
 
