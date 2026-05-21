@@ -7,9 +7,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 /*                          Hoisted data for mock factories                   */
 /* -------------------------------------------------------------------------- */
 
-const { mockModerateShop, mockNavigateFn } = vi.hoisted(() => ({
+const {
+  mockModerateShop,
+  mockNavigateFn,
+  mockGetShopDraft,
+  mockGetShopDraftListings,
+  mockGetShopsForModeration,
+  mockModerateShopApplication,
+} = vi.hoisted(() => ({
   mockModerateShop: vi.fn(),
   mockNavigateFn: vi.fn(),
+  mockGetShopDraft: vi.fn(),
+  mockGetShopDraftListings: vi.fn(),
+  mockGetShopsForModeration: vi.fn(),
+  mockModerateShopApplication: vi.fn(),
 }))
 
 /* -------------------------------------------------------------------------- */
@@ -74,11 +85,14 @@ const goodShopsData = {
   pageSize: 20,
 }
 
+let activeLoaderData: unknown = { view: 'moderation', shops: goodShopsData }
+let activeSearch: unknown = { view: 'moderation', filter: 'all', page: 1, pageSize: 20 }
+
 vi.mock('@tanstack/react-router', () => ({
   createFileRoute: () => {
     const routeObj = {
-      useLoaderData: () => goodShopsData,
-      useSearch: () => ({ filter: 'all', page: 1, pageSize: 20 }),
+      useLoaderData: () => activeLoaderData,
+      useSearch: () => activeSearch,
       useNavigate: () => mockNavigateFn,
     }
     return () => routeObj
@@ -114,6 +128,13 @@ vi.mock('#/paraglide/messages', () => ({
 vi.mock('#/lib/shop-moderation', () => ({
   listAllShops: vi.fn(),
   moderateShop: mockModerateShop,
+}))
+
+vi.mock('#/lib/sell-onboarding', () => ({
+  getShopDraft: mockGetShopDraft,
+  getShopDraftListings: mockGetShopDraftListings,
+  getShopsForModeration: mockGetShopsForModeration,
+  moderateShop: mockModerateShopApplication,
 }))
 
 vi.mock('#/lib/route-guards', () => ({
@@ -434,5 +455,196 @@ describe('AdminShopsPage — pagination', () => {
         replace: true,
       }),
     )
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/*                        Onboarding Review Flow                              */
+/* -------------------------------------------------------------------------- */
+
+describe('AdminShopsPage — onboarding applications view', () => {
+  const mockApplications = [
+    {
+      id: 'app-1',
+      name: 'Artisan Goods',
+      slug: 'artisan-goods',
+      ownerName: 'Alice Onboard',
+      ownerEmail: 'alice.onboard@example.com',
+      status: 'pending_review',
+      resubmissionCount: 1,
+      submittedAt: new Date('2026-05-10T10:00:00.000Z').toISOString(),
+    },
+    {
+      id: 'app-2',
+      name: 'Cozy Knits',
+      slug: 'cozy-knits',
+      ownerName: 'Bob Wool',
+      ownerEmail: 'bob.wool@example.com',
+      status: 'changes_requested',
+      resubmissionCount: 2,
+      submittedAt: new Date('2026-05-11T12:00:00.000Z').toISOString(),
+    },
+  ]
+
+  beforeEach(() => {
+    activeLoaderData = { view: 'applications', applications: mockApplications }
+    activeSearch = { view: 'applications', status: 'all', page: 1, pageSize: 20 }
+    mockNavigateFn.mockClear()
+    mockGetShopDraft.mockClear()
+    mockGetShopDraftListings.mockClear()
+    mockModerateShopApplication.mockClear()
+  })
+
+  it('renders application queue instead of shops table', () => {
+    render(<AdminShopsPage />)
+
+    expect(screen.getByText('Artisan Goods')).toBeDefined()
+    expect(screen.getByText('Cozy Knits')).toBeDefined()
+    expect(screen.getByText('Alice Onboard')).toBeDefined()
+    expect(screen.getByText('Bob Wool')).toBeDefined()
+    expect(screen.getAllByText('admin_shops_review_details').length).toBe(2)
+
+    // Should not render Ceramics Co (from default shops table)
+    expect(screen.queryByText('Ceramics Co')).toBeNull()
+  })
+
+  it('navigates when view tabs are clicked', () => {
+    render(<AdminShopsPage />)
+
+    const moderationTab = screen.getByRole('tab', { name: 'admin_shops_view_moderation' })
+    fireEvent.click(moderationTab)
+
+    expect(mockNavigateFn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: '/admin/shops',
+        search: expect.objectContaining({ view: 'moderation', page: 1 }),
+        replace: true,
+      }),
+    )
+  })
+
+  it('opens detailed review dialog and fetches data', async () => {
+    const mockDraftDetails = {
+      id: 'app-1',
+      name: 'Artisan Goods',
+      slug: 'artisan-goods',
+      tagline: 'Lovely handcrafted items',
+      description: 'We make quality artisan items.',
+      category: 'crafts',
+      tags: ['wool', 'wood'],
+      image: 'logo.png',
+      bannerImage: 'banner.png',
+      languages: ['English', 'German'],
+      shippingOrigin: {
+        city: 'Munich',
+        country: 'Germany',
+        processingTimeDays: { min: 2, max: 5 },
+        shipsInternational: true,
+      },
+      policies: {
+        returns: { accepted: true, windowDays: 14, conditions: 'Unused' },
+        exchanges: { accepted: false },
+      },
+      status: 'pending_review',
+      resubmissionCount: 1,
+      submittedAt: new Date('2026-05-10T10:00:00.000Z').toISOString(),
+      socials: [{ id: 'soc-1', platform: 'instagram', url: 'https://instagram.com/artisan' }],
+    }
+
+    const mockDraftListings = {
+      products: [
+        {
+          id: 'prod-1',
+          name: 'Cozy Wool Socks',
+          priceCents: 1500,
+          stockCount: 10,
+          imageCount: 1,
+          thumbnailUrl: 'socks.png',
+          description: 'Keep your feet warm.',
+        },
+      ],
+    }
+
+    mockGetShopDraft.mockResolvedValueOnce(mockDraftDetails)
+    mockGetShopDraftListings.mockResolvedValueOnce(mockDraftListings)
+
+    render(<AdminShopsPage />)
+
+    const reviewButtons = screen.getAllByText('admin_shops_review_details')
+    fireEvent.click(reviewButtons[0])
+
+    await waitFor(() => {
+      expect(mockGetShopDraft).toHaveBeenCalledWith({ data: { draftId: 'app-1' } })
+      expect(mockGetShopDraftListings).toHaveBeenCalledWith({ data: { shopId: 'app-1' } })
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('admin_shops_application_details_title')).toBeDefined()
+      expect(screen.getByText('Lovely handcrafted items')).toBeDefined()
+      expect(screen.getByText('We make quality artisan items.')).toBeDefined()
+      expect(screen.getByText('Cozy Wool Socks')).toBeDefined()
+      expect(screen.getByText(/15,00/)).toBeDefined()
+    })
+  })
+
+  it('performs review approval action successfully', async () => {
+    mockGetShopDraft.mockResolvedValueOnce({
+      id: 'app-1',
+      name: 'Artisan Goods',
+      status: 'pending_review',
+      tags: [],
+      languages: [],
+    })
+    mockGetShopDraftListings.mockResolvedValueOnce({ products: [] })
+    mockModerateShopApplication.mockResolvedValueOnce({ status: 'approved' })
+
+    render(<AdminShopsPage />)
+
+    const reviewButtons = screen.getAllByText('admin_shops_review_details')
+    fireEvent.click(reviewButtons[0])
+
+    await waitFor(() => {
+      expect(screen.getByText('admin_shops_review_approve')).toBeDefined()
+    })
+
+    const approveBtn = screen.getByRole('button', { name: 'admin_shops_review_approve' })
+    fireEvent.click(approveBtn)
+
+    await waitFor(() => {
+      expect(mockModerateShopApplication).toHaveBeenCalledWith({
+        data: { shopId: 'app-1', action: 'approve', note: undefined },
+      })
+      expect(screen.getByText('admin_shops_review_success')).toBeDefined()
+    })
+  })
+
+  it('shows error if requesting changes without a note', async () => {
+    mockGetShopDraft.mockResolvedValueOnce({
+      id: 'app-1',
+      name: 'Artisan Goods',
+      status: 'pending_review',
+      tags: [],
+      languages: [],
+    })
+    mockGetShopDraftListings.mockResolvedValueOnce({ products: [] })
+
+    render(<AdminShopsPage />)
+
+    const reviewButtons = screen.getAllByText('admin_shops_review_details')
+    fireEvent.click(reviewButtons[0])
+
+    await waitFor(() => {
+      expect(screen.getByText('admin_shops_review_request_changes')).toBeDefined()
+    })
+
+    const requestBtn = screen.getByRole('button', { name: 'admin_shops_review_request_changes' })
+    fireEvent.click(requestBtn)
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/admin_shops_review_note_required/).length).toBeGreaterThanOrEqual(
+        1,
+      )
+      expect(mockModerateShopApplication).not.toHaveBeenCalled()
+    })
   })
 })

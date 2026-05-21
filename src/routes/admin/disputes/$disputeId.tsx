@@ -18,10 +18,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
 import { Input } from '#/components/ui/input'
 import { addDisputeMessage, getDisputeDetail, resolveDispute } from '#/lib/disputes'
 import { formatPriceEUR } from '#/lib/pricing'
-import { guardRole } from '#/lib/route-guards'
 
 export const Route = createFileRoute('/admin/disputes/$disputeId')({
-  beforeLoad: async () => guardRole('admin'),
   loader: async ({ params }) => {
     try {
       const dispute = await getDisputeDetail({ data: { disputeId: params.disputeId } })
@@ -378,7 +376,7 @@ export function AdminDisputeDetailPage() {
   }, [router])
 
   return (
-    <main className='page-wrap px-4 py-12'>
+    <div className='py-8'>
       <div className='mx-auto max-w-4xl'>
         {/* Header */}
         <div className='mb-6 flex flex-wrap items-center justify-between gap-4'>
@@ -573,13 +571,13 @@ export function AdminDisputeDetailPage() {
           )}
         </div>
       </div>
-    </main>
+    </div>
   )
 }
 
 export function AdminDisputeDetailPending() {
   return (
-    <main className='page-wrap px-4 py-12'>
+    <div className='py-8'>
       <div className='mx-auto max-w-4xl'>
         <div className='mb-6 h-4 w-32 animate-pulse rounded bg-[var(--sand)]' />
         <div className='mb-8 h-8 w-64 animate-pulse rounded bg-[var(--sand)]' />
@@ -589,13 +587,13 @@ export function AdminDisputeDetailPending() {
           ))}
         </div>
       </div>
-    </main>
+    </div>
   )
 }
 
 export function AdminDisputeDetailError({ error }: { error: Error }) {
   return (
-    <main className='page-wrap px-4 py-12'>
+    <div className='py-8'>
       <div className='mx-auto max-w-4xl text-center'>
         <AlertTriangle size={48} className='mx-auto mb-4 text-error' aria-hidden='true' />
         <h1 className='display-title mb-4 text-2xl font-bold text-text-primary'>
@@ -611,6 +609,6 @@ export function AdminDisputeDetailError({ error }: { error: Error }) {
           Back to queue
         </Link>
       </div>
-    </main>
+    </div>
   )
 }

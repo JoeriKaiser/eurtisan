@@ -440,14 +440,38 @@ export const getShopsForModeration = createServerFn({ method: 'GET' })
     return getShopsForModerationInternal(data.status)
   })
 
-/**
- * Admin moderation action on a shop.
- */
 export const moderateShop = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
   .inputValidator(moderationActionSchema)
   .handler(async ({ context, data }) => {
     if (!context.user || context.user.role !== 'admin') throw new Error('FORBIDDEN')
     const { moderateShopInternal } = await import('./sell-onboarding.server')
-    return moderateShopInternal(context.user.id, data)
+    const result = await moderateShopInternal(context.user.id, data)
+
+    const { emitAuditEvent } = await import('./audit-log.server')
+    await emitAuditEvent(context.user, `shop.${data.action}`, 'shop', data.shopId, {
+      note: data.note,
+    })
+
+    return result
+  })
+
+/**
+ * Fetch draft listings for a shop. Accessible by owner or admin.
+ */
+export const getShopDraftListings = createServerFn({ method: 'GET' })
+  .middleware([authMiddleware])
+  .inputValidator(z.object({ shopId: z.string().min(1) }))
+  .handler(async ({ context, data }) => {
+    if (!context.user) throw new Error('UNAUTHENTICATED')
+    const { verifyShopOwnershipOrAdmin } = await import('./sell-onboarding.server')
+    await verifyShopOwnershipOrAdmin(data.shopId, context.user.id, context.user.role)
+
+    const { listCreatorProductsInternal } = await import('./creator-products.server')
+    return listCreatorProductsInternal({
+      shopId: data.shopId,
+      page: 1,
+      pageSize: 50,
+      active: 'all',
+    })
   })

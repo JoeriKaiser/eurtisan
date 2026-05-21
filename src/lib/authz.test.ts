@@ -51,6 +51,8 @@ function makeUser(
     emailVerified: true,
     image: null,
     role,
+    bannedAt: null,
+    banReason: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,

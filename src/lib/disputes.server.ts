@@ -1,4 +1,4 @@
-import { asc, count, eq } from 'drizzle-orm'
+import { and, asc, count, eq, ilike, or, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import z from 'zod'
 import { db } from '#/db/index'
@@ -367,9 +367,27 @@ export async function addDisputeMessageQuery(
 export async function listOpenDisputesQuery(params: {
   page: number
   pageSize: number
+  status?: 'all' | 'open' | 'resolved'
+  query?: string
 }): Promise<PaginatedDisputes> {
-  const { page, pageSize } = params
+  const { page, pageSize, status: statusFilter = 'open', query } = params
   const offset = (page - 1) * pageSize
+
+  const conditions = []
+  if (statusFilter !== 'all') {
+    conditions.push(eq(dispute.status, statusFilter))
+  }
+
+  if (query) {
+    const pattern = `%${query}%`
+    conditions.push(
+      or(
+        ilike(user.name, pattern),
+        ilike(creatorUser.name, pattern),
+        ilike(sql`${dispute.shopOrderId}::text`, pattern),
+      ),
+    )
+  }
 
   const baseQuery = db
     .select({
@@ -392,11 +410,13 @@ export async function listOpenDisputesQuery(params: {
     .innerJoin(user, eq(dispute.buyerUserId, user.id))
     .innerJoin(shop, eq(shopOrder.shopId, shop.id))
     .leftJoin(creatorUser, eq(shop.ownerId, creatorUser.id))
-    .where(eq(dispute.status, 'open'))
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+
+  const countWhere = conditions.length > 0 ? and(...conditions) : undefined
 
   const [rows, totalResult] = await Promise.all([
     baseQuery.orderBy(asc(dispute.createdAt)).limit(pageSize).offset(offset),
-    db.select({ count: count() }).from(dispute).where(eq(dispute.status, 'open')),
+    db.select({ count: count() }).from(dispute).where(countWhere),
   ])
 
   return {

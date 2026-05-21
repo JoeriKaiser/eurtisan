@@ -837,9 +837,9 @@ function ProductEditForm({
 
             {/* Right column: images */}
             <div>
-              <label className='mb-2 block text-sm font-medium text-text-primary'>
+              <span className='mb-2 block text-sm font-medium text-text-primary'>
                 {m.creator_product_new_images_label()}
-              </label>
+              </span>
               <p className='mb-3 text-xs text-text-muted'>{m.creator_product_edit_images_hint()}</p>
 
               {/* Image gallery */}

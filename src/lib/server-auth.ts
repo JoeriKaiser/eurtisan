@@ -13,6 +13,7 @@ export interface SafeUser {
   emailVerified: boolean
   image: string | null
   role: UserRole
+  bannedAt: Date | null
 }
 
 const ROLE_HIERARCHY: Record<UserRole, number> = {
@@ -41,6 +42,9 @@ export const requireAuthUser = createServerFn({ method: 'GET' })
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
     }
+    if (context.user.bannedAt) {
+      throw new Error('BANNED')
+    }
     return context.user
   })
 
@@ -54,6 +58,9 @@ export const requireRoleUser = createServerFn({ method: 'GET' })
   .handler(async ({ context, data }): Promise<SafeUser> => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
+    }
+    if (context.user.bannedAt) {
+      throw new Error('BANNED')
     }
     const userLevel = ROLE_HIERARCHY[context.user.role] ?? -1
     const requiredLevel = ROLE_HIERARCHY[data.minRole]

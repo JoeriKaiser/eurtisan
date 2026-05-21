@@ -10,7 +10,6 @@ import type { PaginatedAdminOrders } from '#/lib/admin-orders'
 import { listAllPlatformOrders } from '#/lib/admin-orders'
 import { statusBadgeVariant } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
-import { guardRole } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
 
 /* -------------------------------------------------------------------------- */
@@ -19,15 +18,24 @@ import { m } from '#/paraglide/messages'
 
 const ordersSearchSchema = z.object({
   query: z.string().optional().default(''),
+  from: z.string().optional().default(''),
+  to: z.string().optional().default(''),
+  statuses: z.array(z.string()).optional().default([]),
+  sortBy: z.enum(['createdAt', 'totalCents']).optional().default('createdAt'),
+  sortDir: z.enum(['asc', 'desc']).optional().default('desc'),
   page: z.coerce.number().int().min(1).optional().default(1),
   pageSize: z.coerce.number().int().min(1).optional().default(20),
 })
 
 export const Route = createFileRoute('/admin/orders')({
-  beforeLoad: async () => guardRole('admin'),
   validateSearch: ordersSearchSchema,
-  loaderDeps: ({ search: { query, page, pageSize } }) => ({
+  loaderDeps: ({ search: { query, from, to, statuses, sortBy, sortDir, page, pageSize } }) => ({
     query,
+    from,
+    to,
+    statuses,
+    sortBy,
+    sortDir,
     page,
     pageSize,
   }),
@@ -35,6 +43,9 @@ export const Route = createFileRoute('/admin/orders')({
     return listAllPlatformOrders({
       data: {
         query: deps.query || undefined,
+        from: deps.from || undefined,
+        to: deps.to || undefined,
+        statuses: deps.statuses.length > 0 ? deps.statuses : undefined,
         page: deps.page,
         pageSize: deps.pageSize,
       },
@@ -53,6 +64,18 @@ export const Route = createFileRoute('/admin/orders')({
 /* -------------------------------------------------------------------------- */
 
 const PAGE_SIZES = [10, 20, 50] as const
+
+const ORDER_STATUSES = [
+  'pending_payment',
+  'paid',
+  'processing',
+  'shipped',
+  'delivered',
+  'completed',
+  'cancelled',
+  'refunded',
+  'disputed',
+] as const
 
 function formatDate(date: Date | string): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -82,7 +105,7 @@ export function AdminOrdersPage() {
 
   // --- Pagination helpers ---
   const navigateWithParams = useCallback(
-    (overrides: Record<string, string | number>) => {
+    (overrides: Record<string, string | number | string[]>) => {
       navigate({
         to: '/admin/orders',
         search: { ...search, ...overrides },
@@ -112,6 +135,17 @@ export function AdminOrdersPage() {
     [handleSearch],
   )
 
+  const handleSort = useCallback(
+    (column: 'createdAt' | 'totalCents') => {
+      if (search.sortBy === column) {
+        navigateWithParams({ sortDir: search.sortDir === 'asc' ? 'desc' : 'asc', page: 1 })
+      } else {
+        navigateWithParams({ sortBy: column, sortDir: 'desc', page: 1 })
+      }
+    },
+    [navigateWithParams, search.sortBy, search.sortDir],
+  )
+
   const handlePageChange = useCallback(
     (page: number) => {
       navigateWithParams({ page })
@@ -126,20 +160,81 @@ export function AdminOrdersPage() {
     [navigateWithParams],
   )
 
+  const toggleStatus = useCallback(
+    (status: string) => {
+      const current = search.statuses ?? []
+      const next = current.includes(status)
+        ? current.filter((s) => s !== status)
+        : [...current, status]
+      navigateWithParams({ statuses: next, page: 1 })
+    },
+    [navigateWithParams, search.statuses],
+  )
+
+  const handleDateChange = useCallback(
+    (field: 'from' | 'to', value: string) => {
+      navigateWithParams({ [field]: value, page: 1 })
+    },
+    [navigateWithParams],
+  )
+
+  const clearFilters = useCallback(() => {
+    setSearchValue('')
+    navigateWithParams({
+      query: '',
+      from: '',
+      to: '',
+      statuses: [],
+      page: 1,
+    })
+  }, [navigateWithParams])
+
+  const hasFilters = search.query || search.from || search.to || (search.statuses?.length ?? 0) > 0
+
   /* ---- Compute pagination ---- */
   const totalPages = Math.max(1, Math.ceil(orders.total / orders.pageSize))
 
-  return (
-    <main className='page-wrap px-4 py-12'>
-      <div className='mx-auto max-w-6xl space-y-6'>
-        {/* Header */}
-        <div>
-          <h1 className='display-title text-3xl font-bold text-text-primary'>
-            {m.admin_orders_title()}
-          </h1>
-          <p className='mt-1 text-text-secondary'>{m.admin_orders_description()}</p>
-        </div>
+  const SortHeader = ({
+    column,
+    children,
+  }: {
+    column: 'createdAt' | 'totalCents'
+    children: React.ReactNode
+  }) => {
+    const isSorted = search.sortBy === column
+    const dir = search.sortDir ?? 'desc'
+    return (
+      <button
+        type='button'
+        onClick={() => handleSort(column)}
+        className='flex items-center gap-1 font-semibold text-text-secondary hover:text-text-primary transition-colors cursor-pointer'
+      >
+        {children}
+        {isSorted && (
+          <span className='text-text-muted'>
+            {dir === 'asc' ? (
+              <ChevronLeft size={14} className='rotate-90' />
+            ) : (
+              <ChevronLeft size={14} className='-rotate-90' />
+            )}
+          </span>
+        )}
+      </button>
+    )
+  }
 
+  return (
+    <div className='space-y-6'>
+      {/* Header */}
+      <div>
+        <h1 className='display-title text-3xl font-bold text-text-primary'>
+          {m.admin_orders_title()}
+        </h1>
+        <p className='mt-1 text-text-secondary'>{m.admin_orders_description()}</p>
+      </div>
+
+      {/* Filters */}
+      <div className='flex flex-col gap-4'>
         {/* Search bar */}
         <div className='flex gap-2'>
           <div className='relative flex-1'>
@@ -172,157 +267,200 @@ export function AdminOrdersPage() {
           <Button onClick={handleSearch} aria-label={m.admin_orders_search_button()}>
             {m.admin_orders_search_button()}
           </Button>
+          {hasFilters && (
+            <Button variant='ghost' onClick={clearFilters}>
+              {m.admin_common_clear_filters()}
+            </Button>
+          )}
         </div>
 
-        {/* Active search indicator */}
-        {search.query && (
-          <p className='text-sm text-text-secondary'>
-            {m.admin_orders_showing({
-              from: String((orders.page - 1) * orders.pageSize + 1),
-              to: String(Math.min(orders.page * orders.pageSize, orders.total)),
-              total: String(orders.total),
-            })}
-          </p>
-        )}
-
-        {/* Results */}
-        {orders.orders.length === 0 ? (
-          <Card variant='elevated'>
-            <CardContent className='p-8 text-center'>
-              <Inbox size={48} className='mx-auto mb-4 text-text-muted' aria-hidden='true' />
-              <p className='text-text-secondary'>
-                {search.query ? m.admin_orders_empty_search() : m.admin_orders_empty()}
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className='overflow-x-auto'>
-            <table className='w-full text-left text-sm'>
-              <thead>
-                <tr className='border-b border-border-default'>
-                  <th className='pb-3 pr-4 font-medium text-text-secondary'>
-                    {m.admin_orders_col_order()}
-                  </th>
-                  <th className='pb-3 pr-4 font-medium text-text-secondary hidden sm:table-cell'>
-                    {m.admin_orders_col_buyer()}
-                  </th>
-                  <th className='pb-3 pr-4 font-medium text-text-secondary'>
-                    {m.admin_orders_col_status()}
-                  </th>
-                  <th className='pb-3 pr-4 font-medium text-text-secondary hidden md:table-cell'>
-                    {m.admin_orders_col_shops()}
-                  </th>
-                  <th className='pb-3 pr-4 font-medium text-text-secondary hidden lg:table-cell'>
-                    {m.admin_orders_col_total()}
-                  </th>
-                  <th className='pb-3 pr-4 font-medium text-text-secondary hidden lg:table-cell'>
-                    {m.admin_orders_col_date()}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.orders.map((order) => (
-                  <tr
-                    key={order.id}
-                    className='border-b border-border-subtle transition-colors hover:bg-bg-inset'
+        {/* Date range + status filters */}
+        <div className='flex flex-wrap items-end gap-3'>
+          <div className='flex flex-col gap-1'>
+            <label htmlFor='date-from' className='text-xs font-medium text-text-muted'>
+              {m.admin_orders_date_from()}
+            </label>
+            <input
+              id='date-from'
+              type='date'
+              value={search.from ?? ''}
+              onChange={(e) => handleDateChange('from', e.target.value)}
+              className='h-9 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
+            />
+          </div>
+          <div className='flex flex-col gap-1'>
+            <label htmlFor='date-to' className='text-xs font-medium text-text-muted'>
+              {m.admin_orders_date_to()}
+            </label>
+            <input
+              id='date-to'
+              type='date'
+              value={search.to ?? ''}
+              onChange={(e) => handleDateChange('to', e.target.value)}
+              className='h-9 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
+            />
+          </div>
+          <div className='flex flex-col gap-1'>
+            <span className='text-xs font-medium text-text-muted'>
+              {m.admin_orders_status_filter()}
+            </span>
+            <div className='flex flex-wrap gap-1'>
+              {ORDER_STATUSES.map((status) => {
+                const active = search.statuses?.includes(status)
+                return (
+                  <button
+                    key={status}
+                    type='button'
+                    onClick={() => toggleStatus(status)}
+                    className={`rounded-md border px-2 py-1 text-xs font-medium transition-colors ${
+                      active
+                        ? 'border-accent-primary bg-accent-primary/10 text-accent-primary'
+                        : 'border-border-default text-text-secondary hover:text-text-primary'
+                    }`}
                   >
-                    <td className='py-3 pr-4'>
-                      <Link
-                        to='/admin/orders/$platformOrderId'
-                        params={{ platformOrderId: order.id }}
-                        className='font-mono text-sm font-medium text-accent-primary hover:underline no-underline'
-                      >
-                        {order.id.slice(0, 8)}…
-                      </Link>
-                    </td>
-                    <td className='py-3 pr-4 hidden sm:table-cell'>
-                      <div>
-                        <p className='font-medium text-text-primary'>{order.buyerName}</p>
-                        <p className='text-xs text-text-muted'>{order.buyerEmail}</p>
-                      </div>
-                    </td>
-                    <td className='py-3 pr-4'>
-                      <Badge variant={statusBadgeVariant(order.status)}>
-                        {statusLabel(order.status)}
-                      </Badge>
-                    </td>
-                    <td className='py-3 pr-4 hidden md:table-cell'>
-                      <span className='text-text-secondary'>{order.shopCount}</span>
-                    </td>
-                    <td className='py-3 pr-4 hidden lg:table-cell'>
-                      <span className='font-medium text-text-primary tabular-nums'>
-                        {formatPriceEUR(order.totalCents)}
-                      </span>
-                    </td>
-                    <td className='py-3 pr-4 hidden lg:table-cell'>
-                      <span className='text-text-secondary'>{formatDate(order.createdAt)}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Pagination */}
-        {orders.orders.length > 0 && (
-          <div className='flex flex-col items-center gap-3 sm:flex-row sm:justify-between'>
-            <div className='flex items-center gap-3'>
-              <p className='text-sm text-text-secondary'>
-                {m.admin_orders_showing({
-                  from: String((orders.page - 1) * orders.pageSize + 1),
-                  to: String(Math.min(orders.page * orders.pageSize, orders.total)),
-                  total: String(orders.total),
-                })}
-              </p>
-              <select
-                value={orders.pageSize}
-                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                className='h-8 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary'
-                aria-label={m.admin_orders_page_size_label()}
-              >
-                {PAGE_SIZES.map((size) => (
-                  <option key={size} value={size}>
-                    {size}
-                  </option>
-                ))}
-              </select>
+                    {statusLabel(status)}
+                  </button>
+                )
+              })}
             </div>
-
-            {totalPages > 1 && (
-              <nav className='flex items-center gap-4' aria-label={m.admin_orders_pagination()}>
-                <Button
-                  variant='secondary'
-                  size='sm'
-                  disabled={orders.page <= 1}
-                  onClick={() => handlePageChange(orders.page - 1)}
-                  aria-label={m.pagination_previous()}
-                >
-                  <ChevronLeft size={16} aria-hidden='true' />
-                  {m.pagination_previous()}
-                </Button>
-                <span className='text-sm text-text-secondary'>
-                  {m.pagination_page_of({
-                    page: String(orders.page),
-                    totalPages: String(totalPages),
-                  })}
-                </span>
-                <Button
-                  variant='secondary'
-                  size='sm'
-                  disabled={orders.page >= totalPages}
-                  onClick={() => handlePageChange(orders.page + 1)}
-                  aria-label={m.pagination_next()}
-                >
-                  {m.pagination_next()}
-                  <ChevronRight size={16} aria-hidden='true' />
-                </Button>
-              </nav>
-            )}
           </div>
-        )}
+        </div>
       </div>
-    </main>
+
+      {/* Results */}
+      {orders.orders.length === 0 ? (
+        <Card variant='elevated'>
+          <CardContent className='p-8 text-center'>
+            <Inbox size={48} className='mx-auto mb-4 text-text-muted' aria-hidden='true' />
+            <p className='text-text-secondary'>
+              {search.query ? m.admin_orders_empty_search() : m.admin_orders_empty()}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className='overflow-x-auto'>
+          <table className='w-full text-left text-sm'>
+            <thead>
+              <tr className='border-b border-border-default'>
+                <th className='pb-3 pr-4 font-medium text-text-secondary'>
+                  {m.admin_orders_col_order()}
+                </th>
+                <th className='pb-3 pr-4 font-medium text-text-secondary hidden sm:table-cell'>
+                  {m.admin_orders_col_buyer()}
+                </th>
+                <th className='pb-3 pr-4 font-medium text-text-secondary'>
+                  {m.admin_orders_col_status()}
+                </th>
+                <th className='pb-3 pr-4 font-medium text-text-secondary hidden md:table-cell'>
+                  {m.admin_orders_col_shops()}
+                </th>
+                <th className='pb-3 pr-4'>
+                  <SortHeader column='totalCents'>{m.admin_orders_col_total()}</SortHeader>
+                </th>
+                <th className='pb-3 pr-4'>
+                  <SortHeader column='createdAt'>{m.admin_orders_col_date()}</SortHeader>
+                </th>
+              </tr>
+            </thead>
+            <tbody className='divide-y divide-border-subtle'>
+              {orders.orders.map((order) => (
+                <tr key={order.id} className='group transition-colors hover:bg-bg-inset/40'>
+                  <td className='py-3 pr-4'>
+                    <Link
+                      to='/admin/orders/$platformOrderId'
+                      params={{ platformOrderId: order.id }}
+                      className='font-mono text-sm font-medium text-accent-primary hover:underline no-underline'
+                    >
+                      {order.id.slice(0, 8)}…
+                    </Link>
+                  </td>
+                  <td className='py-3 pr-4 hidden sm:table-cell'>
+                    <div>
+                      <p className='font-medium text-text-primary'>{order.buyerName}</p>
+                      <p className='text-xs text-text-muted'>{order.buyerEmail}</p>
+                    </div>
+                  </td>
+                  <td className='py-3 pr-4'>
+                    <Badge variant={statusBadgeVariant(order.status)}>
+                      {statusLabel(order.status)}
+                    </Badge>
+                  </td>
+                  <td className='py-3 pr-4 hidden md:table-cell'>
+                    <span className='text-text-secondary'>{order.shopCount}</span>
+                  </td>
+                  <td className='py-3 pr-4'>
+                    <span className='font-medium text-text-primary tabular-nums'>
+                      {formatPriceEUR(order.totalCents)}
+                    </span>
+                  </td>
+                  <td className='py-3 pr-4'>
+                    <span className='text-text-secondary'>{formatDate(order.createdAt)}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {orders.orders.length > 0 && (
+        <div className='flex flex-col items-center gap-3 sm:flex-row sm:justify-between'>
+          <div className='flex items-center gap-3'>
+            <p className='text-sm text-text-secondary'>
+              {m.admin_orders_showing({
+                from: String((orders.page - 1) * orders.pageSize + 1),
+                to: String(Math.min(orders.page * orders.pageSize, orders.total)),
+                total: String(orders.total),
+              })}
+            </p>
+            <select
+              value={orders.pageSize}
+              onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+              className='h-8 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary'
+              aria-label={m.admin_orders_page_size_label()}
+            >
+              {PAGE_SIZES.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {totalPages > 1 && (
+            <nav className='flex items-center gap-4' aria-label={m.admin_orders_pagination()}>
+              <Button
+                variant='secondary'
+                size='sm'
+                disabled={orders.page <= 1}
+                onClick={() => handlePageChange(orders.page - 1)}
+                aria-label={m.pagination_previous()}
+              >
+                <ChevronLeft size={16} aria-hidden='true' />
+                {m.pagination_previous()}
+              </Button>
+              <span className='text-sm text-text-secondary'>
+                {m.pagination_page_of({
+                  page: String(orders.page),
+                  totalPages: String(totalPages),
+                })}
+              </span>
+              <Button
+                variant='secondary'
+                size='sm'
+                disabled={orders.page >= totalPages}
+                onClick={() => handlePageChange(orders.page + 1)}
+                aria-label={m.pagination_next()}
+              >
+                {m.pagination_next()}
+                <ChevronRight size={16} aria-hidden='true' />
+              </Button>
+            </nav>
+          )}
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -332,43 +470,44 @@ export function AdminOrdersPage() {
 
 function AdminOrdersPending() {
   return (
-    <main className='page-wrap px-4 py-12'>
-      <div className='mx-auto max-w-6xl space-y-6'>
-        <div>
-          <Skeleton className='mb-2 h-9 w-64' />
-          <Skeleton className='h-5 w-80' />
-        </div>
+    <div className='space-y-6'>
+      <div>
+        <Skeleton className='mb-2 h-9 w-64' />
+        <Skeleton className='h-5 w-80' />
+      </div>
 
-        {/* Search bar skeleton */}
-        <Skeleton className='h-10 w-full rounded-lg' />
+      <Skeleton className='h-10 w-full rounded-lg' />
+      <div className='flex gap-3'>
+        <Skeleton className='h-9 w-40 rounded-md' />
+        <Skeleton className='h-9 w-40 rounded-md' />
+        <Skeleton className='h-9 w-64 rounded-md' />
+      </div>
 
-        {/* Table skeleton */}
-        <div className='overflow-x-auto'>
-          <table className='w-full text-left text-sm'>
-            <thead>
-              <tr className='border-b border-border-default'>
-                {[1, 2, 3, 4, 5, 6].map((n) => (
-                  <th key={n} className='pb-3 pr-4'>
-                    <Skeleton className='h-4 w-20' />
-                  </th>
+      <div className='overflow-x-auto'>
+        <table className='w-full text-left text-sm'>
+          <thead>
+            <tr className='border-b border-border-default'>
+              {[1, 2, 3, 4, 5, 6].map((n) => (
+                <th key={n} className='pb-3 pr-4'>
+                  <Skeleton className='h-4 w-20' />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {[1, 2, 3, 4, 5].map((row) => (
+              <tr key={row} className='border-b border-border-subtle'>
+                {[1, 2, 3, 4, 5, 6].map((col) => (
+                  <td key={col} className='py-3 pr-4'>
+                    <Skeleton className='h-5 w-24' />
+                  </td>
                 ))}
               </tr>
-            </thead>
-            <tbody>
-              {[1, 2, 3, 4, 5].map((row) => (
-                <tr key={row} className='border-b border-border-subtle'>
-                  {[1, 2, 3, 4, 5, 6].map((col) => (
-                    <td key={col} className='py-3 pr-4'>
-                      <Skeleton className='h-5 w-24' />
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </table>
       </div>
-    </main>
+    </div>
   )
 }
 
@@ -378,19 +517,17 @@ function AdminOrdersPending() {
 
 function AdminOrdersError({ error, reset }: { error: Error; reset?: () => void }) {
   return (
-    <main className='page-wrap px-4 py-12'>
-      <div className='mx-auto max-w-6xl text-center'>
-        <AlertTriangle size={48} className='mx-auto mb-4 text-error' aria-hidden='true' />
-        <h1 className='display-title mb-2 text-2xl font-bold text-text-primary'>
-          {m.admin_orders_error_load()}
-        </h1>
-        <p className='mb-6 text-text-secondary'>{error.message}</p>
-        {reset && (
-          <Button variant='secondary' onClick={reset}>
-            {m.admin_orders_error_retry()}
-          </Button>
-        )}
-      </div>
-    </main>
+    <div className='text-center py-12'>
+      <AlertTriangle size={48} className='mx-auto mb-4 text-error' aria-hidden='true' />
+      <h1 className='display-title mb-2 text-2xl font-bold text-text-primary'>
+        {m.admin_orders_error_load()}
+      </h1>
+      <p className='mb-6 text-text-secondary'>{error.message}</p>
+      {reset && (
+        <Button variant='secondary' onClick={reset}>
+          {m.admin_orders_error_retry()}
+        </Button>
+      )}
+    </div>
   )
 }

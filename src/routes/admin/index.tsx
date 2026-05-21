@@ -1,17 +1,23 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { getAdminDashboardStats, getRecentOrders, getRecentSignups } from '#/lib/admin-dashboard'
-import { guardRole } from '#/lib/route-guards'
+import {
+  getAdminDashboardStats,
+  getDashboardTrends,
+  getRecentAuditEntries,
+  getRecentOrders,
+  getRecentSignups,
+} from '#/lib/admin-dashboard'
 import { AdminDashboard, AdminDashboardError, AdminDashboardPending } from './AdminDashboard'
 
 export const Route = createFileRoute('/admin/')({
-  beforeLoad: async () => guardRole('admin'),
   loader: async () => {
-    const [stats, signups, orders] = await Promise.all([
+    const [stats, signups, orders, trends, auditEntries] = await Promise.all([
       getAdminDashboardStats(),
       getRecentSignups(),
       getRecentOrders(),
+      getDashboardTrends(),
+      getRecentAuditEntries(),
     ])
-    return { stats, signups, orders }
+    return { stats, signups, orders, trends, auditEntries }
   },
   component: AdminDashboard,
   pendingComponent: AdminDashboardPending,

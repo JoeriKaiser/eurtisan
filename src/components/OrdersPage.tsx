@@ -52,46 +52,46 @@ export function OrdersPage({
           </div>
         ) : (
           <>
-            <div className='space-y-4' role='list' aria-label={m.orders_title()}>
+            <ul className='space-y-4' aria-label={m.orders_title()}>
               {orders.map((order) => (
-                <Link
-                  key={order.id}
-                  to='/orders/$platformOrderId'
-                  params={{ platformOrderId: order.id }}
-                  className='flex flex-col gap-3 rounded-xl border border-border-default bg-surface-default p-4 transition hover:border-border-strong hover:bg-bg-inset sm:flex-row sm:items-center sm:justify-between no-underline'
-                  role='listitem'
-                >
-                  <div className='space-y-1'>
-                    <p className='font-mono text-sm font-medium text-text-primary'>
-                      {m.orders_order_id()}: {order.id}
-                    </p>
-                    <p className='text-sm text-text-secondary'>
-                      {formatDate(order.createdAt)} ·{' '}
-                      {m.orders_shop_count({ count: String(order.shopCount) })}
-                    </p>
-                    {order.shopSummary.length > 1 && (
-                      <div className='flex flex-wrap gap-1 pt-1'>
-                        {order.shopSummary.map((shop) => (
-                          <Badge
-                            key={shop.shopId}
-                            variant={statusBadgeVariant(shop.status)}
-                            className='text-[10px]'
-                          >
-                            {shop.shopName}: {shop.status}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div className='flex items-center gap-3 sm:text-right'>
-                    <span className='text-base font-semibold text-text-primary'>
-                      {formatPriceEUR(order.totalCents)}
-                    </span>
-                    <Badge variant={statusBadgeVariant(order.status)}>{order.status}</Badge>
-                  </div>
-                </Link>
+                <li key={order.id}>
+                  <Link
+                    to='/orders/$platformOrderId'
+                    params={{ platformOrderId: order.id }}
+                    className='flex flex-col gap-3 rounded-xl border border-border-default bg-surface-default p-4 transition hover:border-border-strong hover:bg-bg-inset sm:flex-row sm:items-center sm:justify-between no-underline'
+                  >
+                    <div className='space-y-1'>
+                      <p className='font-mono text-sm font-medium text-text-primary'>
+                        {m.orders_order_id()}: {order.id}
+                      </p>
+                      <p className='text-sm text-text-secondary'>
+                        {formatDate(order.createdAt)} ·{' '}
+                        {m.orders_shop_count({ count: String(order.shopCount) })}
+                      </p>
+                      {order.shopSummary.length > 1 && (
+                        <div className='flex flex-wrap gap-1 pt-1'>
+                          {order.shopSummary.map((shop) => (
+                            <Badge
+                              key={shop.shopId}
+                              variant={statusBadgeVariant(shop.status)}
+                              className='text-[10px]'
+                            >
+                              {shop.shopName}: {shop.status}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className='flex items-center gap-3 sm:text-right'>
+                      <span className='text-base font-semibold text-text-primary'>
+                        {formatPriceEUR(order.totalCents)}
+                      </span>
+                      <Badge variant={statusBadgeVariant(order.status)}>{order.status}</Badge>
+                    </div>
+                  </Link>
+                </li>
               ))}
-            </div>
+            </ul>
 
             {totalPages > 1 && (
               <nav
@@ -137,21 +137,36 @@ export function OrdersLoading() {
           {m.orders_title()}
         </h1>
         <div className='space-y-4' aria-hidden='true'>
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div
-              key={i}
-              className='flex flex-col gap-2 rounded-xl border border-border-default p-4 sm:flex-row sm:items-center sm:justify-between'
-            >
-              <div className='space-y-2'>
-                <Skeleton className='h-4 w-32' />
-                <Skeleton className='h-3 w-48' />
-              </div>
-              <div className='flex items-center gap-3'>
-                <Skeleton className='h-4 w-16' />
-                <Skeleton className='h-6 w-20 rounded-full' />
-              </div>
+          <div className='flex flex-col gap-2 rounded-xl border border-border-default p-4 sm:flex-row sm:items-center sm:justify-between'>
+            <div className='space-y-2'>
+              <Skeleton className='h-4 w-32' />
+              <Skeleton className='h-3 w-48' />
             </div>
-          ))}
+            <div className='flex items-center gap-3'>
+              <Skeleton className='h-4 w-16' />
+              <Skeleton className='h-6 w-20 rounded-full' />
+            </div>
+          </div>
+          <div className='flex flex-col gap-2 rounded-xl border border-border-default p-4 sm:flex-row sm:items-center sm:justify-between'>
+            <div className='space-y-2'>
+              <Skeleton className='h-4 w-32' />
+              <Skeleton className='h-3 w-48' />
+            </div>
+            <div className='flex items-center gap-3'>
+              <Skeleton className='h-4 w-16' />
+              <Skeleton className='h-6 w-20 rounded-full' />
+            </div>
+          </div>
+          <div className='flex flex-col gap-2 rounded-xl border border-border-default p-4 sm:flex-row sm:items-center sm:justify-between'>
+            <div className='space-y-2'>
+              <Skeleton className='h-4 w-32' />
+              <Skeleton className='h-3 w-48' />
+            </div>
+            <div className='flex items-center gap-3'>
+              <Skeleton className='h-4 w-16' />
+              <Skeleton className='h-6 w-20 rounded-full' />
+            </div>
+          </div>
         </div>
       </section>
     </main>

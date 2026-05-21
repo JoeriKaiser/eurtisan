@@ -70,7 +70,12 @@ export const markPayoutSent = createServerFn({ method: 'POST' })
     await requireAdmin(context)
 
     const { markPayoutSentQuery } = await import('./payouts.server')
-    return markPayoutSentQuery(data.payoutId)
+    const result = await markPayoutSentQuery(data.payoutId)
+
+    const { emitAuditEvent } = await import('./audit-log.server')
+    await emitAuditEvent(context.user, 'payout.mark_sent', 'payout', data.payoutId)
+
+    return result
   })
 
 /* -------------------------------------------------------------------------- */
@@ -80,6 +85,17 @@ export const markPayoutSent = createServerFn({ method: 'POST' })
 export const listPayoutHistoryInputSchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
   pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
+  from: z
+    .string()
+    .datetime()
+    .optional()
+    .transform((v) => (v ? new Date(v) : undefined)),
+  to: z
+    .string()
+    .datetime()
+    .optional()
+    .transform((v) => (v ? new Date(v) : undefined)),
+  query: z.string().optional(),
 })
 
 /**
@@ -94,5 +110,11 @@ export const listPayoutHistory = createServerFn({ method: 'GET' })
     await requireAdmin(context)
 
     const { listPayoutHistoryQuery } = await import('./payouts.server')
-    return listPayoutHistoryQuery({ page: data.page, pageSize: data.pageSize })
+    return listPayoutHistoryQuery({
+      page: data.page,
+      pageSize: data.pageSize,
+      from: data.from,
+      to: data.to,
+      query: data.query,
+    })
   })

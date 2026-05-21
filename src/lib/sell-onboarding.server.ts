@@ -1,6 +1,6 @@
 import { and, count, eq, ilike, ne, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { product, shop, shopSocials, type shopStatusEnum } from '#/db/schema'
+import { product, shop, shopSocials, type shopStatusEnum, user } from '#/db/schema'
 import type { PoliciesData, ShippingOriginData, ShopDraft } from './sell-onboarding'
 import { validatePlainText } from './xss'
 
@@ -282,12 +282,15 @@ export async function getShopsForModerationInternal(status: string) {
       image: shop.image,
       status: shop.status,
       ownerId: shop.ownerId,
+      ownerName: user.name,
+      ownerEmail: user.email,
       submittedAt: shop.submittedAt,
       resubmissionCount: shop.resubmissionCount,
       paymentConnected: shop.paymentConnected,
       createdAt: shop.createdAt,
     })
     .from(shop)
+    .innerJoin(user, eq(shop.ownerId, user.id))
     .where(and(...conditions))
     .orderBy(shop.submittedAt)
 

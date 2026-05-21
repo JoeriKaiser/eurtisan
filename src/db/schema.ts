@@ -26,16 +26,22 @@ export const shopStatusEnum = pgEnum('shop_status', [
   'suspended',
 ])
 
-export const user = pgTable('user', {
-  id: text().primaryKey(),
-  name: text().notNull(),
-  email: text().notNull().unique(),
-  emailVerified: boolean().notNull().default(false),
-  image: text(),
-  role: userRoleEnum().notNull().default('customer'),
-  createdAt: timestamp().notNull().defaultNow(),
-  updatedAt: timestamp().notNull().defaultNow(),
-})
+export const user = pgTable(
+  'user',
+  {
+    id: text().primaryKey(),
+    name: text().notNull(),
+    email: text().notNull().unique(),
+    emailVerified: boolean().notNull().default(false),
+    image: text(),
+    role: userRoleEnum().notNull().default('customer'),
+    bannedAt: timestamp('banned_at'),
+    banReason: text('ban_reason'),
+    createdAt: timestamp().notNull().defaultNow(),
+    updatedAt: timestamp().notNull().defaultNow(),
+  },
+  (table) => [index('user_name_email_idx').on(table.name, table.email)],
+)
 
 export const session = pgTable(
   'session',
@@ -180,11 +186,13 @@ export const categories = pgTable(
     slug: text().notNull().unique(),
     description: text(),
     parentId: uuid('parent_id'),
+    sortOrder: integer('sort_order').notNull().default(0),
     createdAt: timestamp('created_at').defaultNow(),
   },
   (table) => [
     index('category_slug_idx').on(table.slug),
     index('category_parent_id_idx').on(table.parentId),
+    index('category_sort_order_idx').on(table.sortOrder),
     foreignKey({
       columns: [table.parentId],
       foreignColumns: [table.id],
@@ -213,6 +221,8 @@ export const product = pgTable(
     index('product_shop_id_idx').on(table.shopId),
     index('product_category_id_idx').on(table.categoryId),
     index('product_slug_idx').on(table.slug),
+    index('product_name_idx').on(table.name),
+    index('product_shop_active_idx').on(table.shopId, table.isActive),
     index('product_category_is_active_created_at_idx').on(
       table.categoryId,
       table.isActive,
@@ -307,6 +317,7 @@ export const platformOrder = pgTable(
   (table) => [
     index('platform_order_user_id_idx').on(table.userId),
     index('platform_order_status_idx').on(table.status),
+    index('platform_order_created_at_idx').on(table.createdAt),
     index('platform_order_mollie_payment_id_idx').on(table.molliePaymentId),
     uniqueIndex('platform_order_mollie_payment_id_unique').on(table.molliePaymentId),
   ],
@@ -499,6 +510,28 @@ export const shippingLabel = pgTable(
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (table) => [index('shipping_label_shop_order_id_idx').on(table.shopOrderId)],
+)
+
+export const auditLog = pgTable(
+  'audit_log',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    actorId: text('actor_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    actorName: text('actor_name').notNull(),
+    action: text().notNull(),
+    resourceType: text('resource_type').notNull(),
+    resourceId: text('resource_id'),
+    metadata: jsonb('metadata').notNull().default(sql`'{}'::jsonb`),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('audit_log_created_at_idx').on(table.createdAt),
+    index('audit_log_actor_id_idx').on(table.actorId),
+    index('audit_log_action_idx').on(table.action),
+    index('audit_log_resource_idx').on(table.resourceType, table.resourceId),
+  ],
 )
 
 export const rateLimit = pgTable(

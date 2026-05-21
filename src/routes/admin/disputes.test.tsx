@@ -48,7 +48,7 @@ let mockLoaderData: {
   pageSize: 20,
 }
 
-let mockSearch: Record<string, unknown> = { page: 1 }
+let mockSearch: Record<string, unknown> = { page: 1, status: 'open', query: '' }
 
 vi.mock('#/lib/disputes', () => ({
   listOpenDisputes: vi.fn(),
@@ -79,6 +79,25 @@ vi.mock('@tanstack/react-router', () => ({
       {props.children}
     </a>
   ),
+}))
+
+vi.mock('#/paraglide/messages', () => ({
+  m: {
+    admin_disputes_title: () => 'Dispute Queue',
+    admin_disputes_description: () => 'Review and resolve buyer disputes.',
+    admin_disputes_tab_open: () => 'Open',
+    admin_disputes_tab_resolved: () => 'Resolved',
+    admin_disputes_tab_all: () => 'All',
+    admin_disputes_search_placeholder: () => 'Search by buyer, creator, or order ID…',
+    admin_orders_clear_search: () => 'Clear search',
+    admin_common_search: () => 'Search',
+    admin_common_filter: () => 'Filter',
+    admin_orders_col_date: () => 'Date',
+    pagination_previous: () => 'Previous',
+    pagination_next: () => 'Next',
+    pagination_page_of: ({ page, totalPages }: { page: string; totalPages: string }) =>
+      `Page ${page} of ${totalPages}`,
+  },
 }))
 
 import { AdminDisputesPage } from './disputes'
@@ -113,14 +132,13 @@ describe('AdminDisputesPage', () => {
       page: 1,
       pageSize: 20,
     }
-    mockSearch = { page: 1 }
+    mockSearch = { page: 1, status: 'open', query: '' }
   })
 
   it('renders dispute queue with correct columns', () => {
     render(<AdminDisputesPage />)
 
     expect(screen.getByText('Dispute Queue')).toBeDefined()
-    expect(screen.getByText('2 open disputes')).toBeDefined()
     expect(screen.getByText('Alice')).toBeDefined()
     expect(screen.getByText('Bob')).toBeDefined()
     expect(screen.getByText('CeramicAdam')).toBeDefined()
@@ -133,7 +151,7 @@ describe('AdminDisputesPage', () => {
     render(<AdminDisputesPage />)
 
     const links = screen.getAllByRole('link')
-    // Back to dashboard + 2 dispute rows, no pagination links
+    // 2 dispute rows, no pagination links
     expect(links.length).toBeGreaterThanOrEqual(2)
 
     const detailLinks = links.filter((l) => l.getAttribute('href')?.includes('/admin/disputes/'))
@@ -150,7 +168,7 @@ describe('AdminDisputesPage', () => {
 
     render(<AdminDisputesPage />)
 
-    expect(screen.getByText('No open disputes')).toBeDefined()
+    expect(screen.getByRole('heading', { name: 'Dispute Queue' })).toBeDefined()
     expect(screen.getByText('When buyers open disputes, they will appear here.')).toBeDefined()
   })
 
@@ -174,7 +192,7 @@ describe('AdminDisputesPage', () => {
     render(<AdminDisputesPage />)
 
     expect(screen.getByText('Page 1 of 3')).toBeDefined()
-    expect(screen.getByLabelText('Next page')).toBeDefined()
+    expect(screen.getByLabelText('Next')).toBeDefined()
   })
 
   it('renders previous page link as disabled on first page', () => {
@@ -196,7 +214,7 @@ describe('AdminDisputesPage', () => {
 
     render(<AdminDisputesPage />)
 
-    const prevLink = screen.getByLabelText('Previous page')
+    const prevLink = screen.getByLabelText('Previous')
     expect(prevLink).toBeDefined()
     expect(prevLink.getAttribute('aria-disabled')).toBe('true')
   })

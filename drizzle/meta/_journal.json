@@ -225,6 +225,13 @@
       "when": 1779222308420,
       "tag": "0031_famous_blue_blade",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1779309682905,
+      "tag": "0032_new_scalphunter",
+      "breakpoints": true
     }
   ]
 }

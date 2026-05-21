@@ -512,6 +512,17 @@ Avoid:
 - Inconsistent interaction behavior
 - Unnecessary visual complexity
 
+## Production-Grade UI & Style Constraints
+
+To maintain a premium, cohesive, and production-grade marketplace visual standard:
+
+- **Rich Aesthetics & Premium Feel:** Implement modern web design best practices (e.g., custom gradients, cohesive dark/light palettes, and refined shadow levels). Avoid basic default styles or raw, unharmonious colors.
+- **Micro-Animations & Transitions:** Utilize subtle transitions and interactive hover effects to make the interface feel responsive and alive.
+- **Zero Cumulative Layout Shift (CLS):** Dynamic elements (such as success/error banners or validation status indicators) must never trigger vertical/horizontal layout shifts. Ensure submit buttons and core forms remain visually static.
+- **Ergonomics & Balanced Spacing:** Avoid excessive vertical whitespace padding between structural layouts (such as auth shells and standard headers/footers). Align layouts to comfortably fit within standard viewport folds.
+- **No Structural Placeholders:** Always implement complete user flows (e.g., password visibility toggles, real-time validations, and descriptive illustrations) rather than using simplified visual shortcuts.
+- **Accessibility Integration:** All premium interactive elements must maintain keyboard focusability, proper labels, clear contrast, and semantic HTML structure.
+
 ---
 
 # Performance Expectations
@@ -814,6 +825,12 @@ make auth-secret
 4. Biome is the single lint/format tool.
 5. Production infrastructure should remain in EU regions.
 6. Development runs fully inside containers.
+7. TanStack Router `__root` is reserved for the application root **only**. Nested layouts must use `route.tsx` inside the target folder (e.g. `src/routes/admin/route.tsx` for `/admin/*` layout). Using `__root.tsx` in a subfolder will silently orphan child routes — they will attach to the app root and the layout will never render. Always verify `getParentRoute` in `routeTree.gen.ts` after creating or renaming layout routes.
+8. Paraglide i18n requires explicit compilation. Adding keys to `messages/en.json` is not enough — run `bun run i18n:compile` (or `make dev` which may auto-compile). Uncompiled keys cause runtime `m.key is not a function` errors that only appear in the browser.
+9. Never import `.server.` modules into client code. TanStack Start's import-protection plugin will block the production build. If a server-only query must be refreshed from the client, wrap it in a `createServerFn` and call the wrapper instead.
+10. Keep loader parameters within Zod schema bounds. A loader that calls a server function with hardcoded values (e.g. `pageSize: 1000`) will fail at runtime if the input schema caps that field lower (e.g. `.max(100)`).
+11. E2E auth is rate-limited by Better Auth. Rapid re-runs of `e2e/auth.setup.ts` will hit `429 Too Many Requests`. Reuse the generated `e2e/.auth/*.json` state across runs, or wait between attempts.
+12. `make e2e` does not pass through CLI flags. Playwright options like `--project=chromium` must be passed directly: `docker compose exec app bunx playwright test e2e/admin-panel.spec.ts --project=chromium`.
 
 ---
 
@@ -843,6 +860,9 @@ Examples requiring updates:
 - Changing deployment targets
 - Adding monorepo packages
 - Replacing testing infrastructure
+- Changing TanStack Router layout conventions or route tree structure
+- Modifying Paraglide compilation strategy or message file locations
+- Altering server/client boundary rules (e.g. `.server.` file patterns)
 
 If implementation and documentation diverge, the documentation is considered outdated and must be corrected as part of the task.
 

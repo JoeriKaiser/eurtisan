@@ -52,13 +52,31 @@ export const listAllPlatformOrders = createServerFn({ method: 'GET' })
       query: z.string().optional(),
       page: z.number().int().min(1).default(1),
       pageSize: z.number().int().min(1).max(50).default(20),
+      from: z
+        .string()
+        .datetime()
+        .optional()
+        .transform((v) => (v ? new Date(v) : undefined)),
+      to: z
+        .string()
+        .datetime()
+        .optional()
+        .transform((v) => (v ? new Date(v) : undefined)),
+      statuses: z.array(z.string()).optional(),
     }),
   )
   .handler(async ({ context, data }) => {
     await requireAdmin(context)
 
     const { listAllPlatformOrdersQuery } = await import('./admin-orders.server')
-    return listAllPlatformOrdersQuery(data.query, data.page, data.pageSize)
+    return listAllPlatformOrdersQuery(
+      data.query,
+      data.page,
+      data.pageSize,
+      data.from,
+      data.to,
+      data.statuses,
+    )
   })
 
 /* -------------------------------------------------------------------------- */

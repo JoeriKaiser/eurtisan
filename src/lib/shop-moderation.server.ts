@@ -1,4 +1,4 @@
-import { and, count, desc, eq } from 'drizzle-orm'
+import { and, count, desc, eq, ilike, or } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { shop, user } from '#/db/schema'
 import { validatePlainText } from './xss'
@@ -8,6 +8,7 @@ import { validatePlainText } from './xss'
 /* -------------------------------------------------------------------------- */
 
 export type SuspensionFilter = 'suspended' | 'active' | 'all'
+export type ShopSortColumn = 'name' | 'createdAt' | 'status'
 
 export interface ShopListItem {
   id: string
@@ -34,28 +35,56 @@ export interface PaginatedShops {
 
 /**
  * Returns a paginated list of all shops with owner details.
- * Results are sorted by createdAt descending (newest first).
+ * Supports filtering by suspension status, searching by name/slug/owner email,
+ * and sorting by name, createdAt, or status.
  */
 export async function listAllShopsQuery(params: {
   filter: SuspensionFilter
+  query?: string
+  sortBy?: ShopSortColumn
+  sortDir?: 'asc' | 'desc'
   page: number
   pageSize: number
 }): Promise<PaginatedShops> {
-  const { filter, page, pageSize } = params
+  const { filter, query, sortBy = 'createdAt', sortDir = 'desc', page, pageSize } = params
   const offset = (page - 1) * pageSize
 
-  const filterCondition = (() => {
-    switch (filter) {
-      case 'suspended':
-        return eq(shop.isSuspended, true)
-      case 'active':
-        return eq(shop.isSuspended, false)
-      case 'all':
-        return undefined
+  const conditions = []
+
+  switch (filter) {
+    case 'suspended':
+      conditions.push(eq(shop.isSuspended, true))
+      break
+    case 'active':
+      conditions.push(eq(shop.isSuspended, false))
+      break
+  }
+
+  if (query) {
+    const pattern = `%${query}%`
+    conditions.push(
+      or(
+        ilike(shop.name, pattern),
+        ilike(shop.slug, pattern),
+        ilike(user.email, pattern),
+        ilike(user.name, pattern),
+      ),
+    )
+  }
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined
+
+  const orderBy = (() => {
+    const dir = sortDir === 'asc' ? 'asc' : 'desc'
+    switch (sortBy) {
+      case 'name':
+        return dir === 'asc' ? shop.name : desc(shop.name)
+      case 'status':
+        return dir === 'asc' ? shop.status : desc(shop.status)
+      default:
+        return dir === 'asc' ? shop.createdAt : desc(shop.createdAt)
     }
   })()
-
-  const where = filterCondition ? and(filterCondition) : undefined
 
   const [rows, totalResult] = await Promise.all([
     db
@@ -73,7 +102,7 @@ export async function listAllShopsQuery(params: {
       .from(shop)
       .innerJoin(user, eq(shop.ownerId, user.id))
       .where(where)
-      .orderBy(desc(shop.createdAt))
+      .orderBy(orderBy)
       .limit(pageSize)
       .offset(offset),
     db

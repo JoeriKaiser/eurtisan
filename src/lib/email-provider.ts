@@ -7,7 +7,12 @@
  */
 
 /** Supported transactional email templates. */
-export type EmailTemplate = 'order_confirmation' | 'shipping_notification' | 'dispute_update'
+export type EmailTemplate =
+  | 'order_confirmation'
+  | 'shipping_notification'
+  | 'dispute_update'
+  | 'email_verification'
+  | 'password_reset'
 
 /** Result returned after attempting to send an email. */
 export interface EmailSendResult {

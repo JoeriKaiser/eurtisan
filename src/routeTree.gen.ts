@@ -9,15 +9,19 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as SigninRouteImport } from './routes/signin'
 import { Route as SearchRouteImport } from './routes/search'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as NotificationsRouteImport } from './routes/notifications'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as ForbiddenRouteImport } from './routes/forbidden'
 import { Route as CreatorRouteImport } from './routes/creator'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as CartRouteImport } from './routes/cart'
 import { Route as AboutRouteImport } from './routes/about'
+import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as StudioIndexRouteImport } from './routes/studio/index'
 import { Route as SellIndexRouteImport } from './routes/sell/index'
@@ -37,10 +41,14 @@ import { Route as CategoryAllRouteImport } from './routes/category/all'
 import { Route as CategorySlugRouteImport } from './routes/category/$slug'
 import { Route as ApiProductsRouteImport } from './routes/api/products'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminShopsRouteImport } from './routes/admin/shops'
+import { Route as AdminProductsRouteImport } from './routes/admin/products'
 import { Route as AdminPayoutsRouteImport } from './routes/admin/payouts'
 import { Route as AdminOrdersRouteImport } from './routes/admin/orders'
 import { Route as AdminDisputesRouteImport } from './routes/admin/disputes'
+import { Route as AdminCategoriesRouteImport } from './routes/admin/categories'
+import { Route as AdminAuditLogRouteImport } from './routes/admin/audit-log'
 import { Route as AccountSettingsRouteImport } from './routes/account/settings'
 import { Route as AccountOrdersRouteImport } from './routes/account/orders'
 import { Route as CreatorProductsIndexRouteImport } from './routes/creator/products/index'
@@ -73,6 +81,11 @@ import { Route as ApiAdminPayoutsPayoutIdRouteImport } from './routes/api/admin/
 import { Route as ApiShopsShopIdProductsProductIdRouteImport } from './routes/api/shops/$shopId/products.$productId'
 import { Route as ApiShopsShopIdOrdersShopOrderIdRouteImport } from './routes/api/shops/$shopId/orders.$shopOrderId'
 
+const VerifyEmailRoute = VerifyEmailRouteImport.update({
+  id: '/verify-email',
+  path: '/verify-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SigninRoute = SigninRouteImport.update({
   id: '/signin',
   path: '/signin',
@@ -83,6 +96,11 @@ const SearchRoute = SearchRouteImport.update({
   path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrdersRoute = OrdersRouteImport.update({
   id: '/orders',
   path: '/orders',
@@ -91,6 +109,11 @@ const OrdersRoute = OrdersRouteImport.update({
 const NotificationsRoute = NotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForbiddenRoute = ForbiddenRouteImport.update({
@@ -118,6 +141,11 @@ const AboutRoute = AboutRouteImport.update({
   path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRouteRoute = AdminRouteRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -134,9 +162,9 @@ const SellIndexRoute = SellIndexRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
-  id: '/admin/',
-  path: '/admin/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AccountIndexRoute = AccountIndexRouteImport.update({
   id: '/account/',
@@ -213,25 +241,45 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
   path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminShopsRoute = AdminShopsRouteImport.update({
-  id: '/admin/shops',
-  path: '/admin/shops',
-  getParentRoute: () => rootRouteImport,
+  id: '/shops',
+  path: '/shops',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminProductsRoute = AdminProductsRouteImport.update({
+  id: '/products',
+  path: '/products',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminPayoutsRoute = AdminPayoutsRouteImport.update({
-  id: '/admin/payouts',
-  path: '/admin/payouts',
-  getParentRoute: () => rootRouteImport,
+  id: '/payouts',
+  path: '/payouts',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminOrdersRoute = AdminOrdersRouteImport.update({
-  id: '/admin/orders',
-  path: '/admin/orders',
-  getParentRoute: () => rootRouteImport,
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminDisputesRoute = AdminDisputesRouteImport.update({
-  id: '/admin/disputes',
-  path: '/admin/disputes',
-  getParentRoute: () => rootRouteImport,
+  id: '/disputes',
+  path: '/disputes',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminCategoriesRoute = AdminCategoriesRouteImport.update({
+  id: '/categories',
+  path: '/categories',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminAuditLogRoute = AdminAuditLogRouteImport.update({
+  id: '/audit-log',
+  path: '/audit-log',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
 const AccountSettingsRoute = AccountSettingsRouteImport.update({
   id: '/account/settings',
@@ -406,21 +454,29 @@ const ApiShopsShopIdOrdersShopOrderIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
   '/about': typeof AboutRoute
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
   '/creator': typeof CreatorRouteWithChildren
   '/forbidden': typeof ForbiddenRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRouteWithChildren
+  '/reset-password': typeof ResetPasswordRoute
   '/search': typeof SearchRoute
   '/signin': typeof SigninRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/account/orders': typeof AccountOrdersRouteWithChildren
   '/account/settings': typeof AccountSettingsRoute
+  '/admin/audit-log': typeof AdminAuditLogRoute
+  '/admin/categories': typeof AdminCategoriesRoute
   '/admin/disputes': typeof AdminDisputesRouteWithChildren
   '/admin/orders': typeof AdminOrdersRouteWithChildren
   '/admin/payouts': typeof AdminPayoutsRoute
+  '/admin/products': typeof AdminProductsRoute
   '/admin/shops': typeof AdminShopsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/api/health': typeof ApiHealthRoute
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
@@ -476,16 +532,23 @@ export interface FileRoutesByTo {
   '/checkout': typeof CheckoutRoute
   '/creator': typeof CreatorRouteWithChildren
   '/forbidden': typeof ForbiddenRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRouteWithChildren
+  '/reset-password': typeof ResetPasswordRoute
   '/search': typeof SearchRoute
   '/signin': typeof SigninRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/account/orders': typeof AccountOrdersRouteWithChildren
   '/account/settings': typeof AccountSettingsRoute
+  '/admin/audit-log': typeof AdminAuditLogRoute
+  '/admin/categories': typeof AdminCategoriesRoute
   '/admin/disputes': typeof AdminDisputesRouteWithChildren
   '/admin/orders': typeof AdminOrdersRouteWithChildren
   '/admin/payouts': typeof AdminPayoutsRoute
+  '/admin/products': typeof AdminProductsRoute
   '/admin/shops': typeof AdminShopsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/api/health': typeof ApiHealthRoute
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
@@ -535,21 +598,29 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
   '/about': typeof AboutRoute
   '/cart': typeof CartRoute
   '/checkout': typeof CheckoutRoute
   '/creator': typeof CreatorRouteWithChildren
   '/forbidden': typeof ForbiddenRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRouteWithChildren
+  '/reset-password': typeof ResetPasswordRoute
   '/search': typeof SearchRoute
   '/signin': typeof SigninRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/account/orders': typeof AccountOrdersRouteWithChildren
   '/account/settings': typeof AccountSettingsRoute
+  '/admin/audit-log': typeof AdminAuditLogRoute
+  '/admin/categories': typeof AdminCategoriesRoute
   '/admin/disputes': typeof AdminDisputesRouteWithChildren
   '/admin/orders': typeof AdminOrdersRouteWithChildren
   '/admin/payouts': typeof AdminPayoutsRoute
+  '/admin/products': typeof AdminProductsRoute
   '/admin/shops': typeof AdminShopsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/api/health': typeof ApiHealthRoute
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
@@ -602,21 +673,29 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
     | '/about'
     | '/cart'
     | '/checkout'
     | '/creator'
     | '/forbidden'
+    | '/forgot-password'
     | '/notifications'
     | '/orders'
+    | '/reset-password'
     | '/search'
     | '/signin'
+    | '/verify-email'
     | '/account/orders'
     | '/account/settings'
+    | '/admin/audit-log'
+    | '/admin/categories'
     | '/admin/disputes'
     | '/admin/orders'
     | '/admin/payouts'
+    | '/admin/products'
     | '/admin/shops'
+    | '/admin/users'
     | '/api/health'
     | '/api/products'
     | '/category/$slug'
@@ -672,16 +751,23 @@ export interface FileRouteTypes {
     | '/checkout'
     | '/creator'
     | '/forbidden'
+    | '/forgot-password'
     | '/notifications'
     | '/orders'
+    | '/reset-password'
     | '/search'
     | '/signin'
+    | '/verify-email'
     | '/account/orders'
     | '/account/settings'
+    | '/admin/audit-log'
+    | '/admin/categories'
     | '/admin/disputes'
     | '/admin/orders'
     | '/admin/payouts'
+    | '/admin/products'
     | '/admin/shops'
+    | '/admin/users'
     | '/api/health'
     | '/api/products'
     | '/category/$slug'
@@ -730,21 +816,29 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/admin'
     | '/about'
     | '/cart'
     | '/checkout'
     | '/creator'
     | '/forbidden'
+    | '/forgot-password'
     | '/notifications'
     | '/orders'
+    | '/reset-password'
     | '/search'
     | '/signin'
+    | '/verify-email'
     | '/account/orders'
     | '/account/settings'
+    | '/admin/audit-log'
+    | '/admin/categories'
     | '/admin/disputes'
     | '/admin/orders'
     | '/admin/payouts'
+    | '/admin/products'
     | '/admin/shops'
+    | '/admin/users'
     | '/api/health'
     | '/api/products'
     | '/category/$slug'
@@ -796,21 +890,21 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRouteRoute: typeof AdminRouteRouteWithChildren
   AboutRoute: typeof AboutRoute
   CartRoute: typeof CartRoute
   CheckoutRoute: typeof CheckoutRoute
   CreatorRoute: typeof CreatorRouteWithChildren
   ForbiddenRoute: typeof ForbiddenRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   NotificationsRoute: typeof NotificationsRoute
   OrdersRoute: typeof OrdersRouteWithChildren
+  ResetPasswordRoute: typeof ResetPasswordRoute
   SearchRoute: typeof SearchRoute
   SigninRoute: typeof SigninRoute
+  VerifyEmailRoute: typeof VerifyEmailRoute
   AccountOrdersRoute: typeof AccountOrdersRouteWithChildren
   AccountSettingsRoute: typeof AccountSettingsRoute
-  AdminDisputesRoute: typeof AdminDisputesRouteWithChildren
-  AdminOrdersRoute: typeof AdminOrdersRouteWithChildren
-  AdminPayoutsRoute: typeof AdminPayoutsRoute
-  AdminShopsRoute: typeof AdminShopsRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiProductsRoute: typeof ApiProductsRoute
   CategorySlugRoute: typeof CategorySlugRoute
@@ -822,7 +916,6 @@ export interface RootRouteChildren {
   SitemapXmlRoute: typeof SitemapXmlRoute
   StudioShopIdRoute: typeof StudioShopIdRouteWithChildren
   AccountIndexRoute: typeof AccountIndexRoute
-  AdminIndexRoute: typeof AdminIndexRoute
   SellIndexRoute: typeof SellIndexRoute
   StudioIndexRoute: typeof StudioIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -838,6 +931,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/verify-email': {
+      id: '/verify-email'
+      path: '/verify-email'
+      fullPath: '/verify-email'
+      preLoaderRoute: typeof VerifyEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/signin': {
       id: '/signin'
       path: '/signin'
@@ -852,6 +952,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/orders': {
       id: '/orders'
       path: '/orders'
@@ -864,6 +971,13 @@ declare module '@tanstack/react-router' {
       path: '/notifications'
       fullPath: '/notifications'
       preLoaderRoute: typeof NotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forbidden': {
@@ -901,6 +1015,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -924,10 +1045,10 @@ declare module '@tanstack/react-router' {
     }
     '/admin/': {
       id: '/admin/'
-      path: '/admin'
+      path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/account/': {
       id: '/account/'
@@ -1034,33 +1155,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/shops': {
       id: '/admin/shops'
-      path: '/admin/shops'
+      path: '/shops'
       fullPath: '/admin/shops'
       preLoaderRoute: typeof AdminShopsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/products': {
+      id: '/admin/products'
+      path: '/products'
+      fullPath: '/admin/products'
+      preLoaderRoute: typeof AdminProductsRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/payouts': {
       id: '/admin/payouts'
-      path: '/admin/payouts'
+      path: '/payouts'
       fullPath: '/admin/payouts'
       preLoaderRoute: typeof AdminPayoutsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/orders': {
       id: '/admin/orders'
-      path: '/admin/orders'
+      path: '/orders'
       fullPath: '/admin/orders'
       preLoaderRoute: typeof AdminOrdersRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/admin/disputes': {
       id: '/admin/disputes'
-      path: '/admin/disputes'
+      path: '/disputes'
       fullPath: '/admin/disputes'
       preLoaderRoute: typeof AdminDisputesRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/categories': {
+      id: '/admin/categories'
+      path: '/categories'
+      fullPath: '/admin/categories'
+      preLoaderRoute: typeof AdminCategoriesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/audit-log': {
+      id: '/admin/audit-log'
+      path: '/audit-log'
+      fullPath: '/admin/audit-log'
+      preLoaderRoute: typeof AdminAuditLogRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
     '/account/settings': {
       id: '/account/settings'
@@ -1282,6 +1431,58 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AdminDisputesRouteChildren {
+  AdminDisputesDisputeIdRoute: typeof AdminDisputesDisputeIdRoute
+}
+
+const AdminDisputesRouteChildren: AdminDisputesRouteChildren = {
+  AdminDisputesDisputeIdRoute: AdminDisputesDisputeIdRoute,
+}
+
+const AdminDisputesRouteWithChildren = AdminDisputesRoute._addFileChildren(
+  AdminDisputesRouteChildren,
+)
+
+interface AdminOrdersRouteChildren {
+  AdminOrdersPlatformOrderIdRoute: typeof AdminOrdersPlatformOrderIdRoute
+}
+
+const AdminOrdersRouteChildren: AdminOrdersRouteChildren = {
+  AdminOrdersPlatformOrderIdRoute: AdminOrdersPlatformOrderIdRoute,
+}
+
+const AdminOrdersRouteWithChildren = AdminOrdersRoute._addFileChildren(
+  AdminOrdersRouteChildren,
+)
+
+interface AdminRouteRouteChildren {
+  AdminAuditLogRoute: typeof AdminAuditLogRoute
+  AdminCategoriesRoute: typeof AdminCategoriesRoute
+  AdminDisputesRoute: typeof AdminDisputesRouteWithChildren
+  AdminOrdersRoute: typeof AdminOrdersRouteWithChildren
+  AdminPayoutsRoute: typeof AdminPayoutsRoute
+  AdminProductsRoute: typeof AdminProductsRoute
+  AdminShopsRoute: typeof AdminShopsRoute
+  AdminUsersRoute: typeof AdminUsersRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminAuditLogRoute: AdminAuditLogRoute,
+  AdminCategoriesRoute: AdminCategoriesRoute,
+  AdminDisputesRoute: AdminDisputesRouteWithChildren,
+  AdminOrdersRoute: AdminOrdersRouteWithChildren,
+  AdminPayoutsRoute: AdminPayoutsRoute,
+  AdminProductsRoute: AdminProductsRoute,
+  AdminShopsRoute: AdminShopsRoute,
+  AdminUsersRoute: AdminUsersRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
+  AdminRouteRouteChildren,
+)
+
 interface CreatorProductsRouteChildren {
   CreatorProductsNewRoute: typeof CreatorProductsNewRoute
   CreatorProductsIndexRoute: typeof CreatorProductsIndexRoute
@@ -1347,30 +1548,6 @@ const AccountOrdersRouteChildren: AccountOrdersRouteChildren = {
 
 const AccountOrdersRouteWithChildren = AccountOrdersRoute._addFileChildren(
   AccountOrdersRouteChildren,
-)
-
-interface AdminDisputesRouteChildren {
-  AdminDisputesDisputeIdRoute: typeof AdminDisputesDisputeIdRoute
-}
-
-const AdminDisputesRouteChildren: AdminDisputesRouteChildren = {
-  AdminDisputesDisputeIdRoute: AdminDisputesDisputeIdRoute,
-}
-
-const AdminDisputesRouteWithChildren = AdminDisputesRoute._addFileChildren(
-  AdminDisputesRouteChildren,
-)
-
-interface AdminOrdersRouteChildren {
-  AdminOrdersPlatformOrderIdRoute: typeof AdminOrdersPlatformOrderIdRoute
-}
-
-const AdminOrdersRouteChildren: AdminOrdersRouteChildren = {
-  AdminOrdersPlatformOrderIdRoute: AdminOrdersPlatformOrderIdRoute,
-}
-
-const AdminOrdersRouteWithChildren = AdminOrdersRoute._addFileChildren(
-  AdminOrdersRouteChildren,
 )
 
 interface StudioShopIdOrdersRouteChildren {
@@ -1452,21 +1629,21 @@ const ApiShopsShopIdProductsRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRouteRoute: AdminRouteRouteWithChildren,
   AboutRoute: AboutRoute,
   CartRoute: CartRoute,
   CheckoutRoute: CheckoutRoute,
   CreatorRoute: CreatorRouteWithChildren,
   ForbiddenRoute: ForbiddenRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   NotificationsRoute: NotificationsRoute,
   OrdersRoute: OrdersRouteWithChildren,
+  ResetPasswordRoute: ResetPasswordRoute,
   SearchRoute: SearchRoute,
   SigninRoute: SigninRoute,
+  VerifyEmailRoute: VerifyEmailRoute,
   AccountOrdersRoute: AccountOrdersRouteWithChildren,
   AccountSettingsRoute: AccountSettingsRoute,
-  AdminDisputesRoute: AdminDisputesRouteWithChildren,
-  AdminOrdersRoute: AdminOrdersRouteWithChildren,
-  AdminPayoutsRoute: AdminPayoutsRoute,
-  AdminShopsRoute: AdminShopsRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiProductsRoute: ApiProductsRoute,
   CategorySlugRoute: CategorySlugRoute,
@@ -1478,7 +1655,6 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapXmlRoute: SitemapXmlRoute,
   StudioShopIdRoute: StudioShopIdRouteWithChildren,
   AccountIndexRoute: AccountIndexRoute,
-  AdminIndexRoute: AdminIndexRoute,
   SellIndexRoute: SellIndexRoute,
   StudioIndexRoute: StudioIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

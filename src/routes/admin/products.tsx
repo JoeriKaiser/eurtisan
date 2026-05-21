@@ -1,0 +1,570 @@
+import { createFileRoute } from '@tanstack/react-router'
+import {
+  AlertTriangle,
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  ExternalLink,
+  Eye,
+  Inbox,
+  Search,
+  X,
+} from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import z from 'zod'
+import { Button } from '#/components/ui/button'
+import { Card, CardContent } from '#/components/ui/card'
+import { Skeleton } from '#/components/ui/skeleton'
+import { cn } from '#/lib/cn'
+import { listAllProducts, toggleProductActive } from '#/lib/admin-products'
+import type { PaginatedProducts } from '#/lib/admin-products'
+import { listCategories } from '#/lib/categories'
+import type { CategoryTreeNode } from '#/lib/categories'
+import { listAllShops } from '#/lib/shop-moderation'
+import { m } from '#/paraglide/messages'
+
+const PAGE_SIZES = [10, 20, 50] as const
+
+/* -------------------------------------------------------------------------- */
+/*                              Route Definition                              */
+/* -------------------------------------------------------------------------- */
+
+const productsSearchSchema = z.object({
+  query: z.string().optional().default(''),
+  shopId: z.string().optional(),
+  categoryId: z.string().uuid().optional(),
+  status: z.enum(['active', 'inactive']).optional(),
+  minPrice: z.coerce.number().int().min(0).optional(),
+  maxPrice: z.coerce.number().int().min(0).optional(),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  pageSize: z.coerce.number().int().min(1).optional().default(20),
+})
+
+export const Route = createFileRoute('/admin/products')({
+  validateSearch: productsSearchSchema,
+  loaderDeps: ({
+    search: { query, shopId, categoryId, status, minPrice, maxPrice, page, pageSize },
+  }) => ({
+    query,
+    shopId,
+    categoryId,
+    status,
+    minPrice,
+    maxPrice,
+    page,
+    pageSize,
+  }),
+  loader: async ({ deps }) => {
+    const [products, shops, categories] = await Promise.all([
+      listAllProducts({
+        data: {
+          query: deps.query || undefined,
+          shopId: deps.shopId,
+          categoryId: deps.categoryId,
+          status: deps.status,
+          minPriceCents: deps.minPrice ? deps.minPrice * 100 : undefined,
+          maxPriceCents: deps.maxPrice ? deps.maxPrice * 100 : undefined,
+          page: deps.page,
+          pageSize: deps.pageSize,
+        },
+      }),
+      listAllShops({ data: { filter: 'all', page: 1, pageSize: 1000 } }),
+      listCategories({ data: { tree: true } }),
+    ])
+    return { products, shops: shops.shops, categories }
+  },
+  head: () => ({ meta: [{ title: 'Products | Admin | Eurtisan' }] }),
+  component: AdminProductsPage,
+  pendingComponent: AdminProductsPending,
+  errorComponent: AdminProductsError,
+})
+
+/* -------------------------------------------------------------------------- */
+/*                                   Helpers                                  */
+/* -------------------------------------------------------------------------- */
+
+function formatPrice(cents: number): string {
+  return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(cents / 100)
+}
+
+/* -------------------------------------------------------------------------- */
+/*                               Main Component                               */
+/* -------------------------------------------------------------------------- */
+
+export function AdminProductsPage() {
+  const loaderData = Route.useLoaderData()
+  const navigate = Route.useNavigate()
+  const search = Route.useSearch()
+
+  const [products, setProducts] = useState<PaginatedProducts>(loaderData.products)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [searchValue, setSearchValue] = useState(search.query ?? '')
+  const searchInputRef = useRef<HTMLInputElement>(null)
+  const successTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+
+  useEffect(() => {
+    return () => {
+      if (successTimerRef.current) clearTimeout(successTimerRef.current)
+    }
+  }, [])
+
+  useEffect(() => {
+    setProducts(loaderData.products)
+  }, [loaderData])
+
+  const navigateWithParams = useCallback(
+    (overrides: Record<string, string | number | undefined>) => {
+      navigate({ to: '/admin/products', search: { ...search, ...overrides }, replace: true })
+    },
+    [navigate, search],
+  )
+
+  const handleSearch = useCallback(() => {
+    navigateWithParams({ query: searchValue.trim(), page: 1 })
+  }, [searchValue, navigateWithParams])
+
+  const handleClearSearch = useCallback(() => {
+    setSearchValue('')
+    navigateWithParams({ query: undefined, page: 1 })
+    searchInputRef.current?.focus()
+  }, [navigateWithParams])
+
+  const handleSearchKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') handleSearch()
+    },
+    [handleSearch],
+  )
+
+  const handlePageChange = useCallback(
+    (page: number) => navigateWithParams({ page }),
+    [navigateWithParams],
+  )
+  const handlePageSizeChange = useCallback(
+    (pageSize: number) => navigateWithParams({ pageSize, page: 1 }),
+    [navigateWithParams],
+  )
+
+  const showSuccess = useCallback((message: string) => {
+    setSuccessMessage(message)
+    if (successTimerRef.current) clearTimeout(successTimerRef.current)
+    successTimerRef.current = setTimeout(() => setSuccessMessage(null), 3000)
+  }, [])
+
+  const handleToggleActive = useCallback(
+    async (productId: string, name: string) => {
+      setActionError(null)
+      try {
+        const result = await toggleProductActive({ data: { productId } })
+        setProducts((prev) => ({
+          ...prev,
+          products: prev.products.map((p) =>
+            p.id === productId ? { ...p, isActive: result.isActive } : p,
+          ),
+        }))
+        showSuccess(
+          result.isActive
+            ? m.admin_products_activated_success({ name })
+            : m.admin_products_deactivated_success({ name }),
+        )
+      } catch (err) {
+        setActionError(err instanceof Error ? err.message : m.admin_products_action_error())
+      }
+    },
+    [showSuccess],
+  )
+
+  const totalPages = Math.max(1, Math.ceil(products.total / products.pageSize))
+
+  const allShops = loaderData.shops
+  const allCategories = useMemo(() => {
+    function flatten(
+      nodes: CategoryTreeNode[],
+    ): Array<{ id: string; name: string; depth: number }> {
+      const result: Array<{ id: string; name: string; depth: number }> = []
+      function walk(nodes: CategoryTreeNode[], depth: number) {
+        for (const node of nodes) {
+          result.push({ id: node.id, name: node.name, depth })
+          walk(node.children, depth + 1)
+        }
+      }
+      walk(nodes, 0)
+      return result
+    }
+    return flatten(loaderData.categories as CategoryTreeNode[])
+  }, [loaderData.categories])
+
+  return (
+    <div className='space-y-6'>
+      <div>
+        <h1 className='display-title text-3xl font-bold text-text-primary'>
+          {m.admin_products_title()}
+        </h1>
+        <p className='mt-1 text-text-secondary'>{m.admin_products_description()}</p>
+      </div>
+
+      {successMessage && (
+        <div
+          role='status'
+          className='island-shell rounded-xl border border-success/30 bg-success-subtle p-4 text-sm text-success'
+        >
+          <CheckCircle size={16} className='mr-2 inline-block' aria-hidden='true' />
+          {successMessage}
+        </div>
+      )}
+
+      {actionError && (
+        <div
+          role='alert'
+          className='island-shell rounded-xl border border-error/30 bg-error-subtle p-4 text-sm text-error'
+        >
+          <AlertTriangle size={16} className='mr-2 inline-block' aria-hidden='true' />
+          {actionError}
+          <button
+            type='button'
+            onClick={() => setActionError(null)}
+            className='ml-2 underline hover:no-underline cursor-pointer'
+          >
+            {m.admin_shops_dismiss()}
+          </button>
+        </div>
+      )}
+
+      {/* Search */}
+      <div className='flex gap-2'>
+        <div className='relative flex-1'>
+          <Search
+            size={18}
+            className='pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-text-muted'
+            aria-hidden='true'
+          />
+          <input
+            ref={searchInputRef}
+            type='text'
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
+            placeholder={m.admin_products_search_placeholder()}
+            className='h-10 w-full rounded-lg border border-border-default bg-surface-default pl-10 pr-10 text-sm text-text-primary placeholder:text-text-muted transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
+            aria-label={m.admin_products_search_placeholder()}
+          />
+          {searchValue && (
+            <button
+              type='button'
+              onClick={handleClearSearch}
+              className='absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-text-muted hover:text-text-primary transition-colors'
+              aria-label={m.admin_orders_clear_search()}
+            >
+              <X size={16} aria-hidden='true' />
+            </button>
+          )}
+        </div>
+        <Button onClick={handleSearch} aria-label={m.admin_orders_search_button()}>
+          {m.admin_orders_search_button()}
+        </Button>
+      </div>
+
+      {/* Filters */}
+      <div className='flex flex-wrap items-end gap-3'>
+        <div className='flex flex-col gap-1'>
+          <span className='text-xs font-medium text-text-muted'>
+            {m.admin_products_filter_shop()}
+          </span>
+          <select
+            value={search.shopId ?? ''}
+            onChange={(e) => navigateWithParams({ shopId: e.target.value || undefined, page: 1 })}
+            className='h-9 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
+          >
+            <option value=''>{m.admin_products_filter_all_shops()}</option>
+            {allShops.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className='flex flex-col gap-1'>
+          <span className='text-xs font-medium text-text-muted'>
+            {m.admin_products_filter_category()}
+          </span>
+          <select
+            value={search.categoryId ?? ''}
+            onChange={(e) =>
+              navigateWithParams({ categoryId: e.target.value || undefined, page: 1 })
+            }
+            className='h-9 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
+          >
+            <option value=''>{m.admin_products_filter_all_categories()}</option>
+            {allCategories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {'\u00A0\u00A0'.repeat(c.depth) + c.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className='flex flex-col gap-1'>
+          <span className='text-xs font-medium text-text-muted'>
+            {m.admin_products_filter_status()}
+          </span>
+          <select
+            value={search.status ?? ''}
+            onChange={(e) => navigateWithParams({ status: e.target.value || undefined, page: 1 })}
+            className='h-9 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
+          >
+            <option value=''>{m.admin_products_filter_all_statuses()}</option>
+            <option value='active'>{m.admin_products_status_active()}</option>
+            <option value='inactive'>{m.admin_products_status_inactive()}</option>
+          </select>
+        </div>
+
+        <div className='flex flex-col gap-1'>
+          <span className='text-xs font-medium text-text-muted'>
+            {m.admin_products_filter_price_min()}
+          </span>
+          <input
+            type='number'
+            min={0}
+            value={search.minPrice ?? ''}
+            onChange={(e) =>
+              navigateWithParams({
+                minPrice: e.target.value ? Number(e.target.value) : undefined,
+                page: 1,
+              })
+            }
+            className='h-9 w-24 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
+            placeholder='EUR'
+          />
+        </div>
+
+        <div className='flex flex-col gap-1'>
+          <span className='text-xs font-medium text-text-muted'>
+            {m.admin_products_filter_price_max()}
+          </span>
+          <input
+            type='number'
+            min={0}
+            value={search.maxPrice ?? ''}
+            onChange={(e) =>
+              navigateWithParams({
+                maxPrice: e.target.value ? Number(e.target.value) : undefined,
+                page: 1,
+              })
+            }
+            className='h-9 w-24 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
+            placeholder='EUR'
+          />
+        </div>
+      </div>
+
+      {/* Table */}
+      {products.products.length === 0 ? (
+        <Card variant='elevated'>
+          <CardContent className='p-8 text-center'>
+            <Inbox size={48} className='mx-auto mb-4 text-text-muted' aria-hidden='true' />
+            <p className='text-text-secondary'>{m.admin_products_empty()}</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className='overflow-x-auto'>
+          <table className='w-full text-left text-sm'>
+            <thead>
+              <tr className='border-b border-border-default'>
+                <th className='pb-3 pr-4 font-semibold text-text-secondary'>
+                  {m.admin_products_col_product()}
+                </th>
+                <th className='pb-3 pr-4 font-semibold text-text-secondary'>
+                  {m.admin_products_col_shop()}
+                </th>
+                <th className='pb-3 pr-4 font-semibold text-text-secondary hidden sm:table-cell'>
+                  {m.admin_products_col_category()}
+                </th>
+                <th className='pb-3 pr-4 font-semibold text-text-secondary'>
+                  {m.admin_products_col_price()}
+                </th>
+                <th className='pb-3 pr-4 font-semibold text-text-secondary hidden md:table-cell'>
+                  {m.admin_products_col_stock()}
+                </th>
+                <th className='pb-3 pr-4 font-semibold text-text-secondary'>
+                  {m.admin_products_col_status()}
+                </th>
+                <th className='pb-3 text-right font-semibold text-text-secondary'>
+                  {m.admin_common_actions()}
+                </th>
+              </tr>
+            </thead>
+            <tbody className='divide-y divide-border-subtle'>
+              {products.products.map((p) => (
+                <tr key={p.id} className='group hover:bg-bg-inset/40 transition-colors'>
+                  <td className='py-3 pr-4'>
+                    <div className='flex items-center gap-3'>
+                      {p.thumbnailUrl ? (
+                        <img
+                          src={p.thumbnailUrl}
+                          alt=''
+                          className='h-10 w-10 rounded-lg object-cover border border-border-default flex-shrink-0'
+                        />
+                      ) : (
+                        <div className='h-10 w-10 rounded-lg bg-surface-inset border border-border-subtle flex items-center justify-center text-text-muted text-xs flex-shrink-0'>
+                          —
+                        </div>
+                      )}
+                      <div className='flex flex-col min-w-0'>
+                        <span className='font-medium text-text-primary truncate'>{p.name}</span>
+                        <span className='font-mono text-xs text-text-muted truncate'>
+                          /{p.slug}
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+                  <td className='py-3 pr-4 text-text-primary'>{p.shopName}</td>
+                  <td className='py-3 pr-4 text-text-secondary hidden sm:table-cell'>
+                    {p.categoryName ?? <span className='text-text-muted'>—</span>}
+                  </td>
+                  <td className='py-3 pr-4 font-medium text-text-primary tabular-nums'>
+                    {formatPrice(p.priceCents)}
+                  </td>
+                  <td className='py-3 pr-4 text-text-secondary hidden md:table-cell'>
+                    {p.stockCount}
+                  </td>
+                  <td className='py-3 pr-4'>
+                    <span
+                      className={cn(
+                        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold border',
+                        p.isActive
+                          ? 'bg-success/10 text-success border-success/20'
+                          : 'bg-surface-inset text-text-secondary border-border-default',
+                      )}
+                    >
+                      {p.isActive
+                        ? m.admin_products_status_active()
+                        : m.admin_products_status_inactive()}
+                    </span>
+                  </td>
+                  <td className='py-3 text-right whitespace-nowrap'>
+                    <div className='flex items-center justify-end gap-2'>
+                      <a
+                        href={`/products/${p.slug}`}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className='inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-bg-inset hover:text-text-primary transition-colors'
+                      >
+                        <Eye size={14} aria-hidden='true' />
+                        {m.admin_products_view()}
+                        <ExternalLink size={12} aria-hidden='true' />
+                      </a>
+                      <Button
+                        variant={p.isActive ? 'secondary' : 'primary'}
+                        size='sm'
+                        onClick={() => handleToggleActive(p.id, p.name)}
+                      >
+                        {p.isActive ? m.admin_products_deactivate() : m.admin_products_activate()}
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {products.products.length > 0 && (
+        <div className='flex flex-col items-center gap-3 sm:flex-row sm:justify-between'>
+          <div className='flex items-center gap-3'>
+            <p className='text-sm text-text-secondary'>
+              {m.admin_shops_showing({
+                from: (products.page - 1) * products.pageSize + 1,
+                to: Math.min(products.page * products.pageSize, products.total),
+                total: products.total,
+              })}
+            </p>
+            <select
+              value={products.pageSize}
+              onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+              className='h-8 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none cursor-pointer'
+              aria-label={m.admin_shops_page_size_label()}
+            >
+              {PAGE_SIZES.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {totalPages > 1 && (
+            <nav className='flex items-center gap-4' aria-label={m.admin_shops_pagination()}>
+              <Button
+                variant='secondary'
+                size='sm'
+                disabled={products.page <= 1}
+                onClick={() => handlePageChange(products.page - 1)}
+                aria-label={m.pagination_previous()}
+              >
+                <ChevronLeft size={16} aria-hidden='true' />
+                {m.pagination_previous()}
+              </Button>
+              <span className='text-sm text-text-secondary font-mono'>
+                {m.pagination_page_of({ page: products.page, totalPages })}
+              </span>
+              <Button
+                variant='secondary'
+                size='sm'
+                disabled={products.page >= totalPages}
+                onClick={() => handlePageChange(products.page + 1)}
+                aria-label={m.pagination_next()}
+              >
+                {m.pagination_next()}
+                <ChevronRight size={16} aria-hidden='true' />
+              </Button>
+            </nav>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                Pending / Error                             */
+/* -------------------------------------------------------------------------- */
+
+export function AdminProductsPending() {
+  return (
+    <div className='space-y-6'>
+      <div>
+        <Skeleton className='h-10 w-64' />
+        <Skeleton className='mt-2 h-5 w-96' />
+      </div>
+      <div className='flex gap-2'>
+        <Skeleton className='h-10 flex-1' />
+        <Skeleton className='h-10 w-24' />
+      </div>
+      <Skeleton className='h-64 w-full' />
+    </div>
+  )
+}
+
+export function AdminProductsError({ error }: { error: Error }) {
+  return (
+    <div className='space-y-6'>
+      <div>
+        <h1 className='display-title text-3xl font-bold text-text-primary'>
+          {m.admin_products_title()}
+        </h1>
+        <p className='mt-1 text-text-secondary'>{m.admin_products_description()}</p>
+      </div>
+      <div
+        role='alert'
+        className='island-shell rounded-xl border border-error/30 bg-error-subtle p-4 text-sm text-error'
+      >
+        <AlertTriangle size={16} className='mr-2 inline-block' aria-hidden='true' />
+        {error.message}
+      </div>
+    </div>
+  )
+}

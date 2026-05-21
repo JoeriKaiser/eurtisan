@@ -40,6 +40,34 @@ const mockLoaderData = {
       createdAt: new Date('2026-05-11T10:00:00Z'),
     },
   ],
+  trends: {
+    signups: [
+      { date: '2026-05-01', value: 1 },
+      { date: '2026-05-02', value: 2 },
+    ],
+    revenue: [
+      { date: '2026-05-01', value: 1000 },
+      { date: '2026-05-02', value: 2000 },
+    ],
+    orders: [
+      { date: '2026-05-01', value: 1 },
+      { date: '2026-05-02', value: 2 },
+    ],
+    disputes: [
+      { date: '2026-05-01', value: 0 },
+      { date: '2026-05-02', value: 1 },
+    ],
+  },
+  auditEntries: [
+    {
+      id: 'audit-1',
+      actorName: 'Admin',
+      action: 'shop.suspend',
+      resourceType: 'shop',
+      resourceId: 'shop-1',
+      createdAt: new Date('2026-05-11T12:00:00Z'),
+    },
+  ],
 }
 
 vi.mock('@tanstack/react-router', () => ({
@@ -80,6 +108,12 @@ vi.mock('#/paraglide/messages', () => ({
     admin_nav_shops_desc: () => 'Review and moderate shops.',
     admin_nav_orders: () => 'Order Inspector',
     admin_nav_orders_desc: () => 'Search and inspect any order on the platform.',
+    admin_trends_signups_title: () => 'Signups Over Last 30 Days',
+    admin_trends_revenue_title: () => 'Revenue Over Last 30 Days',
+    admin_recent_audit_title: () => 'Recent Activity',
+    admin_recent_audit_empty: () => 'No recent activity.',
+    admin_recent_audit_view_all: () => 'View All',
+    admin_chart_no_data: () => 'No data available for this period.',
   },
 }))
 
@@ -131,15 +165,20 @@ describe('AdminDashboard', () => {
     expect(screen.getByText('€50,00')).toBeDefined()
   })
 
-  it('renders navigation links', () => {
+  it('renders trend chart titles', () => {
     render(<AdminDashboard />)
 
-    expect(screen.getByText('Quick Links')).toBeDefined()
-    expect(screen.getByText('Dispute Queue')).toBeDefined()
-    expect(screen.getByText('Order Inspector')).toBeDefined()
-    expect(screen.getByText('Search and inspect any order on the platform.')).toBeDefined()
-    expect(screen.getByText('Shop Moderation')).toBeDefined()
-    expect(screen.getByText('Review and moderate shops.')).toBeDefined()
+    expect(screen.getByText('Signups Over Last 30 Days')).toBeDefined()
+    expect(screen.getByText('Revenue Over Last 30 Days')).toBeDefined()
+  })
+
+  it('renders recent audit activity', () => {
+    render(<AdminDashboard />)
+
+    expect(screen.getByText('Recent Activity')).toBeDefined()
+    expect(screen.getByText('Admin')).toBeDefined()
+    expect(screen.getByText('shop.suspend')).toBeDefined()
+    expect(screen.getByText('View All')).toBeDefined()
   })
 
   it('renders zero values as "0"', () => {

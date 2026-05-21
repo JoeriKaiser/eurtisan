@@ -1,7 +1,21 @@
 import { count, eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { db } from '#/db/index'
-import { categories, product, shop, user } from '#/db/schema'
+import {
+  categories,
+  product,
+  shop,
+  user,
+  orderItem,
+  shopOrder,
+  platformOrder,
+  review,
+  dispute,
+  payout,
+  cartItem,
+  cart,
+  inventoryReservation,
+} from '#/db/schema'
 import {
   buildCategoryTree,
   createCategorySchema,
@@ -31,6 +45,15 @@ vi.mock('./auth', () => ({
 }))
 
 beforeEach(async () => {
+  await db.delete(dispute)
+  await db.delete(payout)
+  await db.delete(review)
+  await db.delete(orderItem)
+  await db.delete(shopOrder)
+  await db.delete(platformOrder)
+  await db.delete(inventoryReservation)
+  await db.delete(cartItem)
+  await db.delete(cart)
   await db.delete(product)
   await db.delete(categories)
   await db.delete(shop)
@@ -885,6 +908,7 @@ function makeAdminUser(id = 'admin-1'): SafeUser {
     emailVerified: true,
     image: null,
     role: 'admin',
+    bannedAt: null,
   }
 }
 
@@ -896,6 +920,7 @@ function makeCustomerUser(id = 'customer-1'): SafeUser {
     emailVerified: true,
     image: null,
     role: 'customer',
+    bannedAt: null,
   }
 }
 

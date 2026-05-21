@@ -66,3 +66,29 @@ export const getRecentOrders = createServerFn({ method: 'GET' })
     const { getRecentOrdersQuery } = await import('./admin-dashboard.server')
     return getRecentOrdersQuery(5)
   })
+
+/**
+ * Returns daily trend aggregates for the admin dashboard.
+ * Only accessible by users with the admin role.
+ */
+export const getDashboardTrends = createServerFn({ method: 'GET' })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    await requireAdmin(context)
+
+    const { getDashboardTrendsQuery } = await import('./admin-dashboard.server')
+    return getDashboardTrendsQuery(30)
+  })
+
+/**
+ * Returns the most recent audit log entries for the admin dashboard.
+ * Only accessible by users with the admin role.
+ */
+export const getRecentAuditEntries = createServerFn({ method: 'GET' })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    await requireAdmin(context)
+
+    const { getRecentAuditEntriesQuery } = await import('./admin-dashboard.server')
+    return getRecentAuditEntriesQuery(5)
+  })

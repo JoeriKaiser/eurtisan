@@ -1,4 +1,4 @@
-import { count, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm'
+import { and, count, desc, eq, gte, ilike, inArray, lte, or, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { orderItem, platformOrder, shop, shopOrder, user } from '#/db/schema'
 import type { ShippingAddress } from './checkout.server'
@@ -52,17 +52,50 @@ export async function listAllPlatformOrdersQuery(
   query: string | undefined,
   page: number,
   pageSize: number,
+  from?: Date,
+  to?: Date,
+  statuses?: string[],
 ): Promise<PaginatedAdminOrders> {
   const offset = (page - 1) * pageSize
 
-  // Build where clause based on optional search query
-  const whereClause = query
-    ? or(
+  const conditions = []
+
+  if (query) {
+    conditions.push(
+      or(
         ilike(sql`${platformOrder.id}::text`, `%${query}%`),
         ilike(user.name, `%${query}%`),
         ilike(user.email, `%${query}%`),
-      )
-    : undefined
+      ),
+    )
+  }
+
+  if (from) {
+    conditions.push(gte(platformOrder.createdAt, from))
+  }
+  if (to) {
+    conditions.push(lte(platformOrder.createdAt, to))
+  }
+  if (statuses && statuses.length > 0) {
+    conditions.push(
+      inArray(
+        platformOrder.status,
+        statuses as (
+          | 'pending_payment'
+          | 'paid'
+          | 'processing'
+          | 'shipped'
+          | 'delivered'
+          | 'completed'
+          | 'cancelled'
+          | 'refunded'
+          | 'disputed'
+        )[],
+      ),
+    )
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined
 
   const baseQuery = db
     .select({

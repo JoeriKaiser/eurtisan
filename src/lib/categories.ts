@@ -106,6 +106,13 @@ export const createCategory = createServerFn({
       })
       .returning()
 
+    const { emitAuditEvent } = await import('./audit-log.server')
+    await emitAuditEvent(context.user, 'category.create', 'category', category.id, {
+      name: category.name,
+      slug: category.slug,
+      parentId: category.parentId,
+    })
+
     return category
   })
 
@@ -169,7 +176,16 @@ export const updateCategory = createServerFn({
   .inputValidator(updateCategorySchema)
   .handler(async ({ context, data }) => {
     const { updateCategoryInternal } = await import('./categories.server')
-    return updateCategoryInternal(context.user, data)
+    const result = await updateCategoryInternal(context.user, data)
+
+    const { emitAuditEvent } = await import('./audit-log.server')
+    await emitAuditEvent(context.user, 'category.update', 'category', data.id, {
+      name: result.name,
+      slug: result.slug,
+      parentId: result.parentId,
+    })
+
+    return result
   })
 
 export const deleteCategorySchema = z.object({
@@ -183,5 +199,10 @@ export const deleteCategory = createServerFn({
   .inputValidator(deleteCategorySchema)
   .handler(async ({ context, data }) => {
     const { deleteCategoryInternal } = await import('./categories.server')
-    return deleteCategoryInternal(context.user, data)
+    const result = await deleteCategoryInternal(context.user, data)
+
+    const { emitAuditEvent } = await import('./audit-log.server')
+    await emitAuditEvent(context.user, 'category.delete', 'category', data.id)
+
+    return result
   })

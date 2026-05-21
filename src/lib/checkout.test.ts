@@ -184,7 +184,7 @@ describe('getCheckoutSummaryQuery', () => {
     expect(standardOption?.carrier).toBe('mondial_relay')
     expect(standardOption?.rateId).toBeDefined()
     expect(standardOption?.costCents).toBeGreaterThan(0)
-    expect(expressOption!.costCents).toBeGreaterThan(standardOption!.costCents)
+    expect(expressOption?.costCents).toBeGreaterThan(standardOption?.costCents ?? 0)
   })
 
   it('calculates subtotals and grand total correctly', async () => {

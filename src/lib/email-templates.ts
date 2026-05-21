@@ -26,6 +26,10 @@ export function renderTemplate(
       return renderShippingNotification(data)
     case 'dispute_update':
       return renderDisputeUpdate(data)
+    case 'email_verification':
+      return renderEmailVerification(data)
+    case 'password_reset':
+      return renderPasswordReset(data)
     default: {
       // Exhaustiveness check — should never happen at runtime with correct types.
       const _exhaustive: never = template
@@ -234,6 +238,109 @@ ${disputeUrl ? `\nView dispute details: ${disputeUrl}` : ''}
 Eurtisan — Empowering European artisans and their communities.`
 
   return { subject: `Dispute update for order #${orderNumber} — ${shopName}`, html, text }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                            Email Verification                              */
+/* -------------------------------------------------------------------------- */
+
+function renderEmailVerification(data: Record<string, unknown>): RenderedEmail {
+  const userName = String(data.userName ?? 'Valued Customer')
+  const verificationUrl = String(data.verificationUrl ?? '')
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Verify your email address</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.5; color: #1f2937; max-width: 600px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 20px; margin-bottom: 8px; }
+    p { margin: 0 0 12px; }
+    .button-container { margin: 24px 0; }
+    .button { background-color: #2563eb; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: 500; }
+    .footer { font-size: 12px; color: #6b7280; margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 16px; }
+  </style>
+</head>
+<body>
+  <h1>Verify your email address</h1>
+  <p>Hi ${escapeHtml(userName)},</p>
+  <p>Thank you for signing up for Eurtisan! Please verify your email address to complete your account setup.</p>
+  <div class="button-container">
+    <a href="${escapeHtml(verificationUrl)}" class="button">Verify Email Address</a>
+  </div>
+  <p>If the button doesn't work, you can copy and paste the following link into your browser:</p>
+  <p><a href="${escapeHtml(verificationUrl)}">${escapeHtml(verificationUrl)}</a></p>
+  <div class="footer">
+    <p>Eurtisan — Empowering European artisans and their communities.</p>
+  </div>
+</body>
+</html>`
+
+  const text = `Verify your email address
+
+Hi ${userName},
+
+Thank you for signing up for Eurtisan! Please verify your email address to complete your account setup.
+
+Verify Email Address: ${verificationUrl}
+
+Eurtisan — Empowering European artisans and their communities.`
+
+  return { subject: 'Verify your Eurtisan account', html, text }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                            Password Reset                                  */
+/* -------------------------------------------------------------------------- */
+
+function renderPasswordReset(data: Record<string, unknown>): RenderedEmail {
+  const userName = String(data.userName ?? 'Valued Customer')
+  const resetUrl = String(data.resetUrl ?? '')
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Reset your password</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.5; color: #1f2937; max-width: 600px; margin: 0 auto; padding: 24px; }
+    h1 { font-size: 20px; margin-bottom: 8px; }
+    p { margin: 0 0 12px; }
+    .button-container { margin: 24px 0; }
+    .button { background-color: #2563eb; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: 500; }
+    .footer { font-size: 12px; color: #6b7280; margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 16px; }
+  </style>
+</head>
+<body>
+  <h1>Reset your password</h1>
+  <p>Hi ${escapeHtml(userName)},</p>
+  <p>We received a request to reset the password for your Eurtisan account. Click the button below to choose a new password.</p>
+  <div class="button-container">
+    <a href="${escapeHtml(resetUrl)}" class="button">Reset Password</a>
+  </div>
+  <p>If you did not request this, you can safely ignore this email.</p>
+  <p>If the button doesn't work, you can copy and paste the following link into your browser:</p>
+  <p><a href="${escapeHtml(resetUrl)}">${escapeHtml(resetUrl)}</a></p>
+  <div class="footer">
+    <p>Eurtisan — Empowering European artisans and their communities.</p>
+  </div>
+</body>
+</html>`
+
+  const text = `Reset your password
+
+Hi ${userName},
+
+We received a request to reset the password for your Eurtisan account. Click the link below to choose a new password.
+
+Reset Password: ${resetUrl}
+
+If you did not request this, you can safely ignore this email.
+
+Eurtisan — Empowering European artisans and their communities.`
+
+  return { subject: 'Reset your Eurtisan password', html, text }
 }
 
 /* -------------------------------------------------------------------------- */

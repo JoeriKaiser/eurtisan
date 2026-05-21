@@ -27,7 +27,16 @@ vi.mock('@tanstack/react-router', () => ({
       pageSize: 20,
     }),
     useNavigate: () => vi.fn(),
-    useSearch: () => ({ query: '', page: 1, pageSize: 20 }),
+    useSearch: () => ({
+      query: '',
+      page: 1,
+      pageSize: 20,
+      from: '',
+      to: '',
+      statuses: [],
+      sortBy: 'createdAt',
+      sortDir: 'desc',
+    }),
   }),
   Link: (props: {
     children: React.ReactNode
@@ -64,6 +73,11 @@ vi.mock('#/paraglide/messages', () => ({
     admin_orders_error_load: () => 'Failed to load orders.',
     admin_orders_error_retry: () => 'Retry',
     admin_orders_back_to_list: () => 'Back to order list',
+    admin_orders_date_from: () => 'From',
+    admin_orders_date_to: () => 'To',
+    admin_orders_status_filter: () => 'Status',
+    admin_common_clear_filters: () => 'Clear filters',
+    admin_common_search: () => 'Search',
     pagination_previous: () => 'Previous',
     pagination_next: () => 'Next',
     pagination_page_of: ({ page, totalPages }: { page: string; totalPages: string }) =>
@@ -128,6 +142,6 @@ describe('AdminOrdersPage', () => {
     render(<AdminOrdersPage />)
     expect(screen.getByText('Test Buyer')).toBeDefined()
     expect(screen.getByText('buyer@example.com')).toBeDefined()
-    expect(screen.getByText('paid')).toBeDefined()
+    expect(screen.getAllByText('paid').length).toBeGreaterThanOrEqual(1)
   })
 })

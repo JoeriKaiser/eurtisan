@@ -17,8 +17,11 @@ export type {
 
 const listAllShopsInputSchema = z.object({
   filter: z.enum(['suspended', 'active', 'all']).default('all'),
+  query: z.string().optional(),
+  sortBy: z.enum(['name', 'createdAt', 'status']).optional(),
+  sortDir: z.enum(['asc', 'desc']).optional(),
   page: z.number().int().min(1).default(1),
-  pageSize: z.number().int().min(1).max(100).default(20),
+  pageSize: z.number().int().min(1).max(1000).default(20),
 })
 
 const moderateShopInputSchema = z.object({
@@ -77,6 +80,9 @@ export const listAllShops = createServerFn({ method: 'GET' })
     const { listAllShopsQuery } = await import('./shop-moderation.server')
     return listAllShopsQuery({
       filter: data.filter,
+      query: data.query,
+      sortBy: data.sortBy,
+      sortDir: data.sortDir,
       page: data.page,
       pageSize: data.pageSize,
     })
@@ -100,7 +106,14 @@ export const moderateShop = createServerFn({ method: 'POST' })
     const { moderateShopQuery } = await import('./shop-moderation.server')
 
     try {
-      return await moderateShopQuery(data.shopId, data.action, data.note)
+      const result = await moderateShopQuery(data.shopId, data.action, data.note)
+
+      const { emitAuditEvent } = await import('./audit-log.server')
+      await emitAuditEvent(context.user, `shop.${data.action}`, 'shop', data.shopId, {
+        note: data.note,
+      })
+
+      return result
     } catch (err) {
       if (err instanceof Error && err.message.startsWith('Shop not found:')) {
         throw new Response(

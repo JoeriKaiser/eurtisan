@@ -45,6 +45,8 @@ export const addDisputeMessage = createServerFn({ method: 'POST' })
 const listOpenDisputesInputSchema = z.object({
   page: z.number().int().min(1).default(1),
   pageSize: z.number().int().min(1).max(100).default(20),
+  status: z.enum(['all', 'open', 'resolved']).optional().default('open'),
+  query: z.string().optional(),
 })
 
 export const listOpenDisputes = createServerFn({ method: 'GET' })
@@ -66,7 +68,12 @@ export const listOpenDisputes = createServerFn({ method: 'GET' })
     }
 
     const { listOpenDisputesQuery } = await import('./disputes.server')
-    return listOpenDisputesQuery({ page: data.page, pageSize: data.pageSize })
+    return listOpenDisputesQuery({
+      page: data.page,
+      pageSize: data.pageSize,
+      status: data.status,
+      query: data.query,
+    })
   })
 
 export const getDisputeDetail = createServerFn({ method: 'GET' })
@@ -103,8 +110,16 @@ export const resolveDispute = createServerFn({ method: 'POST' })
     }
 
     const { resolveDisputeQuery } = await import('./disputes.server')
-    return resolveDisputeQuery(data.disputeId, {
+    const result = await resolveDisputeQuery(data.disputeId, {
       resolution: data.resolution,
       refundCents: data.refundCents,
     })
+
+    const { emitAuditEvent } = await import('./audit-log.server')
+    await emitAuditEvent(context.user, 'dispute.resolve', 'dispute', data.disputeId, {
+      resolution: data.resolution,
+      refundCents: data.refundCents,
+    })
+
+    return result
   })

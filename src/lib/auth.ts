@@ -3,6 +3,7 @@ import { betterAuth } from 'better-auth'
 import { tanstackStartCookies } from 'better-auth/tanstack-start'
 
 import { db } from '#/db/index'
+import { createEmailProvider } from '#/integrations/email'
 import { ANONYMOUS_SESSION_COOKIE, handlePostLoginCartMerge } from './cart.server'
 
 export const auth = betterAuth({
@@ -11,6 +12,24 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
+    requireEmailVerification: true,
+    sendResetPassword: async ({ user, url }) => {
+      const emailProvider = createEmailProvider()
+      await emailProvider.sendTransactional(user.email, 'password_reset', {
+        userName: user.name,
+        resetUrl: url,
+      })
+    },
+  },
+  emailVerification: {
+    sendOnSignUp: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      const emailProvider = createEmailProvider()
+      await emailProvider.sendTransactional(user.email, 'email_verification', {
+        userName: user.name,
+        verificationUrl: url,
+      })
+    },
   },
   user: {
     additionalFields: {

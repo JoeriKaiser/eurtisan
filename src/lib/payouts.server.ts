@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray } from 'drizzle-orm'
+import { and, count, desc, eq, gte, ilike, inArray, lte, or } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { payout, shop, shopOrder, user } from '#/db/schema'
 import { PLATFORM_FEE_PERCENT } from './payouts'
@@ -168,7 +168,7 @@ export async function listPendingPayoutsQuery(): Promise<AdminPayoutRow[]> {
  * This is a pure query function — callers are responsible for authorization.
  */
 export async function listPayoutHistoryQuery(
-  options: { page?: number; pageSize?: number } = {},
+  options: { page?: number; pageSize?: number; from?: Date; to?: Date; query?: string } = {},
 ): Promise<{
   payouts: AdminPayoutRow[]
   total: number
@@ -180,7 +180,26 @@ export async function listPayoutHistoryQuery(
   const pageSize = Math.min(100, Math.max(1, options.pageSize ?? 20))
   const offset = (page - 1) * pageSize
 
-  const [countRow] = await db.select({ total: count() }).from(payout)
+  const conditions = []
+  if (options.from) {
+    conditions.push(gte(payout.createdAt, options.from))
+  }
+  if (options.to) {
+    conditions.push(lte(payout.createdAt, options.to))
+  }
+  if (options.query) {
+    const pattern = `%${options.query}%`
+    conditions.push(or(ilike(shop.name, pattern), ilike(user.name, pattern)))
+  }
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined
+
+  const [countRow] = await db
+    .select({ total: count() })
+    .from(payout)
+    .innerJoin(shop, eq(payout.shopId, shop.id))
+    .innerJoin(user, eq(shop.ownerId, user.id))
+    .where(where)
 
   const total = Number(countRow?.total ?? 0)
 
@@ -199,6 +218,7 @@ export async function listPayoutHistoryQuery(
     .from(payout)
     .innerJoin(shop, eq(payout.shopId, shop.id))
     .innerJoin(user, eq(shop.ownerId, user.id))
+    .where(where)
     .orderBy(desc(payout.createdAt))
     .limit(pageSize)
     .offset(offset)
