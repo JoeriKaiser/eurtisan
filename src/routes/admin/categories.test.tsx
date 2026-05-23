@@ -6,7 +6,8 @@ import { describe, expect, it, vi } from 'vitest'
 const mockNavigate = vi.fn()
 
 vi.mock('@tanstack/react-router', () => ({
-  createFileRoute: () => () => ({
+  createFileRoute: () => (options: { component?: unknown }) => ({
+    options,
     useLoaderData: () => ({
       flat: [
         {
@@ -150,7 +151,9 @@ vi.mock('#/lib/categories', () => ({
   ]),
 }))
 
-import { AdminCategoriesPage } from './categories'
+import { Route } from './categories'
+
+const AdminCategoriesPage = Route.options.component!
 
 describe('AdminCategoriesPage', () => {
   it('renders the page title', () => {

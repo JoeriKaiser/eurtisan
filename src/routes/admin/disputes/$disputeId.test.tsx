@@ -6,7 +6,8 @@ import { describe, expect, it, vi } from 'vitest'
 const mockInvalidate = vi.fn()
 
 vi.mock('@tanstack/react-router', () => ({
-  createFileRoute: () => () => ({
+  createFileRoute: () => (options: { component?: unknown }) => ({
+    options,
     useParams: () => ({ disputeId: 'd1' }),
     useLoaderData: () => {
       const dispute = {
@@ -76,7 +77,9 @@ vi.mock('#/lib/disputes', () => ({
   resolveDispute: vi.fn().mockResolvedValue({}),
 }))
 
-import { AdminDisputeDetailPage } from './$disputeId'
+import { Route } from './$disputeId'
+
+const AdminDisputeDetailPage = Route.options.component as React.ComponentType
 
 describe('AdminDisputeDetailPage', () => {
   it('renders dispute detail with order summary', () => {

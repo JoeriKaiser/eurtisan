@@ -16,6 +16,9 @@ vi.mock('@tanstack/react-router', () => ({
     invalidate: vi.fn().mockResolvedValue(undefined),
     navigate: mockNavigate,
   }),
+  getRouteApi: () => ({
+    useLoaderData: () => null,
+  }),
 }))
 
 vi.mock('#/lib/auth-client', () => ({

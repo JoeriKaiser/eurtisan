@@ -23,11 +23,16 @@ export const auth = betterAuth({
   },
   emailVerification: {
     sendOnSignUp: true,
-    sendVerificationEmail: async ({ user, url }) => {
+    autoSignInAfterVerification: true,
+    sendVerificationEmail: async ({ user, url, token }) => {
+      const parsedUrl = new URL(url)
+      const callbackURL = parsedUrl.searchParams.get('callbackURL') || '/'
+      const verificationUrl = `${parsedUrl.origin}/verify-email?token=${token}&email=${encodeURIComponent(user.email)}&redirect=${encodeURIComponent(callbackURL)}`
+
       const emailProvider = createEmailProvider()
       await emailProvider.sendTransactional(user.email, 'email_verification', {
         userName: user.name,
-        verificationUrl: url,
+        verificationUrl,
       })
     },
   },

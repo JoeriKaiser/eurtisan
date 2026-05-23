@@ -359,7 +359,7 @@ function AdminMessageInput({
 /*                           Main Page Component                              */
 /* -------------------------------------------------------------------------- */
 
-export function AdminDisputeDetailPage() {
+function AdminDisputeDetailPage() {
   const { dispute } = Route.useLoaderData()
   const router = useRouter()
   const [justResolved, setJustResolved] = useState(false)
@@ -591,7 +591,7 @@ export function AdminDisputeDetailPending() {
   )
 }
 
-export function AdminDisputeDetailError({ error }: { error: Error }) {
+function AdminDisputeDetailError({ error }: { error: Error }) {
   return (
     <div className='py-8'>
       <div className='mx-auto max-w-4xl text-center'>

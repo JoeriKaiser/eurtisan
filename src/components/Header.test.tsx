@@ -135,6 +135,18 @@ vi.mock('#/lib/meilisearch-client', () => ({
   PRODUCTS_INDEX: 'products',
 }))
 
+vi.mock('./search', () => ({
+  SearchOverlay: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) =>
+    isOpen ? (
+      <div data-testid='search-overlay'>
+        <span>Mock Search Overlay</span>
+        <button type='button' onClick={onClose} aria-label='Close search'>
+          Close Overlay
+        </button>
+      </div>
+    ) : null,
+}))
+
 describe('Header', () => {
   beforeEach(() => {
     mockNavigate.mockClear()
@@ -165,7 +177,7 @@ describe('Header', () => {
 
   it('renders search trigger button with aria-label', () => {
     renderWithProviders(<Header />)
-    const trigger = screen.getByPlaceholderText('Search products...')
+    const trigger = screen.getByRole('button', { name: 'Search products...' })
     expect(trigger).toBeDefined()
   })
 
@@ -221,7 +233,8 @@ describe('Header', () => {
   it('renders search trigger on homepage', () => {
     mockUseLocation.mockReturnValue({ pathname: '/' })
     renderWithProviders(<Header />)
-    expect(screen.getByPlaceholderText('Search products...')).toBeDefined()
+    const trigger = screen.getByRole('button', { name: 'Search products...' })
+    expect(trigger).toBeDefined()
     mockUseLocation.mockReturnValue({ pathname: '/about' })
   })
 
@@ -337,13 +350,41 @@ describe('Header', () => {
     expect(screen.getByRole('dialog', { name: 'Navigation Drawer' })).toBeDefined()
   })
 
-  it('renders mobile search button and opens drawer on click', () => {
+  it('renders mobile search button and opens search overlay on click', () => {
     renderWithProviders(<Header />)
     const searchBtn = screen.getByRole('button', { name: 'Search products' })
     expect(searchBtn).toBeDefined()
 
-    // Click trigger to open drawer
+    // Click trigger to open search overlay
     fireEvent.click(searchBtn)
-    expect(screen.getByRole('dialog', { name: 'Navigation Drawer' })).toBeDefined()
+    expect(screen.getByTestId('search-overlay')).toBeDefined()
+  })
+
+  it('renders desktop search button and opens search overlay on click', () => {
+    renderWithProviders(<Header />)
+    const searchBtn = screen.getByRole('button', { name: 'Search products...' })
+    expect(searchBtn).toBeDefined()
+
+    // Click trigger to open search overlay
+    fireEvent.click(searchBtn)
+    expect(screen.getByTestId('search-overlay')).toBeDefined()
+  })
+
+  it('opens search overlay on / keyboard shortcut', () => {
+    renderWithProviders(<Header />)
+    expect(screen.queryByTestId('search-overlay')).toBeNull()
+
+    // Press '/' key
+    fireEvent.keyDown(document, { key: '/' })
+    expect(screen.getByTestId('search-overlay')).toBeDefined()
+  })
+
+  it('opens search overlay on Cmd+K keyboard shortcut', () => {
+    renderWithProviders(<Header />)
+    expect(screen.queryByTestId('search-overlay')).toBeNull()
+
+    // Press 'Cmd+K' key
+    fireEvent.keyDown(document, { key: 'k', metaKey: true })
+    expect(screen.getByTestId('search-overlay')).toBeDefined()
   })
 })

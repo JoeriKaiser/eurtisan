@@ -55,7 +55,8 @@ vi.mock('#/lib/disputes', () => ({
 }))
 
 vi.mock('@tanstack/react-router', () => ({
-  createFileRoute: () => () => ({
+  createFileRoute: () => (options: { component?: unknown }) => ({
+    options,
     useLoaderData: () => mockLoaderData,
     useSearch: () => mockSearch,
     useNavigate: () => mockNavigate,
@@ -110,7 +111,9 @@ vi.mock('#/paraglide/messages', () => ({
   },
 }))
 
-import { AdminDisputesPage } from './disputes'
+import { Route } from './disputes'
+
+const AdminDisputesPage = Route.options.component!
 
 describe('AdminDisputesPage', () => {
   beforeEach(() => {

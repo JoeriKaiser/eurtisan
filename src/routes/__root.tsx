@@ -42,7 +42,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
   loader: async () => {
     const [user, categories] = await Promise.all([
       getCurrentUser().catch(() => null),
-      listCategories().catch(() => []),
+      listCategories({ data: { tree: true } }).catch(() => []),
     ])
     return { user, categories }
   },

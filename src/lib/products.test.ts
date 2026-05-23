@@ -39,6 +39,11 @@ vi.mock('./auth', () => ({
   },
 }))
 
+vi.mock('./meilisearch-products.server', () => ({
+  searchProductsMeilisearch: vi.fn().mockResolvedValue(null),
+  syncProductToMeilisearch: vi.fn().mockResolvedValue(undefined),
+}))
+
 beforeEach(async () => {
   await db.delete(inventoryReservation)
   await db.delete(orderItem)

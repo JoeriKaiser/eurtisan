@@ -62,7 +62,7 @@ function formatDate(date: Date | string): string {
 /*                              Main Component                                */
 /* -------------------------------------------------------------------------- */
 
-export function AdminDisputesPage() {
+function AdminDisputesPage() {
   const result = Route.useLoaderData()
   const navigate = Route.useNavigate()
   const search = Route.useSearch()

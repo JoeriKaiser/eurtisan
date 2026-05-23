@@ -1,5 +1,5 @@
 import { Dialog as BaseDialog } from '@base-ui-components/react/dialog'
-import { Link, useRouter } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import { ChevronDown, X, Search, User, Store, Sparkles, Settings, LogOut } from 'lucide-react'
 import { useState } from 'react'
 import { getLocale, locales, setLocale } from '#/paraglide/runtime'
@@ -13,25 +13,17 @@ interface MobileNavDrawerProps {
   isOpen: boolean
   onClose: () => void
   categories: Array<{ id: string; name: string; slug: string }>
+  onOpenSearch: () => void
 }
 
-export default function MobileNavDrawer({ isOpen, onClose, categories }: MobileNavDrawerProps) {
-  const router = useRouter()
+export default function MobileNavDrawer({
+  isOpen,
+  onClose,
+  categories,
+  onOpenSearch,
+}: MobileNavDrawerProps) {
   const { user } = useAuth()
   const [categoriesExpanded, setCategoriesExpanded] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const trimmed = searchQuery.trim()
-    if (!trimmed) return
-
-    onClose()
-    void router.navigate({
-      to: '/search',
-      search: { q: trimmed },
-    })
-  }
 
   const handleSignOut = async () => {
     await authClient.signOut()
@@ -81,38 +73,28 @@ export default function MobileNavDrawer({ isOpen, onClose, categories }: MobileN
             </BaseDialog.Close>
           </div>
 
-          {/* Search Form */}
-          <search className='relative mb-4'>
-            <form onSubmit={handleSearchSubmit}>
-              <label htmlFor='drawer-search-input' className='sr-only'>
+          {/* Search Trigger Button */}
+          <div className='relative mb-4 min-w-0'>
+            <button
+              type='button'
+              onClick={() => {
+                onClose()
+                onOpenSearch()
+              }}
+              className='w-full h-10 pl-9 pr-3 relative rounded-lg border border-border-default bg-surface-inset text-sm text-text-muted text-left transition-all duration-fast outline-none cursor-pointer flex items-center min-w-0'
+              aria-label={m.search_header_placeholder()}
+            >
+              <span className='absolute left-3 top-1/2 -translate-y-1/2 text-text-muted'>
+                <Search size={16} aria-hidden='true' />
+              </span>
+              <span
+                className='flex-1 text-left whitespace-nowrap truncate min-w-0'
+                style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+              >
                 {m.search_header_placeholder()}
-              </label>
-              <div className='relative w-full'>
-                <span className='absolute left-3 top-1/2 -translate-y-1/2 text-text-muted'>
-                  <Search size={16} aria-hidden='true' />
-                </span>
-                <input
-                  id='drawer-search-input'
-                  type='search'
-                  placeholder={m.search_header_placeholder()}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className='w-full h-10 pl-9 pr-10 rounded-lg border border-border-default bg-surface-inset text-sm text-text-primary placeholder:text-text-muted transition-all duration-fast focus-visible:border-accent-primary focus-visible:ring-1 focus-visible:ring-accent-primary outline-none'
-                  autoComplete='off'
-                />
-                {searchQuery && (
-                  <button
-                    type='button'
-                    onClick={() => setSearchQuery('')}
-                    className='absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-text-muted hover:bg-surface-default hover:text-text-primary transition-colors'
-                    aria-label='Clear search'
-                  >
-                    <X size={14} aria-hidden='true' />
-                  </button>
-                )}
-              </div>
-            </form>
-          </search>
+              </span>
+            </button>
+          </div>
 
           {/* Nav stack */}
           <nav className='flex-1 space-y-4 overflow-y-auto pr-1' aria-label='Mobile navigation'>

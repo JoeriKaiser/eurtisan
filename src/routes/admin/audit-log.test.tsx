@@ -32,7 +32,8 @@ const mockLoaderData = {
 }
 
 vi.mock('@tanstack/react-router', () => ({
-  createFileRoute: () => () => ({
+  createFileRoute: () => (options: { component?: unknown }) => ({
+    options,
     useLoaderData: () => mockLoaderData,
     useNavigate: () => vi.fn(),
     useSearch: () => ({}),
@@ -77,7 +78,9 @@ vi.mock('#/paraglide/messages', () => ({
   },
 }))
 
-import { AdminAuditLogPage } from './audit-log'
+import { Route } from './audit-log'
+
+const AdminAuditLogPage = Route.options.component!
 
 describe('AdminAuditLogPage', () => {
   it('renders title and description', () => {

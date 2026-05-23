@@ -152,7 +152,7 @@ function actionColorClass(action: string): string {
 /*                               Main Component                               */
 /* -------------------------------------------------------------------------- */
 
-export function AdminAuditLogPage() {
+function AdminAuditLogPage() {
   const loaderData = Route.useLoaderData() as PaginatedAuditLog
   const navigate = Route.useNavigate()
   const search = Route.useSearch()
@@ -522,7 +522,7 @@ export function AdminAuditLogPending() {
   )
 }
 
-export function AdminAuditLogError({ error }: { error: Error }) {
+function AdminAuditLogError({ error }: { error: Error }) {
   return (
     <div className='space-y-6'>
       <div>

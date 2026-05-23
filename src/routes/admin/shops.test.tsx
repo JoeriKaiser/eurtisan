@@ -95,7 +95,7 @@ vi.mock('@tanstack/react-router', () => ({
       useSearch: () => activeSearch,
       useNavigate: () => mockNavigateFn,
     }
-    return () => routeObj
+    return (options: { component?: unknown }) => ({ ...routeObj, options })
   },
   Link: (props: { children: React.ReactNode; to: string; className?: string }) => (
     <a href={props.to} className={props.className}>
@@ -141,7 +141,9 @@ vi.mock('#/lib/route-guards', () => ({
   guardRole: vi.fn().mockResolvedValue({ user: { id: 'admin-1', role: 'admin' } }),
 }))
 
-import { AdminShopsPage } from './shops'
+import { Route } from './shops'
+
+const AdminShopsPage = Route.options.component!
 
 /* -------------------------------------------------------------------------- */
 /*                               Initial Render                               */

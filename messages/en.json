@@ -944,6 +944,16 @@
   "nav_skip_to_content": "Skip to main content",
   "nav_profile": "Profile",
   "nav_my_shop": "My Shop",
-  "nav_start_selling": "Start Selling"
+  "nav_start_selling": "Start Selling",
+  "megamenu_spotlight_title": "Featured Highlight",
+  "megamenu_spotlight_explore": "Explore All",
+  "megamenu_ceramics_title": "Earth & Clay",
+  "megamenu_ceramics_desc": "Rustic pots, tactile cups, and glazed tableware handcrafted by independent European potters.",
+  "megamenu_textiles_title": "Woven Heritage",
+  "megamenu_textiles_desc": "Organic linen blankets, hand-dyed cushions, and knitwear spun using traditional techniques.",
+  "megamenu_woodwork_title": "Living Timber",
+  "megamenu_woodwork_desc": "Beautifully grained kitchen boards, carved spoons, and bespoke furniture built to last generations.",
+  "megamenu_default_title": "Artisan Spotlight",
+  "megamenu_default_desc": "Discover unique creations made with dedication, skill, and rich heritage from across Europe."
 }
 

@@ -6,7 +6,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const mockNavigate = vi.fn()
 
 vi.mock('@tanstack/react-router', () => ({
-  createFileRoute: () => () => ({
+  createFileRoute: () => (options: { component?: unknown }) => ({
+    options,
     useParams: () => ({ shopId: 'shop-1' }),
     useLoaderData: () => ({
       result: {
@@ -72,7 +73,9 @@ vi.mock('#/paraglide/messages', () => ({
   },
 }))
 
-import { ShopOrdersPage } from './$shopId.orders'
+import { Route } from './$shopId.orders'
+
+const ShopOrdersPage = Route.options.component!
 
 describe('ShopOrdersPage', () => {
   beforeEach(() => {

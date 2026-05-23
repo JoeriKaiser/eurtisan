@@ -74,7 +74,7 @@ function getStatusBadgeVariant(orderStatus: string): React.ComponentProps<typeof
   }
 }
 
-export function ShopOrdersPage() {
+function ShopOrdersPage() {
   const { shopId } = Route.useParams()
   const { result, status, searchQuery } = Route.useLoaderData()
   const navigate = Route.useNavigate()

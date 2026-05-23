@@ -1,4 +1,4 @@
-.PHONY: up down stop logs dev build preview start install lint format check test test-related shell auth-secret db-generate db-migrate db-push db-studio init db-seed FORCE
+.PHONY: up down stop logs dev build preview start install lint format check test test-related shell auth-secret db-generate db-migrate db-push db-studio init db-seed meili-setup FORCE
 
 # Docker Compose lifecycle
 up:
@@ -99,6 +99,10 @@ db-seed: up
 
 db-studio:
 	docker compose run --rm -p 4983:4983 app bun run db:studio
+
+# Meilisearch
+meili-setup: up
+	docker compose exec app bun run src/lib/meili-setup.ts
 
 # Catch-all rule to allow passing arbitrary arguments (like file paths) to test/other commands without Make complaining
 %: FORCE

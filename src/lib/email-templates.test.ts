@@ -153,4 +153,50 @@ describe('renderFallbackPlainText', () => {
     expect(result.subject).toBe('[Eurtisan] dispute update')
     expect(result.text).toContain('dispute update')
   })
+
+  it('returns a safe plain-text fallback for email_verification', () => {
+    const result = renderFallbackPlainText('email_verification', { userName: 'Dave' })
+
+    expect(result.subject).toBe('[Eurtisan] email verification')
+    expect(result.text).toContain('email verification')
+  })
+
+  it('returns a safe plain-text fallback for password_reset', () => {
+    const result = renderFallbackPlainText('password_reset', { userName: 'Eve' })
+
+    expect(result.subject).toBe('[Eurtisan] password reset')
+    expect(result.text).toContain('password reset')
+  })
+})
+
+describe('renderTemplate — email_verification', () => {
+  it('renders HTML and plain text with all fields', () => {
+    const result = renderTemplate('email_verification', {
+      userName: 'Dave',
+      verificationUrl: 'https://eurtisan.example.com/verify-email?token=abc',
+    })
+
+    expect(result.subject).toBe('Verify your Eurtisan account')
+    expect(result.html).toContain('Dave')
+    expect(result.html).toContain('https://eurtisan.example.com/verify-email?token=abc')
+
+    expect(result.text).toContain('Dave')
+    expect(result.text).toContain('https://eurtisan.example.com/verify-email?token=abc')
+  })
+})
+
+describe('renderTemplate — password_reset', () => {
+  it('renders HTML and plain text with all fields', () => {
+    const result = renderTemplate('password_reset', {
+      userName: 'Eve',
+      resetUrl: 'https://eurtisan.example.com/reset-password?token=xyz',
+    })
+
+    expect(result.subject).toBe('Reset your Eurtisan password')
+    expect(result.html).toContain('Eve')
+    expect(result.html).toContain('https://eurtisan.example.com/reset-password?token=xyz')
+
+    expect(result.text).toContain('Eve')
+    expect(result.text).toContain('https://eurtisan.example.com/reset-password?token=xyz')
+  })
 })

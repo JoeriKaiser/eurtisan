@@ -21,6 +21,10 @@ import {
 import { sql } from 'drizzle-orm'
 import { pool } from '../db.ts'
 import { db } from './index.ts'
+import {
+  configureProductsIndex,
+  populateProductsIndex,
+} from '../lib/meilisearch-products.server.ts'
 import * as schema from './schema.ts'
 
 // =============================================================================
@@ -1245,6 +1249,12 @@ async function seed() {
   await seedPayouts(shops)
   await seedNotifications(users)
   await seedTodos()
+
+  console.log('\nConfiguring Meilisearch index...')
+  await configureProductsIndex()
+  console.log('Populating Meilisearch index...')
+  const { synced, errors } = await populateProductsIndex()
+  console.log(`Meilisearch: synced ${synced} products, ${errors} errors`)
 
   console.log('\nSeed completed successfully!')
 }

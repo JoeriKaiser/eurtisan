@@ -26,7 +26,7 @@ export const Route = createFileRoute('/')({
   loader: async () => {
     const user = await getCurrentUser().catch(() => null)
     const [categories, products, shops, sellerShops, stats] = await Promise.all([
-      listCategories(),
+      listCategories({ data: {} }),
       listRecentProducts({ data: { limit: 12 } }),
       getFeaturedShops({ data: { limit: 6 } }),
       user ? getSellerShops().catch(() => []) : Promise.resolve([]),

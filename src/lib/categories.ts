@@ -124,7 +124,7 @@ export const listCategories = createServerFn({
   .inputValidator(z.object({ tree: z.boolean().optional() }).optional().default({}))
   .handler(async ({ data }) => {
     const { listCategoriesQuery, listCategoryTreeQuery } = await import('./categories.server')
-    if (data.tree) {
+    if (data?.tree) {
       return listCategoryTreeQuery()
     }
     return listCategoriesQuery()

@@ -77,7 +77,7 @@ function isValidUrl(url: string | null): url is string {
 /*                               Main Component                               */
 /* -------------------------------------------------------------------------- */
 
-export function AdminOrderDetailPage() {
+function AdminOrderDetailPage() {
   const order = Route.useLoaderData() as AdminOrderDetail
 
   const isCancelled = order.status === 'cancelled'

@@ -49,7 +49,7 @@ export const Route = createFileRoute('/admin/categories')({
 /*                               Main Component                               */
 /* -------------------------------------------------------------------------- */
 
-export function AdminCategoriesPage() {
+function AdminCategoriesPage() {
   const loaderData = Route.useLoaderData()
   const [categories, setCategories] = useState<AdminCategoryItem[]>(loaderData.flat)
   const [actionError, setActionError] = useState<string | null>(null)
@@ -501,7 +501,7 @@ export function AdminCategoriesPending() {
   )
 }
 
-export function AdminCategoriesError({ error }: { error: Error }) {
+function AdminCategoriesError({ error }: { error: Error }) {
   return (
     <div className='space-y-6'>
       <div>

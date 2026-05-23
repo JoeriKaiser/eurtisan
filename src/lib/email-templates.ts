@@ -84,34 +84,21 @@ function renderOrderConfirmation(data: Record<string, unknown>): RenderedEmail {
     })
     .join('\n')
 
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Order Confirmation</title>
-  <style>
-    body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.5; color: #1f2937; max-width: 600px; margin: 0 auto; padding: 24px; }
-    h1 { font-size: 20px; margin-bottom: 8px; }
-    p { margin: 0 0 12px; }
-    ul { padding-left: 20px; margin: 0 0 16px; }
-    li { margin-bottom: 4px; }
-    .total { font-weight: 600; margin-top: 8px; }
-    .footer { font-size: 12px; color: #6b7280; margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 16px; }
-    a { color: #2563eb; }
-  </style>
-</head>
-<body>
-  <h1>Thank you for your order, ${escapeHtml(buyerName)}!</h1>
-  <p>Your order <strong>#${escapeHtml(orderNumber)}</strong> from <strong>${escapeHtml(shopName)}</strong> has been received and is being prepared.</p>
-  <p><strong>Items:</strong></p>
-  <ul>${itemsListHtml}</ul>
-  <p class="total"><strong>Total: ${escapeHtml(total)}</strong></p>
-  ${orderUrl ? `<p><a href="${escapeHtml(orderUrl)}">View your order</a></p>` : ''}
-  <div class="footer">
-    <p>Eurtisan — Empowering European artisans and their communities.</p>
-  </div>
-</body>
-</html>`
+  const contentHtml = `<div style="font-size: 20px; font-weight: 700; color: #111827; line-height: 1.3;">Thank you for your order, ${escapeHtml(buyerName)}!</div>
+  <br />
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">Your order <strong>#${escapeHtml(orderNumber)}</strong> from <strong>${escapeHtml(shopName)}</strong> has been received and is being prepared.</div>
+  <br />
+  <div style="font-weight: 600; color: #111827; font-size: 16px; line-height: 1.5;">Items:</div>
+  <ul style="padding-left: 20px; color: #374151; font-size: 16px; line-height: 1.5;">${itemsListHtml}</ul>
+  <br />
+  <div style="font-weight: 600; color: #111827; font-size: 16px; line-height: 1.5;">Total: ${escapeHtml(total)}</div>
+  ${orderUrl ? `<br /><div style="font-size: 16px; line-height: 1.5;"><a href="${escapeHtml(orderUrl)}" style="color: #2563eb; text-decoration: underline;">View your order</a></div>` : ''}
+  <br /><br />
+  <div style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    Eurtisan — Empowering European artisans and their communities.
+  </div>`
+
+  const html = wrapInEmailTemplate('Order Confirmation', contentHtml)
 
   const text = `Thank you for your order, ${buyerName}!
 
@@ -141,36 +128,28 @@ function renderShippingNotification(data: Record<string, unknown>): RenderedEmai
   const estimatedDelivery = String(data.estimatedDelivery ?? '—')
   const trackingUrl = String(data.trackingUrl ?? '')
 
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Shipping Notification</title>
-  <style>
-    body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.5; color: #1f2937; max-width: 600px; margin: 0 auto; padding: 24px; }
-    h1 { font-size: 20px; margin-bottom: 8px; }
-    p { margin: 0 0 12px; }
-    .details { background: #f9fafb; padding: 16px; border-radius: 8px; margin-bottom: 16px; }
-    .details p { margin: 0 0 8px; }
-    .details p:last-child { margin-bottom: 0; }
-    .footer { font-size: 12px; color: #6b7280; margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 16px; }
-    a { color: #2563eb; }
-  </style>
-</head>
-<body>
-  <h1>Your order is on its way, ${escapeHtml(buyerName)}!</h1>
-  <p>Your order <strong>#${escapeHtml(orderNumber)}</strong> from <strong>${escapeHtml(shopName)}</strong> has been shipped.</p>
-  <div class="details">
-    <p><strong>Carrier:</strong> ${escapeHtml(carrier)}</p>
-    <p><strong>Tracking number:</strong> ${escapeHtml(trackingNumber)}</p>
-    <p><strong>Estimated delivery:</strong> ${escapeHtml(estimatedDelivery)}</p>
-  </div>
-  ${trackingUrl ? `<p><a href="${escapeHtml(trackingUrl)}">Track your shipment</a></p>` : ''}
-  <div class="footer">
-    <p>Eurtisan — Empowering European artisans and their communities.</p>
-  </div>
-</body>
-</html>`
+  const contentHtml = `<div style="font-size: 20px; font-weight: 700; color: #111827; line-height: 1.3;">Your order is on its way, ${escapeHtml(buyerName)}!</div>
+  <br />
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">Your order <strong>#${escapeHtml(orderNumber)}</strong> from <strong>${escapeHtml(shopName)}</strong> has been shipped.</div>
+  <br />
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f9fafb; border-radius: 8px; width: 100%;" bgcolor="#f9fafb">
+    <tr>
+      <td style="padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.5; color: #374151;">
+        <div><strong>Carrier:</strong> ${escapeHtml(carrier)}</div>
+        <br />
+        <div><strong>Tracking number:</strong> ${escapeHtml(trackingNumber)}</div>
+        <br />
+        <div><strong>Estimated delivery:</strong> ${escapeHtml(estimatedDelivery)}</div>
+      </td>
+    </tr>
+  </table>
+  ${trackingUrl ? `<br /><div style="font-size: 16px; line-height: 1.5;"><a href="${escapeHtml(trackingUrl)}" style="color: #2563eb; text-decoration: underline;">Track your shipment</a></div>` : ''}
+  <br /><br />
+  <div style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    Eurtisan — Empowering European artisans and their communities.
+  </div>`
+
+  const html = wrapInEmailTemplate('Shipping Notification', contentHtml)
 
   const text = `Your order is on its way, ${buyerName}!
 
@@ -198,32 +177,27 @@ function renderDisputeUpdate(data: Record<string, unknown>): RenderedEmail {
   const message = String(data.message ?? '')
   const disputeUrl = String(data.disputeUrl ?? '')
 
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Dispute Update</title>
-  <style>
-    body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.5; color: #1f2937; max-width: 600px; margin: 0 auto; padding: 24px; }
-    h1 { font-size: 20px; margin-bottom: 8px; }
-    p { margin: 0 0 12px; }
-    .status { background: #f9fafb; padding: 16px; border-radius: 8px; margin-bottom: 16px; font-weight: 600; }
-    .footer { font-size: 12px; color: #6b7280; margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 16px; }
-    a { color: #2563eb; }
-  </style>
-</head>
-<body>
-  <h1>Dispute update for order #${escapeHtml(orderNumber)}</h1>
-  <p>Hi ${escapeHtml(buyerName)},</p>
-  <p>There is an update regarding the dispute for your order <strong>#${escapeHtml(orderNumber)}</strong> from <strong>${escapeHtml(shopName)}</strong>.</p>
-  <div class="status">Status: ${escapeHtml(status)}</div>
-  ${message ? `<p>${escapeHtml(message)}</p>` : ''}
-  ${disputeUrl ? `<p><a href="${escapeHtml(disputeUrl)}">View dispute details</a></p>` : ''}
-  <div class="footer">
-    <p>Eurtisan — Empowering European artisans and their communities.</p>
-  </div>
-</body>
-</html>`
+  const contentHtml = `<div style="font-size: 20px; font-weight: 700; color: #111827; line-height: 1.3;">Dispute update for order #${escapeHtml(orderNumber)}</div>
+  <br />
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">Hi ${escapeHtml(buyerName)},</div>
+  <br />
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">There is an update regarding the dispute for your order <strong>#${escapeHtml(orderNumber)}</strong> from <strong>${escapeHtml(shopName)}</strong>.</div>
+  <br />
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f9fafb; border-radius: 8px; width: 100%;" bgcolor="#f9fafb">
+    <tr>
+      <td style="padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.5; color: #111827; font-weight: 600;">
+        Status: ${escapeHtml(status)}
+      </td>
+    </tr>
+  </table>
+  ${message ? `<br /><div style="color: #374151; font-size: 16px; line-height: 1.5;">${escapeHtml(message)}</div>` : ''}
+  ${disputeUrl ? `<br /><div style="font-size: 16px; line-height: 1.5;"><a href="${escapeHtml(disputeUrl)}" style="color: #2563eb; text-decoration: underline;">View dispute details</a></div>` : ''}
+  <br /><br />
+  <div style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    Eurtisan — Empowering European artisans and their communities.
+  </div>`
+
+  const html = wrapInEmailTemplate('Dispute Update', contentHtml)
 
   const text = `Dispute update for order #${orderNumber}
 
@@ -248,34 +222,29 @@ function renderEmailVerification(data: Record<string, unknown>): RenderedEmail {
   const userName = String(data.userName ?? 'Valued Customer')
   const verificationUrl = String(data.verificationUrl ?? '')
 
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Verify your email address</title>
-  <style>
-    body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.5; color: #1f2937; max-width: 600px; margin: 0 auto; padding: 24px; }
-    h1 { font-size: 20px; margin-bottom: 8px; }
-    p { margin: 0 0 12px; }
-    .button-container { margin: 24px 0; }
-    .button { background-color: #2563eb; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: 500; }
-    .footer { font-size: 12px; color: #6b7280; margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 16px; }
-  </style>
-</head>
-<body>
-  <h1>Verify your email address</h1>
-  <p>Hi ${escapeHtml(userName)},</p>
-  <p>Thank you for signing up for Eurtisan! Please verify your email address to complete your account setup.</p>
-  <div class="button-container">
-    <a href="${escapeHtml(verificationUrl)}" class="button">Verify Email Address</a>
-  </div>
-  <p>If the button doesn't work, you can copy and paste the following link into your browser:</p>
-  <p><a href="${escapeHtml(verificationUrl)}">${escapeHtml(verificationUrl)}</a></p>
-  <div class="footer">
-    <p>Eurtisan — Empowering European artisans and their communities.</p>
-  </div>
-</body>
-</html>`
+  const contentHtml = `<div style="font-size: 20px; font-weight: 700; color: #111827; line-height: 1.3;">Verify your email address</div>
+  <br />
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">Hi ${escapeHtml(userName)},</div>
+  <br />
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">Thank you for signing up for Eurtisan! Please verify your email address to complete your account setup.</div>
+  <br />
+  <table border="0" cellspacing="0" cellpadding="0">
+    <tr>
+      <td align="center" bgcolor="#2563eb" style="border-radius: 6px; padding: 12px 24px;">
+        <a href="${escapeHtml(verificationUrl)}" target="_blank" style="color: #ffffff; text-decoration: none; font-weight: 500; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px;">Verify Email Address</a>
+      </td>
+    </tr>
+  </table>
+  <br />
+  <div style="color: #374151; font-size: 14px; line-height: 1.5;">If the button doesn't work, you can copy and paste the following link into your browser:</div>
+  <br />
+  <div style="font-size: 14px; line-height: 1.5;"><a href="${escapeHtml(verificationUrl)}" style="color: #2563eb; text-decoration: underline;">${escapeHtml(verificationUrl)}</a></div>
+  <br /><br />
+  <div style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    Eurtisan — Empowering European artisans and their communities.
+  </div>`
+
+  const html = wrapInEmailTemplate('Verify your email address', contentHtml)
 
   const text = `Verify your email address
 
@@ -298,35 +267,31 @@ function renderPasswordReset(data: Record<string, unknown>): RenderedEmail {
   const userName = String(data.userName ?? 'Valued Customer')
   const resetUrl = String(data.resetUrl ?? '')
 
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Reset your password</title>
-  <style>
-    body { font-family: system-ui, -apple-system, sans-serif; line-height: 1.5; color: #1f2937; max-width: 600px; margin: 0 auto; padding: 24px; }
-    h1 { font-size: 20px; margin-bottom: 8px; }
-    p { margin: 0 0 12px; }
-    .button-container { margin: 24px 0; }
-    .button { background-color: #2563eb; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block; font-weight: 500; }
-    .footer { font-size: 12px; color: #6b7280; margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 16px; }
-  </style>
-</head>
-<body>
-  <h1>Reset your password</h1>
-  <p>Hi ${escapeHtml(userName)},</p>
-  <p>We received a request to reset the password for your Eurtisan account. Click the button below to choose a new password.</p>
-  <div class="button-container">
-    <a href="${escapeHtml(resetUrl)}" class="button">Reset Password</a>
-  </div>
-  <p>If you did not request this, you can safely ignore this email.</p>
-  <p>If the button doesn't work, you can copy and paste the following link into your browser:</p>
-  <p><a href="${escapeHtml(resetUrl)}">${escapeHtml(resetUrl)}</a></p>
-  <div class="footer">
-    <p>Eurtisan — Empowering European artisans and their communities.</p>
-  </div>
-</body>
-</html>`
+  const contentHtml = `<div style="font-size: 20px; font-weight: 700; color: #111827; line-height: 1.3;">Reset your password</div>
+  <br />
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">Hi ${escapeHtml(userName)},</div>
+  <br />
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">We received a request to reset the password for your Eurtisan account. Click the button below to choose a new password.</div>
+  <br />
+  <table border="0" cellspacing="0" cellpadding="0">
+    <tr>
+      <td align="center" bgcolor="#2563eb" style="border-radius: 6px; padding: 12px 24px;">
+        <a href="${escapeHtml(resetUrl)}" target="_blank" style="color: #ffffff; text-decoration: none; font-weight: 500; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px;">Reset Password</a>
+      </td>
+    </tr>
+  </table>
+  <br />
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">If you did not request this, you can safely ignore this email.</div>
+  <br />
+  <div style="color: #374151; font-size: 14px; line-height: 1.5;">If the button doesn't work, you can copy and paste the following link into your browser:</div>
+  <br />
+  <div style="font-size: 14px; line-height: 1.5;"><a href="${escapeHtml(resetUrl)}" style="color: #2563eb; text-decoration: underline;">${escapeHtml(resetUrl)}</a></div>
+  <br /><br />
+  <div style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    Eurtisan — Empowering European artisans and their communities.
+  </div>`
+
+  const html = wrapInEmailTemplate('Reset your password', contentHtml)
 
   const text = `Reset your password
 
@@ -354,4 +319,39 @@ function escapeHtml(input: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;')
+}
+
+function wrapInEmailTemplate(title: string, contentHtml: string): string {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>${escapeHtml(title)}</title>
+</head>
+<body>
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="#f9fafb" style="background-color: #f9fafb;">
+    <tr>
+      <td align="center" style="padding: 24px 16px;">
+        <!--[if (gte mso 9)|(IE)]>
+        <table width="600" align="center" border="0" cellspacing="0" cellpadding="0" style="width: 600px;">
+          <tr>
+            <td>
+        <![endif]-->
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; border: 1px solid #e5e7eb;" bgcolor="#ffffff">
+          <tr>
+            <td style="padding: 32px 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 16px; line-height: 1.5; color: #1f2937;">
+              ${contentHtml}
+            </td>
+          </tr>
+        </table>
+        <!--[if (gte mso 9)|(IE)]>
+            </td>
+          </tr>
+        </table>
+        <![endif]-->
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`
 }

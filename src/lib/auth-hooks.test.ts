@@ -9,6 +9,12 @@ vi.mock('./auth-client', () => ({
   },
 }))
 
+vi.mock('@tanstack/react-router', () => ({
+  getRouteApi: () => ({
+    useLoaderData: () => null,
+  }),
+}))
+
 const mockUseSession = authClient.useSession as unknown as ReturnType<typeof vi.fn>
 
 function makeSessionUser(role: string, overrides?: Partial<{ name: string; email: string }>) {

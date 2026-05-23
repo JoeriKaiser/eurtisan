@@ -69,10 +69,27 @@ vi.mock('#/lib/auth-client', () => ({
   },
 }))
 
+const mockOnOpenSearch = vi.fn()
+
+function renderDrawer(
+  isOpen: boolean,
+  categories: Array<{ id: string; name: string; slug: string }> = [],
+) {
+  return render(
+    <MobileNavDrawer
+      isOpen={isOpen}
+      onClose={mockOnClose}
+      categories={categories}
+      onOpenSearch={mockOnOpenSearch}
+    />,
+  )
+}
+
 describe('MobileNavDrawer', () => {
   beforeEach(() => {
     mockNavigate.mockClear()
     mockOnClose.mockClear()
+    mockOnOpenSearch.mockClear()
     mockSetLocale.mockClear()
     mockUseAuth.mockReturnValue({
       user: null,
@@ -82,13 +99,13 @@ describe('MobileNavDrawer', () => {
   })
 
   it('renders nothing when closed', () => {
-    render(<MobileNavDrawer isOpen={false} onClose={mockOnClose} categories={[]} />)
+    renderDrawer(false)
     expect(screen.queryByText('Eurtisan')).toBeNull()
     expect(screen.queryByText('Home')).toBeNull()
   })
 
   it('renders correctly when open', () => {
-    render(<MobileNavDrawer isOpen={true} onClose={mockOnClose} categories={[]} />)
+    renderDrawer(true)
     expect(screen.getByText('Eurtisan')).toBeDefined()
     expect(screen.getByText('Home')).toBeDefined()
     expect(screen.getByText('About')).toBeDefined()
@@ -96,14 +113,14 @@ describe('MobileNavDrawer', () => {
   })
 
   it('calls onClose when close button is clicked', () => {
-    render(<MobileNavDrawer isOpen={true} onClose={mockOnClose} categories={[]} />)
+    renderDrawer(true)
     const closeBtn = screen.getByRole('button', { name: 'Close menu' })
     fireEvent.click(closeBtn)
     expect(mockOnClose).toHaveBeenCalledTimes(1)
   })
 
   it('calls onClose when home or about links are clicked', () => {
-    render(<MobileNavDrawer isOpen={true} onClose={mockOnClose} categories={[]} />)
+    renderDrawer(true)
     const homeLink = screen.getByRole('link', { name: 'Home' })
     fireEvent.click(homeLink)
     expect(mockOnClose).toHaveBeenCalledTimes(1)
@@ -111,7 +128,7 @@ describe('MobileNavDrawer', () => {
 
   it('renders categories collapsible when categories are available', () => {
     const categories = [{ id: '1', name: 'Ceramics', slug: 'ceramics' }]
-    render(<MobileNavDrawer isOpen={true} onClose={mockOnClose} categories={categories} />)
+    renderDrawer(true, categories)
     const trigger = screen.getByRole('button', { name: 'Categories' })
     expect(trigger).toBeDefined()
     expect(screen.queryByText('Ceramics')).toBeNull()
@@ -127,7 +144,7 @@ describe('MobileNavDrawer', () => {
   })
 
   it('allows changing language and closes drawer', () => {
-    render(<MobileNavDrawer isOpen={true} onClose={mockOnClose} categories={[]} />)
+    renderDrawer(true)
     const frButton = screen.getByRole('button', { name: 'fr' })
     expect(frButton).toBeDefined()
 
@@ -148,12 +165,22 @@ describe('MobileNavDrawer', () => {
       isAuthenticated: true,
     })
 
-    render(<MobileNavDrawer isOpen={true} onClose={mockOnClose} categories={[]} />)
+    renderDrawer(true)
 
     expect(screen.getByText('John Artisan')).toBeDefined()
     expect(screen.getByText('john@eurtisan.local')).toBeDefined()
     expect(screen.getByText('Profile')).toBeDefined()
     expect(screen.getByText('My Shop')).toBeDefined()
     expect(screen.getByText('Sign out')).toBeDefined()
+  })
+
+  it('calls onClose and onOpenSearch when search button trigger is clicked', () => {
+    renderDrawer(true)
+    const searchBtn = screen.getByRole('button', { name: 'Search products...' })
+    expect(searchBtn).toBeDefined()
+
+    fireEvent.click(searchBtn)
+    expect(mockOnOpenSearch).toHaveBeenCalledTimes(1)
+    expect(mockOnClose).toHaveBeenCalledTimes(1)
   })
 })

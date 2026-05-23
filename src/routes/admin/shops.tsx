@@ -40,7 +40,7 @@ import type { PaginatedShops, ShopListItem, SuspensionFilter } from '#/lib/shop-
 import { listAllShops, moderateShop as moderateShopStatus } from '#/lib/shop-moderation'
 import { m } from '#/paraglide/messages'
 
-export interface ApplicationListItem {
+interface ApplicationListItem {
   id: string
   name: string
   slug: string
@@ -62,7 +62,7 @@ export interface ApplicationListItem {
   createdAt: Date
 }
 
-export interface AppListing {
+interface AppListing {
   id: string
   name: string
   description: string | null
@@ -168,7 +168,7 @@ const STATUS_LABELS: Record<string, string> = {
 /*                               Main Component                               */
 /* -------------------------------------------------------------------------- */
 
-export function AdminShopsPage() {
+function AdminShopsPage() {
   const loaderData = Route.useLoaderData() as LoaderResult
   const navigate = Route.useNavigate()
   const search = Route.useSearch()

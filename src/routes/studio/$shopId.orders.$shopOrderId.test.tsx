@@ -10,7 +10,8 @@ const mockMarkShippedWithLabel = vi.fn()
 const mockMarkDelivered = vi.fn()
 
 vi.mock('@tanstack/react-router', () => ({
-  createFileRoute: () => () => ({
+  createFileRoute: () => (options: { component?: unknown }) => ({
+    options,
     useParams: () => ({ shopId: 'shop-1', shopOrderId: '550e8400-e29b-41d4-a716-446655440001' }),
     useLoaderData: () => ({
       order: {
@@ -90,7 +91,9 @@ vi.mock('#/components/ui/primitives/dialog', () => ({
   DialogDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
 }))
 
-import { ShopOrderDetailPage } from './$shopId.orders.$shopOrderId'
+import { Route } from './$shopId.orders.$shopOrderId'
+
+const ShopOrderDetailPage = Route.options.component!
 
 describe('ShopOrderDetailPage', () => {
   beforeEach(() => {

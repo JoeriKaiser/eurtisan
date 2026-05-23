@@ -93,7 +93,7 @@ function formatPrice(cents: number): string {
 /*                               Main Component                               */
 /* -------------------------------------------------------------------------- */
 
-export function AdminProductsPage() {
+function AdminProductsPage() {
   const loaderData = Route.useLoaderData()
   const navigate = Route.useNavigate()
   const search = Route.useSearch()
@@ -663,7 +663,7 @@ export function AdminProductsPending() {
   )
 }
 
-export function AdminProductsError({ error }: { error: Error }) {
+function AdminProductsError({ error }: { error: Error }) {
   return (
     <div className='space-y-6'>
       <div>

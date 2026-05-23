@@ -23,7 +23,8 @@ export default function UserMenu() {
     return (
       <Link
         to='/signin'
-        className='inline-flex items-center rounded-lg px-2 py-1.5 text-sm font-medium text-text-primary transition-colors duration-fast ease-out hover:bg-bg-inset'
+        className='inline-flex items-center rounded-lg px-2 py-1.5 text-sm font-medium text-text-primary transition-colors duration-fast ease-out hover:bg-bg-inset whitespace-nowrap flex-shrink-0'
+        style={{ whiteSpace: 'nowrap' }}
       >
         {m.nav_sign_in()}
       </Link>

@@ -402,95 +402,101 @@
   --z-index-tooltip: var(--ds-z-tooltip);
 }
 
-/* ─── Global Reset & Base ─── */
-* {
-  box-sizing: border-box;
-}
+@layer base {
+  /* ─── Global Reset & Base ─── */
+  * {
+    box-sizing: border-box;
+  }
 
-html,
-body,
-#app {
-  min-height: 100%;
-}
+  html,
+  body,
+  #app {
+    min-height: 100%;
+  }
 
-body {
-  margin: 0;
-  color: var(--ds-text-primary);
-  font-family: var(--font-sans);
-  background-color: var(--ds-bg-base);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  overflow-x: hidden;
-}
+  body {
+    margin: 0;
+    color: var(--ds-text-primary);
+    font-family: var(--font-sans);
+    background-color: var(--ds-bg-base);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
 
-/* Subtle atmospheric radial glow — restrained, one layer only */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: -1;
-  background: radial-gradient(900px 500px at 15% 10%, oklch(75% 0.06 145 / 0.06), transparent 60%);
-}
+  /* Subtle atmospheric radial glow — restrained, one layer only */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    background: radial-gradient(
+      900px 500px at 15% 10%,
+      oklch(75% 0.06 145 / 0.06),
+      transparent 60%
+    );
+  }
 
-/* Selection */
-::selection {
-  background: var(--palette-moss-200);
-  color: var(--palette-walnut-900);
-}
+  /* Selection */
+  ::selection {
+    background: var(--palette-moss-200);
+    color: var(--palette-walnut-900);
+  }
 
-/* Focus visible — consistent across all interactive elements */
-:focus-visible {
-  outline: var(--ds-ring-width) solid var(--ds-ring-color);
-  outline-offset: var(--ds-ring-offset);
-}
+  /* Focus visible — consistent across all interactive elements */
+  :focus-visible {
+    outline: var(--ds-ring-width) solid var(--ds-ring-color);
+    outline-offset: var(--ds-ring-offset);
+  }
 
-/* Links */
-a {
-  color: var(--ds-accent-secondary);
-  text-decoration-color: color-mix(in oklch, var(--ds-accent-secondary) 40%, transparent);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 2px;
-  transition: color var(--ds-transition-fast) var(--ds-ease-out);
-}
+  /* Links */
+  a {
+    color: var(--ds-accent-secondary);
+    text-decoration-color: color-mix(in oklch, var(--ds-accent-secondary) 40%, transparent);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+    transition: color var(--ds-transition-fast) var(--ds-ease-out);
+  }
 
-a:hover {
-  color: var(--ds-accent-secondary-hover);
-}
+  a:hover {
+    color: var(--ds-accent-secondary-hover);
+  }
 
-/* Code */
-code {
-  font-size: 0.875em;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  border: 1px solid var(--ds-border-default);
-  background: var(--ds-surface-inset);
-  border-radius: var(--ds-radius-md);
-  padding: 2px 6px;
-}
+  /* Code */
+  code {
+    font-size: 0.875em;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    border: 1px solid var(--ds-border-default);
+    background: var(--ds-surface-inset);
+    border-radius: var(--ds-radius-md);
+    padding: 2px 6px;
+  }
 
-pre code {
-  border: 0;
-  background: transparent;
-  padding: 0;
-  border-radius: 0;
-  font-size: inherit;
-  color: inherit;
-}
+  pre code {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    font-size: inherit;
+    color: inherit;
+  }
 
-/* Scrollbar — subtle, tinted */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--ds-border-strong);
-  border-radius: var(--ds-radius-full);
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--ds-text-muted);
+  /* Scrollbar — subtle, tinted */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--ds-border-strong);
+    border-radius: var(--ds-radius-full);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--ds-text-muted);
+  }
 }
 
 /* ─── Layout Utilities ─── */
