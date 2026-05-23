@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
-import { authMiddleware } from './auth-middleware'
 import { listAuditLogQuery } from './audit-log.server'
+import { authMiddleware } from './auth-middleware'
 
 const listAuditLogInputSchema = z.object({
   action: z.string().optional(),

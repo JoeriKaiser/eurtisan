@@ -92,10 +92,20 @@ vi.mock('#/paraglide/messages', () => ({
     admin_orders_clear_search: () => 'Clear search',
     admin_common_search: () => 'Search',
     admin_common_filter: () => 'Filter',
-    admin_orders_col_date: () => 'Date',
+    admin_disputes_col_date: () => 'Date',
+    admin_disputes_col_dispute_id: () => 'Dispute ID',
+    admin_disputes_col_buyer: () => 'Buyer',
+    admin_disputes_col_creator: () => 'Creator',
+    admin_disputes_col_reason: () => 'Reason',
+    admin_disputes_col_status: () => 'Status',
+    admin_disputes_col_amount: () => 'Amount',
+    admin_common_actions: () => 'Actions',
+    admin_disputes_view: () => 'View',
+    admin_shops_showing: ({ from, to, total }: { from: number; to: number; total: number }) =>
+      `Showing ${from}–${to} of ${total}`,
     pagination_previous: () => 'Previous',
     pagination_next: () => 'Next',
-    pagination_page_of: ({ page, totalPages }: { page: string; totalPages: string }) =>
+    pagination_page_of: ({ page, totalPages }: { page: number; totalPages: number }) =>
       `Page ${page} of ${totalPages}`,
   },
 }))
@@ -214,8 +224,8 @@ describe('AdminDisputesPage', () => {
 
     render(<AdminDisputesPage />)
 
-    const prevLink = screen.getByLabelText('Previous')
-    expect(prevLink).toBeDefined()
-    expect(prevLink.getAttribute('aria-disabled')).toBe('true')
+    const prevButton = screen.getByLabelText('Previous')
+    expect(prevButton).toBeDefined()
+    expect(prevButton.hasAttribute('disabled')).toBe(true)
   })
 })

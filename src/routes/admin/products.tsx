@@ -4,6 +4,7 @@ import {
   CheckCircle,
   ChevronLeft,
   ChevronRight,
+  Download,
   ExternalLink,
   Eye,
   Inbox,
@@ -15,11 +16,12 @@ import z from 'zod'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
 import { Skeleton } from '#/components/ui/skeleton'
-import { cn } from '#/lib/cn'
-import { listAllProducts, toggleProductActive } from '#/lib/admin-products'
 import type { PaginatedProducts } from '#/lib/admin-products'
-import { listCategories } from '#/lib/categories'
+import { listAllProducts, toggleProductActive } from '#/lib/admin-products'
 import type { CategoryTreeNode } from '#/lib/categories'
+import { listCategories } from '#/lib/categories'
+import { cn } from '#/lib/cn'
+import { downloadCSV, generateCSV } from '#/lib/csv-export'
 import { listAllShops } from '#/lib/shop-moderation'
 import { m } from '#/paraglide/messages'
 
@@ -103,6 +105,10 @@ export function AdminProductsPage() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   const successTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
+  // Bulk action state
+  const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set())
+  const [bulkProgress, setBulkProgress] = useState<{ current: number; total: number } | null>(null)
+
   useEffect(() => {
     return () => {
       if (successTimerRef.current) clearTimeout(successTimerRef.current)
@@ -145,6 +151,43 @@ export function AdminProductsPage() {
     (pageSize: number) => navigateWithParams({ pageSize, page: 1 }),
     [navigateWithParams],
   )
+
+  /* ---- Bulk actions ---- */
+  const toggleProductSelection = useCallback((productId: string) => {
+    setSelectedProductIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(productId)) next.delete(productId)
+      else next.add(productId)
+      return next
+    })
+  }, [])
+
+  const toggleAllProducts = useCallback(() => {
+    setSelectedProductIds((prev) => {
+      if (prev.size === products.products.length) return new Set()
+      return new Set(products.products.map((p) => p.id))
+    })
+  }, [products.products])
+
+  const handleBulkToggleActive = useCallback(async () => {
+    const ids = Array.from(selectedProductIds)
+    if (ids.length === 0) return
+    setBulkProgress({ current: 0, total: ids.length })
+    setActionError(null)
+    let processed = 0
+    for (const productId of ids) {
+      try {
+        await toggleProductActive({ data: { productId } })
+        processed++
+        setBulkProgress({ current: processed, total: ids.length })
+      } catch {
+        // Continue with remaining items
+      }
+    }
+    setSelectedProductIds(new Set())
+    setBulkProgress(null)
+    navigateWithParams({ page: 1 })
+  }, [selectedProductIds, navigateWithParams])
 
   const showSuccess = useCallback((message: string) => {
     setSuccessMessage(message)
@@ -263,6 +306,25 @@ export function AdminProductsPage() {
         <Button onClick={handleSearch} aria-label={m.admin_orders_search_button()}>
           {m.admin_orders_search_button()}
         </Button>
+        <Button
+          variant='secondary'
+          onClick={() => {
+            const csv = generateCSV(products.products, [
+              { key: 'name', label: 'Name' },
+              { key: 'slug', label: 'Slug' },
+              { key: 'shopName', label: 'Shop' },
+              { key: 'categoryName', label: 'Category' },
+              { key: 'priceCents', label: 'Price (cents)' },
+              { key: 'stockCount', label: 'Stock' },
+              { key: 'isActive', label: 'Active' },
+            ])
+            downloadCSV(csv, `products-${new Date().toISOString().slice(0, 10)}.csv`)
+          }}
+          aria-label={m.admin_common_export_csv()}
+        >
+          <Download size={16} aria-hidden='true' />
+          {m.admin_common_export_csv()}
+        </Button>
       </div>
 
       {/* Filters */}
@@ -335,7 +397,6 @@ export function AdminProductsPage() {
               })
             }
             className='h-9 w-24 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
-            placeholder='EUR'
           />
         </div>
 
@@ -354,10 +415,36 @@ export function AdminProductsPage() {
               })
             }
             className='h-9 w-24 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
-            placeholder='EUR'
           />
         </div>
       </div>
+
+      {/* Bulk action bar */}
+      {selectedProductIds.size > 0 && (
+        <div className='flex items-center justify-between rounded-lg border border-border-default bg-surface-inset px-4 py-2'>
+          <span className='text-sm text-text-secondary'>
+            {m.admin_bulk_selected({ count: selectedProductIds.size })}
+          </span>
+          <Button
+            variant='primary'
+            size='sm'
+            onClick={handleBulkToggleActive}
+            disabled={!!bulkProgress}
+          >
+            {m.admin_bulk_toggle_active()}
+          </Button>
+        </div>
+      )}
+
+      {/* Bulk progress */}
+      {bulkProgress && (
+        <div className='text-sm text-text-secondary'>
+          {m.admin_bulk_progress({
+            current: bulkProgress.current,
+            total: bulkProgress.total,
+          })}
+        </div>
+      )}
 
       {/* Table */}
       {products.products.length === 0 ? (
@@ -372,25 +459,43 @@ export function AdminProductsPage() {
           <table className='w-full text-left text-sm'>
             <thead>
               <tr className='border-b border-border-default'>
-                <th className='pb-3 pr-4 font-semibold text-text-secondary'>
+                <th scope='col' className='pb-3 pr-2'>
+                  <input
+                    type='checkbox'
+                    checked={
+                      selectedProductIds.size > 0 &&
+                      selectedProductIds.size === products.products.length
+                    }
+                    onChange={toggleAllProducts}
+                    className='h-4 w-4 rounded border-border-default'
+                    aria-label={m.data_table_select_all()}
+                  />
+                </th>
+                <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
                   {m.admin_products_col_product()}
                 </th>
-                <th className='pb-3 pr-4 font-semibold text-text-secondary'>
+                <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
                   {m.admin_products_col_shop()}
                 </th>
-                <th className='pb-3 pr-4 font-semibold text-text-secondary hidden sm:table-cell'>
+                <th
+                  scope='col'
+                  className='pb-3 pr-4 font-semibold text-text-secondary hidden sm:table-cell'
+                >
                   {m.admin_products_col_category()}
                 </th>
-                <th className='pb-3 pr-4 font-semibold text-text-secondary'>
+                <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
                   {m.admin_products_col_price()}
                 </th>
-                <th className='pb-3 pr-4 font-semibold text-text-secondary hidden md:table-cell'>
+                <th
+                  scope='col'
+                  className='pb-3 pr-4 font-semibold text-text-secondary hidden md:table-cell'
+                >
                   {m.admin_products_col_stock()}
                 </th>
-                <th className='pb-3 pr-4 font-semibold text-text-secondary'>
+                <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
                   {m.admin_products_col_status()}
                 </th>
-                <th className='pb-3 text-right font-semibold text-text-secondary'>
+                <th scope='col' className='pb-3 text-right font-semibold text-text-secondary'>
                   {m.admin_common_actions()}
                 </th>
               </tr>
@@ -398,6 +503,15 @@ export function AdminProductsPage() {
             <tbody className='divide-y divide-border-subtle'>
               {products.products.map((p) => (
                 <tr key={p.id} className='group hover:bg-bg-inset/40 transition-colors'>
+                  <td className='py-3 pr-2'>
+                    <input
+                      type='checkbox'
+                      checked={selectedProductIds.has(p.id)}
+                      onChange={() => toggleProductSelection(p.id)}
+                      className='h-4 w-4 rounded border-border-default'
+                      aria-label={m.data_table_select_row()}
+                    />
+                  </td>
                   <td className='py-3 pr-4'>
                     <div className='flex items-center gap-3'>
                       {p.thumbnailUrl ? (

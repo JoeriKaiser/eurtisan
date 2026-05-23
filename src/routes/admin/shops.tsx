@@ -18,7 +18,6 @@ import z from 'zod'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
-import { Skeleton } from '#/components/ui/skeleton'
 import {
   Dialog,
   DialogBackdrop,
@@ -27,10 +26,9 @@ import {
   DialogPortal,
   DialogTitle,
 } from '#/components/ui/primitives/dialog'
+import { Skeleton } from '#/components/ui/skeleton'
 import { cn } from '#/lib/cn'
 import { downloadCSV, generateCSV } from '#/lib/csv-export'
-import type { PaginatedShops, ShopListItem, SuspensionFilter } from '#/lib/shop-moderation'
-import { listAllShops, moderateShop as moderateShopStatus } from '#/lib/shop-moderation'
 import {
   getShopDraft,
   getShopDraftListings,
@@ -38,6 +36,8 @@ import {
   moderateShop as moderateShopApplication,
   type ShopDraft,
 } from '#/lib/sell-onboarding'
+import type { PaginatedShops, ShopListItem, SuspensionFilter } from '#/lib/shop-moderation'
+import { listAllShops, moderateShop as moderateShopStatus } from '#/lib/shop-moderation'
 import { m } from '#/paraglide/messages'
 
 export interface ApplicationListItem {
@@ -205,6 +205,14 @@ export function AdminShopsPage() {
   const [searchValue, setSearchValue] = useState(search.query ?? '')
   const searchInputRef = useRef<HTMLInputElement>(null)
 
+  // --- Bulk action state ---
+  const [selectedShopIds, setSelectedShopIds] = useState<Set<string>>(new Set())
+  const [bulkProgress, setBulkProgress] = useState<{
+    current: number
+    total: number
+    action: string
+  } | null>(null)
+
   // --- Refs for stale-closure safety ---
   const searchRef = useRef(search)
   searchRef.current = search
@@ -326,6 +334,64 @@ export function AdminShopsPage() {
     },
     [navigateWithParams],
   )
+
+  /* ---- Bulk actions ---- */
+  const toggleShopSelection = useCallback((shopId: string) => {
+    setSelectedShopIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(shopId)) next.delete(shopId)
+      else next.add(shopId)
+      return next
+    })
+  }, [])
+
+  const toggleAllShops = useCallback(() => {
+    setSelectedShopIds((prev) => {
+      if (prev.size === shops.shops.length) return new Set()
+      return new Set(shops.shops.map((s) => s.id))
+    })
+  }, [shops.shops])
+
+  const handleBulkSuspend = useCallback(async () => {
+    const ids = Array.from(selectedShopIds)
+    if (ids.length === 0) return
+    setBulkProgress({ current: 0, total: ids.length, action: 'suspend' })
+    setActionError(null)
+    let processed = 0
+    for (const shopId of ids) {
+      try {
+        await moderateShopStatus({ data: { shopId, action: 'suspend' } })
+        processed++
+        setBulkProgress({ current: processed, total: ids.length, action: 'suspend' })
+      } catch {
+        // Continue with remaining items
+      }
+    }
+    setSelectedShopIds(new Set())
+    setBulkProgress(null)
+    // Refresh data via navigation
+    navigateWithParams({ page: 1 })
+  }, [selectedShopIds, navigateWithParams])
+
+  const handleBulkUnsuspend = useCallback(async () => {
+    const ids = Array.from(selectedShopIds)
+    if (ids.length === 0) return
+    setBulkProgress({ current: 0, total: ids.length, action: 'unsuspend' })
+    setActionError(null)
+    let processed = 0
+    for (const shopId of ids) {
+      try {
+        await moderateShopStatus({ data: { shopId, action: 'unsuspend' } })
+        processed++
+        setBulkProgress({ current: processed, total: ids.length, action: 'unsuspend' })
+      } catch {
+        // Continue with remaining items
+      }
+    }
+    setSelectedShopIds(new Set())
+    setBulkProgress(null)
+    navigateWithParams({ page: 1 })
+  }, [selectedShopIds, navigateWithParams])
 
   /* ---- Suspend dialog ---- */
   const openSuspendDialog = useCallback((shop: ShopListItem) => {
@@ -617,6 +683,25 @@ export function AdminShopsPage() {
           <Button onClick={handleSearch} aria-label={m.admin_orders_search_button()}>
             {m.admin_orders_search_button()}
           </Button>
+          <Button
+            variant='secondary'
+            onClick={() => {
+              const csv = generateCSV(shops.shops, [
+                { key: 'name', label: 'Name' },
+                { key: 'slug', label: 'Slug' },
+                { key: 'ownerName', label: 'Owner' },
+                { key: 'ownerEmail', label: 'Owner Email' },
+                { key: 'status', label: 'Status' },
+                { key: 'isSuspended', label: 'Suspended' },
+                { key: 'createdAt', label: 'Created At' },
+              ])
+              downloadCSV(csv, `shops-${new Date().toISOString().slice(0, 10)}.csv`)
+            }}
+            aria-label={m.admin_common_export_csv()}
+          >
+            <Download size={16} aria-hidden='true' />
+            {m.admin_common_export_csv()}
+          </Button>
         </div>
       )}
 
@@ -679,6 +764,43 @@ export function AdminShopsPage() {
         </div>
       )}
 
+      {/* Bulk action bar */}
+      {isModerationView && selectedShopIds.size > 0 && (
+        <div className='flex items-center justify-between rounded-lg border border-border-default bg-surface-inset px-4 py-2'>
+          <span className='text-sm text-text-secondary'>
+            {m.admin_bulk_selected({ count: selectedShopIds.size })}
+          </span>
+          <div className='flex gap-2'>
+            <Button
+              variant='danger'
+              size='sm'
+              onClick={handleBulkSuspend}
+              disabled={!!bulkProgress}
+            >
+              {m.admin_bulk_suspend()}
+            </Button>
+            <Button
+              variant='secondary'
+              size='sm'
+              onClick={handleBulkUnsuspend}
+              disabled={!!bulkProgress}
+            >
+              {m.admin_bulk_unsuspend()}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk progress */}
+      {bulkProgress && (
+        <div className='text-sm text-text-secondary'>
+          {m.admin_bulk_progress({
+            current: bulkProgress.current,
+            total: bulkProgress.total,
+          })}
+        </div>
+      )}
+
       {/* Content Table / Card */}
       {isModerationView ? (
         /* Registered Shops Table */
@@ -694,22 +816,33 @@ export function AdminShopsPage() {
             <table className='w-full text-left text-sm'>
               <thead>
                 <tr className='border-b border-border-default'>
-                  <th className='pb-3 pr-4'>
+                  <th scope='col' className='pb-3 pr-2'>
+                    <input
+                      type='checkbox'
+                      checked={
+                        selectedShopIds.size > 0 && selectedShopIds.size === shops.shops.length
+                      }
+                      onChange={toggleAllShops}
+                      className='h-4 w-4 rounded border-border-default'
+                      aria-label={m.data_table_select_all()}
+                    />
+                  </th>
+                  <th scope='col' className='pb-3 pr-4'>
                     <SortHeader column='name'>{m.admin_shops_col_name()}</SortHeader>
                   </th>
-                  <th className='pb-3 pr-4 font-semibold text-text-secondary'>
+                  <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
                     {m.admin_shops_col_owner()}
                   </th>
-                  <th className='pb-3 pr-4'>
+                  <th scope='col' className='pb-3 pr-4'>
                     <SortHeader column='status'>{m.admin_shops_col_status()}</SortHeader>
                   </th>
-                  <th className='pb-3 pr-4 font-semibold text-text-secondary'>
+                  <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
                     {m.admin_shops_col_note()}
                   </th>
-                  <th className='pb-3 pr-4'>
+                  <th scope='col' className='pb-3 pr-4'>
                     <SortHeader column='createdAt'>{m.admin_shops_col_created()}</SortHeader>
                   </th>
-                  <th className='pb-3 text-right font-semibold text-text-secondary'>
+                  <th scope='col' className='pb-3 text-right font-semibold text-text-secondary'>
                     {m.admin_shops_col_actions()}
                   </th>
                 </tr>
@@ -719,6 +852,16 @@ export function AdminShopsPage() {
                   const isProcessing = actionShopId === shop.id
                   return (
                     <tr key={shop.id} className='group hover:bg-bg-inset/40 transition-colors'>
+                      {/* Checkbox */}
+                      <td className='py-3 pr-2'>
+                        <input
+                          type='checkbox'
+                          checked={selectedShopIds.has(shop.id)}
+                          onChange={() => toggleShopSelection(shop.id)}
+                          className='h-4 w-4 rounded border-border-default'
+                          aria-label={m.data_table_select_row()}
+                        />
+                      </td>
                       {/* Name */}
                       <td className='py-3 pr-4 font-medium text-text-primary'>
                         <div className='flex items-center gap-3'>
@@ -770,7 +913,7 @@ export function AdminShopsPage() {
                       <td className='py-3 text-right whitespace-nowrap'>
                         {shop.isSuspended ? (
                           <Button
-                            variant='secondary'
+                            variant='primary'
                             size='sm'
                             onClick={() => handleUnsuspend(shop.id)}
                             disabled={isProcessing}
@@ -812,18 +955,22 @@ export function AdminShopsPage() {
           <table className='w-full text-left text-sm'>
             <thead>
               <tr className='border-b border-border-default'>
-                <th className='pb-3 pr-4 font-semibold text-text-secondary'>
+                <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
                   {m.admin_shops_col_name()}
                 </th>
-                <th className='pb-3 pr-4 font-semibold text-text-secondary'>
+                <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
                   {m.admin_shops_col_owner()}
                 </th>
-                <th className='pb-3 pr-4 font-semibold text-text-secondary'>
+                <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
                   {m.admin_shops_col_status()}
                 </th>
-                <th className='pb-3 pr-4 font-semibold text-text-secondary'>Resubmissions</th>
-                <th className='pb-3 pr-4 font-semibold text-text-secondary'>Submitted At</th>
-                <th className='pb-3 text-right font-semibold text-text-secondary'>
+                <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
+                  Resubmissions
+                </th>
+                <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
+                  Submitted At
+                </th>
+                <th scope='col' className='pb-3 text-right font-semibold text-text-secondary'>
                   {m.admin_shops_col_actions()}
                 </th>
               </tr>

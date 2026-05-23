@@ -297,7 +297,12 @@ export default function BuyerOrderDetailPage({
                       aria-valuenow={Math.round(getStatusProgress(shop.status))}
                       aria-label={`${shop.shopName} order progress`}
                     >
-                      <svg className='h-full w-full' preserveAspectRatio='none' viewBox='0 0 100 1' aria-hidden='true'>
+                      <svg
+                        className='h-full w-full'
+                        preserveAspectRatio='none'
+                        viewBox='0 0 100 1'
+                        aria-hidden='true'
+                      >
                         <rect
                           width={getStatusProgress(shop.status)}
                           height='1'

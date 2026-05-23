@@ -25,6 +25,7 @@ export type CategoryTreeNode = {
   slug: string
   parentId: string | null
   createdAt: Date | null
+  description: string | null
   children: CategoryTreeNode[]
 }
 
@@ -35,6 +36,7 @@ export function buildCategoryTree(
     slug: string
     parentId: string | null
     createdAt: Date | null
+    description: string | null
   }[],
 ): CategoryTreeNode[] {
   const map = new Map<string, CategoryTreeNode>()

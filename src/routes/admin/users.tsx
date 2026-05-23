@@ -4,6 +4,7 @@ import {
   CheckCircle,
   ChevronLeft,
   ChevronRight,
+  Download,
   Inbox,
   Search,
   Shield,
@@ -16,7 +17,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import z from 'zod'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
-import { Skeleton } from '#/components/ui/skeleton'
 import {
   Dialog,
   DialogBackdrop,
@@ -25,9 +25,11 @@ import {
   DialogPortal,
   DialogTitle,
 } from '#/components/ui/primitives/dialog'
-import { cn } from '#/lib/cn'
-import { banUser, listUsers, unbanUser, updateUserRole } from '#/lib/admin-users'
+import { Skeleton } from '#/components/ui/skeleton'
 import type { AdminUserListItem, PaginatedUsers } from '#/lib/admin-users'
+import { banUser, listUsers, unbanUser, updateUserRole } from '#/lib/admin-users'
+import { cn } from '#/lib/cn'
+import { downloadCSV, generateCSV } from '#/lib/csv-export'
 import { m } from '#/paraglide/messages'
 
 const PAGE_SIZES = [10, 20, 50] as const
@@ -293,6 +295,24 @@ export function AdminUsersPage() {
         <Button onClick={handleSearch} aria-label={m.admin_orders_search_button()}>
           {m.admin_orders_search_button()}
         </Button>
+        <Button
+          variant='secondary'
+          onClick={() => {
+            const csv = generateCSV(users.users, [
+              { key: 'name', label: 'Name' },
+              { key: 'email', label: 'Email' },
+              { key: 'role', label: 'Role' },
+              { key: 'shopCount', label: 'Shops' },
+              { key: 'bannedAt', label: 'Banned' },
+              { key: 'createdAt', label: 'Created At' },
+            ])
+            downloadCSV(csv, `users-${new Date().toISOString().slice(0, 10)}.csv`)
+          }}
+          aria-label={m.admin_common_export_csv()}
+        >
+          <Download size={16} aria-hidden='true' />
+          {m.admin_common_export_csv()}
+        </Button>
       </div>
 
       {/* Filters */}
@@ -360,25 +380,25 @@ export function AdminUsersPage() {
           <table className='w-full text-left text-sm'>
             <thead>
               <tr className='border-b border-border-default'>
-                <th className='pb-3 pr-4 font-semibold text-text-secondary'>
+                <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
                   {m.admin_users_col_name()}
                 </th>
-                <th className='pb-3 pr-4 font-semibold text-text-secondary'>
+                <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
                   {m.admin_users_col_email()}
                 </th>
-                <th className='pb-3 pr-4 font-semibold text-text-secondary'>
+                <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
                   {m.admin_users_col_role()}
                 </th>
-                <th className='pb-3 pr-4 font-semibold text-text-secondary'>
+                <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
                   {m.admin_users_col_shops()}
                 </th>
-                <th className='pb-3 pr-4 font-semibold text-text-secondary'>
+                <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
                   {m.admin_users_col_created()}
                 </th>
-                <th className='pb-3 pr-4 font-semibold text-text-secondary'>
+                <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
                   {m.admin_users_col_status()}
                 </th>
-                <th className='pb-3 text-right font-semibold text-text-secondary'>
+                <th scope='col' className='pb-3 text-right font-semibold text-text-secondary'>
                   {m.admin_common_actions()}
                 </th>
               </tr>
@@ -444,7 +464,7 @@ export function AdminUsersPage() {
                       </Button>
                       {u.bannedAt ? (
                         <Button
-                          variant='secondary'
+                          variant='primary'
                           size='sm'
                           onClick={() => handleUnban(u.id, u.name)}
                         >

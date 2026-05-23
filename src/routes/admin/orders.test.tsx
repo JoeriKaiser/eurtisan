@@ -78,6 +78,7 @@ vi.mock('#/paraglide/messages', () => ({
     admin_orders_status_filter: () => 'Status',
     admin_common_clear_filters: () => 'Clear filters',
     admin_common_search: () => 'Search',
+    admin_common_export_csv: () => 'Export CSV',
     pagination_previous: () => 'Previous',
     pagination_next: () => 'Next',
     pagination_page_of: ({ page, totalPages }: { page: string; totalPages: string }) =>

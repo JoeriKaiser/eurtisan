@@ -20,9 +20,20 @@ export default defineConfig({
       testMatch: /auth\.setup\.ts/,
     },
     {
+      name: 'admin-setup',
+      testMatch: /admin-auth\.setup\.ts/,
+    },
+    {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'], storageState: 'e2e/.auth/creator.json' },
       dependencies: ['setup'],
+      testIgnore: /admin-screenshots/,
+    },
+    {
+      name: 'admin-screenshots',
+      use: { ...devices['Desktop Chrome'], storageState: 'e2e/.auth/admin.json' },
+      testMatch: /admin-screenshots\.spec\.ts/,
+      dependencies: ['admin-setup'],
     },
   ],
 })

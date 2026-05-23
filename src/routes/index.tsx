@@ -1,10 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
 import HomePage from '#/components/HomePage'
 import { listCategories } from '#/lib/categories'
-import { getFeaturedShops, listRecentProducts } from '#/lib/products'
+import { getFeaturedShops, listRecentProducts, getMarketplaceStats } from '#/lib/products'
 import { createPageMeta } from '#/lib/seo'
 import { generateWebSiteJsonLd } from '#/lib/seo-structured-data'
 import { m } from '#/paraglide/messages'
+import { getCurrentUser } from '#/lib/server-auth'
+import { getSellerShops } from '#/lib/sell-onboarding'
 
 function HomeError({ error }: { error: Error }) {
   return (
@@ -22,20 +24,23 @@ function HomeError({ error }: { error: Error }) {
 
 export const Route = createFileRoute('/')({
   loader: async () => {
-    const [categories, products, shops] = await Promise.all([
+    const user = await getCurrentUser().catch(() => null)
+    const [categories, products, shops, sellerShops, stats] = await Promise.all([
       listCategories(),
       listRecentProducts({ data: { limit: 12 } }),
       getFeaturedShops({ data: { limit: 6 } }),
+      user ? getSellerShops().catch(() => []) : Promise.resolve([]),
+      getMarketplaceStats(),
     ])
-    return { categories, products, shops }
+    return { categories, products, shops, user, sellerShops, stats }
   },
   head: () => {
     // JSON-LD WebSite structured data
     const jsonLd = generateWebSiteJsonLd()
 
     const { meta, links, script } = createPageMeta({
-      title: m.meta_title_default(),
-      description: m.home_description(),
+      title: m.home_meta_title(),
+      description: m.home_meta_description(),
       canonicalPath: '/',
       jsonLd,
     })
@@ -46,6 +51,15 @@ export const Route = createFileRoute('/')({
 })
 
 function Home() {
-  const { categories, products, shops } = Route.useLoaderData()
-  return <HomePage categories={categories} products={products} shops={shops} />
+  const { categories, products, shops, user, sellerShops, stats } = Route.useLoaderData()
+  return (
+    <HomePage
+      categories={categories}
+      products={products}
+      shops={shops}
+      user={user}
+      sellerShops={sellerShops}
+      stats={stats}
+    />
+  )
 }

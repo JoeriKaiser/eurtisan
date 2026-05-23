@@ -77,6 +77,12 @@ vi.mock('#/paraglide/messages', () => ({
   },
 }))
 
+vi.mock('#/paraglide/runtime', () => ({
+  getLocale: () => 'en',
+  locales: ['en', 'fr'],
+  setLocale: vi.fn(),
+}))
+
 vi.mock('./ThemeToggle', () => ({
   default: () => <button type='button'>Theme</button>,
 }))
@@ -305,5 +311,34 @@ describe('Header', () => {
     await waitFor(() => {
       expect(screen.getByText('Categories')).toBeDefined()
     })
+  })
+
+  it('renders category loading skeleton initially', () => {
+    // Keep listCategories pending so loading state persists during assertion
+    mockListCategories.mockReturnValue(new Promise(() => {}))
+    const { container } = renderWithProviders(<Header />)
+    const skeleton = container.querySelector('.animate-pulse')
+    expect(skeleton).toBeDefined()
+  })
+
+  it('renders mobile menu trigger button and opens drawer on click', async () => {
+    renderWithProviders(<Header />)
+    const menuBtn = screen.getByRole('button', { name: 'Open menu' })
+    expect(menuBtn).toBeDefined()
+    expect(menuBtn.getAttribute('aria-expanded')).toBe('false')
+
+    // Click trigger to open mobile drawer
+    fireEvent.click(menuBtn)
+    expect(screen.getByRole('dialog', { name: 'Navigation Drawer' })).toBeDefined()
+  })
+
+  it('renders mobile search button and opens search overlay on click', () => {
+    renderWithProviders(<Header />)
+    const searchBtn = screen.getByRole('button', { name: 'Search products' })
+    expect(searchBtn).toBeDefined()
+
+    // Click trigger to open search overlay
+    fireEvent.click(searchBtn)
+    expect(screen.getByRole('dialog', { name: 'Search' })).toBeDefined()
   })
 })

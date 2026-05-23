@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { AlertTriangle, ChevronLeft, ChevronRight, Inbox, Search, X } from 'lucide-react'
+import { AlertTriangle, ChevronLeft, ChevronRight, Download, Inbox, Search, X } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
 import z from 'zod'
 import { Badge } from '#/components/ui/badge'
@@ -8,6 +8,7 @@ import { Card, CardContent } from '#/components/ui/card'
 import { Skeleton } from '#/components/ui/skeleton'
 import type { PaginatedAdminOrders } from '#/lib/admin-orders'
 import { listAllPlatformOrders } from '#/lib/admin-orders'
+import { downloadCSV, generateCSV } from '#/lib/csv-export'
 import { statusBadgeVariant } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
@@ -267,6 +268,25 @@ export function AdminOrdersPage() {
           <Button onClick={handleSearch} aria-label={m.admin_orders_search_button()}>
             {m.admin_orders_search_button()}
           </Button>
+          <Button
+            variant='secondary'
+            onClick={() => {
+              const csv = generateCSV(orders.orders, [
+                { key: 'id', label: 'Order ID' },
+                { key: 'buyerName', label: 'Buyer' },
+                { key: 'buyerEmail', label: 'Buyer Email' },
+                { key: 'status', label: 'Status' },
+                { key: 'totalCents', label: 'Total (cents)' },
+                { key: 'shopCount', label: 'Shops' },
+                { key: 'createdAt', label: 'Created At' },
+              ])
+              downloadCSV(csv, `orders-${new Date().toISOString().slice(0, 10)}.csv`)
+            }}
+            aria-label={m.admin_common_export_csv()}
+          >
+            <Download size={16} aria-hidden='true' />
+            {m.admin_common_export_csv()}
+          </Button>
           {hasFilters && (
             <Button variant='ghost' onClick={clearFilters}>
               {m.admin_common_clear_filters()}
@@ -285,7 +305,7 @@ export function AdminOrdersPage() {
               type='date'
               value={search.from ?? ''}
               onChange={(e) => handleDateChange('from', e.target.value)}
-              className='h-9 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
+              className='h-10 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
             />
           </div>
           <div className='flex flex-col gap-1'>
@@ -297,7 +317,7 @@ export function AdminOrdersPage() {
               type='date'
               value={search.to ?? ''}
               onChange={(e) => handleDateChange('to', e.target.value)}
-              className='h-9 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
+              className='h-10 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
             />
           </div>
           <div className='flex flex-col gap-1'>
@@ -342,22 +362,28 @@ export function AdminOrdersPage() {
           <table className='w-full text-left text-sm'>
             <thead>
               <tr className='border-b border-border-default'>
-                <th className='pb-3 pr-4 font-medium text-text-secondary'>
+                <th scope='col' className='pb-3 pr-4 font-medium text-text-secondary'>
                   {m.admin_orders_col_order()}
                 </th>
-                <th className='pb-3 pr-4 font-medium text-text-secondary hidden sm:table-cell'>
+                <th
+                  scope='col'
+                  className='pb-3 pr-4 font-medium text-text-secondary hidden sm:table-cell'
+                >
                   {m.admin_orders_col_buyer()}
                 </th>
-                <th className='pb-3 pr-4 font-medium text-text-secondary'>
+                <th scope='col' className='pb-3 pr-4 font-medium text-text-secondary'>
                   {m.admin_orders_col_status()}
                 </th>
-                <th className='pb-3 pr-4 font-medium text-text-secondary hidden md:table-cell'>
+                <th
+                  scope='col'
+                  className='pb-3 pr-4 font-medium text-text-secondary hidden md:table-cell'
+                >
                   {m.admin_orders_col_shops()}
                 </th>
-                <th className='pb-3 pr-4'>
+                <th scope='col' className='pb-3 pr-4'>
                   <SortHeader column='totalCents'>{m.admin_orders_col_total()}</SortHeader>
                 </th>
-                <th className='pb-3 pr-4'>
+                <th scope='col' className='pb-3 pr-4'>
                   <SortHeader column='createdAt'>{m.admin_orders_col_date()}</SortHeader>
                 </th>
               </tr>

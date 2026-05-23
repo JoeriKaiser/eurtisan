@@ -17,7 +17,7 @@ function escapeCell(value: string): string {
  * @param columns Array of { key, label } defining column order and headers.
  * @returns CSV content as a string.
  */
-export function generateCSV<T extends Record<string, unknown>>(
+export function generateCSV<T extends object>(
   rows: T[],
   columns: Array<{ key: keyof T; label: string }>,
 ): string {

@@ -20,8 +20,8 @@ import z from 'zod'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
 import { Skeleton } from '#/components/ui/skeleton'
-import type { AuditLogListItem, PaginatedAuditLog } from '#/lib/audit-log.server'
 import { listAuditLog } from '#/lib/audit-log'
+import type { AuditLogListItem, PaginatedAuditLog } from '#/lib/audit-log.server'
 import { m } from '#/paraglide/messages'
 
 const PAGE_SIZES = [10, 20, 50] as const

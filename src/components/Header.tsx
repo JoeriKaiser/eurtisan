@@ -1,5 +1,5 @@
 import { Link, useRouter } from '@tanstack/react-router'
-import { Bell, ChevronDown, Search, ShoppingCart } from 'lucide-react'
+import { Bell, ChevronDown, Search, ShoppingCart, Menu } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useCart } from '#/components/CartProvider'
 import { useAuth } from '#/lib/auth-hooks'
@@ -9,6 +9,9 @@ import { m } from '#/paraglide/messages'
 import { SearchOverlay } from './search'
 import ThemeToggle from './ThemeToggle'
 import UserMenu from './UserMenu'
+import LocaleDropdown from './LocaleDropdown'
+import MobileNavDrawer from './MobileNavDrawer'
+import { Skeleton } from '#/components/ui/skeleton'
 import {
   DropdownMenu,
   DropdownMenuItem,
@@ -20,6 +23,7 @@ import {
 export default function Header() {
   const router = useRouter()
   const [searchOverlayOpen, setSearchOverlayOpen] = useState(false)
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
   const { cart } = useCart()
   const { isAuthenticated } = useAuth()
   const { data: unreadData } = useUnreadNotificationCount()
@@ -29,6 +33,7 @@ export default function Header() {
     [],
   )
   const [categoriesOpen, setCategoriesOpen] = useState(false)
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true)
 
   useEffect(() => {
     listCategories()
@@ -39,6 +44,9 @@ export default function Header() {
       })
       .catch(() => {
         // silently fail; categories dropdown will just be empty
+      })
+      .finally(() => {
+        setIsLoadingCategories(false)
       })
   }, [])
 
@@ -66,23 +74,55 @@ export default function Header() {
   return (
     <header className='sticky top-0 z-sticky border-b border-border-default bg-surface-default/80 backdrop-blur-lg'>
       <nav className='page-wrap flex items-center gap-x-4 px-4 py-2.5' aria-label={m.nav_main()}>
+        {/* Mobile Hamburger Trigger */}
+        <button
+          type='button'
+          onClick={() => setMobileDrawerOpen(true)}
+          className='inline-flex items-center justify-center rounded-lg p-1.5 text-text-secondary transition-colors hover:bg-bg-inset hover:text-text-primary focus-visible:bg-bg-inset md:hidden outline-none'
+          aria-label='Open menu'
+          aria-expanded={mobileDrawerOpen}
+          aria-haspopup='dialog'
+        >
+          <Menu size={20} aria-hidden='true' />
+        </button>
+
         {/* Logo */}
         <Link
           to='/'
-          className='flex-shrink-0 text-xl font-semibold tracking-tight text-text-primary no-underline transition-colors duration-fast ease-out hover:text-accent-primary'
+          className='flex-shrink-0 flex items-center gap-2 text-xl font-semibold tracking-tight text-text-primary no-underline transition-all duration-fast ease-out hover:scale-102'
         >
-          {m.nav_logo()}
+          <svg
+            className='h-5 w-5 text-accent-primary transition-transform duration-fast ease-out hover:scale-110'
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            strokeWidth='2.5'
+            strokeLinecap='round'
+            strokeLinejoin='round'
+            aria-hidden='true'
+          >
+            <path d='M12 2L2 7l10 5 10-5-10-5z' />
+            <path d='M2 17l10 5 10-5' />
+            <path d='M2 12l10 5 10-5' />
+          </svg>
+          <span className='bg-gradient-to-r from-accent-primary to-accent-secondary bg-clip-text text-transparent'>
+            {m.nav_logo()}
+          </span>
         </Link>
 
         {/* Nav links */}
-        <div className='hidden items-center gap-x-4 text-sm font-medium sm:flex'>
+        <div className='hidden items-center gap-x-4 text-sm font-medium md:flex'>
           <Link to='/' className='nav-link' activeProps={{ className: 'nav-link is-active' }}>
             {m.nav_home()}
           </Link>
           <Link to='/about' className='nav-link' activeProps={{ className: 'nav-link is-active' }}>
             {m.nav_about()}
           </Link>
-          {categories.length > 0 && (
+          {isLoadingCategories ? (
+            <div className='flex items-center py-1' aria-hidden='true'>
+              <Skeleton className='h-5 w-20' />
+            </div>
+          ) : categories.length > 0 ? (
             <DropdownMenu open={categoriesOpen} onOpenChange={setCategoriesOpen}>
               <DropdownMenuTrigger
                 className='nav-link inline-flex cursor-pointer items-center gap-0.5 bg-transparent outline-none'
@@ -112,7 +152,7 @@ export default function Header() {
                 </DropdownMenuPopup>
               </DropdownMenuPortal>
             </DropdownMenu>
-          )}
+          ) : null}
         </div>
 
         {/* Search trigger */}
@@ -131,6 +171,16 @@ export default function Header() {
 
         {/* User actions */}
         <div className='ml-auto flex items-center gap-1'>
+          {/* Mobile Search Button */}
+          <button
+            type='button'
+            onClick={() => setSearchOverlayOpen(true)}
+            className='inline-flex items-center rounded-lg p-1.5 text-sm font-medium text-text-primary transition-colors duration-fast ease-out hover:bg-bg-inset md:hidden outline-none'
+            aria-label='Search products'
+          >
+            <Search size={18} aria-hidden='true' />
+          </button>
+
           {isAuthenticated && (
             <div className='relative'>
               <Link
@@ -170,11 +220,20 @@ export default function Header() {
             </Link>
           </div>
           <UserMenu />
+          <div className='hidden md:inline-flex'>
+            <LocaleDropdown />
+          </div>
           <ThemeToggle />
         </div>
       </nav>
 
       <SearchOverlay isOpen={searchOverlayOpen} onClose={() => setSearchOverlayOpen(false)} />
+      <MobileNavDrawer
+        isOpen={mobileDrawerOpen}
+        onClose={() => setMobileDrawerOpen(false)}
+        categories={categories}
+        isLoadingCategories={isLoadingCategories}
+      />
     </header>
   )
 }

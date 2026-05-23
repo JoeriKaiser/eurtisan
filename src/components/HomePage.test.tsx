@@ -72,6 +72,9 @@ function makeShop(id: string, overrides?: Partial<FeaturedShop>): FeaturedShop {
     description: 'A test shop',
     slug: `shop-${id}`,
     productCount: 3,
+    tagline: null,
+    category: null,
+    image: null,
     ...overrides,
   }
 }
@@ -89,7 +92,7 @@ describe('HomePage', () => {
   it('renders hero section', () => {
     render(<HomePage categories={[]} products={[]} shops={[]} />)
     expect(screen.getByText('Handmade goods from European artisans')).toBeDefined()
-    expect(screen.getByLabelText('Search for handmade products')).toBeDefined()
+    expect(screen.getByLabelText(/Search for handmade products/i)).toBeDefined()
   })
 
   it('renders categories when present', () => {
@@ -149,7 +152,7 @@ describe('HomePage', () => {
 
   it('navigates to search on valid search submit', () => {
     render(<HomePage categories={[]} products={[]} shops={[]} />)
-    const input = screen.getByLabelText('Search for handmade products')
+    const input = screen.getByLabelText(/Search for handmade products/i)
     fireEvent.change(input, { target: { value: 'vase' } })
     fireEvent.click(screen.getByRole('button', { name: 'Search' }))
     expect(mockNavigate).toHaveBeenCalledWith({
@@ -170,14 +173,14 @@ describe('HomePage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Search' }))
     expect(screen.getByText('Please enter a search term')).toBeDefined()
 
-    const input = screen.getByLabelText('Search for handmade products')
+    const input = screen.getByLabelText(/Search for handmade products/i)
     fireEvent.change(input, { target: { value: 'a' } })
     expect(screen.queryByText('Please enter a search term')).toBeNull()
   })
 
   it('trims whitespace from search query', () => {
     render(<HomePage categories={[]} products={[]} shops={[]} />)
-    const input = screen.getByLabelText('Search for handmade products')
+    const input = screen.getByLabelText(/Search for handmade products/i)
     fireEvent.change(input, { target: { value: '  vase  ' } })
     fireEvent.click(screen.getByRole('button', { name: 'Search' }))
     expect(mockNavigate).toHaveBeenCalledWith({
@@ -193,7 +196,7 @@ describe('HomePage', () => {
 
   it('has accessible search input with aria-invalid on error', () => {
     render(<HomePage categories={[]} products={[]} shops={[]} />)
-    const input = screen.getByLabelText('Search for handmade products')
+    const input = screen.getByLabelText(/Search for handmade products/i)
     expect(input.getAttribute('aria-invalid')).toBe('false')
 
     fireEvent.click(screen.getByRole('button', { name: 'Search' }))
@@ -205,5 +208,153 @@ describe('HomePage', () => {
     render(<HomePage categories={[]} products={[]} shops={shops} />)
     const link = screen.getByText('Shop shop-1').closest('a')
     expect(link?.getAttribute('href')).toBe('/shops/$shopSlug')
+  })
+
+  it('renders auth-conditional CTAs for guest user', () => {
+    render(<HomePage categories={[]} products={[]} shops={[]} user={null} />)
+    const heroCtaLink = screen.getByText('Start Selling').closest('a')
+    expect(heroCtaLink?.getAttribute('href')).toBe('/signin')
+
+    // Check pre-footer CTA
+    expect(screen.getByText('Ready to share your craft?')).toBeDefined()
+    const preFooterCta = screen.getByText('Create Your Shop').closest('a')
+    expect(preFooterCta?.getAttribute('href')).toBe('/signin')
+  })
+
+  it('renders auth-conditional CTAs for authenticated user with no shop', () => {
+    const mockUser = {
+      id: 'usr-1',
+      name: 'John Doe',
+      email: 'john@example.com',
+      emailVerified: true,
+      image: null,
+      role: 'customer' as const,
+    }
+    render(<HomePage categories={[]} products={[]} shops={[]} user={mockUser} sellerShops={[]} />)
+    const heroCtaLink = screen.getByText('Start Selling').closest('a')
+    expect(heroCtaLink?.getAttribute('href')).toBe('/sell')
+
+    const preFooterCta = screen.getByText('Manage Your Shop').closest('a')
+    expect(preFooterCta?.getAttribute('href')).toBe('/sell')
+  })
+
+  it('renders auth-conditional CTAs for authenticated user with draft shop', () => {
+    const mockUser = {
+      id: 'usr-1',
+      name: 'John Doe',
+      email: 'john@example.com',
+      emailVerified: true,
+      image: null,
+      role: 'creator' as const,
+    }
+    const mockSellerShops = [
+      {
+        id: 'shop-draft',
+        name: 'My Craft Shop',
+        slug: 'my-craft-shop',
+        image: null,
+        status: 'draft',
+        onboardingStep: 2,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        productCount: 0,
+      },
+    ]
+    render(
+      <HomePage
+        categories={[]}
+        products={[]}
+        shops={[]}
+        user={mockUser}
+        sellerShops={mockSellerShops}
+      />,
+    )
+    const heroCtaLink = screen.getByText('Continue Listing').closest('a')
+    expect(heroCtaLink?.getAttribute('href')).toBe('/sell/onboarding/shop-draft')
+  })
+
+  it('renders auth-conditional CTAs for authenticated user with pending review shop', () => {
+    const mockUser = {
+      id: 'usr-1',
+      name: 'John Doe',
+      email: 'john@example.com',
+      emailVerified: true,
+      image: null,
+      role: 'creator' as const,
+    }
+    const mockSellerShops = [
+      {
+        id: 'shop-pending',
+        name: 'My Craft Shop',
+        slug: 'my-craft-shop',
+        image: null,
+        status: 'pending_review',
+        onboardingStep: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        productCount: 0,
+      },
+    ]
+    render(
+      <HomePage
+        categories={[]}
+        products={[]}
+        shops={[]}
+        user={mockUser}
+        sellerShops={mockSellerShops}
+      />,
+    )
+    const heroCtaLink = screen.getByText('Check Shop Status').closest('a')
+    expect(heroCtaLink?.getAttribute('href')).toBe('/sell/status/shop-pending')
+  })
+
+  it('renders auth-conditional CTAs for authenticated user with active shop', () => {
+    const mockUser = {
+      id: 'usr-1',
+      name: 'John Doe',
+      email: 'john@example.com',
+      emailVerified: true,
+      image: null,
+      role: 'creator' as const,
+    }
+    const mockSellerShops = [
+      {
+        id: 'shop-active',
+        name: 'My Craft Shop',
+        slug: 'my-craft-shop',
+        image: null,
+        status: 'active',
+        onboardingStep: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        productCount: 5,
+      },
+    ]
+    render(
+      <HomePage
+        categories={[]}
+        products={[]}
+        shops={[]}
+        user={mockUser}
+        sellerShops={mockSellerShops}
+      />,
+    )
+    const heroCtaLink = screen.getByText('Go to Dashboard').closest('a')
+    expect(heroCtaLink?.getAttribute('href')).toBe('/creator?shopId=shop-active')
+  })
+
+  it('renders value proposition strip', () => {
+    render(<HomePage categories={[]} products={[]} shops={[]} />)
+    expect(screen.getByText('Made in Europe')).toBeDefined()
+    expect(screen.getByText('Direct from Makers')).toBeDefined()
+    expect(screen.getByText('Secure Checkout')).toBeDefined()
+    expect(screen.getByText('GDPR-First')).toBeDefined()
+  })
+
+  it('renders marketplace statistics', () => {
+    const stats = { sellerCount: 45, productCount: 820 }
+    render(<HomePage categories={[]} products={[]} shops={[]} stats={stats} />)
+    expect(screen.getByText('45')).toBeDefined()
+    expect(screen.getByText('820')).toBeDefined()
   })
 })

@@ -17,11 +17,11 @@ export default function ProductCard({ product, imageUrl }: ProductCardProps) {
     <Link
       to='/products/$productSlug'
       params={{ productSlug: product.slug }}
-      className={`island-shell group relative flex flex-col overflow-hidden rounded-2xl transition hover:border-[color-mix(in_oklab,var(--lagoon-deep)_35%,var(--line))] ${isOutOfStock ? 'opacity-75' : ''}`}
+      className={`island-shell group relative flex flex-col overflow-hidden rounded-2xl transition-all duration-fast ease-out hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md ${isOutOfStock ? 'opacity-75' : ''}`}
       aria-label={m.product_card_label({ name: product.name })}
     >
       {/* Image */}
-      <div className='relative aspect-[4/3] w-full overflow-hidden bg-[var(--sand)]'>
+      <div className='relative aspect-[4/3] w-full overflow-hidden bg-surface-inset'>
         {imageUrl ? (
           <ResponsiveImage
             src={imageUrl}
@@ -32,7 +32,7 @@ export default function ProductCard({ product, imageUrl }: ProductCardProps) {
             imgClassName='h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]'
           />
         ) : (
-          <div className='flex h-full w-full items-center justify-center text-[var(--sea-ink-soft)]'>
+          <div className='flex h-full w-full items-center justify-center text-text-muted'>
             <ImageOff size={40} strokeWidth={1.5} aria-hidden='true' />
             <span className='sr-only'>{m.product_no_image()}</span>
           </div>
@@ -40,7 +40,7 @@ export default function ProductCard({ product, imageUrl }: ProductCardProps) {
 
         {isOutOfStock && (
           <div className='absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[1px]'>
-            <span className='rounded-full bg-[var(--surface-strong)] px-3 py-1 text-xs font-semibold text-[var(--sea-ink)] shadow-sm'>
+            <span className='rounded-full bg-surface-default px-3 py-1 text-xs font-semibold text-text-primary shadow-sm'>
               <PackageX size={14} className='inline align-text-bottom mr-1' aria-hidden='true' />
               {m.product_out_of_stock()}
             </span>
@@ -50,22 +50,20 @@ export default function ProductCard({ product, imageUrl }: ProductCardProps) {
 
       {/* Content */}
       <div className='flex flex-1 flex-col p-4'>
-        <h3 className='mb-1 text-base font-semibold text-[var(--sea-ink)] line-clamp-1'>
+        <h3 className='mb-1 text-base font-semibold text-text-primary line-clamp-1'>
           {product.name}
         </h3>
 
         {product.description && (
-          <p className='mb-3 text-sm text-[var(--sea-ink-soft)] line-clamp-2'>
-            {product.description}
-          </p>
+          <p className='mb-3 text-sm text-text-secondary line-clamp-2'>{product.description}</p>
         )}
 
         <div className='mt-auto flex items-end justify-between gap-2'>
-          <span className='text-base font-bold text-[var(--sea-ink)]'>
+          <span className='text-base font-bold text-text-primary tabular-nums'>
             {formatPriceEUR(product.priceCents)}
           </span>
 
-          <span className='inline-flex items-center gap-1 rounded-full bg-[var(--chip-bg)] px-2 py-1 text-xs text-[var(--sea-ink-soft)] border border-[var(--chip-line)]'>
+          <span className='inline-flex items-center gap-1 rounded-full bg-surface-inset px-2 py-1 text-xs text-text-secondary border border-border-default'>
             <Store size={12} aria-hidden='true' />
             <span className='max-w-[120px] truncate'>
               {product.shopName ?? m.product_unknown_shop()}

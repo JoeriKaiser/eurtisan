@@ -63,6 +63,13 @@ export const getFeaturedShops = createServerFn({
     return getFeaturedShopsQuery(data.limit)
   })
 
+export const getMarketplaceStats = createServerFn({
+  method: 'GET',
+}).handler(async () => {
+  const { getMarketplaceStatsQuery } = await import('./products.server')
+  return getMarketplaceStatsQuery()
+})
+
 export const listProductsSchema = z.object({
   shopSlug: z.string().min(1).optional(),
   categorySlug: z.string().min(1).optional(),

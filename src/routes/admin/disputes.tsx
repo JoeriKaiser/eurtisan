@@ -1,15 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import {
-  AlertTriangle,
-  ChevronLeft,
-  ChevronRight,
-  Clock,
-  Hash,
-  Inbox,
-  Search,
-  User,
-  X,
-} from 'lucide-react'
+import { AlertTriangle, ChevronLeft, ChevronRight, Eye, Inbox, Search, X } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
 import z from 'zod'
 import { Badge } from '#/components/ui/badge'
@@ -18,6 +8,7 @@ import { Card, CardContent } from '#/components/ui/card'
 import { Skeleton } from '#/components/ui/skeleton'
 import { cn } from '#/lib/cn'
 import { listOpenDisputes } from '#/lib/disputes'
+import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 
 const PAGE_SIZE = 20
@@ -60,17 +51,11 @@ function getStatusBadge(status: string): { variant: 'warning' | 'success'; label
   return { variant: 'warning', label: status }
 }
 
-function getDisputeAge(createdAt: Date | string): string {
-  const created = new Date(createdAt)
-  const now = new Date()
-  const diffMs = now.getTime() - created.getTime()
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-  const diffMinutes = Math.floor(diffMs / (1000 * 60))
-
-  if (diffDays > 0) return `${diffDays}d`
-  if (diffHours > 0) return `${diffHours}h`
-  return `${diffMinutes}m`
+function formatDate(date: Date | string): string {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(date))
 }
 
 /* -------------------------------------------------------------------------- */
@@ -218,115 +203,116 @@ export function AdminDisputesPage() {
         </Card>
       ) : (
         <div className='space-y-4'>
-          {/* Desktop table header */}
-          <div className='hidden rounded-lg bg-surface-inset px-5 py-2 text-xs font-medium text-text-secondary sm:grid sm:grid-cols-[80px_1fr_1fr_1fr_1fr_80px_100px] sm:gap-4'>
-            <span>{m.admin_orders_col_date()}</span>
-            <span className='flex items-center gap-1'>
-              <Hash size={12} aria-hidden='true' />
-              Dispute ID
-            </span>
-            <span className='flex items-center gap-1'>
-              <User size={12} aria-hidden='true' />
-              Buyer
-            </span>
-            <span className='flex items-center gap-1'>
-              <User size={12} aria-hidden='true' />
-              Creator
-            </span>
-            <span>Order Ref</span>
-            <span>Status</span>
-            <span />
+          <div className='overflow-x-auto'>
+            <table className='w-full text-left text-sm'>
+              <thead>
+                <tr className='border-b border-border-default'>
+                  <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
+                    {m.admin_disputes_col_date()}
+                  </th>
+                  <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
+                    {m.admin_disputes_col_dispute_id()}
+                  </th>
+                  <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
+                    {m.admin_disputes_col_buyer()}
+                  </th>
+                  <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
+                    {m.admin_disputes_col_creator()}
+                  </th>
+                  <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
+                    {m.admin_disputes_col_reason()}
+                  </th>
+                  <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
+                    {m.admin_disputes_col_status()}
+                  </th>
+                  <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
+                    {m.admin_disputes_col_amount()}
+                  </th>
+                  <th scope='col' className='pb-3 text-right font-semibold text-text-secondary'>
+                    {m.admin_common_actions()}
+                  </th>
+                </tr>
+              </thead>
+              <tbody className='divide-y divide-border-subtle'>
+                {disputes.map((dispute) => {
+                  const statusBadge = getStatusBadge(dispute.status)
+                  return (
+                    <tr key={dispute.id} className='group hover:bg-bg-inset/40 transition-colors'>
+                      <td className='py-3 pr-4 text-text-secondary font-mono text-xs'>
+                        {formatDate(dispute.createdAt)}
+                      </td>
+                      <td className='py-3 pr-4'>
+                        <span className='font-mono text-xs text-text-muted'>
+                          {dispute.id.slice(0, 8)}…
+                        </span>
+                      </td>
+                      <td className='py-3 pr-4 text-text-primary'>{dispute.buyerName}</td>
+                      <td className='py-3 pr-4 text-text-primary'>{dispute.creatorName}</td>
+                      <td className='py-3 pr-4 text-text-secondary'>
+                        <span className='capitalize'>{dispute.reason.replace(/_/g, ' ')}</span>
+                      </td>
+                      <td className='py-3 pr-4'>
+                        <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
+                      </td>
+                      <td className='py-3 pr-4 font-medium text-text-primary tabular-nums'>
+                        {formatPriceEUR(dispute.orderTotalCents)}
+                      </td>
+                      <td className='py-3 text-right whitespace-nowrap'>
+                        <Link
+                          to='/admin/disputes/$disputeId'
+                          params={{ disputeId: dispute.id }}
+                          className='inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-bg-inset hover:text-text-primary transition-colors'
+                        >
+                          <Eye size={14} aria-hidden='true' />
+                          {m.admin_disputes_view()}
+                        </Link>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
-
-          {/* Dispute rows */}
-          {disputes.map((dispute) => {
-            const statusBadge = getStatusBadge(dispute.status)
-            return (
-              <Link
-                key={dispute.id}
-                to='/admin/disputes/$disputeId'
-                params={{ disputeId: dispute.id }}
-                className='island-shell flex flex-col gap-3 rounded-xl p-5 transition hover:bg-bg-inset sm:grid sm:grid-cols-[80px_1fr_1fr_1fr_1fr_80px_100px] sm:items-center sm:gap-4'
-              >
-                {/* Age */}
-                <div className='flex items-center gap-2'>
-                  <Clock size={14} className='text-text-muted' aria-hidden='true' />
-                  <span className='font-mono text-sm text-text-secondary'>
-                    {getDisputeAge(dispute.createdAt)}
-                  </span>
-                </div>
-
-                {/* Dispute ID */}
-                <div>
-                  <span className='font-mono text-xs text-text-muted'>
-                    {dispute.id.slice(0, 8)}…
-                  </span>
-                </div>
-
-                {/* Buyer */}
-                <div>
-                  <p className='text-sm text-text-primary'>{dispute.buyerName}</p>
-                </div>
-
-                {/* Creator */}
-                <div>
-                  <p className='text-sm text-text-primary'>{dispute.creatorName}</p>
-                </div>
-
-                {/* Order Ref */}
-                <div>
-                  <span className='font-mono text-sm text-text-secondary'>
-                    {dispute.shopOrderId.slice(0, 8)}…
-                  </span>
-                </div>
-
-                {/* Status */}
-                <div>
-                  <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
-                </div>
-
-                {/* Arrow indicator */}
-                <div className='flex justify-end'>
-                  <ChevronRight size={18} className='text-text-muted' aria-hidden='true' />
-                </div>
-              </Link>
-            )
-          })}
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <nav
-              className='flex items-center justify-between gap-4 pt-2'
-              aria-label='Dispute queue pagination'
-            >
-              <div className='text-sm text-text-muted'>
-                Page {page} of {totalPages}
-              </div>
-              <div className='flex items-center gap-2'>
-                <Link
-                  to='/admin/disputes'
-                  search={{ page: page - 1, status: search.status, query: search.query }}
+            <div className='flex flex-col items-center gap-3 sm:flex-row sm:justify-between'>
+              <p className='text-sm text-text-secondary'>
+                {m.admin_shops_showing({
+                  from: (page - 1) * pageSize + 1,
+                  to: Math.min(page * pageSize, total),
+                  total,
+                })}
+              </p>
+              <nav
+                className='flex items-center gap-4'
+                aria-label={`${m.admin_disputes_title()} pagination`}
+              >
+                <Button
+                  variant='secondary'
+                  size='sm'
                   disabled={page <= 1}
-                  className='inline-flex items-center gap-1 rounded-lg border border-border-default px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-inset aria-disabled:pointer-events-none aria-disabled:opacity-40'
-                  aria-disabled={page <= 1}
+                  onClick={() => navigateWithParams({ page: page - 1 })}
                   aria-label={m.pagination_previous()}
                 >
                   <ChevronLeft size={16} aria-hidden='true' />
                   {m.pagination_previous()}
-                </Link>
-                <Link
-                  to='/admin/disputes'
-                  search={{ page: page + 1, status: search.status, query: search.query }}
+                </Button>
+                <span className='text-sm text-text-secondary font-mono'>
+                  {m.pagination_page_of({ page, totalPages })}
+                </span>
+                <Button
+                  variant='secondary'
+                  size='sm'
                   disabled={page >= totalPages}
-                  className='inline-flex items-center gap-1 rounded-lg border border-border-default px-3 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-inset aria-disabled:pointer-events-none aria-disabled:opacity-40'
-                  aria-disabled={page >= totalPages}
+                  onClick={() => navigateWithParams({ page: page + 1 })}
                   aria-label={m.pagination_next()}
                 >
                   {m.pagination_next()}
                   <ChevronRight size={16} aria-hidden='true' />
-                </Link>
-              </div>
-            </nav>
+                </Button>
+              </nav>
+            </div>
           )}
         </div>
       )}

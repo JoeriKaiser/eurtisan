@@ -13,7 +13,6 @@ import { getLocale } from '#/paraglide/runtime'
 import CartProvider from '../components/CartProvider'
 import Footer from '../components/Footer'
 import Header from '../components/Header'
-import LocaleSwitcher from '../components/LocaleSwitcher'
 import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
 import appCss from '../styles.css?url'
 
@@ -76,7 +75,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
           {children}
           {!isOnboarding && <Footer />}
         </CartProvider>
-        <LocaleSwitcher />
         <ClientOnly>
           <TanStackDevtools
             config={{

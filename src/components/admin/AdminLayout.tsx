@@ -161,6 +161,49 @@ function useBreadcrumbs(): Array<{ label: string; href?: string }> {
 }
 
 /* -------------------------------------------------------------------------- */
+/*                          Keyboard Shortcuts Modal                          */
+/* -------------------------------------------------------------------------- */
+
+function ShortcutsModal({
+  open,
+  onOpenChange,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
+  const shortcuts = [
+    { keys: 'Cmd + Shift + K', action: m.admin_shortcuts_search() },
+    { keys: '?', action: m.admin_shortcuts_shortcuts() },
+    { keys: 'Esc', action: m.admin_shortcuts_close() },
+  ]
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogPortal>
+        <DialogBackdrop />
+        <DialogPopup className='max-w-sm p-0 overflow-hidden'>
+          <div className='border-b border-border-default px-4 py-3'>
+            <h2 className='text-sm font-semibold text-text-primary'>{m.admin_shortcuts_title()}</h2>
+          </div>
+          <div className='py-2'>
+            <ul>
+              {shortcuts.map((s) => (
+                <li key={s.keys} className='flex items-center justify-between px-4 py-2 text-sm'>
+                  <span className='text-text-secondary'>{s.action}</span>
+                  <span className='rounded border border-border-default bg-surface-inset px-1.5 py-0.5 text-xs font-mono text-text-muted'>
+                    {s.keys}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </DialogPopup>
+      </DialogPortal>
+    </Dialog>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
 /*                            Admin Search Modal                              */
 /* -------------------------------------------------------------------------- */
 
@@ -256,6 +299,7 @@ function AdminSearchModal({
 export function AdminLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const location = useLocation()
   const { user } = useAuth()
   const navSections = useNavSections()
@@ -274,6 +318,18 @@ export function AdminLayout() {
       if (e.key === 'k' && (e.metaKey || e.ctrlKey) && e.shiftKey) {
         e.preventDefault()
         setSearchOpen(true)
+      }
+      if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        const target = e.target as HTMLElement
+        if (
+          target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.isContentEditable
+        ) {
+          return
+        }
+        e.preventDefault()
+        setShortcutsOpen(true)
       }
       if (e.key === 'Escape') {
         setMobileOpen(false)
@@ -476,6 +532,7 @@ export function AdminLayout() {
       </div>
 
       <AdminSearchModal open={searchOpen} onOpenChange={setSearchOpen} />
+      <ShortcutsModal open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
     </div>
   )
 }

@@ -5,6 +5,7 @@ import {
   CheckCircle,
   ChevronLeft,
   ChevronRight,
+  Download,
   Inbox,
   Search,
   X,
@@ -17,6 +18,7 @@ import { Skeleton } from '#/components/ui/skeleton'
 import type { AdminPayoutRow } from '#/lib/admin-payouts'
 import { listPayoutHistory, listPendingPayouts, markPayoutSent } from '#/lib/admin-payouts'
 import { cn } from '#/lib/cn'
+import { downloadCSV, generateCSV } from '#/lib/csv-export'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 
@@ -323,6 +325,26 @@ export function AdminPayoutsPage() {
               )}
             </div>
             <Button onClick={handleSearch}>{m.admin_common_search()}</Button>
+            {!isPendingTab && historyData && historyData.payouts.length > 0 && (
+              <Button
+                variant='secondary'
+                onClick={() => {
+                  const csv = generateCSV(historyData.payouts, [
+                    { key: 'creatorName', label: 'Creator' },
+                    { key: 'shopName', label: 'Shop' },
+                    { key: 'amountCents', label: 'Amount (cents)' },
+                    { key: 'status', label: 'Status' },
+                    { key: 'sentAt', label: 'Sent At' },
+                    { key: 'createdAt', label: 'Created At' },
+                  ])
+                  downloadCSV(csv, `payouts-${new Date().toISOString().slice(0, 10)}.csv`)
+                }}
+                aria-label={m.admin_common_export_csv()}
+              >
+                <Download size={16} aria-hidden='true' />
+                {m.admin_common_export_csv()}
+              </Button>
+            )}
             {hasFilters && (
               <Button variant='ghost' onClick={clearFilters}>
                 {m.admin_common_clear_filters()}
@@ -373,19 +395,25 @@ export function AdminPayoutsPage() {
             <table className='w-full text-left text-sm'>
               <thead>
                 <tr className='border-b border-border-default'>
-                  <th className='pb-3 pr-4 font-semibold text-text-secondary'>
+                  <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
                     {m.admin_payouts_col_creator()}
                   </th>
-                  <th className='pb-3 pr-4 font-semibold text-text-secondary'>
+                  <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
                     {m.admin_payouts_col_shop()}
                   </th>
-                  <th className='pb-3 pr-4 font-semibold text-text-secondary text-right'>
+                  <th
+                    scope='col'
+                    className='pb-3 pr-4 font-semibold text-text-secondary text-right'
+                  >
                     {m.admin_payouts_col_amount()}
                   </th>
-                  <th className='pb-3 pr-4 font-semibold text-text-secondary hidden sm:table-cell'>
+                  <th
+                    scope='col'
+                    className='pb-3 pr-4 font-semibold text-text-secondary hidden sm:table-cell'
+                  >
                     {m.admin_payouts_col_created()}
                   </th>
-                  <th className='pb-3 font-semibold text-text-secondary text-right'>
+                  <th scope='col' className='pb-3 font-semibold text-text-secondary text-right'>
                     <span className='sr-only'>{m.admin_payouts_col_actions()}</span>
                   </th>
                 </tr>
@@ -464,22 +492,31 @@ export function AdminPayoutsPage() {
               <table className='w-full text-left text-sm'>
                 <thead>
                   <tr className='border-b border-border-default'>
-                    <th className='pb-3 pr-4 font-semibold text-text-secondary'>
+                    <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
                       {m.admin_payouts_col_creator()}
                     </th>
-                    <th className='pb-3 pr-4 font-semibold text-text-secondary'>
+                    <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
                       {m.admin_payouts_col_shop()}
                     </th>
-                    <th className='pb-3 pr-4 font-semibold text-text-secondary text-right'>
+                    <th
+                      scope='col'
+                      className='pb-3 pr-4 font-semibold text-text-secondary text-right'
+                    >
                       {m.admin_payouts_col_amount()}
                     </th>
-                    <th className='pb-3 pr-4 font-semibold text-text-secondary'>
+                    <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
                       {m.admin_payouts_col_status()}
                     </th>
-                    <th className='pb-3 pr-4 font-semibold text-text-secondary hidden md:table-cell'>
+                    <th
+                      scope='col'
+                      className='pb-3 pr-4 font-semibold text-text-secondary hidden md:table-cell'
+                    >
                       {m.admin_payouts_col_sent_at()}
                     </th>
-                    <th className='pb-3 font-semibold text-text-secondary hidden sm:table-cell'>
+                    <th
+                      scope='col'
+                      className='pb-3 font-semibold text-text-secondary hidden sm:table-cell'
+                    >
                       {m.admin_payouts_col_created()}
                     </th>
                   </tr>

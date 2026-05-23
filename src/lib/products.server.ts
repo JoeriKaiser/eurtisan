@@ -53,6 +53,9 @@ export type FeaturedShop = {
   description: string | null
   slug: string
   productCount: number
+  tagline: string | null
+  category: string | null
+  image: string | null
 }
 
 export type ProductDetail = PublicProduct & {
@@ -372,6 +375,9 @@ export async function getFeaturedShopsQuery(limit: number): Promise<FeaturedShop
       description: shop.description,
       slug: shop.slug,
       productCount: count(product.id),
+      tagline: shop.tagline,
+      category: shop.category,
+      image: shop.image,
     })
     .from(shop)
     .leftJoin(product, eq(product.shopId, shop.id))
@@ -384,6 +390,26 @@ export async function getFeaturedShopsQuery(limit: number): Promise<FeaturedShop
     ...r,
     productCount: Number(r.productCount),
   }))
+}
+
+export async function getMarketplaceStatsQuery(): Promise<{
+  sellerCount: number
+  productCount: number
+}> {
+  const [shopResult] = await db
+    .select({ count: count() })
+    .from(shop)
+    .where(and(eq(shop.status, 'active'), eq(shop.isSuspended, false)))
+
+  const [productResult] = await db
+    .select({ count: count() })
+    .from(product)
+    .where(eq(product.isActive, true))
+
+  return {
+    sellerCount: Number(shopResult?.count ?? 0),
+    productCount: Number(productResult?.count ?? 0),
+  }
 }
 
 let tsvectorAvailable: boolean | null = null

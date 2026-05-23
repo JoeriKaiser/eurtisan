@@ -18,7 +18,7 @@ import {
 // helps buyers browse. We keep it restrained: one icon, one name,
 // no superfluous description text.
 
-const CATEGORY_ICONS: Record<string, LucideIcon> = {
+export const CATEGORY_ICONS: Record<string, LucideIcon> = {
   art: Palette,
   fashion: Shirt,
   food: Coffee,
@@ -32,7 +32,7 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   ceramics: Lightbulb,
 }
 
-function getCategoryIcon(name: string): LucideIcon {
+export function getCategoryIcon(name: string): LucideIcon {
   const key = name.toLowerCase()
   for (const [slug, Icon] of Object.entries(CATEGORY_ICONS)) {
     if (key.includes(slug)) return Icon as LucideIcon
