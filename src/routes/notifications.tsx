@@ -19,8 +19,8 @@ const PAGE_SIZE = 20
 
 export const Route = createFileRoute('/notifications')({
   validateSearch: notificationsSearchSchema,
-  beforeLoad: async () => guardAuth(),
   loaderDeps: ({ search }) => ({ page: search.page ?? 1 }),
+  beforeLoad: async () => guardAuth(),
   loader: async ({ deps }) => {
     const page = deps.page
     const result = (await getNotifications({

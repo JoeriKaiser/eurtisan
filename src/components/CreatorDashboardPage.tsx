@@ -176,7 +176,7 @@ function StatCard({
         <CardHeader className='pb-2'>
           <div className='flex items-center justify-between'>
             <CardTitle className='text-sm font-medium text-text-secondary'>{title}</CardTitle>
-            <div className='flex h-6 w-6 items-center justify-center rounded-full bg-surface-inset text-text-muted'>
+            <div className='flex size-6 items-center justify-center rounded-full bg-surface-inset text-text-muted'>
               {icon}
             </div>
           </div>
@@ -203,7 +203,7 @@ function QuickActionButton({
       to={to}
       className='flex flex-col items-center gap-2 rounded-xl border border-border-default bg-surface-default p-4 text-center transition hover:border-border-strong hover:bg-bg-inset no-underline'
     >
-      <div className='flex h-10 w-10 items-center justify-center rounded-full bg-surface-inset text-text-muted'>
+      <div className='flex size-10 items-center justify-center rounded-full bg-surface-inset text-text-muted'>
         {icon}
       </div>
       <span className='text-sm font-medium text-text-primary'>{label}</span>
@@ -215,7 +215,7 @@ function ActivityItem({ item }: { item: CreatorActivity }) {
   if (item.kind === 'order') {
     return (
       <div className='flex items-start gap-3 rounded-xl border border-border-default bg-surface-default p-4 transition hover:border-border-strong hover:bg-bg-inset'>
-        <div className='flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-accent-primary/10 text-accent-primary'>
+        <div className='flex size-9 flex-shrink-0 items-center justify-center rounded-full bg-accent-primary/10 text-accent-primary'>
           <Package size={18} aria-hidden='true' />
         </div>
         <div className='min-w-0 flex-1'>
@@ -235,7 +235,7 @@ function ActivityItem({ item }: { item: CreatorActivity }) {
 
   return (
     <div className='flex items-start gap-3 rounded-xl border border-border-default bg-surface-default p-4 transition hover:border-border-strong hover:bg-bg-inset'>
-      <div className='flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-500'>
+      <div className='flex size-9 flex-shrink-0 items-center justify-center rounded-full bg-amber-500/10 text-amber-500'>
         <Star size={18} aria-hidden='true' />
       </div>
       <div className='min-w-0 flex-1'>
@@ -304,15 +304,15 @@ export function CreatorDashboardLoading() {
         <Skeleton className='mb-4 h-6 w-32' />
         <div className='mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3'>
           <div className='flex flex-col items-center gap-2 rounded-xl border border-border-default p-4'>
-            <Skeleton className='h-10 w-10 rounded-full' />
+            <Skeleton className='size-10 rounded-full' />
             <Skeleton className='h-4 w-16' />
           </div>
           <div className='flex flex-col items-center gap-2 rounded-xl border border-border-default p-4'>
-            <Skeleton className='h-10 w-10 rounded-full' />
+            <Skeleton className='size-10 rounded-full' />
             <Skeleton className='h-4 w-16' />
           </div>
           <div className='flex flex-col items-center gap-2 rounded-xl border border-border-default p-4'>
-            <Skeleton className='h-10 w-10 rounded-full' />
+            <Skeleton className='size-10 rounded-full' />
             <Skeleton className='h-4 w-16' />
           </div>
         </div>
@@ -321,21 +321,21 @@ export function CreatorDashboardLoading() {
         <Skeleton className='mb-4 h-6 w-32' />
         <div className='space-y-3' aria-hidden='true'>
           <div className='flex items-start gap-3 rounded-xl border border-border-default p-4'>
-            <Skeleton className='h-9 w-9 rounded-full' />
+            <Skeleton className='size-9 rounded-full' />
             <div className='flex-1 space-y-2'>
               <Skeleton className='h-4 w-3/4' />
               <Skeleton className='h-3 w-24' />
             </div>
           </div>
           <div className='flex items-start gap-3 rounded-xl border border-border-default p-4'>
-            <Skeleton className='h-9 w-9 rounded-full' />
+            <Skeleton className='size-9 rounded-full' />
             <div className='flex-1 space-y-2'>
               <Skeleton className='h-4 w-3/4' />
               <Skeleton className='h-3 w-24' />
             </div>
           </div>
           <div className='flex items-start gap-3 rounded-xl border border-border-default p-4'>
-            <Skeleton className='h-9 w-9 rounded-full' />
+            <Skeleton className='size-9 rounded-full' />
             <div className='flex-1 space-y-2'>
               <Skeleton className='h-4 w-3/4' />
               <Skeleton className='h-3 w-24' />

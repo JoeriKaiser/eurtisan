@@ -1,5 +1,5 @@
 import { Menu } from '@base-ui-components/react/menu'
-import * as React from 'react'
+import type * as React from 'react'
 import { cn } from '#/lib/cn'
 
 export const DropdownMenu = Menu.Root
@@ -9,33 +9,36 @@ export const DropdownMenuSeparator = Menu.Separator
 export const DropdownMenuGroup = Menu.Group
 export const DropdownMenuGroupLabel = Menu.GroupLabel
 
-export const DropdownMenuPopup = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <Menu.Positioner className='z-sticky' sideOffset={6}>
-    <Menu.Popup
-      ref={ref}
-      className={cn(
-        'w-56 rounded-xl border border-border-default bg-surface-default p-1.5 shadow-lg',
-        'outline-none',
-        'transition-all duration-fast ease-out',
-        'data-[ending-style]:opacity-0 data-[ending-style]:scale-95',
-        'data-[starting-style]:opacity-0 data-[starting-style]:scale-95',
-        className,
-      )}
-      {...props}
-    />
-  </Menu.Positioner>
-))
-DropdownMenuPopup.displayName = 'DropdownMenuPopup'
+export function DropdownMenuPopup({
+  className,
+  ref,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement> & { ref?: React.Ref<HTMLDivElement> }) {
+  return (
+    <Menu.Positioner className='z-sticky' sideOffset={6}>
+      <Menu.Popup
+        ref={ref}
+        className={cn(
+          'w-56 rounded-xl border border-border-default bg-surface-default p-1.5 shadow-lg',
+          'outline-none',
+          'transition-all duration-fast ease-out',
+          'data-[ending-style]:opacity-0 data-[ending-style]:scale-95',
+          'data-[starting-style]:opacity-0 data-[starting-style]:scale-95',
+          className,
+        )}
+        {...props}
+      />
+    </Menu.Positioner>
+  )
+}
 
 export interface DropdownMenuItemProps extends React.HTMLAttributes<HTMLDivElement> {
   disabled?: boolean
+  ref?: React.Ref<HTMLDivElement>
 }
 
-export const DropdownMenuItem = React.forwardRef<HTMLDivElement, DropdownMenuItemProps>(
-  ({ className, disabled, ...props }, ref) => (
+export function DropdownMenuItem({ className, disabled, ref, ...props }: DropdownMenuItemProps) {
+  return (
     <Menu.Item
       ref={ref}
       disabled={disabled}
@@ -48,6 +51,5 @@ export const DropdownMenuItem = React.forwardRef<HTMLDivElement, DropdownMenuIte
       )}
       {...props}
     />
-  ),
-)
-DropdownMenuItem.displayName = 'DropdownMenuItem'
+  )
+}

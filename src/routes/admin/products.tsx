@@ -110,12 +110,6 @@ function AdminProductsPage() {
   const [bulkProgress, setBulkProgress] = useState<{ current: number; total: number } | null>(null)
 
   useEffect(() => {
-    return () => {
-      if (successTimerRef.current) clearTimeout(successTimerRef.current)
-    }
-  }, [])
-
-  useEffect(() => {
     setProducts(loaderData.products)
   }, [loaderData])
 
@@ -261,10 +255,7 @@ function AdminProductsPage() {
       </div>
 
       {successMessage && (
-        <div
-          role='status'
-          className='island-shell rounded-xl border border-success/30 bg-success-subtle p-4 text-sm text-success'
-        >
+        <div className='island-shell rounded-xl border border-success/30 bg-success-subtle p-4 text-sm text-success'>
           <CheckCircle size={16} className='mr-2 inline-block' aria-hidden='true' />
           {successMessage}
         </div>
@@ -469,7 +460,7 @@ function AdminProductsPage() {
                       selectedProductIds.size === products.products.length
                     }
                     onChange={toggleAllProducts}
-                    className='h-4 w-4 rounded border-border-default'
+                    className='size-4 rounded border-border-default'
                     aria-label={m.data_table_select_all()}
                   />
                 </th>
@@ -510,7 +501,7 @@ function AdminProductsPage() {
                       type='checkbox'
                       checked={selectedProductIds.has(p.id)}
                       onChange={() => toggleProductSelection(p.id)}
-                      className='h-4 w-4 rounded border-border-default'
+                      className='size-4 rounded border-border-default'
                       aria-label={m.data_table_select_row()}
                     />
                   </td>
@@ -520,10 +511,10 @@ function AdminProductsPage() {
                         <img
                           src={p.thumbnailUrl}
                           alt=''
-                          className='h-10 w-10 rounded-lg object-cover border border-border-default flex-shrink-0'
+                          className='size-10 rounded-lg object-cover border border-border-default flex-shrink-0'
                         />
                       ) : (
-                        <div className='h-10 w-10 rounded-lg bg-surface-inset border border-border-subtle flex items-center justify-center text-text-muted text-xs flex-shrink-0'>
+                        <div className='size-10 rounded-lg bg-surface-inset border border-border-subtle flex items-center justify-center text-text-muted text-xs flex-shrink-0'>
                           —
                         </div>
                       )}

@@ -20,7 +20,7 @@ export default function OrderSuccessPage({ order }: OrderSuccessPageProps) {
         <div className='mb-8 text-center'>
           {isPaid && (
             <>
-              <div className='mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-success-subtle text-success'>
+              <div className='mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-success-subtle text-success'>
                 <CheckCircle2 size={32} aria-hidden='true' />
               </div>
               <h1 className='display-title mb-2 text-2xl font-bold text-text-primary sm:text-3xl'>
@@ -32,7 +32,7 @@ export default function OrderSuccessPage({ order }: OrderSuccessPageProps) {
 
           {isPending && (
             <>
-              <div className='mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-warning-subtle text-warning'>
+              <div className='mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-warning-subtle text-warning'>
                 <Loader2 size={32} aria-hidden='true' className='animate-spin' />
               </div>
               <h1 className='display-title mb-2 text-2xl font-bold text-text-primary sm:text-3xl'>
@@ -44,7 +44,7 @@ export default function OrderSuccessPage({ order }: OrderSuccessPageProps) {
 
           {isCancelled && (
             <>
-              <div className='mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-error-subtle text-error'>
+              <div className='mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-error-subtle text-error'>
                 <XCircle size={32} aria-hidden='true' />
               </div>
               <h1 className='display-title mb-2 text-2xl font-bold text-text-primary sm:text-3xl'>
@@ -56,7 +56,7 @@ export default function OrderSuccessPage({ order }: OrderSuccessPageProps) {
 
           {!isPaid && !isPending && !isCancelled && (
             <>
-              <div className='mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-success-subtle text-success'>
+              <div className='mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-success-subtle text-success'>
                 <CheckCircle2 size={32} aria-hidden='true' />
               </div>
               <h1 className='display-title mb-2 text-2xl font-bold text-text-primary sm:text-3xl'>
@@ -97,7 +97,7 @@ export default function OrderSuccessPage({ order }: OrderSuccessPageProps) {
                 <ul className='divide-y divide-border-subtle'>
                   {shop.items.map((item) => (
                     <li key={item.id} className='flex items-center gap-3 py-3 first:pt-0 last:pb-0'>
-                      <div className='flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-inset'>
+                      <div className='flex size-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-inset'>
                         <span className='sr-only'>{item.productName}</span>
                         <ImageOff size={16} className='text-text-muted' aria-hidden='true' />
                       </div>

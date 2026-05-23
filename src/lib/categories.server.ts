@@ -2,8 +2,8 @@ import { count, eq, inArray, isNull, sql } from 'drizzle-orm'
 import type { z } from 'zod'
 import { db } from '#/db/index'
 import { categories, product } from '#/db/schema'
+import { buildCategoryTree, sanitizeSlug } from './category-tree'
 import type { deleteCategorySchema, updateCategorySchema } from './categories'
-import { buildCategoryTree } from './categories'
 import type { SafeUser } from './server-auth'
 import { sanitizeRichText, validatePlainText } from './xss'
 
@@ -152,7 +152,6 @@ export async function updateCategoryInternal(
     }
   }
 
-  const { sanitizeSlug } = await import('./categories')
   const slug = data.slug ? sanitizeSlug(data.slug) : undefined
 
   if (slug !== undefined) {

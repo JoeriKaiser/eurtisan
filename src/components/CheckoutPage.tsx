@@ -409,7 +409,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                     name={field.name}
                     checked={field.state.value}
                     onChange={(e) => field.handleChange(e.target.checked)}
-                    className='h-4 w-4 accent-accent-primary'
+                    className='size-4 accent-accent-primary'
                   />
                   <span className='text-sm text-text-primary'>
                     {m.checkout_billing_same_as_shipping()}
@@ -627,7 +627,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                                             method: option.method,
                                           })
                                         }}
-                                        className='h-4 w-4 accent-accent-primary'
+                                        className='size-4 accent-accent-primary'
                                       />
                                       <div>
                                         <span className='text-sm font-medium text-text-primary'>
@@ -683,7 +683,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                         key={item.productId}
                         className='flex items-center gap-4 py-3 first:pt-0 last:pb-0'
                       >
-                        <div className='flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-inset'>
+                        <div className='flex size-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-inset'>
                           {item.imageUrl ? (
                             <img
                               src={item.imageUrl}

@@ -25,8 +25,8 @@ function formatDate(date: Date): string {
 
 export const Route = createFileRoute('/account/orders')({
   validateSearch: ordersSearchSchema,
-  beforeLoad: async () => guardAuth(),
   loaderDeps: ({ search }) => ({ page: search.page ?? 1 }),
+  beforeLoad: async () => guardAuth(),
   loader: async ({ deps }) => {
     const page = deps.page
     const offset = (page - 1) * PAGE_SIZE

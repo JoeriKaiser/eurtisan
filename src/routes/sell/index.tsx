@@ -121,7 +121,7 @@ function ShopCard({ shop }: { shop: Awaited<ReturnType<typeof getSellerShops>>[n
     <Card className='overflow-hidden'>
       <CardContent className='p-5'>
         <div className='flex items-start gap-3'>
-          <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface-inset'>
+          <div className='flex size-12 shrink-0 items-center justify-center rounded-full bg-surface-inset'>
             {shop.image ? (
               <img src={shop.image} alt='' className='h-full w-full rounded-full object-cover' />
             ) : (

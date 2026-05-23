@@ -164,7 +164,7 @@ export default function HomePage({
               <form onSubmit={handleSearch}>
                 <div className='relative flex gap-2'>
                   <div className='relative flex-1'>
-                    <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted' />
+                    <Search className='absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted' />
                     <Input
                       type='search'
                       placeholder={m.home_search_placeholder()}
@@ -428,7 +428,7 @@ export default function HomePage({
                   params={{ shopSlug: shop.slug }}
                   className='island-shell group flex items-start gap-4 rounded-2xl p-5 no-underline transition-all duration-fast ease-out hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
                 >
-                  <div className='flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-accent-primary-subtle text-accent-primary transition-colors duration-fast group-hover:bg-accent-primary group-hover:text-text-on-primary overflow-hidden'>
+                  <div className='flex size-14 shrink-0 items-center justify-center rounded-xl bg-accent-primary-subtle text-accent-primary transition-colors duration-fast group-hover:bg-accent-primary group-hover:text-text-on-primary overflow-hidden'>
                     {shop.image ? (
                       <img src={shop.image} alt='' className='h-full w-full object-cover' />
                     ) : (
@@ -491,10 +491,10 @@ export default function HomePage({
                       params={{ slug: firstCategory.slug }}
                       className='group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-border-default bg-surface-default p-6 sm:p-8 shadow-sm transition-all duration-fast ease-out hover:-translate-y-0.5 hover:border-accent-primary hover:shadow-md hover:ring-2 hover:ring-accent-primary/20 no-underline min-h-[180px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
                     >
-                      <div className='pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full opacity-20 radial-glow-moss' />
+                      <div className='pointer-events-none absolute -right-10 -top-10 size-32 rounded-full opacity-20 radial-glow-moss' />
 
                       <div className='flex items-start justify-between gap-4 relative z-10'>
-                        <div className='flex h-14 w-14 items-center justify-center rounded-xl bg-accent-primary-subtle text-accent-primary transition-colors duration-fast group-hover:bg-accent-primary group-hover:text-text-on-primary'>
+                        <div className='flex size-14 items-center justify-center rounded-xl bg-accent-primary-subtle text-accent-primary transition-colors duration-fast group-hover:bg-accent-primary group-hover:text-text-on-primary'>
                           {(() => {
                             const Icon = getCategoryIcon(firstCategory.name)
                             return <Icon size={28} strokeWidth={1.5} />
@@ -552,7 +552,7 @@ export default function HomePage({
                 "{m.home_testimonial_1_quote()}"
               </blockquote>
               <div className='flex items-center gap-3'>
-                <div className='flex h-10 w-10 items-center justify-center rounded-full bg-accent-primary text-text-on-primary font-bold text-sm'>
+                <div className='flex size-10 items-center justify-center rounded-full bg-accent-primary text-text-on-primary font-bold text-sm'>
                   C
                 </div>
                 <div>
@@ -586,7 +586,7 @@ export default function HomePage({
                 "{m.home_testimonial_2_quote()}"
               </blockquote>
               <div className='flex items-center gap-3'>
-                <div className='flex h-10 w-10 items-center justify-center rounded-full bg-accent-secondary text-text-on-primary font-bold text-sm'>
+                <div className='flex size-10 items-center justify-center rounded-full bg-accent-secondary text-text-on-primary font-bold text-sm'>
                   M
                 </div>
                 <div>

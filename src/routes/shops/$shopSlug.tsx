@@ -101,7 +101,7 @@ function ShopPending() {
         <div className='h-4 w-1/2 animate-pulse rounded bg-[var(--sand)]' />
       </div>
       <div className='mt-8'>
-        <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3' role='status' aria-live='polite'>
+        <output className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3' aria-live='polite'>
           {[1, 2, 3, 4, 5, 6].map((n) => (
             <div
               key={`skeleton-${n}`}
@@ -116,7 +116,7 @@ function ShopPending() {
             </div>
           ))}
           <span className='sr-only'>{m.product_grid_loading()}</span>
-        </div>
+        </output>
       </div>
     </main>
   )

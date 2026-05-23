@@ -232,7 +232,7 @@ export function DisputeThreadError({ error }: { error: Error }) {
   return (
     <main className='page-wrap px-4 pb-16 pt-14'>
       <div className='mx-auto max-w-md text-center'>
-        <div className='mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-error/10'>
+        <div className='mb-4 inline-flex size-12 items-center justify-center rounded-full bg-error/10'>
           <ShieldAlert size={24} className='text-error' aria-hidden='true' />
         </div>
         <h1 className='display-title mb-2 text-2xl font-bold text-text-primary'>

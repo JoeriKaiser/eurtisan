@@ -54,7 +54,7 @@ export const listPendingPayouts = createServerFn({ method: 'GET' })
 /*                            Mark Payout Sent                                 */
 /* -------------------------------------------------------------------------- */
 
-export const markPayoutSentInputSchema = z.object({
+const markPayoutSentInputSchema = z.object({
   payoutId: z.string().min(1, 'Payout ID is required.'),
 })
 
@@ -82,7 +82,7 @@ export const markPayoutSent = createServerFn({ method: 'POST' })
 /*                          List Payout History                                */
 /* -------------------------------------------------------------------------- */
 
-export const listPayoutHistoryInputSchema = z.object({
+const listPayoutHistoryInputSchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
   pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
   from: z

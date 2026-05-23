@@ -433,7 +433,7 @@ function ShopSettingsForm({
                   {slugChecking && (
                     <span className='absolute right-3 top-1/2 -translate-y-1/2'>
                       <svg
-                        className='h-4 w-4 animate-spin text-text-muted'
+                        className='size-4 animate-spin text-text-muted'
                         xmlns='http://www.w3.org/2000/svg'
                         fill='none'
                         viewBox='0 0 24 24'
@@ -602,7 +602,7 @@ function ShopSettingsForm({
                   <button
                     type='button'
                     onClick={handleRemoveImage}
-                    className='absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-bg-overlay text-white backdrop-blur-sm transition hover:bg-error'
+                    className='absolute right-2 top-2 flex size-7 items-center justify-center rounded-full bg-bg-overlay text-white backdrop-blur-sm transition hover:bg-error'
                     aria-label={m.creator_shop_image_remove()}
                   >
                     <X size={16} />

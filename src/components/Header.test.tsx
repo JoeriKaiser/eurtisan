@@ -147,6 +147,18 @@ vi.mock('./search', () => ({
     ) : null,
 }))
 
+vi.mock('./search/SearchOverlay', () => ({
+  default: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) =>
+    isOpen ? (
+      <div data-testid='search-overlay'>
+        <span>Mock Search Overlay</span>
+        <button type='button' onClick={onClose} aria-label='Close search'>
+          Close Overlay
+        </button>
+      </div>
+    ) : null,
+}))
+
 describe('Header', () => {
   beforeEach(() => {
     mockNavigate.mockClear()

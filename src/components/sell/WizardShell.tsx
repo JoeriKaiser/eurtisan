@@ -100,7 +100,7 @@ export function WizardShell({ draftId, currentStep, saveIndicator, children }: P
                 }`}
               >
                 <span
-                  className={`flex h-5 w-5 items-center justify-center rounded-full text-xs ${
+                  className={`flex size-5 items-center justify-center rounded-full text-xs ${
                     step.id <= currentStep
                       ? 'bg-accent-primary text-text-on-primary'
                       : 'bg-surface-inset text-text-muted'
@@ -135,7 +135,7 @@ export function WizardShell({ draftId, currentStep, saveIndicator, children }: P
                   }`}
                 >
                   <span
-                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs ${
+                    className={`flex size-6 shrink-0 items-center justify-center rounded-full text-xs ${
                       isActive
                         ? 'bg-accent-primary text-text-on-primary'
                         : isCompleted

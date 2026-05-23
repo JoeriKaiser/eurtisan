@@ -143,7 +143,7 @@ export default function SearchSuggestions({
               >
                 <span
                   className={cn(
-                    'flex h-7 w-7 shrink-0 items-center justify-center rounded-md',
+                    'flex size-7 shrink-0 items-center justify-center rounded-md',
                     isActive
                       ? 'bg-accent-primary/10 text-accent-primary'
                       : 'bg-surface-inset text-text-muted',
@@ -178,7 +178,7 @@ export default function SearchSuggestions({
               >
                 <span
                   className={cn(
-                    'flex h-7 w-7 shrink-0 items-center justify-center rounded-md',
+                    'flex size-7 shrink-0 items-center justify-center rounded-md',
                     isActive
                       ? 'bg-accent-primary/10 text-accent-primary'
                       : 'bg-surface-inset text-text-muted',

@@ -125,8 +125,8 @@ function ForgotPassword() {
           )}
         </form>
       ) : (
-        <div className='space-y-4 text-center' role='status' aria-live='polite'>
-          <div className='mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent-primary/10 text-accent-primary'>
+        <div className='space-y-4 text-center' aria-live='polite'>
+          <div className='mx-auto flex size-12 items-center justify-center rounded-full bg-accent-primary/10 text-accent-primary'>
             <Mail size={24} />
           </div>
           <p className='text-sm text-text-secondary'>{m.forgot_password_success({ email })}</p>

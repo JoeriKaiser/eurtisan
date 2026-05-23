@@ -299,7 +299,6 @@ function SignIn() {
         {infoMessage && (
           <div
             className='rounded-lg border border-border-default bg-surface-inset p-3 flex items-start gap-2'
-            role='status'
             aria-live='polite'
           >
             <p className='text-xs text-text-secondary font-medium'>{infoMessage}</p>

@@ -206,7 +206,7 @@ function EmptyCart({ showEmptyMessage }: { showEmptyMessage?: boolean }) {
             {m.cart_empty_checkout_message()}
           </div>
         )}
-        <div className='mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-surface-inset text-text-muted'>
+        <div className='mx-auto mb-6 flex size-16 items-center justify-center rounded-full bg-surface-inset text-text-muted'>
           <ShoppingBag size={28} aria-hidden='true' />
         </div>
         <h1 className='display-title mb-2 text-2xl font-bold text-text-primary'>
@@ -312,7 +312,7 @@ function CartItemRow({
   return (
     <li className='flex gap-4 py-4 first:pt-0 last:pb-0'>
       {/* Product image */}
-      <div className='flex h-20 w-20 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-surface-inset sm:h-24 sm:w-24'>
+      <div className='flex size-20 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-surface-inset sm:h-24 sm:w-24'>
         {product?.imageUrl ? (
           <img
             src={product.imageUrl}

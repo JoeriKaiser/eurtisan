@@ -170,7 +170,7 @@ export function CreatorPayoutsPage({
                 <CardTitle className='text-sm font-medium text-text-secondary'>
                   {m.creator_payouts_earned_total()}
                 </CardTitle>
-                <div className='flex h-6 w-6 items-center justify-center rounded-full bg-accent-primary/10 text-accent-primary'>
+                <div className='flex size-6 items-center justify-center rounded-full bg-accent-primary/10 text-accent-primary'>
                   <Banknote size={18} aria-hidden='true' />
                 </div>
               </div>
@@ -188,7 +188,7 @@ export function CreatorPayoutsPage({
                 <CardTitle className='text-sm font-medium text-text-secondary'>
                   {m.creator_payouts_pending_amount()}
                 </CardTitle>
-                <div className='flex h-6 w-6 items-center justify-center rounded-full bg-warning-subtle text-warning'>
+                <div className='flex size-6 items-center justify-center rounded-full bg-warning-subtle text-warning'>
                   <Banknote size={18} aria-hidden='true' />
                 </div>
               </div>

@@ -1,5 +1,5 @@
 import { Dialog as BaseDialog } from '@base-ui-components/react/dialog'
-import * as React from 'react'
+import type * as React from 'react'
 import { cn } from '#/lib/cn'
 
 export const Dialog = BaseDialog.Root
@@ -7,25 +7,31 @@ export const DialogTrigger = BaseDialog.Trigger
 export const DialogPortal = BaseDialog.Portal
 export const DialogClose = BaseDialog.Close
 
-export const DialogBackdrop = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <BaseDialog.Backdrop
-    ref={ref}
-    className={cn(
-      'fixed inset-0 z-modal-backdrop bg-bg-overlay backdrop-blur-sm',
-      'transition-opacity duration-fast ease-out',
-      'data-[ending-style]:opacity-0 data-[starting-style]:opacity-0',
-      className,
-    )}
-    {...props}
-  />
-))
-DialogBackdrop.displayName = 'DialogBackdrop'
+export function DialogBackdrop({
+  className,
+  ref,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement> & { ref?: React.Ref<HTMLDivElement> }) {
+  return (
+    <BaseDialog.Backdrop
+      ref={ref}
+      className={cn(
+        'fixed inset-0 z-modal-backdrop bg-bg-overlay backdrop-blur-sm',
+        'transition-opacity duration-fast ease-out',
+        'data-[ending-style]:opacity-0 data-[starting-style]:opacity-0',
+        className,
+      )}
+      {...props}
+    />
+  )
+}
 
-export const DialogPopup = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
+export function DialogPopup({
+  className,
+  ref,
+  ...props
+}: React.HTMLAttributes<HTMLDivElement> & { ref?: React.Ref<HTMLDivElement> }) {
+  return (
     <BaseDialog.Popup
       ref={ref}
       className={cn(
@@ -38,30 +44,33 @@ export const DialogPopup = React.forwardRef<HTMLDivElement, React.HTMLAttributes
       )}
       {...props}
     />
-  ),
-)
-DialogPopup.displayName = 'DialogPopup'
+  )
+}
 
-export const DialogTitle = React.forwardRef<
-  HTMLHeadingElement,
-  React.HTMLAttributes<HTMLHeadingElement>
->(({ className, ...props }, ref) => (
-  <BaseDialog.Title
-    ref={ref}
-    className={cn('text-lg font-semibold text-text-primary', className)}
-    {...props}
-  />
-))
-DialogTitle.displayName = 'DialogTitle'
+export function DialogTitle({
+  className,
+  ref,
+  ...props
+}: React.HTMLAttributes<HTMLHeadingElement> & { ref?: React.Ref<HTMLHeadingElement> }) {
+  return (
+    <BaseDialog.Title
+      ref={ref}
+      className={cn('text-lg font-semibold text-text-primary', className)}
+      {...props}
+    />
+  )
+}
 
-export const DialogDescription = React.forwardRef<
-  HTMLParagraphElement,
-  React.HTMLAttributes<HTMLParagraphElement>
->(({ className, ...props }, ref) => (
-  <BaseDialog.Description
-    ref={ref}
-    className={cn('mt-2 text-sm text-text-secondary', className)}
-    {...props}
-  />
-))
-DialogDescription.displayName = 'DialogDescription'
+export function DialogDescription({
+  className,
+  ref,
+  ...props
+}: React.HTMLAttributes<HTMLParagraphElement> & { ref?: React.Ref<HTMLParagraphElement> }) {
+  return (
+    <BaseDialog.Description
+      ref={ref}
+      className={cn('mt-2 text-sm text-text-secondary', className)}
+      {...props}
+    />
+  )
+}

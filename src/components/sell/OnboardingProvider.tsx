@@ -168,31 +168,30 @@ export function OnboardingProvider({ draft, onSaveStateChange, children }: Props
     return true
   }, [])
 
-  const contextValue = useMemo(() => ({
-    draft,
-    updateField,
-    updateFields,
-    saveStep,
-    isSaving,
-    lastSaved,
-    getStepData,
-    registerStepActions,
-    executeStepActions,
-  }), [
-    draft,
-    updateField,
-    updateFields,
-    saveStep,
-    isSaving,
-    lastSaved,
-    getStepData,
-    registerStepActions,
-    executeStepActions,
-  ])
-
-  return (
-    <OnboardingContext.Provider value={contextValue}>
-      {children}
-    </OnboardingContext.Provider>
+  const contextValue = useMemo(
+    () => ({
+      draft,
+      updateField,
+      updateFields,
+      saveStep,
+      isSaving,
+      lastSaved,
+      getStepData,
+      registerStepActions,
+      executeStepActions,
+    }),
+    [
+      draft,
+      updateField,
+      updateFields,
+      saveStep,
+      isSaving,
+      lastSaved,
+      getStepData,
+      registerStepActions,
+      executeStepActions,
+    ],
   )
+
+  return <OnboardingContext.Provider value={contextValue}>{children}</OnboardingContext.Provider>
 }

@@ -250,7 +250,7 @@ export function CreatorProductsPage({
         {/* Search + Filter bar */}
         <div className='mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
           <div className='relative flex-1 sm:max-w-sm'>
-            <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted' />
+            <Search className='absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted' />
             <Input
               type='search'
               placeholder={m.creator_products_search_placeholder()}
@@ -331,7 +331,7 @@ export function CreatorProductsPage({
                     {/* Product cell with thumbnail */}
                     <td className='py-3 pr-4'>
                       <div className='flex items-center gap-3'>
-                        <div className='h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg bg-surface-inset'>
+                        <div className='size-10 flex-shrink-0 overflow-hidden rounded-lg bg-surface-inset'>
                           {product.thumbnailUrl ? (
                             <img
                               src={product.thumbnailUrl}
@@ -409,7 +409,7 @@ export function CreatorProductsPage({
                           >
                             {toggling ? (
                               <svg
-                                className='h-4 w-4 animate-spin'
+                                className='size-4 animate-spin'
                                 xmlns='http://www.w3.org/2000/svg'
                                 fill='none'
                                 viewBox='0 0 24 24'
@@ -592,7 +592,7 @@ export function CreatorProductsLoading() {
                 <tr key={i} className='border-b border-border-subtle'>
                   <td className='py-3 pr-4'>
                     <div className='flex items-center gap-3'>
-                      <Skeleton className='h-10 w-10 rounded-lg' />
+                      <Skeleton className='size-10 rounded-lg' />
                       <div className='space-y-1.5'>
                         <Skeleton className='h-4 w-32' />
                         <Skeleton className='h-3 w-20 sm:hidden' />

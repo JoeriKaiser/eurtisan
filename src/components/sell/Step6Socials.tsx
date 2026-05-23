@@ -81,7 +81,7 @@ export function Step6Socials() {
             key={social.platform}
             className='flex items-center gap-3 rounded-lg border border-border-default bg-surface-default p-3'
           >
-            <span className='flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-inset text-text-muted'>
+            <span className='flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-inset text-text-muted'>
               {PLATFORM_ICONS[social.platform]}
             </span>
             <div className='min-w-0 flex-1'>

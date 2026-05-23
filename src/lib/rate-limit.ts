@@ -134,7 +134,7 @@ export async function checkRateLimit(
 /**
  * Convenience wrapper that throws a 429 Response when the limit is exceeded.
  */
-export async function assertRateLimit(key: string, limit: number, windowMs: number): Promise<void> {
+async function assertRateLimit(key: string, limit: number, windowMs: number): Promise<void> {
   const result = await checkRateLimit(key, limit, windowMs)
   if (!result.allowed) {
     throw new Response(

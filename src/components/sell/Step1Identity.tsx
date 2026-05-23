@@ -267,7 +267,7 @@ export function Step1Identity() {
               >
                 <span className='font-medium text-text-primary'>{productionLabels[type]}</span>
                 <span
-                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-all duration-base ${
+                  className={`flex size-5 shrink-0 items-center justify-center rounded-full border transition-all duration-base ${
                     isSelected
                       ? 'border-accent-primary bg-accent-primary text-text-on-primary scale-110 shadow-sm'
                       : 'border-border-strong bg-surface-elevated'

@@ -39,13 +39,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     refreshCart()
   }, [refreshCart])
 
-  const contextValue = useMemo(() => ({ cart, isLoading, error, refreshCart }), [cart, isLoading, error, refreshCart])
-
-  return (
-    <CartContext.Provider value={contextValue}>
-      {children}
-    </CartContext.Provider>
+  const contextValue = useMemo(
+    () => ({ cart, isLoading, error, refreshCart }),
+    [cart, isLoading, error, refreshCart],
   )
+
+  return <CartContext.Provider value={contextValue}>{children}</CartContext.Provider>
 }
 
 export default CartProvider

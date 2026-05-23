@@ -850,7 +850,7 @@ function ProductEditForm({
                           <button
                             type='button'
                             onClick={() => handleRemoveExistingImage(img.id)}
-                            className='flex h-6 w-6 items-center justify-center rounded-full bg-bg-overlay/80 text-white transition hover:bg-error'
+                            className='flex size-6 items-center justify-center rounded-full bg-bg-overlay/80 text-white transition hover:bg-error'
                             aria-label={m.creator_product_edit_image_remove()}
                           >
                             <X size={14} />
@@ -862,7 +862,7 @@ function ProductEditForm({
                             type='button'
                             onClick={() => moveImageUp(img.id)}
                             disabled={idx === 0}
-                            className='flex h-6 w-6 items-center justify-center rounded bg-bg-overlay/80 text-white transition hover:bg-surface-inset disabled:opacity-30'
+                            className='flex size-6 items-center justify-center rounded bg-bg-overlay/80 text-white transition hover:bg-surface-inset disabled:opacity-30'
                             aria-label={m.creator_product_edit_image_move_up()}
                           >
                             <ArrowUp size={14} />
@@ -871,7 +871,7 @@ function ProductEditForm({
                             type='button'
                             onClick={() => moveImageDown(img.id)}
                             disabled={idx === existingImages.length - 1}
-                            className='flex h-6 w-6 items-center justify-center rounded bg-bg-overlay/80 text-white transition hover:bg-surface-inset disabled:opacity-30'
+                            className='flex size-6 items-center justify-center rounded bg-bg-overlay/80 text-white transition hover:bg-surface-inset disabled:opacity-30'
                             aria-label={m.creator_product_edit_image_move_down()}
                           >
                             <ArrowDown size={14} />
@@ -891,7 +891,7 @@ function ProductEditForm({
                         <div className='flex aspect-square items-center justify-center bg-surface-inset'>
                           <div className='text-center'>
                             <svg
-                              className='mx-auto h-6 w-6 animate-spin text-text-muted'
+                              className='mx-auto size-6 animate-spin text-text-muted'
                               xmlns='http://www.w3.org/2000/svg'
                               fill='none'
                               viewBox='0 0 24 24'
@@ -930,7 +930,7 @@ function ProductEditForm({
                       <button
                         type='button'
                         onClick={() => handleRemoveNewImage(img.id)}
-                        className='absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-bg-overlay text-white backdrop-blur-sm transition hover:bg-error'
+                        className='absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-bg-overlay text-white backdrop-blur-sm transition hover:bg-error'
                         aria-label={m.creator_product_new_images_remove()}
                       >
                         <X size={14} />

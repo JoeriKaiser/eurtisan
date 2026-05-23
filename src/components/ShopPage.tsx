@@ -65,7 +65,7 @@ export default function ShopPage({ shop, products, searchQuery }: ShopPageProps)
           <h2 className='text-xl font-semibold text-text-primary'>{m.shop_products_title()}</h2>
           <div className='flex gap-2'>
             <div className='relative flex-1 sm:w-64'>
-              <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted' />
+              <Search className='absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted' />
               <Input
                 type='search'
                 placeholder={m.shop_search_placeholder()}

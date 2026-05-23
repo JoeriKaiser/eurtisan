@@ -7,13 +7,14 @@ import CategoryCard from '../../components/CategoryCard'
 
 export const Route = createFileRoute('/category/$slug')({
   loader: async ({ params }) => {
-    const category = await getCategoryBySlug({ data: { slug: params.slug } })
+    const [category, products] = await Promise.all([
+      getCategoryBySlug({ data: { slug: params.slug } }),
+      listProductsByCategorySlug({ data: { slug: params.slug } }),
+    ])
 
     if (!category) {
       throw notFound()
     }
-
-    const products = await listProductsByCategorySlug({ data: { slug: params.slug } })
 
     return { category, products }
   },

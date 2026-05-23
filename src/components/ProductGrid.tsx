@@ -22,7 +22,7 @@ export default function ProductGrid({
 }: ProductGridProps) {
   if (isLoading) {
     return (
-      <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3' role='status' aria-live='polite'>
+      <output className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3' aria-live='polite'>
         {[1, 2, 3, 4, 5, 6].map((n) => (
           <div
             key={`skeleton-${n}`}
@@ -37,7 +37,7 @@ export default function ProductGrid({
           </div>
         ))}
         <span className='sr-only'>{m.product_grid_loading()}</span>
-      </div>
+      </output>
     )
   }
 

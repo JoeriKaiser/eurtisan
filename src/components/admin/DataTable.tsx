@@ -90,7 +90,7 @@ export function DataTable<T>({
                   }}
                   onChange={handleSelectAll}
                   aria-label={m.data_table_select_all()}
-                  className='h-4 w-4 rounded border-border-default text-accent-primary focus:ring-accent-primary'
+                  className='size-4 rounded border-border-default text-accent-primary focus:ring-accent-primary'
                 />
               </th>
             )}
@@ -152,7 +152,7 @@ export function DataTable<T>({
                       checked={isSelected}
                       onChange={() => handleSelectRow(id)}
                       aria-label={m.data_table_select_row()}
-                      className='h-4 w-4 rounded border-border-default text-accent-primary focus:ring-accent-primary'
+                      className='size-4 rounded border-border-default text-accent-primary focus:ring-accent-primary'
                     />
                   </td>
                 )}

@@ -404,7 +404,7 @@ export default function BuyerOrderDetailPage({
                 <ul className='divide-y divide-border-subtle'>
                   {shop.items.map((item) => (
                     <li key={item.id} className='flex items-center gap-3 py-3 first:pt-0 last:pb-0'>
-                      <div className='flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-inset'>
+                      <div className='flex size-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-inset'>
                         <span className='sr-only'>{item.productName}</span>
                         <ImageOff size={16} className='text-text-muted' aria-hidden='true' />
                       </div>

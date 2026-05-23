@@ -88,13 +88,13 @@ function CategoriesAllPending() {
         <div className='h-4 w-1/2 animate-pulse rounded bg-[var(--sand)]' />
       </section>
       <div className='mt-8'>
-        <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3' role='status' aria-live='polite'>
+        <output className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3' aria-live='polite'>
           {[1, 2, 3, 4, 5, 6].map((n) => (
             <div
               key={`skeleton-${n}`}
               className='island-shell flex items-center gap-4 rounded-2xl p-5'
             >
-              <div className='h-12 w-12 animate-pulse rounded-xl bg-[var(--sand)]' />
+              <div className='size-12 animate-pulse rounded-xl bg-[var(--sand)]' />
               <div className='flex-1 space-y-2'>
                 <div className='h-5 w-2/3 animate-pulse rounded bg-[var(--sand)]' />
                 <div className='h-4 w-1/2 animate-pulse rounded bg-[var(--sand)]' />
@@ -102,7 +102,7 @@ function CategoriesAllPending() {
             </div>
           ))}
           <span className='sr-only'>{m.product_grid_loading()}</span>
-        </div>
+        </output>
       </div>
     </main>
   )

@@ -660,7 +660,7 @@ function ProductNewForm({
                         <div className='flex aspect-square items-center justify-center bg-surface-inset'>
                           <div className='text-center'>
                             <svg
-                              className='mx-auto h-6 w-6 animate-spin text-text-muted'
+                              className='mx-auto size-6 animate-spin text-text-muted'
                               xmlns='http://www.w3.org/2000/svg'
                               fill='none'
                               viewBox='0 0 24 24'
@@ -699,7 +699,7 @@ function ProductNewForm({
                       <button
                         type='button'
                         onClick={() => handleRemoveImage(img.id)}
-                        className='absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-bg-overlay text-white backdrop-blur-sm transition hover:bg-error'
+                        className='absolute right-1 top-1 flex size-6 items-center justify-center rounded-full bg-bg-overlay text-white backdrop-blur-sm transition hover:bg-error'
                         aria-label={m.creator_product_new_images_remove()}
                       >
                         <X size={14} />

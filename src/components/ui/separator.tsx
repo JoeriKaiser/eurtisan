@@ -1,12 +1,18 @@
-import { forwardRef, type HTMLAttributes } from 'react'
+import type { HTMLAttributes } from 'react'
 import { cn } from '#/lib/cn'
 
 export interface SeparatorProps extends HTMLAttributes<HTMLHRElement> {
   orientation?: 'horizontal' | 'vertical'
+  ref?: React.Ref<HTMLHRElement>
 }
 
-export const Separator = forwardRef<HTMLHRElement, SeparatorProps>(
-  ({ className, orientation = 'horizontal', ...props }, ref) => (
+export function Separator({
+  className,
+  orientation = 'horizontal',
+  ref,
+  ...props
+}: SeparatorProps) {
+  return (
     <hr
       ref={ref}
       aria-orientation={orientation}
@@ -17,7 +23,5 @@ export const Separator = forwardRef<HTMLHRElement, SeparatorProps>(
       )}
       {...props}
     />
-  ),
-)
-
-Separator.displayName = 'Separator'
+  )
+}

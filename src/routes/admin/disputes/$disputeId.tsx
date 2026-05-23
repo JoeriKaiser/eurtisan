@@ -21,13 +21,14 @@ import { formatPriceEUR } from '#/lib/pricing'
 
 export const Route = createFileRoute('/admin/disputes/$disputeId')({
   loader: async ({ params }) => {
-    const dispute = await getDisputeDetail({ data: { disputeId: params.disputeId } })
-      .catch((err) => {
+    const dispute = await getDisputeDetail({ data: { disputeId: params.disputeId } }).catch(
+      (err) => {
         if (err instanceof Response && err.status === 404) {
           throw notFound()
         }
         throw err
-      })
+      },
+    )
     if (!dispute) {
       throw notFound()
     }

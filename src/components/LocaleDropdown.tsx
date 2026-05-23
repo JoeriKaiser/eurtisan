@@ -6,7 +6,7 @@ import {
   DropdownMenuPopup,
   DropdownMenuPortal,
   DropdownMenuTrigger,
-} from './ui/primitives'
+} from './ui/primitives/dropdown-menu'
 
 export default function LocaleDropdown() {
   const currentLocale = getLocale()

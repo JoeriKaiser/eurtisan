@@ -24,14 +24,14 @@ function HomeError({ error }: { error: Error }) {
 
 export const Route = createFileRoute('/')({
   loader: async () => {
-    const user = await getCurrentUser().catch(() => null)
-    const [categories, products, shops, sellerShops, stats] = await Promise.all([
+    const [user, categories, products, shops, stats] = await Promise.all([
+      getCurrentUser().catch(() => null),
       listCategories({ data: {} }),
       listRecentProducts({ data: { limit: 12 } }),
       getFeaturedShops({ data: { limit: 6 } }),
-      user ? getSellerShops().catch(() => []) : Promise.resolve([]),
       getMarketplaceStats(),
     ])
+    const sellerShops = user ? await getSellerShops().catch(() => []) : []
     return { categories, products, shops, user, sellerShops, stats }
   },
   head: () => {

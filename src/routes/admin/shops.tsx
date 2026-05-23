@@ -253,13 +253,6 @@ function AdminShopsPage() {
   searchRef.current = search
   const successTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
-  // Cleanup success message timer on unmount
-  useEffect(() => {
-    return () => {
-      if (successTimerRef.current) clearTimeout(successTimerRef.current)
-    }
-  }, [])
-
   // Sync state with loader data changes
   useEffect(() => {
     if (loaderData.view === 'moderation') {
@@ -593,8 +586,6 @@ function AdminShopsPage() {
     downloadCSV(csv, `shops-${new Date().toISOString().slice(0, 10)}.csv`)
   }, [shops.shops])
 
-
-
   return (
     <div className='space-y-6'>
       {/* Header */}
@@ -651,10 +642,7 @@ function AdminShopsPage() {
 
       {/* Success / Error feedback */}
       {successMessage && (
-        <div
-          role='status'
-          className='island-shell rounded-xl border border-success/30 bg-success-subtle p-4 text-sm text-success'
-        >
+        <div className='island-shell rounded-xl border border-success/30 bg-success-subtle p-4 text-sm text-success'>
           <CheckCircle size={16} className='mr-2 inline-block' aria-hidden='true' />
           {successMessage}
         </div>
@@ -839,7 +827,7 @@ function AdminShopsPage() {
                         selectedShopIds.size > 0 && selectedShopIds.size === shops.shops.length
                       }
                       onChange={toggleAllShops}
-                      className='h-4 w-4 rounded border-border-default'
+                      className='size-4 rounded border-border-default'
                       aria-label={m.data_table_select_all()}
                     />
                   </th>
@@ -895,14 +883,14 @@ function AdminShopsPage() {
                           type='checkbox'
                           checked={selectedShopIds.has(shop.id)}
                           onChange={() => toggleShopSelection(shop.id)}
-                          className='h-4 w-4 rounded border-border-default'
+                          className='size-4 rounded border-border-default'
                           aria-label={m.data_table_select_row()}
                         />
                       </td>
                       {/* Name */}
                       <td className='py-3 pr-4 font-medium text-text-primary'>
                         <div className='flex items-center gap-3'>
-                          <div className='h-6 w-6 rounded-full bg-surface-inset border border-border-subtle flex items-center justify-center text-text-muted flex-shrink-0'>
+                          <div className='size-6 rounded-full bg-surface-inset border border-border-subtle flex items-center justify-center text-text-muted flex-shrink-0'>
                             <Store size={14} aria-hidden='true' />
                           </div>
                           <div className='flex flex-col min-w-0'>
@@ -1019,11 +1007,11 @@ function AdminShopsPage() {
                   <td className='py-3 pr-4 font-medium text-text-primary'>
                     <div className='flex items-center gap-3'>
                       {app.image ? (
-                        <div className='h-6 w-6 rounded-full overflow-hidden border border-border-default bg-surface-default flex-shrink-0'>
+                        <div className='size-6 rounded-full overflow-hidden border border-border-default bg-surface-default flex-shrink-0'>
                           <img src={app.image} alt='' className='h-full w-full object-cover' />
                         </div>
                       ) : (
-                        <div className='h-6 w-6 rounded-full bg-surface-inset border border-border-subtle flex items-center justify-center text-text-muted flex-shrink-0'>
+                        <div className='size-6 rounded-full bg-surface-inset border border-border-subtle flex items-center justify-center text-text-muted flex-shrink-0'>
                           <Store size={14} aria-hidden='true' />
                         </div>
                       )}
@@ -1336,7 +1324,7 @@ function AdminShopsPage() {
                       <div className='bg-surface-inset rounded-xl p-4 space-y-4 border border-border-subtle'>
                         <div className='flex gap-4 items-center'>
                           {appDetails.image ? (
-                            <div className='w-16 h-16 rounded-full overflow-hidden border border-border-default bg-surface-default flex-shrink-0 shadow-sm'>
+                            <div className='size-16 rounded-full overflow-hidden border border-border-default bg-surface-default flex-shrink-0 shadow-sm'>
                               <img
                                 src={appDetails.image}
                                 alt='Logo'
@@ -1344,7 +1332,7 @@ function AdminShopsPage() {
                               />
                             </div>
                           ) : (
-                            <div className='w-16 h-16 rounded-full bg-surface-default border border-border-subtle flex items-center justify-center text-text-muted text-xs flex-shrink-0'>
+                            <div className='size-16 rounded-full bg-surface-default border border-border-subtle flex items-center justify-center text-text-muted text-xs flex-shrink-0'>
                               No Logo
                             </div>
                           )}
@@ -1458,7 +1446,7 @@ function AdminShopsPage() {
                             <div key={listing.id} className='space-y-3'>
                               <div className='flex gap-4 items-start'>
                                 {listing.imageCount > 0 ? (
-                                  <div className='w-20 h-20 rounded-lg overflow-hidden border border-border-default bg-surface-default flex-shrink-0 shadow-sm'>
+                                  <div className='size-20 rounded-lg overflow-hidden border border-border-default bg-surface-default flex-shrink-0 shadow-sm'>
                                     <img
                                       src={listing.thumbnailUrl || '/placeholder.png'}
                                       alt={listing.name}
@@ -1466,7 +1454,7 @@ function AdminShopsPage() {
                                     />
                                   </div>
                                 ) : (
-                                  <div className='w-20 h-20 rounded-lg bg-surface-default border border-border-subtle flex items-center justify-center text-text-muted text-xs flex-shrink-0'>
+                                  <div className='size-20 rounded-lg bg-surface-default border border-border-subtle flex items-center justify-center text-text-muted text-xs flex-shrink-0'>
                                     No Image
                                   </div>
                                 )}

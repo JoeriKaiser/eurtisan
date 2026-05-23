@@ -10,7 +10,7 @@ import UserMenu from './UserMenu'
 import LocaleDropdown from './LocaleDropdown'
 import MobileNavDrawer from './MobileNavDrawer'
 import CategoriesMegamenu from './CategoriesMegamenu'
-import { SearchOverlay } from './search'
+import SearchOverlay from './search/SearchOverlay'
 import { cn } from '#/lib/cn'
 import type { CategoryTreeNode } from '#/lib/categories'
 
@@ -93,7 +93,7 @@ export default function Header() {
           className='flex-shrink-0 flex items-center gap-1.5 md:gap-2 text-xl font-semibold tracking-tight text-text-primary no-underline transition-all duration-fast ease-out hover:scale-102'
         >
           <svg
-            className='h-5 w-5 text-accent-primary transition-transform duration-fast ease-out hover:scale-110 flex-shrink-0'
+            className='size-5 text-accent-primary transition-transform duration-fast ease-out hover:scale-110 flex-shrink-0'
             viewBox='0 0 24 24'
             fill='none'
             stroke='currentColor'
@@ -165,13 +165,12 @@ export default function Header() {
               >
                 <Bell size={18} aria-hidden='true' />
                 {unreadCount > 0 && (
-                  <span
-                    role='status'
+                  <output
                     className='absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-error px-1 text-[10px] font-bold text-text-on-primary'
                     aria-label={m.notifications_badge_unread({ count: String(unreadCount) })}
                   >
                     {unreadCount > 99 ? '99+' : unreadCount}
-                  </span>
+                  </output>
                 )}
               </Link>
             </div>
@@ -185,13 +184,12 @@ export default function Header() {
               <ShoppingCart size={18} aria-hidden='true' />
               <span className='sr-only'>{m.cart_badge_label()}</span>
               {distinctItems > 0 && (
-                <span
-                  role='status'
+                <output
                   className='absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-primary px-1 text-[10px] font-bold text-text-on-primary'
                   aria-label={m.cart_badge_items({ count: String(distinctItems) })}
                 >
                   {distinctItems}
-                </span>
+                </output>
               )}
             </Link>
           </div>

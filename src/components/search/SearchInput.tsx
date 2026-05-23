@@ -41,7 +41,7 @@ export default function SearchInput({
     <div className='relative'>
       <Search
         className={cn(
-          'absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transition-colors',
+          'absolute left-3 top-1/2 size-4 -translate-y-1/2 transition-colors',
           isFocused ? 'text-accent-primary' : 'text-text-muted',
         )}
         aria-hidden='true'

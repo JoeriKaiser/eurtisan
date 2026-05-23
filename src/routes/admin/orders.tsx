@@ -243,8 +243,6 @@ export function AdminOrdersPage() {
   /* ---- Compute pagination ---- */
   const totalPages = Math.max(1, Math.ceil(orders.total / orders.pageSize))
 
-
-
   return (
     <div className='space-y-6'>
       {/* Header */}

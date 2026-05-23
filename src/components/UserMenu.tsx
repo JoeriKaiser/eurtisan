@@ -13,7 +13,7 @@ import {
   DropdownMenuPortal,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from './ui/primitives'
+} from './ui/primitives/dropdown-menu'
 
 export default function UserMenu() {
   const router = useRouter()
@@ -44,9 +44,9 @@ export default function UserMenu() {
         aria-haspopup='menu'
       >
         {user.image ? (
-          <img src={user.image} alt='' className='h-5 w-5 rounded-full object-cover' />
+          <img src={user.image} alt='' className='size-5 rounded-full object-cover' />
         ) : (
-          <div className='flex h-5 w-5 items-center justify-center rounded-full bg-surface-inset'>
+          <div className='flex size-5 items-center justify-center rounded-full bg-surface-inset'>
             <span className='text-xs font-medium text-text-secondary'>{initials}</span>
           </div>
         )}

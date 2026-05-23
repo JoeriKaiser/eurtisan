@@ -23,7 +23,7 @@ export default function SearchResultCard({ product, imageUrl }: SearchResultCard
       )}
     >
       {/* Thumbnail */}
-      <div className='relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-surface-inset'>
+      <div className='relative size-16 shrink-0 overflow-hidden rounded-lg bg-surface-inset'>
         {imageUrl ? (
           <img
             src={imageUrl}

@@ -99,12 +99,8 @@ function VerifyEmail() {
   if (verifying) {
     return (
       <AuthShell title={m.verify_email_title()}>
-        <div
-          className='flex flex-col items-center justify-center gap-4 py-6'
-          role='status'
-          aria-live='polite'
-        >
-          <Loader2 className='h-6 w-6 animate-spin text-accent-primary' />
+        <div className='flex flex-col items-center justify-center gap-4 py-6' aria-live='polite'>
+          <Loader2 className='size-6 animate-spin text-accent-primary' />
           <p className='text-sm text-text-secondary'>Verifying your email address, please wait…</p>
         </div>
       </AuthShell>
@@ -115,8 +111,8 @@ function VerifyEmail() {
   if (verifySuccess) {
     return (
       <AuthShell title={m.verify_email_success_title()}>
-        <div className='space-y-6 text-center font-medium' role='status' aria-live='polite'>
-          <div className='mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-success/10 text-success'>
+        <div className='space-y-6 text-center font-medium' aria-live='polite'>
+          <div className='mx-auto flex size-12 items-center justify-center rounded-full bg-success/10 text-success'>
             <CheckCircle size={24} />
           </div>
           <p className='text-sm text-text-secondary'>{m.verify_email_success_description()}</p>
@@ -137,7 +133,7 @@ function VerifyEmail() {
   return (
     <AuthShell title={m.verify_email_title()}>
       <div className='space-y-6 text-center'>
-        <div className='mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent-primary/10 text-accent-primary'>
+        <div className='mx-auto flex size-12 items-center justify-center rounded-full bg-accent-primary/10 text-accent-primary'>
           <Mail size={24} />
         </div>
 
@@ -181,7 +177,6 @@ function VerifyEmail() {
         {infoMessage && (
           <div
             className='rounded-lg border border-border-default bg-surface-inset p-3 flex items-start gap-2 text-left'
-            role='status'
             aria-live='polite'
           >
             <p className='text-xs text-text-secondary font-medium'>{infoMessage}</p>

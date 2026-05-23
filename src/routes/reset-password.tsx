@@ -37,7 +37,7 @@ function ResetPassword() {
     return (
       <AuthShell title={m.reset_password_title()}>
         <div className='space-y-4 text-center' role='alert' aria-live='assertive'>
-          <div className='mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-error/10 text-error'>
+          <div className='mx-auto flex size-12 items-center justify-center rounded-full bg-error/10 text-error'>
             <AlertTriangle size={24} />
           </div>
           <h2 className='text-md font-semibold text-text-primary'>
@@ -178,8 +178,8 @@ function ResetPassword() {
           )}
         </form>
       ) : (
-        <div className='space-y-4 text-center' role='status' aria-live='polite'>
-          <div className='mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-success/10 text-success'>
+        <div className='space-y-4 text-center' aria-live='polite'>
+          <div className='mx-auto flex size-12 items-center justify-center rounded-full bg-success/10 text-success'>
             <CheckCircle size={24} />
           </div>
           <p className='text-sm text-text-secondary'>{m.reset_password_success()}</p>

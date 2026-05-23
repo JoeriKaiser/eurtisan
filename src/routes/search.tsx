@@ -217,7 +217,7 @@ function SearchPage() {
 
         <div className='flex gap-2'>
           <div className='relative flex-1 sm:max-w-md'>
-            <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted' />
+            <Search className='absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted' />
             <Input
               type='search'
               placeholder={m.search_input_placeholder()}
@@ -505,11 +505,7 @@ function SearchPending() {
             <div className='h-4 w-24 animate-pulse rounded bg-[var(--sand)]' />
             <div className='h-9 w-40 animate-pulse rounded bg-[var(--sand)]' />
           </div>
-          <div
-            className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'
-            role='status'
-            aria-live='polite'
-          >
+          <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3' aria-live='polite'>
             {[1, 2, 3, 4, 5, 6].map((n) => (
               <div
                 key={`skeleton-${n}`}

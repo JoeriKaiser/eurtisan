@@ -15,8 +15,8 @@ const shopSearchSchema = z.object({
 
 export const Route = createFileRoute('/creator/shop')({
   validateSearch: shopSearchSchema,
-  beforeLoad: async () => guardRole('creator'),
   loaderDeps: ({ search: { shopId } }) => ({ shopId }),
+  beforeLoad: async () => guardRole('creator'),
   loader: async ({ deps }) => {
     const shops = await getCreatorShops()
 

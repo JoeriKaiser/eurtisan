@@ -25,7 +25,7 @@ export default function SearchSidebar() {
     <aside className='island-shell p-5 sm:p-6'>
       <form onSubmit={handleSubmit} className='mb-5'>
         <div className='relative'>
-          <Search className='absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted' />
+          <Search className='absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted' />
           <Input
             type='search'
             placeholder={m.sidebar_search_placeholder()}

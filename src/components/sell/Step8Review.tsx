@@ -91,11 +91,7 @@ export function Step8Review() {
       content: (
         <div className='flex gap-3'>
           {draft.image && (
-            <img
-              src={draft.image}
-              alt='Shop icon'
-              className='h-16 w-16 rounded-full object-cover'
-            />
+            <img src={draft.image} alt='Shop icon' className='size-16 rounded-full object-cover' />
           )}
           {draft.bannerImage && (
             <img
@@ -178,7 +174,7 @@ export function Step8Review() {
               ) : item.optional ? (
                 <AlertTriangle size={16} className='text-warning' />
               ) : (
-                <span className='h-4 w-4 rounded-full border-2 border-error' />
+                <span className='size-4 rounded-full border-2 border-error' />
               )}
               <span
                 className={
@@ -229,7 +225,7 @@ export function Step8Review() {
           type='checkbox'
           checked={termsAgreed}
           onChange={(e) => setTermsAgreed(e.target.checked)}
-          className='mt-1 h-4 w-4 rounded border-border-default text-accent-primary focus:ring-accent-secondary'
+          className='mt-1 size-4 rounded border-border-default text-accent-primary focus:ring-accent-secondary'
         />
         <label htmlFor='terms' className='text-sm text-text-secondary'>
           I agree to the{' '}

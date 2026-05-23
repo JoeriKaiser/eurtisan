@@ -18,7 +18,7 @@ import {
 // helps buyers browse. We keep it restrained: one icon, one name,
 // no superfluous description text.
 
-export const CATEGORY_ICONS: Record<string, LucideIcon> = {
+const CATEGORY_ICONS: Record<string, LucideIcon> = {
   art: Palette,
   fashion: Shirt,
   food: Coffee,
@@ -57,7 +57,7 @@ export default function CategoryCard({ name, slug, description, productCount }: 
       params={{ slug }}
       className='group flex items-center gap-4 rounded-2xl border border-border-default bg-surface-default p-5 shadow-sm transition-all duration-fast ease-out hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md no-underline'
     >
-      <div className='flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-accent-primary-subtle text-accent-primary transition-colors duration-fast group-hover:bg-accent-primary group-hover:text-text-on-primary'>
+      <div className='flex size-12 shrink-0 items-center justify-center rounded-xl bg-accent-primary-subtle text-accent-primary transition-colors duration-fast group-hover:bg-accent-primary group-hover:text-text-on-primary'>
         <Icon size={22} strokeWidth={1.5} />
       </div>
       <div className='min-w-0'>

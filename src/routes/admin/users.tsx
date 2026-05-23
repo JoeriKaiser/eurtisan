@@ -107,12 +107,6 @@ export function AdminUsersPage() {
   searchRef.current = search
 
   useEffect(() => {
-    return () => {
-      if (successTimerRef.current) clearTimeout(successTimerRef.current)
-    }
-  }, [])
-
-  useEffect(() => {
     setUsers(loaderData)
   }, [loaderData])
 
@@ -249,10 +243,7 @@ export function AdminUsersPage() {
       </div>
 
       {successMessage && (
-        <div
-          role='status'
-          className='island-shell rounded-xl border border-success/30 bg-success-subtle p-4 text-sm text-success'
-        >
+        <div className='island-shell rounded-xl border border-success/30 bg-success-subtle p-4 text-sm text-success'>
           <CheckCircle size={16} className='mr-2 inline-block' aria-hidden='true' />
           {successMessage}
         </div>
@@ -410,7 +401,7 @@ export function AdminUsersPage() {
                 <tr key={u.id} className='group hover:bg-bg-inset/40 transition-colors'>
                   <td className='py-3 pr-4'>
                     <div className='flex items-center gap-3'>
-                      <div className='flex h-6 w-6 items-center justify-center rounded-full bg-surface-inset border border-border-subtle flex-shrink-0'>
+                      <div className='flex size-6 items-center justify-center rounded-full bg-surface-inset border border-border-subtle flex-shrink-0'>
                         {u.bannedAt ? (
                           <UserX size={14} className='text-error' aria-hidden='true' />
                         ) : (

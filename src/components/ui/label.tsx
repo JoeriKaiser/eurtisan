@@ -1,34 +1,31 @@
-import { forwardRef, type LabelHTMLAttributes } from 'react'
+import type { LabelHTMLAttributes } from 'react'
 import { cn } from '#/lib/cn'
 
 export interface LabelProps extends LabelHTMLAttributes<HTMLLabelElement> {
   required?: boolean
+  ref?: React.Ref<HTMLLabelElement>
 }
 
-export const Label = forwardRef<HTMLLabelElement, LabelProps>(
-  ({ className, children, required, htmlFor, ...props }, ref) => {
-    const classes = cn('block text-sm font-medium leading-snug text-text-primary', className)
-    const content = (
-      <>
-        {children}
-        {required && <span className='text-error'> *</span>}
-      </>
-    )
+export function Label({ className, children, required, htmlFor, ref, ...props }: LabelProps) {
+  const classes = cn('block text-sm font-medium leading-snug text-text-primary', className)
+  const content = (
+    <>
+      {children}
+      {required && <span className='text-error'> *</span>}
+    </>
+  )
 
-    if (!htmlFor) {
-      return (
-        <span ref={ref as React.Ref<HTMLSpanElement>} className={classes} {...props}>
-          {content}
-        </span>
-      )
-    }
-
+  if (!htmlFor) {
     return (
-      <label ref={ref} htmlFor={htmlFor} className={classes} {...props}>
+      <span ref={ref as React.Ref<HTMLSpanElement>} className={classes} {...props}>
         {content}
-      </label>
+      </span>
     )
-  },
-)
+  }
 
-Label.displayName = 'Label'
+  return (
+    <label ref={ref} htmlFor={htmlFor} className={classes} {...props}>
+      {content}
+    </label>
+  )
+}

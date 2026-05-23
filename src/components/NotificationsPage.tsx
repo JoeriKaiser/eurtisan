@@ -159,7 +159,7 @@ export function NotificationsPage({
                       }`}
                     >
                       <div
-                        className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full ${
+                        className={`flex size-9 flex-shrink-0 items-center justify-center rounded-full ${
                           isUnread
                             ? 'bg-accent-primary/10 text-accent-primary'
                             : 'bg-surface-inset text-text-muted'
@@ -235,28 +235,28 @@ export function NotificationsLoading() {
           {
             <>
               <div className='flex items-start gap-3 rounded-xl border border-border-default p-4'>
-                <Skeleton className='h-9 w-9 rounded-full' />
+                <Skeleton className='size-9 rounded-full' />
                 <div className='flex-1 space-y-2'>
                   <Skeleton className='h-4 w-3/4' />
                   <Skeleton className='h-3 w-24' />
                 </div>
               </div>
               <div className='flex items-start gap-3 rounded-xl border border-border-default p-4'>
-                <Skeleton className='h-9 w-9 rounded-full' />
+                <Skeleton className='size-9 rounded-full' />
                 <div className='flex-1 space-y-2'>
                   <Skeleton className='h-4 w-3/4' />
                   <Skeleton className='h-3 w-24' />
                 </div>
               </div>
               <div className='flex items-start gap-3 rounded-xl border border-border-default p-4'>
-                <Skeleton className='h-9 w-9 rounded-full' />
+                <Skeleton className='size-9 rounded-full' />
                 <div className='flex-1 space-y-2'>
                   <Skeleton className='h-4 w-3/4' />
                   <Skeleton className='h-3 w-24' />
                 </div>
               </div>
               <div className='flex items-start gap-3 rounded-xl border border-border-default p-4'>
-                <Skeleton className='h-9 w-9 rounded-full' />
+                <Skeleton className='size-9 rounded-full' />
                 <div className='flex-1 space-y-2'>
                   <Skeleton className='h-4 w-3/4' />
                   <Skeleton className='h-3 w-24' />

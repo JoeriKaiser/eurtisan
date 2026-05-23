@@ -8,7 +8,7 @@ import {
   ShoppingCart,
   Store,
 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useCart } from '#/components/CartProvider'
 import ProductReviews from '#/components/ProductReviews'
 import { addToCart } from '#/lib/cart'
@@ -30,14 +30,6 @@ export default function ProductDetail({ product }: ProductDetailProps) {
   const [addStatus, setAddStatus] = useState<AddStatus>('idle')
   const { cart, refreshCart } = useCart()
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current)
-      }
-    }
-  }, [])
 
   const isOutOfStock = product.stockCount <= 0
   const selectedImage = product.images[selectedImageIndex]
@@ -115,10 +107,7 @@ export default function ProductDetail({ product }: ProductDetailProps) {
 
             {isOutOfStock && (
               <div className='absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[1px]'>
-                <span
-                  className='rounded-full bg-[var(--surface-strong)] px-4 py-2 text-sm font-semibold text-[var(--sea-ink)] shadow-sm'
-                  role='status'
-                >
+                <span className='rounded-full bg-[var(--surface-strong)] px-4 py-2 text-sm font-semibold text-[var(--sea-ink)] shadow-sm'>
                   <PackageX
                     size={16}
                     className='inline align-text-bottom mr-1'
@@ -148,7 +137,7 @@ export default function ProductDetail({ product }: ProductDetailProps) {
                     total: String(product.images.length),
                   })}
                   onClick={() => setSelectedImageIndex(index)}
-                  className={`relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg border-2 transition ${
+                  className={`relative size-16 flex-shrink-0 overflow-hidden rounded-lg border-2 transition ${
                     index === selectedImageIndex
                       ? 'border-[var(--lagoon)]'
                       : 'border-transparent hover:border-[var(--line)]'
@@ -277,7 +266,7 @@ export default function ProductDetail({ product }: ProductDetailProps) {
               {m.product_sold_by()}
             </h2>
             <div className='flex items-start gap-3'>
-              <div className='flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[var(--sand)]'>
+              <div className='flex size-10 flex-shrink-0 items-center justify-center rounded-full bg-[var(--sand)]'>
                 <Store size={18} className='text-[var(--sea-ink-soft)]' aria-hidden='true' />
               </div>
               <div className='min-w-0'>

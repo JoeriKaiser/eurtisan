@@ -51,8 +51,8 @@ function ImageUploader({
     <div>
       <Label htmlFor={`upload-${label}`}>
         {label}
-        {required && <span className='text-error'> *</span>}
-        {recommendedSize && <span className='text-text-muted'> ({recommendedSize})</span>}
+        {required ? <span className='text-error'> *</span> : null}
+        {recommendedSize ? <span className='text-text-muted'> ({recommendedSize})</span> : null}
       </Label>
 
       {value ? (
@@ -60,12 +60,12 @@ function ImageUploader({
           <img
             src={value}
             alt={label}
-            className={`rounded-lg object-cover shadow-md border border-border-default ${label.includes('Banner') ? 'h-40 w-full' : 'h-32 w-32'}`}
+            className={`rounded-lg object-cover shadow-md border border-border-default ${label.includes('Banner') ? 'h-40 w-full' : 'size-32'}`}
           />
           <button
             type='button'
             onClick={() => onChange('')}
-            className='absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-error text-text-on-primary shadow-md transition duration-fast hover:scale-115 hover:bg-error-hover'
+            className='absolute -right-2 -top-2 flex size-6 items-center justify-center rounded-full bg-error text-text-on-primary shadow-md transition duration-fast hover:scale-115 hover:bg-error-hover'
             aria-label='Remove image'
           >
             <X size={14} />

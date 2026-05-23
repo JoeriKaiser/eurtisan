@@ -48,7 +48,7 @@ export default function MobileNavDrawer({
               className='flex items-center gap-2 text-lg font-bold tracking-tight text-text-primary no-underline transition-colors hover:text-accent-primary'
             >
               <svg
-                className='h-5 w-5 text-accent-primary transition-transform duration-fast ease-out hover:scale-110'
+                className='size-5 text-accent-primary transition-transform duration-fast ease-out hover:scale-110'
                 viewBox='0 0 24 24'
                 fill='none'
                 stroke='currentColor'
@@ -61,9 +61,7 @@ export default function MobileNavDrawer({
                 <path d='M2 17l10 5 10-5' />
                 <path d='M2 12l10 5 10-5' />
               </svg>
-              <span className='bg-gradient-to-r from-accent-primary to-accent-secondary bg-clip-text text-transparent'>
-                {m.nav_logo()}
-              </span>
+              <span className='text-accent-primary'>{m.nav_logo()}</span>
             </Link>
             <BaseDialog.Close
               className='inline-flex items-center justify-center rounded-lg p-1.5 text-text-secondary transition-colors hover:bg-bg-inset hover:text-text-primary focus-visible:bg-bg-inset outline-none'
@@ -161,10 +159,10 @@ export default function MobileNavDrawer({
                     <img
                       src={user.image}
                       alt=''
-                      className='h-10 w-10 rounded-full object-cover border border-border-default'
+                      className='size-10 rounded-full object-cover border border-border-default'
                     />
                   ) : (
-                    <div className='flex h-10 w-10 items-center justify-center rounded-full bg-surface-inset border border-border-default'>
+                    <div className='flex size-10 items-center justify-center rounded-full bg-surface-inset border border-border-default'>
                       <span className='text-sm font-semibold text-text-secondary'>{initials}</span>
                     </div>
                   )}

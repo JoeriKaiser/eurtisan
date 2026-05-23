@@ -22,10 +22,7 @@ export function StatCard({
   const content = (
     <>
       <div
-        className={cn(
-          'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg',
-          iconBgClass,
-        )}
+        className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', iconBgClass)}
       >
         <span className={iconColorClass}>{icon}</span>
       </div>

@@ -68,7 +68,7 @@ function ShopStatusRouteComponent() {
       <div className='mx-auto max-w-lg'>
         <Card>
           <CardContent className='py-12 text-center'>
-            <div className='mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-surface-inset'>
+            <div className='mx-auto mb-4 flex size-20 items-center justify-center rounded-full bg-surface-inset'>
               {config.icon}
             </div>
             <h1 className='mb-2 text-2xl font-bold text-text-primary'>{config.title}</h1>

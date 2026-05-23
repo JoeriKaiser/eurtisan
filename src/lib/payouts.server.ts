@@ -1,7 +1,7 @@
 import { and, count, desc, eq, gte, ilike, inArray, lte, or } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { payout, shop, shopOrder, user } from '#/db/schema'
-import { PLATFORM_FEE_PERCENT } from './payouts'
+export const PLATFORM_FEE_PERCENT = 10
 
 /* -------------------------------------------------------------------------- */
 /*                                   Types                                    */
@@ -237,7 +237,7 @@ export async function listPayoutHistoryQuery(
  *
  * - Completed and delivered orders produce positive earning lines.
  * - Refunded orders produce negative adjustment lines.
- * - Amount is subtotal minus platform fee (PLATFORM_FEE_PERCENT).
+ * - Amount is subtotal minus platform fee ({@link PLATFORM_FEE_PERCENT}).
  * - Payout status is derived from the underlying order status and any existing payout records:
  *   - `delivered` → `pending`
  *   - `completed` → `processing`

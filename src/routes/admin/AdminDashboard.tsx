@@ -1,18 +1,15 @@
 import { getRouteApi, Link } from '@tanstack/react-router'
 import { AlertTriangle, Gavel, ShoppingBag, Users } from 'lucide-react'
-import { lazy, Suspense } from 'react'
+import { Suspense } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
 import { Separator } from '#/components/ui/separator'
 import { Skeleton } from '#/components/ui/skeleton'
+import { TrendChart } from '#/components/admin/TrendChart'
 import { statusBadgeVariant } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
-
-const TrendChart = lazy(() =>
-  import('#/components/admin/TrendChart').then((mod) => ({ default: mod.TrendChart })),
-)
 
 const route = getRouteApi('/admin/')
 
@@ -59,7 +56,7 @@ export function StatCard({ icon, label, value, iconBgClass, iconColorClass }: St
   return (
     <Card variant='elevated' className='flex items-start gap-4'>
       <div
-        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${iconBgClass}`}
+        className={`flex size-10 shrink-0 items-center justify-center rounded-lg ${iconBgClass}`}
       >
         <span className={iconColorClass}>{icon}</span>
       </div>
@@ -291,7 +288,7 @@ export function AdminDashboardPending() {
         {[1, 2, 3, 4].map((n) => (
           <div key={n} className='island-shell rounded-xl p-5'>
             <div className='flex items-start gap-4'>
-              <Skeleton className='h-10 w-10 rounded-lg' />
+              <Skeleton className='size-10 rounded-lg' />
               <div className='flex-1 space-y-2'>
                 <Skeleton className='h-4 w-24' />
                 <Skeleton className='h-8 w-16' />

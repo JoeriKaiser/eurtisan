@@ -76,12 +76,6 @@ function AdminCategoriesPage() {
   }, [categories, editCategoryId])
 
   useEffect(() => {
-    return () => {
-      if (successTimerRef.current) clearTimeout(successTimerRef.current)
-    }
-  }, [])
-
-  useEffect(() => {
     setCategories(loaderData.flat)
   }, [loaderData])
 
@@ -224,10 +218,7 @@ function AdminCategoriesPage() {
       </div>
 
       {successMessage && (
-        <div
-          role='status'
-          className='island-shell rounded-xl border border-success/30 bg-success-subtle p-4 text-sm text-success'
-        >
+        <div className='island-shell rounded-xl border border-success/30 bg-success-subtle p-4 text-sm text-success'>
           <CheckCircle size={16} className='mr-2 inline-block' aria-hidden='true' />
           {successMessage}
         </div>

@@ -41,13 +41,14 @@ import {
 export const Route = createFileRoute('/studio/$shopId/orders/$shopOrderId')({
   beforeLoad: async () => guardAuth(),
   loader: async ({ params }) => {
-    const order = await getShopOrderDetail({ data: { shopOrderId: params.shopOrderId } })
-      .catch((err) => {
+    const order = await getShopOrderDetail({ data: { shopOrderId: params.shopOrderId } }).catch(
+      (err) => {
         if (err instanceof Response && err.status === 404) {
           throw notFound()
         }
         throw err
-      })
+      },
+    )
     if (!order || order.shopId !== params.shopId) {
       throw notFound()
     }
@@ -103,7 +104,7 @@ function StatusTimeline({ status }: { status: string }) {
               aria-current={isCurrent ? 'step' : undefined}
             >
               <div
-                className={`flex h-6 w-6 items-center justify-center rounded-full border-2 transition-colors ${
+                className={`flex size-6 items-center justify-center rounded-full border-2 transition-colors ${
                   reached
                     ? 'border-accent-primary bg-accent-primary text-text-on-primary'
                     : 'border-border-default bg-surface-default text-text-muted'
@@ -576,7 +577,7 @@ function ShopOrderDetailPage() {
               <ul className='divide-y divide-border-subtle'>
                 {order.items.map((item) => (
                   <li key={item.id} className='flex items-center gap-3 py-3 first:pt-0 last:pb-0'>
-                    <div className='flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-inset'>
+                    <div className='flex size-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-inset'>
                       <ImageOff size={16} className='text-text-muted' aria-hidden='true' />
                     </div>
                     <div className='flex-1'>

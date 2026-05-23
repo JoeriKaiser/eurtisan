@@ -31,7 +31,7 @@ function ShopDashboard() {
             params={{ shopId }}
             className='island-shell flex items-center gap-4 rounded-xl p-5 transition hover:bg-bg-inset'
           >
-            <div className='flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800'>
+            <div className='flex size-10 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800'>
               <Package size={20} />
             </div>
             <div>
@@ -44,7 +44,7 @@ function ShopDashboard() {
             params={{ shopId }}
             className='island-shell flex items-center gap-4 rounded-xl p-5 transition hover:bg-bg-inset'
           >
-            <div className='flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800'>
+            <div className='flex size-10 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800'>
               <Settings size={20} />
             </div>
             <div>

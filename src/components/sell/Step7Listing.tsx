@@ -45,7 +45,7 @@ function ImageUpload({
             <button
               type='button'
               onClick={() => onChange(images.filter((_, idx) => idx !== i))}
-              className='absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-error text-text-on-primary transition hover:bg-error-hover'
+              className='absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-error text-text-on-primary transition hover:bg-error-hover'
               aria-label='Remove image'
             >
               <X size={12} />

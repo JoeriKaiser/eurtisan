@@ -366,7 +366,7 @@ function AdminAuditLogPage() {
                 <div className='flex items-start gap-4'>
                   {/* Action icon */}
                   <div
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${actionColorClass(entry.action)}`}
+                    className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${actionColorClass(entry.action)}`}
                   >
                     {actionIcon(entry.action)}
                   </div>
