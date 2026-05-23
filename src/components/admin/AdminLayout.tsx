@@ -16,7 +16,7 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { authClient } from '#/lib/auth-client'
 import { useAuth } from '#/lib/auth-hooks'
 import { cn } from '#/lib/cn'
@@ -239,8 +239,17 @@ function AdminSearchModal({
     [onOpenChange, router],
   )
 
+  const inputRef = useRef<HTMLInputElement>(null)
+
   useEffect(() => {
-    if (!open) setQuery('')
+    if (open) {
+      const timer = setTimeout(() => {
+        inputRef.current?.focus()
+      }, 50)
+      return () => clearTimeout(timer)
+    } else {
+      setQuery('')
+    }
   }, [open])
 
   return (
@@ -252,12 +261,13 @@ function AdminSearchModal({
             <div className='flex items-center gap-3'>
               <Search size={18} className='text-text-muted' aria-hidden='true' />
               <input
+                ref={inputRef}
                 type='text'
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={m.admin_layout_search_placeholder()}
+                aria-label={m.admin_layout_search_placeholder()}
                 className='flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none'
-                autoFocus
               />
               <DialogClose className='rounded border border-border-default px-1.5 py-0.5 text-xs text-text-muted hover:text-text-primary transition-colors'>
                 Esc
@@ -276,6 +286,7 @@ function AdminSearchModal({
                       onClick={() => handleSelect(item.href)}
                       className='flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-text-primary hover:bg-bg-inset transition-colors'
                       role='option'
+                      aria-selected={false}
                     >
                       <span className='text-text-muted'>{item.icon}</span>
                       <span>{item.label}</span>

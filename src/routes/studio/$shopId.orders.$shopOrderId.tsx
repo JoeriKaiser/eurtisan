@@ -41,18 +41,17 @@ import {
 export const Route = createFileRoute('/studio/$shopId/orders/$shopOrderId')({
   beforeLoad: async () => guardAuth(),
   loader: async ({ params }) => {
-    try {
-      const order = await getShopOrderDetail({ data: { shopOrderId: params.shopOrderId } })
-      if (order.shopId !== params.shopId) {
-        throw notFound()
-      }
-      return { order }
-    } catch (err) {
-      if (err instanceof Response && err.status === 404) {
-        throw notFound()
-      }
-      throw err
+    const order = await getShopOrderDetail({ data: { shopOrderId: params.shopOrderId } })
+      .catch((err) => {
+        if (err instanceof Response && err.status === 404) {
+          throw notFound()
+        }
+        throw err
+      })
+    if (!order || order.shopId !== params.shopId) {
+      throw notFound()
     }
+    return { order }
   },
   head: () => ({
     meta: [{ title: 'Order Detail | Studio' }],

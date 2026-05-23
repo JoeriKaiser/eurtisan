@@ -16,8 +16,8 @@ const resetPasswordSearchSchema = z.object({
 })
 
 export const Route = createFileRoute('/reset-password')({
-  beforeLoad: async () => guardGuest(),
   validateSearch: resetPasswordSearchSchema,
+  beforeLoad: async () => guardGuest(),
   component: ResetPassword,
 })
 

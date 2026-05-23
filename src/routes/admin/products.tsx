@@ -220,6 +220,19 @@ function AdminProductsPage() {
 
   const totalPages = Math.max(1, Math.ceil(products.total / products.pageSize))
 
+  const handleExportCSV = useCallback(() => {
+    const csv = generateCSV(products.products, [
+      { key: 'name', label: 'Name' },
+      { key: 'slug', label: 'Slug' },
+      { key: 'shopName', label: 'Shop' },
+      { key: 'categoryName', label: 'Category' },
+      { key: 'priceCents', label: 'Price (cents)' },
+      { key: 'stockCount', label: 'Stock' },
+      { key: 'isActive', label: 'Active' },
+    ])
+    downloadCSV(csv, `products-${new Date().toISOString().slice(0, 10)}.csv`)
+  }, [products.products])
+
   const allShops = loaderData.shops
   const allCategories = useMemo(() => {
     function flatten(
@@ -308,18 +321,7 @@ function AdminProductsPage() {
         </Button>
         <Button
           variant='secondary'
-          onClick={() => {
-            const csv = generateCSV(products.products, [
-              { key: 'name', label: 'Name' },
-              { key: 'slug', label: 'Slug' },
-              { key: 'shopName', label: 'Shop' },
-              { key: 'categoryName', label: 'Category' },
-              { key: 'priceCents', label: 'Price (cents)' },
-              { key: 'stockCount', label: 'Stock' },
-              { key: 'isActive', label: 'Active' },
-            ])
-            downloadCSV(csv, `products-${new Date().toISOString().slice(0, 10)}.csv`)
-          }}
+          onClick={handleExportCSV}
           aria-label={m.admin_common_export_csv()}
         >
           <Download size={16} aria-hidden='true' />

@@ -15,8 +15,8 @@ const ordersSearchSchema = z.object({
 })
 
 export const Route = createFileRoute('/studio/$shopId/orders')({
-  beforeLoad: async ({ params }) => guardShopOwnership(params.shopId),
   validateSearch: ordersSearchSchema,
+  beforeLoad: async ({ params }) => guardShopOwnership(params.shopId),
   loaderDeps: ({ search: { page, status, search } }) => ({
     page,
     status,

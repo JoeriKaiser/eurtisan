@@ -1,4 +1,4 @@
-import { getRouteApi } from '@tanstack/react-router'
+import { getRouteApi, Link } from '@tanstack/react-router'
 import { AlertTriangle, Gavel, ShoppingBag, Users } from 'lucide-react'
 import { lazy, Suspense } from 'react'
 import { Badge } from '#/components/ui/badge'
@@ -234,12 +234,12 @@ export function AdminDashboard() {
           <Card variant='elevated'>
             <CardHeader className='flex flex-row items-center justify-between'>
               <CardTitle>{m.admin_recent_audit_title()}</CardTitle>
-              <a
-                href='/admin/audit-log'
+              <Link
+                to='/admin/audit-log'
                 className='text-xs font-medium text-accent-primary hover:text-accent-primary-hover'
               >
                 {m.admin_recent_audit_view_all()}
-              </a>
+              </Link>
             </CardHeader>
             <CardContent>
               {loaderData.auditEntries.length === 0 ? (

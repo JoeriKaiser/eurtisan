@@ -219,6 +219,19 @@ export function AdminPayoutsPage() {
 
   const hasFilters = search.query || search.from || search.to
 
+  const handleExportCSV = useCallback(() => {
+    if (!historyData) return
+    const csv = generateCSV(historyData.payouts, [
+      { key: 'creatorName', label: 'Creator' },
+      { key: 'shopName', label: 'Shop' },
+      { key: 'amountCents', label: 'Amount (cents)' },
+      { key: 'status', label: 'Status' },
+      { key: 'sentAt', label: 'Sent At' },
+      { key: 'createdAt', label: 'Created At' },
+    ])
+    downloadCSV(csv, `payouts-${new Date().toISOString().slice(0, 10)}.csv`)
+  }, [historyData])
+
   return (
     <div className='space-y-6'>
       {/* Header */}
@@ -328,17 +341,7 @@ export function AdminPayoutsPage() {
             {!isPendingTab && historyData && historyData.payouts.length > 0 && (
               <Button
                 variant='secondary'
-                onClick={() => {
-                  const csv = generateCSV(historyData.payouts, [
-                    { key: 'creatorName', label: 'Creator' },
-                    { key: 'shopName', label: 'Shop' },
-                    { key: 'amountCents', label: 'Amount (cents)' },
-                    { key: 'status', label: 'Status' },
-                    { key: 'sentAt', label: 'Sent At' },
-                    { key: 'createdAt', label: 'Created At' },
-                  ])
-                  downloadCSV(csv, `payouts-${new Date().toISOString().slice(0, 10)}.csv`)
-                }}
+                onClick={handleExportCSV}
                 aria-label={m.admin_common_export_csv()}
               >
                 <Download size={16} aria-hidden='true' />

@@ -183,6 +183,7 @@ export default function Header() {
               aria-label={m.cart_badge_label()}
             >
               <ShoppingCart size={18} aria-hidden='true' />
+              <span className='sr-only'>{m.cart_badge_label()}</span>
               {distinctItems > 0 && (
                 <span
                   role='status'

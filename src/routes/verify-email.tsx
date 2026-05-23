@@ -15,8 +15,8 @@ const verifyEmailSearchSchema = z.object({
 })
 
 export const Route = createFileRoute('/verify-email')({
-  beforeLoad: async () => guardGuest(),
   validateSearch: verifyEmailSearchSchema,
+  beforeLoad: async () => guardGuest(),
   component: VerifyEmail,
 })
 
@@ -100,7 +100,7 @@ function VerifyEmail() {
     return (
       <AuthShell title={m.verify_email_title()}>
         <div
-          className='flex flex-col items-center justify-center space-y-4 py-6'
+          className='flex flex-col items-center justify-center gap-4 py-6'
           role='status'
           aria-live='polite'
         >

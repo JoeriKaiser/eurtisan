@@ -164,6 +164,41 @@ const STATUS_LABELS: Record<string, string> = {
   rejected: m.admin_shops_filter_rejected(),
 }
 
+const SortHeader = ({
+  column,
+  sortBy,
+  sortDir,
+  onSort,
+  children,
+}: {
+  column: string
+  sortBy?: string
+  sortDir?: 'asc' | 'desc'
+  onSort: (column: string) => void
+  children: React.ReactNode
+}) => {
+  const isSorted = sortBy === column
+  const dir = sortDir ?? 'desc'
+  return (
+    <button
+      type='button'
+      onClick={() => onSort(column)}
+      className='flex items-center gap-1 font-semibold text-text-secondary hover:text-text-primary transition-colors cursor-pointer'
+    >
+      {children}
+      {isSorted && (
+        <span className='text-text-muted'>
+          {dir === 'asc' ? (
+            <ChevronLeft size={14} className='rotate-90' />
+          ) : (
+            <ChevronLeft size={14} className='-rotate-90' />
+          )}
+        </span>
+      )}
+    </button>
+  )
+}
+
 /* -------------------------------------------------------------------------- */
 /*                               Main Component                               */
 /* -------------------------------------------------------------------------- */
@@ -545,28 +580,20 @@ function AdminShopsPage() {
   const isModerationView = search.view !== 'applications'
   const totalPages = isModerationView ? Math.max(1, Math.ceil(shops.total / shops.pageSize)) : 1
 
-  const SortHeader = ({ column, children }: { column: string; children: React.ReactNode }) => {
-    const isSorted = search.sortBy === column
-    const dir = search.sortDir ?? 'desc'
-    return (
-      <button
-        type='button'
-        onClick={() => handleSort(column)}
-        className='flex items-center gap-1 font-semibold text-text-secondary hover:text-text-primary transition-colors cursor-pointer'
-      >
-        {children}
-        {isSorted && (
-          <span className='text-text-muted'>
-            {dir === 'asc' ? (
-              <ChevronLeft size={14} className='rotate-90' />
-            ) : (
-              <ChevronLeft size={14} className='-rotate-90' />
-            )}
-          </span>
-        )}
-      </button>
-    )
-  }
+  const handleExportCSV = useCallback(() => {
+    const csv = generateCSV(shops.shops, [
+      { key: 'name', label: 'Name' },
+      { key: 'slug', label: 'Slug' },
+      { key: 'ownerName', label: 'Owner' },
+      { key: 'ownerEmail', label: 'Owner Email' },
+      { key: 'status', label: 'Status' },
+      { key: 'isSuspended', label: 'Suspended' },
+      { key: 'createdAt', label: 'Created At' },
+    ])
+    downloadCSV(csv, `shops-${new Date().toISOString().slice(0, 10)}.csv`)
+  }, [shops.shops])
+
+
 
   return (
     <div className='space-y-6'>
@@ -685,18 +712,7 @@ function AdminShopsPage() {
           </Button>
           <Button
             variant='secondary'
-            onClick={() => {
-              const csv = generateCSV(shops.shops, [
-                { key: 'name', label: 'Name' },
-                { key: 'slug', label: 'Slug' },
-                { key: 'ownerName', label: 'Owner' },
-                { key: 'ownerEmail', label: 'Owner Email' },
-                { key: 'status', label: 'Status' },
-                { key: 'isSuspended', label: 'Suspended' },
-                { key: 'createdAt', label: 'Created At' },
-              ])
-              downloadCSV(csv, `shops-${new Date().toISOString().slice(0, 10)}.csv`)
-            }}
+            onClick={handleExportCSV}
             aria-label={m.admin_common_export_csv()}
           >
             <Download size={16} aria-hidden='true' />
@@ -828,19 +844,40 @@ function AdminShopsPage() {
                     />
                   </th>
                   <th scope='col' className='pb-3 pr-4'>
-                    <SortHeader column='name'>{m.admin_shops_col_name()}</SortHeader>
+                    <SortHeader
+                      column='name'
+                      sortBy={search.sortBy}
+                      sortDir={search.sortDir}
+                      onSort={handleSort}
+                    >
+                      {m.admin_shops_col_name()}
+                    </SortHeader>
                   </th>
                   <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
                     {m.admin_shops_col_owner()}
                   </th>
                   <th scope='col' className='pb-3 pr-4'>
-                    <SortHeader column='status'>{m.admin_shops_col_status()}</SortHeader>
+                    <SortHeader
+                      column='status'
+                      sortBy={search.sortBy}
+                      sortDir={search.sortDir}
+                      onSort={handleSort}
+                    >
+                      {m.admin_shops_col_status()}
+                    </SortHeader>
                   </th>
                   <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
                     {m.admin_shops_col_note()}
                   </th>
                   <th scope='col' className='pb-3 pr-4'>
-                    <SortHeader column='createdAt'>{m.admin_shops_col_created()}</SortHeader>
+                    <SortHeader
+                      column='createdAt'
+                      sortBy={search.sortBy}
+                      sortDir={search.sortDir}
+                      onSort={handleSort}
+                    >
+                      {m.admin_shops_col_created()}
+                    </SortHeader>
                   </th>
                   <th scope='col' className='pb-3 text-right font-semibold text-text-secondary'>
                     {m.admin_shops_col_actions()}

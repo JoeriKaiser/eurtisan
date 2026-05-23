@@ -19,8 +19,8 @@ export function isLocalRedirect(path: string): boolean {
 }
 
 export const Route = createFileRoute('/signin')({
-  beforeLoad: async () => guardGuest(),
   validateSearch: signinSearchSchema,
+  beforeLoad: async () => guardGuest(),
   component: SignIn,
 })
 

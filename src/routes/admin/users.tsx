@@ -227,6 +227,18 @@ export function AdminUsersPage() {
 
   const totalPages = Math.max(1, Math.ceil(users.total / users.pageSize))
 
+  const handleExportCSV = useCallback(() => {
+    const csv = generateCSV(users.users, [
+      { key: 'name', label: 'Name' },
+      { key: 'email', label: 'Email' },
+      { key: 'role', label: 'Role' },
+      { key: 'shopCount', label: 'Shops' },
+      { key: 'bannedAt', label: 'Banned' },
+      { key: 'createdAt', label: 'Created At' },
+    ])
+    downloadCSV(csv, `users-${new Date().toISOString().slice(0, 10)}.csv`)
+  }, [users.users])
+
   return (
     <div className='space-y-6'>
       <div>
@@ -297,17 +309,7 @@ export function AdminUsersPage() {
         </Button>
         <Button
           variant='secondary'
-          onClick={() => {
-            const csv = generateCSV(users.users, [
-              { key: 'name', label: 'Name' },
-              { key: 'email', label: 'Email' },
-              { key: 'role', label: 'Role' },
-              { key: 'shopCount', label: 'Shops' },
-              { key: 'bannedAt', label: 'Banned' },
-              { key: 'createdAt', label: 'Created At' },
-            ])
-            downloadCSV(csv, `users-${new Date().toISOString().slice(0, 10)}.csv`)
-          }}
+          onClick={handleExportCSV}
           aria-label={m.admin_common_export_csv()}
         >
           <Download size={16} aria-hidden='true' />

@@ -89,6 +89,41 @@ function statusLabel(status: string): string {
   return status.replace(/_/g, ' ')
 }
 
+const SortHeader = ({
+  column,
+  sortBy,
+  sortDir,
+  onSort,
+  children,
+}: {
+  column: 'createdAt' | 'totalCents'
+  sortBy?: string
+  sortDir?: 'asc' | 'desc'
+  onSort: (column: 'createdAt' | 'totalCents') => void
+  children: React.ReactNode
+}) => {
+  const isSorted = sortBy === column
+  const dir = sortDir ?? 'desc'
+  return (
+    <button
+      type='button'
+      onClick={() => onSort(column)}
+      className='flex items-center gap-1 font-semibold text-text-secondary hover:text-text-primary transition-colors cursor-pointer'
+    >
+      {children}
+      {isSorted && (
+        <span className='text-text-muted'>
+          {dir === 'asc' ? (
+            <ChevronLeft size={14} className='rotate-90' />
+          ) : (
+            <ChevronLeft size={14} className='-rotate-90' />
+          )}
+        </span>
+      )}
+    </button>
+  )
+}
+
 /* -------------------------------------------------------------------------- */
 /*                               Main Component                               */
 /* -------------------------------------------------------------------------- */
@@ -192,37 +227,23 @@ export function AdminOrdersPage() {
 
   const hasFilters = search.query || search.from || search.to || (search.statuses?.length ?? 0) > 0
 
+  const handleExportCSV = useCallback(() => {
+    const csv = generateCSV(orders.orders, [
+      { key: 'id', label: 'Order ID' },
+      { key: 'buyerName', label: 'Buyer' },
+      { key: 'buyerEmail', label: 'Buyer Email' },
+      { key: 'status', label: 'Status' },
+      { key: 'totalCents', label: 'Total (cents)' },
+      { key: 'shopCount', label: 'Shops' },
+      { key: 'createdAt', label: 'Created At' },
+    ])
+    downloadCSV(csv, `orders-${new Date().toISOString().slice(0, 10)}.csv`)
+  }, [orders.orders])
+
   /* ---- Compute pagination ---- */
   const totalPages = Math.max(1, Math.ceil(orders.total / orders.pageSize))
 
-  const SortHeader = ({
-    column,
-    children,
-  }: {
-    column: 'createdAt' | 'totalCents'
-    children: React.ReactNode
-  }) => {
-    const isSorted = search.sortBy === column
-    const dir = search.sortDir ?? 'desc'
-    return (
-      <button
-        type='button'
-        onClick={() => handleSort(column)}
-        className='flex items-center gap-1 font-semibold text-text-secondary hover:text-text-primary transition-colors cursor-pointer'
-      >
-        {children}
-        {isSorted && (
-          <span className='text-text-muted'>
-            {dir === 'asc' ? (
-              <ChevronLeft size={14} className='rotate-90' />
-            ) : (
-              <ChevronLeft size={14} className='-rotate-90' />
-            )}
-          </span>
-        )}
-      </button>
-    )
-  }
+
 
   return (
     <div className='space-y-6'>
@@ -270,18 +291,7 @@ export function AdminOrdersPage() {
           </Button>
           <Button
             variant='secondary'
-            onClick={() => {
-              const csv = generateCSV(orders.orders, [
-                { key: 'id', label: 'Order ID' },
-                { key: 'buyerName', label: 'Buyer' },
-                { key: 'buyerEmail', label: 'Buyer Email' },
-                { key: 'status', label: 'Status' },
-                { key: 'totalCents', label: 'Total (cents)' },
-                { key: 'shopCount', label: 'Shops' },
-                { key: 'createdAt', label: 'Created At' },
-              ])
-              downloadCSV(csv, `orders-${new Date().toISOString().slice(0, 10)}.csv`)
-            }}
+            onClick={handleExportCSV}
             aria-label={m.admin_common_export_csv()}
           >
             <Download size={16} aria-hidden='true' />
@@ -381,10 +391,24 @@ export function AdminOrdersPage() {
                   {m.admin_orders_col_shops()}
                 </th>
                 <th scope='col' className='pb-3 pr-4'>
-                  <SortHeader column='totalCents'>{m.admin_orders_col_total()}</SortHeader>
+                  <SortHeader
+                    column='totalCents'
+                    sortBy={search.sortBy}
+                    sortDir={search.sortDir}
+                    onSort={handleSort}
+                  >
+                    {m.admin_orders_col_total()}
+                  </SortHeader>
                 </th>
                 <th scope='col' className='pb-3 pr-4'>
-                  <SortHeader column='createdAt'>{m.admin_orders_col_date()}</SortHeader>
+                  <SortHeader
+                    column='createdAt'
+                    sortBy={search.sortBy}
+                    sortDir={search.sortDir}
+                    onSort={handleSort}
+                  >
+                    {m.admin_orders_col_date()}
+                  </SortHeader>
                 </th>
               </tr>
             </thead>

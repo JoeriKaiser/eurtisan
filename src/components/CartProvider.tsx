@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { getCart } from '#/lib/cart'
 import type { CartDetail } from '#/lib/cart.server'
 
@@ -39,8 +39,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     refreshCart()
   }, [refreshCart])
 
+  const contextValue = useMemo(() => ({ cart, isLoading, error, refreshCart }), [cart, isLoading, error, refreshCart])
+
   return (
-    <CartContext.Provider value={{ cart, isLoading, error, refreshCart }}>
+    <CartContext.Provider value={contextValue}>
       {children}
     </CartContext.Provider>
   )

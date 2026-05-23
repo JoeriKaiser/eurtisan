@@ -14,8 +14,8 @@ const forgotPasswordSearchSchema = z.object({
 })
 
 export const Route = createFileRoute('/forgot-password')({
-  beforeLoad: async () => guardGuest(),
   validateSearch: forgotPasswordSearchSchema,
+  beforeLoad: async () => guardGuest(),
   component: ForgotPassword,
 })
 

@@ -10,20 +10,18 @@ import { m } from '#/paraglide/messages'
 export const Route = createFileRoute('/disputes/$disputeId')({
   beforeLoad: async () => guardAuth(),
   loader: async ({ params }) => {
-    try {
-      const dispute = await getDisputeDetail({
-        data: { disputeId: params.disputeId },
-      })
-      if (!dispute) {
-        throw notFound()
-      }
-      return { dispute }
-    } catch (err) {
+    const dispute = await getDisputeDetail({
+      data: { disputeId: params.disputeId },
+    }).catch((err) => {
       if (err instanceof Response && err.status === 404) {
         throw notFound()
       }
       throw err
+    })
+    if (!dispute) {
+      throw notFound()
     }
+    return { dispute }
   },
   head: () => ({
     meta: [

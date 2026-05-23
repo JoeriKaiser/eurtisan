@@ -13,8 +13,8 @@ const ordersSearchSchema = z.object({
 const PAGE_SIZE = 10
 
 export const Route = createFileRoute('/orders')({
-  beforeLoad: async () => guardAuth(),
   validateSearch: ordersSearchSchema,
+  beforeLoad: async () => guardAuth(),
   loaderDeps: ({ search }) => ({ page: search.page ?? 1 }),
   loader: async ({ deps }) => {
     const page = deps.page
@@ -35,14 +35,14 @@ export const Route = createFileRoute('/orders')({
 
 function OrdersRouteComponent() {
   const { orders, total, page } = Route.useLoaderData()
-  const navigate = Route.useNavigate()
+  const routerNavigate = Route.useNavigate()
   const [isNavigating, setIsNavigating] = useState(false)
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   const goToPage = (newPage: number) => {
     if (newPage < 1 || newPage > totalPages || newPage === page) return
     setIsNavigating(true)
-    navigate({ search: { page: newPage } }).finally(() => setIsNavigating(false))
+    routerNavigate({ search: { page: newPage } }).finally(() => setIsNavigating(false))
   }
 
   return (

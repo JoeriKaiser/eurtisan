@@ -24,8 +24,8 @@ function formatDate(date: Date): string {
 }
 
 export const Route = createFileRoute('/account/orders')({
-  beforeLoad: async () => guardAuth(),
   validateSearch: ordersSearchSchema,
+  beforeLoad: async () => guardAuth(),
   loaderDeps: ({ search }) => ({ page: search.page ?? 1 }),
   loader: async ({ deps }) => {
     const page = deps.page
@@ -45,13 +45,13 @@ export const Route = createFileRoute('/account/orders')({
 function AccountOrders() {
   const { orders, total, page } = Route.useLoaderData()
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
-  const navigate = Route.useNavigate()
+  const routerNavigate = Route.useNavigate()
   const [isNavigating, setIsNavigating] = useState(false)
 
   const goToPage = (newPage: number) => {
     if (newPage < 1 || newPage > totalPages || newPage === page) return
     setIsNavigating(true)
-    navigate({ search: { page: newPage } }).finally(() => setIsNavigating(false))
+    routerNavigate({ search: { page: newPage } }).finally(() => setIsNavigating(false))
   }
 
   return (

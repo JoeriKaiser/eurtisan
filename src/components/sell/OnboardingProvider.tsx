@@ -1,5 +1,5 @@
 import type React from 'react'
-import { createContext, useContext, useCallback, useRef, useState } from 'react'
+import { createContext, useContext, useCallback, useMemo, useRef, useState } from 'react'
 import type { ShopDraft } from '#/lib/sell-onboarding'
 import { saveOnboardingStep } from '#/lib/sell-onboarding'
 
@@ -168,20 +168,30 @@ export function OnboardingProvider({ draft, onSaveStateChange, children }: Props
     return true
   }, [])
 
+  const contextValue = useMemo(() => ({
+    draft,
+    updateField,
+    updateFields,
+    saveStep,
+    isSaving,
+    lastSaved,
+    getStepData,
+    registerStepActions,
+    executeStepActions,
+  }), [
+    draft,
+    updateField,
+    updateFields,
+    saveStep,
+    isSaving,
+    lastSaved,
+    getStepData,
+    registerStepActions,
+    executeStepActions,
+  ])
+
   return (
-    <OnboardingContext.Provider
-      value={{
-        draft,
-        updateField,
-        updateFields,
-        saveStep,
-        isSaving,
-        lastSaved,
-        getStepData,
-        registerStepActions,
-        executeStepActions,
-      }}
-    >
+    <OnboardingContext.Provider value={contextValue}>
       {children}
     </OnboardingContext.Provider>
   )

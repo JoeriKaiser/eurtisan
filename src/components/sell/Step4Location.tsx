@@ -259,7 +259,7 @@ export function Step4Location() {
             onChange={(e) => setState(e.target.value)}
             className='mt-1'
           >
-            <option value=''>Select...</option>
+            <option value=''>Select…</option>
             {stateOptions.map((s) => (
               <option key={s} value={s}>
                 {s}
