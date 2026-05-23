@@ -1,5 +1,5 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
-import ProductDetail from '#/components/ProductDetail'
+import { ProductDetailPage } from '#/route-components/products/$productSlug'
 import { getProductBySlug } from '#/lib/products'
 import { createPageMeta } from '#/lib/seo'
 import { generateProductJsonLd } from '#/lib/seo-structured-data'
@@ -65,8 +65,3 @@ export const Route = createFileRoute('/products/$productSlug')({
   },
   component: ProductDetailPage,
 })
-
-function ProductDetailPage() {
-  const { product } = Route.useLoaderData()
-  return <ProductDetail product={product} />
-}

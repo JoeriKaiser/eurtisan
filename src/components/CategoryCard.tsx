@@ -1,44 +1,11 @@
 import { Link } from '@tanstack/react-router'
-import {
-  BookOpen,
-  Coffee,
-  Flower2,
-  Gem,
-  Hammer,
-  Lightbulb,
-  type LucideIcon,
-  Music,
-  Palette,
-  Scissors,
-  Shirt,
-} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
+import { getCategoryIcon } from '#/lib/category-icons'
 
 // Artisans don't use generic grid cards with icons as decoration.
 // But for category discovery on a marketplace, a visual shorthand
 // helps buyers browse. We keep it restrained: one icon, one name,
 // no superfluous description text.
-
-const CATEGORY_ICONS: Record<string, LucideIcon> = {
-  art: Palette,
-  fashion: Shirt,
-  food: Coffee,
-  jewellery: Gem,
-  jewelry: Gem,
-  music: Music,
-  books: BookOpen,
-  textiles: Scissors,
-  botanical: Flower2,
-  woodwork: Hammer,
-  ceramics: Lightbulb,
-}
-
-export function getCategoryIcon(name: string): LucideIcon {
-  const key = name.toLowerCase()
-  for (const [slug, Icon] of Object.entries(CATEGORY_ICONS)) {
-    if (key.includes(slug)) return Icon as LucideIcon
-  }
-  return Palette
-}
 
 interface CategoryCardProps {
   id: string
@@ -49,7 +16,7 @@ interface CategoryCardProps {
 }
 
 export default function CategoryCard({ name, slug, description, productCount }: CategoryCardProps) {
-  const Icon = getCategoryIcon(name)
+  const Icon = getCategoryIcon(name) as LucideIcon
 
   return (
     <Link

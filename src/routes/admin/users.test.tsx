@@ -6,42 +6,40 @@ import { describe, expect, it, vi } from 'vitest'
 const mockNavigate = vi.fn()
 
 vi.mock('@tanstack/react-router', () => ({
-  createFileRoute: () => () => ({
-    useLoaderData: () => ({
-      users: [
-        {
-          id: 'user-1',
-          name: 'Alice',
-          email: 'alice@example.com',
-          role: 'customer',
-          bannedAt: null,
-          banReason: null,
-          createdAt: new Date(),
-          shopCount: 0,
-        },
-        {
-          id: 'user-2',
-          name: 'Bob',
-          email: 'bob@example.com',
-          role: 'admin',
-          bannedAt: new Date(),
-          banReason: 'Spam',
-          createdAt: new Date(),
-          shopCount: 2,
-        },
-      ],
-      total: 2,
-      page: 1,
-      pageSize: 20,
-    }),
-    useNavigate: () => mockNavigate,
-    useSearch: () => ({
-      query: '',
-      role: undefined,
-      status: 'all',
-      page: 1,
-      pageSize: 20,
-    }),
+  useLoaderData: () => ({
+    users: [
+      {
+        id: 'user-1',
+        name: 'Alice',
+        email: 'alice@example.com',
+        role: 'customer',
+        bannedAt: null,
+        banReason: null,
+        createdAt: new Date(),
+        shopCount: 0,
+      },
+      {
+        id: 'user-2',
+        name: 'Bob',
+        email: 'bob@example.com',
+        role: 'admin',
+        bannedAt: new Date(),
+        banReason: 'Spam',
+        createdAt: new Date(),
+        shopCount: 2,
+      },
+    ],
+    total: 2,
+    page: 1,
+    pageSize: 20,
+  }),
+  useNavigate: () => mockNavigate,
+  useSearch: () => ({
+    query: '',
+    role: undefined,
+    status: 'all',
+    page: 1,
+    pageSize: 20,
   }),
   Link: (props: { children: React.ReactNode; to: string; className?: string }) => (
     <a href={props.to} className={props.className}>
@@ -100,7 +98,7 @@ vi.mock('#/lib/admin-users', () => ({
   unbanUser: vi.fn().mockResolvedValue({ id: 'user-2', bannedAt: null }),
 }))
 
-import { AdminUsersPage } from './users'
+import { AdminUsersPage } from '#/route-components/admin/users'
 
 describe('AdminUsersPage', () => {
   it('renders the page title', () => {

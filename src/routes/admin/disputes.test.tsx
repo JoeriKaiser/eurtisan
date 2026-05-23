@@ -55,6 +55,9 @@ vi.mock('#/lib/disputes', () => ({
 }))
 
 vi.mock('@tanstack/react-router', () => ({
+  useLoaderData: () => mockLoaderData,
+  useSearch: () => mockSearch,
+  useNavigate: () => mockNavigate,
   createFileRoute: () => (options: { component?: unknown }) => ({
     options,
     useLoaderData: () => mockLoaderData,

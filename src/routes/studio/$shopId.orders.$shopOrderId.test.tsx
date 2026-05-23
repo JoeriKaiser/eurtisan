@@ -10,6 +10,42 @@ const mockMarkShippedWithLabel = vi.fn()
 const mockMarkDelivered = vi.fn()
 
 vi.mock('@tanstack/react-router', () => ({
+  useParams: () => ({ shopId: 'shop-1', shopOrderId: '550e8400-e29b-41d4-a716-446655440001' }),
+  useLoaderData: () => ({
+    order: {
+      id: '550e8400-e29b-41d4-a716-446655440001',
+      platformOrderId: 'order-1',
+      shopId: 'shop-1',
+      status: 'paid',
+      shippingMethod: 'standard',
+      shippingCostCents: 500,
+      subtotalCents: 2000,
+      trackingNumber: null,
+      trackingUrl: null,
+      createdAt: new Date('2026-05-01').toISOString(),
+      updatedAt: new Date('2026-05-01').toISOString(),
+      buyer: { id: 'user-1', name: 'Alice', email: 'a***@example.com' },
+      shippingAddress: {
+        name: 'Alice',
+        street: '123 Main St',
+        city: 'Berlin',
+        postalCode: '10115',
+        country: 'DE',
+      },
+      items: [
+        {
+          id: 'item-1',
+          productId: 'prod-1',
+          productName: 'Vase',
+          unitPriceCents: 1000,
+          quantity: 2,
+          totalCents: 2000,
+        },
+      ],
+      label: null,
+    },
+  }),
+  useNavigate: () => vi.fn(),
   createFileRoute: () => (options: { component?: unknown }) => ({
     options,
     useParams: () => ({ shopId: 'shop-1', shopOrderId: '550e8400-e29b-41d4-a716-446655440001' }),

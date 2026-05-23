@@ -2,8 +2,8 @@ import { createFileRoute } from '@tanstack/react-router'
 import {
   CreatorProductEditError,
   CreatorProductEditLoading,
-  CreatorProductEditPage,
 } from '#/components/CreatorProductEditPage'
+import { CreatorProductEditRouteComponent } from '#/route-components/creator/products/$productId/edit'
 import { listCategories } from '#/lib/categories'
 import { getCreatorShops } from '#/lib/creator-dashboard'
 import { getCreatorProductDetail } from '#/lib/creator-products'
@@ -31,8 +31,3 @@ export const Route = createFileRoute('/creator/products/$productId/edit')({
   pendingComponent: CreatorProductEditLoading,
   errorComponent: CreatorProductEditError,
 })
-
-function CreatorProductEditRouteComponent() {
-  const { shops, categories, product } = Route.useLoaderData()
-  return <CreatorProductEditPage shops={shops} categories={categories} product={product} />
-}

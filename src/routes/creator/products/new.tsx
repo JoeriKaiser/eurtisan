@@ -2,8 +2,8 @@ import { createFileRoute } from '@tanstack/react-router'
 import {
   CreatorProductNewError,
   CreatorProductNewLoading,
-  CreatorProductNewPage,
 } from '#/components/CreatorProductNewPage'
+import { CreatorProductNewRouteComponent } from '#/route-components/creator/products/new'
 import { listCategories } from '#/lib/categories'
 import { getCreatorShops } from '#/lib/creator-dashboard'
 import { guardRole } from '#/lib/route-guards'
@@ -29,8 +29,3 @@ export const Route = createFileRoute('/creator/products/new')({
   pendingComponent: CreatorProductNewLoading,
   errorComponent: CreatorProductNewError,
 })
-
-function CreatorProductNewRouteComponent() {
-  const { shops, categories } = Route.useLoaderData()
-  return <CreatorProductNewPage shops={shops} categories={categories} />
-}

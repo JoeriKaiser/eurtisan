@@ -1,7 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
 import { createFileRoute, notFound } from '@tanstack/react-router'
-import { useRef } from 'react'
-import OrderSuccessPage from '#/components/OrderSuccessPage'
+import { OrderSuccessRouteComponent } from '#/route-components/orders.$platformOrderId.success'
 import { getBuyerOrderDetail } from '#/lib/orders'
 import { guardAuth } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
@@ -37,28 +35,3 @@ export const Route = createFileRoute('/orders/$platformOrderId/success')({
   ),
   component: OrderSuccessRouteComponent,
 })
-
-const POLL_INTERVAL_MS = 3_000
-const POLL_TIMEOUT_MS = 5 * 60 * 1_000 // 5 minutes
-
-function OrderSuccessRouteComponent() {
-  const { order: initialOrder } = Route.useLoaderData()
-  const { platformOrderId } = Route.useParams()
-  const pollStartTime = useRef(Date.now())
-
-  const { data: order = initialOrder } = useQuery({
-    queryKey: ['order-success-poll', platformOrderId],
-    queryFn: () => getBuyerOrderDetail({ data: { orderId: platformOrderId } }),
-    refetchInterval: (query) => {
-      const status = query.state.data?.status ?? initialOrder.status
-      const elapsed = Date.now() - pollStartTime.current
-      if (status !== 'pending_payment' || elapsed > POLL_TIMEOUT_MS) {
-        return false
-      }
-      return POLL_INTERVAL_MS
-    },
-    initialData: initialOrder,
-  })
-
-  return <OrderSuccessPage order={order} />
-}

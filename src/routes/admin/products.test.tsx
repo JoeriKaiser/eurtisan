@@ -6,6 +6,65 @@ import { describe, expect, it, vi } from 'vitest'
 const mockNavigate = vi.fn()
 
 vi.mock('@tanstack/react-router', () => ({
+  useLoaderData: () => ({
+    products: {
+      products: [
+        {
+          id: 'prod-1',
+          name: 'Vase',
+          slug: 'vase',
+          priceCents: 1000,
+          stockCount: 5,
+          isActive: true,
+          shopId: 'shop-1',
+          shopName: 'Test Shop',
+          categoryId: 'cat-1',
+          categoryName: 'Pottery',
+          createdAt: new Date(),
+          thumbnailUrl: null,
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    },
+    shops: [
+      {
+        id: 'shop-1',
+        name: 'Test Shop',
+        slug: 'test-shop',
+        ownerName: 'Owner',
+        ownerEmail: 'o@example.com',
+        status: 'active',
+        isSuspended: false,
+        moderationNote: null,
+        createdAt: new Date(),
+      },
+    ],
+    categories: [
+      {
+        id: 'cat-1',
+        name: 'Pottery',
+        slug: 'pottery',
+        description: null,
+        parentId: null,
+        sortOrder: 0,
+        createdAt: new Date(),
+        children: [],
+      },
+    ],
+  }),
+  useNavigate: () => mockNavigate,
+  useSearch: () => ({
+    query: '',
+    shopId: undefined,
+    categoryId: undefined,
+    status: undefined,
+    minPrice: undefined,
+    maxPrice: undefined,
+    page: 1,
+    pageSize: 20,
+  }),
   createFileRoute: () => (options: { component?: unknown }) => ({
     options,
     useLoaderData: () => ({

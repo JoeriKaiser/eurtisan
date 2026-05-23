@@ -1,8 +1,6 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
-import BuyerOrderDetailPage, {
-  BuyerOrderDetailError,
-  BuyerOrderDetailLoading,
-} from '#/components/BuyerOrderDetailPage'
+import { BuyerOrderDetailError, BuyerOrderDetailLoading } from '#/components/BuyerOrderDetailPage'
+import { OrderDetailRouteComponent } from '#/route-components/orders.$platformOrderId'
 import { getBuyerOrderDetail } from '#/lib/orders'
 import { getReviewableItems } from '#/lib/reviews'
 import { guardAuth } from '#/lib/route-guards'
@@ -44,8 +42,3 @@ export const Route = createFileRoute('/orders/$platformOrderId')({
   pendingComponent: BuyerOrderDetailLoading,
   errorComponent: BuyerOrderDetailError,
 })
-
-function OrderDetailRouteComponent() {
-  const { order, reviewableItems } = Route.useLoaderData()
-  return <BuyerOrderDetailPage order={order} reviewableItems={reviewableItems} />
-}

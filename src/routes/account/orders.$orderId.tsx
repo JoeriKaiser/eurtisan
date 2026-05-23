@@ -1,5 +1,5 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
-import OrderDetailPage from '#/components/OrderDetailPage'
+import { OrderDetailRouteComponent } from '#/route-components/account/orders.$orderId'
 import { getBuyerOrderDetail } from '#/lib/orders'
 import { guardAuth } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
@@ -35,8 +35,3 @@ export const Route = createFileRoute('/account/orders/$orderId')({
   ),
   component: OrderDetailRouteComponent,
 })
-
-function OrderDetailRouteComponent() {
-  const { order } = Route.useLoaderData()
-  return <OrderDetailPage order={order} />
-}

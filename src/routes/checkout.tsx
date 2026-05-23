@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import CheckoutPage from '#/components/CheckoutPage'
+import { CheckoutRouteComponent } from '#/route-components/checkout'
 import { getCart } from '#/lib/cart'
 import { getCheckoutSummary } from '#/lib/checkout'
 import { guardAuth } from '#/lib/route-guards'
@@ -26,8 +26,3 @@ export const Route = createFileRoute('/checkout')({
   }),
   component: CheckoutRouteComponent,
 })
-
-function CheckoutRouteComponent() {
-  const { summary, cartId } = Route.useLoaderData()
-  return <CheckoutPage summary={summary} cartId={cartId} />
-}

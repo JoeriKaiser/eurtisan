@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
 import z from 'zod'
-import { OrdersError, OrdersLoading, OrdersPage } from '#/components/OrdersPage'
+import { OrdersError, OrdersLoading } from '#/components/OrdersPage'
+import { OrdersRouteComponent } from '#/route-components/orders'
 import { listBuyerOrders } from '#/lib/orders'
 import { guardAuth } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
@@ -32,27 +32,3 @@ export const Route = createFileRoute('/orders')({
   pendingComponent: OrdersLoading,
   errorComponent: OrdersError,
 })
-
-function OrdersRouteComponent() {
-  const { orders, total, page } = Route.useLoaderData()
-  const routerNavigate = Route.useNavigate()
-  const [isNavigating, setIsNavigating] = useState(false)
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
-
-  const goToPage = (newPage: number) => {
-    if (newPage < 1 || newPage > totalPages || newPage === page) return
-    setIsNavigating(true)
-    routerNavigate({ search: { page: newPage } }).finally(() => setIsNavigating(false))
-  }
-
-  return (
-    <OrdersPage
-      orders={orders}
-      total={total}
-      page={page}
-      totalPages={totalPages}
-      onPageChange={goToPage}
-      isNavigating={isNavigating}
-    />
-  )
-}

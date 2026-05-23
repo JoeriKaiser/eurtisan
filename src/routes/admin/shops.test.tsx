@@ -89,6 +89,9 @@ let activeLoaderData: unknown = { view: 'moderation', shops: goodShopsData }
 let activeSearch: unknown = { view: 'moderation', filter: 'all', page: 1, pageSize: 20 }
 
 vi.mock('@tanstack/react-router', () => ({
+  useLoaderData: () => activeLoaderData,
+  useSearch: () => activeSearch,
+  useNavigate: () => mockNavigateFn,
   createFileRoute: () => {
     const routeObj = {
       useLoaderData: () => activeLoaderData,

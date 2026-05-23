@@ -1,10 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import z from 'zod'
-import {
-  CreatorPayoutsError,
-  CreatorPayoutsLoading,
-  CreatorPayoutsPage,
-} from '#/components/CreatorPayoutsPage'
+import { CreatorPayoutsError, CreatorPayoutsLoading } from '#/components/CreatorPayoutsPage'
+import { CreatorPayoutsRouteComponent } from '#/route-components/creator/payouts'
 import { getCreatorShops } from '#/lib/creator-dashboard'
 import { listCreatorPayouts } from '#/lib/payouts'
 import { m } from '#/paraglide/messages'
@@ -53,16 +50,3 @@ export const Route = createFileRoute('/creator/payouts')({
   pendingComponent: CreatorPayoutsLoading,
   errorComponent: CreatorPayoutsError,
 })
-
-function CreatorPayoutsRouteComponent() {
-  const { shops, payouts, currentShopId } = Route.useLoaderData()
-  const search = Route.useSearch()
-  return (
-    <CreatorPayoutsPage
-      shops={shops}
-      payouts={payouts}
-      currentShopId={currentShopId}
-      initialStatus={search.status}
-    />
-  )
-}

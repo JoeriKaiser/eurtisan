@@ -1,7 +1,5 @@
-import { createFileRoute, Outlet, redirect } from '@tanstack/react-router'
-import { useState } from 'react'
-import { OnboardingProvider } from '#/components/sell/OnboardingProvider'
-import { WizardShell } from '#/components/sell/WizardShell'
+import { createFileRoute, redirect } from '@tanstack/react-router'
+import { OnboardingLayout } from '#/route-components/sell/onboarding/$draftId'
 import { getShopDraft } from '#/lib/sell-onboarding'
 import { guardAuth } from '#/lib/route-guards'
 
@@ -18,20 +16,3 @@ export const Route = createFileRoute('/sell/onboarding/$draftId')({
   },
   component: OnboardingLayout,
 })
-
-function OnboardingLayout() {
-  const { draft } = Route.useLoaderData()
-  const [saveIndicator, setSaveIndicator] = useState<'saved' | 'saving' | 'unsaved'>('saved')
-
-  return (
-    <OnboardingProvider draft={draft} onSaveStateChange={setSaveIndicator}>
-      <WizardShell
-        draftId={draft.id}
-        currentStep={draft.onboardingStep}
-        saveIndicator={saveIndicator}
-      >
-        <Outlet />
-      </WizardShell>
-    </OnboardingProvider>
-  )
-}

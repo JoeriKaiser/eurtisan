@@ -2,41 +2,39 @@
 
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { AdminOrdersPage } from './orders'
+import { AdminOrdersPage } from '#/route-components/admin/orders'
 
 /* -------------------------------------------------------------------------- */
 /*                                    Mocks                                   */
 /* -------------------------------------------------------------------------- */
 
 vi.mock('@tanstack/react-router', () => ({
-  createFileRoute: () => () => ({
-    useLoaderData: () => ({
-      orders: [
-        {
-          id: '00000000-0000-0000-0000-000000000001',
-          buyerName: 'Test Buyer',
-          buyerEmail: 'buyer@example.com',
-          totalCents: 2500,
-          status: 'paid',
-          shopCount: 1,
-          createdAt: new Date('2026-05-10T12:00:00Z'),
-        },
-      ],
-      total: 1,
-      page: 1,
-      pageSize: 20,
-    }),
-    useNavigate: () => vi.fn(),
-    useSearch: () => ({
-      query: '',
-      page: 1,
-      pageSize: 20,
-      from: '',
-      to: '',
-      statuses: [],
-      sortBy: 'createdAt',
-      sortDir: 'desc',
-    }),
+  useLoaderData: () => ({
+    orders: [
+      {
+        id: '00000000-0000-0000-0000-000000000001',
+        buyerName: 'Test Buyer',
+        buyerEmail: 'buyer@example.com',
+        totalCents: 2500,
+        status: 'paid',
+        shopCount: 1,
+        createdAt: new Date('2026-05-10T12:00:00Z'),
+      },
+    ],
+    total: 1,
+    page: 1,
+    pageSize: 20,
+  }),
+  useNavigate: () => vi.fn(),
+  useSearch: () => ({
+    query: '',
+    page: 1,
+    pageSize: 20,
+    from: '',
+    to: '',
+    statuses: [],
+    sortBy: 'createdAt',
+    sortDir: 'desc',
   }),
   Link: (props: {
     children: React.ReactNode

@@ -32,6 +32,9 @@ const mockLoaderData = {
 }
 
 vi.mock('@tanstack/react-router', () => ({
+  useLoaderData: () => mockLoaderData,
+  useSearch: () => ({}),
+  useNavigate: () => vi.fn(),
   createFileRoute: () => (options: { component?: unknown }) => ({
     options,
     useLoaderData: () => mockLoaderData,

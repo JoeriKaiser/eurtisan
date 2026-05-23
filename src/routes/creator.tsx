@@ -1,9 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import {
-  CreatorDashboardError,
-  CreatorDashboardLoading,
-  CreatorDashboardPage,
-} from '#/components/CreatorDashboardPage'
+import { CreatorDashboardError, CreatorDashboardLoading } from '#/components/CreatorDashboardPage'
+import { CreatorRouteComponent } from '#/route-components/creator'
 import {
   getCreatorDashboardStats,
   getCreatorRecentActivity,
@@ -32,8 +29,3 @@ export const Route = createFileRoute('/creator')({
   pendingComponent: CreatorDashboardLoading,
   errorComponent: CreatorDashboardError,
 })
-
-function CreatorRouteComponent() {
-  const { stats, activity, shops } = Route.useLoaderData()
-  return <CreatorDashboardPage stats={stats} activity={activity} shops={shops} />
-}

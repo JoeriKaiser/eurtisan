@@ -6,6 +6,54 @@ import { describe, expect, it, vi } from 'vitest'
 const mockInvalidate = vi.fn()
 
 vi.mock('@tanstack/react-router', () => ({
+  useParams: () => ({ disputeId: 'd1' }),
+  useLoaderData: () => {
+    const dispute = {
+      id: 'd1',
+      shopOrderId: 'so1',
+      buyerUserId: 'u1',
+      reason: 'damaged',
+      description: 'Item arrived broken',
+      status: 'open',
+      resolution: null,
+      refundCents: null,
+      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      updatedAt: new Date().toISOString(),
+      buyer: { id: 'u1', name: 'Alice', email: 'alice@example.com' },
+      shop: { id: 'u2', name: 'Bob', email: 'bob@example.com' },
+      order: {
+        id: 'so1',
+        platformOrderId: 'po1',
+        shopId: 'shop-1',
+        shopName: 'Ceramics Co',
+        status: 'disputed',
+        subtotalCents: 2000,
+        shippingCostCents: 500,
+        totalCents: 2500,
+        createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+        items: [
+          {
+            id: 'oi1',
+            productId: 'p1',
+            productName: 'Ceramic Vase',
+            unitPriceCents: 1000,
+            quantity: 2,
+            totalCents: 2000,
+          },
+        ],
+      },
+      messages: [
+        {
+          id: 'm1',
+          senderName: 'Alice',
+          message: 'The vase is cracked',
+          createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+      ],
+    }
+    return { dispute }
+  },
+  useNavigate: () => vi.fn(),
   createFileRoute: () => (options: { component?: unknown }) => ({
     options,
     useParams: () => ({ disputeId: 'd1' }),

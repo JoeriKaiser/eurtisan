@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import z from 'zod'
-import CartPage from '#/components/CartPage'
+import { CartRouteComponent } from '#/route-components/cart'
 import { getCart } from '#/lib/cart'
 import { m } from '#/paraglide/messages'
 
@@ -22,9 +22,3 @@ export const Route = createFileRoute('/cart')({
   }),
   component: CartRouteComponent,
 })
-
-function CartRouteComponent() {
-  const { cart } = Route.useLoaderData()
-  const { message } = Route.useSearch()
-  return <CartPage cart={cart} showEmptyMessage={message === 'empty_cart'} />
-}

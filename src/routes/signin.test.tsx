@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from 'vitest'
-import { isLocalRedirect } from './signin'
+import { isLocalRedirect } from '#/lib/auth-utils'
 
 describe('isLocalRedirect', () => {
   it('accepts root-relative paths', () => {

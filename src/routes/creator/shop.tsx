@@ -3,8 +3,8 @@ import z from 'zod'
 import {
   CreatorShopSettingsError,
   CreatorShopSettingsLoading,
-  CreatorShopSettingsPage,
 } from '#/components/CreatorShopSettingsPage'
+import { CreatorShopRouteComponent } from '#/route-components/creator/shop'
 import { getCreatorShop, getCreatorShops } from '#/lib/creator-dashboard'
 import { guardRole } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
@@ -39,8 +39,3 @@ export const Route = createFileRoute('/creator/shop')({
   pendingComponent: CreatorShopSettingsLoading,
   errorComponent: CreatorShopSettingsError,
 })
-
-function CreatorShopRouteComponent() {
-  const { shop, allShops } = Route.useLoaderData()
-  return <CreatorShopSettingsPage shop={shop} allShops={allShops} />
-}
