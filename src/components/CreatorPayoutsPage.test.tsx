@@ -14,6 +14,11 @@ vi.mock('@tanstack/react-router', () => ({
   useRouter: () => ({ invalidate: mockInvalidate, navigate: vi.fn() }),
 }))
 
+vi.mock('#/lib/payouts', () => ({
+  getMollieConnectUrl: vi.fn(),
+  disconnectMollie: vi.fn(),
+}))
+
 vi.mock('#/paraglide/messages', () => ({
   m: {
     creator_payouts_title: () => 'Payouts',
@@ -41,6 +46,19 @@ vi.mock('#/paraglide/messages', () => ({
     creator_payouts_pagination: () => 'Payout pagination',
     creator_payouts_error_load: () => 'Failed to load payouts. Please try again.',
     creator_payouts_refund_label: () => 'Refund',
+    creator_payouts_mollie_connect_title: () => 'Mollie Connect',
+    creator_payouts_mollie_connect_description_connected: ({
+      merchantId,
+    }: {
+      merchantId: string
+    }) =>
+      `Your shop is successfully connected to Mollie to receive payouts. Connected Merchant ID: ${merchantId}`,
+    creator_payouts_mollie_connect_description_disconnected: () =>
+      'Connect your Mollie merchant account to start receiving payouts for your custom merchandise and artisan goods.',
+    creator_payouts_mollie_connect_btn: () => 'Connect with Mollie',
+    creator_payouts_mollie_disconnect_btn: () => 'Disconnect account',
+    creator_payouts_mollie_status_connected: () => 'Connected',
+    creator_payouts_mollie_status_disconnected: () => 'Not Connected',
     creator_shop_select_label: () => 'Select shop',
     creator_no_shops_title: () => 'Welcome, creator!',
     creator_no_shops_description: () => "You don't have any shops yet.",
@@ -383,6 +401,53 @@ describe('CreatorPayoutsPage', () => {
     expect(select.value).toBe('shop-1')
     expect(screen.getByText('Shop One')).toBeDefined()
     expect(screen.getByText('Shop Two')).toBeDefined()
+  })
+
+  it('renders Mollie Connect banner when disconnected', () => {
+    render(
+      <CreatorPayoutsPage
+        shops={[
+          {
+            id: 'shop-1',
+            name: 'Test Shop',
+            slug: 'test-shop',
+            paymentConnected: false,
+            mollieAccountId: null,
+          },
+        ]}
+        payouts={makePaginatedPayouts()}
+        currentShopId='shop-1'
+        initialStatus='all'
+      />,
+    )
+
+    expect(screen.getByText('Mollie Connect')).toBeDefined()
+    expect(screen.getByText('Not Connected')).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Connect with Mollie' })).toBeDefined()
+  })
+
+  it('renders Mollie connected details when connected', () => {
+    render(
+      <CreatorPayoutsPage
+        shops={[
+          {
+            id: 'shop-1',
+            name: 'Test Shop',
+            slug: 'test-shop',
+            paymentConnected: true,
+            mollieAccountId: 'org_123456',
+          },
+        ]}
+        payouts={makePaginatedPayouts()}
+        currentShopId='shop-1'
+        initialStatus='all'
+      />,
+    )
+
+    expect(screen.getByText('Mollie Connect')).toBeDefined()
+    expect(screen.getByText('Connected')).toBeDefined()
+    expect(screen.getByText(/org_123456/)).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Disconnect account' })).toBeDefined()
   })
 })
 

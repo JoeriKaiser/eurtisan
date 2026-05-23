@@ -17,6 +17,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as NotificationsRouteImport } from './routes/notifications'
+import { Route as MollieMockOauthRouteImport } from './routes/mollie-mock-oauth'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as ForbiddenRouteImport } from './routes/forbidden'
 import { Route as CreatorRouteImport } from './routes/creator'
@@ -80,6 +81,7 @@ import { Route as ApiShopsShopIdSettingsRouteImport } from './routes/api/shops/$
 import { Route as ApiShopsShopIdProductsRouteImport } from './routes/api/shops/$shopId/products'
 import { Route as ApiShopsShopIdOrdersRouteImport } from './routes/api/shops/$shopId/orders'
 import { Route as ApiShopsShopIdDashboardRouteImport } from './routes/api/shops/$shopId/dashboard'
+import { Route as ApiAuthMollieCallbackRouteImport } from './routes/api/auth/mollie/callback'
 import { Route as ApiAdminPayoutsPayoutIdRouteImport } from './routes/api/admin/payouts.$payoutId'
 import { Route as ApiShopsShopIdProductsProductIdRouteImport } from './routes/api/shops/$shopId/products.$productId'
 import { Route as ApiShopsShopIdOrdersShopOrderIdRouteImport } from './routes/api/shops/$shopId/orders.$shopOrderId'
@@ -122,6 +124,11 @@ const OrdersRoute = OrdersRouteImport.update({
 const NotificationsRoute = NotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MollieMockOauthRoute = MollieMockOauthRouteImport.update({
+  id: '/mollie-mock-oauth',
+  path: '/mollie-mock-oauth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -452,6 +459,11 @@ const ApiShopsShopIdDashboardRoute = ApiShopsShopIdDashboardRouteImport.update({
   path: '/api/shops/$shopId/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthMollieCallbackRoute = ApiAuthMollieCallbackRouteImport.update({
+  id: '/api/auth/mollie/callback',
+  path: '/api/auth/mollie/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAdminPayoutsPayoutIdRoute = ApiAdminPayoutsPayoutIdRouteImport.update({
   id: '/api/admin/payouts/$payoutId',
   path: '/api/admin/payouts/$payoutId',
@@ -480,6 +492,7 @@ export interface FileRoutesByFullPath {
   '/creator': typeof CreatorRouteWithChildren
   '/forbidden': typeof ForbiddenRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/mollie-mock-oauth': typeof MollieMockOauthRoute
   '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRouteWithChildren
   '/privacy': typeof PrivacyRoute
@@ -528,6 +541,7 @@ export interface FileRoutesByFullPath {
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
   '/creator/products/': typeof CreatorProductsIndexRoute
   '/api/admin/payouts/$payoutId': typeof ApiAdminPayoutsPayoutIdRoute
+  '/api/auth/mollie/callback': typeof ApiAuthMollieCallbackRoute
   '/api/shops/$shopId/dashboard': typeof ApiShopsShopIdDashboardRoute
   '/api/shops/$shopId/orders': typeof ApiShopsShopIdOrdersRouteWithChildren
   '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRouteWithChildren
@@ -555,6 +569,7 @@ export interface FileRoutesByTo {
   '/creator': typeof CreatorRouteWithChildren
   '/forbidden': typeof ForbiddenRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/mollie-mock-oauth': typeof MollieMockOauthRoute
   '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRouteWithChildren
   '/privacy': typeof PrivacyRoute
@@ -601,6 +616,7 @@ export interface FileRoutesByTo {
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
   '/creator/products': typeof CreatorProductsIndexRoute
   '/api/admin/payouts/$payoutId': typeof ApiAdminPayoutsPayoutIdRoute
+  '/api/auth/mollie/callback': typeof ApiAuthMollieCallbackRoute
   '/api/shops/$shopId/dashboard': typeof ApiShopsShopIdDashboardRoute
   '/api/shops/$shopId/orders': typeof ApiShopsShopIdOrdersRouteWithChildren
   '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRouteWithChildren
@@ -630,6 +646,7 @@ export interface FileRoutesById {
   '/creator': typeof CreatorRouteWithChildren
   '/forbidden': typeof ForbiddenRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/mollie-mock-oauth': typeof MollieMockOauthRoute
   '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRouteWithChildren
   '/privacy': typeof PrivacyRoute
@@ -678,6 +695,7 @@ export interface FileRoutesById {
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
   '/creator/products/': typeof CreatorProductsIndexRoute
   '/api/admin/payouts/$payoutId': typeof ApiAdminPayoutsPayoutIdRoute
+  '/api/auth/mollie/callback': typeof ApiAuthMollieCallbackRoute
   '/api/shops/$shopId/dashboard': typeof ApiShopsShopIdDashboardRoute
   '/api/shops/$shopId/orders': typeof ApiShopsShopIdOrdersRouteWithChildren
   '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRouteWithChildren
@@ -708,6 +726,7 @@ export interface FileRouteTypes {
     | '/creator'
     | '/forbidden'
     | '/forgot-password'
+    | '/mollie-mock-oauth'
     | '/notifications'
     | '/orders'
     | '/privacy'
@@ -756,6 +775,7 @@ export interface FileRouteTypes {
     | '/studio/$shopId/orders'
     | '/creator/products/'
     | '/api/admin/payouts/$payoutId'
+    | '/api/auth/mollie/callback'
     | '/api/shops/$shopId/dashboard'
     | '/api/shops/$shopId/orders'
     | '/api/shops/$shopId/products'
@@ -783,6 +803,7 @@ export interface FileRouteTypes {
     | '/creator'
     | '/forbidden'
     | '/forgot-password'
+    | '/mollie-mock-oauth'
     | '/notifications'
     | '/orders'
     | '/privacy'
@@ -829,6 +850,7 @@ export interface FileRouteTypes {
     | '/studio/$shopId/orders'
     | '/creator/products'
     | '/api/admin/payouts/$payoutId'
+    | '/api/auth/mollie/callback'
     | '/api/shops/$shopId/dashboard'
     | '/api/shops/$shopId/orders'
     | '/api/shops/$shopId/products'
@@ -857,6 +879,7 @@ export interface FileRouteTypes {
     | '/creator'
     | '/forbidden'
     | '/forgot-password'
+    | '/mollie-mock-oauth'
     | '/notifications'
     | '/orders'
     | '/privacy'
@@ -905,6 +928,7 @@ export interface FileRouteTypes {
     | '/studio/$shopId/orders'
     | '/creator/products/'
     | '/api/admin/payouts/$payoutId'
+    | '/api/auth/mollie/callback'
     | '/api/shops/$shopId/dashboard'
     | '/api/shops/$shopId/orders'
     | '/api/shops/$shopId/products'
@@ -934,6 +958,7 @@ export interface RootRouteChildren {
   CreatorRoute: typeof CreatorRouteWithChildren
   ForbiddenRoute: typeof ForbiddenRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  MollieMockOauthRoute: typeof MollieMockOauthRoute
   NotificationsRoute: typeof NotificationsRoute
   OrdersRoute: typeof OrdersRouteWithChildren
   PrivacyRoute: typeof PrivacyRoute
@@ -962,6 +987,7 @@ export interface RootRouteChildren {
   SellOnboardingDraftIdRoute: typeof SellOnboardingDraftIdRouteWithChildren
   SellStatusShopIdRoute: typeof SellStatusShopIdRoute
   ApiAdminPayoutsPayoutIdRoute: typeof ApiAdminPayoutsPayoutIdRoute
+  ApiAuthMollieCallbackRoute: typeof ApiAuthMollieCallbackRoute
   ApiShopsShopIdDashboardRoute: typeof ApiShopsShopIdDashboardRoute
   ApiShopsShopIdOrdersRoute: typeof ApiShopsShopIdOrdersRouteWithChildren
   ApiShopsShopIdProductsRoute: typeof ApiShopsShopIdProductsRouteWithChildren
@@ -1024,6 +1050,13 @@ declare module '@tanstack/react-router' {
       path: '/notifications'
       fullPath: '/notifications'
       preLoaderRoute: typeof NotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mollie-mock-oauth': {
+      id: '/mollie-mock-oauth'
+      path: '/mollie-mock-oauth'
+      fullPath: '/mollie-mock-oauth'
+      preLoaderRoute: typeof MollieMockOauthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -1467,6 +1500,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiShopsShopIdDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/mollie/callback': {
+      id: '/api/auth/mollie/callback'
+      path: '/api/auth/mollie/callback'
+      fullPath: '/api/auth/mollie/callback'
+      preLoaderRoute: typeof ApiAuthMollieCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/admin/payouts/$payoutId': {
       id: '/api/admin/payouts/$payoutId'
       path: '/api/admin/payouts/$payoutId'
@@ -1697,6 +1737,7 @@ const rootRouteChildren: RootRouteChildren = {
   CreatorRoute: CreatorRouteWithChildren,
   ForbiddenRoute: ForbiddenRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  MollieMockOauthRoute: MollieMockOauthRoute,
   NotificationsRoute: NotificationsRoute,
   OrdersRoute: OrdersRouteWithChildren,
   PrivacyRoute: PrivacyRoute,
@@ -1725,6 +1766,7 @@ const rootRouteChildren: RootRouteChildren = {
   SellOnboardingDraftIdRoute: SellOnboardingDraftIdRouteWithChildren,
   SellStatusShopIdRoute: SellStatusShopIdRoute,
   ApiAdminPayoutsPayoutIdRoute: ApiAdminPayoutsPayoutIdRoute,
+  ApiAuthMollieCallbackRoute: ApiAuthMollieCallbackRoute,
   ApiShopsShopIdDashboardRoute: ApiShopsShopIdDashboardRoute,
   ApiShopsShopIdOrdersRoute: ApiShopsShopIdOrdersRouteWithChildren,
   ApiShopsShopIdProductsRoute: ApiShopsShopIdProductsRouteWithChildren,

@@ -142,7 +142,7 @@ export const shop = pgTable(
     resubmissionCount: integer('resubmission_count').notNull().default(0),
 
     // Payment
-    stripeAccountId: text('stripe_account_id'),
+    mollieAccountId: text('mollie_account_id'),
     paymentConnected: boolean('payment_connected').notNull().default(false),
     paymentConnectedAt: timestamp('payment_connected_at'),
 

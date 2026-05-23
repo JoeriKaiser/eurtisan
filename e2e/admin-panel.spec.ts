@@ -64,9 +64,9 @@ test.describe('admin panel navigation', () => {
     // 1. Dashboard — verify sidebar links exist
     await page.goto('/admin')
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 10000 })
-    await expect(page.getByRole('link', { name: 'Users' })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Categories' })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Products' })).toBeVisible()
+    await expect(page.locator('aside a[href="/admin/users"]')).toBeVisible()
+    await expect(page.locator('aside a[href="/admin/categories"]')).toBeVisible()
+    await expect(page.locator('aside a[href="/admin/products"]')).toBeVisible()
 
     // 2. Users page
     await page.goto('/admin/users')

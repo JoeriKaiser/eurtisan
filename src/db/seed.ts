@@ -452,7 +452,7 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
       paymentConnected: false,
     })
 
-    // 3. Approved — admin approved, waiting for Stripe Connect
+    // 3. Approved — admin approved, waiting for Mollie Connect
     const approvedSlug = uniqueSlug('Rustic Woodworks', shopSlugs)
     shops.push({
       id: crypto.randomUUID(),

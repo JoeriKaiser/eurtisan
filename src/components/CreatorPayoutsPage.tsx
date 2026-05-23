@@ -1,7 +1,7 @@
 import { useRouter } from '@tanstack/react-router'
 import { AlertTriangle, Banknote, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useCallback, useState } from 'react'
-import type { CreatorPayoutLine } from '#/lib/payouts'
+import { type CreatorPayoutLine, getMollieConnectUrl, disconnectMollie } from '#/lib/payouts'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 import { Badge } from './ui/badge'
@@ -17,6 +17,8 @@ interface CreatorShop {
   id: string
   name: string
   slug: string
+  paymentConnected?: boolean
+  mollieAccountId?: string | null
 }
 
 interface PaginatedPayouts {
@@ -45,6 +47,43 @@ export function CreatorPayoutsPage({
   initialStatus,
 }: CreatorPayoutsPageProps) {
   const router = useRouter()
+
+  /* ---- Mollie Connect state & actions ---- */
+  const activeShop = shops.find((s) => s.id === currentShopId) || shops[0]
+  const [connectLoading, setConnectLoading] = useState(false)
+  const [disconnectLoading, setDisconnectLoading] = useState(false)
+  const [mollieError, setMollieError] = useState<string | null>(null)
+
+  const handleConnectMollie = useCallback(async () => {
+    if (!activeShop) return
+    try {
+      setConnectLoading(true)
+      setMollieError(null)
+      const res = await getMollieConnectUrl({ data: { shopId: activeShop.id } })
+      if (res.url) {
+        window.location.href = res.url
+      } else {
+        throw new Error('No redirection URL returned from the server.')
+      }
+    } catch (err: any) {
+      setMollieError(err?.message || 'Failed to connect with Mollie.')
+      setConnectLoading(false)
+    }
+  }, [activeShop])
+
+  const handleDisconnectMollie = useCallback(async () => {
+    if (!activeShop) return
+    try {
+      setDisconnectLoading(true)
+      setMollieError(null)
+      await disconnectMollie({ data: { shopId: activeShop.id } })
+      await router.invalidate()
+    } catch (err: any) {
+      setMollieError(err?.message || 'Failed to disconnect Mollie account.')
+    } finally {
+      setDisconnectLoading(false)
+    }
+  }, [activeShop, router])
 
   /* ---- Local filter state ---- */
   const [statusFilter, setStatusFilter] = useState(initialStatus)
@@ -161,6 +200,83 @@ export function CreatorPayoutsPage({
             ))}
           </select>
         </div>
+
+        {/* Mollie Connect Integration Card */}
+        {activeShop && (
+          <div className='mb-6'>
+            <Card className='relative overflow-hidden border border-border-default bg-surface-default shadow-sm transition-all duration-300 hover:border-border-strong'>
+              <div className='absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-accent-primary to-accent-secondary' />
+              <CardHeader className='pb-3 pt-5'>
+                <div className='flex items-center justify-between gap-4'>
+                  <div className='flex items-center gap-3'>
+                    <div className='flex size-10 items-center justify-center rounded-lg bg-surface-inset text-accent-primary'>
+                      <Banknote size={20} aria-hidden='true' />
+                    </div>
+                    <div>
+                      <CardTitle className='text-base font-semibold text-text-primary'>
+                        {m.creator_payouts_mollie_connect_title()}
+                      </CardTitle>
+                      <p className='text-xs text-text-muted'>
+                        Receive secure payouts in EUR via Mollie Connect
+                      </p>
+                    </div>
+                  </div>
+                  {activeShop.paymentConnected ? (
+                    <Badge variant='success' className='flex items-center gap-1.5 font-medium'>
+                      <span className='h-1.5 w-1.5 rounded-full bg-success' />
+                      {m.creator_payouts_mollie_status_connected()}
+                    </Badge>
+                  ) : (
+                    <Badge variant='warning' className='flex items-center gap-1.5 font-medium'>
+                      <span className='h-1.5 w-1.5 rounded-full bg-warning animate-pulse' />
+                      {m.creator_payouts_mollie_status_disconnected()}
+                    </Badge>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className='pb-5'>
+                {mollieError && (
+                  <div className='mb-4 flex items-start gap-2 rounded-lg border border-error/20 bg-error/5 p-3 text-sm text-error transition-all'>
+                    <AlertTriangle className='size-4 shrink-0 mt-0.5' aria-hidden='true' />
+                    <span>{mollieError}</span>
+                  </div>
+                )}
+                <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
+                  <div className='max-w-xl'>
+                    <p className='text-sm text-text-secondary leading-relaxed'>
+                      {activeShop.paymentConnected
+                        ? m.creator_payouts_mollie_connect_description_connected({
+                            merchantId: activeShop.mollieAccountId || '',
+                          })
+                        : m.creator_payouts_mollie_connect_description_disconnected()}
+                    </p>
+                  </div>
+                  <div className='flex shrink-0 items-center gap-3'>
+                    {activeShop.paymentConnected ? (
+                      <Button
+                        variant='danger'
+                        onClick={handleDisconnectMollie}
+                        isLoading={disconnectLoading}
+                        disabled={connectLoading}
+                      >
+                        {m.creator_payouts_mollie_disconnect_btn()}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant='primary'
+                        onClick={handleConnectMollie}
+                        isLoading={connectLoading}
+                        disabled={disconnectLoading}
+                      >
+                        {m.creator_payouts_mollie_connect_btn()}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Summary Cards */}
         <div className='mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2'>

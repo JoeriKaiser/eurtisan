@@ -45,3 +45,54 @@ export const listCreatorPayouts = createServerFn({ method: 'GET' })
       status: data.status,
     })
   })
+
+/**
+ * Returns the Mollie Connect authorization URL.
+ */
+export const getMollieConnectUrl = createServerFn({ method: 'POST' })
+  .middleware([authMiddleware])
+  .inputValidator(z.object({ shopId: z.string().min(1) }))
+  .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Response(
+        JSON.stringify({ error: 'Unauthorized', message: 'Authentication required.' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const { requireRole, requireShopOwnership } = await import('./authz')
+    let ctx = requireRole('creator')({
+      user: context.user as never,
+      session: {} as never,
+    })
+    ctx = await requireShopOwnership(ctx, data.shopId)
+
+    const { getMollieConnectUrlQuery } = await import('./payouts.server')
+    const url = await getMollieConnectUrlQuery(data.shopId)
+    return { url }
+  })
+
+/**
+ * Disconnects the connected Mollie account.
+ */
+export const disconnectMollie = createServerFn({ method: 'POST' })
+  .middleware([authMiddleware])
+  .inputValidator(z.object({ shopId: z.string().min(1) }))
+  .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Response(
+        JSON.stringify({ error: 'Unauthorized', message: 'Authentication required.' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const { requireRole, requireShopOwnership } = await import('./authz')
+    let ctx = requireRole('creator')({
+      user: context.user as never,
+      session: {} as never,
+    })
+    ctx = await requireShopOwnership(ctx, data.shopId)
+
+    const { disconnectMollieQuery } = await import('./payouts.server')
+    return disconnectMollieQuery(data.shopId)
+  })

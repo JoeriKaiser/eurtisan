@@ -55,6 +55,7 @@ export function ShopOrdersPage() {
     (updates: { status?: string; search?: string; page?: number }) => {
       navigate({
         to: '/studio/$shopId/orders',
+        params: { shopId },
         search: (prev: Record<string, unknown>) => {
           const next: Record<string, unknown> = { ...prev }
           if (updates.status !== undefined) {
@@ -73,7 +74,7 @@ export function ShopOrdersPage() {
         },
       })
     },
-    [navigate],
+    [navigate, shopId],
   )
 
   const handleSearchSubmit = useCallback(() => {

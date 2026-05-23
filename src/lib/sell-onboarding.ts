@@ -250,7 +250,7 @@ export interface ShopDraft {
   reviewedAt: Date | null
   reviewedBy: string | null
   resubmissionCount: number
-  stripeAccountId: string | null
+  mollieAccountId: string | null
   paymentConnected: boolean
   paymentConnectedAt: Date | null
   ownerId: string

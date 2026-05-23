@@ -6,6 +6,8 @@ export interface CreatorShop {
   id: string
   name: string
   slug: string
+  paymentConnected?: boolean
+  mollieAccountId?: string | null
 }
 
 export interface ShippingOrigin {
@@ -139,7 +141,13 @@ export async function getCreatorDashboardStatsQuery(
 
 export async function getCreatorShopsQuery(userId: string): Promise<CreatorShop[]> {
   return db
-    .select({ id: shop.id, name: shop.name, slug: shop.slug })
+    .select({
+      id: shop.id,
+      name: shop.name,
+      slug: shop.slug,
+      paymentConnected: shop.paymentConnected,
+      mollieAccountId: shop.mollieAccountId,
+    })
     .from(shop)
     .where(eq(shop.ownerId, userId))
     .orderBy(shop.name)

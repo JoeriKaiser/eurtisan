@@ -325,3 +325,43 @@ export async function listCreatorPayoutsQuery(
     totalPages: Math.ceil(total / pageSize),
   }
 }
+
+/**
+ * Generates the Mollie Connect authorization URL or a local mock OAuth page redirect if keys are not set.
+ */
+export async function getMollieConnectUrlQuery(shopId: string): Promise<string> {
+  const mollieClientId = process.env.MOLLIE_CLIENT_ID
+  const { getBaseUrl } = await import('./env.server')
+  const baseUrl = getBaseUrl()
+  const redirectUri = `${baseUrl}/api/auth/mollie/callback`
+  const state = shopId
+
+  if (!mollieClientId) {
+    return `${baseUrl}/mollie-mock-oauth?shopId=${encodeURIComponent(shopId)}&redirect_uri=${encodeURIComponent(redirectUri)}`
+  }
+
+  const scopes = encodeURIComponent(
+    ['payments.write', 'refunds.write', 'organizations.read', 'profiles.read', 'payouts.read'].join(
+      ' ',
+    ),
+  )
+
+  return `https://www.mollie.com/oauth/authorize?client_id=${mollieClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(state)}&scope=${scopes}&response_type=code&approval_prompt=auto`
+}
+
+/**
+ * Disconnects a shop's connected Mollie account.
+ */
+export async function disconnectMollieQuery(shopId: string): Promise<{ success: boolean }> {
+  await db
+    .update(shop)
+    .set({
+      mollieAccountId: null,
+      paymentConnected: false,
+      paymentConnectedAt: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(shop.id, shopId))
+
+  return { success: true }
+}

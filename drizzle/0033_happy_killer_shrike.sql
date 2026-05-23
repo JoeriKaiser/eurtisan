@@ -1,0 +1,1 @@
+ALTER TABLE "shop" RENAME COLUMN "stripe_account_id" TO "mollie_account_id";

@@ -232,6 +232,13 @@
       "when": 1779309682905,
       "tag": "0032_new_scalphunter",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1779573339963,
+      "tag": "0033_happy_killer_shrike",
+      "breakpoints": true
     }
   ]
 }
