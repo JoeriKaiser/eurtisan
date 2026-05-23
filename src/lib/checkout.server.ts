@@ -92,6 +92,14 @@ export interface ShippingAddress {
   city: string
   postalCode: string
   country: string
+  pickupPoint?: {
+    id: string
+    name: string
+    street: string
+    postalCode: string
+    city: string
+    country: string
+  }
 }
 
 export interface CheckoutInput {

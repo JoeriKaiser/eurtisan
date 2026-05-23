@@ -14,12 +14,22 @@ export type {
   ShippingSelection,
 } from './checkout.server'
 
+const pickupPointSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  street: z.string().min(1),
+  postalCode: z.string().min(1),
+  city: z.string().min(1),
+  country: z.string().min(1),
+})
+
 const shippingAddressSchema = z.object({
   name: z.string().min(1).max(255),
   street: z.string().min(1).max(255),
   city: z.string().min(1).max(255),
   postalCode: z.string().min(1).max(50),
   country: z.string().min(1).max(100),
+  pickupPoint: pickupPointSchema.optional(),
 })
 
 export const checkoutInputSchema = z.object({

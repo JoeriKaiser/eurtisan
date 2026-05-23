@@ -273,6 +273,27 @@ export default function BuyerOrderDetailPage({
                 {order.shippingAddress.postalCode} {order.shippingAddress.city}
               </p>
               <p>{order.shippingAddress.country}</p>
+              {order.shippingAddress.pickupPoint && (
+                <div className='mt-3 p-3 rounded-lg border border-accent-secondary/20 bg-surface-inset not-italic'>
+                  <p className='text-[10px] font-bold text-accent-primary uppercase tracking-wider mb-1'>
+                    Mondial Relay Pick-up Point
+                  </p>
+                  <p className='font-semibold text-text-primary'>
+                    {order.shippingAddress.pickupPoint.name}
+                  </p>
+                  <p className='text-xs text-text-secondary'>
+                    {order.shippingAddress.pickupPoint.street}
+                  </p>
+                  <p className='text-xs text-text-secondary'>
+                    {order.shippingAddress.pickupPoint.postalCode}{' '}
+                    {order.shippingAddress.pickupPoint.city},{' '}
+                    {order.shippingAddress.pickupPoint.country}
+                  </p>
+                  <p className='text-[10px] text-text-muted mt-1.5 font-mono'>
+                    ID: {order.shippingAddress.pickupPoint.id}
+                  </p>
+                </div>
+              )}
             </address>
           </div>
 

@@ -491,6 +491,26 @@ export function ShopOrderDetailPage() {
                     </span>
                   )}
                 </div>
+                {shippingAddress.pickupPoint && (
+                  <div className='mt-3 p-3 rounded-lg border border-accent-secondary/20 bg-surface-inset not-italic'>
+                    <p className='text-[10px] font-bold text-accent-primary uppercase tracking-wider mb-1'>
+                      Mondial Relay Pick-up Point
+                    </p>
+                    <p className='font-semibold text-text-primary text-sm'>
+                      {shippingAddress.pickupPoint.name}
+                    </p>
+                    <p className='text-xs text-text-secondary'>
+                      {shippingAddress.pickupPoint.street}
+                    </p>
+                    <p className='text-xs text-text-secondary'>
+                      {shippingAddress.pickupPoint.postalCode} {shippingAddress.pickupPoint.city},{' '}
+                      {shippingAddress.pickupPoint.country}
+                    </p>
+                    <p className='text-[10px] text-text-muted mt-1.5 font-mono'>
+                      ID: {shippingAddress.pickupPoint.id}
+                    </p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

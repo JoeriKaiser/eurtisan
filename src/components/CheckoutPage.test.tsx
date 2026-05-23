@@ -68,6 +68,41 @@ function makeSummary(overrides?: Partial<Parameters<typeof CheckoutPage>[0]['sum
             costCents: 500,
             label: 'Standard',
             rateId: 'rate-std-1',
+            carrier: 'dhl',
+            serviceName: 'DHL Standard',
+            estimatedDays: { min: 2, max: 4 },
+            fallback: false,
+          },
+          {
+            method: 'express' as const,
+            costCents: 1000,
+            label: 'Express',
+            rateId: 'rate-xpr-1',
+            carrier: 'dhl',
+            serviceName: 'DHL Express',
+            estimatedDays: { min: 1, max: 1 },
+            fallback: false,
+          },
+        ],
+      },
+    ],
+    grandTotalCents: 2000,
+    ...overrides,
+  }
+}
+
+function makeMondialSummary(overrides?: Partial<Parameters<typeof CheckoutPage>[0]['summary']>) {
+  return {
+    ...makeSummary(),
+    shops: [
+      {
+        ...makeSummary().shops[0],
+        shippingOptions: [
+          {
+            method: 'standard' as const,
+            costCents: 500,
+            label: 'Standard',
+            rateId: 'rate-std-1',
             carrier: 'mondial_relay',
             serviceName: 'Mondial Relay Standard',
             estimatedDays: { min: 2, max: 4 },
@@ -86,7 +121,6 @@ function makeSummary(overrides?: Partial<Parameters<typeof CheckoutPage>[0]['sum
         ],
       },
     ],
-    grandTotalCents: 2000,
     ...overrides,
   }
 }
@@ -120,8 +154,8 @@ describe('CheckoutPage', () => {
     expect(shopHeadings.length).toBeGreaterThanOrEqual(1)
 
     // Carrier name and service names (appear in both shipping options and sidebar summary)
-    expect(screen.getAllByText('Mondial Relay Standard').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('Mondial Relay Express').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('DHL Standard').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('DHL Express').length).toBeGreaterThanOrEqual(1)
 
     // Estimated delivery days
     expect(screen.getByText('2–4 business days')).toBeDefined()
@@ -156,7 +190,7 @@ describe('CheckoutPage', () => {
   it('allows selecting different shipping options', () => {
     render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
     // Click the express radio (label text includes carrier/estimated days, so use regex)
-    const expressRadio = screen.getByLabelText(/Mondial Relay Express/i)
+    const expressRadio = screen.getByLabelText(/DHL Express/i)
     fireEvent.click(expressRadio)
     // Verify the radio is checked
     expect(expressRadio).toHaveProperty('checked', true)
@@ -270,7 +304,7 @@ describe('CheckoutPage', () => {
     // Standard shipping: 2000 + 500 = 2500
     expect(screen.getAllByText('€25,00').length).toBeGreaterThanOrEqual(1)
 
-    fireEvent.click(screen.getByLabelText(/Mondial Relay Express/i))
+    fireEvent.click(screen.getByLabelText(/DHL Express/i))
     // Express shipping: 2000 + 1000 = 3000
     expect(screen.getAllByText('€30,00').length).toBeGreaterThanOrEqual(1)
   })
@@ -299,8 +333,8 @@ describe('CheckoutPage', () => {
               costCents: 500,
               label: 'Standard',
               rateId: 'rate-a-std',
-              carrier: 'mondial_relay',
-              serviceName: 'Mondial Relay Standard',
+              carrier: 'dhl',
+              serviceName: 'DHL Standard',
               estimatedDays: { min: 2, max: 4 },
               fallback: false,
             },
@@ -327,8 +361,8 @@ describe('CheckoutPage', () => {
               costCents: 500,
               label: 'Standard',
               rateId: 'rate-b-std',
-              carrier: 'mondial_relay',
-              serviceName: 'Mondial Relay Standard',
+              carrier: 'dhl',
+              serviceName: 'DHL Standard',
               estimatedDays: { min: 2, max: 4 },
               fallback: false,
             },
@@ -374,5 +408,57 @@ describe('CheckoutPage', () => {
 
     render(<CheckoutPage summary={summary} cartId='cart-1' />)
     expect(screen.getAllByText('Manual shipping — contact seller').length).toBeGreaterThanOrEqual(1)
+  })
+
+  describe('Mondial Relay Integration', () => {
+    it('renders Mondial Relay pick-up point selection section and warning banner when Mondial Relay is selected', () => {
+      render(<CheckoutPage summary={makeMondialSummary()} cartId='cart-1' />)
+      expect(screen.getByText('Mondial Relay Pick-up Point')).toBeDefined()
+      expect(screen.getByText('Please select a pick-up point before placing your order.')).toBeDefined()
+      // Submit button should be disabled
+      const submitBtn = screen.getByRole('button', { name: 'Confirm purchase' })
+      expect(submitBtn).toHaveProperty('disabled', true)
+    })
+
+    it('opens pick-up point selector modal and allows selecting a point', async () => {
+      render(<CheckoutPage summary={makeMondialSummary()} cartId='cart-1' />)
+
+      // Initially, no pickup point is shown
+      expect(screen.queryByText('Locker Mondial Relay - Auchan')).toBeNull()
+
+      // Fill in postal code and country to avoid empty required fields in modal search
+      fireEvent.change(screen.getByLabelText('Postal code'), { target: { value: '75001' } })
+      fireEvent.change(screen.getByLabelText('Country'), { target: { value: 'FR' } })
+
+      // Click Select Pick-up Point button
+      fireEvent.click(screen.getByRole('button', { name: 'Select Pick-up Point' }))
+
+      // Verify the dialog is visible and shows details
+      expect(screen.getByRole('dialog')).toBeDefined()
+      expect(screen.getByRole('heading', { name: 'Select Mondial Relay Pick-up Point' })).toBeDefined()
+
+      // Click Search in the modal
+      fireEvent.click(screen.getByRole('button', { name: 'Search' }))
+
+      // Now the mock pickup points should be displayed
+      expect(screen.getByText('Locker Mondial Relay - Auchan')).toBeDefined()
+      expect(screen.getByText('25 Rue de Rivoli')).toBeDefined()
+
+      // Click Select on the first pick-up point
+      const selectButtons = screen.getAllByRole('button', { name: 'Select' })
+      fireEvent.click(selectButtons[0])
+
+      // The modal should close and the selected point details should be rendered on the main page
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull()
+        expect(screen.getByText('Locker Mondial Relay - Auchan')).toBeDefined()
+        expect(screen.getByText('25 Rue de Rivoli')).toBeDefined()
+        // The warning banner should be gone
+        expect(screen.queryByText('Please select a pick-up point before placing your order.')).toBeNull()
+        // Submit button should be enabled
+        const submitBtn = screen.getByRole('button', { name: 'Confirm purchase' })
+        expect(submitBtn).toHaveProperty('disabled', false)
+      })
+    })
   })
 })

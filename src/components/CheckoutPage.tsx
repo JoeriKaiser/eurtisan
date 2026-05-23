@@ -1,9 +1,17 @@
-import { useForm } from '@tanstack/react-form'
+import { formOptions, useForm } from '@tanstack/react-form'
 import { Loader2, MapPin, Package, Truck } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import z from 'zod'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
+import {
+  Dialog,
+  DialogBackdrop,
+  DialogDescription,
+  DialogPopup,
+  DialogPortal,
+  DialogTitle,
+} from '#/components/ui/primitives/dialog'
 import { createCheckout, getCheckoutSummary } from '#/lib/checkout'
 import type { CheckoutShopGroup, CheckoutSummary, ShippingOption } from '#/lib/checkout.server'
 import { formatPriceEUR } from '#/lib/pricing'
@@ -20,12 +28,22 @@ export interface CheckoutPageProps {
   cartId: string
 }
 
+const pickupPointSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  street: z.string().min(1),
+  postalCode: z.string().min(1),
+  city: z.string().min(1),
+  country: z.string().min(1),
+})
+
 const shippingAddressSchema = z.object({
   name: z.string().min(1, m.checkout_error_name_required()).max(255),
   street: z.string().min(1, m.checkout_error_street_required()).max(255),
   city: z.string().min(1, m.checkout_error_city_required()).max(255),
   postalCode: z.string().min(1, m.checkout_error_postal_required()).max(50),
   country: z.string().min(1, m.checkout_error_country_required()).max(100),
+  pickupPoint: pickupPointSchema.optional(),
 })
 
 const checkoutFormSchema = z
@@ -98,52 +116,75 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
 
   const defaultShippingSelections = currentSummary.shops.map(getDefaultShippingSelection)
 
-  const form = useForm({
-    defaultValues: {
-      shippingAddress: {
-        name: '',
-        street: '',
-        city: '',
-        postalCode: '',
-        country: '',
+  const form = useForm(
+    formOptions({
+      defaultValues: {
+        shippingAddress: {
+          name: '',
+          street: '',
+          city: '',
+          postalCode: '',
+          country: '',
+          pickupPoint: undefined,
+        },
+        billingAddress: {
+          name: '',
+          street: '',
+          city: '',
+          postalCode: '',
+          country: '',
+        },
+        sameAsShipping: true as boolean,
+        shippingSelections: defaultShippingSelections,
+      } as CheckoutFormValues,
+      validators: {
+        onChange: checkoutFormSchema,
+        onSubmit: checkoutFormSchema,
       },
-      billingAddress: {
-        name: '',
-        street: '',
-        city: '',
-        postalCode: '',
-        country: '',
-      },
-      sameAsShipping: true as boolean,
-      shippingSelections: defaultShippingSelections,
-    } satisfies CheckoutFormValues,
-    validators: {
-      onChange: checkoutFormSchema,
-      onSubmit: checkoutFormSchema,
-    },
-    onSubmit: async ({ value }) => {
-      setSubmitError(null)
-      try {
-        const billingAddress = value.sameAsShipping ? value.shippingAddress : value.billingAddress
-        const result = await createCheckout({
-          data: {
-            cartId,
-            shippingAddress: value.shippingAddress,
-            billingAddress,
-            shippingSelections: value.shippingSelections,
-          },
-        })
-        window.location.href = result.checkoutUrl
-      } catch (err) {
-        if (err instanceof Response) {
-          const body = await err.json().catch(() => ({}))
-          setSubmitError(body.message || m.checkout_error_submit())
-        } else {
-          setSubmitError(m.checkout_error_submit())
+      onSubmit: async ({ value }) => {
+        setSubmitError(null)
+        try {
+          const billingAddress = value.sameAsShipping ? value.shippingAddress : value.billingAddress
+          const result = await createCheckout({
+            data: {
+              cartId,
+              shippingAddress: value.shippingAddress,
+              billingAddress,
+              shippingSelections: value.shippingSelections,
+            },
+          })
+          window.location.href = result.checkoutUrl
+        } catch (err) {
+          if (err instanceof Response) {
+            const body = await err.json().catch(() => ({}))
+            setSubmitError(body.message || m.checkout_error_submit())
+          } else {
+            setSubmitError(m.checkout_error_submit())
+          }
         }
-      }
-    },
+      },
+    }),
+  )
+
+  // Mondial Relay Pick-up Point state and selection tracking
+  const [pickupPointModalOpen, setPickupPointModalOpen] = useState(false)
+
+  const shippingSelections = form.state.values.shippingSelections
+  const hasMondialRelaySelection = shippingSelections.some((sel, idx) => {
+    const shopGroup = currentSummary.shops[idx]
+    if (!shopGroup) return false
+    const selectedOption = shopGroup.shippingOptions.find(
+      (opt) => opt.rateId === sel.rateId && opt.method === sel.method,
+    )
+    return selectedOption?.carrier === 'mondial_relay'
   })
+
+  const selectedPickupPoint = form.state.values.shippingAddress.pickupPoint
+  useEffect(() => {
+    if (!hasMondialRelaySelection && selectedPickupPoint) {
+      form.setFieldValue('shippingAddress.pickupPoint', undefined)
+    }
+  }, [hasMondialRelaySelection, selectedPickupPoint, form])
 
   // -----------------------------------------------------------------------
   // Fetch shipping rates when relevant address fields change and are valid
@@ -664,6 +705,63 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
             </div>
           </section>
 
+          {/* Mondial Relay Pick-up Point Section */}
+          {hasMondialRelaySelection && (
+            <section className='island-shell rounded-2xl p-4 sm:p-6 border border-accent-secondary/30 bg-surface-default shadow-sm relative overflow-hidden'>
+              <div className='absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-accent-primary to-accent-secondary' />
+              <div className='mb-4 flex items-center gap-2'>
+                <Truck size={18} className='text-accent-primary' aria-hidden='true' />
+                <h2 className='text-lg font-semibold text-text-primary'>
+                  Mondial Relay Pick-up Point
+                </h2>
+              </div>
+
+              {selectedPickupPoint ? (
+                <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-4 rounded-xl border border-success/30 bg-success/5'>
+                  <div>
+                    <h3 className='text-sm font-semibold text-text-primary flex items-center gap-1.5'>
+                      <span className='h-2 w-2 rounded-full bg-success animate-pulse' />
+                      {selectedPickupPoint.name}
+                    </h3>
+                    <p className='text-xs text-text-secondary mt-1'>{selectedPickupPoint.street}</p>
+                    <p className='text-xs text-text-secondary'>
+                      {selectedPickupPoint.postalCode} {selectedPickupPoint.city},{' '}
+                      {selectedPickupPoint.country}
+                    </p>
+                    <span className='inline-block text-[10px] font-mono bg-bg-inset text-text-secondary px-1.5 py-0.5 rounded mt-2'>
+                      ID: {selectedPickupPoint.id}
+                    </span>
+                  </div>
+                  <Button
+                    type='button'
+                    variant='secondary'
+                    onClick={() => setPickupPointModalOpen(true)}
+                  >
+                    Change Pick-up Point
+                  </Button>
+                </div>
+              ) : (
+                <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-4 rounded-xl border border-warning/30 bg-warning/5'>
+                  <div>
+                    <h3 className='text-sm font-semibold text-warning-strong'>
+                      No Pick-up Point Selected
+                    </h3>
+                    <p className='text-xs text-text-secondary mt-1'>
+                      Please choose a pick-up point location to complete your order.
+                    </p>
+                  </div>
+                  <Button
+                    type='button'
+                    variant='primary'
+                    onClick={() => setPickupPointModalOpen(true)}
+                  >
+                    Select Pick-up Point
+                  </Button>
+                </div>
+              )}
+            </section>
+          )}
+
           {/* Order items */}
           <section className='island-shell rounded-2xl p-4 sm:p-6'>
             <div className='mb-4 flex items-center gap-2'>
@@ -791,28 +889,254 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
             )}
 
             <form.Subscribe selector={(state) => state.isSubmitting}>
-              {(isSubmitting) => (
-                <Button
-                  type='submit'
-                  size='lg'
-                  className='mt-6 w-full'
-                  isLoading={isSubmitting}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 size={16} className='animate-spin' aria-hidden='true' />
-                      {m.checkout_confirm_loading()}
-                    </>
-                  ) : (
-                    m.checkout_confirm_button()
-                  )}
-                </Button>
-              )}
+              {(isSubmitting) => {
+                const disableSubmit =
+                  isSubmitting || (hasMondialRelaySelection && !selectedPickupPoint)
+                return (
+                  <>
+                    <Button
+                      type='submit'
+                      size='lg'
+                      className='mt-6 w-full'
+                      isLoading={isSubmitting}
+                      disabled={disableSubmit}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 size={16} className='animate-spin' aria-hidden='true' />
+                          {m.checkout_confirm_loading()}
+                        </>
+                      ) : (
+                        m.checkout_confirm_button()
+                      )}
+                    </Button>
+                    {hasMondialRelaySelection && !selectedPickupPoint && (
+                      <p className='mt-2.5 text-xs text-error text-center' role='alert'>
+                        Please select a pick-up point before placing your order.
+                      </p>
+                    )}
+                  </>
+                )
+              }}
             </form.Subscribe>
           </section>
         </div>
       </form>
+
+      <PickupPointSelectorModal
+        open={pickupPointModalOpen}
+        onOpenChange={setPickupPointModalOpen}
+        postalCode={form.state.values.shippingAddress.postalCode || ''}
+        country={form.state.values.shippingAddress.country || 'FR'}
+        onSelect={(point) => {
+          form.setFieldValue('shippingAddress.pickupPoint', point)
+        }}
+      />
     </main>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+/*                        Mondial Relay Selector Modal                        */
+/* -------------------------------------------------------------------------- */
+
+interface MockPickupPoint {
+  id: string
+  name: string
+  street: string
+  postalCode: string
+  city: string
+  country: string
+  distance: string
+}
+
+function getMockPickupPoints(postalCode: string, country: string): MockPickupPoint[] {
+  const cleanPc = (postalCode || '75001').trim()
+  const cleanCountry = (country || 'FR').toUpperCase()
+
+  if (cleanCountry === 'DE') {
+    return [
+      {
+        id: `DE-${cleanPc}-01`,
+        name: 'Mondial Relay Schließfach - Edeka',
+        street: 'Friedrichstraße 50',
+        postalCode: cleanPc,
+        city: 'Berlin',
+        country: 'DE',
+        distance: '0.2 km',
+      },
+      {
+        id: `DE-${cleanPc}-02`,
+        name: 'Späti 24 Kiosk',
+        street: 'Kottbusser Damm 12',
+        postalCode: cleanPc,
+        city: 'Berlin',
+        country: 'DE',
+        distance: '0.6 km',
+      },
+      {
+        id: `DE-${cleanPc}-03`,
+        name: 'Blumenhaus Edelweiß',
+        street: 'Karl-Marx-Allee 85',
+        postalCode: cleanPc,
+        city: 'Berlin',
+        country: 'DE',
+        distance: '1.1 km',
+      },
+    ]
+  }
+
+  return [
+    {
+      id: `${cleanCountry}-${cleanPc}-01`,
+      name: 'Locker Mondial Relay - Auchan',
+      street: '25 Rue de Rivoli',
+      postalCode: cleanPc,
+      city: 'Paris',
+      country: cleanCountry,
+      distance: '0.4 km',
+    },
+    {
+      id: `${cleanCountry}-${cleanPc}-02`,
+      name: 'Épicerie du Coin (Relais Colis)',
+      street: '14 Rue Saint-Denis',
+      postalCode: cleanPc,
+      city: 'Paris',
+      country: cleanCountry,
+      distance: '0.8 km',
+    },
+    {
+      id: `${cleanCountry}-${cleanPc}-03`,
+      name: 'Pressing de la Mairie',
+      street: '88 Boulevard Voltaire',
+      postalCode: cleanPc,
+      city: 'Paris',
+      country: cleanCountry,
+      distance: '1.5 km',
+    },
+  ]
+}
+
+export function PickupPointSelectorModal({
+  open,
+  onOpenChange,
+  postalCode: initialPostalCode,
+  country: initialCountry,
+  onSelect,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  postalCode: string
+  country: string
+  onSelect: (point: MockPickupPoint) => void
+}) {
+  const [searchPostalCode, setSearchPostalCode] = useState(initialPostalCode)
+  const [searchCountry, setSearchCountry] = useState(initialCountry)
+  const [points, setPoints] = useState<MockPickupPoint[]>([])
+  const [hasSearched, setHasSearched] = useState(false)
+
+  useEffect(() => {
+    if (open) {
+      setSearchPostalCode(initialPostalCode)
+      setSearchCountry(initialCountry)
+      setPoints([])
+      setHasSearched(false)
+    }
+  }, [open, initialPostalCode, initialCountry])
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    const results = getMockPickupPoints(searchPostalCode, searchCountry)
+    setPoints(results)
+    setHasSearched(true)
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {open && (
+        <DialogPortal>
+          <DialogBackdrop />
+          <DialogPopup className='w-full max-w-lg'>
+            <DialogTitle className='text-lg font-semibold text-text-primary mb-2'>
+              Select Mondial Relay Pick-up Point
+            </DialogTitle>
+            <DialogDescription className='text-sm text-text-secondary mb-4'>
+              Search and select a convenient parcel locker or shop for delivery.
+            </DialogDescription>
+
+            <form onSubmit={handleSearch} className='flex gap-3 mb-6'>
+              <div className='flex-1'>
+                <Input
+                  value={searchPostalCode}
+                  onChange={(e) => setSearchPostalCode(e.target.value)}
+                  placeholder='Postal code'
+                  className='h-10'
+                  required
+                />
+              </div>
+              <div className='w-32'>
+                <Input
+                  value={searchCountry}
+                  onChange={(e) => setSearchCountry(e.target.value.toUpperCase())}
+                  placeholder='Country'
+                  className='h-10'
+                  maxLength={2}
+                  required
+                />
+              </div>
+              <Button type='submit'>Search</Button>
+            </form>
+
+            <div className='space-y-3 max-h-72 overflow-y-auto pr-1'>
+              {points.map((point) => (
+                <div
+                  key={point.id}
+                  className='flex items-start justify-between gap-4 p-3.5 rounded-xl border border-border-default hover:border-border-strong bg-surface-default transition-colors'
+                >
+                  <div className='flex-1'>
+                    <h4 className='text-sm font-semibold text-text-primary'>{point.name}</h4>
+                    <p className='text-xs text-text-secondary mt-1'>{point.street}</p>
+                    <p className='text-xs text-text-secondary'>
+                      {point.postalCode} {point.city}, {point.country}
+                    </p>
+                    <span className='inline-block text-[11px] font-medium bg-bg-inset text-text-secondary px-1.5 py-0.5 rounded mt-2'>
+                      {point.distance} away
+                    </span>
+                  </div>
+                  <Button
+                    size='sm'
+                    variant='secondary'
+                    onClick={() => {
+                      onSelect(point)
+                      onOpenChange(false)
+                    }}
+                  >
+                    Select
+                  </Button>
+                </div>
+              ))}
+
+              {hasSearched && points.length === 0 && (
+                <p className='text-sm text-text-muted italic text-center py-6'>
+                  No pick-up points found for this area.
+                </p>
+              )}
+
+              {!hasSearched && (
+                <p className='text-sm text-text-muted italic text-center py-6'>
+                  Enter a postal code and click search.
+                </p>
+              )}
+            </div>
+
+            <div className='mt-6 flex justify-end'>
+              <Button variant='ghost' onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+            </div>
+          </DialogPopup>
+        </DialogPortal>
+      )}
+    </Dialog>
   )
 }
