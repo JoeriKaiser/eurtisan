@@ -452,7 +452,7 @@ export function AdminAuditLogPage() {
             <select
               value={pageSize}
               onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-              className='h-8 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none cursor-pointer'
+              className='h-6 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none cursor-pointer'
               aria-label={m.admin_shops_page_size_label()}
             >
               {PAGE_SIZES.map((size) => (

@@ -176,7 +176,7 @@ function StatCard({
         <CardHeader className='pb-2'>
           <div className='flex items-center justify-between'>
             <CardTitle className='text-sm font-medium text-text-secondary'>{title}</CardTitle>
-            <div className='flex h-8 w-8 items-center justify-center rounded-full bg-surface-inset text-text-muted'>
+            <div className='flex h-6 w-6 items-center justify-center rounded-full bg-surface-inset text-text-muted'>
               {icon}
             </div>
           </div>

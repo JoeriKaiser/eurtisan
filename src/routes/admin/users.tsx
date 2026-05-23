@@ -408,7 +408,7 @@ export function AdminUsersPage() {
                 <tr key={u.id} className='group hover:bg-bg-inset/40 transition-colors'>
                   <td className='py-3 pr-4'>
                     <div className='flex items-center gap-3'>
-                      <div className='flex h-8 w-8 items-center justify-center rounded-full bg-surface-inset border border-border-subtle flex-shrink-0'>
+                      <div className='flex h-6 w-6 items-center justify-center rounded-full bg-surface-inset border border-border-subtle flex-shrink-0'>
                         {u.bannedAt ? (
                           <UserX size={14} className='text-error' aria-hidden='true' />
                         ) : (
@@ -505,7 +505,7 @@ export function AdminUsersPage() {
             <select
               value={users.pageSize}
               onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-              className='h-8 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none cursor-pointer'
+              className='h-6 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none cursor-pointer'
               aria-label={m.admin_shops_page_size_label()}
             >
               {PAGE_SIZES.map((size) => (

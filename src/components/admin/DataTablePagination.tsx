@@ -42,7 +42,7 @@ export function DataTablePagination({
         <select
           value={pageSize}
           onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          className='h-8 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none cursor-pointer'
+          className='h-6 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none cursor-pointer'
           aria-label={m.admin_shops_page_size_label()}
         >
           {pageSizeOptions.map((size) => (

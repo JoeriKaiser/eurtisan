@@ -529,7 +529,7 @@ export function CreatorProductsPage({
                   id='creator-products-page-size'
                   value={initialSearch.pageSize}
                   onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                  className='h-8 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary'
+                  className='h-6 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary'
                 >
                   {[10, 20, 50, 100].map((size) => (
                     <option key={size} value={size}>

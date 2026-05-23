@@ -7,6 +7,7 @@ import { m } from '#/paraglide/messages'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Skeleton } from './ui/skeleton'
+import { Switch } from './ui/switch'
 
 /* -------------------------------------------------------------------------- */
 /*                                    Types                                   */
@@ -626,21 +627,7 @@ function ProductNewForm({
 
               {/* Active toggle */}
               <div className='flex items-center gap-3'>
-                <button
-                  type='button'
-                  role='switch'
-                  aria-checked={isActive}
-                  onClick={() => setIsActive(!isActive)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-fast ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary/20 ${
-                    isActive ? 'bg-accent-primary' : 'bg-surface-inset border border-border-default'
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-fast ease-out ${
-                      isActive ? 'translate-x-6' : 'translate-x-1'
-                    }`}
-                  />
-                </button>
+                <Switch checked={isActive} onCheckedChange={setIsActive} />
                 <span className='text-sm text-text-primary'>
                   {isActive
                     ? m.creator_product_new_active_label()

@@ -1,3 +1,4 @@
+import { getRouteApi } from '@tanstack/react-router'
 import { authClient } from './auth-client'
 import type { UserRole } from './authz'
 
@@ -32,9 +33,12 @@ function extractRole(user: unknown): UserRole {
  * Uses better-auth's useSession under the hood.
  */
 export function useAuth(): AuthState {
+  const rootData = getRouteApi('__root__').useLoaderData()
+  const rootUser = rootData?.user ?? null
+
   const { data: session, isPending } = authClient.useSession()
 
-  const user = session?.user
+  const activeUser = session?.user
     ? ({
         id: session.user.id,
         name: session.user.name,
@@ -45,9 +49,12 @@ export function useAuth(): AuthState {
       } as AuthState['user'])
     : null
 
+  const user = activeUser || (session === null ? null : rootUser)
+  const isAuthPending = isPending && !activeUser && !rootUser
+
   return {
     user,
-    isPending,
+    isPending: isAuthPending,
     isAuthenticated: !!user,
   }
 }

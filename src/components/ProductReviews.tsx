@@ -190,7 +190,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
           >
             <div className='flex items-center justify-between gap-4 mb-2'>
               <div className='flex items-center gap-2 min-w-0'>
-                <div className='flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[var(--ds-accent-primary-subtle)] text-sm font-semibold text-[var(--ds-accent-primary)]'>
+                <div className='flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-[var(--ds-accent-primary-subtle)] text-sm font-semibold text-[var(--ds-accent-primary)]'>
                   {review.buyerName.charAt(0).toUpperCase()}
                 </div>
                 <span className='truncate text-sm font-medium text-[var(--ds-text-primary)]'>

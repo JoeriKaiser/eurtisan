@@ -23,6 +23,10 @@ const mockUseCart = vi.fn()
 const mockUseAuth = vi.fn()
 const mockUseUnreadNotificationCount = vi.fn()
 const mockUseLocation = vi.fn(() => ({ pathname: '/about' }))
+const mockUseLoaderData = vi.fn(() => ({
+  categories: [] as { id: string; name: string; slug: string }[],
+  user: null as unknown,
+}))
 const mockListCategories = vi.fn(() =>
   Promise.resolve<{ id: string; name: string; slug: string }[]>([]),
 )
@@ -45,9 +49,17 @@ vi.mock('@tanstack/react-router', () => ({
   ),
   useRouter: () => ({
     navigate: mockNavigate,
+    state: {
+      location: {
+        pathname: mockUseLocation().pathname,
+      },
+    },
   }),
   useLocation: () => mockUseLocation(),
   useNavigate: () => mockNavigate,
+  getRouteApi: () => ({
+    useLoaderData: () => mockUseLoaderData(),
+  }),
 }))
 
 vi.mock('#/paraglide/messages', () => ({
@@ -57,6 +69,12 @@ vi.mock('#/paraglide/messages', () => ({
     nav_home: () => 'Home',
     nav_about: () => 'About',
     nav_categories: () => 'Categories',
+    nav_profile: () => 'Profile',
+    nav_start_selling: () => 'Start Selling',
+    nav_my_shop: () => 'My Shop',
+    nav_settings: () => 'Settings',
+    nav_sign_out: () => 'Sign out',
+    nav_sign_in: () => 'Sign in',
     search_header_placeholder: () => 'Search products...',
     search_header_button: () => 'Search',
     search_overlay_title: () => 'Search',
@@ -121,6 +139,7 @@ describe('Header', () => {
   beforeEach(() => {
     mockNavigate.mockClear()
     mockListCategories.mockReturnValue(Promise.resolve([]))
+    mockUseLoaderData.mockReturnValue({ categories: [], user: null })
     mockUseCart.mockReturnValue({
       cart: null,
       isLoading: false,
@@ -146,15 +165,8 @@ describe('Header', () => {
 
   it('renders search trigger button with aria-label', () => {
     renderWithProviders(<Header />)
-    const trigger = screen.getByRole('button', { name: 'Search products...' })
+    const trigger = screen.getByPlaceholderText('Search products...')
     expect(trigger).toBeDefined()
-  })
-
-  it('opens search overlay on trigger click', () => {
-    renderWithProviders(<Header />)
-    const trigger = screen.getByRole('button', { name: 'Search products...' })
-    fireEvent.click(trigger)
-    expect(screen.getByRole('dialog', { name: 'Search' })).toBeDefined()
   })
 
   it('renders cart link with aria-label', () => {
@@ -209,7 +221,7 @@ describe('Header', () => {
   it('renders search trigger on homepage', () => {
     mockUseLocation.mockReturnValue({ pathname: '/' })
     renderWithProviders(<Header />)
-    expect(screen.getByRole('button', { name: 'Search products...' })).toBeDefined()
+    expect(screen.getByPlaceholderText('Search products...')).toBeDefined()
     mockUseLocation.mockReturnValue({ pathname: '/about' })
   })
 
@@ -300,25 +312,18 @@ describe('Header', () => {
   })
 
   it('shows categories dropdown when categories are available', async () => {
-    mockListCategories.mockReturnValue(
-      Promise.resolve([
+    mockUseLoaderData.mockReturnValue({
+      categories: [
         { id: 'cat-1', name: 'Ceramics', slug: 'ceramics' },
         { id: 'cat-2', name: 'Textiles', slug: 'textiles' },
-      ]),
-    )
+      ],
+      user: null,
+    })
 
     renderWithProviders(<Header />)
     await waitFor(() => {
       expect(screen.getByText('Categories')).toBeDefined()
     })
-  })
-
-  it('renders category loading skeleton initially', () => {
-    // Keep listCategories pending so loading state persists during assertion
-    mockListCategories.mockReturnValue(new Promise(() => {}))
-    const { container } = renderWithProviders(<Header />)
-    const skeleton = container.querySelector('.animate-pulse')
-    expect(skeleton).toBeDefined()
   })
 
   it('renders mobile menu trigger button and opens drawer on click', async () => {
@@ -332,13 +337,13 @@ describe('Header', () => {
     expect(screen.getByRole('dialog', { name: 'Navigation Drawer' })).toBeDefined()
   })
 
-  it('renders mobile search button and opens search overlay on click', () => {
+  it('renders mobile search button and opens drawer on click', () => {
     renderWithProviders(<Header />)
     const searchBtn = screen.getByRole('button', { name: 'Search products' })
     expect(searchBtn).toBeDefined()
 
-    // Click trigger to open search overlay
+    // Click trigger to open drawer
     fireEvent.click(searchBtn)
-    expect(screen.getByRole('dialog', { name: 'Search' })).toBeDefined()
+    expect(screen.getByRole('dialog', { name: 'Navigation Drawer' })).toBeDefined()
   })
 })

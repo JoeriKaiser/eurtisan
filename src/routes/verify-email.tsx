@@ -104,7 +104,7 @@ function VerifyEmail() {
           role='status'
           aria-live='polite'
         >
-          <Loader2 className='h-8 w-8 animate-spin text-accent-primary' />
+          <Loader2 className='h-6 w-6 animate-spin text-accent-primary' />
           <p className='text-sm text-text-secondary'>Verifying your email address, please wait…</p>
         </div>
       </AuthShell>

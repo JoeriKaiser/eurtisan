@@ -1,17 +1,15 @@
-import { Link, useRouter } from '@tanstack/react-router'
-import { Bell, ChevronDown, Search, ShoppingCart, Menu } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Link, useRouter, getRouteApi } from '@tanstack/react-router'
+import { Bell, ChevronDown, Search, ShoppingCart, Menu, X } from 'lucide-react'
+import { useEffect, useState, useRef } from 'react'
 import { useCart } from '#/components/CartProvider'
 import { useAuth } from '#/lib/auth-hooks'
-import { listCategories } from '#/lib/categories'
 import { useUnreadNotificationCount } from '#/lib/notifications-hooks'
 import { m } from '#/paraglide/messages'
-import { SearchOverlay } from './search'
 import ThemeToggle from './ThemeToggle'
 import UserMenu from './UserMenu'
 import LocaleDropdown from './LocaleDropdown'
 import MobileNavDrawer from './MobileNavDrawer'
-import { Skeleton } from '#/components/ui/skeleton'
+import { cn } from '#/lib/cn'
 import {
   DropdownMenu,
   DropdownMenuItem,
@@ -20,37 +18,39 @@ import {
   DropdownMenuTrigger,
 } from './ui/primitives'
 
+const rootRoute = getRouteApi('__root__')
+
 export default function Header() {
   const router = useRouter()
-  const [searchOverlayOpen, setSearchOverlayOpen] = useState(false)
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
   const { cart } = useCart()
   const { isAuthenticated } = useAuth()
-  const { data: unreadData } = useUnreadNotificationCount()
+  const { data: unreadData } = useUnreadNotificationCount(isAuthenticated)
   const unreadCount = unreadData?.count ?? 0
 
-  const [categories, setCategories] = useState<Array<{ id: string; name: string; slug: string }>>(
-    [],
-  )
-  const [categoriesOpen, setCategoriesOpen] = useState(false)
-  const [isLoadingCategories, setIsLoadingCategories] = useState(true)
+  const { categories = [] } = rootRoute.useLoaderData()
+  console.log('CATEGORIES IN HEADER:', categories)
 
+  // Search query state
+  const [searchQuery, setSearchQuery] = useState('')
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Scroll state to add border shadow on scroll
+  const [isScrolled, setIsScrolled] = useState(false)
   useEffect(() => {
-    listCategories()
-      .then((cats) => {
-        if (cats.length > 0) {
-          setCategories(cats)
-        }
-      })
-      .catch(() => {
-        // silently fail; categories dropdown will just be empty
-      })
-      .finally(() => {
-        setIsLoadingCategories(false)
-      })
+    function handleScroll() {
+      setIsScrolled(window.scrollY > 10)
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
-  // Global keyboard shortcuts: / and Cmd+K to open search
+  // Close drawer on route change
+  useEffect(() => {
+    setMobileDrawerOpen(false)
+  }, [])
+
+  // Global keyboard shortcut: / to focus desktop search
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       const target = e.target as HTMLElement
@@ -59,9 +59,9 @@ export default function Header() {
 
       if (isTypingInField) return
 
-      if (e.key === '/' || (e.metaKey && e.key === 'k') || (e.ctrlKey && e.key === 'k')) {
+      if (e.key === '/') {
         e.preventDefault()
-        setSearchOverlayOpen(true)
+        searchInputRef.current?.focus()
       }
     }
 
@@ -69,10 +69,26 @@ export default function Header() {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
 
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = searchQuery.trim()
+    if (!trimmed) return
+
+    void router.navigate({
+      to: '/search',
+      search: { q: trimmed },
+    })
+  }
+
   const distinctItems = cart?.shops.reduce((sum, shop) => sum + shop.items.length, 0) ?? 0
 
   return (
-    <header className='sticky top-0 z-sticky border-b border-border-default bg-surface-default/80 backdrop-blur-lg'>
+    <header
+      className={cn(
+        'sticky top-0 z-sticky border-b bg-surface-default/80 backdrop-blur-lg transition-all duration-base ease-out',
+        isScrolled ? 'border-border-strong shadow-md' : 'border-border-default',
+      )}
+    >
       <nav className='page-wrap flex items-center gap-x-4 px-4 py-2.5' aria-label={m.nav_main()}>
         {/* Mobile Hamburger Trigger */}
         <button
@@ -118,21 +134,16 @@ export default function Header() {
           <Link to='/about' className='nav-link' activeProps={{ className: 'nav-link is-active' }}>
             {m.nav_about()}
           </Link>
-          {isLoadingCategories ? (
-            <div className='flex items-center py-1' aria-hidden='true'>
-              <Skeleton className='h-5 w-20' />
-            </div>
-          ) : categories.length > 0 ? (
-            <DropdownMenu open={categoriesOpen} onOpenChange={setCategoriesOpen}>
+          {categories.length > 0 && (
+            <DropdownMenu>
               <DropdownMenuTrigger
-                className='nav-link inline-flex cursor-pointer items-center gap-0.5 bg-transparent outline-none'
+                className='nav-link inline-flex cursor-pointer items-center gap-0.5 bg-transparent outline-none group'
                 aria-haspopup='menu'
               >
                 {m.nav_categories()}
                 <ChevronDown
                   size={14}
-                  className='transition-transform duration-fast ease-out'
-                  style={{ transform: categoriesOpen ? 'rotate(180deg)' : undefined }}
+                  className='transition-transform duration-fast ease-out group-data-[state=open]:rotate-180'
                   aria-hidden='true'
                 />
               </DropdownMenuTrigger>
@@ -142,8 +153,10 @@ export default function Header() {
                     <DropdownMenuItem
                       key={category.id}
                       onClick={() => {
-                        router.navigate({ to: '/category/$slug', params: { slug: category.slug } })
-                        setCategoriesOpen(false)
+                        void router.navigate({
+                          to: '/category/$slug',
+                          params: { slug: category.slug },
+                        })
                       }}
                     >
                       {category.name}
@@ -152,29 +165,55 @@ export default function Header() {
                 </DropdownMenuPopup>
               </DropdownMenuPortal>
             </DropdownMenu>
-          ) : null}
+          )}
         </div>
 
-        {/* Search trigger */}
-        <button
-          type='button'
-          onClick={() => setSearchOverlayOpen(true)}
-          className='mx-4 hidden flex-1 items-center gap-2 rounded-lg border border-border-default bg-surface-default px-3 py-1.5 text-sm text-text-muted transition-colors hover:border-border-strong hover:text-text-secondary md:flex md:max-w-xs lg:max-w-sm'
-          aria-label={m.search_header_placeholder()}
-        >
-          <Search className='h-4 w-4' aria-hidden='true' />
-          <span className='flex-1 text-left'>{m.search_header_placeholder()}</span>
-          <kbd className='hidden rounded border border-border-default bg-surface-inset px-1.5 py-0.5 text-[10px] font-medium lg:inline-block'>
-            /
-          </kbd>
-        </button>
+        {/* Real Desktop Search Bar */}
+        <search className='mx-4 hidden flex-1 items-center md:flex md:max-w-xs lg:max-w-sm'>
+          <form onSubmit={handleSearchSubmit} className='w-full'>
+            <label htmlFor='header-search-input' className='sr-only'>
+              {m.search_header_placeholder()}
+            </label>
+            <div className='relative w-full'>
+              <span className='absolute left-3 top-1/2 -translate-y-1/2 text-text-muted'>
+                <Search size={16} aria-hidden='true' />
+              </span>
+              <input
+                ref={searchInputRef}
+                id='header-search-input'
+                type='search'
+                placeholder={m.search_header_placeholder()}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className='w-full h-10 pl-[36px] pr-[36px] rounded-lg border border-border-default hover:border-border-strong bg-surface-default text-sm text-text-primary placeholder:text-text-muted transition-all duration-fast focus-visible:border-accent-primary focus-visible:ring-1 focus-visible:ring-accent-primary outline-none'
+                autoComplete='off'
+              />
+              <div className='absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center'>
+                {searchQuery ? (
+                  <button
+                    type='button'
+                    onClick={() => setSearchQuery('')}
+                    className='rounded-md p-0.5 text-text-muted hover:bg-bg-inset hover:text-text-primary transition-colors'
+                    aria-label='Clear search'
+                  >
+                    <X size={14} aria-hidden='true' />
+                  </button>
+                ) : (
+                  <kbd className='hidden lg:inline-flex items-center justify-center h-5 px-1.5 rounded border border-border-default bg-surface-inset text-[10px] font-medium text-text-muted'>
+                    /
+                  </kbd>
+                )}
+              </div>
+            </div>
+          </form>
+        </search>
 
         {/* User actions */}
         <div className='ml-auto flex items-center gap-1'>
-          {/* Mobile Search Button */}
+          {/* Mobile Search Button (Opens drawer and focuses search) */}
           <button
             type='button'
-            onClick={() => setSearchOverlayOpen(true)}
+            onClick={() => setMobileDrawerOpen(true)}
             className='inline-flex items-center rounded-lg p-1.5 text-sm font-medium text-text-primary transition-colors duration-fast ease-out hover:bg-bg-inset md:hidden outline-none'
             aria-label='Search products'
           >
@@ -227,12 +266,10 @@ export default function Header() {
         </div>
       </nav>
 
-      <SearchOverlay isOpen={searchOverlayOpen} onClose={() => setSearchOverlayOpen(false)} />
       <MobileNavDrawer
         isOpen={mobileDrawerOpen}
         onClose={() => setMobileDrawerOpen(false)}
         categories={categories}
-        isLoadingCategories={isLoadingCategories}
       />
     </header>
   )

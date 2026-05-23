@@ -443,7 +443,7 @@ export function AdminOrdersPage() {
             <select
               value={orders.pageSize}
               onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-              className='h-8 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary'
+              className='h-6 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary'
               aria-label={m.admin_orders_page_size_label()}
             >
               {PAGE_SIZES.map((size) => (

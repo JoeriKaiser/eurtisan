@@ -1,9 +1,11 @@
 import { Dialog as BaseDialog } from '@base-ui-components/react/dialog'
-import { Link } from '@tanstack/react-router'
-import { ChevronDown, X } from 'lucide-react'
+import { Link, useRouter } from '@tanstack/react-router'
+import { ChevronDown, X, Search, User, Store, Sparkles, Settings, LogOut } from 'lucide-react'
 import { useState } from 'react'
 import { getLocale, locales, setLocale } from '#/paraglide/runtime'
 import { m } from '#/paraglide/messages'
+import { useAuth } from '#/lib/auth-hooks'
+import { authClient } from '#/lib/auth-client'
 import { Dialog, DialogBackdrop, DialogPortal } from './ui/primitives/dialog'
 import ThemeToggle from './ThemeToggle'
 
@@ -11,16 +13,32 @@ interface MobileNavDrawerProps {
   isOpen: boolean
   onClose: () => void
   categories: Array<{ id: string; name: string; slug: string }>
-  isLoadingCategories: boolean
 }
 
-export default function MobileNavDrawer({
-  isOpen,
-  onClose,
-  categories,
-  isLoadingCategories,
-}: MobileNavDrawerProps) {
+export default function MobileNavDrawer({ isOpen, onClose, categories }: MobileNavDrawerProps) {
+  const router = useRouter()
+  const { user } = useAuth()
   const [categoriesExpanded, setCategoriesExpanded] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = searchQuery.trim()
+    if (!trimmed) return
+
+    onClose()
+    void router.navigate({
+      to: '/search',
+      search: { q: trimmed },
+    })
+  }
+
+  const handleSignOut = async () => {
+    await authClient.signOut()
+    onClose()
+  }
+
+  const initials = user?.name?.charAt(0).toUpperCase() || 'U'
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
@@ -31,13 +49,12 @@ export default function MobileNavDrawer({
           aria-label='Navigation Drawer'
         >
           {/* Header */}
-          <div className='flex items-center justify-between border-b border-border-default pb-4 mb-6'>
+          <div className='flex items-center justify-between border-b border-border-default pb-4 mb-4'>
             <Link
               to='/'
               onClick={onClose}
               className='flex items-center gap-2 text-lg font-bold tracking-tight text-text-primary no-underline transition-colors hover:text-accent-primary'
             >
-              {/* Stylized geometric logo icon */}
               <svg
                 className='h-5 w-5 text-accent-primary transition-transform duration-fast ease-out hover:scale-110'
                 viewBox='0 0 24 24'
@@ -64,6 +81,39 @@ export default function MobileNavDrawer({
             </BaseDialog.Close>
           </div>
 
+          {/* Search Form */}
+          <search className='relative mb-4'>
+            <form onSubmit={handleSearchSubmit}>
+              <label htmlFor='drawer-search-input' className='sr-only'>
+                {m.search_header_placeholder()}
+              </label>
+              <div className='relative w-full'>
+                <span className='absolute left-3 top-1/2 -translate-y-1/2 text-text-muted'>
+                  <Search size={16} aria-hidden='true' />
+                </span>
+                <input
+                  id='drawer-search-input'
+                  type='search'
+                  placeholder={m.search_header_placeholder()}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className='w-full h-10 pl-9 pr-10 rounded-lg border border-border-default bg-surface-inset text-sm text-text-primary placeholder:text-text-muted transition-all duration-fast focus-visible:border-accent-primary focus-visible:ring-1 focus-visible:ring-accent-primary outline-none'
+                  autoComplete='off'
+                />
+                {searchQuery && (
+                  <button
+                    type='button'
+                    onClick={() => setSearchQuery('')}
+                    className='absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-text-muted hover:bg-surface-default hover:text-text-primary transition-colors'
+                    aria-label='Clear search'
+                  >
+                    <X size={14} aria-hidden='true' />
+                  </button>
+                )}
+              </div>
+            </form>
+          </search>
+
           {/* Nav stack */}
           <nav className='flex-1 space-y-4 overflow-y-auto pr-1' aria-label='Mobile navigation'>
             <Link
@@ -82,7 +132,7 @@ export default function MobileNavDrawer({
             </Link>
 
             {/* Categories Collapsible */}
-            {(isLoadingCategories || categories.length > 0) && (
+            {categories.length > 0 && (
               <div className='border-t border-border-default/40 pt-2'>
                 <button
                   type='button'
@@ -104,32 +154,118 @@ export default function MobileNavDrawer({
                     id='mobile-categories-list'
                     className='mt-1 flex flex-col gap-1 pl-4 border-l border-border-default/60 animate-in fade-in slide-in-from-top-1 duration-fast'
                   >
-                    {isLoadingCategories ? (
-                      <li className='py-2'>
-                        <div className='h-4 w-24 animate-pulse rounded bg-surface-inset' />
+                    {categories.map((category) => (
+                      <li key={category.id}>
+                        <Link
+                          to='/category/$slug'
+                          params={{ slug: category.slug }}
+                          onClick={onClose}
+                          className='block py-2 text-sm font-medium text-text-secondary hover:text-accent-primary transition-colors'
+                        >
+                          {category.name}
+                        </Link>
                       </li>
-                    ) : (
-                      categories.map((category) => (
-                        <li key={category.id}>
-                          <Link
-                            to='/category/$slug'
-                            params={{ slug: category.slug }}
-                            onClick={onClose}
-                            className='block py-2 text-sm font-medium text-text-secondary hover:text-accent-primary transition-colors'
-                          >
-                            {category.name}
-                          </Link>
-                        </li>
-                      ))
-                    )}
+                    ))}
                   </ul>
                 )}
+              </div>
+            )}
+
+            {/* User Auth Actions inside drawer */}
+            {user ? (
+              <div className='border-t border-border-default/40 pt-4 mt-4 space-y-4'>
+                <div className='flex items-center gap-3 px-1 py-1.5'>
+                  {user.image ? (
+                    <img
+                      src={user.image}
+                      alt=''
+                      className='h-10 w-10 rounded-full object-cover border border-border-default'
+                    />
+                  ) : (
+                    <div className='flex h-10 w-10 items-center justify-center rounded-full bg-surface-inset border border-border-default'>
+                      <span className='text-sm font-semibold text-text-secondary'>{initials}</span>
+                    </div>
+                  )}
+                  <div className='flex flex-col min-w-0'>
+                    <span className='text-sm font-semibold text-text-primary truncate'>
+                      {user.name}
+                    </span>
+                    <span className='text-xs text-text-muted truncate'>{user.email}</span>
+                  </div>
+                </div>
+
+                <ul className='flex flex-col gap-1 pl-1'>
+                  <li>
+                    <Link
+                      to='/account'
+                      onClick={onClose}
+                      className='flex items-center gap-3 py-2 text-sm font-medium text-text-secondary hover:text-accent-primary transition-colors'
+                    >
+                      <User size={16} aria-hidden='true' />
+                      {m.nav_profile()}
+                    </Link>
+                  </li>
+                  {user.role === 'customer' && (
+                    <li>
+                      <Link
+                        to='/sell'
+                        onClick={onClose}
+                        className='flex items-center gap-3 py-2 text-sm font-medium text-text-secondary hover:text-accent-primary transition-colors'
+                      >
+                        <Sparkles size={16} aria-hidden='true' />
+                        {m.nav_start_selling()}
+                      </Link>
+                    </li>
+                  )}
+                  {(user.role === 'creator' || user.role === 'admin') && (
+                    <li>
+                      <Link
+                        to='/studio'
+                        onClick={onClose}
+                        className='flex items-center gap-3 py-2 text-sm font-medium text-text-secondary hover:text-accent-primary transition-colors'
+                      >
+                        <Store size={16} aria-hidden='true' />
+                        {m.nav_my_shop()}
+                      </Link>
+                    </li>
+                  )}
+                  <li>
+                    <Link
+                      to='/account/settings'
+                      onClick={onClose}
+                      className='flex items-center gap-3 py-2 text-sm font-medium text-text-secondary hover:text-accent-primary transition-colors'
+                    >
+                      <Settings size={16} aria-hidden='true' />
+                      {m.nav_settings()}
+                    </Link>
+                  </li>
+                  <li>
+                    <button
+                      type='button'
+                      onClick={handleSignOut}
+                      className='flex w-full items-center gap-3 py-2 text-sm font-medium text-error hover:text-error-hover transition-colors outline-none text-left cursor-pointer'
+                    >
+                      <LogOut size={16} aria-hidden='true' />
+                      {m.nav_sign_out()}
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            ) : (
+              <div className='border-t border-border-default/40 pt-4 mt-4'>
+                <Link
+                  to='/signin'
+                  onClick={onClose}
+                  className='flex items-center justify-center w-full rounded-lg bg-accent-primary px-4 py-2 text-sm font-semibold text-text-on-primary shadow-sm hover:bg-accent-primary-hover transition-colors no-underline'
+                >
+                  {m.nav_sign_in()}
+                </Link>
               </div>
             )}
           </nav>
 
           {/* Footer Controls */}
-          <div className='border-t border-border-default pt-6 mt-auto space-y-6'>
+          <div className='border-t border-border-default pt-4 mt-auto space-y-4'>
             {/* Locale Selector */}
             <div className='flex flex-col gap-2'>
               <span className='text-xs font-semibold uppercase tracking-wider text-text-muted'>
@@ -146,7 +282,7 @@ export default function MobileNavDrawer({
                         setLocale(locale)
                         onClose()
                       }}
-                      className={`rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-all duration-fast ${
+                      className={`rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-all duration-fast cursor-pointer ${
                         isActive
                           ? 'bg-surface-default text-text-primary shadow-sm border border-border-default/10'
                           : 'text-text-secondary hover:bg-surface-default/50 hover:text-text-primary'

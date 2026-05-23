@@ -104,7 +104,7 @@ function StatusTimeline({ status }: { status: string }) {
               aria-current={isCurrent ? 'step' : undefined}
             >
               <div
-                className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors ${
+                className={`flex h-6 w-6 items-center justify-center rounded-full border-2 transition-colors ${
                   reached
                     ? 'border-accent-primary bg-accent-primary text-text-on-primary'
                     : 'border-border-default bg-surface-default text-text-muted'

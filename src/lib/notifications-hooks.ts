@@ -16,10 +16,11 @@ export function useNotifications(page = 1, pageSize = 20) {
   })
 }
 
-export function useUnreadNotificationCount() {
+export function useUnreadNotificationCount(enabled = true) {
   return useQuery({
     queryKey: unreadCountKey,
     queryFn: () => getUnreadNotificationCount(),
+    enabled,
   })
 }
 

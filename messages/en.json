@@ -940,6 +940,10 @@
   "terms_kicker": "Legal Terms",
   "cookies_title": "Cookie Policy",
   "cookies_description": "We use cookies to improve your browsing experience, analyze site traffic, and support independent creators.",
-  "cookies_kicker": "Cookie Settings"
+  "cookies_kicker": "Cookie Settings",
+  "nav_skip_to_content": "Skip to main content",
+  "nav_profile": "Profile",
+  "nav_my_shop": "My Shop",
+  "nav_start_selling": "Start Selling"
 }
 

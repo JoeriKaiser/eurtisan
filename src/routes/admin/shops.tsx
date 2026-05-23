@@ -865,7 +865,7 @@ export function AdminShopsPage() {
                       {/* Name */}
                       <td className='py-3 pr-4 font-medium text-text-primary'>
                         <div className='flex items-center gap-3'>
-                          <div className='h-8 w-8 rounded-full bg-surface-inset border border-border-subtle flex items-center justify-center text-text-muted flex-shrink-0'>
+                          <div className='h-6 w-6 rounded-full bg-surface-inset border border-border-subtle flex items-center justify-center text-text-muted flex-shrink-0'>
                             <Store size={14} aria-hidden='true' />
                           </div>
                           <div className='flex flex-col min-w-0'>
@@ -982,11 +982,11 @@ export function AdminShopsPage() {
                   <td className='py-3 pr-4 font-medium text-text-primary'>
                     <div className='flex items-center gap-3'>
                       {app.image ? (
-                        <div className='h-8 w-8 rounded-full overflow-hidden border border-border-default bg-surface-default flex-shrink-0'>
+                        <div className='h-6 w-6 rounded-full overflow-hidden border border-border-default bg-surface-default flex-shrink-0'>
                           <img src={app.image} alt='' className='h-full w-full object-cover' />
                         </div>
                       ) : (
-                        <div className='h-8 w-8 rounded-full bg-surface-inset border border-border-subtle flex items-center justify-center text-text-muted flex-shrink-0'>
+                        <div className='h-6 w-6 rounded-full bg-surface-inset border border-border-subtle flex items-center justify-center text-text-muted flex-shrink-0'>
                           <Store size={14} aria-hidden='true' />
                         </div>
                       )}
@@ -1069,7 +1069,7 @@ export function AdminShopsPage() {
             <select
               value={shops.pageSize}
               onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-              className='h-8 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none cursor-pointer'
+              className='h-6 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none cursor-pointer'
               aria-label={m.admin_shops_page_size_label()}
             >
               {PAGE_SIZES.map((size) => (

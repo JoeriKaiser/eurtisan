@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 import type { QueryClient } from '@tanstack/react-query'
 import {
@@ -10,11 +11,14 @@ import {
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { m } from '#/paraglide/messages'
 import { getLocale } from '#/paraglide/runtime'
+import { getCurrentUser } from '#/lib/server-auth'
+import { listCategories } from '#/lib/categories'
 import CartProvider from '../components/CartProvider'
 import Footer from '../components/Footer'
 import Header from '../components/Header'
 import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
 import appCss from '../styles.css?url'
+import { Outlet } from '@tanstack/react-router'
 
 interface MyRouterContext {
   queryClient: QueryClient
@@ -35,6 +39,13 @@ function RootError({ error }: { error: Error }) {
 }
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
+  loader: async () => {
+    const [user, categories] = await Promise.all([
+      getCurrentUser().catch(() => null),
+      listCategories().catch(() => []),
+    ])
+    return { user, categories }
+  },
   head: () => ({
     meta: [
       {
@@ -56,13 +67,51 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     ],
   }),
   errorComponent: RootError,
+  component: RootComponent,
   shellComponent: RootDocument,
 })
 
-function RootDocument({ children }: { children: React.ReactNode }) {
+function RootComponent() {
   const location = useLocation()
   const isOnboarding = location.pathname.includes('/sell/onboarding/')
+  Route.useLoaderData()
 
+  useEffect(() => {
+    document.documentElement.setAttribute('data-hydrated', 'true')
+  }, [])
+
+  return (
+    <CartProvider>
+      <a
+        href='#main-content'
+        className='sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-toast focus:px-4 focus:py-2 focus:bg-surface-default focus:text-text-primary focus:border focus:border-border-default focus:rounded-lg focus:shadow-md outline-none'
+      >
+        {m.nav_skip_to_content()}
+      </a>
+      <Header />
+      <main id='main-content' className='flex-1 outline-none' tabIndex={-1}>
+        <Outlet />
+      </main>
+      {!isOnboarding && <Footer />}
+      <ClientOnly>
+        <TanStackDevtools
+          config={{
+            position: 'bottom-right',
+          }}
+          plugins={[
+            {
+              name: 'Tanstack Router',
+              render: <TanStackRouterDevtoolsPanel />,
+            },
+            TanStackQueryDevtools,
+          ]}
+        />
+      </ClientOnly>
+    </CartProvider>
+  )
+}
+
+function RootDocument({ children }: { children: React.ReactNode }) {
   return (
     <html lang={getLocale()} suppressHydrationWarning>
       <head>
@@ -70,25 +119,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className='font-sans antialiased [overflow-wrap:anywhere]'>
-        <CartProvider>
-          <Header />
-          {children}
-          {!isOnboarding && <Footer />}
-        </CartProvider>
-        <ClientOnly>
-          <TanStackDevtools
-            config={{
-              position: 'bottom-right',
-            }}
-            plugins={[
-              {
-                name: 'Tanstack Router',
-                render: <TanStackRouterDevtoolsPanel />,
-              },
-              TanStackQueryDevtools,
-            ]}
-          />
-        </ClientOnly>
+        {children}
         <Scripts />
       </body>
     </html>

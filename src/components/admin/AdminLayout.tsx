@@ -395,9 +395,9 @@ export function AdminLayout() {
       <div className='border-t border-border-default p-3'>
         <div className='flex items-center gap-3 rounded-lg px-3 py-2'>
           {user?.image ? (
-            <img src={user.image} alt='' className='h-8 w-8 rounded-full object-cover' />
+            <img src={user.image} alt='' className='h-6 w-6 rounded-full object-cover' />
           ) : (
-            <div className='flex h-8 w-8 items-center justify-center rounded-full bg-surface-inset border border-border-subtle'>
+            <div className='flex h-6 w-6 items-center justify-center rounded-full bg-surface-inset border border-border-subtle'>
               <span className='text-xs font-medium text-text-secondary'>{initials}</span>
             </div>
           )}
