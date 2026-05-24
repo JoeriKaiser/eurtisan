@@ -64,6 +64,11 @@
   retries: 15
   delay: 2
 
+- name: Build application image
+  command: "docker compose -f {{ compose_file }} build app"
+  args:
+    chdir: /opt/eurtisan
+
 - name: Run database migrations
   command: "docker compose -f {{ compose_file }} run --rm app bun run db:migrate"
   args:
