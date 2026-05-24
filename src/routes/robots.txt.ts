@@ -1,10 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { buildRobotsTxt } from '#/lib/robots-txt.server'
 
 export const Route = createFileRoute('/robots/txt')({
   server: {
     handlers: {
-      GET: () => {
+      GET: async () => {
+        const { buildRobotsTxt } = await import('#/lib/robots-txt.server')
         const body = buildRobotsTxt()
 
         return new Response(body, {

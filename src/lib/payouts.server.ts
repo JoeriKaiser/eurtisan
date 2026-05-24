@@ -1,7 +1,7 @@
 import { and, count, desc, eq, gte, ilike, inArray, lte, or } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { payout, shop, shopOrder, user } from '#/db/schema'
-export const PLATFORM_FEE_PERCENT = 10
+import { PLATFORM_FEE_PERCENT } from './payouts'
 
 /* -------------------------------------------------------------------------- */
 /*                                   Types                                    */

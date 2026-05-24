@@ -1,7 +1,23 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
-import { addDisputeMessageSchema, openDisputeSchema, resolveDisputeSchema } from './disputes.server'
+
+export const openDisputeSchema = z.object({
+  shopOrderId: z.string().uuid(),
+  reason: z.string().min(1).max(500),
+  description: z.string().min(1).max(5000),
+})
+
+export const addDisputeMessageSchema = z.object({
+  disputeId: z.string().uuid(),
+  message: z.string().min(1).max(5000),
+})
+
+export const resolveDisputeSchema = z.object({
+  disputeId: z.string().uuid(),
+  resolution: z.enum(['close', 'partial_refund', 'full_refund']),
+  refundCents: z.number().int().min(0).optional().nullable(),
+})
 
 export type {
   CreatedDispute,

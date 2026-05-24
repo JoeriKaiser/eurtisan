@@ -1,7 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
-import { validateVatId } from './vat.server'
+import { validateVatId } from './vat'
 
 export type { ShopRecord, UpdateShopInput } from './shop-settings.server'
 

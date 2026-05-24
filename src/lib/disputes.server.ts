@@ -17,6 +17,7 @@ import { sanitizeRichText, validatePlainText } from './xss'
 import { logOrderDisputed, logOrderResolved } from './order-logger'
 import type { OrderStatus } from './orders.server'
 import { recalcPlatformOrderStatus } from './shop-orders.server'
+import { openDisputeSchema } from './disputes'
 
 const creatorUser = alias(user, 'creator')
 
@@ -127,23 +128,6 @@ export interface ResolvedDispute {
   refundCents: number | null
   updatedAt: Date
 }
-
-export const openDisputeSchema = z.object({
-  shopOrderId: z.string().uuid(),
-  reason: z.string().min(1).max(500),
-  description: z.string().min(1).max(5000),
-})
-
-export const addDisputeMessageSchema = z.object({
-  disputeId: z.string().uuid(),
-  message: z.string().min(1).max(5000),
-})
-
-export const resolveDisputeSchema = z.object({
-  disputeId: z.string().uuid(),
-  resolution: z.enum(['close', 'partial_refund', 'full_refund']),
-  refundCents: z.number().int().min(0).optional().nullable(),
-})
 
 export async function openDisputeQuery(
   input: z.infer<typeof openDisputeSchema>,

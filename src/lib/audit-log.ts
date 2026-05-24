@@ -1,6 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
-import { listAuditLogQuery } from './audit-log.server'
 import { authMiddleware } from './auth-middleware'
 
 const listAuditLogInputSchema = z.object({
@@ -37,6 +36,7 @@ export const listAuditLog = createServerFn({ method: 'GET' })
   .handler(async ({ context, data }) => {
     await requireAdmin(context)
 
+    const { listAuditLogQuery } = await import('./audit-log.server')
     return listAuditLogQuery({
       action: data.action,
       actorId: data.actorId,

@@ -3,8 +3,8 @@ import { and, eq, gt, inArray, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { cart, cartItem, product, productImage, shop } from '#/db/schema'
 import { getAvailableStock, getAvailableStockForProducts } from './inventory.server'
+import { ANONYMOUS_SESSION_COOKIE } from './cart'
 
-export const ANONYMOUS_SESSION_COOKIE = 'eurtisan_session'
 export const AUTH_CART_DAYS = 30
 export const ANON_CART_DAYS = 7
 

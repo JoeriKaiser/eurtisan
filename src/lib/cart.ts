@@ -9,6 +9,8 @@ export type {
   CartShopGroup,
 } from './cart.server'
 
+export const ANONYMOUS_SESSION_COOKIE = 'eurtisan_session'
+
 export const ensureAnonymousSession = createServerFn({ method: 'GET' }).handler(async () => {
   const { getAnonymousSessionIdFromCookie, setAnonymousSessionCookie, generateSessionId } =
     await import('./cart.server')

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { calculateVat, normalizeCountryCode, validateVatId } from './vat.server'
+import { calculateVat, normalizeCountryCode } from './vat.server'
+import { validateVatId } from './vat'
 
 describe('VAT Calculation Engine', () => {
   it('returns zero VAT if the seller is not VAT registered', () => {

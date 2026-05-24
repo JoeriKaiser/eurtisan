@@ -1,10 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { getSitemap } from '#/lib/sitemap.server'
 
 export const Route = createFileRoute('/sitemap/xml')({
   server: {
     handlers: {
       GET: async () => {
+        const { getSitemap } = await import('#/lib/sitemap.server')
         const xml = await getSitemap()
 
         return new Response(xml, {

@@ -4,7 +4,7 @@ import { tanstackStartCookies } from 'better-auth/tanstack-start'
 
 import { db } from '#/db/index'
 import { createEmailProvider } from '#/integrations/email'
-import { ANONYMOUS_SESSION_COOKIE, handlePostLoginCartMerge } from './cart.server'
+import { ANONYMOUS_SESSION_COOKIE } from './cart'
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -52,6 +52,7 @@ export const auth = betterAuth({
         after: async (session, context) => {
           if (!context) return
           const sessionId = context.getCookie(ANONYMOUS_SESSION_COOKIE) ?? undefined
+          const { handlePostLoginCartMerge } = await import('./cart.server')
           await handlePostLoginCartMerge(sessionId, session.userId, () => {
             context.setCookie(ANONYMOUS_SESSION_COOKIE, '', {
               httpOnly: true,
