@@ -81,7 +81,10 @@ export async function getDescendantCategoryIds(categoryId: string): Promise<stri
       .from(categories)
       .where(inArray(categories.parentId, queue))
 
-    queue = rows.map((r) => r.id).filter((id) => !ids.has(id))
+    queue = rows.reduce<string[]>((acc, r) => {
+      if (!ids.has(r.id)) acc.push(r.id)
+      return acc
+    }, [])
     for (const id of queue) ids.add(id)
   }
 

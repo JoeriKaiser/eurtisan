@@ -220,7 +220,7 @@ export function CreatorProductsPage({
     <main className='page-wrap px-4 py-12'>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
         {/* Header */}
-        <h1 className='display-title mb-2 text-3xl font-bold text-text-primary'>
+        <h1 className='display-title mb-2 text-3xl font-semibold text-text-primary'>
           {m.creator_products_title()}
         </h1>
         <p className='mb-6 text-text-secondary'>{m.creator_products_description()}</p>
@@ -554,14 +554,14 @@ export function CreatorProductsLoading() {
   return (
     <main className='page-wrap px-4 py-12'>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
-        <Skeleton className='mb-2 h-9 w-72' />
-        <Skeleton className='mb-6 h-4 w-48' />
+        <Skeleton className='mb-2 size-9' />
+        <Skeleton className='mb-6 size-4' />
 
         <Skeleton className='mb-6 h-10 w-full sm:w-64' />
 
         <div className='mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
           <Skeleton className='h-10 w-full sm:w-80' />
-          <Skeleton className='h-10 w-64' />
+          <Skeleton className='size-10' />
         </div>
 
         {/* Skeleton table */}
@@ -570,19 +570,19 @@ export function CreatorProductsLoading() {
             <thead>
               <tr className='border-b border-border-default'>
                 <th className='pb-3 pr-4'>
-                  <Skeleton className='h-4 w-20' />
+                  <Skeleton className='size-4' />
                 </th>
                 <th className='pb-3 pr-4 hidden sm:table-cell'>
-                  <Skeleton className='h-4 w-16' />
+                  <Skeleton className='size-4' />
                 </th>
                 <th className='pb-3 pr-4 hidden md:table-cell'>
-                  <Skeleton className='h-4 w-12' />
+                  <Skeleton className='size-4' />
                 </th>
                 <th className='pb-3 pr-4'>
-                  <Skeleton className='h-4 w-16' />
+                  <Skeleton className='size-4' />
                 </th>
                 <th className='pb-3'>
-                  <Skeleton className='h-4 w-16 ml-auto' />
+                  <Skeleton className='size-4 ml-auto' />
                 </th>
               </tr>
             </thead>
@@ -594,22 +594,22 @@ export function CreatorProductsLoading() {
                     <div className='flex items-center gap-3'>
                       <Skeleton className='size-10 rounded-lg' />
                       <div className='space-y-1.5'>
-                        <Skeleton className='h-4 w-32' />
-                        <Skeleton className='h-3 w-20 sm:hidden' />
+                        <Skeleton className='size-4' />
+                        <Skeleton className='size-3 sm:hidden' />
                       </div>
                     </div>
                   </td>
                   <td className='py-3 pr-4 hidden sm:table-cell'>
-                    <Skeleton className='h-4 w-16' />
+                    <Skeleton className='size-4' />
                   </td>
                   <td className='py-3 pr-4 hidden md:table-cell'>
-                    <Skeleton className='h-4 w-8' />
+                    <Skeleton className='size-4' />
                   </td>
                   <td className='py-3 pr-4'>
-                    <Skeleton className='h-5 w-16 rounded-full' />
+                    <Skeleton className='size-5 rounded-full' />
                   </td>
                   <td className='py-3'>
-                    <Skeleton className='h-8 w-24 ml-auto' />
+                    <Skeleton className='size-8 ml-auto' />
                   </td>
                 </tr>
               ))}
@@ -631,7 +631,7 @@ export function CreatorProductsError({ error }: { error: Error }) {
   return (
     <main className='page-wrap px-4 py-12'>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
-        <h1 className='display-title mb-6 text-3xl font-bold text-text-primary'>
+        <h1 className='display-title mb-6 text-3xl font-semibold text-text-primary'>
           {m.creator_products_title()}
         </h1>
         <div className='py-12 text-center'>

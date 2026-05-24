@@ -344,7 +344,7 @@ export function ShopOrderDetailPage() {
         </div>
         <div className='mb-6 flex flex-wrap items-center justify-between gap-4'>
           <div>
-            <h1 className='display-title text-2xl font-bold text-text-primary'>Order Detail</h1>
+            <h1 className='display-title text-2xl font-semibold text-text-primary'>Order Detail</h1>
             <p className='font-mono text-sm text-text-secondary'>{shopOrderId.slice(0, 8)}…</p>
           </div>
           <Badge variant={getStatusBadgeVariant(order.status)} className='text-sm'>
@@ -532,7 +532,7 @@ export function ShopOrderDetailPage() {
                       </p>
                       {item.vatRateBasisPoints > 0 && (
                         <p className='text-xs text-text-muted'>
-                          VAT {(item.vatRateBasisPoints / 100).toFixed(2).replace(/\.00$/, '')}% —{' '}
+                          VAT {(item.vatRateBasisPoints / 100).toFixed(2).replace(/\.00$/, '')}%:{' '}
                           {formatPriceEUR(item.vatAmountCents)}
                         </p>
                       )}
@@ -598,13 +598,13 @@ export function ShopOrderDetailPending() {
   return (
     <main className='page-wrap px-4 py-12'>
       <div className='mx-auto max-w-3xl'>
-        <div className='mb-6 h-4 w-24 animate-pulse rounded bg-[var(--sand)]' />
+        <div className='mb-6 size-4 animate-pulse rounded bg-[var(--sand)]' />
         <div className='mb-6 flex items-center justify-between'>
           <div className='space-y-2'>
-            <div className='h-8 w-48 animate-pulse rounded bg-[var(--sand)]' />
-            <div className='h-4 w-24 animate-pulse rounded bg-[var(--sand)]' />
+            <div className='size-8 animate-pulse rounded bg-[var(--sand)]' />
+            <div className='size-4 animate-pulse rounded bg-[var(--sand)]' />
           </div>
-          <div className='h-6 w-20 animate-pulse rounded bg-[var(--sand)]' />
+          <div className='size-6 animate-pulse rounded bg-[var(--sand)]' />
         </div>
         <div className='space-y-6'>
           <div className='h-32 animate-pulse rounded-xl bg-[var(--sand)]' />
@@ -624,7 +624,7 @@ export function ShopOrderDetailError({ error }: { error: Error }) {
   return (
     <main className='page-wrap px-4 py-12'>
       <div className='mx-auto max-w-3xl text-center'>
-        <h1 className='display-title mb-4 text-2xl font-bold text-text-primary'>
+        <h1 className='display-title mb-4 text-2xl font-semibold text-text-primary'>
           Failed to load order
         </h1>
         <p className='mb-6 text-text-secondary'>{error.message}</p>

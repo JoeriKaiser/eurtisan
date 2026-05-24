@@ -100,7 +100,7 @@ export function ShopOrdersPage() {
     <main className='page-wrap px-4 py-12'>
       <div className='mx-auto max-w-5xl'>
         <div className='mb-6 flex flex-wrap items-center justify-between gap-4'>
-          <h1 className='display-title text-2xl font-bold text-text-primary'>Shop Orders</h1>
+          <h1 className='display-title text-2xl font-semibold text-text-primary'>Shop Orders</h1>
           <Link
             to='/studio/$shopId'
             params={{ shopId }}
@@ -251,12 +251,12 @@ export function ShopOrdersPending() {
     <main className='page-wrap px-4 py-12'>
       <div className='mx-auto max-w-5xl'>
         <div className='mb-6 flex items-center justify-between'>
-          <div className='h-8 w-40 animate-pulse rounded bg-[var(--sand)]' />
-          <div className='h-4 w-24 animate-pulse rounded bg-[var(--sand)]' />
+          <div className='size-8 animate-pulse rounded bg-[var(--sand)]' />
+          <div className='size-4 animate-pulse rounded bg-[var(--sand)]' />
         </div>
         <div className='mb-6 flex gap-3'>
           <div className='h-10 flex-1 animate-pulse rounded bg-[var(--sand)]' />
-          <div className='h-10 w-40 animate-pulse rounded bg-[var(--sand)]' />
+          <div className='size-10 animate-pulse rounded bg-[var(--sand)]' />
         </div>
         <div className='space-y-4'>
           {[1, 2, 3].map((n) => (
@@ -272,7 +272,7 @@ export function ShopOrdersError({ error }: { error: Error }) {
   return (
     <main className='page-wrap px-4 py-12'>
       <div className='mx-auto max-w-5xl text-center'>
-        <h1 className='display-title mb-4 text-2xl font-bold text-text-primary'>
+        <h1 className='display-title mb-4 text-2xl font-semibold text-text-primary'>
           Failed to load orders
         </h1>
         <p className='mb-6 text-text-secondary'>{error.message}</p>

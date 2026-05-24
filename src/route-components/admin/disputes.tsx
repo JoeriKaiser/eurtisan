@@ -19,11 +19,13 @@ function getStatusBadge(status: string): { variant: 'warning' | 'success'; label
   return { variant: 'warning', label: status }
 }
 
+const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+})
+
 function formatDate(date: Date | string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(date))
+  return DATE_FORMATTER.format(new Date(date))
 }
 
 /* -------------------------------------------------------------------------- */
@@ -82,7 +84,7 @@ export function AdminDisputesPage() {
     <div className='space-y-6'>
       {/* Header */}
       <div>
-        <h1 className='display-title text-3xl font-bold text-text-primary'>
+        <h1 className='display-title text-3xl font-semibold text-text-primary'>
           {m.admin_disputes_title()}
         </h1>
         <p className='mt-1 text-text-secondary'>{m.admin_disputes_description()}</p>
@@ -296,10 +298,10 @@ export function AdminDisputesPending() {
   return (
     <div className='space-y-6'>
       <div>
-        <Skeleton className='mb-2 h-9 w-64' />
-        <Skeleton className='h-5 w-80' />
+        <Skeleton className='mb-2 size-9' />
+        <Skeleton className='size-5' />
       </div>
-      <Skeleton className='h-10 w-48 rounded-lg' />
+      <Skeleton className='size-10 rounded-lg' />
       <Skeleton className='h-10 w-full rounded-lg' />
       <div className='space-y-4'>
         {[1, 2, 3].map((n) => (
@@ -318,7 +320,7 @@ export function AdminDisputesError({ error }: { error: Error }) {
   return (
     <div className='text-center py-12'>
       <AlertTriangle size={48} className='mx-auto mb-4 text-error' aria-hidden='true' />
-      <h1 className='display-title mb-4 text-2xl font-bold text-text-primary'>
+      <h1 className='display-title mb-4 text-2xl font-semibold text-text-primary'>
         Failed to load disputes
       </h1>
       <p className='mb-6 text-text-secondary'>{error.message}</p>

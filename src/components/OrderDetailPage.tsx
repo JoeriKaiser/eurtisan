@@ -11,12 +11,14 @@ export interface OrderDetailPageProps {
   order: OrderDetail
 }
 
+const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+})
+
 function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).format(new Date(date))
+  return DATE_FORMATTER.format(new Date(date))
 }
 
 export default function OrderDetailPage({ order }: OrderDetailPageProps) {
@@ -35,7 +37,7 @@ export default function OrderDetailPage({ order }: OrderDetailPageProps) {
 
         <div className='mb-6 flex flex-wrap items-start justify-between gap-4'>
           <div>
-            <h1 className='display-title text-2xl font-bold text-text-primary sm:text-3xl'>
+            <h1 className='display-title text-2xl font-semibold text-text-primary sm:text-3xl'>
               {m.order_detail_title()}
             </h1>
             <p className='mt-1 font-mono text-sm text-text-secondary'>{order.id}</p>
@@ -70,7 +72,7 @@ export default function OrderDetailPage({ order }: OrderDetailPageProps) {
                 <div className='flex flex-wrap items-center gap-4 text-xs text-text-secondary'>
                   <span className='inline-flex items-center gap-1'>
                     <Truck size={14} aria-hidden='true' />
-                    {shop.shippingMethod} — {formatPriceEUR(shop.shippingCostCents)}
+                    {shop.shippingMethod}: {formatPriceEUR(shop.shippingCostCents)}
                   </span>
                   {shop.trackingNumber && (
                     <span className='inline-flex items-center gap-1'>

@@ -11,7 +11,7 @@ export function CategoriesAllPage() {
     <main className='page-wrap px-4 pb-16 pt-14'>
       <section className='island-shell rounded-2xl px-6 py-10 sm:px-10 sm:py-14'>
         <p className='island-kicker mb-3'>{m.categories_all_kicker()}</p>
-        <h1 className='display-title mb-6 text-4xl font-bold tracking-tight text-text-primary sm:text-5xl'>
+        <h1 className='display-title mb-6 text-4xl font-semibold tracking-tight text-text-primary sm:text-5xl'>
           {m.categories_all_title()}
         </h1>
         <p className='max-w-2xl text-base text-text-secondary'>{m.categories_all_description()}</p>
@@ -49,7 +49,7 @@ export function CategoriesAllPage() {
 export function CategoriesAllError({ error }: { error: Error }) {
   return (
     <main className='page-wrap px-4 py-20 text-center'>
-      <h1 className='display-title mb-4 text-3xl font-bold text-text-primary'>
+      <h1 className='display-title mb-4 text-3xl font-semibold text-text-primary'>
         {m.error_unexpected()}
       </h1>
       <p className='mb-6 text-text-secondary'>{error.message}</p>
@@ -67,9 +67,9 @@ export function CategoriesAllPending() {
   return (
     <main className='page-wrap px-4 pb-16 pt-14'>
       <section className='island-shell rounded-2xl px-6 py-10 sm:px-10 sm:py-14'>
-        <div className='mb-4 h-4 w-20 animate-pulse rounded bg-[var(--sand)]' />
-        <div className='mb-6 h-10 w-2/3 animate-pulse rounded bg-[var(--sand)]' />
-        <div className='h-4 w-1/2 animate-pulse rounded bg-[var(--sand)]' />
+        <div className='mb-4 size-4 animate-pulse rounded bg-[var(--sand)]' />
+        <div className='mb-6 size-10/3 animate-pulse rounded bg-[var(--sand)]' />
+        <div className='size-4/2 animate-pulse rounded bg-[var(--sand)]' />
       </section>
       <div className='mt-8'>
         <output className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3' aria-live='polite'>
@@ -80,8 +80,8 @@ export function CategoriesAllPending() {
             >
               <div className='size-12 animate-pulse rounded-xl bg-[var(--sand)]' />
               <div className='flex-1 space-y-2'>
-                <div className='h-5 w-2/3 animate-pulse rounded bg-[var(--sand)]' />
-                <div className='h-4 w-1/2 animate-pulse rounded bg-[var(--sand)]' />
+                <div className='size-5/3 animate-pulse rounded bg-[var(--sand)]' />
+                <div className='size-4/2 animate-pulse rounded bg-[var(--sand)]' />
               </div>
             </div>
           ))}

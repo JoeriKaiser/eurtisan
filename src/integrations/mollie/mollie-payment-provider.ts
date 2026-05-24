@@ -238,13 +238,13 @@ export class MolliePaymentProvider implements PaymentProvider {
   }
 
   private async refundPaymentMock(paymentId: string, _amountCents?: number): Promise<void> {
-    await delay(30)
-
     // In mock mode we only validate that the payment ID looks plausible.
     // A real implementation would verify the payment exists and is refundable.
     if (!paymentId.startsWith(MOCK_ID_PREFIX) && paymentId.length < 8) {
       throw new Error(`Invalid mock payment ID: ${paymentId}`)
     }
+
+    await delay(30)
   }
 
   private async refundPaymentReal(paymentId: string, amountCents?: number): Promise<void> {

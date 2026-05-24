@@ -57,6 +57,10 @@ const PASSWORD_HASH =
 const PRODUCTS_UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'products')
 const SHOPS_UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'shops')
 
+const SHIPPED_STATUSES = new Set(['shipped', 'delivered', 'completed', 'disputed'])
+const DELIVERED_STATUSES = new Set(['delivered', 'completed'])
+const LABEL_STATUSES = new Set(['shipped', 'delivered', 'completed'])
+
 const LOCALES = [
   fakerDE,
   fakerFR,
@@ -877,6 +881,8 @@ async function seedOrders(
     products,
   }))
 
+  const shopById = new Map(shops.map((s) => [s.id, s]))
+
   // Realistic status distribution
   const statusPool = [
     ...Array(3).fill('pending_payment'),
@@ -953,13 +959,13 @@ async function seedOrders(
         shippingCostCents,
         subtotalCents,
         status: shopStatus,
-        trackingNumber: ['shipped', 'delivered', 'completed', 'disputed'].includes(shopStatus)
+        trackingNumber: SHIPPED_STATUSES.has(shopStatus)
           ? faker.string.alphanumeric(12).toUpperCase()
           : undefined,
-        trackingUrl: ['shipped', 'delivered', 'completed', 'disputed'].includes(shopStatus)
+        trackingUrl: SHIPPED_STATUSES.has(shopStatus)
           ? `https://track.eurtisan.eu/${faker.string.alphanumeric(8)}`
           : undefined,
-        deliveredAt: ['delivered', 'completed'].includes(shopStatus)
+        deliveredAt: DELIVERED_STATUSES.has(shopStatus)
           ? faker.date.recent({ days: 60 })
           : undefined,
         createdAt: orderDate,
@@ -988,7 +994,7 @@ async function seedOrders(
       }
 
       // Shipping labels
-      if (['shipped', 'delivered', 'completed'].includes(shopStatus)) {
+      if (LABEL_STATUSES.has(shopStatus)) {
         shippingLabels.push({
           id: crypto.randomUUID(),
           shopOrderId,
@@ -1010,7 +1016,7 @@ async function seedOrders(
       }
 
       // Reviews for delivered / completed
-      if (['delivered', 'completed'].includes(shopStatus) && Math.random() < CONFIG.reviewsRate) {
+      if (DELIVERED_STATUSES.has(shopStatus) && Math.random() < CONFIG.reviewsRate) {
         const soItems = orderItems.filter((oi) => oi.shopOrderId === shopOrderId)
         for (const item of soItems) {
           if (faker.datatype.boolean(0.45)) continue
@@ -1035,7 +1041,7 @@ async function seedOrders(
       // Disputes
       if (shopStatus === 'disputed' && faker.datatype.boolean(0.6)) {
         const disputeId = crypto.randomUUID()
-        const ownerId = shops.find((sh) => sh.id === entry.shopId)?.ownerId ?? customer.id!
+        const ownerId = shopById.get(entry.shopId)?.ownerId ?? customer.id!
         disputes.push({
           id: disputeId,
           shopOrderId,

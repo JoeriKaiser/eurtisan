@@ -53,7 +53,7 @@ export default function Footer() {
 
         {/* Column 2: Marketplace */}
         <div className='flex flex-col gap-3'>
-          <h3 className='text-xs font-bold uppercase tracking-wider text-text-primary'>
+          <h3 className='text-xs font-semibold uppercase tracking-wider text-text-primary'>
             {m.nav_main()}
           </h3>
           <ul className='list-none p-0 m-0 flex flex-col gap-2'>
@@ -86,7 +86,7 @@ export default function Footer() {
 
         {/* Column 3: Artisans */}
         <div className='flex flex-col gap-3'>
-          <h3 className='text-xs font-bold uppercase tracking-wider text-text-primary'>
+          <h3 className='text-xs font-semibold uppercase tracking-wider text-text-primary'>
             {m.home_makers_kicker()}
           </h3>
           <ul className='list-none p-0 m-0 flex flex-col gap-2'>
@@ -103,7 +103,9 @@ export default function Footer() {
 
         {/* Column 4: Legal */}
         <div className='flex flex-col gap-3'>
-          <h3 className='text-xs font-bold uppercase tracking-wider text-text-primary'>Legal</h3>
+          <h3 className='text-xs font-semibold uppercase tracking-wider text-text-primary'>
+            Legal
+          </h3>
           <ul className='list-none p-0 m-0 flex flex-col gap-2'>
             <li>
               <Link

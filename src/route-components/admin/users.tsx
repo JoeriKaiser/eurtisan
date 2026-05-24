@@ -37,8 +37,12 @@ const PAGE_SIZES = [10, 20, 50] as const
 /*                                   Helpers                                  */
 /* -------------------------------------------------------------------------- */
 
+const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  dateStyle: 'medium',
+})
+
 function formatDate(date: Date | string): string {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(date))
+  return DATE_FORMATTER.format(new Date(date))
 }
 
 /* -------------------------------------------------------------------------- */
@@ -197,7 +201,7 @@ export function AdminUsersPage() {
   return (
     <div className='space-y-6'>
       <div>
-        <h1 className='display-title text-3xl font-bold text-text-primary'>
+        <h1 className='display-title text-3xl font-semibold text-text-primary'>
           {m.admin_users_title()}
         </h1>
         <p className='mt-1 text-text-secondary'>{m.admin_users_description()}</p>
@@ -591,12 +595,12 @@ export function AdminUsersPending() {
   return (
     <div className='space-y-6'>
       <div>
-        <Skeleton className='h-10 w-64' />
-        <Skeleton className='mt-2 h-5 w-96' />
+        <Skeleton className='size-10' />
+        <Skeleton className='mt-2 size-5' />
       </div>
       <div className='flex gap-2'>
         <Skeleton className='h-10 flex-1' />
-        <Skeleton className='h-10 w-24' />
+        <Skeleton className='size-10' />
       </div>
       <Skeleton className='h-64 w-full' />
     </div>
@@ -607,7 +611,7 @@ export function AdminUsersError({ error }: { error: Error }) {
   return (
     <div className='space-y-6'>
       <div>
-        <h1 className='display-title text-3xl font-bold text-text-primary'>
+        <h1 className='display-title text-3xl font-semibold text-text-primary'>
           {m.admin_users_title()}
         </h1>
         <p className='mt-1 text-text-secondary'>{m.admin_users_description()}</p>

@@ -9,14 +9,16 @@ import type { DisputeDetail } from '#/lib/disputes.server'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 
+const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+})
+
 function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(new Date(date))
+  return DATE_FORMATTER.format(new Date(date))
 }
 
 export interface DisputeThreadPageProps {
@@ -77,7 +79,7 @@ export default function DisputeThreadPage({ dispute }: DisputeThreadPageProps) {
 
         <div className='mb-6 flex flex-wrap items-start justify-between gap-4'>
           <div>
-            <h1 className='display-title text-2xl font-bold text-text-primary sm:text-3xl'>
+            <h1 className='display-title text-2xl font-semibold text-text-primary sm:text-3xl'>
               {m.dispute_title()}
             </h1>
             <p className='mt-1 font-mono text-sm text-text-secondary'>{dispute.id}</p>
@@ -205,13 +207,13 @@ export function DisputeThreadLoading() {
   return (
     <main className='page-wrap px-4 pb-16 pt-14'>
       <div className='mx-auto max-w-3xl'>
-        <Skeleton className='mb-6 h-4 w-32' />
+        <Skeleton className='mb-6 size-4' />
         <div className='mb-6 flex flex-wrap items-start justify-between gap-4'>
           <div className='space-y-2'>
-            <Skeleton className='h-8 w-48' />
-            <Skeleton className='h-4 w-64' />
+            <Skeleton className='size-8' />
+            <Skeleton className='size-4' />
           </div>
-          <Skeleton className='h-6 w-24 rounded-full' />
+          <Skeleton className='size-6 rounded-full' />
         </div>
         <div className='space-y-6'>
           <Skeleton className='h-40 w-full' />
@@ -235,7 +237,7 @@ export function DisputeThreadError({ error }: { error: Error }) {
         <div className='mb-4 inline-flex size-12 items-center justify-center rounded-full bg-error/10'>
           <ShieldAlert size={24} className='text-error' aria-hidden='true' />
         </div>
-        <h1 className='display-title mb-2 text-2xl font-bold text-text-primary'>
+        <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary'>
           {isForbidden
             ? m.dispute_forbidden()
             : isNotFound

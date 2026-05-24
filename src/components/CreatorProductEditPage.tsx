@@ -64,7 +64,7 @@ interface NewImageEntry {
 }
 
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5MB
-const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const MAX_IMAGES = 10
 const SLUG_DEBOUNCE_MS = 400
 
@@ -243,7 +243,12 @@ function ProductEditForm({
 
   const handleRemoveExistingImage = (imageId: string) => {
     setExistingImages((prev) =>
-      prev.filter((img) => img.id !== imageId).map((img, i) => ({ ...img, sortOrder: i })),
+      prev.reduce<typeof prev>((acc, img) => {
+        if (img.id !== imageId) {
+          acc.push({ ...img, sortOrder: acc.length })
+        }
+        return acc
+      }, []),
     )
   }
 
@@ -299,7 +304,7 @@ function ProductEditForm({
     })
 
     for (const placeholder of placeholders) {
-      if (!ALLOWED_IMAGE_TYPES.includes(placeholder.file.type)) {
+      if (!ALLOWED_IMAGE_TYPES.has(placeholder.file.type)) {
         setNewImages((prev) =>
           prev.map((img) =>
             img.id === placeholder.id
@@ -560,7 +565,7 @@ function ProductEditForm({
         {/* Header */}
         <div className='mb-8 flex items-start justify-between gap-4'>
           <div>
-            <h1 className='display-title mb-2 text-3xl font-bold text-text-primary'>
+            <h1 className='display-title mb-2 text-3xl font-semibold text-text-primary'>
               {m.creator_product_edit_title()}
             </h1>
             <p className='text-text-secondary'>{m.creator_product_edit_description()}</p>
@@ -1140,50 +1145,50 @@ export function CreatorProductEditLoading() {
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
         <div className='mb-8 flex items-start justify-between gap-4'>
           <div>
-            <Skeleton className='mb-2 h-9 w-64' />
-            <Skeleton className='h-5 w-56' />
+            <Skeleton className='mb-2 size-9' />
+            <Skeleton className='size-5' />
           </div>
-          <Skeleton className='h-9 w-24' />
+          <Skeleton className='size-9' />
         </div>
 
         <div className='grid gap-8 lg:grid-cols-3'>
           <div className='space-y-5 lg:col-span-2'>
             <div>
-              <Skeleton className='mb-2 h-4 w-20' />
+              <Skeleton className='mb-2 size-4' />
               <Skeleton className='h-10 w-full' />
             </div>
             <div>
-              <Skeleton className='mb-2 h-4 w-16' />
+              <Skeleton className='mb-2 size-4' />
               <Skeleton className='h-10 w-full' />
             </div>
             <div>
-              <Skeleton className='mb-2 h-4 w-24' />
+              <Skeleton className='mb-2 size-4' />
               <Skeleton className='h-32 w-full' />
             </div>
             <div className='grid gap-5 sm:grid-cols-2'>
               <div>
-                <Skeleton className='mb-2 h-4 w-20' />
+                <Skeleton className='mb-2 size-4' />
                 <Skeleton className='h-10 w-full' />
               </div>
               <div>
-                <Skeleton className='mb-2 h-4 w-24' />
+                <Skeleton className='mb-2 size-4' />
                 <Skeleton className='h-10 w-full' />
               </div>
             </div>
             <div>
-              <Skeleton className='mb-2 h-4 w-20' />
+              <Skeleton className='mb-2 size-4' />
               <Skeleton className='h-10 w-full' />
             </div>
           </div>
           <div>
-            <Skeleton className='mb-2 h-4 w-20' />
+            <Skeleton className='mb-2 size-4' />
             <Skeleton className='mb-3 aspect-square w-full rounded-lg' />
             <Skeleton className='h-8 w-full' />
           </div>
         </div>
 
         <div className='mt-8 border-t border-border-subtle pt-6'>
-          <Skeleton className='h-10 w-40' />
+          <Skeleton className='size-10' />
         </div>
       </section>
     </main>
@@ -1196,7 +1201,7 @@ export function CreatorProductEditError({ error }: { error: Error }) {
   return (
     <main className='page-wrap px-4 py-8 sm:py-12'>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
-        <h1 className='display-title mb-6 text-3xl font-bold text-text-primary'>
+        <h1 className='display-title mb-6 text-3xl font-semibold text-text-primary'>
           {m.creator_product_edit_title()}
         </h1>
         <div className='py-12 text-center'>

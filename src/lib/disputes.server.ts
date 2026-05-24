@@ -1,6 +1,6 @@
 import { and, asc, count, eq, ilike, or, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
-import z from 'zod'
+import type z from 'zod'
 import { db } from '#/db/index'
 import {
   dispute,
@@ -17,7 +17,7 @@ import { sanitizeRichText, validatePlainText } from './xss'
 import { logOrderDisputed, logOrderResolved } from './order-logger'
 import type { OrderStatus } from './orders.server'
 import { recalcPlatformOrderStatus } from './shop-orders.server'
-import { openDisputeSchema } from './disputes'
+import type { openDisputeSchema } from './disputes'
 
 const creatorUser = alias(user, 'creator')
 

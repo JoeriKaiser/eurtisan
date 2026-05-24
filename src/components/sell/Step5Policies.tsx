@@ -141,7 +141,7 @@ export function Step5Policies() {
       <div>
         <h2 className='display-title text-2xl text-text-primary'>Shop Policies</h2>
         <p className='mt-1 text-text-secondary'>
-          Set expectations — buyers trust shops that are upfront.
+          Set expectations: buyers trust shops that are upfront.
         </p>
       </div>
 

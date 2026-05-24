@@ -26,9 +26,11 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   ceramics: Lightbulb,
 }
 
+const CATEGORY_ICON_ENTRIES = Object.entries(CATEGORY_ICONS)
+
 export function getCategoryIcon(name: string): LucideIcon {
   const key = name.toLowerCase()
-  for (const [slug, Icon] of Object.entries(CATEGORY_ICONS)) {
+  for (const [slug, Icon] of CATEGORY_ICON_ENTRIES) {
     if (key.includes(slug)) return Icon as LucideIcon
   }
   return Palette

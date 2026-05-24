@@ -124,7 +124,7 @@ export function SearchPage() {
       {/* Hero search section */}
       <section className='island-shell rounded-2xl px-6 py-10 sm:px-10 sm:py-14'>
         <p className='island-kicker mb-3'>{m.search_kicker()}</p>
-        <h1 className='display-title mb-6 text-4xl font-bold tracking-tight text-text-primary sm:text-5xl'>
+        <h1 className='display-title mb-6 text-4xl font-semibold tracking-tight text-text-primary sm:text-5xl'>
           {m.search_title()}
         </h1>
 
@@ -382,7 +382,7 @@ export function SearchPage() {
 export function SearchError({ error }: { error: Error }) {
   return (
     <main className='page-wrap px-4 py-20 text-center'>
-      <h1 className='display-title mb-4 text-3xl font-bold text-text-primary'>
+      <h1 className='display-title mb-4 text-3xl font-semibold text-text-primary'>
         {m.error_unexpected()}
       </h1>
       <p className='mb-6 text-text-secondary'>{error.message}</p>
@@ -394,16 +394,16 @@ export function SearchPending() {
   return (
     <main className='page-wrap px-4 pb-16 pt-14'>
       <section className='island-shell rounded-2xl px-6 py-10 sm:px-10 sm:py-14'>
-        <div className='mb-4 h-4 w-20 animate-pulse rounded bg-[var(--sand)]' />
-        <div className='mb-6 h-10 w-2/3 animate-pulse rounded bg-[var(--sand)]' />
+        <div className='mb-4 size-4 animate-pulse rounded bg-[var(--sand)]' />
+        <div className='mb-6 size-10/3 animate-pulse rounded bg-[var(--sand)]' />
         <div className='flex gap-2'>
           <div className='h-10 flex-1 animate-pulse rounded bg-[var(--sand)] sm:max-w-md' />
-          <div className='h-10 w-20 animate-pulse rounded bg-[var(--sand)]' />
+          <div className='size-10 animate-pulse rounded bg-[var(--sand)]' />
         </div>
       </section>
       <div className='mt-8 grid gap-6 lg:grid-cols-[280px_1fr]'>
         <div className='island-shell rounded-2xl p-5 sm:p-6'>
-          <div className='mb-4 h-5 w-24 animate-pulse rounded bg-[var(--sand)]' />
+          <div className='mb-4 size-5 animate-pulse rounded bg-[var(--sand)]' />
           <div className='space-y-4'>
             <div className='h-10 w-full animate-pulse rounded bg-[var(--sand)]' />
             <div className='h-10 w-full animate-pulse rounded bg-[var(--sand)]' />
@@ -415,8 +415,8 @@ export function SearchPending() {
         </div>
         <div>
           <div className='mb-4 flex items-center justify-between'>
-            <div className='h-4 w-24 animate-pulse rounded bg-[var(--sand)]' />
-            <div className='h-9 w-40 animate-pulse rounded bg-[var(--sand)]' />
+            <div className='size-4 animate-pulse rounded bg-[var(--sand)]' />
+            <div className='size-9 animate-pulse rounded bg-[var(--sand)]' />
           </div>
           <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3' aria-live='polite'>
             {[1, 2, 3, 4, 5, 6].map((n) => (
@@ -426,9 +426,9 @@ export function SearchPending() {
               >
                 <div className='aspect-[4/3] w-full animate-pulse bg-[var(--sand)]' />
                 <div className='flex flex-1 flex-col gap-2 p-4'>
-                  <div className='h-5 w-2/3 animate-pulse rounded bg-[var(--sand)]' />
+                  <div className='size-5/3 animate-pulse rounded bg-[var(--sand)]' />
                   <div className='h-4 w-full animate-pulse rounded bg-[var(--sand)]' />
-                  <div className='mt-auto h-6 w-1/3 animate-pulse rounded bg-[var(--sand)]' />
+                  <div className='mt-auto size-6/3 animate-pulse rounded bg-[var(--sand)]' />
                 </div>
               </div>
             ))}

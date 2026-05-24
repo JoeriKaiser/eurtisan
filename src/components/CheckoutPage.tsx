@@ -285,7 +285,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
   return (
     <main className='page-wrap px-4 pb-16 pt-14'>
       <div className='mb-8'>
-        <h1 className='display-title text-3xl font-bold text-text-primary sm:text-4xl'>
+        <h1 className='display-title text-3xl font-semibold text-text-primary sm:text-4xl'>
           {m.checkout_title()}
         </h1>
       </div>
@@ -720,7 +720,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                 <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-4 rounded-xl border border-success/30 bg-success/5'>
                   <div>
                     <h3 className='text-sm font-semibold text-text-primary flex items-center gap-1.5'>
-                      <span className='h-2 w-2 rounded-full bg-success animate-pulse' />
+                      <span className='size-2 rounded-full bg-success animate-pulse' />
                       {selectedPickupPoint.name}
                     </h3>
                     <p className='text-xs text-text-secondary mt-1'>{selectedPickupPoint.street}</p>

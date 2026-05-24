@@ -31,12 +31,14 @@ import { m } from '#/paraglide/messages'
 
 const PAGE_SIZES = [10, 20, 50] as const
 
+const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+})
+
 function formatDate(date: Date | string | null): string {
   if (!date) return '—'
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(date))
+  return DATE_FORMATTER.format(new Date(date))
 }
 
 /* -------------------------------------------------------------------------- */
@@ -189,7 +191,7 @@ export function AdminPayoutsPage() {
     <div className='space-y-6'>
       {/* Header */}
       <div>
-        <h1 className='display-title text-3xl font-bold text-text-primary'>
+        <h1 className='display-title text-3xl font-semibold text-text-primary'>
           {m.admin_payouts_title()}
         </h1>
         <p className='mt-1 text-text-secondary'>{m.admin_payouts_description()}</p>
@@ -594,12 +596,12 @@ export function AdminPayoutsPending() {
   return (
     <div className='space-y-6'>
       <div>
-        <Skeleton className='mb-2 h-9 w-64' />
-        <Skeleton className='h-5 w-80' />
+        <Skeleton className='mb-2 size-9' />
+        <Skeleton className='size-5' />
       </div>
 
       {/* Tabs skeleton */}
-      <Skeleton className='h-10 w-48 rounded-lg' />
+      <Skeleton className='size-10 rounded-lg' />
 
       {/* Table skeleton */}
       <div className='overflow-x-auto' aria-hidden='true'>
@@ -608,7 +610,7 @@ export function AdminPayoutsPending() {
             <tr className='border-b border-border-default'>
               {[1, 2, 3, 4, 5].map((n) => (
                 <th key={n} className='pb-3 pr-4'>
-                  <Skeleton className='h-4 w-20' />
+                  <Skeleton className='size-4' />
                 </th>
               ))}
             </tr>
@@ -619,7 +621,7 @@ export function AdminPayoutsPending() {
               <tr key={i} className='border-b border-border-subtle'>
                 {[1, 2, 3, 4, 5].map((col) => (
                   <td key={col} className='py-3 pr-4'>
-                    <Skeleton className='h-5 w-24' />
+                    <Skeleton className='size-5' />
                   </td>
                 ))}
               </tr>
@@ -639,7 +641,7 @@ export function AdminPayoutsError({ error, reset }: { error: Error; reset?: () =
   return (
     <div className='text-center py-12'>
       <AlertTriangle size={48} className='mx-auto mb-4 text-error' aria-hidden='true' />
-      <h1 className='display-title mb-2 text-2xl font-bold text-text-primary'>
+      <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary'>
         {m.admin_payouts_error_load()}
       </h1>
       <p className='mb-6 text-text-secondary'>{error.message}</p>

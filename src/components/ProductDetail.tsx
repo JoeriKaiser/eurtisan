@@ -164,7 +164,7 @@ export default function ProductDetail({ product }: ProductDetailProps) {
             <p className='island-kicker mb-2'>
               {product.categoryName ?? m.product_uncategorized()}
             </p>
-            <h1 className='display-title mb-3 text-3xl font-bold text-[var(--sea-ink)] sm:text-4xl'>
+            <h1 className='display-title mb-3 text-3xl font-semibold text-[var(--sea-ink)] sm:text-4xl'>
               {product.name}
             </h1>
 

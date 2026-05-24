@@ -159,7 +159,7 @@ function ResolutionForm({
               disabled={isSubmitting}
               className='h-10 w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20 disabled:cursor-not-allowed disabled:opacity-50'
             >
-              <option value='close'>Close — no action</option>
+              <option value='close'>Close (no action)</option>
               <option value='partial_refund'>Partial refund</option>
               <option value='full_refund' disabled={orderStatus === 'refunded'}>
                 Full refund{orderStatus === 'refunded' ? ' — already refunded' : ''}
@@ -371,7 +371,7 @@ export function AdminDisputeDetailPage() {
 
         {/* Title */}
         <div className='mb-8'>
-          <h1 className='display-title mb-2 text-2xl font-bold text-text-primary'>
+          <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary'>
             Dispute {getReasonLabel(dispute.reason)}
           </h1>
           <div className='flex flex-wrap items-center gap-4 text-sm text-text-secondary'>
@@ -555,8 +555,8 @@ export function AdminDisputeDetailPending() {
   return (
     <div className='py-8'>
       <div className='mx-auto max-w-4xl'>
-        <div className='mb-6 h-4 w-32 animate-pulse rounded bg-[var(--sand)]' />
-        <div className='mb-8 h-8 w-64 animate-pulse rounded bg-[var(--sand)]' />
+        <div className='mb-6 size-4 animate-pulse rounded bg-[var(--sand)]' />
+        <div className='mb-8 size-8 animate-pulse rounded bg-[var(--sand)]' />
         <div className='space-y-6'>
           {[1, 2, 3, 4].map((n) => (
             <div key={n} className='island-shell h-40 animate-pulse rounded-xl bg-[var(--sand)]' />
@@ -572,7 +572,7 @@ export function AdminDisputeDetailError({ error }: { error: Error }) {
     <div className='py-8'>
       <div className='mx-auto max-w-4xl text-center'>
         <AlertTriangle size={48} className='mx-auto mb-4 text-error' aria-hidden='true' />
-        <h1 className='display-title mb-4 text-2xl font-bold text-text-primary'>
+        <h1 className='display-title mb-4 text-2xl font-semibold text-text-primary'>
           Failed to load dispute
         </h1>
         <p className='mb-6 text-text-secondary'>{error.message}</p>

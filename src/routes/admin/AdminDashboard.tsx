@@ -17,11 +17,13 @@ const route = getRouteApi('/admin/')
 /*                                   Helpers                                  */
 /* -------------------------------------------------------------------------- */
 
+const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+})
+
 function formatDate(date: Date | string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(date))
+  return DATE_FORMATTER.format(new Date(date))
 }
 
 function statusLabel(status: string): string {
@@ -80,7 +82,9 @@ export function AdminDashboard() {
     <div className='space-y-8'>
       {/* Header */}
       <div>
-        <h1 className='display-title text-3xl font-bold text-text-primary'>{m.admin_title()}</h1>
+        <h1 className='display-title text-3xl font-semibold text-text-primary'>
+          {m.admin_title()}
+        </h1>
         <p className='mt-1 text-text-secondary'>{m.admin_description()}</p>
       </div>
 
@@ -281,8 +285,8 @@ export function AdminDashboardPending() {
   return (
     <div className='space-y-8'>
       <div>
-        <Skeleton className='mb-2 h-9 w-64' />
-        <Skeleton className='h-5 w-48' />
+        <Skeleton className='mb-2 size-9' />
+        <Skeleton className='size-5' />
       </div>
       <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4'>
         {[1, 2, 3, 4].map((n) => (
@@ -290,8 +294,8 @@ export function AdminDashboardPending() {
             <div className='flex items-start gap-4'>
               <Skeleton className='size-10 rounded-lg' />
               <div className='flex-1 space-y-2'>
-                <Skeleton className='h-4 w-24' />
-                <Skeleton className='h-8 w-16' />
+                <Skeleton className='size-4' />
+                <Skeleton className='size-8' />
               </div>
             </div>
           </div>
@@ -300,7 +304,7 @@ export function AdminDashboardPending() {
       <div className='grid grid-cols-1 gap-8 lg:grid-cols-2'>
         {[1, 2].map((n) => (
           <div key={n} className='island-shell rounded-xl p-5'>
-            <Skeleton className='mb-4 h-6 w-40' />
+            <Skeleton className='mb-4 size-6' />
             <Skeleton className='h-48 w-full' />
           </div>
         ))}
@@ -308,7 +312,7 @@ export function AdminDashboardPending() {
       <div className='grid grid-cols-1 gap-8 lg:grid-cols-3'>
         {[1, 2, 3].map((n) => (
           <div key={n} className='island-shell rounded-xl p-5'>
-            <Skeleton className='mb-4 h-6 w-32' />
+            <Skeleton className='mb-4 size-6' />
             <div className='space-y-3'>
               {[1, 2, 3].map((m) => (
                 <Skeleton key={m} className='h-16 w-full' />
@@ -329,7 +333,7 @@ export function AdminDashboardError({ error, reset }: { error: Error; reset?: ()
   return (
     <div className='text-center py-12'>
       <AlertTriangle size={48} className='mx-auto mb-4 text-error' aria-hidden='true' />
-      <h1 className='display-title mb-2 text-2xl font-bold text-text-primary'>
+      <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary'>
         {m.admin_error_load()}
       </h1>
       <p className='mb-6 text-text-secondary'>{error.message}</p>

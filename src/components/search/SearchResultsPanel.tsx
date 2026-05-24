@@ -24,7 +24,7 @@ export default function SearchResultsPanel({
   if (isLoading) {
     return (
       <div className='p-4 sm:p-6'>
-        <div className='mb-3 h-4 w-32 animate-pulse rounded bg-surface-inset' />
+        <div className='mb-3 size-4 animate-pulse rounded bg-surface-inset' />
         <div className='grid gap-2 sm:grid-cols-2'>
           {['skeleton-a', 'skeleton-b', 'skeleton-c', 'skeleton-d', 'skeleton-e', 'skeleton-f'].map(
             (key) => (
@@ -34,9 +34,9 @@ export default function SearchResultsPanel({
               >
                 <Skeleton className='size-16 shrink-0 rounded-lg' />
                 <div className='flex-1 space-y-2'>
-                  <Skeleton className='h-4 w-3/4' />
-                  <Skeleton className='h-3 w-1/2' />
-                  <Skeleton className='h-4 w-16' />
+                  <Skeleton className='size-4/4' />
+                  <Skeleton className='size-3/2' />
+                  <Skeleton className='size-4' />
                 </div>
               </div>
             ),

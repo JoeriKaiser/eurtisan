@@ -61,7 +61,7 @@ export function ShopStatusRouteComponent() {
             <div className='mx-auto mb-4 flex size-20 items-center justify-center rounded-full bg-surface-inset'>
               {config.icon}
             </div>
-            <h1 className='mb-2 text-2xl font-bold text-text-primary'>{config.title}</h1>
+            <h1 className='mb-2 text-2xl font-semibold text-text-primary'>{config.title}</h1>
             <p className='mx-auto max-w-sm text-text-secondary'>{config.description}</p>
             {status.moderationNote && (
               <div className='mx-auto mt-4 max-w-sm rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-900/20 dark:text-amber-200'>

@@ -28,11 +28,13 @@ const PAGE_SIZES = [10, 20, 50] as const
 /*                                   Helpers                                  */
 /* -------------------------------------------------------------------------- */
 
+const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+})
+
 function formatDate(date: Date | string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(date))
+  return DATE_FORMATTER.format(new Date(date))
 }
 
 function formatRelativeDate(date: Date | string): string {
@@ -203,7 +205,7 @@ export function AdminAuditLogPage() {
     <div className='space-y-6'>
       {/* Header */}
       <div>
-        <h1 className='display-title text-3xl font-bold text-text-primary'>
+        <h1 className='display-title text-3xl font-semibold text-text-primary'>
           {m.admin_audit_log_title()}
         </h1>
         <p className='mt-1 text-text-secondary'>{m.admin_audit_log_description()}</p>
@@ -260,7 +262,7 @@ export function AdminAuditLogPage() {
               value={actorFilter}
               onChange={(e) => setActorFilter(e.target.value)}
               placeholder='User ID…'
-              className='h-9 w-48 rounded-md border border-border-default bg-surface-default pl-8 pr-3 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none'
+              className='size-9 rounded-md border border-border-default bg-surface-default pl-8 pr-3 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none'
             />
           </div>
         </div>
@@ -458,14 +460,14 @@ export function AdminAuditLogPending() {
   return (
     <div className='space-y-6'>
       <div>
-        <Skeleton className='h-10 w-64' />
-        <Skeleton className='mt-2 h-5 w-96' />
+        <Skeleton className='size-10' />
+        <Skeleton className='mt-2 size-5' />
       </div>
       <div className='flex flex-wrap gap-3'>
-        <Skeleton className='h-9 w-32' />
-        <Skeleton className='h-9 w-32' />
-        <Skeleton className='h-9 w-24' />
-        <Skeleton className='h-9 w-32' />
+        <Skeleton className='size-9' />
+        <Skeleton className='size-9' />
+        <Skeleton className='size-9' />
+        <Skeleton className='size-9' />
       </div>
       <div className='space-y-3'>
         {[1, 2, 3, 4, 5].map((n) => (
@@ -480,7 +482,7 @@ export function AdminAuditLogError({ error }: { error: Error }) {
   return (
     <div className='space-y-6'>
       <div>
-        <h1 className='display-title text-3xl font-bold text-text-primary'>
+        <h1 className='display-title text-3xl font-semibold text-text-primary'>
           {m.admin_audit_log_title()}
         </h1>
         <p className='mt-1 text-text-secondary'>{m.admin_audit_log_description()}</p>

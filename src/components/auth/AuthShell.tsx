@@ -12,7 +12,7 @@ export function AuthShell({ title, description, children }: Props) {
   return (
     <main className='relative flex min-h-[calc(100vh-380px)] flex-col items-center justify-start overflow-hidden bg-gradient-to-b from-surface-default via-surface-default to-accent-primary/5 px-4 pt-4 pb-8 sm:pt-6 sm:pb-12'>
       {/* Background radial highlight */}
-      <div className='pointer-events-none absolute -top-1/2 left-1/2 h-[1000px] w-[1000px] -translate-x-1/2 rounded-full bg-radial from-accent-primary/5 to-transparent blur-3xl' />
+      <div className='pointer-events-none absolute -top-1/2 left-1/2 size-[1000px] -translate-x-1/2 rounded-full bg-radial from-accent-primary/5 to-transparent blur-3xl' />
 
       <div className='relative w-full max-w-md'>
         {/* Back Link */}

@@ -91,7 +91,7 @@ export function Step1Identity() {
       if (result.profanity) {
         setNameWarning('Please avoid inappropriate language in your shop name.')
       } else if (result.similarExists) {
-        setNameWarning(`'${name}' is very close to an existing shop — consider a more unique name.`)
+        setNameWarning(`'${name}' is very close to an existing shop. Consider a more unique name.`)
       } else {
         setNameWarning(null)
       }
@@ -207,7 +207,7 @@ export function Step1Identity() {
             </span>
           )}
           {slugStatus === 'taken' && (
-            <span className='text-error'>This URL is already taken — try another</span>
+            <span className='text-error'>This URL is already taken. Try another</span>
           )}
         </div>
       </div>

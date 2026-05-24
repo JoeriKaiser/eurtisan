@@ -16,7 +16,7 @@ export function Switch({ className, checked, onCheckedChange, ref, ...props }: S
       aria-checked={checked}
       onClick={() => onCheckedChange(!checked)}
       className={cn(
-        'relative inline-flex h-5 w-11 shrink-0 items-center rounded-full transition-colors duration-fast ease-out',
+        'relative inline-flex size-5 shrink-0 items-center rounded-full transition-colors duration-fast ease-out',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base',
         checked ? 'bg-accent-primary' : 'border border-border-default bg-surface-inset',
         className,

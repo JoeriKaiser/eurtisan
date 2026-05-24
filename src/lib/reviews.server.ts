@@ -275,39 +275,43 @@ export async function getProductReviewsQuery(
   const validatedPage = totalPages > 0 ? Math.min(Math.max(1, page), totalPages) : Math.max(1, page)
   const offset = (validatedPage - 1) * validatedPageSize
 
-  const reviewsResult = await db
-    .select({
-      id: review.id,
-      buyerName: user.name,
-      rating: review.rating,
-      comment: review.comment,
-      createdAt: review.createdAt,
-    })
-    .from(review)
-    .innerJoin(user, eq(review.buyerUserId, user.id))
-    .where(eq(review.productId, productId))
-    .orderBy(desc(review.createdAt))
-    .limit(validatedPageSize)
-    .offset(offset)
+  const [reviewsResult, [avgResult], distributionResult] = await Promise.all([
+    db
+      .select({
+        id: review.id,
+        buyerName: user.name,
+        rating: review.rating,
+        comment: review.comment,
+        createdAt: review.createdAt,
+      })
+      .from(review)
+      .innerJoin(user, eq(review.buyerUserId, user.id))
+      .where(eq(review.productId, productId))
+      .orderBy(desc(review.createdAt))
+      .limit(validatedPageSize)
+      .offset(offset),
+    db
+      .select({ average: sql<number | null>`round(avg(${review.rating})::numeric, 1)` })
+      .from(review)
+      .where(eq(review.productId, productId)),
+    db
+      .select({
+        rating: review.rating,
+        count: count(),
+      })
+      .from(review)
+      .where(eq(review.productId, productId))
+      .groupBy(review.rating),
+  ])
 
-  const [avgResult] = await db
-    .select({ average: sql<number | null>`round(avg(${review.rating})::numeric, 1)` })
-    .from(review)
-    .where(eq(review.productId, productId))
-
-  const distributionResult = await db
-    .select({
-      rating: review.rating,
-      count: count(),
-    })
-    .from(review)
-    .where(eq(review.productId, productId))
-    .groupBy(review.rating)
+  const distributionMap = new Map<number, number>()
+  for (const d of distributionResult) {
+    distributionMap.set(d.rating, Number(d.count))
+  }
 
   const distribution: ReviewDistribution[] = []
   for (let i = 5; i >= 1; i--) {
-    const found = distributionResult.find((d) => d.rating === i)
-    distribution.push({ rating: i, count: found ? Number(found.count) : 0 })
+    distribution.push({ rating: i, count: distributionMap.get(i) ?? 0 })
   }
 
   return {

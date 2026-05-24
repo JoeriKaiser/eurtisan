@@ -147,6 +147,13 @@ export async function getBuyerOrderDetailQuery(
       .map((t) => [t.shopOrderId, t.status]),
   )
 
+  const itemsByShopOrderId = new Map<string, typeof itemsResult>()
+  for (const item of itemsResult) {
+    const list = itemsByShopOrderId.get(item.shopOrderId) ?? []
+    list.push(item)
+    itemsByShopOrderId.set(item.shopOrderId, list)
+  }
+
   const shops: OrderShopGroup[] = shopOrdersResult.map((so) => {
     const label = labelMap.get(so.shopOrder.id)
     return {
@@ -172,18 +179,16 @@ export async function getBuyerOrderDetailQuery(
           }
         : null,
       trackingStatus: trackingStatusMap.get(so.shopOrder.id) ?? null,
-      items: itemsResult
-        .filter((item) => item.shopOrderId === so.shopOrder.id)
-        .map((item) => ({
-          id: item.id,
-          productId: item.productId,
-          productName: item.productName,
-          unitPriceCents: item.unitPriceCents,
-          quantity: item.quantity,
-          totalCents: item.totalCents,
-          vatRateBasisPoints: item.vatRateBasisPoints,
-          vatAmountCents: item.vatAmountCents,
-        })),
+      items: (itemsByShopOrderId.get(so.shopOrder.id) ?? []).map((item) => ({
+        id: item.id,
+        productId: item.productId,
+        productName: item.productName,
+        unitPriceCents: item.unitPriceCents,
+        quantity: item.quantity,
+        totalCents: item.totalCents,
+        vatRateBasisPoints: item.vatRateBasisPoints,
+        vatAmountCents: item.vatAmountCents,
+      })),
     }
   })
 
@@ -204,23 +209,21 @@ export async function listBuyerOrdersQuery(
   limit: number,
   offset: number,
 ): Promise<{ orders: BuyerOrderListItem[]; total: number }> {
-  const ordersResult = await db
-    .select({
-      id: platformOrder.id,
-      totalCents: platformOrder.totalCents,
-      status: platformOrder.status,
-      createdAt: platformOrder.createdAt,
-    })
-    .from(platformOrder)
-    .where(eq(platformOrder.userId, userId))
-    .orderBy(desc(platformOrder.createdAt))
-    .limit(limit)
-    .offset(offset)
-
-  const [{ count: totalCount }] = await db
-    .select({ count: count() })
-    .from(platformOrder)
-    .where(eq(platformOrder.userId, userId))
+  const [ordersResult, [{ count: totalCount }]] = await Promise.all([
+    db
+      .select({
+        id: platformOrder.id,
+        totalCents: platformOrder.totalCents,
+        status: platformOrder.status,
+        createdAt: platformOrder.createdAt,
+      })
+      .from(platformOrder)
+      .where(eq(platformOrder.userId, userId))
+      .orderBy(desc(platformOrder.createdAt))
+      .limit(limit)
+      .offset(offset),
+    db.select({ count: count() }).from(platformOrder).where(eq(platformOrder.userId, userId)),
+  ])
 
   if (ordersResult.length === 0) {
     return { orders: [], total: totalCount }

@@ -134,21 +134,22 @@ export async function populateProductsIndex(): Promise<{ synced: number; errors:
 
   for (const p of products) {
     try {
-      const categoryRow = p.product.categoryId
-        ? await db.select().from(categories).where(eq(categories.id, p.product.categoryId)).limit(1)
+      const prod = p.product
+      const categoryRow = prod.categoryId
+        ? await db.select().from(categories).where(eq(categories.id, prod.categoryId)).limit(1)
         : []
 
       docs.push({
-        id: p.product.id,
-        name: p.product.name,
-        description: p.product.description,
-        priceCents: p.product.priceCents,
-        isActive: p.product.isActive,
-        shopId: p.product.shopId,
+        id: prod.id,
+        name: prod.name,
+        description: prod.description,
+        priceCents: prod.priceCents,
+        isActive: prod.isActive,
+        shopId: prod.shopId,
         shopSlug: p.shop.slug,
-        categoryId: p.product.categoryId,
+        categoryId: prod.categoryId,
         categorySlug: categoryRow[0]?.slug ?? null,
-        createdAt: p.product.createdAt.toISOString(),
+        createdAt: prod.createdAt.toISOString(),
       })
     } catch {
       errors++

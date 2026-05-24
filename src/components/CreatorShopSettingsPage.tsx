@@ -354,7 +354,7 @@ function ShopSettingsForm({
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
         {/* Header */}
         <div className='mb-8'>
-          <h1 className='display-title mb-2 text-3xl font-bold text-text-primary'>
+          <h1 className='display-title mb-2 text-3xl font-semibold text-text-primary'>
             {m.creator_shop_settings_title()}
           </h1>
           <p className='text-text-secondary'>{m.creator_shop_settings_description()}</p>
@@ -818,33 +818,33 @@ export function CreatorShopSettingsLoading() {
   return (
     <main className='page-wrap px-4 py-8 sm:py-12'>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
-        <Skeleton className='mb-2 h-9 w-72' />
-        <Skeleton className='mb-8 h-5 w-56' />
+        <Skeleton className='mb-2 size-9' />
+        <Skeleton className='mb-8 size-5' />
 
         <div className='grid gap-8 lg:grid-cols-3'>
           <div className='space-y-5 lg:col-span-2'>
             <div>
-              <Skeleton className='mb-2 h-4 w-20' />
+              <Skeleton className='mb-2 size-4' />
               <Skeleton className='h-10 w-full' />
             </div>
             <div>
-              <Skeleton className='mb-2 h-4 w-16' />
+              <Skeleton className='mb-2 size-4' />
               <Skeleton className='h-10 w-full' />
             </div>
             <div>
-              <Skeleton className='mb-2 h-4 w-24' />
+              <Skeleton className='mb-2 size-4' />
               <Skeleton className='h-32 w-full' />
             </div>
           </div>
           <div>
-            <Skeleton className='mb-2 h-4 w-20' />
+            <Skeleton className='mb-2 size-4' />
             <Skeleton className='mb-3 aspect-video w-full rounded-lg' />
             <Skeleton className='h-8 w-full' />
           </div>
         </div>
 
         <div className='mt-8 border-t border-border-subtle pt-6'>
-          <Skeleton className='h-10 w-32' />
+          <Skeleton className='size-10' />
         </div>
       </section>
     </main>
@@ -857,7 +857,7 @@ export function CreatorShopSettingsError({ error }: { error: Error }) {
   return (
     <main className='page-wrap px-4 py-8 sm:py-12'>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
-        <h1 className='display-title mb-6 text-3xl font-bold text-text-primary'>
+        <h1 className='display-title mb-6 text-3xl font-semibold text-text-primary'>
           {m.creator_shop_settings_title()}
         </h1>
         <div className='py-12 text-center'>

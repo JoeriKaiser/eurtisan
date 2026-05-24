@@ -111,7 +111,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
     return (
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
         <div className='animate-pulse space-y-4'>
-          <div className='h-6 w-32 bg-[var(--ds-border-subtle)] rounded' />
+          <div className='size-6 bg-[var(--ds-border-subtle)] rounded' />
           <div className='h-20 w-full bg-[var(--ds-border-subtle)] rounded' />
         </div>
       </section>

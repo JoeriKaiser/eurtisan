@@ -168,7 +168,7 @@ export default function CategoriesMegamenu({ categories }: CategoriesMegamenuPro
               {/* Center Pane: Subcategories Grid */}
               <div className='flex-1 bg-surface-default p-5 flex flex-col justify-between max-h-[480px] overflow-y-auto scrollbar-thin'>
                 <div className='flex flex-col gap-4'>
-                  <h3 className='text-xs font-bold uppercase tracking-wider text-text-muted'>
+                  <h3 className='text-xs font-semibold uppercase tracking-wider text-text-muted'>
                     {activeCategory?.name}
                   </h3>
                   {activeCategory?.children && activeCategory.children.length > 0 ? (
@@ -212,7 +212,7 @@ export default function CategoriesMegamenu({ categories }: CategoriesMegamenuPro
               {/* Right Pane: Spotlight Panel */}
               {spotlight && (
                 <div className='w-[280px] bg-bg-inset/20 p-5 flex flex-col gap-4 max-h-[480px] border-l border-border-default/40'>
-                  <h4 className='text-xs font-bold uppercase tracking-wider text-text-muted'>
+                  <h4 className='text-xs font-semibold uppercase tracking-wider text-text-muted'>
                     {m.megamenu_spotlight_title()}
                   </h4>
                   <div className='flex flex-col gap-3 group/spot border border-border-default/40 rounded-xl overflow-hidden bg-surface-default shadow-sm transition-transform duration-fast hover:scale-[1.01]'>
@@ -224,7 +224,9 @@ export default function CategoriesMegamenu({ categories }: CategoriesMegamenuPro
                       />
                     </div>
                     <div className='p-3 pt-1 flex flex-col gap-1.5'>
-                      <h5 className='text-sm font-bold text-text-primary'>{spotlight.title()}</h5>
+                      <h5 className='text-sm font-semibold text-text-primary'>
+                        {spotlight.title()}
+                      </h5>
                       <p className='text-xs text-text-secondary leading-relaxed'>
                         {spotlight.description()}
                       </p>

@@ -9,6 +9,12 @@ import { Button } from './ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Skeleton } from './ui/skeleton'
 
+const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+})
+
 /* -------------------------------------------------------------------------- */
 /*                                    Types                                   */
 /* -------------------------------------------------------------------------- */
@@ -174,7 +180,7 @@ export function CreatorPayoutsPage({
     <main className='page-wrap px-4 py-12'>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
         {/* Header */}
-        <h1 className='display-title mb-2 text-3xl font-bold text-text-primary'>
+        <h1 className='display-title mb-2 text-3xl font-semibold text-text-primary'>
           {m.creator_payouts_title()}
         </h1>
         <p className='mb-6 text-text-secondary'>{m.creator_payouts_description()}</p>
@@ -223,12 +229,12 @@ export function CreatorPayoutsPage({
                   </div>
                   {activeShop.paymentConnected ? (
                     <Badge variant='success' className='flex items-center gap-1.5 font-medium'>
-                      <span className='h-1.5 w-1.5 rounded-full bg-success' />
+                      <span className='size-1.5 rounded-full bg-success' />
                       {m.creator_payouts_mollie_status_connected()}
                     </Badge>
                   ) : (
                     <Badge variant='warning' className='flex items-center gap-1.5 font-medium'>
-                      <span className='h-1.5 w-1.5 rounded-full bg-warning animate-pulse' />
+                      <span className='size-1.5 rounded-full bg-warning animate-pulse' />
                       {m.creator_payouts_mollie_status_disconnected()}
                     </Badge>
                   )}
@@ -397,11 +403,7 @@ export function CreatorPayoutsPage({
                       {payout.orderId.substring(0, 8)}…
                     </td>
                     <td className='py-3 pr-4 text-text-primary'>
-                      {new Intl.DateTimeFormat(undefined, {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                      }).format(new Date(payout.date))}
+                      {DATE_FORMATTER.format(new Date(payout.date))}
                     </td>
                     <td
                       className={`py-3 pr-4 text-right font-medium tabular-nums ${
@@ -582,7 +584,7 @@ export function CreatorPayoutsError({ error }: { error: Error }) {
   return (
     <main className='page-wrap px-4 py-12'>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
-        <h1 className='display-title mb-6 text-3xl font-bold text-text-primary'>
+        <h1 className='display-title mb-6 text-3xl font-semibold text-text-primary'>
           {m.creator_payouts_title()}
         </h1>
         <div className='py-12 text-center'>

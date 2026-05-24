@@ -10,7 +10,7 @@ export function ShopRouteComponent() {
 export function ShopError({ error }: { error: Error }) {
   return (
     <main className='page-wrap px-4 py-20 text-center'>
-      <h1 className='display-title mb-4 text-3xl font-bold text-text-primary'>
+      <h1 className='display-title mb-4 text-3xl font-semibold text-text-primary'>
         {m.error_unexpected()}
       </h1>
       <p className='mb-6 text-text-secondary'>{error.message}</p>
@@ -22,9 +22,9 @@ export function ShopPending() {
   return (
     <main className='page-wrap px-4 pb-16 pt-14'>
       <div className='island-shell rounded-2xl px-6 py-10 sm:px-10 sm:py-14'>
-        <div className='mb-4 h-4 w-20 animate-pulse rounded bg-[var(--sand)]' />
-        <div className='mb-4 h-10 w-2/3 animate-pulse rounded bg-[var(--sand)]' />
-        <div className='h-4 w-1/2 animate-pulse rounded bg-[var(--sand)]' />
+        <div className='mb-4 size-4 animate-pulse rounded bg-[var(--sand)]' />
+        <div className='mb-4 size-10/3 animate-pulse rounded bg-[var(--sand)]' />
+        <div className='size-4/2 animate-pulse rounded bg-[var(--sand)]' />
       </div>
       <div className='mt-8'>
         <output className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3' aria-live='polite'>
@@ -35,9 +35,9 @@ export function ShopPending() {
             >
               <div className='aspect-[4/3] w-full animate-pulse bg-[var(--sand)]' />
               <div className='flex flex-1 flex-col gap-2 p-4'>
-                <div className='h-5 w-2/3 animate-pulse rounded bg-[var(--sand)]' />
+                <div className='size-5/3 animate-pulse rounded bg-[var(--sand)]' />
                 <div className='h-4 w-full animate-pulse rounded bg-[var(--sand)]' />
-                <div className='mt-auto h-6 w-1/3 animate-pulse rounded bg-[var(--sand)]' />
+                <div className='mt-auto size-6/3 animate-pulse rounded bg-[var(--sand)]' />
               </div>
             </div>
           ))}

@@ -144,8 +144,8 @@ export default function HomePage({
       {/* 1. HERO SECTION */}
       <section className='relative overflow-hidden bg-gradient-to-b from-accent-primary-subtle/20 to-bg-base border-b border-border-subtle/60 pt-20 pb-28 md:pt-32 md:pb-40'>
         <div className='pointer-events-none absolute inset-0'>
-          <div className='absolute -left-20 -top-20 h-[360px] w-[360px] rounded-full opacity-35 radial-glow-moss dark:opacity-20' />
-          <div className='absolute -bottom-20 -right-20 h-[400px] w-[400px] rounded-full opacity-30 radial-glow-sage dark:opacity-15' />
+          <div className='absolute -left-20 -top-20 size-[360px] rounded-full opacity-35 radial-glow-moss dark:opacity-20' />
+          <div className='absolute -bottom-20 -right-20 size-[400px] rounded-full opacity-30 radial-glow-sage dark:opacity-15' />
         </div>
 
         <div className='max-w-7xl mx-auto px-6 relative z-10 animate-fade-in-up'>
@@ -153,7 +153,7 @@ export default function HomePage({
             <p className='island-kicker mb-3 font-sans text-xs font-bold uppercase tracking-wider text-accent-primary'>
               {m.home_hero_kicker()}
             </p>
-            <h1 className='display-title mb-6 text-4xl font-bold tracking-tight text-text-primary sm:text-5xl lg:text-7xl leading-[1.1]'>
+            <h1 className='display-title mb-6 text-4xl font-semibold tracking-tight text-text-primary sm:text-5xl lg:text-7xl leading-[1.1]'>
               {m.home_hero_title()}
             </h1>
             <p className='mb-8 max-w-xl font-sans text-base leading-relaxed text-text-secondary sm:text-lg'>
@@ -238,7 +238,7 @@ export default function HomePage({
         >
           <div className='rounded-2xl border border-border-subtle bg-bg-elevated p-8 text-center shadow-lg'>
             <div className='mb-6'>
-              <h3 className='text-lg font-bold text-text-primary display-title'>
+              <h3 className='text-lg font-semibold text-text-primary display-title'>
                 {m.home_stats_title()}
               </h3>
               <p className='text-sm text-text-secondary font-sans mt-1'>{m.home_stats_desc()}</p>
@@ -285,7 +285,7 @@ export default function HomePage({
               <MapPin size={20} aria-hidden='true' />
             </div>
             <div>
-              <h3 className='text-sm font-bold text-text-primary'>
+              <h3 className='text-sm font-semibold text-text-primary'>
                 {m.home_val_made_in_europe_title()}
               </h3>
               <p className='text-xs text-text-secondary mt-0.5 leading-relaxed'>
@@ -298,7 +298,9 @@ export default function HomePage({
               <Store size={20} aria-hidden='true' />
             </div>
             <div>
-              <h3 className='text-sm font-bold text-text-primary'>{m.home_val_direct_title()}</h3>
+              <h3 className='text-sm font-semibold text-text-primary'>
+                {m.home_val_direct_title()}
+              </h3>
               <p className='text-xs text-text-secondary mt-0.5 leading-relaxed'>
                 {m.home_val_direct_desc()}
               </p>
@@ -309,7 +311,9 @@ export default function HomePage({
               <ShieldCheck size={20} aria-hidden='true' />
             </div>
             <div>
-              <h3 className='text-sm font-bold text-text-primary'>{m.home_val_secure_title()}</h3>
+              <h3 className='text-sm font-semibold text-text-primary'>
+                {m.home_val_secure_title()}
+              </h3>
               <p className='text-xs text-text-secondary mt-0.5 leading-relaxed'>
                 {m.home_val_secure_desc()}
               </p>
@@ -320,7 +324,7 @@ export default function HomePage({
               <Eye size={20} aria-hidden='true' />
             </div>
             <div>
-              <h3 className='text-sm font-bold text-text-primary'>{m.home_val_gdpr_title()}</h3>
+              <h3 className='text-sm font-semibold text-text-primary'>{m.home_val_gdpr_title()}</h3>
               <p className='text-xs text-text-secondary mt-0.5 leading-relaxed'>
                 {m.home_val_gdpr_desc()}
               </p>
@@ -337,7 +341,7 @@ export default function HomePage({
             <div>
               <h2
                 id='products-heading'
-                className='display-title text-2xl font-bold tracking-tight text-text-primary sm:text-3xl'
+                className='display-title text-2xl font-semibold tracking-tight text-text-primary sm:text-3xl'
               >
                 {m.home_products_title()}
               </h2>
@@ -412,7 +416,7 @@ export default function HomePage({
               <div>
                 <h2
                   id='shops-heading'
-                  className='display-title text-2xl font-bold tracking-tight text-text-primary sm:text-3xl'
+                  className='display-title text-2xl font-semibold tracking-tight text-text-primary sm:text-3xl'
                 >
                   {m.home_shops_title()}
                 </h2>
@@ -442,7 +446,7 @@ export default function HomePage({
                         {shop.category}
                       </span>
                     )}
-                    <h3 className='text-sm font-bold text-text-primary truncate font-sans group-hover:text-accent-primary transition-colors'>
+                    <h3 className='text-sm font-semibold text-text-primary truncate font-sans group-hover:text-accent-primary transition-colors'>
                       Shop {shop.name.startsWith('Shop ') ? shop.name.substring(5) : shop.name}
                     </h3>
                     {shop.tagline && (
@@ -471,7 +475,7 @@ export default function HomePage({
               <div>
                 <h2
                   id='categories-heading'
-                  className='display-title text-2xl font-bold tracking-tight text-text-primary sm:text-3xl'
+                  className='display-title text-2xl font-semibold tracking-tight text-text-primary sm:text-3xl'
                 >
                   {m.home_categories_title()}
                 </h2>
@@ -506,7 +510,7 @@ export default function HomePage({
                         </span>
                       </div>
                       <div className='mt-6 relative z-10'>
-                        <h3 className='display-title text-xl sm:text-2xl font-bold text-text-primary mb-1'>
+                        <h3 className='display-title text-xl sm:text-2xl font-semibold text-text-primary mb-1'>
                           {firstCategory.name}
                         </h3>
                         <p className='text-xs sm:text-sm text-text-secondary max-w-md font-sans'>
@@ -629,11 +633,11 @@ export default function HomePage({
           className='relative overflow-hidden rounded-[2rem] border border-border-default bg-bg-inset px-6 py-14 sm:px-12 sm:py-20 text-center shadow-inner'
           aria-labelledby='pre-footer-heading'
         >
-          <div className='pointer-events-none absolute -left-20 -bottom-20 h-64 w-64 rounded-full opacity-35 radial-glow-moss-strong dark:opacity-20' />
+          <div className='pointer-events-none absolute -left-20 -bottom-20 size-64 rounded-full opacity-35 radial-glow-moss-strong dark:opacity-20' />
           <div className='relative max-w-xl mx-auto'>
             <h2
               id='pre-footer-heading'
-              className='display-title mb-4 text-3xl font-bold tracking-tight text-text-primary sm:text-4xl'
+              className='display-title mb-4 text-3xl font-semibold tracking-tight text-text-primary sm:text-4xl'
             >
               {preFooterTitle}
             </h2>

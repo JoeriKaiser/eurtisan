@@ -149,6 +149,9 @@ async function buildCartDetail(cartRecord: typeof cart.$inferSelect): Promise<Ca
   for (const row of rows) {
     const productRecord = row.product
     const shopRecord = row.shop
+    const itemId = row.item.id
+    const itemProductId = row.item.productId
+    const itemQuantity = row.item.quantity
 
     const isUnavailable =
       !productRecord || productRecord.isActive === false || shopRecord?.isSuspended === true
@@ -156,9 +159,9 @@ async function buildCartDetail(cartRecord: typeof cart.$inferSelect): Promise<Ca
     const availableStock = productRecord ? (availableStockMap.get(productRecord.id) ?? 0) : 0
 
     const itemDetail: CartItemDetail = {
-      id: row.item.id,
-      productId: row.item.productId,
-      quantity: row.item.quantity,
+      id: itemId,
+      productId: itemProductId,
+      quantity: itemQuantity,
       product: productRecord
         ? {
             id: productRecord.id,
@@ -170,7 +173,7 @@ async function buildCartDetail(cartRecord: typeof cart.$inferSelect): Promise<Ca
           }
         : null,
       unavailable: isUnavailable,
-      stockWarning: !isUnavailable && productRecord ? row.item.quantity > availableStock : false,
+      stockWarning: !isUnavailable && productRecord ? itemQuantity > availableStock : false,
     }
 
     const shopId = shopRecord?.id ?? null
@@ -179,8 +182,7 @@ async function buildCartDetail(cartRecord: typeof cart.$inferSelect): Promise<Ca
     if (existing) {
       existing.items.push(itemDetail)
       if (!isUnavailable && productRecord) {
-        existing.subtotalCents +=
-          productRecord.priceCents * Math.min(row.item.quantity, availableStock)
+        existing.subtotalCents += productRecord.priceCents * Math.min(itemQuantity, availableStock)
       }
     } else {
       groups.set(shopId, {
@@ -191,7 +193,7 @@ async function buildCartDetail(cartRecord: typeof cart.$inferSelect): Promise<Ca
         items: [itemDetail],
         subtotalCents:
           !isUnavailable && productRecord
-            ? productRecord.priceCents * Math.min(row.item.quantity, availableStock)
+            ? productRecord.priceCents * Math.min(itemQuantity, availableStock)
             : 0,
       })
     }
@@ -375,19 +377,21 @@ export async function mergeAnonymousCartIntoUserCart(sessionId: string, userId: 
 
     const productIds = anonItems.map((item) => item.productId)
     const products = await tx.select().from(product).where(inArray(product.id, productIds))
+    const productById = new Map(products.map((p) => [p.id, p]))
 
-    // Fetch available stock for all products in the merge
-    const availableStockMap = await getAvailableStockForProducts(productIds)
-
-    // Batch-fetch all existing user cart items to avoid N+1 per anonymous item
-    const existingUserItems = await tx
-      .select()
-      .from(cartItem)
-      .where(and(eq(cartItem.cartId, userCartId), inArray(cartItem.productId, productIds)))
+    // Fetch available stock and existing user cart items in parallel
+    const [availableStockMap, existingUserItems] = await Promise.all([
+      getAvailableStockForProducts(productIds),
+      tx
+        .select()
+        .from(cartItem)
+        .where(and(eq(cartItem.cartId, userCartId), inArray(cartItem.productId, productIds))),
+    ])
     const existingByProductId = new Map(existingUserItems.map((item) => [item.productId, item]))
 
+    const mutations: Promise<unknown>[] = []
     for (const anonItem of anonItems) {
-      const productRecord = products.find((p) => p.id === anonItem.productId)
+      const productRecord = productById.get(anonItem.productId)
       if (!productRecord) continue
 
       const existingItem = existingByProductId.get(anonItem.productId)
@@ -400,26 +404,31 @@ export async function mergeAnonymousCartIntoUserCart(sessionId: string, userId: 
 
       if (cappedQuantity <= 0) {
         if (existingItem) {
-          await tx.delete(cartItem).where(eq(cartItem.id, existingItem.id))
+          mutations.push(tx.delete(cartItem).where(eq(cartItem.id, existingItem.id)))
         }
         continue
       }
 
       if (existingItem) {
-        await tx
-          .update(cartItem)
-          .set({ quantity: cappedQuantity, updatedAt: new Date() })
-          .where(eq(cartItem.id, existingItem.id))
+        mutations.push(
+          tx
+            .update(cartItem)
+            .set({ quantity: cappedQuantity, updatedAt: new Date() })
+            .where(eq(cartItem.id, existingItem.id)),
+        )
       } else {
-        await tx.insert(cartItem).values({
-          cartId: userCartId,
-          productId: anonItem.productId,
-          quantity: cappedQuantity,
-        })
+        mutations.push(
+          tx.insert(cartItem).values({
+            cartId: userCartId,
+            productId: anonItem.productId,
+            quantity: cappedQuantity,
+          }),
+        )
       }
     }
 
-    await tx.delete(cart).where(eq(cart.id, anonCartId))
+    mutations.push(tx.delete(cart).where(eq(cart.id, anonCartId)))
+    await Promise.all(mutations)
   })
 }
 

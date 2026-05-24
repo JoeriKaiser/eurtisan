@@ -23,7 +23,7 @@ export default function OrderSuccessPage({ order }: OrderSuccessPageProps) {
               <div className='mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-success-subtle text-success'>
                 <CheckCircle2 size={32} aria-hidden='true' />
               </div>
-              <h1 className='display-title mb-2 text-2xl font-bold text-text-primary sm:text-3xl'>
+              <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary sm:text-3xl'>
                 {m.order_success_title()}
               </h1>
               <p className='text-text-secondary'>{m.order_success_description()}</p>
@@ -35,7 +35,7 @@ export default function OrderSuccessPage({ order }: OrderSuccessPageProps) {
               <div className='mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-warning-subtle text-warning'>
                 <Loader2 size={32} aria-hidden='true' className='animate-spin' />
               </div>
-              <h1 className='display-title mb-2 text-2xl font-bold text-text-primary sm:text-3xl'>
+              <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary sm:text-3xl'>
                 {m.order_pending_title()}
               </h1>
               <p className='text-text-secondary'>{m.order_pending_description()}</p>
@@ -47,7 +47,7 @@ export default function OrderSuccessPage({ order }: OrderSuccessPageProps) {
               <div className='mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-error-subtle text-error'>
                 <XCircle size={32} aria-hidden='true' />
               </div>
-              <h1 className='display-title mb-2 text-2xl font-bold text-text-primary sm:text-3xl'>
+              <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary sm:text-3xl'>
                 {m.order_failed_title()}
               </h1>
               <p className='text-text-secondary'>{m.order_failed_description()}</p>
@@ -59,7 +59,7 @@ export default function OrderSuccessPage({ order }: OrderSuccessPageProps) {
               <div className='mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-success-subtle text-success'>
                 <CheckCircle2 size={32} aria-hidden='true' />
               </div>
-              <h1 className='display-title mb-2 text-2xl font-bold text-text-primary sm:text-3xl'>
+              <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary sm:text-3xl'>
                 {m.order_success_title()}
               </h1>
               <p className='text-text-secondary'>{m.order_success_description()}</p>
@@ -91,7 +91,7 @@ export default function OrderSuccessPage({ order }: OrderSuccessPageProps) {
                 <div className='flex flex-wrap items-center justify-between gap-2'>
                   <h3 className='text-sm font-semibold text-text-primary'>{shop.shopName}</h3>
                   <span className='text-xs text-text-secondary capitalize'>
-                    {shop.shippingMethod} — {formatPriceEUR(shop.shippingCostCents)}
+                    {shop.shippingMethod}: {formatPriceEUR(shop.shippingCostCents)}
                   </span>
                 </div>
                 <ul className='divide-y divide-border-subtle'>

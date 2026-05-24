@@ -40,7 +40,7 @@ export default function LocaleDropdown() {
               >
                 <span>{locale}</span>
                 {isActive && (
-                  <span className='h-1.5 w-1.5 rounded-full bg-accent-primary' aria-hidden='true' />
+                  <span className='size-1.5 rounded-full bg-accent-primary' aria-hidden='true' />
                 )}
               </DropdownMenuItem>
             )

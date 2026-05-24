@@ -15,6 +15,12 @@ import { Button } from './ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Skeleton } from './ui/skeleton'
 
+const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+})
+
 function formatRelativeTime(date: Date): string {
   const now = new Date()
   const diffMs = now.getTime() - new Date(date).getTime()
@@ -27,11 +33,7 @@ function formatRelativeTime(date: Date): string {
   if (diffMin < 60) return m.time_minutes_ago({ count: String(diffMin) })
   if (diffHour < 24) return m.time_hours_ago({ count: String(diffHour) })
   if (diffDay < 30) return m.time_days_ago({ count: String(diffDay) })
-  return new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  }).format(new Date(date))
+  return DATE_FORMATTER.format(new Date(date))
 }
 
 function getFirstShop(shops: CreatorShop[]): CreatorShop | undefined {
@@ -73,7 +75,7 @@ export function CreatorDashboardPage({ stats, activity, shops }: CreatorDashboar
   return (
     <main className='page-wrap px-4 py-12'>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
-        <h1 className='display-title mb-2 text-3xl font-bold text-text-primary'>
+        <h1 className='display-title mb-2 text-3xl font-semibold text-text-primary'>
           {m.creator_title()}
         </h1>
         <p className='mb-8 text-text-secondary'>{m.creator_description()}</p>
@@ -261,84 +263,84 @@ export function CreatorDashboardLoading() {
   return (
     <main className='page-wrap px-4 py-12'>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
-        <Skeleton className='mb-2 h-9 w-64' />
-        <Skeleton className='mb-8 h-4 w-48' />
+        <Skeleton className='mb-2 size-9' />
+        <Skeleton className='mb-8 size-4' />
 
         {/* Stat skeletons */}
         <div className='mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4'>
           <Card>
             <CardHeader className='pb-2'>
-              <Skeleton className='h-4 w-24' />
+              <Skeleton className='size-4' />
             </CardHeader>
             <CardContent>
-              <Skeleton className='h-8 w-20' />
+              <Skeleton className='size-8' />
             </CardContent>
           </Card>
           <Card>
             <CardHeader className='pb-2'>
-              <Skeleton className='h-4 w-24' />
+              <Skeleton className='size-4' />
             </CardHeader>
             <CardContent>
-              <Skeleton className='h-8 w-20' />
+              <Skeleton className='size-8' />
             </CardContent>
           </Card>
           <Card>
             <CardHeader className='pb-2'>
-              <Skeleton className='h-4 w-24' />
+              <Skeleton className='size-4' />
             </CardHeader>
             <CardContent>
-              <Skeleton className='h-8 w-20' />
+              <Skeleton className='size-8' />
             </CardContent>
           </Card>
           <Card>
             <CardHeader className='pb-2'>
-              <Skeleton className='h-4 w-24' />
+              <Skeleton className='size-4' />
             </CardHeader>
             <CardContent>
-              <Skeleton className='h-8 w-20' />
+              <Skeleton className='size-8' />
             </CardContent>
           </Card>
         </div>
 
         {/* Quick actions skeleton */}
-        <Skeleton className='mb-4 h-6 w-32' />
+        <Skeleton className='mb-4 size-6' />
         <div className='mb-8 grid grid-cols-2 gap-3 sm:grid-cols-3'>
           <div className='flex flex-col items-center gap-2 rounded-xl border border-border-default p-4'>
             <Skeleton className='size-10 rounded-full' />
-            <Skeleton className='h-4 w-16' />
+            <Skeleton className='size-4' />
           </div>
           <div className='flex flex-col items-center gap-2 rounded-xl border border-border-default p-4'>
             <Skeleton className='size-10 rounded-full' />
-            <Skeleton className='h-4 w-16' />
+            <Skeleton className='size-4' />
           </div>
           <div className='flex flex-col items-center gap-2 rounded-xl border border-border-default p-4'>
             <Skeleton className='size-10 rounded-full' />
-            <Skeleton className='h-4 w-16' />
+            <Skeleton className='size-4' />
           </div>
         </div>
 
         {/* Activity skeleton */}
-        <Skeleton className='mb-4 h-6 w-32' />
+        <Skeleton className='mb-4 size-6' />
         <div className='space-y-3' aria-hidden='true'>
           <div className='flex items-start gap-3 rounded-xl border border-border-default p-4'>
             <Skeleton className='size-9 rounded-full' />
             <div className='flex-1 space-y-2'>
-              <Skeleton className='h-4 w-3/4' />
-              <Skeleton className='h-3 w-24' />
+              <Skeleton className='size-4/4' />
+              <Skeleton className='size-3' />
             </div>
           </div>
           <div className='flex items-start gap-3 rounded-xl border border-border-default p-4'>
             <Skeleton className='size-9 rounded-full' />
             <div className='flex-1 space-y-2'>
-              <Skeleton className='h-4 w-3/4' />
-              <Skeleton className='h-3 w-24' />
+              <Skeleton className='size-4/4' />
+              <Skeleton className='size-3' />
             </div>
           </div>
           <div className='flex items-start gap-3 rounded-xl border border-border-default p-4'>
             <Skeleton className='size-9 rounded-full' />
             <div className='flex-1 space-y-2'>
-              <Skeleton className='h-4 w-3/4' />
-              <Skeleton className='h-3 w-24' />
+              <Skeleton className='size-4/4' />
+              <Skeleton className='size-3' />
             </div>
           </div>
         </div>
@@ -353,7 +355,7 @@ export function CreatorDashboardError({ error }: { error: Error }) {
   return (
     <main className='page-wrap px-4 py-12'>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
-        <h1 className='display-title mb-6 text-3xl font-bold text-text-primary'>
+        <h1 className='display-title mb-6 text-3xl font-semibold text-text-primary'>
           {m.creator_title()}
         </h1>
         <div className='py-12 text-center'>

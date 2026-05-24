@@ -15,6 +15,12 @@ const TYPE_ICONS: Record<NotificationType, React.ReactNode> = {
   payout_sent: <Banknote size={18} aria-hidden='true' />,
 }
 
+const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+})
+
 function formatRelativeTime(date: Date): string {
   const now = new Date()
   const diffMs = now.getTime() - new Date(date).getTime()
@@ -27,11 +33,7 @@ function formatRelativeTime(date: Date): string {
   if (diffMin < 60) return m.time_minutes_ago({ count: String(diffMin) })
   if (diffHour < 24) return m.time_hours_ago({ count: String(diffHour) })
   if (diffDay < 30) return m.time_days_ago({ count: String(diffDay) })
-  return new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  }).format(new Date(date))
+  return DATE_FORMATTER.format(new Date(date))
 }
 
 function resolveDeepLink(item: NotificationItem): string | null {
@@ -121,7 +123,7 @@ export function NotificationsPage({
     <main className='page-wrap px-4 py-12'>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
         <div className='mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
-          <h1 className='display-title text-3xl font-bold text-text-primary'>
+          <h1 className='display-title text-3xl font-semibold text-text-primary'>
             {m.notifications_title()}
           </h1>
           {notifications.length > 0 && (
@@ -177,7 +179,7 @@ export function NotificationsPage({
                       </div>
                       {isUnread && (
                         <span
-                          className='mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-accent-primary'
+                          className='mt-2 size-2 flex-shrink-0 rounded-full bg-accent-primary'
                           aria-hidden='true'
                         />
                       )}
@@ -274,7 +276,7 @@ export function NotificationsError({ error }: { error: Error }) {
   return (
     <main className='page-wrap px-4 py-12'>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
-        <h1 className='display-title mb-6 text-3xl font-bold text-text-primary'>
+        <h1 className='display-title mb-6 text-3xl font-semibold text-text-primary'>
           {m.notifications_title()}
         </h1>
         <div className='py-12 text-center'>

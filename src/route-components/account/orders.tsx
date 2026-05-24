@@ -8,12 +8,14 @@ import { m } from '#/paraglide/messages'
 
 const PAGE_SIZE = 10
 
+const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+})
+
 function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat(undefined, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }).format(new Date(date))
+  return DATE_FORMATTER.format(new Date(date))
 }
 
 export function AccountOrders() {
@@ -33,7 +35,7 @@ export function AccountOrders() {
   return (
     <main className='page-wrap px-4 py-12'>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
-        <h1 className='display-title mb-6 text-3xl font-bold text-text-primary'>
+        <h1 className='display-title mb-6 text-3xl font-semibold text-text-primary'>
           {m.account_orders()}
         </h1>
 

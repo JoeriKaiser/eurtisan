@@ -83,7 +83,7 @@ export default function CartPage({ cart: initialCart, showEmptyMessage }: CartPa
         </div>
       )}
       <div className='mb-8'>
-        <h1 className='display-title text-3xl font-bold text-text-primary sm:text-4xl'>
+        <h1 className='display-title text-3xl font-semibold text-text-primary sm:text-4xl'>
           {m.cart_title()}
         </h1>
         <p className='mt-1 text-sm text-text-secondary'>
@@ -212,7 +212,7 @@ function EmptyCart({ showEmptyMessage }: { showEmptyMessage?: boolean }) {
         <div className='mx-auto mb-6 flex size-16 items-center justify-center rounded-full bg-surface-inset text-text-muted'>
           <ShoppingBag size={28} aria-hidden='true' />
         </div>
-        <h1 className='display-title mb-2 text-2xl font-bold text-text-primary'>
+        <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary'>
           {m.cart_empty_title()}
         </h1>
         <p className='mb-8 text-text-secondary'>{m.cart_empty_description()}</p>

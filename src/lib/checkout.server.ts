@@ -302,6 +302,7 @@ export async function getCheckoutSummaryQuery(
   for (const row of items) {
     const productRecord = row.product
     const shopRecord = row.shop
+    const quantity = row.item.quantity
 
     if (!productRecord || !shopRecord) {
       // Skip unavailable items for checkout summary (they shouldn't be checked out)
@@ -313,21 +314,21 @@ export async function getCheckoutSummaryQuery(
       name: productRecord.name,
       slug: productRecord.slug,
       priceCents: productRecord.priceCents,
-      quantity: row.item.quantity,
+      quantity,
       imageUrl: imageByProduct.get(productRecord.id) ?? null,
     }
 
     const existing = groups.get(shopRecord.id)
     if (existing) {
       existing.items.push(checkoutItem)
-      existing.subtotalCents += productRecord.priceCents * row.item.quantity
+      existing.subtotalCents += productRecord.priceCents * quantity
     } else {
       groups.set(shopRecord.id, {
         shopId: shopRecord.id,
         shopName: shopRecord.name,
         shopSlug: shopRecord.slug,
         items: [checkoutItem],
-        subtotalCents: productRecord.priceCents * row.item.quantity,
+        subtotalCents: productRecord.priceCents * quantity,
         vatEstimateCents: 0,
         shippingOptions: [],
       })
@@ -336,14 +337,24 @@ export async function getCheckoutSummaryQuery(
 
   const shops = Array.from(groups.values())
 
-  // Fetch real shipping rates from the provider (or fallback when unavailable)
-  for (const shop of shops) {
-    shop.shippingOptions = await getShippingOptionsForShop(shop.items, shippingAddress)
+  // Fetch real shipping rates from the provider in parallel
+  await Promise.all(
+    shops.map(async (shop) => {
+      shop.shippingOptions = await getShippingOptionsForShop(shop.items, shippingAddress)
+    }),
+  )
+
+  // Index shop records for O(1) lookup
+  const shopRecordById = new Map<string, (typeof items)[number]['shop']>()
+  for (const r of items) {
+    if (r.shop?.id) {
+      shopRecordById.set(r.shop.id, r.shop)
+    }
   }
 
   // Calculate VAT estimates per shop based on shipping destination
   for (const shopGroup of shops) {
-    const shopRecord = items.find((r) => r.shop?.id === shopGroup.shopId)?.shop
+    const shopRecord = shopRecordById.get(shopGroup.shopId)
     if (!shopRecord) continue
 
     const sellerCountry = (shopRecord.shippingOrigin as { country?: string } | null)?.country ?? ''
@@ -352,13 +363,14 @@ export async function getCheckoutSummaryQuery(
     let vatEstimateCents = 0
     for (const row of items) {
       if (row.shop?.id !== shopGroup.shopId || !row.product) continue
+      const prod = row.product
+      const qty = row.item.quantity
       const itemVat = calculateVat({
         sellerCountry,
         buyerCountry,
         isVatRegistered: shopRecord.isVatRegistered,
-        vatRateCategory:
-          (row.product.vatRateCategory as 'standard' | 'reduced' | 'exempt') ?? 'standard',
-        inclusiveAmountCents: row.product.priceCents * row.item.quantity,
+        vatRateCategory: (prod.vatRateCategory as 'standard' | 'reduced' | 'exempt') ?? 'standard',
+        inclusiveAmountCents: prod.priceCents * qty,
       })
       vatEstimateCents += itemVat.vatAmountCents
     }
@@ -466,11 +478,14 @@ export async function createCheckoutWithProvider(
     shopItemsMap.set(row.product.shopId, items)
   }
 
-  // 4. Fetch available shipping options per shop from the provider
-  const shippingOptionsByShop = new Map<string, ShippingOption[]>()
-  for (const [shopId, items] of shopItemsMap) {
-    shippingOptionsByShop.set(shopId, await getShippingOptionsForShop(items, input.shippingAddress))
-  }
+  // 4. Fetch available shipping options per shop from the provider in parallel
+  const shippingEntries = await Promise.all(
+    Array.from(shopItemsMap.entries()).map(async ([shopId, items]) => {
+      const options = await getShippingOptionsForShop(items, input.shippingAddress)
+      return [shopId, options] as [string, ShippingOption[]]
+    }),
+  )
+  const shippingOptionsByShop = new Map(shippingEntries)
 
   // 5. Validate shipping selections
   const selectionMap = new Map<string, ShippingSelection>()
@@ -600,50 +615,51 @@ export async function createCheckoutWithProvider(
     >()
 
     for (const row of items) {
-      if (!row.product || !row.shopRecord) continue
-      const sellerCountry =
-        (row.shopRecord.shippingOrigin as { country?: string } | null)?.country ?? ''
+      const prod = row.product
+      const shopRec = row.shopRecord
+      if (!prod || !shopRec) continue
+      const qty = row.item.quantity
+      const sellerCountry = (shopRec.shippingOrigin as { country?: string } | null)?.country ?? ''
       const buyerCountry = input.shippingAddress.country
 
       const itemVat = calculateVat({
         sellerCountry,
         buyerCountry,
-        isVatRegistered: row.shopRecord.isVatRegistered,
-        vatRateCategory:
-          (row.product.vatRateCategory as 'standard' | 'reduced' | 'exempt') ?? 'standard',
-        inclusiveAmountCents: row.product.priceCents * row.item.quantity,
+        isVatRegistered: shopRec.isVatRegistered,
+        vatRateCategory: (prod.vatRateCategory as 'standard' | 'reduced' | 'exempt') ?? 'standard',
+        inclusiveAmountCents: prod.priceCents * qty,
       })
 
-      const existing = shopGroups.get(row.product.shopId)
+      const existing = shopGroups.get(prod.shopId)
       if (existing) {
         existing.items.push({
-          product: row.product,
-          quantity: row.item.quantity,
+          product: prod,
+          quantity: qty,
           vatRateBasisPoints: itemVat.vatRateBasisPoints,
           vatAmountCents: itemVat.vatAmountCents,
         })
-        existing.subtotalCents += row.product.priceCents * row.item.quantity
+        existing.subtotalCents += prod.priceCents * qty
         existing.vatAmountCents += itemVat.vatAmountCents
       } else {
-        const shipCost = shippingCostByShop.get(row.product.shopId) ?? 0
+        const shipCost = shippingCostByShop.get(prod.shopId) ?? 0
         const shippingVat = calculateVat({
           sellerCountry,
           buyerCountry,
-          isVatRegistered: row.shopRecord.isVatRegistered,
+          isVatRegistered: shopRec.isVatRegistered,
           vatRateCategory: 'standard',
           inclusiveAmountCents: shipCost,
         })
-        shopGroups.set(row.product.shopId, {
-          shopId: row.product.shopId,
+        shopGroups.set(prod.shopId, {
+          shopId: prod.shopId,
           items: [
             {
-              product: row.product,
-              quantity: row.item.quantity,
+              product: prod,
+              quantity: qty,
               vatRateBasisPoints: itemVat.vatRateBasisPoints,
               vatAmountCents: itemVat.vatAmountCents,
             },
           ],
-          subtotalCents: row.product.priceCents * row.item.quantity,
+          subtotalCents: prod.priceCents * qty,
           vatAmountCents: itemVat.vatAmountCents,
           shippingVatRateBasisPoints: shippingVat.vatRateBasisPoints,
           shippingVatAmountCents: shippingVat.vatAmountCents,
@@ -842,6 +858,14 @@ export async function createCheckoutWithProvider(
       orderUrl: `${baseUrl}/orders/${platformOrderId}`,
     })
 
+    // Index order items by shopName for O(1) lookup
+    const orderItemsByShop = new Map<string, typeof allOrderItems>()
+    for (const item of allOrderItems) {
+      const list = orderItemsByShop.get(item.shopName) ?? []
+      list.push(item)
+      orderItemsByShop.set(item.shopName, list)
+    }
+
     // Notify each seller
     for (const so of result.createdShopOrders) {
       const shopRecord = await db.select().from(shop).where(eq(shop.id, so.shopId)).limit(1)
@@ -851,13 +875,12 @@ export async function createCheckoutWithProvider(
           shopOrderId: so.shopOrderId,
         })
 
-        const sellerItems = allOrderItems
-          .filter((item) => item.shopName === shopRecord[0].name)
-          .map((item) => ({
-            name: item.productName,
-            quantity: item.quantity,
-            price: formatPriceEUR(item.totalCents),
-          }))
+        const shopItems = orderItemsByShop.get(shopRecord[0].name) ?? []
+        const sellerItems = shopItems.map((item) => ({
+          name: item.productName,
+          quantity: item.quantity,
+          price: formatPriceEUR(item.totalCents),
+        }))
 
         const [sellerRecord] = await db
           .select({ name: user.name })
@@ -872,10 +895,7 @@ export async function createCheckoutWithProvider(
           items: sellerItems,
           total: formatPriceEUR(
             sellerItems.reduce((sum, item) => {
-              const cents =
-                allOrderItems.find(
-                  (i) => i.productName === item.name && i.shopName === shopRecord[0].name,
-                )?.totalCents ?? 0
+              const cents = shopItems.find((i) => i.productName === item.name)?.totalCents ?? 0
               return sum + cents
             }, 0),
           ),

@@ -78,15 +78,22 @@ type LoaderResult =
 
 const PAGE_SIZES = [10, 20, 50] as const
 
+const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+})
+
 function formatDate(date: Date | string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(date))
+  return DATE_FORMATTER.format(new Date(date))
 }
 
+const PRICE_FORMATTER = new Intl.NumberFormat('de-DE', {
+  style: 'currency',
+  currency: 'EUR',
+})
+
 function formatPrice(cents: number): string {
-  return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(cents / 100)
+  return PRICE_FORMATTER.format(cents / 100)
 }
 
 const FILTER_LABELS: Record<SuspensionFilter, string> = {
@@ -529,7 +536,7 @@ export function AdminShopsPage() {
     <div className='space-y-6'>
       {/* Header */}
       <div>
-        <h1 className='display-title text-3xl font-bold text-text-primary'>
+        <h1 className='display-title text-3xl font-semibold text-text-primary'>
           {m.admin_shops_title()}
         </h1>
         <p className='mt-1 text-text-secondary'>{m.admin_shops_description()}</p>
@@ -865,7 +872,7 @@ export function AdminShopsPage() {
 
                       {/* Moderation note */}
                       <td className='py-3 pr-4 text-text-secondary max-w-xs truncate'>
-                        {shop.moderationNote || <span className='text-text-muted'>—</span>}
+                        {shop.moderationNote || <span className='text-text-muted'>(none)</span>}
                       </td>
 
                       {/* Created At */}
@@ -1143,7 +1150,7 @@ export function AdminShopsPage() {
             <div className='overflow-y-auto flex-1 min-h-0 px-6 py-4'>
               {isLoadingDetails || !appDetails ? (
                 <div className='space-y-6 py-4'>
-                  <Skeleton className='h-8 w-2/3' />
+                  <Skeleton className='size-8/3' />
                   <Skeleton className='h-32 w-full rounded-xl' />
                   <Skeleton className='h-32 w-full rounded-xl' />
                 </div>
@@ -1153,7 +1160,7 @@ export function AdminShopsPage() {
                   <div className='md:col-span-2 space-y-6'>
                     {/* Identity */}
                     <div className='space-y-2'>
-                      <h3 className='text-xs font-bold uppercase tracking-wider text-text-muted'>
+                      <h3 className='text-xs font-semibold uppercase tracking-wider text-text-muted'>
                         {m.admin_shops_application_section_identity()}
                       </h3>
                       <div className='bg-surface-inset rounded-xl p-4 space-y-3 border border-border-subtle'>
@@ -1206,7 +1213,7 @@ export function AdminShopsPage() {
 
                     {/* Story */}
                     <div className='space-y-2'>
-                      <h3 className='text-xs font-bold uppercase tracking-wider text-text-muted'>
+                      <h3 className='text-xs font-semibold uppercase tracking-wider text-text-muted'>
                         {m.admin_shops_application_section_story()}
                       </h3>
                       <div className='bg-surface-inset rounded-xl p-4 space-y-3 border border-border-subtle'>
@@ -1257,7 +1264,7 @@ export function AdminShopsPage() {
 
                     {/* Visuals */}
                     <div className='space-y-2'>
-                      <h3 className='text-xs font-bold uppercase tracking-wider text-text-muted'>
+                      <h3 className='text-xs font-semibold uppercase tracking-wider text-text-muted'>
                         {m.admin_shops_application_section_visuals()}
                       </h3>
                       <div className='bg-surface-inset rounded-xl p-4 space-y-4 border border-border-subtle'>
@@ -1303,7 +1310,7 @@ export function AdminShopsPage() {
 
                     {/* Policies */}
                     <div className='space-y-2'>
-                      <h3 className='text-xs font-bold uppercase tracking-wider text-text-muted'>
+                      <h3 className='text-xs font-semibold uppercase tracking-wider text-text-muted'>
                         {m.admin_shops_application_section_policies()}
                       </h3>
                       <div className='bg-surface-inset rounded-xl p-4 space-y-3 border border-border-subtle'>
@@ -1376,7 +1383,7 @@ export function AdminShopsPage() {
 
                     {/* Product Listing */}
                     <div className='space-y-2'>
-                      <h3 className='text-xs font-bold uppercase tracking-wider text-text-muted'>
+                      <h3 className='text-xs font-semibold uppercase tracking-wider text-text-muted'>
                         {m.admin_shops_application_section_product()}
                       </h3>
                       <div className='bg-surface-inset rounded-xl p-4 border border-border-subtle'>
@@ -1433,7 +1440,7 @@ export function AdminShopsPage() {
                   <div className='md:col-span-1'>
                     <div className='sticky top-4 space-y-4'>
                       <div className='bg-surface-inset rounded-xl p-4 border border-border-subtle space-y-3'>
-                        <h3 className='text-xs font-bold uppercase tracking-wider text-text-muted'>
+                        <h3 className='text-xs font-semibold uppercase tracking-wider text-text-muted'>
                           Review Decision
                         </h3>
                         <Button
@@ -1505,11 +1512,11 @@ export function AdminShopsPending() {
   return (
     <div className='space-y-6'>
       <div>
-        <Skeleton className='mb-2 h-9 w-64' />
-        <Skeleton className='h-5 w-80' />
+        <Skeleton className='mb-2 size-9' />
+        <Skeleton className='size-5' />
       </div>
 
-      <Skeleton className='h-10 w-48 rounded-lg' />
+      <Skeleton className='size-10 rounded-lg' />
       <Skeleton className='h-10 w-full rounded-lg' />
 
       <div className='overflow-x-auto'>
@@ -1518,7 +1525,7 @@ export function AdminShopsPending() {
             <tr className='border-b border-border-default'>
               {[1, 2, 3, 4, 5, 6].map((n) => (
                 <th key={n} className='pb-3 pr-4'>
-                  <Skeleton className='h-4 w-20' />
+                  <Skeleton className='size-4' />
                 </th>
               ))}
             </tr>
@@ -1528,7 +1535,7 @@ export function AdminShopsPending() {
               <tr key={row} className='border-b border-border-subtle'>
                 {[1, 2, 3, 4, 5, 6].map((col) => (
                   <td key={col} className='py-3 pr-4'>
-                    <Skeleton className='h-5 w-24' />
+                    <Skeleton className='size-5' />
                   </td>
                 ))}
               </tr>
@@ -1548,7 +1555,7 @@ export function AdminShopsError({ error, reset }: { error: Error; reset?: () => 
   return (
     <div className='text-center py-12'>
       <AlertTriangle size={48} className='mx-auto mb-4 text-error' aria-hidden='true' />
-      <h1 className='display-title mb-2 text-2xl font-bold text-text-primary'>
+      <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary'>
         {m.admin_shops_error_load()}
       </h1>
       <p className='mb-6 text-text-secondary'>{error.message}</p>

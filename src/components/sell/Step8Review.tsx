@@ -94,11 +94,7 @@ export function Step8Review() {
             <img src={draft.image} alt='Shop icon' className='size-16 rounded-full object-cover' />
           )}
           {draft.bannerImage && (
-            <img
-              src={draft.bannerImage}
-              alt='Banner'
-              className='h-16 w-32 rounded-lg object-cover'
-            />
+            <img src={draft.bannerImage} alt='Banner' className='size-16 rounded-lg object-cover' />
           )}
         </div>
       ),
@@ -132,7 +128,7 @@ export function Step8Review() {
               </p>
             </div>
           ) : (
-            <p className='text-text-muted'>Not set — buyers will see "Contact seller"</p>
+            <p className='text-text-muted'>Not set: buyers will see "Contact seller"</p>
           )}
         </div>
       ),
@@ -160,7 +156,7 @@ export function Step8Review() {
     <div className='space-y-6'>
       <div>
         <h2 className='display-title text-2xl text-text-primary'>Review & Open Shop</h2>
-        <p className='mt-1 text-text-secondary'>Everything looks great — let's make it official.</p>
+        <p className='mt-1 text-text-secondary'>Everything looks great. Let's make it official.</p>
       </div>
 
       {/* Checklist */}

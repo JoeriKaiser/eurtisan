@@ -12,11 +12,13 @@ import { m } from '#/paraglide/messages'
 /* -------------------------------------------------------------------------- */
 /*                                   Helpers                                  */
 /* -------------------------------------------------------------------------- */
+const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+})
+
 function formatDate(date: Date | string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(date))
+  return DATE_FORMATTER.format(new Date(date))
 }
 function statusLabel(status: string): string {
   return status.replace(/_/g, ' ')
@@ -51,7 +53,7 @@ export function AdminOrderDetailPage() {
       {/* Header */}
       <div className='mb-6 flex flex-wrap items-start justify-between gap-4'>
         <div>
-          <h1 className='display-title text-2xl font-bold text-text-primary sm:text-3xl'>
+          <h1 className='display-title text-2xl font-semibold text-text-primary sm:text-3xl'>
             {m.admin_order_detail_title()}
           </h1>
           <p className='mt-1 font-mono text-sm text-text-secondary'>{order.id}</p>
@@ -196,7 +198,7 @@ export function AdminOrderDetailPage() {
               <div className='flex flex-wrap items-center gap-4 text-xs text-text-secondary'>
                 <span className='inline-flex items-center gap-1'>
                   <Truck size={14} aria-hidden='true' />
-                  {shop.shippingMethod} — {formatPriceEUR(shop.shippingCostCents)}
+                  {shop.shippingMethod}: {formatPriceEUR(shop.shippingCostCents)}
                 </span>
                 {shop.trackingNumber && (
                   <span className='inline-flex items-center gap-1'>
@@ -282,28 +284,28 @@ export function AdminOrderDetailPage() {
 export function AdminOrderDetailPending() {
   return (
     <div className='pb-16 pt-8'>
-      <Skeleton className='mb-6 h-4 w-32' />
+      <Skeleton className='mb-6 size-4' />
       <div className='mb-6 flex flex-wrap items-start justify-between gap-4'>
         <div className='space-y-2'>
-          <Skeleton className='h-8 w-48' />
-          <Skeleton className='h-4 w-64' />
+          <Skeleton className='size-8' />
+          <Skeleton className='size-4' />
         </div>
-        <Skeleton className='h-6 w-24 rounded-full' />
+        <Skeleton className='size-6 rounded-full' />
       </div>
       <div className='mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2'>
         <div className='island-shell rounded-xl p-5 space-y-2'>
-          <Skeleton className='h-4 w-24' />
-          <Skeleton className='h-5 w-32' />
+          <Skeleton className='size-4' />
+          <Skeleton className='size-5' />
         </div>
         <div className='island-shell rounded-xl p-5 space-y-2'>
-          <Skeleton className='h-4 w-24' />
-          <Skeleton className='h-5 w-40' />
+          <Skeleton className='size-4' />
+          <Skeleton className='size-5' />
         </div>
       </div>
       <div className='space-y-4'>
         {[1, 2].map((n) => (
           <div key={n} className='island-shell rounded-xl p-5 space-y-4'>
-            <Skeleton className='h-6 w-48' />
+            <Skeleton className='size-6' />
             <Skeleton className='h-16 w-full' />
             <Skeleton className='h-16 w-full' />
           </div>
@@ -319,7 +321,7 @@ export function AdminOrderDetailError({ error, reset }: { error: Error; reset?: 
   return (
     <div className='pb-16 pt-8 text-center'>
       <AlertTriangle size={48} className='mx-auto mb-4 text-error' aria-hidden='true' />
-      <h1 className='display-title mb-2 text-2xl font-bold text-text-primary'>
+      <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary'>
         {m.admin_order_detail_error_load()}
       </h1>
       <p className='mb-6 text-text-secondary'>{error.message}</p>

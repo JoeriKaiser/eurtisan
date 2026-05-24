@@ -188,7 +188,7 @@ export function AdminCategoriesPage() {
     <div className='space-y-6'>
       <div className='flex items-center justify-between'>
         <div>
-          <h1 className='display-title text-3xl font-bold text-text-primary'>
+          <h1 className='display-title text-3xl font-semibold text-text-primary'>
             {m.admin_categories_title()}
           </h1>
           <p className='mt-1 text-text-secondary'>{m.admin_categories_description()}</p>
@@ -269,7 +269,7 @@ export function AdminCategoriesPage() {
                     {cat.slug}
                   </td>
                   <td className='py-3 px-4 text-text-secondary hidden md:table-cell max-w-xs truncate'>
-                    {cat.description || <span className='text-text-muted'>—</span>}
+                    {cat.description || <span className='text-text-muted'>(none)</span>}
                   </td>
                   <td className='py-3 px-4 text-right whitespace-nowrap'>
                     <div className='flex items-center justify-end gap-1'>
@@ -390,13 +390,16 @@ export function AdminCategoriesPage() {
                   className='h-10 w-full rounded-lg border border-border-default bg-surface-default px-3 text-sm text-text-primary focus-visible:outline-none'
                 >
                   <option value=''>{m.admin_categories_parent_none()}</option>
-                  {treeCategories
-                    .filter((c) => c.depth < maxDepth - 1)
-                    .map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {'\u00A0\u00A0'.repeat(c.depth) + c.name}
-                      </option>
-                    ))}
+                  {treeCategories.reduce<React.ReactElement[]>((acc, c) => {
+                    if (c.depth < maxDepth - 1) {
+                      acc.push(
+                        <option key={c.id} value={c.id}>
+                          {'\u00A0\u00A0'.repeat(c.depth) + c.name}
+                        </option>,
+                      )
+                    }
+                    return acc
+                  }, [])}
                 </select>
               </div>
 
@@ -464,10 +467,10 @@ export function AdminCategoriesPending() {
     <div className='space-y-6'>
       <div className='flex items-center justify-between'>
         <div>
-          <Skeleton className='h-10 w-64' />
-          <Skeleton className='mt-2 h-5 w-96' />
+          <Skeleton className='size-10' />
+          <Skeleton className='mt-2 size-5' />
         </div>
-        <Skeleton className='h-10 w-32' />
+        <Skeleton className='size-10' />
       </div>
       <Skeleton className='h-64 w-full' />
     </div>
@@ -478,7 +481,7 @@ export function AdminCategoriesError({ error }: { error: Error }) {
   return (
     <div className='space-y-6'>
       <div>
-        <h1 className='display-title text-3xl font-bold text-text-primary'>
+        <h1 className='display-title text-3xl font-semibold text-text-primary'>
           {m.admin_categories_title()}
         </h1>
         <p className='mt-1 text-text-secondary'>{m.admin_categories_description()}</p>

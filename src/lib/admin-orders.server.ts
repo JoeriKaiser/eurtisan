@@ -206,6 +206,13 @@ export async function getPlatformOrderDetailQuery(
       ? await db.select().from(orderItem).where(inArray(orderItem.shopOrderId, shopOrderIds))
       : []
 
+  const itemsByShopOrderId = new Map<string, typeof itemsResult>()
+  for (const item of itemsResult) {
+    const list = itemsByShopOrderId.get(item.shopOrderId) ?? []
+    list.push(item)
+    itemsByShopOrderId.set(item.shopOrderId, list)
+  }
+
   const shops: OrderShopGroup[] = shopOrdersResult.map((so) => ({
     shopOrderId: so.shopOrder.id,
     shopId: so.shopOrder.shopId,
@@ -222,18 +229,16 @@ export async function getPlatformOrderDetailQuery(
     deliveredAt: so.shopOrder.deliveredAt,
     shippingLabel: null,
     trackingStatus: null,
-    items: itemsResult
-      .filter((item) => item.shopOrderId === so.shopOrder.id)
-      .map((item) => ({
-        id: item.id,
-        productId: item.productId,
-        productName: item.productName,
-        unitPriceCents: item.unitPriceCents,
-        quantity: item.quantity,
-        totalCents: item.totalCents,
-        vatRateBasisPoints: item.vatRateBasisPoints,
-        vatAmountCents: item.vatAmountCents,
-      })),
+    items: (itemsByShopOrderId.get(so.shopOrder.id) ?? []).map((item) => ({
+      id: item.id,
+      productId: item.productId,
+      productName: item.productName,
+      unitPriceCents: item.unitPriceCents,
+      quantity: item.quantity,
+      totalCents: item.totalCents,
+      vatRateBasisPoints: item.vatRateBasisPoints,
+      vatAmountCents: item.vatAmountCents,
+    })),
   }))
 
   return {

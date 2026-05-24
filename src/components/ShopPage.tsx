@@ -49,7 +49,7 @@ export default function ShopPage({ shop, products, searchQuery }: ShopPageProps)
           <Store size={24} className='text-accent-primary' aria-hidden='true' />
           <p className='island-kicker'>{m.shop_kicker()}</p>
         </div>
-        <h1 className='display-title mb-4 text-4xl font-bold tracking-tight text-text-primary sm:text-5xl'>
+        <h1 className='display-title mb-4 text-4xl font-semibold tracking-tight text-text-primary sm:text-5xl'>
           {shop.name}
         </h1>
         {shop.description ? (
