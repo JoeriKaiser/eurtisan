@@ -18,10 +18,12 @@ services:
     environment:
       - NODE_ENV=production
     ports:
-      # Bind to localhost only — external traffic must come through the host proxy
+      # Direct access fallback (SSH tunnel or IP-whitelisted).
+      # Traefik routes internally via the coolify network — this port is not required for that.
       - "127.0.0.1:3001:3000"
     networks:
       - eurtisan
+      - coolify
     depends_on:
       db:
         condition: service_healthy
@@ -33,6 +35,12 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.eurtisan-staging.rule=Host(`staging.eurtisan.eu`)
+      - traefik.http.routers.eurtisan-staging.entrypoints=https
+      - traefik.http.routers.eurtisan-staging.tls.certresolver=letsencrypt
+      - traefik.http.services.eurtisan-staging.loadbalancer.server.port=3000
 
   db:
     image: postgres:16-alpine
@@ -61,11 +69,28 @@ services:
     networks:
       - eurtisan
 
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: eurtisan-mailpit-staging
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8025:8025"
+    volumes:
+      - mailpit_data:/data
+    environment:
+      MP_DATA_FILE: /data/mailpit.db
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    networks:
+      - eurtisan
 
 volumes:
   postgres_data:
   meilisearch_data:
+  mailpit_data:
 
 networks:
   eurtisan:
     driver: bridge
+  coolify:
+    external: true

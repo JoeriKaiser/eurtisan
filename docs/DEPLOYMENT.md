@@ -157,6 +157,26 @@ Ansible will open port 3001 in UFW, restricted to your IP only, and rebind the a
 
 ---
 
+### Staging Configuration
+
+**Emails:** Staging automatically routes emails through **Mailpit** (captured, not sent). View captured emails at `http://STAGING_IP:8025` via SSH tunnel:
+
+```bash
+ssh -i ~/.ssh/server_id_rsa -L 8025:127.0.0.1:8025 ubuntu@STAGING_IP -N
+```
+
+Then open `http://localhost:8025`.
+
+**Payments (Mollie):** Use Mollie's **test API key** in staging. No real money is charged. Set in `secrets.yml`:
+
+```yaml
+mollie_api_key: "test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+```
+
+**Shipping (Mondial Relay):** Use their sandbox/test credentials in staging. No real shipments are created.
+
+---
+
 ### Automated CI/CD (optional, future)
 
 Codeberg uses Forgejo, which supports [Forgejo Actions](https://forgejo.org/docs/next/user/actions/) (GitHub Actions–compatible). You can add a `.forgejo/workflows/deploy.yml` later to automate deploys on push/tag. For now, manual deployment keeps things simple and avoids relying on third-party CI runners.
