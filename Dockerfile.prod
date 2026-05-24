@@ -30,6 +30,8 @@ RUN groupadd -r eurtisan && useradd -r -g eurtisan eurtisan
 COPY --from=builder --chown=eurtisan:eurtisan /app/dist ./dist
 COPY --from=builder --chown=eurtisan:eurtisan /app/package.json ./
 COPY --from=builder --chown=eurtisan:eurtisan /app/node_modules ./node_modules
+COPY --from=builder --chown=eurtisan:eurtisan /app/drizzle.config.ts ./
+COPY --from=builder --chown=eurtisan:eurtisan /app/drizzle ./drizzle
 
 # Run as non-root
 USER eurtisan
