@@ -121,6 +121,8 @@ export const shop = pgTable(
     // Location & Shipping
     shippingOrigin: jsonb('shipping_origin'),
     currency: text().notNull().default('EUR'),
+    isVatRegistered: boolean('is_vat_registered').notNull().default(false),
+    vatId: text('vat_id'),
 
     // Policies
     policies: jsonb('policies'),
@@ -210,6 +212,7 @@ export const product = pgTable(
     priceCents: integer('price_cents').notNull().default(0),
     stockCount: integer('stock_count').notNull().default(0),
     isActive: boolean('is_active').notNull().default(true),
+    vatRateCategory: text('vat_rate_category').notNull().default('standard'),
     shopId: text('shop_id')
       .notNull()
       .references(() => shop.id, { onDelete: 'cascade' }),
@@ -336,6 +339,9 @@ export const shopOrder = pgTable(
     shippingMethod: shippingMethodEnum('shipping_method').notNull().default('standard'),
     shippingCostCents: integer('shipping_cost_cents').notNull().default(0),
     subtotalCents: integer('subtotal_cents').notNull().default(0),
+    vatAmountCents: integer('vat_amount_cents').notNull().default(0),
+    shippingVatRateBasisPoints: integer('shipping_vat_rate_basis_points').notNull().default(0),
+    shippingVatAmountCents: integer('shipping_vat_amount_cents').notNull().default(0),
     status: orderStatusEnum().notNull().default('pending_payment'),
     trackingNumber: text('tracking_number'),
     trackingUrl: text('tracking_url'),
@@ -364,6 +370,8 @@ export const orderItem = pgTable(
     unitPriceCents: integer('unit_price_cents').notNull().default(0),
     quantity: integer().notNull(),
     totalCents: integer('total_cents').notNull().default(0),
+    vatRateBasisPoints: integer('vat_rate_basis_points').notNull().default(0),
+    vatAmountCents: integer('vat_amount_cents').notNull().default(0),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (table) => [

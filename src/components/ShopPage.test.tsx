@@ -67,6 +67,7 @@ function makeProduct(id: string, overrides?: Partial<PublicProduct>): PublicProd
     categorySlug: 'pottery',
     shopName: 'Test Shop',
     shopSlug: 'test-shop',
+    shopIsVatRegistered: false,
     ...overrides,
   }
 }

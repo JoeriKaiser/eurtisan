@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { db } from '#/db/index'
-import { payout, shop, user } from '#/db/schema'
+import { orderItem, platformOrder, product, payout, shopOrder, shop, user } from '#/db/schema'
 
 import {
   listPayoutHistoryQuery,
@@ -15,6 +15,10 @@ import {
 
 beforeEach(async () => {
   await db.delete(payout)
+  await db.delete(orderItem)
+  await db.delete(shopOrder)
+  await db.delete(platformOrder)
+  await db.delete(product)
   await db.delete(shop)
   await db.delete(user)
 })

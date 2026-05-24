@@ -766,6 +766,11 @@ SENTRY_AUTH_TOKEN=
 BETTER_AUTH_URL=http://localhost:3000
 BETTER_AUTH_SECRET=
 
+# Umami (cookie-less analytics)
+VITE_UMAMI_SCRIPT_URL=
+VITE_UMAMI_WEBSITE_ID=
+VITE_UMAMI_HOST_URL=
+
 # Database
 DATABASE_URL=postgresql://eurtisan:eurtisan@db:5432/eurtisan
 ```

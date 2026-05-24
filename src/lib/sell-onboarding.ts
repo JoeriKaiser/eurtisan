@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
+import { validateVatId } from './vat.server'
 
 /* -------------------------------------------------------------------------- */
 /*                                 Constants                                  */
@@ -137,10 +138,33 @@ export const step3VisualsSchema = z.object({
   bannerImage: z.string().optional(),
 })
 
-export const step4LocationSchema = z.object({
-  shippingOrigin: shippingOriginSchema,
-  currency: z.string().min(3).max(3),
-})
+export const step4LocationSchema = z
+  .object({
+    shippingOrigin: shippingOriginSchema,
+    currency: z.string().min(3).max(3),
+    isVatRegistered: z.boolean().default(false),
+    vatId: z.string().optional().or(z.literal('')),
+  })
+  .superRefine((data, ctx) => {
+    if (data.isVatRegistered) {
+      if (!data.vatId || data.vatId.trim().length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'VAT ID is required when VAT registered',
+          path: ['vatId'],
+        })
+        return
+      }
+      const validation = validateVatId(data.vatId.trim())
+      if (!validation.valid) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: validation.message ?? 'Invalid VAT ID format',
+          path: ['vatId'],
+        })
+      }
+    }
+  })
 
 export const step5PoliciesSchema = z.object({
   policies: policiesSchema.optional(),
@@ -239,6 +263,8 @@ export interface ShopDraft {
   languages: string[]
   shippingOrigin: ShippingOriginData | null
   currency: string
+  isVatRegistered: boolean
+  vatId: string | null
   policies: PoliciesData | null
   announcement: string | null
   status: string
@@ -302,6 +328,12 @@ export const saveOnboardingStep = createServerFn({ method: 'POST' })
   )
   .handler(async ({ context, data }) => {
     if (!context.user) throw new Error('UNAUTHENTICATED')
+
+    // Validate step 4 data server-side to enforce VAT ID rules
+    if (data.step === 4) {
+      step4LocationSchema.parse(data.data)
+    }
+
     const { saveOnboardingStepInternal } = await import('./sell-onboarding.server')
     return saveOnboardingStepInternal(context.user.id, context.user.role, data)
   })

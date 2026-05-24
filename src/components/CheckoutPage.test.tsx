@@ -62,6 +62,7 @@ function makeSummary(overrides?: Partial<Parameters<typeof CheckoutPage>[0]['sum
           },
         ],
         subtotalCents: 2000,
+        vatEstimateCents: 0,
         shippingOptions: [
           {
             method: 'standard' as const,
@@ -327,6 +328,7 @@ describe('CheckoutPage', () => {
             },
           ],
           subtotalCents: 1000,
+          vatEstimateCents: 0,
           shippingOptions: [
             {
               method: 'standard' as const,
@@ -355,6 +357,7 @@ describe('CheckoutPage', () => {
             },
           ],
           subtotalCents: 2000,
+          vatEstimateCents: 0,
           shippingOptions: [
             {
               method: 'standard' as const,
@@ -394,6 +397,7 @@ describe('CheckoutPage', () => {
             },
           ],
           subtotalCents: 1000,
+          vatEstimateCents: 0,
           shippingOptions: [
             {
               method: 'manual' as const,
@@ -414,7 +418,9 @@ describe('CheckoutPage', () => {
     it('renders Mondial Relay pick-up point selection section and warning banner when Mondial Relay is selected', () => {
       render(<CheckoutPage summary={makeMondialSummary()} cartId='cart-1' />)
       expect(screen.getByText('Mondial Relay Pick-up Point')).toBeDefined()
-      expect(screen.getByText('Please select a pick-up point before placing your order.')).toBeDefined()
+      expect(
+        screen.getByText('Please select a pick-up point before placing your order.'),
+      ).toBeDefined()
       // Submit button should be disabled
       const submitBtn = screen.getByRole('button', { name: 'Confirm purchase' })
       expect(submitBtn).toHaveProperty('disabled', true)
@@ -435,7 +441,9 @@ describe('CheckoutPage', () => {
 
       // Verify the dialog is visible and shows details
       expect(screen.getByRole('dialog')).toBeDefined()
-      expect(screen.getByRole('heading', { name: 'Select Mondial Relay Pick-up Point' })).toBeDefined()
+      expect(
+        screen.getByRole('heading', { name: 'Select Mondial Relay Pick-up Point' }),
+      ).toBeDefined()
 
       // Click Search in the modal
       fireEvent.click(screen.getByRole('button', { name: 'Search' }))
@@ -454,7 +462,9 @@ describe('CheckoutPage', () => {
         expect(screen.getByText('Locker Mondial Relay - Auchan')).toBeDefined()
         expect(screen.getByText('25 Rue de Rivoli')).toBeDefined()
         // The warning banner should be gone
-        expect(screen.queryByText('Please select a pick-up point before placing your order.')).toBeNull()
+        expect(
+          screen.queryByText('Please select a pick-up point before placing your order.'),
+        ).toBeNull()
         // Submit button should be enabled
         const submitBtn = screen.getByRole('button', { name: 'Confirm purchase' })
         expect(submitBtn).toHaveProperty('disabled', false)

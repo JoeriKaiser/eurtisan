@@ -65,6 +65,7 @@ export interface CartShopGroup {
   shopId: string | null
   shopName: string | null
   shopSlug: string | null
+  shopIsVatRegistered: boolean
   items: CartItemDetail[]
   subtotalCents: number
 }
@@ -186,6 +187,7 @@ async function buildCartDetail(cartRecord: typeof cart.$inferSelect): Promise<Ca
         shopId,
         shopName: shopRecord?.name ?? (isUnavailable ? 'Unavailable' : null),
         shopSlug: shopRecord?.slug ?? null,
+        shopIsVatRegistered: shopRecord?.isVatRegistered ?? false,
         items: [itemDetail],
         subtotalCents:
           !isUnavailable && productRecord

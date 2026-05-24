@@ -171,6 +171,9 @@ export default function ProductDetail({ product }: ProductDetailProps) {
             <p className='mb-1 text-2xl font-bold text-[var(--sea-ink)]'>
               {formatPriceEUR(product.priceCents)}
             </p>
+            <p className='mb-2 text-xs text-[var(--sea-ink-soft)]'>
+              {product.shopIsVatRegistered ? 'incl. VAT' : 'VAT exempt'}
+            </p>
 
             <div className='mb-4 flex items-center gap-2 text-sm text-[var(--sea-ink-soft)]'>
               {isOutOfStock ? (

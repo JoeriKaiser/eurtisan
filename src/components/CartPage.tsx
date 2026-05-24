@@ -120,6 +120,9 @@ export default function CartPage({ cart: initialCart, showEmptyMessage }: CartPa
                 <div key={shop.shopId ?? 'unavailable'} className='flex justify-between text-sm'>
                   <span className='text-text-secondary truncate'>
                     {shop.shopName ?? m.cart_item_unavailable()}
+                    <span className='ml-1 text-[10px] text-text-muted'>
+                      {shop.shopIsVatRegistered ? 'incl. VAT' : 'VAT exempt'}
+                    </span>
                   </span>
                   <span className='font-medium text-text-primary'>
                     {formatPriceEUR(shop.subtotalCents)}

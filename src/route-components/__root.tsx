@@ -5,6 +5,7 @@ import { ClientOnly, HeadContent, Scripts, useLocation } from '@tanstack/react-r
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { m } from '#/paraglide/messages'
 import { getLocale } from '#/paraglide/runtime'
+import { UmamiScript } from '#/integrations/umami'
 import CartProvider from '../components/CartProvider'
 import Footer from '../components/Footer'
 import Header from '../components/Header'
@@ -72,6 +73,7 @@ export function RootDocument({ children }: { children: React.ReactNode }) {
       <head>
         <script>{`(function(){try{var s=window.localStorage.getItem('theme'),d=window.matchMedia('(prefers-color-scheme: dark)').matches,m=s==='light'||s==='dark'?s:d?'dark':'light',r=document.documentElement;r.classList.remove('light','dark');r.classList.add(m);r.setAttribute('data-theme',m);}catch(_e){}})();`}</script>
         <HeadContent />
+        <UmamiScript />
       </head>
       <body className='font-sans antialiased [overflow-wrap:anywhere]'>
         {children}

@@ -60,6 +60,7 @@ function makeProduct(id: string, overrides?: Partial<RecentProduct>): RecentProd
     categorySlug: 'pottery',
     shopName: 'Test Shop',
     shopSlug: 'test-shop',
+    shopIsVatRegistered: false,
     image: null,
     ...overrides,
   }

@@ -35,6 +35,7 @@ export const createProductSchema = z.object({
   stockCount: z.number().int().min(0).default(0),
   categoryId: z.string().uuid().optional(),
   isActive: z.boolean().optional().default(true),
+  vatRateCategory: z.enum(['standard', 'reduced', 'exempt']).optional().default('standard'),
   images: z.array(productImageInputSchema).max(10).optional().default([]),
 })
 
@@ -78,6 +79,7 @@ export async function verifyProductOwnership(productId: string, userId: string) 
       priceCents: product.priceCents,
       stockCount: product.stockCount,
       isActive: product.isActive,
+      vatRateCategory: product.vatRateCategory,
       shopId: product.shopId,
       categoryId: product.categoryId,
       createdAt: product.createdAt,
@@ -188,6 +190,7 @@ export async function createProductInternal(data: {
   shopId: string
   categoryId?: string
   isActive?: boolean
+  vatRateCategory?: 'standard' | 'reduced' | 'exempt'
   images?: ProductImageInput[]
 }) {
   const categoryValid = await validateCategory(data.categoryId)
@@ -213,6 +216,7 @@ export async function createProductInternal(data: {
         shopId: data.shopId,
         categoryId: data.categoryId ?? null,
         isActive: data.isActive ?? true,
+        vatRateCategory: data.vatRateCategory ?? 'standard',
       })
       .returning()
 
@@ -244,6 +248,7 @@ export async function updateProductInternal(data: {
   stockCount?: number
   categoryId?: string
   isActive?: boolean
+  vatRateCategory?: 'standard' | 'reduced' | 'exempt'
   images?: ProductImageInput[]
 }) {
   const productRecord = await verifyProductOwnership(data.productId, data.userId)
@@ -276,6 +281,7 @@ export async function updateProductInternal(data: {
   if (data.stockCount !== undefined) updateData.stockCount = data.stockCount
   if (data.categoryId !== undefined) updateData.categoryId = data.categoryId ?? null
   if (data.isActive !== undefined) updateData.isActive = data.isActive
+  if (data.vatRateCategory !== undefined) updateData.vatRateCategory = data.vatRateCategory
 
   // Remember old image URLs so we can clean up files after a successful commit
   let oldImageUrls: string[] = []

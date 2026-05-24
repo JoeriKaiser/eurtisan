@@ -25,6 +25,8 @@ export interface CreatorShopDetail {
   image: string | null
   ownerId: string
   shippingOrigin: ShippingOrigin | null
+  isVatRegistered: boolean
+  vatId: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -177,6 +179,8 @@ export async function getCreatorShopQuery(
     image: record.image,
     ownerId: record.ownerId,
     shippingOrigin: (record.shippingOrigin as ShippingOrigin | null) ?? null,
+    isVatRegistered: record.isVatRegistered,
+    vatId: record.vatId,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   }

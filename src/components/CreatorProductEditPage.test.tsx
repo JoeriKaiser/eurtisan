@@ -129,6 +129,7 @@ interface ProductDetail {
   priceCents: number
   stockCount: number
   isActive: boolean
+  vatRateCategory: string
   shopId: string
   categoryId: string | null
   images: ProductImageRecord[]
@@ -164,6 +165,7 @@ function makeProduct(overrides?: Partial<ProductDetail>): ProductDetail {
     priceCents: 2999,
     stockCount: 10,
     isActive: true,
+    vatRateCategory: 'standard',
     shopId: 'shop-1',
     categoryId: 'cat-1',
     images: [
@@ -502,6 +504,7 @@ describe('CreatorProductEditPage', () => {
       priceCents: 3999,
       stockCount: 5,
       isActive: true,
+      vatRateCategory: 'standard',
       shopId: 'shop-1',
       categoryId: 'cat-1',
       createdAt: new Date(),

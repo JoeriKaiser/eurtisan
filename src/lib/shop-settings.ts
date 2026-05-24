@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
+import { validateVatId } from './vat.server'
 
 export type { ShopRecord, UpdateShopInput } from './shop-settings.server'
 
@@ -18,20 +19,43 @@ const shippingOriginSchema = z
   .optional()
   .nullable()
 
-export const updateShopSchema = z.object({
-  shopId: z.string().min(1, 'Shop ID is required.'),
-  name: z.string().min(1).max(255).optional(),
-  slug: z
-    .string()
-    .min(1)
-    .max(100)
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
-      message: 'Slug must be URL-safe: lowercase letters, numbers, and hyphens only.',
-    })
-    .optional(),
-  description: z.string().max(2000).optional(),
-  shippingOrigin: shippingOriginSchema,
-})
+export const updateShopSchema = z
+  .object({
+    shopId: z.string().min(1, 'Shop ID is required.'),
+    name: z.string().min(1).max(255).optional(),
+    slug: z
+      .string()
+      .min(1)
+      .max(100)
+      .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
+        message: 'Slug must be URL-safe: lowercase letters, numbers, and hyphens only.',
+      })
+      .optional(),
+    description: z.string().max(2000).optional(),
+    shippingOrigin: shippingOriginSchema,
+    isVatRegistered: z.boolean().optional(),
+    vatId: z.string().optional().nullable(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.isVatRegistered) {
+      if (!data.vatId || data.vatId.trim().length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'VAT ID is required when VAT registered',
+          path: ['vatId'],
+        })
+        return
+      }
+      const validation = validateVatId(data.vatId.trim())
+      if (!validation.valid) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: validation.message ?? 'Invalid VAT ID format',
+          path: ['vatId'],
+        })
+      }
+    }
+  })
 
 export const uploadShopImageSchema = z.object({
   shopId: z.string().min(1, 'Shop ID is required.'),
@@ -105,6 +129,8 @@ export const updateShop = createServerFn({ method: 'POST' })
           postalCode: string
           country: string
         } | null,
+        isVatRegistered: record.isVatRegistered,
+        vatId: record.vatId,
       }
     } catch (err) {
       if (err instanceof SlugCollisionError) {

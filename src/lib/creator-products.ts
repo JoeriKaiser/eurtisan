@@ -28,6 +28,7 @@ const createProductSchema = z.object({
   stockCount: z.number().int().min(0).default(0),
   categoryId: z.string().uuid().optional(),
   isActive: z.boolean().optional().default(true),
+  vatRateCategory: z.enum(['standard', 'reduced', 'exempt']).optional().default('standard'),
   images: z.array(productImageInputSchema).max(10).optional().default([]),
 })
 

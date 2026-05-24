@@ -23,6 +23,8 @@ export interface OrderItemDetail {
   unitPriceCents: number
   quantity: number
   totalCents: number
+  vatRateBasisPoints: number
+  vatAmountCents: number
 }
 
 export interface ShippingLabelInfo {
@@ -39,6 +41,9 @@ export interface OrderShopGroup {
   shippingMethod: 'standard' | 'express' | 'manual'
   shippingCostCents: number
   subtotalCents: number
+  vatAmountCents: number
+  shippingVatRateBasisPoints: number
+  shippingVatAmountCents: number
   status: OrderStatus
   trackingNumber: string | null
   trackingUrl: string | null
@@ -151,6 +156,9 @@ export async function getBuyerOrderDetailQuery(
       shippingMethod: so.shopOrder.shippingMethod,
       shippingCostCents: so.shopOrder.shippingCostCents,
       subtotalCents: so.shopOrder.subtotalCents,
+      vatAmountCents: so.shopOrder.vatAmountCents,
+      shippingVatRateBasisPoints: so.shopOrder.shippingVatRateBasisPoints,
+      shippingVatAmountCents: so.shopOrder.shippingVatAmountCents,
       status: so.shopOrder.status,
       trackingNumber: so.shopOrder.trackingNumber,
       trackingUrl: so.shopOrder.trackingUrl,
@@ -173,6 +181,8 @@ export async function getBuyerOrderDetailQuery(
           unitPriceCents: item.unitPriceCents,
           quantity: item.quantity,
           totalCents: item.totalCents,
+          vatRateBasisPoints: item.vatRateBasisPoints,
+          vatAmountCents: item.vatAmountCents,
         })),
     }
   })

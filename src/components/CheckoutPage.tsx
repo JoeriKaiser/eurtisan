@@ -852,12 +852,31 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                           : formatPriceEUR(shippingOption?.costCents ?? 0)}
                       </span>
                     </div>
+                    {shop.vatEstimateCents > 0 && (
+                      <div className='flex justify-between text-sm'>
+                        <span className='text-text-secondary truncate'>Includes VAT</span>
+                        <span className='font-medium text-text-primary'>
+                          {formatPriceEUR(shop.vatEstimateCents)}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )
               })}
             </div>
 
             <div className='my-4 border-t border-border-default' />
+
+            {currentSummary.shops.some((s) => s.vatEstimateCents > 0) && (
+              <div className='flex justify-between text-sm mb-2'>
+                <span className='text-text-secondary'>Total VAT included</span>
+                <span className='font-medium text-text-primary'>
+                  {formatPriceEUR(
+                    currentSummary.shops.reduce((sum, s) => sum + s.vatEstimateCents, 0),
+                  )}
+                </span>
+              </div>
+            )}
 
             <div className='flex items-center justify-between'>
               <span className='text-base font-semibold text-text-primary'>

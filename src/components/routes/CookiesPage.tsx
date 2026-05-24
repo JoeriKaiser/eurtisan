@@ -1,17 +1,29 @@
+import LegalPageLayout from '#/components/LegalPageLayout'
 import { m } from '#/paraglide/messages'
 
+const LAST_UPDATED = '24 May 2026'
+
 export default function CookiesPage() {
+  const sections = [
+    { title: m.cookies_section_1_title(), text: m.cookies_section_1_text() },
+    { title: m.cookies_section_2_title(), text: m.cookies_section_2_text() },
+    { title: m.cookies_section_3_title(), text: m.cookies_section_3_text() },
+    { title: m.cookies_section_4_title(), text: m.cookies_section_4_text() },
+    { title: m.cookies_section_5_title(), text: m.cookies_section_5_text() },
+    { title: m.cookies_section_6_title(), text: m.cookies_section_6_text() },
+    { title: m.cookies_section_7_title(), text: m.cookies_section_7_text() },
+    {
+      title: m.cookies_section_8_title(),
+      text: m.cookies_section_8_text({ email: m.legal_contact_email() }),
+    },
+  ]
+
   return (
-    <main className='page-wrap px-4 py-12'>
-      <section className='island-shell rounded-2xl p-6 sm:p-8'>
-        <p className='island-kicker mb-2'>{m.cookies_kicker()}</p>
-        <h1 className='display-title mb-3 text-4xl font-semibold text-text-primary sm:text-5xl'>
-          {m.cookies_title()}
-        </h1>
-        <p className='m-0 max-w-3xl text-base leading-8 text-text-secondary'>
-          {m.cookies_description()}
-        </p>
-      </section>
-    </main>
+    <LegalPageLayout
+      kicker={m.cookies_kicker()}
+      title={m.cookies_title()}
+      lastUpdated={m.legal_last_updated({ date: LAST_UPDATED })}
+      sections={sections}
+    />
   )
 }

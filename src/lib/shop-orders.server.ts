@@ -31,6 +31,8 @@ export interface ShopOrderItemDetail {
   unitPriceCents: number
   quantity: number
   totalCents: number
+  vatRateBasisPoints: number
+  vatAmountCents: number
 }
 
 export interface ShopOrderBuyer {
@@ -55,6 +57,9 @@ export interface ShopOrderDetail {
   shippingMethod: 'standard' | 'express' | 'manual'
   shippingCostCents: number
   subtotalCents: number
+  vatAmountCents: number
+  shippingVatRateBasisPoints: number
+  shippingVatAmountCents: number
   trackingNumber: string | null
   trackingUrl: string | null
   createdAt: Date
@@ -196,6 +201,8 @@ export async function getShopOrderQuery(
       unitPriceCents: orderItem.unitPriceCents,
       quantity: orderItem.quantity,
       totalCents: orderItem.totalCents,
+      vatRateBasisPoints: orderItem.vatRateBasisPoints,
+      vatAmountCents: orderItem.vatAmountCents,
     })
     .from(orderItem)
     .where(eq(orderItem.shopOrderId, shopOrderId))
@@ -220,6 +227,9 @@ export async function getShopOrderQuery(
     shippingMethod: shopOrderRecord.shippingMethod,
     shippingCostCents: shopOrderRecord.shippingCostCents,
     subtotalCents: shopOrderRecord.subtotalCents,
+    vatAmountCents: shopOrderRecord.vatAmountCents,
+    shippingVatRateBasisPoints: shopOrderRecord.shippingVatRateBasisPoints,
+    shippingVatAmountCents: shopOrderRecord.shippingVatAmountCents,
     trackingNumber: shopOrderRecord.trackingNumber,
     trackingUrl: shopOrderRecord.trackingUrl,
     createdAt: shopOrderRecord.createdAt,

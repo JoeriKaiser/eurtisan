@@ -88,6 +88,7 @@ function makeCart(overrides?: Partial<Parameters<typeof CartPage>[0]['cart']>) {
         shopId: 'shop-1',
         shopName: 'Test Shop',
         shopSlug: 'test-shop',
+        shopIsVatRegistered: false,
         items: [
           {
             id: 'item-1',
@@ -270,6 +271,18 @@ describe('CartPage', () => {
     expect(totals.some((el) => el.className.includes('text-xl'))).toBe(true)
   })
 
+  it('shows "VAT exempt" for non-registered shops', () => {
+    render(<CartPage cart={makeCart()} />)
+    expect(screen.getByText('VAT exempt')).toBeDefined()
+  })
+
+  it('shows "incl. VAT" for VAT-registered shops', () => {
+    const cart = makeCart()
+    cart.shops[0].shopIsVatRegistered = true
+    render(<CartPage cart={cart} />)
+    expect(screen.getByText('incl. VAT')).toBeDefined()
+  })
+
   it('renders fallback image when product has no image', () => {
     const cart = makeCart()
     cart.shops[0].items[0].product!.imageUrl = null
@@ -306,6 +319,7 @@ describe('CartPage', () => {
           shopId: 'shop-1',
           shopName: 'Shop A',
           shopSlug: 'shop-a',
+          shopIsVatRegistered: false,
           items: [
             {
               id: 'item-1',
@@ -329,6 +343,7 @@ describe('CartPage', () => {
           shopId: 'shop-2',
           shopName: 'Shop B',
           shopSlug: 'shop-b',
+          shopIsVatRegistered: false,
           items: [
             {
               id: 'item-2',

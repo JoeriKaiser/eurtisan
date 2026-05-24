@@ -138,6 +138,8 @@ export function Step4Location() {
       shipsInternational: boolean
     }
     currency: string
+    isVatRegistered?: boolean
+    vatId?: string | null
   }
 
   const [country, setCountry] = useState(data.shippingOrigin?.country ?? '')
@@ -154,6 +156,8 @@ export function Step4Location() {
     data.shippingOrigin?.shipsInternational ?? false,
   )
   const [currency, setCurrency] = useState(data.currency ?? 'EUR')
+  const [isVatRegistered, setIsVatRegistered] = useState(data.isVatRegistered ?? false)
+  const [vatId, setVatId] = useState(data.vatId ?? '')
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const stateOptions = useMemo(() => {
@@ -181,6 +185,8 @@ export function Step4Location() {
         shipsInternational,
       },
       currency,
+      isVatRegistered,
+      vatId,
     })
     if (!result.success) {
       const fieldErrors: Record<string, string> = {}
@@ -193,7 +199,18 @@ export function Step4Location() {
     }
     setErrors({})
     return true
-  }, [country, state, city, postalCode, processingMin, processingMax, shipsInternational, currency])
+  }, [
+    country,
+    state,
+    city,
+    postalCode,
+    processingMin,
+    processingMax,
+    shipsInternational,
+    currency,
+    isVatRegistered,
+    vatId,
+  ])
 
   const save = useCallback(async () => {
     await saveStep(4, {
@@ -206,6 +223,8 @@ export function Step4Location() {
         shipsInternational,
       },
       currency,
+      isVatRegistered,
+      vatId,
     })
   }, [
     country,
@@ -216,6 +235,8 @@ export function Step4Location() {
     processingMax,
     shipsInternational,
     currency,
+    isVatRegistered,
+    vatId,
     saveStep,
   ])
 
@@ -352,6 +373,50 @@ export function Step4Location() {
           <option value='DKK'>DKK — Danish Krone</option>
           <option value='PLN'>PLN — Polish Zloty</option>
         </Select>
+      </div>
+
+      <div className='border-t border-border-default pt-6 space-y-4'>
+        <div>
+          <h3 className='text-sm font-semibold text-text-primary uppercase tracking-wider mb-2'>
+            Tax Settings
+          </h3>
+          <p className='text-xs text-text-secondary mb-4'>
+            If you are registered for VAT in the European Union, please enable this and enter your
+            VAT Identification Number.
+          </p>
+        </div>
+
+        <div className='flex items-center justify-between rounded-xl border border-border-default p-4'>
+          <div>
+            <Label htmlFor='is-vat-registered' className='font-semibold'>
+              Registered for VAT
+            </Label>
+            <p className='text-xs text-text-secondary mt-0.5'>
+              I have a registered VAT number for my business.
+            </p>
+          </div>
+          <Switch
+            id='is-vat-registered'
+            checked={isVatRegistered}
+            onCheckedChange={setIsVatRegistered}
+          />
+        </div>
+
+        {isVatRegistered && (
+          <div className='space-y-1.5 transition-all duration-200'>
+            <Label htmlFor='vat-id' required>
+              VAT ID / Identification Number
+            </Label>
+            <Input
+              id='vat-id'
+              value={vatId}
+              onChange={(e) => setVatId(e.target.value)}
+              placeholder='e.g. FR12345678901'
+              className='mt-1'
+            />
+            {errors.vatId && <p className='mt-1 text-sm text-error'>{errors.vatId}</p>}
+          </div>
+        )}
       </div>
     </div>
   )

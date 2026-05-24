@@ -70,6 +70,10 @@ export type UpdateShopInput = {
   description?: string
   /** Optional shipping origin address for label generation. */
   shippingOrigin?: ShippingOrigin | null
+  /** Whether the shop is registered for VAT. */
+  isVatRegistered?: boolean
+  /** VAT identification number (required when isVatRegistered is true). */
+  vatId?: string | null
 }
 
 export type ShopRecord = typeof shop.$inferSelect
@@ -130,6 +134,14 @@ export async function updateShopInternal(
 
   if (input.shippingOrigin !== undefined) {
     updateData.shippingOrigin = input.shippingOrigin
+  }
+
+  if (input.isVatRegistered !== undefined) {
+    updateData.isVatRegistered = input.isVatRegistered
+  }
+
+  if (input.vatId !== undefined) {
+    updateData.vatId = input.vatId ? input.vatId.trim() : null
   }
 
   const [updated] = await db.update(shop).set(updateData).where(eq(shop.id, shopId)).returning()

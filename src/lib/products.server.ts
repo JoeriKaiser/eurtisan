@@ -25,6 +25,7 @@ const publicProductColumns = {
   categorySlug: categories.slug,
   shopName: shop.name,
   shopSlug: shop.slug,
+  shopIsVatRegistered: shop.isVatRegistered,
 }
 
 export type PublicProduct = {
@@ -41,6 +42,7 @@ export type PublicProduct = {
   categorySlug: string | null
   shopName: string | null
   shopSlug: string | null
+  shopIsVatRegistered: boolean
 }
 
 export type RecentProduct = PublicProduct & {
@@ -62,6 +64,7 @@ export type ProductDetail = PublicProduct & {
   images: { id: string; url: string; altText: string | null; sortOrder: number }[]
   shopDescription: string | null
   categoryId: string | null
+  shopIsVatRegistered: boolean
 }
 
 export type ListProductsFilters = {
@@ -174,6 +177,7 @@ export async function getProductBySlugQuery(slug: string): Promise<ProductDetail
       ...publicProductColumns,
       shopDescription: shop.description,
       categoryId: product.categoryId,
+      shopIsVatRegistered: shop.isVatRegistered,
     })
     .from(product)
     .innerJoin(shop, eq(product.shopId, shop.id))
@@ -199,6 +203,7 @@ export async function getProductBySlugQuery(slug: string): Promise<ProductDetail
     images,
     shopDescription: result.shopDescription,
     categoryId: result.categoryId,
+    shopIsVatRegistered: result.shopIsVatRegistered,
   }
 }
 

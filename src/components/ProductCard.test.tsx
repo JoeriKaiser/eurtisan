@@ -37,6 +37,7 @@ function makeProduct(overrides?: Partial<PublicProduct>): PublicProduct {
     categorySlug: 'pottery',
     shopName: 'Test Shop',
     shopSlug: 'test-shop',
+    shopIsVatRegistered: false,
     ...overrides,
   }
 }
@@ -104,5 +105,15 @@ describe('ProductCard', () => {
   it('handles unknown shop name', () => {
     render(<ProductCard product={makeProduct({ shopName: null })} />)
     expect(screen.getByText('Unknown shop')).toBeDefined()
+  })
+
+  it('shows "incl. VAT" when shop is VAT registered', () => {
+    render(<ProductCard product={makeProduct({ shopIsVatRegistered: true })} />)
+    expect(screen.getByText('incl. VAT')).toBeDefined()
+  })
+
+  it('shows "VAT exempt" when shop is not VAT registered', () => {
+    render(<ProductCard product={makeProduct({ shopIsVatRegistered: false })} />)
+    expect(screen.getByText('VAT exempt')).toBeDefined()
   })
 })

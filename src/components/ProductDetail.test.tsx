@@ -60,6 +60,7 @@ function makeProduct(overrides?: Partial<ProductDetailType>): ProductDetailType 
     categorySlug: 'pottery',
     shopName: 'Artisan Studio',
     shopSlug: 'artisan-studio',
+    shopIsVatRegistered: false,
     shopDescription: 'Handcrafted goods from local artisans.',
     categoryId: 'cat-1',
     images: [
@@ -192,6 +193,16 @@ describe('ProductDetail', () => {
     for (const tab of tabs) {
       expect(tab.tagName.toLowerCase()).toBe('button')
     }
+  })
+
+  it('shows "incl. VAT" when shop is VAT registered', () => {
+    render(<ProductDetail product={makeProduct({ shopIsVatRegistered: true })} />)
+    expect(screen.getByText('incl. VAT')).toBeDefined()
+  })
+
+  it('shows "VAT exempt" when shop is not VAT registered', () => {
+    render(<ProductDetail product={makeProduct({ shopIsVatRegistered: false })} />)
+    expect(screen.getByText('VAT exempt')).toBeDefined()
   })
 
   it('calls addToCart and shows success message on submit', async () => {

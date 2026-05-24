@@ -59,9 +59,14 @@ export default function ProductCard({ product, imageUrl }: ProductCardProps) {
         )}
 
         <div className='mt-auto flex items-end justify-between gap-2'>
-          <span className='text-base font-bold text-text-primary tabular-nums'>
-            {formatPriceEUR(product.priceCents)}
-          </span>
+          <div className='flex flex-col'>
+            <span className='text-base font-bold text-text-primary tabular-nums'>
+              {formatPriceEUR(product.priceCents)}
+            </span>
+            <span className='text-[10px] text-text-muted'>
+              {product.shopIsVatRegistered ? 'incl. VAT' : 'VAT exempt'}
+            </span>
+          </div>
 
           <span className='inline-flex items-center gap-1 rounded-full bg-surface-inset px-2 py-1 text-xs text-text-secondary border border-border-default'>
             <Store size={12} aria-hidden='true' />

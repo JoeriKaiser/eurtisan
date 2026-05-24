@@ -48,6 +48,8 @@ export async function getShopDraftQuery(
     languages: record.languages ?? [],
     shippingOrigin: (record.shippingOrigin as ShippingOriginData | null) ?? null,
     currency: record.currency,
+    isVatRegistered: record.isVatRegistered,
+    vatId: record.vatId,
     policies: (record.policies as PoliciesData | null) ?? null,
     announcement: record.announcement,
     status: record.status,
@@ -132,6 +134,8 @@ export async function saveOnboardingStepInternal(
     updateData.bannerImage = d.bannerImage ? String(d.bannerImage) : null
   if (d.shippingOrigin !== undefined) updateData.shippingOrigin = d.shippingOrigin
   if (d.currency !== undefined) updateData.currency = String(d.currency)
+  if (d.isVatRegistered !== undefined) updateData.isVatRegistered = Boolean(d.isVatRegistered)
+  if (d.vatId !== undefined) updateData.vatId = d.vatId ? String(d.vatId).trim() : null
   if (d.policies !== undefined) updateData.policies = d.policies
   if (d.announcement !== undefined)
     updateData.announcement = d.announcement ? String(d.announcement) : null

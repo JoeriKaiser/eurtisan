@@ -90,6 +90,8 @@ function makeShop(overrides?: Record<string, unknown>) {
     image: null,
     ownerId: 'user-1',
     shippingOrigin: null,
+    isVatRegistered: false,
+    vatId: null,
     createdAt: new Date('2025-01-01'),
     updatedAt: new Date('2025-01-01'),
     ...overrides,

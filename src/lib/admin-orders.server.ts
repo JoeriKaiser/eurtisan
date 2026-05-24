@@ -213,6 +213,9 @@ export async function getPlatformOrderDetailQuery(
     shippingMethod: so.shopOrder.shippingMethod as 'standard' | 'express' | 'manual',
     shippingCostCents: so.shopOrder.shippingCostCents,
     subtotalCents: so.shopOrder.subtotalCents,
+    vatAmountCents: so.shopOrder.vatAmountCents,
+    shippingVatRateBasisPoints: so.shopOrder.shippingVatRateBasisPoints,
+    shippingVatAmountCents: so.shopOrder.shippingVatAmountCents,
     status: so.shopOrder.status as OrderStatus,
     trackingNumber: so.shopOrder.trackingNumber,
     trackingUrl: so.shopOrder.trackingUrl,
@@ -228,6 +231,8 @@ export async function getPlatformOrderDetailQuery(
         unitPriceCents: item.unitPriceCents,
         quantity: item.quantity,
         totalCents: item.totalCents,
+        vatRateBasisPoints: item.vatRateBasisPoints,
+        vatAmountCents: item.vatAmountCents,
       })),
   }))
 

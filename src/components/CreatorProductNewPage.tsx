@@ -71,6 +71,9 @@ function ProductNewForm({
   const [stockCount, setStockCount] = useState('0')
   const [categoryId, setCategoryId] = useState('')
   const [isActive, setIsActive] = useState(true)
+  const [vatRateCategory, setVatRateCategory] = useState<'standard' | 'reduced' | 'exempt'>(
+    'standard',
+  )
 
   // Image state
   const [images, setImages] = useState<ImageFileEntry[]>([])
@@ -310,6 +313,7 @@ function ProductNewForm({
           stockCount: Number.parseInt(stockCount, 10) || 0,
           categoryId: categoryId || undefined,
           isActive,
+          vatRateCategory,
           images: images
             .filter((img) => !img.error && img.dataUrl)
             .map((img) => ({
@@ -623,6 +627,31 @@ function ProductNewForm({
                     {fieldErrors.categoryId}
                   </p>
                 )}
+              </div>
+
+              {/* VAT Rate Category */}
+              <div>
+                <label
+                  htmlFor='product-vat-category'
+                  className='mb-2 block text-sm font-medium text-text-primary'
+                >
+                  VAT Rate Category
+                </label>
+                <select
+                  id='product-vat-category'
+                  value={vatRateCategory}
+                  onChange={(e) =>
+                    setVatRateCategory(e.target.value as 'standard' | 'reduced' | 'exempt')
+                  }
+                  className='flex h-10 w-full rounded-lg border bg-surface-default px-3 py-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20 border-border-default hover:border-border-strong'
+                >
+                  <option value='standard'>Standard Rate</option>
+                  <option value='reduced'>Reduced Rate</option>
+                  <option value='exempt'>VAT Exempt</option>
+                </select>
+                <p className='mt-1.5 text-xs text-text-muted'>
+                  Determines the tax rate applied at checkout based on destination country rules.
+                </p>
               </div>
 
               {/* Active toggle */}

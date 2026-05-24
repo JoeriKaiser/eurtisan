@@ -448,6 +448,14 @@ export default function BuyerOrderDetailPage({
                     {formatPriceEUR(shop.subtotalCents)}
                   </span>
                 </div>
+                {(shop.vatAmountCents > 0 || shop.shippingVatAmountCents > 0) && (
+                  <div className='flex justify-between text-sm'>
+                    <span className='text-text-secondary'>Includes VAT</span>
+                    <span className='font-medium text-text-primary'>
+                      {formatPriceEUR(shop.vatAmountCents + shop.shippingVatAmountCents)}
+                    </span>
+                  </div>
+                )}
 
                 {/* Review CTA for delivered/completed items */}
                 {(shop.status === 'delivered' || shop.status === 'completed') && (

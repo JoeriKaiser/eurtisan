@@ -28,6 +28,7 @@ interface ProductDetail {
   priceCents: number
   stockCount: number
   isActive: boolean
+  vatRateCategory: string
   shopId: string
   categoryId: string | null
   images: ProductImageRecord[]
@@ -107,6 +108,9 @@ function ProductEditForm({
   const [stockCount, setStockCount] = useState(String(product.stockCount))
   const [categoryId, setCategoryId] = useState(product.categoryId ?? '')
   const [isActive, setIsActive] = useState(product.isActive)
+  const [vatRateCategory, setVatRateCategory] = useState<'standard' | 'reduced' | 'exempt'>(
+    (product.vatRateCategory as 'standard' | 'reduced' | 'exempt') ?? 'standard',
+  )
 
   // Image state — split into existing and new
   const [existingImages, setExistingImages] = useState<ExistingImageEntry[]>(() =>
@@ -147,6 +151,7 @@ function ProductEditForm({
     stockCount: String(product.stockCount),
     categoryId: product.categoryId ?? '',
     isActive: product.isActive,
+    vatRateCategory: product.vatRateCategory ?? 'standard',
     existingImageOrder: product.images.map((i) => i.id).join(','),
     newImageCount: 0,
   }
@@ -159,6 +164,7 @@ function ProductEditForm({
     stockCount !== originalState.stockCount ||
     categoryId !== originalState.categoryId ||
     isActive !== originalState.isActive ||
+    vatRateCategory !== originalState.vatRateCategory ||
     existingImages.map((i) => i.id).join(',') !== originalState.existingImageOrder ||
     newImages.length > 0
 
@@ -456,6 +462,7 @@ function ProductEditForm({
           stockCount: Number.parseInt(stockCount, 10) || 0,
           categoryId: categoryId || undefined,
           isActive,
+          vatRateCategory,
           images: imagePayload.length > 0 ? imagePayload : undefined,
         },
       })
@@ -804,6 +811,31 @@ function ProductEditForm({
                     {fieldErrors.categoryId}
                   </p>
                 )}
+              </div>
+
+              {/* VAT Rate Category */}
+              <div>
+                <label
+                  htmlFor='product-vat-category'
+                  className='mb-2 block text-sm font-medium text-text-primary'
+                >
+                  VAT Rate Category
+                </label>
+                <select
+                  id='product-vat-category'
+                  value={vatRateCategory}
+                  onChange={(e) =>
+                    setVatRateCategory(e.target.value as 'standard' | 'reduced' | 'exempt')
+                  }
+                  className='flex h-10 w-full rounded-lg border bg-surface-default px-3 py-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20 border-border-default hover:border-border-strong'
+                >
+                  <option value='standard'>Standard Rate</option>
+                  <option value='reduced'>Reduced Rate</option>
+                  <option value='exempt'>VAT Exempt</option>
+                </select>
+                <p className='mt-1.5 text-xs text-text-muted'>
+                  Determines the tax rate applied at checkout based on destination country rules.
+                </p>
               </div>
 
               {/* Active toggle */}

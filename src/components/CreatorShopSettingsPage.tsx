@@ -7,6 +7,7 @@ import { m } from '#/paraglide/messages'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Skeleton } from './ui/skeleton'
+import { Switch } from './ui/switch'
 
 /* -------------------------------------------------------------------------- */
 /*                                    Types                                   */
@@ -79,6 +80,10 @@ function ShopSettingsForm({
   const [originPostal, setOriginPostal] = useState(shop.shippingOrigin?.postalCode ?? '')
   const [originCountry, setOriginCountry] = useState(shop.shippingOrigin?.country ?? '')
 
+  // VAT state
+  const [isVatRegistered, setIsVatRegistered] = useState(shop.isVatRegistered)
+  const [vatId, setVatId] = useState(shop.vatId ?? '')
+
   // Image state
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(shop.image ?? null)
@@ -98,6 +103,7 @@ function ShopSettingsForm({
   // Field-level errors from server
   const [nameError, setNameError] = useState<string | null>(null)
   const [descriptionError, setDescriptionError] = useState<string | null>(null)
+  const [vatIdError, setVatIdError] = useState<string | null>(null)
 
   const slugChanged = slug !== shop.slug
   const imageChanged = imageFile !== null
@@ -106,12 +112,14 @@ function ShopSettingsForm({
     originCity !== (shop.shippingOrigin?.city ?? '') ||
     originPostal !== (shop.shippingOrigin?.postalCode ?? '') ||
     originCountry !== (shop.shippingOrigin?.country ?? '')
+  const vatChanged = isVatRegistered !== shop.isVatRegistered || vatId !== (shop.vatId ?? '')
   const hasChanges =
     name !== shop.name ||
     slugChanged ||
     description !== (shop.description ?? '') ||
     imageChanged ||
-    originChanged
+    originChanged ||
+    vatChanged
 
   /* ----------------------------- Slug validation ---------------------------- */
 
@@ -244,6 +252,11 @@ function ShopSettingsForm({
       return
     }
 
+    if (isVatRegistered && !vatId.trim()) {
+      setVatIdError('VAT ID is required when VAT registered')
+      return
+    }
+
     setSaving(true)
 
     try {
@@ -259,6 +272,8 @@ function ShopSettingsForm({
           postalCode: string
           country: string
         } | null
+        isVatRegistered?: boolean
+        vatId?: string | null
       } = { shopId: shop.id }
 
       if (name !== shop.name) updatePayload.name = name.trim()
@@ -276,6 +291,17 @@ function ShopSettingsForm({
                 country: originCountry.trim().toUpperCase(),
               }
             : null
+      }
+
+      if (vatChanged) {
+        updatePayload.isVatRegistered = isVatRegistered
+        updatePayload.vatId = isVatRegistered ? vatId.trim() || null : null
+      }
+
+      if (isVatRegistered && !vatId.trim()) {
+        setVatIdError('VAT ID is required when VAT registered')
+        setSaving(false)
+        return
       }
 
       if (Object.keys(updatePayload).length > 1) {
@@ -579,6 +605,61 @@ function ShopSettingsForm({
                   </div>
                 </div>
               </div>
+
+              {/* Tax Settings */}
+              <div className='rounded-xl border border-border-subtle p-4'>
+                <h3 className='mb-3 text-sm font-semibold text-text-primary'>Tax Settings</h3>
+                <p className='mb-3 text-xs text-text-muted'>
+                  If you are registered for VAT in the European Union, enable this and enter your
+                  VAT Identification Number.
+                </p>
+                <div className='space-y-4'>
+                  <div className='flex items-center justify-between rounded-lg border border-border-default p-3'>
+                    <div>
+                      <label
+                        htmlFor='is-vat-registered'
+                        className='text-sm font-medium text-text-primary'
+                      >
+                        Registered for VAT
+                      </label>
+                      <p className='text-xs text-text-secondary'>
+                        I have a registered VAT number for my business.
+                      </p>
+                    </div>
+                    <Switch
+                      id='is-vat-registered'
+                      checked={isVatRegistered}
+                      onCheckedChange={setIsVatRegistered}
+                    />
+                  </div>
+                  {isVatRegistered && (
+                    <div>
+                      <label
+                        htmlFor='vat-id'
+                        className='mb-1.5 block text-xs font-medium text-text-secondary'
+                      >
+                        VAT ID / Identification Number
+                      </label>
+                      <Input
+                        id='vat-id'
+                        type='text'
+                        value={vatId}
+                        onChange={(e) => {
+                          setVatId(e.target.value)
+                          if (vatIdError) setVatIdError(null)
+                        }}
+                        placeholder='e.g. FR12345678901'
+                        error={vatIdError ?? undefined}
+                      />
+                      {vatIdError && (
+                        <p id='vat-id-error' className='mt-1 text-sm text-error'>
+                          {vatIdError}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Right column: image upload */}
@@ -668,6 +749,9 @@ function ShopSettingsForm({
                   setOriginCity(shop.shippingOrigin?.city ?? '')
                   setOriginPostal(shop.shippingOrigin?.postalCode ?? '')
                   setOriginCountry(shop.shippingOrigin?.country ?? '')
+                  setIsVatRegistered(shop.isVatRegistered)
+                  setVatId(shop.vatId ?? '')
+                  setVatIdError(null)
                   setImageFile(null)
                   setImagePreview(shop.image ?? null)
                   setImageError(null)

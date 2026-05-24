@@ -31,6 +31,9 @@
 /** External origins the frontend legitimately connects to. */
 const DEFAULT_CONNECT_SRC = ["'self'", 'https://api.mollie.com', 'https://api.brevo.com']
 
+/** External origins the frontend legitimately loads scripts from. */
+const DEFAULT_SCRIPT_SRC = ["'self'", "'unsafe-inline'"]
+
 function getSentryOrigin(): string | null {
   const dsn = process.env.VITE_SENTRY_DSN
   if (!dsn) return null
@@ -53,9 +56,32 @@ function getMeilisearchOrigin(): string | null {
   }
 }
 
+function getUmamiScriptOrigin(): string | null {
+  const url = process.env.VITE_UMAMI_SCRIPT_URL
+  if (!url) return null
+  try {
+    const parsed = new URL(url)
+    return `${parsed.protocol}//${parsed.host}`
+  } catch {
+    return null
+  }
+}
+
+function getUmamiHostOrigin(): string | null {
+  const host = process.env.VITE_UMAMI_HOST_URL
+  if (!host) return null
+  try {
+    const parsed = new URL(host)
+    return `${parsed.protocol}//${parsed.host}`
+  } catch {
+    return null
+  }
+}
+
 /** Builds the full Content-Security-Policy header value. */
 export function buildCspHeader(): string {
   const connectSrc = new Set(DEFAULT_CONNECT_SRC)
+  const scriptSrc = new Set(DEFAULT_SCRIPT_SRC)
 
   const sentry = getSentryOrigin()
   if (sentry) connectSrc.add(sentry)
@@ -63,9 +89,18 @@ export function buildCspHeader(): string {
   const meilisearch = getMeilisearchOrigin()
   if (meilisearch) connectSrc.add(meilisearch)
 
+  const umamiScript = getUmamiScriptOrigin()
+  if (umamiScript) {
+    scriptSrc.add(umamiScript)
+    connectSrc.add(umamiScript)
+  }
+
+  const umamiHost = getUmamiHostOrigin()
+  if (umamiHost) connectSrc.add(umamiHost)
+
   const directives: Record<string, string> = {
     'default-src': "'self'",
-    'script-src': "'self' 'unsafe-inline'",
+    'script-src': Array.from(scriptSrc).join(' '),
     'style-src': "'self' https://fonts.googleapis.com",
     'img-src': "'self' data:",
     'font-src': "'self' https://fonts.gstatic.com",

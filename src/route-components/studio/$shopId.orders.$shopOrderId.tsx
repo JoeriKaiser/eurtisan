@@ -530,6 +530,12 @@ export function ShopOrderDetailPage() {
                       <p className='text-xs text-text-secondary'>
                         {formatPriceEUR(item.unitPriceCents)} × {item.quantity}
                       </p>
+                      {item.vatRateBasisPoints > 0 && (
+                        <p className='text-xs text-text-muted'>
+                          VAT {(item.vatRateBasisPoints / 100).toFixed(2).replace(/\.00$/, '')}% —{' '}
+                          {formatPriceEUR(item.vatAmountCents)}
+                        </p>
+                      )}
                     </div>
                     <span className='text-sm font-medium text-text-primary'>
                       {formatPriceEUR(item.totalCents)}
@@ -546,6 +552,29 @@ export function ShopOrderDetailPage() {
                   <span>Shipping</span>
                   <span>{formatPriceEUR(order.shippingCostCents)}</span>
                 </div>
+                {order.vatAmountCents > 0 && (
+                  <div className='flex justify-between text-text-secondary'>
+                    <span>Item VAT</span>
+                    <span>{formatPriceEUR(order.vatAmountCents)}</span>
+                  </div>
+                )}
+                {order.shippingVatAmountCents > 0 && (
+                  <div className='flex justify-between text-text-secondary'>
+                    <span>
+                      Shipping VAT (
+                      {(order.shippingVatRateBasisPoints / 100).toFixed(2).replace(/\.00$/, '')}%)
+                    </span>
+                    <span>{formatPriceEUR(order.shippingVatAmountCents)}</span>
+                  </div>
+                )}
+                {order.vatAmountCents > 0 || order.shippingVatAmountCents > 0 ? (
+                  <div className='flex justify-between text-text-secondary'>
+                    <span>Total VAT</span>
+                    <span>
+                      {formatPriceEUR(order.vatAmountCents + order.shippingVatAmountCents)}
+                    </span>
+                  </div>
+                ) : null}
                 <div className='flex justify-between pt-1 text-base font-semibold text-text-primary'>
                   <span>Total</span>
                   <span>{formatPriceEUR(order.subtotalCents + order.shippingCostCents)}</span>

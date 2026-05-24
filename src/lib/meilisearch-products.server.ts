@@ -249,6 +249,7 @@ export async function searchProductsMeilisearch(
         categorySlug: categories.slug,
         shopName: shop.name,
         shopSlug: shop.slug,
+        shopIsVatRegistered: shop.isVatRegistered,
       })
       .from(product)
       .innerJoin(shop, eq(product.shopId, shop.id))
