@@ -150,13 +150,28 @@ docker compose -f docker-compose.prod.yml start app
 
 ## Staging Access Control
 
-To restrict staging to specific IPs:
+When `coexist_with_proxy: true`, the app binds to `127.0.0.1:3001` and is **not** publicly accessible.
 
-- **With Coolify/Traefik:** Add an `ipwhitelist` middleware to your service labels.
-- **With our Caddy stack:** Add a `remote_ip` matcher to the `Caddyfile` and restart Caddy.
-- **With UFW:** Pass `allowed_ips` in `secrets.yml` and Ansible configures per-IP rules automatically. Or run the UFW commands manually on the VPS.
+**Access options:**
 
-See `docs/DEPLOYMENT.md` for copy-paste examples.
+1. **SSH Tunnel (most secure):**
+   ```bash
+   ssh -i ~/.ssh/key -L 3001:127.0.0.1:3001 user@STAGING_IP -N
+   # Then open http://localhost:3001
+   ```
+
+2. **Direct access with IP whitelist:**
+   Add to `secrets.yml`:
+   ```yaml
+   app_access_ips: "YOUR_PUBLIC_IP"
+   ```
+   Re-run the playbook. UFW will open port 3001 for your IP only.
+
+3. **Coolify proxy (proper way):**
+   Add a Coolify application resource for `staging.eurtisan.eu` → `http://127.0.0.1:3001`.
+   Then configure Traefik labels for IP whitelisting.
+
+See `docs/DEPLOYMENT.md` for full details.
 
 ## Adding OpenTofu Later
 

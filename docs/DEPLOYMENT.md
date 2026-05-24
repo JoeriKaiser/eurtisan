@@ -124,6 +124,39 @@ ssh -i ~/.ssh/server_id_rsa_1 ubuntu@STAGING_IP 'COMPOSE_FILE=docker-compose.sta
 ssh -i ~/.ssh/server_id_rsa_1 ubuntu@PROD_IP '/opt/eurtisan/deploy.sh v1.2.3'
 ```
 
+### Accessing Staging
+
+**Option A — SSH Tunnel (most secure):**
+
+From your local machine:
+
+```bash
+ssh -i ~/.ssh/server_id_rsa -L 3001:127.0.0.1:3001 ubuntu@STAGING_IP -N
+```
+
+Then open `http://localhost:3001` in your browser.
+
+**Option B — Direct access with IP whitelist:**
+
+Add `app_access_ips` to your `secrets.yml` and re-run the playbook:
+
+```yaml
+# secrets.yml
+app_access_ips: "YOUR_PUBLIC_IP"
+```
+
+Find your public IP at https://ip.sb/
+
+Then run:
+
+```bash
+make infra-setup-staging
+```
+
+Ansible will open port 3001 in UFW, restricted to your IP only, and rebind the app to all interfaces. Access it at `http://STAGING_IP:3001`.
+
+---
+
 ### Automated CI/CD (optional, future)
 
 Codeberg uses Forgejo, which supports [Forgejo Actions](https://forgejo.org/docs/next/user/actions/) (GitHub Actions–compatible). You can add a `.forgejo/workflows/deploy.yml` later to automate deploys on push/tag. For now, manual deployment keeps things simple and avoids relying on third-party CI runners.
