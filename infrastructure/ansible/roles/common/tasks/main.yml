@@ -1,4 +1,20 @@
 ---
+- name: Find conflicting Docker APT source files
+  find:
+    paths: /etc/apt/sources.list.d
+    patterns:
+      - "*docker*"
+      - "*download.docker*"
+    file_type: file
+  register: docker_apt_sources
+
+- name: Remove conflicting Docker APT source files
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ docker_apt_sources.files }}"
+  when: docker_apt_sources.files | length > 0
+
 - name: Update apt cache
   apt:
     update_cache: yes
