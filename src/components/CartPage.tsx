@@ -35,39 +35,38 @@ export default function CartPage({ cart: initialCart, showEmptyMessage }: CartPa
   const { cart: liveCart, refreshCart } = useCart()
   const cart = liveCart ?? initialCart
 
-  const [updatingItemId, setUpdatingItemId] = useState<string | null>(null)
-  const [removingItemId, setRemovingItemId] = useState<string | null>(null)
-  const [confirmRemoveItem, setConfirmRemoveItem] = useState<CartItemDetail | null>(null)
-  const [updateErrorItemId, setUpdateErrorItemId] = useState<string | null>(null)
-  const [removeErrorItemId, setRemoveErrorItemId] = useState<string | null>(null)
+  const [ops, setOps] = useState({
+    updatingItemId: null as string | null,
+    removingItemId: null as string | null,
+    confirmRemoveItem: null as CartItemDetail | null,
+    updateErrorItemId: null as string | null,
+    removeErrorItemId: null as string | null,
+  })
 
   const hasUnavailableItems =
     cart?.shops.some((shop) => shop.items.some((item) => item.unavailable)) ?? false
 
   const handleUpdateQuantity = async (productId: string, quantity: number) => {
-    setUpdateErrorItemId(null)
-    setUpdatingItemId(productId)
+    setOps((prev) => ({ ...prev, updateErrorItemId: null, updatingItemId: productId }))
     try {
       await updateCartItem({ data: { productId, quantity } })
       await refreshCart()
     } catch {
-      setUpdateErrorItemId(productId)
+      setOps((prev) => ({ ...prev, updateErrorItemId: productId }))
     } finally {
-      setUpdatingItemId(null)
+      setOps((prev) => ({ ...prev, updatingItemId: null }))
     }
   }
 
   const handleRemove = async (productId: string) => {
-    setRemoveErrorItemId(null)
-    setRemovingItemId(productId)
+    setOps((prev) => ({ ...prev, removeErrorItemId: null, removingItemId: productId }))
     try {
       await removeCartItem({ data: { productId } })
       await refreshCart()
     } catch {
-      setRemoveErrorItemId(productId)
+      setOps((prev) => ({ ...prev, removeErrorItemId: productId }))
     } finally {
-      setRemovingItemId(null)
-      setConfirmRemoveItem(null)
+      setOps((prev) => ({ ...prev, removingItemId: null, confirmRemoveItem: null }))
     }
   }
 
@@ -100,12 +99,12 @@ export default function CartPage({ cart: initialCart, showEmptyMessage }: CartPa
             <ShopGroup
               key={shop.shopId ?? 'unavailable'}
               shop={shop}
-              updatingItemId={updatingItemId}
-              removingItemId={removingItemId}
-              updateErrorItemId={updateErrorItemId}
-              removeErrorItemId={removeErrorItemId}
+              updatingItemId={ops.updatingItemId}
+              removingItemId={ops.removingItemId}
+              updateErrorItemId={ops.updateErrorItemId}
+              removeErrorItemId={ops.removeErrorItemId}
               onUpdateQuantity={handleUpdateQuantity}
-              onRequestRemove={setConfirmRemoveItem}
+              onRequestRemove={(item) => setOps((prev) => ({ ...prev, confirmRemoveItem: item }))}
             />
           ))}
         </div>
@@ -171,24 +170,30 @@ export default function CartPage({ cart: initialCart, showEmptyMessage }: CartPa
       </div>
 
       {/* Remove confirmation dialog */}
-      <Dialog open={confirmRemoveItem !== null} onOpenChange={() => setConfirmRemoveItem(null)}>
+      <Dialog
+        open={ops.confirmRemoveItem !== null}
+        onOpenChange={() => setOps((prev) => ({ ...prev, confirmRemoveItem: null }))}
+      >
         <DialogPortal>
           <DialogBackdrop />
           <DialogPopup>
             <DialogTitle>{m.cart_item_remove_confirm_title()}</DialogTitle>
             <DialogDescription>{m.cart_item_remove_confirm_description()}</DialogDescription>
             <div className='mt-6 flex justify-end gap-3'>
-              <Button variant='secondary' onClick={() => setConfirmRemoveItem(null)}>
+              <Button
+                variant='secondary'
+                onClick={() => setOps((prev) => ({ ...prev, confirmRemoveItem: null }))}
+              >
                 {m.cart_item_remove_cancel_button()}
               </Button>
               <Button
                 variant='danger'
                 onClick={() => {
-                  if (confirmRemoveItem) {
-                    void handleRemove(confirmRemoveItem.productId)
+                  if (ops.confirmRemoveItem) {
+                    void handleRemove(ops.confirmRemoveItem.productId)
                   }
                 }}
-                isLoading={removingItemId === confirmRemoveItem?.productId}
+                isLoading={ops.removingItemId === ops.confirmRemoveItem?.productId}
               >
                 {m.cart_item_remove_confirm_button()}
               </Button>

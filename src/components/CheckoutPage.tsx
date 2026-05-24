@@ -107,10 +107,12 @@ function formatEstimatedDays(days: ShippingOption['estimatedDays']): string | nu
 }
 
 export default function CheckoutPage({ summary: initialSummary, cartId }: CheckoutPageProps) {
-  const [submitError, setSubmitError] = useState<string | null>(null)
   const [currentSummary, setCurrentSummary] = useState<CheckoutSummary>(initialSummary)
-  const [isFetchingRates, setIsFetchingRates] = useState(false)
-  const [rateError, setRateError] = useState<string | null>(null)
+  const [status, setStatus] = useState({
+    submitError: null as string | null,
+    isFetchingRates: false,
+    rateError: null as string | null,
+  })
   const fetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastFetchedAddressRef = useRef<string>('')
 
@@ -142,7 +144,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
         onSubmit: checkoutFormSchema,
       },
       onSubmit: async ({ value }) => {
-        setSubmitError(null)
+        setStatus((prev) => ({ ...prev, submitError: null }))
         try {
           const billingAddress = value.sameAsShipping ? value.shippingAddress : value.billingAddress
           const result = await createCheckout({
@@ -157,9 +159,12 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
         } catch (err) {
           if (err instanceof Response) {
             const body = await err.json().catch(() => ({}))
-            setSubmitError(body.message || m.checkout_error_submit())
+            setStatus((prev) => ({
+              ...prev,
+              submitError: body.message || m.checkout_error_submit(),
+            }))
           } else {
-            setSubmitError(m.checkout_error_submit())
+            setStatus((prev) => ({ ...prev, submitError: m.checkout_error_submit() }))
           }
         }
       },
@@ -167,7 +172,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
   )
 
   // Mondial Relay Pick-up Point state and selection tracking
-  const [pickupPointModalOpen, setPickupPointModalOpen] = useState(false)
+  const [dialog, setDialog] = useState({ open: false, key: 0 })
 
   const shippingSelections = form.state.values.shippingSelections
   const hasMondialRelaySelection = shippingSelections.some((sel, idx) => {
@@ -180,11 +185,20 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
   })
 
   const selectedPickupPoint = form.state.values.shippingAddress.pickupPoint
-  useEffect(() => {
-    if (!hasMondialRelaySelection && selectedPickupPoint) {
+
+  // Helper: clear pickup point if no shop has Mondial Relay selected
+  const clearPickupPointIfNoMondialRelay = useCallback(() => {
+    const stillHasMondialRelay = currentSummary.shops.some((shop) => {
+      const sel = form.state.values.shippingSelections.find((s) => s.shopId === shop.shopId)
+      const selectedOption = shop.shippingOptions.find(
+        (o) => o.rateId === sel?.rateId && o.method === sel?.method,
+      )
+      return selectedOption?.carrier === 'mondial_relay'
+    })
+    if (!stillHasMondialRelay && form.state.values.shippingAddress.pickupPoint) {
       form.setFieldValue('shippingAddress.pickupPoint', undefined)
     }
-  }, [hasMondialRelaySelection, selectedPickupPoint, form])
+  }, [currentSummary.shops, form])
 
   // -----------------------------------------------------------------------
   // Fetch shipping rates when relevant address fields change and are valid
@@ -196,8 +210,8 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
       if (addressKey === lastFetchedAddressRef.current) return
       lastFetchedAddressRef.current = addressKey
 
-      setIsFetchingRates(true)
-      setRateError(null)
+      setStatus((prev) => ({ ...prev, isFetchingRates: true }))
+      setStatus((prev) => ({ ...prev, rateError: null }))
 
       try {
         const updatedSummary = await getCheckoutSummary({
@@ -216,6 +230,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
           form.setFieldValue(`shippingSelections[${i}].method`, defaultSel.method)
           form.setFieldValue(`shippingSelections[${i}].rateId`, defaultSel.rateId)
         }
+        clearPickupPointIfNoMondialRelay()
 
         // Check if any shop has only unsupported fallbacks
         for (const shop of updatedSummary.shops) {
@@ -224,17 +239,23 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
             shop.shippingOptions[0].fallback &&
             shop.shippingOptions[0].label.includes('cannot ship')
           ) {
-            setRateError(`We cannot ship to this address for "${shop.shopName}".`)
+            setStatus((prev) => ({
+              ...prev,
+              rateError: `We cannot ship to this address for "${shop.shopName}".`,
+            }))
             break
           }
         }
       } catch {
-        setRateError('Could not fetch shipping rates. Please try again.')
+        setStatus((prev) => ({
+          ...prev,
+          rateError: 'Could not fetch shipping rates. Please try again.',
+        }))
       } finally {
-        setIsFetchingRates(false)
+        setStatus((prev) => ({ ...prev, isFetchingRates: false }))
       }
     },
-    [cartId, form],
+    [cartId, form, clearPickupPointIfNoMondialRelay],
   )
 
   // Listen for address field changes and debounce rate fetching
@@ -610,14 +631,14 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
               <h2 className='text-lg font-semibold text-text-primary'>
                 {m.checkout_shipping_method()}
               </h2>
-              {isFetchingRates && (
+              {status.isFetchingRates && (
                 <Loader2 size={14} className='animate-spin text-text-muted' aria-hidden='true' />
               )}
             </div>
 
-            {rateError && (
+            {status.rateError && (
               <p className='mb-4 text-sm text-error' role='alert'>
-                {rateError}
+                {status.rateError}
               </p>
             )}
 
@@ -667,6 +688,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                                             rateId: option.rateId,
                                             method: option.method,
                                           })
+                                          clearPickupPointIfNoMondialRelay()
                                         }}
                                         className='size-4 accent-accent-primary'
                                       />
@@ -735,7 +757,9 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                   <Button
                     type='button'
                     variant='secondary'
-                    onClick={() => setPickupPointModalOpen(true)}
+                    onClick={() => {
+                      setDialog((prev) => ({ key: prev.key + 1, open: true }))
+                    }}
                   >
                     Change Pick-up Point
                   </Button>
@@ -753,7 +777,9 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                   <Button
                     type='button'
                     variant='primary'
-                    onClick={() => setPickupPointModalOpen(true)}
+                    onClick={() => {
+                      setDialog((prev) => ({ key: prev.key + 1, open: true }))
+                    }}
                   >
                     Select Pick-up Point
                   </Button>
@@ -901,9 +927,9 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
               </form.Subscribe>
             </div>
 
-            {submitError && (
+            {status.submitError && (
               <p className='mt-3 text-sm text-error' role='alert'>
-                {submitError}
+                {status.submitError}
               </p>
             )}
 
@@ -943,8 +969,9 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
       </form>
 
       <PickupPointSelectorModal
-        open={pickupPointModalOpen}
-        onOpenChange={setPickupPointModalOpen}
+        key={dialog.key}
+        open={dialog.open}
+        onOpenChange={(open) => setDialog((prev) => ({ ...prev, open }))}
         postalCode={form.state.values.shippingAddress.postalCode || ''}
         country={form.state.values.shippingAddress.country || 'FR'}
         onSelect={(point) => {
@@ -1053,15 +1080,6 @@ export function PickupPointSelectorModal({
   const [searchCountry, setSearchCountry] = useState(initialCountry)
   const [points, setPoints] = useState<MockPickupPoint[]>([])
   const [hasSearched, setHasSearched] = useState(false)
-
-  useEffect(() => {
-    if (open) {
-      setSearchPostalCode(initialPostalCode)
-      setSearchCountry(initialCountry)
-      setPoints([])
-      setHasSearched(false)
-    }
-  }, [open, initialPostalCode, initialCountry])
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()

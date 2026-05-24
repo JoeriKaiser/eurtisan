@@ -1,5 +1,5 @@
 import { Link, useLoaderData, useParams, useRouter } from '@tanstack/react-router'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import {
   AlertTriangle,
   ArrowLeft,
@@ -115,48 +115,42 @@ export function ShipOrderDialog({
   onOpenChange: (open: boolean) => void
   onShipped: () => void
 }) {
-  const [mode, setMode] = useState<'label' | 'manual'>('label')
-  const [trackingNumber, setTrackingNumber] = useState('')
-  const [trackingUrl, setTrackingUrl] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [fieldErrors, setFieldErrors] = useState<{ trackingUrl?: string }>({})
-  useEffect(() => {
-    if (open) {
-      setMode('label')
-      setTrackingNumber('')
-      setTrackingUrl('')
-      setError(null)
-      setFieldErrors({})
-    }
-  }, [open])
+  const [form, setForm] = useState({
+    mode: 'label' as 'label' | 'manual',
+    trackingNumber: '',
+    trackingUrl: '',
+  })
+  const [status, setStatus] = useState({
+    isSubmitting: false,
+    error: null as string | null,
+    fieldErrors: {} as { trackingUrl?: string },
+  })
   const validate = useCallback(() => {
     const errors: { trackingUrl?: string } = {}
-    if (mode === 'manual' && trackingUrl.trim()) {
+    if (form.mode === 'manual' && form.trackingUrl.trim()) {
       try {
-        new URL(trackingUrl.trim())
+        new URL(form.trackingUrl.trim())
       } catch {
         errors.trackingUrl = 'Please enter a valid URL'
       }
     }
-    setFieldErrors(errors)
+    setStatus((prev) => ({ ...prev, fieldErrors: errors }))
     return Object.keys(errors).length === 0
-  }, [trackingUrl, mode])
+  }, [form])
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault()
       if (!validate()) return
-      setIsSubmitting(true)
-      setError(null)
+      setStatus((prev) => ({ ...prev, isSubmitting: true, error: null }))
       try {
-        if (mode === 'label') {
+        if (form.mode === 'label') {
           await markShopOrderShippedWithLabel({ data: { shopOrderId: orderId } })
         } else {
           await markShopOrderShipped({
             data: {
               shopOrderId: orderId,
-              trackingNumber: trackingNumber.trim() || null,
-              trackingUrl: trackingUrl.trim() || null,
+              trackingNumber: form.trackingNumber.trim() || null,
+              trackingUrl: form.trackingUrl.trim() || null,
             },
           })
         }
@@ -166,20 +160,26 @@ export function ShipOrderDialog({
         if (err instanceof Response) {
           try {
             const body = await err.json()
-            setError(body.message || 'Failed to mark order as shipped')
+            setStatus((prev) => ({
+              ...prev,
+              error: body.message || 'Failed to mark order as shipped',
+            }))
           } catch {
-            setError('Failed to mark order as shipped')
+            setStatus((prev) => ({
+              ...prev,
+              error: 'Failed to mark order as shipped',
+            }))
           }
         } else if (err instanceof Error) {
-          setError(err.message)
+          setStatus((prev) => ({ ...prev, error: err.message }))
         } else {
-          setError('An unexpected error occurred')
+          setStatus((prev) => ({ ...prev, error: 'An unexpected error occurred' }))
         }
       } finally {
-        setIsSubmitting(false)
+        setStatus((prev) => ({ ...prev, isSubmitting: false }))
       }
     },
-    [orderId, trackingNumber, trackingUrl, mode, validate, onOpenChange, onShipped],
+    [orderId, form, validate, onOpenChange, onShipped],
   )
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -194,9 +194,9 @@ export function ShipOrderDialog({
                 <div className='flex rounded-lg border border-border-default p-1'>
                   <button
                     type='button'
-                    onClick={() => setMode('label')}
+                    onClick={() => setForm((prev) => ({ ...prev, mode: 'label' }))}
                     className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition ${
-                      mode === 'label'
+                      form.mode === 'label'
                         ? 'bg-accent-primary text-text-on-primary'
                         : 'text-text-secondary hover:text-text-primary'
                     }`}
@@ -205,9 +205,9 @@ export function ShipOrderDialog({
                   </button>
                   <button
                     type='button'
-                    onClick={() => setMode('manual')}
+                    onClick={() => setForm((prev) => ({ ...prev, mode: 'manual' }))}
                     className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition ${
-                      mode === 'manual'
+                      form.mode === 'manual'
                         ? 'bg-accent-primary text-text-on-primary'
                         : 'text-text-secondary hover:text-text-primary'
                     }`}
@@ -215,7 +215,7 @@ export function ShipOrderDialog({
                     Manual Tracking
                   </button>
                 </div>
-                {mode === 'manual' && (
+                {form.mode === 'manual' && (
                   <>
                     <div>
                       <label
@@ -226,10 +226,12 @@ export function ShipOrderDialog({
                       </label>
                       <Input
                         id='tracking-number'
-                        value={trackingNumber}
-                        onChange={(e) => setTrackingNumber(e.target.value)}
+                        value={form.trackingNumber}
+                        onChange={(e) =>
+                          setForm((prev) => ({ ...prev, trackingNumber: e.target.value }))
+                        }
                         placeholder='e.g. TRACK123456'
-                        disabled={isSubmitting}
+                        disabled={status.isSubmitting}
                       />
                     </div>
                     <div>
@@ -242,32 +244,34 @@ export function ShipOrderDialog({
                       <Input
                         id='tracking-url'
                         type='url'
-                        value={trackingUrl}
+                        value={form.trackingUrl}
                         onChange={(e) => {
-                          setTrackingUrl(e.target.value)
-                          if (fieldErrors.trackingUrl) setFieldErrors({})
+                          setForm((prev) => ({ ...prev, trackingUrl: e.target.value }))
+                          if (status.fieldErrors.trackingUrl) {
+                            setStatus((prev) => ({ ...prev, fieldErrors: {} }))
+                          }
                         }}
                         placeholder='https://carrier.example.com/track'
-                        disabled={isSubmitting}
-                        error={fieldErrors.trackingUrl}
+                        disabled={status.isSubmitting}
+                        error={status.fieldErrors.trackingUrl}
                       />
-                      {fieldErrors.trackingUrl && (
+                      {status.fieldErrors.trackingUrl && (
                         <p id='tracking-url-error' className='mt-1 text-xs text-error'>
-                          {fieldErrors.trackingUrl}
+                          {status.fieldErrors.trackingUrl}
                         </p>
                       )}
                     </div>
                   </>
                 )}
-                {mode === 'label' && (
+                {form.mode === 'label' && (
                   <p className='text-sm text-text-secondary'>
                     The system will generate a shipping label via Mondial Relay using your shop's
                     origin address and the buyer's shipping address.
                   </p>
                 )}
-                {error && (
+                {status.error && (
                   <div className='rounded-lg bg-error/10 p-3 text-sm text-error' role='alert'>
-                    {error}
+                    {status.error}
                   </div>
                 )}
               </div>
@@ -275,12 +279,12 @@ export function ShipOrderDialog({
                 <Button
                   type='button'
                   variant='ghost'
-                  disabled={isSubmitting}
+                  disabled={status.isSubmitting}
                   onClick={() => onOpenChange(false)}
                 >
                   Cancel
                 </Button>
-                <Button type='submit' isLoading={isSubmitting}>
+                <Button type='submit' isLoading={status.isSubmitting}>
                   Mark as Shipped
                 </Button>
               </div>
@@ -296,15 +300,16 @@ export function ShopOrderDetailPage() {
   const { shopId, shopOrderId } = useParams({ from: '/studio/$shopId/orders/$shopOrderId' })
   const { order } = useLoaderData({ from: '/studio/$shopId/orders/$shopOrderId' })
   const router = useRouter()
-  const [shipDialogOpen, setShipDialogOpen] = useState(false)
-  const [actionError, setActionError] = useState<string | null>(null)
-  const [isMarkingDelivered, setIsMarkingDelivered] = useState(false)
+  const [dialog, setDialog] = useState({ open: false, key: 0 })
+  const [status, setStatus] = useState({
+    actionError: null as string | null,
+    isMarkingDelivered: false,
+  })
   const handleShipped = useCallback(() => {
     router.invalidate()
   }, [router])
   const handleMarkDelivered = useCallback(async () => {
-    setIsMarkingDelivered(true)
-    setActionError(null)
+    setStatus((prev) => ({ ...prev, isMarkingDelivered: true, actionError: null }))
     try {
       await markShopOrderDelivered({ data: { shopOrderId } })
       router.invalidate()
@@ -312,17 +317,23 @@ export function ShopOrderDetailPage() {
       if (err instanceof Response) {
         try {
           const body = await err.json()
-          setActionError(body.message || 'Failed to mark order as delivered')
+          setStatus((prev) => ({
+            ...prev,
+            actionError: body.message || 'Failed to mark order as delivered',
+          }))
         } catch {
-          setActionError('Failed to mark order as delivered')
+          setStatus((prev) => ({
+            ...prev,
+            actionError: 'Failed to mark order as delivered',
+          }))
         }
       } else if (err instanceof Error) {
-        setActionError(err.message)
+        setStatus((prev) => ({ ...prev, actionError: err.message }))
       } else {
-        setActionError('An unexpected error occurred')
+        setStatus((prev) => ({ ...prev, actionError: 'An unexpected error occurred' }))
       }
     } finally {
-      setIsMarkingDelivered(false)
+      setStatus((prev) => ({ ...prev, isMarkingDelivered: false }))
     }
   }, [shopOrderId, router])
   const canShip = ['paid', 'processing'].includes(order.status)
@@ -351,13 +362,13 @@ export function ShopOrderDetailPage() {
             {order.status.replace('_', ' ')}
           </Badge>
         </div>
-        {actionError && (
+        {status.actionError && (
           <div
             className='mb-6 rounded-lg bg-error/10 p-4 text-sm text-error'
             role='alert'
             aria-live='polite'
           >
-            {actionError}
+            {status.actionError}
           </div>
         )}
         <div className='space-y-6'>
@@ -371,7 +382,7 @@ export function ShopOrderDetailPage() {
           {(canShip || canDeliver) && (
             <div className='flex flex-wrap gap-3'>
               {canShip && (
-                <Button onClick={() => setShipDialogOpen(true)}>
+                <Button onClick={() => setDialog((prev) => ({ key: prev.key + 1, open: true }))}>
                   <Truck size={16} aria-hidden='true' />
                   Mark as Shipped
                 </Button>
@@ -380,7 +391,7 @@ export function ShopOrderDetailPage() {
                 <Button
                   variant='secondary'
                   onClick={handleMarkDelivered}
-                  isLoading={isMarkingDelivered}
+                  isLoading={status.isMarkingDelivered}
                 >
                   <CheckCircle2 size={16} aria-hidden='true' />
                   Mark as Delivered
@@ -585,9 +596,10 @@ export function ShopOrderDetailPage() {
         </div>
       </div>
       <ShipOrderDialog
+        key={dialog.key}
         orderId={shopOrderId}
-        open={shipDialogOpen}
-        onOpenChange={setShipDialogOpen}
+        open={dialog.open}
+        onOpenChange={(open) => setDialog((prev) => ({ ...prev, open }))}
         onShipped={handleShipped}
       />
     </main>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { Check, AlertTriangle, Loader2 } from 'lucide-react'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
@@ -25,75 +25,88 @@ export function Step1Identity() {
     productionType: string
   }
 
-  const [name, setName] = useState(data.name ?? '')
-  const [slug, setSlug] = useState(data.slug ?? '')
-  const [tagline, setTagline] = useState(data.tagline ?? '')
-  const [category, setCategory] = useState(data.category ?? '')
-  const [productionType, setProductionType] = useState(data.productionType ?? '')
-
-  const [slugStatus, setSlugStatus] = useState<'idle' | 'checking' | 'available' | 'taken'>('idle')
-  const [nameWarning, setNameWarning] = useState<string | null>(null)
-  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [form, setForm] = useState({
+    name: data.name ?? '',
+    slug: data.slug ?? '',
+    tagline: data.tagline ?? '',
+    category: data.category ?? '',
+    productionType: data.productionType ?? '',
+  })
+  const [status, setStatus] = useState({
+    slugStatus: 'idle' as 'idle' | 'checking' | 'available' | 'taken',
+    nameWarning: null as string | null,
+    errors: {} as Record<string, string>,
+  })
   const slugDebounce = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const slugManuallyEdited = useRef(!!data.slug && data.slug !== slugify(data.name))
 
   const checkSlug = useCallback(
     async (value: string) => {
       if (!value || value.length < 3) {
-        setSlugStatus('idle')
+        setStatus((prev) => ({ ...prev, slugStatus: 'idle' }))
         return
       }
-      setSlugStatus('checking')
+      setStatus((prev) => ({ ...prev, slugStatus: 'checking' }))
       try {
         const result = await checkSlugAvailability({
           data: { slug: value, excludeShopId: draft.id },
         })
-        setSlugStatus(result.available ? 'available' : 'taken')
         if (!result.available && !slugManuallyEdited.current) {
-          const alt = suggestSlug(name)
-          setSlug(alt)
+          const alt = suggestSlug(form.name)
+          setForm((prev) => ({ ...prev, slug: alt }))
           const altResult = await checkSlugAvailability({
             data: { slug: alt, excludeShopId: draft.id },
           })
-          setSlugStatus(altResult.available ? 'available' : 'taken')
+          setStatus((prev) => ({
+            ...prev,
+            slugStatus: altResult.available ? 'available' : 'taken',
+          }))
+        } else {
+          setStatus((prev) => ({ ...prev, slugStatus: result.available ? 'available' : 'taken' }))
         }
       } catch {
-        setSlugStatus('idle')
+        setStatus((prev) => ({ ...prev, slugStatus: 'idle' }))
       }
     },
-    [draft.id, name],
+    [draft.id, form.name],
   )
 
-  useEffect(() => {
-    if (!slugManuallyEdited.current && name.length >= 4) {
-      const generated = slugify(name)
-      setSlug(generated)
+  const handleNameChange = (value: string) => {
+    setForm((prev) => ({ ...prev, name: value }))
+    if (!slugManuallyEdited.current && value.length >= 4) {
+      const generated = slugify(value)
+      setForm((prev) => ({ ...prev, slug: generated }))
       checkSlug(generated)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [name, checkSlug])
+  }
 
   const handleSlugChange = (value: string) => {
     slugManuallyEdited.current = true
-    setSlug(value)
+    setForm((prev) => ({ ...prev, slug: value }))
     clearTimeout(slugDebounce.current)
     if (value.length >= 3) {
       slugDebounce.current = setTimeout(() => checkSlug(value), 300)
     } else {
-      setSlugStatus('idle')
+      setStatus((prev) => ({ ...prev, slugStatus: 'idle' }))
     }
   }
 
   const handleNameBlur = async () => {
-    if (name.length < 4) return
+    if (form.name.length < 4) return
     try {
-      const result = await checkShopName({ data: { name, excludeShopId: draft.id } })
+      const result = await checkShopName({ data: { name: form.name, excludeShopId: draft.id } })
       if (result.profanity) {
-        setNameWarning('Please avoid inappropriate language in your shop name.')
+        setStatus((prev) => ({
+          ...prev,
+          nameWarning: 'Please avoid inappropriate language in your shop name.',
+        }))
       } else if (result.similarExists) {
-        setNameWarning(`'${name}' is very close to an existing shop. Consider a more unique name.`)
+        setStatus((prev) => ({
+          ...prev,
+          nameWarning: `'${form.name}' is very close to an existing shop. Consider a more unique name.`,
+        }))
       } else {
-        setNameWarning(null)
+        setStatus((prev) => ({ ...prev, nameWarning: null }))
       }
     } catch {
       // ignore
@@ -101,23 +114,23 @@ export function Step1Identity() {
   }
 
   const validate = useCallback(() => {
-    const result = step1IdentitySchema.safeParse({ name, slug, tagline, category, productionType })
+    const result = step1IdentitySchema.safeParse(form)
     if (!result.success) {
       const fieldErrors: Record<string, string> = {}
       for (const issue of result.error.issues) {
         const key = issue.path[0] as string
         fieldErrors[key] = issue.message
       }
-      setErrors(fieldErrors)
+      setStatus((prev) => ({ ...prev, errors: fieldErrors }))
       return false
     }
-    setErrors({})
+    setStatus((prev) => ({ ...prev, errors: {} }))
     return true
-  }, [name, slug, tagline, category, productionType])
+  }, [form])
 
   const save = useCallback(async () => {
-    await saveStep(1, { name, slug, tagline, category, productionType })
-  }, [name, slug, tagline, category, productionType, saveStep])
+    await saveStep(1, form)
+  }, [form, saveStep])
 
   useStepActions(1, { validate, save })
 
@@ -145,24 +158,24 @@ export function Step1Identity() {
         </Label>
         <Input
           id='shop-name'
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          value={form.name}
+          onChange={(e) => handleNameChange(e.target.value)}
           onBlur={handleNameBlur}
           maxLength={40}
           placeholder='e.g. Sunflower Ceramics'
           className='mt-1'
-          error={errors.name}
-          aria-describedby={errors.name ? 'name-error' : undefined}
+          error={status.errors.name}
+          aria-describedby={status.errors.name ? 'name-error' : undefined}
         />
-        {errors.name && (
+        {status.errors.name && (
           <p id='name-error' className='mt-1 text-sm text-error'>
-            {errors.name}
+            {status.errors.name}
           </p>
         )}
-        {nameWarning && !errors.name && (
+        {status.nameWarning && !status.errors.name && (
           <p className='mt-1 flex items-center gap-1 text-sm text-warning'>
             <AlertTriangle size={14} />
-            {nameWarning}
+            {status.nameWarning}
           </p>
         )}
         <p className='mt-1 text-xs text-text-muted'>
@@ -176,37 +189,37 @@ export function Step1Identity() {
           Shop URL
         </Label>
         <div className='mt-1 flex items-center gap-2'>
-          <span className='shrink-0 text-sm text-text-muted'>eurtisan.com/shop/</span>
+          <span className='shrink-0 text-sm text-text-muted'>eurtisan.eu/shop/</span>
           <Input
             id='shop-slug'
-            value={slug}
+            value={form.slug}
             onChange={(e) => handleSlugChange(e.target.value)}
             maxLength={40}
             placeholder='my-shop'
             className='font-mono'
-            error={errors.slug}
-            aria-describedby={errors.slug ? 'slug-error' : undefined}
+            error={status.errors.slug}
+            aria-describedby={status.errors.slug ? 'slug-error' : undefined}
           />
         </div>
-        {errors.slug && (
+        {status.errors.slug && (
           <p id='slug-error' className='mt-1 text-sm text-error'>
-            {errors.slug}
+            {status.errors.slug}
           </p>
         )}
         <div className='mt-1 flex items-center gap-2 text-sm'>
-          {slugStatus === 'checking' && (
+          {status.slugStatus === 'checking' && (
             <span className='flex items-center gap-1 text-text-muted'>
               <Loader2 size={14} className='animate-spin' />
               Checking…
             </span>
           )}
-          {slugStatus === 'available' && (
+          {status.slugStatus === 'available' && (
             <span className='flex items-center gap-1 text-success'>
               <Check size={14} />
               Available
             </span>
           )}
-          {slugStatus === 'taken' && (
+          {status.slugStatus === 'taken' && (
             <span className='text-error'>This URL is already taken. Try another</span>
           )}
         </div>
@@ -217,13 +230,13 @@ export function Step1Identity() {
         <Label htmlFor='shop-tagline'>Tagline</Label>
         <Input
           id='shop-tagline'
-          value={tagline}
-          onChange={(e) => setTagline(e.target.value)}
+          value={form.tagline}
+          onChange={(e) => setForm((prev) => ({ ...prev, tagline: e.target.value }))}
           maxLength={80}
           placeholder='A short one-liner that describes your shop'
           className='mt-1'
         />
-        <p className='mt-1 text-right text-xs text-text-muted'>{tagline.length}/80</p>
+        <p className='mt-1 text-right text-xs text-text-muted'>{form.tagline.length}/80</p>
       </div>
 
       {/* Category */}
@@ -233,10 +246,10 @@ export function Step1Identity() {
         </Label>
         <Select
           id='shop-category'
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
+          value={form.category}
+          onChange={(e) => setForm((prev) => ({ ...prev, category: e.target.value }))}
           className='mt-1'
-          error={errors.category}
+          error={status.errors.category}
         >
           <option value=''>Select a category</option>
           {SHOP_CATEGORIES.map((c) => (
@@ -245,7 +258,9 @@ export function Step1Identity() {
             </option>
           ))}
         </Select>
-        {errors.category && <p className='mt-1 text-sm text-error'>{errors.category}</p>}
+        {status.errors.category && (
+          <p className='mt-1 text-sm text-error'>{status.errors.category}</p>
+        )}
       </div>
 
       {/* Production Type */}
@@ -253,12 +268,12 @@ export function Step1Identity() {
         <Label required>Production type</Label>
         <div className='mt-2 grid gap-3 sm:grid-cols-2'>
           {PRODUCTION_TYPES.map((type) => {
-            const isSelected = productionType === type
+            const isSelected = form.productionType === type
             return (
               <button
                 key={type}
                 type='button'
-                onClick={() => setProductionType(type)}
+                onClick={() => setForm((prev) => ({ ...prev, productionType: type }))}
                 className={`flex items-center justify-between rounded-xl border-2 p-4 text-left shadow-sm transition-all duration-base ease-out hover:scale-[1.01] hover:shadow-md ${
                   isSelected
                     ? 'border-accent-primary bg-accent-primary/10'
@@ -279,8 +294,8 @@ export function Step1Identity() {
             )
           })}
         </div>
-        {errors.productionType && (
-          <p className='mt-2 text-sm text-error'>{errors.productionType}</p>
+        {status.errors.productionType && (
+          <p className='mt-2 text-sm text-error'>{status.errors.productionType}</p>
         )}
       </div>
     </div>

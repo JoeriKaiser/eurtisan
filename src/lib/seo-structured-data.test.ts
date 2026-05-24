@@ -187,18 +187,18 @@ describe('generateWebSiteJsonLd', () => {
   })
 
   it('accepts custom URL', () => {
-    const result = generateWebSiteJsonLd({ url: 'https://eurtisan.com' })
+    const result = generateWebSiteJsonLd({ url: 'https://eurtisan.eu' })
 
-    expect(result.url).toBe('https://eurtisan.com')
+    expect(result.url).toBe('https://eurtisan.eu')
   })
 
   it('accepts custom search URL template', () => {
     const result = generateWebSiteJsonLd({
-      searchUrlTemplate: 'https://eurtisan.com/search?q={search_term_string}',
+      searchUrlTemplate: 'https://eurtisan.eu/search?q={search_term_string}',
     })
 
     const action = result.potentialAction as Record<string, unknown>
     const target = action.target as Record<string, unknown>
-    expect(target.urlTemplate).toBe('https://eurtisan.com/search?q={search_term_string}')
+    expect(target.urlTemplate).toBe('https://eurtisan.eu/search?q={search_term_string}')
   })
 })

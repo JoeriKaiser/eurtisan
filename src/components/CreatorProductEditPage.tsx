@@ -1,6 +1,6 @@
 import { useRouter } from '@tanstack/react-router'
 import { ArrowDown, ArrowUp, Check, ImageIcon, Save, Trash2, Upload, X } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { CreatorShop } from '#/lib/creator-dashboard'
 import { deleteProduct, updateProduct } from '#/lib/creator-products'
 import { m } from '#/paraglide/messages'
@@ -179,11 +179,28 @@ function ProductEditForm({
       .replace(/-+/g, '-')
   }
 
+  const validateSlugDebounced = useCallback((value: string) => {
+    if (slugTimerRef.current) {
+      clearTimeout(slugTimerRef.current)
+    }
+
+    slugTimerRef.current = setTimeout(() => {
+      setSlugError(
+        !value
+          ? null
+          : !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)
+            ? m.creator_product_new_slug_format_error()
+            : null,
+      )
+    }, SLUG_DEBOUNCE_MS)
+  }, [])
+
   const handleNameChange = (value: string) => {
     setName(value)
     if (!slugManuallyEdited) {
       const autoSlug = generateSlug(value)
       setSlug(autoSlug)
+      validateSlugDebounced(autoSlug)
     }
   }
 
@@ -191,33 +208,8 @@ function ProductEditForm({
     const cleaned = value.toLowerCase().replace(/\s+/g, '-')
     setSlug(cleaned)
     setSlugManuallyEdited(true)
+    validateSlugDebounced(cleaned)
   }
-
-  // Debounced slug format validation
-  useEffect(() => {
-    if (slugTimerRef.current) {
-      clearTimeout(slugTimerRef.current)
-    }
-
-    if (!slug) {
-      setSlugError(null)
-      return
-    }
-
-    slugTimerRef.current = setTimeout(() => {
-      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
-        setSlugError(m.creator_product_new_slug_format_error())
-      } else {
-        setSlugError(null)
-      }
-    }, SLUG_DEBOUNCE_MS)
-
-    return () => {
-      if (slugTimerRef.current) {
-        clearTimeout(slugTimerRef.current)
-      }
-    }
-  }, [slug])
 
   /* ----------------------- Existing image reordering ----------------------- */
 

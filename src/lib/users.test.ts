@@ -136,9 +136,9 @@ describe('listUsersQuery', () => {
   })
 
   it('matches partial name and email strings', async () => {
-    await seedUser({ id: 'user-1', name: 'Alice', email: 'alice@eurtisan.com' })
+    await seedUser({ id: 'user-1', name: 'Alice', email: 'alice@eurtisan.eu' })
     await seedUser({ id: 'user-2', name: 'Bob', email: 'bob@other.com' })
-    await seedUser({ id: 'user-3', name: 'Charlie', email: 'charlie@eurtisan.com' })
+    await seedUser({ id: 'user-3', name: 'Charlie', email: 'charlie@eurtisan.eu' })
 
     // "eurtisan" should match two users by email
     const result = await listUsersQuery({ query: 'eurtisan', page: 1, pageSize: 20 })
@@ -206,7 +206,7 @@ describe('listUsersQuery', () => {
   it('supports pagination combined with search filter', async () => {
     // Seed users with "test" in email
     for (let i = 1; i <= 5; i++) {
-      await seedUser({ id: `user-${i}`, name: `Test ${i}`, email: `test${i}@eurtisan.com` })
+      await seedUser({ id: `user-${i}`, name: `Test ${i}`, email: `test${i}@eurtisan.eu` })
     }
     // Seed users that should NOT match
     await seedUser({ id: 'user-other', name: 'Other', email: 'other@example.com' })

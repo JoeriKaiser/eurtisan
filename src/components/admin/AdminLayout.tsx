@@ -242,14 +242,11 @@ function AdminSearchModal({
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (open) {
-      const timer = setTimeout(() => {
-        inputRef.current?.focus()
-      }, 50)
-      return () => clearTimeout(timer)
-    } else {
-      setQuery('')
-    }
+    if (!open) return
+    const timer = setTimeout(() => {
+      inputRef.current?.focus()
+    }, 50)
+    return () => clearTimeout(timer)
   }, [open])
 
   return (
@@ -310,6 +307,7 @@ function AdminSearchModal({
 export function AdminLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [searchKey, setSearchKey] = useState(0)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const location = useLocation()
   const { user } = useAuth()
@@ -318,16 +316,12 @@ export function AdminLayout() {
 
   const currentPath = location.pathname
 
-  // Close mobile drawer on route change
-  useEffect(() => {
-    setMobileOpen(false)
-  }, [])
-
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'k' && (e.metaKey || e.ctrlKey) && e.shiftKey) {
         e.preventDefault()
+        setSearchKey((k) => k + 1)
         setSearchOpen(true)
       }
       if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey) {
@@ -522,7 +516,10 @@ export function AdminLayout() {
           <div className='flex items-center gap-2'>
             <button
               type='button'
-              onClick={() => setSearchOpen(true)}
+              onClick={() => {
+                setSearchKey((k) => k + 1)
+                setSearchOpen(true)
+              }}
               className='flex items-center gap-2 rounded-lg border border-border-default bg-surface-inset px-3 py-1.5 text-sm text-text-muted hover:text-text-primary transition-colors'
             >
               <Search size={16} aria-hidden='true' />
@@ -542,7 +539,7 @@ export function AdminLayout() {
         </main>
       </div>
 
-      <AdminSearchModal open={searchOpen} onOpenChange={setSearchOpen} />
+      <AdminSearchModal key={searchKey} open={searchOpen} onOpenChange={setSearchOpen} />
       <ShortcutsModal open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
     </div>
   )

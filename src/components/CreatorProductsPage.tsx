@@ -10,7 +10,7 @@ import {
   ToggleLeft,
   ToggleRight,
 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { toggleProductActive } from '#/lib/creator-products'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
@@ -78,12 +78,6 @@ export function CreatorProductsPage({
   const [toggleStates, setToggleStates] = useState<Record<string, boolean>>({})
   const [togglingProducts, setTogglingProducts] = useState<Record<string, boolean>>({})
 
-  // Reset toggle states when products change
-  // biome-ignore lint/correctness/useExhaustiveDependencies: deliberate reset on product changes
-  useEffect(() => {
-    setToggleStates({})
-  }, [initialProducts.products])
-
   /* ---- Local filter states (mirrored to search params) ---- */
   const [localSearch, setLocalSearch] = useState(initialSearch.search ?? '')
   const localSearchRef = useRef(localSearch)
@@ -92,6 +86,7 @@ export function CreatorProductsPage({
 
   const navigateWithParams = useCallback(
     (overrides: Record<string, string | number | undefined>) => {
+      setToggleStates({})
       const params: Record<string, string | number> = {
         page: initialSearch.page,
         pageSize: initialSearch.pageSize,
@@ -156,6 +151,7 @@ export function CreatorProductsPage({
 
   const handleShopChange = useCallback(
     (newShopId: string) => {
+      setToggleStates({})
       setLocalSearch('')
       router.navigate({
         to: '/creator/products',

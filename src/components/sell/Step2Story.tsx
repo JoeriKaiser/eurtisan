@@ -26,50 +26,47 @@ export function Step2Story() {
     productionPartnerDetails: string
   }
 
-  const [description, setDescription] = useState(data.description ?? '')
-  const [tags, setTags] = useState<string[]>(data.tags ?? [])
-  const [tagInput, setTagInput] = useState('')
-  const [languages, setLanguages] = useState<string[]>(data.languages ?? [])
-  const [langInput, setLangInput] = useState('')
-  const [hasProductionPartner, setHasProductionPartner] = useState(
-    data.hasProductionPartner ?? false,
-  )
-  const [productionPartnerDetails, setProductionPartnerDetails] = useState(
-    data.productionPartnerDetails ?? '',
-  )
+  const [form, setForm] = useState({
+    description: data.description ?? '',
+    tags: data.tags ?? ([] as string[]),
+    languages: data.languages ?? ([] as string[]),
+    hasProductionPartner: data.hasProductionPartner ?? false,
+    productionPartnerDetails: data.productionPartnerDetails ?? '',
+  })
+  const [inputs, setInputs] = useState({ tagInput: '', langInput: '' })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const handleAddTag = () => {
-    const trimmed = tagInput.trim().toLowerCase()
-    if (trimmed && !tags.includes(trimmed) && tags.length < 13) {
-      setTags([...tags, trimmed])
-      setTagInput('')
+    const trimmed = inputs.tagInput.trim().toLowerCase()
+    if (trimmed && !form.tags.includes(trimmed) && form.tags.length < 13) {
+      setForm((prev) => ({ ...prev, tags: [...prev.tags, trimmed] }))
+      setInputs((prev) => ({ ...prev, tagInput: '' }))
     }
   }
 
   const handleRemoveTag = (tag: string) => {
-    setTags(tags.filter((t) => t !== tag))
+    setForm((prev) => ({ ...prev, tags: prev.tags.filter((t) => t !== tag) }))
   }
 
   const handleAddLanguage = () => {
-    const trimmed = langInput.trim()
-    if (trimmed && !languages.includes(trimmed)) {
-      setLanguages([...languages, trimmed])
-      setLangInput('')
+    const trimmed = inputs.langInput.trim()
+    if (trimmed && !form.languages.includes(trimmed)) {
+      setForm((prev) => ({ ...prev, languages: [...prev.languages, trimmed] }))
+      setInputs((prev) => ({ ...prev, langInput: '' }))
     }
   }
 
   const handleRemoveLanguage = (lang: string) => {
-    setLanguages(languages.filter((l) => l !== lang))
+    setForm((prev) => ({ ...prev, languages: prev.languages.filter((l) => l !== lang) }))
   }
 
   const validate = useCallback(() => {
     const result = step2StorySchema.safeParse({
-      description,
-      tags,
-      languages,
-      hasProductionPartner,
-      productionPartnerDetails,
+      description: form.description,
+      tags: form.tags,
+      languages: form.languages,
+      hasProductionPartner: form.hasProductionPartner,
+      productionPartnerDetails: form.productionPartnerDetails,
     })
     if (!result.success) {
       const fieldErrors: Record<string, string> = {}
@@ -82,17 +79,17 @@ export function Step2Story() {
     }
     setErrors({})
     return true
-  }, [description, tags, languages, hasProductionPartner, productionPartnerDetails])
+  }, [form])
 
   const save = useCallback(async () => {
     await saveStep(2, {
-      description,
-      tags,
-      languages,
-      hasProductionPartner,
-      productionPartnerDetails,
+      description: form.description,
+      tags: form.tags,
+      languages: form.languages,
+      hasProductionPartner: form.hasProductionPartner,
+      productionPartnerDetails: form.productionPartnerDetails,
     })
-  }, [description, tags, languages, hasProductionPartner, productionPartnerDetails, saveStep])
+  }, [form, saveStep])
 
   useStepActions(2, { validate, save })
 
@@ -115,7 +112,12 @@ export function Step2Story() {
             <button
               key={prompt}
               type='button'
-              onClick={() => setDescription((prev) => (prev ? `${prev}\n\n` : '') + prompt)}
+              onClick={() =>
+                setForm((prev) => ({
+                  ...prev,
+                  description: prev.description ? `${prev.description}\n\n${prompt}` : prompt,
+                }))
+              }
               className='rounded-full border border-border-default bg-surface-default px-3 py-1 text-xs text-text-secondary shadow-sm transition hover:scale-[1.02] hover:border-accent-primary hover:bg-accent-primary/5 hover:text-accent-primary duration-fast ease-out'
             >
               {prompt}
@@ -124,8 +126,8 @@ export function Step2Story() {
         </div>
         <Textarea
           id='shop-description'
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          value={form.description}
+          onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
           rows={8}
           maxLength={5000}
           placeholder='Describe your shop, your process, and what buyers can expect...'
@@ -134,7 +136,7 @@ export function Step2Story() {
         <div className='mt-1 flex items-center justify-between text-xs text-text-muted'>
           <span className='text-error'>{errors.description}</span>
           <span className='rounded border border-border-subtle bg-surface-inset px-2 py-0.5 font-mono text-[10px] font-medium text-text-secondary shadow-sm'>
-            {description.length} / 5000
+            {form.description.length} / 5000
           </span>
         </div>
       </div>
@@ -145,8 +147,8 @@ export function Step2Story() {
         <div className='mt-1 flex gap-2'>
           <Input
             id='shop-tags'
-            value={tagInput}
-            onChange={(e) => setTagInput(e.target.value)}
+            value={inputs.tagInput}
+            onChange={(e) => setInputs((prev) => ({ ...prev, tagInput: e.target.value }))}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault()
@@ -162,7 +164,7 @@ export function Step2Story() {
         </div>
         <p className='mt-1 text-xs text-text-muted'>Up to 13 tags, max 20 characters each</p>
         <div className='mt-2 flex flex-wrap gap-2'>
-          {tags.map((tag) => (
+          {form.tags.map((tag) => (
             <Badge key={tag} variant='default' className='gap-1 pr-1.5'>
               {tag}
               <button
@@ -184,8 +186,8 @@ export function Step2Story() {
         <div className='mt-1 flex gap-2'>
           <Input
             id='shop-languages'
-            value={langInput}
-            onChange={(e) => setLangInput(e.target.value)}
+            value={inputs.langInput}
+            onChange={(e) => setInputs((prev) => ({ ...prev, langInput: e.target.value }))}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault()
@@ -199,7 +201,7 @@ export function Step2Story() {
           </Button>
         </div>
         <div className='mt-2 flex flex-wrap gap-2'>
-          {languages.map((lang) => (
+          {form.languages.map((lang) => (
             <Badge key={lang} variant='default' className='gap-1 pr-1.5'>
               {lang}
               <button
@@ -221,11 +223,13 @@ export function Step2Story() {
           <Label htmlFor='production-partner'>I work with a production partner</Label>
           <Switch
             id='production-partner'
-            checked={hasProductionPartner}
-            onCheckedChange={setHasProductionPartner}
+            checked={form.hasProductionPartner}
+            onCheckedChange={(checked) =>
+              setForm((prev) => ({ ...prev, hasProductionPartner: checked }))
+            }
           />
         </div>
-        {hasProductionPartner && (
+        {form.hasProductionPartner && (
           <div className='mt-3'>
             <Label htmlFor='partner-details'>
               What does your production partner do?{' '}
@@ -233,8 +237,10 @@ export function Step2Story() {
             </Label>
             <Input
               id='partner-details'
-              value={productionPartnerDetails}
-              onChange={(e) => setProductionPartnerDetails(e.target.value)}
+              value={form.productionPartnerDetails}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, productionPartnerDetails: e.target.value }))
+              }
               maxLength={500}
               placeholder='e.g. A local print shop handles screen printing'
               className='mt-1'

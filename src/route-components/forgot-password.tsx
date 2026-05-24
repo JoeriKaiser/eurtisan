@@ -10,9 +10,7 @@ import { useSearch } from '@tanstack/react-router'
 export function ForgotPassword() {
   const { redirect } = useSearch({ from: '/forgot-password' })
   const [email, setEmail] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState(false)
+  const [status, setStatus] = useState({ loading: false, error: '', success: false })
   const [cooldown, setCooldown] = useState(0)
 
   useEffect(() => {
@@ -29,8 +27,7 @@ export function ForgotPassword() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setError('')
-    setLoading(true)
+    setStatus({ loading: true, error: '', success: false })
 
     try {
       const result = await authClient.requestPasswordReset({
@@ -39,22 +36,23 @@ export function ForgotPassword() {
       })
 
       if (result.error) {
-        setError(result.error.message || m.error_unexpected())
+        setStatus({
+          loading: false,
+          error: result.error.message || m.error_unexpected(),
+          success: false,
+        })
       } else {
-        setSuccess(true)
+        setStatus({ loading: false, error: '', success: true })
         setCooldown(60)
       }
     } catch {
-      setError(m.error_unexpected())
-    } finally {
-      setLoading(false)
+      setStatus({ loading: false, error: m.error_unexpected(), success: false })
     }
   }
 
   const handleResend = async () => {
     if (cooldown > 0) return
-    setError('')
-    setLoading(true)
+    setStatus((prev) => ({ ...prev, loading: true, error: '' }))
 
     try {
       const result = await authClient.requestPasswordReset({
@@ -63,23 +61,26 @@ export function ForgotPassword() {
       })
 
       if (result.error) {
-        setError(result.error.message || m.error_unexpected())
+        setStatus((prev) => ({
+          ...prev,
+          loading: false,
+          error: result.error.message || m.error_unexpected(),
+        }))
       } else {
         setCooldown(60)
+        setStatus((prev) => ({ ...prev, loading: false }))
       }
     } catch {
-      setError(m.error_unexpected())
-    } finally {
-      setLoading(false)
+      setStatus((prev) => ({ ...prev, loading: false, error: m.error_unexpected() }))
     }
   }
 
   return (
     <AuthShell
       title={m.forgot_password_title()}
-      description={!success ? m.forgot_password_description() : undefined}
+      description={!status.success ? m.forgot_password_description() : undefined}
     >
-      {!success ? (
+      {!status.success ? (
         <form onSubmit={handleSubmit} className='grid gap-3'>
           <div className='grid gap-1'>
             <label htmlFor='email' className='text-sm font-medium text-text-primary'>
@@ -97,18 +98,18 @@ export function ForgotPassword() {
             />
           </div>
 
-          <Button type='submit' isLoading={loading} className='w-full mt-1'>
+          <Button type='submit' isLoading={status.loading} className='w-full mt-1'>
             {m.button_send_reset_link()}
           </Button>
 
-          {error && (
+          {status.error && (
             <div
               className='rounded-lg border border-error bg-error-subtle p-3 flex items-start gap-2'
               role='alert'
               aria-live='assertive'
             >
               <AlertTriangle className='text-error shrink-0 mt-0.5' size={16} />
-              <p className='text-xs text-error font-medium'>{error}</p>
+              <p className='text-xs text-error font-medium'>{status.error}</p>
             </div>
           )}
         </form>
@@ -124,8 +125,8 @@ export function ForgotPassword() {
               type='button'
               variant='secondary'
               onClick={handleResend}
-              disabled={cooldown > 0 || loading}
-              isLoading={loading && cooldown === 0}
+              disabled={cooldown > 0 || status.loading}
+              isLoading={status.loading && cooldown === 0}
               className='w-full'
             >
               {cooldown > 0
@@ -134,14 +135,14 @@ export function ForgotPassword() {
             </Button>
           </div>
 
-          {error && (
+          {status.error && (
             <div
               className='rounded-lg border border-error bg-error-subtle p-3 flex items-start gap-2 text-left'
               role='alert'
               aria-live='assertive'
             >
               <AlertTriangle className='text-error shrink-0 mt-0.5' size={16} />
-              <p className='text-xs text-error font-medium'>{error}</p>
+              <p className='text-xs text-error font-medium'>{status.error}</p>
             </div>
           )}
         </div>

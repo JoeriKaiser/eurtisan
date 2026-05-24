@@ -60,69 +60,56 @@ export function Step5Policies() {
     }
   }
 
-  const [returnsPreset, setReturnsPreset] = useState<PolicyPreset>(
-    data.policies?.returns?.accepted
+  const [returns, setReturns] = useState({
+    preset: (data.policies?.returns?.accepted
       ? data.policies.returns.windowDays === 14
         ? 'yes14'
         : data.policies.returns.windowDays === 30
           ? 'yes30'
           : 'custom'
-      : 'no',
-  )
-  const [returnsConditions, setReturnsConditions] = useState(
-    data.policies?.returns?.conditions ?? '',
-  )
+      : 'no') as PolicyPreset,
+    conditions: data.policies?.returns?.conditions ?? '',
+  })
 
-  const [exchangesPreset, setExchangesPreset] = useState<PolicyPreset>(
-    data.policies?.exchanges?.accepted
+  const [exchanges, setExchanges] = useState({
+    preset: (data.policies?.exchanges?.accepted
       ? data.policies.exchanges.conditions
         ? 'custom'
         : 'yes14'
-      : 'no',
-  )
-  const [exchangesConditions, setExchangesConditions] = useState(
-    data.policies?.exchanges?.conditions ?? '',
-  )
+      : 'no') as PolicyPreset,
+    conditions: data.policies?.exchanges?.conditions ?? '',
+  })
 
-  const [customPreset, setCustomPreset] = useState<PolicyPreset>(
-    data.policies?.customOrders?.accepted
+  const [custom, setCustom] = useState({
+    preset: (data.policies?.customOrders?.accepted
       ? data.policies.customOrders.details
         ? 'custom'
         : 'yes14'
-      : 'no',
-  )
-  const [customDetails, setCustomDetails] = useState(data.policies?.customOrders?.details ?? '')
+      : 'no') as PolicyPreset,
+    details: data.policies?.customOrders?.details ?? '',
+  })
 
   const [additionalInfo, setAdditionalInfo] = useState(data.policies?.additionalInfo ?? '')
 
   const buildPolicies = useCallback(
     () => ({
       returns: {
-        accepted: returnsPreset !== 'no',
-        windowDays: returnsPreset === 'yes14' ? 14 : returnsPreset === 'yes30' ? 30 : undefined,
-        conditions: returnsPreset === 'custom' ? returnsConditions : undefined,
+        accepted: returns.preset !== 'no',
+        windowDays: returns.preset === 'yes14' ? 14 : returns.preset === 'yes30' ? 30 : undefined,
+        conditions: returns.preset === 'custom' ? returns.conditions : undefined,
       },
       exchanges: {
-        accepted: exchangesPreset !== 'no',
-        conditions: exchangesPreset === 'custom' ? exchangesConditions : undefined,
+        accepted: exchanges.preset !== 'no',
+        conditions: exchanges.preset === 'custom' ? exchanges.conditions : undefined,
       },
       customOrders: {
-        accepted: customPreset !== 'no',
-        details: customPreset === 'custom' ? customDetails : undefined,
+        accepted: custom.preset !== 'no',
+        details: custom.preset === 'custom' ? custom.details : undefined,
       },
       paymentMethods: data.policies?.paymentMethods ?? [],
       additionalInfo: additionalInfo || undefined,
     }),
-    [
-      returnsPreset,
-      returnsConditions,
-      exchangesPreset,
-      exchangesConditions,
-      customPreset,
-      customDetails,
-      additionalInfo,
-      data.policies,
-    ],
+    [returns, exchanges, custom, additionalInfo, data.policies],
   )
 
   const validate = useCallback(() => {
@@ -149,30 +136,42 @@ export function Step5Policies() {
         You can always update your policies later from your shop settings.
       </div>
 
-      <PolicyCard title='Returns' preset={returnsPreset} onPresetChange={setReturnsPreset}>
+      <PolicyCard
+        title='Returns'
+        preset={returns.preset}
+        onPresetChange={(preset) => setReturns((prev) => ({ ...prev, preset }))}
+      >
         <Textarea
-          value={returnsConditions}
-          onChange={(e) => setReturnsConditions(e.target.value)}
+          value={returns.conditions}
+          onChange={(e) => setReturns((prev) => ({ ...prev, conditions: e.target.value }))}
           rows={3}
           maxLength={500}
           placeholder='Describe your return conditions...'
         />
       </PolicyCard>
 
-      <PolicyCard title='Exchanges' preset={exchangesPreset} onPresetChange={setExchangesPreset}>
+      <PolicyCard
+        title='Exchanges'
+        preset={exchanges.preset}
+        onPresetChange={(preset) => setExchanges((prev) => ({ ...prev, preset }))}
+      >
         <Textarea
-          value={exchangesConditions}
-          onChange={(e) => setExchangesConditions(e.target.value)}
+          value={exchanges.conditions}
+          onChange={(e) => setExchanges((prev) => ({ ...prev, conditions: e.target.value }))}
           rows={3}
           maxLength={500}
           placeholder='Describe your exchange conditions...'
         />
       </PolicyCard>
 
-      <PolicyCard title='Custom orders' preset={customPreset} onPresetChange={setCustomPreset}>
+      <PolicyCard
+        title='Custom orders'
+        preset={custom.preset}
+        onPresetChange={(preset) => setCustom((prev) => ({ ...prev, preset }))}
+      >
         <Textarea
-          value={customDetails}
-          onChange={(e) => setCustomDetails(e.target.value)}
+          value={custom.details}
+          onChange={(e) => setCustom((prev) => ({ ...prev, details: e.target.value }))}
           rows={3}
           maxLength={500}
           placeholder='Describe how you handle custom orders...'

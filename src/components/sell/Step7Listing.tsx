@@ -79,24 +79,26 @@ function ImageUpload({
 export function Step7Listing() {
   const { draft, saveStep } = useOnboarding()
 
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [priceCents, setPriceCents] = useState('')
-  const [stockCount, setStockCount] = useState('1')
-  const [images, setImages] = useState<{ dataUrl: string; altText?: string }[]>([])
+  const [form, setForm] = useState({
+    name: '',
+    description: '',
+    priceCents: '',
+    stockCount: '1',
+    images: [] as { dataUrl: string; altText?: string }[],
+  })
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const priceValue = Number.parseInt(priceCents, 10) || 0
+  const priceValue = Number.parseInt(form.priceCents, 10) || 0
   const platformFee = Math.round(priceValue * 0.03)
   const paymentFee = Math.round(priceValue * 0.035 + 30)
   const net = priceValue - platformFee - paymentFee
 
   const validate = useCallback(() => {
     const result = step7ListingSchema.safeParse({
-      name,
-      description,
+      name: form.name,
+      description: form.description,
       priceCents: priceValue,
-      stockCount: Number.parseInt(stockCount, 10) || 0,
-      images,
+      stockCount: Number.parseInt(form.stockCount, 10) || 0,
+      images: form.images,
     })
     if (!result.success) {
       const fieldErrors: Record<string, string> = {}
@@ -109,10 +111,10 @@ export function Step7Listing() {
     }
     setErrors({})
     return true
-  }, [name, description, priceValue, stockCount, images])
+  }, [form, priceValue])
 
   const save = useCallback(async () => {
-    const slug = name
+    const slug = form.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '')
@@ -121,17 +123,17 @@ export function Step7Listing() {
     await createDraftListing({
       data: {
         draftId: draft.id,
-        name,
-        description,
+        name: form.name,
+        description: form.description,
         priceCents: priceValue,
-        stockCount: Number.parseInt(stockCount, 10) || 1,
-        images,
+        stockCount: Number.parseInt(form.stockCount, 10) || 1,
+        images: form.images,
         slug,
       },
     })
 
     await saveStep(7, {})
-  }, [draft.id, name, description, priceValue, stockCount, images, saveStep])
+  }, [draft.id, form, priceValue, saveStep])
 
   useStepActions(7, { validate, save })
 
@@ -150,7 +152,10 @@ export function Step7Listing() {
       <div>
         <Label required>Photos</Label>
         <div className='mt-1'>
-          <ImageUpload images={images} onChange={setImages} />
+          <ImageUpload
+            images={form.images}
+            onChange={(images) => setForm((prev) => ({ ...prev, images }))}
+          />
         </div>
         {errors.images && <p className='mt-1 text-sm text-error'>{errors.images}</p>}
       </div>
@@ -162,8 +167,8 @@ export function Step7Listing() {
         </Label>
         <Input
           id='listing-name'
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          value={form.name}
+          onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
           maxLength={140}
           placeholder='What are you selling?'
           className='mt-1'
@@ -178,8 +183,8 @@ export function Step7Listing() {
         </Label>
         <Textarea
           id='listing-desc'
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          value={form.description}
+          onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
           rows={5}
           maxLength={2000}
           placeholder='Describe your item...'
@@ -200,10 +205,13 @@ export function Step7Listing() {
             type='number'
             min={0}
             step='0.01'
-            value={priceCents ? (priceValue / 100).toFixed(2) : ''}
+            value={form.priceCents ? (priceValue / 100).toFixed(2) : ''}
             onChange={(e) => {
               const val = Number.parseFloat(e.target.value)
-              setPriceCents(Number.isNaN(val) ? '' : String(Math.round(val * 100)))
+              setForm((prev) => ({
+                ...prev,
+                priceCents: Number.isNaN(val) ? '' : String(Math.round(val * 100)),
+              }))
             }}
             placeholder='0.00'
           />
@@ -238,8 +246,8 @@ export function Step7Listing() {
           id='listing-stock'
           type='number'
           min={1}
-          value={stockCount}
-          onChange={(e) => setStockCount(e.target.value)}
+          value={form.stockCount}
+          onChange={(e) => setForm((prev) => ({ ...prev, stockCount: e.target.value }))}
           className='mt-1 w-32'
         />
       </div>

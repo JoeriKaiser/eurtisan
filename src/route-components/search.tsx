@@ -21,53 +21,55 @@ export function SearchPage() {
   } = useLoaderData({ from: '/search' })
   const router = useRouter()
 
-  const [localQuery, setLocalQuery] = useState(query)
-  const [localCategory, setLocalCategory] = useState(categorySlug ?? '')
-  const [localShop, setLocalShop] = useState(shopSlug ?? '')
-  const [localMinPrice, setLocalMinPrice] = useState(
-    minPriceCents !== undefined ? String(minPriceCents / 100) : '',
-  )
-  const [localMaxPrice, setLocalMaxPrice] = useState(
-    maxPriceCents !== undefined ? String(maxPriceCents / 100) : '',
-  )
-  const [localSort, setLocalSort] = useState(sort)
+  const [filters, setFilters] = useState({
+    query: query ?? '',
+    category: categorySlug ?? '',
+    shop: shopSlug ?? '',
+    minPrice: minPriceCents !== undefined ? String(minPriceCents / 100) : '',
+    maxPrice: maxPriceCents !== undefined ? String(maxPriceCents / 100) : '',
+    sort: sort ?? 'relevance',
+  })
 
   // Sync local state when loader data changes (e.g. back/forward navigation)
   useEffect(() => {
-    setLocalQuery(query)
-    setLocalCategory(categorySlug ?? '')
-    setLocalShop(shopSlug ?? '')
-    setLocalMinPrice(minPriceCents !== undefined ? String(minPriceCents / 100) : '')
-    setLocalMaxPrice(maxPriceCents !== undefined ? String(maxPriceCents / 100) : '')
-    setLocalSort(sort)
+    setFilters({
+      query: query ?? '',
+      category: categorySlug ?? '',
+      shop: shopSlug ?? '',
+      minPrice: minPriceCents !== undefined ? String(minPriceCents / 100) : '',
+      maxPrice: maxPriceCents !== undefined ? String(maxPriceCents / 100) : '',
+      sort: sort ?? 'relevance',
+    })
   }, [query, categorySlug, shopSlug, minPriceCents, maxPriceCents, sort])
 
   const buildSearchParams = useCallback(
     (overrides: Record<string, string | number | undefined>) => {
       const params: Record<string, string | number> = {}
 
-      const q = overrides.q !== undefined ? overrides.q : localQuery.trim()
+      const q = overrides.q !== undefined ? overrides.q : filters.query.trim()
       if (q) params.q = q
 
-      const category = overrides.category !== undefined ? overrides.category : localCategory
+      const category = overrides.category !== undefined ? overrides.category : filters.category
       if (category) params.category = category
 
-      const shop = overrides.shop !== undefined ? overrides.shop : localShop
+      const shop = overrides.shop !== undefined ? overrides.shop : filters.shop
       if (shop) params.shop = shop
 
-      const minPrice = overrides.minPrice !== undefined ? String(overrides.minPrice) : localMinPrice
+      const minPrice =
+        overrides.minPrice !== undefined ? String(overrides.minPrice) : filters.minPrice
       if (minPrice) {
         const cents = Math.round(Number.parseFloat(minPrice) * 100)
         if (!Number.isNaN(cents) && cents >= 0) params.minPrice = cents
       }
 
-      const maxPrice = overrides.maxPrice !== undefined ? String(overrides.maxPrice) : localMaxPrice
+      const maxPrice =
+        overrides.maxPrice !== undefined ? String(overrides.maxPrice) : filters.maxPrice
       if (maxPrice) {
         const cents = Math.round(Number.parseFloat(maxPrice) * 100)
         if (!Number.isNaN(cents) && cents >= 0) params.maxPrice = cents
       }
 
-      const sortValue = overrides.sort !== undefined ? overrides.sort : localSort
+      const sortValue = overrides.sort !== undefined ? overrides.sort : filters.sort
       if (sortValue && sortValue !== 'relevance') params.sort = sortValue
 
       const pageValue = overrides.page !== undefined ? overrides.page : 1
@@ -75,7 +77,7 @@ export function SearchPage() {
 
       return params
     },
-    [localQuery, localCategory, localShop, localMinPrice, localMaxPrice, localSort],
+    [filters],
   )
 
   const navigateWithParams = useCallback(
@@ -101,20 +103,27 @@ export function SearchPage() {
   )
 
   const handleClearFilters = useCallback(() => {
-    setLocalCategory('')
-    setLocalShop('')
-    setLocalMinPrice('')
-    setLocalMaxPrice('')
-    setLocalSort('relevance')
+    setFilters((prev) => ({
+      ...prev,
+      category: '',
+      shop: '',
+      minPrice: '',
+      maxPrice: '',
+      sort: 'relevance',
+    }))
     router.navigate({
       to: '/search',
-      search: localQuery.trim() ? { q: localQuery.trim() } : {},
+      search: filters.query.trim() ? { q: filters.query.trim() } : {},
       replace: true,
     })
-  }, [router, localQuery])
+  }, [router, filters.query])
 
   const hasActiveFilters =
-    localCategory || localShop || localMinPrice || localMaxPrice || localSort !== 'relevance'
+    filters.category ||
+    filters.shop ||
+    filters.minPrice ||
+    filters.maxPrice ||
+    filters.sort !== 'relevance'
 
   const isEmptyQuery = query.length === 0
   const hasNoResults = products.products.length === 0
@@ -134,8 +143,8 @@ export function SearchPage() {
             <Input
               type='search'
               placeholder={m.search_input_placeholder()}
-              value={localQuery}
-              onChange={(e) => setLocalQuery(e.target.value)}
+              value={filters.query}
+              onChange={(e) => setFilters((prev) => ({ ...prev, query: e.target.value }))}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault()
@@ -185,9 +194,9 @@ export function SearchPage() {
                 </label>
                 <select
                   id='search-category'
-                  value={localCategory}
+                  value={filters.category}
                   onChange={(e) => {
-                    setLocalCategory(e.target.value)
+                    setFilters((prev) => ({ ...prev, category: e.target.value }))
                     navigateWithParams({ category: e.target.value || undefined, page: 1 })
                   }}
                   className='h-10 w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
@@ -211,9 +220,9 @@ export function SearchPage() {
                 </label>
                 <select
                   id='search-shop'
-                  value={localShop}
+                  value={filters.shop}
                   onChange={(e) => {
-                    setLocalShop(e.target.value)
+                    setFilters((prev) => ({ ...prev, shop: e.target.value }))
                     navigateWithParams({ shop: e.target.value || undefined, page: 1 })
                   }}
                   className='h-10 w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
@@ -239,13 +248,13 @@ export function SearchPage() {
                       min={0}
                       step='0.01'
                       placeholder={m.search_filter_min_price()}
-                      value={localMinPrice}
+                      value={filters.minPrice}
                       onChange={(e) => {
-                        setLocalMinPrice(e.target.value)
+                        setFilters((prev) => ({ ...prev, minPrice: e.target.value }))
                       }}
                       onBlur={() => {
                         navigateWithParams({
-                          minPrice: localMinPrice || undefined,
+                          minPrice: filters.minPrice || undefined,
                           page: 1,
                         })
                       }}
@@ -253,7 +262,7 @@ export function SearchPage() {
                         if (e.key === 'Enter') {
                           e.preventDefault()
                           navigateWithParams({
-                            minPrice: localMinPrice || undefined,
+                            minPrice: filters.minPrice || undefined,
                             page: 1,
                           })
                         }
@@ -269,13 +278,13 @@ export function SearchPage() {
                       min={0}
                       step='0.01'
                       placeholder={m.search_filter_max_price()}
-                      value={localMaxPrice}
+                      value={filters.maxPrice}
                       onChange={(e) => {
-                        setLocalMaxPrice(e.target.value)
+                        setFilters((prev) => ({ ...prev, maxPrice: e.target.value }))
                       }}
                       onBlur={() => {
                         navigateWithParams({
-                          maxPrice: localMaxPrice || undefined,
+                          maxPrice: filters.maxPrice || undefined,
                           page: 1,
                         })
                       }}
@@ -283,7 +292,7 @@ export function SearchPage() {
                         if (e.key === 'Enter') {
                           e.preventDefault()
                           navigateWithParams({
-                            maxPrice: localMaxPrice || undefined,
+                            maxPrice: filters.maxPrice || undefined,
                             page: 1,
                           })
                         }
@@ -311,9 +320,9 @@ export function SearchPage() {
               </label>
               <select
                 id='search-sort'
-                value={localSort}
+                value={filters.sort}
                 onChange={(e) => {
-                  setLocalSort(e.target.value)
+                  setFilters((prev) => ({ ...prev, sort: e.target.value }))
                   navigateWithParams({ sort: e.target.value, page: 1 })
                 }}
                 className='h-9 rounded-lg border border-border-default bg-surface-default px-3 py-1.5 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'

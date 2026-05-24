@@ -10,11 +10,10 @@ import {
   Search,
   X,
 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { Skeleton } from '#/components/ui/skeleton'
-import type { AdminPayoutRow } from '#/lib/admin-payouts'
 import { markPayoutSent } from '#/lib/admin-payouts'
 import { cn } from '#/lib/cn'
 import { downloadCSV, generateCSV } from '#/lib/csv-export'
@@ -53,24 +52,17 @@ export function AdminPayoutsPage() {
   // Derive history data fresh on every render so pagination works.
   const historyData = initialData.tab === 'history' ? initialData.history : null
 
-  // --- Local state ---
-  const [payouts, setPayouts] = useState<AdminPayoutRow[]>(
-    initialData.tab === 'pending' ? initialData.payouts : [],
-  )
-  const [actionPayoutId, setActionPayoutId] = useState<string | null>(null)
-  const [actionError, setActionError] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const payouts = initialData.tab === 'pending' ? initialData.payouts : []
+
+  const [status, setStatus] = useState({
+    actionPayoutId: null as string | null,
+    actionError: null as string | null,
+    successMessage: null as string | null,
+  })
 
   // Search state
   const [searchValue, setSearchValue] = useState(search.query ?? '')
   const searchInputRef = useRef<HTMLInputElement>(null)
-
-  // Keep payouts in sync when the loader returns fresh pending data (tab switch, remount).
-  useEffect(() => {
-    if (initialData.tab === 'pending') {
-      setPayouts(initialData.payouts)
-    }
-  }, [initialData.tab, initialData.payouts])
 
   // --- Refs for stale-closure safety ---
   const successTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -142,24 +134,28 @@ export function AdminPayoutsPage() {
 
   /* ---- Mark as sent ---- */
   const handleMarkSent = useCallback(async (payoutId: string) => {
-    setActionPayoutId(payoutId)
-    setActionError(null)
-    setSuccessMessage(null)
+    setStatus({ actionPayoutId: payoutId, actionError: null, successMessage: null })
 
     try {
       await markPayoutSent({ data: { payoutId } })
 
-      // Remove from the pending list immediately
-      setPayouts((prev) => prev.filter((p) => p.payoutId !== payoutId))
-
-      setSuccessMessage(m.admin_payouts_marked_sent_success())
+      setStatus((prev) => ({
+        ...prev,
+        successMessage: m.admin_payouts_marked_sent_success(),
+      }))
 
       if (successTimerRef.current) clearTimeout(successTimerRef.current)
-      successTimerRef.current = setTimeout(() => setSuccessMessage(null), 3000)
+      successTimerRef.current = setTimeout(
+        () => setStatus((prev) => ({ ...prev, successMessage: null })),
+        3000,
+      )
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : m.admin_payouts_action_error())
+      setStatus((prev) => ({
+        ...prev,
+        actionError: err instanceof Error ? err.message : m.admin_payouts_action_error(),
+      }))
     } finally {
-      setActionPayoutId(null)
+      setStatus((prev) => ({ ...prev, actionPayoutId: null }))
     }
   }, [])
 
@@ -198,23 +194,23 @@ export function AdminPayoutsPage() {
       </div>
 
       {/* Success / Error feedback */}
-      {successMessage && (
+      {status.successMessage && (
         <div className='island-shell rounded-xl border border-success/30 bg-success-subtle p-4 text-sm text-success'>
           <CheckCircle size={16} className='mr-2 inline-block' aria-hidden='true' />
-          {successMessage}
+          {status.successMessage}
         </div>
       )}
 
-      {actionError && (
+      {status.actionError && (
         <div
           role='alert'
           className='island-shell rounded-xl border border-error/30 bg-error-subtle p-4 text-sm text-error'
         >
           <AlertTriangle size={16} className='mr-2 inline-block' aria-hidden='true' />
-          {actionError}
+          {status.actionError}
           <button
             type='button'
-            onClick={() => setActionError(null)}
+            onClick={() => setStatus((prev) => ({ ...prev, actionError: null }))}
             className='ml-2 underline hover:no-underline'
           >
             {m.admin_payouts_dismiss()}
@@ -375,7 +371,7 @@ export function AdminPayoutsPage() {
               </thead>
               <tbody className='divide-y divide-border-subtle'>
                 {payouts.map((payout) => {
-                  const isProcessing = actionPayoutId === payout.payoutId
+                  const isProcessing = status.actionPayoutId === payout.payoutId
 
                   return (
                     <tr

@@ -19,6 +19,7 @@ const rootRoute = getRouteApi('__root__')
 export default function Header() {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
   const [searchOverlayOpen, setSearchOverlayOpen] = useState(false)
+  const [searchKey, setSearchKey] = useState(0)
   const { cart } = useCart()
   const { isAuthenticated } = useAuth()
   const { data: unreadData } = useUnreadNotificationCount(isAuthenticated)
@@ -54,6 +55,7 @@ export default function Header() {
 
       if (e.key === '/' || (e.metaKey && e.key === 'k') || (e.ctrlKey && e.key === 'k')) {
         e.preventDefault()
+        setSearchKey((k) => k + 1)
         setSearchOverlayOpen(true)
       }
     }
@@ -126,7 +128,10 @@ export default function Header() {
         <div className='mx-4 hidden flex-1 items-center md:flex md:max-w-xs lg:max-w-sm'>
           <button
             type='button'
-            onClick={() => setSearchOverlayOpen(true)}
+            onClick={() => {
+              setSearchKey((k) => k + 1)
+              setSearchOverlayOpen(true)
+            }}
             className='w-full h-10 pl-9 pr-9 relative rounded-lg border border-border-default hover:border-border-strong bg-surface-default text-sm text-text-muted text-left transition-all duration-fast outline-none cursor-pointer flex items-center'
             aria-label={m.search_header_placeholder()}
           >
@@ -149,7 +154,10 @@ export default function Header() {
           {/* Mobile Search Button (Opens SearchOverlay) */}
           <button
             type='button'
-            onClick={() => setSearchOverlayOpen(true)}
+            onClick={() => {
+              setSearchKey((k) => k + 1)
+              setSearchOverlayOpen(true)
+            }}
             className='inline-flex items-center rounded-lg p-1.5 text-sm font-medium text-text-primary transition-colors duration-fast ease-out hover:bg-bg-inset md:hidden outline-none flex-shrink-0'
             aria-label='Search products'
           >
@@ -209,7 +217,11 @@ export default function Header() {
         categories={categories}
         onOpenSearch={() => setSearchOverlayOpen(true)}
       />
-      <SearchOverlay isOpen={searchOverlayOpen} onClose={() => setSearchOverlayOpen(false)} />
+      <SearchOverlay
+        key={searchKey}
+        isOpen={searchOverlayOpen}
+        onClose={() => setSearchOverlayOpen(false)}
+      />
     </header>
   )
 }

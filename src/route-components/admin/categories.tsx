@@ -10,7 +10,7 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
 import { Skeleton } from '#/components/ui/skeleton'
@@ -34,72 +34,74 @@ import { m } from '#/paraglide/messages'
 export function AdminCategoriesPage() {
   const loaderData = useLoaderData({ from: '/admin/categories' })
   const [categories, setCategories] = useState<AdminCategoryItem[]>(loaderData.flat)
-  const [actionError, setActionError] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [ui, setUi] = useState({
+    actionError: null as string | null,
+    successMessage: null as string | null,
+    dialogOpen: false,
+    dialogMode: 'create' as 'create' | 'edit',
+    editCategoryId: null as string | null,
+    isSubmitting: false,
+    deleteTarget: null as AdminCategoryItem | null,
+    isDeleting: false,
+  })
+  const [form, setForm] = useState({
+    name: '',
+    slug: '',
+    description: '',
+    parentId: '',
+  })
   const successTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
-  // Form state
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [dialogMode, setDialogMode] = useState<'create' | 'edit'>('create')
-  const [editCategoryId, setEditCategoryId] = useState<string | null>(null)
-  const [formName, setFormName] = useState('')
-  const [formSlug, setFormSlug] = useState('')
-  const [formDescription, setFormDescription] = useState('')
-  const [formParentId, setFormParentId] = useState<string>('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  // Delete dialog
-  const [deleteTarget, setDeleteTarget] = useState<AdminCategoryItem | null>(null)
-  const [isDeleting, setIsDeleting] = useState(false)
-
   const treeCategories = useMemo(() => {
-    // Flat list for parent dropdown — exclude the category being edited and its descendants
-    return categories.filter((c) => c.id !== editCategoryId)
-  }, [categories, editCategoryId])
-
-  useEffect(() => {
-    setCategories(loaderData.flat)
-  }, [loaderData])
+    return categories.filter((c) => c.id !== ui.editCategoryId)
+  }, [categories, ui.editCategoryId])
 
   const showSuccess = useCallback((message: string) => {
-    setSuccessMessage(message)
+    setUi((prev) => ({ ...prev, successMessage: message }))
     if (successTimerRef.current) clearTimeout(successTimerRef.current)
-    successTimerRef.current = setTimeout(() => setSuccessMessage(null), 3000)
+    successTimerRef.current = setTimeout(
+      () => setUi((prev) => ({ ...prev, successMessage: null })),
+      3000,
+    )
   }, [])
 
   const openCreateDialog = useCallback(() => {
-    setDialogMode('create')
-    setEditCategoryId(null)
-    setFormName('')
-    setFormSlug('')
-    setFormDescription('')
-    setFormParentId('')
-    setActionError(null)
-    setDialogOpen(true)
+    setForm({ name: '', slug: '', description: '', parentId: '' })
+    setUi((prev) => ({
+      ...prev,
+      dialogMode: 'create',
+      editCategoryId: null,
+      actionError: null,
+      dialogOpen: true,
+    }))
   }, [])
 
   const openEditDialog = useCallback((cat: AdminCategoryItem) => {
-    setDialogMode('edit')
-    setEditCategoryId(cat.id)
-    setFormName(cat.name)
-    setFormSlug(cat.slug)
-    setFormDescription(cat.description ?? '')
-    setFormParentId(cat.parentId ?? '')
-    setActionError(null)
-    setDialogOpen(true)
+    setForm({
+      name: cat.name,
+      slug: cat.slug,
+      description: cat.description ?? '',
+      parentId: cat.parentId ?? '',
+    })
+    setUi((prev) => ({
+      ...prev,
+      dialogMode: 'edit',
+      editCategoryId: cat.id,
+      actionError: null,
+      dialogOpen: true,
+    }))
   }, [])
 
   const handleSubmit = useCallback(async () => {
-    setIsSubmitting(true)
-    setActionError(null)
+    setUi((prev) => ({ ...prev, isSubmitting: true, actionError: null }))
     try {
-      if (dialogMode === 'create') {
+      if (ui.dialogMode === 'create') {
         const result = await createCategory({
           data: {
-            name: formName.trim(),
-            slug: formSlug.trim() || undefined,
-            description: formDescription.trim() || undefined,
-            parentId: formParentId || undefined,
+            name: form.name.trim(),
+            slug: form.slug.trim() || undefined,
+            description: form.description.trim() || undefined,
+            parentId: form.parentId || undefined,
           },
         })
         setCategories((prev) => [
@@ -118,19 +120,19 @@ export function AdminCategoriesPage() {
           },
         ])
         showSuccess(m.admin_categories_created_success({ name: result.name }))
-      } else if (editCategoryId) {
+      } else if (ui.editCategoryId) {
         const result = await updateCategory({
           data: {
-            id: editCategoryId,
-            name: formName.trim() || undefined,
-            slug: formSlug.trim() || undefined,
-            description: formDescription.trim() || undefined,
-            parentId: formParentId || null,
+            id: ui.editCategoryId,
+            name: form.name.trim() || undefined,
+            slug: form.slug.trim() || undefined,
+            description: form.description.trim() || undefined,
+            parentId: form.parentId || null,
           },
         })
         setCategories((prev) =>
           prev.map((c) =>
-            c.id === editCategoryId
+            c.id === ui.editCategoryId
               ? {
                   ...c,
                   name: result.name,
@@ -146,39 +148,46 @@ export function AdminCategoriesPage() {
         )
         showSuccess(m.admin_categories_updated_success({ name: result.name }))
       }
-      setDialogOpen(false)
+      setUi((prev) => ({ ...prev, dialogOpen: false }))
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : m.admin_categories_action_error())
+      setUi((prev) => ({
+        ...prev,
+        actionError: err instanceof Error ? err.message : m.admin_categories_action_error(),
+      }))
     } finally {
-      setIsSubmitting(false)
+      setUi((prev) => ({ ...prev, isSubmitting: false }))
     }
-  }, [dialogMode, editCategoryId, formName, formSlug, formDescription, formParentId, showSuccess])
+  }, [ui.dialogMode, ui.editCategoryId, form, showSuccess])
 
   const handleDelete = useCallback(async () => {
-    if (!deleteTarget) return
-    setIsDeleting(true)
-    setActionError(null)
+    if (!ui.deleteTarget) return
+    setUi((prev) => ({ ...prev, isDeleting: true, actionError: null }))
     try {
-      await deleteCategory({ data: { id: deleteTarget.id } })
-      setCategories((prev) => prev.filter((c) => c.id !== deleteTarget.id))
-      showSuccess(m.admin_categories_deleted_success({ name: deleteTarget.name }))
-      setDeleteTarget(null)
+      await deleteCategory({ data: { id: ui.deleteTarget.id } })
+      setCategories((prev) => prev.filter((c) => c.id !== ui.deleteTarget?.id))
+      showSuccess(m.admin_categories_deleted_success({ name: ui.deleteTarget.name }))
+      setUi((prev) => ({ ...prev, deleteTarget: null }))
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : m.admin_categories_action_error())
+      setUi((prev) => ({
+        ...prev,
+        actionError: err instanceof Error ? err.message : m.admin_categories_action_error(),
+      }))
     } finally {
-      setIsDeleting(false)
+      setUi((prev) => ({ ...prev, isDeleting: false }))
     }
-  }, [deleteTarget, showSuccess])
+  }, [ui.deleteTarget, showSuccess])
 
   const handleMove = useCallback(async (categoryId: string, direction: 'up' | 'down') => {
-    setActionError(null)
+    setUi((prev) => ({ ...prev, actionError: null }))
     try {
       await moveCategory({ data: { categoryId, direction } })
-      // Refresh list to reflect new order
       const fresh = await listCategoriesAdmin({ data: undefined })
       setCategories(fresh)
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : m.admin_categories_action_error())
+      setUi((prev) => ({
+        ...prev,
+        actionError: err instanceof Error ? err.message : m.admin_categories_action_error(),
+      }))
     }
   }, [])
 
@@ -199,23 +208,23 @@ export function AdminCategoriesPage() {
         </Button>
       </div>
 
-      {successMessage && (
+      {ui.successMessage && (
         <div className='island-shell rounded-xl border border-success/30 bg-success-subtle p-4 text-sm text-success'>
           <CheckCircle size={16} className='mr-2 inline-block' aria-hidden='true' />
-          {successMessage}
+          {ui.successMessage}
         </div>
       )}
 
-      {actionError && (
+      {ui.actionError && (
         <div
           role='alert'
           className='island-shell rounded-xl border border-error/30 bg-error-subtle p-4 text-sm text-error'
         >
           <AlertTriangle size={16} className='mr-2 inline-block' aria-hidden='true' />
-          {actionError}
+          {ui.actionError}
           <button
             type='button'
-            onClick={() => setActionError(null)}
+            onClick={() => setUi((prev) => ({ ...prev, actionError: null }))}
             className='ml-2 underline hover:no-underline cursor-pointer'
           >
             {m.admin_shops_dismiss()}
@@ -302,7 +311,7 @@ export function AdminCategoriesPage() {
                       </button>
                       <button
                         type='button'
-                        onClick={() => setDeleteTarget(cat)}
+                        onClick={() => setUi((prev) => ({ ...prev, deleteTarget: cat }))}
                         className='rounded p-1.5 text-text-muted hover:bg-error-subtle hover:text-error transition-colors'
                         aria-label={m.admin_categories_delete({ name: cat.name })}
                         title={m.admin_categories_delete({ name: cat.name })}
@@ -319,24 +328,27 @@ export function AdminCategoriesPage() {
       )}
 
       {/* Create / Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog
+        open={ui.dialogOpen}
+        onOpenChange={(open) => setUi((prev) => ({ ...prev, dialogOpen: open }))}
+      >
         <DialogPortal>
           <DialogBackdrop />
           <DialogPopup className='max-w-md'>
             <DialogTitle>
-              {dialogMode === 'create'
+              {ui.dialogMode === 'create'
                 ? m.admin_categories_create_title()
                 : m.admin_categories_edit_title()}
             </DialogTitle>
             <DialogDescription>
-              {dialogMode === 'create'
+              {ui.dialogMode === 'create'
                 ? m.admin_categories_create_description()
                 : m.admin_categories_edit_description()}
             </DialogDescription>
 
-            {actionError && (
+            {ui.actionError && (
               <div className='mt-4 rounded-lg border border-error/30 bg-error-subtle p-3 text-sm text-error'>
-                {actionError}
+                {ui.actionError}
               </div>
             )}
 
@@ -351,8 +363,8 @@ export function AdminCategoriesPage() {
                 <input
                   id='cat-name'
                   type='text'
-                  value={formName}
-                  onChange={(e) => setFormName(e.target.value)}
+                  value={form.name}
+                  onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
                   className='h-10 w-full rounded-lg border border-border-default bg-surface-default px-3 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
                   placeholder={m.admin_categories_name_placeholder()}
                 />
@@ -368,8 +380,8 @@ export function AdminCategoriesPage() {
                 <input
                   id='cat-slug'
                   type='text'
-                  value={formSlug}
-                  onChange={(e) => setFormSlug(e.target.value)}
+                  value={form.slug}
+                  onChange={(e) => setForm((prev) => ({ ...prev, slug: e.target.value }))}
                   className='h-10 w-full rounded-lg border border-border-default bg-surface-default px-3 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
                   placeholder={m.admin_categories_slug_placeholder()}
                 />
@@ -385,8 +397,8 @@ export function AdminCategoriesPage() {
                 </label>
                 <select
                   id='cat-parent'
-                  value={formParentId}
-                  onChange={(e) => setFormParentId(e.target.value)}
+                  value={form.parentId}
+                  onChange={(e) => setForm((prev) => ({ ...prev, parentId: e.target.value }))}
                   className='h-10 w-full rounded-lg border border-border-default bg-surface-default px-3 text-sm text-text-primary focus-visible:outline-none'
                 >
                   <option value=''>{m.admin_categories_parent_none()}</option>
@@ -412,8 +424,8 @@ export function AdminCategoriesPage() {
                 </label>
                 <textarea
                   id='cat-desc'
-                  value={formDescription}
-                  onChange={(e) => setFormDescription(e.target.value)}
+                  value={form.description}
+                  onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
                   rows={3}
                   className='w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
                   placeholder={m.admin_categories_description_placeholder()}
@@ -422,11 +434,16 @@ export function AdminCategoriesPage() {
             </div>
 
             <div className='mt-6 flex justify-end gap-3'>
-              <Button variant='secondary' onClick={() => setDialogOpen(false)}>
+              <Button
+                variant='secondary'
+                onClick={() => setUi((prev) => ({ ...prev, dialogOpen: false }))}
+              >
                 {m.admin_common_cancel()}
               </Button>
-              <Button onClick={handleSubmit} isLoading={isSubmitting}>
-                {dialogMode === 'create' ? m.admin_categories_create() : m.admin_common_confirm()}
+              <Button onClick={handleSubmit} isLoading={ui.isSubmitting}>
+                {ui.dialogMode === 'create'
+                  ? m.admin_categories_create()
+                  : m.admin_common_confirm()}
               </Button>
             </div>
           </DialogPopup>
@@ -434,20 +451,26 @@ export function AdminCategoriesPage() {
       </Dialog>
 
       {/* Delete Dialog */}
-      <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+      <Dialog
+        open={!!ui.deleteTarget}
+        onOpenChange={(open) => !open && setUi((prev) => ({ ...prev, deleteTarget: null }))}
+      >
         <DialogPortal>
           <DialogBackdrop />
           <DialogPopup className='max-w-md'>
             <DialogTitle>
-              {m.admin_categories_delete_title({ name: deleteTarget?.name ?? '' })}
+              {m.admin_categories_delete_title({ name: ui.deleteTarget?.name ?? '' })}
             </DialogTitle>
             <DialogDescription>{m.admin_categories_delete_description()}</DialogDescription>
 
             <div className='mt-6 flex justify-end gap-3'>
-              <Button variant='secondary' onClick={() => setDeleteTarget(null)}>
+              <Button
+                variant='secondary'
+                onClick={() => setUi((prev) => ({ ...prev, deleteTarget: null }))}
+              >
                 {m.admin_common_cancel()}
               </Button>
-              <Button variant='danger' onClick={handleDelete} isLoading={isDeleting}>
+              <Button variant='danger' onClick={handleDelete} isLoading={ui.isDeleting}>
                 {m.admin_categories_delete_confirm()}
               </Button>
             </div>

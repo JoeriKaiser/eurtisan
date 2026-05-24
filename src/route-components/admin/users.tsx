@@ -13,7 +13,7 @@ import {
   UserX,
   X,
 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
 import {
@@ -31,8 +31,6 @@ import { cn } from '#/lib/cn'
 import { downloadCSV, generateCSV } from '#/lib/csv-export'
 import { m } from '#/paraglide/messages'
 const PAGE_SIZES = [10, 20, 50] as const
-/* -------------------------------------------------------------------------- */
-
 /* -------------------------------------------------------------------------- */
 /*                                   Helpers                                  */
 /* -------------------------------------------------------------------------- */
@@ -55,25 +53,21 @@ export function AdminUsersPage() {
   const search = useSearch({ from: '/admin/users' })
 
   const [users, setUsers] = useState(loaderData)
-  const [actionError, setActionError] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [status, setStatus] = useState({
+    actionError: null as string | null,
+    successMessage: null as string | null,
+    isSubmitting: false,
+  })
   const [searchValue, setSearchValue] = useState(search.query ?? '')
   const searchInputRef = useRef<HTMLInputElement>(null)
   const successTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
-  // Dialog states
-  const [roleDialogUser, setRoleDialogUser] = useState<AdminUserListItem | null>(null)
-  const [selectedRole, setSelectedRole] = useState<string>('customer')
-  const [banDialogUser, setBanDialogUser] = useState<AdminUserListItem | null>(null)
-  const [banReason, setBanReason] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-
-  const searchRef = useRef(search)
-  searchRef.current = search
-
-  useEffect(() => {
-    setUsers(loaderData)
-  }, [loaderData])
+  const [dialogs, setDialogs] = useState({
+    roleDialogUser: null as AdminUserListItem | null,
+    selectedRole: 'customer',
+    banDialogUser: null as AdminUserListItem | null,
+    banReason: '',
+  })
 
   const navigateWithParams = useCallback(
     (overrides: Record<string, string | number | undefined>) => {
@@ -113,61 +107,72 @@ export function AdminUsersPage() {
   )
 
   const showSuccess = useCallback((message: string) => {
-    setSuccessMessage(message)
+    setStatus((prev) => ({ ...prev, successMessage: message }))
     if (successTimerRef.current) clearTimeout(successTimerRef.current)
-    successTimerRef.current = setTimeout(() => setSuccessMessage(null), 3000)
+    successTimerRef.current = setTimeout(
+      () => setStatus((prev) => ({ ...prev, successMessage: null })),
+      3000,
+    )
   }, [])
 
   const handleRoleChange = useCallback(async () => {
-    if (!roleDialogUser) return
-    setIsSubmitting(true)
-    setActionError(null)
+    if (!dialogs.roleDialogUser) return
+    setStatus((prev) => ({ ...prev, isSubmitting: true, actionError: null }))
     try {
       await updateUserRole({
-        data: { userId: roleDialogUser.id, role: selectedRole as 'customer' | 'creator' | 'admin' },
+        data: {
+          userId: dialogs.roleDialogUser.id,
+          role: dialogs.selectedRole as 'customer' | 'creator' | 'admin',
+        },
       })
       setUsers((prev) => ({
         ...prev,
         users: prev.users.map((u) =>
-          u.id === roleDialogUser.id ? { ...u, role: selectedRole } : u,
+          u.id === dialogs.roleDialogUser?.id ? { ...u, role: dialogs.selectedRole } : u,
         ),
       }))
-      showSuccess(m.admin_users_role_changed_success({ name: roleDialogUser.name }))
-      setRoleDialogUser(null)
+      showSuccess(m.admin_users_role_changed_success({ name: dialogs.roleDialogUser.name }))
+      setDialogs((prev) => ({ ...prev, roleDialogUser: null }))
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : m.admin_users_action_error())
+      setStatus((prev) => ({
+        ...prev,
+        actionError: err instanceof Error ? err.message : m.admin_users_action_error(),
+      }))
     } finally {
-      setIsSubmitting(false)
+      setStatus((prev) => ({ ...prev, isSubmitting: false }))
     }
-  }, [roleDialogUser, selectedRole, showSuccess])
+  }, [dialogs.roleDialogUser, dialogs.selectedRole, showSuccess])
 
   const handleBan = useCallback(async () => {
-    if (!banDialogUser) return
-    setIsSubmitting(true)
-    setActionError(null)
+    if (!dialogs.banDialogUser) return
+    setStatus((prev) => ({ ...prev, isSubmitting: true, actionError: null }))
     try {
-      await banUser({ data: { userId: banDialogUser.id, reason: banReason || undefined } })
+      await banUser({
+        data: { userId: dialogs.banDialogUser.id, reason: dialogs.banReason || undefined },
+      })
       setUsers((prev) => ({
         ...prev,
         users: prev.users.map((u) =>
-          u.id === banDialogUser.id
-            ? { ...u, bannedAt: new Date(), banReason: banReason || null }
+          u.id === dialogs.banDialogUser?.id
+            ? { ...u, bannedAt: new Date(), banReason: dialogs.banReason || null }
             : u,
         ),
       }))
-      showSuccess(m.admin_users_banned_success({ name: banDialogUser.name }))
-      setBanDialogUser(null)
-      setBanReason('')
+      showSuccess(m.admin_users_banned_success({ name: dialogs.banDialogUser.name }))
+      setDialogs((prev) => ({ ...prev, banDialogUser: null, banReason: '' }))
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : m.admin_users_action_error())
+      setStatus((prev) => ({
+        ...prev,
+        actionError: err instanceof Error ? err.message : m.admin_users_action_error(),
+      }))
     } finally {
-      setIsSubmitting(false)
+      setStatus((prev) => ({ ...prev, isSubmitting: false }))
     }
-  }, [banDialogUser, banReason, showSuccess])
+  }, [dialogs.banDialogUser, dialogs.banReason, showSuccess])
 
   const handleUnban = useCallback(
     async (userId: string, name: string) => {
-      setActionError(null)
+      setStatus((prev) => ({ ...prev, actionError: null }))
       try {
         await unbanUser({ data: { userId } })
         setUsers((prev) => ({
@@ -178,7 +183,10 @@ export function AdminUsersPage() {
         }))
         showSuccess(m.admin_users_unbanned_success({ name }))
       } catch (err) {
-        setActionError(err instanceof Error ? err.message : m.admin_users_action_error())
+        setStatus((prev) => ({
+          ...prev,
+          actionError: err instanceof Error ? err.message : m.admin_users_action_error(),
+        }))
       }
     },
     [showSuccess],
@@ -207,23 +215,23 @@ export function AdminUsersPage() {
         <p className='mt-1 text-text-secondary'>{m.admin_users_description()}</p>
       </div>
 
-      {successMessage && (
+      {status.successMessage && (
         <div className='island-shell rounded-xl border border-success/30 bg-success-subtle p-4 text-sm text-success'>
           <CheckCircle size={16} className='mr-2 inline-block' aria-hidden='true' />
-          {successMessage}
+          {status.successMessage}
         </div>
       )}
 
-      {actionError && (
+      {status.actionError && (
         <div
           role='alert'
           className='island-shell rounded-xl border border-error/30 bg-error-subtle p-4 text-sm text-error'
         >
           <AlertTriangle size={16} className='mr-2 inline-block' aria-hidden='true' />
-          {actionError}
+          {status.actionError}
           <button
             type='button'
-            onClick={() => setActionError(null)}
+            onClick={() => setStatus((prev) => ({ ...prev, actionError: null }))}
             className='ml-2 underline hover:no-underline cursor-pointer'
           >
             {m.admin_shops_dismiss()}
@@ -297,15 +305,15 @@ export function AdminUsersPage() {
             className='flex gap-1 rounded-lg border border-border-default bg-surface-inset p-1 w-fit'
             role='tablist'
           >
-            {(['all', 'active', 'banned'] as const).map((status) => {
-              const isSelected = search.status === status
+            {(['all', 'active', 'banned'] as const).map((statusTab) => {
+              const isSelected = search.status === statusTab
               return (
                 <button
-                  key={status}
+                  key={statusTab}
                   type='button'
                   role='tab'
                   aria-selected={isSelected}
-                  onClick={() => navigateWithParams({ status, page: 1 })}
+                  onClick={() => navigateWithParams({ status: statusTab, page: 1 })}
                   className={cn(
                     'rounded-md px-4 py-1.5 text-sm font-medium transition-colors cursor-pointer',
                     isSelected
@@ -313,9 +321,9 @@ export function AdminUsersPage() {
                       : 'text-text-secondary hover:text-text-primary',
                   )}
                 >
-                  {status === 'all'
+                  {statusTab === 'all'
                     ? m.admin_users_status_all()
-                    : status === 'active'
+                    : statusTab === 'active'
                       ? m.admin_users_status_active()
                       : m.admin_users_status_banned()}
                 </button>
@@ -414,8 +422,11 @@ export function AdminUsersPage() {
                         variant='secondary'
                         size='sm'
                         onClick={() => {
-                          setRoleDialogUser(u)
-                          setSelectedRole(u.role)
+                          setDialogs((prev) => ({
+                            ...prev,
+                            roleDialogUser: u,
+                            selectedRole: u.role,
+                          }))
                         }}
                       >
                         {m.admin_users_change_role()}
@@ -433,8 +444,7 @@ export function AdminUsersPage() {
                           variant='danger'
                           size='sm'
                           onClick={() => {
-                            setBanDialogUser(u)
-                            setBanReason('')
+                            setDialogs((prev) => ({ ...prev, banDialogUser: u, banReason: '' }))
                           }}
                         >
                           {m.admin_users_ban()}
@@ -505,7 +515,10 @@ export function AdminUsersPage() {
       )}
 
       {/* Change Role Dialog */}
-      <Dialog open={!!roleDialogUser} onOpenChange={(open) => !open && setRoleDialogUser(null)}>
+      <Dialog
+        open={!!dialogs.roleDialogUser}
+        onOpenChange={(open) => !open && setDialogs((prev) => ({ ...prev, roleDialogUser: null }))}
+      >
         <DialogPortal>
           <DialogBackdrop />
           <DialogPopup className='max-w-md'>
@@ -521,8 +534,8 @@ export function AdminUsersPage() {
               </label>
               <select
                 id='role-select'
-                value={selectedRole}
-                onChange={(e) => setSelectedRole(e.target.value)}
+                value={dialogs.selectedRole}
+                onChange={(e) => setDialogs((prev) => ({ ...prev, selectedRole: e.target.value }))}
                 className='h-10 w-full rounded-lg border border-border-default bg-surface-default px-3 text-sm text-text-primary focus-visible:outline-none'
               >
                 <option value='customer'>{m.admin_users_role_customer()}</option>
@@ -532,10 +545,13 @@ export function AdminUsersPage() {
             </div>
 
             <div className='mt-6 flex justify-end gap-3'>
-              <Button variant='secondary' onClick={() => setRoleDialogUser(null)}>
+              <Button
+                variant='secondary'
+                onClick={() => setDialogs((prev) => ({ ...prev, roleDialogUser: null }))}
+              >
                 {m.admin_common_cancel()}
               </Button>
-              <Button onClick={handleRoleChange} isLoading={isSubmitting}>
+              <Button onClick={handleRoleChange} isLoading={status.isSubmitting}>
                 {m.admin_common_confirm()}
               </Button>
             </div>
@@ -544,12 +560,15 @@ export function AdminUsersPage() {
       </Dialog>
 
       {/* Ban Dialog */}
-      <Dialog open={!!banDialogUser} onOpenChange={(open) => !open && setBanDialogUser(null)}>
+      <Dialog
+        open={!!dialogs.banDialogUser}
+        onOpenChange={(open) => !open && setDialogs((prev) => ({ ...prev, banDialogUser: null }))}
+      >
         <DialogPortal>
           <DialogBackdrop />
           <DialogPopup className='max-w-md'>
             <DialogTitle>
-              {m.admin_users_ban_dialog_title({ name: banDialogUser?.name ?? '' })}
+              {m.admin_users_ban_dialog_title({ name: dialogs.banDialogUser?.name ?? '' })}
             </DialogTitle>
             <DialogDescription>{m.admin_users_ban_dialog_description()}</DialogDescription>
 
@@ -562,8 +581,8 @@ export function AdminUsersPage() {
               </label>
               <textarea
                 id='ban-reason'
-                value={banReason}
-                onChange={(e) => setBanReason(e.target.value)}
+                value={dialogs.banReason}
+                onChange={(e) => setDialogs((prev) => ({ ...prev, banReason: e.target.value }))}
                 rows={3}
                 maxLength={2000}
                 className='mb-2 w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
@@ -573,10 +592,13 @@ export function AdminUsersPage() {
             </div>
 
             <div className='mt-6 flex justify-end gap-3'>
-              <Button variant='secondary' onClick={() => setBanDialogUser(null)}>
+              <Button
+                variant='secondary'
+                onClick={() => setDialogs((prev) => ({ ...prev, banDialogUser: null }))}
+              >
                 {m.admin_common_cancel()}
               </Button>
-              <Button variant='danger' onClick={handleBan} isLoading={isSubmitting}>
+              <Button variant='danger' onClick={handleBan} isLoading={status.isSubmitting}>
                 {m.admin_users_ban_confirm()}
               </Button>
             </div>

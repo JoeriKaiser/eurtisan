@@ -1,7 +1,7 @@
 import { Menu } from '@base-ui-components/react/menu'
 import { Link, useRouter } from '@tanstack/react-router'
-import * as React from 'react'
-import { useState } from 'react'
+import type * as React from 'react'
+import { useCallback, useState } from 'react'
 import {
   ChevronDown,
   Layers,
@@ -79,19 +79,22 @@ export default function CategoriesMegamenu({ categories }: CategoriesMegamenuPro
   const [isOpen, setIsOpen] = useState(false)
   const [activeCategory, setActiveCategory] = useState<CategoryTreeNode | null>(null)
 
-  // Default to the first category when the menu is opened
-  React.useEffect(() => {
-    if (isOpen && categories.length > 0) {
-      setActiveCategory(categories[0])
-    }
-  }, [isOpen, categories])
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      setIsOpen(open)
+      if (open && categories.length > 0) {
+        setActiveCategory(categories[0])
+      }
+    },
+    [categories],
+  )
 
   const handleParentHover = (cat: CategoryTreeNode) => {
     setActiveCategory(cat)
   }
 
   const handleNavigate = (to: string) => {
-    setIsOpen(false)
+    handleOpenChange(false)
     void router.navigate({ to })
   }
 
@@ -110,12 +113,12 @@ export default function CategoriesMegamenu({ categories }: CategoriesMegamenuPro
           type='button'
           tabIndex={-1}
           className='fixed inset-0 top-[57px] z-overlay bg-black/15 backdrop-blur-xs transition-opacity duration-fast cursor-default border-none outline-none'
-          onClick={() => setIsOpen(false)}
+          onClick={() => handleOpenChange(false)}
           aria-hidden='true'
         />
       )}
 
-      <Menu.Root open={isOpen} onOpenChange={setIsOpen}>
+      <Menu.Root open={isOpen} onOpenChange={handleOpenChange}>
         <Menu.Trigger
           className='nav-link inline-flex cursor-pointer items-center gap-0.5 bg-transparent outline-none group border-none py-1'
           aria-haspopup='menu'

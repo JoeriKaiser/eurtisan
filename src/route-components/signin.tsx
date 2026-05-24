@@ -56,54 +56,52 @@ export function SignIn() {
   const router = useRouter()
   const { redirect } = useSearch({ from: '/signin' })
   const [isSignUp, setIsSignUp] = useState(false)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [name, setName] = useState('')
-
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-
-  const [error, setError] = useState('')
-  const [infoMessage, setInfoMessage] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [form, setForm] = useState({
+    email: '',
+    password: '',
+    confirmPassword: '',
+    name: '',
+  })
+  const [visibility, setVisibility] = useState({ password: false, confirmPassword: false })
+  const [status, setStatus] = useState({ error: '', info: '', loading: false })
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setError('')
-    setInfoMessage('')
+    setStatus({ error: '', info: '', loading: false })
 
-    const form = e.currentTarget
-    const formEmail = (form.elements.namedItem('email') as HTMLInputElement).value.trim()
-    const formPassword = (form.elements.namedItem('password') as HTMLInputElement).value
+    const formEl = e.currentTarget
+    const formEmail = (formEl.elements.namedItem('email') as HTMLInputElement).value.trim()
+    const formPassword = (formEl.elements.namedItem('password') as HTMLInputElement).value
     const formConfirmPassword = isSignUp
-      ? (form.elements.namedItem('confirmPassword') as HTMLInputElement)?.value || ''
+      ? (formEl.elements.namedItem('confirmPassword') as HTMLInputElement)?.value || ''
       : ''
     const formName = isSignUp
-      ? (form.elements.namedItem('name') as HTMLInputElement)?.value.trim() || ''
+      ? (formEl.elements.namedItem('name') as HTMLInputElement)?.value.trim() || ''
       : ''
 
-    setEmail(formEmail)
-    setPassword(formPassword)
-    if (isSignUp) {
-      setConfirmPassword(formConfirmPassword)
-      setName(formName)
+    setForm({
+      email: formEmail,
+      password: formPassword,
+      confirmPassword: formConfirmPassword,
+      name: formName,
+    })
 
+    if (isSignUp) {
       if (!formName) {
-        setError(m.error_unexpected())
+        setStatus({ error: m.error_unexpected(), info: '', loading: false })
         return
       }
       if (formPassword.length < 8) {
-        setError(m.password_rule_length())
+        setStatus({ error: m.password_rule_length(), info: '', loading: false })
         return
       }
       if (formPassword !== formConfirmPassword) {
-        setError(m.error_passwords_do_not_match())
+        setStatus({ error: m.error_passwords_do_not_match(), info: '', loading: false })
         return
       }
     }
 
-    setLoading(true)
+    setStatus((prev) => ({ ...prev, loading: true }))
 
     try {
       if (isSignUp) {
@@ -114,7 +112,11 @@ export function SignIn() {
           callbackURL: redirect && isLocalRedirect(redirect) ? redirect : '/',
         })
         if (result.error) {
-          setError(result.error.message || m.error_sign_up_failed())
+          setStatus({
+            error: result.error.message || m.error_sign_up_failed(),
+            info: '',
+            loading: false,
+          })
         } else {
           await router.invalidate()
           await router.navigate({
@@ -128,7 +130,11 @@ export function SignIn() {
           password: formPassword,
         })
         if (result.error) {
-          setError(result.error.message || m.error_sign_in_failed())
+          setStatus({
+            error: result.error.message || m.error_sign_in_failed(),
+            info: '',
+            loading: false,
+          })
         } else {
           await router.invalidate()
           if (redirect && isLocalRedirect(redirect)) {
@@ -139,15 +145,12 @@ export function SignIn() {
         }
       }
     } catch {
-      setError(m.error_unexpected())
-    } finally {
-      setLoading(false)
+      setStatus({ error: m.error_unexpected(), info: '', loading: false })
     }
   }
 
   const handleOAuthClick = (_provider: string) => {
-    setError('')
-    setInfoMessage(m.oauth_social_toast())
+    setStatus({ error: '', info: m.oauth_social_toast(), loading: false })
   }
 
   return (
@@ -166,8 +169,8 @@ export function SignIn() {
               name='name'
               type='text'
               autoComplete='name'
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              value={form.name}
+              onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
               required
               className='w-full'
             />
@@ -183,8 +186,8 @@ export function SignIn() {
             name='email'
             type='email'
             autoComplete='username email'
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={form.email}
+            onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
             required
             className='w-full'
           />
@@ -208,24 +211,24 @@ export function SignIn() {
             <Input
               id='password'
               name='password'
-              type={showPassword ? 'text' : 'password'}
+              type={visibility.password ? 'text' : 'password'}
               autoComplete={isSignUp ? 'new-password' : 'current-password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={form.password}
+              onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
               required
               className='pr-10 w-full'
             />
             <button
               type='button'
-              onClick={() => setShowPassword(!showPassword)}
+              onClick={() => setVisibility((prev) => ({ ...prev, password: !prev.password }))}
               className='absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary focus:outline-none'
-              aria-label={showPassword ? m.button_hide_password() : m.button_show_password()}
+              aria-label={visibility.password ? m.button_hide_password() : m.button_show_password()}
             >
-              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              {visibility.password ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
 
-          {isSignUp && <PasswordStrengthIndicator password={password} />}
+          {isSignUp && <PasswordStrengthIndicator password={form.password} />}
         </div>
 
         {isSignUp && (
@@ -237,48 +240,50 @@ export function SignIn() {
               <Input
                 id='confirmPassword'
                 name='confirmPassword'
-                type={showConfirmPassword ? 'text' : 'password'}
+                type={visibility.confirmPassword ? 'text' : 'password'}
                 autoComplete='new-password'
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                value={form.confirmPassword}
+                onChange={(e) => setForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
                 required
                 className='pr-10 w-full'
               />
               <button
                 type='button'
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                onClick={() =>
+                  setVisibility((prev) => ({ ...prev, confirmPassword: !prev.confirmPassword }))
+                }
                 className='absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary focus:outline-none'
                 aria-label={
-                  showConfirmPassword ? m.button_hide_password() : m.button_show_password()
+                  visibility.confirmPassword ? m.button_hide_password() : m.button_show_password()
                 }
               >
-                {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                {visibility.confirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
           </div>
         )}
 
-        <Button type='submit' isLoading={loading} className='w-full mt-1'>
+        <Button type='submit' isLoading={status.loading} className='w-full mt-1'>
           {isSignUp ? m.button_create_account() : m.button_sign_in()}
         </Button>
 
-        {error && (
+        {status.error && (
           <div
             className='rounded-lg border border-error bg-error-subtle p-3 flex items-start gap-2'
             role='alert'
             aria-live='assertive'
           >
             <AlertTriangle className='text-error shrink-0 mt-0.5' size={16} />
-            <p className='text-xs text-error font-medium'>{error}</p>
+            <p className='text-xs text-error font-medium'>{status.error}</p>
           </div>
         )}
 
-        {infoMessage && (
+        {status.info && (
           <div
             className='rounded-lg border border-border-default bg-surface-inset p-3 flex items-start gap-2'
             aria-live='polite'
           >
-            <p className='text-xs text-text-secondary font-medium'>{infoMessage}</p>
+            <p className='text-xs text-text-secondary font-medium'>{status.info}</p>
           </div>
         )}
       </form>
@@ -288,8 +293,7 @@ export function SignIn() {
           type='button'
           onClick={() => {
             setIsSignUp(!isSignUp)
-            setError('')
-            setInfoMessage('')
+            setStatus({ error: '', info: '', loading: false })
           }}
           className='text-sm text-text-muted transition-colors duration-fast ease-out hover:text-text-primary font-medium'
         >

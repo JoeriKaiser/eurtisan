@@ -11,12 +11,8 @@ export function VerifyEmail() {
   const router = useRouter()
   const { email, token, redirect } = useSearch({ from: '/verify-email' })
 
-  const [verifying, setVerifying] = useState(!!token)
-  const [verifySuccess, setVerifySuccess] = useState(false)
-
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [infoMessage, setInfoMessage] = useState('')
+  const [verification, setVerification] = useState({ verifying: !!token, success: false })
+  const [resend, setResend] = useState({ loading: false, error: '', info: '' })
   const [cooldown, setCooldown] = useState(0)
 
   // Handle automatic verification if token is present
@@ -30,15 +26,15 @@ export function VerifyEmail() {
             },
           })
           if (result.error) {
-            setError(result.error.message || m.error_unexpected())
+            setResend((prev) => ({ ...prev, error: result.error.message || m.error_unexpected() }))
           } else {
-            setVerifySuccess(true)
+            setVerification({ verifying: false, success: true })
             await router.invalidate()
           }
         } catch {
-          setError(m.error_unexpected())
+          setResend((prev) => ({ ...prev, error: m.error_unexpected() }))
         } finally {
-          setVerifying(false)
+          setVerification((prev) => ({ ...prev, verifying: false }))
         }
       }
       void verify()
@@ -60,9 +56,7 @@ export function VerifyEmail() {
 
   const handleResend = async () => {
     if (!email || cooldown > 0) return
-    setError('')
-    setInfoMessage('')
-    setLoading(true)
+    setResend({ loading: true, error: '', info: '' })
 
     try {
       const result = await authClient.sendVerificationEmail({
@@ -70,20 +64,18 @@ export function VerifyEmail() {
         callbackURL: redirect ? redirect : '/',
       })
       if (result.error) {
-        setError(result.error.message || m.error_unexpected())
+        setResend({ loading: false, error: result.error.message || m.error_unexpected(), info: '' })
       } else {
-        setInfoMessage(m.verify_email_resend_success())
+        setResend({ loading: false, error: '', info: m.verify_email_resend_success() })
         setCooldown(60)
       }
     } catch {
-      setError(m.error_unexpected())
-    } finally {
-      setLoading(false)
+      setResend({ loading: false, error: m.error_unexpected(), info: '' })
     }
   }
 
   // Verification in progress
-  if (verifying) {
+  if (verification.verifying) {
     return (
       <AuthShell title={m.verify_email_title()}>
         <div className='flex flex-col items-center justify-center gap-4 py-6' aria-live='polite'>
@@ -95,7 +87,7 @@ export function VerifyEmail() {
   }
 
   // Verification completed successfully
-  if (verifySuccess) {
+  if (verification.success) {
     return (
       <AuthShell title={m.verify_email_success_title()}>
         <div className='space-y-6 text-center font-medium' aria-live='polite'>
@@ -138,8 +130,8 @@ export function VerifyEmail() {
                 type='button'
                 variant='secondary'
                 onClick={handleResend}
-                disabled={cooldown > 0 || loading}
-                isLoading={loading}
+                disabled={cooldown > 0 || resend.loading}
+                isLoading={resend.loading}
                 className='w-full'
               >
                 {cooldown > 0
@@ -150,23 +142,23 @@ export function VerifyEmail() {
           </div>
         )}
 
-        {error && (
+        {resend.error && (
           <div
             className='rounded-lg border border-error bg-error-subtle p-3 flex items-start gap-2 text-left'
             role='alert'
             aria-live='assertive'
           >
             <AlertTriangle className='text-error shrink-0 mt-0.5' size={16} />
-            <p className='text-xs text-error font-medium'>{error}</p>
+            <p className='text-xs text-error font-medium'>{resend.error}</p>
           </div>
         )}
 
-        {infoMessage && (
+        {resend.info && (
           <div
             className='rounded-lg border border-border-default bg-surface-inset p-3 flex items-start gap-2 text-left'
             aria-live='polite'
           >
-            <p className='text-xs text-text-secondary font-medium'>{infoMessage}</p>
+            <p className='text-xs text-text-secondary font-medium'>{resend.info}</p>
           </div>
         )}
 

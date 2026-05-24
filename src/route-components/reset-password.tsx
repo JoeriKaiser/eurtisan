@@ -10,15 +10,9 @@ import { PasswordStrengthIndicator } from '#/components/auth/PasswordStrengthInd
 
 export function ResetPassword() {
   const { token, redirect } = useSearch({ from: '/reset-password' })
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState(false)
+  const [form, setForm] = useState({ password: '', confirmPassword: '' })
+  const [visibility, setVisibility] = useState({ password: false, confirmPassword: false })
+  const [status, setStatus] = useState({ loading: false, error: '', success: false })
 
   if (!token) {
     return (
@@ -47,27 +41,25 @@ export function ResetPassword() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setError('')
 
-    const form = e.currentTarget
-    const formPassword = (form.elements.namedItem('password') as HTMLInputElement).value
-    const formConfirmPassword = (form.elements.namedItem('confirmPassword') as HTMLInputElement)
+    const formEl = e.currentTarget
+    const formPassword = (formEl.elements.namedItem('password') as HTMLInputElement).value
+    const formConfirmPassword = (formEl.elements.namedItem('confirmPassword') as HTMLInputElement)
       .value
 
-    setPassword(formPassword)
-    setConfirmPassword(formConfirmPassword)
+    setForm({ password: formPassword, confirmPassword: formConfirmPassword })
 
     if (formPassword.length < 8) {
-      setError(m.password_rule_length())
+      setStatus({ loading: false, error: m.password_rule_length(), success: false })
       return
     }
 
     if (formPassword !== formConfirmPassword) {
-      setError(m.error_passwords_do_not_match())
+      setStatus({ loading: false, error: m.error_passwords_do_not_match(), success: false })
       return
     }
 
-    setLoading(true)
+    setStatus({ loading: true, error: '', success: false })
 
     try {
       const result = await authClient.resetPassword({
@@ -76,23 +68,25 @@ export function ResetPassword() {
       })
 
       if (result.error) {
-        setError(result.error.message || m.error_reset_token_invalid())
+        setStatus({
+          loading: false,
+          error: result.error.message || m.error_reset_token_invalid(),
+          success: false,
+        })
       } else {
-        setSuccess(true)
+        setStatus({ loading: false, error: '', success: true })
       }
     } catch {
-      setError(m.error_unexpected())
-    } finally {
-      setLoading(false)
+      setStatus({ loading: false, error: m.error_unexpected(), success: false })
     }
   }
 
   return (
     <AuthShell
       title={m.reset_password_title()}
-      description={!success ? m.reset_password_description() : undefined}
+      description={!status.success ? m.reset_password_description() : undefined}
     >
-      {!success ? (
+      {!status.success ? (
         <form onSubmit={handleSubmit} className='grid gap-3'>
           <div className='grid gap-1'>
             <label htmlFor='password' className='text-sm font-medium text-text-primary'>
@@ -102,23 +96,25 @@ export function ResetPassword() {
               <Input
                 id='password'
                 name='password'
-                type={showPassword ? 'text' : 'password'}
+                type={visibility.password ? 'text' : 'password'}
                 autoComplete='new-password'
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={form.password}
+                onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
                 required
                 className='pr-10 w-full'
               />
               <button
                 type='button'
-                onClick={() => setShowPassword(!showPassword)}
+                onClick={() => setVisibility((prev) => ({ ...prev, password: !prev.password }))}
                 className='absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary focus:outline-none'
-                aria-label={showPassword ? m.button_hide_password() : m.button_show_password()}
+                aria-label={
+                  visibility.password ? m.button_hide_password() : m.button_show_password()
+                }
               >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                {visibility.password ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-            <PasswordStrengthIndicator password={password} />
+            <PasswordStrengthIndicator password={form.password} />
           </div>
 
           <div className='grid gap-1'>
@@ -129,38 +125,40 @@ export function ResetPassword() {
               <Input
                 id='confirmPassword'
                 name='confirmPassword'
-                type={showConfirmPassword ? 'text' : 'password'}
+                type={visibility.confirmPassword ? 'text' : 'password'}
                 autoComplete='new-password'
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                value={form.confirmPassword}
+                onChange={(e) => setForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
                 required
                 className='pr-10 w-full'
               />
               <button
                 type='button'
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                onClick={() =>
+                  setVisibility((prev) => ({ ...prev, confirmPassword: !prev.confirmPassword }))
+                }
                 className='absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary focus:outline-none'
                 aria-label={
-                  showConfirmPassword ? m.button_hide_password() : m.button_show_password()
+                  visibility.confirmPassword ? m.button_hide_password() : m.button_show_password()
                 }
               >
-                {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                {visibility.confirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
           </div>
 
-          <Button type='submit' isLoading={loading} className='w-full mt-1'>
+          <Button type='submit' isLoading={status.loading} className='w-full mt-1'>
             {m.button_reset_password()}
           </Button>
 
-          {error && (
+          {status.error && (
             <div
               className='rounded-lg border border-error bg-error-subtle p-3 flex items-start gap-2'
               role='alert'
               aria-live='assertive'
             >
               <AlertTriangle className='text-error shrink-0 mt-0.5' size={16} />
-              <p className='text-xs text-error font-medium'>{error}</p>
+              <p className='text-xs text-error font-medium'>{status.error}</p>
             </div>
           )}
         </form>

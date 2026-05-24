@@ -40,23 +40,17 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
   } = useSearchResults(query, isOpen)
   const { categories, isLoading: categoriesLoading } = useSearchCategories(query, isOpen)
 
-  // Reset state when overlay opens
-  useEffect(() => {
-    if (isOpen) {
-      setQuery('')
-      setActiveIndex(-1)
-      // Focus input after animation
-      const timer = setTimeout(() => inputRef.current?.focus(), 50)
-      return () => clearTimeout(timer)
-    }
-  }, [isOpen])
-
-  // Handle Escape key
+  // Focus input when overlay opens
   useEffect(() => {
     if (!isOpen) return
+    const timer = setTimeout(() => inputRef.current?.focus(), 50)
+    return () => clearTimeout(timer)
+  }, [isOpen])
 
-    function handleKeyDown(e: KeyboardEvent) {
+  const handleContainerKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
       if (e.key === 'Escape') {
+        e.preventDefault()
         if (query.length > 0) {
           setQuery('')
           setActiveIndex(-1)
@@ -64,19 +58,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
         } else {
           onClose()
         }
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, query, onClose])
-
-  // Handle suggestion keyboard navigation
-  useEffect(() => {
-    if (!isOpen) return
-
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'ArrowDown') {
+      } else if (e.key === 'ArrowDown') {
         e.preventDefault()
         setActiveIndex((prev) => {
           const next = prev + 1
@@ -89,11 +71,9 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
           return next < 0 ? suggestions.length - 1 : next
         })
       }
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, suggestions.length])
+    },
+    [query, onClose, suggestions.length],
+  )
 
   const executeSearch = useCallback(
     (searchQuery: string) => {
@@ -149,6 +129,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
       role='dialog'
       aria-modal='true'
       aria-label={m.search_overlay_title()}
+      onKeyDown={handleContainerKeyDown}
     >
       {/* Backdrop */}
       <div

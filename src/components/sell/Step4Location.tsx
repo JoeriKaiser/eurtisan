@@ -142,51 +142,49 @@ export function Step4Location() {
     vatId?: string | null
   }
 
-  const [country, setCountry] = useState(data.shippingOrigin?.country ?? '')
-  const [state, setState] = useState(data.shippingOrigin?.state ?? '')
-  const [city, setCity] = useState(data.shippingOrigin?.city ?? '')
-  const [postalCode, setPostalCode] = useState(data.shippingOrigin?.postalCode ?? '')
-  const [processingMin, setProcessingMin] = useState(
-    data.shippingOrigin?.processingTimeDays?.min ?? 1,
-  )
-  const [processingMax, setProcessingMax] = useState(
-    data.shippingOrigin?.processingTimeDays?.max ?? 3,
-  )
-  const [shipsInternational, setShipsInternational] = useState(
-    data.shippingOrigin?.shipsInternational ?? false,
-  )
-  const [currency, setCurrency] = useState(data.currency ?? 'EUR')
-  const [isVatRegistered, setIsVatRegistered] = useState(data.isVatRegistered ?? false)
-  const [vatId, setVatId] = useState(data.vatId ?? '')
+  const [form, setForm] = useState({
+    country: data.shippingOrigin?.country ?? '',
+    state: data.shippingOrigin?.state ?? '',
+    city: data.shippingOrigin?.city ?? '',
+    postalCode: data.shippingOrigin?.postalCode ?? '',
+    processingMin: data.shippingOrigin?.processingTimeDays?.min ?? 1,
+    processingMax: data.shippingOrigin?.processingTimeDays?.max ?? 3,
+    shipsInternational: data.shippingOrigin?.shipsInternational ?? false,
+    currency: data.currency ?? 'EUR',
+    isVatRegistered: data.isVatRegistered ?? false,
+    vatId: data.vatId ?? '',
+  })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const stateOptions = useMemo(() => {
-    if (country === 'US') return STATES_US
-    if (country === 'CA') return PROVINCES_CA
-    if (country === 'AU') return STATES_AU
+    if (form.country === 'US') return STATES_US
+    if (form.country === 'CA') return PROVINCES_CA
+    if (form.country === 'AU') return STATES_AU
     return []
-  }, [country])
+  }, [form.country])
 
   const handleCountryChange = (value: string) => {
-    setCountry(value)
-    setState('')
-    const newCurrency = COUNTRY_CURRENCIES[value] ?? 'EUR'
-    setCurrency(newCurrency)
+    setForm((prev) => ({
+      ...prev,
+      country: value,
+      state: '',
+      currency: COUNTRY_CURRENCIES[value] ?? 'EUR',
+    }))
   }
 
   const validate = useCallback(() => {
     const result = step4LocationSchema.safeParse({
       shippingOrigin: {
-        country,
-        state: state || undefined,
-        city: city || undefined,
-        postalCode: postalCode || undefined,
-        processingTimeDays: { min: processingMin, max: processingMax },
-        shipsInternational,
+        country: form.country,
+        state: form.state || undefined,
+        city: form.city || undefined,
+        postalCode: form.postalCode || undefined,
+        processingTimeDays: { min: form.processingMin, max: form.processingMax },
+        shipsInternational: form.shipsInternational,
       },
-      currency,
-      isVatRegistered,
-      vatId,
+      currency: form.currency,
+      isVatRegistered: form.isVatRegistered,
+      vatId: form.vatId,
     })
     if (!result.success) {
       const fieldErrors: Record<string, string> = {}
@@ -199,46 +197,23 @@ export function Step4Location() {
     }
     setErrors({})
     return true
-  }, [
-    country,
-    state,
-    city,
-    postalCode,
-    processingMin,
-    processingMax,
-    shipsInternational,
-    currency,
-    isVatRegistered,
-    vatId,
-  ])
+  }, [form])
 
   const save = useCallback(async () => {
     await saveStep(4, {
       shippingOrigin: {
-        country,
-        state: state || undefined,
-        city: city || undefined,
-        postalCode: postalCode || undefined,
-        processingTimeDays: { min: processingMin, max: processingMax },
-        shipsInternational,
+        country: form.country,
+        state: form.state || undefined,
+        city: form.city || undefined,
+        postalCode: form.postalCode || undefined,
+        processingTimeDays: { min: form.processingMin, max: form.processingMax },
+        shipsInternational: form.shipsInternational,
       },
-      currency,
-      isVatRegistered,
-      vatId,
+      currency: form.currency,
+      isVatRegistered: form.isVatRegistered,
+      vatId: form.vatId,
     })
-  }, [
-    country,
-    state,
-    city,
-    postalCode,
-    processingMin,
-    processingMax,
-    shipsInternational,
-    currency,
-    isVatRegistered,
-    vatId,
-    saveStep,
-  ])
+  }, [form, saveStep])
 
   useStepActions(4, { validate, save })
 
@@ -255,7 +230,7 @@ export function Step4Location() {
         </Label>
         <Select
           id='country'
-          value={country}
+          value={form.country}
           onChange={(e) => handleCountryChange(e.target.value)}
           className='mt-1'
         >
@@ -276,8 +251,8 @@ export function Step4Location() {
           <Label htmlFor='state'>State / Province</Label>
           <Select
             id='state'
-            value={state}
-            onChange={(e) => setState(e.target.value)}
+            value={form.state}
+            onChange={(e) => setForm((prev) => ({ ...prev, state: e.target.value }))}
             className='mt-1'
           >
             <option value=''>Select…</option>
@@ -295,8 +270,8 @@ export function Step4Location() {
           <Label htmlFor='city'>City</Label>
           <Input
             id='city'
-            value={city}
-            onChange={(e) => setCity(e.target.value)}
+            value={form.city}
+            onChange={(e) => setForm((prev) => ({ ...prev, city: e.target.value }))}
             placeholder='e.g. Paris'
             className='mt-1'
           />
@@ -305,8 +280,8 @@ export function Step4Location() {
           <Label htmlFor='postal'>Postal code</Label>
           <Input
             id='postal'
-            value={postalCode}
-            onChange={(e) => setPostalCode(e.target.value)}
+            value={form.postalCode}
+            onChange={(e) => setForm((prev) => ({ ...prev, postalCode: e.target.value }))}
             placeholder='e.g. 75001'
             className='mt-1'
           />
@@ -321,8 +296,10 @@ export function Step4Location() {
             type='number'
             min={1}
             max={90}
-            value={processingMin}
-            onChange={(e) => setProcessingMin(Number(e.target.value))}
+            value={form.processingMin}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, processingMin: Number(e.target.value) }))
+            }
             className='w-20'
           />
           <span className='text-sm text-text-secondary'>–</span>
@@ -330,8 +307,10 @@ export function Step4Location() {
             type='number'
             min={1}
             max={90}
-            value={processingMax}
-            onChange={(e) => setProcessingMax(Number(e.target.value))}
+            value={form.processingMax}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, processingMax: Number(e.target.value) }))
+            }
             className='w-20'
           />
           <span className='text-sm text-text-secondary'>business days</span>
@@ -346,8 +325,10 @@ export function Step4Location() {
           <Label htmlFor='ships-international'>Ships internationally</Label>
           <Switch
             id='ships-international'
-            checked={shipsInternational}
-            onCheckedChange={setShipsInternational}
+            checked={form.shipsInternational}
+            onCheckedChange={(checked) =>
+              setForm((prev) => ({ ...prev, shipsInternational: checked }))
+            }
           />
         </div>
       </div>
@@ -358,8 +339,8 @@ export function Step4Location() {
         </Label>
         <Select
           id='currency'
-          value={currency}
-          onChange={(e) => setCurrency(e.target.value)}
+          value={form.currency}
+          onChange={(e) => setForm((prev) => ({ ...prev, currency: e.target.value }))}
           className='mt-1'
         >
           <option value='EUR'>EUR: Euro</option>
@@ -397,20 +378,22 @@ export function Step4Location() {
           </div>
           <Switch
             id='is-vat-registered'
-            checked={isVatRegistered}
-            onCheckedChange={setIsVatRegistered}
+            checked={form.isVatRegistered}
+            onCheckedChange={(checked) =>
+              setForm((prev) => ({ ...prev, isVatRegistered: checked }))
+            }
           />
         </div>
 
-        {isVatRegistered && (
+        {form.isVatRegistered && (
           <div className='space-y-1.5 transition-all duration-200'>
             <Label htmlFor='vat-id' required>
               VAT ID / Identification Number
             </Label>
             <Input
               id='vat-id'
-              value={vatId}
-              onChange={(e) => setVatId(e.target.value)}
+              value={form.vatId}
+              onChange={(e) => setForm((prev) => ({ ...prev, vatId: e.target.value }))}
               placeholder='e.g. FR12345678901'
               className='mt-1'
             />

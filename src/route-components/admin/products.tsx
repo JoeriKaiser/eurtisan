@@ -11,7 +11,7 @@ import {
   Search,
   X,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
 import { Skeleton } from '#/components/ui/skeleton'
@@ -47,19 +47,18 @@ export function AdminProductsPage() {
   const search = useSearch({ from: '/admin/products' })
 
   const [products, setProducts] = useState<PaginatedProducts>(loaderData.products)
-  const [actionError, setActionError] = useState<string | null>(null)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [status, setStatus] = useState({
+    actionError: null as string | null,
+    successMessage: null as string | null,
+  })
   const [searchValue, setSearchValue] = useState(search.query ?? '')
   const searchInputRef = useRef<HTMLInputElement>(null)
   const successTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
-  // Bulk action state
-  const [selectedProductIds, setSelectedProductIds] = useState<Set<string>>(new Set())
-  const [bulkProgress, setBulkProgress] = useState<{ current: number; total: number } | null>(null)
-
-  useEffect(() => {
-    setProducts(loaderData.products)
-  }, [loaderData])
+  const [bulk, setBulk] = useState({
+    selectedProductIds: new Set<string>(),
+    progress: null as { current: number; total: number } | null,
+  })
 
   const navigateWithParams = useCallback(
     (overrides: Record<string, string | number | undefined>) => {
@@ -94,52 +93,55 @@ export function AdminProductsPage() {
     [navigateWithParams],
   )
 
-  /* ---- Bulk actions ---- */
   const toggleProductSelection = useCallback((productId: string) => {
-    setSelectedProductIds((prev) => {
-      const next = new Set(prev)
+    setBulk((prev) => {
+      const next = new Set(prev.selectedProductIds)
       if (next.has(productId)) next.delete(productId)
       else next.add(productId)
-      return next
+      return { ...prev, selectedProductIds: next }
     })
   }, [])
 
   const toggleAllProducts = useCallback(() => {
-    setSelectedProductIds((prev) => {
-      if (prev.size === products.products.length) return new Set()
-      return new Set(products.products.map((p) => p.id))
+    setBulk((prev) => {
+      if (prev.selectedProductIds.size === products.products.length) {
+        return { ...prev, selectedProductIds: new Set() }
+      }
+      return { ...prev, selectedProductIds: new Set(products.products.map((p) => p.id)) }
     })
   }, [products.products])
 
   const handleBulkToggleActive = useCallback(async () => {
-    const ids = Array.from(selectedProductIds)
+    const ids = Array.from(bulk.selectedProductIds)
     if (ids.length === 0) return
-    setBulkProgress({ current: 0, total: ids.length })
-    setActionError(null)
+    setBulk((prev) => ({ ...prev, progress: { current: 0, total: ids.length } }))
+    setStatus((prev) => ({ ...prev, actionError: null }))
     let processed = 0
     for (const productId of ids) {
       try {
         await toggleProductActive({ data: { productId } })
         processed++
-        setBulkProgress({ current: processed, total: ids.length })
+        setBulk((prev) => ({ ...prev, progress: { current: processed, total: ids.length } }))
       } catch {
         // Continue with remaining items
       }
     }
-    setSelectedProductIds(new Set())
-    setBulkProgress(null)
+    setBulk({ selectedProductIds: new Set(), progress: null })
     navigateWithParams({ page: 1 })
-  }, [selectedProductIds, navigateWithParams])
+  }, [bulk.selectedProductIds, navigateWithParams])
 
   const showSuccess = useCallback((message: string) => {
-    setSuccessMessage(message)
+    setStatus((prev) => ({ ...prev, successMessage: message }))
     if (successTimerRef.current) clearTimeout(successTimerRef.current)
-    successTimerRef.current = setTimeout(() => setSuccessMessage(null), 3000)
+    successTimerRef.current = setTimeout(
+      () => setStatus((prev) => ({ ...prev, successMessage: null })),
+      3000,
+    )
   }, [])
 
   const handleToggleActive = useCallback(
     async (productId: string, name: string) => {
-      setActionError(null)
+      setStatus((prev) => ({ ...prev, actionError: null }))
       try {
         const result = await toggleProductActive({ data: { productId } })
         setProducts((prev) => ({
@@ -154,7 +156,10 @@ export function AdminProductsPage() {
             : m.admin_products_deactivated_success({ name }),
         )
       } catch (err) {
-        setActionError(err instanceof Error ? err.message : m.admin_products_action_error())
+        setStatus((prev) => ({
+          ...prev,
+          actionError: err instanceof Error ? err.message : m.admin_products_action_error(),
+        }))
       }
     },
     [showSuccess],
@@ -202,23 +207,23 @@ export function AdminProductsPage() {
         <p className='mt-1 text-text-secondary'>{m.admin_products_description()}</p>
       </div>
 
-      {successMessage && (
+      {status.successMessage && (
         <div className='island-shell rounded-xl border border-success/30 bg-success-subtle p-4 text-sm text-success'>
           <CheckCircle size={16} className='mr-2 inline-block' aria-hidden='true' />
-          {successMessage}
+          {status.successMessage}
         </div>
       )}
 
-      {actionError && (
+      {status.actionError && (
         <div
           role='alert'
           className='island-shell rounded-xl border border-error/30 bg-error-subtle p-4 text-sm text-error'
         >
           <AlertTriangle size={16} className='mr-2 inline-block' aria-hidden='true' />
-          {actionError}
+          {status.actionError}
           <button
             type='button'
-            onClick={() => setActionError(null)}
+            onClick={() => setStatus((prev) => ({ ...prev, actionError: null }))}
             className='ml-2 underline hover:no-underline cursor-pointer'
           >
             {m.admin_shops_dismiss()}
@@ -361,16 +366,16 @@ export function AdminProductsPage() {
       </div>
 
       {/* Bulk action bar */}
-      {selectedProductIds.size > 0 && (
+      {bulk.selectedProductIds.size > 0 && (
         <div className='flex items-center justify-between rounded-lg border border-border-default bg-surface-inset px-4 py-2'>
           <span className='text-sm text-text-secondary'>
-            {m.admin_bulk_selected({ count: selectedProductIds.size })}
+            {m.admin_bulk_selected({ count: bulk.selectedProductIds.size })}
           </span>
           <Button
             variant='primary'
             size='sm'
             onClick={handleBulkToggleActive}
-            disabled={!!bulkProgress}
+            disabled={!!bulk.progress}
           >
             {m.admin_bulk_toggle_active()}
           </Button>
@@ -378,11 +383,11 @@ export function AdminProductsPage() {
       )}
 
       {/* Bulk progress */}
-      {bulkProgress && (
+      {bulk.progress && (
         <div className='text-sm text-text-secondary'>
           {m.admin_bulk_progress({
-            current: bulkProgress.current,
-            total: bulkProgress.total,
+            current: bulk.progress.current,
+            total: bulk.progress.total,
           })}
         </div>
       )}
@@ -404,8 +409,8 @@ export function AdminProductsPage() {
                   <input
                     type='checkbox'
                     checked={
-                      selectedProductIds.size > 0 &&
-                      selectedProductIds.size === products.products.length
+                      bulk.selectedProductIds.size > 0 &&
+                      bulk.selectedProductIds.size === products.products.length
                     }
                     onChange={toggleAllProducts}
                     className='size-4 rounded border-border-default'
@@ -447,7 +452,7 @@ export function AdminProductsPage() {
                   <td className='py-3 pr-2'>
                     <input
                       type='checkbox'
-                      checked={selectedProductIds.has(p.id)}
+                      checked={bulk.selectedProductIds.has(p.id)}
                       onChange={() => toggleProductSelection(p.id)}
                       className='size-4 rounded border-border-default'
                       aria-label={m.data_table_select_row()}

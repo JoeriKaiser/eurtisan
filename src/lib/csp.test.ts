@@ -67,9 +67,9 @@ describe('buildCspHeader', () => {
 
   it('adds Meilisearch origin when MEILISEARCH_HOST is set', () => {
     const original = process.env.MEILISEARCH_HOST
-    process.env.MEILISEARCH_HOST = 'https://search.eurtisan.com'
+    process.env.MEILISEARCH_HOST = 'https://search.eurtisan.eu'
     const csp = buildCspHeader()
-    expect(csp).toContain('https://search.eurtisan.com')
+    expect(csp).toContain('https://search.eurtisan.eu')
     process.env.MEILISEARCH_HOST = original
   })
 
@@ -87,10 +87,10 @@ describe('buildCspHeader', () => {
 
   it('adds Umami script origin to script-src and connect-src when VITE_UMAMI_SCRIPT_URL is set', () => {
     const original = process.env.VITE_UMAMI_SCRIPT_URL
-    process.env.VITE_UMAMI_SCRIPT_URL = 'https://analytics.eurtisan.com/script.js'
+    process.env.VITE_UMAMI_SCRIPT_URL = 'https://analytics.eurtisan.eu/script.js'
     const csp = buildCspHeader()
-    expect(csp).toContain("script-src 'self' 'unsafe-inline' https://analytics.eurtisan.com")
-    expect(csp).toContain('https://analytics.eurtisan.com')
+    expect(csp).toContain("script-src 'self' 'unsafe-inline' https://analytics.eurtisan.eu")
+    expect(csp).toContain('https://analytics.eurtisan.eu')
     process.env.VITE_UMAMI_SCRIPT_URL = original
   })
 

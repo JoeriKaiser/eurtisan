@@ -194,7 +194,7 @@ describe('BrevoEmailProvider (real with mocked fetch)', () => {
     const requestBody = JSON.parse((fetchSpy.mock.calls[0]?.[1] as RequestInit)?.body as string)
 
     expect(requestBody).toMatchObject({
-      sender: { email: 'noreply@eurtisan.local', name: 'Eurtisan' },
+      sender: { email: 'noreply@eurtisan.eu', name: 'Eurtisan' },
       to: [{ email: 'buyer@example.com' }],
       subject: expect.stringContaining('99'),
       textContent: expect.stringContaining('Woodworks'),
@@ -242,7 +242,7 @@ describe('BrevoEmailProvider (real with mocked fetch)', () => {
   })
 
   it('uses custom sender from environment variables', async () => {
-    vi.stubEnv('EMAIL_FROM_ADDRESS', 'hello@eurtisan.com')
+    vi.stubEnv('EMAIL_FROM_ADDRESS', 'hello@eurtisan.eu')
     vi.stubEnv('EMAIL_FROM_NAME', 'Eurtisan Team')
 
     const customProvider = new BrevoEmailProvider()
@@ -255,7 +255,7 @@ describe('BrevoEmailProvider (real with mocked fetch)', () => {
     })
 
     const requestBody = JSON.parse((fetchSpy.mock.calls[0]?.[1] as RequestInit)?.body as string)
-    expect(requestBody.sender).toEqual({ email: 'hello@eurtisan.com', name: 'Eurtisan Team' })
+    expect(requestBody.sender).toEqual({ email: 'hello@eurtisan.eu', name: 'Eurtisan Team' })
   })
 })
 

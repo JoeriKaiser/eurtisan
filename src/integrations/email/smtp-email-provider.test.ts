@@ -183,7 +183,7 @@ describe('SmtpEmailProvider (real with mocked nodemailer)', () => {
 
     expect(sendMailMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        from: { name: 'Eurtisan', address: 'noreply@eurtisan.local' },
+        from: { name: 'Eurtisan', address: 'noreply@eurtisan.eu' },
         to: 'buyer@example.com',
         subject: expect.stringContaining('42'),
         text: expect.stringContaining('Pottery by Alice'),
@@ -223,7 +223,7 @@ describe('SmtpEmailProvider (real with mocked nodemailer)', () => {
   })
 
   it('uses custom sender from environment variables', async () => {
-    vi.stubEnv('EMAIL_FROM_ADDRESS', 'hello@eurtisan.com')
+    vi.stubEnv('EMAIL_FROM_ADDRESS', 'hello@eurtisan.eu')
     vi.stubEnv('EMAIL_FROM_NAME', 'Eurtisan Team')
 
     const sendMailMock = vi.fn().mockResolvedValue({ messageId: 'msg-abc' })
@@ -239,7 +239,7 @@ describe('SmtpEmailProvider (real with mocked nodemailer)', () => {
 
     expect(sendMailMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        from: { name: 'Eurtisan Team', address: 'hello@eurtisan.com' },
+        from: { name: 'Eurtisan Team', address: 'hello@eurtisan.eu' },
       }),
     )
   })

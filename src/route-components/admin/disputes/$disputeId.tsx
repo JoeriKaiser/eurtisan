@@ -69,47 +69,53 @@ function ResolutionForm({
   orderStatus: string
   onResolved: () => void
 }) {
-  const [resolution, setResolution] = useState<'close' | 'partial_refund' | 'full_refund'>('close')
-  const [refundInput, setRefundInput] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [fieldError, setFieldError] = useState<string | null>(null)
+  const [form, setForm] = useState({
+    resolution: 'close' as 'close' | 'partial_refund' | 'full_refund',
+    refundInput: '',
+  })
+  const [status, setStatus] = useState({
+    isSubmitting: false,
+    error: null as string | null,
+    fieldError: null as string | null,
+  })
 
   const refundCents = useMemo(() => {
-    const parsed = Number.parseFloat(refundInput)
+    const parsed = Number.parseFloat(form.refundInput)
     if (Number.isNaN(parsed) || parsed < 0) return null
     return Math.round(parsed * 100)
-  }, [refundInput])
+  }, [form.refundInput])
 
   const validate = useCallback(() => {
-    setFieldError(null)
-    if (resolution === 'partial_refund') {
+    setStatus((prev) => ({ ...prev, fieldError: null }))
+    if (form.resolution === 'partial_refund') {
       if (refundCents === null || refundCents <= 0) {
-        setFieldError('Refund amount must be greater than 0')
+        setStatus((prev) => ({ ...prev, fieldError: 'Refund amount must be greater than 0' }))
         return false
       }
       if (refundCents > orderTotalCents) {
-        setFieldError(`Refund cannot exceed ${formatPriceEUR(orderTotalCents)}`)
+        setStatus((prev) => ({
+          ...prev,
+          fieldError: `Refund cannot exceed ${formatPriceEUR(orderTotalCents)}`,
+        }))
         return false
       }
     }
     return true
-  }, [resolution, refundCents, orderTotalCents])
+  }, [form.resolution, refundCents, orderTotalCents])
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault()
       if (!validate()) return
 
-      setIsSubmitting(true)
-      setError(null)
+      setStatus((prev) => ({ ...prev, isSubmitting: true, error: null }))
 
       try {
         await resolveDispute({
           data: {
             disputeId,
-            resolution,
-            refundCents: resolution === 'partial_refund' ? refundCents : null,
+            resolution: form.resolution,
+            refundCents: form.resolution === 'partial_refund' ? refundCents : null,
           },
         })
         onResolved()
@@ -117,23 +123,26 @@ function ResolutionForm({
         if (err instanceof Response) {
           try {
             const body = await err.json()
-            setError(body.message || 'Failed to resolve dispute')
+            setStatus((prev) => ({
+              ...prev,
+              error: body.message || 'Failed to resolve dispute',
+            }))
           } catch {
-            setError('Failed to resolve dispute')
+            setStatus((prev) => ({ ...prev, error: 'Failed to resolve dispute' }))
           }
         } else if (err instanceof Error) {
-          setError(err.message)
+          setStatus((prev) => ({ ...prev, error: err.message }))
         } else {
-          setError('An unexpected error occurred')
+          setStatus((prev) => ({ ...prev, error: 'An unexpected error occurred' }))
         }
       } finally {
-        setIsSubmitting(false)
+        setStatus((prev) => ({ ...prev, isSubmitting: false }))
       }
     },
-    [disputeId, resolution, refundCents, validate, onResolved],
+    [disputeId, form.resolution, refundCents, validate, onResolved],
   )
 
-  const refundDisabled = resolution !== 'partial_refund'
+  const refundDisabled = form.resolution !== 'partial_refund'
 
   return (
     <Card variant='default'>
@@ -151,12 +160,15 @@ function ResolutionForm({
             </label>
             <select
               id='resolution-type'
-              value={resolution}
+              value={form.resolution}
               onChange={(e) => {
-                setResolution(e.target.value as 'close' | 'partial_refund' | 'full_refund')
-                setFieldError(null)
+                setForm((prev) => ({
+                  ...prev,
+                  resolution: e.target.value as 'close' | 'partial_refund' | 'full_refund',
+                }))
+                setStatus((prev) => ({ ...prev, fieldError: null }))
               }}
-              disabled={isSubmitting}
+              disabled={status.isSubmitting}
               className='h-10 w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20 disabled:cursor-not-allowed disabled:opacity-50'
             >
               <option value='close'>Close (no action)</option>
@@ -180,18 +192,18 @@ function ResolutionForm({
               step='0.01'
               min='0.01'
               max={centsToEuros(orderTotalCents)}
-              value={refundInput}
+              value={form.refundInput}
               onChange={(e) => {
-                setRefundInput(e.target.value)
-                if (fieldError) setFieldError(null)
+                setForm((prev) => ({ ...prev, refundInput: e.target.value }))
+                if (status.fieldError) setStatus((prev) => ({ ...prev, fieldError: null }))
               }}
               placeholder='0.00'
-              disabled={isSubmitting || refundDisabled}
-              error={fieldError ?? undefined}
+              disabled={status.isSubmitting || refundDisabled}
+              error={status.fieldError ?? undefined}
             />
-            {fieldError && (
+            {status.fieldError && (
               <p id='refund-amount-error' className='mt-1 text-xs text-error'>
-                {fieldError}
+                {status.fieldError}
               </p>
             )}
             <p className='mt-1 text-xs text-text-muted'>
@@ -199,13 +211,13 @@ function ResolutionForm({
             </p>
           </div>
 
-          {error && (
+          {status.error && (
             <div className='rounded-lg bg-error/10 p-3 text-sm text-error' role='alert'>
-              {error}
+              {status.error}
             </div>
           )}
 
-          <Button type='submit' isLoading={isSubmitting} className='w-full sm:w-auto'>
+          <Button type='submit' isLoading={status.isSubmitting} className='w-full sm:w-auto'>
             Submit Resolution
           </Button>
         </form>
@@ -264,16 +276,17 @@ function AdminMessageInput({
   onMessageSent: () => void
 }) {
   const [message, setMessage] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [status, setStatus] = useState({
+    isSubmitting: false,
+    error: null as string | null,
+  })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const trimmed = message.trim()
-    if (!trimmed || isSubmitting) return
+    if (!trimmed || status.isSubmitting) return
 
-    setIsSubmitting(true)
-    setError(null)
+    setStatus({ isSubmitting: true, error: null })
 
     try {
       await addDisputeMessage({
@@ -285,25 +298,25 @@ function AdminMessageInput({
       if (err instanceof Response) {
         try {
           const body = await err.json()
-          setError(body.message || 'Failed to send message')
+          setStatus((prev) => ({ ...prev, error: body.message || 'Failed to send message' }))
         } catch {
-          setError('Failed to send message')
+          setStatus((prev) => ({ ...prev, error: 'Failed to send message' }))
         }
       } else if (err instanceof Error) {
-        setError(err.message)
+        setStatus((prev) => ({ ...prev, error: err.message }))
       } else {
-        setError('An unexpected error occurred')
+        setStatus((prev) => ({ ...prev, error: 'An unexpected error occurred' }))
       }
     } finally {
-      setIsSubmitting(false)
+      setStatus((prev) => ({ ...prev, isSubmitting: false }))
     }
   }
 
   return (
     <form onSubmit={handleSubmit} className='mt-4 border-t border-border-default pt-4'>
-      {error && (
+      {status.error && (
         <div className='mb-3 rounded-lg bg-error/10 p-3 text-sm text-error' role='alert'>
-          {error}
+          {status.error}
         </div>
       )}
       <label htmlFor='admin-message' className='mb-2 block text-sm font-medium text-text-secondary'>
@@ -316,13 +329,17 @@ function AdminMessageInput({
         placeholder='Type your message to the buyer and creator…'
         rows={3}
         maxLength={5000}
-        disabled={isSubmitting}
+        disabled={status.isSubmitting}
         className='min-h-[5rem] w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary placeholder:text-text-muted transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20 disabled:opacity-50 resize-none'
         aria-label='Admin message'
       />
       <div className='mt-2 flex items-center justify-between'>
         <span className='text-xs text-text-muted'>{message.length} / 5000</span>
-        <Button type='submit' isLoading={isSubmitting} disabled={!message.trim() || isSubmitting}>
+        <Button
+          type='submit'
+          isLoading={status.isSubmitting}
+          disabled={!message.trim() || status.isSubmitting}
+        >
           <Send size={16} aria-hidden='true' />
           Send
         </Button>

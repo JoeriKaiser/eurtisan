@@ -57,9 +57,9 @@ export function getBrevoApiKey(): string | undefined {
  */
 export function getEmailFromAddress(): string {
   if (typeof process !== 'undefined') {
-    return process.env.EMAIL_FROM_ADDRESS ?? 'noreply@eurtisan.local'
+    return process.env.EMAIL_FROM_ADDRESS ?? 'noreply@eurtisan.eu'
   }
-  return 'noreply@eurtisan.local'
+  return 'noreply@eurtisan.eu'
 }
 
 /**

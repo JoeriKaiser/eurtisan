@@ -1,6 +1,6 @@
 import { useRouter } from '@tanstack/react-router'
 import { Check, ImageIcon, Store, Upload, X } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { CreatorShopDetail } from '#/lib/creator-dashboard'
 import { checkShopSlug, updateShop, uploadShopImage } from '#/lib/shop-settings'
 import { m } from '#/paraglide/messages'
@@ -94,7 +94,6 @@ function ShopSettingsForm({
   const [slugError, setSlugError] = useState<string | null>(null)
   const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null)
   const slugTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const lastCheckedSlugRef = useRef<string>(shop.slug)
 
   // Form submission
   const [saving, setSaving] = useState(false)
@@ -162,32 +161,15 @@ function ShopSettingsForm({
     [shop.id, shop.slug],
   )
 
-  // Debounced slug check
-  useEffect(() => {
+  const handleSlugChange = (val: string) => {
+    setSlug(val)
     if (slugTimerRef.current) {
       clearTimeout(slugTimerRef.current)
     }
-
-    if (slug === lastCheckedSlugRef.current) return
-    lastCheckedSlugRef.current = slug
-
-    if (slug === shop.slug) {
-      setSlugError(null)
-      setSlugAvailable(null)
-      setSlugChecking(false)
-      return
-    }
-
     slugTimerRef.current = setTimeout(() => {
-      checkSlug(slug)
+      checkSlug(val)
     }, SLUG_DEBOUNCE_MS)
-
-    return () => {
-      if (slugTimerRef.current) {
-        clearTimeout(slugTimerRef.current)
-      }
-    }
-  }, [slug, shop.slug, checkSlug])
+  }
 
   /* ---------------------------- Image handling ----------------------------- */
 
@@ -449,7 +431,7 @@ function ShopSettingsForm({
                     value={slug}
                     onChange={(e) => {
                       const val = e.target.value.toLowerCase().replace(/\s+/g, '-')
-                      setSlug(val)
+                      handleSlugChange(val)
                     }}
                     error={slugError ? slugError : undefined}
                     placeholder={m.creator_shop_slug_placeholder()}

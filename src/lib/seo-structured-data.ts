@@ -134,7 +134,7 @@ export interface WebSiteJsonLdInput {
   name?: string
   /** Homepage URL, default: BASE_URL or "/". */
   url?: string
-  /** Search URL template, e.g. "https://eurtisan.com/search?q={search_term_string}". */
+  /** Search URL template, e.g. "https://eurtisan.eu/search?q={search_term_string}". */
   searchUrlTemplate?: string
 }
 

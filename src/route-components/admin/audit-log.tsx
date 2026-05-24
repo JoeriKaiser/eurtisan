@@ -15,11 +15,11 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
 import { Skeleton } from '#/components/ui/skeleton'
-import type { AuditLogListItem, PaginatedAuditLog } from '#/lib/audit-log.server'
+import type { PaginatedAuditLog } from '#/lib/audit-log.server'
 import { m } from '#/paraglide/messages'
 const PAGE_SIZES = [10, 20, 50] as const
 /* -------------------------------------------------------------------------- */
@@ -113,20 +113,17 @@ export function AdminAuditLogPage() {
   const navigate = useNavigate()
   const search = useSearch({ from: '/admin/audit-log' })
 
-  const [entries, setEntries] = useState<AuditLogListItem[]>(loaderData.entries)
-  const [total, setTotal] = useState(loaderData.total)
-  const [page, setPage] = useState(loaderData.page)
-  const [pageSize, setPageSize] = useState(loaderData.pageSize)
+  const { entries, total, page, pageSize } = loaderData
+
+  const [filters, setFilters] = useState({
+    action: search.action ?? '',
+    actor: search.actorId ?? '',
+    resourceType: search.resourceType ?? '',
+    from: search.from ?? '',
+    to: search.to ?? '',
+  })
+
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
-
-  const [actionFilter, setActionFilter] = useState(search.action ?? '')
-  const [actorFilter, setActorFilter] = useState(search.actorId ?? '')
-  const [resourceTypeFilter, setResourceTypeFilter] = useState(search.resourceType ?? '')
-  const [fromDate, setFromDate] = useState(search.from ?? '')
-  const [toDate, setToDate] = useState(search.to ?? '')
-
-  const searchRef = useRef(search)
-  searchRef.current = search
 
   const navigateWithParams = useCallback(
     (overrides: Record<string, string | number | undefined>) => {
@@ -141,21 +138,17 @@ export function AdminAuditLogPage() {
 
   const applyFilters = useCallback(() => {
     navigateWithParams({
-      action: actionFilter || undefined,
-      actorId: actorFilter || undefined,
-      resourceType: resourceTypeFilter || undefined,
-      from: fromDate || undefined,
-      to: toDate || undefined,
+      action: filters.action || undefined,
+      actorId: filters.actor || undefined,
+      resourceType: filters.resourceType || undefined,
+      from: filters.from || undefined,
+      to: filters.to || undefined,
       page: 1,
     })
-  }, [actionFilter, actorFilter, resourceTypeFilter, fromDate, toDate, navigateWithParams])
+  }, [filters, navigateWithParams])
 
   const clearFilters = useCallback(() => {
-    setActionFilter('')
-    setActorFilter('')
-    setResourceTypeFilter('')
-    setFromDate('')
-    setToDate('')
+    setFilters({ action: '', actor: '', resourceType: '', from: '', to: '' })
     navigateWithParams({
       action: undefined,
       actorId: undefined,
@@ -166,7 +159,8 @@ export function AdminAuditLogPage() {
     })
   }, [navigateWithParams])
 
-  const hasFilters = actionFilter || actorFilter || resourceTypeFilter || fromDate || toDate
+  const hasFilters =
+    filters.action || filters.actor || filters.resourceType || filters.from || filters.to
 
   const handlePageChange = useCallback(
     (newPage: number) => {
@@ -191,14 +185,6 @@ export function AdminAuditLogPage() {
     })
   }, [])
 
-  // Sync state when loader data changes (e.g. back/forward nav)
-  useMemo(() => {
-    setEntries(loaderData.entries)
-    setTotal(loaderData.total)
-    setPage(loaderData.page)
-    setPageSize(loaderData.pageSize)
-  }, [loaderData])
-
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
 
   return (
@@ -218,8 +204,8 @@ export function AdminAuditLogPage() {
             {m.admin_audit_log_filter_action()}
           </span>
           <select
-            value={actionFilter}
-            onChange={(e) => setActionFilter(e.target.value)}
+            value={filters.action}
+            onChange={(e) => setFilters((prev) => ({ ...prev, action: e.target.value }))}
             className='h-9 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
           >
             {ACTION_TYPES.map((a) => (
@@ -235,8 +221,8 @@ export function AdminAuditLogPage() {
             {m.admin_audit_log_filter_resource_type()}
           </span>
           <select
-            value={resourceTypeFilter}
-            onChange={(e) => setResourceTypeFilter(e.target.value)}
+            value={filters.resourceType}
+            onChange={(e) => setFilters((prev) => ({ ...prev, resourceType: e.target.value }))}
             className='h-9 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
           >
             {RESOURCE_TYPES.map((r) => (
@@ -259,8 +245,8 @@ export function AdminAuditLogPage() {
             />
             <input
               type='text'
-              value={actorFilter}
-              onChange={(e) => setActorFilter(e.target.value)}
+              value={filters.actor}
+              onChange={(e) => setFilters((prev) => ({ ...prev, actor: e.target.value }))}
               placeholder='User ID…'
               className='size-9 rounded-md border border-border-default bg-surface-default pl-8 pr-3 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none'
             />
@@ -273,8 +259,8 @@ export function AdminAuditLogPage() {
           </span>
           <input
             type='date'
-            value={fromDate}
-            onChange={(e) => setFromDate(e.target.value)}
+            value={filters.from}
+            onChange={(e) => setFilters((prev) => ({ ...prev, from: e.target.value }))}
             className='h-9 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
           />
         </div>
@@ -285,8 +271,8 @@ export function AdminAuditLogPage() {
           </span>
           <input
             type='date'
-            value={toDate}
-            onChange={(e) => setToDate(e.target.value)}
+            value={filters.to}
+            onChange={(e) => setFilters((prev) => ({ ...prev, to: e.target.value }))}
             className='h-9 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
           />
         </div>

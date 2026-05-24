@@ -58,7 +58,7 @@ beforeEach(async () => {
 describe('buildUrlElement', () => {
   it('generates a valid <url> XML element', () => {
     const entry = {
-      loc: 'https://eurtisan.com/',
+      loc: 'https://eurtisan.eu/',
       lastmod: '2026-05-14',
       changefreq: 'daily' as const,
       priority: '1.0',
@@ -68,7 +68,7 @@ describe('buildUrlElement', () => {
 
     expect(xml).toContain('<url>')
     expect(xml).toContain('</url>')
-    expect(xml).toContain('<loc>https://eurtisan.com/</loc>')
+    expect(xml).toContain('<loc>https://eurtisan.eu/</loc>')
     expect(xml).toContain('<lastmod>2026-05-14</lastmod>')
     expect(xml).toContain('<changefreq>daily</changefreq>')
     expect(xml).toContain('<priority>1.0</priority>')
@@ -76,7 +76,7 @@ describe('buildUrlElement', () => {
 
   it('escapes XML special characters in loc', () => {
     const entry = {
-      loc: 'https://eurtisan.com/search?q=foo&bar=<baz>',
+      loc: 'https://eurtisan.eu/search?q=foo&bar=<baz>',
       lastmod: '2026-05-14',
       changefreq: 'weekly' as const,
       priority: '0.5',
@@ -93,13 +93,13 @@ describe('buildSitemapXml', () => {
   it('generates a valid sitemap XML document', () => {
     const entries = [
       {
-        loc: 'https://eurtisan.com/',
+        loc: 'https://eurtisan.eu/',
         lastmod: '2026-05-14',
         changefreq: 'daily' as const,
         priority: '1.0',
       },
       {
-        loc: 'https://eurtisan.com/about',
+        loc: 'https://eurtisan.eu/about',
         lastmod: '2026-05-14',
         changefreq: 'monthly' as const,
         priority: '0.5',
@@ -111,8 +111,8 @@ describe('buildSitemapXml', () => {
     expect(xml).toContain('<?xml version="1.0" encoding="UTF-8"?>')
     expect(xml).toContain('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
     expect(xml).toContain('</urlset>')
-    expect(xml).toContain('<loc>https://eurtisan.com/</loc>')
-    expect(xml).toContain('<loc>https://eurtisan.com/about</loc>')
+    expect(xml).toContain('<loc>https://eurtisan.eu/</loc>')
+    expect(xml).toContain('<loc>https://eurtisan.eu/about</loc>')
   })
 
   it('returns valid XML with empty entries array', () => {
