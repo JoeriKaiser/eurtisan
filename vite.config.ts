@@ -6,6 +6,9 @@ import { defineConfig } from 'vite'
 
 const config = defineConfig({
   resolve: { tsconfigPaths: true },
+  ssr: {
+    external: ['zod', 'better-auth', '@better-auth/core', '@better-auth/drizzle-adapter'],
+  },
   plugins: [
     tanstackStart(),
     viteReact(),
