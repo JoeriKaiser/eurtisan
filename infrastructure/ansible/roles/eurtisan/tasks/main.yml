@@ -1,0 +1,75 @@
+---
+- name: Determine compose file
+  set_fact:
+    compose_file: "{{ 'docker-compose.staging.yml' if (coexist_with_proxy | default(false)) else 'docker-compose.prod.yml' }}"
+
+- name: Create application directory
+  file:
+    path: /opt/eurtisan
+    state: directory
+    mode: "0755"
+
+- name: Clone Codeberg repository
+  git:
+    repo: "https://codeberg.org/{{ codeberg_user }}/{{ codeberg_repo }}.git"
+    dest: /opt/eurtisan
+    version: "{{ git_branch | default('main') }}"
+    force: yes
+
+- name: Write production environment file
+  template:
+    src: .env.j2
+    dest: /opt/eurtisan/.env
+    mode: "0600"
+
+- name: Write deploy script
+  copy:
+    src: deploy.sh
+    dest: /opt/eurtisan/deploy.sh
+    mode: "0755"
+
+- name: Write database backup script
+  copy:
+    dest: /opt/eurtisan/backup.sh
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+      COMPOSE_FILE="{{ compose_file }}"
+      BACKUP_DIR="/opt/eurtisan/backups"
+      mkdir -p "$BACKUP_DIR"
+      docker compose -f "/opt/eurtisan/$COMPOSE_FILE" exec -T db pg_dump -U {{ postgres_user }} {{ postgres_db }} | gzip > "$BACKUP_DIR/eurtisan-$(date +%Y%m%d-%H%M%S).sql.gz"
+      find "$BACKUP_DIR" -name "*.sql.gz" -mtime +7 -delete
+      echo "Backup completed at $(date)"
+    mode: "0755"
+
+- name: Schedule nightly database backups
+  cron:
+    name: "Eurtisan database backup"
+    minute: "0"
+    hour: "3"
+    job: "/opt/eurtisan/backup.sh >> /var/log/eurtisan-backup.log 2>&1"
+    user: root
+
+- name: Start database and meilisearch first
+  command: "docker compose -f {{ compose_file }} up -d db meilisearch"
+  args:
+    chdir: /opt/eurtisan
+
+- name: Wait for PostgreSQL to be ready
+  shell: "docker compose -f {{ compose_file }} exec -T db pg_isready -U {{ postgres_user }}"
+  args:
+    chdir: /opt/eurtisan
+  register: pg_ready
+  until: pg_ready.rc == 0
+  retries: 15
+  delay: 2
+
+- name: Run database migrations
+  command: "docker compose -f {{ compose_file }} run --rm app bun run db:migrate"
+  args:
+    chdir: /opt/eurtisan
+
+- name: Start all services
+  command: "docker compose -f {{ compose_file }} up -d"
+  args:
+    chdir: /opt/eurtisan

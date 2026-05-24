@@ -1,0 +1,16 @@
+# Caddy reverse proxy configuration
+# Domain is injected via the CADDY_DOMAIN environment variable
+
+{$CADDY_DOMAIN} {
+	reverse_proxy app:3000
+
+	# Security headers
+	header {
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	# Automatic HTTPS via Let's Encrypt
+	# Caddy handles certificate provisioning and renewal
+}

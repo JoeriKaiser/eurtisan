@@ -1,0 +1,25 @@
+# ── Ansible / Git ────────────────────────────────────────────────────────
+codeberg_user: kaiser
+codeberg_repo: eurtisan
+
+# ── Database ─────────────────────────────────────────────────────────────
+postgres_user: eurtisan
+postgres_db: eurtisan
+
+# ── Email ────────────────────────────────────────────────────────────────
+email_from_address: noreply@eurtisan.eu
+email_from_name: Eurtisan
+email_smtp_port: "587"
+
+# ── Secrets ──────────────────────────────────────────────────────────────
+# DO NOT PUT REAL SECRETS HERE.
+# Override these at runtime with: ansible-playbook ... -e @secrets.yml
+#
+# Example secrets.yml:
+#   postgres_password: "your-strong-password"
+#   better_auth_secret: "$(openssl rand -base64 32)"
+#   meilisearch_api_key: "$(openssl rand -base64 32)"
+#
+# Optional — restrict staging access to specific IPs (comma-separated).
+# Only used when coexist_with_proxy is false (standalone staging).
+#   allowed_ips: "REDACTED.1,REDACTED.2"

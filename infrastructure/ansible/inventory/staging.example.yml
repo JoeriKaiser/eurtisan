@@ -1,0 +1,14 @@
+staging:
+  hosts:
+    eurtisan-staging:
+      # Replace with your staging VPS IP address
+      ansible_host: REDACTED
+      # Replace with your VPS username (e.g. ubuntu, root, etc.)
+      ansible_user: ubuntu
+      # Replace with the path to your SSH private key
+      ansible_ssh_private_key_file: ~/.ssh/server_id_rsa_1
+      caddy_domain: staging.eurtisan.eu
+      git_branch: main
+      # Set to true when an existing reverse proxy (e.g. Coolify) already owns ports 80/443.
+      # The app will bind to localhost only and the external proxy handles SSL + routing.
+      coexist_with_proxy: true

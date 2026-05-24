@@ -1,0 +1,13 @@
+production:
+  hosts:
+    eurtisan-production:
+      # Replace with your production VPS IP address
+      ansible_host: 198.51.100.20
+      # Replace with your VPS username (e.g. ubuntu, root, etc.)
+      ansible_user: ubuntu
+      # Replace with the path to your SSH private key
+      ansible_ssh_private_key_file: ~/.ssh/server_id_rsa_1
+      caddy_domain: eurtisan.eu
+      git_branch: main
+      # Production uses its own Caddy reverse proxy on ports 80/443.
+      coexist_with_proxy: false

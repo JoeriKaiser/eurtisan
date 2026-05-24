@@ -1,0 +1,10 @@
+---
+- name: Configure Eurtisan VPS
+  hosts: all
+  gather_facts: yes
+
+  roles:
+    - role: common
+      tags: [common, setup]
+    - role: eurtisan
+      tags: [eurtisan, app]

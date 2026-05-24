@@ -1,0 +1,125 @@
+---
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Install essential system packages
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - gnupg
+      - lsb-release
+      - software-properties-common
+      - git
+      - ufw
+      - fail2ban
+      - unattended-upgrades
+    state: present
+
+- name: Add Docker GPG key
+  apt_key:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    state: present
+
+- name: Add Docker APT repository
+  apt_repository:
+    repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    state: present
+
+- name: Install Docker Engine and Compose plugin
+  apt:
+    name:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-compose-plugin
+    state: present
+    update_cache: yes
+
+- name: Ensure Docker service is running
+  service:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Allow SSH through UFW
+  when: not (coexist_with_proxy | default(false))
+  ufw:
+    rule: allow
+    port: "22"
+    proto: tcp
+
+- name: Allow HTTP from whitelisted IPs
+  when:
+    - not (coexist_with_proxy | default(false))
+    - allowed_ips is defined
+  ufw:
+    rule: allow
+    from_ip: "{{ item }}"
+    port: "80"
+    proto: tcp
+  loop: "{{ allowed_ips.split(',') }}"
+
+- name: Allow HTTPS from whitelisted IPs
+  when:
+    - not (coexist_with_proxy | default(false))
+    - allowed_ips is defined
+  ufw:
+    rule: allow
+    from_ip: "{{ item }}"
+    port: "443"
+    proto: tcp
+  loop: "{{ allowed_ips.split(',') }}"
+
+- name: Allow HTTP through UFW (open access)
+  when:
+    - not (coexist_with_proxy | default(false))
+    - allowed_ips is not defined
+  ufw:
+    rule: allow
+    port: "80"
+    proto: tcp
+
+- name: Allow HTTPS through UFW (open access)
+  when:
+    - not (coexist_with_proxy | default(false))
+    - allowed_ips is not defined
+  ufw:
+    rule: allow
+    port: "443"
+    proto: tcp
+
+- name: Enable UFW with default-deny policy
+  when: not (coexist_with_proxy | default(false))
+  ufw:
+    state: enabled
+    policy: deny
+
+- name: Configure fail2ban defaults
+  copy:
+    dest: /etc/fail2ban/jail.local
+    content: |
+      [DEFAULT]
+      bantime = 3600
+      findtime = 600
+      maxretry = 5
+
+      [sshd]
+      enabled = true
+  notify: Restart fail2ban
+
+- name: Enable unattended security upgrades
+  copy:
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades
+    content: |
+      Unattended-Upgrade::Allowed-Origins {
+        "${distro_id}:${distro_codename}-security";
+      };
+      Unattended-Upgrade::AutoFixInterruptedDpkg "true";
+      Unattended-Upgrade::MinimalSteps "true";
+      Unattended-Upgrade::InstallOnShutdown "false";
+      Unattended-Upgrade::Remove-Unused-Dependencies "true";
+      Unattended-Upgrade::Remove-New-Unused-Dependencies "true";

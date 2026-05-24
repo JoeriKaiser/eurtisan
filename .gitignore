@@ -6,6 +6,9 @@ dist-ssr
 *.local
 .env
 .env.local
+infrastructure/ansible/secrets.yml
+infrastructure/ansible/inventory/*.yml
+!infrastructure/ansible/inventory/*.example.yml
 .nitro
 .tanstack
 .wrangler

@@ -1,0 +1,41 @@
+# syntax=docker/dockerfile:1
+# Production Dockerfile for Eurtisan
+# Multi-stage build: compile with full Bun image, run with slim
+
+# ── Builder ──────────────────────────────────────────────────────────────
+FROM oven/bun:1 AS builder
+WORKDIR /app
+
+# Install dependencies first (cache layer)
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile
+
+# Copy source and build
+COPY . .
+RUN bun run build
+
+# ── Runtime ──────────────────────────────────────────────────────────────
+FROM oven/bun:1-slim
+WORKDIR /app
+
+# Install curl for Docker healthchecks
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN groupadd -r eurtisan && useradd -r -g eurtisan eurtisan
+
+# Copy built application from builder
+COPY --from=builder --chown=eurtisan:eurtisan /app/dist ./dist
+COPY --from=builder --chown=eurtisan:eurtisan /app/package.json ./
+COPY --from=builder --chown=eurtisan:eurtisan /app/node_modules ./node_modules
+
+# Run as non-root
+USER eurtisan
+
+ENV NODE_ENV=production
+EXPOSE 3000
+
+# Uses Node.js runtime (available as symlink in oven/bun images)
+CMD ["node", "--import", "./dist/server/instrument.server.mjs", "./dist/server/server.js"]

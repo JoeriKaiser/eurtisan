@@ -104,6 +104,24 @@ db-studio:
 meili-setup: up
 	docker compose exec app bun run src/lib/meili-setup.ts
 
+# ── Infrastructure ───────────────────────────────────────────────────────
+infra-setup-staging:
+	ansible-playbook -i infrastructure/ansible/inventory/staging.yml infrastructure/ansible/playbook.yml -e @infrastructure/ansible/secrets.yml
+
+infra-setup-production:
+	ansible-playbook -i infrastructure/ansible/inventory/production.yml infrastructure/ansible/playbook.yml -e @infrastructure/ansible/secrets.yml
+
+# Copy example inventory files before first use
+infra-init:
+	cp infrastructure/ansible/inventory/staging.example.yml infrastructure/ansible/inventory/staging.yml
+	cp infrastructure/ansible/inventory/production.example.yml infrastructure/ansible/inventory/production.yml
+
+# Generate production secrets (run locally, copy output to secrets.yml)
+infra-secrets:
+	@echo "postgres_password: $$(openssl rand -base64 32)"
+	@echo "better_auth_secret: $$(openssl rand -base64 32)"
+	@echo "meilisearch_api_key: $$(openssl rand -base64 32)"
+
 # Catch-all rule to allow passing arbitrary arguments (like file paths) to test/other commands without Make complaining
 %: FORCE
 	@:
