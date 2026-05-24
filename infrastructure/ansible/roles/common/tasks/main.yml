@@ -4,6 +4,12 @@
     update_cache: yes
     cache_valid_time: 3600
 
+- name: Check if Docker is already installed
+  command: which docker
+  register: docker_check
+  ignore_errors: true
+  changed_when: false
+
 - name: Install essential system packages
   apt:
     name:
@@ -20,16 +26,19 @@
     state: present
 
 - name: Add Docker GPG key
+  when: docker_check.rc != 0
   apt_key:
     url: https://download.docker.com/linux/ubuntu/gpg
     state: present
 
 - name: Add Docker APT repository
+  when: docker_check.rc != 0
   apt_repository:
     repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
     state: present
 
 - name: Install Docker Engine and Compose plugin
+  when: docker_check.rc != 0
   apt:
     name:
       - docker-ce
