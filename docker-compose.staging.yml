@@ -35,12 +35,10 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.eurtisan-staging.rule=Host(`staging.eurtisan.eu`)
-      - traefik.http.routers.eurtisan-staging.entrypoints=https
-      - traefik.http.routers.eurtisan-staging.tls.certresolver=letsencrypt
-      - traefik.http.services.eurtisan-staging.loadbalancer.server.port=3000
+    # Routing is managed via file-based Traefik dynamic config written by Ansible
+    # at /data/coolify/proxy/dynamic/eurtisan-staging.yml (see playbook).
+    # Docker provider labels are NOT used so the route appears in Coolify's
+    # proxy dynamic config directory.
 
   db:
     image: postgres:16-alpine

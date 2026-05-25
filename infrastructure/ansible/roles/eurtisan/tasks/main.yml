@@ -79,40 +79,51 @@
   args:
     chdir: /opt/eurtisan
 
-- name: Write Traefik IP whitelist for staging (optional)
-  when:
-    - coexist_with_proxy | default(false)
-    - allowed_ips is defined
-  copy:
-    dest: /data/coolify/proxy/dynamic/eurtisan-staging-whitelist.yml
-    content: |
-      http:
-        middlewares:
-          eurtisan-staging-whitelist:
-            ipWhiteList:
-              sourceRange:
-      {% for ip in allowed_ips.split(',') %}
-                - "{{ ip }}/32"
-      {% endfor %}
+- name: Write Traefik dynamic config for staging route
+  when: coexist_with_proxy | default(false)
+  block:
+    - name: Write Traefik router and service config
+      copy:
+        dest: /data/coolify/proxy/dynamic/eurtisan-staging.yml
+        content: |
+          http:
+            routers:
+              eurtisan-staging:
+                rule: "Host(`staging.eurtisan.eu`)"
+                entrypoints:
+                  - https
+                tls:
+                  certResolver: letsencrypt
+                service: eurtisan-staging
+          {% if allowed_ips is defined %}
+                middlewares:
+                  - eurtisan-staging-whitelist
+          {% endif %}
 
-- name: Add Traefik whitelist middleware to staging router
-  when:
-    - coexist_with_proxy | default(false)
-    - allowed_ips is defined
-  replace:
-    path: "/opt/eurtisan/{{ compose_file }}"
-    regexp: 'traefik\.http\.routers\.eurtisan-staging\.tls\.certresolver=letsencrypt'
-    replace: |2
-              traefik.http.routers.eurtisan-staging.tls.certresolver=letsencrypt
-              traefik.http.routers.eurtisan-staging.middlewares=eurtisan-staging-whitelist
+            services:
+              eurtisan-staging:
+                loadBalancer:
+                  servers:
+                    - url: "http://eurtisan-app-staging:3000"
 
-- name: Restart app to pick up Traefik label changes
-  when:
-    - coexist_with_proxy | default(false)
-    - allowed_ips is defined
-  command: "docker compose -f {{ compose_file }} up -d app"
-  args:
-    chdir: /opt/eurtisan
+    - name: Write Traefik IP whitelist middleware (optional)
+      when: allowed_ips is defined
+      copy:
+        dest: /data/coolify/proxy/dynamic/eurtisan-staging-whitelist.yml
+        content: |
+          http:
+            middlewares:
+              eurtisan-staging-whitelist:
+                ipWhiteList:
+                  sourceRange:
+          {% for ip in allowed_ips.split(',') %}
+                    - "{{ ip }}/32"
+          {% endfor %}
+
+    - name: Restart app to pick up Traefik config
+      command: "docker compose -f {{ compose_file }} up -d app"
+      args:
+        chdir: /opt/eurtisan
 
 - name: Expose app port directly (optional, when app_access_ips is set)
   when:
