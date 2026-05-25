@@ -13,6 +13,8 @@ RUN bun install --frozen-lockfile
 # Copy source and build
 COPY . .
 RUN bun run build
+# Bundle the staging seed into a standalone file (resolves all imports at build time)
+RUN bun build src/db/seed-staging.ts --outfile=seed-staging.bundle.mjs --target=bun --external=pg --external=@faker-js/faker --external=meilisearch --external=drizzle-orm
 
 # ── Runtime ──────────────────────────────────────────────────────────────
 FROM oven/bun:1-slim
@@ -29,6 +31,14 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/drizzle.config.ts ./
 COPY --from=builder /app/drizzle ./drizzle
+
+# Include source tree so server-side scripts (seed, jobs) can be run
+# with `bun run`. TypeScript only — no secrets live here.
+COPY --from=builder /app/src ./src
+
+# Pre-bundle the staging seed as a standalone JS file that only needs
+# node_modules at runtime (no source imports to resolve).
+COPY --from=builder /app/seed-staging.bundle.mjs ./seed-staging.bundle.mjs
 
 ENV NODE_ENV=production
 EXPOSE 3000

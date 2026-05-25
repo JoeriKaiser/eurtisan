@@ -181,13 +181,13 @@ safe to re-run; existing records are skipped.
 ### Run on staging (via Coolify proxy)
 
 ```bash
-ssh root@STAGING_IP 'cd /opt/eurtisan && docker compose -f docker-compose.staging.yml run --rm app bun run db:staging-seed'
+ssh root@STAGING_IP 'cd /opt/eurtisan && docker compose -f docker-compose.staging.yml run --rm app bun run seed-staging.bundle.mjs'
 ```
 
 ### Run on production
 
 ```bash
-ssh root@PROD_IP 'cd /opt/eurtisan && docker compose -f docker-compose.prod.yml run --rm app bun run db:staging-seed'
+ssh root@PROD_IP 'cd /opt/eurtisan && docker compose -f docker-compose.prod.yml run --rm app bun run seed-staging.bundle.mjs'
 ```
 
 ### What it creates
