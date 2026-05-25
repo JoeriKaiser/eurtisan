@@ -82,12 +82,19 @@
 - name: Write Traefik dynamic config for staging route
   when: coexist_with_proxy | default(false)
   block:
-    - name: Write Traefik router and service config
+    - name: Write Traefik router, service, and whitelist config (single atomic file)
       copy:
         dest: /data/coolify/proxy/dynamic/eurtisan-staging.yml
         content: |
           http:
             routers:
+              eurtisan-staging-http:
+                rule: "Host(`staging.eurtisan.eu`)"
+                entrypoints:
+                  - http
+                middlewares:
+                  - eurtisan-staging-redirect
+
               eurtisan-staging:
                 rule: "Host(`staging.eurtisan.eu`)"
                 entrypoints:
@@ -100,25 +107,31 @@
                   - eurtisan-staging-whitelist
           {% endif %}
 
-            services:
-              eurtisan-staging:
-                loadBalancer:
-                  servers:
-                    - url: "http://eurtisan-app-staging:3000"
-
-    - name: Write Traefik IP whitelist middleware (optional)
-      when: allowed_ips is defined
-      copy:
-        dest: /data/coolify/proxy/dynamic/eurtisan-staging-whitelist.yml
-        content: |
-          http:
             middlewares:
+              eurtisan-staging-redirect:
+                redirectScheme:
+                  scheme: https
+                  permanent: true
+          {% if allowed_ips is defined %}
               eurtisan-staging-whitelist:
                 ipWhiteList:
                   sourceRange:
           {% for ip in allowed_ips.split(',') %}
                     - "{{ ip }}/32"
           {% endfor %}
+          {% endif %}
+
+            services:
+              eurtisan-staging:
+                loadBalancer:
+                  servers:
+                    - url: "http://eurtisan-app-staging:3000"
+
+    - name: Remove old separate whitelist file (if any)
+      file:
+        path: /data/coolify/proxy/dynamic/eurtisan-staging-whitelist.yml
+        state: absent
+      ignore_errors: true
 
     - name: Restart app to pick up Traefik config
       command: "docker compose -f {{ compose_file }} up -d app"
