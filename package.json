@@ -10,7 +10,7 @@
     "build": "vite build && mkdir -p dist/server && cp instrument.server.mjs dist/server/instrument.server.mjs",
     "preview": "vite preview",
     "test": "vitest run",
-    "start": "node --import ./dist/server/instrument.server.mjs ./dist/server/server.js",
+    "start": "node --import ./dist/server/instrument.server.mjs ./dist/server/server-entry.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",

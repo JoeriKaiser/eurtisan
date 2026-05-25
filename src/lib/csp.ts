@@ -10,12 +10,16 @@
  *   require custom server wiring to pass the nonce into
  *   `router.options.ssr.nonce` on every request.
  *
- * - `style-src 'self'`
- *   All React inline `style` props have been migrated to Tailwind utility
- *   classes or external CSS. Dynamic widths (progress bars, distribution bars)
- *   use SVG `<rect>` elements with presentation attributes, which are not
- *   subject to `style-src`. The blur-up image placeholder uses an `<img>`
- *   element with Tailwind `blur-[20px]` and `scale-110` classes.
+ * - `style-src 'self' https://fonts.googleapis.com`
+ *   Stylesheets (via `<link>` or `@import`) are restricted to self-hosted and
+ *   Google Fonts stylesheets only.
+ *
+ * - `style-src-attr 'unsafe-inline'`
+ *   Inline `style` attributes are allowed. The app uses them for dynamic
+ *   runtime values that cannot be expressed via Tailwind utilities (e.g.
+ *   password strength bar width, `white-space: nowrap` for truncated text in
+ *   menus). These are safe because they are controlled by the application
+ *   code, not user-supplied values.
  *
  * - JSON-LD structured data (`<script type="application/ld+json">`) is
  *   non-executable; it relies on the same `'unsafe-inline'` fallback under
@@ -102,6 +106,7 @@ export function buildCspHeader(): string {
     'default-src': "'self'",
     'script-src': Array.from(scriptSrc).join(' '),
     'style-src': "'self' https://fonts.googleapis.com",
+    'style-src-attr': "'unsafe-inline'",
     'img-src': "'self' data:",
     'font-src': "'self' https://fonts.gstatic.com",
     'connect-src': Array.from(connectSrc).join(' '),

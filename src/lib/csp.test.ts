@@ -12,10 +12,14 @@ describe('buildCspHeader', () => {
     expect(csp).toContain("script-src 'self' 'unsafe-inline'")
   })
 
-  it('includes style-src with self and Google Fonts (no unsafe-inline)', () => {
+  it('includes style-src with self and Google Fonts', () => {
     const csp = buildCspHeader()
     expect(csp).toContain("style-src 'self' https://fonts.googleapis.com")
-    expect(csp).not.toContain("style-src 'self' 'unsafe-inline'")
+  })
+
+  it('includes style-src-attr with unsafe-inline for dynamic styles', () => {
+    const csp = buildCspHeader()
+    expect(csp).toContain("style-src-attr 'unsafe-inline'")
   })
 
   it('includes img-src with self and data only', () => {

@@ -33,5 +33,9 @@ COPY --from=builder /app/drizzle ./drizzle
 ENV NODE_ENV=production
 EXPOSE 3000
 
-# Uses Node.js runtime (available as symlink in oven/bun images)
-CMD ["node", "--import", "./dist/server/instrument.server.mjs", "./dist/server/server.js"]
+# Copy the custom server entry that wraps the TanStack Start handler
+# with static file serving and an HTTP listener.
+# Must be placed in dist/server/ alongside server.js for correct path resolution.
+COPY server-entry.mjs ./dist/server/server-entry.mjs
+
+CMD ["node", "--import", "./dist/server/instrument.server.mjs", "./dist/server/server-entry.mjs"]
