@@ -173,6 +173,37 @@ When `coexist_with_proxy: true`, the app binds to `127.0.0.1:3001` and is **not*
 
 See `docs/DEPLOYMENT.md` for full details.
 
+## Staging Seed Data
+
+After the initial deployment, inject permanent curated demo data. The seed is idempotent —
+safe to re-run; existing records are skipped.
+
+### Run on staging (via Coolify proxy)
+
+```bash
+ssh root@STAGING_IP 'cd /opt/eurtisan && docker compose -f docker-compose.staging.yml run --rm app bun run db:staging-seed'
+```
+
+### Run on production
+
+```bash
+ssh root@PROD_IP 'cd /opt/eurtisan && docker compose -f docker-compose.prod.yml run --rm app bun run db:staging-seed'
+```
+
+### What it creates
+
+| Resource | Details |
+|---|---|
+| Users | admin, moderator, creator, creator2, customer (@eurtisan.local) |
+| Shops | The Forge (active), Ceramic Dreams (draft), Nordic Knits (pending review), Rustic Woodworks (approved), Silver & Stone (active), Quick Print Co (suspended) |
+| Categories | 15 categories with 45 subcategories |
+| Products | 10 curated products across active shops |
+| Orders | 7 sample orders covering all statuses (delivered, completed, shipped, processing, paid, cancelled, disputed) |
+| Reviews | Product reviews on delivered/completed orders |
+| Disputes | 1 open dispute with message thread |
+
+The seed also populates the Meilisearch product index.
+
 ## Adding OpenTofu Later
 
 If you move to an API-driven cloud provider (Hetzner Cloud, AWS, DigitalOcean, etc.),

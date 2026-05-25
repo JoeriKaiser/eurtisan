@@ -97,6 +97,10 @@ db-push: up
 db-seed: up
 	docker compose exec app bun run src/db/seed.ts --clear
 
+# Staging / Production seed — idempotent, additive only. Safe to re-run.
+db-staging-seed: up
+	docker compose exec app bun run src/db/seed-staging.ts
+
 db-studio:
 	docker compose run --rm -p 4983:4983 app bun run db:studio
 

@@ -677,6 +677,23 @@ Shared, staging, review, and production environments must use migrations.
 
 Schema changes are not complete until:
 
+## Staging / Production Seed Data
+
+After initial deployment, inject permanent curated demo data with the idempotent staging seed:
+
+```bash
+# From the host machine
+ssh root@STAGING_IP 'cd /opt/eurtisan && docker compose -f docker-compose.staging.yml run --rm app bun run db:staging-seed'
+```
+
+The staging seed (`src/db/seed-staging.ts`) is:
+- **Idempotent** — safe to re-run; existing records are skipped
+- **Additive only** — never clears data
+- **Deterministic** — uses `faker.seed(42)` for reproducible output
+- **Curated** — realistic European artisan marketplace data with known test accounts
+
+Contrast with the local dev seed (`src/db/seed.ts`) which is bulk, random, and requires `--clear`.
+
 1. A migration is generated
 2. The migration is committed
 3. The migration has been tested
