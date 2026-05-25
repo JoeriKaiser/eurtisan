@@ -19,7 +19,8 @@ import { fileURLToPath } from 'node:url'
 
 const DIRNAME = fileURLToPath(new URL('.', import.meta.url))
 const CLIENT_DIR = join(DIRNAME, '../client')
-const SERVER_DIR = join(DIRNAME, 'server')
+// server.js is in the same directory as server-entry.mjs
+const SERVER_DIR = DIRNAME
 const PORT = parseInt(process.env.PORT ?? '3000', 10)
 const HOST = process.env.HOST ?? '0.0.0.0'
 
