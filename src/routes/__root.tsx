@@ -3,7 +3,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { RootComponent, RootDocument, RootError } from '#/route-components/__root'
 import { getCurrentUser } from '#/lib/server-auth'
 import { listCategories } from '#/lib/categories'
-import appCss from '../styles.css?url'
+import '../styles.css'
 import { m } from '#/paraglide/messages'
 
 interface MyRouterContext {
@@ -44,10 +44,6 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       {
         rel: 'stylesheet',
         href: 'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap',
-      },
-      {
-        rel: 'stylesheet',
-        href: appCss,
       },
     ],
   }),
