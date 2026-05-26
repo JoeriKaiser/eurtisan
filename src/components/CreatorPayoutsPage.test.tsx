@@ -71,11 +71,9 @@ vi.mock('#/paraglide/messages', () => ({
 }))
 
 import type { CreatorPayoutLine } from '#/lib/payouts'
-import {
-  CreatorPayoutsError,
-  CreatorPayoutsLoading,
-  CreatorPayoutsPage,
-} from './CreatorPayoutsPage'
+import { CreatorPayoutsPage } from './CreatorPayoutsPage'
+import { CreatorPayoutsLoading } from './CreatorPayoutsLoading'
+import { CreatorPayoutsError } from './CreatorPayoutsError'
 
 function makePayoutLine(overrides?: Partial<CreatorPayoutLine>): CreatorPayoutLine {
   return {

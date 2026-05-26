@@ -15,6 +15,7 @@ export interface AdminProductListItem {
   isActive: boolean
   shopId: string
   shopName: string
+  shopSlug: string
   categoryId: string | null
   categoryName: string | null
   createdAt: Date
@@ -86,6 +87,7 @@ export async function listAllProductsQuery(params: {
         isActive: product.isActive,
         shopId: product.shopId,
         shopName: shop.name,
+        shopSlug: shop.slug,
         categoryId: product.categoryId,
         categoryName: categories.name,
         createdAt: product.createdAt,

@@ -554,3 +554,27 @@ export const rateLimit = pgTable(
   },
   (table) => [index('rate_limit_key_idx').on(table.key)],
 )
+
+export const invoiceTypeEnum = pgEnum('invoice_type', ['platform_fee', 'customer'])
+
+export const invoices = pgTable(
+  'invoices',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    invoiceNumber: text('invoice_number').notNull().unique(),
+    type: invoiceTypeEnum('type').notNull(),
+    shopOrderId: uuid('shop_order_id')
+      .notNull()
+      .references(() => shopOrder.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    vatRateBasisPoints: integer('vat_rate_basis_points').notNull().default(0),
+    vatAmountCents: integer('vat_amount_cents').notNull().default(0),
+    subtotalCents: integer('subtotal_cents').notNull().default(0),
+    totalCents: integer('total_cents').notNull().default(0),
+    billingDetails: jsonb('billing_details').notNull(),
+  },
+  (table) => [
+    index('invoices_shop_order_id_idx').on(table.shopOrderId),
+    index('invoices_type_idx').on(table.type),
+  ],
+)

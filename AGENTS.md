@@ -341,6 +341,11 @@ db:5432
 
 - Production infrastructure must remain in European regions whenever possible.
 
+## Business Location & Entity Rules
+
+- Eurtisan is established in France (FR). All platform fee calculations, domestic/cross-border B2B/B2C rules, and legal disclosures are based on French tax regulations.
+- A detailed company profile, tax residency status, and VAT/Reverse Charge rules are documented in the ignored [BUSINESS.md](file:///home/joeri/Projects/Eurtisan/BUSINESS.md) file in the project root.
+
 ---
 
 # File & Naming Conventions

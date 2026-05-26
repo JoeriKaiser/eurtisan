@@ -14,8 +14,8 @@ export default function SearchResultCard({ product, imageUrl }: SearchResultCard
 
   return (
     <Link
-      to='/products/$productSlug'
-      params={{ productSlug: product.slug }}
+      to='/shops/$shopSlug/products/$productSlug'
+      params={{ shopSlug: product.shopSlug ?? 'unknown', productSlug: product.slug }}
       className={cn(
         'group flex items-start gap-3 rounded-xl border border-border-default bg-surface-default p-3 transition-colors',
         'hover:border-border-strong hover:bg-bg-inset',

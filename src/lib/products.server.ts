@@ -171,7 +171,10 @@ export async function listProductsQuery(
   }
 }
 
-export async function getProductBySlugQuery(slug: string): Promise<ProductDetail | null> {
+export async function getProductBySlugQuery(
+  shopSlug: string,
+  productSlug: string,
+): Promise<ProductDetail | null> {
   const [result] = await db
     .select({
       ...publicProductColumns,
@@ -182,7 +185,14 @@ export async function getProductBySlugQuery(slug: string): Promise<ProductDetail
     .from(product)
     .innerJoin(shop, eq(product.shopId, shop.id))
     .leftJoin(categories, eq(product.categoryId, categories.id))
-    .where(and(eq(product.slug, slug), eq(shop.isSuspended, false), eq(product.isActive, true)))
+    .where(
+      and(
+        eq(shop.slug, shopSlug),
+        eq(product.slug, productSlug),
+        eq(shop.isSuspended, false),
+        eq(product.isActive, true),
+      ),
+    )
     .limit(1)
 
   if (!result) return null

@@ -4,7 +4,6 @@ import type { NotificationItem, NotificationType } from '#/lib/notifications.ser
 import { useMarkAllNotificationsRead, useMarkNotificationRead } from '#/lib/notifications-hooks'
 import { m } from '#/paraglide/messages'
 import { Button } from './ui/button'
-import { Skeleton } from './ui/skeleton'
 
 const TYPE_ICONS: Record<NotificationType, React.ReactNode> = {
   order_placed: <Package size={18} aria-hidden='true' />,
@@ -48,7 +47,7 @@ function resolveDeepLink(item: NotificationItem): string | null {
     }
     case 'review_received': {
       const productSlug = data.productSlug ?? data.productId
-      if (productSlug) return `/products/${productSlug}`
+      if (productSlug) return `/shops/${data.shopSlug ?? 'unknown'}/products/${productSlug}`
       break
     }
     case 'dispute_opened': {
@@ -223,66 +222,6 @@ export function NotificationsPage({
             )}
           </>
         )}
-      </section>
-    </main>
-  )
-}
-
-export function NotificationsLoading() {
-  return (
-    <main className='page-wrap px-4 py-12'>
-      <section className='island-shell rounded-2xl p-6 sm:p-8'>
-        <Skeleton className='mb-6 h-8 w-48' />
-        <div className='space-y-3' aria-hidden='true'>
-          {
-            <>
-              <div className='flex items-start gap-3 rounded-xl border border-border-default p-4'>
-                <Skeleton className='size-9 rounded-full' />
-                <div className='flex-1 space-y-2'>
-                  <Skeleton className='h-4 w-3/4' />
-                  <Skeleton className='h-3 w-24' />
-                </div>
-              </div>
-              <div className='flex items-start gap-3 rounded-xl border border-border-default p-4'>
-                <Skeleton className='size-9 rounded-full' />
-                <div className='flex-1 space-y-2'>
-                  <Skeleton className='h-4 w-3/4' />
-                  <Skeleton className='h-3 w-24' />
-                </div>
-              </div>
-              <div className='flex items-start gap-3 rounded-xl border border-border-default p-4'>
-                <Skeleton className='size-9 rounded-full' />
-                <div className='flex-1 space-y-2'>
-                  <Skeleton className='h-4 w-3/4' />
-                  <Skeleton className='h-3 w-24' />
-                </div>
-              </div>
-              <div className='flex items-start gap-3 rounded-xl border border-border-default p-4'>
-                <Skeleton className='size-9 rounded-full' />
-                <div className='flex-1 space-y-2'>
-                  <Skeleton className='h-4 w-3/4' />
-                  <Skeleton className='h-3 w-24' />
-                </div>
-              </div>
-            </>
-          }
-        </div>
-      </section>
-    </main>
-  )
-}
-
-export function NotificationsError({ error }: { error: Error }) {
-  return (
-    <main className='page-wrap px-4 py-12'>
-      <section className='island-shell rounded-2xl p-6 sm:p-8'>
-        <h1 className='display-title mb-6 text-3xl font-semibold text-text-primary'>
-          {m.notifications_title()}
-        </h1>
-        <div className='py-12 text-center'>
-          <p className='text-text-secondary'>{m.notifications_error()}</p>
-          <p className='mt-2 text-sm text-text-muted'>{error.message}</p>
-        </div>
       </section>
     </main>
   )

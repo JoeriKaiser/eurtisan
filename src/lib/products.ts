@@ -99,7 +99,8 @@ export const listProducts = createServerFn({
   })
 
 export const getProductBySlugSchema = z.object({
-  slug: z.string().min(1),
+  shopSlug: z.string().min(1),
+  productSlug: z.string().min(1),
 })
 
 export const getProductBySlug = createServerFn({
@@ -108,7 +109,7 @@ export const getProductBySlug = createServerFn({
   .inputValidator(getProductBySlugSchema)
   .handler(async ({ data }) => {
     const { getProductBySlugQuery } = await import('./products.server')
-    const result = await getProductBySlugQuery(data.slug)
+    const result = await getProductBySlugQuery(data.shopSlug, data.productSlug)
 
     if (!result) {
       throw new Response(

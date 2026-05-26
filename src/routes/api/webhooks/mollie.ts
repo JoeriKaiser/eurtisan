@@ -127,6 +127,9 @@ export async function processMollieWebhook(
         .update(shopOrder)
         .set({ status: 'paid', updatedAt: new Date() })
         .where(eq(shopOrder.platformOrderId, order.id))
+
+      const { createInvoicesForPlatformOrder } = await import('#/lib/invoices.server')
+      await createInvoicesForPlatformOrder(order.id, tx)
     })
 
     logOrderPaid({ platformOrderId: order.id, totalCents, paymentStatus: 'paid' })

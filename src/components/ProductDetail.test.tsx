@@ -8,6 +8,23 @@ import ProductDetail from './ProductDetail'
 const mockRefreshCart = vi.fn()
 const mockAddToCart = vi.hoisted(() => vi.fn())
 
+vi.mock('@tanstack/react-router', () => ({
+  Link: (props: {
+    children: React.ReactNode
+    to: string
+    className?: string
+    [key: string]: unknown
+  }) => (
+    <a
+      href={props.to as string}
+      className={props.className}
+      aria-label={props['aria-label'] as string}
+    >
+      {props.children}
+    </a>
+  ),
+}))
+
 vi.mock('#/components/CartProvider', () => ({
   useCart: () => ({ cart: null, isLoading: false, refreshCart: mockRefreshCart }),
 }))

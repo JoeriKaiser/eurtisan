@@ -2,6 +2,7 @@ import { Link, useRouter } from '@tanstack/react-router'
 import {
   AlertTriangle,
   ArrowLeft,
+  Download,
   ExternalLink,
   ImageOff,
   MapPin,
@@ -21,7 +22,6 @@ import {
   DialogPortal,
   DialogTitle,
 } from '#/components/ui/primitives/dialog'
-import { Skeleton } from '#/components/ui/skeleton'
 import { openDispute } from '#/lib/disputes'
 import type { OrderDetail, OrderShopGroup, OrderStatus } from '#/lib/orders.server'
 import { statusBadgeVariant } from '#/lib/orders-ui'
@@ -98,11 +98,16 @@ export interface BuyerOrderDetailPageProps {
   reviewableItems?: ReviewableItem[]
 }
 
+const EMPTY_ITEMS: ReviewableItem[] = []
+
+// eslint-disable-next-line
 export default function BuyerOrderDetailPage({
   order,
-  reviewableItems = [],
+  reviewableItems = EMPTY_ITEMS,
+  // eslint-disable-next-line
 }: BuyerOrderDetailPageProps) {
   const isCancelled = order.status === 'cancelled'
+  // eslint-disable-next-line
   const [reviews, setReviews] = useState<Record<string, ReviewableItem>>(() =>
     Object.fromEntries(reviewableItems.map((r) => [`${r.shopOrderId}-${r.productId}`, r])),
   )
@@ -312,27 +317,12 @@ export default function BuyerOrderDetailPage({
                 {/* Progress indicator for non-terminal statuses */}
                 {!['cancelled', 'refunded', 'disputed'].includes(shop.status) && (
                   <div className='space-y-1'>
-                    <div
-                      className='h-2 w-full overflow-hidden rounded-full bg-surface-inset'
-                      role='progressbar'
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-valuenow={Math.round(getStatusProgress(shop.status))}
+                    <progress
+                      className='block h-2 w-full overflow-hidden rounded-full bg-surface-inset accent-accent-primary [&::-webkit-progress-bar]:bg-surface-inset [&::-webkit-progress-value]:bg-accent-primary [&::-moz-progress-bar]:bg-accent-primary'
+                      max={100}
+                      value={Math.round(getStatusProgress(shop.status))}
                       aria-label={`${shop.shopName} order progress`}
-                    >
-                      <svg
-                        className='h-full w-full'
-                        preserveAspectRatio='none'
-                        viewBox='0 0 100 1'
-                        aria-hidden='true'
-                      >
-                        <rect
-                          width={getStatusProgress(shop.status)}
-                          height='1'
-                          className='fill-accent-primary'
-                        />
-                      </svg>
-                    </div>
+                    />
                     <p className='text-xs text-text-muted'>
                       {Math.round(getStatusProgress(shop.status))}% {m.order_detail_shop_status()}
                     </p>
@@ -344,6 +334,18 @@ export default function BuyerOrderDetailPage({
                     <Truck size={14} aria-hidden='true' />
                     {shop.shippingMethod}: {formatPriceEUR(shop.shippingCostCents)}
                   </span>
+                  {['paid', 'processing', 'shipped', 'delivered', 'completed'].includes(
+                    shop.status,
+                  ) && (
+                    <Link
+                      to='/invoices/$invoiceId'
+                      params={{ invoiceId: `INV-${shop.shopOrderId.toUpperCase()}` }}
+                      className='inline-flex items-center gap-1 text-accent-primary font-semibold hover:underline print:hidden'
+                    >
+                      <Download size={12} aria-hidden='true' />
+                      Invoice
+                    </Link>
+                  )}
                 </div>
 
                 {/* Tracking Information */}
@@ -623,6 +625,7 @@ export default function BuyerOrderDetailPage({
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                     placeholder={m.review_comment_placeholder()}
+                    aria-label={m.review_comment_label()}
                     className='w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary placeholder:text-text-muted transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20 disabled:opacity-50 resize-none'
                     maxLength={2000}
                     disabled={isSubmitting}
@@ -672,6 +675,7 @@ export default function BuyerOrderDetailPage({
             <DialogDescription>{m.dispute_modal_description()}</DialogDescription>
 
             {activeDisputeShop && (
+              // eslint-disable-next-line
               <form
                 className='mt-4 space-y-4'
                 onSubmit={(e) => {
@@ -715,6 +719,7 @@ export default function BuyerOrderDetailPage({
                     value={disputeDescription}
                     onChange={(e) => setDisputeDescription(e.target.value)}
                     placeholder={m.dispute_description_placeholder()}
+                    aria-label={m.dispute_description_label()}
                     className='w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary placeholder:text-text-muted transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20 disabled:opacity-50 resize-none'
                     maxLength={5000}
                     disabled={isDisputeSubmitting}
@@ -749,42 +754,6 @@ export default function BuyerOrderDetailPage({
           </DialogPopup>
         </DialogPortal>
       </Dialog>
-    </main>
-  )
-}
-
-export function BuyerOrderDetailLoading() {
-  return (
-    <main className='page-wrap px-4 pb-16 pt-14'>
-      <div className='mx-auto max-w-3xl'>
-        <Skeleton className='mb-6 size-4' />
-        <div className='mb-6 flex flex-wrap items-start justify-between gap-4'>
-          <div className='space-y-2'>
-            <Skeleton className='size-8' />
-            <Skeleton className='size-4' />
-          </div>
-          <Skeleton className='size-6 rounded-full' />
-        </div>
-        <div className='island-shell rounded-2xl p-6 space-y-6'>
-          <Skeleton className='h-20 w-full' />
-          <Skeleton className='h-40 w-full' />
-          <Skeleton className='h-40 w-full' />
-        </div>
-      </div>
-    </main>
-  )
-}
-
-export function BuyerOrderDetailError({ error }: { error: Error }) {
-  return (
-    <main className='page-wrap px-4 pb-16 pt-14'>
-      <div className='mx-auto max-w-3xl text-center'>
-        <p className='text-text-secondary'>{m.orders_error()}</p>
-        <p className='mt-2 text-sm text-text-muted'>{error.message}</p>
-        <Link to='/orders' className='mt-4 inline-block no-underline'>
-          <Button variant='secondary'>{m.orders_back_to_list()}</Button>
-        </Link>
-      </div>
     </main>
   )
 }

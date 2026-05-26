@@ -106,7 +106,7 @@ describe('OrderSuccessPage', () => {
 
   it('renders shipping method and cost', () => {
     render(<OrderSuccessPage order={makeOrder('paid')} />)
-    expect(screen.getByText(/standard — €5,00/i)).toBeDefined()
+    expect(screen.getByText(/standard:\s*€5,00/i)).toBeDefined()
   })
 
   it('renders continue shopping button', () => {

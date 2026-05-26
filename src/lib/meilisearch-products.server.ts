@@ -15,6 +15,7 @@ export interface MeilisearchProductDocument {
   id: string
   name: string
   description: string | null
+  slug: string
   priceCents: number
   isActive: boolean
   shopId: string
@@ -36,6 +37,19 @@ export async function isMeilisearchHealthy(): Promise<boolean> {
 
 export async function configureProductsIndex(): Promise<void> {
   if (!meilisearch) return
+
+  // Explicitly create/update the index with the primary key 'id' to prevent
+  // auto-inference failures when multiple fields in the document end with 'id'.
+  try {
+    await meilisearch.createIndex(PRODUCTS_INDEX, { primaryKey: 'id' })
+  } catch {
+    try {
+      await meilisearch.index(PRODUCTS_INDEX).update({ primaryKey: 'id' })
+    } catch (err) {
+      console.error('Failed to set Meilisearch index primary key:', err)
+    }
+  }
+
   const index = meilisearch.index(PRODUCTS_INDEX)
   await index.updateSettings({
     searchableAttributes: ['name', 'description'],
@@ -85,6 +99,7 @@ export async function syncProductToMeilisearch(productData: {
       id: productData.id,
       name: productData.name,
       description: productData.description,
+      slug: productData.slug,
       priceCents: productData.priceCents,
       isActive: productData.isActive,
       shopId: productData.shopId,
@@ -94,7 +109,7 @@ export async function syncProductToMeilisearch(productData: {
       createdAt: productData.createdAt.toISOString(),
     }
 
-    await meilisearch.index(PRODUCTS_INDEX).addDocuments([doc])
+    await meilisearch.index(PRODUCTS_INDEX).addDocuments([doc], { primaryKey: 'id' })
   } catch (err) {
     console.error('Failed to sync product to Meilisearch:', err)
   }
@@ -117,6 +132,15 @@ export async function removeShopProductsFromMeilisearch(shopId: string): Promise
     })
   } catch (err) {
     console.error('Failed to remove shop products from Meilisearch:', err)
+  }
+}
+
+export async function clearProductsIndex(): Promise<void> {
+  if (!meilisearch) return
+  try {
+    await meilisearch.index(PRODUCTS_INDEX).deleteAllDocuments()
+  } catch (err) {
+    console.error('Failed to clear Meilisearch products index:', err)
   }
 }
 
@@ -143,6 +167,7 @@ export async function populateProductsIndex(): Promise<{ synced: number; errors:
         id: prod.id,
         name: prod.name,
         description: prod.description,
+        slug: prod.slug,
         priceCents: prod.priceCents,
         isActive: prod.isActive,
         shopId: prod.shopId,
@@ -160,7 +185,7 @@ export async function populateProductsIndex(): Promise<{ synced: number; errors:
     const BATCH_SIZE = 500
     for (let i = 0; i < docs.length; i += BATCH_SIZE) {
       const batch = docs.slice(i, i + BATCH_SIZE)
-      await meilisearch.index(PRODUCTS_INDEX).addDocuments(batch)
+      await meilisearch.index(PRODUCTS_INDEX).addDocuments(batch, { primaryKey: 'id' })
     }
   }
 

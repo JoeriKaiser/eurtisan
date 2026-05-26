@@ -207,7 +207,7 @@ describe('generateSitemapEntries', () => {
     })
 
     const entries = await generateSitemapEntries()
-    const inactiveProductUrl = entries.find((e) => e.loc.includes('/products/inactive-product'))
+    const inactiveProductUrl = entries.find((e) => e.loc.includes('products/inactive-product'))
 
     expect(inactiveProductUrl).toBeUndefined()
   })
@@ -269,7 +269,7 @@ describe('generateSitemapEntries', () => {
     })
 
     const entries = await generateSitemapEntries()
-    const productUrl = entries.find((e) => e.loc.includes('/products/active-product'))
+    const productUrl = entries.find((e) => e.loc.includes('products/active-product'))
 
     expect(productUrl).toBeDefined()
     expect(productUrl?.changefreq).toBe('weekly')
@@ -354,7 +354,7 @@ describe('generateSitemapEntries', () => {
     })
 
     const entries = await generateSitemapEntries()
-    const productUrl = entries.find((e) => e.loc.includes('/products/product-in-suspended-shop'))
+    const productUrl = entries.find((e) => e.loc.includes('products/product-in-suspended-shop'))
 
     expect(productUrl).toBeUndefined()
   })

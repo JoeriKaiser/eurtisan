@@ -15,8 +15,8 @@ export default function ProductCard({ product, imageUrl }: ProductCardProps) {
 
   return (
     <Link
-      to='/products/$productSlug'
-      params={{ productSlug: product.slug }}
+      to='/shops/$shopSlug/products/$productSlug'
+      params={{ shopSlug: product.shopSlug ?? 'unknown', productSlug: product.slug }}
       className={`island-shell group relative flex flex-col overflow-hidden rounded-2xl transition-all duration-fast ease-out hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md ${isOutOfStock ? 'opacity-75' : ''}`}
       aria-label={m.product_card_label({ name: product.name })}
     >

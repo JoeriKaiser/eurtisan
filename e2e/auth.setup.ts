@@ -36,6 +36,13 @@ setup('authenticate as creator', async ({ page }) => {
     },
   ])
 
+  // Set desktop viewport size to ensure header user name is visible
+  await page.setViewportSize({ width: 1440, height: 900 })
+
+  // Listen for console logs and errors from the browser page
+  page.on('console', msg => console.log('PAGE LOG:', msg.text()))
+  page.on('pageerror', err => console.log('PAGE ERROR:', err.message))
+
   // Navigate to home page with the authenticated context
   await page.goto('/')
 

@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import z from 'zod'
-import { CreatorPayoutsError, CreatorPayoutsLoading } from '#/components/CreatorPayoutsPage'
+import { CreatorPayoutsLoading } from '#/components/CreatorPayoutsLoading'
+import { CreatorPayoutsError } from '#/components/CreatorPayoutsError'
 import { CreatorPayoutsRouteComponent } from '#/route-components/creator/payouts'
 import { getCreatorShops } from '#/lib/creator-dashboard'
 import { listCreatorPayouts } from '#/lib/payouts'

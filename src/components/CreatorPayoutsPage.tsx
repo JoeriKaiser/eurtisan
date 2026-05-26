@@ -1,4 +1,4 @@
-import { useRouter } from '@tanstack/react-router'
+import { useRouter, Link } from '@tanstack/react-router'
 import { AlertTriangle, Banknote, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { type CreatorPayoutLine, getMollieConnectUrl, disconnectMollie } from '#/lib/payouts'
@@ -7,7 +7,6 @@ import { m } from '#/paraglide/messages'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
-import { Skeleton } from './ui/skeleton'
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   year: 'numeric',
@@ -46,6 +45,7 @@ export interface CreatorPayoutsPageProps {
   initialStatus: 'all' | 'pending' | 'processing' | 'sent'
 }
 
+// eslint-disable-next-line
 export function CreatorPayoutsPage({
   shops,
   payouts: initialPayouts,
@@ -376,6 +376,7 @@ export function CreatorPayoutsPage({
                 <th className='pb-3 font-medium text-text-secondary'>
                   {m.creator_payouts_col_status()}
                 </th>
+                <th className='pb-3 text-right font-medium text-text-secondary'>Invoices</th>
               </tr>
             </thead>
             <tbody>
@@ -420,6 +421,28 @@ export function CreatorPayoutsPage({
                     </td>
                     <td className='py-3'>
                       <Badge variant={statusVariant}>{statusLabel}</Badge>
+                    </td>
+                    <td className='py-3 text-right space-x-2'>
+                      {!payout.isRefund ? (
+                        <>
+                          <Link
+                            to='/invoices/$invoiceId'
+                            params={{ invoiceId: `INV-${payout.orderId.toUpperCase()}` }}
+                            className='inline-flex items-center gap-1 rounded-lg border border-border-default bg-surface-default px-2.5 py-1 text-xs font-medium text-text-secondary transition hover:text-text-primary hover:border-border-strong print:hidden'
+                          >
+                            Customer
+                          </Link>
+                          <Link
+                            to='/invoices/$invoiceId'
+                            params={{ invoiceId: `INV-FEE-${payout.orderId.toUpperCase()}` }}
+                            className='inline-flex items-center gap-1 rounded-lg border border-border-default bg-surface-default px-2.5 py-1 text-xs font-medium text-text-secondary transition hover:text-text-primary hover:border-border-strong print:hidden'
+                          >
+                            Platform Fee
+                          </Link>
+                        </>
+                      ) : (
+                        <span className='text-xs text-text-muted font-medium'>-</span>
+                      )}
                     </td>
                   </tr>
                 )
@@ -488,115 +511,6 @@ export function CreatorPayoutsPage({
             </nav>
           </div>
         )}
-      </section>
-    </main>
-  )
-}
-
-/* -------------------------------------------------------------------------- */
-/*                                Loading State                               */
-/* -------------------------------------------------------------------------- */
-
-export function CreatorPayoutsLoading() {
-  return (
-    <main className='page-wrap px-4 py-12'>
-      <section className='island-shell rounded-2xl p-6 sm:p-8'>
-        <Skeleton className='mb-2 h-9 w-48' />
-        <Skeleton className='mb-6 h-4 w-72' />
-
-        <Skeleton className='mb-6 h-10 w-full sm:w-64' />
-
-        {/* Summary card skeletons */}
-        <div className='mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2'>
-          <Card>
-            <CardHeader className='pb-2'>
-              <Skeleton className='h-4 w-24' />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className='h-8 w-24' />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className='pb-2'>
-              <Skeleton className='h-4 w-24' />
-            </CardHeader>
-            <CardContent>
-              <Skeleton className='h-8 w-24' />
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Filter tabs skeleton */}
-        <Skeleton className='mb-6 h-10 w-80' />
-
-        {/* Table skeleton */}
-        <div className='overflow-x-auto'>
-          <table className='w-full text-left text-sm' aria-hidden='true'>
-            <thead>
-              <tr className='border-b border-border-default'>
-                <th className='pb-3 pr-4'>
-                  <Skeleton className='h-4 w-20' />
-                </th>
-                <th className='pb-3 pr-4'>
-                  <Skeleton className='h-4 w-16' />
-                </th>
-                <th className='pb-3 pr-4'>
-                  <Skeleton className='h-4 w-16 ml-auto' />
-                </th>
-                <th className='pb-3'>
-                  <Skeleton className='h-4 w-20' />
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {Array.from({ length: 5 }).map((_, i) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton rows
-                <tr key={i} className='border-b border-border-subtle'>
-                  <td className='py-3 pr-4'>
-                    <Skeleton className='h-4 w-20 font-mono' />
-                  </td>
-                  <td className='py-3 pr-4'>
-                    <Skeleton className='h-4 w-24' />
-                  </td>
-                  <td className='py-3 pr-4'>
-                    <Skeleton className='h-4 w-16 ml-auto' />
-                  </td>
-                  <td className='py-3'>
-                    <Skeleton className='h-5 w-20 rounded-full' />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </main>
-  )
-}
-
-/* -------------------------------------------------------------------------- */
-/*                                 Error State                                */
-/* -------------------------------------------------------------------------- */
-
-export function CreatorPayoutsError({ error }: { error: Error }) {
-  const router = useRouter()
-
-  return (
-    <main className='page-wrap px-4 py-12'>
-      <section className='island-shell rounded-2xl p-6 sm:p-8'>
-        <h1 className='display-title mb-6 text-3xl font-semibold text-text-primary'>
-          {m.creator_payouts_title()}
-        </h1>
-        <div className='py-12 text-center'>
-          <AlertTriangle size={48} className='mx-auto mb-4 text-text-muted' aria-hidden='true' />
-          <p className='text-text-secondary'>{m.creator_payouts_error_load()}</p>
-          <p className='mt-2 text-sm text-text-muted'>{error.message}</p>
-          <div className='mt-6'>
-            <Button variant='secondary' onClick={() => void router.invalidate()}>
-              {m.creator_error_retry()}
-            </Button>
-          </div>
-        </div>
       </section>
     </main>
   )

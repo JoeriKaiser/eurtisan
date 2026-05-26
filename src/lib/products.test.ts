@@ -324,7 +324,7 @@ describe('getProductBySlugQuery', () => {
       },
     ])
 
-    const result = await getProductBySlugQuery('vase')
+    const result = await getProductBySlugQuery('test-shop', 'vase')
     expect(result).not.toBeNull()
     expect(result?.name).toBe('Vase')
     expect(result?.shopName).toBe('Test Shop')
@@ -337,7 +337,7 @@ describe('getProductBySlugQuery', () => {
   })
 
   it('returns null for nonexistent product', async () => {
-    const result = await getProductBySlugQuery('nonexistent-slug')
+    const result = await getProductBySlugQuery('test-shop', 'nonexistent-slug')
     expect(result).toBeNull()
   })
 
@@ -371,7 +371,7 @@ describe('getProductBySlugQuery', () => {
       shopId: s.id,
     })
 
-    const result = await getProductBySlugQuery('vase')
+    const result = await getProductBySlugQuery('test-shop', 'vase')
     expect(result).toBeNull()
   })
 
@@ -405,7 +405,7 @@ describe('getProductBySlugQuery', () => {
       isActive: false,
     })
 
-    const result = await getProductBySlugQuery('vase')
+    const result = await getProductBySlugQuery('test-shop', 'vase')
     expect(result).toBeNull()
   })
 })

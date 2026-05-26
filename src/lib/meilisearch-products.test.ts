@@ -31,6 +31,8 @@ const {
   mockDeleteDocuments,
   mockSearch,
   mockHealth,
+  mockCreateIndex,
+  mockUpdateIndex,
 } = vi.hoisted(() => ({
   mockAddDocuments: vi.fn().mockResolvedValue(undefined),
   mockUpdateSettings: vi.fn().mockResolvedValue(undefined),
@@ -38,16 +40,20 @@ const {
   mockDeleteDocuments: vi.fn().mockResolvedValue(undefined),
   mockSearch: vi.fn().mockResolvedValue({ hits: [], estimatedTotalHits: 0 }),
   mockHealth: vi.fn().mockResolvedValue({ status: 'available' }),
+  mockCreateIndex: vi.fn().mockResolvedValue(undefined),
+  mockUpdateIndex: vi.fn().mockResolvedValue(undefined),
 }))
 
 vi.mock('./meilisearch.server', () => ({
   meilisearch: {
+    createIndex: mockCreateIndex,
     index: vi.fn(() => ({
       addDocuments: mockAddDocuments,
       updateSettings: mockUpdateSettings,
       deleteDocument: mockDeleteDocument,
       deleteDocuments: mockDeleteDocuments,
       search: mockSearch,
+      update: mockUpdateIndex,
     })),
     health: mockHealth,
   },
@@ -71,6 +77,8 @@ beforeEach(async () => {
   mockDeleteDocuments.mockClear()
   mockSearch.mockClear()
   mockHealth.mockClear()
+  mockCreateIndex.mockClear()
+  mockUpdateIndex.mockClear()
   mockHealth.mockResolvedValue({ status: 'available' })
 })
 
@@ -83,6 +91,7 @@ describe('configureProductsIndex', () => {
     const { meilisearch } = await import('./meilisearch.server')
     await configureProductsIndex()
 
+    expect(meilisearch?.createIndex).toHaveBeenCalledWith(PRODUCTS_INDEX, { primaryKey: 'id' })
     expect(meilisearch?.index).toHaveBeenCalledWith(PRODUCTS_INDEX)
     const index = meilisearch?.index(PRODUCTS_INDEX)
     expect(index?.updateSettings).toHaveBeenCalledWith({
@@ -97,6 +106,17 @@ describe('configureProductsIndex', () => {
       ],
       sortableAttributes: ['priceCents', 'createdAt'],
     })
+  })
+
+  it('attempts to update index primary key if creation fails', async () => {
+    const { meilisearch } = await import('./meilisearch.server')
+    mockCreateIndex.mockRejectedValueOnce(new Error('Index already exists'))
+
+    await configureProductsIndex()
+
+    expect(meilisearch?.createIndex).toHaveBeenCalledWith(PRODUCTS_INDEX, { primaryKey: 'id' })
+    const index = meilisearch?.index(PRODUCTS_INDEX)
+    expect(index?.update).toHaveBeenCalledWith({ primaryKey: 'id' })
   })
 })
 
@@ -160,6 +180,7 @@ describe('syncProductToMeilisearch', () => {
     const doc = mockAddDocuments.mock.calls[0][0][0]
     expect(doc.id).toBe('prod-1')
     expect(doc.name).toBe('Vase')
+    expect(doc.slug).toBe('vase')
     expect(doc.priceCents).toBe(2999)
     expect(doc.isActive).toBe(true)
     expect(doc.shopSlug).toBe('test-shop')
@@ -286,6 +307,7 @@ describe('populateProductsIndex', () => {
     const docs = mockAddDocuments.mock.calls[0][0]
     expect(docs).toHaveLength(1)
     expect(docs[0].id).toBe('prod-1')
+    expect(docs[0].slug).toBe('vase')
   })
 })
 

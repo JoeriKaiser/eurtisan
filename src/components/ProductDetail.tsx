@@ -8,6 +8,7 @@ import {
   ShoppingCart,
   Store,
 } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
 import { useRef, useState } from 'react'
 import { useCart } from '#/components/CartProvider'
 import ProductReviews from '#/components/ProductReviews'
@@ -32,7 +33,8 @@ export default function ProductDetail({ product }: ProductDetailProps) {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isOutOfStock = product.stockCount <= 0
-  const selectedImage = product.images[selectedImageIndex]
+  const images = product.images ?? []
+  const selectedImage = images[selectedImageIndex]
 
   const handleAddToCart = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -95,6 +97,7 @@ export default function ProductDetail({ product }: ProductDetailProps) {
                 imgClassName='h-full w-full object-cover'
               />
             ) : (
+              // eslint-disable-next-line
               <div
                 className='flex h-full w-full flex-col items-center justify-center gap-2 text-[var(--sea-ink-soft)]'
                 role='img'
@@ -120,13 +123,13 @@ export default function ProductDetail({ product }: ProductDetailProps) {
           </div>
 
           {/* Thumbnails */}
-          {product.images.length > 1 && (
+          {images.length > 1 && (
             <div
               className='mt-4 flex gap-2 overflow-x-auto pb-1'
               role='tablist'
               aria-label={m.product_gallery_label()}
             >
-              {product.images.map((image, index) => (
+              {images.map((image, index) => (
                 <button
                   key={image.id}
                   type='button'
@@ -134,7 +137,7 @@ export default function ProductDetail({ product }: ProductDetailProps) {
                   aria-selected={index === selectedImageIndex}
                   aria-label={m.product_gallery_image({
                     index: String(index + 1),
-                    total: String(product.images.length),
+                    total: String(images.length),
                   })}
                   onClick={() => setSelectedImageIndex(index)}
                   className={`relative size-16 flex-shrink-0 overflow-hidden rounded-lg border-2 transition ${
@@ -218,6 +221,7 @@ export default function ProductDetail({ product }: ProductDetailProps) {
                     value={quantity}
                     className='w-10 border-0 bg-transparent p-0 text-center text-sm font-medium text-[var(--sea-ink)] focus:outline-none focus:ring-0'
                     aria-live='polite'
+                    aria-label={m.product_quantity()}
                   />
                   <button
                     type='button'
@@ -281,11 +285,14 @@ export default function ProductDetail({ product }: ProductDetailProps) {
                     {product.shopDescription}
                   </p>
                 )}
-                {/* Public shop page route does not yet exist */}
                 {product.shopSlug && (
-                  <span className='mt-2 inline-block text-sm text-[var(--sea-ink-soft)]'>
+                  <Link
+                    to='/shops/$shopSlug'
+                    params={{ shopSlug: product.shopSlug }}
+                    className='mt-2 inline-block text-sm font-medium text-[var(--sea-ink-soft)] no-underline hover:text-[var(--sea-ink)] hover:underline transition-colors'
+                  >
                     {m.product_visit_shop()}
-                  </span>
+                  </Link>
                 )}
               </div>
             </div>

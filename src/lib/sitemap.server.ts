@@ -137,7 +137,7 @@ export async function generateSitemapEntries(): Promise<SitemapEntry[]> {
 
   for (const p of activeProducts) {
     entries.push({
-      loc: `${BASE_URL}/products/${p.slug}`,
+      loc: `${BASE_URL}/shops/${p.shopSlug}/products/${p.slug}`,
       lastmod: p.updatedAt ? formatDate(p.updatedAt) : nowStr,
       changefreq: 'weekly',
       priority: '0.6',

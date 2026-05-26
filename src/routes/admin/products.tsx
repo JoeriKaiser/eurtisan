@@ -3,11 +3,9 @@ import z from 'zod'
 import { listAllProducts } from '#/lib/admin-products'
 import { listCategories } from '#/lib/categories'
 import { listAllShops } from '#/lib/shop-moderation'
-import {
-  AdminProductsPage,
-  AdminProductsPending,
-  AdminProductsError,
-} from '#/route-components/admin/products'
+import { AdminProductsPage } from '#/route-components/admin/products'
+import { AdminProductsPending } from '#/route-components/admin/AdminProductsPending'
+import { AdminProductsError } from '#/route-components/admin/AdminProductsError'
 
 const productsSearchSchema = z.object({
   query: z.string().optional().default(''),

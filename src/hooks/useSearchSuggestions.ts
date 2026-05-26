@@ -41,10 +41,16 @@ async function fetchSuggestions(query: string): Promise<SearchSuggestion[]> {
       const doc = hit as Record<string, unknown>
       const name = String(doc.name ?? '')
       const slug = String(doc.slug ?? '')
+      const shopSlug = doc.shopSlug ? String(doc.shopSlug) : 'unknown'
       const categorySlug = doc.categorySlug ? String(doc.categorySlug) : null
 
       if (name && !seenLabels.has(name.toLowerCase())) {
-        suggestions.push({ type: 'product', label: name, href: `/products/${slug}`, slug })
+        suggestions.push({
+          type: 'product',
+          label: name,
+          href: `/shops/${shopSlug}/products/${slug}`,
+          slug,
+        })
         seenLabels.add(name.toLowerCase())
       }
 

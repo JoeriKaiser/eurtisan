@@ -22,6 +22,7 @@ import { sql } from 'drizzle-orm'
 import { pool } from '../db.ts'
 import { db } from './index.ts'
 import {
+  clearProductsIndex,
   configureProductsIndex,
   populateProductsIndex,
 } from '../lib/meilisearch-products.server.ts'
@@ -171,6 +172,7 @@ async function clearAll() {
   }
   await rm(PRODUCTS_UPLOAD_DIR, { recursive: true, force: true })
   await rm(SHOPS_UPLOAD_DIR, { recursive: true, force: true })
+  await clearProductsIndex()
   console.log('All tables cleared.')
 }
 

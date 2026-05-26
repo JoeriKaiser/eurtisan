@@ -242,6 +242,8 @@ export async function createReviewQuery(
         productId,
         reviewId: created.id,
         productName: productRecord[0]?.name ?? '',
+        productSlug: productRecord[0]?.slug ?? '',
+        shopSlug: shopRecord[0]?.slug ?? '',
       })
     }
   } catch {

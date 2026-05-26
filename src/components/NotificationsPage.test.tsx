@@ -3,7 +3,9 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NotificationItem } from '#/lib/notifications.server'
-import { NotificationsError, NotificationsLoading, NotificationsPage } from './NotificationsPage'
+import { NotificationsPage } from './NotificationsPage'
+import { NotificationsLoading } from './NotificationsLoading'
+import { NotificationsError } from './NotificationsError'
 
 const mockNavigate = vi.hoisted(() => vi.fn())
 const mockMutateAsync = vi.hoisted(() => vi.fn())

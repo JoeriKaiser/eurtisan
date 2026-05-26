@@ -14,7 +14,6 @@ import {
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
-import { Skeleton } from '#/components/ui/skeleton'
 import type { PaginatedProducts } from '#/lib/admin-products'
 import { toggleProductActive } from '#/lib/admin-products'
 import type { CategoryTreeNode } from '#/lib/categories'
@@ -41,6 +40,7 @@ function formatPrice(cents: number): string {
 /*                               Main Component                               */
 /* -------------------------------------------------------------------------- */
 
+// eslint-disable-next-line
 export function AdminProductsPage() {
   const loaderData = useLoaderData({ from: '/admin/products' })
   const navigate = useNavigate()
@@ -117,15 +117,17 @@ export function AdminProductsPage() {
     setBulk((prev) => ({ ...prev, progress: { current: 0, total: ids.length } }))
     setStatus((prev) => ({ ...prev, actionError: null }))
     let processed = 0
-    for (const productId of ids) {
-      try {
-        await toggleProductActive({ data: { productId } })
-        processed++
-        setBulk((prev) => ({ ...prev, progress: { current: processed, total: ids.length } }))
-      } catch {
-        // Continue with remaining items
-      }
-    }
+    await Promise.all(
+      ids.map(async (productId) => {
+        try {
+          await toggleProductActive({ data: { productId } })
+          processed++
+          setBulk((prev) => ({ ...prev, progress: { current: processed, total: ids.length } }))
+        } catch {
+          // Continue with remaining items
+        }
+      }),
+    )
     setBulk({ selectedProductIds: new Set(), progress: null })
     navigateWithParams({ page: 1 })
   }, [bulk.selectedProductIds, navigateWithParams])
@@ -342,6 +344,7 @@ export function AdminProductsPage() {
                 page: 1,
               })
             }
+            aria-label={m.admin_products_filter_price_min()}
             className='size-9 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
           />
         </div>
@@ -360,6 +363,7 @@ export function AdminProductsPage() {
                 page: 1,
               })
             }
+            aria-label={m.admin_products_filter_price_max()}
             className='size-9 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
           />
         </div>
@@ -506,7 +510,7 @@ export function AdminProductsPage() {
                   <td className='py-3 text-right whitespace-nowrap'>
                     <div className='flex items-center justify-end gap-2'>
                       <a
-                        href={`/products/${p.slug}`}
+                        href={`/shops/${p.shopSlug}/products/${p.slug}`}
                         target='_blank'
                         rel='noopener noreferrer'
                         className='inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-bg-inset hover:text-text-primary transition-colors'
@@ -585,46 +589,6 @@ export function AdminProductsPage() {
           )}
         </div>
       )}
-    </div>
-  )
-}
-
-/* -------------------------------------------------------------------------- */
-/*                                Pending / Error                             */
-/* -------------------------------------------------------------------------- */
-
-export function AdminProductsPending() {
-  return (
-    <div className='space-y-6'>
-      <div>
-        <Skeleton className='size-10' />
-        <Skeleton className='mt-2 size-5' />
-      </div>
-      <div className='flex gap-2'>
-        <Skeleton className='h-10 flex-1' />
-        <Skeleton className='size-10' />
-      </div>
-      <Skeleton className='h-64 w-full' />
-    </div>
-  )
-}
-
-export function AdminProductsError({ error }: { error: Error }) {
-  return (
-    <div className='space-y-6'>
-      <div>
-        <h1 className='display-title text-3xl font-semibold text-text-primary'>
-          {m.admin_products_title()}
-        </h1>
-        <p className='mt-1 text-text-secondary'>{m.admin_products_description()}</p>
-      </div>
-      <div
-        role='alert'
-        className='island-shell rounded-xl border border-error/30 bg-error-subtle p-4 text-sm text-error'
-      >
-        <AlertTriangle size={16} className='mr-2 inline-block' aria-hidden='true' />
-        {error.message}
-      </div>
     </div>
   )
 }

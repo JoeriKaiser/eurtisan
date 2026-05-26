@@ -272,18 +272,24 @@ function ShopGroup({
 
       {/* Items */}
       <ul className='divide-y divide-border-subtle'>
-        {shop.items.map((item) => (
-          <CartItemRow
-            key={item.id}
-            item={item}
-            isUpdating={updatingItemId === item.productId}
-            isRemoving={removingItemId === item.productId}
-            hasUpdateError={updateErrorItemId === item.productId}
-            hasRemoveError={removeErrorItemId === item.productId}
-            onUpdateQuantity={onUpdateQuantity}
-            onRequestRemove={onRequestRemove}
-          />
-        ))}
+        {shop.items.map((item) => {
+          let status: 'idle' | 'updating' | 'removing' | 'update-error' | 'remove-error' = 'idle'
+          if (updatingItemId === item.productId) status = 'updating'
+          else if (removingItemId === item.productId) status = 'removing'
+          else if (updateErrorItemId === item.productId) status = 'update-error'
+          else if (removeErrorItemId === item.productId) status = 'remove-error'
+
+          return (
+            <CartItemRow
+              key={item.id}
+              item={item}
+              shopSlug={shop.shopSlug}
+              status={status}
+              onUpdateQuantity={onUpdateQuantity}
+              onRequestRemove={onRequestRemove}
+            />
+          )
+        })}
       </ul>
 
       {shopHasUnavailable && (
@@ -298,24 +304,24 @@ function ShopGroup({
 
 interface CartItemRowProps {
   item: CartItemDetail
-  isUpdating: boolean
-  isRemoving: boolean
-  hasUpdateError: boolean
-  hasRemoveError: boolean
+  shopSlug: string | null
+  status: 'idle' | 'updating' | 'removing' | 'update-error' | 'remove-error'
   onUpdateQuantity: (productId: string, quantity: number) => Promise<void>
   onRequestRemove: (item: CartItemDetail) => void
 }
 
 function CartItemRow({
   item,
-  isUpdating,
-  isRemoving,
-  hasUpdateError,
-  hasRemoveError,
+  shopSlug,
+  status,
   onUpdateQuantity,
   onRequestRemove,
 }: CartItemRowProps) {
   const product = item.product
+  const isUpdating = status === 'updating'
+  const isRemoving = status === 'removing'
+  const hasUpdateError = status === 'update-error'
+  const hasRemoveError = status === 'remove-error'
 
   return (
     <li className='flex gap-4 py-4 first:pt-0 last:pb-0'>
@@ -348,8 +354,8 @@ function CartItemRow({
               </p>
             ) : (
               <Link
-                to='/products/$productSlug'
-                params={{ productSlug: product.slug }}
+                to='/shops/$shopSlug/products/$productSlug'
+                params={{ shopSlug: shopSlug ?? 'unknown', productSlug: product.slug }}
                 className='text-sm font-semibold text-text-primary no-underline transition-colors hover:text-accent-primary'
               >
                 {product.name}

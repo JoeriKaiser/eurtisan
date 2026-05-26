@@ -1,5 +1,6 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
-import { BuyerOrderDetailError, BuyerOrderDetailLoading } from '#/components/BuyerOrderDetailPage'
+import { BuyerOrderDetailLoading } from '#/components/BuyerOrderDetailLoading'
+import { BuyerOrderDetailError } from '#/components/BuyerOrderDetailError'
 import { OrderDetailRouteComponent } from '#/route-components/orders.$platformOrderId'
 import { getBuyerOrderDetail } from '#/lib/orders'
 import { getReviewableItems } from '#/lib/reviews'

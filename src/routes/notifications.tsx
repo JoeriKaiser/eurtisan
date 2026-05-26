@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import z from 'zod'
-import { NotificationsError, NotificationsLoading } from '#/components/NotificationsPage'
+import { NotificationsLoading } from '#/components/NotificationsLoading'
+import { NotificationsError } from '#/components/NotificationsError'
 import { NotificationsRouteComponent } from '#/route-components/notifications'
 import { getNotifications } from '#/lib/notifications'
 import { guardAuth } from '#/lib/route-guards'
