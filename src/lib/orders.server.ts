@@ -278,6 +278,7 @@ export async function cancelOrderQuery(
       .select()
       .from(platformOrder)
       .where(eq(platformOrder.id, platformOrderId))
+      .for('update')
       .limit(1)
 
     if (!order || order.userId !== userId) {

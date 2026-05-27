@@ -112,7 +112,25 @@ export async function processMollieWebhook(
 
   if (paymentStatus === 'paid') {
     let totalCents = 0
-    await database.transaction(async (tx) => {
+    const response = await database.transaction(async (tx) => {
+      // Re-fetch and lock the platform order row to prevent race conditions
+      const [lockedOrder] = await tx
+        .select({
+          id: platformOrder.id,
+          status: platformOrder.status,
+        })
+        .from(platformOrder)
+        .where(eq(platformOrder.id, order.id))
+        .for('update')
+        .limit(1)
+
+      if (!lockedOrder || lockedOrder.status !== 'pending_payment') {
+        return new Response(JSON.stringify({ status: 'already_processed' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+
       const [platformOrderRecord] = await tx
         .update(platformOrder)
         .set({ status: 'paid', updatedAt: new Date() })
@@ -130,7 +148,13 @@ export async function processMollieWebhook(
 
       const { createInvoicesForPlatformOrder } = await import('#/lib/invoices.server')
       await createInvoicesForPlatformOrder(order.id, tx)
+
+      return null
     })
+
+    if (response instanceof Response) {
+      return response
+    }
 
     logOrderPaid({ platformOrderId: order.id, totalCents, paymentStatus: 'paid' })
 
@@ -141,7 +165,25 @@ export async function processMollieWebhook(
   }
 
   if (paymentStatus === 'expired' || paymentStatus === 'failed' || paymentStatus === 'cancelled') {
-    await database.transaction(async (tx) => {
+    const response = await database.transaction(async (tx) => {
+      // Re-fetch and lock the platform order row to prevent race conditions
+      const [lockedOrder] = await tx
+        .select({
+          id: platformOrder.id,
+          status: platformOrder.status,
+        })
+        .from(platformOrder)
+        .where(eq(platformOrder.id, order.id))
+        .for('update')
+        .limit(1)
+
+      if (!lockedOrder || lockedOrder.status !== 'pending_payment') {
+        return new Response(JSON.stringify({ status: 'already_processed' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+
       await tx
         .update(platformOrder)
         .set({ status: 'cancelled', cancelledAt: new Date(), updatedAt: new Date() })
@@ -153,7 +195,13 @@ export async function processMollieWebhook(
         .where(eq(shopOrder.platformOrderId, order.id))
 
       await releaseStockInTx(tx, order.id)
+
+      return null
     })
+
+    if (response instanceof Response) {
+      return response
+    }
 
     return new Response(JSON.stringify({ status: 'cancelled' }), {
       status: 200,

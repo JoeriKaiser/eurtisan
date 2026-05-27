@@ -14,6 +14,7 @@ import {
   user,
 } from '#/db/schema'
 import type { PaymentProvider } from '#/lib/payment-provider'
+import { cancelOrderQuery } from '#/lib/orders.server'
 import { processMollieWebhook } from './mollie'
 
 // ---------------------------------------------------------------------------
@@ -583,6 +584,109 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
       await processMollieWebhook(req, { db, paymentProvider: provider })
 
       expect(receivedRawBody).toBe(JSON.stringify(payload))
+    })
+  })
+
+  describe('Race Conditions', () => {
+    it('prevents webhook from updating status to paid if the order was cancelled first', async () => {
+      stubPaymentStatus = 'paid'
+      const order = await seedPlatformOrder()
+      await seedShopOrder({ platformOrderId: order.id })
+
+      // User cancels the order first
+      const cancelRes = await cancelOrderQuery(order.id, 'user-1')
+      expect(cancelRes.success).toBe(true)
+
+      // Now the webhook receives a paid status
+      const provider = createStubPaymentProvider()
+      const req = mockRequest(
+        { id: 'tr_mock_000042' },
+        { 'X-Mollie-Signature': 'mock_sig_tr_mock_000042' },
+      )
+
+      const res = await processMollieWebhook(req, { db, paymentProvider: provider })
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.status).toBe('already_processed')
+
+      // Status must remain cancelled
+      const [updatedOrder] = await db
+        .select({ status: platformOrder.status })
+        .from(platformOrder)
+        .where(eq(platformOrder.id, order.id))
+        .limit(1)
+      expect(updatedOrder.status).toBe('cancelled')
+    })
+
+    it('prevents user cancellation if webhook processed the payment first', async () => {
+      stubPaymentStatus = 'paid'
+      const order = await seedPlatformOrder()
+      await seedShopOrder({ platformOrderId: order.id })
+
+      // Webhook processes payment first
+      const provider = createStubPaymentProvider()
+      const req = mockRequest(
+        { id: 'tr_mock_000042' },
+        { 'X-Mollie-Signature': 'mock_sig_tr_mock_000042' },
+      )
+
+      const res = await processMollieWebhook(req, { db, paymentProvider: provider })
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.status).toBe('processed')
+
+      // User attempts to cancel the order afterwards
+      await expect(cancelOrderQuery(order.id, 'user-1')).rejects.toBeInstanceOf(Response)
+
+      // Status must remain paid
+      const [updatedOrder] = await db
+        .select({ status: platformOrder.status })
+        .from(platformOrder)
+        .where(eq(platformOrder.id, order.id))
+        .limit(1)
+      expect(updatedOrder.status).toBe('paid')
+    })
+
+    it('handles concurrent race condition where webhook gets delayed and user cancels in between', async () => {
+      stubPaymentStatus = 'paid'
+      const order = await seedPlatformOrder()
+      await seedShopOrder({ platformOrderId: order.id })
+
+      // Create a provider with a delay in getPaymentStatus to simulate concurrent execution
+      const provider = createStubPaymentProvider({
+        getPaymentStatus: async () => {
+          // Sleep to let cancelOrderQuery run and commit
+          await new Promise((resolve) => setTimeout(resolve, 60))
+          return 'paid'
+        },
+      })
+
+      const req = mockRequest(
+        { id: 'tr_mock_000042' },
+        { 'X-Mollie-Signature': 'mock_sig_tr_mock_000042' },
+      )
+
+      // Start webhook processing (which will delay inside getPaymentStatus)
+      const webhookPromise = processMollieWebhook(req, { db, paymentProvider: provider })
+
+      // Start cancelOrderQuery immediately
+      await new Promise((resolve) => setTimeout(resolve, 20))
+      const cancelRes = await cancelOrderQuery(order.id, 'user-1')
+      expect(cancelRes.success).toBe(true)
+
+      // Wait for webhook to finish
+      const res = await webhookPromise
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.status).toBe('already_processed')
+
+      // Order status should be cancelled (not overwritten by paid)
+      const [updatedOrder] = await db
+        .select({ status: platformOrder.status })
+        .from(platformOrder)
+        .where(eq(platformOrder.id, order.id))
+        .limit(1)
+      expect(updatedOrder.status).toBe('cancelled')
     })
   })
 })
