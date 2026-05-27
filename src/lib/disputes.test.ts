@@ -598,6 +598,37 @@ describe('listOpenDisputesQuery', () => {
     expect(result.disputes).toHaveLength(0)
     expect(result.total).toBe(1)
   })
+
+  it('supports searching by query (buyer name, creator name, shop order id)', async () => {
+    await seedUser()
+    await seedShop()
+
+    const { shopOrder: so } = await seedDeliveredOrder()
+    await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Damaged', description: 'Box was crushed' },
+      'user-1',
+    )
+
+    // Query matching buyer name
+    const matchBuyer = await listOpenDisputesQuery({ ...DEFAULT_PAGE, query: 'Test' })
+    expect(matchBuyer.disputes).toHaveLength(1)
+    expect(matchBuyer.total).toBe(1)
+
+    // Query matching creator/owner name
+    const matchCreator = await listOpenDisputesQuery({ ...DEFAULT_PAGE, query: 'Test' })
+    expect(matchCreator.disputes).toHaveLength(1)
+    expect(matchCreator.total).toBe(1)
+
+    // Query matching shopOrderId
+    const matchOrderId = await listOpenDisputesQuery({ ...DEFAULT_PAGE, query: so.id })
+    expect(matchOrderId.disputes).toHaveLength(1)
+    expect(matchOrderId.total).toBe(1)
+
+    // Query matching nothing
+    const noMatch = await listOpenDisputesQuery({ ...DEFAULT_PAGE, query: 'Nonexistent' })
+    expect(noMatch.disputes).toHaveLength(0)
+    expect(noMatch.total).toBe(0)
+  })
 })
 
 /* -------------------------------------------------------------------------- */

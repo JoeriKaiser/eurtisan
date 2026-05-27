@@ -400,7 +400,15 @@ export async function listOpenDisputesQuery(params: {
 
   const [rows, totalResult] = await Promise.all([
     baseQuery.orderBy(asc(dispute.createdAt)).limit(pageSize).offset(offset),
-    db.select({ count: count() }).from(dispute).where(countWhere),
+    db
+      .select({ count: count() })
+      .from(dispute)
+      .innerJoin(shopOrder, eq(dispute.shopOrderId, shopOrder.id))
+      .innerJoin(platformOrder, eq(shopOrder.platformOrderId, platformOrder.id))
+      .innerJoin(user, eq(dispute.buyerUserId, user.id))
+      .innerJoin(shop, eq(shopOrder.shopId, shop.id))
+      .leftJoin(creatorUser, eq(shop.ownerId, creatorUser.id))
+      .where(countWhere),
   ])
 
   return {
