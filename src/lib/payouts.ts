@@ -68,7 +68,7 @@ export const getMollieConnectUrl = createServerFn({ method: 'POST' })
     ctx = await requireShopOwnership(ctx, data.shopId)
 
     const { getMollieConnectUrlQuery } = await import('./payouts.server')
-    const url = await getMollieConnectUrlQuery(data.shopId)
+    const url = await getMollieConnectUrlQuery(data.shopId, context.user.id)
     return { url }
   })
 

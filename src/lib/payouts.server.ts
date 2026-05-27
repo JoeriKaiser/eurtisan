@@ -2,6 +2,7 @@ import { and, count, desc, eq, gte, ilike, inArray, lte, or } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { payout, shop, shopOrder, user } from '#/db/schema'
 import { PLATFORM_FEE_PERCENT } from './payouts'
+import { signMollieState } from './auth-utils'
 
 /* -------------------------------------------------------------------------- */
 /*                                   Types                                    */
@@ -329,15 +330,15 @@ export async function listCreatorPayoutsQuery(
 /**
  * Generates the Mollie Connect authorization URL or a local mock OAuth page redirect if keys are not set.
  */
-export async function getMollieConnectUrlQuery(shopId: string): Promise<string> {
+export async function getMollieConnectUrlQuery(shopId: string, userId: string): Promise<string> {
   const mollieClientId = process.env.MOLLIE_CLIENT_ID
   const { getBaseUrl } = await import('./env.server')
   const baseUrl = getBaseUrl()
   const redirectUri = `${baseUrl}/api/auth/mollie/callback`
-  const state = shopId
+  const state = signMollieState(shopId, userId)
 
   if (!mollieClientId) {
-    return `${baseUrl}/mollie-mock-oauth?shopId=${encodeURIComponent(shopId)}&redirect_uri=${encodeURIComponent(redirectUri)}`
+    return `${baseUrl}/mollie-mock-oauth?shopId=${encodeURIComponent(shopId)}&state=${encodeURIComponent(state)}&redirect_uri=${encodeURIComponent(redirectUri)}`
   }
 
   const scopes = encodeURIComponent(

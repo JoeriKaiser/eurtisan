@@ -6,7 +6,7 @@ import { Button } from '#/components/ui/button'
 const routeApi = getRouteApi('/mollie-mock-oauth')
 
 export function MollieMockOauth() {
-  const { shopId, redirect_uri } = routeApi.useSearch()
+  const { shopId, state, redirect_uri } = routeApi.useSearch()
   const [connecting, setConnecting] = useState(false)
 
   const handleAuthorize = () => {
@@ -14,7 +14,7 @@ export function MollieMockOauth() {
     // Simulate a brief API exchange time
     setTimeout(() => {
       const mockCode = `mock_code_${crypto.randomUUID().slice(0, 8)}`
-      const target = `${redirect_uri}?code=${mockCode}&state=${encodeURIComponent(shopId)}`
+      const target = `${redirect_uri}?code=${mockCode}&state=${encodeURIComponent(state || shopId)}`
       window.location.href = target
     }, 800)
   }
