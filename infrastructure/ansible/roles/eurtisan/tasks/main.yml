@@ -60,7 +60,7 @@
 
     - name: Sync observability compose and configs
       synchronize:
-        src: "{{ playbook_dir }}/../../../infra/observability/"
+        src: "{{ playbook_dir }}/../../infra/observability/"
         dest: /opt/eurtisan/observability/
         delete: yes
         rsync_opts:
