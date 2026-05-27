@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import { afterAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
 import {
@@ -13,7 +13,7 @@ import {
   shopOrder,
   user,
 } from '#/db/schema'
-import { resetMockShippingCounter } from '#/integrations/shipping'
+import { resetMockShippingCounter, mondialRelayProvider } from '#/integrations/shipping'
 import {
   type CheckoutInput,
   createCheckoutWithProvider,
@@ -812,5 +812,42 @@ describe('createCheckoutQuery', () => {
     const r2 = reservations.find((r) => r.productId === p2.id)
     expect(r1?.quantity).toBe(1)
     expect(r2?.quantity).toBe(2)
+  })
+
+  it('throws 503 when shipping provider is down/unavailable', async () => {
+    await seedUser()
+    await seedShop()
+    const c = await db
+      .insert(cart)
+      .values({ userId: 'user-1' })
+      .returning()
+      .then((rows) => rows[0])
+    const p = await seedProduct({ id: 'prod-1', shopId: 'shop-1', priceCents: 1000 })
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+
+    // Force shipping provider to throw an error
+    const spy = vi.spyOn(mondialRelayProvider, 'getRates').mockRejectedValue(new Error('Network error'))
+
+    const input = makeInput(c.id, {
+      shippingSelections: [{ shopId: 'shop-1', method: 'standard' }],
+    })
+
+    try {
+      await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
+      expect.fail('Should have thrown 503')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      const res = err as Response
+      expect(res.status).toBe(503)
+      const body = await res.json()
+      expect(body.error).toBe('Service Unavailable')
+      expect(body.message).toBe('Shipping rates are temporarily unavailable. Please try again.')
+    } finally {
+      spy.mockRestore()
+    }
+
+    // Verify order was NOT created
+    const platformOrders = await db.select().from(platformOrder)
+    expect(platformOrders).toHaveLength(0)
   })
 })

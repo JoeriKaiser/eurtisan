@@ -531,6 +531,16 @@ export async function createCheckoutWithProvider(
         { status: 422, headers: { 'Content-Type': 'application/json' } },
       )
     }
+
+    if (matchingOption.fallback) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Service Unavailable',
+          message: 'Shipping rates are temporarily unavailable. Please try again.',
+        }),
+        { status: 503, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
   }
 
   // 6. Pre-calculate server-verified shipping costs per shop
