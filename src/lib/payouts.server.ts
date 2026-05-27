@@ -360,6 +360,7 @@ export async function disconnectMollieQuery(shopId: string): Promise<{ success: 
       mollieAccountId: null,
       paymentConnected: false,
       paymentConnectedAt: null,
+      status: 'approved',
       updatedAt: new Date(),
     })
     .where(eq(shop.id, shopId))

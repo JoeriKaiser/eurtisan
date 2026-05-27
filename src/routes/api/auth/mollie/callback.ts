@@ -115,6 +115,7 @@ export const Route = createFileRoute('/api/auth/mollie/callback')({
             mollieAccountId,
             paymentConnected: true,
             paymentConnectedAt: new Date(),
+            status: 'active',
             updatedAt: new Date(),
           })
           .where(eq(shop.id, shopId))

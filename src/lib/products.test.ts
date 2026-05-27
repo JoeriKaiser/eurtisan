@@ -28,6 +28,7 @@ import {
   listProductsByShopQuery,
   listProductsQuery,
   listRecentProductsQuery,
+  listShopsQuery,
   searchProductsQuery,
 } from './products.server'
 
@@ -1676,5 +1677,128 @@ describe('searchProductsQuery', () => {
     const result = await searchProductsQuery(longQuery, {}, 'relevance', { page: 1, pageSize: 10 })
     expect(result.products).toHaveLength(0)
     expect(result.total).toBe(0)
+  })
+})
+
+describe('Shop Status Visibility Constraints', () => {
+  async function seedShopWithStatus(status: 'draft' | 'pending_review' | 'approved' | 'active') {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: `user-${status}`,
+        name: 'Test Creator',
+        email: `creator-${status}@example.com`,
+        emailVerified: true,
+      })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({
+        id: `shop-${status}`,
+        name: `Shop ${status}`,
+        slug: `shop-${status}`,
+        ownerId: u.id,
+        status,
+      })
+      .returning()
+
+    const [cat] = await db
+      .insert(categories)
+      .values({ name: `Category ${status}`, slug: `cat-${status}` })
+      .returning()
+
+    const [p1] = await db
+      .insert(product)
+      .values({
+        id: `prod-${status}-active`,
+        name: `Product Active ${status}`,
+        slug: `prod-active-${status}`,
+        priceCents: 1000,
+        stockCount: 10,
+        isActive: true,
+        shopId: s.id,
+        categoryId: cat.id,
+      })
+      .returning()
+
+    const [p2] = await db
+      .insert(product)
+      .values({
+        id: `prod-${status}-inactive`,
+        name: `Product Inactive ${status}`,
+        slug: `prod-inactive-${status}`,
+        priceCents: 2000,
+        stockCount: 5,
+        isActive: false,
+        shopId: s.id,
+        categoryId: cat.id,
+      })
+      .returning()
+
+    return { user: u, shop: s, activeProduct: p1, inactiveProduct: p2 }
+  }
+
+  beforeEach(async () => {
+    await db.delete(product)
+    await db.delete(shop)
+    await db.delete(user)
+    await db.delete(categories)
+  })
+
+  it('only returns products from active shops in listProductsQuery', async () => {
+    await seedShopWithStatus('draft')
+    await seedShopWithStatus('approved')
+    await seedShopWithStatus('active')
+
+    const result = await listProductsQuery()
+    expect(result.products).toHaveLength(1)
+    expect(result.products[0].name).toBe('Product Active active')
+  })
+
+  it('fails to fetch product detail if the shop is not active', async () => {
+    await seedShopWithStatus('approved')
+    await seedShopWithStatus('active')
+
+    // Approved shop product should not be accessible
+    const p1 = await getProductBySlugQuery('shop-approved', 'prod-active-approved')
+    expect(p1).toBeNull()
+
+    // Active shop product should be accessible
+    const p2 = await getProductBySlugQuery('shop-active', 'prod-active-active')
+    expect(p2).not.toBeNull()
+    expect(p2!.name).toBe('Product Active active')
+  })
+
+  it('only returns active shops in listShopsQuery', async () => {
+    await seedShopWithStatus('draft')
+    await seedShopWithStatus('approved')
+    await seedShopWithStatus('active')
+
+    const result = await listShopsQuery()
+    expect(result).toHaveLength(1)
+    expect(result[0].slug).toBe('shop-active')
+  })
+
+  it('only returns active shops in getFeaturedShopsQuery and does not count inactive products', async () => {
+    await seedShopWithStatus('approved')
+    await seedShopWithStatus('active')
+
+    const result = await getFeaturedShopsQuery(10)
+    expect(result).toHaveLength(1)
+    expect(result[0].slug).toBe('shop-active')
+    expect(result[0].productCount).toBe(1) // should not count the inactive product
+  })
+
+  it('fails to fetch shop by slug if the shop is not active', async () => {
+    await seedShopWithStatus('approved')
+    await seedShopWithStatus('active')
+
+    const s1 = await getShopBySlugQuery('shop-approved')
+    expect(s1).toBeNull()
+
+    const s2 = await getShopBySlugQuery('shop-active')
+    expect(s2).not.toBeNull()
+    expect(s2!.slug).toBe('shop-active')
   })
 })

@@ -81,12 +81,12 @@ export async function syncProductToMeilisearch(productData: {
   if (!meilisearch) return
   try {
     const [shopRow] = await db
-      .select({ isSuspended: shop.isSuspended, slug: shop.slug })
+      .select({ isSuspended: shop.isSuspended, slug: shop.slug, status: shop.status })
       .from(shop)
       .where(eq(shop.id, productData.shopId))
       .limit(1)
 
-    if (!productData.isActive || shopRow?.isSuspended) {
+    if (!productData.isActive || shopRow?.isSuspended || shopRow?.status !== 'active') {
       await meilisearch.index(PRODUCTS_INDEX).deleteDocument(productData.id)
       return
     }
@@ -151,7 +151,13 @@ export async function populateProductsIndex(): Promise<{ synced: number; errors:
     .select()
     .from(product)
     .innerJoin(shop, eq(product.shopId, shop.id))
-    .where(and(eq(product.isActive, true), eq(shop.isSuspended, false)))
+    .where(
+      and(
+        eq(product.isActive, true),
+        eq(shop.isSuspended, false),
+        eq(shop.status, 'active'),
+      ),
+    )
 
   const docs: MeilisearchProductDocument[] = []
   let errors = 0
@@ -280,7 +286,14 @@ export async function searchProductsMeilisearch(
       .from(product)
       .innerJoin(shop, eq(product.shopId, shop.id))
       .leftJoin(categories, eq(product.categoryId, categories.id))
-      .where(and(eq(shop.isSuspended, false), eq(product.isActive, true), inArray(product.id, ids)))
+      .where(
+        and(
+          eq(shop.status, 'active'),
+          eq(shop.isSuspended, false),
+          eq(product.isActive, true),
+          inArray(product.id, ids),
+        ),
+      )
 
     const rowMap = new Map(rows.map((r) => [r.id, r]))
     const orderedProducts = ids

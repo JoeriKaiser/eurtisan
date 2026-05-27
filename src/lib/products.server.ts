@@ -100,7 +100,11 @@ export type PaginatedProducts = {
 }
 
 function buildProductWhere(filters: ListProductsFilters) {
-  const conditions = [eq(shop.isSuspended, false), eq(product.isActive, true)]
+  const conditions = [
+    eq(shop.status, 'active'),
+    eq(shop.isSuspended, false),
+    eq(product.isActive, true),
+  ]
 
   if (filters.shopSlug) {
     conditions.push(eq(shop.slug, filters.shopSlug))
@@ -189,6 +193,7 @@ export async function getProductBySlugQuery(
       and(
         eq(shop.slug, shopSlug),
         eq(product.slug, productSlug),
+        eq(shop.status, 'active'),
         eq(shop.isSuspended, false),
         eq(product.isActive, true),
       ),
@@ -223,7 +228,7 @@ export async function getProductsByShopSlugQuery(
 ): Promise<PaginatedProducts> {
   const [shopRow] = await db.select().from(shop).where(eq(shop.slug, shopSlug)).limit(1)
 
-  if (!shopRow || shopRow.isSuspended) {
+  if (!shopRow || shopRow.isSuspended || shopRow.status !== 'active') {
     throw new Response(
       JSON.stringify({ error: 'Not Found', message: 'Shop not found or suspended' }),
       { status: 404, headers: { 'Content-Type': 'application/json' } },
@@ -250,16 +255,17 @@ export async function getShopBySlugQuery(slug: string): Promise<ShopSummary | nu
       slug: shop.slug,
       image: shop.image,
       isSuspended: shop.isSuspended,
+      status: shop.status,
     })
     .from(shop)
     .where(eq(shop.slug, slug))
     .limit(1)
 
-  if (!shopRow || shopRow.isSuspended) {
+  if (!shopRow || shopRow.isSuspended || shopRow.status !== 'active') {
     return null
   }
 
-  const { isSuspended: _, ...summary } = shopRow
+  const { isSuspended: _, status: __, ...summary } = shopRow
   return summary
 }
 
@@ -270,7 +276,7 @@ export async function getShopProductsQuery(
 ): Promise<PaginatedProducts> {
   const [shopRow] = await db.select().from(shop).where(eq(shop.slug, shopSlug)).limit(1)
 
-  if (!shopRow || shopRow.isSuspended) {
+  if (!shopRow || shopRow.isSuspended || shopRow.status !== 'active') {
     throw new Response(
       JSON.stringify({ error: 'Not Found', message: 'Shop not found or suspended' }),
       { status: 404, headers: { 'Content-Type': 'application/json' } },
@@ -389,14 +395,14 @@ export async function getFeaturedShopsQuery(limit: number): Promise<FeaturedShop
       name: shop.name,
       description: shop.description,
       slug: shop.slug,
-      productCount: count(product.id),
+      productCount: count(sql`CASE WHEN ${product.isActive} THEN 1 END`),
       tagline: shop.tagline,
       category: shop.category,
       image: shop.image,
     })
     .from(shop)
     .leftJoin(product, eq(product.shopId, shop.id))
-    .where(eq(shop.isSuspended, false))
+    .where(and(eq(shop.status, 'active'), eq(shop.isSuspended, false)))
     .groupBy(shop.id)
     .orderBy(desc(shop.createdAt))
     .limit(limit)
@@ -478,7 +484,11 @@ export async function searchProductsQuery(
 
   const offset = (page - 1) * pageSize
 
-  const conditions = [eq(shop.isSuspended, false), eq(product.isActive, true)]
+  const conditions = [
+    eq(shop.status, 'active'),
+    eq(shop.isSuspended, false),
+    eq(product.isActive, true),
+  ]
 
   if (filters.shopSlug) {
     conditions.push(eq(shop.slug, filters.shopSlug))
@@ -567,7 +577,7 @@ export async function listShopsQuery(): Promise<{ id: string; name: string; slug
       slug: shop.slug,
     })
     .from(shop)
-    .where(eq(shop.isSuspended, false))
+    .where(and(eq(shop.status, 'active'), eq(shop.isSuspended, false)))
     .orderBy(shop.name)
 }
 
