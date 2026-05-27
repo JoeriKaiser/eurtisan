@@ -68,7 +68,7 @@ Generate secrets quickly:
 make infra-secrets
 ```
 
-Add optional secrets (Mollie, Brevo, Sentry) to the same file as needed.
+Add optional secrets (Mollie, Brevo, Grafana) to the same file as needed.
 
 ---
 

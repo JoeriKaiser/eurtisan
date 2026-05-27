@@ -38,17 +38,6 @@ const DEFAULT_CONNECT_SRC = ["'self'", 'https://api.mollie.com', 'https://api.br
 /** External origins the frontend legitimately loads scripts from. */
 const DEFAULT_SCRIPT_SRC = ["'self'", "'unsafe-inline'"]
 
-function getSentryOrigin(): string | null {
-  const dsn = process.env.VITE_SENTRY_DSN
-  if (!dsn) return null
-  try {
-    const url = new URL(dsn)
-    return `${url.protocol}//${url.host}`
-  } catch {
-    return null
-  }
-}
-
 function getMeilisearchOrigin(): string | null {
   const host = process.env.MEILISEARCH_HOST
   if (!host) return null
@@ -86,9 +75,6 @@ function getUmamiHostOrigin(): string | null {
 export function buildCspHeader(): string {
   const connectSrc = new Set(DEFAULT_CONNECT_SRC)
   const scriptSrc = new Set(DEFAULT_SCRIPT_SRC)
-
-  const sentry = getSentryOrigin()
-  if (sentry) connectSrc.add(sentry)
 
   const meilisearch = getMeilisearchOrigin()
   if (meilisearch) connectSrc.add(meilisearch)

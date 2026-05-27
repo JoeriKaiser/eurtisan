@@ -28,7 +28,9 @@
   "dependencies": {
     "@base-ui-components/react": "^1.0.0-rc.0",
     "@better-auth/drizzle-adapter": "^1.6.9",
-    "@sentry/tanstackstart-react": "^10.52.0",
+    "@grafana/faro-react": "^1.12.0",
+    "@grafana/faro-web-sdk": "^1.12.0",
+    "@grafana/faro-web-tracing": "^1.12.0",
     "@tailwindcss/vite": "^4.2.4",
     "@tanstack/react-devtools": "^0.10.2",
     "@tanstack/react-form": "^1.29.1",

@@ -2,7 +2,20 @@
 # Domain is injected via the CADDY_DOMAIN environment variable
 
 {$CADDY_DOMAIN} {
-	reverse_proxy app:3000
+	# Faro collector endpoint
+	handle /collect* {
+		reverse_proxy alloy:8027
+	}
+
+	# Grafana UI
+	handle /grafana* {
+		reverse_proxy grafana:3000
+	}
+
+	# Main application
+	handle {
+		reverse_proxy app:3000
+	}
 
 	# Security headers
 	header {

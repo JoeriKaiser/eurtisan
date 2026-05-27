@@ -61,14 +61,6 @@ describe('buildCspHeader', () => {
     expect(csp).toContain("form-action 'self'")
   })
 
-  it('adds Sentry origin when VITE_SENTRY_DSN is set', () => {
-    const original = process.env.VITE_SENTRY_DSN
-    process.env.VITE_SENTRY_DSN = 'https://abc@o123.ingest.sentry.io/456'
-    const csp = buildCspHeader()
-    expect(csp).toContain('https://o123.ingest.sentry.io')
-    process.env.VITE_SENTRY_DSN = original
-  })
-
   it('adds Meilisearch origin when MEILISEARCH_HOST is set', () => {
     const original = process.env.MEILISEARCH_HOST
     process.env.MEILISEARCH_HOST = 'https://search.eurtisan.eu'
@@ -78,14 +70,11 @@ describe('buildCspHeader', () => {
   })
 
   it('does not add undefined origins when env vars are missing', () => {
-    const originalSentry = process.env.VITE_SENTRY_DSN
     const originalMeili = process.env.MEILISEARCH_HOST
-    process.env.VITE_SENTRY_DSN = ''
     process.env.MEILISEARCH_HOST = ''
     const csp = buildCspHeader()
     expect(csp).not.toContain('undefined')
     expect(csp).not.toContain('null')
-    process.env.VITE_SENTRY_DSN = originalSentry
     process.env.MEILISEARCH_HOST = originalMeili
   })
 

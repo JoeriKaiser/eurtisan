@@ -1,0 +1,97 @@
+services:
+  alloy:
+    image: grafana/alloy:v1.5.0
+    container_name: eurtisan-alloy
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - alloy_data:/var/lib/alloy
+    command: run --server.http.listen-addr=0.0.0.0:12345 --storage.path=/var/lib/alloy /etc/alloy/config.alloy
+    # No host ports exposed. Traefik reaches Alloy via the coolify Docker network.
+    # For debugging: docker exec -it eurtisan-alloy wget -qO- http://localhost:8027
+    networks:
+      - eurtisan
+      - coolify
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: eurtisan-grafana
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-changeme}
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-https://staging.eurtisan.eu/grafana}
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_SECURITY_DISABLE_GRAVATAR=true
+      - GF_SECURITY_ANGULAR_SUPPORT_ENABLED=false
+    # No host ports exposed. Traefik reaches Grafana via the coolify Docker network.
+    # For debugging: docker exec -it eurtisan-grafana wget -qO- http://localhost:3000/api/health
+    networks:
+      - eurtisan
+      - coolify
+    restart: unless-stopped
+    depends_on:
+      - loki
+      - tempo
+      - prometheus
+
+  loki:
+    image: grafana/loki:3.1.0
+    container_name: eurtisan-loki
+    volumes:
+      - ./loki/loki.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    # Localhost-only for SSH tunnel debugging. Not exposed publicly.
+    ports:
+      - "127.0.0.1:3100:3100"
+    networks:
+      - eurtisan
+    restart: unless-stopped
+
+  tempo:
+    image: grafana/tempo:2.6.0
+    container_name: eurtisan-tempo
+    volumes:
+      - ./tempo/tempo.yml:/etc/tempo.yaml:ro
+      - tempo_data:/var/tempo
+    # Localhost-only for SSH tunnel debugging. Not exposed publicly.
+    ports:
+      - "127.0.0.1:3200:3200"
+    networks:
+      - eurtisan
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    container_name: eurtisan-prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    # Localhost-only for SSH tunnel debugging. Not exposed publicly.
+    ports:
+      - "127.0.0.1:9090:9090"
+    networks:
+      - eurtisan
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=15d'
+      - '--storage.tsdb.path=/prometheus'
+
+volumes:
+  alloy_data:
+  grafana_data:
+  loki_data:
+  tempo_data:
+  prometheus_data:
+
+networks:
+  eurtisan:
+    external: true
+  coolify:
+    external: true

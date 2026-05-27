@@ -50,6 +50,28 @@
     job: "/opt/eurtisan/backup.sh >> /var/log/eurtisan-backup.log 2>&1"
     user: root
 
+- name: Start observability stack
+  block:
+    - name: Create observability directory
+      file:
+        path: /opt/eurtisan/observability
+        state: directory
+        mode: "0755"
+
+    - name: Sync observability compose and configs
+      synchronize:
+        src: "{{ playbook_dir }}/../../../infra/observability/"
+        dest: /opt/eurtisan/observability/
+        delete: yes
+        rsync_opts:
+          - "--exclude=.git"
+
+    - name: Ensure observability stack is running
+      command: "docker compose -f /opt/eurtisan/observability/docker-compose.observability.yml up -d"
+      args:
+        chdir: /opt/eurtisan/observability
+  tags: [observability]
+
 - name: Start database and meilisearch first
   command: "docker compose -f {{ compose_file }} up -d db meilisearch"
   args:
@@ -95,13 +117,46 @@
                 middlewares:
                   - eurtisan-staging-redirect
 
-              eurtisan-staging:
-                rule: "Host(`staging.eurtisan.eu`)"
+              # Faro collector — must be public (receives client beacons from all IPs)
+              # Higher priority so it matches before the catch-all app route.
+              eurtisan-staging-collect:
+                rule: "Host(`staging.eurtisan.eu`) && PathPrefix(`/collect`)"
+                priority: 10
                 entrypoints:
                   - https
                 tls:
                   certResolver: letsencrypt
-                service: eurtisan-staging
+                service: eurtisan-staging-collect
+                middlewares:
+                  - eurtisan-staging-strip-collect
+
+              # Grafana UI — behind the same IP whitelist as the app.
+              # Higher priority so it matches before the catch-all app route.
+              # DO NOT strip /grafana — Grafana with serve_from_sub_path=true
+              # expects to receive the full subpath and strips it internally.
+              eurtisan-staging-grafana:
+                rule: "Host(`staging.eurtisan.eu`) && PathPrefix(`/grafana`)"
+                priority: 10
+                entrypoints:
+                  - https
+                tls:
+                  certResolver: letsencrypt
+                service: eurtisan-staging-grafana
+          {% if allowed_ips is defined %}
+                middlewares:
+                  - eurtisan-staging-whitelist
+          {% endif %}
+
+              # Main app — catch-all for everything else.
+              # Lower priority so /collect and /grafana match first.
+              eurtisan-staging-app:
+                rule: "Host(`staging.eurtisan.eu`)"
+                priority: 1
+                entrypoints:
+                  - https
+                tls:
+                  certResolver: letsencrypt
+                service: eurtisan-staging-app
           {% if allowed_ips is defined %}
                 middlewares:
                   - eurtisan-staging-whitelist
@@ -112,6 +167,12 @@
                 redirectScheme:
                   scheme: https
                   permanent: true
+
+              eurtisan-staging-strip-collect:
+                stripPrefix:
+                  prefixes:
+                    - "/collect"
+
           {% if allowed_ips is defined %}
               eurtisan-staging-whitelist:
                 ipWhiteList:
@@ -122,10 +183,20 @@
           {% endif %}
 
             services:
-              eurtisan-staging:
+              eurtisan-staging-app:
                 loadBalancer:
                   servers:
                     - url: "http://eurtisan-app-staging:3000"
+
+              eurtisan-staging-collect:
+                loadBalancer:
+                  servers:
+                    - url: "http://eurtisan-alloy:8027"
+
+              eurtisan-staging-grafana:
+                loadBalancer:
+                  servers:
+                    - url: "http://eurtisan-grafana:3000"
 
     - name: Remove old separate whitelist file (if any)
       file:

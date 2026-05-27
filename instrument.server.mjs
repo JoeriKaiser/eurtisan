@@ -1,17 +1,36 @@
-import * as Sentry from '@sentry/tanstackstart-react'
+// Global server instrumentation for Eurtisan.
+// This file is imported via --import before the application server starts.
+// It must not import application logic or database modules.
 
-const sentryDsn = import.meta.env?.VITE_SENTRY_DSN ?? process.env.VITE_SENTRY_DSN
+const env = process.env.VITE_APP_ENV ?? process.env.NODE_ENV ?? 'unknown'
+const version = process.env.VITE_APP_VERSION ?? 'unknown'
 
-if (!sentryDsn) {
-  console.warn('VITE_SENTRY_DSN is not defined. Sentry is not running.')
-} else {
-  Sentry.init({
-    dsn: sentryDsn,
-    // Adds request headers and IP for users, for more info visit:
-    // https://docs.sentry.io/platforms/javascript/guides/tanstackstart-react/configuration/options/#sendDefaultPii
-    sendDefaultPii: true,
-    tracesSampleRate: 1.0,
-    replaysSessionSampleRate: 1.0,
-    replaysOnErrorSampleRate: 1.0,
-  })
+function logStructured(level, message, extra = {}) {
+  const log = {
+    ts: new Date().toISOString(),
+    level,
+    msg: message,
+    env,
+    version,
+    service: 'eurtisan-app',
+    ...extra,
+  }
+  const stream = level === 'error' || level === 'fatal' ? process.stderr : process.stdout
+  stream.write(JSON.stringify(log) + '\n')
 }
+
+process.on('uncaughtException', (err) => {
+  logStructured('fatal', 'Uncaught exception', {
+    error: err.message,
+    stack: err.stack,
+    type: err.name,
+  })
+  process.exit(1)
+})
+
+process.on('unhandledRejection', (reason, promise) => {
+  logStructured('error', 'Unhandled rejection', {
+    reason: reason instanceof Error ? reason.message : String(reason),
+    stack: reason instanceof Error ? reason.stack : undefined,
+  })
+})

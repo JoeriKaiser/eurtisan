@@ -308,7 +308,7 @@ db:5432
 | Database | PostgreSQL 16 | Primary relational database |
 | ORM | Drizzle ORM | Typed SQL access |
 | Migrations | Drizzle Kit | Migration generation and execution |
-| Monitoring | Sentry | Client + server monitoring |
+| Monitoring | Grafana Stack (self-hosted) | Loki (logs), Tempo (traces), Prometheus (metrics), Grafana (UI) |
 | Styling | Tailwind CSS v4 | Utility-first styling |
 | Toolchain | Bun | Runtime/package manager |
 | Lint / Format | Biome | Formatting + linting |
@@ -778,11 +778,11 @@ Breaking changes must be:
 Copy `.env.local` and provide real values.
 
 ```bash
-# Sentry
-VITE_SENTRY_DSN=
-VITE_SENTRY_ORG=
-VITE_SENTRY_PROJECT=
-SENTRY_AUTH_TOKEN=
+# Observability (Grafana Stack — self-hosted)
+VITE_FARO_COLLECTOR_URL=/collect          # Faro beacon endpoint (same-origin)
+VITE_FARO_APP_NAME=eurtisan               # App name in Grafana
+VITE_APP_ENV=development                  # environment tag
+VITE_APP_VERSION=dev                      # release version tag
 
 # Better Auth
 BETTER_AUTH_URL=http://localhost:3000
@@ -838,7 +838,7 @@ make auth-secret
 2. Business logic uses server functions.
 3. Better Auth mounted at `/api/auth/$`.
 4. Shared PostgreSQL connection pool.
-5. Full-stack Sentry instrumentation.
+5. Self-hosted Grafana observability stack (Loki, Tempo, Prometheus, Grafana).
 6. Docker is the source of truth for development environments.
 7. Localization readiness is mandatory from the start.
 
@@ -848,7 +848,7 @@ make auth-secret
 
 1. Docker is required for all workflows.
 2. `.env.local` must remain out of version control.
-3. Sentry requires DSN configuration.
+3. Grafana Faro uses `sessionStorage`, not cookies. No consent banner required for the beacon mechanism.
 4. Biome is the single lint/format tool.
 5. Production infrastructure should remain in EU regions.
 6. Development runs fully inside containers.
@@ -858,6 +858,8 @@ make auth-secret
 10. Keep loader parameters within Zod schema bounds. A loader that calls a server function with hardcoded values (e.g. `pageSize: 1000`) will fail at runtime if the input schema caps that field lower (e.g. `.max(100)`).
 11. E2E auth is rate-limited by Better Auth. Rapid re-runs of `e2e/auth.setup.ts` will hit `429 Too Many Requests`. Reuse the generated `e2e/.auth/*.json` state across runs, or wait between attempts.
 12. `make e2e` does not pass through CLI flags. Playwright options like `--project=chromium` must be passed directly: `docker compose exec app bunx playwright test e2e/admin-panel.spec.ts --project=chromium`.
+13. The `instrument.server.mjs` file must remain importable by Node at startup. Do not add TypeScript or ESM-only dependencies to it.
+14. The observability stack (`infra/observability/`) is deployed separately from the app and persists across app deploys.
 
 ---
 
@@ -908,7 +910,7 @@ If implementation and documentation diverge, the documentation is considered out
   ```
 
 - Runtime environment variables are required for:
-  - Sentry
+  - Observability (Faro/Grafana)
   - Database
   - Authentication
 

@@ -1767,7 +1767,7 @@ Before production, the platform must resist common attacks.
 When things break in production, developers need to know why quickly.
 
 ### Functional Requirements
-- Sentry alerts for: checkout failures, payment webhook errors, unhandled 500s, auth anomalies.
+- Grafana alerts for: checkout failures, payment webhook errors, unhandled 500s, auth anomalies.
 - Structured logging for order lifecycle events (order created, paid, shipped, disputed, resolved).
 - Health check endpoint at `/api/health` returns 200 with database connectivity status.
 
@@ -1775,12 +1775,12 @@ When things break in production, developers need to know why quickly.
 - `GET /api/health` — Returns `{ status: "ok", db: "connected" }` or 503.
 
 ### Acceptance Criteria
-- [ ] Sentry captures checkout and webhook errors.
+- [ ] Grafana captures checkout and webhook errors.
 - [ ] Order lifecycle is traceable in logs.
 - [ ] Health check reflects actual system state.
 
 ### Dependencies
-- Sentry (already integrated).
+- Grafana Stack (self-hosted) — Loki, Tempo, Prometheus, Grafana.
 
 ### Deferred / Out of Scope
 - Custom metrics dashboard.

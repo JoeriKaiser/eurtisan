@@ -1,0 +1,92 @@
+// ============================================================
+// Grafana Alloy Configuration — Eurtisan Staging
+// ============================================================
+
+// --- Faro Receiver (Frontend RUM & Errors) ---
+// Accepts beacon POSTs from @grafana/faro-web-sdk
+faro.receiver "eurtisan" {
+  server {
+    listen_address = "0.0.0.0"
+    listen_port    = 8027
+    cors_allowed_origins = ["*"]
+  }
+
+  output {
+    logs   = [loki.write.eurtisan.receiver]
+    traces = [otelcol.processor.batch.default.input]
+  }
+}
+
+// --- OTLP Receiver (Backend Traces) ---
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    traces = [otelcol.processor.batch.default.input]
+    logs   = [otelcol.exporter.otlphttp.loki.input]
+  }
+}
+
+// --- Batch Processor ---
+otelcol.processor.batch "default" {
+  output {
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+// --- Trace Exporter to Tempo ---
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo:4317"
+    tls { insecure = true }
+  }
+}
+
+// --- Log Exporter to Loki (OTLP→Loki) ---
+otelcol.exporter.otlphttp "loki" {
+  client {
+    endpoint = "http://loki:3100/otlp"
+    tls { insecure = true }
+  }
+}
+
+// --- Loki Write ---
+loki.write "eurtisan" {
+  endpoint {
+    name = "loki"
+    url  = "http://loki:3100/loki/api/v1/push"
+    batch_wait = "1s"
+    batch_size = "102400"
+  }
+}
+
+// --- Docker Log Tailing (App stdout → Loki) ---
+loki.source.docker "eurtisan" {
+  host       = "unix:///var/run/docker.sock"
+  forward_to = [loki.write.eurtisan.receiver]
+
+  // Only tail containers with label app=eurtisan
+  selector   = "app=eurtisan"
+}
+
+// --- Prometheus Scraping (Metrics) ---
+prometheus.scrape "eurtisan" {
+  targets = [
+    {"__address__" = "eurtisan-app-staging:3000", "job" = "eurtisan-app"},
+  ]
+  forward_to = [prometheus.remote_write.default.receiver]
+  scrape_interval = "15s"
+}
+
+prometheus.remote_write "default" {
+  endpoint {
+    name = "prometheus"
+    url  = "http://prometheus:9090/api/v1/write"
+    queue_config { }
+  }
+}
