@@ -59,6 +59,7 @@ services:
       BETTER_AUTH_URL: http://localhost:3000
       EMAIL_SMTP_HOST: mailpit
       EMAIL_SMTP_PORT: 1025
+      MOCK_PAYMENTS_ENABLED: "true"
     depends_on:
       db:
         condition: service_healthy

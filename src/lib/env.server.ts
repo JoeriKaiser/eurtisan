@@ -28,6 +28,16 @@ export function getMollieApiKey(): string | undefined {
 }
 
 /**
+ * Check if mock payments are explicitly enabled (server-only).
+ */
+export function getMockPaymentsEnabled(): boolean {
+  if (typeof process !== 'undefined') {
+    return process.env.MOCK_PAYMENTS_ENABLED === 'true'
+  }
+  return false
+}
+
+/**
  * Mollie webhook secret for signature verification (server-only).
  */
 export function getMollieWebhookSecret(): string | undefined {

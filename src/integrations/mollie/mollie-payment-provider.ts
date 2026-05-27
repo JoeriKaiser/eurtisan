@@ -9,7 +9,7 @@
  * The mock generates predictable payment IDs and signatures so the webhook
  * handler can be tested deterministically.
  */
-import { getBaseUrl, getMollieApiKey, getMollieWebhookSecret } from '#/lib/env.server'
+import { getBaseUrl, getMollieApiKey, getMollieWebhookSecret, getMockPaymentsEnabled } from '#/lib/env.server'
 import type { CreatePaymentResult, PaymentProvider } from '#/lib/payment-provider'
 
 // ---------------------------------------------------------------------------
@@ -81,7 +81,18 @@ export class MolliePaymentProvider implements PaymentProvider {
   private readonly mockMode: boolean
 
   constructor(options?: { mock?: boolean }) {
-    this.mockMode = options?.mock ?? !getMollieApiKey()
+    const apiKey = getMollieApiKey()
+    const isProd = typeof process !== 'undefined' && process.env.NODE_ENV === 'production'
+
+    if (isProd && !apiKey) {
+      throw new Error('FATAL: MOLLIE_API_KEY is required in production')
+    }
+
+    if (options?.mock !== undefined) {
+      this.mockMode = options.mock
+    } else {
+      this.mockMode = !apiKey && getMockPaymentsEnabled()
+    }
   }
 
   // -----------------------------------------------------------------------

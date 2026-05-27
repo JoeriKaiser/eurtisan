@@ -152,8 +152,9 @@ describe('MolliePaymentProvider (mock)', () => {
 })
 
 describe('MolliePaymentProvider real-mode detection', () => {
-  it('defaults to mock mode when MOLLIE_API_KEY is not set', () => {
+  it('defaults to mock mode when MOLLIE_API_KEY is not set and MOCK_PAYMENTS_ENABLED is true', () => {
     vi.stubEnv('MOLLIE_API_KEY', '')
+    vi.stubEnv('MOCK_PAYMENTS_ENABLED', 'true')
     const provider = new MolliePaymentProvider()
     // Verify mock mode by checking createPayment returns a mock ID
     return expect(
@@ -169,6 +170,27 @@ describe('MolliePaymentProvider real-mode detection', () => {
         paymentId: expect.stringMatching(/^tr_mock_/),
       }),
     )
+  })
+
+  it('does not enter mock mode when MOLLIE_API_KEY is not set and MOCK_PAYMENTS_ENABLED is not true', () => {
+    vi.stubEnv('MOLLIE_API_KEY', '')
+    vi.stubEnv('MOCK_PAYMENTS_ENABLED', 'false')
+    const provider = new MolliePaymentProvider()
+    return expect(
+      provider.createPayment(
+        1000,
+        'EUR',
+        'Test',
+        'https://example.com/redirect',
+        'https://example.com/webhook',
+      ),
+    ).rejects.toThrow()
+  })
+
+  it('throws fatal error in production when MOLLIE_API_KEY is missing', () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('MOLLIE_API_KEY', '')
+    expect(() => new MolliePaymentProvider()).toThrow('FATAL: MOLLIE_API_KEY is required in production')
   })
 
   it('enters real mode when MOLLIE_API_KEY is present', () => {
