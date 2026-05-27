@@ -683,6 +683,15 @@ describe('derivePlatformStatus', () => {
   it('returns pending_payment for empty array', () => {
     expect(derivePlatformStatus([])).toBe('pending_payment')
   })
+
+  it('correctly handles mixtures of terminal/cancelled/refunded and active states', () => {
+    expect(derivePlatformStatus(['completed', 'cancelled'])).toBe('completed')
+    expect(derivePlatformStatus(['completed', 'refunded'])).toBe('completed')
+    expect(derivePlatformStatus(['paid', 'cancelled'])).toBe('paid')
+    expect(derivePlatformStatus(['shipped', 'cancelled'])).toBe('shipped')
+    expect(derivePlatformStatus(['processing', 'refunded'])).toBe('processing')
+    expect(derivePlatformStatus(['cancelled', 'refunded'])).toBe('refunded')
+  })
 })
 
 describe('updateShopOrderStatusQuery', () => {

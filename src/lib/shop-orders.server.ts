@@ -114,30 +114,42 @@ export function derivePlatformStatus(shopOrderStatuses: OrderStatus[]): OrderSta
     return 'pending_payment'
   }
 
-  // Priority checks
-  if (shopOrderStatuses.some((s) => s === 'disputed')) return 'disputed'
-  if (shopOrderStatuses.every((s) => s === 'refunded')) return 'refunded'
-  if (shopOrderStatuses.every((s) => s === 'cancelled')) return 'cancelled'
-  if (shopOrderStatuses.some((s) => s === 'pending_payment')) return 'pending_payment'
-  if (shopOrderStatuses.every((s) => s === 'completed')) return 'completed'
-  if (shopOrderStatuses.every((s) => s === 'delivered' || s === 'completed')) return 'delivered'
-  if (shopOrderStatuses.every((s) => ['shipped', 'delivered', 'completed'].includes(s)))
+  // 1. If ANY shop order is disputed, the overall status is disputed.
+  if (shopOrderStatuses.some((s) => s === 'disputed')) {
+    return 'disputed'
+  }
+
+  // 2. Filter out cancelled and refunded statuses for active resolution derivation.
+  const nonTerminalStatuses = shopOrderStatuses.filter((s) => s !== 'cancelled' && s !== 'refunded')
+
+  if (nonTerminalStatuses.length === 0) {
+    // If all are cancelled/refunded, return refunded if any are refunded, otherwise cancelled.
+    if (shopOrderStatuses.some((s) => s === 'refunded')) {
+      return 'refunded'
+    }
+    return 'cancelled'
+  }
+
+  // 3. Base checks on remaining active (non-cancelled, non-refunded) shop orders:
+  if (nonTerminalStatuses.some((s) => s === 'pending_payment')) {
+    return 'pending_payment'
+  }
+  if (nonTerminalStatuses.every((s) => s === 'completed')) {
+    return 'completed'
+  }
+  if (nonTerminalStatuses.every((s) => s === 'delivered' || s === 'completed')) {
+    return 'delivered'
+  }
+  if (nonTerminalStatuses.every((s) => ['shipped', 'delivered', 'completed'].includes(s))) {
     return 'shipped'
-  if (
-    shopOrderStatuses.some((s) => s === 'processing') &&
-    !shopOrderStatuses.some((s) => s === 'pending_payment')
-  ) {
+  }
+  if (nonTerminalStatuses.some((s) => s === 'processing')) {
     return 'processing'
   }
-  if (
-    shopOrderStatuses.every((s) =>
-      ['paid', 'processing', 'shipped', 'delivered', 'completed'].includes(s),
-    )
-  ) {
+  if (nonTerminalStatuses.every((s) => ['paid', 'processing', 'shipped', 'delivered', 'completed'].includes(s))) {
     return 'paid'
   }
 
-  // Fallback for mixed edge cases
   return 'pending_payment'
 }
 
