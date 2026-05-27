@@ -171,7 +171,6 @@ async function seedShopAndProduct(
 }
 
 describe('syncProductToMeilisearch', () => {
-
   it('adds an active product from a non-suspended shop to the index', async () => {
     const { product: p } = await seedShopAndProduct({
       categoryId: '550e8400-e29b-41d4-a716-446655440001',
@@ -644,7 +643,10 @@ describe('processMeilisearchSyncQueue', () => {
     const result = await processMeilisearchSyncQueue()
     expect(result.processedCount).toBe(1)
 
-    const [item] = await db.select().from(meilisearchSyncQueue).where(eq(meilisearchSyncQueue.id, inserted.id))
+    const [item] = await db
+      .select()
+      .from(meilisearchSyncQueue)
+      .where(eq(meilisearchSyncQueue.id, inserted.id))
     expect(item.status).toBe('failed')
     expect(item.attempts).toBe(5)
   })

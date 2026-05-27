@@ -9,7 +9,12 @@
  * The mock generates predictable payment IDs and signatures so the webhook
  * handler can be tested deterministically.
  */
-import { getBaseUrl, getMollieApiKey, getMollieWebhookSecret, getMockPaymentsEnabled } from '#/lib/env.server'
+import {
+  getBaseUrl,
+  getMollieApiKey,
+  getMollieWebhookSecret,
+  getMockPaymentsEnabled,
+} from '#/lib/env.server'
 import type { CreatePaymentResult, PaymentProvider } from '#/lib/payment-provider'
 
 // ---------------------------------------------------------------------------

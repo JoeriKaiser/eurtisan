@@ -873,7 +873,9 @@ describe('createCheckoutQuery', () => {
     await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
 
     // Force shipping provider to throw an error
-    const spy = vi.spyOn(mondialRelayProvider, 'getRates').mockRejectedValue(new Error('Network error'))
+    const spy = vi
+      .spyOn(mondialRelayProvider, 'getRates')
+      .mockRejectedValue(new Error('Network error'))
 
     const input = makeInput(c.id, {
       shippingSelections: [{ shopId: 'shop-1', method: 'standard' }],

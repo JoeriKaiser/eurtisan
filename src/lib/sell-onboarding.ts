@@ -42,7 +42,10 @@ export const saveShopImage = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
   .inputValidator(
     z.object({
-      draftId: z.string().min(1).regex(/^[a-zA-Z0-9_-]+$/, 'Invalid draft ID format'),
+      draftId: z
+        .string()
+        .min(1)
+        .regex(/^[a-zA-Z0-9_-]+$/, 'Invalid draft ID format'),
       dataUrl: z.string().min(1),
     }),
   )
@@ -56,13 +59,53 @@ export const saveShopImage = createServerFn({ method: 'POST' })
 /*                                   Schemas                                  */
 /* -------------------------------------------------------------------------- */
 
-const processingTimeSchema = z.object({
-  min: z.number().int().min(1).max(90),
-  max: z.number().int().min(1).max(90),
-})
+export const ALLOWED_COUNTRY_CODES = [
+  'FR',
+  'DE',
+  'IT',
+  'ES',
+  'NL',
+  'BE',
+  'AT',
+  'PT',
+  'PL',
+  'IE',
+  'SE',
+  'DK',
+  'FI',
+  'GB',
+  'US',
+  'CA',
+  'AU',
+  'CH',
+  'NO',
+] as const
+
+export const ALLOWED_CURRENCIES = [
+  'EUR',
+  'PLN',
+  'SEK',
+  'DKK',
+  'CHF',
+  'NOK',
+  'GBP',
+  'USD',
+  'CAD',
+  'AUD',
+] as const
+
+const processingTimeSchema = z
+  .object({
+    min: z.number().int().min(1).max(90),
+    max: z.number().int().min(1).max(90),
+  })
+  .refine((data) => data.min <= data.max, {
+    message: 'Maximum processing days must be greater than or equal to minimum processing days',
+    path: ['max'],
+  })
 
 const shippingOriginSchema = z.object({
-  country: z.string().min(2).max(2),
+  country: z.enum(ALLOWED_COUNTRY_CODES),
   state: z.string().optional(),
   city: z.string().optional(),
   postalCode: z.string().optional(),
@@ -123,7 +166,7 @@ export const step3VisualsSchema = z.object({
 export const step4LocationSchema = z
   .object({
     shippingOrigin: shippingOriginSchema,
-    currency: z.string().min(3).max(3),
+    currency: z.enum(ALLOWED_CURRENCIES),
     isVatRegistered: z.boolean().default(false),
     vatId: z.string().optional().or(z.literal('')),
   })
@@ -171,7 +214,7 @@ const listingImageSchema = z.object({
 export const step7ListingSchema = z.object({
   name: z.string().min(5).max(140),
   description: z.string().min(20).max(2000),
-  priceCents: z.number().int().min(50),
+  priceCents: z.number().int().min(50).max(1_000_000_00),
   stockCount: z.number().int().min(0).default(1),
   categoryId: z.string().uuid().optional(),
   images: z.array(listingImageSchema).min(1).max(5),

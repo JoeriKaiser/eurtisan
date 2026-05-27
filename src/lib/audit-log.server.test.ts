@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { db } from '#/db/index'
 import {
   auditLog,
@@ -64,6 +64,44 @@ describe('emitAuditEvent', () => {
 
     const rows = await db.select().from(auditLog)
     expect(rows.length).toBe(0)
+  })
+
+  it('logs a structured fallback error log to console.error when DB insert fails', async () => {
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const originalInsert = db.insert
+    db.insert = vi.fn().mockImplementation(() => {
+      throw new Error('Database connection lost')
+    })
+
+    try {
+      await emitAuditEvent(
+        {
+          id: 'user-1',
+          name: 'Admin',
+          email: 'admin@example.com',
+          emailVerified: true,
+          role: 'admin',
+          image: null,
+          bannedAt: null,
+        },
+        'shop.suspend',
+        'shop',
+        'shop-1',
+        { reason: 'Violation' },
+      )
+
+      expect(consoleErrorSpy).toHaveBeenCalled()
+      const logOutput = consoleErrorSpy.mock.calls[0][0]
+      const parsed = JSON.parse(logOutput)
+      expect(parsed.level).toBe('error')
+      expect(parsed.event).toBe('audit_emission_failed')
+      expect(parsed.actorId).toBe('user-1')
+      expect(parsed.error).toBe('Database connection lost')
+    } finally {
+      db.insert = originalInsert
+      consoleErrorSpy.mockRestore()
+    }
   })
 })
 

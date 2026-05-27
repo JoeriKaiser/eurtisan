@@ -153,13 +153,7 @@ export async function populateProductsIndex(): Promise<{ synced: number; errors:
     .select()
     .from(product)
     .innerJoin(shop, eq(product.shopId, shop.id))
-    .where(
-      and(
-        eq(product.isActive, true),
-        eq(shop.isSuspended, false),
-        eq(shop.status, 'active'),
-      ),
-    )
+    .where(and(eq(product.isActive, true), eq(shop.isSuspended, false), eq(shop.status, 'active')))
 
   const docs: MeilisearchProductDocument[] = []
   let errors = 0
@@ -315,15 +309,14 @@ export async function searchProductsMeilisearch(
   }
 }
 
-export async function processMeilisearchSyncQueue(batchSize = 50): Promise<{ processedCount: number }> {
+export async function processMeilisearchSyncQueue(
+  batchSize = 50,
+): Promise<{ processedCount: number }> {
   const queueItems = await db
     .select()
     .from(meilisearchSyncQueue)
     .where(
-      and(
-        eq(meilisearchSyncQueue.status, 'pending'),
-        lte(meilisearchSyncQueue.runAt, new Date())
-      )
+      and(eq(meilisearchSyncQueue.status, 'pending'), lte(meilisearchSyncQueue.runAt, new Date())),
     )
     .orderBy(meilisearchSyncQueue.createdAt)
     .limit(batchSize)
@@ -335,7 +328,11 @@ export async function processMeilisearchSyncQueue(batchSize = 50): Promise<{ pro
   for (const item of queueItems) {
     try {
       if (item.action === 'index') {
-        const [prod] = await db.select().from(product).where(eq(product.id, item.productId)).limit(1)
+        const [prod] = await db
+          .select()
+          .from(product)
+          .where(eq(product.id, item.productId))
+          .limit(1)
         if (!prod) {
           await removeProductFromMeilisearch(item.productId)
         } else {
@@ -369,7 +366,10 @@ export async function processMeilisearchSyncQueue(batchSize = 50): Promise<{ pro
         })
         .where(eq(meilisearchSyncQueue.id, item.id))
 
-      console.error(`[meilisearch-sync] Error processing item ${item.id} (attempt ${attempts}):`, err)
+      console.error(
+        `[meilisearch-sync] Error processing item ${item.id} (attempt ${attempts}):`,
+        err,
+      )
     }
   }
 

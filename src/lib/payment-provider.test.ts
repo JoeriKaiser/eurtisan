@@ -190,7 +190,9 @@ describe('MolliePaymentProvider real-mode detection', () => {
   it('throws fatal error in production when MOLLIE_API_KEY is missing', () => {
     vi.stubEnv('NODE_ENV', 'production')
     vi.stubEnv('MOLLIE_API_KEY', '')
-    expect(() => new MolliePaymentProvider()).toThrow('FATAL: MOLLIE_API_KEY is required in production')
+    expect(() => new MolliePaymentProvider()).toThrow(
+      'FATAL: MOLLIE_API_KEY is required in production',
+    )
   })
 
   it('enters real mode when MOLLIE_API_KEY is present', () => {

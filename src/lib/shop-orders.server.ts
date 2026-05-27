@@ -146,7 +146,11 @@ export function derivePlatformStatus(shopOrderStatuses: OrderStatus[]): OrderSta
   if (nonTerminalStatuses.some((s) => s === 'processing')) {
     return 'processing'
   }
-  if (nonTerminalStatuses.every((s) => ['paid', 'processing', 'shipped', 'delivered', 'completed'].includes(s))) {
+  if (
+    nonTerminalStatuses.every((s) =>
+      ['paid', 'processing', 'shipped', 'delivered', 'completed'].includes(s),
+    )
+  ) {
     return 'paid'
   }
 

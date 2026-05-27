@@ -236,16 +236,24 @@ export async function createProductInternal(data: {
     return inserted
   })
 
-  import('./meilisearch-products.server').then(async ({ syncProductToMeilisearch }) => {
-    try {
-      await syncProductToMeilisearch(newProduct)
-      await db.update(meilisearchSyncQueue)
-        .set({ status: 'completed', updatedAt: new Date() })
-        .where(and(eq(meilisearchSyncQueue.productId, newProduct.id), eq(meilisearchSyncQueue.action, 'index')))
-    } catch {
-      // ignored, background poller will pick it up
-    }
-  }).catch(() => {})
+  import('./meilisearch-products.server')
+    .then(async ({ syncProductToMeilisearch }) => {
+      try {
+        await syncProductToMeilisearch(newProduct)
+        await db
+          .update(meilisearchSyncQueue)
+          .set({ status: 'completed', updatedAt: new Date() })
+          .where(
+            and(
+              eq(meilisearchSyncQueue.productId, newProduct.id),
+              eq(meilisearchSyncQueue.action, 'index'),
+            ),
+          )
+      } catch {
+        // ignored, background poller will pick it up
+      }
+    })
+    .catch(() => {})
 
   return newProduct
 }
@@ -337,16 +345,24 @@ export async function updateProductInternal(data: {
       return result
     })
 
-  import('./meilisearch-products.server').then(async ({ syncProductToMeilisearch }) => {
-    try {
-      await syncProductToMeilisearch(updatedProduct)
-      await db.update(meilisearchSyncQueue)
-        .set({ status: 'completed', updatedAt: new Date() })
-        .where(and(eq(meilisearchSyncQueue.productId, updatedProduct.id), eq(meilisearchSyncQueue.action, 'index')))
-    } catch {
-      // ignored, background poller will pick it up
-    }
-  }).catch(() => {})
+  import('./meilisearch-products.server')
+    .then(async ({ syncProductToMeilisearch }) => {
+      try {
+        await syncProductToMeilisearch(updatedProduct)
+        await db
+          .update(meilisearchSyncQueue)
+          .set({ status: 'completed', updatedAt: new Date() })
+          .where(
+            and(
+              eq(meilisearchSyncQueue.productId, updatedProduct.id),
+              eq(meilisearchSyncQueue.action, 'index'),
+            ),
+          )
+      } catch {
+        // ignored, background poller will pick it up
+      }
+    })
+    .catch(() => {})
 
   return updatedProduct
 }
@@ -376,16 +392,24 @@ export async function deleteProductInternal(data: {
       })
     })
 
-    import('./meilisearch-products.server').then(async ({ removeProductFromMeilisearch }) => {
-      try {
-        await removeProductFromMeilisearch(data.productId)
-        await db.update(meilisearchSyncQueue)
-          .set({ status: 'completed', updatedAt: new Date() })
-          .where(and(eq(meilisearchSyncQueue.productId, data.productId), eq(meilisearchSyncQueue.action, 'delete')))
-      } catch {
-        // ignored, background poller will pick it up
-      }
-    }).catch(() => {})
+    import('./meilisearch-products.server')
+      .then(async ({ removeProductFromMeilisearch }) => {
+        try {
+          await removeProductFromMeilisearch(data.productId)
+          await db
+            .update(meilisearchSyncQueue)
+            .set({ status: 'completed', updatedAt: new Date() })
+            .where(
+              and(
+                eq(meilisearchSyncQueue.productId, data.productId),
+                eq(meilisearchSyncQueue.action, 'delete'),
+              ),
+            )
+        } catch {
+          // ignored, background poller will pick it up
+        }
+      })
+      .catch(() => {})
 
     return { deleted: true, hard: true }
   }
@@ -405,16 +429,24 @@ export async function deleteProductInternal(data: {
     return res
   })
 
-  import('./meilisearch-products.server').then(async ({ syncProductToMeilisearch }) => {
-    try {
-      await syncProductToMeilisearch(updated)
-      await db.update(meilisearchSyncQueue)
-        .set({ status: 'completed', updatedAt: new Date() })
-        .where(and(eq(meilisearchSyncQueue.productId, updated.id), eq(meilisearchSyncQueue.action, 'index')))
-    } catch {
-      // ignored, background poller will pick it up
-    }
-  }).catch(() => {})
+  import('./meilisearch-products.server')
+    .then(async ({ syncProductToMeilisearch }) => {
+      try {
+        await syncProductToMeilisearch(updated)
+        await db
+          .update(meilisearchSyncQueue)
+          .set({ status: 'completed', updatedAt: new Date() })
+          .where(
+            and(
+              eq(meilisearchSyncQueue.productId, updated.id),
+              eq(meilisearchSyncQueue.action, 'index'),
+            ),
+          )
+      } catch {
+        // ignored, background poller will pick it up
+      }
+    })
+    .catch(() => {})
 
   return { deleted: true, hard: false }
 }
@@ -558,16 +590,24 @@ export async function toggleProductActiveInternal(data: {
     return res
   })
 
-  import('./meilisearch-products.server').then(async ({ syncProductToMeilisearch }) => {
-    try {
-      await syncProductToMeilisearch(updated)
-      await db.update(meilisearchSyncQueue)
-        .set({ status: 'completed', updatedAt: new Date() })
-        .where(and(eq(meilisearchSyncQueue.productId, updated.id), eq(meilisearchSyncQueue.action, 'index')))
-    } catch {
-      // ignored, background poller will pick it up
-    }
-  }).catch(() => {})
+  import('./meilisearch-products.server')
+    .then(async ({ syncProductToMeilisearch }) => {
+      try {
+        await syncProductToMeilisearch(updated)
+        await db
+          .update(meilisearchSyncQueue)
+          .set({ status: 'completed', updatedAt: new Date() })
+          .where(
+            and(
+              eq(meilisearchSyncQueue.productId, updated.id),
+              eq(meilisearchSyncQueue.action, 'index'),
+            ),
+          )
+      } catch {
+        // ignored, background poller will pick it up
+      }
+    })
+    .catch(() => {})
 
   return { productId: updated.id, isActive: updated.isActive }
 }

@@ -27,13 +27,22 @@ export async function emitAuditEvent(
     })
   } catch (err) {
     // Audit logging must never break the primary business transaction.
-    console.error('[audit] failed to emit audit event:', {
-      actorId: actor.id,
-      action,
-      resourceType,
-      resourceId,
-      error: err instanceof Error ? err.message : String(err),
-    })
+    // Emit structured JSON error log as fallback so aggregators can flag failures.
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        service: 'eurtisan',
+        event: 'audit_emission_failed',
+        timestamp: new Date().toISOString(),
+        actorId: actor.id,
+        actorName: actor.name,
+        action,
+        resourceType,
+        resourceId: resourceId ?? null,
+        metadata: metadata ?? {},
+        error: err instanceof Error ? err.message : String(err),
+      }),
+    )
   }
 }
 

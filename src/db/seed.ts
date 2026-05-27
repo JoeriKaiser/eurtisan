@@ -48,7 +48,6 @@ const CONFIG = {
   payouts: 60,
   notifications: 300,
   disputes: 15,
-  todos: 10,
 }
 
 /** Shared password hash for all seeded credential accounts. */
@@ -164,7 +163,6 @@ async function clearAll() {
     'account',
     'verification',
     'user',
-    'todos',
     'rate_limit',
   ]
   for (const table of tables) {
@@ -1212,33 +1210,6 @@ async function seedNotifications(users: (typeof schema.user.$inferInsert)[]) {
 }
 
 // =============================================================================
-// Todos
-// =============================================================================
-async function seedTodos() {
-  console.log('Seeding todos...')
-  const titles = [
-    'Set up artisan profile page',
-    'Configure GDPR-compliant cookie banner',
-    'Design product listing card component',
-    'Implement Euro pricing formatter',
-    'Set up Sentry error tracking',
-    'Create shipping label PDF generator',
-    'Integrate Mollie payment webhooks',
-    'Build admin moderation dashboard',
-    'Add inventory reservation cleanup job',
-    'Write dispute resolution workflow',
-    'Localise checkout flow for DE / FR / NL',
-    'Optimise product image lazy loading',
-  ]
-
-  await db
-    .insert(schema.todos)
-    .values(titles.slice(0, CONFIG.todos).map((title) => ({ title })))
-    .onConflictDoNothing()
-  console.log(`  ${CONFIG.todos} todos`)
-}
-
-// =============================================================================
 // Main
 // =============================================================================
 async function seed() {
@@ -1256,7 +1227,6 @@ async function seed() {
   await seedOrders(users, shops, products)
   await seedPayouts(shops)
   await seedNotifications(users)
-  await seedTodos()
 
   console.log('\nConfiguring Meilisearch index...')
   await configureProductsIndex()

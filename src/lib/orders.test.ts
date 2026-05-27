@@ -379,8 +379,20 @@ describe('getBuyerOrderDetailQuery', () => {
       .insert(platformOrder)
       .values({
         userId: 'user-1',
-        shippingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '12345', country: 'DE' },
-        billingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '12345', country: 'DE' },
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
         totalCents: 2500,
       })
       .returning()
@@ -425,8 +437,20 @@ describe('getBuyerOrderDetailQuery', () => {
       .insert(platformOrder)
       .values({
         userId: 'user-1',
-        shippingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '12345', country: 'DE' },
-        billingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '12345', country: 'DE' },
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
         totalCents: 2500,
       })
       .returning()
@@ -449,10 +473,17 @@ describe('getBuyerOrderDetailQuery', () => {
     })
 
     // Mock tracking status to delay longer than the 1s timeout
-    const trackSpy = vi.spyOn(mondialRelayProvider, 'trackShipment').mockImplementation(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-      return { trackingNumber: 'MR_TIMEOUT_TEST_123', carrier: 'mondial_relay', status: 'in_transit', events: [] }
-    })
+    const trackSpy = vi
+      .spyOn(mondialRelayProvider, 'trackShipment')
+      .mockImplementation(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 1500))
+        return {
+          trackingNumber: 'MR_TIMEOUT_TEST_123',
+          carrier: 'mondial_relay',
+          status: 'in_transit',
+          events: [],
+        }
+      })
 
     const start = Date.now()
     const result = await getBuyerOrderDetailQuery(order.id, 'user-1')
@@ -473,8 +504,20 @@ describe('getBuyerOrderDetailQuery', () => {
       .insert(platformOrder)
       .values({
         userId: 'user-1',
-        shippingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '12345', country: 'DE' },
-        billingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '12345', country: 'DE' },
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
         totalCents: 2500,
       })
       .returning()

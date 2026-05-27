@@ -380,9 +380,9 @@ export async function getCheckoutSummaryQuery(
     const selection = shippingSelections?.find((s) => s.shopId === shopGroup.shopId)
     const selectedOption = selection
       ? (shopGroup.shippingOptions.find((o) => o.rateId === selection.rateId) ??
-         shopGroup.shippingOptions.find((o) => o.method === selection.method) ??
-         shopGroup.shippingOptions.find((o) => !o.fallback) ??
-         shopGroup.shippingOptions[0])
+        shopGroup.shippingOptions.find((o) => o.method === selection.method) ??
+        shopGroup.shippingOptions.find((o) => !o.fallback) ??
+        shopGroup.shippingOptions[0])
       : (shopGroup.shippingOptions.find((o) => !o.fallback) ?? shopGroup.shippingOptions[0])
     if (selectedOption && selectedOption.costCents > 0) {
       const shippingVat = calculateVat({
@@ -402,9 +402,9 @@ export async function getCheckoutSummaryQuery(
     const selection = shippingSelections?.find((sel) => sel.shopId === s.shopId)
     const selectedOption = selection
       ? (s.shippingOptions.find((o) => o.rateId === selection.rateId) ??
-         s.shippingOptions.find((o) => o.method === selection.method) ??
-         s.shippingOptions.find((o) => !o.fallback) ??
-         s.shippingOptions[0])
+        s.shippingOptions.find((o) => o.method === selection.method) ??
+        s.shippingOptions.find((o) => !o.fallback) ??
+        s.shippingOptions[0])
       : (s.shippingOptions.find((o) => !o.fallback) ?? s.shippingOptions[0])
     return sum + s.subtotalCents + (selectedOption?.costCents ?? 0)
   }, 0)

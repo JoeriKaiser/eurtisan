@@ -7,7 +7,6 @@ import {
   jsonb,
   pgEnum,
   pgTable,
-  serial,
   text,
   timestamp,
   uniqueIndex,
@@ -171,14 +170,11 @@ export const shopSocials = pgTable(
     platform: text().notNull(),
     url: text().notNull(),
   },
-  (table) => [index('shop_socials_shop_id_idx').on(table.shopId)],
+  (table) => [
+    index('shop_socials_shop_id_idx').on(table.shopId),
+    uniqueIndex('shop_socials_shop_platform_unique').on(table.shopId, table.platform),
+  ],
 )
-
-export const todos = pgTable('todos', {
-  id: serial().primaryKey(),
-  title: text().notNull(),
-  createdAt: timestamp('created_at').defaultNow(),
-})
 
 export const categories = pgTable(
   'category',
@@ -592,7 +588,5 @@ export const meilisearchSyncQueue = pgTable(
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
-  (table) => [
-    index('meilisearch_sync_queue_status_run_at_idx').on(table.status, table.runAt),
-  ],
+  (table) => [index('meilisearch_sync_queue_status_run_at_idx').on(table.status, table.runAt)],
 )

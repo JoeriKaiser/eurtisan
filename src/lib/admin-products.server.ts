@@ -162,16 +162,24 @@ export async function toggleProductActiveQuery(
   })
 
   // Sync to Meilisearch
-  import('./meilisearch-products.server').then(async ({ syncProductToMeilisearch }) => {
-    try {
-      await syncProductToMeilisearch({ ...record, isActive: newActive })
-      await db.update(meilisearchSyncQueue)
-        .set({ status: 'completed', updatedAt: new Date() })
-        .where(and(eq(meilisearchSyncQueue.productId, productId), eq(meilisearchSyncQueue.action, 'index')))
-    } catch {
-      // Meilisearch sync failures must not break the admin toggle
-    }
-  }).catch(() => {})
+  import('./meilisearch-products.server')
+    .then(async ({ syncProductToMeilisearch }) => {
+      try {
+        await syncProductToMeilisearch({ ...record, isActive: newActive })
+        await db
+          .update(meilisearchSyncQueue)
+          .set({ status: 'completed', updatedAt: new Date() })
+          .where(
+            and(
+              eq(meilisearchSyncQueue.productId, productId),
+              eq(meilisearchSyncQueue.action, 'index'),
+            ),
+          )
+      } catch {
+        // Meilisearch sync failures must not break the admin toggle
+      }
+    })
+    .catch(() => {})
 
   return updated
 }

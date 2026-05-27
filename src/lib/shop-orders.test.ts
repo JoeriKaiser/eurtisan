@@ -1213,8 +1213,20 @@ describe('markShopOrderShippedQuery', () => {
       .insert(platformOrder)
       .values({
         userId: 'user-1',
-        shippingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '00000', country: 'DE' },
-        billingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '00000', country: 'DE' },
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
         totalCents: 1000,
         status: 'paid',
       })
@@ -1419,8 +1431,20 @@ describe('markShopOrderDeliveredQuery', () => {
       .insert(platformOrder)
       .values({
         userId: 'user-1',
-        shippingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '00000', country: 'DE' },
-        billingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '00000', country: 'DE' },
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
         totalCents: 1000,
         status: 'shipped',
       })
