@@ -367,17 +367,13 @@ export async function markShopOrderShippedQuery(
     }
   }
 
-  // Fetch current status before transaction to know if this is a real transition
-  const [preRecord] = await db
-    .select()
-    .from(shopOrder)
-    .where(eq(shopOrder.id, shopOrderId))
-    .limit(1)
-
-  const wasAlreadyShipped = preRecord?.status === 'shipped'
-
-  const result = await db.transaction(async (tx) => {
-    const [record] = await tx.select().from(shopOrder).where(eq(shopOrder.id, shopOrderId)).limit(1)
+  const { result, didTransition } = await db.transaction(async (tx) => {
+    const [record] = await tx
+      .select()
+      .from(shopOrder)
+      .where(eq(shopOrder.id, shopOrderId))
+      .for('update')
+      .limit(1)
 
     if (!record) {
       throw new Response(JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }), {
@@ -413,7 +409,7 @@ export async function markShopOrderShippedQuery(
           { status: 404, headers: { 'Content-Type': 'application/json' } },
         )
       }
-      return updated
+      return { result: updated, didTransition: false }
     }
 
     if (!isValidStatusTransition(currentStatus, 'shipped')) {
@@ -450,12 +446,12 @@ export async function markShopOrderShippedQuery(
         { status: 404, headers: { 'Content-Type': 'application/json' } },
       )
     }
-    return updated
+    return { result: updated, didTransition: true }
   })
 
   // Notify buyer after the transaction so errors don't break the shipment update
   // Only notify on actual status transition, not idempotent tracking updates
-  if (!wasAlreadyShipped && result.status === 'shipped') {
+  if (didTransition) {
     try {
       const { createNotification, sendNotificationEmail } = await import('./notifications.server')
       const order = await getShopOrderQuery(shopOrderId)
@@ -478,9 +474,7 @@ export async function markShopOrderShippedQuery(
     } catch {
       // Notification/email errors must not break the primary business transaction
     }
-  }
 
-  if (!wasAlreadyShipped && result.status === 'shipped') {
     logOrderShipped({
       shopOrderId,
       platformOrderId: result.platformOrderId,
@@ -603,16 +597,13 @@ export async function markShopOrderShippedWithLabelQuery(
 
 export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<ShopOrderDetail> {
   // Fetch current status before transaction to know if this is a real transition
-  const [preRecord] = await db
-    .select()
-    .from(shopOrder)
-    .where(eq(shopOrder.id, shopOrderId))
-    .limit(1)
-
-  const wasAlreadyDelivered = preRecord?.status === 'delivered'
-
-  const result = await db.transaction(async (tx) => {
-    const [record] = await tx.select().from(shopOrder).where(eq(shopOrder.id, shopOrderId)).limit(1)
+  const { result, didTransition } = await db.transaction(async (tx) => {
+    const [record] = await tx
+      .select()
+      .from(shopOrder)
+      .where(eq(shopOrder.id, shopOrderId))
+      .for('update')
+      .limit(1)
 
     if (!record) {
       throw new Response(JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }), {
@@ -631,7 +622,7 @@ export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<
           { status: 404, headers: { 'Content-Type': 'application/json' } },
         )
       }
-      return order
+      return { result: order, didTransition: false }
     }
 
     if (!isValidStatusTransition(currentStatus, 'delivered')) {
@@ -658,10 +649,10 @@ export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<
         { status: 404, headers: { 'Content-Type': 'application/json' } },
       )
     }
-    return updated
+    return { result: updated, didTransition: true }
   })
 
-  if (!wasAlreadyDelivered && result.status === 'delivered') {
+  if (didTransition) {
     logOrderDelivered({
       shopOrderId,
       platformOrderId: result.platformOrderId,

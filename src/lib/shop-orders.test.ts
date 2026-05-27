@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
 import { orderItem, platformOrder, product, shop, shopOrder, user } from '#/db/schema'
@@ -1195,6 +1195,60 @@ describe('markShopOrderShippedQuery', () => {
     expect(updated.trackingNumber).toBe('NEW-TRACK')
     expect(updated.trackingUrl).toBe('https://new.example.com')
   })
+
+  it('prevents duplicate logs and notifications under concurrent executions', async () => {
+    await seedUser()
+    await seedShop()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '00000', country: 'DE' },
+        billingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '00000', country: 'DE' },
+        totalCents: 1000,
+        status: 'paid',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 100,
+        subtotalCents: 900,
+        status: 'paid',
+      })
+      .returning()
+
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    // Simulate concurrent calls
+    const [res1, res2] = await Promise.all([
+      markShopOrderShippedQuery(so.id, { trackingNumber: 'TRACK-1' }),
+      markShopOrderShippedQuery(so.id, { trackingNumber: 'TRACK-2' }),
+    ])
+
+    expect(res1.status).toBe('shipped')
+    expect(res2.status).toBe('shipped')
+
+    // Find all 'order_shipped' events in console.log
+    const loggedEvents = consoleSpy.mock.calls
+      .map((args: any[]) => {
+        try {
+          return JSON.parse(args[0])
+        } catch {
+          return null
+        }
+      })
+      .filter((entry: any) => entry && entry.event === 'order_shipped')
+
+    // Expect only 1 transition/log
+    expect(loggedEvents).toHaveLength(1)
+    consoleSpy.mockRestore()
+  })
 })
 
 describe('markShopOrderDeliveredQuery', () => {
@@ -1346,6 +1400,60 @@ describe('markShopOrderDeliveredQuery', () => {
 
     const updated = await markShopOrderDeliveredQuery(so.id)
     expect(updated.status).toBe('delivered')
+  })
+
+  it('prevents duplicate logs under concurrent executions', async () => {
+    await seedUser()
+    await seedShop()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '00000', country: 'DE' },
+        billingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '00000', country: 'DE' },
+        totalCents: 1000,
+        status: 'shipped',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 100,
+        subtotalCents: 900,
+        status: 'shipped',
+      })
+      .returning()
+
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    // Simulate concurrent calls
+    const [res1, res2] = await Promise.all([
+      markShopOrderDeliveredQuery(so.id),
+      markShopOrderDeliveredQuery(so.id),
+    ])
+
+    expect(res1.status).toBe('delivered')
+    expect(res2.status).toBe('delivered')
+
+    // Find all 'order_delivered' events in console.log
+    const loggedEvents = consoleSpy.mock.calls
+      .map((args: any[]) => {
+        try {
+          return JSON.parse(args[0])
+        } catch {
+          return null
+        }
+      })
+      .filter((entry: any) => entry && entry.event === 'order_delivered')
+
+    // Expect only 1 log
+    expect(loggedEvents).toHaveLength(1)
+    consoleSpy.mockRestore()
   })
 })
 
