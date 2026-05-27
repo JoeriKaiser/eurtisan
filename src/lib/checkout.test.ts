@@ -208,6 +208,53 @@ describe('getCheckoutSummaryQuery', () => {
     expect(result?.grandTotalCents).toBe(4000)
   })
 
+  it('calculates grand total and VAT estimate using selected shipping options when selections are provided', async () => {
+    await seedUser()
+    await seedShop()
+    const c = await db
+      .insert(cart)
+      .values({ userId: 'user-1' })
+      .returning()
+      .then((rows) => rows[0])
+    const p = await seedProduct({ id: 'prod-1', priceCents: 1000 })
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+
+    const resDefault = await getCheckoutSummaryQuery(c.id, 'user-1', {
+      name: 'Test',
+      street: 'St',
+      city: 'Paris',
+      postalCode: '75001',
+      country: 'FR',
+    })
+    const standardOption = resDefault?.shops[0].shippingOptions.find((o) => o.method === 'standard')
+    const expressOption = resDefault?.shops[0].shippingOptions.find((o) => o.method === 'express')
+    expect(standardOption).toBeDefined()
+    expect(expressOption).toBeDefined()
+
+    expect(resDefault?.grandTotalCents).toBe(1000 + (standardOption?.costCents ?? 0))
+
+    const resExpress = await getCheckoutSummaryQuery(
+      c.id,
+      'user-1',
+      {
+        name: 'Test',
+        street: 'St',
+        city: 'Paris',
+        postalCode: '75001',
+        country: 'FR',
+      },
+      [
+        {
+          shopId: 'shop-1',
+          rateId: expressOption?.rateId,
+          method: 'express',
+        },
+      ],
+    )
+    expect(resExpress?.grandTotalCents).toBe(1000 + (expressOption?.costCents ?? 0))
+  })
+
   it('groups items from multiple shops separately', async () => {
     await seedUser()
     await seedShop()

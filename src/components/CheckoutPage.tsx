@@ -218,6 +218,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
           data: {
             cartId,
             shippingAddress: address,
+            shippingSelections: form.state.values.shippingSelections,
           },
         })
         setCurrentSummary(updatedSummary)

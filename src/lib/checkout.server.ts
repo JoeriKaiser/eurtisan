@@ -262,6 +262,7 @@ export async function getCheckoutSummaryQuery(
   cartId: string,
   userId: string,
   shippingAddress?: ShippingAddress,
+  shippingSelections?: ShippingSelection[],
 ): Promise<CheckoutSummary | null> {
   // Verify cart ownership
   const [cartRecord] = await db.select().from(cart).where(eq(cart.id, cartId)).limit(1)
@@ -376,8 +377,13 @@ export async function getCheckoutSummaryQuery(
     }
 
     // Shipping VAT estimate (using standard rate on selected shipping)
-    const selectedOption =
-      shopGroup.shippingOptions.find((o) => !o.fallback) ?? shopGroup.shippingOptions[0]
+    const selection = shippingSelections?.find((s) => s.shopId === shopGroup.shopId)
+    const selectedOption = selection
+      ? (shopGroup.shippingOptions.find((o) => o.rateId === selection.rateId) ??
+         shopGroup.shippingOptions.find((o) => o.method === selection.method) ??
+         shopGroup.shippingOptions.find((o) => !o.fallback) ??
+         shopGroup.shippingOptions[0])
+      : (shopGroup.shippingOptions.find((o) => !o.fallback) ?? shopGroup.shippingOptions[0])
     if (selectedOption && selectedOption.costCents > 0) {
       const shippingVat = calculateVat({
         sellerCountry,
@@ -393,8 +399,14 @@ export async function getCheckoutSummaryQuery(
   }
 
   const grandTotalCents = shops.reduce((sum, s) => {
-    const cheapestShipping = s.shippingOptions.find((o) => !o.fallback) ?? s.shippingOptions[0]
-    return sum + s.subtotalCents + (cheapestShipping?.costCents ?? 0)
+    const selection = shippingSelections?.find((sel) => sel.shopId === s.shopId)
+    const selectedOption = selection
+      ? (s.shippingOptions.find((o) => o.rateId === selection.rateId) ??
+         s.shippingOptions.find((o) => o.method === selection.method) ??
+         s.shippingOptions.find((o) => !o.fallback) ??
+         s.shippingOptions[0])
+      : (s.shippingOptions.find((o) => !o.fallback) ?? s.shippingOptions[0])
+    return sum + s.subtotalCents + (selectedOption?.costCents ?? 0)
   }, 0)
 
   return {

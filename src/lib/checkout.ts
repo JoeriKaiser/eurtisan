@@ -51,6 +51,15 @@ export const getCheckoutSummary = createServerFn({ method: 'POST' })
     z.object({
       cartId: z.string().uuid(),
       shippingAddress: shippingAddressSchema.optional(),
+      shippingSelections: z
+        .array(
+          z.object({
+            shopId: z.string().min(1),
+            rateId: z.string().optional(),
+            method: z.enum(['standard', 'express', 'manual']),
+          }),
+        )
+        .optional(),
     }),
   )
   .handler(async ({ context, data }) => {
@@ -62,7 +71,12 @@ export const getCheckoutSummary = createServerFn({ method: 'POST' })
     }
 
     const { getCheckoutSummaryQuery } = await import('./checkout.server')
-    const result = await getCheckoutSummaryQuery(data.cartId, context.user.id, data.shippingAddress)
+    const result = await getCheckoutSummaryQuery(
+      data.cartId,
+      context.user.id,
+      data.shippingAddress,
+      data.shippingSelections,
+    )
 
     if (!result) {
       throw new Response(
