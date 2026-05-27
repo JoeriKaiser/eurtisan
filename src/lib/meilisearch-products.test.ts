@@ -12,6 +12,7 @@ import {
   shop,
   shopOrder,
   user,
+  meilisearchSyncQueue,
 } from '#/db/schema'
 
 import {
@@ -22,6 +23,7 @@ import {
   removeShopProductsFromMeilisearch,
   searchProductsMeilisearch,
   syncProductToMeilisearch,
+  processMeilisearchSyncQueue,
 } from './meilisearch-products.server'
 
 const {
@@ -124,50 +126,51 @@ describe('configureProductsIndex', () => {
 /*                              Sync Product                                  */
 /* -------------------------------------------------------------------------- */
 
-describe('syncProductToMeilisearch', () => {
-  async function seedShopAndProduct(
-    overrides: { shopSuspended?: boolean; productActive?: boolean; categoryId?: string } = {},
-  ) {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
+async function seedShopAndProduct(
+  overrides: { shopSuspended?: boolean; productActive?: boolean; categoryId?: string } = {},
+) {
+  const [u] = await db
+    .insert(user)
+    .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
+    .returning()
+
+  const [s] = await db
+    .insert(shop)
+    .values({
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      ownerId: u.id,
+      isSuspended: overrides.shopSuspended ?? false,
+    })
+    .returning()
+
+  let catId: string | undefined
+  if (overrides.categoryId !== undefined) {
+    const [cat] = await db
+      .insert(categories)
+      .values({ id: overrides.categoryId, name: 'Pottery', slug: 'pottery' })
       .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({
-        id: 'shop-1',
-        name: 'Test Shop',
-        slug: 'test-shop',
-        ownerId: u.id,
-        isSuspended: overrides.shopSuspended ?? false,
-      })
-      .returning()
-
-    let catId: string | undefined
-    if (overrides.categoryId !== undefined) {
-      const [cat] = await db
-        .insert(categories)
-        .values({ id: overrides.categoryId, name: 'Pottery', slug: 'pottery' })
-        .returning()
-      catId = cat.id
-    }
-
-    const [p] = await db
-      .insert(product)
-      .values({
-        id: 'prod-1',
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        shopId: s.id,
-        categoryId: catId ?? null,
-        isActive: overrides.productActive ?? true,
-      })
-      .returning()
-
-    return { shop: s, product: p, categoryId: catId }
+    catId = cat.id
   }
+
+  const [p] = await db
+    .insert(product)
+    .values({
+      id: 'prod-1',
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 2999,
+      shopId: s.id,
+      categoryId: catId ?? null,
+      isActive: overrides.productActive ?? true,
+    })
+    .returning()
+
+  return { shop: s, product: p, categoryId: catId }
+}
+
+describe('syncProductToMeilisearch', () => {
 
   it('adds an active product from a non-suspended shop to the index', async () => {
     const { product: p } = await seedShopAndProduct({
@@ -546,5 +549,103 @@ describe('searchProductsMeilisearch', () => {
       pageSize: 10,
     })
     expect(result).toBeNull()
+  })
+})
+
+describe('processMeilisearchSyncQueue', () => {
+  beforeEach(async () => {
+    await db.delete(meilisearchSyncQueue)
+  })
+
+  it('does nothing when the queue is empty', async () => {
+    const result = await processMeilisearchSyncQueue()
+    expect(result.processedCount).toBe(0)
+  })
+
+  it('processes index operations for existing products', async () => {
+    const { product: p } = await seedShopAndProduct()
+
+    await db.insert(meilisearchSyncQueue).values({
+      productId: p.id,
+      action: 'index',
+      status: 'pending',
+    })
+
+    const result = await processMeilisearchSyncQueue()
+    expect(result.processedCount).toBe(1)
+
+    const [item] = await db.select().from(meilisearchSyncQueue)
+    expect(item.status).toBe('completed')
+    expect(mockAddDocuments).toHaveBeenCalledTimes(1)
+  })
+
+  it('processes index operations for deleted products by calling removeProductFromMeilisearch', async () => {
+    await db.insert(meilisearchSyncQueue).values({
+      productId: 'nonexistent-prod',
+      action: 'index',
+      status: 'pending',
+    })
+
+    const result = await processMeilisearchSyncQueue()
+    expect(result.processedCount).toBe(1)
+
+    const [item] = await db.select().from(meilisearchSyncQueue)
+    expect(item.status).toBe('completed')
+    expect(mockDeleteDocument).toHaveBeenCalledTimes(1)
+  })
+
+  it('processes delete operations', async () => {
+    await db.insert(meilisearchSyncQueue).values({
+      productId: 'deleted-prod',
+      action: 'delete',
+      status: 'pending',
+    })
+
+    const result = await processMeilisearchSyncQueue()
+    expect(result.processedCount).toBe(1)
+
+    const [item] = await db.select().from(meilisearchSyncQueue)
+    expect(item.status).toBe('completed')
+    expect(mockDeleteDocument).toHaveBeenCalledTimes(1)
+  })
+
+  it('handles errors by incrementing attempts and calculating backoff', async () => {
+    mockDeleteDocument.mockRejectedValueOnce(new Error('Meili down'))
+
+    await db.insert(meilisearchSyncQueue).values({
+      productId: 'error-prod',
+      action: 'delete',
+      status: 'pending',
+    })
+
+    const result = await processMeilisearchSyncQueue()
+    expect(result.processedCount).toBe(1)
+
+    const [item] = await db.select().from(meilisearchSyncQueue)
+    expect(item.status).toBe('pending')
+    expect(item.attempts).toBe(1)
+    expect(item.lastError).toBe('Meili down')
+    expect(item.runAt.getTime()).toBeGreaterThan(Date.now())
+  })
+
+  it('marks item as failed after 5 attempts', async () => {
+    mockDeleteDocument.mockRejectedValue(new Error('Meili down'))
+
+    const [inserted] = await db
+      .insert(meilisearchSyncQueue)
+      .values({
+        productId: 'failed-prod',
+        action: 'delete',
+        status: 'pending',
+        attempts: 4,
+      })
+      .returning()
+
+    const result = await processMeilisearchSyncQueue()
+    expect(result.processedCount).toBe(1)
+
+    const [item] = await db.select().from(meilisearchSyncQueue).where(eq(meilisearchSyncQueue.id, inserted.id))
+    expect(item.status).toBe('failed')
+    expect(item.attempts).toBe(5)
   })
 })

@@ -578,3 +578,21 @@ export const invoices = pgTable(
     index('invoices_type_idx').on(table.type),
   ],
 )
+
+export const meilisearchSyncQueue = pgTable(
+  'meilisearch_sync_queue',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    productId: text('product_id').notNull(),
+    action: text('action').notNull(), // 'index' | 'delete'
+    status: text('status').notNull().default('pending'), // 'pending' | 'failed' | 'completed'
+    attempts: integer('attempts').notNull().default(0),
+    lastError: text('last_error'),
+    runAt: timestamp('run_at').notNull().defaultNow(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('meilisearch_sync_queue_status_run_at_idx').on(table.status, table.runAt),
+  ],
+)

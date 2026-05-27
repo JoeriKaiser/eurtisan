@@ -1,6 +1,6 @@
 import { and, count, desc, eq, gte, ilike, inArray, lte, or } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { categories, product, productImage, shop } from '#/db/schema'
+import { categories, meilisearchSyncQueue, product, productImage, shop } from '#/db/schema'
 
 /* -------------------------------------------------------------------------- */
 /*                                    Types                                   */
@@ -146,19 +146,32 @@ export async function toggleProductActiveQuery(
 
   const newActive = !record.isActive
 
-  const [updated] = await db
-    .update(product)
-    .set({ isActive: newActive, updatedAt: new Date() })
-    .where(eq(product.id, productId))
-    .returning({ id: product.id, isActive: product.isActive })
+  const updated = await db.transaction(async (tx) => {
+    const [res] = await tx
+      .update(product)
+      .set({ isActive: newActive, updatedAt: new Date() })
+      .where(eq(product.id, productId))
+      .returning({ id: product.id, isActive: product.isActive })
+
+    await tx.insert(meilisearchSyncQueue).values({
+      productId: productId,
+      action: 'index',
+    })
+
+    return res
+  })
 
   // Sync to Meilisearch
-  try {
-    const { syncProductToMeilisearch } = await import('./meilisearch-products.server')
-    await syncProductToMeilisearch({ ...record, isActive: newActive })
-  } catch {
-    // Meilisearch sync failures must not break the admin toggle
-  }
+  import('./meilisearch-products.server').then(async ({ syncProductToMeilisearch }) => {
+    try {
+      await syncProductToMeilisearch({ ...record, isActive: newActive })
+      await db.update(meilisearchSyncQueue)
+        .set({ status: 'completed', updatedAt: new Date() })
+        .where(and(eq(meilisearchSyncQueue.productId, productId), eq(meilisearchSyncQueue.action, 'index')))
+    } catch {
+      // Meilisearch sync failures must not break the admin toggle
+    }
+  }).catch(() => {})
 
   return updated
 }

@@ -1,6 +1,6 @@
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray, lte } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { categories, product, shop } from '#/db/schema'
+import { categories, meilisearchSyncQueue, product, shop } from '#/db/schema'
 import { isMeilisearchConfigured, meilisearch } from './meilisearch.server'
 import type {
   PaginatedProducts,
@@ -112,6 +112,7 @@ export async function syncProductToMeilisearch(productData: {
     await meilisearch.index(PRODUCTS_INDEX).addDocuments([doc], { primaryKey: 'id' })
   } catch (err) {
     console.error('Failed to sync product to Meilisearch:', err)
+    throw err
   }
 }
 
@@ -121,6 +122,7 @@ export async function removeProductFromMeilisearch(productId: string): Promise<v
     await meilisearch.index(PRODUCTS_INDEX).deleteDocument(productId)
   } catch (err) {
     console.error('Failed to remove product from Meilisearch:', err)
+    throw err
   }
 }
 
@@ -311,4 +313,65 @@ export async function searchProductsMeilisearch(
     console.error('Meilisearch search failed, falling back to PostgreSQL:', err)
     return null
   }
+}
+
+export async function processMeilisearchSyncQueue(batchSize = 50): Promise<{ processedCount: number }> {
+  const queueItems = await db
+    .select()
+    .from(meilisearchSyncQueue)
+    .where(
+      and(
+        eq(meilisearchSyncQueue.status, 'pending'),
+        lte(meilisearchSyncQueue.runAt, new Date())
+      )
+    )
+    .orderBy(meilisearchSyncQueue.createdAt)
+    .limit(batchSize)
+
+  if (queueItems.length === 0) {
+    return { processedCount: 0 }
+  }
+
+  for (const item of queueItems) {
+    try {
+      if (item.action === 'index') {
+        const [prod] = await db.select().from(product).where(eq(product.id, item.productId)).limit(1)
+        if (!prod) {
+          await removeProductFromMeilisearch(item.productId)
+        } else {
+          await syncProductToMeilisearch(prod)
+        }
+      } else if (item.action === 'delete') {
+        await removeProductFromMeilisearch(item.productId)
+      }
+
+      await db
+        .update(meilisearchSyncQueue)
+        .set({
+          status: 'completed',
+          updatedAt: new Date(),
+        })
+        .where(eq(meilisearchSyncQueue.id, item.id))
+    } catch (err: any) {
+      const attempts = item.attempts + 1
+      const lastError = err?.message || String(err)
+      const backoffSec = 2 ** attempts * 5
+      const runAt = new Date(Date.now() + backoffSec * 1000)
+
+      await db
+        .update(meilisearchSyncQueue)
+        .set({
+          attempts,
+          lastError,
+          runAt,
+          status: attempts >= 5 ? 'failed' : 'pending',
+          updatedAt: new Date(),
+        })
+        .where(eq(meilisearchSyncQueue.id, item.id))
+
+      console.error(`[meilisearch-sync] Error processing item ${item.id} (attempt ${attempts}):`, err)
+    }
+  }
+
+  return { processedCount: queueItems.length }
 }

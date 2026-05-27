@@ -253,6 +253,13 @@
       "when": 1779791826963,
       "tag": "0035_faulty_bucky",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1779900752690,
+      "tag": "0036_amazing_scorpion",
+      "breakpoints": true
     }
   ]
 }

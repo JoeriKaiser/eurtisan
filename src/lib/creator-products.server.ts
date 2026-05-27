@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { and, count, desc, eq, ilike, inArray, sql } from 'drizzle-orm'
 import z from 'zod'
 import { db } from '#/db/index'
-import { categories, product, productImage, shop } from '#/db/schema'
+import { categories, meilisearchSyncQueue, product, productImage, shop } from '#/db/schema'
 import { deleteProductImages, type ProductImageInput, saveProductImages } from './image-utils'
 import { sanitizeRichText, validatePlainText } from './xss'
 
@@ -228,11 +228,24 @@ export async function createProductInternal(data: {
       throw imageErr
     }
 
+    await tx.insert(meilisearchSyncQueue).values({
+      productId: inserted.id,
+      action: 'index',
+    })
+
     return inserted
   })
 
-  const { syncProductToMeilisearch } = await import('./meilisearch-products.server')
-  await syncProductToMeilisearch(newProduct)
+  import('./meilisearch-products.server').then(async ({ syncProductToMeilisearch }) => {
+    try {
+      await syncProductToMeilisearch(newProduct)
+      await db.update(meilisearchSyncQueue)
+        .set({ status: 'completed', updatedAt: new Date() })
+        .where(and(eq(meilisearchSyncQueue.productId, newProduct.id), eq(meilisearchSyncQueue.action, 'index')))
+    } catch {
+      // ignored, background poller will pick it up
+    }
+  }).catch(() => {})
 
   return newProduct
 }
@@ -305,6 +318,11 @@ export async function updateProductInternal(data: {
         await replaceProductImages(tx, data.productId, data.images, oldImageUrls)
       }
 
+      await tx.insert(meilisearchSyncQueue).values({
+        productId: data.productId,
+        action: 'index',
+      })
+
       return result
     })
     .then(async (result) => {
@@ -319,8 +337,16 @@ export async function updateProductInternal(data: {
       return result
     })
 
-  const { syncProductToMeilisearch } = await import('./meilisearch-products.server')
-  await syncProductToMeilisearch(updatedProduct)
+  import('./meilisearch-products.server').then(async ({ syncProductToMeilisearch }) => {
+    try {
+      await syncProductToMeilisearch(updatedProduct)
+      await db.update(meilisearchSyncQueue)
+        .set({ status: 'completed', updatedAt: new Date() })
+        .where(and(eq(meilisearchSyncQueue.productId, updatedProduct.id), eq(meilisearchSyncQueue.action, 'index')))
+    } catch {
+      // ignored, background poller will pick it up
+    }
+  }).catch(() => {})
 
   return updatedProduct
 }
@@ -339,24 +365,56 @@ export async function deleteProductInternal(data: {
   }
 
   if (data.hard) {
-    // Delete files first so orphaned uploads don't remain if DB delete fails
-    await deleteProductImages(data.productId)
-    await db.delete(product).where(eq(product.id, data.productId))
+    await db.transaction(async (tx) => {
+      // Delete files first so orphaned uploads don't remain if DB delete fails
+      await deleteProductImages(data.productId)
+      await tx.delete(product).where(eq(product.id, data.productId))
 
-    const { removeProductFromMeilisearch } = await import('./meilisearch-products.server')
-    await removeProductFromMeilisearch(data.productId)
+      await tx.insert(meilisearchSyncQueue).values({
+        productId: data.productId,
+        action: 'delete',
+      })
+    })
+
+    import('./meilisearch-products.server').then(async ({ removeProductFromMeilisearch }) => {
+      try {
+        await removeProductFromMeilisearch(data.productId)
+        await db.update(meilisearchSyncQueue)
+          .set({ status: 'completed', updatedAt: new Date() })
+          .where(and(eq(meilisearchSyncQueue.productId, data.productId), eq(meilisearchSyncQueue.action, 'delete')))
+      } catch {
+        // ignored, background poller will pick it up
+      }
+    }).catch(() => {})
 
     return { deleted: true, hard: true }
   }
 
-  const [updated] = await db
-    .update(product)
-    .set({ isActive: false, updatedAt: new Date() })
-    .where(eq(product.id, data.productId))
-    .returning()
+  const updated = await db.transaction(async (tx) => {
+    const [res] = await tx
+      .update(product)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(eq(product.id, data.productId))
+      .returning()
 
-  const { syncProductToMeilisearch } = await import('./meilisearch-products.server')
-  await syncProductToMeilisearch(updated)
+    await tx.insert(meilisearchSyncQueue).values({
+      productId: data.productId,
+      action: 'index',
+    })
+
+    return res
+  })
+
+  import('./meilisearch-products.server').then(async ({ syncProductToMeilisearch }) => {
+    try {
+      await syncProductToMeilisearch(updated)
+      await db.update(meilisearchSyncQueue)
+        .set({ status: 'completed', updatedAt: new Date() })
+        .where(and(eq(meilisearchSyncQueue.productId, updated.id), eq(meilisearchSyncQueue.action, 'index')))
+    } catch {
+      // ignored, background poller will pick it up
+    }
+  }).catch(() => {})
 
   return { deleted: true, hard: false }
 }
@@ -485,14 +543,31 @@ export async function toggleProductActiveInternal(data: {
 
   const newActive = !productRecord.isActive
 
-  const [updated] = await db
-    .update(product)
-    .set({ isActive: newActive, updatedAt: new Date() })
-    .where(eq(product.id, data.productId))
-    .returning()
+  const updated = await db.transaction(async (tx) => {
+    const [res] = await tx
+      .update(product)
+      .set({ isActive: newActive, updatedAt: new Date() })
+      .where(eq(product.id, data.productId))
+      .returning()
 
-  const { syncProductToMeilisearch } = await import('./meilisearch-products.server')
-  await syncProductToMeilisearch(updated)
+    await tx.insert(meilisearchSyncQueue).values({
+      productId: data.productId,
+      action: 'index',
+    })
+
+    return res
+  })
+
+  import('./meilisearch-products.server').then(async ({ syncProductToMeilisearch }) => {
+    try {
+      await syncProductToMeilisearch(updated)
+      await db.update(meilisearchSyncQueue)
+        .set({ status: 'completed', updatedAt: new Date() })
+        .where(and(eq(meilisearchSyncQueue.productId, updated.id), eq(meilisearchSyncQueue.action, 'index')))
+    } catch {
+      // ignored, background poller will pick it up
+    }
+  }).catch(() => {})
 
   return { productId: updated.id, isActive: updated.isActive }
 }
