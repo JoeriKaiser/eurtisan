@@ -466,13 +466,19 @@ describe('addDisputeMessageQuery', () => {
       'user-1',
     )
 
+    // Pure script tag should be rejected as empty after sanitization
+    await expect(
+      addDisputeMessageQuery(d.id, '<script>alert("xss")</script>', 'user-1', 'customer'),
+    ).rejects.toBeInstanceOf(Response)
+
+    // Script tag with text should succeed and sanitize properly
     const result = await addDisputeMessageQuery(
       d.id,
-      '<script>alert("xss")</script>',
+      '<script>alert("xss")</script>Hello',
       'user-1',
       'customer',
     )
-    expect(result.message).toBe('')
+    expect(result.message).toBe('Hello')
   })
 })
 

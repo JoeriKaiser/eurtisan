@@ -51,7 +51,12 @@ const tanstackHandler = serverModule.default.fetch
 
 // Try to serve a static file from the client build directory
 function serveStatic(urlPath) {
-  const cleanPath = urlPath.split('?')[0]
+  let cleanPath
+  try {
+    cleanPath = decodeURIComponent(urlPath.split('?')[0])
+  } catch {
+    return { body: null, mime: 'text/plain', status: 400 }
+  }
   const fsPath = join(CLIENT_DIR, cleanPath)
 
   // Security: prevent directory traversal

@@ -330,12 +330,23 @@ export async function addDisputeMessageQuery(
     )
   }
 
+  const sanitizedMessage = (sanitizeRichText(message) ?? '').trim()
+  if (!sanitizedMessage) {
+    throw new Response(
+      JSON.stringify({
+        error: 'Bad Request',
+        message: 'Message cannot be empty.',
+      }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
   const [created] = await db
     .insert(disputeMessage)
     .values({
       disputeId,
       senderUserId,
-      message: sanitizeRichText(message) ?? '',
+      message: sanitizedMessage,
     })
     .returning()
 

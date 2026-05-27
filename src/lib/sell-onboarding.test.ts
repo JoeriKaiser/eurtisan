@@ -128,7 +128,12 @@ describe('step7ListingSchema', () => {
       description: 'A beautiful handmade ceramic mug.',
       priceCents: 1500,
       stockCount: 10,
-      images: [{ dataUrl: 'data:image/jpeg;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==' }],
+      images: [
+        {
+          dataUrl:
+            'data:image/jpeg;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        },
+      ],
     })
     expect(result.success).toBe(true)
   })
@@ -139,7 +144,12 @@ describe('step7ListingSchema', () => {
       description: 'A beautiful handmade ceramic mug.',
       priceCents: 1_000_000_01, // 1 cent over €1M
       stockCount: 10,
-      images: [{ dataUrl: 'data:image/jpeg;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==' }],
+      images: [
+        {
+          dataUrl:
+            'data:image/jpeg;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        },
+      ],
     })
     expect(result.success).toBe(false)
   })

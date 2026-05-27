@@ -12,6 +12,9 @@ export function getBaseUrl(): string {
     if (publicUrl) {
       return publicUrl.replace(/\/+$/, '')
     }
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('PUBLIC_URL environment variable is required in production')
+    }
   }
   return 'http://localhost:3000'
 }
