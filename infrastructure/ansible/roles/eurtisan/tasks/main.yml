@@ -52,6 +52,12 @@
 
 - name: Start observability stack
   block:
+    - name: Ensure eurtisan Docker network exists
+      command: docker network create eurtisan
+      ignore_errors: true
+      register: network_result
+      changed_when: network_result.rc == 0
+
     - name: Create observability directory
       file:
         path: /opt/eurtisan/observability
