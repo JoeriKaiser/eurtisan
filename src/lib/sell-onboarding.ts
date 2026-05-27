@@ -40,34 +40,16 @@ export const SOCIAL_PLATFORMS = [
  */
 export const saveShopImage = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ draftId: z.string().min(1), dataUrl: z.string().min(1) }))
-  .handler(async ({ data }) => {
-    const { mkdir, writeFile } = await import('node:fs/promises')
-    const { join } = await import('node:path')
-
-    const SHOP_IMAGE_UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'shops')
-
-    const match = data.dataUrl.match(/^data:([\w/]+);base64,(.+)$/)
-    if (!match) throw new Error('Invalid data URL format')
-    const [, mimeType, base64Data] = match
-    const buffer = Buffer.from(base64Data, 'base64')
-
-    const ext =
-      mimeType === 'image/jpeg'
-        ? 'jpg'
-        : mimeType === 'image/png'
-          ? 'png'
-          : mimeType === 'image/webp'
-            ? 'webp'
-            : ''
-    if (!ext) throw new Error(`Unsupported mime type: ${mimeType}`)
-
-    const filename = `${crypto.randomUUID()}.${ext}`
-    const shopDir = join(SHOP_IMAGE_UPLOAD_DIR, data.draftId)
-    await mkdir(shopDir, { recursive: true })
-    const filepath = join(shopDir, filename)
-    await writeFile(filepath, buffer)
-    return `/uploads/shops/${data.draftId}/${filename}`
+  .inputValidator(
+    z.object({
+      draftId: z.string().min(1).regex(/^[a-zA-Z0-9_-]+$/, 'Invalid draft ID format'),
+      dataUrl: z.string().min(1),
+    }),
+  )
+  .handler(async ({ context, data }) => {
+    if (!context.user) throw new Error('UNAUTHENTICATED')
+    const { saveShopImageInternal } = await import('./sell-onboarding.server')
+    return saveShopImageInternal(context.user.id, context.user.role, data.draftId, data.dataUrl)
   })
 
 /* -------------------------------------------------------------------------- */

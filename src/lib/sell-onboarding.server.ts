@@ -330,3 +330,29 @@ export async function moderateShopInternal(
 
   return { success: true, status: newStatus }
 }
+
+export async function saveShopImageInternal(
+  userId: string,
+  userRole: string,
+  draftId: string,
+  dataUrl: string,
+): Promise<string> {
+  await verifyShopOwnershipOrAdmin(draftId, userId, userRole)
+
+  const { validateImageInput, getExtensionFromMimeType } = await import('./image-utils')
+  const { buffer, mimeType } = validateImageInput({ dataUrl })
+  const ext = getExtensionFromMimeType(mimeType)
+
+  const { mkdir, writeFile } = await import('node:fs/promises')
+  const { join } = await import('node:path')
+
+  const SHOP_IMAGE_UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'shops')
+  const filename = `${crypto.randomUUID()}.${ext}`
+  const shopDir = join(SHOP_IMAGE_UPLOAD_DIR, draftId)
+
+  await mkdir(shopDir, { recursive: true })
+  const filepath = join(shopDir, filename)
+  await writeFile(filepath, buffer)
+
+  return `/uploads/shops/${draftId}/${filename}`
+}
