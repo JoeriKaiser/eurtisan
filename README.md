@@ -1,280 +1,213 @@
-Welcome to your new TanStack Start app!
+# Eurtisan
 
-# Getting Started
+A European-centered online marketplace for creatives, artisans, and makers.
 
-To run this application with Docker Compose (recommended):
+**Status:** Early-stage, under active development.  
+**Contributions:** Not currently accepted — issues are reviewed and welcome.
 
-```bash
-make up
+---
+
+## Overview
+
+Eurtisan connects European makers with European buyers. It is built as a production-grade, full-stack marketplace with GDPR-conscious architecture, Euro-first pricing, and localization-ready design.
+
+### Key traits
+
+- **Region-first:** European data residency, EUR default currency, VAT-aware schema.
+- **Security-first:** Server-enforced authorization, deny-by-default access, Zod-validated inputs, no secrets in client bundles.
+
+---
+
+## Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | TanStack Start (SSR + streaming) |
+| Router | TanStack Router (file-based) |
+| UI | React 19, Tailwind CSS v4, Base UI primitives |
+| State / Cache | TanStack Query |
+| Forms | TanStack Form |
+| Validation | Zod |
+| Auth | Better Auth (session-based, mounted at `/api/auth/$`) |
+| Database | PostgreSQL 16 |
+| ORM / Migrations | Drizzle ORM + Drizzle Kit |
+| Search | Meilisearch |
+| Payments | Mollie (connect + hosted checkout) |
+| Email | Brevo (production), Mailpit (local dev) |
+| Toolchain | Bun |
+| Lint / Format | Biome |
+| Testing | Vitest + Testing Library + Playwright (E2E) |
+| i18n | Paraglide JS (URL + cookie strategy) |
+| Infrastructure | Docker Compose, Ansible, Caddy |
+
+---
+
+## Features
+
+### Shoppers
+- Search and browse products, categories, and shop fronts via Meilisearch.
+- Anonymous session cart with automatic merge on login.
+- Checkout with inventory reservation (15-minute lease), shipping address validation, and Mollie payment.
+- Post-purchase: order tracking, product reviews, and dispute filing.
+
+### Creators
+- Eight-step onboarding wizard with draft persistence and admin review workflow.
+- Shop management: settings, policies, visuals, social links.
+- Product catalog: create, edit, activate/deactivate, image uploads.
+- Order fulfillment: status updates, tracking registration, shipping label integration hooks.
+- Payout tracking and Mollie Connect onboarding.
+
+### Admins
+- Moderation: review shop applications, approve/reject/request changes, suspend shops, ban users.
+- Catalog oversight: category CRUD with drag-and-drop ordering, product visibility controls.
+- Operations: platform order inspection, dispute mediation with refund callbacks, payout queue, audit logs.
+
+---
+
+## Project structure
+
+```
+├── src/
+│   ├── routes/           # File-based TanStack Router routes
+│   ├── components/       # Shared components + route-specific pages
+│   ├── db/               # Drizzle schema, migrations, seeds
+│   ├── lib/              # Business logic and utilities
+│   ├── integrations/     # External service clients
+│   ├── router.tsx        # Router configuration
+│   └── styles.css        # Global styles + Tailwind imports
+├── drizzle/              # Generated migration files
+├── infrastructure/       # Ansible playbooks and inventory
+├── docker-compose.yml    # Local dev services (app, postgres, meilisearch, mailpit)
+├── docker-compose.staging.yml
+├── docker-compose.prod.yml
+├── Makefile              # Standardized workflows
+└── Caddyfile             # Production reverse proxy
 ```
 
-This starts both the app and a local PostgreSQL database. The app will be available at [http://localhost:3000](http://localhost:3000).
+---
 
-To run in host mode (app on host, database in Docker):
+## Development
 
-```bash
-make up      # start the database container
-bun install  # install dependencies
-bun run dev  # start the dev server
-```
+### Prerequisites
 
-# Building For Production
+- Docker and Docker Compose.
 
-To build this application for production:
+### Quick start
 
 ```bash
-bun run build
+# 1. Copy environment variables
+cp .env.example .env.local
+
+# 2. Start services and install dependencies
+make init
 ```
+
+The app is available at `http://localhost:3000`.
+
+### Common commands
+
+| Command | Description |
+|---|---|
+| `make up` | Start Docker Compose services |
+| `make down` | Stop services |
+| `make dev` | Start dev server with hot reload |
+| `make build` | Production build |
+| `make preview` | Preview production build |
+| `make lint` | Run Biome linter |
+| `make format` | Run Biome formatter |
+| `make check` | TypeScript type check |
+| `make test` | Run Vitest suite |
+| `make test-related <path>` | Run tests impacted by a file |
+| `make e2e` | Run Playwright E2E tests |
+| `make shell` | Open a shell in the app container |
+
+### Database workflow
+
+```bash
+make db-generate   # Generate migration after schema changes
+make db-migrate    # Run pending migrations
+make db-push       # Push schema (local prototyping only)
+make db-studio     # Open Drizzle Studio on port 4983
+make db-seed       # Seed local dev data
+```
+
+### Auth secret
+
+```bash
+make auth-secret
+```
+Copy the output into `.env.local` as `BETTER_AUTH_SECRET`.
+
+---
+
+## Environment variables
+
+Copy `.env.example` to `.env.local` and fill in the values. Key variables:
+
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `BETTER_AUTH_SECRET` | Session signing secret |
+| `BETTER_AUTH_URL` | Public auth endpoint base URL |
+| `MEILISEARCH_HOST` / `MEILISEARCH_API_KEY` | Search index |
+| `MOLLIE_API_KEY` | Payment provider |
+| `BREVO_API_KEY` | Transactional email |
+| `MOCK_PAYMENTS_ENABLED` | Enable mock payment flow for local dev |
+
+---
 
 ## Testing
 
-This project uses [Vitest](https://vitest.dev/) for testing. You can run the tests with:
+- **Unit / Component:** Vitest + Testing Library + vitest-axe (accessibility).
+- **E2E:** Playwright.
+
+Run selectively:
 
 ```bash
-bun run test
+make test src/lib/pricing.test.ts
+make test-related src/lib/pricing.ts
+make e2e
 ```
 
-## Styling
+---
 
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
+## Deployment
 
-### Removing Tailwind CSS
-
-If you prefer not to use Tailwind CSS:
-
-1. Remove the Tailwind import in `src/styles.css` and replace it with your own styles
-2. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
-3. Uninstall the packages: `bun remove @tailwindcss/vite tailwindcss`
-
-## Tooling
-
-This project uses [Biome](https://biomejs.dev/) for linting and formatting.
+Staging and production deploy via **Ansible** onto Ubuntu VPS instances with Docker Compose and Caddy.
 
 ```bash
-bun run lint    # auto-fix lint issues
-bun run format  # format code
-bun run check   # lint + format in one pass
+# One-time: initialize inventory from examples
+make infra-init
+
+# Set secrets
+make infra-secrets
+
+# Provision and deploy
+make infra-setup-staging
+make infra-setup-production
 ```
 
-## Database (Docker Compose)
+See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for full details on DNS, SSH tunnels, IP whitelisting, backups, and restore procedures.
 
-A local PostgreSQL database is provided via Docker Compose.
+---
 
-### Start the stack
+## Design system
 
-```bash
-make up
-```
+- **Palette:** Warm OKLCH tones — moss green primary, sage accent, walnut neutrals. No purple or orange.
+- **Typography:** Fraunces (display) + Manrope (UI).
+- **Constraints:** WCAG 2.1 AA, `prefers-reduced-motion` support, flat-by-default elevation, ≤10% accent surface coverage on product UI.
 
-This starts:
-- **App** container on host port `3000`
-- **Postgres** container with persistent storage
+Full tokens and rules are documented in [`DESIGN.md`](DESIGN.md).
 
-### Stop the stack
+---
 
-```bash
-make down
-```
+## Contributing
 
-### View logs
+This project is not currently accepting pull requests or external contributions.  
+**Issues are welcome** — bug reports, feature suggestions, and security disclosures will be reviewed.
 
-```bash
-make logs
-```
+---
 
-### Open a shell in the app container
+## License
 
-```bash
-make shell
-```
-
-## Setting up Better Auth
-
-1. Start the database (see above).
-2. Generate and set the `BETTER_AUTH_SECRET` environment variable in your `.env.local`:
-
-   ```bash
-   bunx @better-auth/cli secret
-   ```
-
-3. Visit the [Better Auth documentation](https://www.better-auth.com) to unlock the full potential of authentication in your app.
-
-### Running Migrations
-
-Better Auth uses the same PostgreSQL pool as Drizzle. After starting the database, run:
-
-```bash
-bunx @better-auth/cli migrate
-```
-
-## Makefile Commands
-
-Common tasks are exposed via the `Makefile`:
-
-| Command | Description |
-|---------|-------------|
-| `make up` | Start Docker Compose services (app + Postgres) |
-| `make down` | Stop Docker Compose services |
-| `make logs` | Tail Docker Compose logs |
-| `make shell` | Open a shell inside the app container |
-| `make install` | Install dependencies with Bun |
-| `make dev` | Start the development server (host mode) |
-| `make build` | Build for production |
-| `make preview` | Preview the production build |
-| `make start` | Start the production server |
-| `make lint` | Run Biome linter with auto-fix |
-| `make format` | Run Biome formatter |
-| `make check` | Run Biome lint + format |
-| `make test` | Run Vitest |
-| `make db-generate` | Generate Drizzle migrations |
-| `make db-migrate` | Run Drizzle migrations |
-| `make db-push` | Push Drizzle schema |
-| `make db-studio` | Open Drizzle Studio |
-
-## Routing
-
-This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Routes are managed as files in `src/routes`.
-
-### Adding A Route
-
-To add a new route to your application just add a new file in the `./src/routes` directory.
-
-TanStack will automatically generate the content of the route file for you.
-
-Now that you have two routes you can use a `Link` component to navigate between them.
-
-### Adding Links
-
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
-
-```tsx
-import { Link } from "@tanstack/react-router";
-```
-
-Then anywhere in your JSX you can use it like so:
-
-```tsx
-<Link to="/about">About</Link>
-```
-
-This will create a link that will navigate to the `/about` route.
-
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
-
-### Using A Layout
-
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you render `{children}` in the `shellComponent`.
-
-Here is an example layout that includes a header:
-
-```tsx
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'My App' },
-    ],
-  }),
-  shellComponent: ({ children }) => (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <header>
-          <nav>
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-          </nav>
-        </header>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  ),
-})
-```
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-## Server Functions
-
-TanStack Start provides server functions that allow you to write server-side code that seamlessly integrates with your client components.
-
-```tsx
-import { createServerFn } from '@tanstack/react-start'
-
-const getServerTime = createServerFn({
-  method: 'GET',
-}).handler(async () => {
-  return new Date().toISOString()
-})
-
-// Use in a component
-function MyComponent() {
-  const [time, setTime] = useState('')
-
-  useEffect(() => {
-    getServerTime().then(setTime)
-  }, [])
-
-  return <div>Server time: {time}</div>
-}
-```
-
-## API Routes
-
-You can create API routes by using the `server` property in your route definitions:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
-
-export const Route = createFileRoute('/api/hello')({
-  server: {
-    handlers: {
-      GET: () => json({ message: 'Hello, World!' }),
-    },
-  },
-})
-```
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/people')({
-  loader: async () => {
-    const response = await fetch('https://swapi.dev/api/people')
-    return response.json()
-  },
-  component: PeopleComponent,
-})
-
-function PeopleComponent() {
-  const data = Route.useLoaderData()
-  return (
-    <ul>
-      {data.results.map((person) => (
-        <li key={person.name}>{person.name}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
-
-# Learn More
-
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
-
-For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+This project is licensed under the [European Union Public Licence v. 1.2](LICENSE) (EUPL-1.2).
