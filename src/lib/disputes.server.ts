@@ -640,6 +640,25 @@ export async function resolveDisputeQuery(
   const creatorUserId = shopRecord?.ownerId ?? null
 
   const result = await db.transaction(async (tx) => {
+    // Process refund through Mollie inside the transaction
+    if (refundCents !== null && refundCents > 0 && molliePaymentId) {
+      try {
+        await molliePaymentProvider.refundPayment(molliePaymentId, refundCents)
+      } catch (err) {
+        console.error(
+          `Mollie refund failed for payment ${molliePaymentId}, dispute ${disputeId}, amount ${refundCents} cents:`,
+          err,
+        )
+        throw new Response(
+          JSON.stringify({
+            error: 'Bad Gateway',
+            message: 'Mollie refund failed. The dispute has not been resolved.',
+          }),
+          { status: 502, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+    }
+
     const [updated] = await tx
       .update(dispute)
       .set({
@@ -751,20 +770,6 @@ export async function resolveDisputeQuery(
     }
   } catch {
     // Email errors must not break the primary business flow
-  }
-
-  // 2. Process refund through Mollie (outside the transaction — external API call).
-  //    Refund failures are logged but must not undo the dispute resolution.
-  if (refundCents !== null && refundCents > 0 && molliePaymentId) {
-    try {
-      await molliePaymentProvider.refundPayment(molliePaymentId, refundCents)
-    } catch {
-      // Refund API call failed but the dispute has been resolved internally.
-      // In production this should trigger an alert for manual intervention.
-      console.error(
-        `Mollie refund failed for payment ${molliePaymentId}, dispute ${disputeId}, amount ${refundCents} cents`,
-      )
-    }
   }
 
   return result

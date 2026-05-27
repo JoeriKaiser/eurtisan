@@ -1064,7 +1064,7 @@ describe('resolveDisputeQuery', () => {
     refundSpy.mockRestore()
   })
 
-  it('logs but does not roll back when refundPayment fails', async () => {
+  it('rolls back the database transaction and throws when refundPayment fails', async () => {
     await seedUser()
     await seedShop()
 
@@ -1073,31 +1073,41 @@ describe('resolveDisputeQuery', () => {
       .mockRejectedValue(new Error('Mollie refund error'))
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
-    const { order, shopOrder: so } = await seedDeliveredOrder({ molliePaymentId: 'tr_mock_000001' })
-    const d = await openDisputeQuery(
-      { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
-      'user-1',
-    )
+    try {
+      const { order, shopOrder: so } = await seedDeliveredOrder({
+        molliePaymentId: 'tr_mock_000001',
+      })
+      const d = await openDisputeQuery(
+        { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
+        'user-1',
+      )
 
-    const result = await resolveDisputeQuery(d.id, { resolution: 'full_refund' })
+      await expect(resolveDisputeQuery(d.id, { resolution: 'full_refund' })).rejects.toBeInstanceOf(
+        Response,
+      )
 
-    expect(result.status).toBe('resolved')
-    expect(result.resolution).toBe('full_refund')
-    expect(result.refundCents).toBe(2500)
+      // Assert database did NOT update (rolled back)
+      const [updatedDispute] = await db.select().from(dispute).where(eq(dispute.id, d.id))
+      expect(updatedDispute.status).toBe('open')
 
-    const [updatedSo] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
-    expect(updatedSo.status).toBe('refunded')
+      const [updatedSo] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
+      expect(updatedSo.status).toBe('disputed')
 
-    const [updatedPo] = await db.select().from(platformOrder).where(eq(platformOrder.id, order.id))
-    expect(updatedPo.status).toBe('refunded')
+      const [updatedPo] = await db
+        .select()
+        .from(platformOrder)
+        .where(eq(platformOrder.id, order.id))
+      expect(updatedPo.status).toBe('disputed')
 
-    expect(refundSpy).toHaveBeenCalledTimes(1)
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Mollie refund failed for payment tr_mock_000001'),
-    )
-
-    refundSpy.mockRestore()
-    consoleSpy.mockRestore()
+      expect(refundSpy).toHaveBeenCalledTimes(1)
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Mollie refund failed for payment tr_mock_000001'),
+        expect.any(Error),
+      )
+    } finally {
+      refundSpy.mockRestore()
+      consoleSpy.mockRestore()
+    }
   })
 
   it('does not call refundPayment for close resolution', async () => {
