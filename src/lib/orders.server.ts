@@ -88,6 +88,15 @@ export async function getOrderOwnerId(platformOrderId: string): Promise<string |
   return order?.userId ?? null
 }
 
+interface CachedTracking {
+  status: string
+  cachedAt: number
+}
+
+const trackingCache = new Map<string, CachedTracking>()
+const CACHE_TTL_MS = 15 * 60 * 1000 // 15 minutes
+const API_TIMEOUT_MS = 1000 // 1 second
+
 export async function getBuyerOrderDetailQuery(
   platformOrderId: string,
   userId: string,
@@ -132,11 +141,40 @@ export async function getBuyerOrderDetailQuery(
     shopOrdersResult.map(async (so) => {
       const label = labelMap.get(so.shopOrder.id)
       if (!label?.trackingNumber) return null
+
+      // Check in-memory cache first
+      const cached = trackingCache.get(label.trackingNumber)
+      if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
+        return { shopOrderId: so.shopOrder.id, status: cached.status }
+      }
+
+      let timerId: ReturnType<typeof setTimeout> | undefined
       try {
-        const info = await mondialRelayProvider.trackShipment(label.trackingNumber)
+        // Fetch with a 1-second timeout wrapper
+        const trackPromise = mondialRelayProvider.trackShipment(label.trackingNumber)
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timerId = setTimeout(() => reject(new Error('Timeout')), API_TIMEOUT_MS)
+        })
+
+        const info = await Promise.race([trackPromise, timeoutPromise])
+
+        // Cache the result
+        trackingCache.set(label.trackingNumber, {
+          status: info.status,
+          cachedAt: Date.now(),
+        })
+
         return { shopOrderId: so.shopOrder.id, status: info.status }
-      } catch {
+      } catch (_err) {
+        // If there was a timeout/error, and we have an expired cached value, return it as a fallback
+        if (cached) {
+          return { shopOrderId: so.shopOrder.id, status: cached.status }
+        }
         return null
+      } finally {
+        if (timerId) {
+          clearTimeout(timerId)
+        }
       }
     }),
   )

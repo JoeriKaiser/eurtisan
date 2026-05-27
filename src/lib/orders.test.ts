@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
 import {
@@ -14,6 +14,7 @@ import {
   shopOrder,
   user,
 } from '#/db/schema'
+import { mondialRelayProvider } from '#/integrations/shipping'
 
 import {
   cancelOrderQuery,
@@ -367,6 +368,155 @@ describe('getBuyerOrderDetailQuery', () => {
     expect(result?.shops).toHaveLength(1)
     expect(result?.shops[0].shippingLabel).toBeNull()
     expect(result?.shops[0].trackingStatus).toBeNull()
+  })
+
+  it('caches tracking status and uses cached value on subsequent calls', async () => {
+    await seedUser()
+    await seedShop()
+    await seedProduct()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '12345', country: 'DE' },
+        billingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '12345', country: 'DE' },
+        totalCents: 2500,
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 500,
+        subtotalCents: 2000,
+      })
+      .returning()
+
+    await db.insert(shippingLabel).values({
+      shopOrderId: so.id,
+      carrier: 'mondial_relay',
+      trackingNumber: 'MR_CACHE_TEST_123',
+    })
+
+    const trackSpy = vi.spyOn(mondialRelayProvider, 'trackShipment')
+
+    // First call: should query the provider
+    const res1 = await getBuyerOrderDetailQuery(order.id, 'user-1')
+    expect(res1?.shops[0].trackingStatus).not.toBeNull()
+    expect(trackSpy).toHaveBeenCalledTimes(1)
+
+    // Second call: should use cache (zero API calls)
+    const res2 = await getBuyerOrderDetailQuery(order.id, 'user-1')
+    expect(res2?.shops[0].trackingStatus).toBe(res1?.shops[0].trackingStatus)
+    expect(trackSpy).toHaveBeenCalledTimes(1)
+
+    trackSpy.mockRestore()
+  })
+
+  it('handles tracking provider timeout by returning null and not blocking indefinitely', async () => {
+    await seedUser()
+    await seedShop()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '12345', country: 'DE' },
+        billingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '12345', country: 'DE' },
+        totalCents: 2500,
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 500,
+        subtotalCents: 2000,
+      })
+      .returning()
+
+    await db.insert(shippingLabel).values({
+      shopOrderId: so.id,
+      carrier: 'mondial_relay',
+      trackingNumber: 'MR_TIMEOUT_TEST_123',
+    })
+
+    // Mock tracking status to delay longer than the 1s timeout
+    const trackSpy = vi.spyOn(mondialRelayProvider, 'trackShipment').mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+      return { trackingNumber: 'MR_TIMEOUT_TEST_123', carrier: 'mondial_relay', status: 'in_transit', events: [] }
+    })
+
+    const start = Date.now()
+    const result = await getBuyerOrderDetailQuery(order.id, 'user-1')
+    const elapsed = Date.now() - start
+
+    // Should resolve around 1 second (not block for 1.5 seconds)
+    expect(elapsed).toBeLessThan(1400)
+    expect(result?.shops[0].trackingStatus).toBeNull()
+
+    trackSpy.mockRestore()
+  })
+
+  it('falls back to expired cached value if the tracking provider fails or times out', async () => {
+    await seedUser()
+    await seedShop()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '12345', country: 'DE' },
+        billingAddress: { name: 'Test', street: 'St', city: 'City', postalCode: '12345', country: 'DE' },
+        totalCents: 2500,
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 500,
+        subtotalCents: 2000,
+      })
+      .returning()
+
+    await db.insert(shippingLabel).values({
+      shopOrderId: so.id,
+      carrier: 'mondial_relay',
+      trackingNumber: 'MR_FALLBACK_TEST_123',
+    })
+
+    let mockTime = Date.now()
+    const dateSpy = vi.spyOn(Date, 'now').mockImplementation(() => mockTime)
+    const trackSpy = vi.spyOn(mondialRelayProvider, 'trackShipment')
+
+    // First call: should query the provider and cache it
+    const res1 = await getBuyerOrderDetailQuery(order.id, 'user-1')
+    expect(res1?.shops[0].trackingStatus).not.toBeNull()
+    const firstStatus = res1?.shops[0].trackingStatus
+
+    // Advance time by 20 minutes (TTL is 15 minutes, so it expires)
+    mockTime += 20 * 60 * 1000
+
+    // Mock trackShipment to fail/timeout
+    trackSpy.mockRejectedValue(new Error('API failure'))
+
+    // Second call: should attempt to call trackShipment, fail, but fall back to the expired cached value
+    const res2 = await getBuyerOrderDetailQuery(order.id, 'user-1')
+    expect(res2?.shops[0].trackingStatus).toBe(firstStatus)
+
+    trackSpy.mockRestore()
+    dateSpy.mockRestore()
   })
 })
 
