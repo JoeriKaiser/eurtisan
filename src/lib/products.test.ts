@@ -1767,7 +1767,7 @@ describe('Shop Status Visibility Constraints', () => {
     // Active shop product should be accessible
     const p2 = await getProductBySlugQuery('shop-active', 'prod-active-active')
     expect(p2).not.toBeNull()
-    expect(p2!.name).toBe('Product Active active')
+    expect(p2?.name).toBe('Product Active active')
   })
 
   it('only returns active shops in listShopsQuery', async () => {
@@ -1799,6 +1799,6 @@ describe('Shop Status Visibility Constraints', () => {
 
     const s2 = await getShopBySlugQuery('shop-active')
     expect(s2).not.toBeNull()
-    expect(s2!.slug).toBe('shop-active')
+    expect(s2?.slug).toBe('shop-active')
   })
 })

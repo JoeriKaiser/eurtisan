@@ -93,12 +93,12 @@ const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   pending_payment: ['paid', 'cancelled'],
   paid: ['processing', 'shipped', 'cancelled', 'refunded'],
   processing: ['shipped', 'cancelled', 'refunded'],
-  shipped: ['delivered', 'disputed', 'cancelled', 'refunded'],
-  delivered: ['completed', 'disputed', 'cancelled', 'refunded'],
-  completed: ['cancelled', 'refunded'],
+  shipped: ['delivered', 'disputed', 'refunded'],
+  delivered: ['completed', 'disputed', 'refunded'],
+  completed: ['refunded'],
   cancelled: [],
   refunded: [],
-  disputed: ['cancelled', 'refunded', 'completed'],
+  disputed: ['refunded', 'completed'],
 }
 
 export function isValidStatusTransition(from: OrderStatus, to: OrderStatus): boolean {

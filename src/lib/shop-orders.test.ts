@@ -607,9 +607,6 @@ describe('isValidStatusTransition', () => {
     expect(isValidStatusTransition('pending_payment', 'cancelled')).toBe(true)
     expect(isValidStatusTransition('paid', 'cancelled')).toBe(true)
     expect(isValidStatusTransition('processing', 'cancelled')).toBe(true)
-    expect(isValidStatusTransition('shipped', 'cancelled')).toBe(true)
-    expect(isValidStatusTransition('delivered', 'cancelled')).toBe(true)
-    expect(isValidStatusTransition('completed', 'cancelled')).toBe(true)
   })
 
   it('allows refund from most statuses', () => {
@@ -632,6 +629,10 @@ describe('isValidStatusTransition', () => {
     expect(isValidStatusTransition('completed', 'shipped')).toBe(false)
     expect(isValidStatusTransition('cancelled', 'paid')).toBe(false)
     expect(isValidStatusTransition('refunded', 'cancelled')).toBe(false)
+    expect(isValidStatusTransition('shipped', 'cancelled')).toBe(false)
+    expect(isValidStatusTransition('delivered', 'cancelled')).toBe(false)
+    expect(isValidStatusTransition('completed', 'cancelled')).toBe(false)
+    expect(isValidStatusTransition('disputed', 'cancelled')).toBe(false)
   })
 })
 
