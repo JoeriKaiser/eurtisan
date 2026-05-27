@@ -92,10 +92,16 @@
   retries: 15
   delay: 2
 
+- name: Prune Docker build cache to avoid hung state
+  command: docker builder prune -f
+  ignore_errors: true
+
 - name: Build application image
   command: "docker compose -f {{ compose_file }} build app"
   args:
     chdir: /opt/eurtisan
+  async: 600
+  poll: 15
 
 - name: Run database migrations
   command: "docker compose -f {{ compose_file }} run --rm app bun run db:migrate"
