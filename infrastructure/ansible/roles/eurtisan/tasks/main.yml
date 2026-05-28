@@ -54,7 +54,7 @@
   block:
     - name: Ensure eurtisan Docker network exists
       command: docker network create eurtisan
-      ignore_errors: true
+      failed_when: false
       register: network_result
       changed_when: network_result.rc == 0
 
