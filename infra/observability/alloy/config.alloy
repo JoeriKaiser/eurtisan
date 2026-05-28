@@ -2,6 +2,23 @@
 // Grafana Alloy Configuration — Eurtisan Staging
 // ============================================================
 
+// --- Discovery: Find all Docker containers ---
+discovery.docker "eurtisan" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// --- Relabel: Tag app container logs with job="eurtisan" ---
+discovery.relabel "eurtisan" {
+  targets = discovery.docker.eurtisan.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/eurtisan-app-staging"
+    target_label  = "job"
+    replacement   = "eurtisan"
+  }
+}
+
 // --- Faro Receiver (Frontend RUM & Errors) ---
 // Accepts beacon POSTs from @grafana/faro-web-sdk
 faro.receiver "eurtisan" {
@@ -63,18 +80,16 @@ loki.write "eurtisan" {
   }
 }
 
-// TODO: Add docker log tailing once loki.source.docker syntax is verified
-// for Alloy v1.5. Faro receiver above handles frontend logs.
-//
-// loki.source.docker "eurtisan" {
-//   host       = "unix:///var/run/docker.sock"
-//   forward_to = [loki.write.eurtisan.receiver]
-// }
+// --- Docker Log Tailing (App stdout → Loki) ---
+loki.source.docker "eurtisan" {
+  targets    = discovery.relabel.eurtisan.targets
+  forward_to = [loki.write.eurtisan.receiver]
+}
 
-// --- Prometheus Scraping (Metrics) ---
-prometheus.scrape "eurtisan" {
+// --- Prometheus Scraping (Alloy self-metrics only) ---
+prometheus.scrape "alloy" {
   targets = [
-    {"__address__" = "eurtisan-app-staging:3000", "job" = "eurtisan-app"},
+    {"__address__" = "localhost:12345", "job" = "alloy"},
   ]
   forward_to = [prometheus.remote_write.default.receiver]
   scrape_interval = "15s"
