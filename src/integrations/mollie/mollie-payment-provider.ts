@@ -87,16 +87,15 @@ export class MolliePaymentProvider implements PaymentProvider {
 
   constructor(options?: { mock?: boolean }) {
     const apiKey = getMollieApiKey()
-    const isProd = typeof process !== 'undefined' && process.env.NODE_ENV === 'production'
-
-    if (isProd && !apiKey) {
-      throw new Error('FATAL: MOLLIE_API_KEY is required in production')
-    }
 
     if (options?.mock !== undefined) {
       this.mockMode = options.mock
     } else {
-      this.mockMode = !apiKey && getMockPaymentsEnabled()
+      this.mockMode = !apiKey || getMockPaymentsEnabled()
+    }
+
+    if (!this.mockMode && !apiKey) {
+      throw new Error('FATAL: MOLLIE_API_KEY is required when mock payments are disabled')
     }
   }
 
