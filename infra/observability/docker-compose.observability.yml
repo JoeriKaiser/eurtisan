@@ -57,8 +57,9 @@ services:
     image: grafana/tempo:2.6.0
     container_name: eurtisan-tempo
     volumes:
-      - ./tempo/tempo.yml:/etc/tempo.yaml:ro
+      - ./tempo/tempo.yml:/etc/tempo/tempo.yaml:ro
       - tempo_data:/var/tempo
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
     # Localhost-only for SSH tunnel debugging. Not exposed publicly.
     ports:
       - "127.0.0.1:3200:3200"
