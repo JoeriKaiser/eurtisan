@@ -83,6 +83,7 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=15d'
       - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-remote-write-receiver'
 
 volumes:
   alloy_data:

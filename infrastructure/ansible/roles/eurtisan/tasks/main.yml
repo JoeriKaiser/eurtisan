@@ -73,7 +73,7 @@
           - "--exclude=.git"
 
     - name: Ensure observability stack is running
-      command: "docker compose -f /opt/eurtisan/observability/docker-compose.observability.yml --env-file /opt/eurtisan/.env up -d"
+      command: "docker compose -f /opt/eurtisan/observability/docker-compose.observability.yml --env-file /opt/eurtisan/.env up -d --force-recreate"
       args:
         chdir: /opt/eurtisan/observability
   tags: [observability]
