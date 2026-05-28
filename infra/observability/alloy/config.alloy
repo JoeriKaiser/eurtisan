@@ -60,19 +60,16 @@ loki.write "eurtisan" {
   endpoint {
     name = "loki"
     url  = "http://loki:3100/loki/api/v1/push"
-    batch {
-      wait = "1s"
-      size = "102400"
-    }
   }
 }
 
-// --- Docker Log Tailing (App stdout → Loki) ---
-// Tails all containers. Filter by container name in Loki queries.
-loki.source.docker "eurtisan" {
-  host       = "unix:///var/run/docker.sock"
-  forward_to = [loki.write.eurtisan.receiver]
-}
+// TODO: Add docker log tailing once loki.source.docker syntax is verified
+// for Alloy v1.5. Faro receiver above handles frontend logs.
+//
+// loki.source.docker "eurtisan" {
+//   host       = "unix:///var/run/docker.sock"
+//   forward_to = [loki.write.eurtisan.receiver]
+// }
 
 // --- Prometheus Scraping (Metrics) ---
 prometheus.scrape "eurtisan" {
