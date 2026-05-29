@@ -32,13 +32,13 @@
       "type": "row"
     },
     {
-      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "datasource": { "type": "loki", "uid": "loki" },
       "fieldConfig": {
         "defaults": {
           "color": { "mode": "thresholds" },
           "mappings": [
             { "options": { "0": { "color": "red", "text": "Down" } }, "type": "value" },
-            { "options": { "1": { "color": "green", "text": "Up" } }, "type": "value" }
+            { "options": { "from": 1, "to": null, "result": { "color": "green", "text": "Up" } }, "type": "range" }
           ],
           "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] },
           "unit": "none"
@@ -58,8 +58,9 @@
       "pluginVersion": "11.2.0",
       "targets": [
         {
-          "datasource": { "type": "prometheus", "uid": "prometheus" },
-          "expr": "up{job=\"eurtisan-app\"}",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "expr": "sum(count_over_time({job=\"eurtisan\"}[5m]))",
+          "queryType": "instant",
           "refId": "A"
         }
       ],

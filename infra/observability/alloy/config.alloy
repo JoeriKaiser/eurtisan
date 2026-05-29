@@ -7,9 +7,15 @@ discovery.docker "eurtisan" {
   host = "unix:///var/run/docker.sock"
 }
 
-// --- Relabel: Tag app container logs with job="eurtisan" ---
+// --- Relabel: Keep only the app container; tag logs with job="eurtisan" ---
 discovery.relabel "eurtisan" {
   targets = discovery.docker.eurtisan.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/eurtisan-app-staging"
+    action        = "keep"
+  }
 
   rule {
     source_labels = ["__meta_docker_container_name"]
@@ -82,7 +88,8 @@ loki.write "eurtisan" {
 
 // --- Docker Log Tailing (App stdout → Loki) ---
 loki.source.docker "eurtisan" {
-  targets    = discovery.relabel.eurtisan.targets
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.eurtisan.output
   forward_to = [loki.write.eurtisan.receiver]
 }
 

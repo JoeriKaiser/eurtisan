@@ -90,7 +90,8 @@ volumes:
   mailpit_data:
 
 networks:
+  # Shared with the observability stack (created by Ansible before compose up).
   eurtisan:
-    driver: bridge
+    external: true
   coolify:
     external: true

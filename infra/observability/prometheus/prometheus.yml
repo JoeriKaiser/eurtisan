@@ -7,12 +7,8 @@ scrape_configs:
     static_configs:
       - targets: ['localhost:9090']
 
-  - job_name: 'eurtisan-app'
-    static_configs:
-      - targets: ['eurtisan-app-staging:3000']
-    metrics_path: /metrics
-    # The app does not currently expose /metrics. This is forward-looking.
-    # If /metrics is unavailable, Prometheus will log scrape errors (harmless).
+  # App metrics: not scraped until the app exposes /metrics.
+  # App health in Grafana APM uses Loki log presence ({job="eurtisan"}) instead.
 
   - job_name: 'alloy'
     static_configs:
