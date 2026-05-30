@@ -802,6 +802,19 @@ DATABASE_URL=postgresql://eurtisan:eurtisan@db:5432/eurtisan
 DATABASE_POOL_MAX=20
 DATABASE_POOL_IDLE_TIMEOUT_MS=30000
 DATABASE_POOL_CONNECTION_TIMEOUT_MS=5000
+
+# Meilisearch (server-side master key — NEVER expose to the browser)
+MEILISEARCH_HOST=http://localhost:7700
+MEILISEARCH_API_KEY=your-master-key
+
+# Meilisearch (browser-facing search-only key)
+# Generate after Meilisearch boots:
+#   curl -X POST "http://localhost:7700/keys" \
+#     -H "Authorization: Bearer $MEILI_MASTER_KEY" \
+#     -H "Content-Type: application/json" \
+#     -d '{"actions":["search"],"indexes":["products"],"expiresAt":null}'
+VITE_MEILISEARCH_HOST=http://localhost:7700
+VITE_MEILISEARCH_SEARCH_KEY=your-search-only-key
 ```
 
 Generate auth secret:

@@ -19,7 +19,10 @@
 
 	# Main application
 	handle {
-		reverse_proxy app:3000
+		reverse_proxy app:3000 {
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
 	}
 
 	# Security headers

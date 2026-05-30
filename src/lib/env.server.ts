@@ -56,7 +56,7 @@ export function getMollieWebhookSecret(): string | undefined {
 
 /**
  * Brevo API key for transactional email delivery (server-only).
- * When absent the mock provider is used.
+ * Required in production when email sending is enabled.
  */
 export function getBrevoApiKey(): string | undefined {
   if (typeof process !== 'undefined') {
@@ -92,6 +92,7 @@ export function getEmailFromName(): string {
 /**
  * SMTP host for local development mail capture (e.g. mailpit).
  * When set the SMTP provider is used instead of Brevo.
+ * Required in production when email sending is enabled.
  */
 export function getEmailSmtpHost(): string | undefined {
   if (typeof process !== 'undefined') {
@@ -115,4 +116,25 @@ export function getEmailSmtpPort(): number {
     }
   }
   return 1025
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Rate limit                                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Number of days to retain rate-limit rows before cleanup.
+ * Defaults to 30, minimum 1.
+ */
+export function getRateLimitRetentionDays(): number {
+  if (typeof process !== 'undefined') {
+    const days = process.env.RATE_LIMIT_RETENTION_DAYS
+    if (days) {
+      const parsed = Number.parseInt(days, 10)
+      if (!Number.isNaN(parsed)) {
+        return Math.max(1, parsed)
+      }
+    }
+  }
+  return 30
 }

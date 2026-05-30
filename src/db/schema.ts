@@ -548,7 +548,10 @@ export const rateLimit = pgTable(
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
-  (table) => [index('rate_limit_key_idx').on(table.key)],
+  (table) => [
+    index('rate_limit_key_idx').on(table.key),
+    index('idx_rate_limit_updated_at').on(table.updatedAt),
+  ],
 )
 
 export const invoiceTypeEnum = pgEnum('invoice_type', ['platform_fee', 'customer'])

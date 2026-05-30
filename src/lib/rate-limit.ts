@@ -1,6 +1,8 @@
 import { createMiddleware } from '@tanstack/react-start'
 import { sql } from 'drizzle-orm'
 
+import { getRateLimitRetentionDays } from './env.server'
+
 /* -------------------------------------------------------------------------- */
 /*  Environment detection                                                     */
 /* -------------------------------------------------------------------------- */
@@ -88,6 +90,16 @@ export async function checkRateLimitDb(
 
   const row = result.rows[0] as { count: number; window_start: Date }
   const count = row.count
+
+  // Best-effort cleanup of stale rows — do not await and swallow errors
+  // so that rate-limiting never fails because of cleanup.
+  const retentionDays = getRateLimitRetentionDays()
+  db.execute(sql`
+    DELETE FROM rate_limit
+    WHERE updated_at < now() - INTERVAL '1 day' * ${retentionDays}
+  `).catch(() => {
+    // Intentionally swallowed
+  })
 
   if (count > limit) {
     return {

@@ -19,6 +19,7 @@ email_smtp_port: "587"
 #   postgres_password: "your-strong-password"
 #   better_auth_secret: "$(openssl rand -base64 32)"
 #   meilisearch_api_key: "$(openssl rand -base64 32)"
+#   meilisearch_search_key: "generate-via-meilisearch-keys-api"
 #
 # Optional — restrict staging access to specific IPs (comma-separated).
 # Only used when coexist_with_proxy is false (standalone staging).

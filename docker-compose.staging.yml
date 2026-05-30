@@ -84,6 +84,44 @@ services:
     networks:
       - eurtisan
 
+  inventory-cleanup:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: eurtisan-inventory-cleanup-staging
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "bun run src/jobs/inventory-cleanup.ts"
+
+  meilisearch-sync:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: eurtisan-meilisearch-sync-staging
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+    depends_on:
+      db:
+        condition: service_healthy
+      meilisearch:
+        condition: service_started
+    command: >
+      sh -c "bun run src/jobs/meilisearch-sync.ts"
+
 volumes:
   postgres_data:
   meilisearch_data:

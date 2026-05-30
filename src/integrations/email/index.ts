@@ -19,7 +19,7 @@ export {
 } from './smtp-email-provider'
 
 import type { EmailProvider } from '#/lib/email-provider'
-import { getEmailSmtpHost } from '#/lib/env.server'
+import { getBrevoApiKey, getEmailSmtpHost } from '#/lib/env.server'
 import { brevoEmailProvider } from './brevo-email-provider'
 import { smtpEmailProvider } from './smtp-email-provider'
 
@@ -28,10 +28,18 @@ import { smtpEmailProvider } from './smtp-email-provider'
  *
  * Prefers SMTP (e.g. mailpit) when `EMAIL_SMTP_HOST` is configured,
  * otherwise falls back to the Brevo HTTP API provider.
+ *
+ * In production, throws if neither provider is configured so emails are
+ * not silently dropped.
  */
 export function createEmailProvider(): EmailProvider {
   if (getEmailSmtpHost()) {
     return smtpEmailProvider
+  }
+  if (process.env.NODE_ENV === 'production' && !getBrevoApiKey()) {
+    throw new Error(
+      'No email provider configured in production. Set BREVO_API_KEY or EMAIL_SMTP_HOST.',
+    )
   }
   return brevoEmailProvider
 }

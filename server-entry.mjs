@@ -12,9 +12,9 @@
  * files. This file wraps it with a full Node.js HTTP server.
  */
 
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { createServer } from 'node:http'
-import { readFileSync, statSync, existsSync } from 'node:fs'
-import { join, extname } from 'node:path'
+import { extname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const DIRNAME = fileURLToPath(new URL('.', import.meta.url))
@@ -23,6 +23,8 @@ const CLIENT_DIR = join(DIRNAME, '../client')
 const SERVER_DIR = DIRNAME
 const PORT = parseInt(process.env.PORT ?? '3000', 10)
 const HOST = process.env.HOST ?? '0.0.0.0'
+const MAX_BODY_SIZE = parseInt(process.env.MAX_BODY_SIZE ?? '10485760', 10)
+const MAX_BODY_SIZE_WEBHOOKS = parseInt(process.env.MAX_BODY_SIZE_WEBHOOKS ?? '1048576', 10)
 
 // MIME types for static files
 const MIME_TYPES = {
@@ -84,6 +86,10 @@ function serveStatic(urlPath) {
   }
 }
 
+function getBodyLimit(url) {
+  return url.startsWith('/api/webhooks/') ? MAX_BODY_SIZE_WEBHOOKS : MAX_BODY_SIZE
+}
+
 // Create the HTTP server
 const server = createServer(async (req, res) => {
   try {
@@ -111,15 +117,52 @@ const server = createServer(async (req, res) => {
     }
 
     // Build a standard Request for the TanStack Start handler
-    const scheme = 'http'
+    // Trust X-Forwarded-Proto when behind a reverse proxy (e.g. Caddy).
+    // Falls back to 'http' for direct local connections.
+    const forwardedProto = req.headers['x-forwarded-proto']
+    const scheme = (Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto) || 'http'
     const host = req.headers.host ?? 'localhost'
     const requestUrl = new URL(url, `${scheme}://${host}`)
 
-    // Collect request body for POST/PUT etc.
+    const bodyLimit = getBodyLimit(url)
+
+    // Content-Length shortcut: reject immediately if the declared size exceeds the limit
+    const contentLength = req.headers['content-length']
+    if (contentLength !== undefined) {
+      const declaredLength = parseInt(contentLength, 10)
+      if (!Number.isNaN(declaredLength) && declaredLength > bodyLimit) {
+        console.error(
+          `Payload Too Large: Content-Length ${declaredLength} exceeds limit ${bodyLimit} for ${url}`,
+        )
+        res.writeHead(413, { 'Content-Type': 'text/plain' })
+        res.end('Payload Too Large')
+        return
+      }
+    }
+
+    // Collect request body for POST/PUT etc. with size limit enforcement
     const chunks = []
+    let accumulated = 0
+    let oversized = false
     for await (const chunk of req) {
+      accumulated += chunk.length
+      if (accumulated > bodyLimit) {
+        oversized = true
+        break
+      }
       chunks.push(chunk)
     }
+
+    if (oversized) {
+      console.error(
+        `Payload Too Large: accumulated body size exceeds limit ${bodyLimit} for ${url}`,
+      )
+      req.destroy()
+      res.writeHead(413, { 'Content-Type': 'text/plain' })
+      res.end('Payload Too Large')
+      return
+    }
+
     const body = Buffer.concat(chunks)
 
     const requestHeaders = {}
@@ -132,9 +175,7 @@ const server = createServer(async (req, res) => {
     const request = new Request(requestUrl, {
       method: req.method,
       headers: requestHeaders,
-      body: req.method !== 'GET' && req.method !== 'HEAD'
-        ? body
-        : undefined,
+      body: req.method !== 'GET' && req.method !== 'HEAD' ? body : undefined,
     })
 
     // Delegate to TanStack Start

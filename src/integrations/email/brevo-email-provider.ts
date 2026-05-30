@@ -52,6 +52,12 @@ export class BrevoEmailProvider implements EmailProvider {
     this.apiKey = getBrevoApiKey()
     this.senderEmail = getSenderEmail()
     this.senderName = getSenderName()
+
+    if (process.env.NODE_ENV === 'production' && this.mockMode && !this.apiKey) {
+      throw new Error(
+        'No email provider configured in production. Set BREVO_API_KEY or EMAIL_SMTP_HOST.',
+      )
+    }
   }
 
   async sendTransactional(

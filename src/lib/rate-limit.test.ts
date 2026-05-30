@@ -1,8 +1,9 @@
 import { eq } from 'drizzle-orm'
-import { afterAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
 import { rateLimit } from '#/db/schema'
+import { getRateLimitRetentionDays } from './env.server'
 import {
   checkRateLimit,
   checkRateLimitDb,
@@ -173,5 +174,51 @@ describe('checkRateLimitDb (database-backed)', () => {
 
     expect(allowed.length).toBe(limit)
     expect(blocked.length).toBe(10 - limit)
+  })
+
+  it('triggers a best-effort cleanup query after upsert', async () => {
+    const executeSpy = vi.spyOn(db, 'execute')
+
+    await checkRateLimitDb('cleanup-test', 5, 60_000)
+
+    // The upsert is the first call; cleanup is an additional fire-and-forget call.
+    expect(executeSpy.mock.calls.length).toBeGreaterThanOrEqual(2)
+
+    executeSpy.mockRestore()
+  })
+})
+
+describe('getRateLimitRetentionDays', () => {
+  const originalEnv = process.env.RATE_LIMIT_RETENTION_DAYS
+
+  afterEach(() => {
+    if (originalEnv === undefined) {
+      delete process.env.RATE_LIMIT_RETENTION_DAYS
+    } else {
+      process.env.RATE_LIMIT_RETENTION_DAYS = originalEnv
+    }
+  })
+
+  it('defaults to 30 when the env var is absent', () => {
+    delete process.env.RATE_LIMIT_RETENTION_DAYS
+    expect(getRateLimitRetentionDays()).toBe(30)
+  })
+
+  it('parses a custom integer value', () => {
+    process.env.RATE_LIMIT_RETENTION_DAYS = '7'
+    expect(getRateLimitRetentionDays()).toBe(7)
+  })
+
+  it('enforces a minimum of 1', () => {
+    process.env.RATE_LIMIT_RETENTION_DAYS = '0'
+    expect(getRateLimitRetentionDays()).toBe(1)
+
+    process.env.RATE_LIMIT_RETENTION_DAYS = '-5'
+    expect(getRateLimitRetentionDays()).toBe(1)
+  })
+
+  it('falls back to 30 for invalid strings', () => {
+    process.env.RATE_LIMIT_RETENTION_DAYS = 'not-a-number'
+    expect(getRateLimitRetentionDays()).toBe(30)
   })
 })
