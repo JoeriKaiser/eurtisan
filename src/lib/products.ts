@@ -1,6 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
-import { authMiddleware } from './auth-middleware'
 import { createIpRateLimitMiddleware } from './rate-limit'
 
 export type {
@@ -18,23 +17,6 @@ export const createProductSchema = z.object({
   price: z.string().min(1).max(50),
   categoryId: z.string().uuid().optional(),
 })
-
-export const createProduct = createServerFn({
-  method: 'POST',
-})
-  .middleware([authMiddleware])
-  .inputValidator(createProductSchema.extend({ shopId: z.string().min(1) }))
-  .handler(async ({ context, data }) => {
-    if (!context.user) {
-      throw new Error('Unauthorized')
-    }
-
-    const { requireShopOwnership } = await import('./authz')
-    await requireShopOwnership({ user: context.user as never, session: {} as never }, data.shopId)
-
-    const { createProductInternal } = await import('./products.server')
-    return createProductInternal(data)
-  })
 
 export const listProductsByCategorySlug = createServerFn({
   method: 'GET',
@@ -70,35 +52,7 @@ export const getMarketplaceStats = createServerFn({
   return getMarketplaceStatsQuery()
 })
 
-export const listProductsSchema = z.object({
-  shopSlug: z.string().min(1).optional(),
-  categorySlug: z.string().min(1).optional(),
-  minPriceCents: z.coerce.number().int().min(0).optional(),
-  maxPriceCents: z.coerce.number().int().min(0).optional(),
-  page: z.coerce.number().int().min(1).optional().default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
-  sort: z.enum(['newest', 'price_asc', 'price_desc']).optional().default('newest'),
-})
-
-export const listProducts = createServerFn({
-  method: 'GET',
-})
-  .inputValidator(listProductsSchema)
-  .handler(async ({ data }) => {
-    const { listProductsQuery } = await import('./products.server')
-    return listProductsQuery(
-      {
-        shopSlug: data.shopSlug,
-        categorySlug: data.categorySlug,
-        minPriceCents: data.minPriceCents,
-        maxPriceCents: data.maxPriceCents,
-      },
-      { page: data.page, pageSize: data.pageSize },
-      data.sort,
-    )
-  })
-
-export const getProductBySlugSchema = z.object({
+const getProductBySlugSchema = z.object({
   shopSlug: z.string().min(1),
   productSlug: z.string().min(1),
 })
@@ -121,22 +75,7 @@ export const getProductBySlug = createServerFn({
     return result
   })
 
-export const getProductsByShopSchema = z.object({
-  shopSlug: z.string().min(1),
-  page: z.coerce.number().int().min(1).optional().default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
-})
-
-export const getProductsByShop = createServerFn({
-  method: 'GET',
-})
-  .inputValidator(getProductsByShopSchema)
-  .handler(async ({ data }) => {
-    const { getProductsByShopSlugQuery } = await import('./products.server')
-    return getProductsByShopSlugQuery(data.shopSlug, { page: data.page, pageSize: data.pageSize })
-  })
-
-export const getShopBySlugSchema = z.object({
+const getShopBySlugSchema = z.object({
   slug: z.string().min(1),
 })
 
@@ -158,7 +97,7 @@ export const getShopBySlug = createServerFn({
     return result
   })
 
-export const getShopProductsSchema = z.object({
+const getShopProductsSchema = z.object({
   shopSlug: z.string().min(1),
   search: z.string().min(1).max(255).optional(),
   page: z.coerce.number().int().min(1).optional().default(1),
@@ -177,7 +116,7 @@ export const getShopProducts = createServerFn({
     })
   })
 
-export const searchProductsSchema = z.object({
+const searchProductsSchema = z.object({
   query: z.string().max(255).optional(),
   categorySlug: z.string().min(1).optional(),
   shopSlug: z.string().min(1).optional(),

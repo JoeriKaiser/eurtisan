@@ -1,16 +1,28 @@
 import { Moon, Sun } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useSyncExternalStore } from 'react'
 import { m } from '#/paraglide/messages'
 
-function getInitialMode(): 'light' | 'dark' {
-  if (typeof window === 'undefined') {
-    return 'light'
-  }
+function getServerSnapshot(): 'light' | 'dark' {
+  return 'light'
+}
+
+function getSnapshot(): 'light' | 'dark' {
   const stored = window.localStorage.getItem('theme')
   if (stored === 'light' || stored === 'dark') {
     return stored
   }
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
+function subscribe(callback: () => void) {
+  const media = window.matchMedia('(prefers-color-scheme: dark)')
+  const onChange = () => callback()
+  media.addEventListener('change', onChange)
+  window.addEventListener('storage', onChange)
+  return () => {
+    media.removeEventListener('change', onChange)
+    window.removeEventListener('storage', onChange)
+  }
 }
 
 function applyTheme(mode: 'light' | 'dark') {
@@ -20,20 +32,15 @@ function applyTheme(mode: 'light' | 'dark') {
 }
 
 export default function ThemeToggle() {
-  const [mode, setMode] = useState<'light' | 'dark'>('light')
+  const mode = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
 
-  useEffect(() => {
-    const initial = getInitialMode()
-    setMode(initial)
-    applyTheme(initial)
-  }, [])
-
-  function toggle() {
+  const toggle = useCallback(() => {
     const next = mode === 'light' ? 'dark' : 'light'
-    setMode(next)
-    applyTheme(next)
     window.localStorage.setItem('theme', next)
-  }
+    applyTheme(next)
+    // Notify same-tab subscribers
+    window.dispatchEvent(new StorageEvent('storage'))
+  }, [mode])
 
   const isDark = mode === 'dark'
 

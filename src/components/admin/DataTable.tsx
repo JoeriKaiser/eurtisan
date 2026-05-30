@@ -24,6 +24,8 @@ export interface DataTableProps<T> {
   'aria-label'?: string
 }
 
+const EMPTY_SELECTED_ROWS: string[] = []
+
 export function DataTable<T>({
   columns,
   data,
@@ -31,7 +33,7 @@ export function DataTable<T>({
   sorting,
   onSortChange,
   rowSelection,
-  selectedRows = [],
+  selectedRows = EMPTY_SELECTED_ROWS,
   onSelectionChange,
   emptyState,
   'aria-label': ariaLabel,

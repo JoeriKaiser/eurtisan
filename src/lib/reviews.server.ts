@@ -91,15 +91,10 @@ export async function getReviewableItemsQuery(
     return { items: [] }
   }
 
-  const itemsResult = await db
-    .select()
-    .from(orderItem)
-    .where(inArray(orderItem.shopOrderId, shopOrderIds))
-
-  const reviewsResult = await db
-    .select()
-    .from(review)
-    .where(inArray(review.shopOrderId, shopOrderIds))
+  const [itemsResult, reviewsResult] = await Promise.all([
+    db.select().from(orderItem).where(inArray(orderItem.shopOrderId, shopOrderIds)),
+    db.select().from(review).where(inArray(review.shopOrderId, shopOrderIds)),
+  ])
 
   const reviewMap = new Map<string, boolean>()
   for (const r of reviewsResult) {
@@ -229,21 +224,19 @@ export async function createReviewQuery(
 
   // Notify seller after the review creation so errors don't break the transaction
   try {
-    const { createNotification } = await import('./notifications.server')
-    const shopRecord = await db
-      .select()
-      .from(shop)
-      .where(eq(shop.id, shopOrderRecord.shopId))
-      .limit(1)
-    const productRecord = await db.select().from(product).where(eq(product.id, productId)).limit(1)
-    if (shopRecord[0]) {
-      await createNotification(shopRecord[0].ownerId, 'review_received', {
+    const [{ createNotification }, [shopRecord], [productRecord]] = await Promise.all([
+      import('./notifications.server'),
+      db.select().from(shop).where(eq(shop.id, shopOrderRecord.shopId)).limit(1),
+      db.select().from(product).where(eq(product.id, productId)).limit(1),
+    ])
+    if (shopRecord) {
+      await createNotification(shopRecord.ownerId, 'review_received', {
         shopOrderId,
         productId,
         reviewId: created.id,
-        productName: productRecord[0]?.name ?? '',
-        productSlug: productRecord[0]?.slug ?? '',
-        shopSlug: shopRecord[0]?.slug ?? '',
+        productName: productRecord?.name ?? '',
+        productSlug: productRecord?.slug ?? '',
+        shopSlug: shopRecord?.slug ?? '',
       })
     }
   } catch {

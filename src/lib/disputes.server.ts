@@ -258,17 +258,11 @@ export async function openDisputeQuery(
 
   // Send dispute update email after the transaction
   try {
-    const { sendNotificationEmail } = await import('./notifications.server')
-    const [buyerRecord] = await db
-      .select({ name: user.name })
-      .from(user)
-      .where(eq(user.id, buyerUserId))
-      .limit(1)
-    const [shopRecord] = await db
-      .select()
-      .from(shop)
-      .where(eq(shop.id, shopOrderRecord.shopId))
-      .limit(1)
+    const [{ sendNotificationEmail }, [buyerRecord], [shopRecord]] = await Promise.all([
+      import('./notifications.server'),
+      db.select({ name: user.name }).from(user).where(eq(user.id, buyerUserId)).limit(1),
+      db.select().from(shop).where(eq(shop.id, shopOrderRecord.shopId)).limit(1),
+    ])
 
     await sendNotificationEmail(buyerUserId, 'dispute_update', {
       orderNumber: input.shopOrderId.slice(0, 8),
@@ -490,43 +484,42 @@ export async function getDisputeDetailQuery(
     )
   }
 
-  const messagesResult = await db
-    .select({
-      id: disputeMessage.id,
-      senderUserId: disputeMessage.senderUserId,
-      senderName: user.name,
-      message: disputeMessage.message,
-      createdAt: disputeMessage.createdAt,
-    })
-    .from(disputeMessage)
-    .innerJoin(user, eq(disputeMessage.senderUserId, user.id))
-    .where(eq(disputeMessage.disputeId, disputeId))
-    .orderBy(asc(disputeMessage.createdAt))
-
-  const [buyerRecord] = await db
-    .select({ id: user.id, name: user.name, email: user.email })
-    .from(user)
-    .where(eq(user.id, disputeRecord.buyerUserId))
-    .limit(1)
-
-  const [ownerRecord] = await db
-    .select({ id: user.id, name: user.name, email: user.email })
-    .from(user)
-    .where(eq(user.id, shopRecord?.ownerId ?? ''))
-    .limit(1)
-
-  const orderItems = await db
-    .select({
-      id: orderItem.id,
-      productId: orderItem.productId,
-      productName: orderItem.productName,
-      unitPriceCents: orderItem.unitPriceCents,
-      quantity: orderItem.quantity,
-      totalCents: orderItem.totalCents,
-    })
-    .from(orderItem)
-    .where(eq(orderItem.shopOrderId, disputeRecord.shopOrderId))
-    .orderBy(orderItem.productName)
+  const [messagesResult, buyerRecord, ownerRecord, orderItems] = await Promise.all([
+    db
+      .select({
+        id: disputeMessage.id,
+        senderUserId: disputeMessage.senderUserId,
+        senderName: user.name,
+        message: disputeMessage.message,
+        createdAt: disputeMessage.createdAt,
+      })
+      .from(disputeMessage)
+      .innerJoin(user, eq(disputeMessage.senderUserId, user.id))
+      .where(eq(disputeMessage.disputeId, disputeId))
+      .orderBy(asc(disputeMessage.createdAt)),
+    db
+      .select({ id: user.id, name: user.name, email: user.email })
+      .from(user)
+      .where(eq(user.id, disputeRecord.buyerUserId))
+      .limit(1),
+    db
+      .select({ id: user.id, name: user.name, email: user.email })
+      .from(user)
+      .where(eq(user.id, shopRecord?.ownerId ?? ''))
+      .limit(1),
+    db
+      .select({
+        id: orderItem.id,
+        productId: orderItem.productId,
+        productName: orderItem.productName,
+        unitPriceCents: orderItem.unitPriceCents,
+        quantity: orderItem.quantity,
+        totalCents: orderItem.totalCents,
+      })
+      .from(orderItem)
+      .where(eq(orderItem.shopOrderId, disputeRecord.shopOrderId))
+      .orderBy(orderItem.productName),
+  ])
 
   return {
     id: disputeRecord.id,
@@ -539,8 +532,8 @@ export async function getDisputeDetailQuery(
     refundCents: disputeRecord.refundCents,
     createdAt: disputeRecord.createdAt,
     updatedAt: disputeRecord.updatedAt,
-    buyer: buyerRecord ?? { id: disputeRecord.buyerUserId, name: 'Unknown', email: '' },
-    shop: ownerRecord ?? { id: shopRecord?.ownerId ?? '', name: 'Unknown', email: '' },
+    buyer: buyerRecord[0] ?? { id: disputeRecord.buyerUserId, name: 'Unknown', email: '' },
+    shop: ownerRecord[0] ?? { id: shopRecord?.ownerId ?? '', name: 'Unknown', email: '' },
     order: {
       id: shopOrderRecord.id,
       platformOrderId: shopOrderRecord.platformOrderId,
@@ -678,21 +671,22 @@ export async function resolveDisputeQuery(
       }
     }
 
-    const [updated] = await tx
-      .update(dispute)
-      .set({
-        status: 'resolved',
-        resolution: input.resolution,
-        refundCents,
-        updatedAt: new Date(),
-      })
-      .where(eq(dispute.id, disputeId))
-      .returning()
-
-    await tx
-      .update(shopOrder)
-      .set({ status: newOrderStatus, updatedAt: new Date() })
-      .where(eq(shopOrder.id, disputeRecord.shopOrderId))
+    const [[updated]] = await Promise.all([
+      tx
+        .update(dispute)
+        .set({
+          status: 'resolved',
+          resolution: input.resolution,
+          refundCents,
+          updatedAt: new Date(),
+        })
+        .where(eq(dispute.id, disputeId))
+        .returning(),
+      tx
+        .update(shopOrder)
+        .set({ status: newOrderStatus, updatedAt: new Date() })
+        .where(eq(shopOrder.id, disputeRecord.shopOrderId)),
+    ])
 
     await recalcPlatformOrderStatus(tx, shopOrderRecord.platformOrderId)
 
@@ -741,22 +735,21 @@ export async function resolveDisputeQuery(
 
   // Send dispute update emails after the transaction
   try {
-    const { sendNotificationEmail } = await import('./notifications.server')
-    const [buyerRecord] = await db
-      .select({ name: user.name })
-      .from(user)
-      .where(eq(user.id, disputeRecord.buyerUserId))
-      .limit(1)
-    const [sellerRecord] = await db
-      .select({ name: user.name })
-      .from(user)
-      .where(eq(user.id, creatorUserId ?? ''))
-      .limit(1)
-    const [shopRecord] = await db
-      .select()
-      .from(shop)
-      .where(eq(shop.id, shopOrderRecord.shopId))
-      .limit(1)
+    const [{ sendNotificationEmail }, [buyerRecord], [sellerRecord], [shopRecord]] =
+      await Promise.all([
+        import('./notifications.server'),
+        db
+          .select({ name: user.name })
+          .from(user)
+          .where(eq(user.id, disputeRecord.buyerUserId))
+          .limit(1),
+        db
+          .select({ name: user.name })
+          .from(user)
+          .where(eq(user.id, creatorUserId ?? ''))
+          .limit(1),
+        db.select().from(shop).where(eq(shop.id, shopOrderRecord.shopId)).limit(1),
+      ])
 
     const baseUrl = getBaseUrl()
     const message =

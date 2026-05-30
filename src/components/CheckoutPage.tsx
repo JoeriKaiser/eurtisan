@@ -1,21 +1,16 @@
 import { formOptions, useForm } from '@tanstack/react-form'
-import { Loader2, MapPin, Package, Truck } from 'lucide-react'
+import { Loader2, MapPin, Truck } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import z from 'zod'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
-import {
-  Dialog,
-  DialogBackdrop,
-  DialogDescription,
-  DialogPopup,
-  DialogPortal,
-  DialogTitle,
-} from '#/components/ui/primitives/dialog'
 import { createCheckout, getCheckoutSummary } from '#/lib/checkout'
 import type { CheckoutShopGroup, CheckoutSummary, ShippingOption } from '#/lib/checkout.server'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
+import { PickupPointSelectorModal } from './checkout/PickupPointSelectorModal'
+import { CheckoutOrderItems } from './checkout/CheckoutOrderItems'
+import { CheckoutMondialRelaySection } from './checkout/CheckoutMondialRelaySection'
 
 function getFieldError(error: unknown): string | undefined {
   if (typeof error === 'string') return error
@@ -299,6 +294,10 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
       if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current)
     }
   }, [subscribeToAddressChanges])
+
+  const openPickupPointPicker = () => {
+    setDialog((prev) => ({ key: prev.key + 1, open: true }))
+  }
 
   // -----------------------------------------------------------------------
   // Render
@@ -728,120 +727,13 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
             </div>
           </section>
 
-          {/* Mondial Relay Pick-up Point Section */}
-          {hasMondialRelaySelection && (
-            <section className='island-shell rounded-2xl p-4 sm:p-6 border border-accent-secondary/30 bg-surface-default shadow-sm relative overflow-hidden'>
-              <div className='absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-accent-primary to-accent-secondary' />
-              <div className='mb-4 flex items-center gap-2'>
-                <Truck size={18} className='text-accent-primary' aria-hidden='true' />
-                <h2 className='text-lg font-semibold text-text-primary'>
-                  Mondial Relay Pick-up Point
-                </h2>
-              </div>
+          <CheckoutMondialRelaySection
+            hasMondialRelaySelection={hasMondialRelaySelection}
+            selectedPickupPoint={selectedPickupPoint}
+            onOpenPicker={openPickupPointPicker}
+          />
 
-              {selectedPickupPoint ? (
-                <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-4 rounded-xl border border-success/30 bg-success/5'>
-                  <div>
-                    <h3 className='text-sm font-semibold text-text-primary flex items-center gap-1.5'>
-                      <span className='size-2 rounded-full bg-success animate-pulse' />
-                      {selectedPickupPoint.name}
-                    </h3>
-                    <p className='text-xs text-text-secondary mt-1'>{selectedPickupPoint.street}</p>
-                    <p className='text-xs text-text-secondary'>
-                      {selectedPickupPoint.postalCode} {selectedPickupPoint.city},{' '}
-                      {selectedPickupPoint.country}
-                    </p>
-                    <span className='inline-block text-[10px] font-mono bg-bg-inset text-text-secondary px-1.5 py-0.5 rounded mt-2'>
-                      ID: {selectedPickupPoint.id}
-                    </span>
-                  </div>
-                  <Button
-                    type='button'
-                    variant='secondary'
-                    onClick={() => {
-                      setDialog((prev) => ({ key: prev.key + 1, open: true }))
-                    }}
-                  >
-                    Change Pick-up Point
-                  </Button>
-                </div>
-              ) : (
-                <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-4 rounded-xl border border-warning/30 bg-warning/5'>
-                  <div>
-                    <h3 className='text-sm font-semibold text-warning-strong'>
-                      No Pick-up Point Selected
-                    </h3>
-                    <p className='text-xs text-text-secondary mt-1'>
-                      Please choose a pick-up point location to complete your order.
-                    </p>
-                  </div>
-                  <Button
-                    type='button'
-                    variant='primary'
-                    onClick={() => {
-                      setDialog((prev) => ({ key: prev.key + 1, open: true }))
-                    }}
-                  >
-                    Select Pick-up Point
-                  </Button>
-                </div>
-              )}
-            </section>
-          )}
-
-          {/* Order items */}
-          <section className='island-shell rounded-2xl p-4 sm:p-6'>
-            <div className='mb-4 flex items-center gap-2'>
-              <Package size={18} className='text-accent-primary' aria-hidden='true' />
-              <h2 className='text-lg font-semibold text-text-primary'>
-                {m.checkout_order_items()}
-              </h2>
-            </div>
-
-            <div className='space-y-6'>
-              {currentSummary.shops.map((shop) => (
-                <div key={shop.shopId}>
-                  <h3 className='mb-2 text-sm font-medium text-text-secondary'>{shop.shopName}</h3>
-                  <ul className='divide-y divide-border-subtle'>
-                    {shop.items.map((item) => (
-                      <li
-                        key={item.productId}
-                        className='flex items-center gap-4 py-3 first:pt-0 last:pb-0'
-                      >
-                        <div className='flex size-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-inset'>
-                          {item.imageUrl ? (
-                            <img
-                              src={item.imageUrl}
-                              alt={item.name}
-                              className='h-full w-full object-cover'
-                              loading='lazy'
-                            />
-                          ) : (
-                            <span className='text-xs text-text-muted'>{m.product_no_image()}</span>
-                          )}
-                        </div>
-                        <div className='flex flex-1 flex-col'>
-                          <span className='text-sm font-medium text-text-primary'>{item.name}</span>
-                          <span className='text-xs text-text-secondary'>
-                            {m.checkout_quantity_label({ count: String(item.quantity) })}
-                          </span>
-                        </div>
-                        <span className='text-sm font-medium text-text-primary'>
-                          {formatPriceEUR(item.priceCents * item.quantity)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                  <div className='mt-2 flex justify-between text-sm'>
-                    <span className='text-text-secondary'>{m.cart_shop_subtotal()}</span>
-                    <span className='font-medium text-text-primary'>
-                      {formatPriceEUR(shop.subtotalCents)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
+          <CheckoutOrderItems currentSummary={currentSummary} />
         </div>
 
         {/* Right column: order summary */}
@@ -976,205 +868,16 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
         postalCode={form.state.values.shippingAddress.postalCode || ''}
         country={form.state.values.shippingAddress.country || 'FR'}
         onSelect={(point) => {
-          form.setFieldValue('shippingAddress.pickupPoint', point)
+          form.setFieldValue('shippingAddress.pickupPoint', {
+            id: point.id,
+            name: point.name,
+            street: point.street,
+            postalCode: point.postalCode,
+            city: point.city,
+            country: point.country,
+          })
         }}
       />
     </main>
-  )
-}
-
-/* -------------------------------------------------------------------------- */
-/*                        Mondial Relay Selector Modal                        */
-/* -------------------------------------------------------------------------- */
-
-interface MockPickupPoint {
-  id: string
-  name: string
-  street: string
-  postalCode: string
-  city: string
-  country: string
-  distance: string
-}
-
-function getMockPickupPoints(postalCode: string, country: string): MockPickupPoint[] {
-  const cleanPc = (postalCode || '75001').trim()
-  const cleanCountry = (country || 'FR').toUpperCase()
-
-  if (cleanCountry === 'DE') {
-    return [
-      {
-        id: `DE-${cleanPc}-01`,
-        name: 'Mondial Relay Schließfach - Edeka',
-        street: 'Friedrichstraße 50',
-        postalCode: cleanPc,
-        city: 'Berlin',
-        country: 'DE',
-        distance: '0.2 km',
-      },
-      {
-        id: `DE-${cleanPc}-02`,
-        name: 'Späti 24 Kiosk',
-        street: 'Kottbusser Damm 12',
-        postalCode: cleanPc,
-        city: 'Berlin',
-        country: 'DE',
-        distance: '0.6 km',
-      },
-      {
-        id: `DE-${cleanPc}-03`,
-        name: 'Blumenhaus Edelweiß',
-        street: 'Karl-Marx-Allee 85',
-        postalCode: cleanPc,
-        city: 'Berlin',
-        country: 'DE',
-        distance: '1.1 km',
-      },
-    ]
-  }
-
-  return [
-    {
-      id: `${cleanCountry}-${cleanPc}-01`,
-      name: 'Locker Mondial Relay - Auchan',
-      street: '25 Rue de Rivoli',
-      postalCode: cleanPc,
-      city: 'Paris',
-      country: cleanCountry,
-      distance: '0.4 km',
-    },
-    {
-      id: `${cleanCountry}-${cleanPc}-02`,
-      name: 'Épicerie du Coin (Relais Colis)',
-      street: '14 Rue Saint-Denis',
-      postalCode: cleanPc,
-      city: 'Paris',
-      country: cleanCountry,
-      distance: '0.8 km',
-    },
-    {
-      id: `${cleanCountry}-${cleanPc}-03`,
-      name: 'Pressing de la Mairie',
-      street: '88 Boulevard Voltaire',
-      postalCode: cleanPc,
-      city: 'Paris',
-      country: cleanCountry,
-      distance: '1.5 km',
-    },
-  ]
-}
-
-export function PickupPointSelectorModal({
-  open,
-  onOpenChange,
-  postalCode: initialPostalCode,
-  country: initialCountry,
-  onSelect,
-}: {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  postalCode: string
-  country: string
-  onSelect: (point: MockPickupPoint) => void
-}) {
-  const [searchPostalCode, setSearchPostalCode] = useState(initialPostalCode)
-  const [searchCountry, setSearchCountry] = useState(initialCountry)
-  const [points, setPoints] = useState<MockPickupPoint[]>([])
-  const [hasSearched, setHasSearched] = useState(false)
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    const results = getMockPickupPoints(searchPostalCode, searchCountry)
-    setPoints(results)
-    setHasSearched(true)
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      {open && (
-        <DialogPortal>
-          <DialogBackdrop />
-          <DialogPopup className='w-full max-w-lg'>
-            <DialogTitle className='text-lg font-semibold text-text-primary mb-2'>
-              Select Mondial Relay Pick-up Point
-            </DialogTitle>
-            <DialogDescription className='text-sm text-text-secondary mb-4'>
-              Search and select a convenient parcel locker or shop for delivery.
-            </DialogDescription>
-
-            <form onSubmit={handleSearch} className='flex gap-3 mb-6'>
-              <div className='flex-1'>
-                <Input
-                  value={searchPostalCode}
-                  onChange={(e) => setSearchPostalCode(e.target.value)}
-                  placeholder='Postal code'
-                  className='h-10'
-                  required
-                />
-              </div>
-              <div className='w-32'>
-                <Input
-                  value={searchCountry}
-                  onChange={(e) => setSearchCountry(e.target.value.toUpperCase())}
-                  placeholder='Country'
-                  className='h-10'
-                  maxLength={2}
-                  required
-                />
-              </div>
-              <Button type='submit'>Search</Button>
-            </form>
-
-            <div className='space-y-3 max-h-72 overflow-y-auto pr-1'>
-              {points.map((point) => (
-                <div
-                  key={point.id}
-                  className='flex items-start justify-between gap-4 p-3.5 rounded-xl border border-border-default hover:border-border-strong bg-surface-default transition-colors'
-                >
-                  <div className='flex-1'>
-                    <h4 className='text-sm font-semibold text-text-primary'>{point.name}</h4>
-                    <p className='text-xs text-text-secondary mt-1'>{point.street}</p>
-                    <p className='text-xs text-text-secondary'>
-                      {point.postalCode} {point.city}, {point.country}
-                    </p>
-                    <span className='inline-block text-[11px] font-medium bg-bg-inset text-text-secondary px-1.5 py-0.5 rounded mt-2'>
-                      {point.distance} away
-                    </span>
-                  </div>
-                  <Button
-                    size='sm'
-                    variant='secondary'
-                    onClick={() => {
-                      onSelect(point)
-                      onOpenChange(false)
-                    }}
-                  >
-                    Select
-                  </Button>
-                </div>
-              ))}
-
-              {hasSearched && points.length === 0 && (
-                <p className='text-sm text-text-muted italic text-center py-6'>
-                  No pick-up points found for this area.
-                </p>
-              )}
-
-              {!hasSearched && (
-                <p className='text-sm text-text-muted italic text-center py-6'>
-                  Enter a postal code and click search.
-                </p>
-              )}
-            </div>
-
-            <div className='mt-6 flex justify-end'>
-              <Button variant='ghost' onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-            </div>
-          </DialogPopup>
-        </DialogPortal>
-      )}
-    </Dialog>
   )
 }

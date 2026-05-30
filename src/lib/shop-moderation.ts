@@ -101,17 +101,21 @@ export const moderateShop = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
   .inputValidator((data: unknown) => moderateShopInputSchema.parse(data))
   .handler(async ({ context, data }) => {
-    await requireAdmin(context)
-
-    const { moderateShopQuery } = await import('./shop-moderation.server')
+    const modules = await Promise.all([
+      requireAdmin(context),
+      import('./shop-moderation.server'),
+      import('./audit-log.server'),
+    ])
+    const { moderateShopQuery } = modules[1]
+    const { emitAuditEvent } = modules[2]
 
     try {
-      const result = await moderateShopQuery(data.shopId, data.action, data.note)
-
-      const { emitAuditEvent } = await import('./audit-log.server')
-      await emitAuditEvent(context.user, `shop.${data.action}`, 'shop', data.shopId, {
-        note: data.note,
-      })
+      const [result] = await Promise.all([
+        moderateShopQuery(data.shopId, data.action, data.note),
+        emitAuditEvent(context.user, `shop.${data.action}`, 'shop', data.shopId, {
+          note: data.note,
+        }),
+      ])
 
       return result
     } catch (err) {

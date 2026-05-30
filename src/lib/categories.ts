@@ -29,18 +29,24 @@ export const createCategory = createServerFn({
       throw new Error('Invalid slug: could not generate a valid slug from the provided name')
     }
 
-    const { db } = await import('#/db/index')
-    const { categories } = await import('#/db/schema')
-    const { eq } = await import('drizzle-orm')
+    const [{ db }, { categories }, { eq }] = await Promise.all([
+      import('#/db/index'),
+      import('#/db/schema'),
+      import('drizzle-orm'),
+    ])
 
-    const existing = await db.select().from(categories).where(eq(categories.slug, slug))
+    const existingPromise = db.select().from(categories).where(eq(categories.slug, slug))
+    const parentPromise = data.parentId
+      ? db.select().from(categories).where(eq(categories.id, data.parentId))
+      : Promise.resolve([])
+    const [existing, parentRows] = await Promise.all([existingPromise, parentPromise])
 
     if (existing.length > 0) {
       throw new Error(`A category with slug "${slug}" already exists`)
     }
 
     if (data.parentId) {
-      const [parent] = await db.select().from(categories).where(eq(categories.id, data.parentId))
+      const [parent] = parentRows
       if (!parent) {
         throw new Response(JSON.stringify({ error: 'Parent category not found' }), {
           status: 400,
@@ -49,17 +55,19 @@ export const createCategory = createServerFn({
       }
     }
 
-    const [category] = await db
-      .insert(categories)
-      .values({
-        name: validatePlainText(data.name, 'Category name'),
-        slug,
-        description: sanitizeRichText(data.description),
-        parentId: data.parentId ?? null,
-      })
-      .returning()
+    const [[category], { emitAuditEvent }] = await Promise.all([
+      db
+        .insert(categories)
+        .values({
+          name: validatePlainText(data.name, 'Category name'),
+          slug,
+          description: sanitizeRichText(data.description),
+          parentId: data.parentId ?? null,
+        })
+        .returning(),
+      import('./audit-log.server'),
+    ])
 
-    const { emitAuditEvent } = await import('./audit-log.server')
     await emitAuditEvent(context.user, 'category.create', 'category', category.id, {
       name: category.name,
       slug: category.slug,
@@ -128,10 +136,13 @@ export const updateCategory = createServerFn({
   .middleware([authMiddleware])
   .inputValidator(updateCategorySchema)
   .handler(async ({ context, data }) => {
-    const { updateCategoryInternal } = await import('./categories.server')
+    const [{ updateCategoryInternal }, { emitAuditEvent }] = await Promise.all([
+      import('./categories.server'),
+      import('./audit-log.server'),
+    ])
     const result = await updateCategoryInternal(context.user, data)
 
-    const { emitAuditEvent } = await import('./audit-log.server')
+    // Sequential: emitAuditEvent depends on result fields (name, slug, parentId).
     await emitAuditEvent(context.user, 'category.update', 'category', data.id, {
       name: result.name,
       slug: result.slug,
@@ -151,11 +162,14 @@ export const deleteCategory = createServerFn({
   .middleware([authMiddleware])
   .inputValidator(deleteCategorySchema)
   .handler(async ({ context, data }) => {
-    const { deleteCategoryInternal } = await import('./categories.server')
-    const result = await deleteCategoryInternal(context.user, data)
-
-    const { emitAuditEvent } = await import('./audit-log.server')
-    await emitAuditEvent(context.user, 'category.delete', 'category', data.id)
+    const [{ deleteCategoryInternal }, { emitAuditEvent }] = await Promise.all([
+      import('./categories.server'),
+      import('./audit-log.server'),
+    ])
+    const [result] = await Promise.all([
+      deleteCategoryInternal(context.user, data),
+      emitAuditEvent(context.user, 'category.delete', 'category', data.id),
+    ])
 
     return result
   })

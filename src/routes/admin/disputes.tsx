@@ -1,11 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 import z from 'zod'
 import { listOpenDisputes } from '#/lib/disputes'
-import {
-  AdminDisputesPage,
-  AdminDisputesPending,
-  AdminDisputesError,
-} from '#/route-components/admin/disputes'
+import { AdminDisputesPage } from '#/route-components/admin/disputes'
+import { AdminDisputesPending } from '#/route-components/admin/disputes.pending'
+import { AdminDisputesError } from '#/route-components/admin/disputes.error'
 
 const PAGE_SIZE = 20
 

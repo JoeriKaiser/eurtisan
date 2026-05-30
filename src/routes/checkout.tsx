@@ -1,9 +1,9 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { CheckoutRouteComponent } from '#/route-components/checkout'
 import { getCart } from '#/lib/cart'
 import { getCheckoutSummary } from '#/lib/checkout'
 import { guardAuth } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
+import { CheckoutRouteComponent } from '#/route-components/checkout'
 
 export const Route = createFileRoute('/checkout')({
   beforeLoad: async () => guardAuth('/checkout'),

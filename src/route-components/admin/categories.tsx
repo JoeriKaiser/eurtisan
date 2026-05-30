@@ -1,31 +1,15 @@
 import { useLoaderData } from '@tanstack/react-router'
-import {
-  AlertTriangle,
-  ArrowDown,
-  ArrowUp,
-  CheckCircle,
-  Folder,
-  Inbox,
-  Pencil,
-  Plus,
-  Trash2,
-} from 'lucide-react'
+import { AlertTriangle, CheckCircle, Inbox, Plus } from 'lucide-react'
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
-import { Skeleton } from '#/components/ui/skeleton'
-import {
-  Dialog,
-  DialogBackdrop,
-  DialogDescription,
-  DialogPopup,
-  DialogPortal,
-  DialogTitle,
-} from '#/components/ui/primitives/dialog'
-import { createCategory, deleteCategory, updateCategory } from '#/lib/categories'
-import { moveCategory, listCategoriesAdmin } from '#/lib/admin-categories'
 import type { AdminCategoryItem } from '#/lib/admin-categories'
+import { listCategoriesAdmin, moveCategory } from '#/lib/admin-categories'
+import { createCategory, deleteCategory, updateCategory } from '#/lib/categories'
 import { m } from '#/paraglide/messages'
+import { CategoryFormDialog } from './categories/CategoryFormDialog'
+import { CategoryTable } from './categories/CategoryTable'
+import { DeleteDialog } from './categories/DeleteDialog'
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 /*                               Main Component                               */
@@ -191,8 +175,6 @@ export function AdminCategoriesPage() {
     }
   }, [])
 
-  const maxDepth = 3
-
   return (
     <div className='space-y-6'>
       <div className='flex items-center justify-between'>
@@ -240,282 +222,32 @@ export function AdminCategoriesPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className='rounded-xl border border-border-default bg-surface-elevated shadow-md overflow-hidden'>
-          <table className='w-full text-left text-sm'>
-            <thead>
-              <tr className='border-b border-border-default bg-surface-inset'>
-                <th className='py-3 px-4 font-semibold text-text-secondary'>
-                  {m.admin_categories_col_name()}
-                </th>
-                <th className='py-3 px-4 font-semibold text-text-secondary hidden sm:table-cell'>
-                  {m.admin_categories_col_slug()}
-                </th>
-                <th className='py-3 px-4 font-semibold text-text-secondary hidden md:table-cell'>
-                  {m.admin_categories_col_description()}
-                </th>
-                <th className='py-3 px-4 text-right font-semibold text-text-secondary'>
-                  {m.admin_common_actions()}
-                </th>
-              </tr>
-            </thead>
-            <tbody className='divide-y divide-border-subtle'>
-              {categories.map((cat) => (
-                <tr key={cat.id} className='group hover:bg-bg-inset/40 transition-colors'>
-                  <td className='py-3 px-4'>
-                    <div
-                      className='flex items-center gap-2'
-                      style={{ paddingLeft: `${cat.depth * 24}px` }}
-                    >
-                      <Folder
-                        size={16}
-                        className='text-text-muted flex-shrink-0'
-                        aria-hidden='true'
-                      />
-                      <span className='font-medium text-text-primary'>{cat.name}</span>
-                    </div>
-                  </td>
-                  <td className='py-3 px-4 font-mono text-xs text-text-secondary hidden sm:table-cell'>
-                    {cat.slug}
-                  </td>
-                  <td className='py-3 px-4 text-text-secondary hidden md:table-cell max-w-xs truncate'>
-                    {cat.description || <span className='text-text-muted'>(none)</span>}
-                  </td>
-                  <td className='py-3 px-4 text-right whitespace-nowrap'>
-                    <div className='flex items-center justify-end gap-1'>
-                      <button
-                        type='button'
-                        onClick={() => handleMove(cat.id, 'up')}
-                        className='rounded p-1.5 text-text-muted hover:bg-bg-inset hover:text-text-primary transition-colors'
-                        aria-label={m.admin_categories_move_up({ name: cat.name })}
-                        title={m.admin_categories_move_up({ name: cat.name })}
-                      >
-                        <ArrowUp size={14} />
-                      </button>
-                      <button
-                        type='button'
-                        onClick={() => handleMove(cat.id, 'down')}
-                        className='rounded p-1.5 text-text-muted hover:bg-bg-inset hover:text-text-primary transition-colors'
-                        aria-label={m.admin_categories_move_down({ name: cat.name })}
-                        title={m.admin_categories_move_down({ name: cat.name })}
-                      >
-                        <ArrowDown size={14} />
-                      </button>
-                      <button
-                        type='button'
-                        onClick={() => openEditDialog(cat)}
-                        className='rounded p-1.5 text-text-muted hover:bg-bg-inset hover:text-text-primary transition-colors'
-                        aria-label={m.admin_categories_edit({ name: cat.name })}
-                        title={m.admin_categories_edit({ name: cat.name })}
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        type='button'
-                        onClick={() => setUi((prev) => ({ ...prev, deleteTarget: cat }))}
-                        className='rounded p-1.5 text-text-muted hover:bg-error-subtle hover:text-error transition-colors'
-                        aria-label={m.admin_categories_delete({ name: cat.name })}
-                        title={m.admin_categories_delete({ name: cat.name })}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <CategoryTable
+          categories={categories}
+          onMove={handleMove}
+          onEdit={openEditDialog}
+          onDelete={(cat) => setUi((prev) => ({ ...prev, deleteTarget: cat }))}
+        />
       )}
 
-      {/* Create / Edit Dialog */}
-      <Dialog
+      <CategoryFormDialog
         open={ui.dialogOpen}
         onOpenChange={(open) => setUi((prev) => ({ ...prev, dialogOpen: open }))}
-      >
-        <DialogPortal>
-          <DialogBackdrop />
-          <DialogPopup className='max-w-md'>
-            <DialogTitle>
-              {ui.dialogMode === 'create'
-                ? m.admin_categories_create_title()
-                : m.admin_categories_edit_title()}
-            </DialogTitle>
-            <DialogDescription>
-              {ui.dialogMode === 'create'
-                ? m.admin_categories_create_description()
-                : m.admin_categories_edit_description()}
-            </DialogDescription>
+        mode={ui.dialogMode}
+        form={form}
+        onFormChange={setForm}
+        onSubmit={handleSubmit}
+        isSubmitting={ui.isSubmitting}
+        actionError={ui.actionError}
+        treeCategories={treeCategories}
+      />
 
-            {ui.actionError && (
-              <div className='mt-4 rounded-lg border border-error/30 bg-error-subtle p-3 text-sm text-error'>
-                {ui.actionError}
-              </div>
-            )}
-
-            <div className='mt-4 space-y-4'>
-              <div>
-                <label
-                  htmlFor='cat-name'
-                  className='mb-1.5 block text-sm font-semibold text-text-secondary'
-                >
-                  {m.admin_categories_name_label()}
-                </label>
-                <input
-                  id='cat-name'
-                  type='text'
-                  value={form.name}
-                  onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                  className='h-10 w-full rounded-lg border border-border-default bg-surface-default px-3 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
-                  placeholder={m.admin_categories_name_placeholder()}
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor='cat-slug'
-                  className='mb-1.5 block text-sm font-semibold text-text-secondary'
-                >
-                  {m.admin_categories_slug_label()}
-                </label>
-                <input
-                  id='cat-slug'
-                  type='text'
-                  value={form.slug}
-                  onChange={(e) => setForm((prev) => ({ ...prev, slug: e.target.value }))}
-                  className='h-10 w-full rounded-lg border border-border-default bg-surface-default px-3 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
-                  placeholder={m.admin_categories_slug_placeholder()}
-                />
-                <p className='mt-1 text-xs text-text-muted'>{m.admin_categories_slug_hint()}</p>
-              </div>
-
-              <div>
-                <label
-                  htmlFor='cat-parent'
-                  className='mb-1.5 block text-sm font-semibold text-text-secondary'
-                >
-                  {m.admin_categories_parent_label()}
-                </label>
-                <select
-                  id='cat-parent'
-                  value={form.parentId}
-                  onChange={(e) => setForm((prev) => ({ ...prev, parentId: e.target.value }))}
-                  className='h-10 w-full rounded-lg border border-border-default bg-surface-default px-3 text-sm text-text-primary focus-visible:outline-none'
-                >
-                  <option value=''>{m.admin_categories_parent_none()}</option>
-                  {treeCategories.reduce<React.ReactElement[]>((acc, c) => {
-                    if (c.depth < maxDepth - 1) {
-                      acc.push(
-                        <option key={c.id} value={c.id}>
-                          {'\u00A0\u00A0'.repeat(c.depth) + c.name}
-                        </option>,
-                      )
-                    }
-                    return acc
-                  }, [])}
-                </select>
-              </div>
-
-              <div>
-                <label
-                  htmlFor='cat-desc'
-                  className='mb-1.5 block text-sm font-semibold text-text-secondary'
-                >
-                  {m.admin_categories_description_label()}
-                </label>
-                <textarea
-                  id='cat-desc'
-                  value={form.description}
-                  onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-                  rows={3}
-                  className='w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
-                  placeholder={m.admin_categories_description_placeholder()}
-                />
-              </div>
-            </div>
-
-            <div className='mt-6 flex justify-end gap-3'>
-              <Button
-                variant='secondary'
-                onClick={() => setUi((prev) => ({ ...prev, dialogOpen: false }))}
-              >
-                {m.admin_common_cancel()}
-              </Button>
-              <Button onClick={handleSubmit} isLoading={ui.isSubmitting}>
-                {ui.dialogMode === 'create'
-                  ? m.admin_categories_create()
-                  : m.admin_common_confirm()}
-              </Button>
-            </div>
-          </DialogPopup>
-        </DialogPortal>
-      </Dialog>
-
-      {/* Delete Dialog */}
-      <Dialog
-        open={!!ui.deleteTarget}
-        onOpenChange={(open) => !open && setUi((prev) => ({ ...prev, deleteTarget: null }))}
-      >
-        <DialogPortal>
-          <DialogBackdrop />
-          <DialogPopup className='max-w-md'>
-            <DialogTitle>
-              {m.admin_categories_delete_title({ name: ui.deleteTarget?.name ?? '' })}
-            </DialogTitle>
-            <DialogDescription>{m.admin_categories_delete_description()}</DialogDescription>
-
-            <div className='mt-6 flex justify-end gap-3'>
-              <Button
-                variant='secondary'
-                onClick={() => setUi((prev) => ({ ...prev, deleteTarget: null }))}
-              >
-                {m.admin_common_cancel()}
-              </Button>
-              <Button variant='danger' onClick={handleDelete} isLoading={ui.isDeleting}>
-                {m.admin_categories_delete_confirm()}
-              </Button>
-            </div>
-          </DialogPopup>
-        </DialogPortal>
-      </Dialog>
-    </div>
-  )
-}
-
-/* -------------------------------------------------------------------------- */
-/*                                Pending / Error                             */
-/* -------------------------------------------------------------------------- */
-
-export function AdminCategoriesPending() {
-  return (
-    <div className='space-y-6'>
-      <div className='flex items-center justify-between'>
-        <div>
-          <Skeleton className='size-10' />
-          <Skeleton className='mt-2 size-5' />
-        </div>
-        <Skeleton className='size-10' />
-      </div>
-      <Skeleton className='h-64 w-full' />
-    </div>
-  )
-}
-
-export function AdminCategoriesError({ error }: { error: Error }) {
-  return (
-    <div className='space-y-6'>
-      <div>
-        <h1 className='display-title text-3xl font-semibold text-text-primary'>
-          {m.admin_categories_title()}
-        </h1>
-        <p className='mt-1 text-text-secondary'>{m.admin_categories_description()}</p>
-      </div>
-      <div
-        role='alert'
-        className='island-shell rounded-xl border border-error/30 bg-error-subtle p-4 text-sm text-error'
-      >
-        <AlertTriangle size={16} className='mr-2 inline-block' aria-hidden='true' />
-        {error.message}
-      </div>
+      <DeleteDialog
+        target={ui.deleteTarget}
+        onClose={() => setUi((prev) => ({ ...prev, deleteTarget: null }))}
+        onConfirm={handleDelete}
+        isDeleting={ui.isDeleting}
+      />
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import { createMiddleware } from '@tanstack/react-start'
 
 import type { UserRole } from './authz'
-import type { SafeUser } from './server-auth'
+import type { SafeUser } from './user-types'
 
 export interface AuthMiddlewareContext {
   user: SafeUser | null

@@ -502,13 +502,16 @@ export const moderateShop = createServerFn({ method: 'POST' })
   .inputValidator(moderationActionSchema)
   .handler(async ({ context, data }) => {
     if (!context.user || context.user.role !== 'admin') throw new Error('FORBIDDEN')
-    const { moderateShopInternal } = await import('./sell-onboarding.server')
-    const result = await moderateShopInternal(context.user.id, data)
-
-    const { emitAuditEvent } = await import('./audit-log.server')
-    await emitAuditEvent(context.user, `shop.${data.action}`, 'shop', data.shopId, {
-      note: data.note,
-    })
+    const [{ moderateShopInternal }, { emitAuditEvent }] = await Promise.all([
+      import('./sell-onboarding.server'),
+      import('./audit-log.server'),
+    ])
+    const [result] = await Promise.all([
+      moderateShopInternal(context.user.id, data),
+      emitAuditEvent(context.user, `shop.${data.action}`, 'shop', data.shopId, {
+        note: data.note,
+      }),
+    ])
 
     return result
   })
@@ -521,10 +524,12 @@ export const getShopDraftListings = createServerFn({ method: 'GET' })
   .inputValidator(z.object({ shopId: z.string().min(1) }))
   .handler(async ({ context, data }) => {
     if (!context.user) throw new Error('UNAUTHENTICATED')
-    const { verifyShopOwnershipOrAdmin } = await import('./sell-onboarding.server')
+    const [{ verifyShopOwnershipOrAdmin }, { listCreatorProductsInternal }] = await Promise.all([
+      import('./sell-onboarding.server'),
+      import('./creator-products.server'),
+    ])
     await verifyShopOwnershipOrAdmin(data.shopId, context.user.id, context.user.role)
 
-    const { listCreatorProductsInternal } = await import('./creator-products.server')
     return listCreatorProductsInternal({
       shopId: data.shopId,
       page: 1,

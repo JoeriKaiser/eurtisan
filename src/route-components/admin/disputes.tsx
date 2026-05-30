@@ -1,10 +1,9 @@
 import { useLoaderData, useNavigate, useSearch, Link } from '@tanstack/react-router'
-import { AlertTriangle, ChevronLeft, ChevronRight, Eye, Inbox, Search, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Eye, Inbox, Search, X } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
-import { Skeleton } from '#/components/ui/skeleton'
 import { cn } from '#/lib/cn'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
@@ -286,44 +285,6 @@ export function AdminDisputesPage() {
           )}
         </div>
       )}
-    </div>
-  )
-}
-
-/* -------------------------------------------------------------------------- */
-/*                             Pending Component                              */
-/* -------------------------------------------------------------------------- */
-
-export function AdminDisputesPending() {
-  return (
-    <div className='space-y-6'>
-      <div>
-        <Skeleton className='mb-2 size-9' />
-        <Skeleton className='size-5' />
-      </div>
-      <Skeleton className='size-10 rounded-lg' />
-      <Skeleton className='h-10 w-full rounded-lg' />
-      <div className='space-y-4'>
-        {[1, 2, 3].map((n) => (
-          <Skeleton key={n} className='h-20 rounded-xl' />
-        ))}
-      </div>
-    </div>
-  )
-}
-
-/* -------------------------------------------------------------------------- */
-/*                              Error Component                               */
-/* -------------------------------------------------------------------------- */
-
-export function AdminDisputesError({ error }: { error: Error }) {
-  return (
-    <div className='text-center py-12'>
-      <AlertTriangle size={48} className='mx-auto mb-4 text-error' aria-hidden='true' />
-      <h1 className='display-title mb-4 text-2xl font-semibold text-text-primary'>
-        Failed to load disputes
-      </h1>
-      <p className='mb-6 text-text-secondary'>{error.message}</p>
     </div>
   )
 }

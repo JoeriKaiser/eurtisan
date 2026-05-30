@@ -1,7 +1,7 @@
 import { and, count, desc, eq, gte, ilike, inArray, lte, or } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { payout, shop, shopOrder, user } from '#/db/schema'
-import { PLATFORM_FEE_PERCENT } from './payouts'
+import { PLATFORM_FEE_PERCENT } from './platform-constants'
 import { signMollieState } from './auth-utils'
 
 /* -------------------------------------------------------------------------- */

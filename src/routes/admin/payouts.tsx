@@ -1,11 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 import z from 'zod'
 import { listPayoutHistory, listPendingPayouts } from '#/lib/admin-payouts'
-import {
-  AdminPayoutsPage,
-  AdminPayoutsPending,
-  AdminPayoutsError,
-} from '#/route-components/admin/payouts'
+import { AdminPayoutsPage } from '#/route-components/admin/payouts'
+import { AdminPayoutsPending } from '#/route-components/admin/payouts.pending'
+import { AdminPayoutsError } from '#/route-components/admin/payouts.error'
 
 const payoutsSearchSchema = z.object({
   tab: z.enum(['pending', 'history']).optional().default('pending'),

@@ -1,0 +1,150 @@
+import { User, X } from 'lucide-react'
+import { Button } from '#/components/ui/button'
+import { m } from '#/paraglide/messages'
+
+const RESOURCE_TYPES = [
+  { value: '', label: m.admin_audit_log_filter_resource_all() },
+  { value: 'shop', label: m.admin_audit_log_resource_shop() },
+  { value: 'user', label: m.admin_audit_log_resource_user() },
+  { value: 'dispute', label: m.admin_audit_log_resource_dispute() },
+  { value: 'payout', label: m.admin_audit_log_resource_payout() },
+  { value: 'order', label: m.admin_audit_log_resource_order() },
+  { value: 'category', label: m.admin_audit_log_resource_category() },
+  { value: 'product', label: m.admin_audit_log_resource_product() },
+]
+
+const ACTION_TYPES = [
+  { value: '', label: m.admin_audit_log_filter_action_all() },
+  { value: 'shop.suspend', label: 'shop.suspend' },
+  { value: 'shop.unsuspend', label: 'shop.unsuspend' },
+  { value: 'shop.approve', label: 'shop.approve' },
+  { value: 'shop.reject', label: 'shop.reject' },
+  { value: 'shop.request_changes', label: 'shop.request_changes' },
+  { value: 'user.change_role', label: 'user.change_role' },
+  { value: 'user.ban', label: 'user.ban' },
+  { value: 'user.unban', label: 'user.unban' },
+  { value: 'payout.mark_sent', label: 'payout.mark_sent' },
+  { value: 'dispute.resolve', label: 'dispute.resolve' },
+  { value: 'category.create', label: 'category.create' },
+  { value: 'category.update', label: 'category.update' },
+  { value: 'category.delete', label: 'category.delete' },
+  { value: 'product.toggle_active', label: 'product.toggle_active' },
+]
+
+interface FiltersState {
+  action: string
+  actor: string
+  resourceType: string
+  from: string
+  to: string
+}
+
+interface AuditLogFiltersProps {
+  filters: FiltersState
+  onFilterChange: (filters: FiltersState) => void
+  onApply: () => void
+  onClear: () => void
+  hasFilters: boolean
+}
+
+export function AuditLogFilters({
+  filters,
+  onFilterChange,
+  onApply,
+  onClear,
+  hasFilters,
+}: AuditLogFiltersProps) {
+  return (
+    <div className='flex flex-wrap items-end gap-3'>
+      <div className='flex flex-col gap-1'>
+        <span className='text-xs font-medium text-text-muted'>
+          {m.admin_audit_log_filter_action()}
+        </span>
+        <select
+          value={filters.action}
+          onChange={(e) => onFilterChange({ ...filters, action: e.target.value })}
+          className='h-9 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
+        >
+          {ACTION_TYPES.map((a) => (
+            <option key={a.value} value={a.value}>
+              {a.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className='flex flex-col gap-1'>
+        <span className='text-xs font-medium text-text-muted'>
+          {m.admin_audit_log_filter_resource_type()}
+        </span>
+        <select
+          value={filters.resourceType}
+          onChange={(e) => onFilterChange({ ...filters, resourceType: e.target.value })}
+          className='h-9 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
+        >
+          {RESOURCE_TYPES.map((r) => (
+            <option key={r.value} value={r.value}>
+              {r.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className='flex flex-col gap-1'>
+        <span className='text-xs font-medium text-text-muted'>
+          {m.admin_audit_log_filter_actor()}
+        </span>
+        <div className='relative'>
+          <User
+            size={16}
+            className='pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted'
+            aria-hidden='true'
+          />
+          <input
+            type='text'
+            value={filters.actor}
+            onChange={(e) => onFilterChange({ ...filters, actor: e.target.value })}
+            placeholder='User ID…'
+            aria-label={m.admin_audit_log_filter_actor()}
+            className='size-9 rounded-md border border-border-default bg-surface-default pl-8 pr-3 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none'
+          />
+        </div>
+      </div>
+
+      <div className='flex flex-col gap-1'>
+        <span className='text-xs font-medium text-text-muted'>
+          {m.admin_audit_log_filter_date_from()}
+        </span>
+        <input
+          type='date'
+          value={filters.from}
+          onChange={(e) => onFilterChange({ ...filters, from: e.target.value })}
+          aria-label={m.admin_audit_log_filter_date_from()}
+          className='h-9 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
+        />
+      </div>
+
+      <div className='flex flex-col gap-1'>
+        <span className='text-xs font-medium text-text-muted'>
+          {m.admin_audit_log_filter_date_to()}
+        </span>
+        <input
+          type='date'
+          value={filters.to}
+          onChange={(e) => onFilterChange({ ...filters, to: e.target.value })}
+          aria-label={m.admin_audit_log_filter_date_to()}
+          className='h-9 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
+        />
+      </div>
+
+      <Button onClick={onApply}>{m.admin_common_search()}</Button>
+
+      {hasFilters && (
+        <Button variant='secondary' onClick={onClear}>
+          <X size={14} aria-hidden='true' />
+          {m.admin_common_clear_filters()}
+        </Button>
+      )}
+    </div>
+  )
+}

@@ -1,13 +1,7 @@
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
+import { use } from 'react'
 import { m } from '#/paraglide/messages'
+
+const rechartsPromise = import('recharts')
 
 export interface TrendDataPoint {
   date: string
@@ -59,11 +53,7 @@ export default function TrendChartInner({
 }: TrendChartProps) {
   if (data.length === 0) {
     return (
-      <div
-        className='flex h-64 items-center justify-center rounded-xl border border-border-default bg-surface-default text-sm text-text-muted'
-        role='img'
-        aria-label={ariaLabel}
-      >
+      <div className='flex h-64 items-center justify-center rounded-xl border border-border-default bg-surface-default text-sm text-text-muted'>
         {m.admin_chart_no_data()}
       </div>
     )
@@ -73,18 +63,17 @@ export default function TrendChartInner({
 
   if (!hasData) {
     return (
-      <div
-        className='flex h-64 items-center justify-center rounded-xl border border-border-default bg-surface-default text-sm text-text-muted'
-        role='img'
-        aria-label={ariaLabel}
-      >
+      <div className='flex h-64 items-center justify-center rounded-xl border border-border-default bg-surface-default text-sm text-text-muted'>
         {m.admin_chart_no_data()}
       </div>
     )
   }
 
+  const { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } =
+    use(rechartsPromise)
+
   return (
-    <div role='img' aria-label={ariaLabel}>
+    <figure aria-label={ariaLabel}>
       <ResponsiveContainer width='100%' height={256}>
         <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: -8 }}>
           <defs>
@@ -130,6 +119,6 @@ export default function TrendChartInner({
           />
         </AreaChart>
       </ResponsiveContainer>
-    </div>
+    </figure>
   )
 }

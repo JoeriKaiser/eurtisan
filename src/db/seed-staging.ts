@@ -201,11 +201,12 @@ async function seedCategories(): Promise<(typeof schema.categories.$inferSelect)
   let skippedCats = 0
 
   // Register existing categories by name for subcategory parentId references
+  const categoryDefBySlug = new Map(CATEGORY_DEFS.map((d) => [slugify(d.name), d]))
   for (const c of existing) {
     // Only parent categories (parentId is null)
     if (c.parentId === null) {
       // Map by name for the known category definitions
-      const def = CATEGORY_DEFS.find((d) => slugify(d.name) === c.slug)
+      const def = categoryDefBySlug.get(c.slug)
       if (def) categoryIds.set(def.name, c.id)
     }
   }
@@ -744,9 +745,13 @@ async function seedProducts(
   if (newProducts.length > 0) {
     await db.insert(schema.product).values(newProducts)
   }
-  for (const c of chunk(productImages, 100)) {
-    if (c.length > 0) await db.insert(schema.productImage).values(c).onConflictDoNothing()
-  }
+  await Promise.all(
+    chunk(productImages, 100).map((c) =>
+      c.length > 0
+        ? db.insert(schema.productImage).values(c).onConflictDoNothing()
+        : Promise.resolve(),
+    ),
+  )
 
   console.log(
     `  → ${newProductCount} new products (${skippedProducts} already existed), ${productImages.length} images`,
@@ -790,7 +795,10 @@ async function seedOrders(
   }
 
   // Find active shops with products
-  const activeShopIds = shops.filter((s) => s.status === 'active').map((s) => s.id)
+  const activeShopIds: string[] = []
+  for (const s of shops) {
+    if (s.status === 'active') activeShopIds.push(s.id)
+  }
   const eligibleShops = activeShopIds.filter((id) => (productsByShop.get(id)?.length ?? 0) > 0)
 
   if (eligibleShops.length === 0) {
@@ -842,9 +850,15 @@ async function seedOrders(
       items.push({ product: p, qty: faker.number.int({ min: 1, max: 3 }) })
     }
 
-    const subtotalCents = items.reduce((sum, it) => sum + it.product.priceCents * it.qty, 0)
+    const subtotalCents = items.reduce((sum, it) => {
+      const priceCents = it.product.priceCents
+      return sum + priceCents * it.qty
+    }, 0)
     const shippingCostCents = subtotalCents > 5000 ? 0 : 599
     const totalCents = subtotalCents + shippingCostCents
+
+    const TRACKING_STATUSES = new Set(['shipped', 'delivered', 'completed'])
+    const DELIVERED_STATUSES_2 = new Set(['delivered', 'completed'])
 
     platformOrders.push({
       id: platformOrderId,
@@ -867,34 +881,33 @@ async function seedOrders(
       shippingCostCents,
       subtotalCents,
       status: shopStatus,
-      trackingNumber: ['shipped', 'delivered', 'completed'].includes(shopStatus)
+      trackingNumber: TRACKING_STATUSES.has(shopStatus)
         ? `TRK${faker.string.alphanumeric(10).toUpperCase()}`
         : undefined,
-      trackingUrl: ['shipped', 'delivered', 'completed'].includes(shopStatus)
+      trackingUrl: TRACKING_STATUSES.has(shopStatus)
         ? `https://track.eurtisan.eu/${faker.string.alphanumeric(8)}`
         : undefined,
-      deliveredAt: ['delivered', 'completed'].includes(shopStatus)
-        ? daysAgo(scenario.daysAgo - 2)
-        : undefined,
+      deliveredAt: DELIVERED_STATUSES_2.has(shopStatus) ? daysAgo(scenario.daysAgo - 2) : undefined,
       createdAt: orderDate,
       updatedAt: orderDate,
     })
 
     for (const it of items) {
+      const priceCents = it.product.priceCents
       orderItems.push({
         id: crypto.randomUUID(),
         shopOrderId,
         productId: it.product.id,
         productName: it.product.name,
-        unitPriceCents: it.product.priceCents,
+        unitPriceCents: priceCents,
         quantity: it.qty,
-        totalCents: it.product.priceCents * it.qty,
+        totalCents: priceCents * it.qty,
         createdAt: orderDate,
       })
     }
 
     // Reviews for delivered/completed orders
-    if (['delivered', 'completed'].includes(shopStatus)) {
+    if (DELIVERED_STATUSES_2.has(shopStatus)) {
       for (const it of items) {
         reviews.push({
           id: crypto.randomUUID(),
@@ -945,17 +958,30 @@ async function seedOrders(
     }
   }
 
-  for (const c of chunk(platformOrders, 50))
-    await db.insert(schema.platformOrder).values(c).onConflictDoNothing()
-  for (const c of chunk(shopOrders, 50))
-    await db.insert(schema.shopOrder).values(c).onConflictDoNothing()
-  for (const c of chunk(orderItems, 100))
-    await db.insert(schema.orderItem).values(c).onConflictDoNothing()
-  for (const c of chunk(reviews, 50)) await db.insert(schema.review).values(c).onConflictDoNothing()
-  for (const c of chunk(disputes, 10))
-    await db.insert(schema.dispute).values(c).onConflictDoNothing()
-  for (const c of chunk(disputeMessages, 20))
-    await db.insert(schema.disputeMessage).values(c).onConflictDoNothing()
+  // Sequential: platformOrder must exist before shopOrder (FK dependency),
+  // and shopOrder must exist before orderItem/review/dispute.
+  await Promise.all(
+    chunk(platformOrders, 50).map((c) =>
+      db.insert(schema.platformOrder).values(c).onConflictDoNothing(),
+    ),
+  )
+  await Promise.all(
+    chunk(shopOrders, 50).map((c) => db.insert(schema.shopOrder).values(c).onConflictDoNothing()),
+  )
+  // The following tables only FK to shopOrder / platformOrder and are independent of each other.
+  await Promise.all([
+    ...chunk(orderItems, 100).map((c) =>
+      db.insert(schema.orderItem).values(c).onConflictDoNothing(),
+    ),
+    ...chunk(reviews, 50).map((c) => db.insert(schema.review).values(c).onConflictDoNothing()),
+    ...chunk(disputes, 10).map((c) => db.insert(schema.dispute).values(c).onConflictDoNothing()),
+  ])
+  // disputeMessages FK to disputes, so they must run after the disputes insert.
+  await Promise.all(
+    chunk(disputeMessages, 20).map((c) =>
+      db.insert(schema.disputeMessage).values(c).onConflictDoNothing(),
+    ),
+  )
 
   console.log(
     `  → ${platformOrders.length} orders, ${orderItems.length} items, ${reviews.length} reviews, ${disputes.length} disputes`,
@@ -971,8 +997,7 @@ async function seed(): Promise<void> {
   console.log('║  Eurtisan — Staging Seed (idempotent)  ║')
   console.log('╚══════════════════════════════════════════╝\n')
 
-  const users = await seedUsers()
-  const categories = await seedCategories()
+  const [users, categories] = await Promise.all([seedUsers(), seedCategories()])
   const shops = await seedShops(users)
   const products = await seedProducts(shops, categories)
   await seedOrders(users, shops, products)

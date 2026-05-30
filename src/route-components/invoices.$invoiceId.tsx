@@ -1,9 +1,9 @@
+import { useLoaderData } from '@tanstack/react-router'
 import { Printer, ArrowLeft, ShieldCheck } from 'lucide-react'
 import { formatPriceEUR } from '#/lib/pricing'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
 import { Badge } from '#/components/ui/badge'
-import { Route } from '#/routes/invoices.$invoiceId'
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   year: 'numeric',
@@ -26,14 +26,14 @@ function parseSafeDate(val: any): Date {
   return new Date()
 }
 
+function handlePrint() {
+  window.print()
+}
+
 export function InvoiceDetailComponent() {
-  const { invoice } = Route.useLoaderData()
+  const { invoice } = useLoaderData({ from: '/invoices/$invoiceId' })
   console.log('CLIENT INVOICE DATA:', JSON.stringify(invoice, null, 2))
   const details = invoice.billingDetails as any
-
-  const handlePrint = () => {
-    window.print()
-  }
 
   const isPlatformFee = invoice.type === 'platform_fee'
 

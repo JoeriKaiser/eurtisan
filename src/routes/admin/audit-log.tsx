@@ -1,11 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 import z from 'zod'
 import { listAuditLog } from '#/lib/audit-log'
-import {
-  AdminAuditLogPage,
-  AdminAuditLogPending,
-  AdminAuditLogError,
-} from '#/route-components/admin/audit-log'
+import { AdminAuditLogPage } from '#/route-components/admin/audit-log'
+import { AdminAuditLogPending } from '#/route-components/admin/audit-log.pending'
+import { AdminAuditLogError } from '#/route-components/admin/audit-log.error'
 
 const auditLogSearchSchema = z.object({
   action: z.string().optional().default(''),

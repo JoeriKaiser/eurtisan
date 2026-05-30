@@ -3,7 +3,9 @@ import z from 'zod'
 import { getShopsForModeration } from '#/lib/sell-onboarding'
 import type { PaginatedShops, SuspensionFilter } from '#/lib/shop-moderation'
 import { listAllShops } from '#/lib/shop-moderation'
-import { AdminShopsPage, AdminShopsPending, AdminShopsError } from '#/route-components/admin/shops'
+import { AdminShopsPage } from '#/route-components/admin/shops'
+import { AdminShopsPending } from '#/route-components/admin/shops/AdminShopsPending'
+import { AdminShopsError } from '#/route-components/admin/shops/AdminShopsError'
 
 const shopsSearchSchema = z.object({
   view: z.enum(['moderation', 'applications']).optional().default('moderation'),

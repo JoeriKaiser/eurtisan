@@ -115,9 +115,10 @@ export async function getCategoryBySlugQuery(slug: string) {
   const [category] = await db.select().from(categories).where(eq(categories.slug, slug))
   if (!category) return null
 
-  const children = await db.select().from(categories).where(eq(categories.parentId, category.id))
-
-  const descendantIds = await getDescendantCategoryIds(category.id)
+  const [children, descendantIds] = await Promise.all([
+    db.select().from(categories).where(eq(categories.parentId, category.id)),
+    getDescendantCategoryIds(category.id),
+  ])
   const productCountResult = await db
     .select({ count: count() })
     .from(product)

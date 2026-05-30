@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, use, useCallback, useEffect, useMemo, useState } from 'react'
 import { getCart } from '#/lib/cart'
 import type { CartDetail } from '#/lib/cart.server'
 
@@ -11,15 +11,15 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType>({
   cart: null,
-  isLoading: false,
+  isLoading: true,
   error: null,
   refreshCart: async () => {},
 })
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartDetail | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   const refreshCart = useCallback(async () => {
     setIsLoading(true)
@@ -50,5 +50,5 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 export default CartProvider
 
 export function useCart(): CartContextType {
-  return useContext(CartContext)
+  return use(CartContext)
 }

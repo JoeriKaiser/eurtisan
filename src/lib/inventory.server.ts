@@ -48,21 +48,22 @@ export async function getAvailableStockForProducts(
 ): Promise<Map<string, number>> {
   if (productIds.length === 0) return new Map()
 
-  const products = await db.select().from(product).where(inArray(product.id, productIds))
-
-  const reservations = await db
-    .select({
-      productId: inventoryReservation.productId,
-      totalReserved: sum(inventoryReservation.quantity),
-    })
-    .from(inventoryReservation)
-    .where(
-      and(
-        inArray(inventoryReservation.productId, productIds),
-        gte(inventoryReservation.expiresAt, sql`now()`),
-      ),
-    )
-    .groupBy(inventoryReservation.productId)
+  const [products, reservations] = await Promise.all([
+    db.select().from(product).where(inArray(product.id, productIds)),
+    db
+      .select({
+        productId: inventoryReservation.productId,
+        totalReserved: sum(inventoryReservation.quantity),
+      })
+      .from(inventoryReservation)
+      .where(
+        and(
+          inArray(inventoryReservation.productId, productIds),
+          gte(inventoryReservation.expiresAt, sql`now()`),
+        ),
+      )
+      .groupBy(inventoryReservation.productId),
+  ])
 
   const reservedMap = new Map<string, number>()
   for (const r of reservations) {

@@ -1,13 +1,15 @@
 import { Link, useRouter } from '@tanstack/react-router'
-import { ArrowLeft, MessageSquare, Send, ShieldAlert } from 'lucide-react'
+import { ArrowLeft, MessageSquare, Send } from 'lucide-react'
 import { useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
-import { Skeleton } from '#/components/ui/skeleton'
 import { addDisputeMessage } from '#/lib/disputes'
 import type { DisputeDetail } from '#/lib/disputes.server'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
+
+export { DisputeThreadError } from './DisputeThreadError'
+export { DisputeThreadLoading } from './DisputeThreadLoading'
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   year: 'numeric',
@@ -198,56 +200,6 @@ export default function DisputeThreadPage({ dispute }: DisputeThreadPageProps) {
             )}
           </div>
         </div>
-      </div>
-    </main>
-  )
-}
-
-export function DisputeThreadLoading() {
-  return (
-    <main className='page-wrap px-4 pb-16 pt-14'>
-      <div className='mx-auto max-w-3xl'>
-        <Skeleton className='mb-6 size-4' />
-        <div className='mb-6 flex flex-wrap items-start justify-between gap-4'>
-          <div className='space-y-2'>
-            <Skeleton className='size-8' />
-            <Skeleton className='size-4' />
-          </div>
-          <Skeleton className='size-6 rounded-full' />
-        </div>
-        <div className='space-y-6'>
-          <Skeleton className='h-40 w-full' />
-          <Skeleton className='h-64 w-full' />
-        </div>
-      </div>
-    </main>
-  )
-}
-
-export function DisputeThreadError({ error }: { error: Error }) {
-  const isForbidden =
-    error.message.toLowerCase().includes('forbidden') ||
-    error.message.toLowerCase().includes('permission')
-  const isNotFound =
-    error.message.toLowerCase().includes('not found') || error.message.toLowerCase().includes('404')
-
-  return (
-    <main className='page-wrap px-4 pb-16 pt-14'>
-      <div className='mx-auto max-w-md text-center'>
-        <div className='mb-4 inline-flex size-12 items-center justify-center rounded-full bg-error/10'>
-          <ShieldAlert size={24} className='text-error' aria-hidden='true' />
-        </div>
-        <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary'>
-          {isForbidden
-            ? m.dispute_forbidden()
-            : isNotFound
-              ? m.dispute_not_found()
-              : m.dispute_error_load()}
-        </h1>
-        <p className='mb-8 text-sm text-text-secondary'>{error.message}</p>
-        <Link to='/orders' className='inline-block no-underline'>
-          <Button variant='secondary'>{m.orders_back_to_list()}</Button>
-        </Link>
       </div>
     </main>
   )

@@ -417,15 +417,13 @@ export async function getMarketplaceStatsQuery(): Promise<{
   sellerCount: number
   productCount: number
 }> {
-  const [shopResult] = await db
-    .select({ count: count() })
-    .from(shop)
-    .where(and(eq(shop.status, 'active'), eq(shop.isSuspended, false)))
-
-  const [productResult] = await db
-    .select({ count: count() })
-    .from(product)
-    .where(eq(product.isActive, true))
+  const [[shopResult], [productResult]] = await Promise.all([
+    db
+      .select({ count: count() })
+      .from(shop)
+      .where(and(eq(shop.status, 'active'), eq(shop.isSuspended, false))),
+    db.select({ count: count() }).from(product).where(eq(product.isActive, true)),
+  ])
 
   return {
     sellerCount: Number(shopResult?.count ?? 0),
@@ -599,20 +597,21 @@ export async function createProductInternal(data: {
     throw new Error(`A product with slug "${data.slug}" already exists in this shop`)
   }
 
-  const [newProduct] = await db
-    .insert(product)
-    .values({
-      id: crypto.randomUUID(),
-      name: validatePlainText(data.name, 'Product name'),
-      description: sanitizeRichText(data.description),
-      slug: data.slug.trim(),
-      priceCents: parsePriceToCents(data.price),
-      shopId: data.shopId,
-      categoryId: data.categoryId ?? null,
-    })
-    .returning()
-
-  const { syncProductToMeilisearch } = await import('./meilisearch-products.server')
+  const [[newProduct], { syncProductToMeilisearch }] = await Promise.all([
+    db
+      .insert(product)
+      .values({
+        id: crypto.randomUUID(),
+        name: validatePlainText(data.name, 'Product name'),
+        description: sanitizeRichText(data.description),
+        slug: data.slug.trim(),
+        priceCents: parsePriceToCents(data.price),
+        shopId: data.shopId,
+        categoryId: data.categoryId ?? null,
+      })
+      .returning(),
+    import('./meilisearch-products.server'),
+  ])
   await syncProductToMeilisearch(newProduct)
 
   return newProduct

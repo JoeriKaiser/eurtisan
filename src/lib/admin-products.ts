@@ -61,12 +61,16 @@ export const toggleProductActive = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
   .inputValidator((data: unknown) => toggleProductActiveInputSchema.parse(data))
   .handler(async ({ context, data }) => {
-    await requireAdmin(context)
-
-    const { toggleProductActiveQuery } = await import('./admin-products.server')
+    const modules = await Promise.all([
+      requireAdmin(context),
+      import('./admin-products.server'),
+      import('./audit-log.server'),
+    ])
+    const { toggleProductActiveQuery } = modules[1]
+    const { emitAuditEvent } = modules[2]
     const result = await toggleProductActiveQuery(data.productId)
 
-    const { emitAuditEvent } = await import('./audit-log.server')
+    // Sequential: emitAuditEvent depends on result.isActive.
     await emitAuditEvent(context.user, 'product.toggle_active', 'product', data.productId, {
       isActive: result.isActive,
     })

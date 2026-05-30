@@ -1,9 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
-import {
-  CategoriesAllPage,
-  CategoriesAllError,
-  CategoriesAllPending,
-} from '#/route-components/category/all'
+import { CategoriesAllPage } from '#/route-components/category/all'
+import { CategoriesAllError } from '#/route-components/category/all.error'
+import { CategoriesAllPending } from '#/route-components/category/all.pending'
 import { listCategoriesWithCounts } from '#/lib/categories'
 import { m } from '#/paraglide/messages'
 

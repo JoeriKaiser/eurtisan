@@ -1,9 +1,7 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
-import {
-  AdminOrderDetailPage,
-  AdminOrderDetailPending,
-  AdminOrderDetailError,
-} from '#/route-components/admin/orders.$platformOrderId'
+import { AdminOrderDetailPage } from '#/route-components/admin/orders.$platformOrderId'
+import { AdminOrderDetailPending } from '#/route-components/admin/orders.$platformOrderId.pending'
+import { AdminOrderDetailError } from '#/route-components/admin/orders.$platformOrderId.error'
 import { getPlatformOrderDetail } from '#/lib/admin-orders'
 
 export const Route = createFileRoute('/admin/orders/$platformOrderId')({

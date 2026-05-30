@@ -164,6 +164,12 @@ function useBreadcrumbs(): Array<{ label: string; href?: string }> {
 /*                          Keyboard Shortcuts Modal                          */
 /* -------------------------------------------------------------------------- */
 
+const shortcuts = [
+  { keys: 'Cmd + Shift + K', action: m.admin_shortcuts_search() },
+  { keys: '?', action: m.admin_shortcuts_shortcuts() },
+  { keys: 'Esc', action: m.admin_shortcuts_close() },
+]
+
 function ShortcutsModal({
   open,
   onOpenChange,
@@ -171,12 +177,6 @@ function ShortcutsModal({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
-  const shortcuts = [
-    { keys: 'Cmd + Shift + K', action: m.admin_shortcuts_search() },
-    { keys: '?', action: m.admin_shortcuts_shortcuts() },
-    { keys: 'Esc', action: m.admin_shortcuts_close() },
-  ]
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPortal>
@@ -351,10 +351,6 @@ export function AdminLayout() {
 
   const initials = user?.name?.charAt(0).toUpperCase() || 'A'
 
-  const handleSignOut = () => {
-    void authClient.signOut()
-  }
-
   const sidebarContent = (
     <>
       <div className='flex h-16 items-center gap-2 border-b border-border-default px-4'>
@@ -414,7 +410,7 @@ export function AdminLayout() {
           </div>
           <button
             type='button'
-            onClick={handleSignOut}
+            onClick={() => void authClient.signOut()}
             className='rounded p-1.5 text-text-muted hover:bg-bg-inset hover:text-text-primary transition-colors'
             aria-label={m.admin_layout_logout()}
             title={m.admin_layout_logout()}

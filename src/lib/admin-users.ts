@@ -68,15 +68,19 @@ export const updateUserRole = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
   .inputValidator((data: unknown) => updateUserRoleInputSchema.parse(data))
   .handler(async ({ context, data }) => {
-    await requireAdmin(context)
-
-    const { updateUserRoleQuery } = await import('./admin-users.server')
-    const result = await updateUserRoleQuery(data.userId, data.role)
-
-    const { emitAuditEvent } = await import('./audit-log.server')
-    await emitAuditEvent(context.user, 'user.change_role', 'user', data.userId, {
-      newRole: data.role,
-    })
+    const modules = await Promise.all([
+      requireAdmin(context),
+      import('./admin-users.server'),
+      import('./audit-log.server'),
+    ])
+    const { updateUserRoleQuery } = modules[1]
+    const { emitAuditEvent } = modules[2]
+    const [result] = await Promise.all([
+      updateUserRoleQuery(data.userId, data.role),
+      emitAuditEvent(context.user, 'user.change_role', 'user', data.userId, {
+        newRole: data.role,
+      }),
+    ])
 
     return result
   })
@@ -85,15 +89,19 @@ export const banUser = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
   .inputValidator((data: unknown) => banUserInputSchema.parse(data))
   .handler(async ({ context, data }) => {
-    await requireAdmin(context)
-
-    const { banUserQuery } = await import('./admin-users.server')
-    const result = await banUserQuery(data.userId, data.reason)
-
-    const { emitAuditEvent } = await import('./audit-log.server')
-    await emitAuditEvent(context.user, 'user.ban', 'user', data.userId, {
-      reason: data.reason,
-    })
+    const modules = await Promise.all([
+      requireAdmin(context),
+      import('./admin-users.server'),
+      import('./audit-log.server'),
+    ])
+    const { banUserQuery } = modules[1]
+    const { emitAuditEvent } = modules[2]
+    const [result] = await Promise.all([
+      banUserQuery(data.userId, data.reason),
+      emitAuditEvent(context.user, 'user.ban', 'user', data.userId, {
+        reason: data.reason,
+      }),
+    ])
 
     return result
   })
@@ -102,13 +110,17 @@ export const unbanUser = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
   .inputValidator((data: unknown) => unbanUserInputSchema.parse(data))
   .handler(async ({ context, data }) => {
-    await requireAdmin(context)
-
-    const { unbanUserQuery } = await import('./admin-users.server')
-    const result = await unbanUserQuery(data.userId)
-
-    const { emitAuditEvent } = await import('./audit-log.server')
-    await emitAuditEvent(context.user, 'user.unban', 'user', data.userId)
+    const modules = await Promise.all([
+      requireAdmin(context),
+      import('./admin-users.server'),
+      import('./audit-log.server'),
+    ])
+    const { unbanUserQuery } = modules[1]
+    const { emitAuditEvent } = modules[2]
+    const [result] = await Promise.all([
+      unbanUserQuery(data.userId),
+      emitAuditEvent(context.user, 'user.unban', 'user', data.userId),
+    ])
 
     return result
   })

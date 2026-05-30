@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import {
   ImageOff,
   Loader2,
@@ -8,7 +9,6 @@ import {
   ShoppingCart,
   Store,
 } from 'lucide-react'
-import { Link } from '@tanstack/react-router'
 import { useRef, useState } from 'react'
 import { useCart } from '#/components/CartProvider'
 import ProductReviews from '#/components/ProductReviews'
@@ -97,12 +97,7 @@ export default function ProductDetail({ product }: ProductDetailProps) {
                 imgClassName='h-full w-full object-cover'
               />
             ) : (
-              // eslint-disable-next-line
-              <div
-                className='flex h-full w-full flex-col items-center justify-center gap-2 text-[var(--sea-ink-soft)]'
-                role='img'
-                aria-label={m.product_no_image()}
-              >
+              <div className='flex h-full w-full flex-col items-center justify-center gap-2 text-[var(--sea-ink-soft)]'>
                 <ImageOff size={48} strokeWidth={1.5} aria-hidden='true' />
                 <span className='text-sm'>{m.product_no_image()}</span>
               </div>

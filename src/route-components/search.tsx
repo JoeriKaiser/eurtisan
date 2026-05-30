@@ -1,10 +1,11 @@
 import { useLoaderData, Link, useRouter } from '@tanstack/react-router'
-import { Search, SlidersHorizontal, X } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import ProductGrid from '#/components/ProductGrid'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { m } from '#/paraglide/messages'
+import { SearchFilters } from './search/SearchFilters'
 
 export function SearchPage() {
   const {
@@ -118,12 +119,13 @@ export function SearchPage() {
     })
   }, [router, filters.query])
 
-  const hasActiveFilters =
+  const hasActiveFilters = Boolean(
     filters.category ||
-    filters.shop ||
-    filters.minPrice ||
-    filters.maxPrice ||
-    filters.sort !== 'relevance'
+      filters.shop ||
+      filters.minPrice ||
+      filters.maxPrice ||
+      filters.sort !== 'relevance',
+  )
 
   const isEmptyQuery = query.length === 0
   const hasNoResults = products.products.length === 0
@@ -164,148 +166,15 @@ export function SearchPage() {
       {/* Main content with sidebar */}
       <div className='mt-8 grid gap-6 lg:grid-cols-[280px_1fr]'>
         {/* Filter sidebar */}
-        <aside className='space-y-6'>
-          <div className='island-shell rounded-2xl p-5 sm:p-6'>
-            <div className='mb-4 flex items-center justify-between'>
-              <h2 className='flex items-center gap-2 text-sm font-semibold text-text-primary'>
-                <SlidersHorizontal size={16} aria-hidden='true' />
-                {m.search_filters_title()}
-              </h2>
-              {hasActiveFilters && (
-                <button
-                  type='button'
-                  onClick={handleClearFilters}
-                  className='inline-flex items-center gap-1 text-xs font-medium text-text-secondary hover:text-text-primary'
-                >
-                  <X size={14} aria-hidden='true' />
-                  {m.search_clear_filters()}
-                </button>
-              )}
-            </div>
-
-            <div className='space-y-4'>
-              {/* Category filter */}
-              <div>
-                <label
-                  htmlFor='search-category'
-                  className='mb-1.5 block text-xs font-medium text-text-secondary'
-                >
-                  {m.search_filter_category()}
-                </label>
-                <select
-                  id='search-category'
-                  value={filters.category}
-                  onChange={(e) => {
-                    setFilters((prev) => ({ ...prev, category: e.target.value }))
-                    navigateWithParams({ category: e.target.value || undefined, page: 1 })
-                  }}
-                  className='h-10 w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
-                >
-                  <option value=''>{m.search_filter_category_all()}</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.slug}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Shop filter */}
-              <div>
-                <label
-                  htmlFor='search-shop'
-                  className='mb-1.5 block text-xs font-medium text-text-secondary'
-                >
-                  {m.search_filter_shop()}
-                </label>
-                <select
-                  id='search-shop'
-                  value={filters.shop}
-                  onChange={(e) => {
-                    setFilters((prev) => ({ ...prev, shop: e.target.value }))
-                    navigateWithParams({ shop: e.target.value || undefined, page: 1 })
-                  }}
-                  className='h-10 w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
-                >
-                  <option value=''>{m.search_filter_shop_all()}</option>
-                  {shops.map((shop) => (
-                    <option key={shop.id} value={shop.slug}>
-                      {shop.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Price filters */}
-              <div>
-                <span className='mb-1.5 block text-xs font-medium text-text-secondary'>
-                  {m.search_filter_price_eur()}
-                </span>
-                <div className='flex items-center gap-2'>
-                  <div className='relative flex-1'>
-                    <Input
-                      type='number'
-                      min={0}
-                      step='0.01'
-                      placeholder={m.search_filter_min_price()}
-                      value={filters.minPrice}
-                      onChange={(e) => {
-                        setFilters((prev) => ({ ...prev, minPrice: e.target.value }))
-                      }}
-                      onBlur={() => {
-                        navigateWithParams({
-                          minPrice: filters.minPrice || undefined,
-                          page: 1,
-                        })
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          navigateWithParams({
-                            minPrice: filters.minPrice || undefined,
-                            page: 1,
-                          })
-                        }
-                      }}
-                      className='h-9 text-sm'
-                      aria-label={m.search_filter_min_price()}
-                    />
-                  </div>
-                  <span className='text-text-muted'>–</span>
-                  <div className='relative flex-1'>
-                    <Input
-                      type='number'
-                      min={0}
-                      step='0.01'
-                      placeholder={m.search_filter_max_price()}
-                      value={filters.maxPrice}
-                      onChange={(e) => {
-                        setFilters((prev) => ({ ...prev, maxPrice: e.target.value }))
-                      }}
-                      onBlur={() => {
-                        navigateWithParams({
-                          maxPrice: filters.maxPrice || undefined,
-                          page: 1,
-                        })
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault()
-                          navigateWithParams({
-                            maxPrice: filters.maxPrice || undefined,
-                            page: 1,
-                          })
-                        }
-                      }}
-                      className='h-9 text-sm'
-                      aria-label={m.search_filter_max_price()}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </aside>
+        <SearchFilters
+          filters={filters}
+          setFilters={setFilters}
+          categories={categories}
+          shops={shops}
+          navigateWithParams={navigateWithParams}
+          handleClearFilters={handleClearFilters}
+          hasActiveFilters={hasActiveFilters}
+        />
 
         {/* Results area */}
         <div>
@@ -382,67 +251,6 @@ export function SearchPage() {
               onPageChange={handlePageChange}
             />
           )}
-        </div>
-      </div>
-    </main>
-  )
-}
-
-export function SearchError({ error }: { error: Error }) {
-  return (
-    <main className='page-wrap px-4 py-20 text-center'>
-      <h1 className='display-title mb-4 text-3xl font-semibold text-text-primary'>
-        {m.error_unexpected()}
-      </h1>
-      <p className='mb-6 text-text-secondary'>{error.message}</p>
-    </main>
-  )
-}
-
-export function SearchPending() {
-  return (
-    <main className='page-wrap px-4 pb-16 pt-14'>
-      <section className='island-shell rounded-2xl px-6 py-10 sm:px-10 sm:py-14'>
-        <div className='mb-4 size-4 animate-pulse rounded bg-[var(--sand)]' />
-        <div className='mb-6 size-10/3 animate-pulse rounded bg-[var(--sand)]' />
-        <div className='flex gap-2'>
-          <div className='h-10 flex-1 animate-pulse rounded bg-[var(--sand)] sm:max-w-md' />
-          <div className='size-10 animate-pulse rounded bg-[var(--sand)]' />
-        </div>
-      </section>
-      <div className='mt-8 grid gap-6 lg:grid-cols-[280px_1fr]'>
-        <div className='island-shell rounded-2xl p-5 sm:p-6'>
-          <div className='mb-4 size-5 animate-pulse rounded bg-[var(--sand)]' />
-          <div className='space-y-4'>
-            <div className='h-10 w-full animate-pulse rounded bg-[var(--sand)]' />
-            <div className='h-10 w-full animate-pulse rounded bg-[var(--sand)]' />
-            <div className='flex gap-2'>
-              <div className='h-9 flex-1 animate-pulse rounded bg-[var(--sand)]' />
-              <div className='h-9 flex-1 animate-pulse rounded bg-[var(--sand)]' />
-            </div>
-          </div>
-        </div>
-        <div>
-          <div className='mb-4 flex items-center justify-between'>
-            <div className='size-4 animate-pulse rounded bg-[var(--sand)]' />
-            <div className='size-9 animate-pulse rounded bg-[var(--sand)]' />
-          </div>
-          <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3' aria-live='polite'>
-            {[1, 2, 3, 4, 5, 6].map((n) => (
-              <div
-                key={`skeleton-${n}`}
-                className='island-shell flex flex-col overflow-hidden rounded-2xl'
-              >
-                <div className='aspect-[4/3] w-full animate-pulse bg-[var(--sand)]' />
-                <div className='flex flex-1 flex-col gap-2 p-4'>
-                  <div className='size-5/3 animate-pulse rounded bg-[var(--sand)]' />
-                  <div className='h-4 w-full animate-pulse rounded bg-[var(--sand)]' />
-                  <div className='mt-auto size-6/3 animate-pulse rounded bg-[var(--sand)]' />
-                </div>
-              </div>
-            ))}
-            <span className='sr-only'>{m.product_grid_loading()}</span>
-          </div>
         </div>
       </div>
     </main>

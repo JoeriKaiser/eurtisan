@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, MessageSquare, Star } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { getProductReviews } from '#/lib/reviews'
 import type { ProductReviewsResult } from '#/lib/reviews.server'
 import { m } from '#/paraglide/messages'
@@ -18,7 +18,8 @@ function formatReviewDate(date: Date): string {
 
 function StarRating({ rating }: { rating: number }) {
   return (
-    <span className='flex items-center gap-0.5' role='img' aria-label={`${rating} out of 5 stars`}>
+    <span className='flex items-center gap-0.5'>
+      <span className='sr-only'>{rating} out of 5 stars</span>
       {[1, 2, 3, 4, 5].map((star) => (
         <Star
           key={star}
@@ -67,24 +68,24 @@ function DistributionBar({
 }
 
 export default function ProductReviews({ productId }: ProductReviewsProps) {
-  const [page, setPage] = useState(1)
+  const abortRef = useRef<(() => void) | undefined>(undefined)
   const [data, setData] = useState<ProductReviewsResult | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    setPage(1)
-  }, [])
+  const fetchReviews = useCallback(
+    async (targetPage: number) => {
+      abortRef.current?.()
+      let cancelled = false
+      abortRef.current = () => {
+        cancelled = true
+      }
 
-  useEffect(() => {
-    let cancelled = false
-
-    async function load() {
       setLoading(true)
       setError(null)
       try {
         const result = await getProductReviews({
-          data: { productId, page, pageSize: 10 },
+          data: { productId, page: targetPage, pageSize: 10 },
         })
         if (!cancelled) {
           setData(result)
@@ -98,14 +99,17 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
           setLoading(false)
         }
       }
-    }
+    },
+    [productId],
+  )
 
-    load()
-
+  useEffect(() => {
+    fetchReviews(1)
+    const abort = abortRef.current
     return () => {
-      cancelled = true
+      abort?.()
     }
-  }, [page, productId])
+  }, [fetchReviews])
 
   if (loading && !data) {
     return (
@@ -218,7 +222,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
         <div className='mt-6 flex items-center justify-between border-t border-[var(--ds-border-subtle)] pt-4'>
           <button
             type='button'
-            onClick={() => setPage((p) => p - 1)}
+            onClick={() => fetchReviews(data.page - 1)}
             disabled={!hasPrev || loading}
             className='inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-[var(--ds-text-secondary)] transition hover:bg-[var(--ds-bg-inset)] disabled:cursor-not-allowed disabled:opacity-40'
           >
@@ -230,7 +234,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
           </span>
           <button
             type='button'
-            onClick={() => setPage((p) => p + 1)}
+            onClick={() => fetchReviews(data.page + 1)}
             disabled={!hasNext || loading}
             className='inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-[var(--ds-text-secondary)] transition hover:bg-[var(--ds-bg-inset)] disabled:cursor-not-allowed disabled:opacity-40'
           >

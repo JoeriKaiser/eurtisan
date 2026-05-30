@@ -1,10 +1,10 @@
-import { useCallback, useRef, useState } from 'react'
 import { ImagePlus, X } from 'lucide-react'
+import { useCallback, useRef, useState } from 'react'
+import { formatPriceEUR } from '#/lib/pricing'
+import { createDraftListing, step7ListingSchema } from '#/lib/sell-onboarding'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Textarea } from '../ui/textarea'
-import { createDraftListing, step7ListingSchema } from '#/lib/sell-onboarding'
-import { formatPriceEUR } from '#/lib/pricing'
 import { useOnboarding } from './OnboardingProvider'
 import { useStepActions } from './useStepActions'
 
@@ -56,6 +56,7 @@ function ImageUpload({
           <button
             type='button'
             onClick={() => inputRef.current?.click()}
+            aria-label='Upload product photo'
             className='flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border-default bg-surface-default aspect-square transition hover:border-accent-secondary'
           >
             <ImagePlus size={20} className='text-text-muted' />
@@ -64,6 +65,7 @@ function ImageUpload({
               ref={inputRef}
               type='file'
               accept='image/jpeg,image/png,image/webp'
+              aria-label='Upload product photo'
               className='hidden'
               onChange={(e) => {
                 if (e.target.files?.[0]) handleFile(e.target.files[0])

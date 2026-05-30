@@ -113,13 +113,14 @@ export async function listAllPlatformOrdersQuery(
     .$dynamic()
 
   // Get total count with same filters
-  const [{ count: totalCount }] = await db
-    .select({ count: count() })
-    .from(platformOrder)
-    .leftJoin(user, eq(platformOrder.userId, user.id))
-    .where(whereClause)
-
-  const ordersResult = await baseQuery.limit(pageSize).offset(offset)
+  const [[{ count: totalCount }], ordersResult] = await Promise.all([
+    db
+      .select({ count: count() })
+      .from(platformOrder)
+      .leftJoin(user, eq(platformOrder.userId, user.id))
+      .where(whereClause),
+    baseQuery.limit(pageSize).offset(offset),
+  ])
 
   if (ordersResult.length === 0) {
     return { orders: [], total: Number(totalCount), page, pageSize }

@@ -39,9 +39,10 @@ async function main(): Promise<void> {
   // Run immediately on start, then on every interval
   await tick()
 
-  while (isRunning) {
-    await new Promise((resolve) => setTimeout(resolve, INTERVAL_MS))
+  while (true) {
     if (!isRunning) break
+    // Intentionally sequential: sleep then tick to maintain a fixed interval.
+    await new Promise((resolve) => setTimeout(resolve, INTERVAL_MS))
     await tick()
   }
 

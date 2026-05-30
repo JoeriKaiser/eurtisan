@@ -71,8 +71,8 @@ export default function SearchSuggestions({
   onSelect,
   onHover,
 }: SearchSuggestionsProps) {
-  const listRef = useRef<HTMLDivElement>(null)
-  const itemRefs = useRef<(HTMLDivElement | null)[]>([])
+  const listRef = useRef<HTMLUListElement>(null)
+  const itemRefs = useRef<(HTMLLIElement | null)[]>([])
 
   useEffect(() => {
     const item = itemRefs.current[activeIndex]
@@ -103,12 +103,7 @@ export default function SearchSuggestions({
   }
 
   return (
-    <div
-      ref={listRef}
-      role='listbox'
-      aria-label='Search suggestions'
-      className='max-h-80 overflow-y-auto py-2'
-    >
+    <ul ref={listRef} aria-label='Search suggestions' className='max-h-80 overflow-y-auto py-2'>
       {suggestions.map((suggestion, index) => {
         const isActive = index === activeIndex
         const icon = TYPE_ICONS[suggestion.type]
@@ -116,15 +111,12 @@ export default function SearchSuggestions({
         const itemId = `suggestion-${suggestion.type}-${suggestion.label}-${index}`
 
         return (
-          <div
+          <li
             key={itemId}
             ref={(el) => {
               itemRefs.current[index] = el
             }}
-            role='option'
-            aria-selected={isActive}
             onMouseEnter={() => onHover(index)}
-            tabIndex={-1}
           >
             {suggestion.href ? (
               <Link
@@ -195,9 +187,9 @@ export default function SearchSuggestions({
                 </span>
               </button>
             )}
-          </div>
+          </li>
         )
       })}
-    </div>
+    </ul>
   )
 }

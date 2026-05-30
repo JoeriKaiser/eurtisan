@@ -354,6 +354,7 @@ export async function getCheckoutSummaryQuery(
   }
 
   // Calculate VAT estimates per shop based on shipping destination
+  const selectionByShopId = new Map(shippingSelections?.map((s) => [s.shopId, s]) ?? [])
   for (const shopGroup of shops) {
     const shopRecord = shopRecordById.get(shopGroup.shopId)
     if (!shopRecord) continue
@@ -377,13 +378,18 @@ export async function getCheckoutSummaryQuery(
     }
 
     // Shipping VAT estimate (using standard rate on selected shipping)
-    const selection = shippingSelections?.find((s) => s.shopId === shopGroup.shopId)
+    const selection = selectionByShopId.get(shopGroup.shopId)
+    const optionByRateId = new Map(shopGroup.shippingOptions.map((o) => [o.rateId, o]))
+    const optionByMethod = new Map(shopGroup.shippingOptions.map((o) => [o.method, o]))
+    const optionByFallback = new Map(shopGroup.shippingOptions.map((o) => [o.fallback, o])).get(
+      false,
+    )
     const selectedOption = selection
-      ? (shopGroup.shippingOptions.find((o) => o.rateId === selection.rateId) ??
-        shopGroup.shippingOptions.find((o) => o.method === selection.method) ??
-        shopGroup.shippingOptions.find((o) => !o.fallback) ??
+      ? (optionByRateId.get(selection.rateId) ??
+        optionByMethod.get(selection.method) ??
+        optionByFallback ??
         shopGroup.shippingOptions[0])
-      : (shopGroup.shippingOptions.find((o) => !o.fallback) ?? shopGroup.shippingOptions[0])
+      : (optionByFallback ?? shopGroup.shippingOptions[0])
     if (selectedOption && selectedOption.costCents > 0) {
       const shippingVat = calculateVat({
         sellerCountry,
@@ -518,10 +524,10 @@ export async function createCheckoutWithProvider(
     }
 
     const options = shippingOptionsByShop.get(shopId) ?? []
+    const optionByRateId = new Map(options.map((o) => [o.rateId, o]))
+    const optionByMethod = new Map(options.map((o) => [o.method, o]))
     const matchingOption =
-      options.find((o) => o.rateId === selection.rateId) ??
-      options.find((o) => o.method === selection.method) ??
-      options[0]
+      optionByRateId.get(selection.rateId) ?? optionByMethod.get(selection.method) ?? options[0]
 
     if (!matchingOption) {
       throw new Response(
@@ -709,44 +715,48 @@ export async function createCheckoutWithProvider(
       .returning()
 
     // 6. Create shop orders and order items
-    const createdShopOrders: Array<{ shopOrderId: string; shopId: string }> = []
-    for (const [, group] of shopGroups) {
-      const selection = selectionMap.get(group.shopId)
-      const shipMethod = selection?.method ?? 'standard'
-      const shipCost = shippingCostByShop.get(group.shopId) ?? 0
+    const createdShopOrders = await Promise.all(
+      Array.from(shopGroups.values()).map(async (group) => {
+        const selection = selectionMap.get(group.shopId)
+        const shipMethod = selection?.method ?? 'standard'
+        const shipCost = shippingCostByShop.get(group.shopId) ?? 0
 
-      const [shopOrderRecord] = await tx
-        .insert(shopOrder)
-        .values({
-          platformOrderId: platformOrderRecord.id,
-          shopId: group.shopId,
-          shippingMethod: shipMethod,
-          shippingCostCents: shipCost,
-          subtotalCents: group.subtotalCents,
-          vatAmountCents: group.vatAmountCents,
-          shippingVatRateBasisPoints: group.shippingVatRateBasisPoints,
-          shippingVatAmountCents: group.shippingVatAmountCents,
-          status: 'pending_payment',
-        })
-        .returning()
+        const [shopOrderRecord] = await tx
+          .insert(shopOrder)
+          .values({
+            platformOrderId: platformOrderRecord.id,
+            shopId: group.shopId,
+            shippingMethod: shipMethod,
+            shippingCostCents: shipCost,
+            subtotalCents: group.subtotalCents,
+            vatAmountCents: group.vatAmountCents,
+            shippingVatRateBasisPoints: group.shippingVatRateBasisPoints,
+            shippingVatAmountCents: group.shippingVatAmountCents,
+            status: 'pending_payment',
+          })
+          .returning()
 
-      createdShopOrders.push({ shopOrderId: shopOrderRecord.id, shopId: group.shopId })
+        await Promise.all(
+          group.items.map((lineItem) =>
+            tx.insert(orderItem).values({
+              shopOrderId: shopOrderRecord.id,
+              productId: lineItem.product.id,
+              productName: lineItem.product.name,
+              unitPriceCents: lineItem.product.priceCents,
+              quantity: lineItem.quantity,
+              totalCents: lineItem.product.priceCents * lineItem.quantity,
+              vatRateBasisPoints: lineItem.vatRateBasisPoints,
+              vatAmountCents: lineItem.vatAmountCents,
+            }),
+          ),
+        )
 
-      for (const lineItem of group.items) {
-        await tx.insert(orderItem).values({
-          shopOrderId: shopOrderRecord.id,
-          productId: lineItem.product.id,
-          productName: lineItem.product.name,
-          unitPriceCents: lineItem.product.priceCents,
-          quantity: lineItem.quantity,
-          totalCents: lineItem.product.priceCents * lineItem.quantity,
-          vatRateBasisPoints: lineItem.vatRateBasisPoints,
-          vatAmountCents: lineItem.vatAmountCents,
-        })
-      }
-    }
+        return { shopOrderId: shopOrderRecord.id, shopId: group.shopId }
+      }),
+    )
 
     // 9. Reserve stock for every cart item atomically
+    // Intentionally sequential within transaction to avoid row-lock contention on product inventory.
     const reservationExpiresAt = new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
     for (const [, group] of shopGroups) {
       for (const lineItem of group.items) {
@@ -810,22 +820,22 @@ export async function createCheckoutWithProvider(
   } catch (_err) {
     // Payment initiation failed — cancel the order and restore inventory
     await db.transaction(async (tx) => {
-      await tx
-        .update(platformOrder)
-        .set({
-          status: 'cancelled',
-          cancelledAt: new Date(),
-          cancellationReason: 'Payment provider error',
-          updatedAt: new Date(),
-        })
-        .where(eq(platformOrder.id, platformOrderId))
-
-      await tx
-        .update(shopOrder)
-        .set({ status: 'cancelled', updatedAt: new Date() })
-        .where(eq(shopOrder.platformOrderId, platformOrderId))
-
-      await releaseStockInTx(tx, platformOrderId)
+      await Promise.all([
+        tx
+          .update(platformOrder)
+          .set({
+            status: 'cancelled',
+            cancelledAt: new Date(),
+            cancellationReason: 'Payment provider error',
+            updatedAt: new Date(),
+          })
+          .where(eq(platformOrder.id, platformOrderId)),
+        tx
+          .update(shopOrder)
+          .set({ status: 'cancelled', updatedAt: new Date() })
+          .where(eq(shopOrder.platformOrderId, platformOrderId)),
+        releaseStockInTx(tx, platformOrderId),
+      ])
     })
 
     throw new Response(
@@ -889,42 +899,46 @@ export async function createCheckoutWithProvider(
     }
 
     // Notify each seller
-    for (const so of result.createdShopOrders) {
-      const shopRecord = await db.select().from(shop).where(eq(shop.id, so.shopId)).limit(1)
-      if (shopRecord[0]) {
-        await createNotification(shopRecord[0].ownerId, 'order_placed', {
-          platformOrderId,
-          shopOrderId: so.shopOrderId,
-        })
+    await Promise.all(
+      result.createdShopOrders.map(async (so) => {
+        const shopRecord = await db.select().from(shop).where(eq(shop.id, so.shopId)).limit(1)
+        if (shopRecord[0]) {
+          const shopItems = orderItemsByShop.get(shopRecord[0].name) ?? []
+          const shopItemByName = new Map(shopItems.map((i) => [i.productName, i]))
+          const sellerItems = shopItems.map((item) => ({
+            name: item.productName,
+            quantity: item.quantity,
+            price: formatPriceEUR(item.totalCents),
+          }))
 
-        const shopItems = orderItemsByShop.get(shopRecord[0].name) ?? []
-        const sellerItems = shopItems.map((item) => ({
-          name: item.productName,
-          quantity: item.quantity,
-          price: formatPriceEUR(item.totalCents),
-        }))
+          const [sellerRecord] = await db
+            .select({ name: user.name })
+            .from(user)
+            .where(eq(user.id, shopRecord[0].ownerId))
+            .limit(1)
 
-        const [sellerRecord] = await db
-          .select({ name: user.name })
-          .from(user)
-          .where(eq(user.id, shopRecord[0].ownerId))
-          .limit(1)
-
-        await sendNotificationEmail(shopRecord[0].ownerId, 'order_confirmation', {
-          orderNumber: so.shopOrderId.slice(0, 8),
-          buyerName: sellerRecord?.name,
-          shopName: shopRecord[0].name,
-          items: sellerItems,
-          total: formatPriceEUR(
-            sellerItems.reduce((sum, item) => {
-              const cents = shopItems.find((i) => i.productName === item.name)?.totalCents ?? 0
-              return sum + cents
-            }, 0),
-          ),
-          orderUrl: `${baseUrl}/studio/${so.shopId}/orders/${so.shopOrderId}`,
-        })
-      }
-    }
+          await Promise.all([
+            createNotification(shopRecord[0].ownerId, 'order_placed', {
+              platformOrderId,
+              shopOrderId: so.shopOrderId,
+            }),
+            sendNotificationEmail(shopRecord[0].ownerId, 'order_confirmation', {
+              orderNumber: so.shopOrderId.slice(0, 8),
+              buyerName: sellerRecord?.name,
+              shopName: shopRecord[0].name,
+              items: sellerItems,
+              total: formatPriceEUR(
+                sellerItems.reduce((sum, item) => {
+                  const cents = shopItemByName.get(item.name)?.totalCents ?? 0
+                  return sum + cents
+                }, 0),
+              ),
+              orderUrl: `${baseUrl}/studio/${so.shopId}/orders/${so.shopOrderId}`,
+            }),
+          ])
+        }
+      }),
+    )
   } catch {
     // Notification/email errors must not break the primary checkout transaction
   }

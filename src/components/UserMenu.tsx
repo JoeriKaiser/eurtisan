@@ -31,10 +31,6 @@ export default function UserMenu() {
     )
   }
 
-  const handleSignOut = () => {
-    void authClient.signOut()
-  }
-
   const initials = user.name?.charAt(0).toUpperCase() || 'U'
 
   return (
@@ -98,7 +94,7 @@ export default function UserMenu() {
           </DropdownMenuItem>
 
           <DropdownMenuItem
-            onClick={handleSignOut}
+            onClick={() => void authClient.signOut()}
             className='text-error hover:bg-error-subtle focus-visible:bg-error-subtle'
           >
             <LogOut size={16} />

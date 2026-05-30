@@ -54,15 +54,19 @@ export const moveCategory = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
   .inputValidator((data: unknown) => moveCategoryInputSchema.parse(data))
   .handler(async ({ context, data }) => {
-    await requireAdmin(context)
-
-    const { moveCategoryQuery } = await import('./admin-categories.server')
-    const result = await moveCategoryQuery(data.categoryId, data.direction)
-
-    const { emitAuditEvent } = await import('./audit-log.server')
-    await emitAuditEvent(context.user, 'category.reorder', 'category', data.categoryId, {
-      direction: data.direction,
-    })
+    const modules = await Promise.all([
+      requireAdmin(context),
+      import('./admin-categories.server'),
+      import('./audit-log.server'),
+    ])
+    const { moveCategoryQuery } = modules[1]
+    const { emitAuditEvent } = modules[2]
+    const [result] = await Promise.all([
+      moveCategoryQuery(data.categoryId, data.direction),
+      emitAuditEvent(context.user, 'category.reorder', 'category', data.categoryId, {
+        direction: data.direction,
+      }),
+    ])
 
     return result
   })
@@ -71,15 +75,19 @@ export const reorderCategories = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
   .inputValidator((data: unknown) => reorderCategoriesInputSchema.parse(data))
   .handler(async ({ context, data }) => {
-    await requireAdmin(context)
-
-    const { reorderCategoriesQuery } = await import('./admin-categories.server')
-    const result = await reorderCategoriesQuery(data.orderedIds)
-
-    const { emitAuditEvent } = await import('./audit-log.server')
-    await emitAuditEvent(context.user, 'category.reorder', 'category', undefined, {
-      orderedIds: data.orderedIds,
-    })
+    const modules = await Promise.all([
+      requireAdmin(context),
+      import('./admin-categories.server'),
+      import('./audit-log.server'),
+    ])
+    const { reorderCategoriesQuery } = modules[1]
+    const { emitAuditEvent } = modules[2]
+    const [result] = await Promise.all([
+      reorderCategoriesQuery(data.orderedIds),
+      emitAuditEvent(context.user, 'category.reorder', 'category', undefined, {
+        orderedIds: data.orderedIds,
+      }),
+    ])
 
     return result
   })

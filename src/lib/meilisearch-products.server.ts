@@ -148,6 +148,7 @@ export async function clearProductsIndex(): Promise<void> {
 
 export async function populateProductsIndex(): Promise<{ synced: number; errors: number }> {
   if (!meilisearch) return { synced: 0, errors: 0 }
+  const client = meilisearch
 
   const products = await db
     .select()
@@ -158,12 +159,19 @@ export async function populateProductsIndex(): Promise<{ synced: number; errors:
   const docs: MeilisearchProductDocument[] = []
   let errors = 0
 
-  for (const p of products) {
+  const categoryRows = await Promise.all(
+    products.map((p) =>
+      p.product.categoryId
+        ? db.select().from(categories).where(eq(categories.id, p.product.categoryId)).limit(1)
+        : Promise.resolve([]),
+    ),
+  )
+
+  for (let i = 0; i < products.length; i++) {
     try {
+      const p = products[i]
       const prod = p.product
-      const categoryRow = prod.categoryId
-        ? await db.select().from(categories).where(eq(categories.id, prod.categoryId)).limit(1)
-        : []
+      const categoryRow = categoryRows[i]
 
       docs.push({
         id: prod.id,
@@ -183,12 +191,14 @@ export async function populateProductsIndex(): Promise<{ synced: number; errors:
     }
   }
 
-  if (docs.length > 0) {
+  if (docs.length > 0 && meilisearch) {
     const BATCH_SIZE = 500
-    for (let i = 0; i < docs.length; i += BATCH_SIZE) {
-      const batch = docs.slice(i, i + BATCH_SIZE)
-      await meilisearch.index(PRODUCTS_INDEX).addDocuments(batch, { primaryKey: 'id' })
-    }
+    await Promise.all(
+      Array.from({ length: Math.ceil(docs.length / BATCH_SIZE) }, (_, i) => {
+        const batch = docs.slice(i * BATCH_SIZE, i * BATCH_SIZE + BATCH_SIZE)
+        return client.index(PRODUCTS_INDEX).addDocuments(batch, { primaryKey: 'id' })
+      }),
+    )
   }
 
   return { synced: docs.length, errors }
@@ -325,53 +335,55 @@ export async function processMeilisearchSyncQueue(
     return { processedCount: 0 }
   }
 
-  for (const item of queueItems) {
-    try {
-      if (item.action === 'index') {
-        const [prod] = await db
-          .select()
-          .from(product)
-          .where(eq(product.id, item.productId))
-          .limit(1)
-        if (!prod) {
+  await Promise.all(
+    queueItems.map(async (item) => {
+      try {
+        if (item.action === 'index') {
+          const [prod] = await db
+            .select()
+            .from(product)
+            .where(eq(product.id, item.productId))
+            .limit(1)
+          if (!prod) {
+            await removeProductFromMeilisearch(item.productId)
+          } else {
+            await syncProductToMeilisearch(prod)
+          }
+        } else if (item.action === 'delete') {
           await removeProductFromMeilisearch(item.productId)
-        } else {
-          await syncProductToMeilisearch(prod)
         }
-      } else if (item.action === 'delete') {
-        await removeProductFromMeilisearch(item.productId)
+
+        await db
+          .update(meilisearchSyncQueue)
+          .set({
+            status: 'completed',
+            updatedAt: new Date(),
+          })
+          .where(eq(meilisearchSyncQueue.id, item.id))
+      } catch (err: any) {
+        const attempts = item.attempts + 1
+        const lastError = err?.message || String(err)
+        const backoffSec = 2 ** attempts * 5
+        const runAt = new Date(Date.now() + backoffSec * 1000)
+
+        await db
+          .update(meilisearchSyncQueue)
+          .set({
+            attempts,
+            lastError,
+            runAt,
+            status: attempts >= 5 ? 'failed' : 'pending',
+            updatedAt: new Date(),
+          })
+          .where(eq(meilisearchSyncQueue.id, item.id))
+
+        console.error(
+          `[meilisearch-sync] Error processing item ${item.id} (attempt ${attempts}):`,
+          err,
+        )
       }
-
-      await db
-        .update(meilisearchSyncQueue)
-        .set({
-          status: 'completed',
-          updatedAt: new Date(),
-        })
-        .where(eq(meilisearchSyncQueue.id, item.id))
-    } catch (err: any) {
-      const attempts = item.attempts + 1
-      const lastError = err?.message || String(err)
-      const backoffSec = 2 ** attempts * 5
-      const runAt = new Date(Date.now() + backoffSec * 1000)
-
-      await db
-        .update(meilisearchSyncQueue)
-        .set({
-          attempts,
-          lastError,
-          runAt,
-          status: attempts >= 5 ? 'failed' : 'pending',
-          updatedAt: new Date(),
-        })
-        .where(eq(meilisearchSyncQueue.id, item.id))
-
-      console.error(
-        `[meilisearch-sync] Error processing item ${item.id} (attempt ${attempts}):`,
-        err,
-      )
-    }
-  }
+    }),
+  )
 
   return { processedCount: queueItems.length }
 }

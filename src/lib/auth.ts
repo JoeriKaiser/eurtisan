@@ -4,7 +4,7 @@ import { tanstackStartCookies } from 'better-auth/tanstack-start'
 
 import { db } from '#/db/index'
 import { createEmailProvider } from '#/integrations/email'
-import { ANONYMOUS_SESSION_COOKIE } from './cart'
+import { ANONYMOUS_SESSION_COOKIE } from './cart-constants'
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {

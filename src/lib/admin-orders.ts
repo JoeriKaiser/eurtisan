@@ -95,11 +95,11 @@ export const getPlatformOrderDetail = createServerFn({ method: 'GET' })
     }),
   )
   .handler(async ({ context, data }) => {
-    await requireAdmin(context)
-
     const { getPlatformOrderDetailQuery } = await import('./admin-orders.server')
-
-    const result = await getPlatformOrderDetailQuery(data.orderId)
+    const [, result] = await Promise.all([
+      requireAdmin(context),
+      getPlatformOrderDetailQuery(data.orderId),
+    ])
     if (!result) {
       throw new Response(JSON.stringify({ error: 'Not Found', message: 'Order not found' }), {
         status: 404,

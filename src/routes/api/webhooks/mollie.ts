@@ -141,6 +141,7 @@ export async function processMollieWebhook(
         totalCents = platformOrderRecord.totalCents
       }
 
+      // Sequential within transaction: invoice creation depends on order being marked paid.
       await tx
         .update(shopOrder)
         .set({ status: 'paid', updatedAt: new Date() })
@@ -184,6 +185,7 @@ export async function processMollieWebhook(
         })
       }
 
+      // Sequential within transaction to ensure consistent read-write ordering.
       await tx
         .update(platformOrder)
         .set({ status: 'cancelled', cancelledAt: new Date(), updatedAt: new Date() })

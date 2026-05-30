@@ -1,9 +1,7 @@
 import { useLoaderData, Link } from '@tanstack/react-router'
-import { AlertTriangle, ArrowLeft, Package, Truck } from 'lucide-react'
+import { ArrowLeft, Package, Truck } from 'lucide-react'
 import { Badge } from '#/components/ui/badge'
-import { Button } from '#/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
-import { Skeleton } from '#/components/ui/skeleton'
 import type { AdminOrderDetail } from '#/lib/admin-orders'
 import { statusBadgeVariant } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
@@ -274,66 +272,6 @@ export function AdminOrderDetailPage() {
             </CardContent>
           </Card>
         ))}
-      </div>
-    </div>
-  )
-}
-/* -------------------------------------------------------------------------- */
-/*                             Loading Skeleton                               */
-/* -------------------------------------------------------------------------- */
-export function AdminOrderDetailPending() {
-  return (
-    <div className='pb-16 pt-8'>
-      <Skeleton className='mb-6 size-4' />
-      <div className='mb-6 flex flex-wrap items-start justify-between gap-4'>
-        <div className='space-y-2'>
-          <Skeleton className='size-8' />
-          <Skeleton className='size-4' />
-        </div>
-        <Skeleton className='size-6 rounded-full' />
-      </div>
-      <div className='mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2'>
-        <div className='island-shell rounded-xl p-5 space-y-2'>
-          <Skeleton className='size-4' />
-          <Skeleton className='size-5' />
-        </div>
-        <div className='island-shell rounded-xl p-5 space-y-2'>
-          <Skeleton className='size-4' />
-          <Skeleton className='size-5' />
-        </div>
-      </div>
-      <div className='space-y-4'>
-        {[1, 2].map((n) => (
-          <div key={n} className='island-shell rounded-xl p-5 space-y-4'>
-            <Skeleton className='size-6' />
-            <Skeleton className='h-16 w-full' />
-            <Skeleton className='h-16 w-full' />
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-/* -------------------------------------------------------------------------- */
-/*                                Error State                                 */
-/* -------------------------------------------------------------------------- */
-export function AdminOrderDetailError({ error, reset }: { error: Error; reset?: () => void }) {
-  return (
-    <div className='pb-16 pt-8 text-center'>
-      <AlertTriangle size={48} className='mx-auto mb-4 text-error' aria-hidden='true' />
-      <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary'>
-        {m.admin_order_detail_error_load()}
-      </h1>
-      <p className='mb-6 text-text-secondary'>{error.message}</p>
-      <div className='flex justify-center gap-3'>
-        {reset && (
-          <Button variant='secondary' onClick={reset}>
-            {m.admin_orders_error_retry()}
-          </Button>
-        )}
-        <Link to='/admin/orders' className='no-underline'>
-          <Button variant='secondary'>{m.admin_orders_back_to_list()}</Button>
-        </Link>
       </div>
     </div>
   )

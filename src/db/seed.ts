@@ -793,15 +793,19 @@ async function seedProducts(
   //   img.url = `/uploads/products/${img.productId}/${filename}`
   // })
 
-  for (const c of chunk(products, 100)) {
-    await db
-      .insert(schema.product)
-      .values(c)
-      .onConflictDoNothing({ target: [schema.product.shopId, schema.product.slug] })
-  }
-  for (const c of chunk(productImages, 200)) {
-    await db.insert(schema.productImage).values(c).onConflictDoNothing()
-  }
+  await Promise.all(
+    chunk(products, 100).map((c) =>
+      db
+        .insert(schema.product)
+        .values(c)
+        .onConflictDoNothing({ target: [schema.product.shopId, schema.product.slug] }),
+    ),
+  )
+  await Promise.all(
+    chunk(productImages, 200).map((c) =>
+      db.insert(schema.productImage).values(c).onConflictDoNothing(),
+    ),
+  )
 
   console.log(`  ${products.length} products, ${productImages.length} images`)
   return products
@@ -1103,22 +1107,36 @@ async function seedOrders(
     }
   }
 
-  for (const c of chunk(platformOrders, 100))
-    await db.insert(schema.platformOrder).values(c).onConflictDoNothing()
-  for (const c of chunk(shopOrders, 100))
-    await db.insert(schema.shopOrder).values(c).onConflictDoNothing()
-  for (const c of chunk(orderItems, 200))
-    await db.insert(schema.orderItem).values(c).onConflictDoNothing()
-  for (const c of chunk(inventoryReservations, 100))
-    await db.insert(schema.inventoryReservation).values(c).onConflictDoNothing()
-  for (const c of chunk(shippingLabels, 100))
-    await db.insert(schema.shippingLabel).values(c).onConflictDoNothing()
-  for (const c of chunk(reviews, 100))
-    await db.insert(schema.review).values(c).onConflictDoNothing()
-  for (const c of chunk(disputes, 10))
-    await db.insert(schema.dispute).values(c).onConflictDoNothing()
-  for (const c of chunk(disputeMessages, 50))
-    await db.insert(schema.disputeMessage).values(c).onConflictDoNothing()
+  // Sequential: platformOrder must exist before shopOrder (FK dependency),
+  // and shopOrder must exist before orderItem/inventoryReservation/shippingLabel.
+  await Promise.all(
+    chunk(platformOrders, 100).map((c) =>
+      db.insert(schema.platformOrder).values(c).onConflictDoNothing(),
+    ),
+  )
+  await Promise.all(
+    chunk(shopOrders, 100).map((c) => db.insert(schema.shopOrder).values(c).onConflictDoNothing()),
+  )
+  // The following tables only FK to shopOrder / platformOrder and are independent of each other.
+  await Promise.all([
+    ...chunk(orderItems, 200).map((c) =>
+      db.insert(schema.orderItem).values(c).onConflictDoNothing(),
+    ),
+    ...chunk(inventoryReservations, 100).map((c) =>
+      db.insert(schema.inventoryReservation).values(c).onConflictDoNothing(),
+    ),
+    ...chunk(shippingLabels, 100).map((c) =>
+      db.insert(schema.shippingLabel).values(c).onConflictDoNothing(),
+    ),
+    ...chunk(reviews, 100).map((c) => db.insert(schema.review).values(c).onConflictDoNothing()),
+    ...chunk(disputes, 10).map((c) => db.insert(schema.dispute).values(c).onConflictDoNothing()),
+  ])
+  // disputeMessages FK to disputes, so they must run after the disputes insert.
+  await Promise.all(
+    chunk(disputeMessages, 50).map((c) =>
+      db.insert(schema.disputeMessage).values(c).onConflictDoNothing(),
+    ),
+  )
 
   console.log(`  ${platformOrders.length} platform orders`)
   console.log(`  ${shopOrders.length} shop orders`)
@@ -1152,9 +1170,9 @@ async function seedPayouts(shops: (typeof schema.shop.$inferInsert)[]) {
   }
 
   if (payouts.length > 0) {
-    for (const c of chunk(payouts, 100)) {
-      await db.insert(schema.payout).values(c).onConflictDoNothing()
-    }
+    await Promise.all(
+      chunk(payouts, 100).map((c) => db.insert(schema.payout).values(c).onConflictDoNothing()),
+    )
   }
 
   console.log(`  ${payouts.length} payouts`)
@@ -1201,9 +1219,11 @@ async function seedNotifications(users: (typeof schema.user.$inferInsert)[]) {
   }
 
   if (notifications.length > 0) {
-    for (const c of chunk(notifications, 200)) {
-      await db.insert(schema.notification).values(c).onConflictDoNothing()
-    }
+    await Promise.all(
+      chunk(notifications, 200).map((c) =>
+        db.insert(schema.notification).values(c).onConflictDoNothing(),
+      ),
+    )
   }
 
   console.log(`  ${notifications.length} notifications`)
@@ -1220,8 +1240,7 @@ async function seed() {
   }
 
   const users = await seedUsers()
-  const shops = await seedShops(users)
-  const categories = await seedCategories()
+  const [shops, categories] = await Promise.all([seedShops(users), seedCategories()])
   const products = await seedProducts(shops, categories)
   await seedCarts(users, products)
   await seedOrders(users, shops, products)

@@ -108,26 +108,26 @@ export async function getCreatorDashboardStatsQuery(
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  const [lowStockResult] = await db
-    .select({ count: count() })
-    .from(product)
-    .where(and(inArray(product.shopId, shopIds), lt(product.stockCount, 5)))
-
-  const [pendingResult] = await db
-    .select({ count: count() })
-    .from(shopOrder)
-    .where(and(inArray(shopOrder.shopId, shopIds), inArray(shopOrder.status, PENDING_STATUSES)))
-
-  const [revenueResult] = await db
-    .select({ total: sum(shopOrder.subtotalCents) })
-    .from(shopOrder)
-    .where(
-      and(
-        inArray(shopOrder.shopId, shopIds),
-        inArray(shopOrder.status, REVENUE_STATUSES),
-        gte(shopOrder.createdAt, startOfMonth),
+  const [[lowStockResult], [pendingResult], [revenueResult]] = await Promise.all([
+    db
+      .select({ count: count() })
+      .from(product)
+      .where(and(inArray(product.shopId, shopIds), lt(product.stockCount, 5))),
+    db
+      .select({ count: count() })
+      .from(shopOrder)
+      .where(and(inArray(shopOrder.shopId, shopIds), inArray(shopOrder.status, PENDING_STATUSES))),
+    db
+      .select({ total: sum(shopOrder.subtotalCents) })
+      .from(shopOrder)
+      .where(
+        and(
+          inArray(shopOrder.shopId, shopIds),
+          inArray(shopOrder.status, REVENUE_STATUSES),
+          gte(shopOrder.createdAt, startOfMonth),
+        ),
       ),
-    )
+  ])
 
   return {
     revenueThisMonthCents: Number(revenueResult?.total ?? 0),
@@ -204,44 +204,45 @@ export async function getCreatorRecentActivityQuery(
 
   const validatedLimit = Math.min(100, Math.max(1, limit))
 
-  const ordersResult = await db
-    .select({
-      id: shopOrder.id,
-      shopId: shopOrder.shopId,
-      shopName: shop.name,
-      status: shopOrder.status,
-      subtotalCents: shopOrder.subtotalCents,
-      shippingCostCents: shopOrder.shippingCostCents,
-      createdAt: shopOrder.createdAt,
-      buyerName: user.name,
-    })
-    .from(shopOrder)
-    .innerJoin(shop, eq(shopOrder.shopId, shop.id))
-    .innerJoin(platformOrder, eq(shopOrder.platformOrderId, platformOrder.id))
-    .innerJoin(user, eq(platformOrder.userId, user.id))
-    .where(inArray(shopOrder.shopId, shopIds))
-    .orderBy(desc(shopOrder.createdAt))
-    .limit(validatedLimit)
-
-  const reviewsResult = await db
-    .select({
-      id: review.id,
-      productId: review.productId,
-      productName: product.name,
-      shopId: shop.id,
-      shopName: shop.name,
-      rating: review.rating,
-      comment: review.comment,
-      createdAt: review.createdAt,
-      buyerName: user.name,
-    })
-    .from(review)
-    .innerJoin(product, eq(review.productId, product.id))
-    .innerJoin(shop, eq(product.shopId, shop.id))
-    .innerJoin(user, eq(review.buyerUserId, user.id))
-    .where(inArray(shop.id, shopIds))
-    .orderBy(desc(review.createdAt))
-    .limit(validatedLimit)
+  const [ordersResult, reviewsResult] = await Promise.all([
+    db
+      .select({
+        id: shopOrder.id,
+        shopId: shopOrder.shopId,
+        shopName: shop.name,
+        status: shopOrder.status,
+        subtotalCents: shopOrder.subtotalCents,
+        shippingCostCents: shopOrder.shippingCostCents,
+        createdAt: shopOrder.createdAt,
+        buyerName: user.name,
+      })
+      .from(shopOrder)
+      .innerJoin(shop, eq(shopOrder.shopId, shop.id))
+      .innerJoin(platformOrder, eq(shopOrder.platformOrderId, platformOrder.id))
+      .innerJoin(user, eq(platformOrder.userId, user.id))
+      .where(inArray(shopOrder.shopId, shopIds))
+      .orderBy(desc(shopOrder.createdAt))
+      .limit(validatedLimit),
+    db
+      .select({
+        id: review.id,
+        productId: review.productId,
+        productName: product.name,
+        shopId: shop.id,
+        shopName: shop.name,
+        rating: review.rating,
+        comment: review.comment,
+        createdAt: review.createdAt,
+        buyerName: user.name,
+      })
+      .from(review)
+      .innerJoin(product, eq(review.productId, product.id))
+      .innerJoin(shop, eq(product.shopId, shop.id))
+      .innerJoin(user, eq(review.buyerUserId, user.id))
+      .where(inArray(shop.id, shopIds))
+      .orderBy(desc(review.createdAt))
+      .limit(validatedLimit),
+  ])
 
   const activities: CreatorActivity[] = [
     ...ordersResult.map(

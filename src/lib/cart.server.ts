@@ -3,7 +3,7 @@ import { and, eq, gt, inArray, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { cart, cartItem, product, productImage, shop } from '#/db/schema'
 import { getAvailableStock, getAvailableStockForProducts } from './inventory.server'
-import { ANONYMOUS_SESSION_COOKIE } from './cart'
+import { ANONYMOUS_SESSION_COOKIE } from './cart-constants'
 
 export const AUTH_CART_DAYS = 30
 export const ANON_CART_DAYS = 7
@@ -245,13 +245,14 @@ export async function createUserCart(userId: string) {
 /* -------------------------------------------------------------------------- */
 
 export async function addItemToCart(cartId: string, productId: string, quantity: number) {
-  const availableStock = await getAvailableStock(productId)
-
-  const existing = await db
-    .select()
-    .from(cartItem)
-    .where(and(eq(cartItem.cartId, cartId), eq(cartItem.productId, productId)))
-    .limit(1)
+  const [availableStock, existing] = await Promise.all([
+    getAvailableStock(productId),
+    db
+      .select()
+      .from(cartItem)
+      .where(and(eq(cartItem.cartId, cartId), eq(cartItem.productId, productId)))
+      .limit(1),
+  ])
 
   if (existing.length > 0) {
     const newQty = Math.min(existing[0].quantity + quantity, availableStock)

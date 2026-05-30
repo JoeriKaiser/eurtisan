@@ -1,6 +1,6 @@
 import { Link, useRouter } from '@tanstack/react-router'
 import { Search, Store } from 'lucide-react'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import type { PaginatedProducts, ShopSummary } from '#/lib/products.server'
 import { m } from '#/paraglide/messages'
 import ProductGrid from './ProductGrid'
@@ -15,16 +15,22 @@ export interface ShopPageProps {
 
 export default function ShopPage({ shop, products, searchQuery }: ShopPageProps) {
   const router = useRouter()
-  const [localSearch, setLocalSearch] = useState(searchQuery)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (inputRef.current && inputRef.current.value !== searchQuery) {
+      inputRef.current.value = searchQuery
+    }
+  }, [searchQuery])
 
   const handleSearch = useCallback(() => {
-    const trimmed = localSearch.trim()
+    const trimmed = inputRef.current?.value.trim() ?? ''
     router.navigate({
       to: '.',
       search: trimmed ? { search: trimmed } : {},
       replace: true,
     })
-  }, [router, localSearch])
+  }, [router])
 
   const handlePageChange = useCallback(
     (page: number) => {
@@ -67,10 +73,10 @@ export default function ShopPage({ shop, products, searchQuery }: ShopPageProps)
             <div className='relative flex-1 sm:w-64'>
               <Search className='absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted' />
               <Input
+                ref={inputRef}
                 type='search'
                 placeholder={m.shop_search_placeholder()}
-                value={localSearch}
-                onChange={(e) => setLocalSearch(e.target.value)}
+                defaultValue={searchQuery}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault()

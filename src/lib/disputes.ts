@@ -125,17 +125,20 @@ export const resolveDispute = createServerFn({ method: 'POST' })
       })
     }
 
-    const { resolveDisputeQuery } = await import('./disputes.server')
-    const result = await resolveDisputeQuery(data.disputeId, {
-      resolution: data.resolution,
-      refundCents: data.refundCents,
-    })
-
-    const { emitAuditEvent } = await import('./audit-log.server')
-    await emitAuditEvent(context.user, 'dispute.resolve', 'dispute', data.disputeId, {
-      resolution: data.resolution,
-      refundCents: data.refundCents,
-    })
+    const [{ resolveDisputeQuery }, { emitAuditEvent }] = await Promise.all([
+      import('./disputes.server'),
+      import('./audit-log.server'),
+    ])
+    const [result] = await Promise.all([
+      resolveDisputeQuery(data.disputeId, {
+        resolution: data.resolution,
+        refundCents: data.refundCents,
+      }),
+      emitAuditEvent(context.user, 'dispute.resolve', 'dispute', data.disputeId, {
+        resolution: data.resolution,
+        refundCents: data.refundCents,
+      }),
+    ])
 
     return result
   })

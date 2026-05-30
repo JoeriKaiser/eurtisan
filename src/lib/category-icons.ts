@@ -30,8 +30,9 @@ const CATEGORY_ICON_ENTRIES = Object.entries(CATEGORY_ICONS)
 
 export function getCategoryIcon(name: string): LucideIcon {
   const key = name.toLowerCase()
+  // Intentionally sequential: substring matching requires iterating all entries.
   for (const [slug, Icon] of CATEGORY_ICON_ENTRIES) {
-    if (key.includes(slug)) return Icon as LucideIcon
+    if (key.indexOf(slug) !== -1) return Icon as LucideIcon
   }
   return Palette
 }

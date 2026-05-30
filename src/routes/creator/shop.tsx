@@ -18,14 +18,15 @@ export const Route = createFileRoute('/creator/shop')({
   loaderDeps: ({ search: { shopId } }) => ({ shopId }),
   beforeLoad: async () => guardRole('creator'),
   loader: async ({ deps }) => {
-    const shops = await getCreatorShops()
+    const shopsPromise = getCreatorShops()
+    const shopPromise = deps.shopId
+      ? getCreatorShop({ data: { shopId: deps.shopId } })
+      : shopsPromise.then((shops) => {
+          if (shops.length === 0) return null
+          return getCreatorShop({ data: { shopId: shops[0].id } })
+        })
 
-    if (shops.length === 0) {
-      return { shop: null, allShops: [] }
-    }
-
-    const targetShopId = deps.shopId ?? shops[0].id
-    const shop = await getCreatorShop({ data: { shopId: targetShopId } })
+    const [shops, shop] = await Promise.all([shopsPromise, shopPromise])
 
     return { shop, allShops: shops }
   },

@@ -6,6 +6,13 @@ import { useStepActions } from './useStepActions'
 
 type PolicyPreset = 'no' | 'yes14' | 'yes30' | 'custom'
 
+const presets: { value: PolicyPreset; label: string }[] = [
+  { value: 'no', label: 'Not accepted' },
+  { value: 'yes14', label: 'Accepted within 14 days' },
+  { value: 'yes30', label: 'Accepted within 30 days' },
+  { value: 'custom', label: 'Custom' },
+]
+
 function PolicyCard({
   title,
   preset,
@@ -17,13 +24,6 @@ function PolicyCard({
   onPresetChange: (p: PolicyPreset) => void
   children: React.ReactNode
 }) {
-  const presets: { value: PolicyPreset; label: string }[] = [
-    { value: 'no', label: 'Not accepted' },
-    { value: 'yes14', label: 'Accepted within 14 days' },
-    { value: 'yes30', label: 'Accepted within 30 days' },
-    { value: 'custom', label: 'Custom' },
-  ]
-
   return (
     <div className='rounded-xl border border-border-default p-4'>
       <h3 className='mb-3 font-medium text-text-primary'>{title}</h3>

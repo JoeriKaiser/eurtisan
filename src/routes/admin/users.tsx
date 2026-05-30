@@ -1,7 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 import z from 'zod'
 import { listUsers } from '#/lib/admin-users'
-import { AdminUsersPage, AdminUsersPending, AdminUsersError } from '#/route-components/admin/users'
+import { AdminUsersPage } from '#/route-components/admin/users'
+import { AdminUsersPending } from '#/route-components/admin/users.pending'
+import { AdminUsersError } from '#/route-components/admin/users.error'
 
 const usersSearchSchema = z.object({
   query: z.string().optional().default(''),

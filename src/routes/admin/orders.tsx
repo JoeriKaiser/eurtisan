@@ -1,11 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 import z from 'zod'
 import { listAllPlatformOrders } from '#/lib/admin-orders'
-import {
-  AdminOrdersPage,
-  AdminOrdersPending,
-  AdminOrdersError,
-} from '#/route-components/admin/orders'
+import { AdminOrdersPage } from '#/route-components/admin/orders'
+import { AdminOrdersPending } from '#/route-components/admin/orders/AdminOrdersPending'
+import { AdminOrdersError } from '#/route-components/admin/orders/AdminOrdersError'
 
 const ordersSearchSchema = z.object({
   query: z.string().optional().default(''),

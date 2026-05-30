@@ -199,41 +199,41 @@ export async function getShopOrderQuery(
     return null
   }
 
-  const [buyerRecord] = await tx
-    .select({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-    })
-    .from(user)
-    .where(eq(user.id, platformOrderRecord.userId))
-    .limit(1)
-
-  const items = await tx
-    .select({
-      id: orderItem.id,
-      productId: orderItem.productId,
-      productName: orderItem.productName,
-      unitPriceCents: orderItem.unitPriceCents,
-      quantity: orderItem.quantity,
-      totalCents: orderItem.totalCents,
-      vatRateBasisPoints: orderItem.vatRateBasisPoints,
-      vatAmountCents: orderItem.vatAmountCents,
-    })
-    .from(orderItem)
-    .where(eq(orderItem.shopOrderId, shopOrderId))
-
-  const [labelRecord] = await tx
-    .select({
-      id: shippingLabel.id,
-      carrier: shippingLabel.carrier,
-      trackingNumber: shippingLabel.trackingNumber,
-      labelUrl: shippingLabel.labelUrl,
-      createdAt: shippingLabel.createdAt,
-    })
-    .from(shippingLabel)
-    .where(eq(shippingLabel.shopOrderId, shopOrderId))
-    .limit(1)
+  const [[buyerRecord], items, [labelRecord]] = await Promise.all([
+    tx
+      .select({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+      })
+      .from(user)
+      .where(eq(user.id, platformOrderRecord.userId))
+      .limit(1),
+    tx
+      .select({
+        id: orderItem.id,
+        productId: orderItem.productId,
+        productName: orderItem.productName,
+        unitPriceCents: orderItem.unitPriceCents,
+        quantity: orderItem.quantity,
+        totalCents: orderItem.totalCents,
+        vatRateBasisPoints: orderItem.vatRateBasisPoints,
+        vatAmountCents: orderItem.vatAmountCents,
+      })
+      .from(orderItem)
+      .where(eq(orderItem.shopOrderId, shopOrderId)),
+    tx
+      .select({
+        id: shippingLabel.id,
+        carrier: shippingLabel.carrier,
+        trackingNumber: shippingLabel.trackingNumber,
+        labelUrl: shippingLabel.labelUrl,
+        createdAt: shippingLabel.createdAt,
+      })
+      .from(shippingLabel)
+      .where(eq(shippingLabel.shopOrderId, shopOrderId))
+      .limit(1),
+  ])
 
   return {
     id: shopOrderRecord.id,
@@ -451,6 +451,8 @@ export async function markShopOrderShippedQuery(
       updateData.trackingUrl = input.trackingUrl
     }
 
+    // Sequential within transaction: recalc depends on the update, and getShopOrderQuery
+    // reads the updated state.
     await tx.update(shopOrder).set(updateData).where(eq(shopOrder.id, shopOrderId))
 
     await recalcPlatformOrderStatus(tx, record.platformOrderId)
@@ -469,15 +471,18 @@ export async function markShopOrderShippedQuery(
   // Only notify on actual status transition, not idempotent tracking updates
   if (didTransition) {
     try {
-      const { createNotification, sendNotificationEmail } = await import('./notifications.server')
-      const order = await getShopOrderQuery(shopOrderId)
+      const [{ createNotification, sendNotificationEmail }, order] = await Promise.all([
+        import('./notifications.server'),
+        getShopOrderQuery(shopOrderId),
+      ])
       if (order) {
-        await createNotification(order.buyer.id, 'order_shipped', {
-          platformOrderId: order.platformOrderId,
-          shopOrderId,
-        })
-
-        const [shopRecord] = await db.select().from(shop).where(eq(shop.id, order.shopId)).limit(1)
+        const [, [shopRecord]] = await Promise.all([
+          createNotification(order.buyer.id, 'order_shipped', {
+            platformOrderId: order.platformOrderId,
+            shopOrderId,
+          }),
+          db.select().from(shop).where(eq(shop.id, order.shopId)).limit(1),
+        ])
         await sendNotificationEmail(order.buyer.id, 'shipping_notification', {
           orderNumber: shopOrderId.slice(0, 8),
           buyerName: order.buyer.name,
@@ -651,6 +656,8 @@ export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<
       )
     }
 
+    // Sequential within transaction: recalc depends on the update, and getShopOrderQuery
+    // reads the updated state.
     await tx
       .update(shopOrder)
       .set({ status: 'delivered', deliveredAt: new Date(), updatedAt: new Date() })
@@ -722,6 +729,8 @@ export async function updateShopOrderStatusQuery(
       }
     }
 
+    // Sequential within transaction: recalc depends on the update, and getShopOrderQuery
+    // reads the updated state.
     await tx.update(shopOrder).set(updateData).where(eq(shopOrder.id, shopOrderId))
 
     // Recalculate parent platform order status
@@ -741,21 +750,19 @@ export async function updateShopOrderStatusQuery(
   // Notify buyer when a dispute is opened
   if (input.status === 'disputed') {
     try {
-      const { createNotification, sendNotificationEmail } = await import('./notifications.server')
-      const order = await getShopOrderQuery(shopOrderId)
+      const [{ createNotification, sendNotificationEmail }, order] = await Promise.all([
+        import('./notifications.server'),
+        getShopOrderQuery(shopOrderId),
+      ])
       if (order) {
-        await createNotification(order.buyer.id, 'dispute_opened', {
-          platformOrderId: order.platformOrderId,
-          shopOrderId,
-        })
-
-        const [disputeRecord] = await db
-          .select()
-          .from(dispute)
-          .where(eq(dispute.shopOrderId, shopOrderId))
-          .limit(1)
-
-        const [shopRecord] = await db.select().from(shop).where(eq(shop.id, order.shopId)).limit(1)
+        const [, [disputeRecord], [shopRecord]] = await Promise.all([
+          createNotification(order.buyer.id, 'dispute_opened', {
+            platformOrderId: order.platformOrderId,
+            shopOrderId,
+          }),
+          db.select().from(dispute).where(eq(dispute.shopOrderId, shopOrderId)).limit(1),
+          db.select().from(shop).where(eq(shop.id, order.shopId)).limit(1),
+        ])
 
         const baseUrl = getBaseUrl()
         await sendNotificationEmail(order.buyer.id, 'dispute_update', {

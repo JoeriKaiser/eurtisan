@@ -43,7 +43,7 @@ export function normalizeCountryCode(country: string): string | null {
   return COUNTRY_NAME_TO_CODE[trimmed.toLowerCase()] ?? null
 }
 
-export const EU_VAT_RATES: Record<string, { standard: number; reduced: number }> = {
+const EU_VAT_RATES: Record<string, { standard: number; reduced: number }> = {
   AT: { standard: 2000, reduced: 1000 },
   BE: { standard: 2100, reduced: 600 },
   BG: { standard: 2000, reduced: 900 },

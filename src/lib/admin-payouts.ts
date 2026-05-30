@@ -67,13 +67,17 @@ export const markPayoutSent = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
   .inputValidator(markPayoutSentInputSchema)
   .handler(async ({ context, data }) => {
-    await requireAdmin(context)
-
-    const { markPayoutSentQuery } = await import('./payouts.server')
-    const result = await markPayoutSentQuery(data.payoutId)
-
-    const { emitAuditEvent } = await import('./audit-log.server')
-    await emitAuditEvent(context.user, 'payout.mark_sent', 'payout', data.payoutId)
+    const modules = await Promise.all([
+      requireAdmin(context),
+      import('./payouts.server'),
+      import('./audit-log.server'),
+    ])
+    const { markPayoutSentQuery } = modules[1]
+    const { emitAuditEvent } = modules[2]
+    const [result] = await Promise.all([
+      markPayoutSentQuery(data.payoutId),
+      emitAuditEvent(context.user, 'payout.mark_sent', 'payout', data.payoutId),
+    ])
 
     return result
   })

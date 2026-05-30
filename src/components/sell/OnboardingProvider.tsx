@@ -1,5 +1,5 @@
 import type React from 'react'
-import { createContext, useContext, useCallback, useMemo, useRef, useState } from 'react'
+import { createContext, use, useCallback, useMemo, useRef, useState } from 'react'
 import type { ShopDraft } from '#/lib/sell-onboarding'
 import { saveOnboardingStep } from '#/lib/sell-onboarding'
 
@@ -23,7 +23,7 @@ interface OnboardingContextType {
 const OnboardingContext = createContext<OnboardingContextType | null>(null)
 
 export function useOnboarding() {
-  const ctx = useContext(OnboardingContext)
+  const ctx = use(OnboardingContext)
   if (!ctx) throw new Error('useOnboarding must be used within OnboardingProvider')
   return ctx
 }

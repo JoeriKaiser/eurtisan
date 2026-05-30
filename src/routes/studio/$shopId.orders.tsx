@@ -1,10 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import z from 'zod'
-import {
-  ShopOrdersPage,
-  ShopOrdersPending,
-  ShopOrdersError,
-} from '#/route-components/studio/$shopId.orders'
+import { ShopOrdersPage } from '#/route-components/studio/$shopId.orders'
+import { ShopOrdersPending } from '#/route-components/studio/$shopId.orders.pending'
+import { ShopOrdersError } from '#/route-components/studio/$shopId.orders.error'
 import { guardShopOwnership } from '#/lib/route-guards'
 import { listShopOrders } from '#/lib/shop-orders'
 

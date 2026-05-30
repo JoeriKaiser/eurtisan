@@ -121,7 +121,7 @@ vi.mock('#/components/ui/primitives/dialog', () => ({
   Dialog: ({ children, open }: { children: React.ReactNode; open?: boolean }) =>
     open ? <div data-testid='dialog'>{children}</div> : null,
   DialogBackdrop: () => <div data-testid='dialog-backdrop' />,
-  DialogPopup: ({ children }: { children: React.ReactNode }) => <div role='dialog'>{children}</div>,
+  DialogPopup: ({ children }: { children: React.ReactNode }) => <dialog open>{children}</dialog>,
   DialogPortal: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   DialogTitle: ({ children }: { children: React.ReactNode }) => <h2>{children}</h2>,
   DialogDescription: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,

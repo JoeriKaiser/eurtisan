@@ -333,6 +333,7 @@ export async function cancelOrderQuery(
       )
     }
 
+    // Sequential within transaction to ensure consistent read-write ordering.
     await tx
       .update(platformOrder)
       .set({ status: 'cancelled', cancelledAt: new Date(), updatedAt: new Date() })

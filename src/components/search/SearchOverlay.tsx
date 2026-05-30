@@ -123,13 +123,11 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
   if (!isOpen) return null
 
   return createPortal(
-    <div
-      ref={containerRef}
-      className='fixed inset-0 z-modal flex flex-col items-start justify-start sm:items-center sm:justify-start sm:pt-[10vh]'
-      role='dialog'
-      aria-modal='true'
+    <dialog
+      className='fixed inset-0 z-modal m-0 flex max-h-none max-w-none flex-col items-start justify-start bg-transparent p-0 sm:items-center sm:justify-start sm:pt-[10vh] open:flex'
       aria-label={m.search_overlay_title()}
       onKeyDown={handleContainerKeyDown}
+      open
     >
       {/* Backdrop */}
       <div
@@ -147,6 +145,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
 
       {/* Panel */}
       <div
+        ref={containerRef}
         className={cn(
           'relative z-modal w-full sm:w-[640px] sm:max-w-[90vw]',
           'flex flex-col overflow-hidden rounded-b-2xl border border-border-default bg-surface-default shadow-xl',
@@ -239,7 +238,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
           </span>
         </div>
       </div>
-    </div>,
+    </dialog>,
     document.body,
   )
 }

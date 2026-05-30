@@ -77,6 +77,7 @@ function ImageUploader({
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
           onClick={() => inputRef.current?.click()}
+          aria-label={label}
           className='mt-1 flex w-full cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border-default bg-surface-default p-8 shadow-sm transition-all duration-base ease-out hover:scale-[1.005] hover:border-accent-secondary hover:bg-accent-secondary/[0.03] hover:shadow-md'
         >
           {isUploading ? (
@@ -95,6 +96,7 @@ function ImageUploader({
             ref={inputRef}
             type='file'
             accept='image/jpeg,image/png,image/webp'
+            aria-label={label}
             className='hidden'
             onChange={(e) => {
               if (e.target.files?.[0]) handleFile(e.target.files[0])

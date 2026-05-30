@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight, Package, Search } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
@@ -46,10 +46,17 @@ export function ShopOrdersPage() {
   const [localSearch, setLocalSearch] = useState(searchQuery ?? '')
   const [localStatus, setLocalStatus] = useState(status ?? '')
 
-  useEffect(() => {
+  const prevSearchQueryRef = useRef(searchQuery)
+  const prevStatusRef = useRef(status)
+
+  if (prevSearchQueryRef.current !== searchQuery) {
     setLocalSearch(searchQuery ?? '')
+    prevSearchQueryRef.current = searchQuery
+  }
+  if (prevStatusRef.current !== status) {
     setLocalStatus(status ?? '')
-  }, [searchQuery, status])
+    prevStatusRef.current = status
+  }
 
   const handleNavigate = useCallback(
     (updates: { status?: string; search?: string; page?: number }) => {
@@ -241,41 +248,6 @@ export function ShopOrdersPage() {
             )}
           </div>
         )}
-      </div>
-    </main>
-  )
-}
-
-export function ShopOrdersPending() {
-  return (
-    <main className='page-wrap px-4 py-12'>
-      <div className='mx-auto max-w-5xl'>
-        <div className='mb-6 flex items-center justify-between'>
-          <div className='size-8 animate-pulse rounded bg-[var(--sand)]' />
-          <div className='size-4 animate-pulse rounded bg-[var(--sand)]' />
-        </div>
-        <div className='mb-6 flex gap-3'>
-          <div className='h-10 flex-1 animate-pulse rounded bg-[var(--sand)]' />
-          <div className='size-10 animate-pulse rounded bg-[var(--sand)]' />
-        </div>
-        <div className='space-y-4'>
-          {[1, 2, 3].map((n) => (
-            <div key={n} className='island-shell h-20 animate-pulse rounded-xl bg-[var(--sand)]' />
-          ))}
-        </div>
-      </div>
-    </main>
-  )
-}
-
-export function ShopOrdersError({ error }: { error: Error }) {
-  return (
-    <main className='page-wrap px-4 py-12'>
-      <div className='mx-auto max-w-5xl text-center'>
-        <h1 className='display-title mb-4 text-2xl font-semibold text-text-primary'>
-          Failed to load orders
-        </h1>
-        <p className='mb-6 text-text-secondary'>{error.message}</p>
       </div>
     </main>
   )

@@ -15,6 +15,14 @@ import {
 import { useOnboarding } from './OnboardingProvider'
 import { useStepActions } from './useStepActions'
 
+const productionLabels: Record<string, string> = {
+  handmade: 'Handmade by me',
+  vintage: 'Vintage (20+ years old)',
+  supplies: 'Craft supplies',
+  digital: 'Digital downloads',
+  mixed: 'A mix',
+}
+
 export function Step1Identity() {
   const { draft, saveStep, getStepData } = useOnboarding()
   const data = getStepData(1) as {
@@ -133,14 +141,6 @@ export function Step1Identity() {
   }, [form, saveStep])
 
   useStepActions(1, { validate, save })
-
-  const productionLabels: Record<string, string> = {
-    handmade: 'Handmade by me',
-    vintage: 'Vintage (20+ years old)',
-    supplies: 'Craft supplies',
-    digital: 'Digital downloads',
-    mixed: 'A mix',
-  }
 
   return (
     <div className='space-y-6'>

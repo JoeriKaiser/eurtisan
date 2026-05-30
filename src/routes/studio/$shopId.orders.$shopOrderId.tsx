@@ -1,9 +1,7 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
-import {
-  ShopOrderDetailPage,
-  ShopOrderDetailPending,
-  ShopOrderDetailError,
-} from '#/route-components/studio/$shopId.orders.$shopOrderId'
+import { ShopOrderDetailPage } from '#/route-components/studio/$shopId.orders.$shopOrderId'
+import { ShopOrderDetailPending } from '#/route-components/studio/$shopId.orders.$shopOrderId.pending'
+import { ShopOrderDetailError } from '#/route-components/studio/$shopId.orders.$shopOrderId.error'
 import { getShopOrderDetail } from '#/lib/shop-orders'
 import { guardAuth } from '#/lib/route-guards'
 

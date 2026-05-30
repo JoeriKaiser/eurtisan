@@ -1,18 +1,18 @@
-import { Link, getRouteApi } from '@tanstack/react-router'
-import { Bell, Search, ShoppingCart, Menu } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { getRouteApi, Link } from '@tanstack/react-router'
+import { Bell, Menu, Search, ShoppingCart } from 'lucide-react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { useCart } from '#/components/CartProvider'
 import { useAuth } from '#/lib/auth-hooks'
+import type { CategoryTreeNode } from '#/lib/categories'
+import { cn } from '#/lib/cn'
 import { useUnreadNotificationCount } from '#/lib/notifications-hooks'
 import { m } from '#/paraglide/messages'
-import ThemeToggle from './ThemeToggle'
-import UserMenu from './UserMenu'
+import CategoriesMegamenu from './CategoriesMegamenu'
 import LocaleDropdown from './LocaleDropdown'
 import MobileNavDrawer from './MobileNavDrawer'
-import CategoriesMegamenu from './CategoriesMegamenu'
 import SearchOverlay from './search/SearchOverlay'
-import { cn } from '#/lib/cn'
-import type { CategoryTreeNode } from '#/lib/categories'
+import ThemeToggle from './ThemeToggle'
+import UserMenu from './UserMenu'
 
 const rootRoute = getRouteApi('__root__')
 
@@ -30,19 +30,14 @@ export default function Header() {
   console.log('CATEGORIES IN HEADER:', categories)
 
   // Scroll state to add border shadow on scroll
-  const [isScrolled, setIsScrolled] = useState(false)
-  useEffect(() => {
-    function handleScroll() {
-      setIsScrolled(window.scrollY > 10)
-    }
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
-
-  // Close drawer on route change
-  useEffect(() => {
-    setMobileDrawerOpen(false)
-  }, [])
+  const isScrolled = useSyncExternalStore(
+    (callback) => {
+      window.addEventListener('scroll', callback, { passive: true })
+      return () => window.removeEventListener('scroll', callback)
+    },
+    () => window.scrollY > 10,
+    () => false,
+  )
 
   // Global keyboard shortcuts: / and Cmd+K / Ctrl+K to open search overlay
   useEffect(() => {
@@ -108,9 +103,7 @@ export default function Header() {
             <path d='M2 17l10 5 10-5' />
             <path d='M2 12l10 5 10-5' />
           </svg>
-          <span className='bg-gradient-to-r from-accent-primary to-accent-secondary bg-clip-text text-transparent flex-shrink-0'>
-            {m.nav_logo()}
-          </span>
+          <span className='text-accent-primary flex-shrink-0'>{m.nav_logo()}</span>
         </Link>
 
         {/* Nav links */}

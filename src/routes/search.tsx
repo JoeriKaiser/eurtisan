@@ -4,7 +4,9 @@ import { listCategories } from '#/lib/categories'
 import { listShops, searchProducts } from '#/lib/products'
 import { createPageMeta } from '#/lib/seo'
 import { m } from '#/paraglide/messages'
-import { SearchPage, SearchPending, SearchError } from '#/route-components/search'
+import { SearchPage } from '#/route-components/search'
+import { SearchPending } from '#/route-components/search.pending'
+import { SearchError } from '#/route-components/search.error'
 
 const searchRouteSchema = z.object({
   q: z.string().optional(),

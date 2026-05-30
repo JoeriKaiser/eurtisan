@@ -6,13 +6,13 @@ export interface CardProps extends HTMLAttributes<HTMLDivElement> {
   ref?: React.Ref<HTMLDivElement>
 }
 
-export function Card({ className, variant = 'default', ref, ...props }: CardProps) {
-  const variants = {
-    default: 'bg-surface-default border border-border-default shadow-sm',
-    elevated: 'bg-surface-elevated border border-border-default shadow-md',
-    inset: 'bg-surface-inset border border-border-subtle',
-  }
+const variants = {
+  default: 'bg-surface-default border border-border-default shadow-sm',
+  elevated: 'bg-surface-elevated border border-border-default shadow-md',
+  inset: 'bg-surface-inset border border-border-subtle',
+}
 
+export function Card({ className, variant = 'default', ref, ...props }: CardProps) {
   return (
     <div
       ref={ref}
@@ -54,26 +54,10 @@ export function CardTitle({
   )
 }
 
-export function CardDescription({
-  className,
-  ref,
-  ...props
-}: HTMLAttributes<HTMLParagraphElement> & { ref?: React.Ref<HTMLParagraphElement> }) {
-  return <p ref={ref} className={cn('text-sm text-text-secondary', className)} {...props} />
-}
-
 export function CardContent({
   className,
   ref,
   ...props
 }: HTMLAttributes<HTMLDivElement> & { ref?: React.Ref<HTMLDivElement> }) {
   return <div ref={ref} className={cn('p-5 pt-0', className)} {...props} />
-}
-
-export function CardFooter({
-  className,
-  ref,
-  ...props
-}: HTMLAttributes<HTMLDivElement> & { ref?: React.Ref<HTMLDivElement> }) {
-  return <div ref={ref} className={cn('flex items-center p-5 pt-0', className)} {...props} />
 }

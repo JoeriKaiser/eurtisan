@@ -5,16 +5,8 @@ import { shop, user } from '#/db/schema'
 import { authMiddleware } from './auth-middleware'
 import type { UserRole } from './authz'
 import { validatePlainText } from './xss'
-
-export interface SafeUser {
-  id: string
-  name: string
-  email: string
-  emailVerified: boolean
-  image: string | null
-  role: UserRole
-  bannedAt: Date | null
-}
+import type { SafeUser } from './user-types'
+export type { SafeUser } from './user-types'
 
 const ROLE_HIERARCHY: Record<UserRole, number> = {
   customer: 0,

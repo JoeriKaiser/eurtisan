@@ -382,7 +382,8 @@ export async function deleteProductInternal(data: {
 
   if (data.hard) {
     await db.transaction(async (tx) => {
-      // Delete files first so orphaned uploads don't remain if DB delete fails
+      // Delete files first so orphaned uploads don't remain if DB delete fails.
+      // Intentionally sequential: file deletion must happen before DB delete to avoid orphans.
       await deleteProductImages(data.productId)
       await tx.delete(product).where(eq(product.id, data.productId))
 
@@ -542,18 +543,19 @@ export const getCreatorProductDetailSchema = z.object({
 })
 
 export async function getCreatorProductDetailInternal(productId: string, userId: string) {
-  const productRecord = await verifyProductOwnership(productId, userId)
-
-  const images = await db
-    .select({
-      id: productImage.id,
-      url: productImage.url,
-      altText: productImage.altText,
-      sortOrder: productImage.sortOrder,
-    })
-    .from(productImage)
-    .where(eq(productImage.productId, productId))
-    .orderBy(productImage.sortOrder)
+  const [productRecord, images] = await Promise.all([
+    verifyProductOwnership(productId, userId),
+    db
+      .select({
+        id: productImage.id,
+        url: productImage.url,
+        altText: productImage.altText,
+        sortOrder: productImage.sortOrder,
+      })
+      .from(productImage)
+      .where(eq(productImage.productId, productId))
+      .orderBy(productImage.sortOrder),
+  ])
 
   return { ...productRecord, images }
 }

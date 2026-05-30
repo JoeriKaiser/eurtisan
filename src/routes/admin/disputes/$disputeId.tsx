@@ -1,10 +1,8 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { getDisputeDetail } from '#/lib/disputes'
-import {
-  AdminDisputeDetailPage,
-  AdminDisputeDetailPending,
-  AdminDisputeDetailError,
-} from '#/route-components/admin/disputes/$disputeId'
+import { AdminDisputeDetailPage } from '#/route-components/admin/disputes/$disputeId'
+import { AdminDisputeDetailPending } from '#/route-components/admin/disputes/$disputeId.pending'
+import { AdminDisputeDetailError } from '#/route-components/admin/disputes/$disputeId.error'
 
 export const Route = createFileRoute('/admin/disputes/$disputeId')({
   loader: async ({ params }) => {

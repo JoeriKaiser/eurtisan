@@ -8,8 +8,9 @@ const PROFANITY_LIST = new Set(['shit', 'fuck', 'damn', 'bitch', 'asshole', 'cun
 
 function checkProfanity(text: string): boolean {
   const lower = text.toLowerCase()
+  // Intentionally sequential: substring matching requires iterating all patterns.
   for (const word of PROFANITY_LIST) {
-    if (lower.includes(word)) return true
+    if (lower.indexOf(word) !== -1) return true
   }
   return false
 }
@@ -28,9 +29,10 @@ export async function getShopDraftQuery(
   userId: string,
   userRole: string,
 ): Promise<ShopDraft> {
-  const record = await verifyShopOwnershipOrAdmin(draftId, userId, userRole)
-
-  const socials = await db.select().from(shopSocials).where(eq(shopSocials.shopId, draftId))
+  const [record, socials] = await Promise.all([
+    verifyShopOwnershipOrAdmin(draftId, userId, userRole),
+    db.select().from(shopSocials).where(eq(shopSocials.shopId, draftId)),
+  ])
 
   return {
     id: record.id,
@@ -339,11 +341,11 @@ export async function saveShopImageInternal(
 ): Promise<string> {
   await verifyShopOwnershipOrAdmin(draftId, userId, userRole)
 
-  const { validateImageInput, getExtensionFromMimeType } = await import('./image-utils')
+  const [{ validateImageInput, getExtensionFromMimeType }, { mkdir, writeFile }] =
+    await Promise.all([import('./image-utils'), import('node:fs/promises')])
   const { buffer, mimeType } = validateImageInput({ dataUrl })
   const ext = getExtensionFromMimeType(mimeType)
 
-  const { mkdir, writeFile } = await import('node:fs/promises')
   const { join } = await import('node:path')
 
   const SHOP_IMAGE_UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'shops')
