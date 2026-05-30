@@ -1,9 +1,15 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { pool } from '#/db.ts'
+
+import { getPoolStats, pool } from '#/db.ts'
 
 export interface HealthCheckResult {
   status: 'ok' | 'error'
   db: 'connected' | 'disconnected'
+  pool?: {
+    total: number
+    idle: number
+    waiting: number
+  }
 }
 
 /**
@@ -16,12 +22,19 @@ export async function checkHealth(): Promise<{
   try {
     await pool.query('SELECT 1')
     return {
-      body: { status: 'ok', db: 'connected' },
+      body: {
+        status: 'ok',
+        db: 'connected',
+        pool: getPoolStats(),
+      },
       status: 200,
     }
   } catch {
     return {
-      body: { status: 'error', db: 'disconnected' },
+      body: {
+        status: 'error',
+        db: 'disconnected',
+      },
       status: 503,
     }
   }

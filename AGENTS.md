@@ -795,6 +795,13 @@ VITE_UMAMI_HOST_URL=
 
 # Database
 DATABASE_URL=postgresql://eurtisan:eurtisan@db:5432/eurtisan
+
+# Database pool sizing — tune per environment based on expected concurrency
+# and PostgreSQL max_connections (default 100). With multiple app replicas,
+# divide max_connections by replica count and leave headroom for migrations.
+DATABASE_POOL_MAX=20
+DATABASE_POOL_IDLE_TIMEOUT_MS=30000
+DATABASE_POOL_CONNECTION_TIMEOUT_MS=5000
 ```
 
 Generate auth secret:

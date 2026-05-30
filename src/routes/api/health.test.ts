@@ -9,6 +9,9 @@ vi.mock('#/db.ts', () => ({
       return mockQuery
     },
   },
+  getPoolStats() {
+    return { total: 5, idle: 2, waiting: 0 }
+  },
 }))
 
 describe('GET /api/health', () => {
@@ -22,7 +25,11 @@ describe('GET /api/health', () => {
     const result = await checkHealth()
 
     expect(result.status).toBe(200)
-    expect(result.body).toEqual({ status: 'ok', db: 'connected' })
+    expect(result.body).toEqual({
+      status: 'ok',
+      db: 'connected',
+      pool: { total: 5, idle: 2, waiting: 0 },
+    })
     expect(mockQuery).toHaveBeenCalledWith('SELECT 1')
   })
 

@@ -169,11 +169,24 @@ server.listen(PORT, HOST, () => {
 })
 
 // Graceful shutdown
+async function drainPoolAndExit() {
+  try {
+    const poolShutdown = globalThis.__eurtisan_shutdown_pool__
+    if (typeof poolShutdown === 'function') {
+      await poolShutdown()
+      console.log('Database pool drained')
+    }
+  } catch (err) {
+    console.error('Error draining database pool:', err)
+  }
+  process.exit(0)
+}
+
 function shutdown(signal) {
   console.log(`Received ${signal}, shutting down gracefully...`)
   server.close(() => {
     console.log('HTTP server closed')
-    process.exit(0)
+    drainPoolAndExit()
   })
   // Force close after 10 seconds
   setTimeout(() => {
