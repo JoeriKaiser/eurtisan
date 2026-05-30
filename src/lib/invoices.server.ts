@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { invoices, platformOrder, shopOrder, orderItem, shop, user } from '#/db/schema'
 import { normalizeCountryCode } from './vat.server'
@@ -9,6 +9,7 @@ export interface BillingAddress {
   city: string
   postalCode: string
   country: string
+  vatId?: string
 }
 
 export interface BillingParty {
@@ -45,6 +46,50 @@ export interface BillingDetails {
     method: string
   }
   reverseCharge?: boolean
+}
+
+function isReverseChargeCustomerInvoice(
+  sellerCountry: string,
+  buyerCountry: string,
+  isSellerVatRegistered: boolean,
+  buyerVatId?: string | null,
+): boolean {
+  if (!isSellerVatRegistered || !buyerVatId) return false
+  const sellerCode = normalizeCountryCode(sellerCountry)
+  const buyerCode = normalizeCountryCode(buyerCountry)
+  if (!sellerCode || !buyerCode || sellerCode === buyerCode) return false
+
+  const euCountries = [
+    'AT',
+    'BE',
+    'BG',
+    'CY',
+    'CZ',
+    'DE',
+    'DK',
+    'EE',
+    'EL',
+    'ES',
+    'FI',
+    'FR',
+    'GR',
+    'HR',
+    'HU',
+    'IE',
+    'IT',
+    'LT',
+    'LU',
+    'LV',
+    'MT',
+    'NL',
+    'PL',
+    'PT',
+    'RO',
+    'SE',
+    'SI',
+    'SK',
+  ]
+  return euCountries.includes(sellerCode) && euCountries.includes(buyerCode)
 }
 
 const EURTISAN_BILLING_PARTY: BillingParty = {
@@ -180,6 +225,8 @@ export async function createInvoicesForPlatformOrder(
   const buyerParty: BillingParty = {
     name: billingAddr.name,
     email: buyerUser?.email,
+    vatId: billingAddr.vatId,
+    isVatRegistered: !!billingAddr.vatId,
     address: {
       street: billingAddr.street,
       city: billingAddr.city,
@@ -189,28 +236,67 @@ export async function createInvoicesForPlatformOrder(
   }
 
   // 2. Fetch all shop orders under this platform order
-  const shopOrdersList = await activeDb
+  const shopOrdersList = (await activeDb
     .select()
     .from(shopOrder)
-    .where(eq(shopOrder.platformOrderId, platformOrderId))
+    .where(eq(shopOrder.platformOrderId, platformOrderId))) as (typeof shopOrder.$inferSelect)[]
+
+  if (shopOrdersList.length === 0) {
+    return
+  }
+
+  // 3. Batch-fetch shops, owners, and order items to avoid N+1 queries
+  const shopIds = Array.from(new Set(shopOrdersList.map((so) => so.shopId)))
+  const shopOrderIds = shopOrdersList.map((so) => so.id)
+
+  const shopsList =
+    shopIds.length > 0
+      ? ((await activeDb
+          .select()
+          .from(shop)
+          .where(inArray(shop.id, shopIds))) as (typeof shop.$inferSelect)[])
+      : []
+  const shopsById = new Map(shopsList.map((s) => [s.id, s]))
+
+  const ownerIds = Array.from(new Set(shopsList.map((s) => s.ownerId)))
+  const ownersList =
+    ownerIds.length > 0
+      ? await activeDb
+          .select({
+            id: user.id,
+            name: user.name,
+            email: user.email,
+          })
+          .from(user)
+          .where(inArray(user.id, ownerIds))
+      : []
+  const ownersById = new Map<string, { id: string; name: string | null; email: string }>(
+    ownersList.map((u: { id: string; name: string | null; email: string }) => [u.id, u]),
+  )
+
+  const allItemsList =
+    shopOrderIds.length > 0
+      ? await activeDb.select().from(orderItem).where(inArray(orderItem.shopOrderId, shopOrderIds))
+      : []
+  const itemsByShopOrderId = new Map<string, typeof allItemsList>()
+  for (const item of allItemsList) {
+    const list = itemsByShopOrderId.get(item.shopOrderId)
+    if (list) {
+      list.push(item)
+    } else {
+      itemsByShopOrderId.set(item.shopOrderId, [item])
+    }
+  }
 
   await Promise.all(
     shopOrdersList.map(async (so: typeof shopOrder.$inferSelect) => {
-      // 3. Fetch shop and its owner details
-      const [shopRecord] = await activeDb.select().from(shop).where(eq(shop.id, so.shopId)).limit(1)
+      const shopRecord = shopsById.get(so.shopId)
 
       if (!shopRecord) {
         throw new Error(`Shop ${so.shopId} not found`)
       }
 
-      const [ownerUser] = await activeDb
-        .select({
-          name: user.name,
-          email: user.email,
-        })
-        .from(user)
-        .where(eq(user.id, shopRecord.ownerId))
-        .limit(1)
+      const ownerUser = ownersById.get(shopRecord.ownerId)
 
       const shopOrigin = shopRecord.shippingOrigin as {
         street?: string
@@ -219,24 +305,30 @@ export async function createInvoicesForPlatformOrder(
         country?: string
       } | null
 
+      const shopBusinessAddress = shopRecord.businessAddress as {
+        street?: string
+        city?: string
+        postalCode?: string
+        country?: string
+      } | null
+
+      const shopAddress = shopBusinessAddress ?? shopOrigin
+
       const shopParty: BillingParty = {
         name: shopRecord.name,
         email: ownerUser?.email,
         vatId: shopRecord.vatId,
         isVatRegistered: shopRecord.isVatRegistered,
         address: {
-          street: shopOrigin?.street,
-          city: shopOrigin?.city,
-          postalCode: shopOrigin?.postalCode,
-          country: shopOrigin?.country ?? '',
+          street: shopAddress?.street,
+          city: shopAddress?.city,
+          postalCode: shopAddress?.postalCode,
+          country: shopAddress?.country ?? '',
         },
       }
 
-      // 4. Fetch order items for this shop order
-      const itemsList = await activeDb
-        .select()
-        .from(orderItem)
-        .where(eq(orderItem.shopOrderId, so.id))
+      // 4. Lookup order items from pre-fetched batch
+      const itemsList = itemsByShopOrderId.get(so.id) ?? []
 
       // ─── A. GENERATE CUSTOMER INVOICE ───
       const customerInvoiceNumber = `INV-${so.id.toUpperCase()}`
@@ -256,6 +348,13 @@ export async function createInvoicesForPlatformOrder(
         vatAmountCents: item.vatAmountCents,
       }))
 
+      const customerReverseCharge = isReverseChargeCustomerInvoice(
+        shopAddress?.country ?? '',
+        billingAddr.country,
+        shopRecord.isVatRegistered && !!shopRecord.vatId,
+        billingAddr.vatId,
+      )
+
       const customerBillingDetails: BillingDetails = {
         from: shopParty,
         to: buyerParty,
@@ -266,6 +365,7 @@ export async function createInvoicesForPlatformOrder(
           vatAmountCents: so.shippingVatAmountCents,
           method: so.shippingMethod,
         },
+        reverseCharge: customerReverseCharge,
       }
 
       await activeDb
@@ -287,7 +387,7 @@ export async function createInvoicesForPlatformOrder(
       const rawFeeCents = Math.round(so.subtotalCents * 0.1) // 10% commission
 
       const feeVatDetails = calculatePlatformFeeVat(
-        shopOrigin?.country ?? '',
+        shopBusinessAddress?.country ?? shopOrigin?.country ?? '',
         shopRecord.isVatRegistered && !!shopRecord.vatId,
         rawFeeCents,
       )

@@ -3,6 +3,11 @@ interface ShopVisualsSectionProps {
   bannerImage: string | null
 }
 
+function isSafeImageUrl(url: string | null): url is string {
+  if (!url) return false
+  return url.startsWith('/uploads/') || url.startsWith('http://') || url.startsWith('https://')
+}
+
 export function ShopVisualsSection({ image, bannerImage }: ShopVisualsSectionProps) {
   return (
     <div className='space-y-2'>
@@ -11,7 +16,7 @@ export function ShopVisualsSection({ image, bannerImage }: ShopVisualsSectionPro
       </h3>
       <div className='bg-surface-inset rounded-xl p-4 space-y-4 border border-border-subtle'>
         <div className='flex gap-4 items-center'>
-          {image ? (
+          {image && isSafeImageUrl(image) ? (
             <div className='size-16 rounded-full overflow-hidden border border-border-default bg-surface-default flex-shrink-0 shadow-sm'>
               <img src={image} alt='Logo' className='w-full h-full object-cover' />
             </div>
@@ -27,7 +32,7 @@ export function ShopVisualsSection({ image, bannerImage }: ShopVisualsSectionPro
         </div>
         <div>
           <p className='text-xs text-text-muted mb-1.5'>Banner Image</p>
-          {bannerImage ? (
+          {bannerImage && isSafeImageUrl(bannerImage) ? (
             <div className='h-32 w-full rounded-lg overflow-hidden border border-border-default bg-surface-default shadow-sm'>
               <img src={bannerImage} alt='Banner' className='w-full h-full object-cover' />
             </div>

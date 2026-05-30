@@ -1,6 +1,7 @@
 import { createMiddleware } from '@tanstack/react-start'
 
 import type { UserRole } from './authz'
+import { CsrfError, validateCsrf } from './csrf'
 import type { SafeUser } from './user-types'
 
 export interface AuthMiddlewareContext {
@@ -9,6 +10,18 @@ export interface AuthMiddlewareContext {
 
 export const authMiddleware = createMiddleware({ type: 'request' }).server(
   async ({ request, next }) => {
+    try {
+      validateCsrf(request)
+    } catch (err) {
+      if (err instanceof CsrfError) {
+        throw new Response(JSON.stringify({ error: 'Forbidden', message: err.message }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      throw err
+    }
+
     const { auth } = await import('./auth')
     const result = await auth.api.getSession({ headers: request.headers })
 
@@ -25,6 +38,10 @@ export const authMiddleware = createMiddleware({ type: 'request' }).server(
             : null,
         }
       : null
+
+    if (user?.bannedAt) {
+      throw new Error('Account suspended')
+    }
 
     return next({ context: { user } satisfies AuthMiddlewareContext })
   },

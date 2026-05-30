@@ -10,6 +10,7 @@
 import nodemailer from 'nodemailer'
 import type { EmailProvider, EmailSendResult, EmailTemplate } from '#/lib/email-provider'
 import { renderFallbackPlainText, renderTemplate } from '#/lib/email-templates'
+import { logger } from '#/lib/logger.server'
 import {
   getEmailFromAddress,
   getEmailFromName,
@@ -74,40 +75,25 @@ export class SmtpEmailProvider implements EmailProvider {
   /* ------------------------------------------------------------------ */
 
   private async sendMock(
-    to: string,
+    _to: string,
     template: EmailTemplate,
     data: Record<string, unknown>,
   ): Promise<EmailSendResult> {
     await delay(20)
 
-    let subject = ''
-    let html: string | undefined
-    let text = ''
-
     try {
-      const rendered = renderTemplate(template, data)
-      subject = rendered.subject
-      html = rendered.html
-      text = rendered.text
+      renderTemplate(template, data)
     } catch (err) {
-      const fallback = renderFallbackPlainText(template, data)
-      subject = fallback.subject
-      text = fallback.text
-      console.error('[SmtpEmailProvider] Template render error (mock):', err)
+      renderFallbackPlainText(template, data)
+      logger.error('[SmtpEmailProvider] Template render error (mock)', err)
     }
 
     const messageId = nextMockMessageId()
 
-    // eslint-disable-next-line no-console
-    console.log(`[MockEmail] ${messageId}`)
-    // eslint-disable-next-line no-console
-    console.log(`  To:      ${to}`)
-    // eslint-disable-next-line no-console
-    console.log(`  Subject: ${subject}`)
-    // eslint-disable-next-line no-console
-    console.log(`  HTML:    ${html ? `${html.slice(0, 120)}...` : '(none)'}`)
-    // eslint-disable-next-line no-console
-    console.log(`  Text:    ${text.slice(0, 120)}...`)
+    logger.info('[MockEmail] message sent', {
+      messageId,
+      to: '[REDACTED]',
+    })
 
     return { messageId, accepted: true }
   }
@@ -138,7 +124,7 @@ export class SmtpEmailProvider implements EmailProvider {
       const fallback = renderFallbackPlainText(template, data)
       subject = fallback.subject
       textBody = fallback.text
-      console.error('[SmtpEmailProvider] Template render error (real):', err)
+      logger.error('[SmtpEmailProvider] Template render error (real)', err)
     }
 
     const info = await this.transporter.sendMail({

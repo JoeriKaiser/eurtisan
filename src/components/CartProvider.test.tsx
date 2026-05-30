@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CartProvider, useCart } from './CartProvider'
@@ -9,6 +10,19 @@ const mockGetCart = vi.hoisted(() => vi.fn())
 vi.mock('#/lib/cart', () => ({
   getCart: mockGetCart,
 }))
+
+function createTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+    },
+  })
+}
+
+function renderWithProviders(ui: React.ReactNode) {
+  const queryClient = createTestQueryClient()
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
+}
 
 function TestConsumer() {
   const { cart, isLoading, error } = useCart()
@@ -53,7 +67,7 @@ describe('CartProvider', () => {
       totalItems: 2,
     })
 
-    render(
+    renderWithProviders(
       <CartProvider>
         <TestConsumer />
       </CartProvider>,
@@ -69,7 +83,7 @@ describe('CartProvider', () => {
   it('handles null cart gracefully', async () => {
     mockGetCart.mockResolvedValue(null)
 
-    render(
+    renderWithProviders(
       <CartProvider>
         <TestConsumer />
       </CartProvider>,
@@ -84,7 +98,7 @@ describe('CartProvider', () => {
   it('exposes error when fetch fails', async () => {
     mockGetCart.mockRejectedValue(new Error('network down'))
 
-    render(
+    renderWithProviders(
       <CartProvider>
         <TestConsumer />
       </CartProvider>,
@@ -143,7 +157,7 @@ describe('CartProvider', () => {
       )
     }
 
-    render(
+    renderWithProviders(
       <CartProvider>
         <TestConsumer />
         <RefreshTrigger />

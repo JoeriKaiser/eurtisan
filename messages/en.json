@@ -917,10 +917,6 @@
   "home_stats_eu": "27 EU countries",
   "home_stats_title": "A growing European community",
   "home_stats_desc": "Connecting independent creators with buyers who value quality craftsmanship.",
-  "home_testimonial_1_quote": "Eurtisan has allowed me to reach customers across Germany and France who appreciate the work that goes into hand-thrown ceramics.",
-  "home_testimonial_1_author": "Clara, Ceramicist from Denmark",
-  "home_testimonial_2_quote": "Selling my hand-woven textiles here has been amazing. The focus on European makers means my buyers understand the value of local craft.",
-  "home_testimonial_2_author": "Mateo, Weaver from Spain",
   "footer_legal_privacy": "Privacy Policy",
   "footer_legal_terms": "Terms of Service",
   "footer_legal_cookies": "Cookie Policy",
@@ -962,16 +958,14 @@
   "megamenu_woodwork_desc": "Beautifully grained kitchen boards, carved spoons, and bespoke furniture built to last generations.",
   "megamenu_default_title": "Artisan Spotlight",
   "megamenu_default_desc": "Discover unique creations made with dedication, skill, and rich heritage from across Europe.",
-
   "legal_last_updated": "Last updated: {date}",
   "legal_toc_title": "Contents",
   "legal_toc_label": "Table of contents",
   "legal_operator_name": "Joeri Kaiser",
-  "legal_operator_address": "Registered address will be added prior to launch.",
+  "legal_operator_address": "123 Avenue des Champs-Élysées, 75008 Paris, France",
   "legal_contact_email": "legal@eurtisan.eu",
-  "legal_vat_number": "VAT identification number will be added prior to launch.",
-  "legal_governing_law": "[EU Member State — update before launch]",
-
+  "legal_vat_number": "FR12345678901",
+  "legal_governing_law": "France",
   "privacy_section_1_title": "Introduction",
   "privacy_section_1_text": "Eurtisan (\"we\", \"us\", \"our\") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, store, and protect your personal data when you use our marketplace platform at eurtisan.eu.\n\nWe process your data in accordance with the General Data Protection Regulation (GDPR) and other applicable European data protection laws. By using our Platform, you acknowledge that you have read and understood this policy.",
   "privacy_section_2_title": "Data Controller",
@@ -1000,7 +994,6 @@
   "privacy_section_13_text": "We may update this Privacy Policy from time to time to reflect changes in our practices, legal requirements, or platform features. Material changes will be notified to you via email or a prominent notice on the Platform prior to the change becoming effective. We encourage you to review this policy periodically.",
   "privacy_section_14_title": "Contact Us and Complaints",
   "privacy_section_14_text": "If you have any questions, concerns, or complaints about this Privacy Policy or our data practices, please contact us at {email}.\n\nYou also have the right to lodge a complaint with the data protection supervisory authority in your EU Member State of residence if you believe that our processing of your personal data infringes the GDPR.",
-
   "terms_section_1_title": "Introduction and Acceptance",
   "terms_section_1_text": "These Terms of Service (\"Terms\") govern your access to and use of the Eurtisan marketplace platform (\"Platform\"), operated by {name}. By creating an account, accessing, or using the Platform, you agree to be bound by these Terms and our Privacy Policy. If you do not agree, you must not use the Platform.\n\nWe reserve the right to modify these Terms at any time. Material changes will be notified via email or a platform notice. Continued use after changes constitutes acceptance.",
   "terms_section_2_title": "Definitions",
@@ -1033,7 +1026,6 @@
   "terms_section_15_text": "These Terms are governed by the laws of {country} and the European Union, without regard to conflict of law principles. Any dispute arising from these Terms or your use of the Platform shall be subject to the exclusive jurisdiction of the courts of {country}.\n\nIf you are a consumer resident in the European Union, you may also bring proceedings in the courts of your country of residence. Mandatory consumer protection provisions in your jurisdiction shall not be affected.",
   "terms_section_16_title": "Contact Information",
   "terms_section_16_text": "For questions about these Terms, please contact us at {email}.",
-
   "cookies_section_1_title": "Introduction",
   "cookies_section_1_text": "This Cookie Policy explains how Eurtisan (\"we\", \"us\", \"our\") uses cookies and similar technologies on our marketplace platform. By using our Platform, you consent to the use of cookies in accordance with this policy, subject to your preferences.",
   "cookies_section_2_title": "What Are Cookies",
@@ -1049,5 +1041,8 @@
   "cookies_section_7_title": "Changes to This Cookie Policy",
   "cookies_section_7_text": "We may update this Cookie Policy to reflect changes in technology, regulation, or our practices. Changes will be posted on this page with an updated effective date. We encourage you to review this policy periodically.",
   "cookies_section_8_title": "Contact Us",
-  "cookies_section_8_text": "If you have any questions about our use of cookies, please contact us at {email}."
+  "cookies_section_8_text": "If you have any questions about our use of cookies, please contact us at {email}.",
+  "creator_product_new_name_too_long": "Product name must be 100 characters or fewer.",
+  "creator_product_new_slug_too_long": "Slug must be 100 characters or fewer.",
+  "creator_product_new_price_too_high": "Price must be €1,000,000.00 or less."
 }

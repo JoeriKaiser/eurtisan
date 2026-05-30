@@ -274,6 +274,83 @@
       "when": 1780149358532,
       "tag": "0038_happy_ulik",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1780158247413,
+      "tag": "0039_fair_psynapse",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1780158642230,
+      "tag": "0040_lucky_captain_marvel",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1780159824685,
+      "tag": "0041_strange_charles_xavier",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1780162991441,
+      "tag": "0042_quick_grey_gargoyle",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1780166408477,
+      "tag": "0043_sloppy_hex",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1780170105421,
+      "tag": "0044_concerned_screwball",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1780170710707,
+      "tag": "0045_simple_mordo",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1780171015666,
+      "tag": "0046_legal_starfox",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1780171063473,
+      "tag": "0048_dapper_joystick",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1780171094595,
+      "tag": "0048_crazy_maddog",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1780174935647,
+      "tag": "0049_plain_spencer_smythe",
+      "breakpoints": true
     }
   ]
 }

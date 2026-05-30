@@ -10,7 +10,7 @@ import { Meilisearch } from 'meilisearch'
 const host = import.meta.env.VITE_MEILISEARCH_HOST
 const apiKey = import.meta.env.VITE_MEILISEARCH_SEARCH_KEY
 
-export const meilisearchClient = host ? new Meilisearch({ host, apiKey }) : null
+export const meilisearchClient = host ? new Meilisearch({ host, apiKey, timeout: 3000 }) : null
 
 export function isMeilisearchClientConfigured(): boolean {
   return meilisearchClient !== null

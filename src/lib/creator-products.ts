@@ -2,65 +2,16 @@ import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
 
-export type { toggleProductActiveSchema } from './creator-products.server'
+export type { toggleProductActiveSchema } from './creator-products.schema'
 
-const productImageInputSchema = z.object({
-  key: z
-    .string()
-    .min(1)
-    .regex(/^(products|shops)\/[^/]+\.(jpg|jpeg|png|webp)$/, {
-      message: 'Invalid image key format',
-    }),
-  altText: z.string().max(500).optional(),
-})
-
-const createProductSchema = z.object({
-  name: z.string().min(1).max(100),
-  description: z.string().max(2000).optional(),
-  slug: z
-    .string()
-    .min(1)
-    .max(100)
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
-      message: 'Slug must be URL-safe (lowercase letters, numbers, and hyphens only)',
-    }),
-  priceCents: z.number().int().positive(),
-  stockCount: z.number().int().min(0).default(0),
-  categoryId: z.string().uuid().optional(),
-  isActive: z.boolean().optional().default(true),
-  vatRateCategory: z.enum(['standard', 'reduced', 'exempt']).optional().default('standard'),
-  images: z.array(productImageInputSchema).max(10).optional().default([]),
-})
-
-const updateProductSchema = createProductSchema.partial().extend({
-  productId: z.string().min(1),
-  shopId: z.string().min(1),
-  images: z.array(productImageInputSchema).max(10).optional(),
-})
-
-const deleteProductSchema = z.object({
-  productId: z.string().min(1),
-  shopId: z.string().min(1),
-  hard: z.boolean().default(false),
-})
-
-const listCreatorProductsInputSchema = z.object({
-  shopId: z.string().min(1),
-  page: z.coerce.number().int().min(1).optional().default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
-  active: z.enum(['true', 'false', 'all']).optional().default('all'),
-  categoryId: z.string().uuid().optional(),
-  search: z.string().max(200).optional(),
-})
-
-const toggleProductActiveInputSchema = z.object({
-  productId: z.string().min(1),
-  shopId: z.string().min(1),
-})
-
-const getCreatorProductDetailSchema = z.object({
-  productId: z.string().min(1),
-})
+import {
+  createProductSchema,
+  deleteProductSchema,
+  getCreatorProductDetailSchema,
+  listCreatorProductsSchema,
+  toggleProductActiveSchema,
+  updateProductSchema,
+} from './creator-products.schema'
 
 /* -------------------------------------------------------------------------- */
 /*                               Create Product                               */
@@ -126,7 +77,7 @@ export const deleteProduct = createServerFn({ method: 'POST' })
 
 export const listCreatorProducts = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(listCreatorProductsInputSchema)
+  .inputValidator(listCreatorProductsSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -165,7 +116,7 @@ export const getCreatorProductDetail = createServerFn({ method: 'GET' })
 
 export const toggleProductActive = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(toggleProductActiveInputSchema)
+  .inputValidator(toggleProductActiveSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')

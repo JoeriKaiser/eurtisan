@@ -44,6 +44,9 @@ infrastructure
 # CI configs (not needed at runtime)
 .github
 
+# Uploaded files (dev / local only)
+public/uploads
+
 # Temporary files
 scratch
 *.tmp

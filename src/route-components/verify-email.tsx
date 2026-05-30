@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { AlertTriangle, CheckCircle, Mail, Loader2 } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import { authClient } from '#/lib/auth-client'
+import { isLocalRedirect } from '#/lib/auth-utils'
 import { m } from '#/paraglide/messages'
 import { AuthShell } from '#/components/auth/AuthShell'
 import { useSearch } from '@tanstack/react-router'
@@ -97,7 +98,7 @@ export function VerifyEmail() {
           <p className='text-sm text-text-secondary'>{m.verify_email_success_description()}</p>
           <div className='pt-2'>
             <a
-              href={redirect?.startsWith('/') ? redirect : '/'}
+              href={redirect && isLocalRedirect(redirect) ? redirect : '/'}
               className='inline-block w-full rounded-lg bg-accent-primary px-4 py-2.5 text-center text-sm font-semibold text-text-on-primary hover:bg-accent-primary/90 transition-colors shadow-sm'
             >
               {m.button_continue()}

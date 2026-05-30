@@ -2,9 +2,19 @@ import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { db } from '#/db/index'
-import { inventoryReservation, platformOrder, product, shop, user } from '#/db/schema'
+import {
+  inventoryReservation,
+  orderItem,
+  platformOrder,
+  product,
+  productVariant,
+  shop,
+  shopOrder,
+  user,
+} from '#/db/schema'
 
 import {
+  decrementStockForPaidOrder,
   getAvailableStock,
   getAvailableStockForProducts,
   InsufficientStockError,
@@ -15,7 +25,10 @@ import {
 
 beforeEach(async () => {
   await db.delete(inventoryReservation)
+  await db.delete(orderItem)
+  await db.delete(shopOrder)
   await db.delete(platformOrder)
+  await db.delete(productVariant)
   await db.delete(product)
   await db.delete(shop)
   await db.delete(user)
@@ -818,5 +831,256 @@ describe('releaseExpiredReservations', () => {
     // The reservation may or may not exist now depending on cascade,
     // but the job should never throw.
     await expect(releaseExpiredReservations()).resolves.toBeDefined()
+  })
+})
+
+describe('decrementStockForPaidOrder', () => {
+  async function seedPaidOrderScenario(stockCount: number, quantity: number) {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Test Shop',
+        slug: 'test-shop',
+        ownerId: u.id,
+      })
+      .returning()
+
+    const [p] = await db
+      .insert(product)
+      .values({
+        id: 'prod-1',
+        name: 'Vase',
+        slug: 'vase',
+        priceCents: 2999,
+        shopId: s.id,
+        stockCount,
+      })
+      .returning()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: u.id,
+        shippingAddress: { street: '123 Main' },
+        billingAddress: { street: '123 Main' },
+        totalCents: 2999,
+        status: 'pending_payment',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: s.id,
+        shippingMethod: 'standard',
+        shippingCostCents: 0,
+        subtotalCents: 2999,
+        status: 'pending_payment',
+      })
+      .returning()
+
+    await db.insert(orderItem).values({
+      shopOrderId: so.id,
+      productId: p.id,
+      productName: p.name,
+      unitPriceCents: p.priceCents,
+      quantity,
+      totalCents: p.priceCents * quantity,
+    })
+
+    await db.insert(inventoryReservation).values({
+      productId: p.id,
+      platformOrderId: order.id,
+      quantity,
+      expiresAt: new Date(Date.now() + 60_000),
+    })
+
+    return { user: u, shop: s, product: p, order, shopOrder: so }
+  }
+
+  it('decrements product stock and deletes reservation when order is paid', async () => {
+    const { product: p, order } = await seedPaidOrderScenario(10, 3)
+
+    await db.transaction(async (tx) => {
+      await decrementStockForPaidOrder(tx, order.id)
+    })
+
+    const [updatedProduct] = await db.select().from(product).where(eq(product.id, p.id))
+
+    expect(updatedProduct.stockCount).toBe(7)
+
+    const reservations = await db
+      .select()
+      .from(inventoryReservation)
+      .where(eq(inventoryReservation.platformOrderId, order.id))
+
+    expect(reservations).toHaveLength(0)
+  })
+
+  it('decrements variant stock when order item has a variant', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Test Shop',
+        slug: 'test-shop',
+        ownerId: u.id,
+      })
+      .returning()
+
+    const [p] = await db
+      .insert(product)
+      .values({
+        id: 'prod-1',
+        name: 'Vase',
+        slug: 'vase',
+        priceCents: 2999,
+        shopId: s.id,
+        stockCount: 10,
+      })
+      .returning()
+
+    const [variant] = await db
+      .insert(productVariant)
+      .values({
+        id: 'var-1',
+        productId: p.id,
+        name: 'Large',
+        stockCount: 5,
+      })
+      .returning()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: u.id,
+        shippingAddress: { street: '123 Main' },
+        billingAddress: { street: '123 Main' },
+        totalCents: 2999,
+        status: 'pending_payment',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: s.id,
+        shippingMethod: 'standard',
+        shippingCostCents: 0,
+        subtotalCents: 2999,
+        status: 'pending_payment',
+      })
+      .returning()
+
+    await db.insert(orderItem).values({
+      shopOrderId: so.id,
+      productId: p.id,
+      variantId: variant.id,
+      productName: p.name,
+      unitPriceCents: p.priceCents,
+      quantity: 2,
+      totalCents: p.priceCents * 2,
+    })
+
+    await db.insert(inventoryReservation).values({
+      productId: p.id,
+      platformOrderId: order.id,
+      quantity: 2,
+      expiresAt: new Date(Date.now() + 60_000),
+    })
+
+    await db.transaction(async (tx) => {
+      await decrementStockForPaidOrder(tx, order.id)
+    })
+
+    const [updatedVariant] = await db
+      .select()
+      .from(productVariant)
+      .where(eq(productVariant.id, variant.id))
+
+    expect(updatedVariant.stockCount).toBe(3)
+
+    const [updatedProduct] = await db.select().from(product).where(eq(product.id, p.id))
+
+    expect(updatedProduct.stockCount).toBe(10)
+
+    const reservations = await db
+      .select()
+      .from(inventoryReservation)
+      .where(eq(inventoryReservation.platformOrderId, order.id))
+
+    expect(reservations).toHaveLength(0)
+  })
+
+  it('clamps stock to zero instead of going negative', async () => {
+    const { product: p, order } = await seedPaidOrderScenario(2, 5)
+
+    await db.transaction(async (tx) => {
+      await decrementStockForPaidOrder(tx, order.id)
+    })
+
+    const [updatedProduct] = await db.select().from(product).where(eq(product.id, p.id))
+
+    expect(updatedProduct.stockCount).toBe(0)
+  })
+
+  it('is safe to call when no reservations exist', async () => {
+    const { product: p, order } = await seedPaidOrderScenario(10, 3)
+
+    // Delete reservation manually
+    await db.delete(inventoryReservation).where(eq(inventoryReservation.platformOrderId, order.id))
+
+    await db.transaction(async (tx) => {
+      await decrementStockForPaidOrder(tx, order.id)
+    })
+
+    const [updatedProduct] = await db.select().from(product).where(eq(product.id, p.id))
+
+    expect(updatedProduct.stockCount).toBe(7)
+  })
+
+  it('aggregates quantities for duplicate products in the same order', async () => {
+    const { product: p, order, shopOrder: so } = await seedPaidOrderScenario(10, 2)
+
+    // Add a second order item for the same product
+    await db.insert(orderItem).values({
+      shopOrderId: so.id,
+      productId: p.id,
+      productName: p.name,
+      unitPriceCents: p.priceCents,
+      quantity: 3,
+      totalCents: p.priceCents * 3,
+    })
+
+    await db.transaction(async (tx) => {
+      await decrementStockForPaidOrder(tx, order.id)
+    })
+
+    const [updatedProduct] = await db.select().from(product).where(eq(product.id, p.id))
+
+    expect(updatedProduct.stockCount).toBe(5)
   })
 })

@@ -315,6 +315,43 @@ export const getShopDraft = createServerFn({ method: 'GET' })
   })
 
 /**
+ * Validates onboarding step data using the same schemas as the client.
+ * Rejects unknown or malformed fields before persistence.
+ */
+export function validateOnboardingStepData(step: number, data: unknown): void {
+  switch (step) {
+    case 1:
+      step1IdentitySchema.parse(data)
+      break
+    case 2:
+      step2StorySchema.parse(data)
+      break
+    case 3:
+      step3VisualsSchema.parse(data)
+      break
+    case 4:
+      step4LocationSchema.parse(data)
+      break
+    case 5:
+      step5PoliciesSchema.parse(data)
+      break
+    case 6:
+      step6SocialsSchema.parse(data)
+      break
+    case 7:
+      // Step 7 listing data is persisted via createDraftListing, not saveOnboardingStep.
+      // Reject any injected fields to prevent cross-step mutation.
+      z.object({}).strict().parse(data)
+      break
+    case 8:
+      step8ReviewSchema.parse(data)
+      break
+    default:
+      throw new Error(`Invalid onboarding step: ${step}`)
+  }
+}
+
+/**
  * Saves a specific onboarding step for a draft shop.
  * Partial updates are allowed.
  */
@@ -330,10 +367,8 @@ export const saveOnboardingStep = createServerFn({ method: 'POST' })
   .handler(async ({ context, data }) => {
     if (!context.user) throw new Error('UNAUTHENTICATED')
 
-    // Validate step 4 data server-side to enforce VAT ID rules
-    if (data.step === 4) {
-      step4LocationSchema.parse(data.data)
-    }
+    // Validate step data server-side before persisting
+    validateOnboardingStepData(data.step, data.data)
 
     const { saveOnboardingStepInternal } = await import('./sell-onboarding.server')
     return saveOnboardingStepInternal(context.user.id, context.user.role, data)

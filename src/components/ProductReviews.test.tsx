@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ProductReviews from './ProductReviews'
@@ -23,6 +24,19 @@ vi.mock('#/paraglide/messages', () => ({
       `Page ${page} of ${totalPages}`,
   },
 }))
+
+function createTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+    },
+  })
+}
+
+function renderWithProviders(ui: React.ReactNode) {
+  const queryClient = createTestQueryClient()
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
+}
 
 function makeReviewsResult(
   overrides?: Partial<{
@@ -66,7 +80,7 @@ describe('ProductReviews', () => {
 
   it('shows empty state when no reviews', async () => {
     mockGetProductReviews.mockResolvedValue(makeReviewsResult())
-    render(<ProductReviews productId='prod-1' />)
+    renderWithProviders(<ProductReviews productId='prod-1' />)
 
     await waitFor(() => {
       expect(screen.getByText('No reviews yet')).toBeDefined()
@@ -90,7 +104,7 @@ describe('ProductReviews', () => {
         ],
       }),
     )
-    render(<ProductReviews productId='prod-1' />)
+    renderWithProviders(<ProductReviews productId='prod-1' />)
 
     await waitFor(() => {
       expect(screen.getByText('4.3')).toBeDefined()
@@ -114,7 +128,7 @@ describe('ProductReviews', () => {
         ],
       }),
     )
-    render(<ProductReviews productId='prod-1' />)
+    renderWithProviders(<ProductReviews productId='prod-1' />)
 
     await waitFor(() => {
       expect(screen.getByText('Alice')).toBeDefined()
@@ -138,7 +152,7 @@ describe('ProductReviews', () => {
         ],
       }),
     )
-    render(<ProductReviews productId='prod-1' />)
+    renderWithProviders(<ProductReviews productId='prod-1' />)
 
     await waitFor(() => {
       expect(screen.getByText('Bob')).toBeDefined()
@@ -160,7 +174,7 @@ describe('ProductReviews', () => {
         })),
       }),
     )
-    render(<ProductReviews productId='prod-1' />)
+    renderWithProviders(<ProductReviews productId='prod-1' />)
 
     await waitFor(() => {
       expect(screen.getByText('Page 1 of 2')).toBeDefined()
@@ -202,7 +216,7 @@ describe('ProductReviews', () => {
         }),
       )
 
-    render(<ProductReviews productId='prod-1' />)
+    renderWithProviders(<ProductReviews productId='prod-1' />)
 
     await waitFor(() => {
       expect(screen.getByText('Page 1 of 2')).toBeDefined()
@@ -221,7 +235,7 @@ describe('ProductReviews', () => {
 
   it('shows error message when fetch fails', async () => {
     mockGetProductReviews.mockRejectedValue(new Error('fail'))
-    render(<ProductReviews productId='prod-1' />)
+    renderWithProviders(<ProductReviews productId='prod-1' />)
 
     await waitFor(() => {
       expect(screen.getByText('Failed to load reviews.')).toBeDefined()
@@ -244,7 +258,7 @@ describe('ProductReviews', () => {
         ],
       }),
     )
-    render(<ProductReviews productId='prod-1' />)
+    renderWithProviders(<ProductReviews productId='prod-1' />)
 
     await waitFor(() => {
       expect(screen.getByText('Alice')).toBeDefined()
@@ -255,7 +269,7 @@ describe('ProductReviews', () => {
 
   it('fetches reviews on mount with productId', async () => {
     mockGetProductReviews.mockResolvedValue(makeReviewsResult())
-    render(<ProductReviews productId='prod-abc' />)
+    renderWithProviders(<ProductReviews productId='prod-abc' />)
 
     await waitFor(() => {
       expect(mockGetProductReviews).toHaveBeenCalledWith({

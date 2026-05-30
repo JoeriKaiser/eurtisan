@@ -4,7 +4,7 @@ import { checkoutInputSchema } from './checkout'
 describe('checkoutInputSchema', () => {
   const validInput = {
     cartId: '550e8400-e29b-41d4-a716-446655440000',
-    shippingSelections: [{ shopId: 'shop-1', method: 'standard' as const }],
+    shippingSelections: [{ shopId: 'shop-1', method: 'standard' as const, costCents: 500 }],
     shippingAddress: {
       name: 'Test User',
       street: '123 Main St',

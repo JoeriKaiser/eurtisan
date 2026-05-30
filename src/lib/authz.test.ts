@@ -100,6 +100,23 @@ describe('requireAuth', () => {
     expect(ctx.user.id).toBe('user-1')
     expect(ctx.session.token).toBe('tok-1')
   })
+
+  it('throws AuthError(403) when user is banned', async () => {
+    const user = makeUser('customer')
+    ;(user as unknown as { bannedAt: Date | null }).bannedAt = new Date()
+    const session = makeSession(user.id)
+    mockGetSession.mockResolvedValue({ user, session })
+
+    try {
+      await requireAuth(makeRequest())
+      expect.fail('should have thrown')
+    } catch (err) {
+      expect(err).toBeInstanceOf(AuthError)
+      expect((err as AuthError).status).toBe(403)
+      expect((err as AuthError).body.error).toBe('Forbidden')
+      expect((err as AuthError).body.message).toContain('Account suspended')
+    }
+  })
 })
 
 describe('requireRole', () => {
@@ -227,6 +244,21 @@ describe('authPipeline', () => {
     expect(body.error).toBe('Unauthorized')
   })
 
+  it('returns 403 when user is banned', async () => {
+    const user = makeUser('customer')
+    ;(user as unknown as { bannedAt: Date | null }).bannedAt = new Date()
+    mockGetSession.mockResolvedValue({
+      user,
+      session: makeSession('user-1'),
+    })
+
+    const response = await authPipeline(makeRequest(), [], async () => new Response('OK'))
+    expect(response.status).toBe(403)
+    const body = await response.json()
+    expect(body.error).toBe('Forbidden')
+    expect(body.message).toContain('Account suspended')
+  })
+
   it('returns 403 when role is insufficient', async () => {
     mockGetSession.mockResolvedValue({
       user: makeUser('customer'),
@@ -309,5 +341,68 @@ describe('authPipeline', () => {
         throw new Error('Handler boom')
       }),
     ).rejects.toThrow('Handler boom')
+  })
+
+  it('returns 403 for POST requests without Origin or Referer', async () => {
+    mockGetSession.mockResolvedValue({
+      user: makeUser('admin'),
+      session: makeSession('user-1'),
+    })
+
+    const req = new Request('http://localhost:3000/api/test', { method: 'POST' })
+    const response = await authPipeline(req, [], async () => new Response('OK'))
+
+    expect(response.status).toBe(403)
+    const body = await response.json()
+    expect(body.error).toBe('Forbidden')
+    expect(body.message).toContain('Missing Origin or Referer')
+  })
+
+  it('returns 403 for POST requests with invalid Origin', async () => {
+    mockGetSession.mockResolvedValue({
+      user: makeUser('admin'),
+      session: makeSession('user-1'),
+    })
+
+    const req = new Request('http://localhost:3000/api/test', {
+      method: 'POST',
+      headers: { Origin: 'https://evil.com' },
+    })
+    const response = await authPipeline(req, [], async () => new Response('OK'))
+
+    expect(response.status).toBe(403)
+    const body = await response.json()
+    expect(body.error).toBe('Forbidden')
+    expect(body.message).toContain('Invalid Origin header')
+  })
+
+  it('allows POST requests with trusted Origin', async () => {
+    mockGetSession.mockResolvedValue({
+      user: makeUser('admin'),
+      session: makeSession('user-1'),
+    })
+
+    const req = new Request('http://localhost:3000/api/test', {
+      method: 'POST',
+      headers: { Origin: 'http://localhost:3000' },
+    })
+    const response = await authPipeline(req, [], async () => new Response('OK'))
+
+    expect(response.status).toBe(200)
+  })
+
+  it('allows POST requests with trusted Referer', async () => {
+    mockGetSession.mockResolvedValue({
+      user: makeUser('admin'),
+      session: makeSession('user-1'),
+    })
+
+    const req = new Request('http://localhost:3000/api/test', {
+      method: 'POST',
+      headers: { Referer: 'http://localhost:3000/some-page' },
+    })
+    const response = await authPipeline(req, [], async () => new Response('OK'))
+
+    expect(response.status).toBe(200)
   })
 })

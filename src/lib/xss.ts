@@ -62,6 +62,56 @@ export function sanitizeRichText(input: string | null | undefined): string | nul
 }
 
 /* -------------------------------------------------------------------------- */
+/*                              URL Validator                                 */
+/* -------------------------------------------------------------------------- */
+
+const DANGEROUS_URL_SCHEMES = /^(javascript|data|vbscript):/i
+
+function isValidHttpUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url)
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Validates a tracking URL.
+ * - Must be a well-formed HTTP(S) URL.
+ * - Rejects `javascript:`, `data:`, and `vbscript:` schemes.
+ * - Throws a 400 Response on failure.
+ * - Returns `null` for empty/null/undefined input.
+ */
+export function validateTrackingUrl(url: string | null | undefined): string | null {
+  if (!url) return null
+  const trimmed = url.trim()
+  if (!trimmed) return null
+
+  if (DANGEROUS_URL_SCHEMES.test(trimmed)) {
+    throw new Response(
+      JSON.stringify({
+        error: 'Bad Request',
+        message: 'Tracking URL uses a disallowed scheme.',
+      }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  if (!isValidHttpUrl(trimmed)) {
+    throw new Response(
+      JSON.stringify({
+        error: 'Bad Request',
+        message: 'Invalid tracking URL format.',
+      }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  return trimmed
+}
+
+/* -------------------------------------------------------------------------- */
 /*                         Plain Text Validator                               */
 /* -------------------------------------------------------------------------- */
 

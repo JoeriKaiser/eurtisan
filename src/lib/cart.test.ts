@@ -289,6 +289,42 @@ describe('addItemToCart', () => {
     const item = await addItemToCart(c.id, p.id, 10)
     expect(item?.quantity).toBe(3)
   })
+
+  it('atomically upserts preventing duplicate rows on parallel additions', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct({ stockCount: 10 })
+
+    // Rapid parallel additions to the same cart/product
+    await Promise.all([
+      addItemToCart(c.id, p.id, 3),
+      addItemToCart(c.id, p.id, 4),
+      addItemToCart(c.id, p.id, 5),
+    ])
+
+    // Only one row should ever exist
+    const items = await db.select().from(cartItem).where(eq(cartItem.cartId, c.id))
+    expect(items).toHaveLength(1)
+    expect(items[0].quantity).toBe(10) // capped at stock
+  })
+
+  it('caps existing quantity at available stock when product stock dropped', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct({ stockCount: 10 })
+
+    await addItemToCart(c.id, p.id, 8)
+
+    // Simulate stock drop (e.g., due to another order)
+    await db.update(product).set({ stockCount: 5 }).where(eq(product.id, p.id))
+
+    const item = await addItemToCart(c.id, p.id, 1)
+    expect(item?.quantity).toBe(5) // capped at new available stock
+  })
 })
 
 describe('mergeAnonymousCartIntoUserCart', () => {

@@ -1,9 +1,16 @@
 # syntax=docker/dockerfile:1
 # Production Dockerfile for Eurtisan
 # Multi-stage build: compile with full Bun image, run with slim
+#
+# Image Pinning Policy:
+# All base images are pinned to an immutable SHA256 digest to ensure
+# reproducible builds and prevent supply-chain drift from floating tags.
+# When upgrading an image, update both the tag and the digest:
+#   docker buildx imagetools inspect <image>:<tag> --format '{{.Manifest.Digest}}'
 
 # ── Builder ──────────────────────────────────────────────────────────────
-FROM oven/bun:1 AS builder
+# Pinned digest for oven/bun:1
+FROM oven/bun:1@sha256:e10577f0db68676a7024391c6e5cb4b879ebd17188ab750cf10024a6d700e5c4 AS builder
 WORKDIR /app
 
 # Install dependencies first (cache layer)
@@ -16,8 +23,12 @@ RUN bun run build
 # Bundle the staging seed into a standalone file (resolves all imports at build time)
 RUN bun build src/db/seed-staging.ts --outfile=seed-staging.bundle.mjs --target=bun --external=pg --external=@faker-js/faker --external=meilisearch --external=drizzle-orm
 
+# Prune dev dependencies so the runtime stage only receives production packages
+RUN bun install --production --frozen-lockfile
+
 # ── Runtime ──────────────────────────────────────────────────────────────
-FROM oven/bun:1-slim
+# Pinned digest for oven/bun:1-slim
+FROM oven/bun:1-slim@sha256:d56a2534ffd262e92c12fd3249d3924d296d97086da773f821d7d0477435ea04
 WORKDIR /app
 
 # Install curl for Docker healthchecks
@@ -48,4 +59,8 @@ EXPOSE 3000
 # Must be placed in dist/server/ alongside server.js for correct path resolution.
 COPY server-entry.mjs ./dist/server/server-entry.mjs
 
-CMD ["node", "--import", "./dist/server/instrument.server.mjs", "./dist/server/server-entry.mjs"]
+# Run as non-root user for security. The oven/bun image provides UID 1000 (bun).
+RUN chown -R bun:bun /app
+USER bun
+
+CMD ["bun", "--import", "./dist/server/instrument.server.mjs", "./dist/server/server-entry.mjs"]

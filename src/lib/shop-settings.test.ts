@@ -188,6 +188,30 @@ describe('updateShopInternal', () => {
     )
   })
 
+  it('throws when slug contains invalid characters', async () => {
+    await seedUser()
+    const s = await seedShop()
+    await expect(updateShopInternal(s.id, { slug: 'Invalid_Slug' })).rejects.toThrow(
+      'Slug must be URL-safe: lowercase letters, numbers, and hyphens only.',
+    )
+  })
+
+  it('throws when slug contains spaces', async () => {
+    await seedUser()
+    const s = await seedShop()
+    await expect(updateShopInternal(s.id, { slug: 'invalid slug' })).rejects.toThrow(
+      'Slug must be URL-safe: lowercase letters, numbers, and hyphens only.',
+    )
+  })
+
+  it('throws when slug contains uppercase letters', async () => {
+    await seedUser()
+    const s = await seedShop()
+    await expect(updateShopInternal(s.id, { slug: 'Invalid-Slug' })).rejects.toThrow(
+      'Slug must be URL-safe: lowercase letters, numbers, and hyphens only.',
+    )
+  })
+
   it('trims whitespace from name and slug', async () => {
     await seedUser()
     const s = await seedShop()
@@ -205,5 +229,56 @@ describe('updateShopInternal', () => {
     const before = new Date()
     const updated = await updateShopInternal(s.id, { name: 'Updated' })
     expect(updated.updatedAt.getTime()).toBeGreaterThanOrEqual(before.getTime())
+  })
+
+  it('throws when isVatRegistered is true but vatId is missing', async () => {
+    await seedUser()
+    const s = await seedShop()
+    await expect(updateShopInternal(s.id, { isVatRegistered: true })).rejects.toThrow(
+      'VAT ID is required when VAT registered.',
+    )
+  })
+
+  it('throws when isVatRegistered is true but vatId is empty string', async () => {
+    await seedUser()
+    const s = await seedShop()
+    await expect(updateShopInternal(s.id, { isVatRegistered: true, vatId: '' })).rejects.toThrow(
+      'VAT ID is required when VAT registered.',
+    )
+  })
+
+  it('throws when vatId format is invalid', async () => {
+    await seedUser()
+    const s = await seedShop()
+    await expect(
+      updateShopInternal(s.id, { isVatRegistered: true, vatId: 'INVALID' }),
+    ).rejects.toThrow('Unrecognised country code in VAT ID')
+  })
+
+  it('updates VAT settings when vatId is valid', async () => {
+    await seedUser()
+    const s = await seedShop()
+    const updated = await updateShopInternal(s.id, {
+      isVatRegistered: true,
+      vatId: 'FRXX123456789',
+    })
+    expect(updated.isVatRegistered).toBe(true)
+    expect(updated.vatId).toBe('FRXX123456789')
+  })
+
+  it('validates existing vatId when isVatRegistered is toggled to true', async () => {
+    await seedUser()
+    const s = await seedShop({ vatId: 'DE123456789' })
+    const updated = await updateShopInternal(s.id, { isVatRegistered: true })
+    expect(updated.isVatRegistered).toBe(true)
+    expect(updated.vatId).toBe('DE123456789')
+  })
+
+  it('throws when existing vatId is invalid and isVatRegistered is toggled to true', async () => {
+    await seedUser()
+    const s = await seedShop({ vatId: 'BAD' })
+    await expect(updateShopInternal(s.id, { isVatRegistered: true })).rejects.toThrow(
+      'Unrecognised country code in VAT ID',
+    )
   })
 })

@@ -1,7 +1,5 @@
 import { and, count, desc, eq, ilike, or, sql } from 'drizzle-orm'
-import z from 'zod'
 import { db } from '#/db/index'
-import { validatePlainText } from './xss'
 import {
   dispute,
   orderItem,
@@ -16,6 +14,8 @@ import type { ShippingAddress } from './checkout.server'
 import { getBaseUrl } from './env.server'
 import { logOrderDelivered, logOrderShipped } from './order-logger'
 import type { OrderStatus } from './orders.server'
+import { createPayoutForShopOrder } from './payouts.server'
+import { validatePlainText, validateTrackingUrl } from './xss'
 
 function maskEmail(email: string): string {
   const [local, domain] = email.split('@')
@@ -99,6 +99,7 @@ const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   cancelled: [],
   refunded: [],
   disputed: ['refunded', 'completed'],
+  manual_review: [],
 }
 
 export function isValidStatusTransition(from: OrderStatus, to: OrderStatus): boolean {
@@ -373,15 +374,7 @@ export async function markShopOrderShippedQuery(
     trackingUrl?: string | null
   },
 ): Promise<ShopOrderDetail> {
-  if (input.trackingUrl) {
-    const urlResult = z.string().url().safeParse(input.trackingUrl)
-    if (!urlResult.success) {
-      throw new Response(
-        JSON.stringify({ error: 'Bad Request', message: 'Invalid tracking URL format' }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } },
-      )
-    }
-  }
+  const validatedTrackingUrl = validateTrackingUrl(input.trackingUrl)
 
   const { result, didTransition } = await db.transaction(async (tx) => {
     const [record] = await tx
@@ -411,7 +404,7 @@ export async function markShopOrderShippedQuery(
           : input.trackingNumber
       }
       if (input.trackingUrl !== undefined) {
-        updateData.trackingUrl = input.trackingUrl
+        updateData.trackingUrl = validatedTrackingUrl
       }
 
       if (Object.keys(updateData).length > 1) {
@@ -665,6 +658,8 @@ export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<
 
     await recalcPlatformOrderStatus(tx, record.platformOrderId)
 
+    await createPayoutForShopOrder(tx, shopOrderId, record.shopId, record.subtotalCents)
+
     const updated = await getShopOrderQuery(shopOrderId, tx)
     if (!updated) {
       throw new Response(
@@ -689,6 +684,8 @@ export async function updateShopOrderStatusQuery(
   shopOrderId: string,
   input: UpdateShopOrderStatusInput,
 ): Promise<ShopOrderDetail> {
+  const validatedTrackingUrl = validateTrackingUrl(input.trackingUrl)
+
   const result = await db.transaction(async (tx) => {
     const [record] = await tx.select().from(shopOrder).where(eq(shopOrder.id, shopOrderId)).limit(1)
 
@@ -725,7 +722,7 @@ export async function updateShopOrderStatusQuery(
           : input.trackingNumber
       }
       if (input.trackingUrl !== undefined) {
-        updateData.trackingUrl = input.trackingUrl
+        updateData.trackingUrl = validatedTrackingUrl
       }
     }
 
@@ -735,6 +732,25 @@ export async function updateShopOrderStatusQuery(
 
     // Recalculate parent platform order status
     await recalcPlatformOrderStatus(tx, record.platformOrderId)
+
+    // When the shop order transitions to paid and the platform order reaches
+    // paid, commit the held inventory to actual stock.
+    if (nextStatus === 'paid' && currentStatus !== 'paid') {
+      const [platformRecord] = await tx
+        .select({ status: platformOrder.status })
+        .from(platformOrder)
+        .where(eq(platformOrder.id, record.platformOrderId))
+        .limit(1)
+
+      if (platformRecord?.status === 'paid') {
+        const { decrementStockForPaidOrder } = await import('./inventory.server')
+        await decrementStockForPaidOrder(tx, record.platformOrderId)
+      }
+    }
+
+    if (nextStatus === 'delivered' || nextStatus === 'completed') {
+      await createPayoutForShopOrder(tx, shopOrderId, record.shopId, record.subtotalCents)
+    }
 
     const updated = await getShopOrderQuery(shopOrderId, tx)
     if (!updated) {

@@ -176,30 +176,12 @@ export async function generateSitemap(): Promise<string> {
   return buildSitemapXml(entries)
 }
 
-// In-memory cache for 24 hours
-let cachedSitemap: string | null = null
-let cacheTimestamp = 0
-const CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
-
 /**
- * Returns the sitemap XML, using a 24-hour in-memory cache.
- * Cache is bypassed if expired, and regenerated on next call.
+ * Returns the sitemap XML.
+ *
+ * HTTP cache headers (Cache-Control: public, max-age=86400) are set by the
+ * route handler, so this function regenerates the XML on every call.
  */
 export async function getSitemap(): Promise<string> {
-  const now = Date.now()
-  if (cachedSitemap && now - cacheTimestamp < CACHE_TTL_MS) {
-    return cachedSitemap
-  }
-
-  cachedSitemap = await generateSitemap()
-  cacheTimestamp = now
-  return cachedSitemap
-}
-
-/**
- * Clears the sitemap cache (useful for testing).
- */
-export function clearSitemapCache(): void {
-  cachedSitemap = null
-  cacheTimestamp = 0
+  return generateSitemap()
 }

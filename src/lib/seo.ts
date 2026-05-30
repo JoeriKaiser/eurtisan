@@ -77,10 +77,15 @@ export function createPageMeta(input: CreatePageMetaInput): PageMetaResult {
 
   // JSON-LD structured data
   if (input.jsonLd) {
+    // Escape `<` as `\u003c` to prevent `</script>` injection inside the
+    // JSON-LD block. TanStack Router renders script children via
+    // dangerouslySetInnerHTML, so HTML-sensitive characters in the JSON
+    // string must be neutralised while remaining valid JSON.
+    const safeJson = JSON.stringify(input.jsonLd).replace(/</g, '\\u003c')
     result.script = [
       {
         type: 'application/ld+json',
-        children: JSON.stringify(input.jsonLd),
+        children: safeJson,
       },
     ]
   }

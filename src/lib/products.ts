@@ -21,10 +21,19 @@ export const createProductSchema = z.object({
 export const listProductsByCategorySlug = createServerFn({
   method: 'GET',
 })
-  .inputValidator(z.object({ slug: z.string().min(1) }))
+  .inputValidator(
+    z.object({
+      slug: z.string().min(1),
+      page: z.coerce.number().int().min(1).optional().default(1),
+      pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
+    }),
+  )
   .handler(async ({ data }) => {
     const { listProductsByCategorySlugQuery } = await import('./products.server')
-    return listProductsByCategorySlugQuery(data.slug)
+    return listProductsByCategorySlugQuery(data.slug, {
+      page: data.page,
+      pageSize: data.pageSize,
+    })
   })
 
 export const listRecentProducts = createServerFn({
@@ -129,10 +138,19 @@ const searchProductsSchema = z.object({
 
 export const listShops = createServerFn({
   method: 'GET',
-}).handler(async () => {
-  const { listShopsQuery } = await import('./products.server')
-  return listShopsQuery()
 })
+  .inputValidator(
+    z.object({
+      page: z.coerce.number().int().min(1).optional().default(1),
+      pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const { listShopsQuery } = await import('./products.server')
+    const limit = Math.min(100, Math.max(1, data.pageSize))
+    const offset = (Math.max(1, data.page) - 1) * limit
+    return listShopsQuery(limit, offset)
+  })
 
 const searchRateLimitMiddleware = createIpRateLimitMiddleware(30, 60_000, 'search')
 
@@ -154,4 +172,18 @@ export const searchProducts = createServerFn({
       data.sort,
       { page: data.page, pageSize: data.pageSize },
     )
+  })
+
+const searchSuggestionsFallbackSchema = z.object({
+  query: z.string().min(1).max(255),
+})
+
+export const searchSuggestionsFallback = createServerFn({
+  method: 'GET',
+})
+  .middleware([searchRateLimitMiddleware])
+  .inputValidator(searchSuggestionsFallbackSchema)
+  .handler(async ({ data }) => {
+    const { searchSuggestionsFallbackQuery } = await import('./products.server')
+    return searchSuggestionsFallbackQuery(data.query)
   })

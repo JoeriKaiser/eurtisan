@@ -5,6 +5,7 @@ import { db } from '#/db/index'
 import {
   dispute,
   disputeMessage,
+  inventoryReservation,
   notification,
   orderItem,
   platformOrder,
@@ -29,6 +30,7 @@ beforeEach(async () => {
   await db.delete(disputeMessage)
   await db.delete(dispute)
   await db.delete(orderItem)
+  await db.delete(inventoryReservation)
   await db.delete(shopOrder)
   await db.delete(platformOrder)
   await db.delete(product)
@@ -41,6 +43,7 @@ afterAll(async () => {
   await db.delete(disputeMessage)
   await db.delete(dispute)
   await db.delete(orderItem)
+  await db.delete(inventoryReservation)
   await db.delete(shopOrder)
   await db.delete(platformOrder)
   await db.delete(product)
@@ -121,6 +124,40 @@ async function seedDeliveredOrder(overrides?: {
     .returning()
 
   return { order, shopOrder: so }
+}
+
+async function seedProductAndReservation(platformOrderId: string, shopOrderId: string) {
+  const [prod] = await db
+    .insert(product)
+    .values({
+      id: 'prod-1',
+      name: 'Test Product',
+      slug: 'test-product',
+      priceCents: 2000,
+      stockCount: 10,
+      shopId: 'shop-1',
+    })
+    .returning()
+
+  await db.insert(orderItem).values({
+    shopOrderId,
+    productId: prod.id,
+    productName: prod.name,
+    quantity: 2,
+    unitPriceCents: prod.priceCents,
+    totalCents: prod.priceCents * 2,
+    vatRateBasisPoints: 2000,
+    vatAmountCents: 400,
+  })
+
+  await db.insert(inventoryReservation).values({
+    productId: prod.id,
+    platformOrderId,
+    quantity: 2,
+    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+  })
+
+  return prod
 }
 
 /* -------------------------------------------------------------------------- */
@@ -533,7 +570,7 @@ describe('listOpenDisputesQuery', () => {
       'user-1',
     )
 
-    await resolveDisputeQuery(d.id, { resolution: 'close' })
+    await resolveDisputeQuery(d.id, { resolution: 'close' }, { userId: 'admin-1', role: 'admin' })
 
     const result = await listOpenDisputesQuery(DEFAULT_PAGE)
     expect(result.disputes).toHaveLength(0)
@@ -776,11 +813,38 @@ describe('getDisputeDetailQuery', () => {
 describe('resolveDisputeQuery', () => {
   it('throws 404 for nonexistent dispute', async () => {
     try {
-      await resolveDisputeQuery('550e8400-e29b-41d4-a716-446655440000', { resolution: 'close' })
+      await resolveDisputeQuery(
+        '550e8400-e29b-41d4-a716-446655440000',
+        { resolution: 'close' },
+        { userId: 'admin-1', role: 'admin' },
+      )
       expect.fail('Should have thrown')
     } catch (err) {
       expect(err instanceof Response).toBe(true)
       expect((err as Response).status).toBe(404)
+    }
+  })
+
+  it('throws 403 for non-admin caller', async () => {
+    await seedUser()
+    await seedShop()
+
+    const { shopOrder: so } = await seedDeliveredOrder()
+    const d = await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
+      'user-1',
+    )
+
+    try {
+      await resolveDisputeQuery(
+        d.id,
+        { resolution: 'close' },
+        { userId: 'user-1', role: 'customer' },
+      )
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(403)
     }
   })
 
@@ -794,10 +858,10 @@ describe('resolveDisputeQuery', () => {
       'user-1',
     )
 
-    await resolveDisputeQuery(d.id, { resolution: 'close' })
+    await resolveDisputeQuery(d.id, { resolution: 'close' }, { userId: 'admin-1', role: 'admin' })
 
     try {
-      await resolveDisputeQuery(d.id, { resolution: 'close' })
+      await resolveDisputeQuery(d.id, { resolution: 'close' }, { userId: 'admin-1', role: 'admin' })
       expect.fail('Should have thrown')
     } catch (err) {
       expect(err instanceof Response).toBe(true)
@@ -819,7 +883,11 @@ describe('resolveDisputeQuery', () => {
     )
 
     try {
-      await resolveDisputeQuery(d.id, { resolution: 'partial_refund', refundCents: 2000 })
+      await resolveDisputeQuery(
+        d.id,
+        { resolution: 'partial_refund', refundCents: 2000 },
+        { userId: 'admin-1', role: 'admin' },
+      )
       expect.fail('Should have thrown')
     } catch (err) {
       expect(err instanceof Response).toBe(true)
@@ -838,7 +906,11 @@ describe('resolveDisputeQuery', () => {
     )
 
     try {
-      await resolveDisputeQuery(d.id, { resolution: 'partial_refund', refundCents: 0 })
+      await resolveDisputeQuery(
+        d.id,
+        { resolution: 'partial_refund', refundCents: 0 },
+        { userId: 'admin-1', role: 'admin' },
+      )
       expect.fail('Should have thrown')
     } catch (err) {
       expect(err instanceof Response).toBe(true)
@@ -857,7 +929,11 @@ describe('resolveDisputeQuery', () => {
     )
 
     try {
-      await resolveDisputeQuery(d.id, { resolution: 'partial_refund' })
+      await resolveDisputeQuery(
+        d.id,
+        { resolution: 'partial_refund' },
+        { userId: 'admin-1', role: 'admin' },
+      )
       expect.fail('Should have thrown')
     } catch (err) {
       expect(err instanceof Response).toBe(true)
@@ -875,7 +951,11 @@ describe('resolveDisputeQuery', () => {
       'user-1',
     )
 
-    const result = await resolveDisputeQuery(d.id, { resolution: 'close' })
+    const result = await resolveDisputeQuery(
+      d.id,
+      { resolution: 'close' },
+      { userId: 'admin-1', role: 'admin' },
+    )
 
     expect(result.status).toBe('resolved')
     expect(result.resolution).toBe('close')
@@ -898,7 +978,11 @@ describe('resolveDisputeQuery', () => {
       'user-1',
     )
 
-    const result = await resolveDisputeQuery(d.id, { resolution: 'full_refund' })
+    const result = await resolveDisputeQuery(
+      d.id,
+      { resolution: 'full_refund' },
+      { userId: 'admin-1', role: 'admin' },
+    )
 
     expect(result.status).toBe('resolved')
     expect(result.resolution).toBe('full_refund')
@@ -921,10 +1005,14 @@ describe('resolveDisputeQuery', () => {
       'user-1',
     )
 
-    const result = await resolveDisputeQuery(d.id, {
-      resolution: 'partial_refund',
-      refundCents: 1000,
-    })
+    const result = await resolveDisputeQuery(
+      d.id,
+      {
+        resolution: 'partial_refund',
+        refundCents: 1000,
+      },
+      { userId: 'admin-1', role: 'admin' },
+    )
 
     expect(result.status).toBe('resolved')
     expect(result.resolution).toBe('partial_refund')
@@ -952,7 +1040,7 @@ describe('resolveDisputeQuery', () => {
       'user-1',
     )
 
-    await resolveDisputeQuery(d.id, { resolution: 'close' })
+    await resolveDisputeQuery(d.id, { resolution: 'close' }, { userId: 'admin-1', role: 'admin' })
 
     const { getNotificationsQuery } = await import('./notifications.server')
     const buyerNotifications = await getNotificationsQuery('user-1', 1, 10)
@@ -984,7 +1072,7 @@ describe('resolveDisputeQuery', () => {
       'user-1',
     )
 
-    await resolveDisputeQuery(d.id, { resolution: 'close' })
+    await resolveDisputeQuery(d.id, { resolution: 'close' }, { userId: 'admin-1', role: 'admin' })
 
     const { getNotificationsQuery } = await import('./notifications.server')
     const sellerNotifications = await getNotificationsQuery(seller.id, 1, 10)
@@ -1013,7 +1101,11 @@ describe('resolveDisputeQuery', () => {
       'user-1',
     )
 
-    await resolveDisputeQuery(d.id, { resolution: 'full_refund' })
+    await resolveDisputeQuery(
+      d.id,
+      { resolution: 'full_refund' },
+      { userId: 'admin-1', role: 'admin' },
+    )
 
     const { getNotificationsQuery } = await import('./notifications.server')
     const buyerNotifications = await getNotificationsQuery('user-1', 1, 10)
@@ -1048,7 +1140,11 @@ describe('resolveDisputeQuery', () => {
       'user-1',
     )
 
-    await resolveDisputeQuery(d.id, { resolution: 'partial_refund', refundCents: 500 })
+    await resolveDisputeQuery(
+      d.id,
+      { resolution: 'partial_refund', refundCents: 500 },
+      { userId: 'admin-1', role: 'admin' },
+    )
 
     const { getNotificationsQuery } = await import('./notifications.server')
     const buyerNotifications = await getNotificationsQuery('user-1', 1, 10)
@@ -1073,7 +1169,11 @@ describe('resolveDisputeQuery', () => {
       'user-1',
     )
 
-    await resolveDisputeQuery(d.id, { resolution: 'full_refund' })
+    await resolveDisputeQuery(
+      d.id,
+      { resolution: 'full_refund' },
+      { userId: 'admin-1', role: 'admin' },
+    )
 
     expect(refundSpy).toHaveBeenCalledTimes(1)
     expect(refundSpy).toHaveBeenCalledWith('tr_mock_000001', 2500)
@@ -1093,7 +1193,11 @@ describe('resolveDisputeQuery', () => {
       'user-1',
     )
 
-    await resolveDisputeQuery(d.id, { resolution: 'partial_refund', refundCents: 1000 })
+    await resolveDisputeQuery(
+      d.id,
+      { resolution: 'partial_refund', refundCents: 1000 },
+      { userId: 'admin-1', role: 'admin' },
+    )
 
     expect(refundSpy).toHaveBeenCalledTimes(1)
     expect(refundSpy).toHaveBeenCalledWith('tr_mock_000001', 1000)
@@ -1101,7 +1205,7 @@ describe('resolveDisputeQuery', () => {
     refundSpy.mockRestore()
   })
 
-  it('rolls back the database transaction and throws when refundPayment fails', async () => {
+  it('throws 502 and leaves database unchanged when refundPayment fails', async () => {
     await seedUser()
     await seedShop()
 
@@ -1119,11 +1223,15 @@ describe('resolveDisputeQuery', () => {
         'user-1',
       )
 
-      await expect(resolveDisputeQuery(d.id, { resolution: 'full_refund' })).rejects.toBeInstanceOf(
-        Response,
-      )
+      await expect(
+        resolveDisputeQuery(
+          d.id,
+          { resolution: 'full_refund' },
+          { userId: 'admin-1', role: 'admin' },
+        ),
+      ).rejects.toBeInstanceOf(Response)
 
-      // Assert database did NOT update (rolled back)
+      // Assert database did NOT update because the transaction never started
       const [updatedDispute] = await db.select().from(dispute).where(eq(dispute.id, d.id))
       expect(updatedDispute.status).toBe('open')
 
@@ -1139,7 +1247,6 @@ describe('resolveDisputeQuery', () => {
       expect(refundSpy).toHaveBeenCalledTimes(1)
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('Mollie refund failed for payment tr_mock_000001'),
-        expect.any(Error),
       )
     } finally {
       refundSpy.mockRestore()
@@ -1159,7 +1266,7 @@ describe('resolveDisputeQuery', () => {
       'user-1',
     )
 
-    await resolveDisputeQuery(d.id, { resolution: 'close' })
+    await resolveDisputeQuery(d.id, { resolution: 'close' }, { userId: 'admin-1', role: 'admin' })
 
     expect(refundSpy).not.toHaveBeenCalled()
 
@@ -1178,9 +1285,157 @@ describe('resolveDisputeQuery', () => {
       'user-1',
     )
 
-    await resolveDisputeQuery(d.id, { resolution: 'full_refund' })
+    await resolveDisputeQuery(
+      d.id,
+      { resolution: 'full_refund' },
+      { userId: 'admin-1', role: 'admin' },
+    )
 
     expect(refundSpy).not.toHaveBeenCalled()
+
+    refundSpy.mockRestore()
+  })
+
+  it('prevents double-refund race condition with concurrent resolution attempts', async () => {
+    await seedUser()
+    await seedShop()
+
+    let resolveFirstRefund: (() => void) | undefined
+    const refundPromise = new Promise<void>((resolve) => {
+      resolveFirstRefund = resolve
+    })
+
+    const refundSpy = vi
+      .spyOn(molliePaymentProvider, 'refundPayment')
+      .mockImplementation(async () => {
+        await refundPromise
+      })
+
+    const { shopOrder: so } = await seedDeliveredOrder({ molliePaymentId: 'tr_race_001' })
+    const d = await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Race', description: 'Race condition test' },
+      'user-1',
+    )
+
+    // Fire two concurrent resolutions
+    const p1 = resolveDisputeQuery(
+      d.id,
+      { resolution: 'full_refund' },
+      { userId: 'admin-1', role: 'admin' },
+    )
+    const p2 = resolveDisputeQuery(
+      d.id,
+      { resolution: 'full_refund' },
+      { userId: 'admin-1', role: 'admin' },
+    )
+
+    // Small delay to ensure both refund calls have started
+    await new Promise((r) => setTimeout(r, 100))
+
+    // Now let both refunds proceed
+    resolveFirstRefund?.()
+
+    const [result1, result2] = await Promise.allSettled([p1, p2])
+
+    // One should succeed, one should fail with 409
+    const successes = [result1, result2].filter((r) => r.status === 'fulfilled')
+    const failures = [result1, result2].filter((r) => r.status === 'rejected')
+
+    expect(successes).toHaveLength(1)
+    expect(failures).toHaveLength(1)
+
+    const failure = failures[0] as PromiseRejectedResult
+    expect(failure.reason instanceof Response).toBe(true)
+    expect((failure.reason as Response).status).toBe(409)
+
+    expect(refundSpy).toHaveBeenCalledTimes(2)
+    expect(refundSpy).toHaveBeenCalledWith('tr_race_001', 2500)
+
+    refundSpy.mockRestore()
+  })
+
+  it('releases inventory reservations on full_refund resolution', async () => {
+    await seedUser()
+    await seedShop()
+
+    const refundSpy = vi.spyOn(molliePaymentProvider, 'refundPayment').mockResolvedValue(undefined)
+
+    const { order, shopOrder: so } = await seedDeliveredOrder({ molliePaymentId: 'tr_mock_000001' })
+    await seedProductAndReservation(order.id, so.id)
+
+    const d = await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
+      'user-1',
+    )
+
+    await resolveDisputeQuery(
+      d.id,
+      { resolution: 'full_refund' },
+      { userId: 'admin-1', role: 'admin' },
+    )
+
+    const reservations = await db
+      .select()
+      .from(inventoryReservation)
+      .where(eq(inventoryReservation.platformOrderId, order.id))
+
+    expect(reservations).toHaveLength(0)
+
+    refundSpy.mockRestore()
+  })
+
+  it('releases inventory reservations on partial_refund resolution', async () => {
+    await seedUser()
+    await seedShop()
+
+    const refundSpy = vi.spyOn(molliePaymentProvider, 'refundPayment').mockResolvedValue(undefined)
+
+    const { order, shopOrder: so } = await seedDeliveredOrder({ molliePaymentId: 'tr_mock_000001' })
+    await seedProductAndReservation(order.id, so.id)
+
+    const d = await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
+      'user-1',
+    )
+
+    await resolveDisputeQuery(
+      d.id,
+      { resolution: 'partial_refund', refundCents: 1000 },
+      { userId: 'admin-1', role: 'admin' },
+    )
+
+    const reservations = await db
+      .select()
+      .from(inventoryReservation)
+      .where(eq(inventoryReservation.platformOrderId, order.id))
+
+    expect(reservations).toHaveLength(0)
+
+    refundSpy.mockRestore()
+  })
+
+  it('does not release inventory reservations on close resolution', async () => {
+    await seedUser()
+    await seedShop()
+
+    const refundSpy = vi.spyOn(molliePaymentProvider, 'refundPayment').mockResolvedValue(undefined)
+
+    const { order, shopOrder: so } = await seedDeliveredOrder({ molliePaymentId: 'tr_mock_000001' })
+    await seedProductAndReservation(order.id, so.id)
+
+    const d = await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
+      'user-1',
+    )
+
+    await resolveDisputeQuery(d.id, { resolution: 'close' }, { userId: 'admin-1', role: 'admin' })
+
+    const reservations = await db
+      .select()
+      .from(inventoryReservation)
+      .where(eq(inventoryReservation.platformOrderId, order.id))
+
+    expect(reservations).toHaveLength(1)
 
     refundSpy.mockRestore()
   })

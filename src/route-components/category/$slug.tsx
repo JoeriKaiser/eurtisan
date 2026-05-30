@@ -1,11 +1,21 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useRouter } from '@tanstack/react-router'
 import ProductGrid from '#/components/ProductGrid'
 import { m } from '#/paraglide/messages'
 import CategoryCard from '../../components/CategoryCard'
 import { useLoaderData } from '@tanstack/react-router'
 
 export function CategoryPage() {
-  const { category, products } = useLoaderData({ from: '/category/$slug' })
+  const { category, products, page } = useLoaderData({ from: '/category/$slug' })
+  const router = useRouter()
+
+  const handlePageChange = (newPage: number) => {
+    router.navigate({
+      to: '/category/$slug',
+      params: { slug: category.slug },
+      search: { page: newPage > 1 ? String(newPage) : undefined },
+      replace: true,
+    })
+  }
 
   return (
     <main className='page-wrap px-4 pb-8 pt-14'>
@@ -63,7 +73,13 @@ export function CategoryPage() {
 
           <section className='mt-8'>
             <h2 className='mb-4 text-xl font-semibold text-text-primary'>Products</h2>
-            <ProductGrid products={products} emptyMessage='No products in this category yet.' />
+            <ProductGrid
+              products={products.products}
+              page={page}
+              totalPages={products.totalPages}
+              onPageChange={handlePageChange}
+              emptyMessage='No products in this category yet.'
+            />
           </section>
         </div>
 

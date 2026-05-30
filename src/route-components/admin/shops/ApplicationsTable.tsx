@@ -21,6 +21,11 @@ function formatDate(date: Date | string): string {
   return DATE_FORMATTER.format(new Date(date))
 }
 
+function isSafeImageUrl(url: string | null): url is string {
+  if (!url) return false
+  return url.startsWith('/uploads/') || url.startsWith('http://') || url.startsWith('https://')
+}
+
 interface ApplicationListItem {
   id: string
   name: string
@@ -91,7 +96,7 @@ export function ApplicationsTable({ applications, onReview }: ApplicationsTableP
               {/* Name */}
               <td className='py-3 pr-4 font-medium text-text-primary'>
                 <div className='flex items-center gap-3'>
-                  {app.image ? (
+                  {app.image && isSafeImageUrl(app.image) ? (
                     <div className='size-6 rounded-full overflow-hidden border border-border-default bg-surface-default flex-shrink-0'>
                       <img src={app.image} alt='' className='h-full w-full object-cover' />
                     </div>

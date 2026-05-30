@@ -10,7 +10,7 @@
     "build": "vite build && mkdir -p dist/server && cp instrument.server.mjs dist/server/instrument.server.mjs",
     "preview": "vite preview",
     "test": "vitest run",
-    "start": "node --import ./dist/server/instrument.server.mjs ./dist/server/server-entry.mjs",
+    "start": "bun --import ./dist/server/instrument.server.mjs ./dist/server/server-entry.mjs",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
@@ -18,6 +18,7 @@
     "db:seed": "bun run src/db/seed.ts",
     "db:staging-seed": "bun run src/db/seed-staging.ts",
     "job:inventory-cleanup": "bun run src/jobs/inventory-cleanup.ts",
+    "job:session-cleanup": "bun run src/jobs/session-cleanup.ts",
     "job:meilisearch-sync": "bun run src/jobs/meilisearch-sync.ts",
     "db:studio": "drizzle-kit studio",
     "lint": "biome lint --write --unsafe ./src",
@@ -34,17 +35,12 @@
     "@grafana/faro-web-sdk": "^1.12.0",
     "@grafana/faro-web-tracing": "^1.12.0",
     "@tailwindcss/vite": "^4.2.4",
-    "@tanstack/react-devtools": "^0.10.2",
     "@tanstack/react-form": "^1.29.1",
     "@tanstack/react-query": "^5.100.9",
-    "@tanstack/react-query-devtools": "^5.100.9",
     "@tanstack/react-router": "^1.169.2",
-    "@tanstack/react-router-devtools": "^1.166.13",
     "@tanstack/react-router-ssr-query": "^1.166.12",
     "@tanstack/react-start": "^1.167.65",
     "better-auth": "^1.6.9",
-    "dotenv-cli": "^11.0.0",
-    "drizzle-kit": "^0.31.10",
     "drizzle-orm": "^0.45.2",
     "lucide-react": "^1.14.0",
     "meilisearch": "^0.58.0",
@@ -61,6 +57,9 @@
     "@faker-js/faker": "^10.4.0",
     "@inlang/paraglide-js": "^2.18.0",
     "@tailwindcss/typography": "^0.5.19",
+    "@tanstack/react-devtools": "^0.10.2",
+    "@tanstack/react-query-devtools": "^5.100.9",
+    "@tanstack/react-router-devtools": "^1.166.13",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^25.6.2",
@@ -76,6 +75,12 @@
     "vite": "^8.0.11",
     "@playwright/test": "^1.52.0",
     "vitest": "^4.1.5",
-    "vitest-axe": "^0.1.0"
+    "vitest-axe": "^0.1.0",
+    "dotenv-cli": "^11.0.0",
+    "drizzle-kit": "^0.31.10"
+  },
+  "overrides": {
+    "ws": "^8.20.1",
+    "esbuild": "^0.25.0"
   }
 }

@@ -39,6 +39,7 @@ export const checkoutInputSchema = z.object({
       shopId: z.string().min(1),
       rateId: z.string().optional(),
       method: z.enum(['standard', 'express', 'manual']),
+      costCents: z.number().int().min(0),
     }),
   ),
   shippingAddress: shippingAddressSchema,
@@ -57,6 +58,7 @@ export const getCheckoutSummary = createServerFn({ method: 'POST' })
             shopId: z.string().min(1),
             rateId: z.string().optional(),
             method: z.enum(['standard', 'express', 'manual']),
+            costCents: z.number().int().min(0),
           }),
         )
         .optional(),

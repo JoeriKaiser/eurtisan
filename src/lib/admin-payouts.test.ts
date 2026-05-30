@@ -69,9 +69,11 @@ async function seedPayout(overrides?: Partial<typeof payout.$inferInsert>) {
 /* -------------------------------------------------------------------------- */
 
 describe('listPendingPayoutsQuery', () => {
-  it('returns empty array when no payouts exist', async () => {
+  it('returns empty result when no payouts exist', async () => {
     const result = await listPendingPayoutsQuery()
-    expect(result).toEqual([])
+    expect(result.payouts).toEqual([])
+    expect(result.total).toBe(0)
+    expect(result.totalPages).toBe(0)
   })
 
   it('returns only pending payouts', async () => {
@@ -82,9 +84,10 @@ describe('listPendingPayoutsQuery', () => {
     await seedPayout({ status: 'sent', sentAt: new Date() })
 
     const result = await listPendingPayoutsQuery()
-    expect(result).toHaveLength(1)
-    expect(result[0].payoutId).toBe(pending.id)
-    expect(result[0].status).toBe('pending')
+    expect(result.payouts).toHaveLength(1)
+    expect(result.payouts[0].payoutId).toBe(pending.id)
+    expect(result.payouts[0].status).toBe('pending')
+    expect(result.total).toBe(1)
   })
 
   it('enriches payouts with creator and shop details', async () => {
@@ -93,12 +96,12 @@ describe('listPendingPayoutsQuery', () => {
     await seedPayout({ shopId: 'shop-s', amountCents: 7500 })
 
     const result = await listPendingPayoutsQuery()
-    expect(result).toHaveLength(1)
-    expect(result[0].creatorName).toBe('Alice')
-    expect(result[0].creatorId).toBe('user-c')
-    expect(result[0].shopName).toBe('Alice Shop')
-    expect(result[0].shopId).toBe('shop-s')
-    expect(result[0].amountCents).toBe(7500)
+    expect(result.payouts).toHaveLength(1)
+    expect(result.payouts[0].creatorName).toBe('Alice')
+    expect(result.payouts[0].creatorId).toBe('user-c')
+    expect(result.payouts[0].shopName).toBe('Alice Shop')
+    expect(result.payouts[0].shopId).toBe('shop-s')
+    expect(result.payouts[0].amountCents).toBe(7500)
   })
 
   it('sorts payouts oldest first so longest-waiting appear at top', async () => {
@@ -115,9 +118,9 @@ describe('listPendingPayoutsQuery', () => {
     })
 
     const result = await listPendingPayoutsQuery()
-    expect(result).toHaveLength(2)
-    expect(result[0].payoutId).toBe(older.id)
-    expect(result[1].payoutId).toBe(newer.id)
+    expect(result.payouts).toHaveLength(2)
+    expect(result.payouts[0].payoutId).toBe(older.id)
+    expect(result.payouts[1].payoutId).toBe(newer.id)
   })
 
   it('returns payouts from multiple shops and creators', async () => {
@@ -129,9 +132,22 @@ describe('listPendingPayoutsQuery', () => {
     await seedPayout({ shopId: 'shop-b', amountCents: 2000 })
 
     const result = await listPendingPayoutsQuery()
-    expect(result).toHaveLength(2)
-    const names = result.map((p) => p.creatorName).sort()
+    expect(result.payouts).toHaveLength(2)
+    const names = result.payouts.map((p) => p.creatorName).sort()
     expect(names).toEqual(['Creator A', 'Creator B'])
+  })
+
+  it('enforces maximum page size of 100', async () => {
+    await seedUser()
+    await seedShop()
+
+    await seedPayout({ status: 'pending', amountCents: 1000 })
+    await seedPayout({ status: 'pending', amountCents: 2000 })
+
+    const result = await listPendingPayoutsQuery(1, 200)
+    expect(result.payouts).toHaveLength(2)
+    expect(result.pageSize).toBe(100)
+    expect(result.totalPages).toBe(1)
   })
 })
 

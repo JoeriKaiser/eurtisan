@@ -107,6 +107,11 @@ describe('configureProductsIndex', () => {
         'categorySlug',
       ],
       sortableAttributes: ['priceCents', 'createdAt'],
+      rankingRules: ['words', 'typo', 'proximity', 'attribute', 'sort', 'exactness'],
+      typoTolerance: {
+        enabled: true,
+        minWordSizeForTypos: { oneTypo: 4, twoTypos: 8 },
+      },
     })
   })
 
@@ -142,6 +147,7 @@ async function seedShopAndProduct(
       slug: 'test-shop',
       ownerId: u.id,
       isSuspended: overrides.shopSuspended ?? false,
+      status: 'active',
     })
     .returning()
 
@@ -253,12 +259,19 @@ describe('populateProductsIndex', () => {
 
     const [s1] = await db
       .insert(shop)
-      .values({ id: 'shop-1', name: 'Shop 1', slug: 'shop-1', ownerId: u.id })
+      .values({ id: 'shop-1', name: 'Shop 1', slug: 'shop-1', ownerId: u.id, status: 'active' })
       .returning()
 
     const [s2] = await db
       .insert(shop)
-      .values({ id: 'shop-2', name: 'Shop 2', slug: 'shop-2', ownerId: u.id, isSuspended: true })
+      .values({
+        id: 'shop-2',
+        name: 'Shop 2',
+        slug: 'shop-2',
+        ownerId: u.id,
+        isSuspended: true,
+        status: 'active',
+      })
       .returning()
 
     const [cat] = await db
@@ -311,6 +324,40 @@ describe('populateProductsIndex', () => {
     expect(docs[0].id).toBe('prod-1')
     expect(docs[0].slug).toBe('vase')
   })
+
+  it('streams products in batches without accumulating all docs in memory', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({ id: 'shop-1', name: 'Shop 1', slug: 'shop-1', ownerId: u.id, status: 'active' })
+      .returning()
+
+    // Seed 5 active products
+    const productsToInsert = Array.from({ length: 5 }, (_, i) => ({
+      id: `prod-${String(i + 1).padStart(3, '0')}`,
+      name: `Product ${i + 1}`,
+      slug: `product-${i + 1}`,
+      priceCents: 1000 + i * 100,
+      shopId: s.id,
+      isActive: true,
+    }))
+
+    await db.insert(product).values(productsToInsert)
+
+    const result = await populateProductsIndex(2)
+    expect(result.synced).toBe(5)
+    expect(result.errors).toBe(0)
+
+    // Should make 3 addDocuments calls: batches of 2, 2, 1
+    expect(mockAddDocuments).toHaveBeenCalledTimes(3)
+    expect(mockAddDocuments.mock.calls[0][0]).toHaveLength(2)
+    expect(mockAddDocuments.mock.calls[1][0]).toHaveLength(2)
+    expect(mockAddDocuments.mock.calls[2][0]).toHaveLength(1)
+  })
 })
 
 /* -------------------------------------------------------------------------- */
@@ -326,12 +373,12 @@ describe('searchProductsMeilisearch', () => {
 
     const [s1] = await db
       .insert(shop)
-      .values({ id: 'shop-1', name: 'Shop 1', slug: 'shop-1', ownerId: u.id })
+      .values({ id: 'shop-1', name: 'Shop 1', slug: 'shop-1', ownerId: u.id, status: 'active' })
       .returning()
 
     const [s2] = await db
       .insert(shop)
-      .values({ id: 'shop-2', name: 'Shop 2', slug: 'shop-2', ownerId: u.id })
+      .values({ id: 'shop-2', name: 'Shop 2', slug: 'shop-2', ownerId: u.id, status: 'active' })
       .returning()
 
     const [c1] = await db

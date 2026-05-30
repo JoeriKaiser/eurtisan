@@ -39,4 +39,26 @@ describe('generateCSV', () => {
     )
     expect(csv).toBe('Name,Age\nAlice,\nBob,')
   })
+
+  it('prefixes formula-triggering characters with a single quote', () => {
+    const csv = generateCSV(
+      [
+        { payload: '=SUM(A1:A10)' },
+        { payload: '+cmd' },
+        { payload: '-rm -rf' },
+        { payload: '@SUM(A1)' },
+        { payload: 'safe value' },
+      ],
+      [{ key: 'payload', label: 'Payload' }],
+    )
+    expect(csv).toBe("Payload\n'=SUM(A1:A10)\n'+cmd\n'-rm -rf\n'@SUM(A1)\nsafe value")
+  })
+
+  it('escapes formula-triggering values that also contain commas or quotes', () => {
+    const csv = generateCSV(
+      [{ payload: '=A1,B1' }, { payload: '="cmd"' }],
+      [{ key: 'payload', label: 'Payload' }],
+    )
+    expect(csv).toBe('Payload\n"\'=A1,B1"\n"\'=""cmd"""')
+  })
 })

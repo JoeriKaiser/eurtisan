@@ -2,12 +2,18 @@
  * Escapes a CSV cell value.
  * If the value contains commas, quotes, or newlines, wraps it in quotes
  * and escapes existing quotes by doubling them.
+ * Prefixes values starting with formula-triggering characters (=, +, -, @)
+ * with a single quote to prevent CSV formula injection.
  */
 function escapeCell(value: string): string {
-  if (value.includes(',') || value.includes('"') || value.includes('\n')) {
-    return `"${value.replace(/"/g, '""')}"`
+  let str = value
+  if (/^[+\-=@]/.test(str)) {
+    str = `'${str}`
   }
-  return value
+  if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+    return `"${str.replace(/"/g, '""')}"`
+  }
+  return str
 }
 
 /**

@@ -1,10 +1,64 @@
 import { and, count, eq, ilike, ne, sql } from 'drizzle-orm'
+import z from 'zod'
 import { db } from '#/db/index'
 import { product, shop, shopSocials, type shopStatusEnum, user } from '#/db/schema'
 import type { PoliciesData, ShippingOriginData, ShopDraft } from './sell-onboarding'
 import { validatePlainText } from './xss'
 
 const PROFANITY_LIST = new Set(['shit', 'fuck', 'damn', 'bitch', 'asshole', 'cunt', 'dick', 'piss'])
+
+const DANGEROUS_SCHEMES = ['javascript:', 'vbscript:', 'data:']
+
+function hasDangerousScheme(url: string): boolean {
+  const lower = url.trim().toLowerCase()
+  return DANGEROUS_SCHEMES.some((scheme) => lower.startsWith(scheme))
+}
+
+function isAllowedImageUrl(url: string): boolean {
+  const lower = url.trim().toLowerCase()
+  return (
+    lower.startsWith('/uploads/') || lower.startsWith('http://') || lower.startsWith('https://')
+  )
+}
+
+export function validateImageUrl(value: unknown, fieldName = 'Image URL'): string | null {
+  if (value === null || value === undefined || value === '') return null
+  const str = String(value).trim()
+  if (hasDangerousScheme(str) || !isAllowedImageUrl(str)) {
+    throw new Response(
+      JSON.stringify({
+        error: 'Bad Request',
+        message: `${fieldName} must be a valid image URL.`,
+      }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+  return str
+}
+
+export function validateSocialUrl(value: unknown, fieldName = 'Social URL'): string {
+  const str = value === null || value === undefined ? '' : String(value).trim()
+  if (hasDangerousScheme(str)) {
+    throw new Response(
+      JSON.stringify({
+        error: 'Bad Request',
+        message: `${fieldName} contains an unsafe URL scheme.`,
+      }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+  const parsed = z.string().url().safeParse(str)
+  if (!parsed.success) {
+    throw new Response(
+      JSON.stringify({
+        error: 'Bad Request',
+        message: `${fieldName} must be a valid URL.`,
+      }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+  return parsed.data
+}
 
 function checkProfanity(text: string): boolean {
   const lower = text.toLowerCase()
@@ -73,7 +127,24 @@ export async function getShopDraftQuery(
   }
 }
 
+const MAX_DRAFT_SHOPS = 10
+
 export async function createShopDraftInternal(user: { id: string; role: string }) {
+  const [draftCount] = await db
+    .select({ count: count(shop.id) })
+    .from(shop)
+    .where(and(eq(shop.ownerId, user.id), eq(shop.status, 'draft')))
+
+  if (draftCount && Number(draftCount.count) >= MAX_DRAFT_SHOPS) {
+    throw new Response(
+      JSON.stringify({
+        error: 'Too Many Drafts',
+        message: `You can only have up to ${MAX_DRAFT_SHOPS} draft shops. Please complete or delete an existing draft before creating a new one.`,
+      }),
+      { status: 429, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
   if (user.role === 'customer') {
     const { user: userTable } = await import('#/db/schema')
     await db
@@ -131,9 +202,9 @@ export async function saveOnboardingStepInternal(
     updateData.productionPartnerDetails = d.productionPartnerDetails
       ? String(d.productionPartnerDetails)
       : null
-  if (d.image !== undefined) updateData.image = d.image ? String(d.image) : null
+  if (d.image !== undefined) updateData.image = validateImageUrl(d.image, 'Shop image')
   if (d.bannerImage !== undefined)
-    updateData.bannerImage = d.bannerImage ? String(d.bannerImage) : null
+    updateData.bannerImage = validateImageUrl(d.bannerImage, 'Shop banner image')
   if (d.shippingOrigin !== undefined) updateData.shippingOrigin = d.shippingOrigin
   if (d.currency !== undefined) updateData.currency = String(d.currency)
   if (d.isVatRegistered !== undefined) updateData.isVatRegistered = Boolean(d.isVatRegistered)
@@ -148,14 +219,13 @@ export async function saveOnboardingStepInternal(
     await db.delete(shopSocials).where(eq(shopSocials.shopId, payload.draftId))
     const socialRows = d.socials as Array<{ platform: string; url: string }>
     if (socialRows.length > 0) {
-      await db.insert(shopSocials).values(
-        socialRows.map((s) => ({
-          id: crypto.randomUUID(),
-          shopId: payload.draftId,
-          platform: s.platform,
-          url: s.url,
-        })),
-      )
+      const validatedSocials = socialRows.map((s, index) => ({
+        id: crypto.randomUUID(),
+        shopId: payload.draftId,
+        platform: String(s.platform),
+        url: validateSocialUrl(s.url, `Social URL #${index + 1}`),
+      }))
+      await db.insert(shopSocials).values(validatedSocials)
     }
   }
 

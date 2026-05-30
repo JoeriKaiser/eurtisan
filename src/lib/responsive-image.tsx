@@ -31,6 +31,7 @@ interface ResponsiveImageProps {
 const DEFAULT_WIDTHS = [400, 800, 1200]
 const DEFAULT_SIZES =
   '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw'
+const DEFAULT_FORMAT = 'webp'
 
 /**
  * Generates srcset string from an S3 object key and width list.
@@ -39,7 +40,7 @@ const DEFAULT_SIZES =
 function buildSrcset(key: string, widths: number[]): string {
   return widths
     .map((w) => {
-      const url = getImageUrl(key, { width: w })
+      const url = getImageUrl(key, { width: w, format: DEFAULT_FORMAT })
       return `${url} ${w}w`
     })
     .join(', ')
@@ -66,9 +67,9 @@ export function ResponsiveImage({
     return <>{fallback}</>
   }
 
-  const defaultUrl = getImageUrl(src)
+  const defaultUrl = getImageUrl(src, { format: DEFAULT_FORMAT })
   const srcset = buildSrcset(src, widths)
-  const blurUrl = getImageUrl(src, { width: 40 })
+  const blurUrl = getImageUrl(src, { width: 40, format: DEFAULT_FORMAT })
 
   return (
     <div className={`relative overflow-hidden ${className ?? ''}`}>

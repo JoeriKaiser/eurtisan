@@ -4,6 +4,21 @@
   gather_facts: yes
   become: yes
 
+  pre_tasks:
+    - name: Ensure target host is in known_hosts
+      ansible.builtin.known_hosts:
+        name: "{{ inventory_hostname }}"
+        state: present
+      delegate_to: localhost
+      become: no
+      tags: [always]
+
+    - name: Validate Grafana password is set
+      ansible.builtin.fail:
+        msg: "grafana_admin_password must be set in secrets.yml"
+      when: grafana_admin_password is not defined or grafana_admin_password == ''
+      tags: [always]
+
   roles:
     - role: common
       tags: [common, setup]

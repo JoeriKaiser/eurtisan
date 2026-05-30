@@ -31,6 +31,8 @@ import {
   listShopsQuery,
   searchProductsQuery,
 } from './products.server'
+import { syncProductToMeilisearch } from './meilisearch-products.server'
+import { logger } from './logger.server'
 
 vi.mock('./auth', () => ({
   auth: {
@@ -43,6 +45,14 @@ vi.mock('./auth', () => ({
 vi.mock('./meilisearch-products.server', () => ({
   searchProductsMeilisearch: vi.fn().mockResolvedValue(null),
   syncProductToMeilisearch: vi.fn().mockResolvedValue(undefined),
+}))
+
+vi.mock('./logger.server', () => ({
+  logger: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
 }))
 
 beforeEach(async () => {
@@ -135,6 +145,42 @@ describe('listProductsByShopQuery', () => {
     expect(result[0].name).toBe('Vase')
   })
 
+  it('enforces maximum limit of 100', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-limit',
+        name: 'Test',
+        email: 'limit@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-limit',
+        name: 'Test Shop',
+        slug: 'test-shop-limit',
+        ownerId: u.id,
+      })
+      .returning()
+
+    // Insert 5 products
+    for (let i = 0; i < 5; i++) {
+      await db.insert(product).values({
+        id: `prod-limit-${i}`,
+        name: `Product ${i}`,
+        slug: `product-${i}`,
+        priceCents: 1000,
+        shopId: s.id,
+      })
+    }
+
+    const result = await listProductsByShopQuery(s.id, 200)
+    expect(result).toHaveLength(5)
+  })
+
   it('returns empty array when no products exist', async () => {
     const result = await listProductsByShopQuery('nonexistent-shop')
     expect(result).toEqual([])
@@ -178,14 +224,18 @@ describe('listProductsByCategorySlugQuery', () => {
     })
 
     const result = await listProductsByCategorySlugQuery('pottery')
-    expect(result).toHaveLength(1)
-    expect(result[0].name).toBe('Vase')
-    expect(result[0].categoryName).toBe('Pottery')
+    expect(result.products).toHaveLength(1)
+    expect(result.products[0].name).toBe('Vase')
+    expect(result.products[0].categoryName).toBe('Pottery')
+    expect(result.total).toBe(1)
+    expect(result.totalPages).toBe(1)
   })
 
-  it('returns empty array for nonexistent category', async () => {
+  it('returns empty result for nonexistent category', async () => {
     const result = await listProductsByCategorySlugQuery('nonexistent')
-    expect(result).toEqual([])
+    expect(result.products).toEqual([])
+    expect(result.total).toBe(0)
+    expect(result.totalPages).toBe(0)
   })
 
   it('excludes products from suspended shops', async () => {
@@ -225,7 +275,8 @@ describe('listProductsByCategorySlugQuery', () => {
     })
 
     const result = await listProductsByCategorySlugQuery('pottery')
-    expect(result).toHaveLength(0)
+    expect(result.products).toHaveLength(0)
+    expect(result.total).toBe(0)
   })
 
   it('excludes inactive products', async () => {
@@ -265,7 +316,54 @@ describe('listProductsByCategorySlugQuery', () => {
     })
 
     const result = await listProductsByCategorySlugQuery('pottery')
-    expect(result).toHaveLength(0)
+    expect(result.products).toHaveLength(0)
+    expect(result.total).toBe(0)
+  })
+
+  it('enforces maximum page size of 100', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-cat-limit',
+        name: 'Test',
+        email: 'cat-limit@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-cat-limit',
+        name: 'Test Shop',
+        slug: 'test-shop-cat-limit',
+        ownerId: u.id,
+      })
+      .returning()
+
+    const [cat] = await db
+      .insert(categories)
+      .values({ name: 'Pottery', slug: 'pottery-limit' })
+      .returning()
+
+    // Insert 5 products
+    for (let i = 0; i < 5; i++) {
+      await db.insert(product).values({
+        id: `prod-cat-limit-${i}`,
+        name: `Product ${i}`,
+        slug: `product-${i}`,
+        priceCents: 1000,
+        shopId: s.id,
+        categoryId: cat.id,
+      })
+    }
+
+    const result = await listProductsByCategorySlugQuery('pottery-limit', {
+      page: 1,
+      pageSize: 200,
+    })
+    expect(result.products).toHaveLength(5)
+    expect(result.pageSize).toBe(100)
   })
 })
 
@@ -761,6 +859,45 @@ describe('createProductInternal', () => {
 
     expect(result.slug).toBe('vase')
     expect(result.shopId).toBe(s2.id)
+  })
+
+  it('succeeds when Meilisearch sync fails and logs a warning', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Test Shop',
+        slug: 'test-shop',
+        ownerId: u.id,
+      })
+      .returning()
+
+    vi.mocked(syncProductToMeilisearch).mockRejectedValueOnce(new Error('Meili down'))
+
+    const result = await createProductInternal({
+      name: 'Vase',
+      slug: 'vase',
+      price: '29.99',
+      shopId: s.id,
+    })
+
+    expect(result.name).toBe('Vase')
+    expect(result.slug).toBe('vase')
+    expect(result.priceCents).toBe(2999)
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Failed to sync product to Meilisearch',
+      expect.objectContaining({ productId: result.id }),
+    )
   })
 })
 
@@ -1778,6 +1915,34 @@ describe('Shop Status Visibility Constraints', () => {
     const result = await listShopsQuery()
     expect(result).toHaveLength(1)
     expect(result[0].slug).toBe('shop-active')
+  })
+
+  it('enforces maximum limit of 100 in listShopsQuery', async () => {
+    for (let i = 0; i < 3; i++) {
+      const [u] = await db
+        .insert(user)
+        .values({
+          id: `user-limit-${i}`,
+          name: 'Test Creator',
+          email: `creator-limit-${i}@example.com`,
+          emailVerified: true,
+        })
+        .returning()
+
+      await db
+        .insert(shop)
+        .values({
+          id: `shop-limit-${i}`,
+          name: `Shop ${i}`,
+          slug: `shop-limit-${i}`,
+          ownerId: u.id,
+          status: 'active',
+        })
+        .returning()
+    }
+
+    const result = await listShopsQuery(200)
+    expect(result).toHaveLength(3)
   })
 
   it('only returns active shops in getFeaturedShopsQuery and does not count inactive products', async () => {

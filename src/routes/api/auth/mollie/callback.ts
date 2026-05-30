@@ -4,6 +4,7 @@ import { db } from '#/db/index'
 import { shop } from '#/db/schema'
 import { verifyMollieState } from '#/lib/auth-utils'
 import { auth } from '#/lib/auth'
+import { logger } from '#/lib/logger.server'
 
 export const Route = createFileRoute('/api/auth/mollie/callback')({
   server: {
@@ -90,14 +91,14 @@ export const Route = createFileRoute('/api/auth/mollie/callback')({
 
             if (!response.ok) {
               const errBody = await response.text()
-              console.error('Mollie Connect OAuth exchange failed:', errBody)
+              logger.error('Mollie Connect OAuth exchange failed', undefined, { errBody })
               throw new Error('Mollie OAuth token exchange failed')
             }
 
             const data = (await response.json()) as { organization_id: string }
             mollieAccountId = data.organization_id
           } catch (err) {
-            console.error('Mollie Connect OAuth exchange exception:', err)
+            logger.error('Mollie Connect OAuth exchange exception', err)
             return new Response(
               JSON.stringify({
                 error: 'Bad Gateway',
@@ -108,17 +109,19 @@ export const Route = createFileRoute('/api/auth/mollie/callback')({
           }
         }
 
-        // Update the shop's Mollie account details in the database
-        await db
-          .update(shop)
-          .set({
-            mollieAccountId,
-            paymentConnected: true,
-            paymentConnectedAt: new Date(),
-            status: 'active',
-            updatedAt: new Date(),
-          })
-          .where(eq(shop.id, shopId))
+        // Update the shop's Mollie account details in the database.
+        // A shop may only become active after explicit admin approval.
+        const updatePayload: Record<string, unknown> = {
+          mollieAccountId,
+          paymentConnected: true,
+          paymentConnectedAt: new Date(),
+          updatedAt: new Date(),
+        }
+        if (shopRecord.status === 'approved' || shopRecord.status === 'active') {
+          updatePayload.status = 'active'
+        }
+
+        await db.update(shop).set(updatePayload).where(eq(shop.id, shopId))
 
         // Redirect back to payouts dashboard
         return new Response(null, {

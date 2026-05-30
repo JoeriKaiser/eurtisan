@@ -10,9 +10,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { eq } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { platformOrder, shopOrder } from '#/db/schema'
+import { orderItem, platformOrder, product, productVariant, shopOrder } from '#/db/schema'
 import { molliePaymentProvider } from '#/integrations/mollie'
-import { releaseStockInTx } from '#/lib/inventory.server'
+import { decrementStockForPaidOrder, releaseStockInTx } from '#/lib/inventory.server'
+import { logger } from '#/lib/logger.server'
 import { logOrderPaid } from '#/lib/order-logger'
 import type { PaymentProvider } from '#/lib/payment-provider'
 
@@ -70,7 +71,21 @@ export async function processMollieWebhook(
   }
 
   // 3. Verify the webhook signature (mandatory security requirement)
-  const isValid = await provider.verifyWebhook(payload, signature, rawBody)
+  let isValid: boolean
+  try {
+    isValid = await provider.verifyWebhook(payload, signature, rawBody)
+  } catch (error) {
+    if (error instanceof TypeError || error instanceof RangeError) {
+      return new Response(
+        JSON.stringify({ error: 'Bad Request', message: 'Malformed signature' }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      )
+    }
+    throw error
+  }
 
   if (!isValid) {
     return new Response(JSON.stringify({ error: 'Unauthorized', message: 'Invalid signature' }), {
@@ -85,6 +100,7 @@ export async function processMollieWebhook(
       id: platformOrder.id,
       status: platformOrder.status,
       userId: platformOrder.userId,
+      totalCents: platformOrder.totalCents,
     })
     .from(platformOrder)
     .where(eq(platformOrder.molliePaymentId, payload.id))
@@ -108,9 +124,38 @@ export async function processMollieWebhook(
   }
 
   // 6. Query the actual payment status from the provider
-  const paymentStatus = await provider.getPaymentStatus(payload.id)
+  let paymentStatus: Awaited<ReturnType<typeof provider.getPaymentStatus>>
+  try {
+    paymentStatus = await provider.getPaymentStatus(payload.id)
+  } catch (error) {
+    // Return 200 to Mollie so it does not retry indefinitely.
+    // The order status is intentionally left untouched; ops can
+    // reconcile manually or wait for the next webhook delivery.
+    logger.error('Mollie webhook getPaymentStatus failed', error, {
+      molliePaymentId: payload.id,
+      platformOrderId: order.id,
+    })
+    return new Response(JSON.stringify({ status: 'provider_error' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
 
   if (paymentStatus === 'paid') {
+    const paymentAmountCents = await provider.getPaymentAmount(payload.id)
+    if (paymentAmountCents !== order.totalCents) {
+      logger.error('Mollie webhook amount mismatch', undefined, {
+        platformOrderId: order.id,
+        expectedCents: order.totalCents,
+        receivedCents: paymentAmountCents,
+        molliePaymentId: payload.id,
+      })
+      return new Response(JSON.stringify({ status: 'amount_mismatch' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
     const { createInvoicesForPlatformOrder } = await import('#/lib/invoices.server')
     let totalCents = 0
     const response = await database.transaction(async (tx) => {
@@ -127,6 +172,101 @@ export async function processMollieWebhook(
 
       if (!lockedOrder || lockedOrder.status !== 'pending_payment') {
         return new Response(JSON.stringify({ status: 'already_processed' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+
+      // Re-verify inventory before fulfilling. Products may have gone out of stock
+      // between cart creation and payment completion.
+      const items = await tx
+        .select({
+          productId: orderItem.productId,
+          variantId: orderItem.variantId,
+          quantity: orderItem.quantity,
+        })
+        .from(orderItem)
+        .innerJoin(shopOrder, eq(orderItem.shopOrderId, shopOrder.id))
+        .where(eq(shopOrder.platformOrderId, order.id))
+
+      const aggregates = new Map<
+        string,
+        { productId: string; variantId: string | null; quantity: number }
+      >()
+
+      for (const item of items) {
+        const key = `${item.productId}:${item.variantId ?? ''}`
+        const existing = aggregates.get(key)
+        if (existing) {
+          existing.quantity += item.quantity
+        } else {
+          aggregates.set(key, {
+            productId: item.productId,
+            variantId: item.variantId,
+            quantity: item.quantity,
+          })
+        }
+      }
+
+      const stockMismatches: Array<{
+        productId: string
+        variantId: string | null
+        available: number
+        requested: number
+      }> = []
+
+      for (const entry of aggregates.values()) {
+        if (entry.variantId) {
+          const [variantRow] = await tx
+            .select()
+            .from(productVariant)
+            .where(eq(productVariant.id, entry.variantId))
+            .for('update')
+
+          if (!variantRow || variantRow.stockCount < entry.quantity) {
+            stockMismatches.push({
+              productId: entry.productId,
+              variantId: entry.variantId,
+              available: variantRow?.stockCount ?? 0,
+              requested: entry.quantity,
+            })
+          }
+        } else {
+          const [productRow] = await tx
+            .select()
+            .from(product)
+            .where(eq(product.id, entry.productId))
+            .for('update')
+
+          if (!productRow || productRow.stockCount < entry.quantity) {
+            stockMismatches.push({
+              productId: entry.productId,
+              variantId: null,
+              available: productRow?.stockCount ?? 0,
+              requested: entry.quantity,
+            })
+          }
+        }
+      }
+
+      if (stockMismatches.length > 0) {
+        logger.error('Mollie webhook inventory mismatch', undefined, {
+          platformOrderId: order.id,
+          mismatches: stockMismatches,
+          molliePaymentId: payload.id,
+        })
+
+        await tx
+          .update(platformOrder)
+          .set({ status: 'manual_review', updatedAt: new Date() })
+          .where(eq(platformOrder.id, order.id))
+
+        await tx
+          .update(shopOrder)
+          .set({ status: 'manual_review', updatedAt: new Date() })
+          .where(eq(shopOrder.platformOrderId, order.id))
+
+        return new Response(JSON.stringify({ status: 'inventory_mismatch' }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         })
@@ -151,6 +291,7 @@ export async function processMollieWebhook(
         .where(eq(shopOrder.platformOrderId, order.id))
 
       await createInvoicesForPlatformOrder(order.id, tx)
+      await decrementStockForPaidOrder(tx, order.id)
 
       return null
     })

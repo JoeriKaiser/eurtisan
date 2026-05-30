@@ -12,10 +12,12 @@
  * files. This file wraps it with a full Node.js HTTP server.
  */
 
+import { randomUUID } from 'node:crypto'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { extname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { logger, requestIdStore } from './src/lib/logger.server.ts'
 
 const DIRNAME = fileURLToPath(new URL('.', import.meta.url))
 const CLIENT_DIR = join(DIRNAME, '../client')
@@ -51,38 +53,86 @@ const MIME_TYPES = {
 const serverModule = await import(join(SERVER_DIR, 'server.js'))
 const tanstackHandler = serverModule.default.fetch
 
+/**
+ * Determine if a URL path is a public (cacheable) HTML route.
+ */
+function isPublicRoute(url) {
+  const path = url.split('?')[0]
+  if (path === '/') return true
+  if (path.startsWith('/shops/')) return true
+  if (path.startsWith('/category/')) return true
+  if (path === '/search') return true
+  if (path === '/about') return true
+  if (path === '/terms') return true
+  if (path === '/privacy') return true
+  if (path === '/cookies') return true
+  if (path === '/sitemap.xml') return true
+  if (path === '/robots.txt') return true
+  return false
+}
+
+/**
+ * Determine if a URL path is a private (never-cache) HTML route.
+ */
+function isPrivateRoute(url) {
+  const path = url.split('?')[0]
+  if (path.startsWith('/account/') || path === '/account') return true
+  if (path.startsWith('/checkout')) return true
+  if (path.startsWith('/cart')) return true
+  if (path.startsWith('/admin/') || path === '/admin') return true
+  if (path.startsWith('/creator/') || path === '/creator') return true
+  if (path.startsWith('/studio/') || path === '/studio') return true
+  if (path.startsWith('/sell/') || path === '/sell') return true
+  if (path.startsWith('/orders')) return true
+  if (path.startsWith('/invoices/')) return true
+  if (path.startsWith('/disputes/')) return true
+  if (path.startsWith('/notifications')) return true
+  if (path.startsWith('/api/auth/')) return true
+  return false
+}
+
 // Try to serve a static file from the client build directory
 function serveStatic(urlPath) {
   let cleanPath
   try {
     cleanPath = decodeURIComponent(urlPath.split('?')[0])
   } catch {
-    return { body: null, mime: 'text/plain', status: 400 }
+    return { body: null, mime: 'text/plain', status: 400, etag: null, lastModified: null }
   }
   const fsPath = join(CLIENT_DIR, cleanPath)
 
   // Security: prevent directory traversal
   if (!fsPath.startsWith(CLIENT_DIR)) {
-    return { body: null, mime: 'text/plain', status: 403 }
+    return { body: null, mime: 'text/plain', status: 403, etag: null, lastModified: null }
   }
 
   if (!existsSync(fsPath)) {
-    return { body: null, mime: 'text/plain', status: 404 }
+    return { body: null, mime: 'text/plain', status: 404, etag: null, lastModified: null }
   }
 
   const stat = statSync(fsPath)
   if (!stat.isFile()) {
-    return { body: null, mime: 'text/plain', status: 404 }
+    return { body: null, mime: 'text/plain', status: 404, etag: null, lastModified: null }
   }
 
   const ext = extname(fsPath).toLowerCase()
   const mime = MIME_TYPES[ext] ?? 'application/octet-stream'
+  const etag = `"${stat.mtimeMs.toString(16)}"`
+  const lastModified = stat.mtime.toUTCString()
 
   try {
     const body = readFileSync(fsPath)
-    return { body, mime, status: 200 }
-  } catch {
-    return { body: null, mime: 'text/plain', status: 500 }
+    return { body, mime, status: 200, etag, lastModified }
+  } catch (err) {
+    console.error(JSON.stringify({
+      ts: new Date().toISOString(),
+      level: 'error',
+      msg: 'Static file read failed',
+      path: fsPath,
+      error: err.message,
+      service: 'eurtisan-app',
+    }))
+    return { body: null, mime: 'text/plain', status: 500, etag: null, lastModified: null }
   }
 }
 
@@ -92,20 +142,43 @@ function getBodyLimit(url) {
 
 // Create the HTTP server
 const server = createServer(async (req, res) => {
-  try {
-    const url = req.url ?? '/'
+  const incomingRequestId = req.headers['x-request-id']
+  const requestId = (Array.isArray(incomingRequestId) ? incomingRequestId[0] : incomingRequestId) || randomUUID()
+  res.setHeader('X-Request-ID', requestId)
+
+  await requestIdStore.run(requestId, async () => {
+    try {
+      const url = req.url ?? '/'
 
     // Try static file serving first (before the TanStack handler)
     if (req.method === 'GET' || req.method === 'HEAD') {
       const staticResult = serveStatic(url)
       if (staticResult.status === 200 && staticResult.body) {
+        const ifNoneMatch = req.headers['if-none-match']
+        const ifModifiedSince = req.headers['if-modified-since']
+
+        const notModified =
+          (ifNoneMatch && ifNoneMatch === staticResult.etag) ||
+          (ifModifiedSince && ifModifiedSince === staticResult.lastModified)
+
+        const cacheControl = url.startsWith('/assets/')
+          ? 'public, max-age=31536000, immutable'
+          : 'public, max-age=86400'
+
         const headers = {
           'Content-Type': staticResult.mime,
-          'Content-Length': String(staticResult.body.length),
-          'Cache-Control': url.startsWith('/assets/')
-            ? 'public, max-age=31536000, immutable'
-            : 'public, max-age=86400',
+          'ETag': staticResult.etag,
+          'Last-Modified': staticResult.lastModified,
+          'Cache-Control': cacheControl,
         }
+
+        if (notModified) {
+          res.writeHead(304, headers)
+          res.end()
+          return
+        }
+
+        headers['Content-Length'] = String(staticResult.body.length)
         res.writeHead(200, headers)
         if (req.method === 'GET') {
           res.end(staticResult.body)
@@ -131,7 +204,7 @@ const server = createServer(async (req, res) => {
     if (contentLength !== undefined) {
       const declaredLength = parseInt(contentLength, 10)
       if (!Number.isNaN(declaredLength) && declaredLength > bodyLimit) {
-        console.error(
+        logger.error(
           `Payload Too Large: Content-Length ${declaredLength} exceeds limit ${bodyLimit} for ${url}`,
         )
         res.writeHead(413, { 'Content-Type': 'text/plain' })
@@ -154,7 +227,7 @@ const server = createServer(async (req, res) => {
     }
 
     if (oversized) {
-      console.error(
+      logger.error(
         `Payload Too Large: accumulated body size exceeds limit ${bodyLimit} for ${url}`,
       )
       req.destroy()
@@ -181,8 +254,6 @@ const server = createServer(async (req, res) => {
     // Delegate to TanStack Start
     const response = await tanstackHandler(request)
 
-    // Send the response back via Node.js
-    const responseBody = await response.text()
     const responseHeaders = {}
     response.headers.forEach((value, key) => {
       // Skip transfer-encoding as Node.js handles chunked encoding itself
@@ -191,22 +262,57 @@ const server = createServer(async (req, res) => {
       }
     })
 
-    res.writeHead(response.status, response.statusText, responseHeaders)
-    res.end(responseBody)
-  } catch (error) {
-    console.error('Unhandled error in HTTP server:', error)
-    if (!res.headersSent) {
-      res.writeHead(500, { 'Content-Type': 'text/plain' })
-      res.end('Internal Server Error')
+    // Add cache headers for public/private HTML routes
+    if (req.method === 'GET' || req.method === 'HEAD') {
+      const contentType = response.headers.get('content-type') || ''
+      if (contentType.includes('text/html')) {
+        if (isPublicRoute(url)) {
+          responseHeaders['Cache-Control'] = 'public, s-maxage=60, max-age=0, stale-while-revalidate=300'
+        } else if (isPrivateRoute(url)) {
+          responseHeaders['Cache-Control'] = 'private, no-store'
+        }
+      }
     }
-  }
+
+    res.writeHead(response.status, response.statusText, responseHeaders)
+
+    if (response.body) {
+      const reader = response.body.getReader()
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          res.write(value)
+        }
+      } catch (streamErr) {
+        logger.error('Error streaming response', streamErr)
+      } finally {
+        reader.releaseLock()
+        res.end()
+      }
+    } else {
+      res.end()
+    }
+    } catch (error) {
+      logger.error('Unhandled error in HTTP server', error)
+      if (!res.headersSent) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' })
+        res.end('Internal Server Error')
+      }
+    }
+  })
 })
+
+// Server timeouts — mitigate Slowloris / idle-connection DoS
+server.timeout = 30000        // 30s total request timeout
+server.keepAliveTimeout = 5000 // 5s keep-alive timeout
+server.headersTimeout = 35000  // slightly longer than timeout
 
 // Start listening
 server.listen(PORT, HOST, () => {
-  console.log(`Eurtisan server listening on http://${HOST}:${PORT}`)
-  console.log(`Serving static files from: ${CLIENT_DIR}`)
-  console.log(`TanStack Start handler imported from: ${SERVER_DIR}`)
+  logger.info(`Eurtisan server listening on http://${HOST}:${PORT}`)
+  logger.info(`Serving static files from: ${CLIENT_DIR}`)
+  logger.info(`TanStack Start handler imported from: ${SERVER_DIR}`)
 })
 
 // Graceful shutdown
@@ -215,23 +321,23 @@ async function drainPoolAndExit() {
     const poolShutdown = globalThis.__eurtisan_shutdown_pool__
     if (typeof poolShutdown === 'function') {
       await poolShutdown()
-      console.log('Database pool drained')
+      logger.info('Database pool drained')
     }
   } catch (err) {
-    console.error('Error draining database pool:', err)
+    logger.error('Error draining database pool', err)
   }
   process.exit(0)
 }
 
 function shutdown(signal) {
-  console.log(`Received ${signal}, shutting down gracefully...`)
+  logger.info(`Received ${signal}, shutting down gracefully...`)
   server.close(() => {
-    console.log('HTTP server closed')
+    logger.info('HTTP server closed')
     drainPoolAndExit()
   })
   // Force close after 10 seconds
   setTimeout(() => {
-    console.error('Forced shutdown after timeout')
+    logger.error('Forced shutdown after timeout')
     process.exit(1)
   }, 10_000)
 }

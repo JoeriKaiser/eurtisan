@@ -1,6 +1,7 @@
 import { and, count, desc, eq, ilike, or, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { shop, user } from '#/db/schema'
+import { auth } from './auth'
 import { validatePlainText } from './xss'
 
 /* -------------------------------------------------------------------------- */
@@ -99,6 +100,13 @@ export async function updateUserRoleQuery(
   userId: string,
   role: 'customer' | 'creator' | 'admin',
 ): Promise<{ id: string; role: string }> {
+  const target = await db.query.user.findFirst({
+    where: eq(user.id, userId),
+  })
+  if (!target) {
+    throw new Error('User not found')
+  }
+
   const [updated] = await db
     .update(user)
     .set({ role, updatedAt: new Date() })
@@ -107,6 +115,18 @@ export async function updateUserRoleQuery(
 
   if (!updated) {
     throw new Error('User not found')
+  }
+
+  const ROLE_HIERARCHY: Record<string, number> = {
+    customer: 0,
+    creator: 1,
+    admin: 2,
+  }
+  const oldLevel = ROLE_HIERARCHY[target.role] ?? -1
+  const newLevel = ROLE_HIERARCHY[role] ?? -1
+  if (newLevel < oldLevel) {
+    const ctx = await auth.$context
+    await ctx.internalAdapter.deleteSessions(userId)
   }
 
   return updated
@@ -133,6 +153,9 @@ export async function banUserQuery(
   if (!updated) {
     throw new Error('User not found')
   }
+
+  const ctx = await auth.$context
+  await ctx.internalAdapter.deleteSessions(userId)
 
   return updated
 }

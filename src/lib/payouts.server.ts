@@ -1,8 +1,8 @@
 import { and, count, desc, eq, gte, ilike, inArray, lte, or } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { payout, shop, shopOrder, user } from '#/db/schema'
-import { PLATFORM_FEE_PERCENT } from './platform-constants'
 import { signMollieState } from './auth-utils'
+import { PLATFORM_FEE_PERCENT } from './platform-constants'
 
 /* -------------------------------------------------------------------------- */
 /*                                   Types                                    */
@@ -25,12 +25,46 @@ export interface CreatorPayoutLine {
 }
 
 /* -------------------------------------------------------------------------- */
+/*                        Create Payout for Shop Order                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Idempotently inserts a pending payout record for a shop order.
+ * Uses ON CONFLICT DO NOTHING so duplicate calls are safe.
+ */
+export async function createPayoutForShopOrder(
+  tx: Omit<typeof db, '$client'>,
+  shopOrderId: string,
+  shopId: string,
+  subtotalCents: number,
+): Promise<void> {
+  const feeCents = Math.round(subtotalCents * (PLATFORM_FEE_PERCENT / 100))
+  const amountCents = subtotalCents - feeCents
+
+  await tx
+    .insert(payout)
+    .values({
+      shopOrderId,
+      shopId,
+      amountCents,
+      status: 'pending',
+      createdAt: new Date(),
+    })
+    .onConflictDoNothing({ target: payout.shopOrderId })
+}
+
+/* -------------------------------------------------------------------------- */
 /*                          Mark Payout Sent (existing)                        */
 /* -------------------------------------------------------------------------- */
 
 export async function markPayoutSentQuery(payoutId: string): Promise<{ success: boolean }> {
   return db.transaction(async (tx) => {
-    const [payoutRecord] = await tx.select().from(payout).where(eq(payout.id, payoutId)).limit(1)
+    const [payoutRecord] = await tx
+      .select()
+      .from(payout)
+      .where(eq(payout.id, payoutId))
+      .for('update')
+      .limit(1)
 
     if (!payoutRecord) {
       throw new Response(JSON.stringify({ error: 'Not Found', message: 'Payout not found' }), {
@@ -77,7 +111,7 @@ export async function markPayoutSentQuery(payoutId: string): Promise<{ success: 
  */
 function derivePayoutLine(
   order: { id: string; subtotalCents: number; status: string; createdAt: Date },
-  hasSentPayout: boolean,
+  payoutStatus: 'pending' | 'sent' | null,
 ): CreatorPayoutLine {
   const isRefund = order.status === 'refunded'
 
@@ -87,21 +121,21 @@ function derivePayoutLine(
   const amountCents = isRefund ? -Math.abs(netAmount) : netAmount
 
   // Derive payout status from the underlying order status and any payout records
-  let payoutStatus: CreatorPayoutLine['status'] = 'pending'
+  let status: CreatorPayoutLine['status'] = 'pending'
   if (isRefund) {
     // Refunds are adjustments — status is not meaningful; use 'processing' as neutral default
-    payoutStatus = 'processing'
+    status = 'processing'
   } else if (order.status === 'completed') {
-    payoutStatus = hasSentPayout ? 'sent' : 'processing'
+    status = payoutStatus === 'sent' ? 'sent' : 'processing'
   } else if (order.status === 'delivered') {
-    payoutStatus = hasSentPayout ? 'sent' : 'pending'
+    status = payoutStatus === 'sent' ? 'sent' : 'pending'
   }
 
   return {
     orderId: order.id,
     date: order.createdAt,
     amountCents,
-    status: payoutStatus,
+    status,
     orderStatus: order.status,
     isRefund,
   }
@@ -131,12 +165,36 @@ export interface AdminPayoutRow {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Returns all pending payouts enriched with creator and shop details.
+ * Returns paginated pending payouts enriched with creator and shop details.
  * Sorted oldest first so admins process the longest-waiting payouts first.
  *
  * This is a pure query function — callers are responsible for authorization.
  */
-export async function listPendingPayoutsQuery(): Promise<AdminPayoutRow[]> {
+export async function listPendingPayoutsQuery(
+  page = 1,
+  pageSize = 20,
+): Promise<{
+  payouts: AdminPayoutRow[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}> {
+  const boundedPage = Math.max(1, page)
+  const boundedPageSize = Math.min(100, Math.max(1, pageSize))
+  const offset = (boundedPage - 1) * boundedPageSize
+
+  const where = eq(payout.status, 'pending')
+
+  const [countRow] = await db
+    .select({ total: count() })
+    .from(payout)
+    .innerJoin(shop, eq(payout.shopId, shop.id))
+    .innerJoin(user, eq(shop.ownerId, user.id))
+    .where(where)
+
+  const total = Number(countRow?.total ?? 0)
+
   const rows = await db
     .select({
       payoutId: payout.id,
@@ -152,10 +210,18 @@ export async function listPendingPayoutsQuery(): Promise<AdminPayoutRow[]> {
     .from(payout)
     .innerJoin(shop, eq(payout.shopId, shop.id))
     .innerJoin(user, eq(shop.ownerId, user.id))
-    .where(eq(payout.status, 'pending'))
+    .where(where)
     .orderBy(payout.createdAt)
+    .limit(boundedPageSize)
+    .offset(offset)
 
-  return rows
+  return {
+    payouts: rows,
+    total,
+    page: boundedPage,
+    pageSize: boundedPageSize,
+    totalPages: Math.ceil(total / boundedPageSize),
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -267,15 +333,18 @@ export async function listCreatorPayoutsQuery(
   const pageSize = Math.min(100, Math.max(1, options.pageSize ?? 20))
   const statusFilter = options.status && options.status !== 'all' ? options.status : undefined
 
-  // Fetch all orders for this shop that are relevant for payouts
+  // Fetch all orders for this shop that are relevant for payouts,
+  // left-joining payout so we know the per-order payout status.
   const allOrders = await db
     .select({
       id: shopOrder.id,
       subtotalCents: shopOrder.subtotalCents,
       status: shopOrder.status,
       createdAt: shopOrder.createdAt,
+      payoutStatus: payout.status,
     })
     .from(shopOrder)
+    .leftJoin(payout, eq(shopOrder.id, payout.shopOrderId))
     .where(
       and(
         eq(shopOrder.shopId, shopId),
@@ -294,18 +363,9 @@ export async function listCreatorPayoutsQuery(
     }
   }
 
-  // Fetch existing payout records for this shop to determine which orders have been paid out.
-  const [sentPayout] = await db
-    .select({ id: payout.id })
-    .from(payout)
-    .where(and(eq(payout.shopId, shopId), eq(payout.status, 'sent')))
-    .limit(1)
-
-  const hasSentPayout = !!sentPayout
-
   // Derive payout lines for all orders and filter by status if requested
   let payouts: CreatorPayoutLine[] = allOrders.map((order) =>
-    derivePayoutLine(order, hasSentPayout),
+    derivePayoutLine(order, order.payoutStatus),
   )
 
   if (statusFilter) {

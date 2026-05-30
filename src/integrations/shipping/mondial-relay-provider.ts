@@ -255,21 +255,12 @@ export class MondialRelayProvider implements ShippingProvider {
     // Insert a shipping_label row when a database instance is available and a
     // shop order reference is provided.
     if (this.db && shipmentDetails.reference) {
-      try {
-        await this.db.insert(shippingLabel).values({
-          shopOrderId: shipmentDetails.reference,
-          carrier: label.carrier,
-          trackingNumber: label.trackingNumber,
-          labelUrl: label.labelUrl,
-        })
-      } catch (err) {
-        // Log the error but do not fail the label creation. The caller
-        // still receives the label so the checkout flow can continue.
-        console.error(
-          'MondialRelayProvider: failed to insert shipping_label row:',
-          err instanceof Error ? err.message : err,
-        )
-      }
+      await this.db.insert(shippingLabel).values({
+        shopOrderId: shipmentDetails.reference,
+        carrier: label.carrier,
+        trackingNumber: label.trackingNumber,
+        labelUrl: label.labelUrl,
+      })
     }
 
     return label

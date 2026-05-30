@@ -13,8 +13,8 @@ import {
   shopOrder,
   user,
 } from '#/db/schema'
-import type { PaymentProvider } from '#/lib/payment-provider'
 import { cancelOrderQuery } from '#/lib/orders.server'
+import type { PaymentProvider } from '#/lib/payment-provider'
 import { processMollieWebhook } from './mollie'
 
 // ---------------------------------------------------------------------------
@@ -23,6 +23,7 @@ import { processMollieWebhook } from './mollie'
 
 let stubVerifyResult = true
 let stubPaymentStatus: 'pending' | 'paid' | 'expired' | 'failed' | 'cancelled' = 'paid'
+let stubPaymentAmount = 1000
 
 function createStubPaymentProvider(overrides?: Partial<PaymentProvider>): PaymentProvider {
   return {
@@ -32,6 +33,7 @@ function createStubPaymentProvider(overrides?: Partial<PaymentProvider>): Paymen
     }),
     verifyWebhook: async () => stubVerifyResult,
     getPaymentStatus: async () => stubPaymentStatus,
+    getPaymentAmount: async () => stubPaymentAmount,
     refundPayment: async () => undefined,
     ...overrides,
   }
@@ -182,6 +184,7 @@ function mockRequest(body: unknown, headers?: Record<string, string>): Request {
 beforeEach(async () => {
   stubVerifyResult = true
   stubPaymentStatus = 'paid'
+  stubPaymentAmount = 1000
   await db.delete(inventoryReservation)
   await db.delete(orderItem)
   await db.delete(shopOrder)
@@ -201,6 +204,7 @@ beforeEach(async () => {
 afterAll(async () => {
   stubVerifyResult = true
   stubPaymentStatus = 'paid'
+  stubPaymentAmount = 1000
   await db.delete(inventoryReservation)
   await db.delete(orderItem)
   await db.delete(shopOrder)
@@ -376,6 +380,38 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
       const body = await res.json()
       expect(body.error).toBe('Bad Request')
       expect(body.message).toBe('Missing payment ID')
+    })
+
+    it('returns 400 when verifyWebhook throws TypeError (malformed signature)', async () => {
+      const provider = createStubPaymentProvider({
+        verifyWebhook: async () => {
+          throw new TypeError('Malformed signature')
+        },
+      })
+      const req = mockRequest({ id: 'tr_mock_000042' }, { 'X-Mollie-Signature': 'bad' })
+
+      const res = await processMollieWebhook(req, { db, paymentProvider: provider })
+
+      expect(res.status).toBe(400)
+      const body = await res.json()
+      expect(body.error).toBe('Bad Request')
+      expect(body.message).toBe('Malformed signature')
+    })
+
+    it('returns 400 when verifyWebhook throws RangeError (malformed signature)', async () => {
+      const provider = createStubPaymentProvider({
+        verifyWebhook: async () => {
+          throw new RangeError('Malformed signature')
+        },
+      })
+      const req = mockRequest({ id: 'tr_mock_000042' }, { 'X-Mollie-Signature': 'bad' })
+
+      const res = await processMollieWebhook(req, { db, paymentProvider: provider })
+
+      expect(res.status).toBe(400)
+      const body = await res.json()
+      expect(body.error).toBe('Bad Request')
+      expect(body.message).toBe('Malformed signature')
     })
   })
 
@@ -560,6 +596,305 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
     })
   })
 
+  describe('amount verification', () => {
+    it('does not mark order as paid when webhook amount is lower than order total', async () => {
+      stubPaymentAmount = 500
+      const order = await seedPlatformOrder({ totalCents: 1000 })
+      await seedShopOrder({ platformOrderId: order.id })
+
+      const provider = createStubPaymentProvider()
+      const req = mockRequest(
+        { id: 'tr_mock_000042' },
+        { 'X-Mollie-Signature': 'mock_sig_tr_mock_000042' },
+      )
+
+      const res = await processMollieWebhook(req, { db, paymentProvider: provider })
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.status).toBe('amount_mismatch')
+
+      const [updatedOrder] = await db
+        .select({ status: platformOrder.status })
+        .from(platformOrder)
+        .where(eq(platformOrder.id, order.id))
+        .limit(1)
+      expect(updatedOrder.status).toBe('pending_payment')
+    })
+
+    it('does not mark order as paid when webhook amount is higher than order total', async () => {
+      stubPaymentAmount = 1500
+      const order = await seedPlatformOrder({ totalCents: 1000 })
+      await seedShopOrder({ platformOrderId: order.id })
+
+      const provider = createStubPaymentProvider()
+      const req = mockRequest(
+        { id: 'tr_mock_000042' },
+        { 'X-Mollie-Signature': 'mock_sig_tr_mock_000042' },
+      )
+
+      const res = await processMollieWebhook(req, { db, paymentProvider: provider })
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.status).toBe('amount_mismatch')
+
+      const [updatedOrder] = await db
+        .select({ status: platformOrder.status })
+        .from(platformOrder)
+        .where(eq(platformOrder.id, order.id))
+        .limit(1)
+      expect(updatedOrder.status).toBe('pending_payment')
+    })
+
+    it('marks order as paid when webhook amount matches order total exactly', async () => {
+      stubPaymentAmount = 2500
+      const order = await seedPlatformOrder({ totalCents: 2500 })
+      const shopOrd = await seedShopOrder({ platformOrderId: order.id })
+
+      const provider = createStubPaymentProvider()
+      const req = mockRequest(
+        { id: 'tr_mock_000042' },
+        { 'X-Mollie-Signature': 'mock_sig_tr_mock_000042' },
+      )
+
+      const res = await processMollieWebhook(req, { db, paymentProvider: provider })
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.status).toBe('processed')
+
+      const [updatedOrder] = await db
+        .select({ status: platformOrder.status })
+        .from(platformOrder)
+        .where(eq(platformOrder.id, order.id))
+        .limit(1)
+      expect(updatedOrder.status).toBe('paid')
+
+      const [updatedShopOrder] = await db
+        .select({ status: shopOrder.status })
+        .from(shopOrder)
+        .where(eq(shopOrder.id, shopOrd.id))
+        .limit(1)
+      expect(updatedShopOrder.status).toBe('paid')
+    })
+  })
+
+  describe('stock decrement on payment', () => {
+    it('decrements product stock and deletes reservation when payment is paid', async () => {
+      stubPaymentStatus = 'paid'
+      const order = await seedPlatformOrder()
+      const shopOrd = await seedShopOrder({ platformOrderId: order.id })
+      const prod = await seedProduct({ stockCount: 10 })
+      await seedOrderItem({ shopOrderId: shopOrd.id, productId: prod.id, quantity: 3 })
+      await seedInventoryReservation({ productId: prod.id, platformOrderId: order.id, quantity: 3 })
+
+      const provider = createStubPaymentProvider()
+      const req = mockRequest(
+        { id: 'tr_mock_000042' },
+        { 'X-Mollie-Signature': 'mock_sig_tr_mock_000042' },
+      )
+
+      const res = await processMollieWebhook(req, { db, paymentProvider: provider })
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.status).toBe('processed')
+
+      const [updatedProduct] = await db.select().from(product).where(eq(product.id, prod.id))
+      expect(updatedProduct.stockCount).toBe(7)
+
+      const reservations = await db
+        .select()
+        .from(inventoryReservation)
+        .where(eq(inventoryReservation.platformOrderId, order.id))
+      expect(reservations).toHaveLength(0)
+    })
+
+    it('does not double-decrement stock on idempotent replay', async () => {
+      stubPaymentStatus = 'paid'
+      const order = await seedPlatformOrder()
+      const shopOrd = await seedShopOrder({ platformOrderId: order.id })
+      const prod = await seedProduct({ stockCount: 10 })
+      await seedOrderItem({ shopOrderId: shopOrd.id, productId: prod.id, quantity: 3 })
+      await seedInventoryReservation({ productId: prod.id, platformOrderId: order.id, quantity: 3 })
+
+      const provider = createStubPaymentProvider()
+      const req = () =>
+        mockRequest({ id: 'tr_mock_000042' }, { 'X-Mollie-Signature': 'mock_sig_tr_mock_000042' })
+
+      const res1 = await processMollieWebhook(req(), { db, paymentProvider: provider })
+      expect(res1.status).toBe(200)
+
+      const res2 = await processMollieWebhook(req(), { db, paymentProvider: provider })
+      expect(res2.status).toBe(200)
+
+      const [updatedProduct] = await db.select().from(product).where(eq(product.id, prod.id))
+      expect(updatedProduct.stockCount).toBe(7)
+    })
+  })
+
+  describe('inventory verification on payment', () => {
+    it('marks order for manual review when product is out of stock', async () => {
+      stubPaymentStatus = 'paid'
+      const order = await seedPlatformOrder()
+      const shopOrd = await seedShopOrder({ platformOrderId: order.id })
+      const prod = await seedProduct({ stockCount: 0 })
+      await seedOrderItem({ shopOrderId: shopOrd.id, productId: prod.id, quantity: 1 })
+      await seedInventoryReservation({ productId: prod.id, platformOrderId: order.id, quantity: 1 })
+
+      const provider = createStubPaymentProvider()
+      const req = mockRequest(
+        { id: 'tr_mock_000042' },
+        { 'X-Mollie-Signature': 'mock_sig_tr_mock_000042' },
+      )
+
+      const res = await processMollieWebhook(req, { db, paymentProvider: provider })
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.status).toBe('inventory_mismatch')
+
+      const [updatedOrder] = await db
+        .select({ status: platformOrder.status })
+        .from(platformOrder)
+        .where(eq(platformOrder.id, order.id))
+        .limit(1)
+      expect(updatedOrder.status).toBe('manual_review')
+
+      const [updatedShopOrder] = await db
+        .select({ status: shopOrder.status })
+        .from(shopOrder)
+        .where(eq(shopOrder.id, shopOrd.id))
+        .limit(1)
+      expect(updatedShopOrder.status).toBe('manual_review')
+
+      // Stock should not be decremented
+      const [updatedProduct] = await db.select().from(product).where(eq(product.id, prod.id))
+      expect(updatedProduct.stockCount).toBe(0)
+
+      // Reservation should be kept for manual review
+      const reservations = await db
+        .select()
+        .from(inventoryReservation)
+        .where(eq(inventoryReservation.platformOrderId, order.id))
+      expect(reservations).toHaveLength(1)
+    })
+
+    it('marks order for manual review when ordered quantity exceeds available stock', async () => {
+      stubPaymentStatus = 'paid'
+      const order = await seedPlatformOrder()
+      const shopOrd = await seedShopOrder({ platformOrderId: order.id })
+      const prod = await seedProduct({ stockCount: 2 })
+      await seedOrderItem({ shopOrderId: shopOrd.id, productId: prod.id, quantity: 5 })
+      await seedInventoryReservation({ productId: prod.id, platformOrderId: order.id, quantity: 5 })
+
+      const provider = createStubPaymentProvider()
+      const req = mockRequest(
+        { id: 'tr_mock_000042' },
+        { 'X-Mollie-Signature': 'mock_sig_tr_mock_000042' },
+      )
+
+      const res = await processMollieWebhook(req, { db, paymentProvider: provider })
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.status).toBe('inventory_mismatch')
+
+      const [updatedOrder] = await db
+        .select({ status: platformOrder.status })
+        .from(platformOrder)
+        .where(eq(platformOrder.id, order.id))
+        .limit(1)
+      expect(updatedOrder.status).toBe('manual_review')
+
+      // Stock should not be decremented
+      const [updatedProduct] = await db.select().from(product).where(eq(product.id, prod.id))
+      expect(updatedProduct.stockCount).toBe(2)
+    })
+
+    it('marks order for manual review when one of multiple products is out of stock', async () => {
+      stubPaymentStatus = 'paid'
+      const order = await seedPlatformOrder()
+      const shopOrd = await seedShopOrder({ platformOrderId: order.id })
+      const prod1 = await seedProduct({ id: 'prod-1', slug: 'test-product-1', stockCount: 5 })
+      const prod2 = await seedProduct({ id: 'prod-2', slug: 'test-product-2', stockCount: 0 })
+      await seedOrderItem({
+        shopOrderId: shopOrd.id,
+        productId: prod1.id,
+        quantity: 2,
+        id: '00000000-0000-0000-0000-000000000001',
+      })
+      await seedOrderItem({
+        shopOrderId: shopOrd.id,
+        productId: prod2.id,
+        quantity: 1,
+        id: '00000000-0000-0000-0000-000000000002',
+      })
+      await seedInventoryReservation({
+        productId: prod1.id,
+        platformOrderId: order.id,
+        quantity: 2,
+      })
+      await seedInventoryReservation({
+        productId: prod2.id,
+        platformOrderId: order.id,
+        quantity: 1,
+      })
+
+      const provider = createStubPaymentProvider()
+      const req = mockRequest(
+        { id: 'tr_mock_000042' },
+        { 'X-Mollie-Signature': 'mock_sig_tr_mock_000042' },
+      )
+
+      const res = await processMollieWebhook(req, { db, paymentProvider: provider })
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.status).toBe('inventory_mismatch')
+
+      const [updatedOrder] = await db
+        .select({ status: platformOrder.status })
+        .from(platformOrder)
+        .where(eq(platformOrder.id, order.id))
+        .limit(1)
+      expect(updatedOrder.status).toBe('manual_review')
+
+      // Neither product stock should be decremented
+      const [updatedProd1] = await db.select().from(product).where(eq(product.id, prod1.id))
+      expect(updatedProd1.stockCount).toBe(5)
+      const [updatedProd2] = await db.select().from(product).where(eq(product.id, prod2.id))
+      expect(updatedProd2.stockCount).toBe(0)
+    })
+
+    it('processes payment normally when stock exactly matches ordered quantity', async () => {
+      stubPaymentStatus = 'paid'
+      const order = await seedPlatformOrder()
+      const shopOrd = await seedShopOrder({ platformOrderId: order.id })
+      const prod = await seedProduct({ stockCount: 3 })
+      await seedOrderItem({ shopOrderId: shopOrd.id, productId: prod.id, quantity: 3 })
+      await seedInventoryReservation({ productId: prod.id, platformOrderId: order.id, quantity: 3 })
+
+      const provider = createStubPaymentProvider()
+      const req = mockRequest(
+        { id: 'tr_mock_000042' },
+        { 'X-Mollie-Signature': 'mock_sig_tr_mock_000042' },
+      )
+
+      const res = await processMollieWebhook(req, { db, paymentProvider: provider })
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.status).toBe('processed')
+
+      const [updatedOrder] = await db
+        .select({ status: platformOrder.status })
+        .from(platformOrder)
+        .where(eq(platformOrder.id, order.id))
+        .limit(1)
+      expect(updatedOrder.status).toBe('paid')
+
+      const [updatedProduct] = await db.select().from(product).where(eq(product.id, prod.id))
+      expect(updatedProduct.stockCount).toBe(0)
+    })
+  })
+
   describe('signature delivery', () => {
     it('passes rawBody to the payment provider for HMAC verification', async () => {
       await seedPlatformOrder()
@@ -575,6 +910,7 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
           return true
         },
         getPaymentStatus: async () => 'paid',
+        getPaymentAmount: async () => 1000,
         refundPayment: async () => undefined,
       }
 
@@ -584,6 +920,65 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
       await processMollieWebhook(req, { db, paymentProvider: provider })
 
       expect(receivedRawBody).toBe(JSON.stringify(payload))
+    })
+  })
+
+  describe('provider error handling', () => {
+    it('returns 200 without updating order when getPaymentStatus throws', async () => {
+      const order = await seedPlatformOrder()
+      await seedShopOrder({ platformOrderId: order.id })
+
+      const provider = createStubPaymentProvider({
+        getPaymentStatus: async () => {
+          throw new Error('Mollie API unavailable')
+        },
+      })
+      const req = mockRequest(
+        { id: 'tr_mock_000042' },
+        { 'X-Mollie-Signature': 'mock_sig_tr_mock_000042' },
+      )
+
+      const res = await processMollieWebhook(req, { db, paymentProvider: provider })
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.status).toBe('provider_error')
+
+      // Order must remain untouched
+      const [updatedOrder] = await db
+        .select({ status: platformOrder.status })
+        .from(platformOrder)
+        .where(eq(platformOrder.id, order.id))
+        .limit(1)
+      expect(updatedOrder.status).toBe('pending_payment')
+    })
+
+    it('returns 200 without updating order when getPaymentStatus rejects with non-Error', async () => {
+      const order = await seedPlatformOrder()
+      await seedShopOrder({ platformOrderId: order.id })
+
+      const provider = createStubPaymentProvider({
+        getPaymentStatus: async () => {
+          throw 'string rejection'
+        },
+      })
+      const req = mockRequest(
+        { id: 'tr_mock_000042' },
+        { 'X-Mollie-Signature': 'mock_sig_tr_mock_000042' },
+      )
+
+      const res = await processMollieWebhook(req, { db, paymentProvider: provider })
+
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.status).toBe('provider_error')
+
+      const [updatedOrder] = await db
+        .select({ status: platformOrder.status })
+        .from(platformOrder)
+        .where(eq(platformOrder.id, order.id))
+        .limit(1)
+      expect(updatedOrder.status).toBe('pending_payment')
     })
   })
 

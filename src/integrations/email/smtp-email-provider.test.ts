@@ -15,6 +15,7 @@ vi.mock('nodemailer', () => ({
 
 import nodemailer from 'nodemailer'
 import * as emailTemplates from '#/lib/email-templates'
+import { logger } from '#/lib/logger.server'
 import {
   resetSmtpMockEmailCounter,
   SmtpEmailProvider,
@@ -95,6 +96,32 @@ describe('SmtpEmailProvider (mock)', () => {
 
     expect(result.accepted).toBe(true)
     consoleSpy.mockRestore()
+  })
+
+  it('redacts recipient and omits message content in mock mode logs', async () => {
+    const infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {})
+
+    await provider.sendTransactional('alice@example.com', 'order_confirmation', {
+      orderNumber: '42',
+      buyerName: 'Alice',
+      shopName: 'Pottery by Alice',
+      items: [{ name: 'Ceramic Mug', quantity: 2, price: '€24.00' }],
+      total: '€24.00',
+    })
+
+    const call = infoSpy.mock.calls.find((c) => c[0] === '[MockEmail] message sent')
+    expect(call).toBeDefined()
+    expect(call?.[1]).toEqual(
+      expect.objectContaining({
+        messageId: expect.stringMatching(/^msg_smtp_mock_\d{6}$/),
+        to: '[REDACTED]',
+      }),
+    )
+    expect(call?.[1]).not.toHaveProperty('subject')
+    expect(call?.[1]).not.toHaveProperty('htmlPreview')
+    expect(call?.[1]).not.toHaveProperty('textPreview')
+
+    infoSpy.mockRestore()
   })
 })
 
@@ -201,7 +228,7 @@ describe('SmtpEmailProvider (real with mocked nodemailer)', () => {
       sendMail: sendMailMock,
     } as unknown as ReturnType<typeof nodemailer.createTransport>)
 
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
     vi.spyOn(emailTemplates, 'renderTemplate').mockImplementation(() => {
       throw new Error('Simulated render failure')
     })
@@ -214,12 +241,12 @@ describe('SmtpEmailProvider (real with mocked nodemailer)', () => {
 
     expect(result.messageId).toBe('smtp-msg-789')
     expect(result.accepted).toBe(true)
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[SmtpEmailProvider] Template render error (real):',
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[SmtpEmailProvider] Template render error (real)',
       expect.any(Error),
     )
 
-    consoleSpy.mockRestore()
+    errorSpy.mockRestore()
   })
 
   it('uses custom sender from environment variables', async () => {

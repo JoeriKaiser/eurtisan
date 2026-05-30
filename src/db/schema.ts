@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm'
 import {
   boolean,
+  check,
   foreignKey,
   index,
   integer,
@@ -39,7 +40,11 @@ export const user = pgTable(
     createdAt: timestamp().notNull().defaultNow(),
     updatedAt: timestamp().notNull().defaultNow(),
   },
-  (table) => [index('user_name_email_idx').on(table.name, table.email)],
+  (table) => [
+    index('user_name_email_idx').on(table.name, table.email),
+    index('user_created_at_idx').on(table.createdAt),
+    index('user_role_idx').on(table.role),
+  ],
 )
 
 export const session = pgTable(
@@ -56,7 +61,10 @@ export const session = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
   },
-  (table) => [index('session_userId_idx').on(table.userId)],
+  (table) => [
+    index('session_userId_idx').on(table.userId),
+    index('session_expires_at_idx').on(table.expiresAt),
+  ],
 )
 
 export const account = pgTable(
@@ -119,6 +127,7 @@ export const shop = pgTable(
 
     // Location & Shipping
     shippingOrigin: jsonb('shipping_origin'),
+    businessAddress: jsonb('business_address'),
     currency: text().notNull().default('EUR'),
     isVatRegistered: boolean('is_vat_registered').notNull().default(false),
     vatId: text('vat_id'),
@@ -130,7 +139,7 @@ export const shop = pgTable(
     announcement: text(),
 
     // Onboarding State
-    status: shopStatusEnum('status').notNull().default('active'),
+    status: shopStatusEnum('status').notNull().default('draft'),
     onboardingStep: integer('onboarding_step').notNull().default(1),
     onboardingCompletedAt: timestamp('onboarding_completed_at'),
 
@@ -156,6 +165,7 @@ export const shop = pgTable(
   (table) => [
     index('shop_ownerId_idx').on(table.ownerId),
     index('shop_status_idx').on(table.status),
+    index('shop_created_at_idx').on(table.createdAt),
     uniqueIndex('shop_slug_unique').on(table.slug),
   ],
 )
@@ -227,7 +237,10 @@ export const product = pgTable(
       table.isActive,
       table.createdAt,
     ),
+    index('product_created_at_idx').on(table.createdAt),
     uniqueIndex('product_shop_slug_unique').on(table.shopId, table.slug),
+    check('stock_count_non_negative', sql`${table.stockCount} >= 0`),
+    check('price_cents_non_negative', sql`${table.priceCents} >= 0`),
   ],
 )
 
@@ -247,6 +260,21 @@ export const productImage = pgTable(
   ],
 )
 
+export const productVariant = pgTable(
+  'product_variant',
+  {
+    id: text().primaryKey(),
+    productId: text('product_id')
+      .notNull()
+      .references(() => product.id, { onDelete: 'cascade' }),
+    name: text().notNull(),
+    stockCount: integer('stock_count').notNull().default(0),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [index('product_variant_product_id_idx').on(table.productId)],
+)
+
 export const cart = pgTable(
   'cart',
   {
@@ -261,6 +289,7 @@ export const cart = pgTable(
     index('cart_user_id_idx').on(table.userId),
     index('cart_session_id_idx').on(table.sessionId),
     index('cart_expires_at_idx').on(table.expiresAt),
+    check('cart_owner_check', sql`${table.userId} IS NOT NULL OR ${table.sessionId} IS NOT NULL`),
   ],
 )
 
@@ -271,7 +300,9 @@ export const cartItem = pgTable(
     cartId: uuid('cart_id')
       .notNull()
       .references(() => cart.id, { onDelete: 'cascade' }),
-    productId: text('product_id').notNull(),
+    productId: text('product_id')
+      .notNull()
+      .references(() => product.id, { onDelete: 'cascade' }),
     quantity: integer().notNull(),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -292,6 +323,7 @@ export const orderStatusEnum = pgEnum('order_status', [
   'cancelled',
   'refunded',
   'disputed',
+  'manual_review',
 ])
 
 export const shippingMethodEnum = pgEnum('shipping_method', ['standard', 'express', 'manual'])
@@ -318,6 +350,9 @@ export const platformOrder = pgTable(
     index('platform_order_status_idx').on(table.status),
     index('platform_order_created_at_idx').on(table.createdAt),
     index('platform_order_mollie_payment_id_idx').on(table.molliePaymentId),
+    // Mollie guarantees payment ID uniqueness per environment. Cross-environment
+    // data migrations (e.g. staging → production) may collide; remove or adjust
+    // this constraint if such migrations are performed.
     uniqueIndex('platform_order_mollie_payment_id_unique').on(table.molliePaymentId),
   ],
 )
@@ -349,6 +384,7 @@ export const shopOrder = pgTable(
     index('shop_order_platform_order_id_idx').on(table.platformOrderId),
     index('shop_order_shop_id_idx').on(table.shopId),
     index('shop_order_status_idx').on(table.status),
+    index('shop_order_created_at_idx').on(table.createdAt),
   ],
 )
 
@@ -361,7 +397,10 @@ export const orderItem = pgTable(
       .references(() => shopOrder.id, { onDelete: 'cascade' }),
     productId: text('product_id')
       .notNull()
+      // Intentionally restricted: products with existing orders cannot be hard-deleted,
+      // ensuring order history and audit trails remain intact.
       .references(() => product.id, { onDelete: 'restrict' }),
+    variantId: text('variant_id').references(() => productVariant.id, { onDelete: 'restrict' }),
     productName: text('product_name').notNull(),
     unitPriceCents: integer('unit_price_cents').notNull().default(0),
     quantity: integer().notNull(),
@@ -407,7 +446,9 @@ export const review = pgTable(
     shopOrderId: uuid('shop_order_id')
       .notNull()
       .references(() => shopOrder.id, { onDelete: 'cascade' }),
-    productId: text('product_id').notNull(),
+    productId: text('product_id')
+      .notNull()
+      .references(() => product.id, { onDelete: 'cascade' }),
     buyerUserId: text('buyer_user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
@@ -418,7 +459,9 @@ export const review = pgTable(
   (table) => [
     index('review_product_id_idx').on(table.productId),
     index('review_shop_order_id_idx').on(table.shopOrderId),
+    index('review_buyer_user_id_idx').on(table.buyerUserId),
     uniqueIndex('review_shop_order_product_unique').on(table.shopOrderId, table.productId),
+    check('rating_range', sql`${table.rating} BETWEEN 1 AND 5`),
   ],
 )
 
@@ -428,6 +471,7 @@ export const payout = pgTable(
   'payout',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    shopOrderId: uuid('shop_order_id').references(() => shopOrder.id, { onDelete: 'cascade' }),
     shopId: text('shop_id')
       .notNull()
       .references(() => shop.id, { onDelete: 'cascade' }),
@@ -437,8 +481,10 @@ export const payout = pgTable(
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (table) => [
+    uniqueIndex('payout_shop_order_id_unique').on(table.shopOrderId),
     index('payout_shop_id_idx').on(table.shopId),
     index('payout_status_idx').on(table.status),
+    index('payout_created_at_idx').on(table.createdAt),
   ],
 )
 
@@ -481,7 +527,9 @@ export const dispute = pgTable(
   (table) => [
     index('dispute_status_idx').on(table.status),
     index('dispute_buyer_user_id_idx').on(table.buyerUserId),
+    index('dispute_created_at_idx').on(table.createdAt),
     uniqueIndex('dispute_shop_order_id_unique').on(table.shopOrderId),
+    check('dispute_status_check', sql`${table.status} IN ('open', 'resolved', 'closed')`),
   ],
 )
 
@@ -551,6 +599,7 @@ export const rateLimit = pgTable(
   (table) => [
     index('rate_limit_key_idx').on(table.key),
     index('idx_rate_limit_updated_at').on(table.updatedAt),
+    index('rate_limit_window_start_idx').on(table.windowStart),
   ],
 )
 
@@ -591,5 +640,11 @@ export const meilisearchSyncQueue = pgTable(
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
-  (table) => [index('meilisearch_sync_queue_status_run_at_idx').on(table.status, table.runAt)],
+  (table) => [
+    index('meilisearch_sync_queue_status_run_at_idx').on(table.status, table.runAt),
+    check(
+      'meilisearch_sync_queue_status_check',
+      sql`${table.status} IN ('pending', 'completed', 'failed')`,
+    ),
+  ],
 )

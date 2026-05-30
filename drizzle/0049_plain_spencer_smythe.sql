@@ -1,0 +1,2 @@
+ALTER TABLE "dispute" ADD CONSTRAINT "dispute_status_check" CHECK ("dispute"."status" IN ('open', 'resolved', 'closed'));--> statement-breakpoint
+ALTER TABLE "meilisearch_sync_queue" ADD CONSTRAINT "meilisearch_sync_queue_status_check" CHECK ("meilisearch_sync_queue"."status" IN ('pending', 'completed', 'failed'));

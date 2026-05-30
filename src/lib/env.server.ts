@@ -21,7 +21,10 @@ export function getBaseUrl(): string {
 
 /**
  * Mollie API key (server-only).
- * Required for live Mollie integration. When absent the mock provider is used.
+ * Required in production for live Mollie integration.
+ * When absent and MOCK_PAYMENTS_ENABLED is not set to 'true', the constructor
+ * will throw in production. In non-production environments the mock provider
+ * is used as a fallback.
  */
 export function getMollieApiKey(): string | undefined {
   if (typeof process !== 'undefined') {
@@ -32,6 +35,9 @@ export function getMollieApiKey(): string | undefined {
 
 /**
  * Check if mock payments are explicitly enabled (server-only).
+ * Configurable in production. When set to 'true' the mock payment provider
+ * is used even when MOLLIE_API_KEY is missing, which is useful for staging
+ * or demonstration environments.
  */
 export function getMockPaymentsEnabled(): boolean {
   if (typeof process !== 'undefined') {

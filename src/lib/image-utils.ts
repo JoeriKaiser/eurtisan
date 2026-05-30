@@ -27,6 +27,11 @@ function dataUrlToBuffer(dataUrl: string): { buffer: Buffer; mimeType: string } 
   }
 
   const [, mimeType, base64Data] = match
+
+  if (base64Data.length > MAX_FILE_SIZE * 1.4) {
+    throw new ImageValidationError(`File too large. Max size: ${MAX_FILE_SIZE / 1024 / 1024}MB`)
+  }
+
   const buffer = Buffer.from(base64Data, 'base64')
   return { buffer, mimeType }
 }

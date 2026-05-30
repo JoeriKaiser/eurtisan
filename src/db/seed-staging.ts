@@ -12,6 +12,7 @@
  *   make staging-seed
  */
 
+import { randomBytes, scryptSync } from 'node:crypto'
 import { faker } from '@faker-js/faker'
 import { eq } from 'drizzle-orm'
 import { pool } from '../db.ts'
@@ -29,9 +30,17 @@ import * as schema from './schema.ts'
 /** Fixed seed ensures deterministic data across runs. */
 faker.seed(42)
 
-/** Shared password hash for seeded credential accounts. */
-const PASSWORD_HASH =
-  'f2867747b76f33fb95f454d2c2fabe35:a46362e9e227f1d1d4a3485be43a107d23f16ebfceb29c9820cfb4309e8531ad1f1678e1b9cb951d5ee9e90632c028796e7edf06b2105208fd7acc899f5b2642'
+/** Generate a unique scrypt password hash compatible with Better Auth. */
+function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString('hex')
+  const key = scryptSync(password, salt, 64, {
+    N: 16384,
+    r: 16,
+    p: 1,
+    maxmem: 128 * 16384 * 16 * 2,
+  })
+  return `${salt}:${key.toString('hex')}`
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 2. Utilities
@@ -142,13 +151,15 @@ async function seedUsers(): Promise<(typeof schema.user.$inferSelect)[]> {
       image: avatarUrl(u.email),
     })
     if (u.hasPassword) {
+      const password = u.email.split('@')[0]
       accounts.push({
         id: crypto.randomUUID(),
         accountId: id,
         providerId: 'credential',
         userId: id,
-        password: PASSWORD_HASH,
+        password: hashPassword(password),
       })
+      console.log(`  Credentials: ${u.email} / ${password}`)
     }
   }
 

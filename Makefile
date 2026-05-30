@@ -84,7 +84,7 @@ init:
 	docker compose up -d
 	docker compose exec app bun run i18n:compile
 	docker compose exec app bun run db:migrate
-	docker compose exec app bun run db:seed -- --clear
+	docker compose exec app bun run db:seed -- --clear --force
 
 # Database
 db-generate: up
@@ -97,7 +97,7 @@ db-push: up
 	docker compose exec app bun run db:push
 
 db-seed: up
-	docker compose exec app bun run src/db/seed.ts --clear
+	docker compose exec app bun run src/db/seed.ts --clear --force
 
 # Staging / Production seed — idempotent, additive only. Safe to re-run.
 db-staging-seed: up

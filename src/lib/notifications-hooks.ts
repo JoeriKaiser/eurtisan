@@ -13,6 +13,8 @@ export function useNotifications(page = 1, pageSize = 20) {
   return useQuery({
     queryKey: [...notificationsKey, { page, pageSize }],
     queryFn: () => getNotifications({ data: { page, pageSize } }),
+    placeholderData: (previousData) => previousData,
+    staleTime: 30_000,
   })
 }
 
@@ -21,6 +23,8 @@ export function useUnreadNotificationCount(enabled = true) {
     queryKey: unreadCountKey,
     queryFn: () => getUnreadNotificationCount(),
     enabled,
+    placeholderData: (previousData) => previousData,
+    staleTime: 30_000,
   })
 }
 

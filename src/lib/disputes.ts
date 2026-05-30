@@ -131,10 +131,14 @@ export const resolveDispute = createServerFn({ method: 'POST' })
     ])
     // False positive from analyzer: these calls use functions imported in the preceding Promise.all.
     const [result] = await Promise.all([
-      resolveDisputeQuery(data.disputeId, {
-        resolution: data.resolution,
-        refundCents: data.refundCents,
-      }),
+      resolveDisputeQuery(
+        data.disputeId,
+        {
+          resolution: data.resolution,
+          refundCents: data.refundCents,
+        },
+        { userId: context.user.id, role: context.user.role },
+      ),
       emitAuditEvent(context.user, 'dispute.resolve', 'dispute', data.disputeId, {
         resolution: data.resolution,
         refundCents: data.refundCents,

@@ -3,6 +3,24 @@
   set_fact:
     compose_file: "{{ 'docker-compose.staging.yml' if (coexist_with_proxy | default(false)) else 'docker-compose.prod.yml' }}"
 
+- name: Determine if direct port access override is needed
+  set_fact:
+    use_port_override: "{{ (coexist_with_proxy | default(false)) and (app_access_ips is defined) }}"
+
+- name: Write Docker Compose override for direct port access
+  when: use_port_override
+  copy:
+    dest: /opt/eurtisan/docker-compose.override.yml
+    content: |
+      services:
+        app:
+          ports:
+            - "0.0.0.0:3001:3000"
+
+- name: Determine Docker Compose command
+  set_fact:
+    docker_compose: "docker compose -f {{ compose_file }}{% if use_port_override %} -f docker-compose.override.yml{% endif %}"
+
 - name: Create application directory
   file:
     path: /opt/eurtisan
@@ -29,18 +47,34 @@
     mode: "0755"
 
 - name: Write database backup script
-  copy:
+  template:
+    src: backup.sh.j2
     dest: /opt/eurtisan/backup.sh
-    content: |
-      #!/bin/bash
-      set -euo pipefail
-      COMPOSE_FILE="{{ compose_file }}"
-      BACKUP_DIR="/opt/eurtisan/backups"
-      mkdir -p "$BACKUP_DIR"
-      docker compose -f "/opt/eurtisan/$COMPOSE_FILE" exec -T db pg_dump -U {{ postgres_user }} {{ postgres_db }} | gzip > "$BACKUP_DIR/eurtisan-$(date +%Y%m%d-%H%M%S).sql.gz"
-      find "$BACKUP_DIR" -name "*.sql.gz" -mtime +7 -delete
-      echo "Backup completed at $(date)"
     mode: "0755"
+
+- name: Create eurtisan-backup user
+  user:
+    name: eurtisan-backup
+    system: yes
+    shell: /bin/false
+    groups: docker
+    append: yes
+
+- name: Ensure backup directory exists and is writable
+  file:
+    path: /opt/eurtisan/backups
+    state: directory
+    owner: eurtisan-backup
+    group: eurtisan-backup
+    mode: "0755"
+
+- name: Ensure backup log file is writable
+  file:
+    path: /var/log/eurtisan-backup.log
+    state: touch
+    owner: eurtisan-backup
+    group: eurtisan-backup
+    mode: "0644"
 
 - name: Schedule nightly database backups
   cron:
@@ -48,7 +82,7 @@
     minute: "0"
     hour: "3"
     job: "/opt/eurtisan/backup.sh >> /var/log/eurtisan-backup.log 2>&1"
-    user: root
+    user: eurtisan-backup
 
 - name: Start observability stack
   block:
@@ -79,12 +113,12 @@
   tags: [observability]
 
 - name: Start database and meilisearch first
-  command: "docker compose -f {{ compose_file }} up -d db meilisearch"
+  command: "{{ docker_compose }} up -d db meilisearch"
   args:
     chdir: /opt/eurtisan
 
 - name: Wait for PostgreSQL to be ready
-  shell: "docker compose -f {{ compose_file }} exec -T db pg_isready -U {{ postgres_user }}"
+  shell: "{{ docker_compose }} exec -T db pg_isready -U {{ postgres_user }}"
   args:
     chdir: /opt/eurtisan
   register: pg_ready
@@ -97,19 +131,19 @@
   ignore_errors: true
 
 - name: Build application image
-  command: "docker compose -f {{ compose_file }} build app"
+  command: "{{ docker_compose }} build app"
   args:
     chdir: /opt/eurtisan
   async: 600
   poll: 15
 
 - name: Run database migrations
-  command: "docker compose -f {{ compose_file }} run --rm app bun run db:migrate"
+  command: "{{ docker_compose }} run --rm app bun run db:migrate"
   args:
     chdir: /opt/eurtisan
 
 - name: Start all services
-  command: "docker compose -f {{ compose_file }} up -d"
+  command: "{{ docker_compose }} up -d"
   args:
     chdir: /opt/eurtisan
 
@@ -217,7 +251,7 @@
       ignore_errors: true
 
     - name: Restart app to pick up Traefik config
-      command: "docker compose -f {{ compose_file }} up -d app"
+      command: "{{ docker_compose }} up -d app"
       args:
         chdir: /opt/eurtisan
 
@@ -239,13 +273,7 @@
         state: enabled
         policy: deny
 
-    - name: Update compose to bind app to all interfaces
-      replace:
-        path: "/opt/eurtisan/{{ compose_file }}"
-        regexp: '127\.0\.0\.1:3001:3000'
-        replace: '0.0.0.0:3001:3000'
-
-    - name: Restart app with new binding
-      command: "docker compose -f {{ compose_file }} up -d app"
+    - name: Restart app with override binding
+      command: "{{ docker_compose }} up -d app"
       args:
         chdir: /opt/eurtisan

@@ -2,7 +2,15 @@ import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
-import { orderItem, platformOrder, product, shop, shopOrder, user } from '#/db/schema'
+import {
+  inventoryReservation,
+  orderItem,
+  platformOrder,
+  product,
+  shop,
+  shopOrder,
+  user,
+} from '#/db/schema'
 
 import {
   createShippingLabelForOrderQuery,
@@ -19,6 +27,7 @@ import {
 } from './shop-orders.server'
 
 beforeEach(async () => {
+  await db.delete(inventoryReservation)
   await db.delete(orderItem)
   await db.delete(shopOrder)
   await db.delete(platformOrder)
@@ -854,6 +863,57 @@ describe('updateShopOrderStatusQuery', () => {
     expect(updated.trackingUrl).toBe('https://track.example.com/123')
   })
 
+  it('throws 400 for javascript: tracking URL via updateShopOrderStatusQuery', async () => {
+    await seedUser()
+    await seedShop()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        totalCents: 1000,
+        status: 'processing',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 100,
+        subtotalCents: 900,
+        status: 'processing',
+      })
+      .returning()
+
+    try {
+      await updateShopOrderStatusQuery(so.id, {
+        status: 'shipped',
+        trackingUrl: 'javascript:alert(1)',
+      })
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(400)
+    }
+  })
+
   it('does not set tracking info for non-shipped transitions', async () => {
     await seedUser()
     await seedShop()
@@ -900,6 +960,81 @@ describe('updateShopOrderStatusQuery', () => {
 
     expect(updated.status).toBe('processing')
     expect(updated.trackingNumber).toBeNull()
+  })
+
+  it('decrements stock and deletes reservations when transitioning to paid', async () => {
+    await seedUser()
+    await seedShop()
+    const p = await seedProduct({ stockCount: 10 })
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test Buyer',
+          street: '123 Main St',
+          city: 'Berlin',
+          postalCode: '10115',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test Buyer',
+          street: '123 Main St',
+          city: 'Berlin',
+          postalCode: '10115',
+          country: 'DE',
+        },
+        totalCents: 1000,
+        status: 'pending_payment',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 100,
+        subtotalCents: 900,
+        status: 'pending_payment',
+      })
+      .returning()
+
+    await db.insert(orderItem).values({
+      shopOrderId: so.id,
+      productId: p.id,
+      productName: p.name,
+      unitPriceCents: p.priceCents,
+      quantity: 3,
+      totalCents: p.priceCents * 3,
+    })
+
+    await db.insert(inventoryReservation).values({
+      productId: p.id,
+      platformOrderId: order.id,
+      quantity: 3,
+      expiresAt: new Date(Date.now() + 60_000),
+    })
+
+    const updated = await updateShopOrderStatusQuery(so.id, { status: 'paid' })
+    expect(updated.status).toBe('paid')
+
+    const [platformRecord] = await db
+      .select()
+      .from(platformOrder)
+      .where(eq(platformOrder.id, order.id))
+    expect(platformRecord.status).toBe('paid')
+
+    const [updatedProduct] = await db.select().from(product).where(eq(product.id, p.id))
+    expect(updatedProduct.stockCount).toBe(7)
+
+    const reservations = await db
+      .select()
+      .from(inventoryReservation)
+      .where(eq(inventoryReservation.platformOrderId, order.id))
+    expect(reservations).toHaveLength(0)
   })
 })
 
@@ -955,6 +1090,104 @@ describe('markShopOrderShippedQuery', () => {
 
     try {
       await markShopOrderShippedQuery(so.id, { trackingUrl: 'not-a-url' })
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(400)
+    }
+  })
+
+  it('throws 400 for javascript: tracking URL', async () => {
+    await seedUser()
+    await seedShop()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        totalCents: 1000,
+        status: 'processing',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 100,
+        subtotalCents: 900,
+        status: 'processing',
+      })
+      .returning()
+
+    try {
+      await markShopOrderShippedQuery(so.id, { trackingUrl: 'javascript:alert(1)' })
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(400)
+    }
+  })
+
+  it('throws 400 for data: tracking URL', async () => {
+    await seedUser()
+    await seedShop()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        totalCents: 1000,
+        status: 'processing',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 100,
+        subtotalCents: 900,
+        status: 'processing',
+      })
+      .returning()
+
+    try {
+      await markShopOrderShippedQuery(so.id, {
+        trackingUrl: 'data:text/html,<script>alert(1)</script>',
+      })
       expect.fail('Should have thrown')
     } catch (err) {
       expect(err instanceof Response).toBe(true)

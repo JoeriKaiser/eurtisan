@@ -11,9 +11,9 @@
  */
 import {
   getBaseUrl,
+  getMockPaymentsEnabled,
   getMollieApiKey,
   getMollieWebhookSecret,
-  getMockPaymentsEnabled,
 } from '#/lib/env.server'
 import type { CreatePaymentResult, PaymentProvider } from '#/lib/payment-provider'
 
@@ -56,6 +56,8 @@ const mockPaymentStatuses = new Map<
   'pending' | 'paid' | 'expired' | 'failed' | 'cancelled'
 >()
 
+const mockPaymentAmounts = new Map<string, number>()
+
 /**
  * Set a mock status for a specific payment ID.
  * Used in tests to simulate different Mollie payment states.
@@ -68,10 +70,25 @@ export function setMockPaymentStatus(
 }
 
 /**
+ * Set a mock amount (in euro cents) for a specific payment ID.
+ * Used in tests to simulate amount mismatch scenarios.
+ */
+export function setMockPaymentAmount(paymentId: string, amountCents: number): void {
+  mockPaymentAmounts.set(paymentId, amountCents)
+}
+
+/**
  * Clear all mock payment statuses.
  */
 export function resetMockPaymentStatuses(): void {
   mockPaymentStatuses.clear()
+}
+
+/**
+ * Clear all mock payment amounts.
+ */
+export function resetMockPaymentAmounts(): void {
+  mockPaymentAmounts.clear()
 }
 
 // ---------------------------------------------------------------------------
@@ -91,7 +108,18 @@ export class MolliePaymentProvider implements PaymentProvider {
     if (options?.mock !== undefined) {
       this.mockMode = options.mock
     } else {
-      this.mockMode = !apiKey || getMockPaymentsEnabled()
+      const mockEnabled = getMockPaymentsEnabled()
+      if (!apiKey && !mockEnabled) {
+        if (typeof process !== 'undefined' && process.env.NODE_ENV === 'production') {
+          throw new Error(
+            'FATAL: MOLLIE_API_KEY is required in production. ' +
+              'Set MOLLIE_API_KEY or explicitly enable mock mode with MOCK_PAYMENTS_ENABLED=true',
+          )
+        }
+        this.mockMode = true
+      } else {
+        this.mockMode = !apiKey || mockEnabled
+      }
     }
 
     if (!this.mockMode && !apiKey) {
@@ -234,6 +262,11 @@ export class MolliePaymentProvider implements PaymentProvider {
       return false
     }
 
+    // Validate signature format before processing to avoid crypto crashes.
+    if (!signature || typeof signature !== 'string' || !/^[A-Za-z0-9+/=]+$/.test(signature)) {
+      throw new TypeError('Malformed signature')
+    }
+
     const cryptoModule = await import('node:crypto')
     const computedHmac = cryptoModule.createHmac('sha256', secret).update(rawBody).digest('base64')
 
@@ -351,6 +384,58 @@ export class MolliePaymentProvider implements PaymentProvider {
     }
 
     throw new Error(`Unexpected Mollie payment status: ${status}`)
+  }
+
+  // -----------------------------------------------------------------------
+  // getPaymentAmount
+  // -----------------------------------------------------------------------
+
+  async getPaymentAmount(paymentId: string): Promise<number> {
+    if (this.mockMode) {
+      return this.getPaymentAmountMock(paymentId)
+    }
+
+    return this.getPaymentAmountReal(paymentId)
+  }
+
+  private getPaymentAmountMock(paymentId: string): number {
+    // Return the configured amount if one was set, otherwise default to 1000
+    // cents (€10.00) so existing tests pass without explicit configuration.
+    return mockPaymentAmounts.get(paymentId) ?? 1000
+  }
+
+  private async getPaymentAmountReal(paymentId: string): Promise<number> {
+    const apiKey = getMollieApiKey()
+
+    if (!apiKey) {
+      throw new Error('MOLLIE_API_KEY is not set')
+    }
+
+    const response = await fetch(`https://api.mollie.com/v2/payments/${paymentId}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorBody = await response.text()
+      throw new Error(`Mollie API error (${response.status}): ${errorBody}`)
+    }
+
+    const data = (await response.json()) as {
+      amount: { currency: string; value: string }
+      [key: string]: unknown
+    }
+
+    const value = data.amount.value
+    const parsed = Number.parseFloat(value)
+    if (Number.isNaN(parsed)) {
+      throw new Error(`Invalid Mollie payment amount: ${value}`)
+    }
+
+    return Math.round(parsed * 100)
   }
 }
 

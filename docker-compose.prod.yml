@@ -1,9 +1,16 @@
 # Production Docker Compose for Eurtisan
 # Run on the VPS with: docker compose -f docker-compose.prod.yml up -d
+#
+# Image Pinning Policy:
+# All third-party images are pinned to an immutable SHA256 digest to ensure
+# reproducible deployments and prevent supply-chain drift from floating tags.
+# When upgrading an image, update both the tag and the digest:
+#   docker buildx imagetools inspect <image>:<tag> --format '{{.Manifest.Digest}}'
 
 services:
   caddy:
-    image: caddy:2-alpine
+    # Pinned digest for caddy:2-alpine
+    image: caddy:2-alpine@sha256:86deaf5e3d3408a6ccec08fbb79989783dd26e206ae10bcf78a801dc8c9ab794
     container_name: eurtisan-caddy
     restart: unless-stopped
     ports:
@@ -27,34 +34,39 @@ services:
       dockerfile: Dockerfile.prod
     container_name: eurtisan-app
     restart: unless-stopped
+    user: "1000:1000"
     env_file:
       - .env
     environment:
       - NODE_ENV=production
     networks:
       - eurtisan
+      - db-internal
     depends_on:
       db:
         condition: service_healthy
       meilisearch:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 15s
 
   db:
-    image: postgres:16-alpine
+    # Pinned digest for postgres:16-alpine
+    image: postgres:16-alpine@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229
     container_name: eurtisan-db
     restart: unless-stopped
-    env_file:
-      - .env
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - eurtisan
+      - db-internal
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -62,18 +74,26 @@ services:
       retries: 5
 
   meilisearch:
-    image: getmeili/meilisearch:v1.43.0
+    # Pinned digest for getmeili/meilisearch:v1.43.0
+    image: getmeili/meilisearch:v1.43.0@sha256:5d4e1353927785744486fe317d263f442710ab5b27b1983aa1b719dfe2c665b6
     container_name: eurtisan-meilisearch
     restart: unless-stopped
-    env_file:
-      - .env
+    environment:
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
     volumes:
       - meilisearch_data:/meili_data
     networks:
-      - eurtisan
+      - db-internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   imgproxy:
-    image: darthsim/imgproxy:v3
+    # Pinned digest for darthsim/imgproxy:v3
+    image: darthsim/imgproxy:v3@sha256:419f92ee3a3137ddc2552a92ae2f46a97e9b8c22e03f8a6efa0cb217d8db7f45
     container_name: eurtisan-imgproxy
     restart: unless-stopped
     env_file:
@@ -98,12 +118,14 @@ services:
       dockerfile: Dockerfile.prod
     container_name: eurtisan-inventory-cleanup
     restart: unless-stopped
+    user: "1000:1000"
     env_file:
       - .env
     environment:
       - NODE_ENV=production
     networks:
       - eurtisan
+      - db-internal
     depends_on:
       db:
         condition: service_healthy
@@ -116,17 +138,19 @@ services:
       dockerfile: Dockerfile.prod
     container_name: eurtisan-meilisearch-sync
     restart: unless-stopped
+    user: "1000:1000"
     env_file:
       - .env
     environment:
       - NODE_ENV=production
     networks:
       - eurtisan
+      - db-internal
     depends_on:
       db:
         condition: service_healthy
       meilisearch:
-        condition: service_started
+        condition: service_healthy
     command: >
       sh -c "bun run src/jobs/meilisearch-sync.ts"
 
@@ -139,3 +163,6 @@ volumes:
 networks:
   eurtisan:
     driver: bridge
+  db-internal:
+    driver: bridge
+    internal: true

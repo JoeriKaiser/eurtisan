@@ -1,4 +1,4 @@
-import { createFileRoute, notFound } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import z from 'zod'
 import { MollieMockOauth } from '#/route-components/mollie-mock-oauth'
 
@@ -8,10 +8,8 @@ export const Route = createFileRoute('/mollie-mock-oauth')({
     state: z.string().optional(),
     redirect_uri: z.string(),
   }),
-  beforeLoad: () => {
-    if (process.env.NODE_ENV === 'production') {
-      throw notFound()
-    }
+  component: () => {
+    const search = Route.useSearch()
+    return <MollieMockOauth {...search} />
   },
-  component: MollieMockOauth,
 })

@@ -12,5 +12,8 @@ const verifyEmailSearchSchema = z.object({
 export const Route = createFileRoute('/verify-email')({
   validateSearch: verifyEmailSearchSchema,
   beforeLoad: async () => guardGuest(),
+  head: () => ({
+    meta: [{ name: 'referrer', content: 'strict-origin-when-cross-origin' }],
+  }),
   component: VerifyEmail,
 })

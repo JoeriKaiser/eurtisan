@@ -103,12 +103,21 @@ export default function SearchSuggestions({
   }
 
   return (
-    <ul ref={listRef} aria-label='Search suggestions' className='max-h-80 overflow-y-auto py-2'>
+    <ul
+      ref={listRef}
+      id='search-suggestions'
+      aria-label='Search suggestions'
+      className='max-h-80 overflow-y-auto py-2'
+    >
       {suggestions.map((suggestion, index) => {
         const isActive = index === activeIndex
         const icon = TYPE_ICONS[suggestion.type]
         const typeLabel = TYPE_LABELS[suggestion.type]
-        const itemId = `suggestion-${suggestion.type}-${suggestion.label}-${index}`
+        const safeLabel = suggestion.label
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '')
+        const itemId = `suggestion-${suggestion.type}-${safeLabel}-${index}`
 
         return (
           <li

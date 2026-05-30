@@ -3,7 +3,7 @@ services:
     image: postgres:16-alpine
     container_name: eurtisan-postgres
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: eurtisan
       POSTGRES_PASSWORD: eurtisan
@@ -22,7 +22,7 @@ services:
     image: getmeili/meilisearch:v1.43.0
     container_name: eurtisan-meilisearch
     ports:
-      - "7700:7700"
+      - "127.0.0.1:7700:7700"
     environment:
       MEILI_MASTER_KEY: ${MEILISEARCH_API_KEY:-meilisearch-api-key}
     volumes:
@@ -112,6 +112,8 @@ services:
       IMGPROXY_BASE_URL: http://localhost:8080
       IMGPROXY_KEY: ${IMGPROXY_KEY:-}
       IMGPROXY_SALT: ${IMGPROXY_SALT:-}
+      VITE_IMGPROXY_BASE_URL: http://localhost:8080
+      VITE_S3_BUCKET: eurtisan-uploads
     depends_on:
       db:
         condition: service_healthy

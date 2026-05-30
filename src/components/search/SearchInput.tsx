@@ -49,10 +49,6 @@ export default function SearchInput({
       <Input
         ref={inputRef}
         type='search'
-        role='combobox'
-        aria-expanded='true'
-        aria-autocomplete='list'
-        aria-controls='search-suggestions'
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onFocus={() => setIsFocused(true)}

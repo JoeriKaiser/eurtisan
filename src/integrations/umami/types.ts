@@ -1,5 +1,8 @@
 export interface UmamiClient {
-  track(eventName?: string, eventData?: Record<string, unknown>): Promise<string>
+  track(
+    eventName?: string | ((props: Record<string, unknown>) => Record<string, unknown>),
+    eventData?: Record<string, unknown>,
+  ): Promise<string>
 }
 
 declare global {

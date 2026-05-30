@@ -2,9 +2,10 @@
  * Email provider factory and production safety tests.
  */
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { BrevoEmailProvider, brevoEmailProvider } from './brevo-email-provider'
 import { createEmailProvider, SmtpEmailProvider, smtpEmailProvider } from './index'
+import { logger } from '#/lib/logger.server'
 
 const originalEnv: Record<string, string | undefined> = {}
 
@@ -83,5 +84,34 @@ describe('BrevoEmailProvider production safety', () => {
     setEnv('NODE_ENV', 'production')
     setEnv('BREVO_API_KEY', 'real-key')
     expect(() => new BrevoEmailProvider({ mock: true })).not.toThrow()
+  })
+})
+
+describe('BrevoEmailProvider mock redaction', () => {
+  it('redacts recipient and omits message content in mock mode logs', async () => {
+    const infoSpy = vi.spyOn(logger, 'info').mockImplementation(() => {})
+    const provider = new BrevoEmailProvider({ mock: true })
+
+    await provider.sendTransactional('alice@example.com', 'order_confirmation', {
+      orderNumber: '42',
+      buyerName: 'Alice',
+      shopName: 'Pottery by Alice',
+      items: [{ name: 'Ceramic Mug', quantity: 2, price: '€24.00' }],
+      total: '€24.00',
+    })
+
+    const call = infoSpy.mock.calls.find((c) => c[0] === '[MockEmail] message sent')
+    expect(call).toBeDefined()
+    expect(call?.[1]).toEqual(
+      expect.objectContaining({
+        messageId: expect.stringMatching(/^msg_mock_\d{6}$/),
+        to: '[REDACTED]',
+      }),
+    )
+    expect(call?.[1]).not.toHaveProperty('subject')
+    expect(call?.[1]).not.toHaveProperty('htmlPreview')
+    expect(call?.[1]).not.toHaveProperty('textPreview')
+
+    infoSpy.mockRestore()
   })
 })

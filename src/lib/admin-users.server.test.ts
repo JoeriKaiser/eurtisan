@@ -7,6 +7,7 @@ import {
   platformOrder,
   product,
   review,
+  session,
   shop,
   shopOrder,
   user,
@@ -109,6 +110,36 @@ describe('updateUserRoleQuery', () => {
   it('throws for missing user', async () => {
     await expect(updateUserRoleQuery('nonexistent', 'admin')).rejects.toThrow('User not found')
   })
+
+  it('revokes sessions on demotion', async () => {
+    const u = await seedUser({ role: 'admin' })
+    await db.insert(session).values({
+      id: 'sess-1',
+      token: 'token-1',
+      expiresAt: new Date(Date.now() + 3600_000),
+      userId: u.id,
+    })
+
+    await updateUserRoleQuery(u.id, 'customer')
+
+    const sessions = await db.select().from(session).where(eq(session.userId, u.id))
+    expect(sessions.length).toBe(0)
+  })
+
+  it('does not revoke sessions on promotion', async () => {
+    const u = await seedUser({ role: 'customer' })
+    await db.insert(session).values({
+      id: 'sess-1',
+      token: 'token-1',
+      expiresAt: new Date(Date.now() + 3600_000),
+      userId: u.id,
+    })
+
+    await updateUserRoleQuery(u.id, 'creator')
+
+    const sessions = await db.select().from(session).where(eq(session.userId, u.id))
+    expect(sessions.length).toBe(1)
+  })
 })
 
 describe('banUserQuery', () => {
@@ -123,6 +154,21 @@ describe('banUserQuery', () => {
 
   it('throws for missing user', async () => {
     await expect(banUserQuery('nonexistent')).rejects.toThrow('User not found')
+  })
+
+  it('revokes all active sessions', async () => {
+    const u = await seedUser()
+    await db.insert(session).values({
+      id: 'sess-1',
+      token: 'token-1',
+      expiresAt: new Date(Date.now() + 3600_000),
+      userId: u.id,
+    })
+
+    await banUserQuery(u.id, 'Spam')
+
+    const sessions = await db.select().from(session).where(eq(session.userId, u.id))
+    expect(sessions.length).toBe(0)
   })
 })
 

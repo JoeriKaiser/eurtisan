@@ -9,6 +9,7 @@ import {
   DialogPortal,
   DialogTitle,
 } from '#/components/ui/primitives/dialog'
+import { m } from '#/paraglide/messages'
 
 export interface MockPickupPoint {
   id: string
@@ -128,26 +129,42 @@ export function PickupPointSelectorModal({
             </DialogDescription>
 
             <form onSubmit={handleSearch} className='flex gap-3 mb-6'>
-              <div className='flex-1'>
+              <div className='flex-1 grid gap-1.5'>
+                <label
+                  htmlFor='pickup-search-postal-code'
+                  className='text-sm font-medium text-text-primary'
+                >
+                  {m.checkout_field_postal_code()}
+                </label>
                 <Input
+                  id='pickup-search-postal-code'
                   value={searchPostalCode}
                   onChange={(e) => setSearchPostalCode(e.target.value)}
-                  placeholder='Postal code'
+                  placeholder='75001'
                   className='h-10'
                   required
                 />
               </div>
-              <div className='w-32'>
+              <div className='w-32 grid gap-1.5'>
+                <label
+                  htmlFor='pickup-search-country'
+                  className='text-sm font-medium text-text-primary'
+                >
+                  {m.checkout_field_country()}
+                </label>
                 <Input
+                  id='pickup-search-country'
                   value={searchCountry}
                   onChange={(e) => setSearchCountry(e.target.value.toUpperCase())}
-                  placeholder='Country'
+                  placeholder='FR'
                   className='h-10'
                   maxLength={2}
                   required
                 />
               </div>
-              <Button type='submit'>Search</Button>
+              <div className='flex items-end'>
+                <Button type='submit'>Search</Button>
+              </div>
             </form>
 
             <div className='space-y-3 max-h-72 overflow-y-auto pr-1'>

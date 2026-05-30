@@ -33,8 +33,8 @@ const moveCategoryInputSchema = z.object({
   direction: z.enum(['up', 'down']),
 })
 
-const reorderCategoriesInputSchema = z.object({
-  orderedIds: z.array(z.string().uuid()),
+export const reorderCategoriesInputSchema = z.object({
+  orderedIds: z.array(z.string().uuid()).max(500),
 })
 
 /* -------------------------------------------------------------------------- */

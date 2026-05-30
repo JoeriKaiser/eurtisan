@@ -6,7 +6,7 @@ import { db } from '#/db/index'
 import { shop, shopOrder } from '#/db/schema'
 import { authPipeline, requireRole, requireShopOwnership } from '#/lib/authz'
 import { getShopOrderQuery, updateShopOrderStatusQuery } from '#/lib/shop-orders.server'
-import { validatePlainText } from '#/lib/xss'
+import { validatePlainText, validateTrackingUrl } from '#/lib/xss'
 
 export const Route = createFileRoute('/api/shops/$shopId/orders/$shopOrderId')({
   server: {
@@ -163,11 +163,13 @@ export const Route = createFileRoute('/api/shops/$shopId/orders/$shopOrderId')({
               ? validatePlainText(parsed.data.trackingNumber, 'Tracking number')
               : (parsed.data.trackingNumber ?? null)
 
+            const validatedTrackingUrl = validateTrackingUrl(parsed.data.trackingUrl)
+
             await db
               .update(shopOrder)
               .set({
                 trackingNumber: validatedTrackingNumber,
-                trackingUrl: parsed.data.trackingUrl ?? null,
+                trackingUrl: validatedTrackingUrl,
                 updatedAt: new Date(),
               })
               .where(eq(shopOrder.id, params.shopOrderId))

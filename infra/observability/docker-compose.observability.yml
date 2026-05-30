@@ -7,7 +7,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - alloy_data:/var/lib/alloy
-    command: run --server.http.listen-addr=0.0.0.0:12345 --storage.path=/var/lib/alloy /etc/alloy/config.alloy
+    command: run --server.http.listen-addr=127.0.0.1:12345 --storage.path=/var/lib/alloy /etc/alloy/config.alloy
     # No host ports exposed. Traefik reaches Alloy via the coolify Docker network.
     # For debugging: docker exec -it eurtisan-alloy wget -qO- http://localhost:8027
     networks:
@@ -83,7 +83,6 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=15d'
       - '--storage.tsdb.path=/prometheus'
-      - '--web.enable-remote-write-receiver'
 
 volumes:
   alloy_data:

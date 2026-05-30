@@ -57,6 +57,7 @@ const checkoutFormSchema = z
         shopId: z.string().min(1),
         rateId: z.string().optional(),
         method: z.enum(['standard', 'express', 'manual']),
+        costCents: z.number(),
       }),
     ),
   })
@@ -89,6 +90,7 @@ function getDefaultShippingSelection(
     shopId: shop.shopId,
     method: option?.method ?? 'standard',
     rateId: option?.rateId,
+    costCents: option?.costCents ?? 0,
   }
 }
 
@@ -225,6 +227,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
           form.setFieldValue(`shippingSelections[${i}].shopId`, defaultSel.shopId)
           form.setFieldValue(`shippingSelections[${i}].method`, defaultSel.method)
           form.setFieldValue(`shippingSelections[${i}].rateId`, defaultSel.rateId)
+          form.setFieldValue(`shippingSelections[${i}].costCents`, defaultSel.costCents)
         }
         clearPickupPointIfNoMondialRelay()
 
@@ -693,6 +696,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                                             shopId: shop.shopId,
                                             rateId: option.rateId,
                                             method: option.method,
+                                            costCents: option.costCents,
                                           })
                                           clearPickupPointIfNoMondialRelay()
                                         }}

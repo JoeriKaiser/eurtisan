@@ -2,9 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import { db } from '#/db/index'
 import { payout, platformOrder, shop, shopOrder, user } from '#/db/schema'
-
-import { listCreatorPayoutsQuery } from './payouts.server'
 import { PLATFORM_FEE_PERCENT } from './payouts'
+import { listCreatorPayoutsQuery } from './payouts.server'
 
 /* -------------------------------------------------------------------------- */
 /*                                  Helpers                                   */
@@ -290,15 +289,16 @@ describe('listCreatorPayoutsQuery', () => {
     await seedShop()
     const platformOrd = await seedPlatformOrder()
 
-    await seedShopOrder({
+    const order = await seedShopOrder({
       platformOrderId: platformOrd.id,
       shopId: 'shop-1',
       subtotalCents: 5000,
       status: 'completed',
     })
 
-    // Create a sent payout record for this shop
+    // Create a sent payout record for this specific order
     await db.insert(payout).values({
+      shopOrderId: order.id,
       shopId: 'shop-1',
       amountCents: 4500,
       status: 'sent',
@@ -314,15 +314,16 @@ describe('listCreatorPayoutsQuery', () => {
     await seedShop()
     const platformOrd = await seedPlatformOrder()
 
-    await seedShopOrder({
+    const order = await seedShopOrder({
       platformOrderId: platformOrd.id,
       shopId: 'shop-1',
       subtotalCents: 5000,
       status: 'completed',
     })
 
-    // Create a pending payout record
+    // Create a pending payout record for this specific order
     await db.insert(payout).values({
+      shopOrderId: order.id,
       shopId: 'shop-1',
       amountCents: 4500,
       status: 'pending',
@@ -330,6 +331,44 @@ describe('listCreatorPayoutsQuery', () => {
 
     const result = await listCreatorPayoutsQuery('shop-1')
     expect(result.payouts[0].status).toBe('processing')
+  })
+
+  it('tracks payout status per-order, not globally per-shop', async () => {
+    await seedUser()
+    await seedShop()
+    const platformOrd = await seedPlatformOrder()
+
+    const order1 = await seedShopOrder({
+      platformOrderId: platformOrd.id,
+      shopId: 'shop-1',
+      subtotalCents: 5000,
+      status: 'completed',
+    })
+
+    const order2 = await seedShopOrder({
+      platformOrderId: platformOrd.id,
+      shopId: 'shop-1',
+      subtotalCents: 3000,
+      status: 'completed',
+    })
+
+    // Only order1 has a sent payout
+    await db.insert(payout).values({
+      shopOrderId: order1.id,
+      shopId: 'shop-1',
+      amountCents: 4500,
+      status: 'sent',
+      sentAt: new Date(),
+    })
+
+    const result = await listCreatorPayoutsQuery('shop-1')
+    expect(result.total).toBe(2)
+
+    const line1 = result.payouts.find((p) => p.orderId === order1.id)
+    const line2 = result.payouts.find((p) => p.orderId === order2.id)
+
+    expect(line1?.status).toBe('sent')
+    expect(line2?.status).toBe('processing')
   })
 
   it('supports pagination', async () => {

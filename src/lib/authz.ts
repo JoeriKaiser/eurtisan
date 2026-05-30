@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { shop, type user, type userRoleEnum } from '#/db/schema'
 import { auth } from './auth'
+import { CsrfError, validateCsrf } from './csrf'
 
 export type UserRole = (typeof userRoleEnum.enumValues)[number]
 
@@ -74,6 +75,12 @@ export async function requireAuth(request: Request): Promise<AuthContext> {
       message: 'Authentication required. Please sign in.',
     })
   }
+  if ((result.user as unknown as { bannedAt?: string | null }).bannedAt) {
+    throw new AuthError(403, {
+      error: 'Forbidden',
+      message: 'Account suspended.',
+    })
+  }
   return result as AuthContext
 }
 
@@ -139,12 +146,16 @@ export async function authPipeline(
   handler: (ctx: AuthContext) => Promise<Response>,
 ): Promise<Response> {
   try {
+    validateCsrf(request)
     let ctx = await requireAuth(request)
     for (const gate of gates) {
       ctx = await gate(ctx)
     }
     return await handler(ctx)
   } catch (err) {
+    if (err instanceof CsrfError) {
+      return jsonError(403, 'Forbidden', err.message)
+    }
     if (err instanceof AuthError) {
       return jsonError(err.status, err.body.error, err.body.message)
     }

@@ -12,7 +12,7 @@ import {
 import { useRef, useState } from 'react'
 import { useCart } from '#/components/CartProvider'
 import ProductReviews from '#/components/ProductReviews'
-import { addToCart } from '#/lib/cart'
+import { useAddToCart } from '#/lib/cart-hooks'
 import { formatPriceEUR } from '#/lib/pricing'
 import type { ProductDetail as ProductDetailType } from '#/lib/products.server'
 import { ResponsiveImage } from '#/lib/responsive-image'
@@ -29,7 +29,8 @@ export default function ProductDetail({ product }: ProductDetailProps) {
   const [quantity, setQuantity] = useState(1)
   const [isAdding, setIsAdding] = useState(false)
   const [addStatus, setAddStatus] = useState<AddStatus>('idle')
-  const { cart, refreshCart } = useCart()
+  const { cart } = useCart()
+  const addToCartMutation = useAddToCart()
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isOutOfStock = product.stockCount <= 0
@@ -43,14 +44,15 @@ export default function ProductDetail({ product }: ProductDetailProps) {
     setIsAdding(true)
     setAddStatus('idle')
 
-    let result: Awaited<ReturnType<typeof addToCart>> | null = null
+    let result: Awaited<ReturnType<typeof addToCartMutation.mutateAsync>> | null = null
 
     try {
       const existingQty =
         cart?.shops.flatMap((s) => s.items).find((i) => i.productId === product.id)?.quantity ?? 0
 
-      result = await addToCart({
-        data: { productId: product.id, quantity },
+      result = await addToCartMutation.mutateAsync({
+        productId: product.id,
+        quantity,
       })
 
       if (result === null) {
@@ -62,15 +64,6 @@ export default function ProductDetail({ product }: ProductDetailProps) {
       }
     } catch {
       setAddStatus('error')
-    }
-
-    try {
-      await refreshCart()
-    } catch {
-      // Refresh failure should not mask a successful add
-      if (result !== null && addStatus !== 'error') {
-        // keep current success/capped status
-      }
     } finally {
       setIsAdding(false)
       if (timeoutRef.current) {

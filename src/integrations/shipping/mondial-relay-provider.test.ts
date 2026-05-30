@@ -5,6 +5,7 @@ import {
   MondialRelayProvider,
   mondialRelayProvider,
   resetMockShippingCounter,
+  type MondialRelayProviderDeps,
 } from './mondial-relay-provider'
 
 // ---------------------------------------------------------------------------
@@ -226,6 +227,26 @@ describe('MondialRelayProvider', () => {
       const label2 = await provider.createLabel(details(heavyPackage))
 
       expect(label1.trackingNumber).not.toBe(label2.trackingNumber)
+    })
+
+    it('propagates database errors instead of swallowing them', async () => {
+      const failingDb = {
+        insert: () => ({
+          values: () => Promise.reject(new Error('DB insert failed')),
+        }),
+      } as unknown as NonNullable<MondialRelayProviderDeps['db']>
+
+      const provider = new MondialRelayProvider({ db: failingDb })
+
+      await expect(
+        provider.createLabel({
+          origin: berlinOrigin,
+          destination: parisDestination,
+          package: smallPackage,
+          carrierService: 'mondial_relay',
+          reference: 'order-uuid-fail',
+        }),
+      ).rejects.toThrow('DB insert failed')
     })
   })
 

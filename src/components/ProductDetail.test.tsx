@@ -29,8 +29,11 @@ vi.mock('#/components/CartProvider', () => ({
   useCart: () => ({ cart: null, isLoading: false, refreshCart: mockRefreshCart }),
 }))
 
-vi.mock('#/lib/cart', () => ({
-  addToCart: mockAddToCart,
+vi.mock('#/lib/cart-hooks', () => ({
+  useAddToCart: () => ({
+    mutateAsync: mockAddToCart,
+    isPending: false,
+  }),
 }))
 
 vi.mock('#/components/ProductReviews', () => ({
@@ -136,7 +139,7 @@ describe('ProductDetail', () => {
 
   it('shows placeholder when no images exist', () => {
     render(<ProductDetail product={makeProduct({ images: [] })} />)
-    expect(screen.getByLabelText('No image available')).toBeDefined()
+    expect(screen.getByText('No image available')).toBeDefined()
   })
 
   it('disables add-to-cart button when out of stock', () => {
@@ -229,11 +232,11 @@ describe('ProductDetail', () => {
 
     await waitFor(() => {
       expect(mockAddToCart).toHaveBeenCalledTimes(1)
-      expect(mockRefreshCart).toHaveBeenCalledTimes(1)
       expect(screen.getByText('Added to cart')).toBeDefined()
     })
     expect(mockAddToCart).toHaveBeenCalledWith({
-      data: { productId: 'prod-1', quantity: 1 },
+      productId: 'prod-1',
+      quantity: 1,
     })
   })
 

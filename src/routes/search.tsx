@@ -44,7 +44,7 @@ export const Route = createFileRoute('/search')({
 
     const [categories, shops, products] = await Promise.all([
       listCategories({ data: {} }),
-      listShops(),
+      listShops({ data: { page: 1, pageSize: 100 } }),
       searchProducts({
         data: {
           query,

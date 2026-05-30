@@ -23,7 +23,8 @@ export function AdminPayoutsPage() {
   // Derive history data fresh on every render so pagination works.
   const historyData = initialData.tab === 'history' ? initialData.history : null
 
-  const payouts = initialData.tab === 'pending' ? initialData.payouts : []
+  const payoutsData = initialData.tab === 'pending' ? initialData.payouts : null
+  const payouts = payoutsData?.payouts ?? []
 
   const [status, setStatus] = useState({
     actionPayoutId: null as string | null,
@@ -193,8 +194,14 @@ export function AdminPayoutsPage() {
       {isPendingTab ? (
         <PendingTab
           payouts={payouts}
+          page={payoutsData?.page ?? 1}
+          pageSize={payoutsData?.pageSize ?? 20}
+          total={payoutsData?.total ?? 0}
+          totalPages={payoutsData?.totalPages ?? 0}
           actionPayoutId={status.actionPayoutId}
           onMarkSent={handleMarkSent}
+          onPageChange={handlePageChange}
+          onPageSizeChange={handlePageSizeChange}
         />
       ) : (
         <HistoryTab

@@ -1,3 +1,6 @@
+import { useEffect } from 'react'
+import { useLocation } from '@tanstack/react-router'
+
 interface UmamiConfig {
   scriptUrl: string
   websiteId: string
@@ -20,7 +23,15 @@ function getUmamiConfig(): UmamiConfig | null {
  * markup in development or when disabled.
  */
 export function UmamiScript() {
+  const location = useLocation()
   const config = getUmamiConfig()
+
+  useEffect(() => {
+    if (window.umami && location.pathname) {
+      window.umami.track((props) => ({ ...props, url: location.pathname }))
+    }
+  }, [location.pathname])
+
   if (!config) return null
 
   return (

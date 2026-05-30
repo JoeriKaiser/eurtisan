@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { Banknote } from 'lucide-react'
+import { Banknote, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
@@ -14,9 +14,17 @@ interface PendingPayout {
 
 interface PendingTabProps {
   payouts: PendingPayout[]
+  page: number
+  pageSize: number
+  total: number
+  totalPages: number
   actionPayoutId: string | null
   onMarkSent: (payoutId: string) => void
+  onPageChange: (page: number) => void
+  onPageSizeChange: (pageSize: number) => void
 }
+
+const PAGE_SIZES = [10, 20, 50] as const
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   dateStyle: 'medium',
@@ -28,7 +36,17 @@ function formatDate(date: Date | string | null): string {
   return DATE_FORMATTER.format(new Date(date))
 }
 
-export function PendingTab({ payouts, actionPayoutId, onMarkSent }: PendingTabProps) {
+export function PendingTab({
+  payouts,
+  page,
+  pageSize,
+  total,
+  totalPages,
+  actionPayoutId,
+  onMarkSent,
+  onPageChange,
+  onPageSizeChange,
+}: PendingTabProps) {
   if (payouts.length === 0) {
     return (
       <div className='py-16 text-center'>
@@ -41,83 +59,144 @@ export function PendingTab({ payouts, actionPayoutId, onMarkSent }: PendingTabPr
     )
   }
 
+  const showingFrom = (page - 1) * pageSize + 1
+  const showingTo = Math.min(page * pageSize, total)
+
   return (
-    <div className='overflow-x-auto'>
-      <table className='w-full text-left text-sm'>
-        <thead>
-          <tr className='border-b border-border-default'>
-            <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
-              {m.admin_payouts_col_creator()}
-            </th>
-            <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
-              {m.admin_payouts_col_shop()}
-            </th>
-            <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary text-right'>
-              {m.admin_payouts_col_amount()}
-            </th>
-            <th
-              scope='col'
-              className='pb-3 pr-4 font-semibold text-text-secondary hidden sm:table-cell'
+    <div className='space-y-6'>
+      <div className='overflow-x-auto'>
+        <table className='w-full text-left text-sm'>
+          <thead>
+            <tr className='border-b border-border-default'>
+              <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
+                {m.admin_payouts_col_creator()}
+              </th>
+              <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
+                {m.admin_payouts_col_shop()}
+              </th>
+              <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary text-right'>
+                {m.admin_payouts_col_amount()}
+              </th>
+              <th
+                scope='col'
+                className='pb-3 pr-4 font-semibold text-text-secondary hidden sm:table-cell'
+              >
+                {m.admin_payouts_col_created()}
+              </th>
+              <th scope='col' className='pb-3 font-semibold text-text-secondary text-right'>
+                <span className='sr-only'>{m.admin_payouts_col_actions()}</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody className='divide-y divide-border-subtle'>
+            {payouts.map((payout) => {
+              const isProcessing = actionPayoutId === payout.payoutId
+
+              return (
+                <tr key={payout.payoutId} className='group transition-colors hover:bg-bg-inset/40'>
+                  {/* Creator */}
+                  <td className='py-3 pr-4'>
+                    <span className='font-medium text-text-primary'>{payout.creatorName}</span>
+                  </td>
+
+                  {/* Shop — links to shop moderation */}
+                  <td className='py-3 pr-4'>
+                    <Link
+                      to='/admin/shops'
+                      search={{ filter: 'all' }}
+                      className='text-sm text-accent-primary hover:underline'
+                    >
+                      {payout.shopName}
+                    </Link>
+                  </td>
+
+                  {/* Amount */}
+                  <td className='py-3 pr-4 text-right font-semibold tabular-nums text-text-primary'>
+                    {formatPriceEUR(payout.amountCents)}
+                  </td>
+
+                  {/* Created */}
+                  <td className='py-3 pr-4 hidden sm:table-cell text-text-secondary'>
+                    {formatDate(payout.createdAt)}
+                  </td>
+
+                  {/* Actions */}
+                  <td className='py-3 text-right'>
+                    <Button
+                      variant='primary'
+                      size='sm'
+                      onClick={() => onMarkSent(payout.payoutId)}
+                      disabled={isProcessing}
+                      isLoading={isProcessing}
+                      aria-label={m.admin_payouts_mark_sent_aria({
+                        creator: payout.creatorName,
+                      })}
+                    >
+                      {m.admin_payouts_mark_sent()}
+                    </Button>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      <div className='flex flex-col items-center gap-3 sm:flex-row sm:justify-between'>
+        <div className='flex items-center gap-3'>
+          <p className='text-sm text-text-secondary'>
+            {m.admin_payouts_showing({
+              from: showingFrom,
+              to: showingTo,
+              total,
+            })}
+          </p>
+          <select
+            value={pageSize}
+            onChange={(e) => onPageSizeChange(Number(e.target.value))}
+            className='h-6 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary'
+            aria-label={m.admin_payouts_page_size_label()}
+          >
+            {PAGE_SIZES.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {totalPages > 1 && (
+          <nav className='flex items-center gap-4' aria-label={m.admin_payouts_pagination()}>
+            <Button
+              variant='secondary'
+              size='sm'
+              disabled={page <= 1}
+              onClick={() => onPageChange(page - 1)}
+              aria-label={m.pagination_previous()}
             >
-              {m.admin_payouts_col_created()}
-            </th>
-            <th scope='col' className='pb-3 font-semibold text-text-secondary text-right'>
-              <span className='sr-only'>{m.admin_payouts_col_actions()}</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody className='divide-y divide-border-subtle'>
-          {payouts.map((payout) => {
-            const isProcessing = actionPayoutId === payout.payoutId
-
-            return (
-              <tr key={payout.payoutId} className='group transition-colors hover:bg-bg-inset/40'>
-                {/* Creator */}
-                <td className='py-3 pr-4'>
-                  <span className='font-medium text-text-primary'>{payout.creatorName}</span>
-                </td>
-
-                {/* Shop — links to shop moderation */}
-                <td className='py-3 pr-4'>
-                  <Link
-                    to='/admin/shops'
-                    search={{ filter: 'all' }}
-                    className='text-sm text-accent-primary hover:underline'
-                  >
-                    {payout.shopName}
-                  </Link>
-                </td>
-
-                {/* Amount */}
-                <td className='py-3 pr-4 text-right font-semibold tabular-nums text-text-primary'>
-                  {formatPriceEUR(payout.amountCents)}
-                </td>
-
-                {/* Created */}
-                <td className='py-3 pr-4 hidden sm:table-cell text-text-secondary'>
-                  {formatDate(payout.createdAt)}
-                </td>
-
-                {/* Actions */}
-                <td className='py-3 text-right'>
-                  <Button
-                    variant='primary'
-                    size='sm'
-                    onClick={() => onMarkSent(payout.payoutId)}
-                    disabled={isProcessing}
-                    isLoading={isProcessing}
-                    aria-label={m.admin_payouts_mark_sent_aria({
-                      creator: payout.creatorName,
-                    })}
-                  >
-                    {m.admin_payouts_mark_sent()}
-                  </Button>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+              <ChevronLeft size={16} aria-hidden='true' />
+              {m.pagination_previous()}
+            </Button>
+            <span className='text-sm text-text-secondary'>
+              {m.pagination_page_of({
+                page,
+                totalPages,
+              })}
+            </span>
+            <Button
+              variant='secondary'
+              size='sm'
+              disabled={page >= totalPages}
+              onClick={() => onPageChange(page + 1)}
+              aria-label={m.pagination_next()}
+            >
+              {m.pagination_next()}
+              <ChevronRight size={16} aria-hidden='true' />
+            </Button>
+          </nav>
+        )}
+      </div>
     </div>
   )
 }

@@ -39,6 +39,7 @@
       - ufw
       - fail2ban
       - unattended-upgrades
+      - jq
     state: present
 
 - name: Add Docker GPG key

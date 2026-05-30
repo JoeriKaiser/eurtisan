@@ -4,13 +4,17 @@ import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
-const config = defineConfig({
+const config = defineConfig(({ mode }) => ({
   resolve: { tsconfigPaths: true },
   ssr: {
     external: ['zod', 'better-auth', '@better-auth/core', '@better-auth/drizzle-adapter'],
   },
   plugins: [
-    tanstackStart(),
+    tanstackStart({
+      router: {
+        routeFileIgnorePattern: mode === 'production' ? 'mollie-mock-oauth' : undefined,
+      },
+    }),
     viteReact(),
     tailwindcss(),
     paraglideVitePlugin({
@@ -31,6 +35,6 @@ const config = defineConfig({
     // plugin supports stable hashes or suppressHydrationWarning propagation.
     // devtools(),
   ],
-})
+}))
 
 export default config

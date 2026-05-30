@@ -1,6 +1,7 @@
 import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { categories, product, productImage, shop } from '#/db/schema'
+import { logger } from './logger.server'
 import { sanitizeRichText, validatePlainText } from './xss'
 
 function parsePriceToCents(price: string): number {
@@ -327,29 +328,62 @@ export async function getShopProductsQuery(
   }
 }
 
-export async function listProductsByShopQuery(shopId: string) {
-  return db.select().from(product).where(eq(product.shopId, shopId))
+export async function listProductsByShopQuery(shopId: string, limit = 20, offset = 0) {
+  const boundedLimit = Math.min(100, Math.max(1, limit))
+  const boundedOffset = Math.max(0, offset)
+  return db
+    .select()
+    .from(product)
+    .where(eq(product.shopId, shopId))
+    .limit(boundedLimit)
+    .offset(boundedOffset)
 }
 
-export async function listProductsByCategorySlugQuery(slug: string) {
+export async function listProductsByCategorySlugQuery(
+  slug: string,
+  pagination: Pagination = { page: 1, pageSize: 20 },
+): Promise<PaginatedProducts> {
   const category = await db.select().from(categories).where(eq(categories.slug, slug)).limit(1)
 
   if (category.length === 0) {
-    return []
+    return { products: [], total: 0, page: 1, pageSize: 20, totalPages: 0 }
   }
 
-  return db
+  const page = Math.max(1, pagination.page)
+  const pageSize = Math.min(100, Math.max(1, pagination.pageSize))
+  const offset = (page - 1) * pageSize
+
+  const where = and(
+    eq(product.categoryId, category[0].id),
+    eq(shop.isSuspended, false),
+    eq(product.isActive, true),
+  )
+
+  const [totalResult] = await db
+    .select({ total: count() })
+    .from(product)
+    .innerJoin(categories, eq(product.categoryId, categories.id))
+    .innerJoin(shop, eq(product.shopId, shop.id))
+    .where(where)
+
+  const total = totalResult?.total ?? 0
+
+  const products = await db
     .select(publicProductColumns)
     .from(product)
     .innerJoin(categories, eq(product.categoryId, categories.id))
     .innerJoin(shop, eq(product.shopId, shop.id))
-    .where(
-      and(
-        eq(product.categoryId, category[0].id),
-        eq(shop.isSuspended, false),
-        eq(product.isActive, true),
-      ),
-    )
+    .where(where)
+    .limit(pageSize)
+    .offset(offset)
+
+  return {
+    products: products as PublicProduct[],
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
+  }
 }
 
 export async function listRecentProductsQuery(limit = 8): Promise<RecentProduct[]> {
@@ -567,7 +601,38 @@ export async function searchProductsQuery(
   }
 }
 
-export async function listShopsQuery(): Promise<{ id: string; name: string; slug: string }[]> {
+export async function searchSuggestionsFallbackQuery(query: string) {
+  const trimmedQuery = query.trim().slice(0, 255)
+
+  const results = await db
+    .select({
+      name: product.name,
+      slug: product.slug,
+      shopSlug: shop.slug,
+      categorySlug: categories.slug,
+    })
+    .from(product)
+    .innerJoin(shop, eq(product.shopId, shop.id))
+    .leftJoin(categories, eq(product.categoryId, categories.id))
+    .where(
+      and(
+        eq(shop.status, 'active'),
+        eq(shop.isSuspended, false),
+        eq(product.isActive, true),
+        ilike(product.name, `%${trimmedQuery}%`),
+      ),
+    )
+    .limit(6)
+
+  return results
+}
+
+export async function listShopsQuery(
+  limit = 20,
+  offset = 0,
+): Promise<{ id: string; name: string; slug: string }[]> {
+  const boundedLimit = Math.min(100, Math.max(1, limit))
+  const boundedOffset = Math.max(0, offset)
   return db
     .select({
       id: shop.id,
@@ -577,6 +642,8 @@ export async function listShopsQuery(): Promise<{ id: string; name: string; slug
     .from(shop)
     .where(and(eq(shop.status, 'active'), eq(shop.isSuspended, false)))
     .orderBy(shop.name)
+    .limit(boundedLimit)
+    .offset(boundedOffset)
 }
 
 export async function createProductInternal(data: {
@@ -612,7 +679,11 @@ export async function createProductInternal(data: {
       .returning(),
     import('./meilisearch-products.server'),
   ])
-  await syncProductToMeilisearch(newProduct)
+  try {
+    await syncProductToMeilisearch(newProduct)
+  } catch (err) {
+    logger.warn('Failed to sync product to Meilisearch', { productId: newProduct.id, error: err })
+  }
 
   return newProduct
 }

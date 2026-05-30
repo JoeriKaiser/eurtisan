@@ -1,3 +1,4 @@
+import { randomBytes, scryptSync } from 'node:crypto'
 import { rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
@@ -20,12 +21,12 @@ import {
 } from '@faker-js/faker'
 import { sql } from 'drizzle-orm'
 import { pool } from '../db.ts'
-import { db } from './index.ts'
 import {
   clearProductsIndex,
   configureProductsIndex,
   populateProductsIndex,
 } from '../lib/meilisearch-products.server.ts'
+import { db } from './index.ts'
 import * as schema from './schema.ts'
 
 // =============================================================================
@@ -50,9 +51,17 @@ const CONFIG = {
   disputes: 15,
 }
 
-/** Shared password hash for all seeded credential accounts. */
-const PASSWORD_HASH =
-  'f2867747b76f33fb95f454d2c2fabe35:a46362e9e227f1d1d4a3485be43a107d23f16ebfceb29c9820cfb4309e8531ad1f1678e1b9cb951d5ee9e90632c028796e7edf06b2105208fd7acc899f5b2642'
+/** Generate a unique scrypt password hash compatible with Better Auth. */
+function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString('hex')
+  const key = scryptSync(password, salt, 64, {
+    N: 16384,
+    r: 16,
+    p: 1,
+    maxmem: 128 * 16384 * 16 * 2,
+  })
+  return `${salt}:${key.toString('hex')}`
+}
 
 const PRODUCTS_UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'products')
 const SHOPS_UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'shops')
@@ -206,13 +215,15 @@ async function seedUsers() {
       image: avatarUrl(k.email),
     })
     if (k.role !== 'customer') {
+      const password = k.email.split('@')[0]
       accounts.push({
         id: crypto.randomUUID(),
         accountId: id,
         providerId: 'credential',
         userId: id,
-        password: PASSWORD_HASH,
+        password: hashPassword(password),
       })
+      console.log(`  Credentials: ${k.email} / ${password}`)
     }
   }
 
@@ -250,7 +261,7 @@ async function seedUsers() {
       accountId: id,
       providerId: 'credential',
       userId: id,
-      password: PASSWORD_HASH,
+      password: hashPassword(randomBytes(32).toString('hex')),
     })
   }
 
@@ -274,7 +285,7 @@ async function seedUsers() {
         accountId: id,
         providerId: 'credential',
         userId: id,
-        password: PASSWORD_HASH,
+        password: hashPassword(randomBytes(32).toString('hex')),
       })
     }
   }
@@ -1234,6 +1245,19 @@ async function seedNotifications(users: (typeof schema.user.$inferInsert)[]) {
 // =============================================================================
 async function seed() {
   const shouldClear = process.argv.includes('--clear')
+  const shouldForce = process.argv.includes('--force')
+
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Seeding is disabled in production')
+  }
+
+  if (process.env.NODE_ENV === 'production' && shouldClear) {
+    throw new Error('Clearing data is disabled in production')
+  }
+
+  if (shouldClear && !shouldForce) {
+    throw new Error('Use --force to confirm clearing data')
+  }
 
   if (shouldClear) {
     await clearAll()

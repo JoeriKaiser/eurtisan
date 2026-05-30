@@ -8,6 +8,11 @@ export const Route = createFileRoute('/api/products')({
       GET: async ({ request }) => {
         const url = new URL(request.url)
         const categorySlug = url.searchParams.get('category')
+        const page = Math.max(1, Number(url.searchParams.get('page') ?? '1'))
+        const pageSize = Math.min(
+          100,
+          Math.max(1, Number(url.searchParams.get('pageSize') ?? '20')),
+        )
 
         if (!categorySlug) {
           return new Response(
@@ -22,12 +27,15 @@ export const Route = createFileRoute('/api/products')({
           )
         }
 
-        const products = await listProductsByCategorySlugQuery(categorySlug)
+        const result = await listProductsByCategorySlugQuery(categorySlug, {
+          page,
+          pageSize,
+        })
 
         return new Response(
           JSON.stringify({
             categorySlug,
-            products,
+            ...result,
           }),
           {
             status: 200,

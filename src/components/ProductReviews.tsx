@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, MessageSquare, Star } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { getProductReviews } from '#/lib/reviews'
 import type { ProductReviewsResult } from '#/lib/reviews.server'
 import { m } from '#/paraglide/messages'
@@ -68,50 +69,18 @@ function DistributionBar({
 }
 
 export default function ProductReviews({ productId }: ProductReviewsProps) {
-  const abortRef = useRef<(() => void) | undefined>(undefined)
-  const [data, setData] = useState<ProductReviewsResult | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
 
-  const fetchReviews = useCallback(
-    async (targetPage: number) => {
-      abortRef.current?.()
-      let cancelled = false
-      abortRef.current = () => {
-        cancelled = true
-      }
+  const { data, isLoading, error } = useQuery<ProductReviewsResult>({
+    queryKey: ['product-reviews', productId, page],
+    queryFn: async () =>
+      getProductReviews({
+        data: { productId, page, pageSize: 10 },
+      }),
+    placeholderData: (previousData) => previousData,
+  })
 
-      setLoading(true)
-      setError(null)
-      try {
-        const result = await getProductReviews({
-          data: { productId, page: targetPage, pageSize: 10 },
-        })
-        if (!cancelled) {
-          setData(result)
-        }
-      } catch {
-        if (!cancelled) {
-          setError(m.reviews_load_error())
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
-      }
-    },
-    [productId],
-  )
-
-  useEffect(() => {
-    fetchReviews(1)
-    const abort = abortRef.current
-    return () => {
-      abort?.()
-    }
-  }, [fetchReviews])
-
-  if (loading && !data) {
+  if (isLoading && !data) {
     return (
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
         <div className='animate-pulse space-y-4'>
@@ -125,7 +94,7 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
   if (error) {
     return (
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
-        <p className='text-sm text-[var(--ds-error)]'>{error}</p>
+        <p className='text-sm text-[var(--ds-error)]'>{m.reviews_load_error()}</p>
       </section>
     )
   }
@@ -222,8 +191,8 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
         <div className='mt-6 flex items-center justify-between border-t border-[var(--ds-border-subtle)] pt-4'>
           <button
             type='button'
-            onClick={() => fetchReviews(data.page - 1)}
-            disabled={!hasPrev || loading}
+            onClick={() => setPage((p) => p - 1)}
+            disabled={!hasPrev || isLoading}
             className='inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-[var(--ds-text-secondary)] transition hover:bg-[var(--ds-bg-inset)] disabled:cursor-not-allowed disabled:opacity-40'
           >
             <ChevronLeft size={16} aria-hidden='true' />
@@ -234,8 +203,8 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
           </span>
           <button
             type='button'
-            onClick={() => fetchReviews(data.page + 1)}
-            disabled={!hasNext || loading}
+            onClick={() => setPage((p) => p + 1)}
+            disabled={!hasNext || isLoading}
             className='inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-[var(--ds-text-secondary)] transition hover:bg-[var(--ds-bg-inset)] disabled:cursor-not-allowed disabled:opacity-40'
           >
             {m.pagination_next()}

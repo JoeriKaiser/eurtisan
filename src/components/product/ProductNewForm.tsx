@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import type { CreatorShop } from '#/lib/creator-dashboard'
 import { createProduct } from '#/lib/creator-products'
+import { createProductSchema } from '#/lib/creator-products.schema'
 import { useImageUpload } from '#/hooks/useImageUpload'
 import { m } from '#/paraglide/messages'
 import { Button } from '#/components/ui/button'
@@ -245,41 +246,102 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
   /* ---------------------------- Form validation ---------------------------- */
 
   const validateForm = useCallback((): boolean => {
-    const errors: Record<string, string> = {}
+    const priceCents = Math.round(Number.parseFloat(formState.values.price) * 100)
 
-    if (!formState.values.name.trim()) {
-      errors.name = m.creator_product_new_name_required()
+    const payload = {
+      shopId: formState.values.shopId,
+      name: formState.values.name.trim(),
+      slug: formState.values.slug.trim(),
+      description: formState.values.description.trim() || undefined,
+      priceCents,
+      stockCount: Number.parseInt(formState.values.stockCount, 10) || 0,
+      categoryId: formState.values.categoryId || undefined,
+      isActive: formState.values.isActive,
+      vatRateCategory: formState.values.vatRateCategory,
+      images: images
+        .filter((img) => !img.error && !img.uploading && img.key)
+        .map((img) => ({ key: img.key, altText: img.altText || undefined })),
     }
 
-    if (!formState.values.slug.trim()) {
-      errors.slug = m.creator_product_new_slug_required()
-    } else if (formState.slugError) {
-      errors.slug = formState.slugError
+    const result = createProductSchema.safeParse(payload)
+    if (!result.success) {
+      const errors: Record<string, string> = {}
+
+      for (const issue of result.error.issues) {
+        const field = issue.path[0] as string
+        if (errors[field]) continue
+
+        switch (field) {
+          case 'name':
+            errors.name =
+              issue.code === 'too_big'
+                ? m.creator_product_new_name_too_long()
+                : m.creator_product_new_name_required()
+            break
+          case 'slug':
+            if (issue.code === 'too_big') {
+              errors.slug = m.creator_product_new_slug_too_long()
+            } else if (issue.code === 'invalid_string') {
+              errors.slug = m.creator_product_new_slug_format_error()
+            } else {
+              errors.slug = m.creator_product_new_slug_required()
+            }
+            break
+          case 'description':
+            errors.description = m.creator_product_new_description_too_long()
+            break
+          case 'priceCents':
+            if (issue.code === 'too_big') {
+              errors.price = m.creator_product_new_price_too_high()
+            } else {
+              errors.price = m.creator_product_new_price_positive()
+            }
+            break
+          case 'stockCount':
+            errors.stock = m.creator_product_new_stock_negative()
+            break
+          case 'images':
+            errors.images =
+              issue.code === 'too_big'
+                ? m.creator_product_new_images_error_max()
+                : m.creator_product_new_images_error_type()
+            break
+          case 'categoryId':
+            errors.categoryId = m.creator_product_new_category_invalid()
+            break
+          default:
+            errors[field] = issue.message
+        }
+      }
+
+      // Also surface any debounced slug format error not caught by Zod
+      if (!errors.slug && formState.slugError) {
+        errors.slug = formState.slugError
+      }
+
+      dispatchForm({ type: 'setFieldErrors', errors })
+      return false
     }
 
-    if (formState.values.description.length > 2000) {
-      errors.description = m.creator_product_new_description_too_long()
+    // Surface debounced slug format error even if Zod passes
+    if (formState.slugError) {
+      dispatchForm({ type: 'setFieldErrors', errors: { slug: formState.slugError } })
+      return false
     }
 
-    const priceNum = Number.parseFloat(formState.values.price)
-    if (!formState.values.price || Number.isNaN(priceNum)) {
-      errors.price = m.creator_product_new_price_required()
-    } else if (priceNum <= 0) {
-      errors.price = m.creator_product_new_price_positive()
-    }
-
-    const stockNum = Number.parseInt(formState.values.stockCount, 10)
-    if (Number.isNaN(stockNum) || stockNum < 0) {
-      errors.stock = m.creator_product_new_stock_negative()
-    }
-
+    // Check for images that failed upload (these are filtered out of the payload,
+    // but we should still warn the user before submission).
     const erroredImages = images.filter((img) => img.error)
     if (erroredImages.length > 0) {
-      errors.images = m.creator_product_new_images_error_type()
+      dispatchForm({
+        type: 'setFieldErrors',
+        errors: { images: m.creator_product_new_images_error_type() },
+      })
+      return false
     }
 
-    dispatchForm({ type: 'setFieldErrors', errors })
-    return Object.keys(errors).length === 0
+    dispatchForm({ type: 'setFieldErrors', errors: {} })
+    return true
   }, [formState.values, formState.slugError, images])
 
   /* ---------------------------- Form submission ---------------------------- */

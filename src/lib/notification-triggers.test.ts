@@ -119,7 +119,7 @@ describe('createCheckoutQuery notifications', () => {
     const result = await createCheckoutQuery(
       {
         cartId: c.id,
-        shippingSelections: [{ shopId: 'shop-1', method: 'standard' }],
+        shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 538 }],
         shippingAddress: {
           name: 'Test',
           street: 'St',
@@ -171,7 +171,7 @@ describe('createCheckoutQuery notifications', () => {
     const result = await createCheckoutQuery(
       {
         cartId: c.id,
-        shippingSelections: [{ shopId: 'shop-1', method: 'standard' }],
+        shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 538 }],
         shippingAddress: {
           name: 'Test',
           street: 'St',
@@ -479,7 +479,7 @@ describe('createCheckoutQuery emails', () => {
     await createCheckoutQuery(
       {
         cartId: c.id,
-        shippingSelections: [{ shopId: 'shop-1', method: 'standard' }],
+        shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 538 }],
         shippingAddress: {
           name: 'Test',
           street: 'St',
@@ -533,7 +533,7 @@ describe('createCheckoutQuery emails', () => {
     await createCheckoutQuery(
       {
         cartId: c.id,
-        shippingSelections: [{ shopId: 'shop-1', method: 'standard' }],
+        shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 538 }],
         shippingAddress: {
           name: 'Test',
           street: 'St',
@@ -587,7 +587,7 @@ describe('createCheckoutQuery emails', () => {
     const result = await createCheckoutQuery(
       {
         cartId: c.id,
-        shippingSelections: [{ shopId: 'shop-1', method: 'standard' }],
+        shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 538 }],
         shippingAddress: {
           name: 'Test',
           street: 'St',
@@ -917,7 +917,7 @@ describe('dispute email notifications', () => {
 
     sendSpy.mockClear()
 
-    await resolveDisputeQuery(d.id, { resolution: 'close' })
+    await resolveDisputeQuery(d.id, { resolution: 'close' }, { userId: 'admin-1', role: 'admin' })
 
     const buyerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'buyer@example.com')
     const sellerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'seller@example.com')
@@ -983,7 +983,11 @@ describe('dispute email notifications', () => {
       buyer.id,
     )
 
-    const result = await resolveDisputeQuery(d.id, { resolution: 'close' })
+    const result = await resolveDisputeQuery(
+      d.id,
+      { resolution: 'close' },
+      { userId: 'admin-1', role: 'admin' },
+    )
 
     expect(result.status).toBe('resolved')
     expect(result.resolution).toBe('close')

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '#/db/index'
 import { categories } from '#/db/schema'
+import { reorderCategoriesInputSchema } from './admin-categories'
 import {
   listCategoriesAdminQuery,
   moveCategoryQuery,
@@ -97,5 +98,19 @@ describe('reorderCategoriesQuery', () => {
     expect(rows[0].id).toBe(c.id)
     expect(rows[1].id).toBe(a.id)
     expect(rows[2].id).toBe(b.id)
+  })
+})
+
+describe('reorderCategoriesInputSchema', () => {
+  it('rejects arrays larger than 500 items', () => {
+    const orderedIds = Array.from({ length: 501 }, () => crypto.randomUUID())
+    const result = reorderCategoriesInputSchema.safeParse({ orderedIds })
+    expect(result.success).toBe(false)
+  })
+
+  it('accepts arrays of exactly 500 items', () => {
+    const orderedIds = Array.from({ length: 500 }, () => crypto.randomUUID())
+    const result = reorderCategoriesInputSchema.safeParse({ orderedIds })
+    expect(result.success).toBe(true)
   })
 })

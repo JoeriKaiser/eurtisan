@@ -143,7 +143,7 @@ function renderShippingNotification(data: Record<string, unknown>): RenderedEmai
       </td>
     </tr>
   </table>
-  ${trackingUrl ? `<br /><div style="font-size: 16px; line-height: 1.5;"><a href="${escapeHtml(trackingUrl)}" style="color: #2563eb; text-decoration: underline;">Track your shipment</a></div>` : ''}
+  ${trackingUrl ? `<br /><div style="font-size: 16px; line-height: 1.5;"><a href="${escapeHtml(trackingUrl)}" rel="noopener noreferrer" style="color: #2563eb; text-decoration: underline;">Track your shipment</a></div>` : ''}
   <br /><br />
   <div style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
     Eurtisan — Empowering European artisans and their communities.

@@ -5,6 +5,7 @@ import {
   meilisearchClient,
   PRODUCTS_INDEX,
 } from '#/lib/meilisearch-client'
+import { searchSuggestionsFallback } from '#/lib/products'
 
 export interface SearchSuggestion {
   type: 'query' | 'product' | 'category'
@@ -14,35 +15,32 @@ export interface SearchSuggestion {
 }
 
 async function fetchSuggestions(query: string): Promise<SearchSuggestion[]> {
-  if (!isMeilisearchClientConfigured() || !meilisearchClient || query.trim().length < 1) {
+  if (query.trim().length < 1) {
     return []
   }
 
-  try {
-    const index = meilisearchClient.index(PRODUCTS_INDEX)
-
-    // Search product names only for fast autocomplete
-    const result = await index.search(query, {
-      attributesToSearchOn: ['name'],
-      limit: 6,
-      attributesToRetrieve: ['id', 'name', 'slug', 'categorySlug'],
-    })
-
+  const buildSuggestions = (
+    query: string,
+    hits: Array<{
+      name: string
+      slug: string
+      shopSlug: string | null
+      categorySlug: string | null
+    }>,
+  ): SearchSuggestion[] => {
     const suggestions: SearchSuggestion[] = []
     const seenLabels = new Set<string>()
 
-    // Add query suggestion itself
     suggestions.push({ type: 'query', label: query })
     seenLabels.add(query.toLowerCase())
 
     const categories = new Map<string, string>()
 
-    for (const hit of result.hits) {
-      const doc = hit as Record<string, unknown>
-      const name = String(doc.name ?? '')
-      const slug = String(doc.slug ?? '')
-      const shopSlug = doc.shopSlug ? String(doc.shopSlug) : 'unknown'
-      const categorySlug = doc.categorySlug ? String(doc.categorySlug) : null
+    for (const hit of hits) {
+      const name = hit.name
+      const slug = hit.slug
+      const shopSlug = hit.shopSlug ?? 'unknown'
+      const categorySlug = hit.categorySlug
 
       if (name && !seenLabels.has(name.toLowerCase())) {
         suggestions.push({
@@ -59,7 +57,6 @@ async function fetchSuggestions(query: string): Promise<SearchSuggestion[]> {
       }
     }
 
-    // Add category shortcuts (max 2)
     let categoryCount = 0
     for (const [categorySlug] of categories) {
       if (categoryCount >= 2) break
@@ -73,8 +70,50 @@ async function fetchSuggestions(query: string): Promise<SearchSuggestion[]> {
     }
 
     return suggestions.slice(0, 8)
+  }
+
+  if (isMeilisearchClientConfigured() && meilisearchClient) {
+    try {
+      const index = meilisearchClient.index(PRODUCTS_INDEX)
+
+      const result = await index.search(query, {
+        attributesToSearchOn: ['name'],
+        limit: 6,
+        attributesToRetrieve: ['id', 'name', 'slug', 'categorySlug'],
+      })
+
+      const hits = result.hits.map((hit) => {
+        const doc = hit as Record<string, unknown>
+        return {
+          name: String(doc.name ?? ''),
+          slug: String(doc.slug ?? ''),
+          shopSlug: doc.shopSlug ? String(doc.shopSlug) : null,
+          categorySlug: doc.categorySlug ? String(doc.categorySlug) : null,
+        }
+      })
+
+      return buildSuggestions(query, hits)
+    } catch {
+      // Fall through to DB fallback
+    }
+  }
+
+  /* -------------------------------------------------------------------------- */
+  /*                            DB Fallback                                     */
+  /* -------------------------------------------------------------------------- */
+
+  try {
+    const dbResults = await searchSuggestionsFallback({ data: { query } })
+
+    const hits = dbResults.map((r) => ({
+      name: r.name,
+      slug: r.slug,
+      shopSlug: r.shopSlug,
+      categorySlug: r.categorySlug,
+    }))
+
+    return buildSuggestions(query, hits)
   } catch {
-    // Fallback: just return the query as a suggestion
     return [{ type: 'query', label: query }]
   }
 }
@@ -96,7 +135,7 @@ export function useSearchSuggestions(query: string, enabled: boolean) {
   return useQuery({
     queryKey: ['search-suggestions', debouncedQuery],
     queryFn: () => fetchSuggestions(debouncedQuery),
-    enabled: enabled && debouncedQuery.trim().length >= 1 && isMeilisearchClientConfigured(),
+    enabled: enabled && debouncedQuery.trim().length >= 1,
     staleTime: 30_000,
     gcTime: 5 * 60_000,
     placeholderData: (previousData) => previousData,

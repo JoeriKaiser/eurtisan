@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { hasDangerousContent, hasHtmlTags, sanitizeRichText, validatePlainText } from './xss'
+import {
+  hasDangerousContent,
+  hasHtmlTags,
+  sanitizeRichText,
+  validatePlainText,
+  validateTrackingUrl,
+} from './xss'
 
 describe('hasHtmlTags', () => {
   it('returns true for HTML tags', () => {
@@ -129,5 +135,46 @@ describe('validatePlainText', () => {
   it('does not throw for words starting with "on"', () => {
     expect(validatePlainText('Monday morning')).toBe('Monday morning')
     expect(validatePlainText('once upon a time')).toBe('once upon a time')
+  })
+})
+
+describe('validateTrackingUrl', () => {
+  it('returns null for empty/null/undefined input', () => {
+    expect(validateTrackingUrl('')).toBeNull()
+    expect(validateTrackingUrl(null)).toBeNull()
+    expect(validateTrackingUrl(undefined)).toBeNull()
+  })
+
+  it('returns trimmed URL for valid HTTP(S) URLs', () => {
+    expect(validateTrackingUrl('https://track.example.com/123')).toBe(
+      'https://track.example.com/123',
+    )
+    expect(validateTrackingUrl('http://track.example.com/123')).toBe('http://track.example.com/123')
+    expect(validateTrackingUrl('  https://track.example.com/123  ')).toBe(
+      'https://track.example.com/123',
+    )
+  })
+
+  it('throws 400 for javascript: scheme', () => {
+    expect(() => validateTrackingUrl('javascript:alert(1)')).toThrow()
+    try {
+      validateTrackingUrl('javascript:alert(1)')
+    } catch (err) {
+      expect(err).toBeInstanceOf(Response)
+      expect((err as Response).status).toBe(400)
+    }
+  })
+
+  it('throws 400 for data: scheme', () => {
+    expect(() => validateTrackingUrl('data:text/html,<script>alert(1)</script>')).toThrow()
+  })
+
+  it('throws 400 for vbscript: scheme', () => {
+    expect(() => validateTrackingUrl('vbscript:msgbox(1)')).toThrow()
+  })
+
+  it('throws 400 for non-URL input', () => {
+    expect(() => validateTrackingUrl('not-a-url')).toThrow()
+    expect(() => validateTrackingUrl('ftp://track.example.com/123')).toThrow()
   })
 })

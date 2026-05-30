@@ -5,6 +5,8 @@
  * transition so developers can trace orders in production.
  */
 
+import { logger } from './logger.server'
+
 export type OrderLifecycleEvent =
   | 'order_created'
   | 'order_paid'
@@ -26,17 +28,10 @@ export interface OrderLogEntry {
  * Write a structured order lifecycle log entry to stdout.
  *
  * The output is a single-line JSON object suitable for ingestion by log
- * aggregators (e.g. ELK, Datadog, CloudWatch).
+ * aggregators (e.g. Loki, ELK, Datadog, CloudWatch).
  */
 export function logOrderLifecycle(entry: OrderLogEntry): void {
-  const payload = {
-    level: 'info',
-    service: 'eurtisan',
-    ...entry,
-  }
-
-  // eslint-disable-next-line no-console
-  console.log(JSON.stringify(payload))
+  logger.info('order_lifecycle', entry)
 }
 
 /**

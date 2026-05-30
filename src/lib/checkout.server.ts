@@ -87,6 +87,8 @@ export interface ShippingSelection {
   /** The rate ID from the selected ShippingOption for server-side validation. */
   rateId?: string
   method: 'standard' | 'express' | 'manual'
+  /** The cost in cents the user was quoted for this option. */
+  costCents: number
 }
 
 export interface ShippingAddress {
@@ -524,12 +526,38 @@ export async function createCheckoutWithProvider(
     }
 
     const options = shippingOptionsByShop.get(shopId) ?? []
-    const optionByRateId = new Map(options.map((o) => [o.rateId, o]))
-    const optionByMethod = new Map(options.map((o) => [o.method, o]))
-    const matchingOption =
-      optionByRateId.get(selection.rateId) ?? optionByMethod.get(selection.method) ?? options[0]
+    let matchingOption: ShippingOption | undefined
+
+    if (selection.rateId !== undefined) {
+      matchingOption = options.find((o) => o.rateId === selection.rateId)
+    } else {
+      matchingOption = options.find((o) => o.method === selection.method)
+    }
 
     if (!matchingOption) {
+      // When the only available options are fallbacks, the real issue is
+      // provider unavailability, not an invalid client selection.
+      const hasRealOption = options.some((o) => !o.fallback)
+      if (!hasRealOption && options.length > 0) {
+        const fallbackOption = options[0]
+        if (fallbackOption.label === UNSUPPORTED_FALLBACK.label) {
+          throw new Response(
+            JSON.stringify({
+              error: 'Unprocessable',
+              message: UNSUPPORTED_DESTINATION_ERROR,
+            }),
+            { status: 422, headers: { 'Content-Type': 'application/json' } },
+          )
+        }
+        throw new Response(
+          JSON.stringify({
+            error: 'Service Unavailable',
+            message: 'Shipping rates are temporarily unavailable. Please try again.',
+          }),
+          { status: 503, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+
       throw new Response(
         JSON.stringify({
           error: 'Bad Request',
@@ -557,6 +585,16 @@ export async function createCheckoutWithProvider(
           message: 'Shipping rates are temporarily unavailable. Please try again.',
         }),
         { status: 503, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    if (matchingOption.costCents !== selection.costCents) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Bad Request',
+          message: `Shipping cost mismatch for shop ${shopId}`,
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
       )
     }
   }
@@ -597,7 +635,26 @@ export async function createCheckoutWithProvider(
       })
     }
 
-    // 2. Validate available stock for every product (accounting for reservations)
+    // 2. Validate product and shop approval status
+    for (const row of items) {
+      if (
+        !row.product ||
+        !row.shopRecord ||
+        !row.product.isActive ||
+        row.shopRecord.status !== 'active' ||
+        row.shopRecord.isSuspended
+      ) {
+        throw new Response(
+          JSON.stringify({
+            error: 'Bad Request',
+            message: 'One or more items in your cart are no longer available.',
+          }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+    }
+
+    // 3. Validate available stock for every product (accounting for reservations)
     const productIds = items.map((r) => r.product?.id).filter((id): id is string => !!id)
     const availableStockMap = await getAvailableStockForProducts(productIds)
 
@@ -624,7 +681,7 @@ export async function createCheckoutWithProvider(
       )
     }
 
-    // 3. Group items by shop and calculate subtotals + VAT
+    // 4. Group items by shop and calculate subtotals + VAT
     const shopGroups = new Map<
       string,
       {
@@ -695,14 +752,14 @@ export async function createCheckoutWithProvider(
       }
     }
 
-    // 4. Calculate grand total using server-verified shipping costs
+    // 5. Calculate grand total using server-verified shipping costs
     let grandTotalCents = 0
     for (const [, group] of shopGroups) {
       const shipCost = shippingCostByShop.get(group.shopId) ?? 0
       grandTotalCents += group.subtotalCents + shipCost
     }
 
-    // 5. Create platform order
+    // 6. Create platform order
     const [platformOrderRecord] = await tx
       .insert(platformOrder)
       .values({
@@ -714,7 +771,7 @@ export async function createCheckoutWithProvider(
       })
       .returning()
 
-    // 6. Create shop orders and order items
+    // 7. Create shop orders and order items
     const createdShopOrders = await Promise.all(
       Array.from(shopGroups.values()).map(async (group) => {
         const selection = selectionMap.get(group.shopId)
@@ -755,36 +812,38 @@ export async function createCheckoutWithProvider(
       }),
     )
 
-    // 9. Reserve stock for every cart item atomically
+    // 8. Reserve stock for every cart item atomically
     // Intentionally sequential within transaction to avoid row-lock contention on product inventory.
+    // Sort by product ID to guarantee deterministic lock ordering and prevent deadlocks between
+    // concurrent checkouts that have the same products in different cart insertion orders.
     const reservationExpiresAt = new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
-    for (const [, group] of shopGroups) {
-      for (const lineItem of group.items) {
-        try {
-          await reserveStockInTx(
-            tx,
-            lineItem.product.id,
-            platformOrderRecord.id,
-            lineItem.quantity,
-            reservationExpiresAt,
+    const allLineItems = Array.from(shopGroups.values()).flatMap((group) => group.items)
+    allLineItems.sort((a, b) => a.product.id.localeCompare(b.product.id))
+    for (const lineItem of allLineItems) {
+      try {
+        await reserveStockInTx(
+          tx,
+          lineItem.product.id,
+          platformOrderRecord.id,
+          lineItem.quantity,
+          reservationExpiresAt,
+        )
+      } catch (err) {
+        if (err instanceof InsufficientStockError) {
+          throw new Response(
+            JSON.stringify({
+              error: 'Conflict',
+              message: 'Some items are out of stock',
+              productIds: [lineItem.product.id],
+            }),
+            { status: 409, headers: { 'Content-Type': 'application/json' } },
           )
-        } catch (err) {
-          if (err instanceof InsufficientStockError) {
-            throw new Response(
-              JSON.stringify({
-                error: 'Conflict',
-                message: 'Some items are out of stock',
-                productIds: [lineItem.product.id],
-              }),
-              { status: 409, headers: { 'Content-Type': 'application/json' } },
-            )
-          }
-          throw err
         }
+        throw err
       }
     }
 
-    // 10. Clear cart and its items
+    // 9. Clear cart and its items
     await tx.delete(cartItem).where(eq(cartItem.cartId, input.cartId))
     await tx.delete(cart).where(eq(cart.id, input.cartId))
 

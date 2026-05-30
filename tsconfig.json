@@ -18,6 +18,7 @@
     "noEmit": true,
 
     /* Linting */
+    "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
     "noUnusedLocals": true,

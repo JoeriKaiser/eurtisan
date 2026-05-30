@@ -15,6 +15,7 @@ export type OrderStatus =
   | 'cancelled'
   | 'refunded'
   | 'disputed'
+  | 'manual_review'
 
 export interface OrderItemDetail {
   id: string

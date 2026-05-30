@@ -21,7 +21,6 @@ import {
 import {
   buildSitemapXml,
   buildUrlElement,
-  clearSitemapCache,
   generateSitemap,
   generateSitemapEntries,
   getSitemap,
@@ -52,7 +51,6 @@ beforeEach(async () => {
   await db.delete(categories)
   await db.delete(shop)
   await db.delete(user)
-  clearSitemapCache()
 })
 
 describe('buildUrlElement', () => {
@@ -372,23 +370,13 @@ describe('generateSitemap', () => {
   })
 })
 
-describe('getSitemap cache', () => {
-  it('returns cached sitemap on second call', async () => {
-    const first = await getSitemap()
-    const second = await getSitemap()
+describe('getSitemap', () => {
+  it('returns a valid full sitemap XML string', async () => {
+    const xml = await getSitemap()
 
-    // Both should return the same cached result
-    expect(second).toBe(first)
-  })
-
-  it('returns fresh sitemap after clearing cache', async () => {
-    await getSitemap()
-
-    clearSitemapCache()
-    const second = await getSitemap()
-
-    // After clearing, they might still be equal if no data changed,
-    // but we just verify it doesn't throw and returns valid XML
-    expect(second).toContain('<?xml version="1.0" encoding="UTF-8"?>')
+    expect(xml).toContain('<?xml version="1.0" encoding="UTF-8"?>')
+    expect(xml).toContain('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">')
+    expect(xml).toContain('</urlset>')
+    expect(xml).toContain('<loc>')
   })
 })

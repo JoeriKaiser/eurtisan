@@ -1,6 +1,7 @@
-import { and, eq, inArray, lte } from 'drizzle-orm'
+import { and, eq, gt, inArray, lte } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { categories, meilisearchSyncQueue, product, shop } from '#/db/schema'
+import { logger } from './logger.server'
 import { isMeilisearchConfigured, meilisearch } from './meilisearch.server'
 import type {
   PaginatedProducts,
@@ -46,7 +47,7 @@ export async function configureProductsIndex(): Promise<void> {
     try {
       await meilisearch.index(PRODUCTS_INDEX).update({ primaryKey: 'id' })
     } catch (err) {
-      console.error('Failed to set Meilisearch index primary key:', err)
+      logger.error('Failed to set Meilisearch index primary key', err)
     }
   }
 
@@ -62,6 +63,11 @@ export async function configureProductsIndex(): Promise<void> {
       'categorySlug',
     ],
     sortableAttributes: ['priceCents', 'createdAt'],
+    rankingRules: ['words', 'typo', 'proximity', 'attribute', 'sort', 'exactness'],
+    typoTolerance: {
+      enabled: true,
+      minWordSizeForTypos: { oneTypo: 4, twoTypos: 8 },
+    },
   })
 }
 
@@ -111,7 +117,7 @@ export async function syncProductToMeilisearch(productData: {
 
     await meilisearch.index(PRODUCTS_INDEX).addDocuments([doc], { primaryKey: 'id' })
   } catch (err) {
-    console.error('Failed to sync product to Meilisearch:', err)
+    logger.error('Failed to sync product to Meilisearch', err)
     throw err
   }
 }
@@ -121,7 +127,7 @@ export async function removeProductFromMeilisearch(productId: string): Promise<v
   try {
     await meilisearch.index(PRODUCTS_INDEX).deleteDocument(productId)
   } catch (err) {
-    console.error('Failed to remove product from Meilisearch:', err)
+    logger.error('Failed to remove product from Meilisearch', err)
     throw err
   }
 }
@@ -133,7 +139,7 @@ export async function removeShopProductsFromMeilisearch(shopId: string): Promise
       filter: `shopId = "${shopId}"`,
     })
   } catch (err) {
-    console.error('Failed to remove shop products from Meilisearch:', err)
+    logger.error('Failed to remove shop products from Meilisearch', err)
   }
 }
 
@@ -142,66 +148,83 @@ export async function clearProductsIndex(): Promise<void> {
   try {
     await meilisearch.index(PRODUCTS_INDEX).deleteAllDocuments()
   } catch (err) {
-    console.error('Failed to clear Meilisearch products index:', err)
+    logger.error('Failed to clear Meilisearch products index', err)
   }
 }
 
-export async function populateProductsIndex(): Promise<{ synced: number; errors: number }> {
+export async function populateProductsIndex(
+  batchSize = 500,
+): Promise<{ synced: number; errors: number }> {
   if (!meilisearch) return { synced: 0, errors: 0 }
   const client = meilisearch
 
-  const products = await db
-    .select()
-    .from(product)
-    .innerJoin(shop, eq(product.shopId, shop.id))
-    .where(and(eq(product.isActive, true), eq(shop.isSuspended, false), eq(shop.status, 'active')))
-
-  const docs: MeilisearchProductDocument[] = []
+  let synced = 0
   let errors = 0
+  let lastId: string | null = null
 
-  const categoryRows = await Promise.all(
-    products.map((p) =>
-      p.product.categoryId
-        ? db.select().from(categories).where(eq(categories.id, p.product.categoryId)).limit(1)
-        : Promise.resolve([]),
-    ),
-  )
-
-  for (let i = 0; i < products.length; i++) {
-    try {
-      const p = products[i]
-      const prod = p.product
-      const categoryRow = categoryRows[i]
-
-      docs.push({
-        id: prod.id,
-        name: prod.name,
-        description: prod.description,
-        slug: prod.slug,
-        priceCents: prod.priceCents,
-        isActive: prod.isActive,
-        shopId: prod.shopId,
-        shopSlug: p.shop.slug,
-        categoryId: prod.categoryId,
-        categorySlug: categoryRow[0]?.slug ?? null,
-        createdAt: prod.createdAt.toISOString(),
-      })
-    } catch {
-      errors++
+  while (true) {
+    const conditions = [
+      eq(product.isActive, true),
+      eq(shop.isSuspended, false),
+      eq(shop.status, 'active'),
+    ]
+    if (lastId !== null) {
+      conditions.push(gt(product.id, lastId))
     }
-  }
 
-  if (docs.length > 0 && meilisearch) {
-    const BATCH_SIZE = 500
-    await Promise.all(
-      Array.from({ length: Math.ceil(docs.length / BATCH_SIZE) }, (_, i) => {
-        const batch = docs.slice(i * BATCH_SIZE, i * BATCH_SIZE + BATCH_SIZE)
-        return client.index(PRODUCTS_INDEX).addDocuments(batch, { primaryKey: 'id' })
-      }),
+    const products = await db
+      .select()
+      .from(product)
+      .innerJoin(shop, eq(product.shopId, shop.id))
+      .where(and(...conditions))
+      .orderBy(product.id)
+      .limit(batchSize)
+
+    if (products.length === 0) break
+
+    const categoryRows = await Promise.all(
+      products.map((p) =>
+        p.product.categoryId
+          ? db.select().from(categories).where(eq(categories.id, p.product.categoryId)).limit(1)
+          : Promise.resolve([]),
+      ),
     )
+
+    const docs: MeilisearchProductDocument[] = []
+    for (let i = 0; i < products.length; i++) {
+      try {
+        const p = products[i]
+        const prod = p.product
+        const categoryRow = categoryRows[i]
+
+        docs.push({
+          id: prod.id,
+          name: prod.name,
+          description: prod.description,
+          slug: prod.slug,
+          priceCents: prod.priceCents,
+          isActive: prod.isActive,
+          shopId: prod.shopId,
+          shopSlug: p.shop.slug,
+          categoryId: prod.categoryId,
+          categorySlug: categoryRow[0]?.slug ?? null,
+          createdAt: prod.createdAt.toISOString(),
+        })
+      } catch {
+        errors++
+      }
+    }
+
+    if (docs.length > 0) {
+      await client.index(PRODUCTS_INDEX).addDocuments(docs, { primaryKey: 'id' })
+      synced += docs.length
+    }
+
+    if (products.length < batchSize) break
+    lastId = products[products.length - 1].product.id
   }
 
-  return { synced: docs.length, errors }
+  return { synced, errors }
 }
 
 export async function searchProductsMeilisearch(
@@ -314,7 +337,7 @@ export async function searchProductsMeilisearch(
       totalPages: Math.ceil(total / pageSize),
     }
   } catch (err) {
-    console.error('Meilisearch search failed, falling back to PostgreSQL:', err)
+    logger.error('Meilisearch search failed, falling back to PostgreSQL', err)
     return null
   }
 }
@@ -377,8 +400,8 @@ export async function processMeilisearchSyncQueue(
           })
           .where(eq(meilisearchSyncQueue.id, item.id))
 
-        console.error(
-          `[meilisearch-sync] Error processing item ${item.id} (attempt ${attempts}):`,
+        logger.error(
+          `[meilisearch-sync] Error processing item ${item.id} (attempt ${attempts})`,
           err,
         )
       }

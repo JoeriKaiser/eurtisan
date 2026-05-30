@@ -1,23 +1,38 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import HomePage from '#/components/HomePage'
 import { listCategories } from '#/lib/categories'
-import { getFeaturedShops, listRecentProducts, getMarketplaceStats } from '#/lib/products'
+import { getFeaturedShops, getMarketplaceStats, listRecentProducts } from '#/lib/products'
+import { getSellerShops } from '#/lib/sell-onboarding'
 import { createPageMeta } from '#/lib/seo'
 import { generateWebSiteJsonLd } from '#/lib/seo-structured-data'
-import { m } from '#/paraglide/messages'
 import { getCurrentUser } from '#/lib/server-auth'
-import { getSellerShops } from '#/lib/sell-onboarding'
+import { m } from '#/paraglide/messages'
 
 function HomeError({ error }: { error: Error }) {
+  const isDev = import.meta.env.DEV
+
+  // Log full error server-side for debugging; client-side is handled by Faro.
+  if (typeof window === 'undefined') {
+    console.error('HomeError:', error)
+  }
+
   return (
     <div className='page-wrap px-4 py-20 text-center'>
       <h1 className='display-title mb-4 text-3xl font-semibold text-text-primary'>
         Failed to load marketplace
       </h1>
-      <p className='mb-6 text-text-secondary'>{error.message}</p>
-      <pre className='mx-auto max-w-2xl overflow-auto rounded-xl bg-surface-inset p-4 text-left text-xs text-text-secondary'>
-        {error.stack}
-      </pre>
+      <p className='mb-6 text-text-secondary'>{isDev ? error.message : m.error_unexpected()}</p>
+      <Link
+        to='/'
+        className='inline-block rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground'
+      >
+        {m.error_go_home()}
+      </Link>
+      {isDev && (
+        <pre className='mx-auto mt-6 max-w-2xl overflow-auto rounded-xl bg-surface-inset p-4 text-left text-xs text-text-secondary'>
+          {error.stack}
+        </pre>
+      )}
     </div>
   )
 }

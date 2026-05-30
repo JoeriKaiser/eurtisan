@@ -18,10 +18,9 @@
  * 3. imgproxy fetches from S3, resizes/converts, and returns the image
  */
 
-import { DeleteObjectCommand } from '@aws-sdk/client-s3'
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { PutObjectCommand } from '@aws-sdk/client-s3'
 import { createHmac } from 'node:crypto'
+import { DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { getS3Bucket, s3Client } from './s3-client.server'
 
 const PRESIGNED_URL_EXPIRY_SECONDS = 300 // 5 minutes
@@ -120,10 +119,6 @@ function getImgproxySalt(): string {
   return process.env.IMGPROXY_SALT ?? ''
 }
 
-function hexEncode(data: string): string {
-  return Buffer.from(data, 'utf8').toString('hex')
-}
-
 function signImgproxyPath(path: string): string {
   const key = getImgproxyKey()
   const salt = getImgproxySalt()
@@ -179,7 +174,7 @@ export function buildImgproxyUrl(key: string, options: ImgproxyOptions = {}): st
   }
 
   const optionsPath = processingOptions.length > 0 ? `/${processingOptions.join('/')}` : ''
-  const sourcePath = `/plain/s3://${getS3Bucket()}/${hexEncode(key)}`
+  const sourcePath = `/plain/s3://${getS3Bucket()}/${key}`
   const fullPath = `${optionsPath}${sourcePath}`
 
   const signedPath = signImgproxyPath(fullPath)

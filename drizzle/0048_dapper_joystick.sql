@@ -1,0 +1,2 @@
+ALTER TABLE "cart" ADD CONSTRAINT "cart_owner_check" CHECK ("cart"."user_id" IS NOT NULL OR "cart"."session_id" IS NOT NULL);--> statement-breakpoint
+ALTER TABLE "review" ADD CONSTRAINT "rating_range" CHECK ("review"."rating" BETWEEN 1 AND 5);

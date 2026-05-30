@@ -11,7 +11,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { useCart } from '#/components/CartProvider'
-import { removeCartItem, updateCartItem } from '#/lib/cart'
+import { useRemoveCartItem, useUpdateCartItem } from '#/lib/cart-hooks'
 import type { CartDetail, CartItemDetail, CartShopGroup } from '#/lib/cart.server'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
@@ -32,8 +32,11 @@ export interface CartPageProps {
 }
 
 export default function CartPage({ cart: initialCart, showEmptyMessage }: CartPageProps) {
-  const { cart: liveCart, refreshCart } = useCart()
+  const { cart: liveCart } = useCart()
   const cart = liveCart ?? initialCart
+
+  const updateCartItemMutation = useUpdateCartItem()
+  const removeCartItemMutation = useRemoveCartItem()
 
   const [ops, setOps] = useState({
     updatingItemId: null as string | null,
@@ -49,8 +52,7 @@ export default function CartPage({ cart: initialCart, showEmptyMessage }: CartPa
   const handleUpdateQuantity = async (productId: string, quantity: number) => {
     setOps((prev) => ({ ...prev, updateErrorItemId: null, updatingItemId: productId }))
     try {
-      await updateCartItem({ data: { productId, quantity } })
-      await refreshCart()
+      await updateCartItemMutation.mutateAsync({ productId, quantity })
     } catch {
       setOps((prev) => ({ ...prev, updateErrorItemId: productId }))
     } finally {
@@ -61,8 +63,7 @@ export default function CartPage({ cart: initialCart, showEmptyMessage }: CartPa
   const handleRemove = async (productId: string) => {
     setOps((prev) => ({ ...prev, removeErrorItemId: null, removingItemId: productId }))
     try {
-      await removeCartItem({ data: { productId } })
-      await refreshCart()
+      await removeCartItemMutation.mutateAsync({ productId })
     } catch {
       setOps((prev) => ({ ...prev, removeErrorItemId: productId }))
     } finally {
@@ -149,10 +150,11 @@ export default function CartPage({ cart: initialCart, showEmptyMessage }: CartPa
                 {m.cart_proceed_to_checkout()}
               </Button>
             ) : (
-              <Link to='/checkout' className='no-underline'>
-                <Button size='lg' className='mt-6 w-full'>
-                  {m.cart_proceed_to_checkout()}
-                </Button>
+              <Link
+                to='/checkout'
+                className='mt-6 inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-accent-primary px-6 text-base font-medium text-text-on-primary no-underline shadow-sm transition-all duration-fast ease-out hover:bg-accent-primary-hover active:bg-accent-primary-active focus-visible:outline-none'
+              >
+                {m.cart_proceed_to_checkout()}
               </Link>
             )}
 
@@ -221,8 +223,11 @@ function EmptyCart({ showEmptyMessage }: { showEmptyMessage?: boolean }) {
           {m.cart_empty_title()}
         </h1>
         <p className='mb-8 text-text-secondary'>{m.cart_empty_description()}</p>
-        <Link to='/category/all' className='no-underline'>
-          <Button size='lg'>{m.cart_empty_browse()}</Button>
+        <Link
+          to='/category/all'
+          className='inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-accent-primary px-6 text-base font-medium text-text-on-primary no-underline shadow-sm transition-all duration-fast ease-out hover:bg-accent-primary-hover active:bg-accent-primary-active focus-visible:outline-none'
+        >
+          {m.cart_empty_browse()}
         </Link>
       </div>
     </main>

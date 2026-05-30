@@ -41,13 +41,19 @@ async function requireAdmin(context: { user?: { id: string; role: string } | nul
  * Returns all pending payouts enriched with creator and shop details.
  * Admin only.
  */
+const listPendingPayoutsInputSchema = z.object({
+  page: z.coerce.number().int().min(1).optional().default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
+})
+
 export const listPendingPayouts = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .handler(async ({ context }) => {
+  .inputValidator(listPendingPayoutsInputSchema)
+  .handler(async ({ context, data }) => {
     await requireAdmin(context)
 
     const { listPendingPayoutsQuery } = await import('./payouts.server')
-    return listPendingPayoutsQuery()
+    return listPendingPayoutsQuery(data.page, data.pageSize)
   })
 
 /* -------------------------------------------------------------------------- */

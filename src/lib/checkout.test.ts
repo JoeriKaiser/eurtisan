@@ -13,7 +13,7 @@ import {
   shopOrder,
   user,
 } from '#/db/schema'
-import { resetMockShippingCounter, mondialRelayProvider } from '#/integrations/shipping'
+import { mondialRelayProvider, resetMockShippingCounter } from '#/integrations/shipping'
 import {
   type CheckoutInput,
   createCheckoutWithProvider,
@@ -38,6 +38,7 @@ function createStubPaymentProvider(): PaymentProvider {
     }),
     verifyWebhook: async () => false,
     getPaymentStatus: async () => 'paid',
+    getPaymentAmount: async () => 1000,
     refundPayment: async () => undefined,
   }
 }
@@ -89,6 +90,7 @@ async function seedShop(overrides?: Partial<typeof shop.$inferInsert>) {
       name: 'Test Shop',
       slug: 'test-shop',
       ownerId: 'user-1',
+      status: 'active',
       ...overrides,
     })
     .returning()
@@ -249,6 +251,7 @@ describe('getCheckoutSummaryQuery', () => {
           shopId: 'shop-1',
           rateId: expressOption?.rateId,
           method: 'express',
+          costCents: expressOption?.costCents ?? 0,
         },
       ],
     )
@@ -311,7 +314,7 @@ describe('createCheckoutQuery', () => {
   function makeInput(cartId: string, overrides?: Partial<CheckoutInput>): CheckoutInput {
     return {
       cartId,
-      shippingSelections: [{ shopId: 'shop-1', method: 'standard' }],
+      shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 538 }],
       shippingAddress: {
         name: 'Test User',
         street: '123 Main St',
@@ -391,7 +394,9 @@ describe('createCheckoutQuery', () => {
 
     await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 5 })
 
-    const input = makeInput(c.id)
+    const input = makeInput(c.id, {
+      shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 708 }],
+    })
 
     try {
       await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
@@ -420,7 +425,9 @@ describe('createCheckoutQuery', () => {
       { cartId: c.id, productId: p2.id, quantity: 1 },
     ])
 
-    const input = makeInput(c.id)
+    const input = makeInput(c.id, {
+      shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 750 }],
+    })
 
     try {
       await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
@@ -470,7 +477,9 @@ describe('createCheckoutQuery', () => {
 
     await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
 
-    const input = makeInput(c.id)
+    const input = makeInput(c.id, {
+      shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 580 }],
+    })
     const result = await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
 
     expect(result.platformOrderId).toBeDefined()
@@ -534,7 +543,7 @@ describe('createCheckoutQuery', () => {
     await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
 
     const input = makeInput(c.id, {
-      shippingSelections: [{ shopId: 'shop-1', method: 'express' }],
+      shippingSelections: [{ shopId: 'shop-1', method: 'express', costCents: 861 }],
     })
     const result = await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
 
@@ -577,8 +586,8 @@ describe('createCheckoutQuery', () => {
 
     const input = makeInput(c.id, {
       shippingSelections: [
-        { shopId: 'shop-1', method: 'standard' },
-        { shopId: 'shop-2', method: 'express' },
+        { shopId: 'shop-1', method: 'standard', costCents: 538 },
+        { shopId: 'shop-2', method: 'express', costCents: 861 },
       ],
     })
     const result = await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
@@ -688,10 +697,13 @@ describe('createCheckoutQuery', () => {
       },
       verifyWebhook: async () => false,
       getPaymentStatus: async () => 'paid',
+      getPaymentAmount: async () => 1000,
       refundPayment: async () => undefined,
     }
 
-    const input = makeInput(c.id)
+    const input = makeInput(c.id, {
+      shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 580 }],
+    })
 
     try {
       await createCheckoutWithProvider(input, 'user-1', failingProvider)
@@ -726,7 +738,9 @@ describe('createCheckoutQuery', () => {
 
     await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 3 })
 
-    const input = makeInput(c.id)
+    const input = makeInput(c.id, {
+      shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 623 }],
+    })
     const result = await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
 
     const platformOrders = await db
@@ -749,7 +763,9 @@ describe('createCheckoutQuery', () => {
 
     await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
 
-    const input = makeInput(c.id)
+    const input = makeInput(c.id, {
+      shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 580 }],
+    })
     const result = await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
 
     const reservations = await db
@@ -805,7 +821,9 @@ describe('createCheckoutQuery', () => {
       expiresAt: new Date(Date.now() + 60_000),
     })
 
-    const input = makeInput(c.id)
+    const input = makeInput(c.id, {
+      shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 835 }],
+    })
 
     try {
       await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
@@ -843,8 +861,8 @@ describe('createCheckoutQuery', () => {
 
     const input = makeInput(c.id, {
       shippingSelections: [
-        { shopId: 'shop-1', method: 'standard' },
-        { shopId: 'shop-2', method: 'express' },
+        { shopId: 'shop-1', method: 'standard', costCents: 538 },
+        { shopId: 'shop-2', method: 'express', costCents: 928 },
       ],
     })
     const result = await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
@@ -878,7 +896,7 @@ describe('createCheckoutQuery', () => {
       .mockRejectedValue(new Error('Network error'))
 
     const input = makeInput(c.id, {
-      shippingSelections: [{ shopId: 'shop-1', method: 'standard' }],
+      shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 538 }],
     })
 
     try {
@@ -898,5 +916,286 @@ describe('createCheckoutQuery', () => {
     // Verify order was NOT created
     const platformOrders = await db.select().from(platformOrder)
     expect(platformOrders).toHaveLength(0)
+  })
+
+  it('succeeds when all items and shops are active', async () => {
+    await seedUser()
+    await seedShop({ status: 'active' })
+    const c = await db
+      .insert(cart)
+      .values({ userId: 'user-1' })
+      .returning()
+      .then((rows) => rows[0])
+    const p = await seedProduct({ isActive: true })
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+
+    const input = makeInput(c.id)
+    const result = await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
+
+    expect(result.platformOrderId).toBeDefined()
+    expect(result.checkoutUrl).toBeDefined()
+  })
+
+  it('throws 400 when a product is inactive', async () => {
+    await seedUser()
+    await seedShop({ status: 'active' })
+    const c = await db
+      .insert(cart)
+      .values({ userId: 'user-1' })
+      .returning()
+      .then((rows) => rows[0])
+    const p = await seedProduct({ isActive: false })
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+
+    const input = makeInput(c.id)
+
+    try {
+      await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(400)
+      const body = await (err as Response).json()
+      expect(body.message).toBe('One or more items in your cart are no longer available.')
+    }
+  })
+
+  it('throws 400 when a shop is suspended', async () => {
+    await seedUser()
+    await seedShop({ status: 'active', isSuspended: true })
+    const c = await db
+      .insert(cart)
+      .values({ userId: 'user-1' })
+      .returning()
+      .then((rows) => rows[0])
+    const p = await seedProduct()
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+
+    const input = makeInput(c.id)
+
+    try {
+      await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(400)
+      const body = await (err as Response).json()
+      expect(body.message).toBe('One or more items in your cart are no longer available.')
+    }
+  })
+
+  it('throws 400 when a shop status is not active', async () => {
+    await seedUser()
+    await seedShop({ status: 'pending_review' })
+    const c = await db
+      .insert(cart)
+      .values({ userId: 'user-1' })
+      .returning()
+      .then((rows) => rows[0])
+    const p = await seedProduct()
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+
+    const input = makeInput(c.id)
+
+    try {
+      await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(400)
+      const body = await (err as Response).json()
+      expect(body.message).toBe('One or more items in your cart are no longer available.')
+    }
+  })
+
+  it('throws 400 when shipping rateId does not match any available option', async () => {
+    await seedUser()
+    await seedShop()
+    const c = await db
+      .insert(cart)
+      .values({ userId: 'user-1' })
+      .returning()
+      .then((rows) => rows[0])
+    const p = await seedProduct()
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+
+    const input = makeInput(c.id, {
+      shippingSelections: [
+        { shopId: 'shop-1', method: 'standard', rateId: 'fake-rate-id', costCents: 538 },
+      ],
+    })
+
+    try {
+      await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(400)
+      const body = await (err as Response).json()
+      expect(body.message).toBe('Invalid shipping selection for shop shop-1')
+    }
+  })
+
+  it('throws 400 when shipping method does not match any available option', async () => {
+    await seedUser()
+    await seedShop()
+    const c = await db
+      .insert(cart)
+      .values({ userId: 'user-1' })
+      .returning()
+      .then((rows) => rows[0])
+    const p = await seedProduct()
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+
+    const input = makeInput(c.id, {
+      shippingSelections: [{ shopId: 'shop-1', method: 'express', costCents: 861 }],
+    })
+
+    // Force provider to return only standard rates so express is not available
+    const spy = vi.spyOn(mondialRelayProvider, 'getRates').mockResolvedValue([
+      {
+        rateId: 'mondial_std_test',
+        carrier: 'mondial_relay',
+        serviceName: 'Mondial Relay Standard',
+        priceCents: 538,
+        estimatedDays: { min: 2, max: 4 },
+      },
+    ])
+
+    try {
+      await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(400)
+      const body = await (err as Response).json()
+      expect(body.message).toBe('Invalid shipping selection for shop shop-1')
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('throws 400 when shipping costCents does not match the quoted option', async () => {
+    await seedUser()
+    await seedShop()
+    const c = await db
+      .insert(cart)
+      .values({ userId: 'user-1' })
+      .returning()
+      .then((rows) => rows[0])
+    const p = await seedProduct()
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+
+    const input = makeInput(c.id, {
+      shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 999 }],
+    })
+
+    try {
+      await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(400)
+      const body = await (err as Response).json()
+      expect(body.message).toBe('Shipping cost mismatch for shop shop-1')
+    }
+  })
+
+  it('throws 400 when user tries to skip shipping selection entirely', async () => {
+    await seedUser()
+    await seedShop()
+    const c = await db
+      .insert(cart)
+      .values({ userId: 'user-1' })
+      .returning()
+      .then((rows) => rows[0])
+    const p = await seedProduct()
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+
+    const input = makeInput(c.id, { shippingSelections: [] })
+
+    try {
+      await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(400)
+      const body = await (err as Response).json()
+      expect(body.message).toBe('Missing shipping selection for shop shop-1')
+    }
+  })
+
+  it('prevents deadlocks by reserving overlapping products in deterministic order', async () => {
+    await seedUser()
+    await seedShop()
+    const p1 = await seedProduct({
+      id: 'prod-a',
+      name: 'Product A',
+      slug: 'product-a',
+      stockCount: 10,
+    })
+    const p2 = await seedProduct({
+      id: 'prod-b',
+      name: 'Product B',
+      slug: 'product-b',
+      stockCount: 10,
+    })
+
+    const user2 = await seedUser({ id: 'user-2', name: 'User 2', email: 'user2@example.com' })
+
+    // Cart 1: product A then product B
+    const c1 = await db
+      .insert(cart)
+      .values({ userId: 'user-1' })
+      .returning()
+      .then((rows) => rows[0])
+    await db.insert(cartItem).values([
+      { cartId: c1.id, productId: p1.id, quantity: 1 },
+      { cartId: c1.id, productId: p2.id, quantity: 1 },
+    ])
+
+    // Cart 2: product B then product A (opposite insertion order)
+    const c2 = await db
+      .insert(cart)
+      .values({ userId: user2.id })
+      .returning()
+      .then((rows) => rows[0])
+    await db.insert(cartItem).values([
+      { cartId: c2.id, productId: p2.id, quantity: 1 },
+      { cartId: c2.id, productId: p1.id, quantity: 1 },
+    ])
+
+    const input1 = makeInput(c1.id, {
+      shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 580 }],
+    })
+    const input2 = makeInput(c2.id, {
+      shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 580 }],
+    })
+
+    // Both checkouts run concurrently; deterministic lock ordering prevents deadlocks.
+    const [result1, result2] = await Promise.all([
+      createCheckoutWithProvider(input1, 'user-1', createStubPaymentProvider()),
+      createCheckoutWithProvider(input2, 'user-2', createStubPaymentProvider()),
+    ])
+
+    expect(result1.platformOrderId).toBeDefined()
+    expect(result2.platformOrderId).toBeDefined()
+
+    // Verify reservations were created for both orders
+    const reservations = await db.select().from(inventoryReservation)
+    expect(reservations).toHaveLength(4)
+
+    const r1 = reservations.filter((r) => r.platformOrderId === result1.platformOrderId)
+    const r2 = reservations.filter((r) => r.platformOrderId === result2.platformOrderId)
+    expect(r1).toHaveLength(2)
+    expect(r2).toHaveLength(2)
   })
 })

@@ -24,6 +24,7 @@ describe('logOrderLifecycle', () => {
     const parsed = JSON.parse(consoleSpy.mock.calls[0]?.[0] as string)
     expect(parsed.level).toBe('info')
     expect(parsed.service).toBe('eurtisan')
+    expect(parsed.message).toBe('order_lifecycle')
     expect(parsed.event).toBe('order_created')
     expect(parsed.orderId).toBe('order-123')
     expect(parsed.timestamp).toBe('2026-05-15T12:00:00.000Z')

@@ -697,7 +697,7 @@ The staging seed (`src/db/seed-staging.ts`) is:
 - **Deterministic** — uses `faker.seed(42)` for reproducible output
 - **Curated** — realistic European artisan marketplace data with known test accounts
 
-Contrast with the local dev seed (`src/db/seed.ts`) which is bulk, random, and requires `--clear`.
+Contrast with the local dev seed (`src/db/seed.ts`) which is bulk, random, and requires `--clear --force`.
 
 1. A migration is generated
 2. The migration is committed
@@ -786,7 +786,11 @@ VITE_APP_VERSION=dev                      # release version tag
 
 # Better Auth
 BETTER_AUTH_URL=http://localhost:3000
+# Required in production. Generate with: make auth-secret
 BETTER_AUTH_SECRET=
+
+# Public URL of the application (required for SSR, emails, and absolute links)
+PUBLIC_URL=http://localhost:3000
 
 # Umami (cookie-less analytics)
 VITE_UMAMI_SCRIPT_URL=
@@ -926,7 +930,7 @@ If implementation and documentation diverge, the documentation is considered out
 
 - Production start command:
   ```bash
-  node --import ./dist/server/instrument.server.mjs ./dist/server/server.js
+  bun --import ./dist/server/instrument.server.mjs ./dist/server/server-entry.mjs
   ```
 
 - Runtime environment variables are required for:
@@ -935,6 +939,26 @@ If implementation and documentation diverge, the documentation is considered out
   - Authentication
 
 - Prefer deployment regions inside Europe.
+
+## Infrastructure Deployment (Ansible)
+
+The production and staging environments are deployed via Ansible:
+
+```bash
+cd infrastructure/ansible
+ansible-playbook -i inventory/staging.yml playbook.yml --vault-password-file=.vault_pass
+```
+
+### Secrets
+
+All sensitive values live in `infrastructure/ansible/secrets.yml`, which is **encrypted with Ansible Vault**.
+
+- The vault password is stored in `infrastructure/ansible/.vault_pass` (`.gitignore`-d).
+- Edit secrets: `ansible-vault edit secrets.yml --vault-password-file=.vault_pass`
+- View secrets: `ansible-vault view secrets.yml --vault-password-file=.vault_pass`
+- Never commit `.vault_pass` or an unencrypted `secrets.yml`.
+
+For full details, see `infrastructure/ansible/README.md`.
 
 ---
 

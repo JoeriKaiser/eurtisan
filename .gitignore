@@ -25,3 +25,5 @@ e2e/.auth/*
 !e2e/.auth/.gitkeep
 e2e/screenshots
 BUSINESS.md
+infrastructure/ansible/.vault_pass
+docker-compose.override.yml

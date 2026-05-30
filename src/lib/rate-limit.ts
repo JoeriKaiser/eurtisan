@@ -1,7 +1,18 @@
 import { createMiddleware } from '@tanstack/react-start'
 import { sql } from 'drizzle-orm'
 
-import { getRateLimitRetentionDays } from './env.server'
+function getRateLimitRetentionDays(): number {
+  if (typeof process !== 'undefined') {
+    const days = process.env.RATE_LIMIT_RETENTION_DAYS
+    if (days) {
+      const parsed = Number.parseInt(days, 10)
+      if (!Number.isNaN(parsed)) {
+        return Math.max(1, parsed)
+      }
+    }
+  }
+  return 30
+}
 
 /* -------------------------------------------------------------------------- */
 /*  Environment detection                                                     */

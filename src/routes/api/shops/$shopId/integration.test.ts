@@ -171,10 +171,10 @@ describe('PATCH /api/shops/:shopId/settings (update scope)', () => {
   it('returns 401 when unauthenticated', async () => {
     mockGetSession.mockResolvedValue(null)
 
-    const req = new Request('http://localhost/api/shops/shop-1/settings', {
+    const req = new Request('http://localhost:3000/api/shops/shop-1/settings', {
       method: 'PATCH',
       body: JSON.stringify({ name: 'Updated' }),
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:3000' },
     })
 
     const response = await authPipeline(
@@ -192,10 +192,10 @@ describe('PATCH /api/shops/:shopId/settings (update scope)', () => {
       session: makeSession('user-1'),
     })
 
-    const req = new Request('http://localhost/api/shops/shop-1/settings', {
+    const req = new Request('http://localhost:3000/api/shops/shop-1/settings', {
       method: 'PATCH',
       body: JSON.stringify({ name: 'Updated' }),
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:3000' },
     })
 
     const response = await authPipeline(
@@ -221,10 +221,10 @@ describe('PATCH /api/shops/:shopId/settings (update scope)', () => {
       updatedAt: new Date(),
     })
 
-    const req = new Request('http://localhost/api/shops/shop-1/settings', {
+    const req = new Request('http://localhost:3000/api/shops/shop-1/settings', {
       method: 'PATCH',
       body: JSON.stringify({ name: 'Updated' }),
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:3000' },
     })
 
     const response = await authPipeline(
@@ -251,10 +251,10 @@ describe('POST /api/shops/:shopId/products (create scope)', () => {
   it('returns 401 when unauthenticated', async () => {
     mockGetSession.mockResolvedValue(null)
 
-    const req = new Request('http://localhost/api/shops/shop-1/products', {
+    const req = new Request('http://localhost:3000/api/shops/shop-1/products', {
       method: 'POST',
       body: JSON.stringify({ title: 'New Product' }),
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:3000' },
     })
 
     const response = await authPipeline(
@@ -272,10 +272,10 @@ describe('POST /api/shops/:shopId/products (create scope)', () => {
       session: makeSession('user-1'),
     })
 
-    const req = new Request('http://localhost/api/shops/shop-1/products', {
+    const req = new Request('http://localhost:3000/api/shops/shop-1/products', {
       method: 'POST',
       body: JSON.stringify({ title: 'New Product' }),
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:3000' },
     })
 
     const response = await authPipeline(
@@ -301,10 +301,10 @@ describe('POST /api/shops/:shopId/products (create scope)', () => {
       updatedAt: new Date(),
     })
 
-    const req = new Request('http://localhost/api/shops/shop-1/products', {
+    const req = new Request('http://localhost:3000/api/shops/shop-1/products', {
       method: 'POST',
       body: JSON.stringify({ title: 'New Product' }),
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:3000' },
     })
 
     const response = await authPipeline(
@@ -331,10 +331,10 @@ describe('PATCH /api/shops/:shopId/products/:productId (update scope)', () => {
   it('returns 401 when unauthenticated', async () => {
     mockGetSession.mockResolvedValue(null)
 
-    const req = new Request('http://localhost/api/shops/shop-1/products/prod-1', {
+    const req = new Request('http://localhost:3000/api/shops/shop-1/products/prod-1', {
       method: 'PATCH',
       body: JSON.stringify({ name: 'Updated' }),
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:3000' },
     })
 
     const response = await authPipeline(
@@ -352,10 +352,10 @@ describe('PATCH /api/shops/:shopId/products/:productId (update scope)', () => {
       session: makeSession('user-1'),
     })
 
-    const req = new Request('http://localhost/api/shops/shop-1/products/prod-1', {
+    const req = new Request('http://localhost:3000/api/shops/shop-1/products/prod-1', {
       method: 'PATCH',
       body: JSON.stringify({ name: 'Updated' }),
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:3000' },
     })
 
     const response = await authPipeline(
@@ -374,10 +374,10 @@ describe('PATCH /api/shops/:shopId/products/:productId (update scope)', () => {
     })
     mockFindFirst.mockResolvedValue(undefined)
 
-    const req = new Request('http://localhost/api/shops/shop-1/products/prod-1', {
+    const req = new Request('http://localhost:3000/api/shops/shop-1/products/prod-1', {
       method: 'PATCH',
       body: JSON.stringify({ name: 'Updated' }),
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:3000' },
     })
 
     const response = await authPipeline(
@@ -403,10 +403,10 @@ describe('PATCH /api/shops/:shopId/products/:productId (update scope)', () => {
       updatedAt: new Date(),
     })
 
-    const req = new Request('http://localhost/api/shops/shop-1/products/prod-1', {
+    const req = new Request('http://localhost:3000/api/shops/shop-1/products/prod-1', {
       method: 'PATCH',
       body: JSON.stringify({ name: 'Updated' }),
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:3000' },
     })
 
     const response = await authPipeline(
@@ -431,8 +431,9 @@ describe('DELETE /api/shops/:shopId/products/:productId (delete scope)', () => {
   it('returns 401 when unauthenticated', async () => {
     mockGetSession.mockResolvedValue(null)
 
-    const req = new Request('http://localhost/api/shops/shop-1/products/prod-1?hard=true', {
+    const req = new Request('http://localhost:3000/api/shops/shop-1/products/prod-1?hard=true', {
       method: 'DELETE',
+      headers: { Origin: 'http://localhost:3000' },
     })
 
     const response = await authPipeline(
@@ -450,8 +451,9 @@ describe('DELETE /api/shops/:shopId/products/:productId (delete scope)', () => {
       session: makeSession('user-1'),
     })
 
-    const req = new Request('http://localhost/api/shops/shop-1/products/prod-1?hard=true', {
+    const req = new Request('http://localhost:3000/api/shops/shop-1/products/prod-1?hard=true', {
       method: 'DELETE',
+      headers: { Origin: 'http://localhost:3000' },
     })
 
     const response = await authPipeline(
@@ -470,8 +472,9 @@ describe('DELETE /api/shops/:shopId/products/:productId (delete scope)', () => {
     })
     mockFindFirst.mockResolvedValue(undefined)
 
-    const req = new Request('http://localhost/api/shops/shop-1/products/prod-1?hard=true', {
+    const req = new Request('http://localhost:3000/api/shops/shop-1/products/prod-1?hard=true', {
       method: 'DELETE',
+      headers: { Origin: 'http://localhost:3000' },
     })
 
     const response = await authPipeline(
@@ -497,8 +500,9 @@ describe('DELETE /api/shops/:shopId/products/:productId (delete scope)', () => {
       updatedAt: new Date(),
     })
 
-    const req = new Request('http://localhost/api/shops/shop-1/products/prod-1?hard=true', {
+    const req = new Request('http://localhost:3000/api/shops/shop-1/products/prod-1?hard=true', {
       method: 'DELETE',
+      headers: { Origin: 'http://localhost:3000' },
     })
 
     const response = await authPipeline(

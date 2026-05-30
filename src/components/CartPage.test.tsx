@@ -18,9 +18,15 @@ vi.mock('#/components/CartProvider', () => ({
   }),
 }))
 
-vi.mock('#/lib/cart', () => ({
-  updateCartItem: mockUpdateCartItem,
-  removeCartItem: mockRemoveCartItem,
+vi.mock('#/lib/cart-hooks', () => ({
+  useUpdateCartItem: () => ({
+    mutateAsync: mockUpdateCartItem,
+    isPending: false,
+  }),
+  useRemoveCartItem: () => ({
+    mutateAsync: mockRemoveCartItem,
+    isPending: false,
+  }),
 }))
 
 vi.mock('#/paraglide/messages', () => ({
@@ -192,7 +198,8 @@ describe('CartPage', () => {
     fireEvent.click(screen.getByLabelText('Increase quantity'))
     await waitFor(() => {
       expect(mockUpdateCartItem).toHaveBeenCalledWith({
-        data: { productId: 'prod-1', quantity: 3 },
+        productId: 'prod-1',
+        quantity: 3,
       })
     })
   })
@@ -202,7 +209,8 @@ describe('CartPage', () => {
     fireEvent.click(screen.getByLabelText('Decrease quantity'))
     await waitFor(() => {
       expect(mockUpdateCartItem).toHaveBeenCalledWith({
-        data: { productId: 'prod-1', quantity: 1 },
+        productId: 'prod-1',
+        quantity: 1,
       })
     })
   })
@@ -227,7 +235,7 @@ describe('CartPage', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Confirm Remove' }))
     await waitFor(() => {
-      expect(mockRemoveCartItem).toHaveBeenCalledWith({ data: { productId: 'prod-1' } })
+      expect(mockRemoveCartItem).toHaveBeenCalledWith({ productId: 'prod-1' })
     })
   })
 
@@ -260,7 +268,7 @@ describe('CartPage', () => {
 
   it('enables checkout when all items are available', () => {
     render(<CartPage cart={makeCart()} />)
-    const checkoutBtn = screen.getByRole('button', { name: 'Proceed to checkout' })
+    const checkoutBtn = screen.getByRole('link', { name: 'Proceed to checkout' })
     expect(checkoutBtn.hasAttribute('disabled')).toBe(false)
   })
 

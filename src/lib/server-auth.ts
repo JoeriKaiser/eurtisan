@@ -4,8 +4,9 @@ import { eq } from 'drizzle-orm'
 import { shop, user } from '#/db/schema'
 import { authMiddleware } from './auth-middleware'
 import type { UserRole } from './authz'
-import { validatePlainText } from './xss'
 import type { SafeUser } from './user-types'
+import { validatePlainText } from './xss'
+
 export type { SafeUser } from './user-types'
 
 const ROLE_HIERARCHY: Record<UserRole, number> = {
@@ -91,36 +92,47 @@ export const verifyShopOwnership = createServerFn({ method: 'GET' })
     return context.user
   })
 
+export interface BecomeCreatorInput {
+  shopName?: string
+  shopSlug?: string
+}
+
+export async function becomeCreatorInternal(
+  userId: string,
+  userRole: string,
+  data: BecomeCreatorInput,
+): Promise<void> {
+  if (userRole !== 'customer') {
+    throw new Error('FORBIDDEN')
+  }
+
+  const { db } = await import('#/db/index')
+  await db.update(user).set({ role: 'creator', updatedAt: new Date() }).where(eq(user.id, userId))
+
+  if (data.shopName && data.shopSlug) {
+    await db.insert(shop).values({
+      id: crypto.randomUUID(),
+      name: validatePlainText(data.shopName, 'Shop name'),
+      slug: data.shopSlug,
+      ownerId: userId,
+      status: 'draft',
+    })
+  }
+}
+
 /**
  * Upgrades the authenticated customer to a creator.
  * Optionally creates an initial shop record.
  */
 export const becomeCreator = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator((data: { shopName?: string; shopSlug?: string }) => data)
+  .inputValidator((data: BecomeCreatorInput) => data)
   .handler(async ({ context, data }): Promise<SafeUser> => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
     }
 
-    if (context.user.role !== 'customer') {
-      throw new Error('FORBIDDEN')
-    }
-
-    const { db } = await import('#/db/index')
-    await db
-      .update(user)
-      .set({ role: 'creator', updatedAt: new Date() })
-      .where(eq(user.id, context.user.id))
-
-    if (data.shopName && data.shopSlug) {
-      await db.insert(shop).values({
-        id: crypto.randomUUID(),
-        name: validatePlainText(data.shopName, 'Shop name'),
-        slug: data.shopSlug,
-        ownerId: context.user.id,
-      })
-    }
+    await becomeCreatorInternal(context.user.id, context.user.role, data)
 
     return {
       ...context.user,

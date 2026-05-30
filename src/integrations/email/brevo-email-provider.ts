@@ -11,6 +11,7 @@
 import type { EmailProvider, EmailSendResult, EmailTemplate } from '#/lib/email-provider'
 import { renderFallbackPlainText, renderTemplate } from '#/lib/email-templates'
 import { getBrevoApiKey, getEmailFromAddress, getEmailFromName } from '#/lib/env.server'
+import { logger } from '#/lib/logger.server'
 
 /** Brevo SMTP API endpoint. */
 const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email'
@@ -77,40 +78,25 @@ export class BrevoEmailProvider implements EmailProvider {
   /* ------------------------------------------------------------------ */
 
   private async sendMock(
-    to: string,
+    _to: string,
     template: EmailTemplate,
     data: Record<string, unknown>,
   ): Promise<EmailSendResult> {
     await delay(20)
 
-    let subject = ''
-    let html: string | undefined
-    let text = ''
-
     try {
-      const rendered = renderTemplate(template, data)
-      subject = rendered.subject
-      html = rendered.html
-      text = rendered.text
+      renderTemplate(template, data)
     } catch (err) {
-      const fallback = renderFallbackPlainText(template, data)
-      subject = fallback.subject
-      text = fallback.text
-      console.error('[BrevoEmailProvider] Template render error (mock):', err)
+      renderFallbackPlainText(template, data)
+      logger.error('[BrevoEmailProvider] Template render error (mock)', err)
     }
 
     const messageId = nextMockMessageId()
 
-    // eslint-disable-next-line no-console
-    console.log(`[MockEmail] ${messageId}`)
-    // eslint-disable-next-line no-console
-    console.log(`  To:      ${to}`)
-    // eslint-disable-next-line no-console
-    console.log(`  Subject: ${subject}`)
-    // eslint-disable-next-line no-console
-    console.log(`  HTML:    ${html ? `${html.slice(0, 120)}...` : '(none)'}`)
-    // eslint-disable-next-line no-console
-    console.log(`  Text:    ${text.slice(0, 120)}...`)
+    logger.info('[MockEmail] message sent', {
+      messageId,
+      to: '[REDACTED]',
+    })
 
     return { messageId, accepted: true }
   }
@@ -124,7 +110,8 @@ export class BrevoEmailProvider implements EmailProvider {
     template: EmailTemplate,
     data: Record<string, unknown>,
   ): Promise<EmailSendResult> {
-    if (!this.apiKey) {
+    const apiKey = this.apiKey
+    if (!apiKey) {
       throw new Error('BREVO_API_KEY is not set')
     }
 
@@ -141,7 +128,7 @@ export class BrevoEmailProvider implements EmailProvider {
       const fallback = renderFallbackPlainText(template, data)
       subject = fallback.subject
       textBody = fallback.text
-      console.error('[BrevoEmailProvider] Template render error (real):', err)
+      logger.error('[BrevoEmailProvider] Template render error (real)', err)
     }
 
     const payload: Record<string, unknown> = {
@@ -155,20 +142,54 @@ export class BrevoEmailProvider implements EmailProvider {
       payload.htmlContent = htmlBody
     }
 
-    const response = await fetch(BREVO_API_URL, {
-      method: 'POST',
-      headers: {
-        'api-key': this.apiKey,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify(payload),
-    })
+    const response = await retryWithBackoff(
+      async () => {
+        let resp: Response
+        try {
+          resp = await fetch(BREVO_API_URL, {
+            method: 'POST',
+            headers: {
+              'api-key': apiKey,
+              'Content-Type': 'application/json',
+              Accept: 'application/json',
+            },
+            body: JSON.stringify(payload),
+            signal: AbortSignal.timeout(10000),
+          })
+        } catch (err) {
+          if (err instanceof DOMException && err.name === 'AbortError') {
+            throw new Error('Brevo email send timed out after 10 seconds')
+          }
+          throw err
+        }
 
-    if (!response.ok) {
-      const errorBody = await response.text()
-      throw new Error(`Brevo API error (${response.status}): ${errorBody}`)
-    }
+        if (!resp.ok) {
+          const errorBody = await resp.text()
+          throw new Error(`Brevo API error (${resp.status}): ${errorBody}`)
+        }
+
+        return resp
+      },
+      (err) => {
+        // Do not retry intentional timeouts
+        if (err instanceof Error && err.message === 'Brevo email send timed out after 10 seconds') {
+          return false
+        }
+        // Retry network errors (fetch throws TypeError)
+        if (err instanceof TypeError) {
+          return true
+        }
+        // Retry only 5xx API errors, not 4xx
+        if (err instanceof Error && err.message.startsWith('Brevo API error (')) {
+          const statusMatch = err.message.match(/Brevo API error \((\d{3})\):/)
+          if (statusMatch) {
+            const status = Number.parseInt(statusMatch[1], 10)
+            return status >= 500
+          }
+        }
+        return false
+      },
+    )
 
     const result = (await response.json()) as { messageId?: string }
     return {
@@ -187,4 +208,26 @@ export const brevoEmailProvider = new BrevoEmailProvider()
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function retryWithBackoff<T>(
+  operation: () => Promise<T>,
+  shouldRetry: (error: unknown) => boolean,
+  delays = [1000, 2000, 4000],
+): Promise<T> {
+  let lastError: unknown
+
+  for (let i = 0; i <= delays.length; i++) {
+    try {
+      return await operation()
+    } catch (err) {
+      lastError = err
+      if (i === delays.length || !shouldRetry(err)) {
+        throw err
+      }
+      await delay(delays[i])
+    }
+  }
+
+  throw lastError
 }

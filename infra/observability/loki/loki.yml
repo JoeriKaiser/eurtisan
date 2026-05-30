@@ -1,4 +1,7 @@
-auth_enabled: false
+# auth_enabled: true enables Loki multi-tenant mode.
+# Loki does not perform basic auth itself; authenticate at the reverse proxy.
+# Internal clients must send the X-Scope-OrgID header.
+auth_enabled: true
 
 server:
   http_listen_port: 3100

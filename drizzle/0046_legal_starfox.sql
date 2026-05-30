@@ -1,0 +1,4 @@
+ALTER TABLE "cart_item" ADD CONSTRAINT "cart_item_product_id_product_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."product"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "review" ADD CONSTRAINT "review_product_id_product_id_fk" FOREIGN KEY ("product_id") REFERENCES "public"."product"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "product" ADD CONSTRAINT "stock_count_non_negative" CHECK ("product"."stock_count" >= 0);--> statement-breakpoint
+ALTER TABLE "product" ADD CONSTRAINT "price_cents_non_negative" CHECK ("product"."price_cents" >= 0);

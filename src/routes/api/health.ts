@@ -1,10 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { getPoolStats, pool } from '#/db.ts'
+import { isMeilisearchHealthy } from '#/lib/meilisearch-products.server.ts'
 
 export interface HealthCheckResult {
   status: 'ok' | 'error'
   db: 'connected' | 'disconnected'
+  meilisearch: 'connected' | 'disconnected'
   pool?: {
     total: number
     idle: number
@@ -13,30 +15,41 @@ export interface HealthCheckResult {
 }
 
 /**
- * Check database connectivity by running a lightweight query.
+ * Check database and Meilisearch connectivity.
  */
 export async function checkHealth(): Promise<{
   body: HealthCheckResult
   status: number
 }> {
+  let dbHealthy = false
   try {
     await pool.query('SELECT 1')
+    dbHealthy = true
+  } catch {
+    dbHealthy = false
+  }
+
+  const meilisearchHealthy = await isMeilisearchHealthy()
+
+  if (dbHealthy && meilisearchHealthy) {
     return {
       body: {
         status: 'ok',
         db: 'connected',
+        meilisearch: 'connected',
         pool: getPoolStats(),
       },
       status: 200,
     }
-  } catch {
-    return {
-      body: {
-        status: 'error',
-        db: 'disconnected',
-      },
-      status: 503,
-    }
+  }
+
+  return {
+    body: {
+      status: 'error',
+      db: dbHealthy ? 'connected' : 'disconnected',
+      meilisearch: meilisearchHealthy ? 'connected' : 'disconnected',
+    },
+    status: 503,
   }
 }
 

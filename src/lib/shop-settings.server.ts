@@ -1,7 +1,9 @@
 import { and, eq, ne } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { shop } from '#/db/schema'
+import { logger } from './logger.server'
 import { sanitizeRichText, validatePlainText } from './xss'
+import { validateVatId } from './vat'
 
 export { ImageValidationError } from './image-utils'
 
@@ -124,6 +126,9 @@ export async function updateShopInternal(
     if (trimmed.length === 0) {
       throw new Error('Shop slug cannot be empty.')
     }
+    if (!/^[a-z0-9-]+$/.test(trimmed)) {
+      throw new Error('Slug must be URL-safe: lowercase letters, numbers, and hyphens only.')
+    }
     updateData.slug = trimmed
   }
 
@@ -149,6 +154,21 @@ export async function updateShopInternal(
 
   if (input.bannerImage !== undefined) {
     updateData.bannerImage = input.bannerImage
+  }
+
+  // VAT validation: when VAT registered, a valid VAT ID is required.
+  const effectiveIsVatRegistered =
+    input.isVatRegistered !== undefined ? input.isVatRegistered : shopRecord.isVatRegistered
+  if (effectiveIsVatRegistered) {
+    const effectiveVatId =
+      input.vatId !== undefined ? (input.vatId ? input.vatId.trim() : null) : shopRecord.vatId
+    if (!effectiveVatId) {
+      throw new Error('VAT ID is required when VAT registered.')
+    }
+    const validation = validateVatId(effectiveVatId)
+    if (!validation.valid) {
+      throw new Error(validation.message ?? 'Invalid VAT ID format.')
+    }
   }
 
   const [updated] = await db.update(shop).set(updateData).where(eq(shop.id, shopId)).returning()
@@ -188,7 +208,7 @@ export async function uploadShopImageInternal(
       try {
         await deleteImageFromStorage(oldKey)
       } catch (err) {
-        console.error(`Failed to delete old shop image from S3: ${oldKey}`, err)
+        logger.error(`Failed to delete old shop image from S3: ${oldKey}`, err)
       }
     }
   }

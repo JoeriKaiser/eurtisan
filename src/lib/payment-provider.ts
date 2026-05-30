@@ -55,6 +55,13 @@ export interface PaymentProvider {
   ): Promise<'pending' | 'paid' | 'expired' | 'failed' | 'cancelled'>
 
   /**
+   * Query the amount of an existing payment.
+   *
+   * Returns the payment amount in euro cents.
+   */
+  getPaymentAmount(paymentId: string): Promise<number>
+
+  /**
    * Refund a previously created payment.
    *
    * Pass `amountCents` for a partial refund; omit for a full refund.

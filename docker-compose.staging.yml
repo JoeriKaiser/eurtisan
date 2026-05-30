@@ -5,6 +5,9 @@
 # Wire this up in Coolify:
 #   Domain: staging.eurtisan.eu
 #   Port:   3001   (or whatever you map below)
+#
+# REQUIRED in .env: PUBLIC_URL=https://staging.eurtisan.eu
+# See .env.staging.example for the full template.
 
 services:
   app:
@@ -28,7 +31,7 @@ services:
       db:
         condition: service_healthy
       meilisearch:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/"]
       interval: 30s
@@ -68,6 +71,12 @@ services:
       - meilisearch_data:/meili_data
     networks:
       - eurtisan
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
   mailpit:
     image: axllent/mailpit:latest
@@ -79,8 +88,6 @@ services:
       - mailpit_data:/data
     environment:
       MP_DATA_FILE: /data/mailpit.db
-      MP_SMTP_AUTH_ACCEPT_ANY: 1
-      MP_SMTP_AUTH_ALLOW_INSECURE: 1
     networks:
       - eurtisan
 
@@ -118,7 +125,7 @@ services:
       db:
         condition: service_healthy
       meilisearch:
-        condition: service_started
+        condition: service_healthy
     command: >
       sh -c "bun run src/jobs/meilisearch-sync.ts"
 

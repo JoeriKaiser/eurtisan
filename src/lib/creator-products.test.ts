@@ -11,6 +11,7 @@ import {
   deleteProductInternal,
   listCreatorProductsInternal,
   updateProductInternal,
+  updateProductSchema,
   validateCategory,
   verifyProductOwnership,
 } from './creator-products.server'
@@ -119,6 +120,46 @@ describe('createProductSchema', () => {
       categoryId: 'not-a-uuid',
     })
     expect(result.success).toBe(false)
+  })
+
+  it('rejects price above max (€1,000,000.00)', () => {
+    const result = createProductSchema.safeParse({
+      name: 'Handmade Vase',
+      slug: 'handmade-vase',
+      priceCents: 1_000_000_00 + 1,
+      stockCount: 10,
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('accepts price at max (€1,000,000.00)', () => {
+    const result = createProductSchema.safeParse({
+      name: 'Handmade Vase',
+      slug: 'handmade-vase',
+      priceCents: 1_000_000_00,
+      stockCount: 10,
+    })
+    expect(result.success).toBe(true)
+  })
+})
+
+describe('updateProductSchema', () => {
+  it('rejects price above max (€1,000,000.00)', () => {
+    const result = updateProductSchema.safeParse({
+      productId: 'prod-1',
+      shopId: 'shop-1',
+      priceCents: 1_000_000_00 + 1,
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('accepts price at max (€1,000,000.00)', () => {
+    const result = updateProductSchema.safeParse({
+      productId: 'prod-1',
+      shopId: 'shop-1',
+      priceCents: 1_000_000_00,
+    })
+    expect(result.success).toBe(true)
   })
 })
 

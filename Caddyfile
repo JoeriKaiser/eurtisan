@@ -2,13 +2,19 @@
 # Domain is injected via the CADDY_DOMAIN environment variable
 
 {$CADDY_DOMAIN} {
+	# Compression — brotli requires the caddy-brotli plugin (https://github.com/darkweak/caddy-brotli)
+	encode brotli gzip zstd
+
 	# Faro collector endpoint
 	handle /collect* {
 		reverse_proxy alloy:8027
 	}
 
-	# Grafana UI
+	# Grafana UI — restrict to admin IPs only
+	# TODO: Replace with actual admin IP ranges before production
 	handle /grafana* {
+		# @not_admin not remote_ip 1.2.3.4/32 10.0.0.0/24
+		# respond @not_admin "Forbidden" 403
 		reverse_proxy grafana:3000
 	}
 
@@ -27,9 +33,17 @@
 
 	# Security headers
 	header {
+		Vary "Accept-Encoding"
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+		# Baseline edge CSP — covers all known external resources used by the app
+		# (Google Fonts, Mollie, Brevo, Meilisearch, Umami). The app may emit a
+		# more specific policy at runtime; this ensures non-app responses
+		# (error pages, static files, upstream services) are also protected.
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.umami.is https://analytics.eurtisan.eu; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; style-src-attr 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://api.mollie.com https://api.brevo.com https://search.eurtisan.eu https://cdn.umami.is https://api.umami.is https://analytics.eurtisan.eu; frame-src 'self' https://checkout.mollie.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
 	}
 
 	# Automatic HTTPS via Let's Encrypt

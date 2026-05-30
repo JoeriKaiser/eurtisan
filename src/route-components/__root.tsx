@@ -1,15 +1,15 @@
-import { useEffect } from 'react'
-import { ReactQueryDevtoolsPanel } from '@tanstack/react-query-devtools'
-import { TanStackDevtools } from '@tanstack/react-devtools'
-import { ClientOnly, useRouter } from '@tanstack/react-router'
-import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { FaroErrorBoundary } from '@grafana/faro-react'
+import { Outlet, useRouter } from '@tanstack/react-router'
+import { lazy, Suspense, useEffect } from 'react'
+import { getFaro, initFaro } from '#/integrations/faro'
 import { m } from '#/paraglide/messages'
-import { initFaro, getFaro } from '#/integrations/faro'
 import CartProvider from '../components/CartProvider'
 import Footer from '../components/Footer'
 import Header from '../components/Header'
-import { Outlet } from '@tanstack/react-router'
+
+const Devtools = import.meta.env.DEV
+  ? lazy(() => import('../components/Devtools').then((m) => ({ default: m.Devtools })))
+  : null
 
 export function RootComponent() {
   const router = useRouter()
@@ -40,7 +40,12 @@ export function RootComponent() {
   }, [])
 
   return (
-    <FaroErrorBoundary>
+    <FaroErrorBoundary
+      onError={(error) => {
+        // eslint-disable-next-line no-console
+        console.error('[FaroErrorBoundary] Caught error:', error)
+      }}
+    >
       <CartProvider>
         <a
           href='#main-content'
@@ -53,23 +58,11 @@ export function RootComponent() {
           <Outlet />
         </main>
         {!isOnboarding && <Footer />}
-        <ClientOnly>
-          <TanStackDevtools
-            config={{
-              position: 'bottom-right',
-            }}
-            plugins={[
-              {
-                name: 'Tanstack Router',
-                render: <TanStackRouterDevtoolsPanel />,
-              },
-              {
-                name: 'Tanstack Query',
-                render: <ReactQueryDevtoolsPanel />,
-              },
-            ]}
-          />
-        </ClientOnly>
+        {Devtools && (
+          <Suspense fallback={null}>
+            <Devtools />
+          </Suspense>
+        )}
       </CartProvider>
     </FaroErrorBoundary>
   )

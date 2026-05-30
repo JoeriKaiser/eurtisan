@@ -22,6 +22,18 @@ interface ImportMetaEnv {
    * Never use the master key here.
    */
   readonly VITE_MEILISEARCH_SEARCH_KEY?: string
+
+  /** Grafana Faro collector/beacon URL (same-origin path or full URL) */
+  readonly VITE_FARO_COLLECTOR_URL?: string
+
+  /** Application name reported to Grafana Faro */
+  readonly VITE_FARO_APP_NAME?: string
+
+  /** Runtime environment tag (e.g. development, staging, production) */
+  readonly VITE_APP_ENV?: string
+
+  /** Application release/version tag reported to observability tools */
+  readonly VITE_APP_VERSION?: string
 }
 
 interface ImportMeta {

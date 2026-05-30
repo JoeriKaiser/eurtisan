@@ -3,6 +3,7 @@ import z from 'zod'
 import { db } from '#/db/index'
 import { notification, user } from '#/db/schema'
 import { createEmailProvider } from '#/integrations/email'
+import { logger } from '#/lib/logger.server'
 import type { EmailTemplate } from '#/lib/email-provider'
 
 export const notificationTypeEnum = z.enum([
@@ -112,7 +113,7 @@ export async function sendNotificationEmail(
       .limit(1)
 
     if (!userRecord?.email) {
-      console.warn(`[NotificationEmail] No email found for user ${userId}`)
+      logger.warn(`[NotificationEmail] No email found for user ${userId}`)
       return
     }
 
@@ -122,7 +123,12 @@ export async function sendNotificationEmail(
       buyerName: data.buyerName ?? userRecord.name ?? 'Valued Customer',
     })
   } catch (err) {
-    console.error('[NotificationEmail] Failed to send email:', err)
+    logger.error('Notification email failed', {
+      userId,
+      template,
+      error: err instanceof Error ? err.message : String(err),
+      alert: true,
+    })
   }
 }
 

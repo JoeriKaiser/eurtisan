@@ -115,7 +115,7 @@ export function InvoiceDetailComponent() {
                 <div className='text-xs text-text-muted print:text-gray-500'>
                   Date: {DATE_FORMATTER.format(parseSafeDate(invoice.createdAt))}
                 </div>
-                {isPlatformFee && details.reverseCharge && (
+                {details.reverseCharge && (
                   <Badge
                     variant='warning'
                     className='mt-2 font-medium inline-flex items-center gap-1.5 print:border print:border-gray-400 print:text-black'
@@ -282,6 +282,11 @@ export function InvoiceDetailComponent() {
                       <p className='font-semibold'>
                         VAT Exempt: Artisan is registered as a small business under EU Article
                         281-294 and does not charge VAT on sales.
+                      </p>
+                    ) : details.reverseCharge ? (
+                      <p className='font-semibold text-warning-strong print:text-black'>
+                        Reverse charge: Buyer to account for VAT under Art 44 of the VAT Directive /
+                        Autoliquidation : Art. 283 du CGI.
                       </p>
                     ) : (
                       <p>

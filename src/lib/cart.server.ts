@@ -1,19 +1,21 @@
-import { getCookie, setCookie } from '@tanstack/react-start/server'
-import { and, eq, gt, inArray, sql } from 'drizzle-orm'
+import { getCookie, getRequestProtocol, setCookie } from '@tanstack/react-start/server'
+import { and, eq, gt, gte, inArray, sql, sum } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { cart, cartItem, product, productImage, shop } from '#/db/schema'
-import { getAvailableStock, getAvailableStockForProducts } from './inventory.server'
+import { cart, cartItem, inventoryReservation, product, productImage, shop } from '#/db/schema'
 import { ANONYMOUS_SESSION_COOKIE } from './cart-constants'
+import { getAvailableStock, getAvailableStockForProducts } from './inventory.server'
 
 export const AUTH_CART_DAYS = 30
 export const ANON_CART_DAYS = 7
 
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: true,
-  sameSite: 'lax' as const,
-  maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
-  path: '/',
+function getCookieOptions() {
+  return {
+    httpOnly: true,
+    secure: getRequestProtocol() === 'https',
+    sameSite: 'lax' as const,
+    maxAge: 7 * 24 * 60 * 60, // 7 days in seconds
+    path: '/',
+  }
 }
 
 export function getAnonymousSessionIdFromCookie(): string | undefined {
@@ -21,12 +23,12 @@ export function getAnonymousSessionIdFromCookie(): string | undefined {
 }
 
 export function setAnonymousSessionCookie(sessionId: string): void {
-  setCookie(ANONYMOUS_SESSION_COOKIE, sessionId, COOKIE_OPTIONS)
+  setCookie(ANONYMOUS_SESSION_COOKIE, sessionId, getCookieOptions())
 }
 
 export function clearAnonymousSessionCookie(): void {
   setCookie(ANONYMOUS_SESSION_COOKIE, '', {
-    ...COOKIE_OPTIONS,
+    ...getCookieOptions(),
     maxAge: 0,
   })
 }
@@ -245,43 +247,59 @@ export async function createUserCart(userId: string) {
 /* -------------------------------------------------------------------------- */
 
 export async function addItemToCart(cartId: string, productId: string, quantity: number) {
-  const [availableStock, existing] = await Promise.all([
-    getAvailableStock(productId),
-    db
+  return db.transaction(async (tx) => {
+    // Lock product row to serialize concurrent cart mutations for this product
+    const [productRow] = await tx
       .select()
-      .from(cartItem)
-      .where(and(eq(cartItem.cartId, cartId), eq(cartItem.productId, productId)))
-      .limit(1),
-  ])
+      .from(product)
+      .where(eq(product.id, productId))
+      .for('update')
 
-  if (existing.length > 0) {
-    const newQty = Math.min(existing[0].quantity + quantity, availableStock)
-    if (newQty <= 0) {
-      await db.delete(cartItem).where(eq(cartItem.id, existing[0].id))
+    if (!productRow) {
       return null
     }
-    const [updated] = await db
-      .update(cartItem)
-      .set({ quantity: newQty, updatedAt: new Date() })
-      .where(eq(cartItem.id, existing[0].id))
+
+    // Calculate available stock inside the transaction
+    const [reservationResult] = await tx
+      .select({ totalReserved: sum(inventoryReservation.quantity) })
+      .from(inventoryReservation)
+      .where(
+        and(
+          eq(inventoryReservation.productId, productId),
+          gte(inventoryReservation.expiresAt, sql`now()`),
+        ),
+      )
+
+    const totalReserved = Number(reservationResult?.totalReserved ?? 0)
+    const availableStock = Math.max(0, productRow.stockCount - totalReserved)
+
+    const finalQty = Math.min(quantity, availableStock)
+
+    if (finalQty <= 0) {
+      await tx
+        .delete(cartItem)
+        .where(and(eq(cartItem.cartId, cartId), eq(cartItem.productId, productId)))
+      return null
+    }
+
+    const [result] = await tx
+      .insert(cartItem)
+      .values({
+        cartId,
+        productId,
+        quantity: finalQty,
+      })
+      .onConflictDoUpdate({
+        target: [cartItem.cartId, cartItem.productId],
+        set: {
+          quantity: sql`LEAST(${cartItem.quantity} + ${quantity}, ${availableStock})`,
+          updatedAt: new Date(),
+        },
+      })
       .returning()
-    return updated
-  }
 
-  const finalQty = Math.min(quantity, availableStock)
-  if (finalQty <= 0) {
-    return null
-  }
-
-  const [newItem] = await db
-    .insert(cartItem)
-    .values({
-      cartId,
-      productId,
-      quantity: finalQty,
-    })
-    .returning()
-  return newItem
+    return result
+  })
 }
 
 export async function updateCartItemQuantity(cartId: string, productId: string, quantity: number) {

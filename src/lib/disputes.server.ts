@@ -12,12 +12,14 @@ import {
   user,
 } from '#/db/schema'
 import { molliePaymentProvider } from '#/integrations/mollie'
+import type { openDisputeSchema } from './disputes'
 import { getBaseUrl } from './env.server'
-import { sanitizeRichText, validatePlainText } from './xss'
+import { logger } from './logger.server'
 import { logOrderDisputed, logOrderResolved } from './order-logger'
 import type { OrderStatus } from './orders.server'
 import { recalcPlatformOrderStatus } from './shop-orders.server'
-import type { openDisputeSchema } from './disputes'
+import { releaseStockInTx } from './inventory.server'
+import { sanitizeRichText, validatePlainText } from './xss'
 
 const creatorUser = alias(user, 'creator')
 
@@ -566,7 +568,16 @@ export async function getDisputeDetailQuery(
 export async function resolveDisputeQuery(
   disputeId: string,
   input: ResolveDisputeInput,
+  caller: { userId: string; role: string },
 ): Promise<ResolvedDispute> {
+  if (caller.role !== 'admin') {
+    throw new Response(JSON.stringify({ error: 'Forbidden', message: 'Admin access required' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  // Pre-transaction reads to determine refund eligibility and amount
   const [disputeRecord] = await db.select().from(dispute).where(eq(dispute.id, disputeId)).limit(1)
 
   if (!disputeRecord) {
@@ -596,7 +607,6 @@ export async function resolveDisputeQuery(
     })
   }
 
-  // Fetch the Mollie payment ID for potential refund
   const [platformOrderRecord] = await db
     .select({ molliePaymentId: platformOrder.molliePaymentId })
     .from(platformOrder)
@@ -604,7 +614,6 @@ export async function resolveDisputeQuery(
     .limit(1)
 
   const molliePaymentId = platformOrderRecord?.molliePaymentId ?? null
-
   const orderTotalCents = shopOrderRecord.subtotalCents + shopOrderRecord.shippingCostCents
 
   let refundCents: number | null = null
@@ -641,8 +650,6 @@ export async function resolveDisputeQuery(
     refundCents = input.refundCents
   }
 
-  const newOrderStatus: OrderStatus = input.resolution === 'close' ? 'completed' : 'refunded'
-
   const [shopRecord] = await db
     .select({ ownerId: shop.ownerId })
     .from(shop)
@@ -651,24 +658,67 @@ export async function resolveDisputeQuery(
 
   const creatorUserId = shopRecord?.ownerId ?? null
 
+  // Process refund through Mollie BEFORE starting the DB transaction
+  if (refundCents !== null && refundCents > 0 && molliePaymentId) {
+    try {
+      await molliePaymentProvider.refundPayment(molliePaymentId, refundCents)
+    } catch (err) {
+      logger.error(
+        `Mollie refund failed for payment ${molliePaymentId}, dispute ${disputeId}, amount ${refundCents} cents`,
+        err,
+      )
+      throw new Response(
+        JSON.stringify({
+          error: 'Bad Gateway',
+          message: 'Mollie refund failed. The dispute has not been resolved.',
+        }),
+        { status: 502, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+  }
+
+  const newOrderStatus: OrderStatus = input.resolution === 'close' ? 'completed' : 'refunded'
+
   const result = await db.transaction(async (tx) => {
-    // Process refund through Mollie inside the transaction
-    if (refundCents !== null && refundCents > 0 && molliePaymentId) {
-      try {
-        await molliePaymentProvider.refundPayment(molliePaymentId, refundCents)
-      } catch (err) {
-        console.error(
-          `Mollie refund failed for payment ${molliePaymentId}, dispute ${disputeId}, amount ${refundCents} cents:`,
-          err,
-        )
-        throw new Response(
-          JSON.stringify({
-            error: 'Bad Gateway',
-            message: 'Mollie refund failed. The dispute has not been resolved.',
-          }),
-          { status: 502, headers: { 'Content-Type': 'application/json' } },
-        )
-      }
+    // Acquire row-level lock on the dispute before any status-dependent action
+    const [lockedDispute] = await tx
+      .select()
+      .from(dispute)
+      .where(eq(dispute.id, disputeId))
+      .for('update')
+      .limit(1)
+
+    if (!lockedDispute) {
+      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Dispute not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Re-check status after acquiring the lock to prevent double-refund races
+    if (lockedDispute.status !== 'open') {
+      throw new Response(
+        JSON.stringify({ error: 'Conflict', message: 'Dispute has already been resolved' }),
+        { status: 409, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const [lockedShopOrder] = await tx
+      .select()
+      .from(shopOrder)
+      .where(eq(shopOrder.id, lockedDispute.shopOrderId))
+      .limit(1)
+
+    if (!lockedShopOrder) {
+      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    // Restore inventory to sellable pool for refund outcomes
+    if (input.resolution !== 'close') {
+      await releaseStockInTx(tx, lockedShopOrder.platformOrderId)
     }
 
     const [[updated]] = await Promise.all([
@@ -685,15 +735,15 @@ export async function resolveDisputeQuery(
       tx
         .update(shopOrder)
         .set({ status: newOrderStatus, updatedAt: new Date() })
-        .where(eq(shopOrder.id, disputeRecord.shopOrderId)),
+        .where(eq(shopOrder.id, lockedDispute.shopOrderId)),
     ])
 
-    await recalcPlatformOrderStatus(tx, shopOrderRecord.platformOrderId)
+    await recalcPlatformOrderStatus(tx, lockedShopOrder.platformOrderId)
 
     const notificationData = {
       disputeId,
-      shopOrderId: disputeRecord.shopOrderId,
-      platformOrderId: shopOrderRecord.platformOrderId,
+      shopOrderId: lockedDispute.shopOrderId,
+      platformOrderId: lockedShopOrder.platformOrderId,
       resolution: input.resolution,
       refundCents,
     }
@@ -701,7 +751,7 @@ export async function resolveDisputeQuery(
     // Notify buyer
     try {
       const { createNotification } = await import('./notifications.server')
-      await createNotification(disputeRecord.buyerUserId, 'dispute_resolved', notificationData)
+      await createNotification(lockedDispute.buyerUserId, 'dispute_resolved', notificationData)
     } catch {
       // Notification errors must not break the primary business transaction
     }
@@ -717,38 +767,50 @@ export async function resolveDisputeQuery(
     }
 
     return {
-      id: updated.id,
-      status: updated.status,
-      resolution: updated.resolution ?? '',
-      refundCents: updated.refundCents,
-      updatedAt: updated.updatedAt,
+      disputeRecord: lockedDispute,
+      shopOrderRecord: lockedShopOrder,
+      creatorUserId,
+      resolvedDispute: {
+        id: updated.id,
+        status: updated.status,
+        resolution: updated.resolution ?? '',
+        refundCents: updated.refundCents,
+        updatedAt: updated.updatedAt,
+      },
     }
   })
 
+  const {
+    disputeRecord: finalDisputeRecord,
+    shopOrderRecord: finalShopOrderRecord,
+    creatorUserId: finalCreatorUserId,
+    resolvedDispute,
+  } = result
+
   logOrderResolved({
     disputeId,
-    shopOrderId: disputeRecord.shopOrderId,
-    platformOrderId: shopOrderRecord.platformOrderId,
+    shopOrderId: finalDisputeRecord.shopOrderId,
+    platformOrderId: finalShopOrderRecord.platformOrderId,
     resolution: input.resolution,
-    refundCents,
+    refundCents: resolvedDispute.refundCents,
   })
 
   // Send dispute update emails after the transaction
   try {
-    const [{ sendNotificationEmail }, [buyerRecord], [sellerRecord], [shopRecord]] =
+    const [{ sendNotificationEmail }, [buyerRecord], [sellerRecord], [shopRecord2]] =
       await Promise.all([
         import('./notifications.server'),
         db
           .select({ name: user.name })
           .from(user)
-          .where(eq(user.id, disputeRecord.buyerUserId))
+          .where(eq(user.id, finalDisputeRecord.buyerUserId))
           .limit(1),
         db
           .select({ name: user.name })
           .from(user)
-          .where(eq(user.id, creatorUserId ?? ''))
+          .where(eq(user.id, finalCreatorUserId ?? ''))
           .limit(1),
-        db.select().from(shop).where(eq(shop.id, shopOrderRecord.shopId)).limit(1),
+        db.select().from(shop).where(eq(shop.id, finalShopOrderRecord.shopId)).limit(1),
       ])
 
     const baseUrl = getBaseUrl()
@@ -761,20 +823,20 @@ export async function resolveDisputeQuery(
             ? `A partial refund has been issued.`
             : 'The dispute has been resolved.'
 
-    await sendNotificationEmail(disputeRecord.buyerUserId, 'dispute_update', {
-      orderNumber: disputeRecord.shopOrderId.slice(0, 8),
+    await sendNotificationEmail(finalDisputeRecord.buyerUserId, 'dispute_update', {
+      orderNumber: finalDisputeRecord.shopOrderId.slice(0, 8),
       buyerName: buyerRecord?.name,
-      shopName: shopRecord?.name ?? 'Eurtisan',
+      shopName: shopRecord2?.name ?? 'Eurtisan',
       status: input.resolution,
       message,
       disputeUrl: `${baseUrl}/disputes/${disputeId}`,
     })
 
-    if (creatorUserId) {
-      await sendNotificationEmail(creatorUserId, 'dispute_update', {
-        orderNumber: disputeRecord.shopOrderId.slice(0, 8),
+    if (finalCreatorUserId) {
+      await sendNotificationEmail(finalCreatorUserId, 'dispute_update', {
+        orderNumber: finalDisputeRecord.shopOrderId.slice(0, 8),
         buyerName: sellerRecord?.name,
-        shopName: shopRecord?.name ?? 'Eurtisan',
+        shopName: shopRecord2?.name ?? 'Eurtisan',
         status: input.resolution,
         message,
         disputeUrl: `${baseUrl}/disputes/${disputeId}`,
@@ -784,5 +846,5 @@ export async function resolveDisputeQuery(
     // Email errors must not break the primary business flow
   }
 
-  return result
+  return resolvedDispute
 }

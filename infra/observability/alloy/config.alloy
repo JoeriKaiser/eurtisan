@@ -31,7 +31,7 @@ faro.receiver "eurtisan" {
   server {
     listen_address = "0.0.0.0"
     listen_port    = 8027
-    cors_allowed_origins = ["*"]
+    cors_allowed_origins = ["https://eurtisan.eu", "https://staging.eurtisan.eu"]
   }
 
   output {
@@ -75,6 +75,9 @@ otelcol.exporter.otlphttp "loki" {
   client {
     endpoint = "http://loki:3100/otlp"
     tls { insecure = true }
+    headers = {
+      "X-Scope-OrgID" = "eurtisan",
+    }
   }
 }
 
@@ -83,6 +86,9 @@ loki.write "eurtisan" {
   endpoint {
     name = "loki"
     url  = "http://loki:3100/loki/api/v1/push"
+    headers = {
+      "X-Scope-OrgID" = "eurtisan",
+    }
   }
 }
 

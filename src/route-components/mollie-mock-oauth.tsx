@@ -1,12 +1,14 @@
-import { getRouteApi } from '@tanstack/react-router'
 import { Check, ShieldCheck, X } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '#/components/ui/button'
 
-const routeApi = getRouteApi('/mollie-mock-oauth')
+export interface MollieMockOauthProps {
+  shopId: string
+  state?: string
+  redirect_uri: string
+}
 
-export function MollieMockOauth() {
-  const { shopId, state, redirect_uri } = routeApi.useSearch()
+export function MollieMockOauth({ shopId, state, redirect_uri }: MollieMockOauthProps) {
   const [connecting, setConnecting] = useState(false)
 
   const handleAuthorize = () => {

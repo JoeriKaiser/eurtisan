@@ -26,7 +26,9 @@ export const Route = createFileRoute('/admin/payouts')({
   }),
   loader: async ({ deps }) => {
     if (deps.tab === 'pending') {
-      const payouts = await listPendingPayouts()
+      const payouts = await listPendingPayouts({
+        data: { page: deps.page, pageSize: deps.pageSize },
+      })
       return { tab: 'pending' as const, payouts }
     }
 

@@ -1,0 +1,128 @@
+#!/bin/bash
+set -euo pipefail
+
+COMPOSE_FILE="{{ compose_file }}"
+BACKUP_DIR="/opt/eurtisan/backups"
+POSTGRES_USER="{{ postgres_user }}"
+POSTGRES_DB="{{ postgres_db }}"
+WEBHOOK_URL="{{ backup_alert_webhook | default('') }}"
+
+json_log() {
+  local level="$1"
+  local message="$2"
+  local meta="${3:-{}}"
+  printf '{"timestamp":"%s","level":"%s","service":"eurtisan-backup","message":"%s","meta":%s}\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$level" "$message" "$meta"
+}
+
+send_alert() {
+  local message="$1"
+  if [[ -n "$WEBHOOK_URL" ]]; then
+    curl -fsSL -X POST -H "Content-Type: application/json" \
+      -d "{\"text\":\"$message\"}" "$WEBHOOK_URL" >/dev/null 2>&1 || true
+  fi
+}
+
+cleanup() {
+  docker rm -f eurtisan-backup-verify 2>/dev/null || true
+  docker network rm eurtisan-backup-verify-net 2>/dev/null || true
+}
+trap cleanup EXIT
+
+mkdir -p "$BACKUP_DIR"
+BACKUP_FILE="$BACKUP_DIR/eurtisan-$(date +%Y%m%d-%H%M%S).sql.gz"
+
+json_log "info" "Backup job started" "{\"file\":\"$BACKUP_FILE\"}"
+
+# 1. Create backup
+if ! docker compose -f "/opt/eurtisan/$COMPOSE_FILE" exec -T db pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip > "$BACKUP_FILE"; then
+  json_log "error" "Backup creation failed" "{\"file\":\"$BACKUP_FILE\"}"
+  send_alert "🚨 Eurtisan backup FAILED on $(hostname): backup creation failed"
+  exit 1
+fi
+
+BACKUP_SIZE=$(stat -c%s "$BACKUP_FILE" 2>/dev/null || echo "0")
+json_log "info" "Backup created" "{\"file\":\"$BACKUP_FILE\",\"size_bytes\":$BACKUP_SIZE}"
+
+# 2. Verify backup integrity (test restore)
+VERIFY_DB="verify_$(date +%s)"
+VERIFY_CONTAINER="eurtisan-backup-verify"
+VERIFY_NET="eurtisan-backup-verify-net"
+
+docker network create "$VERIFY_NET" 2>/dev/null || true
+
+if ! docker run -d --name "$VERIFY_CONTAINER" \
+  --network "$VERIFY_NET" \
+  -e POSTGRES_USER=verify \
+  -e POSTGRES_PASSWORD=verify \
+  -e POSTGRES_DB="$VERIFY_DB" \
+  --health-cmd="pg_isready -U verify" \
+  --health-interval=2s \
+  --health-timeout=5s \
+  --health-retries=15 \
+  postgres:16-alpine >/dev/null; then
+  json_log "error" "Failed to start verification container" "{\"file\":\"$BACKUP_FILE\"}"
+  send_alert "🚨 Eurtisan backup FAILED on $(hostname): could not start verification container"
+  exit 1
+fi
+
+# Wait for PostgreSQL to be ready (up to 60s)
+READY=0
+for i in $(seq 1 30); do
+  if docker exec "$VERIFY_CONTAINER" pg_isready -U verify >/dev/null 2>&1; then
+    READY=1
+    break
+  fi
+  sleep 2
+done
+
+if [[ "$READY" -ne 1 ]]; then
+  json_log "error" "Verification container did not become ready in time" "{\"file\":\"$BACKUP_FILE\"}"
+  send_alert "🚨 Eurtisan backup FAILED on $(hostname): verification container timeout"
+  exit 1
+fi
+
+# Restore the backup
+if ! gunzip -c "$BACKUP_FILE" | docker exec -i "$VERIFY_CONTAINER" psql -U verify -d "$VERIFY_DB" >/dev/null 2>&1; then
+  json_log "error" "Test restore failed" "{\"file\":\"$BACKUP_FILE\"}"
+  send_alert "🚨 Eurtisan backup FAILED on $(hostname): test restore failed"
+  exit 1
+fi
+
+json_log "info" "Test restore succeeded" "{\"file\":\"$BACKUP_FILE\"}"
+
+# 3. Verify expected tables exist
+EXPECTED_TABLES=("user" "session" "account" "verification" "shop" "category")
+MISSING=()
+for table in "${EXPECTED_TABLES[@]}"; do
+  COUNT=$(docker exec "$VERIFY_CONTAINER" psql -U verify -d "$VERIFY_DB" -tAc \
+    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='$table';" 2>/dev/null || echo "0")
+  if [[ "$COUNT" -eq 0 ]]; then
+    MISSING+=("$table")
+  fi
+done
+
+TOTAL_TABLES=$(docker exec "$VERIFY_CONTAINER" psql -U verify -d "$VERIFY_DB" -tAc \
+  "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';" 2>/dev/null || echo "0")
+
+if [[ ${#MISSING[@]} -gt 0 ]]; then
+  MISSING_STR=$(printf '%s,' "${MISSING[@]}")
+  MISSING_STR="${MISSING_STR%,}"
+  json_log "error" "Backup verification failed: missing expected tables" "{\"missing_tables\":\"$MISSING_STR\",\"total_tables\":$TOTAL_TABLES,\"file\":\"$BACKUP_FILE\"}"
+  send_alert "🚨 Eurtisan backup FAILED on $(hostname): missing tables ($MISSING_STR)"
+  exit 1
+fi
+
+if [[ "$TOTAL_TABLES" -eq 0 ]]; then
+  json_log "error" "Backup verification failed: no tables in restored database" "{\"file\":\"$BACKUP_FILE\"}"
+  send_alert "🚨 Eurtisan backup FAILED on $(hostname): restored database is empty"
+  exit 1
+fi
+
+json_log "info" "Backup verification completed successfully" "{\"file\":\"$BACKUP_FILE\",\"total_tables\":$TOTAL_TABLES}"
+
+# 4. Cleanup old backups
+DELETED=$(find "$BACKUP_DIR" -name "*.sql.gz" -mtime +7 -print -delete 2>/dev/null | wc -l)
+json_log "info" "Pruned old backups" "{\"deleted\":$DELETED}"
+
+json_log "info" "Backup job completed successfully" "{\"file\":\"$BACKUP_FILE\"}"

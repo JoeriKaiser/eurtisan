@@ -1,68 +1,18 @@
 import { and, count, desc, eq, ilike, inArray, sql } from 'drizzle-orm'
-import z from 'zod'
 import { db } from '#/db/index'
 import { categories, meilisearchSyncQueue, product, productImage, shop } from '#/db/schema'
 import { type ProductImageInput, validateImageKey } from './image-utils'
 import { deleteImageFromStorage } from './image-storage.server'
+import { logger } from './logger.server'
 import { sanitizeRichText, validatePlainText } from './xss'
 
-/* -------------------------------------------------------------------------- */
-/*                                   Schemas                                  */
-/* -------------------------------------------------------------------------- */
-
-const productImageInputSchema = z.object({
-  key: z
-    .string()
-    .min(1)
-    .regex(/^(products|shops)\/[^/]+\.(jpg|jpeg|png|webp)$/, {
-      message: 'Invalid image key format',
-    }),
-  altText: z.string().max(500).optional(),
-})
-
-export const createProductSchema = z.object({
-  name: z.string().min(1).max(100),
-  description: z.string().max(2000).optional(),
-  slug: z
-    .string()
-    .min(1)
-    .max(100)
-    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
-      message: 'Slug must be URL-safe (lowercase letters, numbers, and hyphens only)',
-    }),
-  priceCents: z.number().int().positive(),
-  stockCount: z.number().int().min(0).default(0),
-  categoryId: z.string().uuid().optional(),
-  isActive: z.boolean().optional().default(true),
-  vatRateCategory: z.enum(['standard', 'reduced', 'exempt']).optional().default('standard'),
-  images: z.array(productImageInputSchema).max(10).optional().default([]),
-})
-
-export const updateProductSchema = createProductSchema.partial().extend({
-  productId: z.string().min(1),
-  shopId: z.string().min(1),
-  images: z.array(productImageInputSchema).max(10).optional(),
-})
-
-export const deleteProductSchema = z.object({
-  productId: z.string().min(1),
-  shopId: z.string().min(1),
-  hard: z.boolean().default(false),
-})
-
-export const listCreatorProductsSchema = z.object({
-  shopId: z.string().min(1),
-  page: z.coerce.number().int().min(1).optional().default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
-  active: z.enum(['true', 'false', 'all']).optional().default('all'),
-  categoryId: z.string().uuid().optional(),
-  search: z.string().max(200).optional(),
-})
-
-export const toggleProductActiveSchema = z.object({
-  productId: z.string().min(1),
-  shopId: z.string().min(1),
-})
+export {
+  createProductSchema,
+  deleteProductSchema,
+  listCreatorProductsSchema,
+  toggleProductActiveSchema,
+  updateProductSchema,
+} from './creator-products.schema'
 
 /* -------------------------------------------------------------------------- */
 /*                                   Helpers                                  */
@@ -335,7 +285,7 @@ export async function updateProductInternal(data: {
             try {
               await deleteImageFromStorage(key)
             } catch (err) {
-              console.error(`Failed to delete old product image from S3: ${key}`, err)
+              logger.error(`Failed to delete old product image from S3: ${key}`, err)
             }
           }
         }
@@ -401,7 +351,7 @@ export async function deleteProductInternal(data: {
         try {
           await deleteImageFromStorage(key)
         } catch (err) {
-          console.error(`Failed to delete product image from S3: ${key}`, err)
+          logger.error(`Failed to delete product image from S3: ${key}`, err)
         }
       }
     }
@@ -550,10 +500,6 @@ export async function listCreatorProductsInternal(data: {
 /* -------------------------------------------------------------------------- */
 /*                            Get Product Detail                              */
 /* -------------------------------------------------------------------------- */
-
-export const getCreatorProductDetailSchema = z.object({
-  productId: z.string().min(1),
-})
 
 export async function getCreatorProductDetailInternal(productId: string, userId: string) {
   const [productRecord, images] = await Promise.all([

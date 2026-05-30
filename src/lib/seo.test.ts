@@ -133,6 +133,29 @@ describe('createPageMeta', () => {
     expect(parsed.name).toBe('Handmade Vase')
   })
 
+  it('escapes </script> inside JSON-LD to prevent XSS', () => {
+    const maliciousJsonLd = {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      name: '</script><script>alert(1)</script>',
+    }
+
+    const result = createPageMeta({
+      title: 'Product | Eurtisan',
+      description: 'A product.',
+      canonicalPath: '/products/vase',
+      jsonLd: maliciousJsonLd,
+    })
+
+    const scriptContent = result.script?.[0].children as string
+    expect(scriptContent).not.toContain('</script>')
+    expect(scriptContent).toContain('\\u003c/script>')
+
+    // Must still be valid JSON
+    const parsed = JSON.parse(scriptContent)
+    expect(parsed.name).toBe('</script><script>alert(1)</script>')
+  })
+
   it('does not include script when jsonLd is not provided', () => {
     const result = createPageMeta({
       title: 'About | Eurtisan',

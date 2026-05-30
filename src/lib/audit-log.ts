@@ -30,7 +30,7 @@ async function requireAdmin(context: { user?: { id: string; role: string } | nul
   }
 }
 
-export const listAuditLog = createServerFn({ method: 'GET' })
+export const listAuditLog = createServerFn({ method: 'GET', strict: { output: false } })
   .middleware([authMiddleware])
   .inputValidator((data: unknown) => listAuditLogInputSchema.parse(data))
   .handler(async ({ context, data }) => {

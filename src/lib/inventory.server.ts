@@ -2,7 +2,7 @@ import { and, eq, gte, inArray, lt, sql, sum } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { db } from '#/db/index'
 import type * as schema from '#/db/schema'
-import { inventoryReservation, product } from '#/db/schema'
+import { inventoryReservation, orderItem, product, productVariant, shopOrder } from '#/db/schema'
 
 type DbOrTx = NodePgDatabase<typeof schema>
 
@@ -244,14 +244,94 @@ export async function releaseExpiredReservations(batchSize = 100): Promise<Relea
 
     const ids = expired.map((r) => r.id)
 
-    await tx
-      .delete(inventoryReservation)
-      .where(
-        ids.length === 1
-          ? eq(inventoryReservation.id, ids[0])
-          : sql`${inventoryReservation.id} in ${ids}`,
-      )
+    await tx.delete(inventoryReservation).where(inArray(inventoryReservation.id, ids))
 
     return { releasedCount: expired.length }
   })
+}
+
+/**
+ * Atomically commit reserved stock to actual inventory when a platform order
+ * is paid.
+ *
+ * For every order item belonging to the platform order:
+ * - If a `variantId` is present, the variant's `stockCount` is decremented.
+ * - Otherwise, the product's `stockCount` is decremented.
+ *
+ * Stock is clamped to zero so it never goes negative. After decrementing,
+ * every `inventory_reservation` row tied to the platform order is deleted.
+ */
+export async function decrementStockForPaidOrder(
+  tx: DbOrTx,
+  platformOrderId: string,
+): Promise<void> {
+  const items = await tx
+    .select({
+      productId: orderItem.productId,
+      variantId: orderItem.variantId,
+      quantity: orderItem.quantity,
+    })
+    .from(orderItem)
+    .innerJoin(shopOrder, eq(orderItem.shopOrderId, shopOrder.id))
+    .where(eq(shopOrder.platformOrderId, platformOrderId))
+
+  // Aggregate quantities per product / variant to minimise row updates.
+  const aggregates = new Map<
+    string,
+    { productId: string; variantId: string | null; quantity: number }
+  >()
+
+  for (const item of items) {
+    const key = `${item.productId}:${item.variantId ?? ''}`
+    const existing = aggregates.get(key)
+    if (existing) {
+      existing.quantity += item.quantity
+    } else {
+      aggregates.set(key, {
+        productId: item.productId,
+        variantId: item.variantId,
+        quantity: item.quantity,
+      })
+    }
+  }
+
+  for (const entry of aggregates.values()) {
+    if (entry.variantId) {
+      const [variantRow] = await tx
+        .select()
+        .from(productVariant)
+        .where(eq(productVariant.id, entry.variantId))
+        .for('update')
+
+      if (!variantRow) {
+        throw new Error(`Product variant ${entry.variantId} not found`)
+      }
+
+      const newStock = Math.max(0, variantRow.stockCount - entry.quantity)
+      await tx
+        .update(productVariant)
+        .set({ stockCount: newStock, updatedAt: new Date() })
+        .where(eq(productVariant.id, entry.variantId))
+    } else {
+      const [productRow] = await tx
+        .select()
+        .from(product)
+        .where(eq(product.id, entry.productId))
+        .for('update')
+
+      if (!productRow) {
+        throw new Error(`Product ${entry.productId} not found`)
+      }
+
+      const newStock = Math.max(0, productRow.stockCount - entry.quantity)
+      await tx
+        .update(product)
+        .set({ stockCount: newStock, updatedAt: new Date() })
+        .where(eq(product.id, entry.productId))
+    }
+  }
+
+  await tx
+    .delete(inventoryReservation)
+    .where(eq(inventoryReservation.platformOrderId, platformOrderId))
 }
