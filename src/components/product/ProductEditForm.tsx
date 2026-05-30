@@ -3,12 +3,14 @@ import { Save, Trash2 } from 'lucide-react'
 import { useCallback, useReducer, useRef, useState } from 'react'
 import type { CreatorShop } from '#/lib/creator-dashboard'
 import { deleteProduct, updateProduct } from '#/lib/creator-products'
+import { useImageUpload } from '#/hooks/useImageUpload'
+import { getImageUrl } from '#/lib/image-url'
 import { m } from '#/paraglide/messages'
 import { Button } from '#/components/ui/button'
 import { FeedbackBanner } from '#/components/ui/FeedbackBanner'
 import { CancelConfirmationDialog } from './CancelConfirmationDialog'
 import { DeleteConfirmationDialog } from './DeleteConfirmationDialog'
-import { ProductEditImageUploader } from './ProductEditImageUploader'
+import { ProductEditImageUploader, type ImageEntry } from './ProductEditImageUploader'
 import { ProductEditFormFields } from './ProductEditFormFields'
 
 /* -------------------------------------------------------------------------- */
@@ -36,24 +38,6 @@ interface ProductDetail {
   images: ProductImageRecord[]
 }
 
-export interface ExistingImageEntry {
-  type: 'existing'
-  id: string
-  url: string
-  altText: string
-  sortOrder: number
-}
-
-export interface NewImageEntry {
-  type: 'new'
-  id: string
-  file: File
-  dataUrl: string
-  altText: string
-  reading: boolean
-  error: string | null
-}
-
 interface FeedbackState {
   type: 'success' | 'error'
   message: string
@@ -63,8 +47,6 @@ interface FeedbackState {
 /*                                  Constants                                 */
 /* -------------------------------------------------------------------------- */
 
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5MB
-const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const MAX_IMAGES = 10
 const SLUG_DEBOUNCE_MS = 400
 
@@ -152,132 +134,6 @@ function formReducer(state: FormState, action: FormAction): FormState {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                              Image reducer                                 */
-/* -------------------------------------------------------------------------- */
-
-interface ImageState {
-  existing: ExistingImageEntry[]
-  new: NewImageEntry[]
-}
-
-type ImageAction =
-  | { type: 'moveUp'; id: string }
-  | { type: 'moveDown'; id: string }
-  | { type: 'removeExisting'; id: string }
-  | { type: 'addNew'; images: NewImageEntry[] }
-  | { type: 'updateNew'; id: string; updates: Partial<NewImageEntry> }
-  | { type: 'removeNew'; id: string }
-  | { type: 'reset'; product: ProductDetail }
-
-function createInitialImageState(product: ProductDetail): ImageState {
-  return {
-    existing: product.images.map((img) => ({
-      type: 'existing' as const,
-      id: img.id,
-      url: img.url,
-      altText: img.altText ?? '',
-      sortOrder: img.sortOrder,
-    })),
-    new: [],
-  }
-}
-
-function imageReducer(state: ImageState, action: ImageAction): ImageState {
-  switch (action.type) {
-    case 'moveUp': {
-      const idx = state.existing.findIndex((img) => img.id === action.id)
-      if (idx <= 0) return state
-      const next = [...state.existing]
-      ;[next[idx - 1], next[idx]] = [next[idx], next[idx - 1]]
-      return { ...state, existing: next.map((img, i) => ({ ...img, sortOrder: i })) }
-    }
-    case 'moveDown': {
-      const idx = state.existing.findIndex((img) => img.id === action.id)
-      if (idx < 0 || idx >= state.existing.length - 1) return state
-      const next = [...state.existing]
-      ;[next[idx], next[idx + 1]] = [next[idx + 1], next[idx]]
-      return { ...state, existing: next.map((img, i) => ({ ...img, sortOrder: i })) }
-    }
-    case 'removeExisting':
-      return {
-        ...state,
-        existing: state.existing.reduce<ExistingImageEntry[]>((acc, img) => {
-          if (img.id !== action.id) {
-            acc.push({ ...img, sortOrder: acc.length })
-          }
-          return acc
-        }, []),
-      }
-    case 'addNew':
-      return { ...state, new: [...state.new, ...action.images] }
-    case 'updateNew':
-      return {
-        ...state,
-        new: state.new.map((img) => (img.id === action.id ? { ...img, ...action.updates } : img)),
-      }
-    case 'removeNew':
-      return { ...state, new: state.new.filter((img) => img.id !== action.id) }
-    case 'reset':
-      return createInitialImageState(action.product)
-    default:
-      return state
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-/*                           Submission reducer                               */
-/* -------------------------------------------------------------------------- */
-
-interface SubmissionState {
-  submitting: boolean
-  feedback: FeedbackState | null
-}
-
-type SubmissionAction =
-  | { type: 'start' }
-  | { type: 'set'; feedback: FeedbackState | null }
-  | { type: 'done' }
-
-function submissionReducer(state: SubmissionState, action: SubmissionAction): SubmissionState {
-  switch (action.type) {
-    case 'start':
-      return { submitting: true, feedback: null }
-    case 'set':
-      return { ...state, feedback: action.feedback }
-    case 'done':
-      return { ...state, submitting: false }
-    default:
-      return state
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-/*                             Delete reducer                                 */
-/* -------------------------------------------------------------------------- */
-
-interface DeleteState {
-  showDialog: boolean
-  deleting: boolean
-}
-
-type DeleteAction = { type: 'open' } | { type: 'close' } | { type: 'start' } | { type: 'finish' }
-
-function deleteReducer(state: DeleteState, action: DeleteAction): DeleteState {
-  switch (action.type) {
-    case 'open':
-      return { showDialog: true, deleting: false }
-    case 'close':
-      return { showDialog: false, deleting: false }
-    case 'start':
-      return { ...state, deleting: true }
-    case 'finish':
-      return { ...state, deleting: false }
-    default:
-      return state
-  }
-}
-
-/* -------------------------------------------------------------------------- */
 /*                                 Component                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -291,20 +147,31 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
   const router = useRouter()
 
   const [formState, dispatchForm] = useReducer(formReducer, product, createInitialFormState)
-  const [imageState, dispatchImage] = useReducer(imageReducer, product, createInitialImageState)
+  const [images, setImages] = useState<ImageEntry[]>(
+    product.images.map((img) => ({
+      id: img.id,
+      key: img.url,
+      previewUrl: getImageUrl(img.url),
+      altText: img.altText ?? '',
+      sortOrder: img.sortOrder,
+      isNew: false,
+    })),
+  )
 
   const slugManuallyEditedRef = useRef(true)
   const slugTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const [submissionState, dispatchSubmission] = useReducer(submissionReducer, {
-    submitting: false,
-    feedback: null,
-  })
-  const [deleteState, dispatchDelete] = useReducer(deleteReducer, {
+  const [submissionState, setSubmissionState] = useState<{
+    submitting: boolean
+    feedback: FeedbackState | null
+  }>({ submitting: false, feedback: null })
+  const [deleteState, setDeleteState] = useState<{ showDialog: boolean; deleting: boolean }>({
     showDialog: false,
     deleting: false,
   })
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+
+  const { uploadMultiple, error: uploadError } = useImageUpload()
 
   const originalState = {
     name: product.name,
@@ -315,7 +182,7 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
     categoryId: product.categoryId ?? '',
     isActive: product.isActive,
     vatRateCategory: product.vatRateCategory ?? 'standard',
-    existingImageOrder: product.images.map((i) => i.id).join(','),
+    imageOrder: product.images.map((i) => i.id).join(','),
   }
 
   const hasChanges =
@@ -327,8 +194,8 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
     formState.values.categoryId !== originalState.categoryId ||
     formState.values.isActive !== originalState.isActive ||
     formState.values.vatRateCategory !== originalState.vatRateCategory ||
-    imageState.existing.map((i) => i.id).join(',') !== originalState.existingImageOrder ||
-    imageState.new.length > 0
+    images.map((i) => i.id).join(',') !== originalState.imageOrder ||
+    images.some((i) => i.isNew)
 
   /* ------------------------ Slug auto-generation --------------------------- */
 
@@ -365,104 +232,88 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
     validateSlugDebounced(cleaned)
   }
 
-  /* ----------------------- Existing image reordering ----------------------- */
+  /* ----------------------- Image handling ----------------------- */
+
+  const handleImageSelect = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files
+      if (!files || files.length === 0) return
+
+      const remaining = MAX_IMAGES - images.length
+      if (remaining <= 0) {
+        dispatchForm({
+          type: 'mergeFieldErrors',
+          errors: { images: m.creator_product_new_images_error_max() },
+        })
+        return
+      }
+
+      const filesToAdd = Array.from(files).slice(0, remaining)
+
+      const placeholders: ImageEntry[] = filesToAdd.map((file) => ({
+        id: crypto.randomUUID(),
+        key: '',
+        previewUrl: URL.createObjectURL(file),
+        altText: '',
+        sortOrder: images.length,
+        isNew: true,
+        uploading: true,
+        error: null,
+      }))
+
+      setImages((prev) => [...prev, ...placeholders])
+      dispatchForm({ type: 'clearFieldError', field: 'images' })
+
+      const results = await uploadMultiple(filesToAdd, 'products')
+
+      setImages((prev) =>
+        prev.map((img) => {
+          const placeholder = placeholders.find((p) => p.id === img.id)
+          if (!placeholder) return img
+          const idx = placeholders.indexOf(placeholder)
+          const result = results[idx]
+          if (!result) {
+            return { ...img, uploading: false, error: uploadError ?? 'Upload failed' }
+          }
+          return {
+            ...img,
+            key: result.key,
+            previewUrl: result.previewUrl,
+            uploading: false,
+          }
+        }),
+      )
+
+      const input = document.getElementById('product-image-upload') as HTMLInputElement
+      if (input) input.value = ''
+    },
+    [images.length, uploadMultiple, uploadError],
+  )
+
+  const handleRemoveImage = (imageId: string) => {
+    setImages((prev) =>
+      prev.filter((img) => img.id !== imageId).map((img, i) => ({ ...img, sortOrder: i })),
+    )
+  }
 
   const moveImageUp = (imageId: string) => {
-    dispatchImage({ type: 'moveUp', id: imageId })
+    setImages((prev) => {
+      const idx = prev.findIndex((img) => img.id === imageId)
+      if (idx <= 0) return prev
+      const next = [...prev]
+      ;[next[idx - 1], next[idx]] = [next[idx], next[idx - 1]]
+      return next.map((img, i) => ({ ...img, sortOrder: i }))
+    })
   }
 
   const moveImageDown = (imageId: string) => {
-    dispatchImage({ type: 'moveDown', id: imageId })
-  }
-
-  const handleRemoveExistingImage = (imageId: string) => {
-    dispatchImage({ type: 'removeExisting', id: imageId })
-  }
-
-  /* -------------------------- New image handling --------------------------- */
-
-  const readFileAsDataUrl = useCallback((file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        if (reader.result) {
-          resolve(reader.result as string)
-        } else {
-          reject(new Error('Failed to read file'))
-        }
-      }
-      reader.onerror = () => reject(new Error('Failed to read file'))
-      reader.readAsDataURL(file)
+    setImages((prev) => {
+      const idx = prev.findIndex((img) => img.id === imageId)
+      if (idx < 0 || idx >= prev.length - 1) return prev
+      const next = [...prev]
+      ;[next[idx], next[idx + 1]] = [next[idx + 1], next[idx]]
+      return next.map((img, i) => ({ ...img, sortOrder: i }))
     })
-  }, [])
-
-  const totalImages = imageState.existing.length + imageState.new.length
-
-  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files || files.length === 0) return
-
-    const remaining = MAX_IMAGES - totalImages
-    if (remaining <= 0) {
-      dispatchForm({
-        type: 'mergeFieldErrors',
-        errors: { images: m.creator_product_new_images_error_max() },
-      })
-      return
-    }
-
-    const filesToAdd = Array.from(files).slice(0, remaining)
-
-    const placeholders: NewImageEntry[] = filesToAdd.map((file) => ({
-      type: 'new',
-      id: crypto.randomUUID(),
-      file,
-      dataUrl: '',
-      altText: '',
-      reading: true,
-      error: null,
-    }))
-
-    dispatchImage({ type: 'addNew', images: placeholders })
-    dispatchForm({ type: 'clearFieldError', field: 'images' })
-
-    const results = await Promise.all(
-      placeholders.map(async (placeholder) => {
-        if (!ALLOWED_IMAGE_TYPES.has(placeholder.file.type)) {
-          return { id: placeholder.id, error: m.creator_product_new_images_error_type() }
-        }
-
-        if (placeholder.file.size > MAX_IMAGE_SIZE) {
-          return { id: placeholder.id, error: m.creator_product_new_images_error_size() }
-        }
-
-        try {
-          const dataUrl = await readFileAsDataUrl(placeholder.file)
-          return { id: placeholder.id, dataUrl, error: null }
-        } catch {
-          return { id: placeholder.id, error: m.creator_product_new_images_error_type() }
-        }
-      }),
-    )
-
-    for (const result of results) {
-      dispatchImage({
-        type: 'updateNew',
-        id: result.id,
-        updates: {
-          dataUrl: result.dataUrl ?? '',
-          error: result.error,
-          reading: false,
-        },
-      })
-    }
-
-    const input = document.getElementById('product-image-upload') as HTMLInputElement
-    if (input) input.value = ''
-  }
-
-  const handleRemoveNewImage = (imageId: string) => {
-    dispatchImage({ type: 'removeNew', id: imageId })
   }
 
   /* ---------------------------- Form validation ---------------------------- */
@@ -496,70 +347,28 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
       errors.stock = m.creator_product_new_stock_negative()
     }
 
-    const erroredNewImages = imageState.new.filter((img) => img.error)
-    if (erroredNewImages.length > 0) {
+    const erroredImages = images.filter((img) => img.error)
+    if (erroredImages.length > 0) {
       errors.images = m.creator_product_new_images_error_type()
     }
 
     dispatchForm({ type: 'setFieldErrors', errors })
     return Object.keys(errors).length === 0
-  }, [formState.values, formState.slugError, imageState.new])
+  }, [formState.values, formState.slugError, images])
 
   /* ---------------------------- Form submission ---------------------------- */
 
-  const urlToDataUrl = useCallback(async (url: string): Promise<string> => {
-    const response = await fetch(url)
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image: ${response.statusText}`)
-    }
-    const blob = await response.blob()
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onloadend = () => resolve(reader.result as string)
-      reader.onerror = () => reject(new Error('Failed to read image blob'))
-      reader.readAsDataURL(blob)
-    })
-  }, [])
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    dispatchSubmission({ type: 'start' })
+    setSubmissionState({ submitting: true, feedback: null })
 
-    if (!validateForm()) return
+    if (!validateForm()) {
+      setSubmissionState({ submitting: false, feedback: null })
+      return
+    }
 
     try {
       const priceCents = Math.round(Number.parseFloat(formState.values.price) * 100)
-
-      const imagePayload: Array<{ dataUrl: string; altText?: string }> = []
-
-      try {
-        const existingDataUrls = await Promise.all(
-          imageState.existing.map(async (img) => {
-            const dataUrl = await urlToDataUrl(img.url)
-            return { dataUrl, altText: img.altText || undefined }
-          }),
-        )
-        imagePayload.push(...existingDataUrls)
-      } catch {
-        dispatchSubmission({
-          type: 'set',
-          feedback: {
-            type: 'error',
-            message: m.creator_product_edit_image_fetch_error(),
-          },
-        })
-        dispatchSubmission({ type: 'done' })
-        return
-      }
-
-      for (const img of imageState.new) {
-        if (!img.error && img.dataUrl) {
-          imagePayload.push({
-            dataUrl: img.dataUrl,
-            altText: img.altText || undefined,
-          })
-        }
-      }
 
       await updateProduct({
         data: {
@@ -573,12 +382,14 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
           categoryId: formState.values.categoryId || undefined,
           isActive: formState.values.isActive,
           vatRateCategory: formState.values.vatRateCategory,
-          images: imagePayload.length > 0 ? imagePayload : undefined,
+          images: images
+            .filter((img) => !img.error && !img.uploading && img.key)
+            .map((img) => ({ key: img.key, altText: img.altText || undefined })),
         },
       })
 
-      dispatchSubmission({
-        type: 'set',
+      setSubmissionState({
+        submitting: false,
         feedback: {
           type: 'success',
           message: m.creator_product_edit_save_success(),
@@ -606,8 +417,8 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
             errors: { images: err.message },
           })
         } else {
-          dispatchSubmission({
-            type: 'set',
+          setSubmissionState({
+            submitting: false,
             feedback: {
               type: 'error',
               message: m.creator_product_edit_save_error(),
@@ -615,16 +426,14 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
           })
         }
       } else {
-        dispatchSubmission({
-          type: 'set',
+        setSubmissionState({
+          submitting: false,
           feedback: {
             type: 'error',
             message: m.creator_product_edit_save_error(),
           },
         })
       }
-    } finally {
-      dispatchSubmission({ type: 'done' })
     }
   }
 
@@ -650,7 +459,7 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
   /* --------------------------- Delete handling ---------------------------- */
 
   const handleDelete = async () => {
-    dispatchDelete({ type: 'start' })
+    setDeleteState({ showDialog: true, deleting: true })
     try {
       await deleteProduct({
         data: {
@@ -661,16 +470,14 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
       })
       router.navigate({ to: '/creator/products' })
     } catch {
-      dispatchSubmission({
-        type: 'set',
+      setSubmissionState({
+        submitting: false,
         feedback: {
           type: 'error',
           message: m.creator_product_edit_delete_error(),
         },
       })
-      dispatchDelete({ type: 'close' })
-    } finally {
-      dispatchDelete({ type: 'finish' })
+      setDeleteState({ showDialog: false, deleting: false })
     }
   }
 
@@ -691,7 +498,7 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
             type='button'
             variant='danger'
             size='sm'
-            onClick={() => dispatchDelete({ type: 'open' })}
+            onClick={() => setDeleteState({ showDialog: true, deleting: false })}
             disabled={submissionState.submitting || deleteState.deleting}
           >
             <Trash2 size={16} aria-hidden='true' />
@@ -721,13 +528,11 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
             />
 
             <ProductEditImageUploader
-              existingImages={imageState.existing}
-              newImages={imageState.new}
+              images={images}
               maxImages={MAX_IMAGES}
               fieldError={formState.fieldErrors.images}
               onImageSelect={handleImageSelect}
-              onRemoveExisting={handleRemoveExistingImage}
-              onRemoveNew={handleRemoveNewImage}
+              onRemoveImage={handleRemoveImage}
               onMoveUp={moveImageUp}
               onMoveDown={moveImageDown}
             />
@@ -775,7 +580,7 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
         cancelLabel={m.creator_product_edit_delete_confirm_cancel()}
         confirmLabel={m.creator_product_edit_delete_confirm_button()}
         deleting={deleteState.deleting}
-        onCancel={() => dispatchDelete({ type: 'close' })}
+        onCancel={() => setDeleteState({ showDialog: false, deleting: false })}
         onConfirm={handleDelete}
       />
     </main>

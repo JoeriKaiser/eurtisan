@@ -23,6 +23,10 @@ vi.mock('./auth', () => ({
   },
 }))
 
+vi.mock('./image-storage.server', () => ({
+  deleteImageFromStorage: vi.fn(),
+}))
+
 beforeEach(async () => {
   await db.delete(productImage)
   await db.delete(product)
@@ -785,147 +789,40 @@ describe('listCreatorProductsInternal', () => {
 })
 
 /* -------------------------------------------------------------------------- */
-/*                            Image Helpers                                   */
-/* -------------------------------------------------------------------------- */
-
-function makeJpegDataUrl(size = 100): string {
-  // Minimal JPEG-ish byte sequence with valid magic bytes
-  const header = Buffer.from([
-    0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
-  ])
-  const padding = Buffer.alloc(size, 0x00)
-  const footer = Buffer.from([0xff, 0xd9])
-  const buffer = Buffer.concat([header, padding, footer])
-  return `data:image/jpeg;base64,${buffer.toString('base64')}`
-}
-
-function makePngDataUrl(size = 100): string {
-  // Minimal PNG-ish byte sequence with valid magic bytes
-  const header = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
-  const padding = Buffer.alloc(size, 0x00)
-  const footer = Buffer.from([0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82])
-  const buffer = Buffer.concat([header, padding, footer])
-  return `data:image/png;base64,${buffer.toString('base64')}`
-}
-
-function makeWebpDataUrl(size = 100): string {
-  // Minimal WebP-ish byte sequence with valid magic bytes
-  const riff = Buffer.from([0x52, 0x49, 0x46, 0x46])
-  const fileSize = Buffer.alloc(4)
-  fileSize.writeUInt32LE(size + 12, 0)
-  const webp = Buffer.from([0x57, 0x45, 0x42, 0x50])
-  const padding = Buffer.alloc(size, 0x00)
-  const buffer = Buffer.concat([riff, fileSize, webp, padding])
-  return `data:image/webp;base64,${buffer.toString('base64')}`
-}
-
-function makeInvalidTypeDataUrl(): string {
-  const buffer = Buffer.from([0x00, 0x01, 0x02, 0x03])
-  return `data:image/gif;base64,${buffer.toString('base64')}`
-}
-
-function makeOversizedDataUrl(): string {
-  // 5MB + 1 byte JPEG-ish data
-  const header = Buffer.from([0xff, 0xd8, 0xff, 0xe0])
-  const padding = Buffer.alloc(5 * 1024 * 1024 + 1, 0x00)
-  const footer = Buffer.from([0xff, 0xd9])
-  const buffer = Buffer.concat([header, padding, footer])
-  return `data:image/jpeg;base64,${buffer.toString('base64')}`
-}
-
-function makeMismatchedMagicBytesDataUrl(): string {
-  // Claims to be JPEG but has PNG magic bytes
-  const header = Buffer.from([0x89, 0x50, 0x4e, 0x47])
-  const padding = Buffer.alloc(100, 0x00)
-  const buffer = Buffer.concat([header, padding])
-  return `data:image/jpeg;base64,${buffer.toString('base64')}`
-}
-
-function makeRiffNotWebpDataUrl(): string {
-  // Valid RIFF header but not a WEBP file (WAVE instead)
-  const riff = Buffer.from([0x52, 0x49, 0x46, 0x46])
-  const fileSize = Buffer.alloc(4)
-  fileSize.writeUInt32LE(100, 0)
-  const wave = Buffer.from([0x57, 0x41, 0x56, 0x45]) // "WAVE"
-  const padding = Buffer.alloc(92, 0x00)
-  const buffer = Buffer.concat([riff, fileSize, wave, padding])
-  return `data:image/webp;base64,${buffer.toString('base64')}`
-}
-
-/* -------------------------------------------------------------------------- */
 /*                            Image Validation Tests                          */
 /* -------------------------------------------------------------------------- */
 
 describe('image validation', () => {
-  it('accepts valid JPEG images', () => {
+  it('accepts valid image keys', () => {
     const result = createProductSchema.safeParse({
       name: 'Vase',
       slug: 'vase',
       priceCents: 2999,
       stockCount: 10,
-      images: [{ dataUrl: makeJpegDataUrl(), altText: 'Front view' }],
+      images: [
+        { key: 'products/vase-1.jpg', altText: 'Front view' },
+        { key: 'products/vase-2.png' },
+        { key: 'products/vase-3.webp' },
+      ],
     })
     expect(result.success).toBe(true)
   })
 
-  it('accepts valid PNG images', () => {
+  it('rejects invalid image key format', () => {
     const result = createProductSchema.safeParse({
       name: 'Vase',
       slug: 'vase',
       priceCents: 2999,
       stockCount: 10,
-      images: [{ dataUrl: makePngDataUrl() }],
-    })
-    expect(result.success).toBe(true)
-  })
-
-  it('accepts valid WebP images', () => {
-    const result = createProductSchema.safeParse({
-      name: 'Vase',
-      slug: 'vase',
-      priceCents: 2999,
-      stockCount: 10,
-      images: [{ dataUrl: makeWebpDataUrl() }],
-    })
-    expect(result.success).toBe(true)
-  })
-
-  it('rejects invalid image type', () => {
-    const result = createProductSchema.safeParse({
-      name: 'Vase',
-      slug: 'vase',
-      priceCents: 2999,
-      stockCount: 10,
-      images: [{ dataUrl: makeInvalidTypeDataUrl() }],
+      images: [{ key: 'invalid-key.gif' }],
     })
     expect(result.success).toBe(false)
   })
 
-  it('rejects oversized images at runtime', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
-
-    await expect(
-      createProductInternal({
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        stockCount: 10,
-        shopId: s.id,
-        images: [{ dataUrl: makeOversizedDataUrl() }],
-      }),
-    ).rejects.toThrow('File too large')
-  })
-
   it('limits images to 10 per product', () => {
-    const images = Array.from({ length: 11 }, () => ({ dataUrl: makeJpegDataUrl() }))
+    const images = Array.from({ length: 11 }, (_, i) => ({
+      key: `products/vase-${i}.jpg`,
+    }))
     const result = createProductSchema.safeParse({
       name: 'Vase',
       slug: 'vase',
@@ -934,29 +831,6 @@ describe('image validation', () => {
       images,
     })
     expect(result.success).toBe(false)
-  })
-
-  it('rejects RIFF files that are not WebP', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
-
-    await expect(
-      createProductInternal({
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        stockCount: 10,
-        shopId: s.id,
-        images: [{ dataUrl: makeRiffNotWebpDataUrl() }],
-      }),
-    ).rejects.toThrow('File content does not match declared type')
   })
 })
 
@@ -983,9 +857,9 @@ describe('createProductInternal with images', () => {
       stockCount: 10,
       shopId: s.id,
       images: [
-        { dataUrl: makeJpegDataUrl(), altText: 'Front' },
-        { dataUrl: makePngDataUrl(), altText: 'Side' },
-        { dataUrl: makeWebpDataUrl(), altText: 'Back' },
+        { key: 'products/vase-front.jpg', altText: 'Front' },
+        { key: 'products/vase-side.png', altText: 'Side' },
+        { key: 'products/vase-back.webp', altText: 'Back' },
       ],
     })
 
@@ -1006,7 +880,7 @@ describe('createProductInternal with images', () => {
     expect(images[2].altText).toBe('Back')
   })
 
-  it('rejects invalid image type during creation', async () => {
+  it('rejects invalid image key format during creation', async () => {
     const [u] = await db
       .insert(user)
       .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
@@ -1024,59 +898,9 @@ describe('createProductInternal with images', () => {
         priceCents: 2999,
         stockCount: 10,
         shopId: s.id,
-        images: [{ dataUrl: makeInvalidTypeDataUrl() }],
+        images: [{ key: 'invalid-key.gif' }],
       }),
-    ).rejects.toThrow('Invalid file type')
-  })
-
-  it('rejects oversized image during creation', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
-
-    await expect(
-      createProductInternal({
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        stockCount: 10,
-        shopId: s.id,
-        images: [{ dataUrl: makeOversizedDataUrl() }],
-      }),
-    ).rejects.toThrow('File too large')
-  })
-
-  it('rolls back product creation when image processing fails', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
-
-    await expect(
-      createProductInternal({
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        stockCount: 10,
-        shopId: s.id,
-        images: [{ dataUrl: makeMismatchedMagicBytesDataUrl() }],
-      }),
-    ).rejects.toThrow('File content does not match declared type')
-
-    // Product should NOT have been created
-    const products = await db.select().from(product).where(eq(product.slug, 'vase'))
-    expect(products).toHaveLength(0)
+    ).rejects.toThrow('Invalid image key format')
   })
 })
 
@@ -1110,15 +934,15 @@ describe('updateProductInternal with images', () => {
 
     // Seed initial images
     await db.insert(productImage).values([
-      { id: 'img-1', productId: p.id, url: '/old/1.jpg', altText: 'Old 1', sortOrder: 0 },
-      { id: 'img-2', productId: p.id, url: '/old/2.jpg', altText: 'Old 2', sortOrder: 1 },
+      { id: 'img-1', productId: p.id, url: 'products/old-1.jpg', altText: 'Old 1', sortOrder: 0 },
+      { id: 'img-2', productId: p.id, url: 'products/old-2.jpg', altText: 'Old 2', sortOrder: 1 },
     ])
 
     await updateProductInternal({
       productId: p.id,
       shopId: s.id,
       userId: u.id,
-      images: [{ dataUrl: makeJpegDataUrl(), altText: 'New Front' }],
+      images: [{ key: 'products/vase-new.jpg', altText: 'New Front' }],
     })
 
     const images = await db
@@ -1157,7 +981,9 @@ describe('updateProductInternal with images', () => {
 
     await db
       .insert(productImage)
-      .values([{ id: 'img-1', productId: p.id, url: '/old/1.jpg', altText: 'Old 1', sortOrder: 0 }])
+      .values([
+        { id: 'img-1', productId: p.id, url: 'products/old-1.jpg', altText: 'Old 1', sortOrder: 0 },
+      ])
 
     await updateProductInternal({
       productId: p.id,
@@ -1172,7 +998,7 @@ describe('updateProductInternal with images', () => {
     expect(images[0].altText).toBe('Old 1')
   })
 
-  it('rolls back product update when image replacement fails', async () => {
+  it('rejects invalid image key format during update', async () => {
     const [u] = await db
       .insert(user)
       .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
@@ -1197,7 +1023,9 @@ describe('updateProductInternal with images', () => {
 
     await db
       .insert(productImage)
-      .values([{ id: 'img-1', productId: p.id, url: '/old/1.jpg', altText: 'Old 1', sortOrder: 0 }])
+      .values([
+        { id: 'img-1', productId: p.id, url: 'products/old-1.jpg', altText: 'Old 1', sortOrder: 0 },
+      ])
 
     await expect(
       updateProductInternal({
@@ -1205,15 +1033,15 @@ describe('updateProductInternal with images', () => {
         shopId: s.id,
         userId: u.id,
         name: 'Should Not Update',
-        images: [{ dataUrl: makeMismatchedMagicBytesDataUrl() }],
+        images: [{ key: 'invalid-key.gif' }],
       }),
-    ).rejects.toThrow('File content does not match declared type')
+    ).rejects.toThrow('Invalid image key format')
 
     // Product name should NOT have changed
     const [row] = await db.select().from(product).where(eq(product.id, p.id))
     expect(row.name).toBe('Vase')
 
-    // Old images should still exist (transaction rolled back before deletion)
+    // Old images should still exist
     const images = await db.select().from(productImage).where(eq(productImage.productId, p.id))
     expect(images).toHaveLength(1)
     expect(images[0].altText).toBe('Old 1')

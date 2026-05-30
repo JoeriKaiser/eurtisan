@@ -31,31 +31,6 @@ export const SOCIAL_PLATFORMS = [
 ] as const
 
 /* -------------------------------------------------------------------------- */
-/*                                 Image Utils                                */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Saves a shop image from a base64 data URL.
- * Server-only: uses node:fs/promises.
- */
-export const saveShopImage = createServerFn({ method: 'POST' })
-  .middleware([authMiddleware])
-  .inputValidator(
-    z.object({
-      draftId: z
-        .string()
-        .min(1)
-        .regex(/^[a-zA-Z0-9_-]+$/, 'Invalid draft ID format'),
-      dataUrl: z.string().min(1),
-    }),
-  )
-  .handler(async ({ context, data }) => {
-    if (!context.user) throw new Error('UNAUTHENTICATED')
-    const { saveShopImageInternal } = await import('./sell-onboarding.server')
-    return saveShopImageInternal(context.user.id, context.user.role, data.draftId, data.dataUrl)
-  })
-
-/* -------------------------------------------------------------------------- */
 /*                                   Schemas                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -205,9 +180,10 @@ export const step6SocialsSchema = z.object({
 })
 
 const listingImageSchema = z.object({
-  dataUrl: z
+  key: z
     .string()
-    .regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/, 'Invalid image data URL'),
+    .min(1)
+    .regex(/^(products|shops)\/[^/]+\.(jpg|jpeg|png|webp)$/, 'Invalid image key format'),
   altText: z.string().max(500).optional(),
 })
 
@@ -506,7 +482,6 @@ export const moderateShop = createServerFn({ method: 'POST' })
       import('./sell-onboarding.server'),
       import('./audit-log.server'),
     ])
-    // False positive from analyzer: these calls use functions imported in the preceding Promise.all.
     const [result] = await Promise.all([
       moderateShopInternal(context.user.id, data),
       emitAuditEvent(context.user, `shop.${data.action}`, 'shop', data.shopId, {

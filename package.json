@@ -26,6 +26,8 @@
     "i18n:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --strategy url cookie preferredLanguage baseLocale --emit-ts-declarations"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.750.0",
+    "@aws-sdk/s3-request-presigner": "^3.750.0",
     "@base-ui-components/react": "^1.0.0-rc.0",
     "@better-auth/drizzle-adapter": "^1.6.9",
     "@grafana/faro-react": "^1.12.0",

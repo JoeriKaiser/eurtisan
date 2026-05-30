@@ -1,8 +1,9 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
+import { getImageUrl } from './image-url'
 
 /**
  * Responsive image component with:
- * - srcset + sizes for responsive delivery
+ * - srcset + sizes for responsive delivery via imgproxy
  * - Lazy loading below the fold
  * - Blur-up placeholder while loading
  * - Accessible alt text fallback
@@ -32,11 +33,16 @@ const DEFAULT_SIZES =
   '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw'
 
 /**
- * Generates srcset string from a URL and width list.
- * Appends ?w=N to the URL so a future CDN can resize on the fly.
+ * Generates srcset string from an S3 object key and width list.
+ * Uses imgproxy for on-the-fly resizing and WebP conversion.
  */
-function buildSrcset(src: string, widths: number[]): string {
-  return widths.map((w) => `${src}?w=${w} ${w}w`).join(', ')
+function buildSrcset(key: string, widths: number[]): string {
+  return widths
+    .map((w) => {
+      const url = getImageUrl(key, { width: w })
+      return `${url} ${w}w`
+    })
+    .join(', ')
 }
 
 export function ResponsiveImage({
@@ -51,30 +57,25 @@ export function ResponsiveImage({
   fallback,
 }: ResponsiveImageProps) {
   const [isLoaded, setIsLoaded] = useState(false)
-  const imgRef = useRef<HTMLImageElement>(null)
 
-  // Check if image already loaded from cache before state settles
   const handleLoad = useCallback(() => {
     setIsLoaded(true)
   }, [])
-
-  // Handle already-cached images that load before the onLoad handler is attached
-  if (imgRef.current?.complete) {
-    // We can't call setState during render, so we rely on onLoad for cached
-  }
 
   if (!src) {
     return <>{fallback}</>
   }
 
+  const defaultUrl = getImageUrl(src)
   const srcset = buildSrcset(src, widths)
+  const blurUrl = getImageUrl(src, { width: 40 })
 
   return (
     <div className={`relative overflow-hidden ${className ?? ''}`}>
       {/* Blur placeholder */}
       {placeholder === 'blur' && !isLoaded && (
         <img
-          src={`${src}?w=40`}
+          src={blurUrl}
           alt=''
           className='absolute inset-0 h-full w-full scale-110 object-cover blur-[20px]'
           aria-hidden='true'
@@ -82,8 +83,7 @@ export function ResponsiveImage({
       )}
 
       <img
-        ref={imgRef}
-        src={src}
+        src={defaultUrl}
         srcSet={srcset}
         sizes={sizes}
         alt={alt}
@@ -92,8 +92,6 @@ export function ResponsiveImage({
         className={`transition-opacity duration-500 ${
           isLoaded ? 'opacity-100' : 'opacity-0'
         } ${imgClassName ?? 'h-full w-full object-cover'}`}
-        // Natural dimensions hint for layout stability (CLS prevention)
-        // The parent container should have a fixed aspect ratio
       />
     </div>
   )

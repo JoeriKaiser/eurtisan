@@ -3,11 +3,12 @@ import { Plus } from 'lucide-react'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import type { CreatorShop } from '#/lib/creator-dashboard'
 import { createProduct } from '#/lib/creator-products'
+import { useImageUpload } from '#/hooks/useImageUpload'
 import { m } from '#/paraglide/messages'
 import { Button } from '#/components/ui/button'
 import { FeedbackBanner } from '#/components/ui/FeedbackBanner'
 import { CancelConfirmationDialog } from './CancelConfirmationDialog'
-import { ProductNewImageUploader } from './ProductNewImageUploader'
+import { ProductNewImageUploader, type UploadedImage } from './ProductNewImageUploader'
 import { ProductNewFormFields } from './ProductNewFormFields'
 
 /* -------------------------------------------------------------------------- */
@@ -19,21 +20,10 @@ interface FeedbackState {
   message: string
 }
 
-export interface ImageFileEntry {
-  id: string
-  file: File
-  dataUrl: string
-  altText: string
-  reading: boolean
-  error: string | null
-}
-
 /* -------------------------------------------------------------------------- */
 /*                                  Constants                                 */
 /* -------------------------------------------------------------------------- */
 
-const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5MB
-const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const MAX_IMAGES = 10
 const SLUG_DEBOUNCE_MS = 400
 
@@ -133,7 +123,7 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
   const router = useRouter()
 
   const [formState, dispatchForm] = useReducer(formReducer, initialShops, createInitialFormState)
-  const [images, setImages] = useState<ImageFileEntry[]>([])
+  const [images, setImages] = useState<UploadedImage[]>([])
 
   const slugManuallyEditedRef = useRef(false)
   const slugTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -141,6 +131,8 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
   const [submitting, setSubmitting] = useState(false)
   const [feedback, setFeedback] = useState<FeedbackState | null>(null)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+
+  const { uploadMultiple, error: uploadError } = useImageUpload()
 
   const hasChanges =
     formState.values.name !== '' ||
@@ -192,78 +184,59 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
 
   /* ---------------------------- Image handling ----------------------------- */
 
-  const readFileAsDataUrl = useCallback((file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        if (reader.result) {
-          resolve(reader.result as string)
-        } else {
-          reject(new Error('Failed to read file'))
-        }
+  const handleImageSelect = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files
+      if (!files || files.length === 0) return
+
+      const remaining = MAX_IMAGES - images.length
+      if (remaining <= 0) {
+        dispatchForm({
+          type: 'mergeFieldErrors',
+          errors: { images: m.creator_product_new_images_error_max() },
+        })
+        return
       }
-      reader.onerror = () => reject(new Error('Failed to read file'))
-      reader.readAsDataURL(file)
-    })
-  }, [])
 
-  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files || files.length === 0) return
+      const filesToAdd = Array.from(files).slice(0, remaining)
 
-    const remaining = MAX_IMAGES - images.length
-    if (remaining <= 0) {
-      dispatchForm({
-        type: 'mergeFieldErrors',
-        errors: { images: m.creator_product_new_images_error_max() },
-      })
-      return
-    }
+      const placeholders: UploadedImage[] = filesToAdd.map((file) => ({
+        id: crypto.randomUUID(),
+        key: '',
+        previewUrl: URL.createObjectURL(file),
+        altText: '',
+        uploading: true,
+        error: null,
+      }))
 
-    const filesToAdd = Array.from(files).slice(0, remaining)
+      setImages((prev) => [...prev, ...placeholders])
+      dispatchForm({ type: 'clearFieldError', field: 'images' })
 
-    const placeholders: ImageFileEntry[] = filesToAdd.map((file) => ({
-      id: crypto.randomUUID(),
-      file,
-      dataUrl: '',
-      altText: '',
-      reading: true,
-      error: null,
-    }))
+      const results = await uploadMultiple(filesToAdd, 'products')
 
-    setImages((prev) => [...prev, ...placeholders])
-    dispatchForm({ type: 'clearFieldError', field: 'images' })
+      setImages((prev) =>
+        prev.map((img) => {
+          const placeholder = placeholders.find((p) => p.id === img.id)
+          if (!placeholder) return img
+          const idx = placeholders.indexOf(placeholder)
+          const result = results[idx]
+          if (!result) {
+            return { ...img, uploading: false, error: uploadError ?? 'Upload failed' }
+          }
+          return {
+            ...img,
+            key: result.key,
+            previewUrl: result.previewUrl,
+            uploading: false,
+          }
+        }),
+      )
 
-    const results = await Promise.all(
-      placeholders.map(async (placeholder) => {
-        if (!ALLOWED_IMAGE_TYPES.has(placeholder.file.type)) {
-          return { id: placeholder.id, error: m.creator_product_new_images_error_type() }
-        }
-
-        if (placeholder.file.size > MAX_IMAGE_SIZE) {
-          return { id: placeholder.id, error: m.creator_product_new_images_error_size() }
-        }
-
-        try {
-          const dataUrl = await readFileAsDataUrl(placeholder.file)
-          return { id: placeholder.id, dataUrl, error: null }
-        } catch {
-          return { id: placeholder.id, error: m.creator_product_new_images_error_type() }
-        }
-      }),
-    )
-
-    setImages((prev) =>
-      prev.map((img) => {
-        const result = results.find((r) => r.id === img.id)
-        if (!result) return img
-        return { ...img, dataUrl: result.dataUrl ?? '', error: result.error, reading: false }
-      }),
-    )
-
-    const input = document.getElementById('product-image-upload') as HTMLInputElement
-    if (input) input.value = ''
-  }
+      const input = document.getElementById('product-image-upload') as HTMLInputElement
+      if (input) input.value = ''
+    },
+    [images.length, uploadMultiple, uploadError],
+  )
 
   const handleRemoveImage = (imageId: string) => {
     setImages((prev) => prev.filter((img) => img.id !== imageId))
@@ -333,12 +306,9 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
           categoryId: formState.values.categoryId || undefined,
           isActive: formState.values.isActive,
           vatRateCategory: formState.values.vatRateCategory,
-          images: images.reduce<{ dataUrl: string; altText?: string }[]>((acc, img) => {
-            if (!img.error && img.dataUrl) {
-              acc.push({ dataUrl: img.dataUrl, altText: img.altText || undefined })
-            }
-            return acc
-          }, []),
+          images: images
+            .filter((img) => !img.error && !img.uploading && img.key)
+            .map((img) => ({ key: img.key, altText: img.altText || undefined })),
         },
       })
 

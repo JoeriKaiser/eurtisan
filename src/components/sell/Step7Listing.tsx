@@ -2,38 +2,52 @@ import { ImagePlus, X } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
 import { formatPriceEUR } from '#/lib/pricing'
 import { createDraftListing, step7ListingSchema } from '#/lib/sell-onboarding'
+import { useImageUpload } from '#/hooks/useImageUpload'
+import { getImageUrl } from '#/lib/image-url'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Textarea } from '../ui/textarea'
 import { useOnboarding } from './OnboardingProvider'
 import { useStepActions } from './useStepActions'
 
+interface ListingImage {
+  key: string
+  altText?: string
+}
+
 function ImageUpload({
   images,
   onChange,
 }: {
-  images: { dataUrl: string; altText?: string }[]
-  onChange: (images: { dataUrl: string; altText?: string }[]) => void
+  images: ListingImage[]
+  onChange: (images: ListingImage[]) => void
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const { upload, error: uploadError } = useImageUpload()
+  const [uploading, setUploading] = useState(false)
 
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
     if (!file.type.startsWith('image/')) return
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      const dataUrl = reader.result as string
-      onChange([...images, { dataUrl }])
+    setUploading(true)
+    try {
+      const result = await upload(file, 'products')
+      if (result) {
+        onChange([...images, { key: result.key }])
+      }
+    } catch {
+      // error handled by hook
+    } finally {
+      setUploading(false)
     }
-    reader.readAsDataURL(file)
   }
 
   return (
     <div>
       <div className='grid grid-cols-3 gap-2 sm:grid-cols-5'>
         {images.map((img, i) => (
-          <div key={img.dataUrl.slice(0, 20)} className='relative aspect-square'>
+          <div key={img.key} className='relative aspect-square'>
             <img
-              src={img.dataUrl}
+              src={getImageUrl(img.key)}
               alt={`Item ${i + 1}`}
               className='h-full w-full rounded-lg object-cover'
             />
@@ -59,8 +73,14 @@ function ImageUpload({
             aria-label='Upload product photo'
             className='flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border-default bg-surface-default aspect-square transition hover:border-accent-secondary'
           >
-            <ImagePlus size={20} className='text-text-muted' />
-            <span className='mt-1 text-xs text-text-muted'>Add</span>
+            {uploading ? (
+              <span className='text-xs text-text-muted'>…</span>
+            ) : (
+              <>
+                <ImagePlus size={20} className='text-text-muted' />
+                <span className='mt-1 text-xs text-text-muted'>Add</span>
+              </>
+            )}
             <input
               ref={inputRef}
               type='file'
@@ -74,6 +94,7 @@ function ImageUpload({
           </button>
         )}
       </div>
+      {uploadError && <p className='mt-1 text-sm text-error'>{uploadError}</p>}
     </div>
   )
 }
@@ -86,7 +107,7 @@ export function Step7Listing() {
     description: '',
     priceCents: '',
     stockCount: '1',
-    images: [] as { dataUrl: string; altText?: string }[],
+    images: [] as ListingImage[],
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const priceValue = Number.parseInt(form.priceCents, 10) || 0

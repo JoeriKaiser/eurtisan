@@ -5,11 +5,11 @@ import { authMiddleware } from './auth-middleware'
 export type { toggleProductActiveSchema } from './creator-products.server'
 
 const productImageInputSchema = z.object({
-  dataUrl: z
+  key: z
     .string()
     .min(1)
-    .regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/, {
-      message: 'Invalid image data URL format',
+    .regex(/^(products|shops)\/[^/]+\.(jpg|jpeg|png|webp)$/, {
+      message: 'Invalid image key format',
     }),
   altText: z.string().max(500).optional(),
 })

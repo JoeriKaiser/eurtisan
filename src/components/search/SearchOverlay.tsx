@@ -146,7 +146,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
           interactive container; the <dialog> wrapper is structural only. */}
       <div
         ref={containerRef}
-        role="application"
+        role='application'
         onKeyDown={handleContainerKeyDown}
         className={cn(
           'relative z-modal w-full sm:w-[640px] sm:max-w-[90vw]',

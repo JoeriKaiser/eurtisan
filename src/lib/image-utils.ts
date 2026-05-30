@@ -1,8 +1,5 @@
-import { mkdir, rm, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import { validatePlainText } from './xss'
 
-const UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'products')
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
 
@@ -19,7 +16,7 @@ export class ImageValidationError extends Error {
 }
 
 export interface ProductImageInput {
-  dataUrl: string
+  key: string
   altText?: string
 }
 
@@ -56,7 +53,7 @@ function validateMagicBytes(buffer: Buffer, mimeType: string): boolean {
   return true
 }
 
-export function validateImageInput(input: ProductImageInput): {
+export function validateImageInput(input: { dataUrl: string; altText?: string }): {
   buffer: Buffer
   mimeType: string
   altText?: string
@@ -79,6 +76,15 @@ export function validateImageInput(input: ProductImageInput): {
   return { buffer, mimeType, altText }
 }
 
+export function validateImageKey(key: string): void {
+  if (!key || key.length > 512) {
+    throw new ImageValidationError('Invalid image key')
+  }
+  if (!key.match(/^(products|shops)\/[^/]+\.(jpg|jpeg|png|webp)$/)) {
+    throw new ImageValidationError('Invalid image key format')
+  }
+}
+
 export function getExtensionFromMimeType(mimeType: string): string {
   switch (mimeType) {
     case 'image/jpeg':
@@ -89,39 +95,5 @@ export function getExtensionFromMimeType(mimeType: string): string {
       return 'webp'
     default:
       throw new Error(`Unsupported mime type: ${mimeType}`)
-  }
-}
-
-export async function saveProductImages(
-  productId: string,
-  images: ProductImageInput[],
-): Promise<{ url: string; altText?: string; sortOrder: number }[]> {
-  if (images.length === 0) return []
-
-  const productDir = join(UPLOAD_DIR, productId)
-  await mkdir(productDir, { recursive: true })
-
-  const results: { url: string; altText?: string; sortOrder: number }[] = []
-
-  for (let i = 0; i < images.length; i++) {
-    const { buffer, mimeType, altText } = validateImageInput(images[i])
-    const ext = getExtensionFromMimeType(mimeType)
-    const filename = `${crypto.randomUUID()}.${ext}`
-    const filepath = join(productDir, filename)
-    const url = `/uploads/products/${productId}/${filename}`
-
-    await writeFile(filepath, buffer)
-    results.push({ url, altText, sortOrder: i })
-  }
-
-  return results
-}
-
-export async function deleteProductImages(productId: string): Promise<void> {
-  const productDir = join(UPLOAD_DIR, productId)
-  try {
-    await rm(productDir, { recursive: true, force: true })
-  } catch {
-    // Directory may not exist; ignore
   }
 }

@@ -1,6 +1,3 @@
-import { rm } from 'node:fs/promises'
-import { join } from 'node:path'
-import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
@@ -8,10 +5,8 @@ import { orderItem, platformOrder, product, shop, shopOrder, user } from '#/db/s
 
 import {
   checkSlugUniquePlatformWide,
-  ImageValidationError,
   SlugCollisionError,
   updateShopInternal,
-  uploadShopImageInternal,
 } from './shop-settings.server'
 
 vi.mock('./auth', () => ({
@@ -22,17 +17,7 @@ vi.mock('./auth', () => ({
   },
 }))
 
-async function cleanupUploadsDir() {
-  const dir = join(process.cwd(), 'public', 'uploads', 'shops')
-  try {
-    await rm(dir, { recursive: true, force: true })
-  } catch {
-    // Directory may not exist
-  }
-}
-
 beforeEach(async () => {
-  await cleanupUploadsDir()
   await db.delete(orderItem)
   await db.delete(product)
   await db.delete(shopOrder)
@@ -76,21 +61,6 @@ async function seedShop(
     })
     .returning()
     .then((rows) => rows[0] as typeof shop.$inferSelect)
-}
-
-// A minimal valid 1×1 red PNG as a base64 data URL.
-const RED_PNG_DATA_URL =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=='
-
-// An invalid base64 string that looks like an image but has bad magic bytes.
-const BAD_MAGIC_DATA_URL =
-  'data:image/png;base64,AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
-
-// A data URL that exceeds 5MB (simulated with a long base64 string).
-function oversizedDataUrl(): string {
-  // ~5.1MB worth of base64 padding
-  const padding = 'A'.repeat(7 * 1024 * 1024)
-  return `data:image/png;base64,${padding}`
 }
 
 /* -------------------------------------------------------------------------- */
@@ -235,70 +205,5 @@ describe('updateShopInternal', () => {
     const before = new Date()
     const updated = await updateShopInternal(s.id, { name: 'Updated' })
     expect(updated.updatedAt.getTime()).toBeGreaterThanOrEqual(before.getTime())
-  })
-})
-
-/* -------------------------------------------------------------------------- */
-/*                           uploadShopImageInternal                          */
-/* -------------------------------------------------------------------------- */
-
-describe('uploadShopImageInternal', () => {
-  it('uploads a valid PNG image and returns a URL', async () => {
-    await seedUser()
-    const s = await seedShop()
-    const result = await uploadShopImageInternal(s.id, RED_PNG_DATA_URL)
-    expect(result.url).toMatch(/^\/uploads\/shops\/shop-1\/[a-f0-9-]+\.png$/)
-    // Verify the shop record was updated.
-    const [shopRecord] = await db.select().from(shop).where(eq(shop.id, s.id)).limit(1)
-    expect(shopRecord?.image).toBe(result.url)
-  })
-
-  it('replaces the old image when uploading a new one', async () => {
-    await seedUser()
-    const s = await seedShop()
-    const first = await uploadShopImageInternal(s.id, RED_PNG_DATA_URL)
-    const second = await uploadShopImageInternal(s.id, RED_PNG_DATA_URL)
-    expect(second.url).not.toBe(first.url)
-    // The shop record should point to the new URL.
-    const [shopRecord] = await db.select().from(shop).where(eq(shop.id, s.id)).limit(1)
-    expect(shopRecord?.image).toBe(second.url)
-  })
-
-  it('throws ImageValidationError for an unsupported MIME type', async () => {
-    await seedUser()
-    const s = await seedShop()
-    const gifDataUrl = 'data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAACAkQBADs='
-    await expect(uploadShopImageInternal(s.id, gifDataUrl)).rejects.toThrow(ImageValidationError)
-  })
-
-  it('throws ImageValidationError for a data URL with bad magic bytes', async () => {
-    await seedUser()
-    const s = await seedShop()
-    await expect(uploadShopImageInternal(s.id, BAD_MAGIC_DATA_URL)).rejects.toThrow(
-      ImageValidationError,
-    )
-  })
-
-  it('throws ImageValidationError for an oversized image', async () => {
-    await seedUser()
-    const s = await seedShop()
-    await expect(uploadShopImageInternal(s.id, oversizedDataUrl())).rejects.toThrow(
-      ImageValidationError,
-    )
-  })
-
-  it('throws ImageValidationError for an invalid data URL format', async () => {
-    await seedUser()
-    const s = await seedShop()
-    await expect(uploadShopImageInternal(s.id, 'not-a-data-url')).rejects.toThrow(
-      ImageValidationError,
-    )
-  })
-
-  it('throws when shop does not exist', async () => {
-    await seedUser()
-    await expect(uploadShopImageInternal('nonexistent', RED_PNG_DATA_URL)).rejects.toThrow(
-      'Shop not found.',
-    )
   })
 })

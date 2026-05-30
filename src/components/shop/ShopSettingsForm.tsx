@@ -2,9 +2,11 @@ import { useRouter } from '@tanstack/react-router'
 import { Button } from '#/components/ui/button'
 import { FeedbackBanner } from '#/components/ui/FeedbackBanner'
 import type { CreatorShopDetail } from '#/lib/creator-dashboard'
-import { checkShopSlug, updateShop, uploadShopImage } from '#/lib/shop-settings'
+import { checkShopSlug, updateShop } from '#/lib/shop-settings'
+import { useImageUpload } from '#/hooks/useImageUpload'
+import { getImageUrl } from '#/lib/image-url'
 import { m } from '#/paraglide/messages'
-import { useCallback, useReducer, useRef } from 'react'
+import { useCallback, useReducer, useRef, useState } from 'react'
 import { ShopSelector } from './ShopSelector'
 import { ShopSettingsFormFields } from './ShopSettingsFormFields'
 import { ShopSettingsImageUploader } from './ShopSettingsImageUploader'
@@ -110,70 +112,6 @@ function formReducer(state: FormState, action: FormAction): FormState {
 }
 
 /* -------------------------------------------------------------------------- */
-/*                           Image upload reducer                             */
-/* -------------------------------------------------------------------------- */
-
-interface ImageUploadState {
-  file: File | null
-  preview: string | null
-  error: string | null
-}
-
-type ImageUploadAction =
-  | { type: 'select'; file: File; preview: string }
-  | { type: 'error'; error: string }
-  | { type: 'clear' }
-  | { type: 'clearError' }
-  | { type: 'clearFile' }
-  | { type: 'reset'; preview: string | null }
-
-function imageUploadReducer(state: ImageUploadState, action: ImageUploadAction): ImageUploadState {
-  switch (action.type) {
-    case 'select':
-      return { file: action.file, preview: action.preview, error: null }
-    case 'error':
-      return { ...state, error: action.error }
-    case 'clear':
-      return { file: null, preview: null, error: null }
-    case 'clearError':
-      return { ...state, error: null }
-    case 'clearFile':
-      return { ...state, file: null }
-    case 'reset':
-      return { file: null, preview: action.preview, error: null }
-    default:
-      return state
-  }
-}
-
-/* -------------------------------------------------------------------------- */
-/*                           Submission reducer                               */
-/* -------------------------------------------------------------------------- */
-
-interface SubmissionState {
-  saving: boolean
-  feedback: FeedbackState | null
-}
-
-type SubmissionAction =
-  | { type: 'start' }
-  | { type: 'set'; feedback: FeedbackState | null }
-  | { type: 'done' }
-
-function submissionReducer(state: SubmissionState, action: SubmissionAction): SubmissionState {
-  switch (action.type) {
-    case 'start':
-      return { saving: true, feedback: null }
-    case 'set':
-      return { ...state, feedback: action.feedback }
-    case 'done':
-      return { ...state, saving: false }
-    default:
-      return state
-  }
-}
-
-/* -------------------------------------------------------------------------- */
 /*                                 Component                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -188,21 +126,38 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
 
   const [formState, dispatchForm] = useReducer(formReducer, initialShop, createInitialFormState)
 
-  const [imageState, dispatchImage] = useReducer(imageUploadReducer, {
-    file: null,
-    preview: initialShop.image ?? null,
-    error: null,
-  })
+  const [imageKey, setImageKey] = useState<string | null>(initialShop.image ?? null)
+  const [imagePreview, setImagePreview] = useState<string | null>(
+    initialShop.image ? getImageUrl(initialShop.image) : null,
+  )
+  const [imageError, setImageError] = useState<string | null>(null)
+  const [imageUploading, setImageUploading] = useState(false)
 
   const slugTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const [submissionState, dispatchSubmission] = useReducer(submissionReducer, {
-    saving: false,
-    feedback: null,
-  })
+  const [submissionState, dispatchSubmission] = useReducer(
+    (
+      state: { saving: boolean; feedback: FeedbackState | null },
+      action: { type: string; feedback?: FeedbackState | null },
+    ) => {
+      switch (action.type) {
+        case 'start':
+          return { saving: true, feedback: null }
+        case 'set':
+          return { ...state, feedback: action.feedback ?? null }
+        case 'done':
+          return { ...state, saving: false }
+        default:
+          return state
+      }
+    },
+    { saving: false, feedback: null },
+  )
+
+  const { upload, error: uploadError } = useImageUpload()
 
   const slugChanged = formState.values.slug !== initialShop.slug
-  const imageChanged = imageState.file !== null
+  const imageChanged = imageKey !== initialShop.image
   const originChanged =
     formState.values.originStreet !== (initialShop.shippingOrigin?.street ?? '') ||
     formState.values.originCity !== (initialShop.shippingOrigin?.city ?? '') ||
@@ -271,31 +226,50 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
 
   /* ---------------------------- Image handling ----------------------------- */
 
-  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    dispatchImage({ type: 'clearError' })
+    setImageError(null)
 
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-      dispatchImage({ type: 'error', error: m.creator_shop_image_type_error() })
+      setImageError(m.creator_shop_image_type_error())
       return
     }
 
     if (file.size > MAX_IMAGE_SIZE) {
-      dispatchImage({ type: 'error', error: m.creator_shop_image_size_error() })
+      setImageError(m.creator_shop_image_size_error())
       return
     }
 
-    const reader = new FileReader()
-    reader.onloadend = () => {
-      dispatchImage({ type: 'select', file, preview: reader.result as string })
+    setImageUploading(true)
+    setImagePreview(URL.createObjectURL(file))
+
+    try {
+      const result = await upload(file, 'shops')
+      if (result) {
+        setImageKey(result.key)
+        setImagePreview(result.previewUrl)
+      } else {
+        setImageError(uploadError ?? 'Upload failed')
+        setImagePreview(null)
+        setImageKey(null)
+      }
+    } catch {
+      setImageError('Upload failed')
+      setImagePreview(null)
+      setImageKey(null)
+    } finally {
+      setImageUploading(false)
+      const input = document.getElementById('shop-image-upload') as HTMLInputElement
+      if (input) input.value = ''
     }
-    reader.readAsDataURL(file)
   }
 
   const handleRemoveImage = () => {
-    dispatchImage({ type: 'clear' })
+    setImageKey(null)
+    setImagePreview(null)
+    setImageError(null)
     const input = document.getElementById('shop-image-upload') as HTMLInputElement
     if (input) input.value = ''
   }
@@ -345,6 +319,7 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
         } | null
         isVatRegistered?: boolean
         vatId?: string | null
+        image?: string | null
       } = { shopId: initialShop.id }
 
       if (formState.values.name !== initialShop.name)
@@ -376,25 +351,18 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
           : null
       }
 
-      if (formState.values.isVatRegistered && !formState.values.vatId.trim()) {
-        dispatchForm({ type: 'setVatIdError', error: 'VAT ID is required when VAT registered' })
-        dispatchSubmission({ type: 'done' })
-        return
+      if (imageChanged) {
+        updatePayload.image = imageKey
       }
 
       if (Object.keys(updatePayload).length > 1) {
         await updateShop({ data: updatePayload })
       }
 
-      if (imageState.file && imageState.preview) {
-        await uploadShopImage({ data: { shopId: initialShop.id, dataUrl: imageState.preview } })
-      }
-
       dispatchSubmission({
         type: 'set',
         feedback: { type: 'success', message: m.creator_shop_save_success() },
       })
-      dispatchImage({ type: 'clearFile' })
 
       onShopChanged()
     } catch (err) {
@@ -407,10 +375,7 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
               error: body.message || m.creator_shop_slug_taken_error(),
             })
           } else if (err.status === 400) {
-            dispatchImage({
-              type: 'error',
-              error: body.message || m.creator_shop_image_upload_error(),
-            })
+            setImageError(body.message || m.creator_shop_image_upload_error())
           } else {
             dispatchSubmission({
               type: 'set',
@@ -518,8 +483,8 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
             </div>
 
             <ShopSettingsImageUploader
-              imagePreview={imageState.preview}
-              imageError={imageState.error}
+              imagePreview={imagePreview}
+              imageError={imageError}
               onImageSelect={handleImageSelect}
               onRemoveImage={handleRemoveImage}
             />
@@ -531,7 +496,7 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
               type='submit'
               variant='primary'
               isLoading={submissionState.saving}
-              disabled={!hasChanges || formState.slugChecking}
+              disabled={!hasChanges || formState.slugChecking || imageUploading}
             >
               {submissionState.saving ? m.creator_shop_saving() : m.creator_shop_save()}
             </Button>
@@ -541,7 +506,9 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
                 variant='ghost'
                 onClick={() => {
                   dispatchForm({ type: 'reset', shop: initialShop })
-                  dispatchImage({ type: 'reset', preview: initialShop.image ?? null })
+                  setImageKey(initialShop.image ?? null)
+                  setImagePreview(initialShop.image ? getImageUrl(initialShop.image) : null)
+                  setImageError(null)
                   dispatchSubmission({ type: 'set', feedback: null })
                 }}
               >

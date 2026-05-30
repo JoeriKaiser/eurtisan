@@ -1,6 +1,7 @@
 import { ImagePlus, X } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
-import { saveShopImage } from '#/lib/sell-onboarding'
+import { useImageUpload } from '#/hooks/useImageUpload'
+import { getImageUrl } from '#/lib/image-url'
 import { Label } from '../ui/label'
 import { useOnboarding } from './OnboardingProvider'
 import { useStepActions } from './useStepActions'
@@ -11,31 +12,28 @@ function ImageUploader({
   value,
   onChange,
   recommendedSize,
-  draftId,
 }: {
   label: string
   required?: boolean
   value: string
   onChange: (url: string) => void
   recommendedSize?: string
-  draftId: string
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [isUploading, setIsUploading] = useState(false)
+  const { upload, error: uploadError } = useImageUpload()
 
   const handleFile = async (file: File) => {
     if (!file.type.startsWith('image/')) return
     setIsUploading(true)
     try {
-      const reader = new FileReader()
-      reader.onloadend = async () => {
-        const dataUrl = reader.result as string
-        const url = await saveShopImage({ data: { draftId, dataUrl } })
-        onChange(url)
-        setIsUploading(false)
+      const result = await upload(file, 'shops')
+      if (result) {
+        onChange(result.key)
       }
-      reader.readAsDataURL(file)
     } catch {
+      // error handled by upload hook
+    } finally {
       setIsUploading(false)
     }
   }
@@ -46,6 +44,8 @@ function ImageUploader({
       handleFile(e.dataTransfer.files[0])
     }
   }
+
+  const previewUrl = value ? getImageUrl(value) : ''
 
   return (
     <div>
@@ -58,7 +58,7 @@ function ImageUploader({
       {value ? (
         <div className='relative mt-1 inline-block'>
           <img
-            src={value}
+            src={previewUrl}
             alt={label}
             className={`rounded-lg object-cover shadow-md border border-border-default ${label.includes('Banner') ? 'h-40 w-full' : 'size-32'}`}
           />
@@ -104,12 +104,14 @@ function ImageUploader({
           />
         </button>
       )}
+
+      {uploadError && <p className='mt-1 text-sm text-error'>{uploadError}</p>}
     </div>
   )
 }
 
 export function Step3Visuals() {
-  const { draft, saveStep, getStepData } = useOnboarding()
+  const { saveStep, getStepData } = useOnboarding()
   const data = getStepData(3) as { image: string; bannerImage: string }
 
   const [image, setImage] = useState(data.image ?? '')
@@ -146,7 +148,6 @@ export function Step3Visuals() {
         value={image}
         onChange={setImage}
         recommendedSize='400×400px min'
-        draftId={draft.id}
       />
       {errors.image && <p className='mt-1 text-sm text-error'>{errors.image}</p>}
 
@@ -155,7 +156,6 @@ export function Step3Visuals() {
         value={bannerImage}
         onChange={setBannerImage}
         recommendedSize='1200×300px recommended'
-        draftId={draft.id}
       />
     </div>
   )

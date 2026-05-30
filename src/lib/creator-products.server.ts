@@ -1,10 +1,9 @@
-import { rm } from 'node:fs/promises'
-import { join } from 'node:path'
 import { and, count, desc, eq, ilike, inArray, sql } from 'drizzle-orm'
 import z from 'zod'
 import { db } from '#/db/index'
 import { categories, meilisearchSyncQueue, product, productImage, shop } from '#/db/schema'
-import { deleteProductImages, type ProductImageInput, saveProductImages } from './image-utils'
+import { type ProductImageInput, validateImageKey } from './image-utils'
+import { deleteImageFromStorage } from './image-storage.server'
 import { sanitizeRichText, validatePlainText } from './xss'
 
 /* -------------------------------------------------------------------------- */
@@ -12,11 +11,11 @@ import { sanitizeRichText, validatePlainText } from './xss'
 /* -------------------------------------------------------------------------- */
 
 const productImageInputSchema = z.object({
-  dataUrl: z
+  key: z
     .string()
     .min(1)
-    .regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/, {
-      message: 'Invalid image data URL format',
+    .regex(/^(products|shops)\/[^/]+\.(jpg|jpeg|png|webp)$/, {
+      message: 'Invalid image key format',
     }),
   altText: z.string().max(500).optional(),
 })
@@ -133,14 +132,16 @@ async function insertProductImages(
 ) {
   if (images.length === 0) return []
 
-  const saved = await saveProductImages(productId, images)
+  for (const img of images) {
+    validateImageKey(img.key)
+  }
 
-  const values = saved.map((img) => ({
+  const values = images.map((img, i) => ({
     id: crypto.randomUUID(),
     productId,
-    url: img.url,
+    url: img.key,
     altText: img.altText ?? null,
-    sortOrder: img.sortOrder,
+    sortOrder: i,
   }))
 
   await tx.insert(productImage).values(values)
@@ -151,30 +152,28 @@ async function replaceProductImages(
   tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
   productId: string,
   images: ProductImageInput[],
-  oldImageUrls: string[],
 ) {
   if (images.length === 0) {
     await tx.delete(productImage).where(eq(productImage.productId, productId))
-    return { values: [], oldImageUrls }
+    return []
   }
 
-  // 1. Save new files first (UUID-based names — never conflict with old files)
-  const saved = await saveProductImages(productId, images)
+  for (const img of images) {
+    validateImageKey(img.key)
+  }
 
-  // 2. Delete old DB records
   await tx.delete(productImage).where(eq(productImage.productId, productId))
 
-  // 3. Insert new DB records
-  const values = saved.map((img) => ({
+  const values = images.map((img, i) => ({
     id: crypto.randomUUID(),
     productId,
-    url: img.url,
+    url: img.key,
     altText: img.altText ?? null,
-    sortOrder: img.sortOrder,
+    sortOrder: i,
   }))
 
   await tx.insert(productImage).values(values)
-  return { values, oldImageUrls }
+  return values
 }
 
 /* -------------------------------------------------------------------------- */
@@ -220,13 +219,7 @@ export async function createProductInternal(data: {
       })
       .returning()
 
-    try {
-      await insertProductImages(tx, inserted.id, data.images ?? [])
-    } catch (imageErr) {
-      // Clean up saved files before re-throwing so the transaction rolls back
-      await deleteProductImages(inserted.id)
-      throw imageErr
-    }
+    await insertProductImages(tx, inserted.id, data.images ?? [])
 
     await tx.insert(meilisearchSyncQueue).values({
       productId: inserted.id,
@@ -304,14 +297,14 @@ export async function updateProductInternal(data: {
   if (data.isActive !== undefined) updateData.isActive = data.isActive
   if (data.vatRateCategory !== undefined) updateData.vatRateCategory = data.vatRateCategory
 
-  // Remember old image URLs so we can clean up files after a successful commit
-  let oldImageUrls: string[] = []
+  // Remember old image keys so we can clean them up from S3 after a successful commit
+  let oldImageKeys: string[] = []
   if (data.images !== undefined) {
     const oldImages = await db
       .select({ url: productImage.url })
       .from(productImage)
       .where(eq(productImage.productId, data.productId))
-    oldImageUrls = oldImages.map((i) => i.url)
+    oldImageKeys = oldImages.map((i) => i.url).filter((url): url is string => !!url)
   }
 
   const updatedProduct = await db
@@ -323,7 +316,7 @@ export async function updateProductInternal(data: {
         .returning()
 
       if (data.images !== undefined) {
-        await replaceProductImages(tx, data.productId, data.images, oldImageUrls)
+        await replaceProductImages(tx, data.productId, data.images)
       }
 
       await tx.insert(meilisearchSyncQueue).values({
@@ -334,12 +327,17 @@ export async function updateProductInternal(data: {
       return result
     })
     .then(async (result) => {
-      // Transaction committed — safe to delete old files
-      for (const url of oldImageUrls) {
-        try {
-          await rm(join(process.cwd(), 'public', url), { force: true })
-        } catch {
-          // ignore missing files
+      // Transaction committed — safe to delete old images from S3
+      if (data.images !== undefined && oldImageKeys.length > 0) {
+        const newKeys = new Set(data.images.map((img) => img.key))
+        for (const key of oldImageKeys) {
+          if (!newKeys.has(key)) {
+            try {
+              await deleteImageFromStorage(key)
+            } catch (err) {
+              console.error(`Failed to delete old product image from S3: ${key}`, err)
+            }
+          }
         }
       }
       return result
@@ -381,10 +379,14 @@ export async function deleteProductInternal(data: {
   }
 
   if (data.hard) {
+    // Collect image keys before deleting so we can clean up S3 afterwards
+    const oldImages = await db
+      .select({ url: productImage.url })
+      .from(productImage)
+      .where(eq(productImage.productId, data.productId))
+    const oldKeys = oldImages.map((i) => i.url).filter((url): url is string => !!url)
+
     await db.transaction(async (tx) => {
-      // Delete files first so orphaned uploads don't remain if DB delete fails.
-      // Intentionally sequential: file deletion must happen before DB delete to avoid orphans.
-      await deleteProductImages(data.productId)
       await tx.delete(product).where(eq(product.id, data.productId))
 
       await tx.insert(meilisearchSyncQueue).values({
@@ -392,6 +394,17 @@ export async function deleteProductInternal(data: {
         action: 'delete',
       })
     })
+
+    // Delete from S3 after DB transaction succeeds
+    if (oldKeys.length > 0) {
+      for (const key of oldKeys) {
+        try {
+          await deleteImageFromStorage(key)
+        } catch (err) {
+          console.error(`Failed to delete product image from S3: ${key}`, err)
+        }
+      }
+    }
 
     import('./meilisearch-products.server')
       .then(async ({ removeProductFromMeilisearch }) => {

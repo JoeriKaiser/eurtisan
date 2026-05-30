@@ -6,6 +6,7 @@ dist-ssr
 *.local
 .env
 .env.local
+.env.garage
 infrastructure/ansible/secrets.yml
 infrastructure/ansible/inventory/*.yml
 !infrastructure/ansible/inventory/*.example.yml

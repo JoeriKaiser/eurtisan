@@ -50,21 +50,75 @@ services:
     networks:
       - eurtisan
 
+  garage:
+    image: dxflrs/garage:v2.3.0
+    container_name: eurtisan-garage
+    ports:
+      - "3900:3900"
+      - "3901:3901"
+      - "3902:3902"
+      - "3903:3903"
+    volumes:
+      - garage_meta:/var/lib/garage/meta
+      - garage_data:/var/lib/garage/data
+      - ./garage.toml:/etc/garage.toml:ro
+    networks:
+      - eurtisan
+    healthcheck:
+      test: ["CMD", "/garage", "status"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  imgproxy:
+    image: darthsim/imgproxy:v3
+    container_name: eurtisan-imgproxy
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env.garage
+    environment:
+      IMGPROXY_USE_S3: "true"
+      IMGPROXY_S3_ENDPOINT: http://garage:3900
+      IMGPROXY_S3_REGION: ${S3_REGION:-garage}
+      IMGPROXY_KEY: ${IMGPROXY_KEY:-}
+      IMGPROXY_SALT: ${IMGPROXY_SALT:-}
+      IMGPROXY_LOCAL_FILESYSTEM_ROOT: ""
+      IMGPROXY_DEVELOPMENT_ERRORS_MODE: "true"
+      IMGPROXY_MAX_SRC_RESOLUTION: 50
+      IMGPROXY_MAX_ANIMATION_FRAMES: 1
+    networks:
+      - eurtisan
+    depends_on:
+      garage:
+        condition: service_healthy
+
   app:
     build: .
     container_name: eurtisan-app
     ports:
       - "3000:3000"
+    env_file:
+      - .env.garage
     environment:
       BETTER_AUTH_URL: http://localhost:3000
       EMAIL_SMTP_HOST: mailpit
       EMAIL_SMTP_PORT: 1025
       MOCK_PAYMENTS_ENABLED: "true"
+      S3_ENDPOINT: http://garage:3900
+      S3_REGION: garage
+      S3_BUCKET: eurtisan-uploads
+      IMGPROXY_BASE_URL: http://localhost:8080
+      IMGPROXY_KEY: ${IMGPROXY_KEY:-}
+      IMGPROXY_SALT: ${IMGPROXY_SALT:-}
     depends_on:
       db:
         condition: service_healthy
       meilisearch:
         condition: service_healthy
+      garage:
+        condition: service_started
     volumes:
       - .:/app
       - eurtisan_node_modules:/app/node_modules
@@ -77,6 +131,8 @@ volumes:
   eurtisan_meilisearch_data:
   eurtisan_mailpit_data:
   eurtisan_node_modules:
+  garage_meta:
+  garage_data:
 
 networks:
   eurtisan:

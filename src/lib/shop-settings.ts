@@ -35,6 +35,18 @@ export const updateShopSchema = z
     shippingOrigin: shippingOriginSchema,
     isVatRegistered: z.boolean().optional(),
     vatId: z.string().optional().nullable(),
+    image: z
+      .string()
+      .min(1)
+      .regex(/^(products|shops)\/[^/]+\.(jpg|jpeg|png|webp)$/, 'Invalid image key format')
+      .optional()
+      .nullable(),
+    bannerImage: z
+      .string()
+      .min(1)
+      .regex(/^(products|shops)\/[^/]+\.(jpg|jpeg|png|webp)$/, 'Invalid image key format')
+      .optional()
+      .nullable(),
   })
   .superRefine((data, ctx) => {
     if (data.isVatRegistered) {
@@ -59,11 +71,11 @@ export const updateShopSchema = z
 
 export const uploadShopImageSchema = z.object({
   shopId: z.string().min(1, 'Shop ID is required.'),
-  dataUrl: z
+  key: z
     .string()
     .min(1)
-    .regex(/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/, {
-      message: 'Invalid image data URL format. Expected a base64-encoded JPEG, PNG, or WebP image.',
+    .regex(/^(products|shops)\/[^/]+\.(jpg|jpeg|png|webp)$/, {
+      message: 'Invalid image key format. Expected an S3 object key.',
     }),
 })
 
@@ -176,14 +188,11 @@ export const checkShopSlug = createServerFn({ method: 'GET' })
   })
 
 /**
- * Uploads a shop image (JPEG, PNG, or WebP, ≤5MB).
+ * Updates a shop image reference and cleans up the old image from S3.
  *
  * - Protected: only the shop owner (or admin) can call it.
- * - Accepts a base64 data URL.
- * - Validates file type via MIME and magic bytes.
- * - Validates file size ≤5MB.
- * - Returns the public URL of the uploaded image.
- * - Returns a clear error message for invalid image types/sizes.
+ * - Accepts an S3 object key (the client uploads directly to S3).
+ * - Returns the key of the uploaded image.
  */
 export const uploadShopImage = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
@@ -203,20 +212,7 @@ export const uploadShopImage = createServerFn({ method: 'POST' })
     let ctx = requireRole('creator')({ user: context.user as never, session: {} as never })
     ctx = await requireShopOwnership(ctx, data.shopId)
 
-    const { uploadShopImageInternal, ImageValidationError } = await import('./shop-settings.server')
+    const { uploadShopImageInternal } = await import('./shop-settings.server')
 
-    try {
-      return await uploadShopImageInternal(data.shopId, data.dataUrl)
-    } catch (err) {
-      if (err instanceof ImageValidationError) {
-        throw new Response(
-          JSON.stringify({
-            error: 'Bad Request',
-            message: err.message,
-          }),
-          { status: 400, headers: { 'Content-Type': 'application/json' } },
-        )
-      }
-      throw err
-    }
+    return await uploadShopImageInternal(data.shopId, data.key)
   })

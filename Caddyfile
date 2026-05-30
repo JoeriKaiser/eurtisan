@@ -12,6 +12,11 @@
 		reverse_proxy grafana:3000
 	}
 
+	# Image serving via imgproxy
+	handle /uploads/* {
+		reverse_proxy imgproxy:8080
+	}
+
 	# Main application
 	handle {
 		reverse_proxy app:3000

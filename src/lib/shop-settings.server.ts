@@ -1,9 +1,6 @@
-import { mkdir, rm, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
 import { and, eq, ne } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { shop } from '#/db/schema'
-import { getExtensionFromMimeType, validateImageInput } from './image-utils'
 import { sanitizeRichText, validatePlainText } from './xss'
 
 export { ImageValidationError } from './image-utils'
@@ -11,8 +8,6 @@ export { ImageValidationError } from './image-utils'
 /* -------------------------------------------------------------------------- */
 /*                                 Constants                                  */
 /* -------------------------------------------------------------------------- */
-
-const UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'shops')
 
 /* -------------------------------------------------------------------------- */
 /*                                   Errors                                   */
@@ -74,6 +69,10 @@ export type UpdateShopInput = {
   isVatRegistered?: boolean
   /** VAT identification number (required when isVatRegistered is true). */
   vatId?: string | null
+  /** Shop icon image key (S3 object key). */
+  image?: string | null
+  /** Shop banner image key (S3 object key). */
+  bannerImage?: string | null
 }
 
 export type ShopRecord = typeof shop.$inferSelect
@@ -144,26 +143,31 @@ export async function updateShopInternal(
     updateData.vatId = input.vatId ? input.vatId.trim() : null
   }
 
+  if (input.image !== undefined) {
+    updateData.image = input.image
+  }
+
+  if (input.bannerImage !== undefined) {
+    updateData.bannerImage = input.bannerImage
+  }
+
   const [updated] = await db.update(shop).set(updateData).where(eq(shop.id, shopId)).returning()
 
   return updated
 }
 
 /**
- * Uploads a shop image, validates it, stores it on disk, and updates the shop record.
+ * Updates a shop's image reference and cleans up the old image from S3.
  *
- * - Accepts a base64 data URL.
- * - Delegates image validation to `validateImageInput` from `image-utils.ts`
- *   (MIME type, file size ≤5MB, magic bytes).
- * - Saves to `public/uploads/shops/<shopId>/`.
- * - Updates `shop.image` with the public URL.
- * - If the shop already had an image, the old file is deleted.
- * - Returns the public URL of the uploaded image.
+ * - Accepts an S3 object key (the client uploads directly to S3).
+ * - Updates `shop.image` with the new key.
+ * - Deletes the old image from S3 if one existed.
+ * - Returns the new image key.
  * - Caller is responsible for ownership authorization.
  */
 export async function uploadShopImageInternal(
   shopId: string,
-  dataUrl: string,
+  key: string,
 ): Promise<{ url: string }> {
   // Verify the shop exists.
   const [shopRecord] = await db
@@ -176,32 +180,21 @@ export async function uploadShopImageInternal(
     throw new Error('Shop not found.')
   }
 
-  // Validate the image payload using the shared validator from image-utils.
-  const { buffer, mimeType } = validateImageInput({ dataUrl })
-
-  // Save to disk.
-  const shopDir = join(UPLOAD_DIR, shopId)
-  await mkdir(shopDir, { recursive: true })
-
-  const ext = getExtensionFromMimeType(mimeType)
-  const filename = `${crypto.randomUUID()}.${ext}`
-  const filepath = join(shopDir, filename)
-  const url = `/uploads/shops/${shopId}/${filename}`
-
-  await writeFile(filepath, buffer)
-
-  // Delete the old image file if one existed.
+  // Delete the old image from S3 if one existed.
   if (shopRecord.image) {
-    const oldPath = join(process.cwd(), 'public', shopRecord.image)
-    try {
-      await rm(oldPath, { force: true })
-    } catch {
-      // Old file may not exist; ignore.
+    const { deleteImageFromStorage, extractKeyFromUrl } = await import('./image-storage.server')
+    const oldKey = extractKeyFromUrl(shopRecord.image)
+    if (oldKey) {
+      try {
+        await deleteImageFromStorage(oldKey)
+      } catch (err) {
+        console.error(`Failed to delete old shop image from S3: ${oldKey}`, err)
+      }
     }
   }
 
   // Update the shop record.
-  await db.update(shop).set({ image: url, updatedAt: new Date() }).where(eq(shop.id, shopId))
+  await db.update(shop).set({ image: key, updatedAt: new Date() }).where(eq(shop.id, shopId))
 
-  return { url }
+  return { url: key }
 }

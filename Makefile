@@ -2,7 +2,9 @@
 
 # Docker Compose lifecycle
 up:
+	touch .env.garage
 	docker compose up -d
+	sh scripts/garage-init.sh
 
 down:
 	docker compose down

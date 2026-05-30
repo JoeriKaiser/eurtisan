@@ -1,17 +1,11 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { db } from '#/db/index'
-import { shop, user } from '#/db/schema'
+import { describe, expect, it } from 'vitest'
 import {
   slugify,
   suggestSlug,
   step1IdentitySchema,
   step4LocationSchema,
   step7ListingSchema,
-  saveShopImage,
 } from './sell-onboarding'
-import { saveShopImageInternal } from './sell-onboarding.server'
-import { join } from 'node:path'
-import { rm } from 'node:fs/promises'
 
 describe('slugify', () => {
   it('converts to lowercase and replaces spaces with hyphens', () => {
@@ -128,12 +122,7 @@ describe('step7ListingSchema', () => {
       description: 'A beautiful handmade ceramic mug.',
       priceCents: 1500,
       stockCount: 10,
-      images: [
-        {
-          dataUrl:
-            'data:image/jpeg;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-        },
-      ],
+      images: [{ key: 'products/mug-1.jpg', altText: 'Front view' }],
     })
     expect(result.success).toBe(true)
   })
@@ -144,77 +133,19 @@ describe('step7ListingSchema', () => {
       description: 'A beautiful handmade ceramic mug.',
       priceCents: 1_000_000_01, // 1 cent over €1M
       stockCount: 10,
-      images: [
-        {
-          dataUrl:
-            'data:image/jpeg;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-        },
-      ],
+      images: [{ key: 'products/mug-1.jpg', altText: 'Front view' }],
     })
     expect(result.success).toBe(false)
   })
-})
 
-describe('saveShopImageInternal', () => {
-  const mockUserId = 'user-test-onboarding'
-  const mockShopId = 'shop-test-onboarding'
-  const validDataUrl =
-    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==' // 1x1 transparent PNG
-
-  beforeEach(async () => {
-    await db.delete(shop)
-    await db.delete(user)
-  })
-
-  afterEach(async () => {
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'shops', mockShopId)
-    await rm(uploadDir, { recursive: true, force: true })
-  })
-
-  it('throws FORBIDDEN if user is authenticated but does not own the shop draft', async () => {
-    await db
-      .insert(user)
-      .values({ id: 'user-other', name: 'Other', email: 'other@example.com', emailVerified: true })
-    await db
-      .insert(shop)
-      .values({ id: mockShopId, name: 'Other Shop', slug: 'other-shop', ownerId: 'user-other' })
-
-    await expect(
-      saveShopImageInternal(mockUserId, 'creator', mockShopId, validDataUrl),
-    ).rejects.toThrow('FORBIDDEN')
-  })
-
-  it('rejects file too large or incorrect magic bytes', async () => {
-    await db
-      .insert(user)
-      .values({ id: mockUserId, name: 'Tester', email: 'tester@example.com', emailVerified: true })
-    await db
-      .insert(shop)
-      .values({ id: mockShopId, name: 'Tester Shop', slug: 'tester-shop', ownerId: mockUserId })
-
-    const invalidDataUrl = 'data:image/jpeg;base64,dGhpcyBpcyBub3QgYW4gaW1hZ2U=' // "this is not an image"
-
-    await expect(
-      saveShopImageInternal(mockUserId, 'creator', mockShopId, invalidDataUrl),
-    ).rejects.toThrow('File content does not match declared type')
-  })
-
-  it('successfully saves shop image when all checks pass', async () => {
-    await db
-      .insert(user)
-      .values({ id: mockUserId, name: 'Tester', email: 'tester@example.com', emailVerified: true })
-    await db
-      .insert(shop)
-      .values({ id: mockShopId, name: 'Tester Shop', slug: 'tester-shop', ownerId: mockUserId })
-
-    const resultUrl = await saveShopImageInternal(mockUserId, 'creator', mockShopId, validDataUrl)
-    expect(resultUrl.startsWith(`/uploads/shops/${mockShopId}/`)).toBe(true)
-    expect(resultUrl.endsWith('.png')).toBe(true)
-  })
-
-  it('rejects path traversal or unsafe characters in draftId via validator', async () => {
-    await expect(
-      saveShopImage({ data: { draftId: '../escape-path', dataUrl: validDataUrl } }),
-    ).rejects.toThrow()
+  it('fails with invalid image key format', () => {
+    const result = step7ListingSchema.safeParse({
+      name: 'Handmade Mug',
+      description: 'A beautiful handmade ceramic mug.',
+      priceCents: 1500,
+      stockCount: 10,
+      images: [{ key: 'invalid-key.gif' }],
+    })
+    expect(result.success).toBe(false)
   })
 })

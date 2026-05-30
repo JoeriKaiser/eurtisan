@@ -2,17 +2,17 @@ import { ImageIcon, Upload, X } from 'lucide-react'
 import { m } from '#/paraglide/messages'
 import { Button } from '#/components/ui/button'
 
-interface ImageFileEntry {
+export interface UploadedImage {
   id: string
-  file: File
-  dataUrl: string
+  key: string
+  previewUrl: string
   altText: string
-  reading: boolean
+  uploading: boolean
   error: string | null
 }
 
 interface ProductNewImageUploaderProps {
-  images: ImageFileEntry[]
+  images: UploadedImage[]
   maxImages: number
   fieldError?: string
   onImageSelect: (e: React.ChangeEvent<HTMLInputElement>) => void
@@ -40,7 +40,7 @@ export function ProductNewImageUploader({
               key={img.id}
               className='relative overflow-hidden rounded-lg border border-border-default'
             >
-              {img.reading ? (
+              {img.uploading ? (
                 <div className='flex aspect-square items-center justify-center bg-surface-inset'>
                   <div className='text-center'>
                     <svg
@@ -75,7 +75,7 @@ export function ProductNewImageUploader({
                 </div>
               ) : (
                 <img
-                  src={img.dataUrl}
+                  src={img.previewUrl}
                   alt={img.altText || ''}
                   className='aspect-square w-full object-cover'
                 />
@@ -124,7 +124,7 @@ export function ProductNewImageUploader({
           {m.creator_product_new_images_add()}
         </Button>
         <p className='mt-1 text-xs text-text-muted text-center'>
-          {images.filter((i) => !i.error).length}/{maxImages}
+          {images.filter((i) => !i.error && !i.uploading).length}/{maxImages}
         </p>
       </div>
 
