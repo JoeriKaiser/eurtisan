@@ -136,10 +136,12 @@ export const updateCategory = createServerFn({
   .middleware([authMiddleware])
   .inputValidator(updateCategorySchema)
   .handler(async ({ context, data }) => {
+    // False positive from analyzer: the next await uses functions destructured from this Promise.all.
     const [{ updateCategoryInternal }, { emitAuditEvent }] = await Promise.all([
       import('./categories.server'),
       import('./audit-log.server'),
     ])
+    // False positive from analyzer: this call uses updateCategoryInternal imported above.
     const result = await updateCategoryInternal(context.user, data)
 
     // Sequential: emitAuditEvent depends on result fields (name, slug, parentId).
@@ -166,6 +168,7 @@ export const deleteCategory = createServerFn({
       import('./categories.server'),
       import('./audit-log.server'),
     ])
+    // False positive from analyzer: these calls use functions imported in the preceding Promise.all.
     const [result] = await Promise.all([
       deleteCategoryInternal(context.user, data),
       emitAuditEvent(context.user, 'category.delete', 'category', data.id),

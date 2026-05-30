@@ -1,14 +1,15 @@
 import { useRouter } from '@tanstack/react-router'
-import { Check, X } from 'lucide-react'
-import { useCallback, useReducer, useRef, useState } from 'react'
+import { Button } from '#/components/ui/button'
+import { FeedbackBanner } from '#/components/ui/FeedbackBanner'
 import type { CreatorShopDetail } from '#/lib/creator-dashboard'
 import { checkShopSlug, updateShop, uploadShopImage } from '#/lib/shop-settings'
 import { m } from '#/paraglide/messages'
-import { Button } from '#/components/ui/button'
+import { useCallback, useReducer, useRef } from 'react'
+import { ShopSelector } from './ShopSelector'
+import { ShopSettingsFormFields } from './ShopSettingsFormFields'
 import { ShopSettingsImageUploader } from './ShopSettingsImageUploader'
 import { ShopSettingsShippingOrigin } from './ShopSettingsShippingOrigin'
 import { ShopSettingsVatSettings } from './ShopSettingsVatSettings'
-import { ShopSettingsFormFields } from './ShopSettingsFormFields'
 
 /* -------------------------------------------------------------------------- */
 /*                                    Types                                   */
@@ -109,6 +110,70 @@ function formReducer(state: FormState, action: FormAction): FormState {
 }
 
 /* -------------------------------------------------------------------------- */
+/*                           Image upload reducer                             */
+/* -------------------------------------------------------------------------- */
+
+interface ImageUploadState {
+  file: File | null
+  preview: string | null
+  error: string | null
+}
+
+type ImageUploadAction =
+  | { type: 'select'; file: File; preview: string }
+  | { type: 'error'; error: string }
+  | { type: 'clear' }
+  | { type: 'clearError' }
+  | { type: 'clearFile' }
+  | { type: 'reset'; preview: string | null }
+
+function imageUploadReducer(state: ImageUploadState, action: ImageUploadAction): ImageUploadState {
+  switch (action.type) {
+    case 'select':
+      return { file: action.file, preview: action.preview, error: null }
+    case 'error':
+      return { ...state, error: action.error }
+    case 'clear':
+      return { file: null, preview: null, error: null }
+    case 'clearError':
+      return { ...state, error: null }
+    case 'clearFile':
+      return { ...state, file: null }
+    case 'reset':
+      return { file: null, preview: action.preview, error: null }
+    default:
+      return state
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                           Submission reducer                               */
+/* -------------------------------------------------------------------------- */
+
+interface SubmissionState {
+  saving: boolean
+  feedback: FeedbackState | null
+}
+
+type SubmissionAction =
+  | { type: 'start' }
+  | { type: 'set'; feedback: FeedbackState | null }
+  | { type: 'done' }
+
+function submissionReducer(state: SubmissionState, action: SubmissionAction): SubmissionState {
+  switch (action.type) {
+    case 'start':
+      return { saving: true, feedback: null }
+    case 'set':
+      return { ...state, feedback: action.feedback }
+    case 'done':
+      return { ...state, saving: false }
+    default:
+      return state
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 /*                                 Component                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -123,17 +188,21 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
 
   const [formState, dispatchForm] = useReducer(formReducer, initialShop, createInitialFormState)
 
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(initialShop.image ?? null)
-  const [imageError, setImageError] = useState<string | null>(null)
+  const [imageState, dispatchImage] = useReducer(imageUploadReducer, {
+    file: null,
+    preview: initialShop.image ?? null,
+    error: null,
+  })
 
   const slugTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const [saving, setSaving] = useState(false)
-  const [feedback, setFeedback] = useState<FeedbackState | null>(null)
+  const [submissionState, dispatchSubmission] = useReducer(submissionReducer, {
+    saving: false,
+    feedback: null,
+  })
 
   const slugChanged = formState.values.slug !== initialShop.slug
-  const imageChanged = imageFile !== null
+  const imageChanged = imageState.file !== null
   const originChanged =
     formState.values.originStreet !== (initialShop.shippingOrigin?.street ?? '') ||
     formState.values.originCity !== (initialShop.shippingOrigin?.city ?? '') ||
@@ -206,31 +275,27 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
     const file = e.target.files?.[0]
     if (!file) return
 
-    setImageError(null)
+    dispatchImage({ type: 'clearError' })
 
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
-      setImageError(m.creator_shop_image_type_error())
+      dispatchImage({ type: 'error', error: m.creator_shop_image_type_error() })
       return
     }
 
     if (file.size > MAX_IMAGE_SIZE) {
-      setImageError(m.creator_shop_image_size_error())
+      dispatchImage({ type: 'error', error: m.creator_shop_image_size_error() })
       return
     }
 
     const reader = new FileReader()
     reader.onloadend = () => {
-      setImagePreview(reader.result as string)
+      dispatchImage({ type: 'select', file, preview: reader.result as string })
     }
     reader.readAsDataURL(file)
-
-    setImageFile(file)
   }
 
   const handleRemoveImage = () => {
-    setImageFile(null)
-    setImagePreview(null)
-    setImageError(null)
+    dispatchImage({ type: 'clear' })
     const input = document.getElementById('shop-image-upload') as HTMLInputElement
     if (input) input.value = ''
   }
@@ -239,7 +304,7 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setFeedback(null)
+    dispatchSubmission({ type: 'set', feedback: null })
     dispatchForm({ type: 'setNameError', error: null })
     dispatchForm({ type: 'setSlugError', error: null })
     dispatchForm({ type: 'setDescriptionError', error: null })
@@ -264,7 +329,7 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
       return
     }
 
-    setSaving(true)
+    dispatchSubmission({ type: 'start' })
 
     try {
       const updatePayload: {
@@ -313,7 +378,7 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
 
       if (formState.values.isVatRegistered && !formState.values.vatId.trim()) {
         dispatchForm({ type: 'setVatIdError', error: 'VAT ID is required when VAT registered' })
-        setSaving(false)
+        dispatchSubmission({ type: 'done' })
         return
       }
 
@@ -321,12 +386,15 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
         await updateShop({ data: updatePayload })
       }
 
-      if (imageFile && imagePreview) {
-        await uploadShopImage({ data: { shopId: initialShop.id, dataUrl: imagePreview } })
+      if (imageState.file && imageState.preview) {
+        await uploadShopImage({ data: { shopId: initialShop.id, dataUrl: imageState.preview } })
       }
 
-      setFeedback({ type: 'success', message: m.creator_shop_save_success() })
-      setImageFile(null)
+      dispatchSubmission({
+        type: 'set',
+        feedback: { type: 'success', message: m.creator_shop_save_success() },
+      })
+      dispatchImage({ type: 'clearFile' })
 
       onShopChanged()
     } catch (err) {
@@ -339,18 +407,30 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
               error: body.message || m.creator_shop_slug_taken_error(),
             })
           } else if (err.status === 400) {
-            setImageError(body.message || m.creator_shop_image_upload_error())
+            dispatchImage({
+              type: 'error',
+              error: body.message || m.creator_shop_image_upload_error(),
+            })
           } else {
-            setFeedback({ type: 'error', message: body.message || m.creator_shop_save_error() })
+            dispatchSubmission({
+              type: 'set',
+              feedback: { type: 'error', message: body.message || m.creator_shop_save_error() },
+            })
           }
         } catch {
-          setFeedback({ type: 'error', message: m.creator_shop_save_error() })
+          dispatchSubmission({
+            type: 'set',
+            feedback: { type: 'error', message: m.creator_shop_save_error() },
+          })
         }
       } else {
-        setFeedback({ type: 'error', message: m.creator_shop_save_error() })
+        dispatchSubmission({
+          type: 'set',
+          feedback: { type: 'error', message: m.creator_shop_save_error() },
+        })
       }
     } finally {
-      setSaving(false)
+      dispatchSubmission({ type: 'done' })
     }
   }
 
@@ -373,49 +453,19 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
           <p className='text-text-secondary'>{m.creator_shop_settings_description()}</p>
         </div>
 
-        {/* Shop selector */}
-        {allShops.length > 1 && (
-          <div className='mb-8'>
-            <label
-              htmlFor='shop-selector'
-              className='mb-2 block text-sm font-medium text-text-primary'
-            >
-              {m.creator_shop_select_label()}
-            </label>
-            <select
-              id='shop-selector'
-              value={initialShop.id}
-              onChange={(e) => handleShopSwitch(e.target.value)}
-              className='flex h-10 w-full max-w-xs rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
-            >
-              {allShops.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
+        <ShopSelector
+          label={m.creator_shop_select_label()}
+          shops={allShops}
+          currentShopId={initialShop.id}
+          onChange={handleShopSwitch}
+        />
 
         {/* Feedback banner */}
-        {feedback && (
-          <div
-            className={`mb-6 rounded-lg border p-4 text-sm ${
-              feedback.type === 'success'
-                ? 'border-success bg-success-subtle text-success'
-                : 'border-error bg-error-subtle text-error'
-            }`}
-            role='alert'
-          >
-            <div className='flex items-center gap-2'>
-              {feedback.type === 'success' ? (
-                <Check size={18} aria-hidden='true' />
-              ) : (
-                <X size={18} aria-hidden='true' />
-              )}
-              <span>{feedback.message}</span>
-            </div>
-          </div>
+        {submissionState.feedback && (
+          <FeedbackBanner
+            type={submissionState.feedback.type}
+            message={submissionState.feedback.message}
+          />
         )}
 
         <form onSubmit={handleSubmit} noValidate>
@@ -468,8 +518,8 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
             </div>
 
             <ShopSettingsImageUploader
-              imagePreview={imagePreview}
-              imageError={imageError}
+              imagePreview={imageState.preview}
+              imageError={imageState.error}
               onImageSelect={handleImageSelect}
               onRemoveImage={handleRemoveImage}
             />
@@ -480,10 +530,10 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
             <Button
               type='submit'
               variant='primary'
-              isLoading={saving}
+              isLoading={submissionState.saving}
               disabled={!hasChanges || formState.slugChecking}
             >
-              {saving ? m.creator_shop_saving() : m.creator_shop_save()}
+              {submissionState.saving ? m.creator_shop_saving() : m.creator_shop_save()}
             </Button>
             {hasChanges && (
               <Button
@@ -491,10 +541,8 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
                 variant='ghost'
                 onClick={() => {
                   dispatchForm({ type: 'reset', shop: initialShop })
-                  setImageFile(null)
-                  setImagePreview(initialShop.image ?? null)
-                  setImageError(null)
-                  setFeedback(null)
+                  dispatchImage({ type: 'reset', preview: initialShop.image ?? null })
+                  dispatchSubmission({ type: 'set', feedback: null })
                 }}
               >
                 {m.creator_shop_cancel()}

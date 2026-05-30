@@ -506,6 +506,7 @@ export const moderateShop = createServerFn({ method: 'POST' })
       import('./sell-onboarding.server'),
       import('./audit-log.server'),
     ])
+    // False positive from analyzer: these calls use functions imported in the preceding Promise.all.
     const [result] = await Promise.all([
       moderateShopInternal(context.user.id, data),
       emitAuditEvent(context.user, `shop.${data.action}`, 'shop', data.shopId, {

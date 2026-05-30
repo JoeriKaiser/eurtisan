@@ -1,10 +1,11 @@
 import { useRouter } from '@tanstack/react-router'
-import { Check, Save, Trash2, X } from 'lucide-react'
+import { Save, Trash2 } from 'lucide-react'
 import { useCallback, useReducer, useRef, useState } from 'react'
 import type { CreatorShop } from '#/lib/creator-dashboard'
 import { deleteProduct, updateProduct } from '#/lib/creator-products'
 import { m } from '#/paraglide/messages'
 import { Button } from '#/components/ui/button'
+import { FeedbackBanner } from '#/components/ui/FeedbackBanner'
 import { CancelConfirmationDialog } from './CancelConfirmationDialog'
 import { DeleteConfirmationDialog } from './DeleteConfirmationDialog'
 import { ProductEditImageUploader } from './ProductEditImageUploader'
@@ -224,6 +225,59 @@ function imageReducer(state: ImageState, action: ImageAction): ImageState {
 }
 
 /* -------------------------------------------------------------------------- */
+/*                           Submission reducer                               */
+/* -------------------------------------------------------------------------- */
+
+interface SubmissionState {
+  submitting: boolean
+  feedback: FeedbackState | null
+}
+
+type SubmissionAction =
+  | { type: 'start' }
+  | { type: 'set'; feedback: FeedbackState | null }
+  | { type: 'done' }
+
+function submissionReducer(state: SubmissionState, action: SubmissionAction): SubmissionState {
+  switch (action.type) {
+    case 'start':
+      return { submitting: true, feedback: null }
+    case 'set':
+      return { ...state, feedback: action.feedback }
+    case 'done':
+      return { ...state, submitting: false }
+    default:
+      return state
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                             Delete reducer                                 */
+/* -------------------------------------------------------------------------- */
+
+interface DeleteState {
+  showDialog: boolean
+  deleting: boolean
+}
+
+type DeleteAction = { type: 'open' } | { type: 'close' } | { type: 'start' } | { type: 'finish' }
+
+function deleteReducer(state: DeleteState, action: DeleteAction): DeleteState {
+  switch (action.type) {
+    case 'open':
+      return { showDialog: true, deleting: false }
+    case 'close':
+      return { showDialog: false, deleting: false }
+    case 'start':
+      return { ...state, deleting: true }
+    case 'finish':
+      return { ...state, deleting: false }
+    default:
+      return state
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 /*                                 Component                                  */
 /* -------------------------------------------------------------------------- */
 
@@ -242,11 +296,15 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
   const slugManuallyEditedRef = useRef(true)
   const slugTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const [submitting, setSubmitting] = useState(false)
-  const [feedback, setFeedback] = useState<FeedbackState | null>(null)
+  const [submissionState, dispatchSubmission] = useReducer(submissionReducer, {
+    submitting: false,
+    feedback: null,
+  })
+  const [deleteState, dispatchDelete] = useReducer(deleteReducer, {
+    showDialog: false,
+    deleting: false,
+  })
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [deleting, setDeleting] = useState(false)
 
   const originalState = {
     name: product.name,
@@ -465,11 +523,9 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setFeedback(null)
+    dispatchSubmission({ type: 'start' })
 
     if (!validateForm()) return
-
-    setSubmitting(true)
 
     try {
       const priceCents = Math.round(Number.parseFloat(formState.values.price) * 100)
@@ -485,11 +541,14 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
         )
         imagePayload.push(...existingDataUrls)
       } catch {
-        setFeedback({
-          type: 'error',
-          message: m.creator_product_edit_image_fetch_error(),
+        dispatchSubmission({
+          type: 'set',
+          feedback: {
+            type: 'error',
+            message: m.creator_product_edit_image_fetch_error(),
+          },
         })
-        setSubmitting(false)
+        dispatchSubmission({ type: 'done' })
         return
       }
 
@@ -518,9 +577,12 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
         },
       })
 
-      setFeedback({
-        type: 'success',
-        message: m.creator_product_edit_save_success(),
+      dispatchSubmission({
+        type: 'set',
+        feedback: {
+          type: 'success',
+          message: m.creator_product_edit_save_success(),
+        },
       })
     } catch (err) {
       if (err instanceof Error) {
@@ -544,19 +606,25 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
             errors: { images: err.message },
           })
         } else {
-          setFeedback({
-            type: 'error',
-            message: m.creator_product_edit_save_error(),
+          dispatchSubmission({
+            type: 'set',
+            feedback: {
+              type: 'error',
+              message: m.creator_product_edit_save_error(),
+            },
           })
         }
       } else {
-        setFeedback({
-          type: 'error',
-          message: m.creator_product_edit_save_error(),
+        dispatchSubmission({
+          type: 'set',
+          feedback: {
+            type: 'error',
+            message: m.creator_product_edit_save_error(),
+          },
         })
       }
     } finally {
-      setSubmitting(false)
+      dispatchSubmission({ type: 'done' })
     }
   }
 
@@ -582,7 +650,7 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
   /* --------------------------- Delete handling ---------------------------- */
 
   const handleDelete = async () => {
-    setDeleting(true)
+    dispatchDelete({ type: 'start' })
     try {
       await deleteProduct({
         data: {
@@ -593,13 +661,16 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
       })
       router.navigate({ to: '/creator/products' })
     } catch {
-      setFeedback({
-        type: 'error',
-        message: m.creator_product_edit_delete_error(),
+      dispatchSubmission({
+        type: 'set',
+        feedback: {
+          type: 'error',
+          message: m.creator_product_edit_delete_error(),
+        },
       })
-      setShowDeleteConfirm(false)
+      dispatchDelete({ type: 'close' })
     } finally {
-      setDeleting(false)
+      dispatchDelete({ type: 'finish' })
     }
   }
 
@@ -620,8 +691,8 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
             type='button'
             variant='danger'
             size='sm'
-            onClick={() => setShowDeleteConfirm(true)}
-            disabled={submitting || deleting}
+            onClick={() => dispatchDelete({ type: 'open' })}
+            disabled={submissionState.submitting || deleteState.deleting}
           >
             <Trash2 size={16} aria-hidden='true' />
             <span className='hidden sm:inline'>{m.creator_product_edit_delete_button()}</span>
@@ -629,24 +700,11 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
         </div>
 
         {/* Feedback banner */}
-        {feedback && (
-          <div
-            className={`mb-6 rounded-lg border p-4 text-sm ${
-              feedback.type === 'success'
-                ? 'border-success bg-success-subtle text-success'
-                : 'border-error bg-error-subtle text-error'
-            }`}
-            role='alert'
-          >
-            <div className='flex items-center gap-2'>
-              {feedback.type === 'success' ? (
-                <Check size={18} aria-hidden='true' />
-              ) : (
-                <X size={18} aria-hidden='true' />
-              )}
-              <span>{feedback.message}</span>
-            </div>
-          </div>
+        {submissionState.feedback && (
+          <FeedbackBanner
+            type={submissionState.feedback.type}
+            message={submissionState.feedback.message}
+          />
         )}
 
         <form onSubmit={handleSubmit} noValidate>
@@ -677,11 +735,23 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
 
           {/* Submit */}
           <div className='mt-8 flex items-center gap-4 border-t border-border-subtle pt-6'>
-            <Button type='submit' variant='primary' isLoading={submitting} disabled={submitting}>
+            <Button
+              type='submit'
+              variant='primary'
+              isLoading={submissionState.submitting}
+              disabled={submissionState.submitting}
+            >
               <Save size={16} aria-hidden='true' />
-              {submitting ? m.creator_product_edit_saving() : m.creator_product_edit_save()}
+              {submissionState.submitting
+                ? m.creator_product_edit_saving()
+                : m.creator_product_edit_save()}
             </Button>
-            <Button type='button' variant='ghost' onClick={handleCancel} disabled={submitting}>
+            <Button
+              type='button'
+              variant='ghost'
+              onClick={handleCancel}
+              disabled={submissionState.submitting}
+            >
               {m.creator_product_new_cancel()}
             </Button>
           </div>
@@ -699,13 +769,13 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
       />
 
       <DeleteConfirmationDialog
-        open={showDeleteConfirm}
+        open={deleteState.showDialog}
         title={m.creator_product_edit_delete_confirm_title()}
         description={m.creator_product_edit_delete_confirm_description()}
         cancelLabel={m.creator_product_edit_delete_confirm_cancel()}
         confirmLabel={m.creator_product_edit_delete_confirm_button()}
-        deleting={deleting}
-        onCancel={() => setShowDeleteConfirm(false)}
+        deleting={deleteState.deleting}
+        onCancel={() => dispatchDelete({ type: 'close' })}
         onConfirm={handleDelete}
       />
     </main>

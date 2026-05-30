@@ -19,6 +19,10 @@ const CartContext = createContext<CartContextType>({
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartDetail | null>(null)
   const [error, setError] = useState<Error | null>(null)
+  // isLoading is genuine async state, not derived from props or other state.
+  // It tracks the pending lifecycle of the getCart() fetch and must trigger
+  // re-renders while loading / after resolution. Computing it during render
+  // is impossible because its value depends on the timing of the async call.
   const [isLoading, setIsLoading] = useState(true)
 
   const refreshCart = useCallback(async () => {

@@ -129,6 +129,7 @@ export const resolveDispute = createServerFn({ method: 'POST' })
       import('./disputes.server'),
       import('./audit-log.server'),
     ])
+    // False positive from analyzer: these calls use functions imported in the preceding Promise.all.
     const [result] = await Promise.all([
       resolveDisputeQuery(data.disputeId, {
         resolution: data.resolution,

@@ -111,6 +111,7 @@ export async function processMollieWebhook(
   const paymentStatus = await provider.getPaymentStatus(payload.id)
 
   if (paymentStatus === 'paid') {
+    const { createInvoicesForPlatformOrder } = await import('#/lib/invoices.server')
     let totalCents = 0
     const response = await database.transaction(async (tx) => {
       // Re-fetch and lock the platform order row to prevent race conditions
@@ -141,13 +142,14 @@ export async function processMollieWebhook(
         totalCents = platformOrderRecord.totalCents
       }
 
-      // Sequential within transaction: invoice creation depends on order being marked paid.
+      // Sequential within transaction: the PostgreSQL driver does not support concurrent
+      // queries on the same transaction connection, and invoice creation depends on the
+      // order being marked paid.
       await tx
         .update(shopOrder)
         .set({ status: 'paid', updatedAt: new Date() })
         .where(eq(shopOrder.platformOrderId, order.id))
 
-      const { createInvoicesForPlatformOrder } = await import('#/lib/invoices.server')
       await createInvoicesForPlatformOrder(order.id, tx)
 
       return null
@@ -185,7 +187,9 @@ export async function processMollieWebhook(
         })
       }
 
-      // Sequential within transaction to ensure consistent read-write ordering.
+      // Sequential within transaction: the PostgreSQL driver does not support concurrent
+      // queries on the same transaction connection, and shopOrder update / stock release
+      // must run after the platformOrder update.
       await tx
         .update(platformOrder)
         .set({ status: 'cancelled', cancelledAt: new Date(), updatedAt: new Date() })

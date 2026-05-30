@@ -1,15 +1,15 @@
 import { useRouter } from '@tanstack/react-router'
-import { ChevronLeft, ChevronRight, Package, Search } from 'lucide-react'
+import { Package } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
 import { toggleProductActive } from '#/lib/creator-products'
 import { m } from '#/paraglide/messages'
-import { Button } from './ui/button'
-import { Input } from './ui/input'
-import { CreatorProductsLoading } from './CreatorProductsLoading'
 import { CreatorProductsError } from './CreatorProductsError'
-import { ProductTableRow, type CreatorProduct } from './product/ProductTableRow'
+import { CreatorProductsFilterBar } from './CreatorProductsFilterBar'
+import { CreatorProductsLoading } from './CreatorProductsLoading'
+import { CreatorProductsPagination } from './CreatorProductsPagination'
+import { type CreatorProduct, ProductTableRow } from './product/ProductTableRow'
 
-export { CreatorProductsLoading, CreatorProductsError }
+export { CreatorProductsError, CreatorProductsLoading }
 
 /* -------------------------------------------------------------------------- */
 /*                                Main Component                              */
@@ -219,53 +219,12 @@ export function CreatorProductsPage({
           </select>
         </div>
 
-        {/* Search + Filter bar */}
-        <div className='mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
-          <div className='relative flex-1 sm:max-w-sm'>
-            <Search className='absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted' />
-            <Input
-              type='search'
-              placeholder={m.creator_products_search_placeholder()}
-              value={localSearch}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className='pl-9'
-              aria-label={m.creator_products_search_placeholder()}
-            />
-          </div>
-
-          {/* Active/Inactive/All tabs */}
-          <div
-            className='flex gap-1 rounded-lg border border-border-default bg-surface-inset p-1'
-            role='tablist'
-          >
-            {(['all', 'true', 'false'] as const).map((value) => {
-              const isSelected = initialSearch.active === value
-              const label =
-                value === 'all'
-                  ? m.creator_products_filter_all()
-                  : value === 'true'
-                    ? m.creator_products_filter_active()
-                    : m.creator_products_filter_inactive()
-
-              return (
-                <button
-                  key={value}
-                  type='button'
-                  role='tab'
-                  aria-selected={isSelected}
-                  onClick={() => handleActiveFilter(value)}
-                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                    isSelected
-                      ? 'bg-surface-default text-text-primary shadow-sm'
-                      : 'text-text-secondary hover:text-text-primary'
-                  }`}
-                >
-                  {label}
-                </button>
-              )
-            })}
-          </div>
-        </div>
+        <CreatorProductsFilterBar
+          searchValue={localSearch}
+          onSearchChange={handleSearchChange}
+          active={initialSearch.active}
+          onActiveChange={handleActiveFilter}
+        />
 
         {/* Table */}
         <div className='overflow-x-auto'>
@@ -322,70 +281,15 @@ export function CreatorProductsPage({
           </div>
         )}
 
-        {/* Pagination */}
         {initialProducts.totalPages > 1 && (
-          <div className='mt-6 flex flex-col items-center gap-3 sm:flex-row sm:justify-between'>
-            <p className='text-sm text-text-secondary'>
-              {m.creator_products_showing({
-                from: (initialProducts.page - 1) * initialProducts.pageSize + 1,
-                to: Math.min(
-                  initialProducts.page * initialProducts.pageSize,
-                  initialProducts.total,
-                ),
-                total: initialProducts.total,
-              })}
-            </p>
-
-            <nav className='flex items-center gap-4' aria-label={m.creator_products_pagination()}>
-              <div className='flex items-center gap-2'>
-                <Button
-                  variant='secondary'
-                  size='sm'
-                  disabled={initialProducts.page <= 1}
-                  onClick={() => handlePageChange(initialProducts.page - 1)}
-                  aria-label={m.pagination_previous()}
-                >
-                  <ChevronLeft size={16} aria-hidden='true' />
-                </Button>
-
-                <span className='text-sm text-text-secondary'>
-                  {m.pagination_page_of({
-                    page: initialProducts.page,
-                    totalPages: initialProducts.totalPages,
-                  })}
-                </span>
-
-                <Button
-                  variant='secondary'
-                  size='sm'
-                  disabled={initialProducts.page >= initialProducts.totalPages}
-                  onClick={() => handlePageChange(initialProducts.page + 1)}
-                  aria-label={m.pagination_next()}
-                >
-                  <ChevronRight size={16} aria-hidden='true' />
-                </Button>
-              </div>
-
-              {/* Page size selector */}
-              <div className='flex items-center gap-2'>
-                <label htmlFor='creator-products-page-size' className='text-sm text-text-secondary'>
-                  {m.creator_products_page_size()}
-                </label>
-                <select
-                  id='creator-products-page-size'
-                  value={initialSearch.pageSize}
-                  onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                  className='h-6 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary'
-                >
-                  {[10, 20, 50, 100].map((size) => (
-                    <option key={size} value={size}>
-                      {size}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </nav>
-          </div>
+          <CreatorProductsPagination
+            page={initialProducts.page}
+            pageSize={initialProducts.pageSize}
+            totalPages={initialProducts.totalPages}
+            total={initialProducts.total}
+            onPageChange={handlePageChange}
+            onPageSizeChange={handlePageSizeChange}
+          />
         )}
       </section>
     </main>

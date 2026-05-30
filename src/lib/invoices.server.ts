@@ -195,7 +195,7 @@ export async function createInvoicesForPlatformOrder(
     .where(eq(shopOrder.platformOrderId, platformOrderId))
 
   await Promise.all(
-    shopOrdersList.map(async (so) => {
+    shopOrdersList.map(async (so: typeof shopOrder.$inferSelect) => {
       // 3. Fetch shop and its owner details
       const [shopRecord] = await activeDb.select().from(shop).where(eq(shop.id, so.shopId)).limit(1)
 

@@ -311,6 +311,12 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
         </h1>
       </div>
 
+      {/* Client-side preventDefault is required because this form is managed
+          entirely by TanStack React Form. It performs conditional validation
+          (billing address rules depend on sameAsShipping), debounced async
+          shipping-rate fetching, Mondial Relay pick-up point selection, and
+          finally redirects to an external payment provider URL. A native
+          <form action> would forfeit all of this client-side orchestration. */}
       <form
         onSubmit={(e) => {
           e.preventDefault()

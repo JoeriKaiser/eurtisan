@@ -1,10 +1,11 @@
 import { useRouter } from '@tanstack/react-router'
-import { Check, Plus, X } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import type { CreatorShop } from '#/lib/creator-dashboard'
 import { createProduct } from '#/lib/creator-products'
 import { m } from '#/paraglide/messages'
 import { Button } from '#/components/ui/button'
+import { FeedbackBanner } from '#/components/ui/FeedbackBanner'
 import { CancelConfirmationDialog } from './CancelConfirmationDialog'
 import { ProductNewImageUploader } from './ProductNewImageUploader'
 import { ProductNewFormFields } from './ProductNewFormFields'
@@ -411,25 +412,7 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
         </div>
 
         {/* Feedback banner */}
-        {feedback && (
-          <div
-            className={`mb-6 rounded-lg border p-4 text-sm ${
-              feedback.type === 'success'
-                ? 'border-success bg-success-subtle text-success'
-                : 'border-error bg-error-subtle text-error'
-            }`}
-            role='alert'
-          >
-            <div className='flex items-center gap-2'>
-              {feedback.type === 'success' ? (
-                <Check size={18} aria-hidden='true' />
-              ) : (
-                <X size={18} aria-hidden='true' />
-              )}
-              <span>{feedback.message}</span>
-            </div>
-          </div>
-        )}
+        {feedback && <FeedbackBanner type={feedback.type} message={feedback.message} />}
 
         <form onSubmit={handleSubmit} noValidate>
           <div className='grid gap-8 lg:grid-cols-3'>

@@ -333,7 +333,9 @@ export async function cancelOrderQuery(
       )
     }
 
-    // Sequential within transaction to ensure consistent read-write ordering.
+    // Sequential within transaction: the PostgreSQL driver does not support concurrent
+    // queries on the same transaction connection, and stock release must run after the
+    // order rows are updated.
     await tx
       .update(platformOrder)
       .set({ status: 'cancelled', cancelledAt: new Date(), updatedAt: new Date() })
