@@ -602,6 +602,8 @@ describe('CreatorProductEditPage', () => {
       shopId: 'shop-1',
       categoryId: null,
       vatRateCategory: 'standard',
+      createdAt: new Date(),
+      updatedAt: new Date(),
     })
 
     render(

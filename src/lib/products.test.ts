@@ -35,7 +35,7 @@ import { syncProductToMeilisearch } from './meilisearch-products.server'
 import { logger } from './logger.server'
 
 /** Public catalog queries only include shops with status "active". */
-function shopValues(values: typeof shop.$inferInsert) {
+function shopValues(values: typeof shop.$inferInsert): typeof shop.$inferInsert {
   return { status: 'active', ...values }
 }
 
