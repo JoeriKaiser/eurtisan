@@ -12,6 +12,14 @@ vi.mock('#/lib/checkout', () => ({
   getCheckoutSummary: mockGetCheckoutSummary,
 }))
 
+vi.mock('@tanstack/react-router', () => ({
+  Link: (props: { children: React.ReactNode; to: string; className?: string }) => (
+    <a href={props.to} className={props.className}>
+      {props.children}
+    </a>
+  ),
+}))
+
 vi.mock('#/paraglide/messages', () => ({
   m: {
     checkout_title: () => 'Checkout',
@@ -44,8 +52,24 @@ vi.mock('#/paraglide/messages', () => ({
     error_out_of_stock: () => 'Some items are out of stock',
     error_dispute_window_expired: () => 'Dispute window has expired (30 days)',
     error_unexpected: () => 'An unexpected error occurred',
+    checkout_legal_heading: () => 'Seller information & your rights',
+    checkout_seller_identity_title: () => 'Seller (trader)',
+    checkout_seller_contact_label: () => 'Contact',
+    checkout_seller_vat_label: () => 'VAT number',
+    checkout_withdrawal_notice: () => '14-day withdrawal notice',
+    checkout_terms_notice_prefix: () => 'By confirming, you agree to our',
+    checkout_terms_notice_and: () => 'and',
+    footer_legal_terms: () => 'Terms of Service',
+    footer_legal_privacy: () => 'Privacy Policy',
   },
 }))
+
+const defaultSellerLegal = {
+  tradeName: 'Test Shop',
+  contactEmail: 'seller@example.com',
+  vatId: null,
+  address: { street: '1 Rue Test', city: 'Paris', postalCode: '75001', country: 'FR' },
+} as const
 
 function makeSummary(overrides?: Partial<Parameters<typeof CheckoutPage>[0]['summary']>) {
   return {
@@ -67,6 +91,7 @@ function makeSummary(overrides?: Partial<Parameters<typeof CheckoutPage>[0]['sum
         ],
         subtotalCents: 2000,
         vatEstimateCents: 0,
+        sellerLegal: defaultSellerLegal,
         shippingOptions: [
           {
             method: 'standard' as const,
@@ -333,6 +358,7 @@ describe('CheckoutPage', () => {
           ],
           subtotalCents: 1000,
           vatEstimateCents: 0,
+          sellerLegal: { ...defaultSellerLegal, tradeName: 'Shop A' },
           shippingOptions: [
             {
               method: 'standard' as const,
@@ -362,6 +388,7 @@ describe('CheckoutPage', () => {
           ],
           subtotalCents: 2000,
           vatEstimateCents: 0,
+          sellerLegal: { ...defaultSellerLegal, tradeName: 'Shop B' },
           shippingOptions: [
             {
               method: 'standard' as const,
@@ -402,6 +429,7 @@ describe('CheckoutPage', () => {
           ],
           subtotalCents: 1000,
           vatEstimateCents: 0,
+          sellerLegal: { ...defaultSellerLegal, tradeName: 'Fallback Shop' },
           shippingOptions: [
             {
               method: 'manual' as const,

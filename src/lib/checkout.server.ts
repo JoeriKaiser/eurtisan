@@ -26,9 +26,16 @@ import {
   reserveStockInTx,
 } from './inventory.server'
 import { logOrderCreated } from './order-logger'
+import { ordersCreatedTotal } from './metrics.server'
 import type { PaymentProvider } from './payment-provider'
 import { formatPriceEUR } from './pricing'
 import { calculatePackageDimensions, calculatePackageWeight } from './shipping-estimate'
+import {
+  buildShopLegalIdentity,
+  toSellerEmailPayload,
+  type ShopLegalIdentity,
+} from './shop-legal-identity'
+import { scheduleBackgroundWork } from './background-work.server'
 import { calculateVat } from './vat.server'
 
 /* -------------------------------------------------------------------------- */
@@ -75,6 +82,8 @@ export interface CheckoutShopGroup {
   /** Estimated VAT in cents for display in checkout summary. */
   vatEstimateCents: number
   shippingOptions: ShippingOption[]
+  /** EU trader information for pre-contract disclosure. */
+  sellerLegal: ShopLegalIdentity
 }
 
 export interface CheckoutSummary {
@@ -334,6 +343,13 @@ export async function getCheckoutSummaryQuery(
         subtotalCents: productRecord.priceCents * quantity,
         vatEstimateCents: 0,
         shippingOptions: [],
+        sellerLegal: buildShopLegalIdentity({
+          shopName: shopRecord.name,
+          ownerEmail: '',
+          vatId: shopRecord.vatId,
+          businessAddress: shopRecord.businessAddress,
+          shippingOrigin: shopRecord.shippingOrigin,
+        }),
       })
     }
   }
@@ -341,11 +357,40 @@ export async function getCheckoutSummaryQuery(
   const shops = Array.from(groups.values())
 
   // Index shop records for O(1) lookup before fetching shipping rates
-  const shopRecordById = new Map<string, (typeof items)[number]['shop']>()
+  const shopRecordById = new Map<string, NonNullable<(typeof items)[number]['shop']>>()
   for (const r of items) {
     if (r.shop?.id) {
       shopRecordById.set(r.shop.id, r.shop)
     }
+  }
+
+  const ownerIds = [...new Set(shops.map((s) => shopRecordById.get(s.shopId)?.ownerId).filter(Boolean))]
+  const ownerRows =
+    ownerIds.length > 0
+      ? await db
+          .select({ id: user.id, email: user.email })
+          .from(user)
+          .where(inArray(user.id, ownerIds as string[]))
+      : []
+  const ownerEmailById = new Map(ownerRows.map((row) => [row.id, row.email]))
+
+  for (const shopGroup of shops) {
+    const shopRecord = shopRecordById.get(shopGroup.shopId)
+    const ownerEmail = shopRecord ? (ownerEmailById.get(shopRecord.ownerId) ?? '') : ''
+    shopGroup.sellerLegal = shopRecord
+      ? buildShopLegalIdentity({
+          shopName: shopRecord.name,
+          ownerEmail,
+          vatId: shopRecord.vatId,
+          businessAddress: shopRecord.businessAddress,
+          shippingOrigin: shopRecord.shippingOrigin,
+        })
+      : {
+          tradeName: shopGroup.shopName,
+          contactEmail: ownerEmail,
+          vatId: null,
+          address: null,
+        }
   }
 
   // Fetch real shipping rates from the provider in parallel
@@ -923,8 +968,10 @@ export async function createCheckoutWithProvider(
     )
   }
 
-  // 3. Create notifications after the transaction so errors don't break checkout
-  try {
+  // 3. Notifications and emails run in the background so checkout is not blocked by Brevo latency
+  scheduleBackgroundWork(
+    'checkout_post_order_notifications',
+    async () => {
     const { createNotification, sendNotificationEmail } = await import('./notifications.server')
     const baseUrl = getBaseUrl()
 
@@ -953,6 +1000,37 @@ export async function createCheckoutWithProvider(
       price: formatPriceEUR(item.totalCents),
     }))
 
+    const orderShopIds = result.createdShopOrders.map((so) => so.shopId)
+    const orderShops =
+      orderShopIds.length > 0
+        ? await db.select().from(shop).where(inArray(shop.id, orderShopIds))
+        : []
+    const orderShopOwners =
+      orderShops.length > 0
+        ? await db
+            .select({ id: user.id, name: user.name, email: user.email })
+            .from(user)
+            .where(
+              inArray(
+                user.id,
+                orderShops.map((s) => s.ownerId),
+              ),
+            )
+        : []
+    const ownerEmailById = new Map(orderShopOwners.map((o) => [o.id, o.email]))
+    const buyerSellerPayload =
+      orderShops.length === 1
+        ? toSellerEmailPayload(
+            buildShopLegalIdentity({
+              shopName: orderShops[0].name,
+              ownerEmail: ownerEmailById.get(orderShops[0].ownerId) ?? '',
+              vatId: orderShops[0].vatId,
+              businessAddress: orderShops[0].businessAddress,
+              shippingOrigin: orderShops[0].shippingOrigin,
+            }),
+          )
+        : {}
+
     // Notify buyer
     await createNotification(userId, 'order_placed', {
       platformOrderId,
@@ -964,6 +1042,7 @@ export async function createCheckoutWithProvider(
       items: buyerItems,
       total: formatPriceEUR(result.grandTotalCents),
       orderUrl: `${baseUrl}/orders/${platformOrderId}`,
+      ...buyerSellerPayload,
     })
 
     // Index order items by shopName for O(1) lookup
@@ -974,51 +1053,62 @@ export async function createCheckoutWithProvider(
       orderItemsByShop.set(item.shopName, list)
     }
 
-    // Notify each seller
+    const shopById = new Map(orderShops.map((s) => [s.id, s]))
+    const sellerById = new Map(orderShopOwners.map((o) => [o.id, o]))
+
+    // Notify each seller (shops and owners already batch-fetched above)
     await Promise.all(
       result.createdShopOrders.map(async (so) => {
-        const shopRecord = await db.select().from(shop).where(eq(shop.id, so.shopId)).limit(1)
-        if (shopRecord[0]) {
-          const shopItems = orderItemsByShop.get(shopRecord[0].name) ?? []
-          const shopItemByName = new Map(shopItems.map((i) => [i.productName, i]))
-          const sellerItems = shopItems.map((item) => ({
-            name: item.productName,
-            quantity: item.quantity,
-            price: formatPriceEUR(item.totalCents),
-          }))
+        const shopRecord = shopById.get(so.shopId)
+        if (!shopRecord) return
 
-          const [sellerRecord] = await db
-            .select({ name: user.name })
-            .from(user)
-            .where(eq(user.id, shopRecord[0].ownerId))
-            .limit(1)
+        const shopItems = orderItemsByShop.get(shopRecord.name) ?? []
+        const shopItemByName = new Map(shopItems.map((i) => [i.productName, i]))
+        const sellerItems = shopItems.map((item) => ({
+          name: item.productName,
+          quantity: item.quantity,
+          price: formatPriceEUR(item.totalCents),
+        }))
 
-          await Promise.all([
-            createNotification(shopRecord[0].ownerId, 'order_placed', {
-              platformOrderId,
-              shopOrderId: so.shopOrderId,
-            }),
-            sendNotificationEmail(shopRecord[0].ownerId, 'order_confirmation', {
-              orderNumber: so.shopOrderId.slice(0, 8),
-              buyerName: sellerRecord?.name,
-              shopName: shopRecord[0].name,
-              items: sellerItems,
-              total: formatPriceEUR(
-                sellerItems.reduce((sum, item) => {
-                  const cents = shopItemByName.get(item.name)?.totalCents ?? 0
-                  return sum + cents
-                }, 0),
-              ),
-              orderUrl: `${baseUrl}/studio/${so.shopId}/orders/${so.shopOrderId}`,
-            }),
-          ])
-        }
+        const sellerRecord = sellerById.get(shopRecord.ownerId)
+
+        const sellerPayload = toSellerEmailPayload(
+          buildShopLegalIdentity({
+            shopName: shopRecord.name,
+            ownerEmail: sellerRecord?.email ?? '',
+            vatId: shopRecord.vatId,
+            businessAddress: shopRecord.businessAddress,
+            shippingOrigin: shopRecord.shippingOrigin,
+          }),
+        )
+
+        await Promise.all([
+          createNotification(shopRecord.ownerId, 'order_placed', {
+            platformOrderId,
+            shopOrderId: so.shopOrderId,
+          }),
+          sendNotificationEmail(shopRecord.ownerId, 'order_confirmation', {
+            orderNumber: so.shopOrderId.slice(0, 8),
+            buyerName: sellerRecord?.name ?? null,
+            shopName: shopRecord.name,
+            items: sellerItems,
+            total: formatPriceEUR(
+              sellerItems.reduce((sum, item) => {
+                const cents = shopItemByName.get(item.name)?.totalCents ?? 0
+                return sum + cents
+              }, 0),
+            ),
+            orderUrl: `${baseUrl}/studio/${so.shopId}/orders/${so.shopOrderId}`,
+            ...sellerPayload,
+          }),
+        ])
       }),
     )
-  } catch {
-    // Notification/email errors must not break the primary checkout transaction
-  }
+    },
+    { platformOrderId, userId },
+  )
 
+  ordersCreatedTotal.inc()
   logOrderCreated({
     platformOrderId,
     userId,

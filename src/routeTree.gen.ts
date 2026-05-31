@@ -45,6 +45,7 @@ import { Route as CreatorPayoutsRouteImport } from './routes/creator/payouts'
 import { Route as CategoryAllRouteImport } from './routes/category/all'
 import { Route as CategorySlugRouteImport } from './routes/category/$slug'
 import { Route as ApiProductsRouteImport } from './routes/api/products'
+import { Route as ApiMetricsRouteImport } from './routes/api/metrics'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminShopsRouteImport } from './routes/admin/shops'
@@ -55,6 +56,7 @@ import { Route as AdminDisputesRouteImport } from './routes/admin/disputes'
 import { Route as AdminCategoriesRouteImport } from './routes/admin/categories'
 import { Route as AdminAuditLogRouteImport } from './routes/admin/audit-log'
 import { Route as AccountSettingsRouteImport } from './routes/account/settings'
+import { Route as AccountSecurityRouteImport } from './routes/account/security'
 import { Route as AccountOrdersRouteImport } from './routes/account/orders'
 import { Route as CreatorProductsIndexRouteImport } from './routes/creator/products/index'
 import { Route as StudioShopIdOrdersRouteImport } from './routes/studio/$shopId.orders'
@@ -63,6 +65,7 @@ import { Route as SellOnboardingDraftIdRouteImport } from './routes/sell/onboard
 import { Route as OrdersPlatformOrderIdSuccessRouteImport } from './routes/orders.$platformOrderId.success'
 import { Route as CreatorProductsNewRouteImport } from './routes/creator/products/new'
 import { Route as ApiWebhooksMollieRouteImport } from './routes/api/webhooks/mollie'
+import { Route as ApiWebhooksBrevoRouteImport } from './routes/api/webhooks/brevo'
 import { Route as ApiHealthReadyRouteImport } from './routes/api/health.ready'
 import { Route as ApiHealthLiveRouteImport } from './routes/api/health.live'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -270,6 +273,11 @@ const ApiProductsRoute = ApiProductsRouteImport.update({
   path: '/api/products',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMetricsRoute = ApiMetricsRouteImport.update({
+  id: '/api/metrics',
+  path: '/api/metrics',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
@@ -320,6 +328,11 @@ const AccountSettingsRoute = AccountSettingsRouteImport.update({
   path: '/account/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccountSecurityRoute = AccountSecurityRouteImport.update({
+  id: '/account/security',
+  path: '/account/security',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AccountOrdersRoute = AccountOrdersRouteImport.update({
   id: '/account/orders',
   path: '/account/orders',
@@ -359,6 +372,11 @@ const CreatorProductsNewRoute = CreatorProductsNewRouteImport.update({
 const ApiWebhooksMollieRoute = ApiWebhooksMollieRouteImport.update({
   id: '/api/webhooks/mollie',
   path: '/api/webhooks/mollie',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWebhooksBrevoRoute = ApiWebhooksBrevoRouteImport.update({
+  id: '/api/webhooks/brevo',
+  path: '/api/webhooks/brevo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiHealthReadyRoute = ApiHealthReadyRouteImport.update({
@@ -527,6 +545,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/verify-email': typeof VerifyEmailRoute
   '/account/orders': typeof AccountOrdersRouteWithChildren
+  '/account/security': typeof AccountSecurityRoute
   '/account/settings': typeof AccountSettingsRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
   '/admin/categories': typeof AdminCategoriesRoute
@@ -537,6 +556,7 @@ export interface FileRoutesByFullPath {
   '/admin/shops': typeof AdminShopsRoute
   '/admin/users': typeof AdminUsersRoute
   '/api/health': typeof ApiHealthRouteWithChildren
+  '/api/metrics': typeof ApiMetricsRoute
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
@@ -561,6 +581,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/health/live': typeof ApiHealthLiveRoute
   '/api/health/ready': typeof ApiHealthReadyRoute
+  '/api/webhooks/brevo': typeof ApiWebhooksBrevoRoute
   '/api/webhooks/mollie': typeof ApiWebhooksMollieRoute
   '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
@@ -607,6 +628,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/verify-email': typeof VerifyEmailRoute
   '/account/orders': typeof AccountOrdersRouteWithChildren
+  '/account/security': typeof AccountSecurityRoute
   '/account/settings': typeof AccountSettingsRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
   '/admin/categories': typeof AdminCategoriesRoute
@@ -617,6 +639,7 @@ export interface FileRoutesByTo {
   '/admin/shops': typeof AdminShopsRoute
   '/admin/users': typeof AdminUsersRoute
   '/api/health': typeof ApiHealthRouteWithChildren
+  '/api/metrics': typeof ApiMetricsRoute
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
@@ -640,6 +663,7 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/health/live': typeof ApiHealthLiveRoute
   '/api/health/ready': typeof ApiHealthReadyRoute
+  '/api/webhooks/brevo': typeof ApiWebhooksBrevoRoute
   '/api/webhooks/mollie': typeof ApiWebhooksMollieRoute
   '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
@@ -688,6 +712,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/verify-email': typeof VerifyEmailRoute
   '/account/orders': typeof AccountOrdersRouteWithChildren
+  '/account/security': typeof AccountSecurityRoute
   '/account/settings': typeof AccountSettingsRoute
   '/admin/audit-log': typeof AdminAuditLogRoute
   '/admin/categories': typeof AdminCategoriesRoute
@@ -698,6 +723,7 @@ export interface FileRoutesById {
   '/admin/shops': typeof AdminShopsRoute
   '/admin/users': typeof AdminUsersRoute
   '/api/health': typeof ApiHealthRouteWithChildren
+  '/api/metrics': typeof ApiMetricsRoute
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
@@ -722,6 +748,7 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/health/live': typeof ApiHealthLiveRoute
   '/api/health/ready': typeof ApiHealthReadyRoute
+  '/api/webhooks/brevo': typeof ApiWebhooksBrevoRoute
   '/api/webhooks/mollie': typeof ApiWebhooksMollieRoute
   '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
@@ -772,6 +799,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/verify-email'
     | '/account/orders'
+    | '/account/security'
     | '/account/settings'
     | '/admin/audit-log'
     | '/admin/categories'
@@ -782,6 +810,7 @@ export interface FileRouteTypes {
     | '/admin/shops'
     | '/admin/users'
     | '/api/health'
+    | '/api/metrics'
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
@@ -806,6 +835,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/health/live'
     | '/api/health/ready'
+    | '/api/webhooks/brevo'
     | '/api/webhooks/mollie'
     | '/creator/products/new'
     | '/orders/$platformOrderId/success'
@@ -852,6 +882,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/verify-email'
     | '/account/orders'
+    | '/account/security'
     | '/account/settings'
     | '/admin/audit-log'
     | '/admin/categories'
@@ -862,6 +893,7 @@ export interface FileRouteTypes {
     | '/admin/shops'
     | '/admin/users'
     | '/api/health'
+    | '/api/metrics'
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
@@ -885,6 +917,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/health/live'
     | '/api/health/ready'
+    | '/api/webhooks/brevo'
     | '/api/webhooks/mollie'
     | '/creator/products/new'
     | '/orders/$platformOrderId/success'
@@ -932,6 +965,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/verify-email'
     | '/account/orders'
+    | '/account/security'
     | '/account/settings'
     | '/admin/audit-log'
     | '/admin/categories'
@@ -942,6 +976,7 @@ export interface FileRouteTypes {
     | '/admin/shops'
     | '/admin/users'
     | '/api/health'
+    | '/api/metrics'
     | '/api/products'
     | '/category/$slug'
     | '/category/all'
@@ -966,6 +1001,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/health/live'
     | '/api/health/ready'
+    | '/api/webhooks/brevo'
     | '/api/webhooks/mollie'
     | '/creator/products/new'
     | '/orders/$platformOrderId/success'
@@ -1015,8 +1051,10 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
   AccountOrdersRoute: typeof AccountOrdersRouteWithChildren
+  AccountSecurityRoute: typeof AccountSecurityRoute
   AccountSettingsRoute: typeof AccountSettingsRoute
   ApiHealthRoute: typeof ApiHealthRouteWithChildren
+  ApiMetricsRoute: typeof ApiMetricsRoute
   ApiProductsRoute: typeof ApiProductsRoute
   CategorySlugRoute: typeof CategorySlugRoute
   CategoryAllRoute: typeof CategoryAllRoute
@@ -1030,6 +1068,7 @@ export interface RootRouteChildren {
   SellIndexRoute: typeof SellIndexRoute
   StudioIndexRoute: typeof StudioIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiWebhooksBrevoRoute: typeof ApiWebhooksBrevoRoute
   ApiWebhooksMollieRoute: typeof ApiWebhooksMollieRoute
   SellOnboardingDraftIdRoute: typeof SellOnboardingDraftIdRouteWithChildren
   SellStatusShopIdRoute: typeof SellStatusShopIdRoute
@@ -1295,6 +1334,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiProductsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/metrics': {
+      id: '/api/metrics'
+      path: '/api/metrics'
+      fullPath: '/api/metrics'
+      preLoaderRoute: typeof ApiMetricsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/health': {
       id: '/api/health'
       path: '/api/health'
@@ -1365,6 +1411,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/account/security': {
+      id: '/account/security'
+      path: '/account/security'
+      fullPath: '/account/security'
+      preLoaderRoute: typeof AccountSecurityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/account/orders': {
       id: '/account/orders'
       path: '/account/orders'
@@ -1419,6 +1472,13 @@ declare module '@tanstack/react-router' {
       path: '/api/webhooks/mollie'
       fullPath: '/api/webhooks/mollie'
       preLoaderRoute: typeof ApiWebhooksMollieRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/webhooks/brevo': {
+      id: '/api/webhooks/brevo'
+      path: '/api/webhooks/brevo'
+      fullPath: '/api/webhooks/brevo'
+      preLoaderRoute: typeof ApiWebhooksBrevoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/health/ready': {
@@ -1850,8 +1910,10 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   VerifyEmailRoute: VerifyEmailRoute,
   AccountOrdersRoute: AccountOrdersRouteWithChildren,
+  AccountSecurityRoute: AccountSecurityRoute,
   AccountSettingsRoute: AccountSettingsRoute,
   ApiHealthRoute: ApiHealthRouteWithChildren,
+  ApiMetricsRoute: ApiMetricsRoute,
   ApiProductsRoute: ApiProductsRoute,
   CategorySlugRoute: CategorySlugRoute,
   CategoryAllRoute: CategoryAllRoute,
@@ -1865,6 +1927,7 @@ const rootRouteChildren: RootRouteChildren = {
   SellIndexRoute: SellIndexRoute,
   StudioIndexRoute: StudioIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiWebhooksBrevoRoute: ApiWebhooksBrevoRoute,
   ApiWebhooksMollieRoute: ApiWebhooksMollieRoute,
   SellOnboardingDraftIdRoute: SellOnboardingDraftIdRouteWithChildren,
   SellStatusShopIdRoute: SellStatusShopIdRoute,

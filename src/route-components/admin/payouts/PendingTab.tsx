@@ -3,6 +3,7 @@ import { Banknote, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
+import { formatDateMediumTime } from '#/lib/format-date'
 
 interface PendingPayout {
   payoutId: string
@@ -26,14 +27,9 @@ interface PendingTabProps {
 
 const PAGE_SIZES = [10, 20, 50] as const
 
-const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
-
 function formatDate(date: Date | string | null): string {
   if (!date) return '—'
-  return DATE_FORMATTER.format(new Date(date))
+  return formatDateMediumTime(new Date(date))
 }
 
 export function PendingTab({

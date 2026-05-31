@@ -31,15 +31,10 @@ import type { ReviewableItem } from '#/lib/reviews.server'
 import { getCarrierTrackingUrl } from '#/lib/shipping'
 import { m } from '#/paraglide/messages'
 import { getLocalizedErrorMessage } from '#/lib/error-mapping'
-
-const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  year: 'numeric',
-  month: 'long',
-  day: 'numeric',
-})
+import { formatDateLong } from '#/lib/format-date'
 
 function formatDate(date: Date): string {
-  return DATE_FORMATTER.format(new Date(date))
+  return formatDateLong(new Date(date))
 }
 
 function isValidUrl(url: string | null): url is string {

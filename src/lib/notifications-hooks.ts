@@ -6,12 +6,14 @@ import {
   markNotificationRead,
 } from './notifications'
 
-const notificationsKey = ['notifications'] as const
-const unreadCountKey = ['notifications', 'unread-count'] as const
+import { queryKeys } from './query-keys'
+
+const notificationsKey = queryKeys.notifications
+const unreadCountKey = queryKeys.unreadCount
 
 export function useNotifications(page = 1, pageSize = 20) {
   return useQuery({
-    queryKey: [...notificationsKey, { page, pageSize }],
+    queryKey: queryKeys.notificationsPage(page, pageSize),
     queryFn: () => getNotifications({ data: { page, pageSize } }),
     placeholderData: (previousData) => previousData,
     staleTime: 30_000,

@@ -5,17 +5,12 @@ import { Button } from '#/components/ui/button'
 import { statusBadgeVariant } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
+import { formatDateLong } from '#/lib/format-date'
 
 const PAGE_SIZE = 10
 
-const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  year: 'numeric',
-  month: 'long',
-  day: 'numeric',
-})
-
 function formatDate(date: Date): string {
-  return DATE_FORMATTER.format(new Date(date))
+  return formatDateLong(new Date(date))
 }
 
 export function AccountOrders() {

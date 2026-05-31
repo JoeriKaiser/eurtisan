@@ -74,6 +74,15 @@ export function getBrevoApiKey(): string | undefined {
 /**
  * From address for transactional emails (server-only).
  */
+
+/**
+ * Shared secret for Brevo webhook authentication (server-only).
+ * Pass as ?token= or X-Brevo-Token header. Required in production.
+ */
+export function getBrevoWebhookToken(): string | undefined {
+  return process.env.BREVO_WEBHOOK_TOKEN?.trim() || undefined
+}
+
 export function getEmailFromAddress(): string {
   if (typeof process !== 'undefined') {
     return process.env.EMAIL_FROM_ADDRESS ?? 'support@eurtisan.eu'

@@ -55,6 +55,8 @@ function makeUser(
     banReason: null,
     failedLoginAttempts: 0,
     lockedUntil: null,
+    twoFactorEnabled: false,
+    deletedAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,

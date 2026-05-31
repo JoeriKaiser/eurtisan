@@ -11,6 +11,7 @@ import { m } from '#/paraglide/messages'
 import { getLocalizedErrorMessage } from '#/lib/error-mapping'
 import { PickupPointSelectorModal } from './checkout/PickupPointSelectorModal'
 
+import { CheckoutLegalDisclosures } from './checkout/CheckoutLegalDisclosures'
 import { CheckoutOrderItems } from './checkout/CheckoutOrderItems'
 import { CheckoutMondialRelaySection } from './checkout/CheckoutMondialRelaySection'
 
@@ -656,8 +657,10 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
 
             <div className='space-y-6'>
               {currentSummary.shops.map((shop, shopIndex) => (
-                <div key={shop.shopId}>
-                  <h3 className='mb-3 text-sm font-medium text-text-secondary'>{shop.shopName}</h3>
+                <fieldset key={shop.shopId} className='border-0 p-0 m-0 min-w-0'>
+                  <legend className='mb-3 text-sm font-medium text-text-secondary'>
+                    {shop.shopName}
+                  </legend>
                   {shop.shippingOptions.length === 0 ? (
                     <p className='text-sm text-text-muted italic'>
                       Enter your shipping address to see available rates.
@@ -735,7 +738,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                       })}
                     </div>
                   )}
-                </div>
+                </fieldset>
               ))}
             </div>
           </section>
@@ -832,6 +835,8 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                 }}
               </form.Subscribe>
             </div>
+
+            <CheckoutLegalDisclosures shops={currentSummary.shops} />
 
             {status.submitError && (
               <p className='mt-3 text-sm text-error' role='alert'>

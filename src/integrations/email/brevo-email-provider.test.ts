@@ -5,6 +5,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { BrevoEmailProvider } from './brevo-email-provider'
 
+vi.mock('#/lib/email-suppression.server', () => ({
+  isEmailSuppressed: vi.fn().mockResolvedValue(false),
+}))
+
 const originalEnv: Record<string, string | undefined> = {}
 
 function setEnv(key: string, value: string) {
@@ -21,6 +25,10 @@ function createMockResponse(status: number, bodyText: string) {
     text: vi.fn().mockResolvedValue(bodyText),
     json: vi.fn().mockResolvedValue({ messageId: 'test-msg-id' }),
   } as unknown as Response
+}
+
+function stubAbortTimeout(): void {
+  vi.spyOn(AbortSignal, 'timeout').mockImplementation(() => new AbortController().signal)
 }
 
 afterEach(() => {
@@ -62,6 +70,7 @@ describe('BrevoEmailProvider sendReal timeout', () => {
   it('re-throws non-abort fetch errors after exhausting retries', async () => {
     setEnv('BREVO_API_KEY', 'test-api-key')
     vi.useFakeTimers()
+    stubAbortTimeout()
 
     const networkError = new TypeError('fetch failed')
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(networkError)
@@ -112,6 +121,7 @@ describe('BrevoEmailProvider retry logic', () => {
   it('retries on 5xx errors and succeeds on recovery', async () => {
     setEnv('BREVO_API_KEY', 'test-api-key')
     vi.useFakeTimers()
+    stubAbortTimeout()
 
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
@@ -137,6 +147,7 @@ describe('BrevoEmailProvider retry logic', () => {
   it('retries on network errors and succeeds on recovery', async () => {
     setEnv('BREVO_API_KEY', 'test-api-key')
     vi.useFakeTimers()
+    stubAbortTimeout()
 
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
@@ -163,6 +174,7 @@ describe('BrevoEmailProvider retry logic', () => {
   it('exhausts all retries on persistent 5xx and throws last error', async () => {
     setEnv('BREVO_API_KEY', 'test-api-key')
     vi.useFakeTimers()
+    stubAbortTimeout()
 
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')

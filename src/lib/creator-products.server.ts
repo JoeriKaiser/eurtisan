@@ -4,6 +4,7 @@ import { categories, meilisearchSyncQueue, product, productImage, shop } from '#
 import { type ProductImageInput, validateImageKey } from './image-utils'
 import { deleteImageFromStorage } from './image-storage.server'
 import { logger } from './logger.server'
+import { isPostgresUniqueViolation } from './db-errors'
 import { sanitizeRichText, validatePlainText } from './xss'
 
 export {
@@ -147,12 +148,9 @@ export async function createProductInternal(data: {
     throw new Error('Invalid category_id')
   }
 
-  const isUnique = await checkSlugUniqueness(data.slug, data.shopId)
-  if (!isUnique) {
-    throw new Error('DUPLICATE_SLUG')
-  }
-
-  const newProduct = await db.transaction(async (tx) => {
+  let newProduct
+  try {
+    newProduct = await db.transaction(async (tx) => {
     const [inserted] = await tx
       .insert(product)
       .values({
@@ -177,7 +175,13 @@ export async function createProductInternal(data: {
     })
 
     return inserted
-  })
+    })
+  } catch (err) {
+    if (isPostgresUniqueViolation(err, 'product_shop_slug_unique')) {
+      throw new Error('DUPLICATE_SLUG')
+    }
+    throw err
+  }
 
   import('./meilisearch-products.server')
     .then(async ({ syncProductToMeilisearch }) => {
@@ -227,13 +231,6 @@ export async function updateProductInternal(data: {
     throw new Error('Invalid category_id')
   }
 
-  if (data.slug && data.slug !== productRecord.slug) {
-    const isUnique = await checkSlugUniqueness(data.slug, data.shopId, data.productId)
-    if (!isUnique) {
-      throw new Error('DUPLICATE_SLUG')
-    }
-  }
-
   const updateData: Record<string, unknown> = {
     updatedAt: new Date(),
   }
@@ -257,26 +254,35 @@ export async function updateProductInternal(data: {
     oldImageKeys = oldImages.map((i) => i.url).filter((url): url is string => !!url)
   }
 
-  const updatedProduct = await db
-    .transaction(async (tx) => {
-      const [result] = await tx
-        .update(product)
-        .set(updateData)
-        .where(eq(product.id, data.productId))
-        .returning()
+  let updatedProduct
+  try {
+    updatedProduct = await db
+      .transaction(async (tx) => {
+        const [result] = await tx
+          .update(product)
+          .set(updateData)
+          .where(eq(product.id, data.productId))
+          .returning()
 
-      if (data.images !== undefined) {
-        await replaceProductImages(tx, data.productId, data.images)
-      }
+        if (data.images !== undefined) {
+          await replaceProductImages(tx, data.productId, data.images)
+        }
 
-      await tx.insert(meilisearchSyncQueue).values({
-        productId: data.productId,
-        action: 'index',
+        await tx.insert(meilisearchSyncQueue).values({
+          productId: data.productId,
+          action: 'index',
+        })
+
+        return result
       })
+  } catch (err) {
+    if (isPostgresUniqueViolation(err, 'product_shop_slug_unique')) {
+      throw new Error('DUPLICATE_SLUG')
+    }
+    throw err
+  }
 
-      return result
-    })
-    .then(async (result) => {
+  updatedProduct = await Promise.resolve(updatedProduct).then(async (result) => {
       // Transaction committed — safe to delete old images from S3
       if (data.images !== undefined && oldImageKeys.length > 0) {
         const newKeys = new Set(data.images.map((img) => img.key))

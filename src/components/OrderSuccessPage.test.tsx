@@ -24,6 +24,9 @@ vi.mock('#/paraglide/messages', () => ({
     order_success_items: () => 'Ordered items',
     order_success_continue_shopping: () => 'Continue shopping',
     order_success_total: () => 'Total',
+    order_success_withdrawal_reminder: () =>
+      'You have 14 days to withdraw from this purchase if needed.',
+    footer_legal_terms: () => 'Terms of Service',
     cart_shop_subtotal: () => 'Subtotal',
   },
 }))

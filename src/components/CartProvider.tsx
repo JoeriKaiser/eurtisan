@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { createContext, use, useCallback, useMemo } from 'react'
 import { getCart } from '#/lib/cart'
+import { queryKeys } from '#/lib/query-keys'
 import type { CartDetail } from '#/lib/cart.server'
 
 interface CartContextType {
@@ -24,7 +25,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     error,
     refetch,
   } = useQuery({
-    queryKey: ['cart'],
+    queryKey: queryKeys.cart,
     queryFn: () => getCart(),
     staleTime: 30_000,
   })

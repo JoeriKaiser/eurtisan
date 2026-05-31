@@ -1,3 +1,4 @@
+import { invalidateServerCache } from './server-cache.server'
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
@@ -68,6 +69,7 @@ export const moveCategory = createServerFn({ method: 'POST' })
       }),
     ])
 
+    invalidateServerCache('cache:categories:')
     return result
   })
 
@@ -89,5 +91,6 @@ export const reorderCategories = createServerFn({ method: 'POST' })
       }),
     ])
 
+    invalidateServerCache('cache:categories:')
     return result
   })

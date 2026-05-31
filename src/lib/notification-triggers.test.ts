@@ -30,6 +30,7 @@ import { openDisputeQuery, resolveDisputeQuery } from './disputes.server'
 import { getNotificationsQuery } from './notifications.server'
 import { markPayoutSentQuery } from './payouts.server'
 import { createReviewQuery } from './reviews.server'
+import { flushBackgroundWorkForTests } from './background-work.server'
 import { markShopOrderShippedQuery, updateShopOrderStatusQuery } from './shop-orders.server'
 
 beforeEach(async () => {
@@ -77,6 +78,22 @@ async function seedUser(overrides?: Partial<typeof user.$inferInsert>) {
     .then((rows) => rows[0])
 }
 
+
+async function seedShop(overrides?: Partial<typeof shop.$inferInsert>) {
+  return db
+    .insert(shop)
+    .values({
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      status: 'active',
+      ownerId: 'seller-1',
+      ...overrides,
+    })
+    .returning()
+    .then((rows) => rows[0])
+}
+
 async function seedProduct(overrides?: Partial<typeof product.$inferInsert>) {
   return db
     .insert(product)
@@ -99,6 +116,7 @@ describe('createCheckoutQuery notifications', () => {
     const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
     await db.insert(shop).values({
       id: 'shop-1',
+      status: 'active',
       name: 'Test Shop',
       slug: 'test-shop',
       ownerId: seller.id,
@@ -138,6 +156,7 @@ describe('createCheckoutQuery notifications', () => {
       buyer.id,
     )
 
+    await flushBackgroundWorkForTests()
     const buyerNotifications = await getNotificationsQuery(buyer.id, 1, 10)
     expect(buyerNotifications.notifications).toHaveLength(1)
     expect(buyerNotifications.notifications[0].type).toBe('order_placed')
@@ -151,6 +170,7 @@ describe('createCheckoutQuery notifications', () => {
     const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
     await db.insert(shop).values({
       id: 'shop-1',
+      status: 'active',
       name: 'Test Shop',
       slug: 'test-shop',
       ownerId: seller.id,
@@ -190,6 +210,7 @@ describe('createCheckoutQuery notifications', () => {
       buyer.id,
     )
 
+    await flushBackgroundWorkForTests()
     const sellerNotifications = await getNotificationsQuery(seller.id, 1, 10)
     expect(sellerNotifications.notifications).toHaveLength(1)
     expect(sellerNotifications.notifications[0].type).toBe('order_placed')
@@ -206,6 +227,7 @@ describe('markShopOrderShippedQuery notification', () => {
     const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
     await db.insert(shop).values({
       id: 'shop-1',
+      status: 'active',
       name: 'Test Shop',
       slug: 'test-shop',
       ownerId: seller.id,
@@ -249,6 +271,7 @@ describe('markShopOrderShippedQuery notification', () => {
 
     await markShopOrderShippedQuery(so.id, {})
 
+    await flushBackgroundWorkForTests()
     const buyerNotifications = await getNotificationsQuery(buyer.id, 1, 10)
     expect(buyerNotifications.notifications).toHaveLength(1)
     expect(buyerNotifications.notifications[0].type).toBe('order_shipped')
@@ -263,6 +286,7 @@ describe('markShopOrderShippedQuery notification', () => {
     const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
     await db.insert(shop).values({
       id: 'shop-1',
+      status: 'active',
       name: 'Test Shop',
       slug: 'test-shop',
       ownerId: seller.id,
@@ -310,6 +334,7 @@ describe('markShopOrderShippedQuery notification', () => {
     // Idempotent tracking update should not create another notification
     await markShopOrderShippedQuery(so.id, { trackingNumber: 'TRACK-456' })
 
+    await flushBackgroundWorkForTests()
     const buyerNotifications = await getNotificationsQuery(buyer.id, 1, 10)
     expect(buyerNotifications.notifications).toHaveLength(1)
   })
@@ -321,6 +346,7 @@ describe('createReviewQuery notification', () => {
     const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
     await db.insert(shop).values({
       id: 'shop-1',
+      status: 'active',
       name: 'Test Shop',
       slug: 'test-shop',
       ownerId: seller.id,
@@ -373,6 +399,7 @@ describe('createReviewQuery notification', () => {
 
     const result = await createReviewQuery(so.id, 'prod-1', buyer.id, 5, 'Great!')
 
+    await flushBackgroundWorkForTests()
     const sellerNotifications = await getNotificationsQuery(seller.id, 1, 10)
     expect(sellerNotifications.notifications).toHaveLength(1)
     expect(sellerNotifications.notifications[0].type).toBe('review_received')
@@ -391,6 +418,7 @@ describe('updateShopOrderStatusQuery dispute notification', () => {
     const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
     await db.insert(shop).values({
       id: 'shop-1',
+      status: 'active',
       name: 'Test Shop',
       slug: 'test-shop',
       ownerId: seller.id,
@@ -434,6 +462,7 @@ describe('updateShopOrderStatusQuery dispute notification', () => {
 
     await updateShopOrderStatusQuery(so.id, { status: 'disputed' })
 
+    await flushBackgroundWorkForTests()
     const buyerNotifications = await getNotificationsQuery(buyer.id, 1, 10)
     expect(buyerNotifications.notifications).toHaveLength(1)
     expect(buyerNotifications.notifications[0].type).toBe('dispute_opened')
@@ -459,6 +488,7 @@ describe('createCheckoutQuery emails', () => {
     const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
     await db.insert(shop).values({
       id: 'shop-1',
+      status: 'active',
       name: 'Test Shop',
       slug: 'test-shop',
       ownerId: seller.id,
@@ -498,6 +528,7 @@ describe('createCheckoutQuery emails', () => {
       buyer.id,
     )
 
+    await flushBackgroundWorkForTests()
     const buyerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'buyer@example.com')
     expect(buyerEmailCall).toBeDefined()
     expect(buyerEmailCall?.[1]).toBe('order_confirmation')
@@ -513,6 +544,7 @@ describe('createCheckoutQuery emails', () => {
     const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
     await db.insert(shop).values({
       id: 'shop-1',
+      status: 'active',
       name: 'Test Shop',
       slug: 'test-shop',
       ownerId: seller.id,
@@ -552,6 +584,7 @@ describe('createCheckoutQuery emails', () => {
       buyer.id,
     )
 
+    await flushBackgroundWorkForTests()
     const sellerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'seller@example.com')
     expect(sellerEmailCall).toBeDefined()
     expect(sellerEmailCall?.[1]).toBe('order_confirmation')
@@ -567,6 +600,7 @@ describe('createCheckoutQuery emails', () => {
     const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
     await db.insert(shop).values({
       id: 'shop-1',
+      status: 'active',
       name: 'Test Shop',
       slug: 'test-shop',
       ownerId: seller.id,
@@ -623,6 +657,7 @@ describe('markShopOrderShippedQuery emails', () => {
     const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
     await db.insert(shop).values({
       id: 'shop-1',
+      status: 'active',
       name: 'Test Shop',
       slug: 'test-shop',
       ownerId: seller.id,
@@ -666,6 +701,7 @@ describe('markShopOrderShippedQuery emails', () => {
 
     await markShopOrderShippedQuery(so.id, { trackingNumber: 'TRACK-123' })
 
+    await flushBackgroundWorkForTests()
     const buyerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'buyer@example.com')
     expect(buyerEmailCall).toBeDefined()
     expect(buyerEmailCall?.[1]).toBe('shipping_notification')
@@ -685,6 +721,7 @@ describe('markShopOrderShippedQuery emails', () => {
     const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
     await db.insert(shop).values({
       id: 'shop-1',
+      status: 'active',
       name: 'Test Shop',
       slug: 'test-shop',
       ownerId: seller.id,
@@ -745,6 +782,7 @@ describe('dispute email notifications', () => {
     const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
     await db.insert(shop).values({
       id: 'shop-1',
+      status: 'active',
       name: 'Test Shop',
       slug: 'test-shop',
       ownerId: seller.id,
@@ -790,6 +828,7 @@ describe('dispute email notifications', () => {
       buyer.id,
     )
 
+    await flushBackgroundWorkForTests()
     const buyerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'buyer@example.com')
     expect(buyerEmailCall).toBeDefined()
     expect(buyerEmailCall?.[1]).toBe('dispute_update')
@@ -810,6 +849,7 @@ describe('dispute email notifications', () => {
     const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
     await db.insert(shop).values({
       id: 'shop-1',
+      status: 'active',
       name: 'Test Shop',
       slug: 'test-shop',
       ownerId: seller.id,
@@ -852,6 +892,7 @@ describe('dispute email notifications', () => {
 
     await updateShopOrderStatusQuery(so.id, { status: 'disputed' })
 
+    await flushBackgroundWorkForTests()
     const buyerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'buyer@example.com')
     expect(buyerEmailCall).toBeDefined()
     expect(buyerEmailCall?.[1]).toBe('dispute_update')
@@ -870,6 +911,7 @@ describe('dispute email notifications', () => {
     const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
     await db.insert(shop).values({
       id: 'shop-1',
+      status: 'active',
       name: 'Test Shop',
       slug: 'test-shop',
       ownerId: seller.id,
@@ -919,7 +961,9 @@ describe('dispute email notifications', () => {
 
     await resolveDisputeQuery(d.id, { resolution: 'close' }, { userId: 'admin-1', role: 'admin' })
 
+    await flushBackgroundWorkForTests()
     const buyerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'buyer@example.com')
+    await flushBackgroundWorkForTests()
     const sellerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'seller@example.com')
 
     expect(buyerEmailCall).toBeDefined()
@@ -938,6 +982,7 @@ describe('dispute email notifications', () => {
     const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
     await db.insert(shop).values({
       id: 'shop-1',
+      status: 'active',
       name: 'Test Shop',
       slug: 'test-shop',
       ownerId: seller.id,
@@ -1000,6 +1045,7 @@ describe('markPayoutSentQuery notification', () => {
     const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
     await db.insert(shop).values({
       id: 'shop-1',
+      status: 'active',
       name: 'Test Shop',
       slug: 'test-shop',
       ownerId: seller.id,
@@ -1016,6 +1062,7 @@ describe('markPayoutSentQuery notification', () => {
 
     await markPayoutSentQuery(p.id)
 
+    await flushBackgroundWorkForTests()
     const sellerNotifications = await getNotificationsQuery(seller.id, 1, 10)
     expect(sellerNotifications.notifications).toHaveLength(1)
     expect(sellerNotifications.notifications[0].type).toBe('payout_sent')
@@ -1030,6 +1077,7 @@ describe('markPayoutSentQuery notification', () => {
     const seller = await seedUser({ id: 'seller-1', email: 'seller@example.com' })
     await db.insert(shop).values({
       id: 'shop-1',
+      status: 'active',
       name: 'Test Shop',
       slug: 'test-shop',
       ownerId: seller.id,
@@ -1047,6 +1095,7 @@ describe('markPayoutSentQuery notification', () => {
 
     await markPayoutSentQuery(p.id)
 
+    await flushBackgroundWorkForTests()
     const sellerNotifications = await getNotificationsQuery(seller.id, 1, 10)
     expect(sellerNotifications.notifications).toHaveLength(0)
   })

@@ -129,7 +129,28 @@ infrastructure/
 ## Backup & Recovery
 
 Database backups run nightly at 03:00 UTC and are stored in `/opt/eurtisan/backups/`.
-Backups older than 7 days are automatically pruned.
+Backups older than **30 days** are automatically pruned (override with `backup_retention_days` in Ansible).
+
+
+
+### Off-site backups (recommended)
+
+Configure an [rclone](https://rclone.org/) remote on the VPS and set in `secrets.yml` or group vars:
+
+```yaml
+backup_offsite_rclone_remote: "eurtisan-backups:eurtisan"
+```
+
+Nightly `backup.sh` uploads each verified `.sql.gz` to that remote after the local test-restore check.
+
+### Hot standby / managed database (production)
+
+The default layout is a **single VPS** with Docker PostgreSQL. For lower RTO:
+
+1. **Managed Postgres** (OVH, Scaleway, RDS) — point `DATABASE_URL` at the provider; keep app on VPS.
+2. **Streaming replication** — standby on a second VPS; promote manually on primary failure (document failover in your runbook).
+
+See `docs/DEPLOYMENT.md` for WAL/RPO targets when `postgres_wal_archive_enabled` is enabled.
 
 ### Manual backup
 ```bash
@@ -219,3 +240,11 @@ VPS is provisioned.
 - Unattended upgrades apply security patches automatically
 - `.env` file has `0600` permissions
 - App runs as a non-root user inside the container
+
+
+## Recovery objectives
+
+- **RPO:** < 1 hour with WAL archiving; < 24 hours with nightly backups only
+- **RTO:** < 4 hours for full service restoration
+
+Details: [docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md#recovery-objectives-rto--rpo)

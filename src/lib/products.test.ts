@@ -34,6 +34,12 @@ import {
 import { syncProductToMeilisearch } from './meilisearch-products.server'
 import { logger } from './logger.server'
 
+/** Public catalog queries only include shops with status "active". */
+function shopValues(values: typeof shop.$inferInsert) {
+  return { status: 'active', ...values }
+}
+
+
 vi.mock('./auth', () => ({
   auth: {
     api: {
@@ -124,12 +130,12 @@ describe('listProductsByShopQuery', () => {
 
     const [s] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     await db.insert(product).values({
@@ -158,12 +164,12 @@ describe('listProductsByShopQuery', () => {
 
     const [s] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-limit',
         name: 'Test Shop',
         slug: 'test-shop-limit',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     // Insert 5 products
@@ -201,12 +207,12 @@ describe('listProductsByCategorySlugQuery', () => {
 
     const [s] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     const [cat] = await db
@@ -251,13 +257,13 @@ describe('listProductsByCategorySlugQuery', () => {
 
     const [s] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
         isSuspended: true,
-      })
+      }))
       .returning()
 
     const [cat] = await db
@@ -292,12 +298,12 @@ describe('listProductsByCategorySlugQuery', () => {
 
     const [s] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     const [cat] = await db
@@ -333,12 +339,12 @@ describe('listProductsByCategorySlugQuery', () => {
 
     const [s] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-cat-limit',
         name: 'Test Shop',
         slug: 'test-shop-cat-limit',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     const [cat] = await db
@@ -381,12 +387,12 @@ describe('getProductBySlugQuery', () => {
 
     const [s] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     const [cat] = await db
@@ -453,13 +459,13 @@ describe('getProductBySlugQuery', () => {
 
     const [s] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
         isSuspended: true,
-      })
+      }))
       .returning()
 
     await db.insert(product).values({
@@ -487,12 +493,12 @@ describe('getProductBySlugQuery', () => {
 
     const [s] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     await db.insert(product).values({
@@ -523,22 +529,22 @@ describe('listProductsQuery', () => {
 
     const [s1] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop 1',
         slug: 'test-shop-1',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     const [s2] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-2',
         name: 'Test Shop 2',
         slug: 'test-shop-2',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     const [cat] = await db
@@ -680,12 +686,12 @@ describe('getProductsByShopSlugQuery', () => {
 
     const [s] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     await db.insert(product).values([
@@ -721,13 +727,13 @@ describe('getProductsByShopSlugQuery', () => {
 
     await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
         isSuspended: true,
-      })
+      }))
       .returning()
 
     try {
@@ -754,12 +760,12 @@ describe('createProductInternal', () => {
 
     const [s] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     const result = await createProductInternal({
@@ -787,12 +793,12 @@ describe('createProductInternal', () => {
 
     const [s] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     await createProductInternal({
@@ -825,22 +831,22 @@ describe('createProductInternal', () => {
 
     const [s1] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop 1',
         slug: 'test-shop-1',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     const [s2] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-2',
         name: 'Test Shop 2',
         slug: 'test-shop-2',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     await createProductInternal({
@@ -874,12 +880,12 @@ describe('createProductInternal', () => {
 
     const [s] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     vi.mocked(syncProductToMeilisearch).mockRejectedValueOnce(new Error('Meili down'))
@@ -915,13 +921,13 @@ describe('getShopBySlugQuery', () => {
 
     await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop',
         description: 'A test shop',
         slug: 'test-shop',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     const result = await getShopBySlugQuery('test-shop')
@@ -949,13 +955,13 @@ describe('getShopBySlugQuery', () => {
 
     await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
         isSuspended: true,
-      })
+      }))
       .returning()
 
     const result = await getShopBySlugQuery('test-shop')
@@ -977,12 +983,12 @@ describe('getShopProductsQuery', () => {
 
     const [s] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     await db.insert(product).values([
@@ -1076,13 +1082,13 @@ describe('getShopProductsQuery', () => {
 
     await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
         isSuspended: true,
-      })
+      }))
       .returning()
 
     try {
@@ -1132,12 +1138,12 @@ describe('listRecentProductsQuery', () => {
 
     const [s] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     const [p] = await db
@@ -1190,12 +1196,12 @@ describe('listRecentProductsQuery', () => {
 
     const [s] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     await db.insert(product).values({
@@ -1224,13 +1230,13 @@ describe('listRecentProductsQuery', () => {
 
     const [s] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
         isSuspended: true,
-      })
+      }))
       .returning()
 
     await db.insert(product).values({
@@ -1258,12 +1264,12 @@ describe('listRecentProductsQuery', () => {
 
     const [s] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     await db.insert(product).values({
@@ -1308,22 +1314,22 @@ describe('getFeaturedShopsQuery', () => {
 
     const [s1] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Old Shop',
         slug: 'old-shop',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     const [s2] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-2',
         name: 'New Shop',
         slug: 'new-shop',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     await db.insert(product).values([
@@ -1353,23 +1359,23 @@ describe('getFeaturedShopsQuery', () => {
 
     await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Active Shop',
         slug: 'active-shop',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-2',
         name: 'Suspended Shop',
         slug: 'suspended-shop',
         ownerId: u.id,
         isSuspended: true,
-      })
+      }))
       .returning()
 
     const result = await getFeaturedShopsQuery(10)
@@ -1390,12 +1396,12 @@ describe('getFeaturedShopsQuery', () => {
 
     await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Empty Shop',
         slug: 'empty-shop',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     const result = await getFeaturedShopsQuery(10)
@@ -1416,9 +1422,9 @@ describe('getFeaturedShopsQuery', () => {
       .returning()
 
     await db.insert(shop).values([
-      { id: 'shop-1', name: 'Shop 1', slug: 'shop-1', ownerId: u.id },
-      { id: 'shop-2', name: 'Shop 2', slug: 'shop-2', ownerId: u.id },
-      { id: 'shop-3', name: 'Shop 3', slug: 'shop-3', ownerId: u.id },
+shopValues({ id: 'shop-1', name: 'Shop 1', slug: 'shop-1', ownerId: u.id }),
+      shopValues({ id: 'shop-2', name: 'Shop 2', slug: 'shop-2', ownerId: u.id }),
+      shopValues({ id: 'shop-3', name: 'Shop 3', slug: 'shop-3', ownerId: u.id }),
     ])
 
     const result = await getFeaturedShopsQuery(2)
@@ -1454,12 +1460,12 @@ describe('product database constraints', () => {
 
     const [s] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     await db.insert(product).values({
@@ -1496,22 +1502,22 @@ describe('product database constraints', () => {
 
     const [s1] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop 1',
         slug: 'test-shop-1',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     const [s2] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-2',
         name: 'Test Shop 2',
         slug: 'test-shop-2',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     await db.insert(product).values({
@@ -1553,22 +1559,22 @@ describe('searchProductsQuery', () => {
 
     const [s1] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-1',
         name: 'Test Shop 1',
         slug: 'test-shop-1',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     const [s2] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: 'shop-2',
         name: 'Test Shop 2',
         slug: 'test-shop-2',
         ownerId: u.id,
-      })
+      }))
       .returning()
 
     const [c1] = await db
@@ -1831,13 +1837,13 @@ describe('Shop Status Visibility Constraints', () => {
 
     const [s] = await db
       .insert(shop)
-      .values({
+      .values(shopValues({
         id: `shop-${status}`,
         name: `Shop ${status}`,
         slug: `shop-${status}`,
         ownerId: u.id,
         status,
-      })
+      }))
       .returning()
 
     const [cat] = await db

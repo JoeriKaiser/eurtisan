@@ -131,6 +131,16 @@ export default function OrderSuccessPage({ order }: OrderSuccessPageProps) {
             ))}
           </div>
 
+          {isPaid && (
+            <p className='mt-6 text-sm text-text-secondary leading-relaxed border-t border-border-default pt-6'>
+              {m.order_success_withdrawal_reminder()}{' '}
+              <Link to='/terms' className='text-accent-primary underline-offset-2 hover:underline'>
+                {m.footer_legal_terms()}
+              </Link>
+              .
+            </p>
+          )}
+
           <div className='mt-6 border-t border-border-default pt-6 text-center'>
             <Link to='/category/all' className='no-underline'>
               <Button size='lg'>{m.order_success_continue_shopping()}</Button>

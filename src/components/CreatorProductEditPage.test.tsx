@@ -590,17 +590,18 @@ describe('CreatorProductEditPage', () => {
     })
   })
 
-  it('aborts save and shows error when an existing image fails to fetch', async () => {
-    // First fetch succeeds, second fetch fails
-    let fetchCallCount = 0
-    vi.spyOn(globalThis, 'fetch').mockImplementation(() => {
-      fetchCallCount++
-      if (fetchCallCount === 1) {
-        return Promise.resolve(
-          new Response(new Blob(['ok'], { type: 'image/png' }), { status: 200 }),
-        )
-      }
-      return Promise.reject(new Error('Network error'))
+  it('submits existing image keys without re-fetching blobs on save', async () => {
+    vi.mocked(updateProduct).mockResolvedValueOnce({
+      id: 'prod-1',
+      name: 'Changed',
+      description: 'A handmade ceramic mug',
+      slug: 'ceramic-mug',
+      priceCents: 2500,
+      stockCount: 10,
+      isActive: true,
+      shopId: 'shop-1',
+      categoryId: null,
+      vatRateCategory: 'standard',
     })
 
     render(
@@ -618,15 +619,16 @@ describe('CreatorProductEditPage', () => {
     if (form) fireEvent.submit(form)
 
     await waitFor(() => {
-      expect(
-        screen.getByText(
-          'Failed to read one or more existing images. Please check your connection and try again.',
-        ),
-      ).toBeTruthy()
+      expect(updateProduct).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            images: expect.arrayContaining([
+              expect.objectContaining({ key: '/uploads/products/prod-1/img1.jpg' }),
+            ]),
+          }),
+        }),
+      )
     })
-
-    // updateProduct must NOT have been called
-    expect(updateProduct).not.toHaveBeenCalled()
   })
 
   /* ------------------------- Delete product flow ------------------------- */
@@ -669,7 +671,7 @@ describe('CreatorProductEditPage', () => {
     // The dialog Cancel is the last one rendered
     fireEvent.click(cancelButtons[cancelButtons.length - 1])
 
-    expect(screen.queryByText('Are you sure you want to delete this product?')).toBeNull()
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('deletes product and navigates to products list', async () => {

@@ -4,6 +4,7 @@ import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
+import { formatDateMediumTime } from '#/lib/format-date'
 
 interface HistoryPayout {
   payoutId: string
@@ -31,14 +32,9 @@ interface HistoryTabProps {
 
 const PAGE_SIZES = [10, 20, 50] as const
 
-const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
-
 function formatDate(date: Date | string | null): string {
   if (!date) return '—'
-  return DATE_FORMATTER.format(new Date(date))
+  return formatDateMediumTime(new Date(date))
 }
 
 export function HistoryTab({ historyData, onPageChange, onPageSizeChange }: HistoryTabProps) {

@@ -8,20 +8,13 @@ import type { DisputeDetail } from '#/lib/disputes.server'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 import { getLocalizedErrorMessage } from '#/lib/error-mapping'
+import { formatDateLongWithTime } from '#/lib/format-date'
 
 export { DisputeThreadError } from './DisputeThreadError'
 export { DisputeThreadLoading } from './DisputeThreadLoading'
 
-const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  year: 'numeric',
-  month: 'long',
-  day: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-})
-
 function formatDate(date: Date): string {
-  return DATE_FORMATTER.format(new Date(date))
+  return formatDateLongWithTime(date)
 }
 
 export interface DisputeThreadPageProps {

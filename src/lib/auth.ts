@@ -4,6 +4,7 @@ import { drizzleAdapter } from '@better-auth/drizzle-adapter'
 import { getRequestProtocol } from '@tanstack/react-start/server'
 import type { BetterAuthOptions, DBAdapter, Where } from 'better-auth'
 import { betterAuth } from 'better-auth'
+import { twoFactor } from 'better-auth/plugins'
 import { tanstackStartCookies } from 'better-auth/tanstack-start'
 
 import { db } from '#/db/index'
@@ -46,7 +47,7 @@ function injectToken(result: Record<string, unknown> | null, tokenMap: Map<strin
   return result
 }
 
-export function wrapAdapter(adapter: DBAdapter): DBAdapter {
+export function wrapAdapter(adapter: DBAdapter<BetterAuthOptions>): DBAdapter<BetterAuthOptions> {
   return {
     ...adapter,
     create: (async ({ model, data, select, forceAllowId }) => {
@@ -122,7 +123,9 @@ export function wrapAdapter(adapter: DBAdapter): DBAdapter {
       }
       return adapter.deleteMany({ model, where, ...rest })
     }) as DBAdapter['deleteMany'],
-  }
+    consumeOne: adapter.consumeOne,
+    count: adapter.count,
+  } as DBAdapter<BetterAuthOptions>
 }
 
 const baseDrizzleAdapter = drizzleAdapter(db, {
@@ -132,7 +135,7 @@ const baseDrizzleAdapter = drizzleAdapter(db, {
 export const betterAuthOptions = {
   database: (options: Parameters<typeof baseDrizzleAdapter>[0]) => {
     const adapter = baseDrizzleAdapter(options)
-    return wrapAdapter(adapter)
+    return wrapAdapter(adapter as DBAdapter<BetterAuthOptions>)
   },
   trustedOrigins: [getBaseUrl()],
   emailAndPassword: {
@@ -181,7 +184,12 @@ export const betterAuthOptions = {
       },
     },
   },
-  plugins: [tanstackStartCookies()],
+  plugins: [
+    tanstackStartCookies(),
+    twoFactor({
+      issuer: 'Eurtisan',
+    }),
+  ],
   databaseHooks: {
     session: {
       create: {

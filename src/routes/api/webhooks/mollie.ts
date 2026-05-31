@@ -14,6 +14,11 @@ import { orderItem, platformOrder, product, productVariant, shopOrder } from '#/
 import { molliePaymentProvider } from '#/integrations/mollie'
 import { decrementStockForPaidOrder, releaseStockInTx } from '#/lib/inventory.server'
 import { logger } from '#/lib/logger.server'
+import {
+  ordersCancelledTotal,
+  ordersPaidTotal,
+  webhookProcessedTotal,
+} from '#/lib/metrics.server'
 import { logOrderPaid } from '#/lib/order-logger'
 import type { PaymentProvider } from '#/lib/payment-provider'
 
@@ -115,8 +120,16 @@ export async function processMollieWebhook(
     })
   }
 
-  // 5. Idempotency: skip if already in a terminal state
-  if (order.status !== 'pending_payment') {
+  // 5. Idempotency: skip if already in a terminal state (chargebacks may arrive after payment)
+  const chargebackEligible =
+    order.status === 'paid' ||
+    order.status === 'processing' ||
+    order.status === 'shipped' ||
+    order.status === 'delivered' ||
+    order.status === 'completed'
+
+  if (order.status !== 'pending_payment' && !chargebackEligible) {
+    webhookProcessedTotal.inc({ status: 'already_processed' })
     return new Response(JSON.stringify({ status: 'already_processed' }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
@@ -132,6 +145,7 @@ export async function processMollieWebhook(
     // The order status is intentionally left untouched; ops can
     // reconcile manually or wait for the next webhook delivery.
     logger.error('Mollie webhook getPaymentStatus failed', error, {
+      alert: true,
       molliePaymentId: payload.id,
       platformOrderId: order.id,
     })
@@ -141,10 +155,60 @@ export async function processMollieWebhook(
     })
   }
 
+  if (chargebackEligible && paymentStatus !== 'chargeback') {
+    webhookProcessedTotal.inc({ status: 'already_processed' })
+    return new Response(JSON.stringify({ status: 'already_processed' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+
+  if (paymentStatus === 'chargeback') {
+    if (!chargebackEligible) {
+      webhookProcessedTotal.inc({ status: 'already_processed' })
+      return new Response(JSON.stringify({ status: 'already_processed' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    await database.transaction(async (tx) => {
+      await tx
+        .update(platformOrder)
+        .set({
+          status: 'chargeback',
+          cancelledAt: new Date(),
+          cancellationReason: 'payment_chargeback',
+          updatedAt: new Date(),
+        })
+        .where(eq(platformOrder.id, order.id))
+
+      await tx
+        .update(shopOrder)
+        .set({ status: 'chargeback', updatedAt: new Date() })
+        .where(eq(shopOrder.platformOrderId, order.id))
+    })
+
+    ordersCancelledTotal.inc()
+    webhookProcessedTotal.inc({ status: 'chargeback' })
+    logger.error('Mollie chargeback received for platform order', undefined, {
+      alert: true,
+      platformOrderId: order.id,
+      molliePaymentId: payload.id,
+    })
+
+    return new Response(JSON.stringify({ status: 'chargeback' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
   if (paymentStatus === 'paid') {
     const paymentAmountCents = await provider.getPaymentAmount(payload.id)
     if (paymentAmountCents !== order.totalCents) {
       logger.error('Mollie webhook amount mismatch', undefined, {
+        alert: true,
         platformOrderId: order.id,
         expectedCents: order.totalCents,
         receivedCents: paymentAmountCents,
@@ -251,6 +315,7 @@ export async function processMollieWebhook(
 
       if (stockMismatches.length > 0) {
         logger.error('Mollie webhook inventory mismatch', undefined, {
+          alert: true,
           platformOrderId: order.id,
           mismatches: stockMismatches,
           molliePaymentId: payload.id,
@@ -300,6 +365,8 @@ export async function processMollieWebhook(
       return response
     }
 
+    ordersPaidTotal.inc()
+    webhookProcessedTotal.inc({ status: 'processed' })
     logOrderPaid({ platformOrderId: order.id, totalCents, paymentStatus: 'paid' })
 
     return new Response(JSON.stringify({ status: 'processed' }), {
@@ -350,6 +417,8 @@ export async function processMollieWebhook(
       return response
     }
 
+    ordersCancelledTotal.inc()
+    webhookProcessedTotal.inc({ status: 'cancelled' })
     return new Response(JSON.stringify({ status: 'cancelled' }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },

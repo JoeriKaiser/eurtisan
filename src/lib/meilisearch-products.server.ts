@@ -2,6 +2,7 @@ import { and, eq, gt, inArray, lte } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { categories, meilisearchSyncQueue, product, shop } from '#/db/schema'
 import { logger } from './logger.server'
+import { meilisearchSyncQueueFailedTotal } from './metrics.server'
 import { isMeilisearchConfigured, meilisearch } from './meilisearch.server'
 import type {
   PaginatedProducts,
@@ -186,20 +187,26 @@ export async function populateProductsIndex(
 
     if (products.length === 0) break
 
-    const categoryRows = await Promise.all(
-      products.map((p) =>
-        p.product.categoryId
-          ? db.select().from(categories).where(eq(categories.id, p.product.categoryId)).limit(1)
-          : Promise.resolve([]),
+    const categoryIds = [
+      ...new Set(
+        products
+          .map((row) => row.product.categoryId)
+          .filter((id): id is string => id != null),
       ),
-    )
+    ]
+    const categoryRows =
+      categoryIds.length > 0
+        ? await db
+            .select({ id: categories.id, slug: categories.slug })
+            .from(categories)
+            .where(inArray(categories.id, categoryIds))
+        : []
+    const categorySlugById = new Map(categoryRows.map((c) => [c.id, c.slug]))
 
     const docs: MeilisearchProductDocument[] = []
-    for (let i = 0; i < products.length; i++) {
+    for (const row of products) {
       try {
-        const p = products[i]
-        const prod = p.product
-        const categoryRow = categoryRows[i]
+        const prod = row.product
 
         docs.push({
           id: prod.id,
@@ -209,9 +216,9 @@ export async function populateProductsIndex(
           priceCents: prod.priceCents,
           isActive: prod.isActive,
           shopId: prod.shopId,
-          shopSlug: p.shop.slug,
+          shopSlug: row.shop.slug,
           categoryId: prod.categoryId,
-          categorySlug: categoryRow[0]?.slug ?? null,
+          categorySlug: prod.categoryId ? (categorySlugById.get(prod.categoryId) ?? null) : null,
           createdAt: prod.createdAt.toISOString(),
         })
       } catch {
@@ -397,6 +404,15 @@ export async function processMeilisearchSyncQueue(
             updatedAt: new Date(),
           })
           .where(eq(meilisearchSyncQueue.id, item.id))
+
+        if (attempts >= 5) {
+          meilisearchSyncQueueFailedTotal.inc()
+          logger.error('Meilisearch sync queue item failed permanently', undefined, {
+            alert: true,
+            productId: item.productId,
+            queueId: item.id,
+          })
+        }
 
         logger.error(
           `[meilisearch-sync] Error processing item ${item.id} (attempt ${attempts})`,

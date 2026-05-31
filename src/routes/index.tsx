@@ -5,6 +5,8 @@ import { getFeaturedShops, getMarketplaceStats, listRecentProducts } from '#/lib
 import { getSellerShops } from '#/lib/sell-onboarding'
 import { createPageMeta } from '#/lib/seo'
 import { generateWebSiteJsonLd } from '#/lib/seo-structured-data'
+import { hydrateQueryData } from '#/lib/hydrate-query'
+import { queryKeys } from '#/lib/query-keys'
 import { getCurrentUser } from '#/lib/server-auth'
 import { m } from '#/paraglide/messages'
 
@@ -38,7 +40,7 @@ function HomeError({ error }: { error: Error }) {
 }
 
 export const Route = createFileRoute('/')({
-  loader: async () => {
+  loader: async ({ context }) => {
     const [user, categories, products, shops, stats] = await Promise.all([
       getCurrentUser().catch(() => null),
       listCategories({ data: {} }),
@@ -47,6 +49,8 @@ export const Route = createFileRoute('/')({
       getMarketplaceStats(),
     ])
     const sellerShops = user ? await getSellerShops().catch(() => []) : []
+    hydrateQueryData(context.queryClient, queryKeys.categoriesList, categories)
+    hydrateQueryData(context.queryClient, queryKeys.marketplaceStats, stats)
     return { categories, products, shops, user, sellerShops, stats }
   },
   head: () => {

@@ -5,14 +5,10 @@ import { statusBadgeVariant } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 import { SortHeader } from './SortHeader'
-
-const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
+import { formatDateMediumTime } from '#/lib/format-date'
 
 function formatDate(date: Date | string): string {
-  return DATE_FORMATTER.format(new Date(date))
+  return formatDateMediumTime(new Date(date))
 }
 
 function statusLabel(status: string): string {

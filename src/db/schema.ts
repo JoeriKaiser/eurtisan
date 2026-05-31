@@ -39,6 +39,8 @@ export const user = pgTable(
     banReason: text('ban_reason'),
     failedLoginAttempts: integer('failed_login_attempts').notNull().default(0),
     lockedUntil: timestamp('locked_until'),
+    twoFactorEnabled: boolean('two_factor_enabled').notNull().default(false),
+    deletedAt: timestamp('deleted_at'),
     createdAt: timestamp().notNull().defaultNow(),
     updatedAt: timestamp().notNull().defaultNow(),
   },
@@ -69,6 +71,20 @@ export const session = pgTable(
     index('session_expires_at_idx').on(table.expiresAt),
     uniqueIndex('session_token_hash_unique').on(table.tokenHash),
   ],
+)
+
+export const twoFactor = pgTable(
+  'two_factor',
+  {
+    id: text().primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    secret: text().notNull(),
+    backupCodes: text('backup_codes').notNull(),
+    verified: boolean().notNull().default(true),
+  },
+  (table) => [index('two_factor_user_id_idx').on(table.userId)],
 )
 
 export const account = pgTable(
@@ -331,6 +347,7 @@ export const orderStatusEnum = pgEnum('order_status', [
   'refunded',
   'disputed',
   'manual_review',
+  'chargeback',
 ])
 
 export const shippingMethodEnum = pgEnum('shipping_method', ['standard', 'express', 'manual'])
@@ -612,6 +629,17 @@ export const rateLimit = pgTable(
     index('idx_rate_limit_updated_at').on(table.updatedAt),
     index('rate_limit_window_start_idx').on(table.windowStart),
   ],
+)
+
+export const emailSuppression = pgTable(
+  'email_suppression',
+  {
+    email: text().primaryKey(),
+    reason: text().notNull(),
+    source: text(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
 )
 
 export const invoiceTypeEnum = pgEnum('invoice_type', ['platform_fee', 'customer'])

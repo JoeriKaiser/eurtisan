@@ -44,7 +44,7 @@ else
 	exit 1
 fi
 
-echo "==> Pruning old Docker images..."
-docker system prune -f
+echo "==> Pruning unused Eurtisan images (label app=eurtisan)..."
+docker image prune -f --filter "label=app=eurtisan"
 
 echo "==> Deploy complete: ${GIT_REF}"

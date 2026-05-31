@@ -8,6 +8,7 @@
 import { m } from '#/paraglide/messages'
 import { getLocale } from '#/paraglide/runtime'
 import type { EmailTemplate } from './email-provider'
+import { renderEmailLegalFooterHtml, renderEmailLegalFooterText } from './email-legal-footer'
 
 /** Result of rendering a template. */
 export interface RenderedEmail {
@@ -65,6 +66,21 @@ function renderOrderConfirmation(data: Record<string, unknown>): RenderedEmail {
   const items = Array.isArray(data.items) ? data.items : []
   const total = String(data.total ?? '—')
   const orderUrl = String(data.orderUrl ?? '')
+  const sellerTradeName = data.sellerTradeName ? String(data.sellerTradeName) : null
+  const sellerContactEmail = data.sellerContactEmail ? String(data.sellerContactEmail) : null
+  const sellerAddress = data.sellerAddress ? String(data.sellerAddress) : null
+  const sellerVatId = data.sellerVatId ? String(data.sellerVatId) : null
+
+  const sellerBlockHtml =
+    sellerTradeName && sellerContactEmail
+      ? `<br /><div style="color: #374151; font-size: 14px; line-height: 1.5;">
+  <strong>${escapeHtml(m.email_seller_identity_title())}</strong><br />
+  ${escapeHtml(sellerTradeName)}<br />
+  ${sellerAddress ? `${escapeHtml(sellerAddress)}<br />` : ''}
+  ${escapeHtml(m.checkout_seller_contact_label())}: ${escapeHtml(sellerContactEmail)}<br />
+  ${sellerVatId ? `${escapeHtml(m.checkout_seller_vat_label())}: ${escapeHtml(sellerVatId)}` : ''}
+</div>`
+      : ''
 
   const itemsListHtml = items
     .map((item: unknown) => {
@@ -109,10 +125,9 @@ function renderOrderConfirmation(data: Record<string, unknown>): RenderedEmail {
     m.email_total({ total }),
   )}</div>
   ${orderUrl ? `<br /><div style="font-size: 16px; line-height: 1.5;"><a href="${escapeHtml(orderUrl)}" style="color: #2563eb; text-decoration: underline;">${escapeHtml(m.email_order_confirmation_view())}</a></div>` : ''}
+  ${sellerBlockHtml}
   <br /><br />
-  <div style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-    ${escapeHtml(m.email_footer())}
-  </div>`
+  ${renderEmailLegalFooterHtml()}`
 
   const html = wrapInEmailTemplate(
     m.email_order_confirmation_subject({ orderNumber, shopName }),
@@ -128,8 +143,9 @@ ${itemsListText || '- No items'}
 
 ${m.email_total({ total })}
 ${orderUrl ? `${m.email_order_confirmation_view_txt({ orderUrl })}` : ''}
+${sellerTradeName && sellerContactEmail ? `\n${m.email_seller_identity_title()}: ${sellerTradeName}${sellerAddress ? `, ${sellerAddress}` : ''}\n${m.checkout_seller_contact_label()}: ${sellerContactEmail}${sellerVatId ? `\n${m.checkout_seller_vat_label()}: ${sellerVatId}` : ''}` : ''}
 
-${m.email_footer()}`
+${renderEmailLegalFooterText()}`
 
   return { subject: m.email_order_confirmation_subject({ orderNumber, shopName }), html, text }
 }
@@ -172,9 +188,7 @@ function renderShippingNotification(data: Record<string, unknown>): RenderedEmai
   </table>
   ${trackingUrl ? `<br /><div style="font-size: 16px; line-height: 1.5;"><a href="${escapeHtml(trackingUrl)}" rel="noopener noreferrer" style="color: #2563eb; text-decoration: underline;">${escapeHtml(m.email_shipping_track())}</a></div>` : ''}
   <br /><br />
-  <div style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-    ${escapeHtml(m.email_footer())}
-  </div>`
+  ${renderEmailLegalFooterHtml()}`
 
   const html = wrapInEmailTemplate(m.email_shipping_subject({ orderNumber, shopName }), contentHtml)
 
@@ -187,7 +201,7 @@ ${m.email_shipping_tracking_number()} ${trackingNumber}
 ${m.email_shipping_estimated_delivery()} ${estimatedDelivery}
 ${trackingUrl ? `${m.email_shipping_track_txt({ trackingUrl })}` : ''}
 
-${m.email_footer()}`
+${renderEmailLegalFooterText()}`
 
   return { subject: m.email_shipping_subject({ orderNumber, shopName }), html, text }
 }
@@ -230,9 +244,7 @@ function renderDisputeUpdate(data: Record<string, unknown>): RenderedEmail {
   ${message ? `<br /><div style="color: #374151; font-size: 16px; line-height: 1.5;">${escapeHtml(message)}</div>` : ''}
   ${disputeUrl ? `<br /><div style="font-size: 16px; line-height: 1.5;"><a href="${escapeHtml(disputeUrl)}" style="color: #2563eb; text-decoration: underline;">${escapeHtml(m.email_dispute_view())}</a></div>` : ''}
   <br /><br />
-  <div style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-    ${escapeHtml(m.email_footer())}
-  </div>`
+  ${renderEmailLegalFooterHtml()}`
 
   const html = wrapInEmailTemplate(m.email_dispute_subject({ orderNumber, shopName }), contentHtml)
 
@@ -246,7 +258,7 @@ ${m.email_dispute_status({ status })}
 ${message ? `\n${message}` : ''}
 ${disputeUrl ? `\n${m.email_dispute_view_txt({ disputeUrl })}` : ''}
 
-${m.email_footer()}`
+${renderEmailLegalFooterText()}`
 
   return { subject: m.email_dispute_subject({ orderNumber, shopName }), html, text }
 }
@@ -285,9 +297,7 @@ function renderEmailVerification(data: Record<string, unknown>): RenderedEmail {
   <br />
   <div style="font-size: 14px; line-height: 1.5;"><a href="${escapeHtml(verificationUrl)}" style="color: #2563eb; text-decoration: underline;">${escapeHtml(verificationUrl)}</a></div>
   <br /><br />
-  <div style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-    ${escapeHtml(m.email_footer())}
-  </div>`
+  ${renderEmailLegalFooterHtml()}`
 
   const html = wrapInEmailTemplate(m.email_verify_title(), contentHtml)
 
@@ -299,7 +309,7 @@ ${m.email_verify_body()}
 
 ${m.email_verify_button()}: ${verificationUrl}
 
-${m.email_footer()}`
+${renderEmailLegalFooterText()}`
 
   return { subject: m.email_verify_subject(), html, text }
 }
@@ -342,9 +352,7 @@ function renderPasswordReset(data: Record<string, unknown>): RenderedEmail {
   <br />
   <div style="font-size: 14px; line-height: 1.5;"><a href="${escapeHtml(resetUrl)}" style="color: #2563eb; text-decoration: underline;">${escapeHtml(resetUrl)}</a></div>
   <br /><br />
-  <div style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-    ${escapeHtml(m.email_footer())}
-  </div>`
+  ${renderEmailLegalFooterHtml()}`
 
   const html = wrapInEmailTemplate(m.email_reset_title(), contentHtml)
 
@@ -358,7 +366,7 @@ ${m.email_reset_link_txt({ resetUrl })}
 
 ${m.email_reset_ignore()}
 
-${m.email_footer()}`
+${renderEmailLegalFooterText()}`
 
   return { subject: m.email_reset_subject(), html, text }
 }
@@ -387,9 +395,7 @@ function renderAccountSecurityAlert(data: Record<string, unknown>): RenderedEmai
     m.email_security_alert_ignore(),
   )}</div>
   <br /><br />
-  <div style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-    ${escapeHtml(m.email_footer())}
-  </div>`
+  ${renderEmailLegalFooterHtml()}`
 
   const html = wrapInEmailTemplate(m.email_security_alert_title(), contentHtml)
 
@@ -401,7 +407,7 @@ ${m.email_security_alert_body({ lockoutDurationMinutes: String(lockoutDurationMi
 
 ${m.email_security_alert_ignore()}
 
-${m.email_footer()}`
+${renderEmailLegalFooterText()}`
 
   return { subject: m.email_security_alert_subject(), html, text }
 }

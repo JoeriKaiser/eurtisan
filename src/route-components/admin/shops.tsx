@@ -4,6 +4,7 @@ import { downloadCSV, generateCSV } from '#/lib/csv-export'
 import { moderateShop as moderateShopApplication } from '#/lib/sell-onboarding'
 import type { PaginatedShops, ShopListItem, SuspensionFilter } from '#/lib/shop-moderation'
 import { moderateShop as moderateShopStatus } from '#/lib/shop-moderation'
+import { MAX_BULK_SELECTION } from '#/lib/admin-constants'
 import { m } from '#/paraglide/messages'
 import { ApplicationReviewDialog } from './shops/ApplicationReviewDialog'
 import { ApplicationsTable } from './shops/ApplicationsTable'
@@ -193,7 +194,7 @@ export function AdminShopsPage() {
     setSelectedShopIds((prev) => {
       const next = new Set(prev)
       if (next.has(shopId)) next.delete(shopId)
-      else next.add(shopId)
+      else if (next.size < MAX_BULK_SELECTION) next.add(shopId)
       return next
     })
   }, [])
@@ -201,12 +202,12 @@ export function AdminShopsPage() {
   const toggleAllShops = useCallback(() => {
     setSelectedShopIds((prev) => {
       if (prev.size === shops.shops.length) return new Set()
-      return new Set(shops.shops.map((s) => s.id))
+      return new Set(shops.shops.slice(0, MAX_BULK_SELECTION).map((s) => s.id))
     })
   }, [shops.shops])
 
   const handleBulkSuspend = useCallback(async () => {
-    const ids = Array.from(selectedShopIds)
+    const ids = Array.from(selectedShopIds).slice(0, MAX_BULK_SELECTION)
     if (ids.length === 0) return
     setBulkProgress({ current: 0, total: ids.length, action: 'suspend' })
     setActionError(null)
@@ -232,7 +233,7 @@ export function AdminShopsPage() {
   }, [selectedShopIds, navigateWithParams])
 
   const handleBulkUnsuspend = useCallback(async () => {
-    const ids = Array.from(selectedShopIds)
+    const ids = Array.from(selectedShopIds).slice(0, MAX_BULK_SELECTION)
     if (ids.length === 0) return
     setBulkProgress({ current: 0, total: ids.length, action: 'unsuspend' })
     setActionError(null)

@@ -7,6 +7,7 @@ import { Card, CardContent } from '#/components/ui/card'
 import { cn } from '#/lib/cn'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
+import { formatDateMediumTime } from '#/lib/format-date'
 
 /* -------------------------------------------------------------------------- */
 /*                                  Helpers                                   */
@@ -18,13 +19,8 @@ function getStatusBadge(status: string): { variant: 'warning' | 'success'; label
   return { variant: 'warning', label: status }
 }
 
-const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
-
 function formatDate(date: Date | string): string {
-  return DATE_FORMATTER.format(new Date(date))
+  return formatDateMediumTime(new Date(date))
 }
 
 /* -------------------------------------------------------------------------- */

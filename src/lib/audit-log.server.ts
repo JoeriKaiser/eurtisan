@@ -31,6 +31,7 @@ export async function emitAuditEvent(
     // Audit logging must never break the primary business transaction.
     // Emit structured JSON error log as fallback so aggregators can flag failures.
     logger.error('Audit emission failed', err, {
+      alert: true,
       event: 'audit_emission_failed',
       actorId: actor.id,
       actorName: actor.name,

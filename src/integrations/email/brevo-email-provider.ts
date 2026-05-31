@@ -17,6 +17,8 @@ import {
   getEmailReplyToAddress,
 } from '#/lib/env.server'
 import { logger } from '#/lib/logger.server'
+import { isEmailSuppressed } from '#/lib/email-suppression.server'
+import { emailFailedTotal, emailSentTotal, emailSuppressedSkipsTotal } from '#/lib/metrics.server'
 
 /** Brevo SMTP API endpoint. */
 const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email'
@@ -73,11 +75,26 @@ export class BrevoEmailProvider implements EmailProvider {
     template: EmailTemplate,
     data: Record<string, unknown>,
   ): Promise<EmailSendResult> {
+    if (await isEmailSuppressed(to)) {
+      emailSuppressedSkipsTotal.inc()
+      logger.warn('[BrevoEmailProvider] Skipping suppressed recipient', { template })
+      return { messageId: 'suppressed', accepted: false }
+    }
+
     if (this.mockMode) {
       return this.sendMock(to, template, data)
     }
 
-    return this.sendReal(to, template, data)
+    try {
+      return await this.sendReal(to, template, data)
+    } catch (err) {
+      emailFailedTotal.inc({ template })
+      logger.error('[BrevoEmailProvider] Transactional email send failed', err, {
+        alert: true,
+        template,
+      })
+      throw err
+    }
   }
 
   /* ------------------------------------------------------------------ */
@@ -200,6 +217,7 @@ export class BrevoEmailProvider implements EmailProvider {
     )
 
     const result = (await response.json()) as { messageId?: string }
+    emailSentTotal.inc({ template })
     return {
       messageId: result.messageId ?? `brevo_${Date.now()}`,
       accepted: true,

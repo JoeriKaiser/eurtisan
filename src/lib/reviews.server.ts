@@ -1,6 +1,8 @@
 import { and, count, desc, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { orderItem, platformOrder, product, review, shop, shopOrder, user } from '#/db/schema'
+import { assertUserRateLimit } from './rate-limit'
+import { containsProfanity } from './profanity'
 import { sanitizeRichText } from './xss'
 
 export interface ReviewableItem {
@@ -128,6 +130,18 @@ export async function createReviewQuery(
   rating: number,
   comment: string | null,
 ): Promise<CreatedReview> {
+  await assertUserRateLimit(buyerUserId, 5, 15 * 60 * 1000)
+
+  if (comment && containsProfanity(comment)) {
+    throw new Response(
+      JSON.stringify({
+        error: 'Bad Request',
+        message: 'Review contains inappropriate language',
+      }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
   const [shopOrderRecord] = await db
     .select()
     .from(shopOrder)

@@ -3,12 +3,10 @@
  *
  * Design decisions:
  *
- * - `script-src 'self' 'unsafe-inline'`
- *   TanStack Start injects inline hydration scripts during SSR (`window.$_TSR`
- *   bootstrap, streaming script buffers). These framework-internal scripts are
- *   required for the application to hydrate. A nonce-based approach would
- *   require custom server wiring to pass the nonce into
- *   `router.options.ssr.nonce` on every request.
+ * - `script-src 'self' 'nonce-…'` (production)
+ *   A per-request nonce is generated in `server-entry.mjs`, applied to inline
+ *   hydration `<script>` tags in the CSP middleware, and included in the CSP
+ *   header. Development skips CSP entirely for easier debugging.
  *
  * - `style-src 'self'`
  *   Stylesheets (via `<link>` or `@import`) are restricted to self-hosted only.
@@ -20,15 +18,12 @@
  *   menus). These are safe because they are controlled by the application
  *   code, not user-supplied values.
  *
- * - JSON-LD structured data (`<script type="application/ld+json">`) is
- *   non-executable; it relies on the same `'unsafe-inline'` fallback under
- *   `script-src`.
+ * - JSON-LD structured data (`<script type="application/ld+json">`) receives
+ *   the same nonce attribute as executable scripts.
  *
  * - `img-src 'self' data:`
- *   Product and shop images are self-hosted (`/uploads/...`). No external
- *   image CDNs or OAuth avatars are currently used, so the broad `https:`
- *   scheme has been removed. `data:` is retained for inline base64 thumbnails
- *   and placeholders.
+ *   Product and shop images are served via imgproxy / S3-compatible storage.
+ *   `data:` is retained for inline base64 thumbnails and placeholders.
  *
  * - `font-src 'self'`
  *   Fonts are self-hosted in `/fonts/` to eliminate the external dependency
@@ -39,7 +34,7 @@
 const DEFAULT_CONNECT_SRC = ["'self'", 'https://api.mollie.com', 'https://api.brevo.com']
 
 /** External origins the frontend legitimately loads scripts from. */
-const DEFAULT_SCRIPT_SRC = ["'self'", "'unsafe-inline'"]
+const DEFAULT_SCRIPT_SRC = ["'self'"]
 
 function getMeilisearchOrigin(): string | null {
   const host = process.env.MEILISEARCH_HOST
@@ -74,10 +69,21 @@ function getUmamiHostOrigin(): string | null {
   }
 }
 
+export interface BuildCspHeaderOptions {
+  /** Cryptographic nonce for inline scripts (production). */
+  nonce?: string
+}
+
 /** Builds the full Content-Security-Policy header value. */
-export function buildCspHeader(): string {
+export function buildCspHeader(options: BuildCspHeaderOptions = {}): string {
   const connectSrc = new Set(DEFAULT_CONNECT_SRC)
   const scriptSrc = new Set(DEFAULT_SCRIPT_SRC)
+
+  if (options.nonce) {
+    scriptSrc.add(`'nonce-${options.nonce}'`)
+  } else {
+    scriptSrc.add("'unsafe-inline'")
+  }
 
   const meilisearch = getMeilisearchOrigin()
   if (meilisearch) connectSrc.add(meilisearch)

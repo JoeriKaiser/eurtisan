@@ -53,7 +53,7 @@ export interface PaymentProvider {
    */
   getPaymentStatus(
     paymentId: string,
-  ): Promise<'pending' | 'paid' | 'expired' | 'failed' | 'cancelled'>
+  ): Promise<'pending' | 'paid' | 'expired' | 'failed' | 'cancelled' | 'chargeback'>
 
   /**
    * Query the amount of an existing payment.

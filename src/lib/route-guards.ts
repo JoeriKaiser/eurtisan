@@ -62,6 +62,24 @@ export async function guardRole(minRole: UserRole, redirectTo?: string): Promise
 }
 
 /**
+ * Requires minimum role and two-factor authentication for creator/admin areas.
+ */
+export async function guardPrivilegedRole(
+  minRole: UserRole,
+  redirectTo?: string,
+): Promise<AuthRouteContext> {
+  const ctx = await guardRole(minRole, redirectTo)
+  const { user } = ctx
+  if (!user) {
+    throw redirect({ to: '/signin' })
+  }
+  if ((user.role === 'creator' || user.role === 'admin') && !user.twoFactorEnabled) {
+    throw redirect({ to: '/account/security' })
+  }
+  return { user }
+}
+
+/**
  * beforeLoad guard for shop ownership routes.
  * Redirects unauthenticated to /signin, unauthorized to /forbidden.
  * Returns the authenticated user on success.

@@ -3,6 +3,7 @@ import z from 'zod'
 import { authMiddleware } from './auth-middleware'
 import { sanitizeRichText, validatePlainText } from './xss'
 import { buildCategoryTree, sanitizeSlug, type CategoryTreeNode } from './category-tree'
+import { invalidateServerCache } from './server-cache.server'
 
 export { buildCategoryTree, sanitizeSlug, type CategoryTreeNode }
 
@@ -67,6 +68,8 @@ export const createCategory = createServerFn({
         .returning(),
       import('./audit-log.server'),
     ])
+
+    invalidateServerCache('cache:categories:')
 
     await emitAuditEvent(context.user, 'category.create', 'category', category.id, {
       name: category.name,
@@ -145,6 +148,8 @@ export const updateCategory = createServerFn({
     const result = await updateCategoryInternal(context.user, data)
 
     // Sequential: emitAuditEvent depends on result fields (name, slug, parentId).
+    invalidateServerCache('cache:categories:')
+
     await emitAuditEvent(context.user, 'category.update', 'category', data.id, {
       name: result.name,
       slug: result.slug,
@@ -173,6 +178,7 @@ export const deleteCategory = createServerFn({
       deleteCategoryInternal(context.user, data),
       emitAuditEvent(context.user, 'category.delete', 'category', data.id),
     ])
+    invalidateServerCache('cache:categories:')
 
     return result
   })

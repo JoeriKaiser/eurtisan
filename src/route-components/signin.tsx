@@ -63,6 +63,8 @@ export function SignIn() {
     name: '',
   })
   const [visibility, setVisibility] = useState({ password: false, confirmPassword: false })
+  const [needsTwoFactor, setNeedsTwoFactor] = useState(false)
+  const [twoFactorCode, setTwoFactorCode] = useState('')
   const [status, setStatus] = useState({ error: '', info: '', loading: false })
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -135,6 +137,13 @@ export function SignIn() {
             info: '',
             loading: false,
           })
+        } else if ((result.data as { twoFactorRedirect?: boolean } | undefined)?.twoFactorRedirect) {
+          setNeedsTwoFactor(true)
+          setStatus({
+            error: '',
+            info: 'Enter the 6-digit code from your authenticator app.',
+            loading: false,
+          })
         } else {
           await router.invalidate()
           if (redirect && isLocalRedirect(redirect)) {
@@ -149,6 +158,36 @@ export function SignIn() {
     }
   }
 
+
+  const completeSignIn = async () => {
+    await router.invalidate()
+    if (redirect && isLocalRedirect(redirect)) {
+      await router.navigate({ to: redirect })
+    } else {
+      await router.navigate({ to: '/' })
+    }
+  }
+
+  const handleVerifyTwoFactor = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setStatus({ error: '', info: '', loading: true })
+
+    try {
+      const result = await authClient.twoFactor.verifyTotp({ code: twoFactorCode.trim() })
+      if (result.error) {
+        setStatus({
+          error: result.error.message || m.error_sign_in_failed(),
+          info: '',
+          loading: false,
+        })
+        return
+      }
+      await completeSignIn()
+    } catch {
+      setStatus({ error: m.error_unexpected(), info: '', loading: false })
+    }
+  }
+
   const handleOAuthClick = (_provider: string) => {
     setStatus({ error: '', info: m.oauth_social_toast(), loading: false })
   }
@@ -158,6 +197,47 @@ export function SignIn() {
       title={isSignUp ? m.sign_up_title() : m.sign_in_title()}
       description={isSignUp ? m.sign_up_description() : m.sign_in_description()}
     >
+      {needsTwoFactor ? (
+        <form onSubmit={handleVerifyTwoFactor} className='grid gap-3'>
+          <div className='grid gap-1'>
+            <label htmlFor='two-factor-code' className='text-sm font-medium text-text-primary'>
+              Authenticator code
+            </label>
+            <Input
+              id='two-factor-code'
+              name='twoFactorCode'
+              inputMode='numeric'
+              autoComplete='one-time-code'
+              value={twoFactorCode}
+              onChange={(e) => setTwoFactorCode(e.target.value)}
+              required
+              className='w-full'
+            />
+          </div>
+          <Button type='submit' isLoading={status.loading} className='w-full mt-1'>
+            Verify and sign in
+          </Button>
+          <button
+            type='button'
+            className='text-sm text-text-muted hover:text-text-primary'
+            onClick={() => {
+              setNeedsTwoFactor(false)
+              setTwoFactorCode('')
+              setStatus({ error: '', info: '', loading: false })
+            }}
+          >
+            Back to sign in
+          </button>
+          {status.error && (
+            <div className='rounded-lg border border-error bg-error-subtle p-3' role='alert'>
+              <p className='text-xs text-error font-medium'>{status.error}</p>
+            </div>
+          )}
+          {status.info && (
+            <p className='text-xs text-text-secondary'>{status.info}</p>
+          )}
+        </form>
+      ) : (
       <form onSubmit={handleSubmit} className='grid gap-3'>
         {isSignUp && (
           <div className='grid gap-1'>
@@ -287,7 +367,9 @@ export function SignIn() {
           </div>
         )}
       </form>
+      )}
 
+      {!needsTwoFactor && (
       <div className='mt-5 text-center'>
         <button
           type='button'
@@ -300,7 +382,10 @@ export function SignIn() {
           {isSignUp ? m.link_switch_to_sign_in() : m.link_switch_to_sign_up()}
         </button>
       </div>
+      )}
 
+      {!needsTwoFactor && (
+      <>
       <div className='relative my-6'>
         <div className='absolute inset-0 flex items-center' aria-hidden='true'>
           <div className='w-full border-t border-border-default' />
@@ -341,6 +426,8 @@ export function SignIn() {
           <Apple size={16} />
         </Button>
       </div>
+      </>
+      )}
     </AuthShell>
   )
 }

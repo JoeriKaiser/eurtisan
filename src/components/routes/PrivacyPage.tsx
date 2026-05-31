@@ -32,6 +32,10 @@ const sections = [
     title: m.privacy_section_14_title(),
     text: m.privacy_section_14_text({ email: m.legal_contact_email() }),
   },
+  {
+    title: m.privacy_dpo_title(),
+    text: m.privacy_dpo_text({ email: m.legal_contact_email() }),
+  },
 ]
 
 export default function PrivacyPage() {

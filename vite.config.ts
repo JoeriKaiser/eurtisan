@@ -6,6 +6,23 @@ import { defineConfig } from 'vite'
 
 const config = defineConfig(({ mode }) => ({
   resolve: { tsconfigPaths: true },
+  build: {
+    // Aligns with package.json browserslist; es2022 ≈ Chrome 94+, Safari 15.4+
+    minify: 'esbuild',
+    target: 'es2022',
+    cssMinify: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          if (id.includes('react-dom') || id.includes('/react/')) return 'vendor'
+          if (id.includes('@tanstack/react-router') || id.includes('@tanstack/react-start'))
+            return 'router'
+          if (id.includes('@tanstack/react-query')) return 'query'
+        },
+      },
+    },
+  },
   ssr: {
     external: ['zod', 'better-auth', '@better-auth/core', '@better-auth/drizzle-adapter'],
   },

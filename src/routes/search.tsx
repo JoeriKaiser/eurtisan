@@ -7,6 +7,8 @@ import { m } from '#/paraglide/messages'
 import { SearchPage } from '#/route-components/search'
 import { SearchPending } from '#/route-components/search.pending'
 import { SearchError } from '#/route-components/search.error'
+import { hydrateQueryData } from '#/lib/hydrate-query'
+import { queryKeys } from '#/lib/query-keys'
 
 const searchRouteSchema = z.object({
   q: z.string().optional(),
@@ -39,7 +41,7 @@ export const Route = createFileRoute('/search')({
         : undefined,
     sort: typeof sort === 'string' ? sort : 'relevance',
   }),
-  loader: async ({ deps }) => {
+  loader: async ({ context, deps }) => {
     const { query, page, categorySlug, shopSlug, minPriceCents, maxPriceCents, sort } = deps
 
     const [categories, shops, products] = await Promise.all([
@@ -58,6 +60,8 @@ export const Route = createFileRoute('/search')({
         },
       }),
     ])
+
+    hydrateQueryData(context.queryClient, queryKeys.categoriesList, categories)
 
     return {
       query: query ?? '',

@@ -7,12 +7,7 @@ import { m } from '#/paraglide/messages'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
-
-const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  year: 'numeric',
-  month: 'short',
-  day: 'numeric',
-})
+import { formatDateShort } from '#/lib/format-date'
 
 /* -------------------------------------------------------------------------- */
 /*                                    Types                                   */
@@ -404,7 +399,7 @@ export function CreatorPayoutsPage({
                       {payout.orderId.substring(0, 8)}…
                     </td>
                     <td className='py-3 pr-4 text-text-primary'>
-                      {DATE_FORMATTER.format(new Date(payout.date))}
+                      {formatDateShort(new Date(payout.date))}
                     </td>
                     <td
                       className={`py-3 pr-4 text-right font-medium tabular-nums ${

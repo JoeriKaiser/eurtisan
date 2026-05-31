@@ -262,6 +262,7 @@ export default function MobileNavDrawer({
                         setLocale(locale)
                         onClose()
                       }}
+                      aria-pressed={isActive}
                       className={`rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-all duration-fast cursor-pointer ${
                         isActive
                           ? 'bg-surface-default text-text-primary shadow-sm border border-border-default/10'

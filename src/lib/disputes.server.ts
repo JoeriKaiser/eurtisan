@@ -723,6 +723,12 @@ export async function resolveDisputeQuery(
       logger.error(
         `Mollie refund failed for payment ${molliePaymentId}, dispute ${disputeId}, amount ${refundCents} cents`,
         err,
+        {
+          alert: true,
+          disputeId,
+          molliePaymentId,
+          refundCents,
+        },
       )
       throw new Response(
         JSON.stringify({

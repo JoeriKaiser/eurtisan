@@ -1003,7 +1003,18 @@ async function seedOrders(
 // 8. Main
 // ═══════════════════════════════════════════════════════════════════════════
 
+
+function assertSafeToRunStagingSeed(): void {
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_STAGING_SEED !== 'true') {
+    console.error(
+      'Refusing to run staging seed: NODE_ENV=production. Set ALLOW_STAGING_SEED=true only when intentional.',
+    )
+    process.exit(1)
+  }
+}
+
 async function seed(): Promise<void> {
+  assertSafeToRunStagingSeed()
   console.log('╔══════════════════════════════════════════╗')
   console.log('║  Eurtisan — Staging Seed (idempotent)  ║')
   console.log('╚══════════════════════════════════════════╝\n')
