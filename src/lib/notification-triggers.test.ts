@@ -78,8 +78,7 @@ async function seedUser(overrides?: Partial<typeof user.$inferInsert>) {
     .then((rows) => rows[0])
 }
 
-
-async function seedShop(overrides?: Partial<typeof shop.$inferInsert>) {
+async function _seedShop(overrides?: Partial<typeof shop.$inferInsert>) {
   return db
     .insert(shop)
     .values({

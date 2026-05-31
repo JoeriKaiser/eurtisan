@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import { clearServerCacheForTests, invalidateServerCache, withServerCache } from './server-cache.server'
+import {
+  clearServerCacheForTests,
+  invalidateServerCache,
+  withServerCache,
+} from './server-cache.server'
 
 describe('withServerCache', () => {
   it('returns cached value within TTL', async () => {

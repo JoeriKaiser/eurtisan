@@ -631,16 +631,13 @@ export const rateLimit = pgTable(
   ],
 )
 
-export const emailSuppression = pgTable(
-  'email_suppression',
-  {
-    email: text().primaryKey(),
-    reason: text().notNull(),
-    source: text(),
-    createdAt: timestamp('created_at').notNull().defaultNow(),
-    updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  },
-)
+export const emailSuppression = pgTable('email_suppression', {
+  email: text().primaryKey(),
+  reason: text().notNull(),
+  source: text(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+})
 
 export const invoiceTypeEnum = pgEnum('invoice_type', ['platform_fee', 'customer'])
 

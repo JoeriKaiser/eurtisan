@@ -14,11 +14,7 @@ import { orderItem, platformOrder, product, productVariant, shopOrder } from '#/
 import { molliePaymentProvider } from '#/integrations/mollie'
 import { decrementStockForPaidOrder, releaseStockInTx } from '#/lib/inventory.server'
 import { logger } from '#/lib/logger.server'
-import {
-  ordersCancelledTotal,
-  ordersPaidTotal,
-  webhookProcessedTotal,
-} from '#/lib/metrics.server'
+import { ordersCancelledTotal, ordersPaidTotal, webhookProcessedTotal } from '#/lib/metrics.server'
 import { logOrderPaid } from '#/lib/order-logger'
 import type { PaymentProvider } from '#/lib/payment-provider'
 
@@ -162,7 +158,6 @@ export async function processMollieWebhook(
       headers: { 'Content-Type': 'application/json' },
     })
   }
-
 
   if (paymentStatus === 'chargeback') {
     if (!chargebackEligible) {

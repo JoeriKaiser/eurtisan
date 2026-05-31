@@ -93,7 +93,10 @@ export function AccountSettings() {
               <p className='mt-1 text-sm text-text-secondary'>{m.account_delete_description()}</p>
               <form onSubmit={handleDelete} className='mt-4 space-y-4'>
                 <div>
-                  <label htmlFor='confirm-email' className='mb-1.5 block text-sm font-medium text-text-primary'>
+                  <label
+                    htmlFor='confirm-email'
+                    className='mb-1.5 block text-sm font-medium text-text-primary'
+                  >
                     {m.account_delete_confirm_label()}
                   </label>
                   <Input

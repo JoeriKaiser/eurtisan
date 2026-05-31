@@ -110,7 +110,9 @@ export function AdminProductsPage() {
       }
       return {
         ...prev,
-        selectedProductIds: new Set(products.products.slice(0, MAX_BULK_SELECTION).map((p) => p.id)),
+        selectedProductIds: new Set(
+          products.products.slice(0, MAX_BULK_SELECTION).map((p) => p.id),
+        ),
       }
     })
   }, [products.products])

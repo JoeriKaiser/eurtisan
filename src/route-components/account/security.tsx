@@ -61,7 +61,10 @@ export function AccountSecurity() {
         </h1>
         <p className='mb-6 text-sm text-text-secondary'>{m.account_security_description()}</p>
         <p className='mb-6 text-sm'>
-          <Link to='/account/settings' className='text-accent-primary underline-offset-2 hover:underline'>
+          <Link
+            to='/account/settings'
+            className='text-accent-primary underline-offset-2 hover:underline'
+          >
             {m.account_settings()}
           </Link>
         </p>
@@ -73,7 +76,10 @@ export function AccountSecurity() {
         ) : !totpUri ? (
           <form onSubmit={handleEnable} className='space-y-4'>
             <div>
-              <label htmlFor='2fa-password' className='mb-1.5 block text-sm font-medium text-text-primary'>
+              <label
+                htmlFor='2fa-password'
+                className='mb-1.5 block text-sm font-medium text-text-primary'
+              >
                 Password
               </label>
               <Input
@@ -104,7 +110,9 @@ export function AccountSecurity() {
             </p>
             {backupCodes && backupCodes.length > 0 && (
               <div>
-                <p className='mb-2 text-sm font-medium text-text-primary'>Backup codes (save these):</p>
+                <p className='mb-2 text-sm font-medium text-text-primary'>
+                  Backup codes (save these):
+                </p>
                 <ul className='list-inside list-disc text-sm text-text-secondary'>
                   {backupCodes.map((code) => (
                     <li key={code} className='font-mono'>
@@ -116,7 +124,10 @@ export function AccountSecurity() {
             )}
             <form onSubmit={handleVerify} className='space-y-4'>
               <div>
-                <label htmlFor='2fa-code' className='mb-1.5 block text-sm font-medium text-text-primary'>
+                <label
+                  htmlFor='2fa-code'
+                  className='mb-1.5 block text-sm font-medium text-text-primary'
+                >
                   Verification code
                 </label>
                 <Input

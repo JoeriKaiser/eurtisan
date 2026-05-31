@@ -183,10 +183,7 @@ export async function deleteUserAccount(userId: string): Promise<void> {
         .where(eq(platformOrder.id, order.id))
     }
 
-    await tx
-      .update(review)
-      .set({ comment: null })
-      .where(eq(review.buyerUserId, userId))
+    await tx.update(review).set({ comment: null }).where(eq(review.buyerUserId, userId))
 
     const userDisputeIds = await tx
       .select({ id: dispute.id })

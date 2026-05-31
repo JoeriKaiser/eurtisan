@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  checkoutFailuresTotal,
-  getMetricsBody,
-  ordersCreatedTotal,
-} from './metrics.server'
+import { checkoutFailuresTotal, getMetricsBody, ordersCreatedTotal } from './metrics.server'
 
 describe('metrics.server', () => {
   it('exposes Prometheus text including business counters', async () => {

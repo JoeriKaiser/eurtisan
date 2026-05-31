@@ -189,9 +189,7 @@ export async function populateProductsIndex(
 
     const categoryIds = [
       ...new Set(
-        products
-          .map((row) => row.product.categoryId)
-          .filter((id): id is string => id != null),
+        products.map((row) => row.product.categoryId).filter((id): id is string => id != null),
       ),
     ]
     const categoryRows =

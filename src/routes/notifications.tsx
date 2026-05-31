@@ -26,11 +26,7 @@ export const Route = createFileRoute('/notifications')({
       data: { page, pageSize: PAGE_SIZE },
     })) as NotificationsResult
     const payload = { ...result, page }
-    hydrateQueryData(
-      context.queryClient,
-      queryKeys.notificationsPage(page, PAGE_SIZE),
-      payload,
-    )
+    hydrateQueryData(context.queryClient, queryKeys.notificationsPage(page, PAGE_SIZE), payload)
     return payload
   },
   head: () => ({

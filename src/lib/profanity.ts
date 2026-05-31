@@ -1,25 +1,16 @@
+import { Profanity } from '@2toad/profanity'
+
 /**
- * Lightweight profanity filter for user-generated text (reviews, etc.).
+ * Profanity filter for user-generated text (reviews, etc.).
+ * Uses @2toad/profanity with dictionaries for major European languages.
  */
-
-const BLOCKED_TERMS = [
-  'fuck',
-  'shit',
-  'bitch',
-  'cunt',
-  'nigger',
-  'faggot',
-  'retard',
-] as const
-
-const BLOCKED_PATTERN = new RegExp(
-  `\\b(${BLOCKED_TERMS.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`,
-  'i',
-)
+const profanity = new Profanity({
+  languages: ['en', 'de', 'es', 'fr', 'it', 'pt', 'ru'],
+})
 
 /** Returns true when text contains blocked terms. */
 export function containsProfanity(text: string): boolean {
   const normalized = text.normalize('NFKC').trim()
   if (!normalized) return false
-  return BLOCKED_PATTERN.test(normalized)
+  return profanity.exists(normalized)
 }

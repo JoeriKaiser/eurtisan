@@ -169,7 +169,6 @@ export async function listProductsQuery(
     .limit(pageSize)
     .offset(offset)
 
-
   return {
     products: products as PublicProduct[],
     total,
@@ -322,7 +321,6 @@ export async function getShopProductsQuery(
     .limit(pageSize)
     .offset(offset)
 
-
   return {
     products: products as PublicProduct[],
     total,
@@ -380,7 +378,6 @@ export async function listProductsByCategorySlugQuery(
     .where(where)
     .limit(pageSize)
     .offset(offset)
-
 
   return {
     products: products as PublicProduct[],
@@ -521,14 +518,14 @@ export async function searchProductsQuery(
     pageSize,
   })
   if (meiliResult) {
-  if (trimmedQuery) {
-    searchQueriesTotal.inc({ has_results: meiliResult.products.length > 0 ? 'true' : 'false' })
-    logger.info('[search] query executed', {
-      query: trimmedQuery,
-      results: meiliResult.products.length,
-      total: meiliResult.total,
-    })
-  }
+    if (trimmedQuery) {
+      searchQueriesTotal.inc({ has_results: meiliResult.products.length > 0 ? 'true' : 'false' })
+      logger.info('[search] query executed', {
+        query: trimmedQuery,
+        results: meiliResult.products.length,
+        total: meiliResult.total,
+      })
+    }
     return meiliResult
   }
 

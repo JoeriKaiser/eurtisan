@@ -410,9 +410,7 @@ describe('CreatorProductNewPage', () => {
     const stayButton = screen.getByRole('button', { name: 'Stay' })
     fireEvent.click(stayButton)
 
-    expect(
-      document.querySelector('dialog[open]'),
-    ).toBeNull()
+    expect(document.querySelector('dialog[open]')).toBeNull()
   })
 
   /* ---------------------------- Successful submission -------------------- */

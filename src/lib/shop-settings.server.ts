@@ -168,7 +168,8 @@ export async function updateShopInternal(
     return updated
   } catch (err) {
     if (isPostgresUniqueViolation(err, 'shop_slug_unique')) {
-      const slug = typeof updateData.slug === 'string' ? updateData.slug : input.slug ?? shopRecord.slug
+      const slug =
+        typeof updateData.slug === 'string' ? updateData.slug : (input.slug ?? shopRecord.slug)
       throw new SlugCollisionError(String(slug))
     }
     throw err

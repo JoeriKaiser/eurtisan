@@ -237,18 +237,15 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
       setImages((prev) => [...prev, ...placeholders])
       dispatchForm({ type: 'clearFieldError', field: 'images' })
 
-      const validFiles = filesToAdd.filter((file, index) => !placeholders[index]?.error)
-      const results =
-        validFiles.length > 0 ? await uploadMultiple(validFiles, 'products') : []
+      const validFiles = filesToAdd.filter((_file, index) => !placeholders[index]?.error)
+      const results = validFiles.length > 0 ? await uploadMultiple(validFiles, 'products') : []
 
       setImages((prev) =>
         prev.map((img) => {
           const placeholder = placeholders.find((p) => p.id === img.id)
           if (!placeholder) return img
           if (placeholder.error) return img
-          const validIndex = validFiles.findIndex(
-            (file) => file === filesToAdd[placeholders.indexOf(placeholder)],
-          )
+          const validIndex = validFiles.indexOf(filesToAdd[placeholders.indexOf(placeholder)])
           if (validIndex < 0) return img
           const result = results[validIndex]
           if (!result) {
@@ -276,7 +273,7 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
   /* ---------------------------- Form validation ---------------------------- */
 
   const validateForm = useCallback((): boolean => {
-const priceCents = Math.round(Number.parseFloat(formState.values.price) * 100)
+    const priceCents = Math.round(Number.parseFloat(formState.values.price) * 100)
 
     const payload = {
       shopId: formState.values.shopId,

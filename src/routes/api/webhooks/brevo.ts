@@ -6,10 +6,7 @@
  */
 import { createFileRoute } from '@tanstack/react-router'
 import { getBrevoWebhookToken } from '#/lib/env.server'
-import {
-  type EmailSuppressionReason,
-  suppressEmail,
-} from '#/lib/email-suppression.server'
+import { type EmailSuppressionReason, suppressEmail } from '#/lib/email-suppression.server'
 import { logger } from '#/lib/logger.server'
 import { webhookProcessedTotal } from '#/lib/metrics.server'
 

@@ -137,7 +137,9 @@ export function SignIn() {
             info: '',
             loading: false,
           })
-        } else if ((result.data as { twoFactorRedirect?: boolean } | undefined)?.twoFactorRedirect) {
+        } else if (
+          (result.data as { twoFactorRedirect?: boolean } | undefined)?.twoFactorRedirect
+        ) {
           setNeedsTwoFactor(true)
           setStatus({
             error: '',
@@ -157,7 +159,6 @@ export function SignIn() {
       setStatus({ error: m.error_unexpected(), info: '', loading: false })
     }
   }
-
 
   const completeSignIn = async () => {
     await router.invalidate()
@@ -233,200 +234,202 @@ export function SignIn() {
               <p className='text-xs text-error font-medium'>{status.error}</p>
             </div>
           )}
-          {status.info && (
-            <p className='text-xs text-text-secondary'>{status.info}</p>
-          )}
+          {status.info && <p className='text-xs text-text-secondary'>{status.info}</p>}
         </form>
       ) : (
-      <form onSubmit={handleSubmit} className='grid gap-3'>
-        {isSignUp && (
+        <form onSubmit={handleSubmit} className='grid gap-3'>
+          {isSignUp && (
+            <div className='grid gap-1'>
+              <label htmlFor='name' className='text-sm font-medium text-text-primary'>
+                {m.field_name()}
+              </label>
+              <Input
+                id='name'
+                name='name'
+                type='text'
+                autoComplete='name'
+                value={form.name}
+                onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                required
+                className='w-full'
+              />
+            </div>
+          )}
+
           <div className='grid gap-1'>
-            <label htmlFor='name' className='text-sm font-medium text-text-primary'>
-              {m.field_name()}
+            <label htmlFor='email' className='text-sm font-medium text-text-primary'>
+              {m.field_email()}
             </label>
             <Input
-              id='name'
-              name='name'
-              type='text'
-              autoComplete='name'
-              value={form.name}
-              onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+              id='email'
+              name='email'
+              type='email'
+              autoComplete='username email'
+              value={form.email}
+              onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
               required
               className='w-full'
             />
           </div>
-        )}
 
-        <div className='grid gap-1'>
-          <label htmlFor='email' className='text-sm font-medium text-text-primary'>
-            {m.field_email()}
-          </label>
-          <Input
-            id='email'
-            name='email'
-            type='email'
-            autoComplete='username email'
-            value={form.email}
-            onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
-            required
-            className='w-full'
-          />
-        </div>
-
-        <div className='grid gap-1'>
-          <div className='flex items-center justify-between'>
-            <label htmlFor='password' className='text-sm font-medium text-text-primary'>
-              {m.field_password()}
-            </label>
-            {!isSignUp && (
-              <Link
-                to='/forgot-password'
-                className='text-xs font-medium text-accent-primary hover:underline'
-              >
-                {m.forgot_password_title()}
-              </Link>
-            )}
-          </div>
-          <div className='relative'>
-            <Input
-              id='password'
-              name='password'
-              type={visibility.password ? 'text' : 'password'}
-              autoComplete={isSignUp ? 'new-password' : 'current-password'}
-              value={form.password}
-              onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
-              required
-              className='pr-10 w-full'
-            />
-            <button
-              type='button'
-              onClick={() => setVisibility((prev) => ({ ...prev, password: !prev.password }))}
-              className='absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary focus:outline-none'
-              aria-label={visibility.password ? m.button_hide_password() : m.button_show_password()}
-            >
-              {visibility.password ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
-          </div>
-
-          {isSignUp && <PasswordStrengthIndicator password={form.password} />}
-        </div>
-
-        {isSignUp && (
           <div className='grid gap-1'>
-            <label htmlFor='confirmPassword' className='text-sm font-medium text-text-primary'>
-              {m.field_confirm_password()}
-            </label>
+            <div className='flex items-center justify-between'>
+              <label htmlFor='password' className='text-sm font-medium text-text-primary'>
+                {m.field_password()}
+              </label>
+              {!isSignUp && (
+                <Link
+                  to='/forgot-password'
+                  className='text-xs font-medium text-accent-primary hover:underline'
+                >
+                  {m.forgot_password_title()}
+                </Link>
+              )}
+            </div>
             <div className='relative'>
               <Input
-                id='confirmPassword'
-                name='confirmPassword'
-                type={visibility.confirmPassword ? 'text' : 'password'}
-                autoComplete='new-password'
-                value={form.confirmPassword}
-                onChange={(e) => setForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                id='password'
+                name='password'
+                type={visibility.password ? 'text' : 'password'}
+                autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                value={form.password}
+                onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
                 required
                 className='pr-10 w-full'
               />
               <button
                 type='button'
-                onClick={() =>
-                  setVisibility((prev) => ({ ...prev, confirmPassword: !prev.confirmPassword }))
-                }
+                onClick={() => setVisibility((prev) => ({ ...prev, password: !prev.password }))}
                 className='absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary focus:outline-none'
                 aria-label={
-                  visibility.confirmPassword ? m.button_hide_password() : m.button_show_password()
+                  visibility.password ? m.button_hide_password() : m.button_show_password()
                 }
               >
-                {visibility.confirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                {visibility.password ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-          </div>
-        )}
 
-        <Button type='submit' isLoading={status.loading} className='w-full mt-1'>
-          {isSignUp ? m.button_create_account() : m.button_sign_in()}
-        </Button>
-
-        {status.error && (
-          <div
-            className='rounded-lg border border-error bg-error-subtle p-3 flex items-start gap-2'
-            role='alert'
-            aria-live='assertive'
-          >
-            <AlertTriangle className='text-error shrink-0 mt-0.5' size={16} />
-            <p className='text-xs text-error font-medium'>{status.error}</p>
+            {isSignUp && <PasswordStrengthIndicator password={form.password} />}
           </div>
-        )}
 
-        {status.info && (
-          <div
-            className='rounded-lg border border-border-default bg-surface-inset p-3 flex items-start gap-2'
-            aria-live='polite'
-          >
-            <p className='text-xs text-text-secondary font-medium'>{status.info}</p>
-          </div>
-        )}
-      </form>
+          {isSignUp && (
+            <div className='grid gap-1'>
+              <label htmlFor='confirmPassword' className='text-sm font-medium text-text-primary'>
+                {m.field_confirm_password()}
+              </label>
+              <div className='relative'>
+                <Input
+                  id='confirmPassword'
+                  name='confirmPassword'
+                  type={visibility.confirmPassword ? 'text' : 'password'}
+                  autoComplete='new-password'
+                  value={form.confirmPassword}
+                  onChange={(e) =>
+                    setForm((prev) => ({ ...prev, confirmPassword: e.target.value }))
+                  }
+                  required
+                  className='pr-10 w-full'
+                />
+                <button
+                  type='button'
+                  onClick={() =>
+                    setVisibility((prev) => ({ ...prev, confirmPassword: !prev.confirmPassword }))
+                  }
+                  className='absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary focus:outline-none'
+                  aria-label={
+                    visibility.confirmPassword ? m.button_hide_password() : m.button_show_password()
+                  }
+                >
+                  {visibility.confirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <Button type='submit' isLoading={status.loading} className='w-full mt-1'>
+            {isSignUp ? m.button_create_account() : m.button_sign_in()}
+          </Button>
+
+          {status.error && (
+            <div
+              className='rounded-lg border border-error bg-error-subtle p-3 flex items-start gap-2'
+              role='alert'
+              aria-live='assertive'
+            >
+              <AlertTriangle className='text-error shrink-0 mt-0.5' size={16} />
+              <p className='text-xs text-error font-medium'>{status.error}</p>
+            </div>
+          )}
+
+          {status.info && (
+            <div
+              className='rounded-lg border border-border-default bg-surface-inset p-3 flex items-start gap-2'
+              aria-live='polite'
+            >
+              <p className='text-xs text-text-secondary font-medium'>{status.info}</p>
+            </div>
+          )}
+        </form>
       )}
 
       {!needsTwoFactor && (
-      <div className='mt-5 text-center'>
-        <button
-          type='button'
-          onClick={() => {
-            setIsSignUp(!isSignUp)
-            setStatus({ error: '', info: '', loading: false })
-          }}
-          className='text-sm text-text-muted transition-colors duration-fast ease-out hover:text-text-primary font-medium'
-        >
-          {isSignUp ? m.link_switch_to_sign_in() : m.link_switch_to_sign_up()}
-        </button>
-      </div>
+        <div className='mt-5 text-center'>
+          <button
+            type='button'
+            onClick={() => {
+              setIsSignUp(!isSignUp)
+              setStatus({ error: '', info: '', loading: false })
+            }}
+            className='text-sm text-text-muted transition-colors duration-fast ease-out hover:text-text-primary font-medium'
+          >
+            {isSignUp ? m.link_switch_to_sign_in() : m.link_switch_to_sign_up()}
+          </button>
+        </div>
       )}
 
       {!needsTwoFactor && (
-      <>
-      <div className='relative my-6'>
-        <div className='absolute inset-0 flex items-center' aria-hidden='true'>
-          <div className='w-full border-t border-border-default' />
-        </div>
-        <div className='relative flex justify-center text-xs uppercase'>
-          <span className='bg-surface-default px-2 text-text-muted font-medium'>
-            {m.oauth_or_separator()}
-          </span>
-        </div>
-      </div>
+        <>
+          <div className='relative my-6'>
+            <div className='absolute inset-0 flex items-center' aria-hidden='true'>
+              <div className='w-full border-t border-border-default' />
+            </div>
+            <div className='relative flex justify-center text-xs uppercase'>
+              <span className='bg-surface-default px-2 text-text-muted font-medium'>
+                {m.oauth_or_separator()}
+              </span>
+            </div>
+          </div>
 
-      <div className='grid grid-cols-3 gap-3'>
-        <Button
-          type='button'
-          variant='secondary'
-          onClick={() => handleOAuthClick('google')}
-          className='w-full flex items-center justify-center py-2'
-          aria-label='Continue with Google'
-        >
-          <GoogleIcon />
-        </Button>
-        <Button
-          type='button'
-          variant='secondary'
-          onClick={() => handleOAuthClick('github')}
-          className='w-full flex items-center justify-center py-2'
-          aria-label='Continue with GitHub'
-        >
-          <GithubIcon />
-        </Button>
-        <Button
-          type='button'
-          variant='secondary'
-          onClick={() => handleOAuthClick('apple')}
-          className='w-full flex items-center justify-center py-2'
-          aria-label='Continue with Apple'
-        >
-          <Apple size={16} />
-        </Button>
-      </div>
-      </>
+          <div className='grid grid-cols-3 gap-3'>
+            <Button
+              type='button'
+              variant='secondary'
+              onClick={() => handleOAuthClick('google')}
+              className='w-full flex items-center justify-center py-2'
+              aria-label='Continue with Google'
+            >
+              <GoogleIcon />
+            </Button>
+            <Button
+              type='button'
+              variant='secondary'
+              onClick={() => handleOAuthClick('github')}
+              className='w-full flex items-center justify-center py-2'
+              aria-label='Continue with GitHub'
+            >
+              <GithubIcon />
+            </Button>
+            <Button
+              type='button'
+              variant='secondary'
+              onClick={() => handleOAuthClick('apple')}
+              className='w-full flex items-center justify-center py-2'
+              aria-label='Continue with Apple'
+            >
+              <Apple size={16} />
+            </Button>
+          </div>
+        </>
       )}
     </AuthShell>
   )

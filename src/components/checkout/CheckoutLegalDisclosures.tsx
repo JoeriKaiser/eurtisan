@@ -49,7 +49,9 @@ export function CheckoutLegalDisclosures({ shops }: CheckoutLegalDisclosuresProp
         })}
       </div>
 
-      <p className='text-sm text-text-secondary leading-relaxed'>{m.checkout_withdrawal_notice()}</p>
+      <p className='text-sm text-text-secondary leading-relaxed'>
+        {m.checkout_withdrawal_notice()}
+      </p>
 
       <p className='text-sm text-text-secondary leading-relaxed'>
         {m.checkout_terms_notice_prefix()}{' '}

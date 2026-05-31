@@ -151,30 +151,30 @@ export async function createProductInternal(data: {
   let newProduct
   try {
     newProduct = await db.transaction(async (tx) => {
-    const [inserted] = await tx
-      .insert(product)
-      .values({
-        id: crypto.randomUUID(),
-        name: validatePlainText(data.name, 'Product name'),
-        description: sanitizeRichText(data.description),
-        slug: data.slug.trim(),
-        priceCents: data.priceCents,
-        stockCount: data.stockCount,
-        shopId: data.shopId,
-        categoryId: data.categoryId ?? null,
-        isActive: data.isActive ?? true,
-        vatRateCategory: data.vatRateCategory ?? 'standard',
+      const [inserted] = await tx
+        .insert(product)
+        .values({
+          id: crypto.randomUUID(),
+          name: validatePlainText(data.name, 'Product name'),
+          description: sanitizeRichText(data.description),
+          slug: data.slug.trim(),
+          priceCents: data.priceCents,
+          stockCount: data.stockCount,
+          shopId: data.shopId,
+          categoryId: data.categoryId ?? null,
+          isActive: data.isActive ?? true,
+          vatRateCategory: data.vatRateCategory ?? 'standard',
+        })
+        .returning()
+
+      await insertProductImages(tx, inserted.id, data.images ?? [])
+
+      await tx.insert(meilisearchSyncQueue).values({
+        productId: inserted.id,
+        action: 'index',
       })
-      .returning()
 
-    await insertProductImages(tx, inserted.id, data.images ?? [])
-
-    await tx.insert(meilisearchSyncQueue).values({
-      productId: inserted.id,
-      action: 'index',
-    })
-
-    return inserted
+      return inserted
     })
   } catch (err) {
     if (isPostgresUniqueViolation(err, 'product_shop_slug_unique')) {
@@ -256,25 +256,24 @@ export async function updateProductInternal(data: {
 
   let updatedProduct
   try {
-    updatedProduct = await db
-      .transaction(async (tx) => {
-        const [result] = await tx
-          .update(product)
-          .set(updateData)
-          .where(eq(product.id, data.productId))
-          .returning()
+    updatedProduct = await db.transaction(async (tx) => {
+      const [result] = await tx
+        .update(product)
+        .set(updateData)
+        .where(eq(product.id, data.productId))
+        .returning()
 
-        if (data.images !== undefined) {
-          await replaceProductImages(tx, data.productId, data.images)
-        }
+      if (data.images !== undefined) {
+        await replaceProductImages(tx, data.productId, data.images)
+      }
 
-        await tx.insert(meilisearchSyncQueue).values({
-          productId: data.productId,
-          action: 'index',
-        })
-
-        return result
+      await tx.insert(meilisearchSyncQueue).values({
+        productId: data.productId,
+        action: 'index',
       })
+
+      return result
+    })
   } catch (err) {
     if (isPostgresUniqueViolation(err, 'product_shop_slug_unique')) {
       throw new Error('DUPLICATE_SLUG')
@@ -283,21 +282,21 @@ export async function updateProductInternal(data: {
   }
 
   updatedProduct = await Promise.resolve(updatedProduct).then(async (result) => {
-      // Transaction committed — safe to delete old images from S3
-      if (data.images !== undefined && oldImageKeys.length > 0) {
-        const newKeys = new Set(data.images.map((img) => img.key))
-        for (const key of oldImageKeys) {
-          if (!newKeys.has(key)) {
-            try {
-              await deleteImageFromStorage(key)
-            } catch (err) {
-              logger.error(`Failed to delete old product image from S3: ${key}`, err)
-            }
+    // Transaction committed — safe to delete old images from S3
+    if (data.images !== undefined && oldImageKeys.length > 0) {
+      const newKeys = new Set(data.images.map((img) => img.key))
+      for (const key of oldImageKeys) {
+        if (!newKeys.has(key)) {
+          try {
+            await deleteImageFromStorage(key)
+          } catch (err) {
+            logger.error(`Failed to delete old product image from S3: ${key}`, err)
           }
         }
       }
-      return result
-    })
+    }
+    return result
+  })
 
   import('./meilisearch-products.server')
     .then(async ({ syncProductToMeilisearch }) => {

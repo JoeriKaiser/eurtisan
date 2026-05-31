@@ -5,11 +5,11 @@ config({ path: ['.env.local', '.env'] })
 
 export default defineConfig({
   resolve: { tsconfigPaths: true },
+  server: {
+    port: 0,
+  },
   test: {
-    environment: 'jsdom',
-    globals: true,
-    setupFiles: ['./src/test-setup.ts'],
-    fileParallelism: false,
-    exclude: ['node_modules', 'e2e', 'dist'],
+    api: false,
+    projects: ['./vitest.unit.config.ts', './vitest.browser.config.ts'],
   },
 })

@@ -23,7 +23,8 @@ import { processMollieWebhook } from './mollie'
 // ---------------------------------------------------------------------------
 
 let stubVerifyResult = true
-let stubPaymentStatus: 'pending' | 'paid' | 'expired' | 'failed' | 'cancelled' | 'chargeback' = 'paid'
+let stubPaymentStatus: 'pending' | 'paid' | 'expired' | 'failed' | 'cancelled' | 'chargeback' =
+  'paid'
 let stubPaymentAmount = 1000
 
 function createStubPaymentProvider(overrides?: Partial<PaymentProvider>): PaymentProvider {

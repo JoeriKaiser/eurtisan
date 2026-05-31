@@ -364,7 +364,9 @@ export async function getCheckoutSummaryQuery(
     }
   }
 
-  const ownerIds = [...new Set(shops.map((s) => shopRecordById.get(s.shopId)?.ownerId).filter(Boolean))]
+  const ownerIds = [
+    ...new Set(shops.map((s) => shopRecordById.get(s.shopId)?.ownerId).filter(Boolean)),
+  ]
   const ownerRows =
     ownerIds.length > 0
       ? await db
@@ -972,138 +974,138 @@ export async function createCheckoutWithProvider(
   scheduleBackgroundWork(
     'checkout_post_order_notifications',
     async () => {
-    const { createNotification, sendNotificationEmail } = await import('./notifications.server')
-    const baseUrl = getBaseUrl()
+      const { createNotification, sendNotificationEmail } = await import('./notifications.server')
+      const baseUrl = getBaseUrl()
 
-    // Fetch buyer details and all order items for the buyer email
-    const [buyerRecord] = await db
-      .select({ name: user.name })
-      .from(user)
-      .where(eq(user.id, userId))
-      .limit(1)
+      // Fetch buyer details and all order items for the buyer email
+      const [buyerRecord] = await db
+        .select({ name: user.name })
+        .from(user)
+        .where(eq(user.id, userId))
+        .limit(1)
 
-    const allOrderItems = await db
-      .select({
-        productName: orderItem.productName,
-        quantity: orderItem.quantity,
-        totalCents: orderItem.totalCents,
-        shopName: shop.name,
-      })
-      .from(orderItem)
-      .innerJoin(shopOrder, eq(orderItem.shopOrderId, shopOrder.id))
-      .innerJoin(shop, eq(shopOrder.shopId, shop.id))
-      .where(eq(shopOrder.platformOrderId, platformOrderId))
+      const allOrderItems = await db
+        .select({
+          productName: orderItem.productName,
+          quantity: orderItem.quantity,
+          totalCents: orderItem.totalCents,
+          shopName: shop.name,
+        })
+        .from(orderItem)
+        .innerJoin(shopOrder, eq(orderItem.shopOrderId, shopOrder.id))
+        .innerJoin(shop, eq(shopOrder.shopId, shop.id))
+        .where(eq(shopOrder.platformOrderId, platformOrderId))
 
-    const buyerItems = allOrderItems.map((item) => ({
-      name: item.productName,
-      quantity: item.quantity,
-      price: formatPriceEUR(item.totalCents),
-    }))
+      const buyerItems = allOrderItems.map((item) => ({
+        name: item.productName,
+        quantity: item.quantity,
+        price: formatPriceEUR(item.totalCents),
+      }))
 
-    const orderShopIds = result.createdShopOrders.map((so) => so.shopId)
-    const orderShops =
-      orderShopIds.length > 0
-        ? await db.select().from(shop).where(inArray(shop.id, orderShopIds))
-        : []
-    const orderShopOwners =
-      orderShops.length > 0
-        ? await db
-            .select({ id: user.id, name: user.name, email: user.email })
-            .from(user)
-            .where(
-              inArray(
-                user.id,
-                orderShops.map((s) => s.ownerId),
-              ),
+      const orderShopIds = result.createdShopOrders.map((so) => so.shopId)
+      const orderShops =
+        orderShopIds.length > 0
+          ? await db.select().from(shop).where(inArray(shop.id, orderShopIds))
+          : []
+      const orderShopOwners =
+        orderShops.length > 0
+          ? await db
+              .select({ id: user.id, name: user.name, email: user.email })
+              .from(user)
+              .where(
+                inArray(
+                  user.id,
+                  orderShops.map((s) => s.ownerId),
+                ),
+              )
+          : []
+      const ownerEmailById = new Map(orderShopOwners.map((o) => [o.id, o.email]))
+      const buyerSellerPayload =
+        orderShops.length === 1
+          ? toSellerEmailPayload(
+              buildShopLegalIdentity({
+                shopName: orderShops[0].name,
+                ownerEmail: ownerEmailById.get(orderShops[0].ownerId) ?? '',
+                vatId: orderShops[0].vatId,
+                businessAddress: orderShops[0].businessAddress,
+                shippingOrigin: orderShops[0].shippingOrigin,
+              }),
             )
-        : []
-    const ownerEmailById = new Map(orderShopOwners.map((o) => [o.id, o.email]))
-    const buyerSellerPayload =
-      orderShops.length === 1
-        ? toSellerEmailPayload(
+          : {}
+
+      // Notify buyer
+      await createNotification(userId, 'order_placed', {
+        platformOrderId,
+      })
+      await sendNotificationEmail(userId, 'order_confirmation', {
+        orderNumber: platformOrderId.slice(0, 8),
+        buyerName: buyerRecord?.name,
+        shopName: 'Eurtisan',
+        items: buyerItems,
+        total: formatPriceEUR(result.grandTotalCents),
+        orderUrl: `${baseUrl}/orders/${platformOrderId}`,
+        ...buyerSellerPayload,
+      })
+
+      // Index order items by shopName for O(1) lookup
+      const orderItemsByShop = new Map<string, typeof allOrderItems>()
+      for (const item of allOrderItems) {
+        const list = orderItemsByShop.get(item.shopName) ?? []
+        list.push(item)
+        orderItemsByShop.set(item.shopName, list)
+      }
+
+      const shopById = new Map(orderShops.map((s) => [s.id, s]))
+      const sellerById = new Map(orderShopOwners.map((o) => [o.id, o]))
+
+      // Notify each seller (shops and owners already batch-fetched above)
+      await Promise.all(
+        result.createdShopOrders.map(async (so) => {
+          const shopRecord = shopById.get(so.shopId)
+          if (!shopRecord) return
+
+          const shopItems = orderItemsByShop.get(shopRecord.name) ?? []
+          const shopItemByName = new Map(shopItems.map((i) => [i.productName, i]))
+          const sellerItems = shopItems.map((item) => ({
+            name: item.productName,
+            quantity: item.quantity,
+            price: formatPriceEUR(item.totalCents),
+          }))
+
+          const sellerRecord = sellerById.get(shopRecord.ownerId)
+
+          const sellerPayload = toSellerEmailPayload(
             buildShopLegalIdentity({
-              shopName: orderShops[0].name,
-              ownerEmail: ownerEmailById.get(orderShops[0].ownerId) ?? '',
-              vatId: orderShops[0].vatId,
-              businessAddress: orderShops[0].businessAddress,
-              shippingOrigin: orderShops[0].shippingOrigin,
+              shopName: shopRecord.name,
+              ownerEmail: sellerRecord?.email ?? '',
+              vatId: shopRecord.vatId,
+              businessAddress: shopRecord.businessAddress,
+              shippingOrigin: shopRecord.shippingOrigin,
             }),
           )
-        : {}
 
-    // Notify buyer
-    await createNotification(userId, 'order_placed', {
-      platformOrderId,
-    })
-    await sendNotificationEmail(userId, 'order_confirmation', {
-      orderNumber: platformOrderId.slice(0, 8),
-      buyerName: buyerRecord?.name,
-      shopName: 'Eurtisan',
-      items: buyerItems,
-      total: formatPriceEUR(result.grandTotalCents),
-      orderUrl: `${baseUrl}/orders/${platformOrderId}`,
-      ...buyerSellerPayload,
-    })
-
-    // Index order items by shopName for O(1) lookup
-    const orderItemsByShop = new Map<string, typeof allOrderItems>()
-    for (const item of allOrderItems) {
-      const list = orderItemsByShop.get(item.shopName) ?? []
-      list.push(item)
-      orderItemsByShop.set(item.shopName, list)
-    }
-
-    const shopById = new Map(orderShops.map((s) => [s.id, s]))
-    const sellerById = new Map(orderShopOwners.map((o) => [o.id, o]))
-
-    // Notify each seller (shops and owners already batch-fetched above)
-    await Promise.all(
-      result.createdShopOrders.map(async (so) => {
-        const shopRecord = shopById.get(so.shopId)
-        if (!shopRecord) return
-
-        const shopItems = orderItemsByShop.get(shopRecord.name) ?? []
-        const shopItemByName = new Map(shopItems.map((i) => [i.productName, i]))
-        const sellerItems = shopItems.map((item) => ({
-          name: item.productName,
-          quantity: item.quantity,
-          price: formatPriceEUR(item.totalCents),
-        }))
-
-        const sellerRecord = sellerById.get(shopRecord.ownerId)
-
-        const sellerPayload = toSellerEmailPayload(
-          buildShopLegalIdentity({
-            shopName: shopRecord.name,
-            ownerEmail: sellerRecord?.email ?? '',
-            vatId: shopRecord.vatId,
-            businessAddress: shopRecord.businessAddress,
-            shippingOrigin: shopRecord.shippingOrigin,
-          }),
-        )
-
-        await Promise.all([
-          createNotification(shopRecord.ownerId, 'order_placed', {
-            platformOrderId,
-            shopOrderId: so.shopOrderId,
-          }),
-          sendNotificationEmail(shopRecord.ownerId, 'order_confirmation', {
-            orderNumber: so.shopOrderId.slice(0, 8),
-            buyerName: sellerRecord?.name ?? null,
-            shopName: shopRecord.name,
-            items: sellerItems,
-            total: formatPriceEUR(
-              sellerItems.reduce((sum, item) => {
-                const cents = shopItemByName.get(item.name)?.totalCents ?? 0
-                return sum + cents
-              }, 0),
-            ),
-            orderUrl: `${baseUrl}/studio/${so.shopId}/orders/${so.shopOrderId}`,
-            ...sellerPayload,
-          }),
-        ])
-      }),
-    )
+          await Promise.all([
+            createNotification(shopRecord.ownerId, 'order_placed', {
+              platformOrderId,
+              shopOrderId: so.shopOrderId,
+            }),
+            sendNotificationEmail(shopRecord.ownerId, 'order_confirmation', {
+              orderNumber: so.shopOrderId.slice(0, 8),
+              buyerName: sellerRecord?.name ?? null,
+              shopName: shopRecord.name,
+              items: sellerItems,
+              total: formatPriceEUR(
+                sellerItems.reduce((sum, item) => {
+                  const cents = shopItemByName.get(item.name)?.totalCents ?? 0
+                  return sum + cents
+                }, 0),
+              ),
+              orderUrl: `${baseUrl}/studio/${so.shopId}/orders/${so.shopOrderId}`,
+              ...sellerPayload,
+            }),
+          ])
+        }),
+      )
     },
     { platformOrderId, userId },
   )
