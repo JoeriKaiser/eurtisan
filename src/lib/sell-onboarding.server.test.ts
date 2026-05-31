@@ -11,7 +11,7 @@ import {
   shopSocials,
   user,
 } from '#/db/schema'
-import { createShopDraftInternal } from './sell-onboarding.server'
+import { createShopDraftInternal, saveOnboardingStepInternal } from './sell-onboarding.server'
 
 beforeEach(async () => {
   await db.delete(shopSocials)
@@ -70,5 +70,39 @@ describe('createShopDraftInternal', () => {
 
     const rows = await db.select().from(shop).where(eq(shop.ownerId, u.id))
     expect(rows.length).toBe(10)
+  })
+})
+
+describe('saveOnboardingStepInternal', () => {
+  it('sanitizes HTML in description', async () => {
+    const u = await seedUser()
+    const draft = await createShopDraftInternal(u)
+
+    await saveOnboardingStepInternal(u.id, u.role, {
+      draftId: draft.id,
+      step: 2,
+      data: {
+        description: '<script>alert("xss")</script><p>Hello</p>',
+      },
+    })
+
+    const rows = await db.select().from(shop).where(eq(shop.id, draft.id))
+    expect(rows[0].description).toBe('<p>Hello</p>')
+  })
+
+  it('stores null for empty description', async () => {
+    const u = await seedUser()
+    const draft = await createShopDraftInternal(u)
+
+    await saveOnboardingStepInternal(u.id, u.role, {
+      draftId: draft.id,
+      step: 2,
+      data: {
+        description: '',
+      },
+    })
+
+    const rows = await db.select().from(shop).where(eq(shop.id, draft.id))
+    expect(rows[0].description).toBeNull()
   })
 })

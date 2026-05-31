@@ -1,3 +1,4 @@
+import { E2E_CREATOR } from './fixtures/auth'
 import { test as setup, expect } from '@playwright/test'
 
 const authFile = 'e2e/.auth/creator.json'
@@ -9,8 +10,8 @@ setup('authenticate as creator', async ({ page }) => {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      email: 'creator@eurtisan.local',
-      password: 'password',
+      email: E2E_CREATOR.email,
+      password: E2E_CREATOR.password,
     }),
   })
 
@@ -47,7 +48,7 @@ setup('authenticate as creator', async ({ page }) => {
   await page.goto('/')
 
   // Verify logged-in state by checking for the known creator name in the header
-  await expect(page.getByText('Eurtisan Creator')).toBeVisible()
+  await expect(page.getByText(E2E_CREATOR.displayName)).toBeVisible()
 
   await page.context().storageState({ path: authFile })
 })

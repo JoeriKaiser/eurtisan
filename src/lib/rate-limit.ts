@@ -225,6 +225,8 @@ const AUTH_ACTION_PATHS = new Set([
   '/api/auth/sign-up/email',
   '/api/auth/forget-password',
   '/api/auth/reset-password',
+  '/api/auth/change-password',
+  '/api/auth/delete-user',
 ])
 
 /**
@@ -241,10 +243,35 @@ export function isAuthRateLimitedAction(request: Request): boolean {
 }
 
 /**
- * Rate-limit helper for the catch-all auth handler.
+ * Assert per-email rate limit for auth actions.
+ * Defaults to 3 attempts per 15 minutes.
  */
-export async function assertAuthRateLimit(request: Request): Promise<void> {
+export async function assertEmailRateLimit(email: string): Promise<void> {
+  const key = `auth:email:${email.toLowerCase()}`
+  await assertRateLimit(key, 3, 900_000)
+}
+
+/**
+ * Assert per-user rate limit using the user ID as the key.
+ */
+export async function assertUserRateLimit(
+  userId: string,
+  limit: number,
+  windowMs: number,
+): Promise<void> {
+  const key = `user:${userId}`
+  await assertRateLimit(key, limit, windowMs)
+}
+
+/**
+ * Rate-limit helper for the catch-all auth handler.
+ * When an email is provided, also applies stricter per-email limits.
+ */
+export async function assertAuthRateLimit(request: Request, email?: string): Promise<void> {
   if (!isAuthRateLimitedAction(request)) return
   const ip = extractClientIp(request)
   await assertRateLimit(`auth:${ip}`, 5, 60_000)
+  if (email) {
+    await assertEmailRateLimit(email)
+  }
 }

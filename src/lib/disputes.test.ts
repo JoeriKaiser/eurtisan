@@ -8,6 +8,7 @@ import {
   inventoryReservation,
   notification,
   orderItem,
+  payout,
   platformOrder,
   product,
   shop,
@@ -31,6 +32,7 @@ beforeEach(async () => {
   await db.delete(dispute)
   await db.delete(orderItem)
   await db.delete(inventoryReservation)
+  await db.delete(payout)
   await db.delete(shopOrder)
   await db.delete(platformOrder)
   await db.delete(product)
@@ -44,6 +46,7 @@ afterAll(async () => {
   await db.delete(dispute)
   await db.delete(orderItem)
   await db.delete(inventoryReservation)
+  await db.delete(payout)
   await db.delete(shopOrder)
   await db.delete(platformOrder)
   await db.delete(product)
@@ -1437,6 +1440,243 @@ describe('resolveDisputeQuery', () => {
 
     expect(reservations).toHaveLength(1)
 
+    refundSpy.mockRestore()
+  })
+
+  it('blocks full_refund when payout has already been sent', async () => {
+    await seedUser()
+    await seedShop()
+
+    const refundSpy = vi.spyOn(molliePaymentProvider, 'refundPayment').mockResolvedValue(undefined)
+
+    const { order, shopOrder: so } = await seedDeliveredOrder({ molliePaymentId: 'tr_mock_000001' })
+    await seedProductAndReservation(order.id, so.id)
+
+    // Seed a sent payout for this shop order
+    await db.insert(payout).values({
+      shopOrderId: so.id,
+      shopId: so.shopId,
+      amountCents: 1800,
+      status: 'sent',
+    })
+
+    const d = await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
+      'user-1',
+    )
+
+    try {
+      await resolveDisputeQuery(
+        d.id,
+        { resolution: 'full_refund' },
+        { userId: 'admin-1', role: 'admin' },
+      )
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(409)
+    }
+
+    // Refund should not have been called
+    expect(refundSpy).not.toHaveBeenCalled()
+
+    // Dispute should remain open
+    const [updatedDispute] = await db.select().from(dispute).where(eq(dispute.id, d.id))
+    expect(updatedDispute.status).toBe('open')
+
+    // Order should remain disputed
+    const [updatedSo] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
+    expect(updatedSo.status).toBe('disputed')
+
+    refundSpy.mockRestore()
+  })
+
+  it('blocks partial_refund when payout has already been sent', async () => {
+    await seedUser()
+    await seedShop()
+
+    const refundSpy = vi.spyOn(molliePaymentProvider, 'refundPayment').mockResolvedValue(undefined)
+
+    const { order, shopOrder: so } = await seedDeliveredOrder({ molliePaymentId: 'tr_mock_000001' })
+    await seedProductAndReservation(order.id, so.id)
+
+    // Seed a sent payout for this shop order
+    await db.insert(payout).values({
+      shopOrderId: so.id,
+      shopId: so.shopId,
+      amountCents: 1800,
+      status: 'sent',
+    })
+
+    const d = await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
+      'user-1',
+    )
+
+    try {
+      await resolveDisputeQuery(
+        d.id,
+        { resolution: 'partial_refund', refundCents: 1000 },
+        { userId: 'admin-1', role: 'admin' },
+      )
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(409)
+    }
+
+    expect(refundSpy).not.toHaveBeenCalled()
+
+    const [updatedDispute] = await db.select().from(dispute).where(eq(dispute.id, d.id))
+    expect(updatedDispute.status).toBe('open')
+
+    refundSpy.mockRestore()
+  })
+
+  it('allows close resolution even when payout has already been sent', async () => {
+    await seedUser()
+    await seedShop()
+
+    const refundSpy = vi.spyOn(molliePaymentProvider, 'refundPayment').mockResolvedValue(undefined)
+
+    const { order, shopOrder: so } = await seedDeliveredOrder({ molliePaymentId: 'tr_mock_000001' })
+    await seedProductAndReservation(order.id, so.id)
+
+    // Seed a sent payout for this shop order
+    await db.insert(payout).values({
+      shopOrderId: so.id,
+      shopId: so.shopId,
+      amountCents: 1800,
+      status: 'sent',
+    })
+
+    const d = await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
+      'user-1',
+    )
+
+    const result = await resolveDisputeQuery(
+      d.id,
+      { resolution: 'close' },
+      { userId: 'admin-1', role: 'admin' },
+    )
+
+    expect(result.status).toBe('resolved')
+    expect(result.resolution).toBe('close')
+    expect(result.refundCents).toBeNull()
+
+    expect(refundSpy).not.toHaveBeenCalled()
+
+    const [updatedSo] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
+    expect(updatedSo.status).toBe('completed')
+
+    const [updatedPo] = await db.select().from(platformOrder).where(eq(platformOrder.id, order.id))
+    expect(updatedPo.status).toBe('completed')
+
+    refundSpy.mockRestore()
+  })
+
+  it('tracks refundedCents on shopOrder and platformOrder after refund', async () => {
+    await seedUser()
+    await seedShop()
+
+    const refundSpy = vi.spyOn(molliePaymentProvider, 'refundPayment').mockResolvedValue(undefined)
+
+    const { order, shopOrder: so } = await seedDeliveredOrder({ molliePaymentId: 'tr_mock_000001' })
+    const d = await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
+      'user-1',
+    )
+
+    await resolveDisputeQuery(
+      d.id,
+      { resolution: 'partial_refund', refundCents: 1000 },
+      { userId: 'admin-1', role: 'admin' },
+    )
+
+    const [updatedSo] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
+    expect(updatedSo.refundedCents).toBe(1000)
+
+    const [updatedPo] = await db.select().from(platformOrder).where(eq(platformOrder.id, order.id))
+    expect(updatedPo.refundedCents).toBe(1000)
+
+    refundSpy.mockRestore()
+  })
+
+  it('rejects refund when cumulative shopOrder refund would exceed order total', async () => {
+    await seedUser()
+    await seedShop()
+
+    const refundSpy = vi.spyOn(molliePaymentProvider, 'refundPayment').mockResolvedValue(undefined)
+
+    const { shopOrder: so } = await seedDeliveredOrder({
+      molliePaymentId: 'tr_mock_000001',
+      subtotalCents: 1000,
+      shippingCostCents: 500,
+    })
+
+    // Pre-seed a prior refund of 1200 cents on the shop order while keeping
+    // status delivered so the dispute can still be opened.
+    await db.update(shopOrder).set({ refundedCents: 1200 }).where(eq(shopOrder.id, so.id))
+
+    const d = await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
+      'user-1',
+    )
+
+    try {
+      await resolveDisputeQuery(
+        d.id,
+        { resolution: 'partial_refund', refundCents: 500 },
+        { userId: 'admin-1', role: 'admin' },
+      )
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(400)
+    }
+
+    expect(refundSpy).not.toHaveBeenCalled()
+    refundSpy.mockRestore()
+  })
+
+  it('rejects refund when cumulative platformOrder refund would exceed platform total', async () => {
+    await seedUser()
+    await seedShop()
+
+    const refundSpy = vi.spyOn(molliePaymentProvider, 'refundPayment').mockResolvedValue(undefined)
+
+    const { order, shopOrder: so } = await seedDeliveredOrder({
+      molliePaymentId: 'tr_mock_000001',
+      subtotalCents: 1000,
+      shippingCostCents: 500,
+    })
+
+    // Platform total is 2500 by default (seedDeliveredOrder totalCents: 2500)
+    // Pre-seed a prior platform refund of 2000 cents
+    await db
+      .update(platformOrder)
+      .set({ refundedCents: 2000 })
+      .where(eq(platformOrder.id, order.id))
+
+    const d = await openDisputeQuery(
+      { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
+      'user-1',
+    )
+
+    try {
+      await resolveDisputeQuery(
+        d.id,
+        { resolution: 'partial_refund', refundCents: 1000 },
+        { userId: 'admin-1', role: 'admin' },
+      )
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(400)
+    }
+
+    expect(refundSpy).not.toHaveBeenCalled()
     refundSpy.mockRestore()
   })
 })

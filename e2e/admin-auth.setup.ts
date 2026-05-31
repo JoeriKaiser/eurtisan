@@ -1,3 +1,4 @@
+import { E2E_ADMIN } from './fixtures/auth'
 import { test as setup, expect } from '@playwright/test'
 
 const authFile = 'e2e/.auth/admin.json'
@@ -8,8 +9,8 @@ setup('authenticate as admin', async ({ page }) => {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      email: 'admin@eurtisan.local',
-      password: 'password',
+      email: E2E_ADMIN.email,
+      password: E2E_ADMIN.password,
     }),
   })
 

@@ -18,6 +18,7 @@ import {
   type CheckoutInput,
   createCheckoutWithProvider,
   getCheckoutSummaryQuery,
+  retryPayment,
 } from './checkout.server'
 import type { PaymentProvider } from './payment-provider'
 
@@ -189,6 +190,59 @@ describe('getCheckoutSummaryQuery', () => {
     expect(expressOption?.costCents).toBeGreaterThan(standardOption?.costCents ?? 0)
   })
 
+  it('uses the shop shipping origin instead of the hardcoded platform origin', async () => {
+    await seedUser()
+    await seedShop({
+      shippingOrigin: {
+        street: '456 Warehouse Ave',
+        city: 'Paris',
+        postalCode: '75001',
+        country: 'FR',
+      },
+    })
+    const c = await db
+      .insert(cart)
+      .values({ userId: 'user-1' })
+      .returning()
+      .then((rows) => rows[0])
+    const p = await seedProduct()
+
+    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+
+    const spy = vi.spyOn(mondialRelayProvider, 'getRates').mockResolvedValue([
+      {
+        rateId: 'mondial_std_test',
+        carrier: 'mondial_relay',
+        serviceName: 'Mondial Relay Standard',
+        priceCents: 538,
+        estimatedDays: { min: 2, max: 4 },
+      },
+      {
+        rateId: 'mondial_xpr_test',
+        carrier: 'mondial_relay',
+        serviceName: 'Mondial Relay Express',
+        priceCents: 861,
+        estimatedDays: { min: 1, max: 3 },
+      },
+    ])
+
+    const result = await getCheckoutSummaryQuery(c.id, 'user-1', {
+      name: 'Test User',
+      street: '123 Main St',
+      city: 'Paris',
+      postalCode: '75001',
+      country: 'FR',
+    })
+
+    expect(result).not.toBeNull()
+    expect(spy).toHaveBeenCalledTimes(1)
+    const calledOrigin = spy.mock.calls[0][0]
+    expect(calledOrigin.country).toBe('FR')
+    expect(calledOrigin.city).toBe('Paris')
+
+    spy.mockRestore()
+  })
+
   it('calculates subtotals and grand total correctly', async () => {
     await seedUser()
     await seedShop()
@@ -320,14 +374,14 @@ describe('createCheckoutQuery', () => {
         street: '123 Main St',
         city: 'Berlin',
         postalCode: '10115',
-        country: 'Germany',
+        country: 'DE',
       },
       billingAddress: {
         name: 'Test User',
         street: '123 Main St',
         city: 'Berlin',
         postalCode: '10115',
-        country: 'Germany',
+        country: 'DE',
       },
       ...overrides,
     }
@@ -497,14 +551,14 @@ describe('createCheckoutQuery', () => {
       street: '123 Main St',
       city: 'Berlin',
       postalCode: '10115',
-      country: 'Germany',
+      country: 'DE',
     })
     expect(platformOrders[0].billingAddress).toEqual({
       name: 'Test User',
       street: '123 Main St',
       city: 'Berlin',
       postalCode: '10115',
-      country: 'Germany',
+      country: 'DE',
     })
 
     const shopOrders = await db
@@ -679,7 +733,7 @@ describe('createCheckoutQuery', () => {
     expect(order.molliePaymentId).toMatch(/^test_payment_/)
   })
 
-  it('cancels order and releases stock when payment provider fails', async () => {
+  it('keeps order in pending_payment and retains stock when payment provider fails', async () => {
     await seedUser()
     await seedShop()
     const c = await db
@@ -713,17 +767,19 @@ describe('createCheckoutQuery', () => {
       expect((err as Response).status).toBe(503)
     }
 
-    // Order should be cancelled
+    // Order should remain in pending_payment so the buyer can retry
     const platformOrders = await db.select().from(platformOrder)
     expect(platformOrders).toHaveLength(1)
-    expect(platformOrders[0].status).toBe('cancelled')
+    expect(platformOrders[0].status).toBe('pending_payment')
 
-    // Inventory should be released
+    // Inventory should remain reserved
     const reservations = await db
       .select()
       .from(inventoryReservation)
       .where(eq(inventoryReservation.productId, p.id))
-    expect(reservations).toHaveLength(0)
+    expect(reservations).toHaveLength(1)
+    expect(reservations[0].platformOrderId).toBe(platformOrders[0].id)
+    expect(reservations[0].quantity).toBe(2)
   })
 
   it('does not trust client-provided totals', async () => {
@@ -1197,5 +1253,276 @@ describe('createCheckoutQuery', () => {
     const r2 = reservations.filter((r) => r.platformOrderId === result2.platformOrderId)
     expect(r1).toHaveLength(2)
     expect(r2).toHaveLength(2)
+  })
+
+  it('succeeds when cart reservations exist (releases them before order reservations)', async () => {
+    await seedUser()
+    await seedShop()
+    const c = await db
+      .insert(cart)
+      .values({ userId: 'user-1' })
+      .returning()
+      .then((rows) => rows[0])
+    const p = await seedProduct({ stockCount: 5 })
+
+    // Create a cart reservation by using addItemToCart (quantity 2 matches the
+    // mock shipping provider's standard rate of 580 cents for 1000g).
+    const { addItemToCart } = await import('./cart.server')
+    await addItemToCart(c.id, p.id, 2)
+
+    // Verify cart reservation exists
+    const cartReservations = await db
+      .select()
+      .from(inventoryReservation)
+      .where(eq(inventoryReservation.cartId, c.id))
+    expect(cartReservations).toHaveLength(1)
+    expect(cartReservations[0].quantity).toBe(2)
+
+    const input = makeInput(c.id, {
+      shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 580 }],
+    })
+    const result = await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
+
+    expect(result.platformOrderId).toBeDefined()
+
+    // Cart should be deleted
+    const cartsAfter = await db.select().from(cart).where(eq(cart.id, c.id))
+    expect(cartsAfter).toHaveLength(0)
+
+    // Cart reservation should be gone (cascade-deleted with cart)
+    const reservationsAfter = await db
+      .select()
+      .from(inventoryReservation)
+      .where(eq(inventoryReservation.cartId, c.id))
+    expect(reservationsAfter).toHaveLength(0)
+
+    // Order reservation should exist
+    const orderReservations = await db
+      .select()
+      .from(inventoryReservation)
+      .where(eq(inventoryReservation.platformOrderId, result.platformOrderId))
+    expect(orderReservations).toHaveLength(1)
+    expect(orderReservations[0].quantity).toBe(2)
+  })
+})
+
+describe('retryPayment', () => {
+  it('throws 404 for nonexistent platform order', async () => {
+    try {
+      await retryPayment(
+        '550e8400-e29b-41d4-a716-446655440000',
+        'user-1',
+        createStubPaymentProvider(),
+      )
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(404)
+    }
+  })
+
+  it('throws 403 when order belongs to another user', async () => {
+    await seedUser()
+    await seedShop()
+    const otherUser = await seedUser({ id: 'user-2', name: 'Other', email: 'other@example.com' })
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: otherUser.id,
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 1000,
+        status: 'pending_payment',
+      })
+      .returning()
+
+    try {
+      await retryPayment(order.id, 'user-1', createStubPaymentProvider())
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(403)
+    }
+  })
+
+  it('throws 409 when order is not pending_payment', async () => {
+    await seedUser()
+    await seedShop()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 1000,
+        status: 'paid',
+      })
+      .returning()
+
+    try {
+      await retryPayment(order.id, 'user-1', createStubPaymentProvider())
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(409)
+    }
+  })
+
+  it('creates a new payment and returns checkoutUrl for a pending order', async () => {
+    await seedUser()
+    await seedShop()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 2580,
+        status: 'pending_payment',
+      })
+      .returning()
+
+    const result = await retryPayment(order.id, 'user-1', createStubPaymentProvider())
+
+    expect(result.checkoutUrl).toBeDefined()
+    expect(typeof result.checkoutUrl).toBe('string')
+
+    const [updated] = await db
+      .select({ molliePaymentId: platformOrder.molliePaymentId })
+      .from(platformOrder)
+      .where(eq(platformOrder.id, order.id))
+
+    expect(updated.molliePaymentId).toBeTruthy()
+    expect(updated.molliePaymentId).toMatch(/^test_payment_/)
+  })
+
+  it('throws 503 when payment provider fails on retry', async () => {
+    await seedUser()
+    await seedShop()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 1000,
+        status: 'pending_payment',
+      })
+      .returning()
+
+    const failingProvider: PaymentProvider = {
+      createPayment: async () => {
+        throw new Error('Simulated provider failure')
+      },
+      verifyWebhook: async () => false,
+      getPaymentStatus: async () => 'paid',
+      getPaymentAmount: async () => 1000,
+      refundPayment: async () => undefined,
+    }
+
+    try {
+      await retryPayment(order.id, 'user-1', failingProvider)
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(503)
+    }
+
+    // Order should still be pending_payment
+    const [updated] = await db.select().from(platformOrder).where(eq(platformOrder.id, order.id))
+    expect(updated.status).toBe('pending_payment')
+  })
+
+  it('replaces the old molliePaymentId on successful retry', async () => {
+    await seedUser()
+    await seedShop()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 1000,
+        status: 'pending_payment',
+        molliePaymentId: 'old_payment_id',
+      })
+      .returning()
+
+    const result = await retryPayment(order.id, 'user-1', createStubPaymentProvider())
+
+    expect(result.checkoutUrl).toBeDefined()
+
+    const [updated] = await db
+      .select({ molliePaymentId: platformOrder.molliePaymentId })
+      .from(platformOrder)
+      .where(eq(platformOrder.id, order.id))
+
+    expect(updated.molliePaymentId).not.toBe('old_payment_id')
+    expect(updated.molliePaymentId).toMatch(/^test_payment_/)
   })
 })

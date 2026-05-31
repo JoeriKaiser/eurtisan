@@ -190,40 +190,49 @@ export function ShippingMethodCard({
 /* ------------------------------------------------------------------ */
 
 interface ShippingLabelCardProps {
-  label: Label
+  labels: Label[]
 }
 
-export function ShippingLabelCard({ label }: ShippingLabelCardProps) {
+export function ShippingLabelCard({ labels }: ShippingLabelCardProps) {
+  if (labels.length === 0) return null
+
   return (
     <Card>
       <CardHeader>
         <CardTitle className='flex items-center gap-2 text-sm'>
           <FileText size={16} className='text-text-muted' aria-hidden='true' />
-          Shipping Label
+          {labels.length === 1 ? 'Shipping Label' : `Shipping Labels (${labels.length})`}
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className='space-y-2'>
-          <p className='text-sm text-text-secondary'>
-            Carrier: <span className='font-medium text-text-primary'>{label.carrier}</span>
-          </p>
-          {label.trackingNumber && (
-            <p className='text-sm text-text-secondary'>
-              Tracking:{' '}
-              <span className='font-medium text-text-primary'>{label.trackingNumber}</span>
-            </p>
-          )}
-          {label.labelUrl && (
-            <a
-              href={label.labelUrl}
-              target='_blank'
-              rel='noopener noreferrer'
-              className='inline-flex items-center gap-1 text-sm text-accent-primary hover:underline'
-            >
-              Download / print label
-              <FileText size={14} aria-hidden='true' />
-            </a>
-          )}
+        <div className='space-y-4'>
+          {labels.map((label, index) => (
+            <div key={label.trackingNumber ?? index} className='space-y-2'>
+              {labels.length > 1 && (
+                <p className='text-xs font-medium text-text-muted'>Package {index + 1}</p>
+              )}
+              <p className='text-sm text-text-secondary'>
+                Carrier: <span className='font-medium text-text-primary'>{label.carrier}</span>
+              </p>
+              {label.trackingNumber && (
+                <p className='text-sm text-text-secondary'>
+                  Tracking:{' '}
+                  <span className='font-medium text-text-primary'>{label.trackingNumber}</span>
+                </p>
+              )}
+              {label.labelUrl && (
+                <a
+                  href={label.labelUrl}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='inline-flex items-center gap-1 text-sm text-accent-primary hover:underline'
+                >
+                  Download / print label
+                  <FileText size={14} aria-hidden='true' />
+                </a>
+              )}
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>

@@ -19,7 +19,9 @@
     "db:staging-seed": "bun run src/db/seed-staging.ts",
     "job:inventory-cleanup": "bun run src/jobs/inventory-cleanup.ts",
     "job:session-cleanup": "bun run src/jobs/session-cleanup.ts",
+    "job:cart-cleanup": "bun run src/jobs/cart-cleanup.ts",
     "job:meilisearch-sync": "bun run src/jobs/meilisearch-sync.ts",
+    "job:audit-log-cleanup": "bun run src/jobs/audit-log-cleanup.ts",
     "db:studio": "drizzle-kit studio",
     "lint": "biome lint --write --unsafe ./src",
     "format": "biome format --write ./src",
@@ -27,6 +29,7 @@
     "i18n:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --strategy url cookie preferredLanguage baseLocale --emit-ts-declarations"
   },
   "dependencies": {
+    "@2toad/profanity": "^3.3.0",
     "@aws-sdk/client-s3": "^3.750.0",
     "@aws-sdk/s3-request-presigner": "^3.750.0",
     "@base-ui-components/react": "^1.0.0-rc.0",
@@ -40,12 +43,13 @@
     "@tanstack/react-router": "^1.169.2",
     "@tanstack/react-router-ssr-query": "^1.166.12",
     "@tanstack/react-start": "^1.167.65",
-    "better-auth": "^1.6.9",
+    "better-auth": "^1.6.13",
     "drizzle-orm": "^0.45.2",
     "lucide-react": "^1.14.0",
     "meilisearch": "^0.58.0",
-    "nodemailer": "^8.0.7",
-    "pg": "^8.20.0",
+    "nodemailer": "^8.0.10",
+    "pg": "^8.21.0",
+    "prom-client": "^15.1.3",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "recharts": "^3.8.1",
@@ -82,5 +86,11 @@
   "overrides": {
     "ws": "^8.20.1",
     "esbuild": "^0.25.0"
-  }
+  },
+  "browserslist": [
+    "> 0.5%",
+    "last 2 versions",
+    "not dead",
+    "not op_mini all"
+  ]
 }

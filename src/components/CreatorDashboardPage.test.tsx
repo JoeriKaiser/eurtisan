@@ -135,7 +135,7 @@ describe('CreatorDashboardPage', () => {
     )
 
     expect(screen.getByText('Creator Dashboard')).toBeDefined()
-    expect(screen.getByText('€125,00')).toBeDefined()
+    expect(screen.getByText('€125.00')).toBeDefined()
     expect(screen.getByText('3')).toBeDefined()
     expect(screen.getByText('2')).toBeDefined()
     expect(screen.getByText('1')).toBeDefined()
@@ -170,7 +170,7 @@ describe('CreatorDashboardPage', () => {
     )
 
     expect(screen.getByText('Recent activity')).toBeDefined()
-    expect(screen.getByText('Bob placed an order — €50,00')).toBeDefined()
+    expect(screen.getByText('Bob placed an order — €50.00')).toBeDefined()
     expect(screen.getByText('Carol reviewed Mug — 4 stars')).toBeDefined()
     expect(screen.getByText('"Great product!"')).toBeDefined()
   })

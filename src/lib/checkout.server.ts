@@ -22,12 +22,20 @@ import { getBaseUrl } from './env.server'
 import {
   getAvailableStockForProducts,
   InsufficientStockError,
-  releaseStockInTx,
+  releaseCartStockInTx,
   reserveStockInTx,
 } from './inventory.server'
 import { logOrderCreated } from './order-logger'
+import { ordersCreatedTotal } from './metrics.server'
 import type { PaymentProvider } from './payment-provider'
 import { formatPriceEUR } from './pricing'
+import { calculatePackageDimensions, calculatePackageWeight } from './shipping-estimate'
+import {
+  buildShopLegalIdentity,
+  toSellerEmailPayload,
+  type ShopLegalIdentity,
+} from './shop-legal-identity'
+import { scheduleBackgroundWork } from './background-work.server'
 import { calculateVat } from './vat.server'
 
 /* -------------------------------------------------------------------------- */
@@ -74,6 +82,8 @@ export interface CheckoutShopGroup {
   /** Estimated VAT in cents for display in checkout summary. */
   vatEstimateCents: number
   shippingOptions: ShippingOption[]
+  /** EU trader information for pre-contract disclosure. */
+  sellerLegal: ShopLegalIdentity
 }
 
 export interface CheckoutSummary {
@@ -163,10 +173,8 @@ function getPlatformOrigin(): ProviderShippingAddress {
 function estimatePackageFromItems(items: CheckoutItem[]): Package {
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0)
   return {
-    weightGrams: totalItems * 500,
-    lengthCm: 20,
-    widthCm: totalItems * 5, // rough stacking
-    heightCm: 15,
+    weightGrams: calculatePackageWeight(totalItems),
+    ...calculatePackageDimensions(totalItems),
   }
 }
 
@@ -204,6 +212,7 @@ function ratesToShippingOptions(rates: Rate[], fallbackOnEmpty = false): Shippin
 export async function getShippingOptionsForShop(
   items: CheckoutItem[],
   shippingAddress?: ShippingAddress,
+  origin?: ProviderShippingAddress,
 ): Promise<ShippingOption[]> {
   if (!shippingAddress) {
     // No address yet — return fallback so the UI can show a placeholder.
@@ -211,7 +220,7 @@ export async function getShippingOptionsForShop(
   }
 
   const pkg = estimatePackageFromItems(items)
-  const origin = getPlatformOrigin()
+  const effectiveOrigin = origin ?? getPlatformOrigin()
   const destination: ProviderShippingAddress = {
     street: shippingAddress.street,
     city: shippingAddress.city,
@@ -221,7 +230,7 @@ export async function getShippingOptionsForShop(
   }
 
   try {
-    const rates = await mondialRelayProvider.getRates(origin, destination, pkg)
+    const rates = await mondialRelayProvider.getRates(effectiveOrigin, destination, pkg)
     if (rates.length === 0) {
       return [UNSUPPORTED_FALLBACK]
     }
@@ -334,26 +343,70 @@ export async function getCheckoutSummaryQuery(
         subtotalCents: productRecord.priceCents * quantity,
         vatEstimateCents: 0,
         shippingOptions: [],
+        sellerLegal: buildShopLegalIdentity({
+          shopName: shopRecord.name,
+          ownerEmail: '',
+          vatId: shopRecord.vatId,
+          businessAddress: shopRecord.businessAddress,
+          shippingOrigin: shopRecord.shippingOrigin,
+        }),
       })
     }
   }
 
   const shops = Array.from(groups.values())
 
-  // Fetch real shipping rates from the provider in parallel
-  await Promise.all(
-    shops.map(async (shop) => {
-      shop.shippingOptions = await getShippingOptionsForShop(shop.items, shippingAddress)
-    }),
-  )
-
-  // Index shop records for O(1) lookup
-  const shopRecordById = new Map<string, (typeof items)[number]['shop']>()
+  // Index shop records for O(1) lookup before fetching shipping rates
+  const shopRecordById = new Map<string, NonNullable<(typeof items)[number]['shop']>>()
   for (const r of items) {
     if (r.shop?.id) {
       shopRecordById.set(r.shop.id, r.shop)
     }
   }
+
+  const ownerIds = [
+    ...new Set(shops.map((s) => shopRecordById.get(s.shopId)?.ownerId).filter(Boolean)),
+  ]
+  const ownerRows =
+    ownerIds.length > 0
+      ? await db
+          .select({ id: user.id, email: user.email })
+          .from(user)
+          .where(inArray(user.id, ownerIds as string[]))
+      : []
+  const ownerEmailById = new Map(ownerRows.map((row) => [row.id, row.email]))
+
+  for (const shopGroup of shops) {
+    const shopRecord = shopRecordById.get(shopGroup.shopId)
+    const ownerEmail = shopRecord ? (ownerEmailById.get(shopRecord.ownerId) ?? '') : ''
+    shopGroup.sellerLegal = shopRecord
+      ? buildShopLegalIdentity({
+          shopName: shopRecord.name,
+          ownerEmail,
+          vatId: shopRecord.vatId,
+          businessAddress: shopRecord.businessAddress,
+          shippingOrigin: shopRecord.shippingOrigin,
+        })
+      : {
+          tradeName: shopGroup.shopName,
+          contactEmail: ownerEmail,
+          vatId: null,
+          address: null,
+        }
+  }
+
+  // Fetch real shipping rates from the provider in parallel
+  await Promise.all(
+    shops.map(async (shop) => {
+      const shopRecord = shopRecordById.get(shop.shopId)
+      const shopOrigin = shopRecord?.shippingOrigin as ProviderShippingAddress | null
+      shop.shippingOptions = await getShippingOptionsForShop(
+        shop.items,
+        shippingAddress,
+        shopOrigin ?? undefined,
+      )
+    }),
+  )
 
   // Calculate VAT estimates per shop based on shipping destination
   const selectionByShopId = new Map(shippingSelections?.map((s) => [s.shopId, s]) ?? [])
@@ -476,10 +529,13 @@ export async function createCheckoutWithProvider(
     .where(eq(cartItem.cartId, input.cartId))
 
   if (cartItems.length === 0) {
-    throw new Response(JSON.stringify({ error: 'Conflict', message: 'Cart is empty' }), {
-      status: 409,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    throw new Response(
+      JSON.stringify({ error: 'Conflict', message: 'Cart is empty', code: 'CART_EMPTY' }),
+      {
+        status: 409,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    )
   }
 
   // 3. Build per-shop CheckoutItem lists to call the shipping provider
@@ -498,10 +554,26 @@ export async function createCheckoutWithProvider(
     shopItemsMap.set(row.product.shopId, items)
   }
 
+  // Fetch shop records to resolve per-shop shipping origins
+  const shopIds = Array.from(shopItemsMap.keys())
+  const shopRecords =
+    shopIds.length > 0 ? await db.select().from(shop).where(inArray(shop.id, shopIds)) : []
+  const originByShopId = new Map<string, ProviderShippingAddress | undefined>()
+  for (const sr of shopRecords) {
+    const origin = sr.shippingOrigin as ProviderShippingAddress | null
+    if (origin) {
+      originByShopId.set(sr.id, origin)
+    }
+  }
+
   // 4. Fetch available shipping options per shop from the provider in parallel
   const shippingEntries = await Promise.all(
     Array.from(shopItemsMap.entries()).map(async ([shopId, items]) => {
-      const options = await getShippingOptionsForShop(items, input.shippingAddress)
+      const options = await getShippingOptionsForShop(
+        items,
+        input.shippingAddress,
+        originByShopId.get(shopId),
+      )
       return [shopId, options] as [string, ShippingOption[]]
     }),
   )
@@ -629,10 +701,13 @@ export async function createCheckoutWithProvider(
       .where(eq(cartItem.cartId, input.cartId))
 
     if (items.length === 0) {
-      throw new Response(JSON.stringify({ error: 'Conflict', message: 'Cart is empty' }), {
-        status: 409,
-        headers: { 'Content-Type': 'application/json' },
-      })
+      throw new Response(
+        JSON.stringify({ error: 'Conflict', message: 'Cart is empty', code: 'CART_EMPTY' }),
+        {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      )
     }
 
     // 2. Validate product and shop approval status
@@ -654,7 +729,11 @@ export async function createCheckoutWithProvider(
       }
     }
 
-    // 3. Validate available stock for every product (accounting for reservations)
+    // 3. Release cart reservations before validating stock so the cart's own
+    //    reservations are not double-counted against available inventory.
+    await releaseCartStockInTx(tx, input.cartId)
+
+    // 4. Validate available stock for every product (accounting for reservations)
     const productIds = items.map((r) => r.product?.id).filter((id): id is string => !!id)
     const availableStockMap = await getAvailableStockForProducts(productIds)
 
@@ -675,6 +754,7 @@ export async function createCheckoutWithProvider(
         JSON.stringify({
           error: 'Conflict',
           message: 'Some items are out of stock',
+          code: 'ITEMS_OUT_OF_STOCK',
           productIds: outOfStockProductIds,
         }),
         { status: 409, headers: { 'Content-Type': 'application/json' } },
@@ -834,6 +914,7 @@ export async function createCheckoutWithProvider(
             JSON.stringify({
               error: 'Conflict',
               message: 'Some items are out of stock',
+              code: 'ITEMS_OUT_OF_STOCK',
               productIds: [lineItem.product.id],
             }),
             { status: 409, headers: { 'Content-Type': 'application/json' } },
@@ -867,6 +948,7 @@ export async function createCheckoutWithProvider(
       `Eurtisan order ${platformOrderId}`,
       redirectUrl,
       webhookUrl,
+      input.shippingAddress.country,
     )
 
     // Persist the Mollie payment ID on the platform order
@@ -877,26 +959,8 @@ export async function createCheckoutWithProvider(
 
     checkoutUrl = payment.checkoutUrl
   } catch (_err) {
-    // Payment initiation failed — cancel the order and restore inventory
-    await db.transaction(async (tx) => {
-      await Promise.all([
-        tx
-          .update(platformOrder)
-          .set({
-            status: 'cancelled',
-            cancelledAt: new Date(),
-            cancellationReason: 'Payment provider error',
-            updatedAt: new Date(),
-          })
-          .where(eq(platformOrder.id, platformOrderId)),
-        tx
-          .update(shopOrder)
-          .set({ status: 'cancelled', updatedAt: new Date() })
-          .where(eq(shopOrder.platformOrderId, platformOrderId)),
-        releaseStockInTx(tx, platformOrderId),
-      ])
-    })
-
+    // Payment initiation failed — keep the order in pending_payment so the
+    // buyer can retry via retryPayment().  Stock remains reserved.
     throw new Response(
       JSON.stringify({
         error: 'Service Unavailable',
@@ -906,63 +970,101 @@ export async function createCheckoutWithProvider(
     )
   }
 
-  // 3. Create notifications after the transaction so errors don't break checkout
-  try {
-    const { createNotification, sendNotificationEmail } = await import('./notifications.server')
-    const baseUrl = getBaseUrl()
+  // 3. Notifications and emails run in the background so checkout is not blocked by Brevo latency
+  scheduleBackgroundWork(
+    'checkout_post_order_notifications',
+    async () => {
+      const { createNotification, sendNotificationEmail } = await import('./notifications.server')
+      const baseUrl = getBaseUrl()
 
-    // Fetch buyer details and all order items for the buyer email
-    const [buyerRecord] = await db
-      .select({ name: user.name })
-      .from(user)
-      .where(eq(user.id, userId))
-      .limit(1)
+      // Fetch buyer details and all order items for the buyer email
+      const [buyerRecord] = await db
+        .select({ name: user.name })
+        .from(user)
+        .where(eq(user.id, userId))
+        .limit(1)
 
-    const allOrderItems = await db
-      .select({
-        productName: orderItem.productName,
-        quantity: orderItem.quantity,
-        totalCents: orderItem.totalCents,
-        shopName: shop.name,
+      const allOrderItems = await db
+        .select({
+          productName: orderItem.productName,
+          quantity: orderItem.quantity,
+          totalCents: orderItem.totalCents,
+          shopName: shop.name,
+        })
+        .from(orderItem)
+        .innerJoin(shopOrder, eq(orderItem.shopOrderId, shopOrder.id))
+        .innerJoin(shop, eq(shopOrder.shopId, shop.id))
+        .where(eq(shopOrder.platformOrderId, platformOrderId))
+
+      const buyerItems = allOrderItems.map((item) => ({
+        name: item.productName,
+        quantity: item.quantity,
+        price: formatPriceEUR(item.totalCents),
+      }))
+
+      const orderShopIds = result.createdShopOrders.map((so) => so.shopId)
+      const orderShops =
+        orderShopIds.length > 0
+          ? await db.select().from(shop).where(inArray(shop.id, orderShopIds))
+          : []
+      const orderShopOwners =
+        orderShops.length > 0
+          ? await db
+              .select({ id: user.id, name: user.name, email: user.email })
+              .from(user)
+              .where(
+                inArray(
+                  user.id,
+                  orderShops.map((s) => s.ownerId),
+                ),
+              )
+          : []
+      const ownerEmailById = new Map(orderShopOwners.map((o) => [o.id, o.email]))
+      const buyerSellerPayload =
+        orderShops.length === 1
+          ? toSellerEmailPayload(
+              buildShopLegalIdentity({
+                shopName: orderShops[0].name,
+                ownerEmail: ownerEmailById.get(orderShops[0].ownerId) ?? '',
+                vatId: orderShops[0].vatId,
+                businessAddress: orderShops[0].businessAddress,
+                shippingOrigin: orderShops[0].shippingOrigin,
+              }),
+            )
+          : {}
+
+      // Notify buyer
+      await createNotification(userId, 'order_placed', {
+        platformOrderId,
       })
-      .from(orderItem)
-      .innerJoin(shopOrder, eq(orderItem.shopOrderId, shopOrder.id))
-      .innerJoin(shop, eq(shopOrder.shopId, shop.id))
-      .where(eq(shopOrder.platformOrderId, platformOrderId))
+      await sendNotificationEmail(userId, 'order_confirmation', {
+        orderNumber: platformOrderId.slice(0, 8),
+        buyerName: buyerRecord?.name,
+        shopName: 'Eurtisan',
+        items: buyerItems,
+        total: formatPriceEUR(result.grandTotalCents),
+        orderUrl: `${baseUrl}/orders/${platformOrderId}`,
+        ...buyerSellerPayload,
+      })
 
-    const buyerItems = allOrderItems.map((item) => ({
-      name: item.productName,
-      quantity: item.quantity,
-      price: formatPriceEUR(item.totalCents),
-    }))
+      // Index order items by shopName for O(1) lookup
+      const orderItemsByShop = new Map<string, typeof allOrderItems>()
+      for (const item of allOrderItems) {
+        const list = orderItemsByShop.get(item.shopName) ?? []
+        list.push(item)
+        orderItemsByShop.set(item.shopName, list)
+      }
 
-    // Notify buyer
-    await createNotification(userId, 'order_placed', {
-      platformOrderId,
-    })
-    await sendNotificationEmail(userId, 'order_confirmation', {
-      orderNumber: platformOrderId.slice(0, 8),
-      buyerName: buyerRecord?.name,
-      shopName: 'Eurtisan',
-      items: buyerItems,
-      total: formatPriceEUR(result.grandTotalCents),
-      orderUrl: `${baseUrl}/orders/${platformOrderId}`,
-    })
+      const shopById = new Map(orderShops.map((s) => [s.id, s]))
+      const sellerById = new Map(orderShopOwners.map((o) => [o.id, o]))
 
-    // Index order items by shopName for O(1) lookup
-    const orderItemsByShop = new Map<string, typeof allOrderItems>()
-    for (const item of allOrderItems) {
-      const list = orderItemsByShop.get(item.shopName) ?? []
-      list.push(item)
-      orderItemsByShop.set(item.shopName, list)
-    }
+      // Notify each seller (shops and owners already batch-fetched above)
+      await Promise.all(
+        result.createdShopOrders.map(async (so) => {
+          const shopRecord = shopById.get(so.shopId)
+          if (!shopRecord) return
 
-    // Notify each seller
-    await Promise.all(
-      result.createdShopOrders.map(async (so) => {
-        const shopRecord = await db.select().from(shop).where(eq(shop.id, so.shopId)).limit(1)
-        if (shopRecord[0]) {
-          const shopItems = orderItemsByShop.get(shopRecord[0].name) ?? []
+          const shopItems = orderItemsByShop.get(shopRecord.name) ?? []
           const shopItemByName = new Map(shopItems.map((i) => [i.productName, i]))
           const sellerItems = shopItems.map((item) => ({
             name: item.productName,
@@ -970,21 +1072,27 @@ export async function createCheckoutWithProvider(
             price: formatPriceEUR(item.totalCents),
           }))
 
-          const [sellerRecord] = await db
-            .select({ name: user.name })
-            .from(user)
-            .where(eq(user.id, shopRecord[0].ownerId))
-            .limit(1)
+          const sellerRecord = sellerById.get(shopRecord.ownerId)
+
+          const sellerPayload = toSellerEmailPayload(
+            buildShopLegalIdentity({
+              shopName: shopRecord.name,
+              ownerEmail: sellerRecord?.email ?? '',
+              vatId: shopRecord.vatId,
+              businessAddress: shopRecord.businessAddress,
+              shippingOrigin: shopRecord.shippingOrigin,
+            }),
+          )
 
           await Promise.all([
-            createNotification(shopRecord[0].ownerId, 'order_placed', {
+            createNotification(shopRecord.ownerId, 'order_placed', {
               platformOrderId,
               shopOrderId: so.shopOrderId,
             }),
-            sendNotificationEmail(shopRecord[0].ownerId, 'order_confirmation', {
+            sendNotificationEmail(shopRecord.ownerId, 'order_confirmation', {
               orderNumber: so.shopOrderId.slice(0, 8),
-              buyerName: sellerRecord?.name,
-              shopName: shopRecord[0].name,
+              buyerName: sellerRecord?.name ?? null,
+              shopName: shopRecord.name,
               items: sellerItems,
               total: formatPriceEUR(
                 sellerItems.reduce((sum, item) => {
@@ -993,15 +1101,16 @@ export async function createCheckoutWithProvider(
                 }, 0),
               ),
               orderUrl: `${baseUrl}/studio/${so.shopId}/orders/${so.shopOrderId}`,
+              ...sellerPayload,
             }),
           ])
-        }
-      }),
-    )
-  } catch {
-    // Notification/email errors must not break the primary checkout transaction
-  }
+        }),
+      )
+    },
+    { platformOrderId, userId },
+  )
 
+  ordersCreatedTotal.inc()
   logOrderCreated({
     platformOrderId,
     userId,
@@ -1010,4 +1119,90 @@ export async function createCheckoutWithProvider(
   })
 
   return { platformOrderId, checkoutUrl }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              retryPayment                                  */
+/* -------------------------------------------------------------------------- */
+
+export interface RetryPaymentResult {
+  checkoutUrl: string
+}
+
+/**
+ * Retry payment creation for an existing platform order that is still in
+ * `pending_payment` status.  Useful when the original Mollie call failed
+ * because of a transient network error or 5xx.
+ */
+export async function retryPayment(
+  platformOrderId: string,
+  userId: string,
+  paymentProvider: PaymentProvider,
+): Promise<RetryPaymentResult> {
+  const [order] = await db
+    .select()
+    .from(platformOrder)
+    .where(eq(platformOrder.id, platformOrderId))
+    .limit(1)
+
+  if (!order) {
+    throw new Response(JSON.stringify({ error: 'Not Found', message: 'Order not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  if (order.userId !== userId) {
+    throw new Response(JSON.stringify({ error: 'Forbidden', message: 'Access denied' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  if (order.status !== 'pending_payment') {
+    throw new Response(
+      JSON.stringify({
+        error: 'Conflict',
+        message: 'Order is not in pending payment status',
+      }),
+      { status: 409, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  const baseUrl = getBaseUrl()
+  const redirectUrl = `${baseUrl}/orders/${platformOrderId}/success`
+  const webhookUrl = `${baseUrl}/api/webhooks/mollie`
+
+  let checkoutUrl: string
+
+  const shippingAddress = order.shippingAddress as { country?: string } | null
+  const buyerCountry = shippingAddress?.country
+
+  try {
+    const payment = await paymentProvider.createPayment(
+      order.totalCents,
+      'EUR',
+      `Eurtisan order ${platformOrderId}`,
+      redirectUrl,
+      webhookUrl,
+      buyerCountry,
+    )
+
+    await db
+      .update(platformOrder)
+      .set({ molliePaymentId: payment.paymentId, updatedAt: new Date() })
+      .where(eq(platformOrder.id, platformOrderId))
+
+    checkoutUrl = payment.checkoutUrl
+  } catch (_err) {
+    throw new Response(
+      JSON.stringify({
+        error: 'Service Unavailable',
+        message: 'Payment could not be initiated. Please try again.',
+      }),
+      { status: 503, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  return { checkoutUrl }
 }

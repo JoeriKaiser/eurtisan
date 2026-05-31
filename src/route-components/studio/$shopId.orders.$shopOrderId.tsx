@@ -128,7 +128,7 @@ export function ShopOrderDetailPage() {
             />
           </div>
 
-          {order.label && <ShippingLabelCard label={order.label} />}
+          {order.labels.length > 0 && <ShippingLabelCard labels={order.labels} />}
 
           <ShippingAddressCard address={order.shippingAddress} />
 

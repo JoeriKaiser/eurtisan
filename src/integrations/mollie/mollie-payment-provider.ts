@@ -53,7 +53,7 @@ export function resetMockPaymentCounter(): void {
 
 const mockPaymentStatuses = new Map<
   string,
-  'pending' | 'paid' | 'expired' | 'failed' | 'cancelled'
+  'pending' | 'paid' | 'expired' | 'failed' | 'cancelled' | 'chargeback'
 >()
 
 const mockPaymentAmounts = new Map<string, number>()
@@ -64,7 +64,7 @@ const mockPaymentAmounts = new Map<string, number>()
  */
 export function setMockPaymentStatus(
   paymentId: string,
-  status: 'pending' | 'paid' | 'expired' | 'failed' | 'cancelled',
+  status: 'pending' | 'paid' | 'expired' | 'failed' | 'cancelled' | 'chargeback',
 ): void {
   mockPaymentStatuses.set(paymentId, status)
 }
@@ -137,12 +137,20 @@ export class MolliePaymentProvider implements PaymentProvider {
     description: string,
     redirectUrl: string,
     webhookUrl: string,
+    billingCountry?: string,
   ): Promise<CreatePaymentResult> {
     if (this.mockMode) {
       return this.createPaymentMock(amountCents, currency, description, redirectUrl)
     }
 
-    return this.createPaymentReal(amountCents, currency, description, redirectUrl, webhookUrl)
+    return this.createPaymentReal(
+      amountCents,
+      currency,
+      description,
+      redirectUrl,
+      webhookUrl,
+      billingCountry,
+    )
   }
 
   private async createPaymentMock(
@@ -175,6 +183,7 @@ export class MolliePaymentProvider implements PaymentProvider {
     description: string,
     redirectUrl: string,
     webhookUrl: string,
+    billingCountry?: string,
   ): Promise<CreatePaymentResult> {
     const apiKey = getMollieApiKey()
 
@@ -182,7 +191,7 @@ export class MolliePaymentProvider implements PaymentProvider {
       throw new Error('MOLLIE_API_KEY is not set')
     }
 
-    const body = {
+    const body: Record<string, unknown> = {
       amount: {
         currency: currency.toUpperCase(),
         value: `${(amountCents / 100).toFixed(2)}`,
@@ -190,6 +199,10 @@ export class MolliePaymentProvider implements PaymentProvider {
       description,
       redirectUrl,
       webhookUrl,
+    }
+
+    if (billingCountry) {
+      body.restrictPaymentMethodsToCountry = billingCountry
     }
 
     const response = await fetch('https://api.mollie.com/v2/payments', {
@@ -332,7 +345,7 @@ export class MolliePaymentProvider implements PaymentProvider {
 
   async getPaymentStatus(
     paymentId: string,
-  ): Promise<'pending' | 'paid' | 'expired' | 'failed' | 'cancelled'> {
+  ): Promise<'pending' | 'paid' | 'expired' | 'failed' | 'cancelled' | 'chargeback'> {
     if (this.mockMode) {
       return this.getPaymentStatusMock(paymentId)
     }
@@ -342,7 +355,7 @@ export class MolliePaymentProvider implements PaymentProvider {
 
   private getPaymentStatusMock(
     paymentId: string,
-  ): 'pending' | 'paid' | 'expired' | 'failed' | 'cancelled' {
+  ): 'pending' | 'paid' | 'expired' | 'failed' | 'cancelled' | 'chargeback' {
     // Return the configured status if one was set, otherwise default to paid
     // for mock payments so the happy path works out of the box.
     return mockPaymentStatuses.get(paymentId) ?? 'paid'
@@ -350,7 +363,7 @@ export class MolliePaymentProvider implements PaymentProvider {
 
   private async getPaymentStatusReal(
     paymentId: string,
-  ): Promise<'pending' | 'paid' | 'expired' | 'failed' | 'cancelled'> {
+  ): Promise<'pending' | 'paid' | 'expired' | 'failed' | 'cancelled' | 'chargeback'> {
     const apiKey = getMollieApiKey()
 
     if (!apiKey) {
@@ -378,7 +391,8 @@ export class MolliePaymentProvider implements PaymentProvider {
       status === 'paid' ||
       status === 'expired' ||
       status === 'failed' ||
-      status === 'cancelled'
+      status === 'cancelled' ||
+      status === 'chargeback'
     ) {
       return status
     }

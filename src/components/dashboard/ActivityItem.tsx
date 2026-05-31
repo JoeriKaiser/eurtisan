@@ -2,12 +2,7 @@ import { Package, Star } from 'lucide-react'
 import type { CreatorActivity } from '#/lib/creator-dashboard'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
-
-const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  year: 'numeric',
-  month: 'short',
-  day: 'numeric',
-})
+import { formatDateShort } from '#/lib/format-date'
 
 function formatRelativeTime(date: Date): string {
   const now = new Date()
@@ -21,7 +16,7 @@ function formatRelativeTime(date: Date): string {
   if (diffMin < 60) return m.time_minutes_ago({ count: String(diffMin) })
   if (diffHour < 24) return m.time_hours_ago({ count: String(diffHour) })
   if (diffDay < 30) return m.time_days_ago({ count: String(diffDay) })
-  return DATE_FORMATTER.format(new Date(date))
+  return formatDateShort(new Date(date))
 }
 
 interface ActivityItemProps {

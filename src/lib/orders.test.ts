@@ -310,9 +310,9 @@ describe('getBuyerOrderDetailQuery', () => {
     const result = await getBuyerOrderDetailQuery(order.id, 'user-1')
     expect(result).not.toBeNull()
     expect(result?.shops).toHaveLength(1)
-    expect(result?.shops[0].shippingLabel).not.toBeNull()
-    expect(result?.shops[0].shippingLabel?.carrier).toBe('mondial_relay')
-    expect(result?.shops[0].shippingLabel?.trackingNumber).toBe('MR12345678')
+    expect(result?.shops[0].shippingLabels).toHaveLength(1)
+    expect(result?.shops[0].shippingLabels[0].carrier).toBe('mondial_relay')
+    expect(result?.shops[0].shippingLabels[0].trackingNumber).toBe('MR12345678')
     expect(result?.shops[0].trackingStatus).not.toBeNull()
   })
 
@@ -366,7 +366,7 @@ describe('getBuyerOrderDetailQuery', () => {
     const result = await getBuyerOrderDetailQuery(order.id, 'user-1')
     expect(result).not.toBeNull()
     expect(result?.shops).toHaveLength(1)
-    expect(result?.shops[0].shippingLabel).toBeNull()
+    expect(result?.shops[0].shippingLabels).toHaveLength(0)
     expect(result?.shops[0].trackingStatus).toBeNull()
   })
 

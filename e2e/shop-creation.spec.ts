@@ -1,6 +1,21 @@
 import { test, expect } from '@playwright/test'
+import { eq } from 'drizzle-orm'
+
+const E2E_SHOP_NAME = 'Playwright Test Shop'
 
 test.describe('shop creation onboarding', () => {
+  test.afterAll(async () => {
+    const connectionString =
+      process.env.E2E_DATABASE_URL ??
+      process.env.DATABASE_URL ??
+      'postgresql://eurtisan:eurtisan@db:5432/eurtisan'
+    process.env.DATABASE_URL = connectionString
+
+    const { db } = await import('../src/db/index')
+    const { shop } = await import('../src/db/schema')
+    await db.delete(shop).where(eq(shop.name, E2E_SHOP_NAME))
+  })
+
   test('creator can start a new shop and progress through onboarding', async ({ page }) => {
     // 1. Navigate to Seller Hub and wait for hydration
     await page.goto('/sell')
@@ -19,7 +34,7 @@ test.describe('shop creation onboarding', () => {
     await expect(page.getByRole('heading', { name: /start with the basics/i })).toBeVisible()
 
     // 4. Fill out step 1: Identity
-    await page.fill('#shop-name', 'Playwright Test Shop')
+    await page.fill('#shop-name', E2E_SHOP_NAME)
     // Slug should auto-populate from name; wait for it
     await expect(page.locator('#shop-slug')).not.toHaveValue('')
     await page.fill('#shop-tagline', 'Handcrafted goods for E2E testing')
@@ -55,9 +70,8 @@ test.describe('shop creation onboarding', () => {
     await expect(page.getByRole('heading', { name: 'Seller Hub' })).toBeVisible()
 
     // 9. Verify the new draft shop appears in the list
-    await expect(page.getByRole('heading', { name: 'Playwright Test Shop' }).first()).toBeVisible()
-    // Scope 'Draft' to the first Playwright Test Shop card
-    const testShopCard = page.locator('.grid > div').filter({ hasText: 'Playwright Test Shop' }).first()
+    await expect(page.getByRole('heading', { name: E2E_SHOP_NAME }).first()).toBeVisible()
+    const testShopCard = page.locator('.grid > div').filter({ hasText: E2E_SHOP_NAME }).first()
     await expect(testShopCard.getByText('Draft')).toBeVisible()
   })
 })

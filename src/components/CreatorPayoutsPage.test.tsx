@@ -164,18 +164,18 @@ describe('CreatorPayoutsPage', () => {
       />,
     )
 
-    // Total earned = 4500 + 2000 = 6500 → €65,00
+    // Total earned = 4500 + 2000 = 6500 → €65.00
     const earnedCard = screen
       .getByText('Total earned')
       .closest('[class*="rounded-xl"]') as HTMLElement | null
     expect(earnedCard).toBeDefined()
-    if (earnedCard) expect(within(earnedCard).getByText('€65,00')).toBeDefined()
-    // Pending amount = 4500 → €45,00
+    if (earnedCard) expect(within(earnedCard).getByText('€65.00')).toBeDefined()
+    // Pending amount = 4500 → €45.00
     const pendingCard = screen
       .getByText('Pending payout')
       .closest('[class*="rounded-xl"]') as HTMLElement | null
     expect(pendingCard).toBeDefined()
-    if (pendingCard) expect(within(pendingCard).getByText('€45,00')).toBeDefined()
+    if (pendingCard) expect(within(pendingCard).getByText('€45.00')).toBeDefined()
   })
 
   it('renders payouts table with order ID, date, amount, and status', () => {
@@ -214,9 +214,9 @@ describe('CreatorPayoutsPage', () => {
     expect(within(tbody).getByText('Sent')).toBeDefined()
 
     // Amounts
-    expect(within(tbody).getByText('€25,00')).toBeDefined()
-    expect(within(tbody).getByText('€50,00')).toBeDefined()
-    expect(within(tbody).getByText('€100,00')).toBeDefined()
+    expect(within(tbody).getByText('€25.00')).toBeDefined()
+    expect(within(tbody).getByText('€50.00')).toBeDefined()
+    expect(within(tbody).getByText('€100.00')).toBeDefined()
   })
 
   it('renders refunded orders as negative amounts with Refund badge', () => {
@@ -245,7 +245,7 @@ describe('CreatorPayoutsPage', () => {
     const refundTd = document.querySelector('td.text-error') as HTMLElement | null
     expect(refundTd).toBeDefined()
     if (!refundTd) throw new Error('refund td not found')
-    expect(refundTd.textContent).toContain('−€15,00')
+    expect(refundTd.textContent).toContain('−€15.00')
     // Refund label
     expect(within(refundTd).getByText('Refund')).toBeDefined()
   })

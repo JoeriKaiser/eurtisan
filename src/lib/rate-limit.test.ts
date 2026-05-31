@@ -5,6 +5,9 @@ import { db } from '#/db/index'
 import { rateLimit } from '#/db/schema'
 import { getRateLimitRetentionDays } from './env.server'
 import {
+  assertAuthRateLimit,
+  assertEmailRateLimit,
+  assertUserRateLimit,
   checkRateLimit,
   checkRateLimitDb,
   extractClientIp,
@@ -79,6 +82,16 @@ describe('isAuthRateLimitedAction', () => {
   it('returns false for other auth paths', () => {
     const req = new Request('http://localhost/api/auth/sign-out', { method: 'POST' })
     expect(isAuthRateLimitedAction(req)).toBe(false)
+  })
+
+  it('returns true for POST /api/auth/change-password', () => {
+    const req = new Request('http://localhost/api/auth/change-password', { method: 'POST' })
+    expect(isAuthRateLimitedAction(req)).toBe(true)
+  })
+
+  it('returns true for POST /api/auth/delete-user', () => {
+    const req = new Request('http://localhost/api/auth/delete-user', { method: 'POST' })
+    expect(isAuthRateLimitedAction(req)).toBe(true)
   })
 })
 
@@ -185,6 +198,30 @@ describe('checkRateLimitDb (database-backed)', () => {
     expect(executeSpy.mock.calls.length).toBeGreaterThanOrEqual(2)
 
     executeSpy.mockRestore()
+  })
+})
+
+describe('assertEmailRateLimit', () => {
+  it('does not throw in test environment', async () => {
+    await expect(assertEmailRateLimit('test@example.com')).resolves.toBeUndefined()
+  })
+})
+
+describe('assertUserRateLimit', () => {
+  it('does not throw in test environment', async () => {
+    await expect(assertUserRateLimit('user-123', 5, 60_000)).resolves.toBeUndefined()
+  })
+})
+
+describe('assertAuthRateLimit', () => {
+  it('does not throw for allowed auth actions', async () => {
+    const req = new Request('http://localhost/api/auth/sign-in/email', { method: 'POST' })
+    await expect(assertAuthRateLimit(req)).resolves.toBeUndefined()
+  })
+
+  it('does not throw when email is provided', async () => {
+    const req = new Request('http://localhost/api/auth/sign-in/email', { method: 'POST' })
+    await expect(assertAuthRateLimit(req, 'test@example.com')).resolves.toBeUndefined()
   })
 })
 

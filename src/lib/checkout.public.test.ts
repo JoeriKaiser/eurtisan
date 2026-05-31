@@ -10,14 +10,14 @@ describe('checkoutInputSchema', () => {
       street: '123 Main St',
       city: 'Berlin',
       postalCode: '10115',
-      country: 'Germany',
+      country: 'DE',
     },
     billingAddress: {
       name: 'Test User',
       street: '123 Main St',
       city: 'Berlin',
       postalCode: '10115',
-      country: 'Germany',
+      country: 'DE',
     },
   }
 
@@ -40,7 +40,7 @@ describe('checkoutInputSchema', () => {
         street: '123 Main St',
         city: 'Berlin',
         postalCode: '10115',
-        country: 'Germany',
+        country: 'DE',
       },
     })
     expect(result.success).toBe(false)
@@ -54,9 +54,54 @@ describe('checkoutInputSchema', () => {
         street: '456 Oak Ave',
         city: 'Munich',
         postalCode: '80331',
-        country: 'Germany',
+        country: 'DE',
       },
     })
     expect(result.success).toBe(true)
+  })
+
+  it('rejects invalid country code', () => {
+    const result = checkoutInputSchema.safeParse({
+      ...validInput,
+      shippingAddress: {
+        ...validInput.shippingAddress,
+        country: 'Germany',
+      },
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects invalid postal code for DE', () => {
+    const result = checkoutInputSchema.safeParse({
+      ...validInput,
+      shippingAddress: {
+        ...validInput.shippingAddress,
+        postalCode: 'ABCDE',
+      },
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects too-short postal code', () => {
+    const result = checkoutInputSchema.safeParse({
+      ...validInput,
+      shippingAddress: {
+        ...validInput.shippingAddress,
+        postalCode: '12',
+      },
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects postal code with special characters', () => {
+    const result = checkoutInputSchema.safeParse({
+      ...validInput,
+      shippingAddress: {
+        ...validInput.shippingAddress,
+        country: 'XK',
+        postalCode: '12!',
+      },
+    })
+    expect(result.success).toBe(false)
   })
 })

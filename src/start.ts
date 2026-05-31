@@ -1,5 +1,6 @@
 import { createMiddleware, createStart } from '@tanstack/react-start'
 import { buildCspHeader } from './lib/csp'
+import { getCspNonce, injectScriptNonces } from './lib/csp-nonce.server'
 
 function isDev(): boolean {
   return process.env.NODE_ENV === 'development'
@@ -10,12 +11,21 @@ export async function cspMiddlewareHandler({ next }: { next: () => Promise<unkno
   const response = result.response
 
   const newHeaders = new Headers(response.headers)
+  const nonce = getCspNonce()
 
-  if (!isDev()) {
-    newHeaders.set('content-security-policy', buildCspHeader())
+  if (!isDev() && nonce) {
+    newHeaders.set('content-security-policy', buildCspHeader({ nonce }))
   }
 
-  const newResponse = new Response(response.body, {
+  const contentType = response.headers.get('content-type') ?? ''
+  let body: BodyInit | null = response.body
+
+  if (!isDev() && nonce && contentType.includes('text/html')) {
+    const html = await response.text()
+    body = injectScriptNonces(html, nonce)
+  }
+
+  const newResponse = new Response(body, {
     status: response.status,
     statusText: response.statusText,
     headers: newHeaders,

@@ -9,6 +9,7 @@ import { Label } from '../ui/label'
 import { Textarea } from '../ui/textarea'
 import { useOnboarding } from './OnboardingProvider'
 import { useStepActions } from './useStepActions'
+import { m } from '#/paraglide/messages'
 
 interface ListingImage {
   key: string
@@ -53,14 +54,14 @@ function ImageUpload({
             />
             {i === 0 && (
               <span className='absolute left-1 top-1 rounded bg-accent-primary px-1.5 py-0.5 text-xs text-text-on-primary'>
-                Cover
+                {m.onboarding_listing_cover()}
               </span>
             )}
             <button
               type='button'
               onClick={() => onChange(images.filter((_, idx) => idx !== i))}
               className='absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-error text-text-on-primary transition hover:bg-error-hover'
-              aria-label='Remove image'
+              aria-label={m.onboarding_listing_remove_image()}
             >
               <X size={12} />
             </button>
@@ -70,7 +71,7 @@ function ImageUpload({
           <button
             type='button'
             onClick={() => inputRef.current?.click()}
-            aria-label='Upload product photo'
+            aria-label={m.onboarding_listing_upload_photo_sr()}
             className='flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border-default bg-surface-default aspect-square transition hover:border-accent-secondary'
           >
             {uploading ? (
@@ -78,14 +79,14 @@ function ImageUpload({
             ) : (
               <>
                 <ImagePlus size={20} className='text-text-muted' />
-                <span className='mt-1 text-xs text-text-muted'>Add</span>
+                <span className='mt-1 text-xs text-text-muted'>{m.onboarding_listing_add()}</span>
               </>
             )}
             <input
               ref={inputRef}
               type='file'
               accept='image/jpeg,image/png,image/webp'
-              aria-label='Upload product photo'
+              aria-label={m.onboarding_listing_upload_photo_sr()}
               className='hidden'
               onChange={(e) => {
                 if (e.target.files?.[0]) handleFile(e.target.files[0])
@@ -163,17 +164,17 @@ export function Step7Listing() {
   return (
     <div className='space-y-6'>
       <div>
-        <h2 className='display-title text-2xl text-text-primary'>Your First Listing</h2>
-        <p className='mt-1 text-text-secondary'>Every great shop starts with a great listing.</p>
+        <h2 className='display-title text-2xl text-text-primary'>{m.onboarding_listing_title()}</h2>
+        <p className='mt-1 text-text-secondary'>{m.onboarding_listing_desc()}</p>
       </div>
 
       <div className='rounded-lg border border-accent-secondary/20 bg-accent-secondary-subtle/30 p-3 text-sm text-accent-secondary'>
-        This listing will be published when your shop is approved.
+        {m.onboarding_listing_warning()}
       </div>
 
       {/* Photos */}
       <div>
-        <Label required>Photos</Label>
+        <Label required>{m.onboarding_listing_photos()}</Label>
         <div className='mt-1'>
           <ImageUpload
             images={form.images}
@@ -186,14 +187,14 @@ export function Step7Listing() {
       {/* Title */}
       <div>
         <Label htmlFor='listing-name' required>
-          Title
+          {m.onboarding_listing_label_title()}
         </Label>
         <Input
           id='listing-name'
           value={form.name}
           onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
           maxLength={140}
-          placeholder='What are you selling?'
+          placeholder={m.onboarding_listing_placeholder_title()}
           className='mt-1'
         />
         {errors.name && <p className='mt-1 text-sm text-error'>{errors.name}</p>}
@@ -202,7 +203,7 @@ export function Step7Listing() {
       {/* Description */}
       <div>
         <Label htmlFor='listing-desc' required>
-          Description
+          {m.onboarding_listing_label_desc()}
         </Label>
         <Textarea
           id='listing-desc'
@@ -210,7 +211,7 @@ export function Step7Listing() {
           onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
           rows={5}
           maxLength={2000}
-          placeholder='Describe your item...'
+          placeholder={m.onboarding_listing_placeholder_desc()}
           className='mt-1'
         />
         {errors.description && <p className='mt-1 text-sm text-error'>{errors.description}</p>}
@@ -219,7 +220,7 @@ export function Step7Listing() {
       {/* Price */}
       <div>
         <Label htmlFor='listing-price' required>
-          Price
+          {m.onboarding_listing_label_price()}
         </Label>
         <div className='mt-1 flex items-center gap-2'>
           <span className='text-text-muted'>€</span>
@@ -242,19 +243,19 @@ export function Step7Listing() {
         {priceValue > 0 && (
           <div className='mt-2 space-y-1 rounded-lg bg-surface-inset p-3 text-sm text-text-secondary'>
             <div className='flex justify-between'>
-              <span>You enter</span>
+              <span>{m.onboarding_listing_price_you_enter()}</span>
               <span>{formatPriceEUR(priceValue)}</span>
             </div>
             <div className='flex justify-between'>
-              <span>Platform fee (3%)</span>
+              <span>{m.onboarding_listing_price_platform_fee()}</span>
               <span className='text-error'>− {formatPriceEUR(platformFee)}</span>
             </div>
             <div className='flex justify-between'>
-              <span>Payment fee (3.5% + €0.30)</span>
+              <span>{m.onboarding_listing_price_payment_fee()}</span>
               <span className='text-error'>− {formatPriceEUR(paymentFee)}</span>
             </div>
             <div className='flex justify-between font-medium text-text-primary'>
-              <span>You receive</span>
+              <span>{m.onboarding_listing_price_you_receive()}</span>
               <span>≈ {formatPriceEUR(net)}</span>
             </div>
           </div>
@@ -264,7 +265,7 @@ export function Step7Listing() {
 
       {/* Quantity */}
       <div>
-        <Label htmlFor='listing-stock'>Quantity</Label>
+        <Label htmlFor='listing-stock'>{m.onboarding_listing_label_quantity()}</Label>
         <Input
           id='listing-stock'
           type='number'

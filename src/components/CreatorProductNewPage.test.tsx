@@ -410,7 +410,7 @@ describe('CreatorProductNewPage', () => {
     const stayButton = screen.getByRole('button', { name: 'Stay' })
     fireEvent.click(stayButton)
 
-    expect(screen.queryByText('Unsaved changes')).toBeNull()
+    expect(document.querySelector('dialog[open]')).toBeNull()
   })
 
   /* ---------------------------- Successful submission -------------------- */

@@ -796,6 +796,7 @@ PUBLIC_URL=http://localhost:3000
 VITE_UMAMI_SCRIPT_URL=
 VITE_UMAMI_WEBSITE_ID=
 VITE_UMAMI_HOST_URL=
+VITE_UMAMI_SCRIPT_INTEGRITY=
 
 # Database
 DATABASE_URL=postgresql://eurtisan:eurtisan@db:5432/eurtisan
@@ -1006,6 +1007,22 @@ make test-related src/lib/pricing.ts
 
 ```bash
 make check
+```
+
+## Pre-Commit Hooks
+
+A secret-scanning pre-commit hook lives in `.githooks/pre-commit`. It scans staged changes for potential secrets (API keys, passwords, tokens, AWS keys, etc.).
+
+Enable it once per clone:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+If you need to bypass the hook for a safe commit:
+
+```bash
+git commit --no-verify
 ```
 
 ## Database Workflow

@@ -475,6 +475,30 @@ describe('searchProductsMeilisearch', () => {
     expect(result?.products).toHaveLength(2)
   })
 
+  it('escapes double quotes in shopSlug and categorySlug filters', async () => {
+    await seedSearchData()
+
+    mockSearch.mockResolvedValueOnce({ hits: [], estimatedTotalHits: 0 })
+
+    await searchProductsMeilisearch(
+      undefined,
+      { shopSlug: 'evil" OR isActive = false', categorySlug: 'pot"tery' },
+      'relevance',
+      { page: 1, pageSize: 10 },
+    )
+
+    expect(mockSearch).toHaveBeenCalledWith(
+      '',
+      expect.objectContaining({
+        filter: expect.arrayContaining([
+          'isActive = true',
+          'shopSlug = "evil\\" OR isActive = false"',
+          'categorySlug = "pot\\"tery"',
+        ]),
+      }),
+    )
+  })
+
   it('filters by categorySlug', async () => {
     await seedSearchData()
 
@@ -620,8 +644,8 @@ describe('processMeilisearchSyncQueue', () => {
     const result = await processMeilisearchSyncQueue()
     expect(result.processedCount).toBe(1)
 
-    const [item] = await db.select().from(meilisearchSyncQueue)
-    expect(item.status).toBe('completed')
+    const items = await db.select().from(meilisearchSyncQueue)
+    expect(items).toHaveLength(0)
     expect(mockAddDocuments).toHaveBeenCalledTimes(1)
   })
 
@@ -635,8 +659,8 @@ describe('processMeilisearchSyncQueue', () => {
     const result = await processMeilisearchSyncQueue()
     expect(result.processedCount).toBe(1)
 
-    const [item] = await db.select().from(meilisearchSyncQueue)
-    expect(item.status).toBe('completed')
+    const items = await db.select().from(meilisearchSyncQueue)
+    expect(items).toHaveLength(0)
     expect(mockDeleteDocument).toHaveBeenCalledTimes(1)
   })
 
@@ -650,8 +674,8 @@ describe('processMeilisearchSyncQueue', () => {
     const result = await processMeilisearchSyncQueue()
     expect(result.processedCount).toBe(1)
 
-    const [item] = await db.select().from(meilisearchSyncQueue)
-    expect(item.status).toBe('completed')
+    const items = await db.select().from(meilisearchSyncQueue)
+    expect(items).toHaveLength(0)
     expect(mockDeleteDocument).toHaveBeenCalledTimes(1)
   })
 

@@ -3,7 +3,7 @@ import z from 'zod'
 import { db } from '#/db/index'
 import { product, shop, shopSocials, type shopStatusEnum, user } from '#/db/schema'
 import type { PoliciesData, ShippingOriginData, ShopDraft } from './sell-onboarding'
-import { validatePlainText } from './xss'
+import { sanitizeRichText, validatePlainText } from './xss'
 
 const PROFANITY_LIST = new Set(['shit', 'fuck', 'damn', 'bitch', 'asshole', 'cunt', 'dick', 'piss'])
 
@@ -189,7 +189,7 @@ export async function saveOnboardingStepInternal(
   if (d.slug !== undefined) updateData.slug = String(d.slug).trim()
   if (d.tagline !== undefined) updateData.tagline = d.tagline ? String(d.tagline) : null
   if (d.description !== undefined)
-    updateData.description = d.description ? String(d.description) : null
+    updateData.description = d.description ? sanitizeRichText(String(d.description)) : null
   if (d.category !== undefined) updateData.category = d.category ? String(d.category) : null
   if (d.productionType !== undefined)
     updateData.productionType = d.productionType ? String(d.productionType) : null

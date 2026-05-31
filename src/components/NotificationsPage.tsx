@@ -4,6 +4,7 @@ import type { NotificationItem, NotificationType } from '#/lib/notifications.ser
 import { useMarkAllNotificationsRead, useMarkNotificationRead } from '#/lib/notifications-hooks'
 import { m } from '#/paraglide/messages'
 import { Button } from './ui/button'
+import { formatDateShort } from '#/lib/format-date'
 
 const TYPE_ICONS: Record<NotificationType, React.ReactNode> = {
   order_placed: <Package size={18} aria-hidden='true' />,
@@ -13,12 +14,6 @@ const TYPE_ICONS: Record<NotificationType, React.ReactNode> = {
   dispute_resolved: <Bell size={18} aria-hidden='true' />,
   payout_sent: <Banknote size={18} aria-hidden='true' />,
 }
-
-const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  year: 'numeric',
-  month: 'short',
-  day: 'numeric',
-})
 
 function formatRelativeTime(date: Date): string {
   const now = new Date()
@@ -32,7 +27,7 @@ function formatRelativeTime(date: Date): string {
   if (diffMin < 60) return m.time_minutes_ago({ count: String(diffMin) })
   if (diffHour < 24) return m.time_hours_ago({ count: String(diffHour) })
   if (diffDay < 30) return m.time_days_ago({ count: String(diffDay) })
-  return DATE_FORMATTER.format(new Date(date))
+  return formatDateShort(new Date(date))
 }
 
 function resolveDeepLink(item: NotificationItem): string | null {

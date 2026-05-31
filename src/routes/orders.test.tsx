@@ -78,6 +78,14 @@ vi.mock('#/paraglide/messages', () => ({
     dispute_submit: () => 'Submit dispute',
     dispute_cancel: () => 'Cancel',
     dispute_modal_close: () => 'Close dispute form',
+    error_cart_empty: () => 'Cart is empty',
+    error_out_of_stock: () => 'Some items are out of stock',
+    error_dispute_window_expired: () => 'Dispute window has expired (30 days)',
+    error_unexpected: () => 'An unexpected error occurred',
+    error_access_denied: () => 'Access denied',
+    error_dispute_exists: () => 'A dispute already exists for this order',
+    error_order_not_delivered: () => 'Order must be delivered before opening a dispute',
+    error_order_delivery_date_missing: () => 'Order delivery date is missing',
   },
 }))
 
@@ -135,7 +143,7 @@ function makeOrderDetail(overrides?: Partial<OrderDetail>): OrderDetail {
         trackingNumber: null,
         trackingUrl: null,
         deliveredAt: null,
-        shippingLabel: null,
+        shippingLabels: [],
         trackingStatus: null,
         items: [
           {
@@ -170,7 +178,7 @@ describe('Orders list page', () => {
     )
     expect(screen.getByRole('heading', { name: 'My orders' })).toBeDefined()
     expect(screen.getByText(/order-123/)).toBeDefined()
-    expect(screen.getByText('€25,00')).toBeDefined()
+    expect(screen.getByText('€25.00')).toBeDefined()
   })
 
   it('renders empty state', () => {
@@ -218,7 +226,7 @@ describe('Order detail page', () => {
     render(<BuyerOrderDetailPage order={makeOrderDetail()} />)
     expect(screen.getByRole('heading', { name: 'Order details' })).toBeDefined()
     expect(screen.getByText('order-123')).toBeDefined()
-    expect(screen.getByText('€25,00')).toBeDefined()
+    expect(screen.getByText('€25.00')).toBeDefined()
     expect(screen.getByText('Test Shop')).toBeDefined()
     expect(screen.getAllByText('Vase').length).toBeGreaterThanOrEqual(1)
   })
@@ -246,12 +254,14 @@ describe('Order detail page', () => {
           trackingNumber: 'TRACK123',
           trackingUrl: 'https://track.example.com/123',
           deliveredAt: null,
-          shippingLabel: {
-            carrier: 'mondial_relay',
-            trackingNumber: 'TRACK123',
-            labelUrl: 'https://label.example.com/123',
-            createdAt: new Date('2026-05-10T12:00:00Z'),
-          },
+          shippingLabels: [
+            {
+              carrier: 'mondial_relay',
+              trackingNumber: 'TRACK123',
+              labelUrl: 'https://label.example.com/123',
+              createdAt: new Date('2026-05-10T12:00:00Z'),
+            },
+          ],
           trackingStatus: 'in_transit',
           items: [
             {
@@ -292,12 +302,14 @@ describe('Order detail page', () => {
           trackingNumber: 'TRACK123',
           trackingUrl: 'not-a-url',
           deliveredAt: null,
-          shippingLabel: {
-            carrier: 'mondial_relay',
-            trackingNumber: 'TRACK123',
-            labelUrl: 'https://label.example.com/123',
-            createdAt: new Date('2026-05-10T12:00:00Z'),
-          },
+          shippingLabels: [
+            {
+              carrier: 'mondial_relay',
+              trackingNumber: 'TRACK123',
+              labelUrl: 'https://label.example.com/123',
+              createdAt: new Date('2026-05-10T12:00:00Z'),
+            },
+          ],
           trackingStatus: 'in_transit',
           items: [
             {
@@ -337,12 +349,14 @@ describe('Order detail page', () => {
           trackingNumber: null,
           trackingUrl: null,
           deliveredAt: new Date('2026-05-10T12:00:00Z'),
-          shippingLabel: {
-            carrier: 'mondial_relay',
-            trackingNumber: 'TRACK123',
-            labelUrl: 'https://label.example.com/123',
-            createdAt: new Date('2026-05-10T12:00:00Z'),
-          },
+          shippingLabels: [
+            {
+              carrier: 'mondial_relay',
+              trackingNumber: 'TRACK123',
+              labelUrl: 'https://label.example.com/123',
+              createdAt: new Date('2026-05-10T12:00:00Z'),
+            },
+          ],
           trackingStatus: 'delivered',
           items: [
             {
@@ -380,7 +394,7 @@ describe('Order detail page', () => {
           trackingNumber: null,
           trackingUrl: null,
           deliveredAt: null,
-          shippingLabel: null,
+          shippingLabels: [],
           trackingStatus: null,
           items: [
             {
@@ -418,7 +432,7 @@ describe('Order detail page', () => {
           trackingNumber: null,
           trackingUrl: null,
           deliveredAt: null,
-          shippingLabel: null,
+          shippingLabels: [],
           trackingStatus: null,
           items: [
             {
@@ -456,12 +470,14 @@ describe('Order detail page', () => {
           trackingNumber: 'TRACK001',
           trackingUrl: 'https://track.example.com/001',
           deliveredAt: null,
-          shippingLabel: {
-            carrier: 'mondial_relay',
-            trackingNumber: 'TRACK001',
-            labelUrl: 'https://label.example.com/001',
-            createdAt: new Date('2026-05-10T12:00:00Z'),
-          },
+          shippingLabels: [
+            {
+              carrier: 'mondial_relay',
+              trackingNumber: 'TRACK001',
+              labelUrl: 'https://label.example.com/001',
+              createdAt: new Date('2026-05-10T12:00:00Z'),
+            },
+          ],
           trackingStatus: 'in_transit',
           items: [
             {
@@ -490,7 +506,7 @@ describe('Order detail page', () => {
           trackingNumber: null,
           trackingUrl: null,
           deliveredAt: null,
-          shippingLabel: null,
+          shippingLabels: [],
           trackingStatus: null,
           items: [
             {
@@ -546,7 +562,7 @@ describe('Order detail page', () => {
           trackingNumber: null,
           trackingUrl: null,
           deliveredAt: fifteenDaysAgo,
-          shippingLabel: null,
+          shippingLabels: [],
           trackingStatus: null,
           items: [
             {
@@ -599,7 +615,7 @@ describe('Order detail page', () => {
           trackingNumber: null,
           trackingUrl: null,
           deliveredAt: fiveDaysAgo,
-          shippingLabel: null,
+          shippingLabels: [],
           trackingStatus: null,
           items: [
             {
@@ -648,7 +664,7 @@ describe('Order detail page', () => {
           trackingNumber: null,
           trackingUrl: null,
           deliveredAt: null,
-          shippingLabel: null,
+          shippingLabels: [],
           trackingStatus: null,
           items: [
             {
@@ -688,7 +704,7 @@ describe('Order detail page', () => {
           trackingNumber: null,
           trackingUrl: null,
           deliveredAt: fiveDaysAgo,
-          shippingLabel: null,
+          shippingLabels: [],
           trackingStatus: null,
           items: [
             {
@@ -729,7 +745,7 @@ describe('Order detail page', () => {
           trackingNumber: null,
           trackingUrl: null,
           deliveredAt: null,
-          shippingLabel: null,
+          shippingLabels: [],
           trackingStatus: null,
           items: [
             {
@@ -769,7 +785,7 @@ describe('Order detail page', () => {
           trackingNumber: null,
           trackingUrl: null,
           deliveredAt: fortyDaysAgo,
-          shippingLabel: null,
+          shippingLabels: [],
           trackingStatus: null,
           items: [
             {

@@ -36,11 +36,17 @@ export const authMiddleware = createMiddleware({ type: 'request' }).server(
           bannedAt: (result.user as unknown as { bannedAt: string | null }).bannedAt
             ? new Date((result.user as unknown as { bannedAt: string | null }).bannedAt as string)
             : null,
+          twoFactorEnabled: Boolean(
+            (result.user as unknown as { twoFactorEnabled?: boolean }).twoFactorEnabled,
+          ),
         }
       : null
 
     if (user?.bannedAt) {
-      throw new Error('Account suspended')
+      throw new Response(JSON.stringify({ error: 'Forbidden', message: 'Account suspended.' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      })
     }
 
     return next({ context: { user } satisfies AuthMiddlewareContext })

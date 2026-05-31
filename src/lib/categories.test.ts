@@ -34,6 +34,7 @@ import {
   listCategoryTreeQuery,
   updateCategoryInternal,
 } from './categories.server'
+import { clearServerCacheForTests } from './server-cache.server'
 import type { SafeUser } from './server-auth'
 
 vi.mock('./auth', () => ({
@@ -45,6 +46,7 @@ vi.mock('./auth', () => ({
 }))
 
 beforeEach(async () => {
+  clearServerCacheForTests()
   await db.delete(dispute)
   await db.delete(payout)
   await db.delete(review)
@@ -909,6 +911,7 @@ function makeAdminUser(id = 'admin-1'): SafeUser {
     image: null,
     role: 'admin',
     bannedAt: null,
+    twoFactorEnabled: true,
   }
 }
 
@@ -921,6 +924,7 @@ function makeCustomerUser(id = 'customer-1'): SafeUser {
     image: null,
     role: 'customer',
     bannedAt: null,
+    twoFactorEnabled: false,
   }
 }
 

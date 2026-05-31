@@ -1,0 +1,8 @@
+# Overlay for `make e2e` — point the app at the isolated test database.
+services:
+  app:
+    environment:
+      DATABASE_URL: postgresql://eurtisan:eurtisan@db-test:5432/eurtisan_test
+    depends_on:
+      db-test:
+        condition: service_healthy

@@ -30,6 +30,7 @@ export interface PaymentProvider {
     description: string,
     redirectUrl: string,
     webhookUrl: string,
+    billingCountry?: string,
   ): Promise<CreatePaymentResult>
 
   /**
@@ -52,7 +53,7 @@ export interface PaymentProvider {
    */
   getPaymentStatus(
     paymentId: string,
-  ): Promise<'pending' | 'paid' | 'expired' | 'failed' | 'cancelled'>
+  ): Promise<'pending' | 'paid' | 'expired' | 'failed' | 'cancelled' | 'chargeback'>
 
   /**
    * Query the amount of an existing payment.

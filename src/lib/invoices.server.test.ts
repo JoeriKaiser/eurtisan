@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { invoices, orderItem, shopOrder, platformOrder, shop, user, product } from '#/db/schema'
+import { PLATFORM_FEE_PERCENT } from './platform-constants'
 import {
   calculatePlatformFeeVat,
   createInvoicesForPlatformOrder,
@@ -208,10 +209,11 @@ describe('Platform Order Invoices Lifecycle', () => {
 
     expect(feeInvoice).toBeDefined()
     expect(feeInvoice.type).toBe('platform_fee')
-    expect(feeInvoice.totalCents).toBe(500) // 10% of 5000 subtotal is 500 cents
+    const expectedFee = Math.round(5000 * (PLATFORM_FEE_PERCENT / 100))
+    expect(feeInvoice.totalCents).toBe(expectedFee)
     // Business address is FR (domestic B2B) so no reverse charge under franchise en base
     expect(feeInvoice.vatAmountCents).toBe(0)
-    expect(feeInvoice.subtotalCents).toBe(500)
+    expect(feeInvoice.subtotalCents).toBe(expectedFee)
 
     const feeDetails = feeInvoice.billingDetails as any
     expect(feeDetails.from.name).toBe('Joeri Kaiser (Eurtisan)')

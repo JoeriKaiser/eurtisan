@@ -3,6 +3,7 @@ import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
 import { m } from '#/paraglide/messages'
+import { formatDateMediumTime } from '#/lib/format-date'
 
 const STATUS_LABELS: Record<string, string> = {
   all: m.admin_shops_filter_all(),
@@ -12,13 +13,8 @@ const STATUS_LABELS: Record<string, string> = {
   rejected: m.admin_shops_filter_rejected(),
 }
 
-const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
-
 function formatDate(date: Date | string): string {
-  return DATE_FORMATTER.format(new Date(date))
+  return formatDateMediumTime(new Date(date))
 }
 
 function isSafeImageUrl(url: string | null): url is string {

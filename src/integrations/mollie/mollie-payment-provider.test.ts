@@ -116,6 +116,28 @@ describe('MolliePaymentProvider production safety', () => {
       }),
     )
   })
+
+  it('accepts billingCountry parameter in mock mode', () => {
+    setEnv('NODE_ENV', 'development')
+    setEnv('MOLLIE_API_KEY', '')
+    setEnv('MOCK_PAYMENTS_ENABLED', 'false')
+
+    const provider = new MolliePaymentProvider()
+    return expect(
+      provider.createPayment(
+        1000,
+        'EUR',
+        'Test',
+        'https://example.com/orders/123/success',
+        'https://example.com/webhook',
+        'FR',
+      ),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        paymentId: expect.stringMatching(/^tr_mock_/),
+      }),
+    )
+  })
 })
 
 describe('verifyWebhookReal malformed signatures', () => {

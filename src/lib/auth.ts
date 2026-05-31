@@ -1,7 +1,10 @@
+import { createHash } from 'node:crypto'
+
 import { drizzleAdapter } from '@better-auth/drizzle-adapter'
 import { getRequestProtocol } from '@tanstack/react-start/server'
-import type { BetterAuthOptions } from 'better-auth'
+import type { BetterAuthOptions, DBAdapter, Where } from 'better-auth'
 import { betterAuth } from 'better-auth'
+import { twoFactor } from 'better-auth/plugins'
 import { tanstackStartCookies } from 'better-auth/tanstack-start'
 
 import { db } from '#/db/index'
@@ -9,10 +12,131 @@ import { createEmailProvider } from '#/integrations/email'
 import { ANONYMOUS_SESSION_COOKIE } from './cart-constants'
 import { getBaseUrl } from './env.server'
 
+export function hashSessionToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex')
+}
+
+function transformSessionWhere(where: Where[]) {
+  const tokenMap = new Map<string, string>()
+  const newWhere = where.map((clause) => {
+    if (clause.field === 'token') {
+      const originalValue = clause.value
+      if (clause.operator === 'in' && Array.isArray(originalValue)) {
+        const hashedValues = originalValue.map((t) => {
+          const hash = hashSessionToken(String(t))
+          tokenMap.set(hash, String(t))
+          return hash
+        })
+        return { ...clause, field: 'tokenHash', value: hashedValues }
+      }
+      const hash = hashSessionToken(String(originalValue))
+      tokenMap.set(hash, String(originalValue))
+      return { ...clause, field: 'tokenHash', value: hash }
+    }
+    return clause
+  })
+  return { newWhere, tokenMap }
+}
+
+function injectToken(result: Record<string, unknown> | null, tokenMap: Map<string, string>) {
+  if (!result) return null
+  const tokenHash = result.tokenHash
+  if (tokenHash && typeof tokenHash === 'string' && tokenMap.has(tokenHash)) {
+    return { ...result, token: tokenMap.get(tokenHash) }
+  }
+  return result
+}
+
+export function wrapAdapter(adapter: DBAdapter<BetterAuthOptions>): DBAdapter<BetterAuthOptions> {
+  return {
+    ...adapter,
+    create: (async ({ model, data, select, forceAllowId }) => {
+      if (
+        model === 'session' &&
+        data &&
+        typeof data === 'object' &&
+        'token' in data &&
+        data.token
+      ) {
+        const originalToken = String(data.token)
+        const newData = { ...data, token: null, tokenHash: hashSessionToken(originalToken) }
+        const result = (await adapter.create({
+          model,
+          data: newData,
+          select,
+          forceAllowId,
+        })) as Record<string, unknown>
+        return { ...result, token: originalToken } as unknown as typeof result
+      }
+      return adapter.create({ model, data, select, forceAllowId })
+    }) as DBAdapter['create'],
+    findOne: (async ({ model, where, select, join }) => {
+      if (model === 'session' && where) {
+        const { newWhere, tokenMap } = transformSessionWhere(where)
+        const result = await adapter.findOne({ model, where: newWhere, select, join })
+        return injectToken(
+          result as Record<string, unknown> | null,
+          tokenMap,
+        ) as unknown as typeof result
+      }
+      return adapter.findOne({ model, where, select, join })
+    }) as DBAdapter['findOne'],
+    findMany: (async ({ model, where, ...rest }) => {
+      if (model === 'session' && where) {
+        const { newWhere, tokenMap } = transformSessionWhere(where)
+        const results = await adapter.findMany({ model, where: newWhere, ...rest })
+        return results
+          .map((r) => injectToken(r as Record<string, unknown>, tokenMap))
+          .filter((r): r is NonNullable<typeof r> => r !== null) as unknown as typeof results
+      }
+      return adapter.findMany({ model, where, ...rest })
+    }) as DBAdapter['findMany'],
+    update: (async ({ model, where, update, ...rest }) => {
+      if (model === 'session' && where) {
+        const { newWhere, tokenMap } = transformSessionWhere(where)
+        const result = await adapter.update({ model, where: newWhere, update, ...rest })
+        return injectToken(
+          result as Record<string, unknown> | null,
+          tokenMap,
+        ) as unknown as typeof result
+      }
+      return adapter.update({ model, where, update, ...rest })
+    }) as DBAdapter['update'],
+    updateMany: (async ({ model, where, update, ...rest }) => {
+      if (model === 'session' && where) {
+        const { newWhere } = transformSessionWhere(where)
+        return adapter.updateMany({ model, where: newWhere, update, ...rest })
+      }
+      return adapter.updateMany({ model, where, update, ...rest })
+    }) as DBAdapter['updateMany'],
+    delete: (async ({ model, where, ...rest }) => {
+      if (model === 'session' && where) {
+        const { newWhere } = transformSessionWhere(where)
+        return adapter.delete({ model, where: newWhere, ...rest })
+      }
+      return adapter.delete({ model, where, ...rest })
+    }) as DBAdapter['delete'],
+    deleteMany: (async ({ model, where, ...rest }) => {
+      if (model === 'session' && where) {
+        const { newWhere } = transformSessionWhere(where)
+        return adapter.deleteMany({ model, where: newWhere, ...rest })
+      }
+      return adapter.deleteMany({ model, where, ...rest })
+    }) as DBAdapter['deleteMany'],
+    consumeOne: adapter.consumeOne,
+    count: adapter.count,
+  } as DBAdapter<BetterAuthOptions>
+}
+
+const baseDrizzleAdapter = drizzleAdapter(db, {
+  provider: 'pg',
+})
+
 export const betterAuthOptions = {
-  database: drizzleAdapter(db, {
-    provider: 'pg',
-  }),
+  database: (options: Parameters<typeof baseDrizzleAdapter>[0]) => {
+    const adapter = baseDrizzleAdapter(options)
+    return wrapAdapter(adapter as DBAdapter<BetterAuthOptions>)
+  },
   trustedOrigins: [getBaseUrl()],
   emailAndPassword: {
     enabled: true,
@@ -53,8 +177,19 @@ export const betterAuthOptions = {
   session: {
     expiresIn: 60 * 60 * 24 * 7, // 7 days
     updateAge: 60 * 60 * 24, // 1 day
+    additionalFields: {
+      tokenHash: {
+        type: 'string',
+        required: false,
+      },
+    },
   },
-  plugins: [tanstackStartCookies()],
+  plugins: [
+    tanstackStartCookies(),
+    twoFactor({
+      issuer: 'Eurtisan',
+    }),
+  ],
   databaseHooks: {
     session: {
       create: {

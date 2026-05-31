@@ -3,6 +3,8 @@ set -euo pipefail
 
 COMPOSE_FILE="{{ compose_file }}"
 BACKUP_DIR="/opt/eurtisan/backups"
+BACKUP_RETENTION_DAYS="{{ backup_retention_days | default(30) }}"
+OFFSITE_REMOTE="{{ backup_offsite_rclone_remote | default('') }}"
 POSTGRES_USER="{{ postgres_user }}"
 POSTGRES_DB="{{ postgres_db }}"
 WEBHOOK_URL="{{ backup_alert_webhook | default('') }}"

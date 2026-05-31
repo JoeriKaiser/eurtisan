@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
 import { createUserRateLimitMiddleware } from './rate-limit'
+import { isoCountryCodeSchema, isPostalCodeValid } from './address-validation'
 
 export type {
   CheckoutInput,
@@ -9,28 +10,49 @@ export type {
   CheckoutShopGroup,
   CheckoutSummary,
   CreateCheckoutResult,
+  RetryPaymentResult,
   ShippingAddress,
   ShippingOption,
   ShippingSelection,
 } from './checkout.server'
 
-const pickupPointSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  street: z.string().min(1),
-  postalCode: z.string().min(1),
-  city: z.string().min(1),
-  country: z.string().min(1),
-})
+const pickupPointSchema = z
+  .object({
+    id: z.string().min(1),
+    name: z.string().min(1),
+    street: z.string().min(1),
+    postalCode: z.string().min(3).max(20),
+    city: z.string().min(1),
+    country: isoCountryCodeSchema,
+  })
+  .superRefine((data, ctx) => {
+    if (!isPostalCodeValid(data.postalCode, data.country)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Invalid postal code format for ${data.country}`,
+        path: ['postalCode'],
+      })
+    }
+  })
 
-const shippingAddressSchema = z.object({
-  name: z.string().min(1).max(255),
-  street: z.string().min(1).max(255),
-  city: z.string().min(1).max(255),
-  postalCode: z.string().min(1).max(50),
-  country: z.string().min(1).max(100),
-  pickupPoint: pickupPointSchema.optional(),
-})
+const shippingAddressSchema = z
+  .object({
+    name: z.string().min(1).max(255),
+    street: z.string().min(1).max(255),
+    city: z.string().min(1).max(255),
+    postalCode: z.string().min(3).max(20),
+    country: isoCountryCodeSchema,
+    pickupPoint: pickupPointSchema.optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (!isPostalCodeValid(data.postalCode, data.country)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Invalid postal code format for ${data.country}`,
+        path: ['postalCode'],
+      })
+    }
+  })
 
 export const checkoutInputSchema = z.object({
   cartId: z.string().uuid(),
@@ -105,4 +127,26 @@ export const createCheckout = createServerFn({ method: 'POST' })
 
     const { createCheckoutQuery } = await import('./checkout.server')
     return createCheckoutQuery(data, context.user.id)
+  })
+
+const retryPaymentRateLimitMiddleware = createUserRateLimitMiddleware(3, 60_000, 'retry_payment')
+
+export const retryPayment = createServerFn({ method: 'POST' })
+  .middleware([authMiddleware, retryPaymentRateLimitMiddleware])
+  .inputValidator(
+    z.object({
+      platformOrderId: z.string().uuid(),
+    }),
+  )
+  .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Response(
+        JSON.stringify({ error: 'Unauthorized', message: 'Authentication required' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const { retryPayment: retryPaymentQuery } = await import('./checkout.server')
+    const { molliePaymentProvider } = await import('#/integrations/mollie')
+    return retryPaymentQuery(data.platformOrderId, context.user.id, molliePaymentProvider)
   })

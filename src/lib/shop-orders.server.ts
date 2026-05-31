@@ -12,9 +12,11 @@ import {
 import { mondialRelayProvider } from '#/integrations/shipping'
 import type { ShippingAddress } from './checkout.server'
 import { getBaseUrl } from './env.server'
+import { scheduleBackgroundWork } from './background-work.server'
 import { logOrderDelivered, logOrderShipped } from './order-logger'
 import type { OrderStatus } from './orders.server'
 import { createPayoutForShopOrder } from './payouts.server'
+import { calculatePackageDimensions, calculatePackageWeight } from './shipping-estimate'
 import { validatePlainText, validateTrackingUrl } from './xss'
 
 function maskEmail(email: string): string {
@@ -67,7 +69,7 @@ export interface ShopOrderDetail {
   buyer: ShopOrderBuyer
   shippingAddress: ShippingAddress
   items: ShopOrderItemDetail[]
-  label: ShippingLabelDetail | null
+  labels: ShippingLabelDetail[]
 }
 
 export interface ShopOrderListItem {
@@ -91,8 +93,8 @@ export interface ShopOrderListItem {
 
 const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   pending_payment: ['paid', 'cancelled'],
-  paid: ['processing', 'shipped', 'cancelled', 'refunded'],
-  processing: ['shipped', 'cancelled', 'refunded'],
+  paid: ['processing', 'shipped', 'refunded'],
+  processing: ['shipped', 'refunded'],
   shipped: ['delivered', 'disputed', 'refunded'],
   delivered: ['completed', 'disputed', 'refunded'],
   completed: ['refunded'],
@@ -100,6 +102,7 @@ const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   refunded: [],
   disputed: ['refunded', 'completed'],
   manual_review: [],
+  chargeback: [],
 }
 
 export function isValidStatusTransition(from: OrderStatus, to: OrderStatus): boolean {
@@ -118,6 +121,10 @@ export function derivePlatformStatus(shopOrderStatuses: OrderStatus[]): OrderSta
   // 1. If ANY shop order is disputed, the overall status is disputed.
   if (shopOrderStatuses.some((s) => s === 'disputed')) {
     return 'disputed'
+  }
+
+  if (shopOrderStatuses.some((s) => s === 'chargeback')) {
+    return 'chargeback'
   }
 
   // 2. Filter out cancelled and refunded statuses for active resolution derivation.
@@ -180,36 +187,25 @@ export async function getShopOrderQuery(
   shopOrderId: string,
   tx: Omit<typeof db, '$client'> = db,
 ): Promise<ShopOrderDetail | null> {
-  const [shopOrderRecord] = await tx
-    .select()
+  const [header] = await tx
+    .select({
+      shopOrder,
+      shippingAddress: platformOrder.shippingAddress,
+      buyerId: user.id,
+      buyerName: user.name,
+      buyerEmail: user.email,
+    })
     .from(shopOrder)
+    .innerJoin(platformOrder, eq(shopOrder.platformOrderId, platformOrder.id))
+    .innerJoin(user, eq(platformOrder.userId, user.id))
     .where(eq(shopOrder.id, shopOrderId))
     .limit(1)
 
-  if (!shopOrderRecord) {
+  if (!header) {
     return null
   }
 
-  const [platformOrderRecord] = await tx
-    .select()
-    .from(platformOrder)
-    .where(eq(platformOrder.id, shopOrderRecord.platformOrderId))
-    .limit(1)
-
-  if (!platformOrderRecord) {
-    return null
-  }
-
-  const [[buyerRecord], items, [labelRecord]] = await Promise.all([
-    tx
-      .select({
-        id: user.id,
-        name: user.name,
-        email: user.email,
-      })
-      .from(user)
-      .where(eq(user.id, platformOrderRecord.userId))
-      .limit(1),
+  const [items, labelRecords] = await Promise.all([
     tx
       .select({
         id: orderItem.id,
@@ -232,9 +228,10 @@ export async function getShopOrderQuery(
         createdAt: shippingLabel.createdAt,
       })
       .from(shippingLabel)
-      .where(eq(shippingLabel.shopOrderId, shopOrderId))
-      .limit(1),
+      .where(eq(shippingLabel.shopOrderId, shopOrderId)),
   ])
+
+  const shopOrderRecord = header.shopOrder
 
   return {
     id: shopOrderRecord.id,
@@ -251,10 +248,14 @@ export async function getShopOrderQuery(
     trackingUrl: shopOrderRecord.trackingUrl,
     createdAt: shopOrderRecord.createdAt,
     updatedAt: shopOrderRecord.updatedAt,
-    buyer: buyerRecord ?? { id: platformOrderRecord.userId, name: 'Unknown', email: '' },
-    shippingAddress: platformOrderRecord.shippingAddress as ShippingAddress,
+    buyer: {
+      id: header.buyerId,
+      name: header.buyerName ?? 'Unknown',
+      email: header.buyerEmail ?? '',
+    },
+    shippingAddress: header.shippingAddress as ShippingAddress,
     items,
-    label: labelRecord ?? null,
+    labels: labelRecords,
   }
 }
 
@@ -463,31 +464,33 @@ export async function markShopOrderShippedQuery(
   // Notify buyer after the transaction so errors don't break the shipment update
   // Only notify on actual status transition, not idempotent tracking updates
   if (didTransition) {
-    try {
-      const [{ createNotification, sendNotificationEmail }, order] = await Promise.all([
-        import('./notifications.server'),
-        getShopOrderQuery(shopOrderId),
-      ])
-      if (order) {
-        const [, [shopRecord]] = await Promise.all([
-          createNotification(order.buyer.id, 'order_shipped', {
-            platformOrderId: order.platformOrderId,
-            shopOrderId,
-          }),
-          db.select().from(shop).where(eq(shop.id, order.shopId)).limit(1),
+    scheduleBackgroundWork(
+      'shop_order_shipped_notifications',
+      async () => {
+        const [{ createNotification, sendNotificationEmail }, order] = await Promise.all([
+          import('./notifications.server'),
+          getShopOrderQuery(shopOrderId),
         ])
-        await sendNotificationEmail(order.buyer.id, 'shipping_notification', {
-          orderNumber: shopOrderId.slice(0, 8),
-          buyerName: order.buyer.name,
-          shopName: shopRecord?.name ?? 'Eurtisan',
-          trackingNumber: order.trackingNumber ?? null,
-          carrier: 'Mondial Relay',
-          trackingUrl: order.trackingUrl ?? null,
-        })
-      }
-    } catch {
-      // Notification/email errors must not break the primary business transaction
-    }
+        if (order) {
+          const [, [shopRecord]] = await Promise.all([
+            createNotification(order.buyer.id, 'order_shipped', {
+              platformOrderId: order.platformOrderId,
+              shopOrderId,
+            }),
+            db.select().from(shop).where(eq(shop.id, order.shopId)).limit(1),
+          ])
+          await sendNotificationEmail(order.buyer.id, 'shipping_notification', {
+            orderNumber: shopOrderId.slice(0, 8),
+            buyerName: order.buyer.name,
+            shopName: shopRecord?.name ?? 'Eurtisan',
+            trackingNumber: order.trackingNumber ?? null,
+            carrier: 'Mondial Relay',
+            trackingUrl: order.trackingUrl ?? null,
+          })
+        }
+      },
+      { shopOrderId },
+    )
 
     logOrderShipped({
       shopOrderId,
@@ -549,10 +552,8 @@ export async function createShippingLabelForOrderQuery(
 
   // Build a sensible package estimate from order item count
   const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0)
-  const weightGrams = Math.max(100, itemCount * 250)
-  const lengthCm = Math.max(10, itemCount * 5)
-  const widthCm = Math.max(10, itemCount * 4)
-  const heightCm = Math.max(5, itemCount * 3)
+  const weightGrams = calculatePackageWeight(itemCount)
+  const { lengthCm, widthCm, heightCm } = calculatePackageDimensions(itemCount)
 
   try {
     const label = await mondialRelayProvider.createLabel({
@@ -765,35 +766,37 @@ export async function updateShopOrderStatusQuery(
 
   // Notify buyer when a dispute is opened
   if (input.status === 'disputed') {
-    try {
-      const [{ createNotification, sendNotificationEmail }, order] = await Promise.all([
-        import('./notifications.server'),
-        getShopOrderQuery(shopOrderId),
-      ])
-      if (order) {
-        const [, [disputeRecord], [shopRecord]] = await Promise.all([
-          createNotification(order.buyer.id, 'dispute_opened', {
-            platformOrderId: order.platformOrderId,
-            shopOrderId,
-          }),
-          db.select().from(dispute).where(eq(dispute.shopOrderId, shopOrderId)).limit(1),
-          db.select().from(shop).where(eq(shop.id, order.shopId)).limit(1),
+    scheduleBackgroundWork(
+      'shop_order_dispute_notifications',
+      async () => {
+        const [{ createNotification, sendNotificationEmail }, order] = await Promise.all([
+          import('./notifications.server'),
+          getShopOrderQuery(shopOrderId),
         ])
+        if (order) {
+          const [, [disputeRecord], [shopRecord]] = await Promise.all([
+            createNotification(order.buyer.id, 'dispute_opened', {
+              platformOrderId: order.platformOrderId,
+              shopOrderId,
+            }),
+            db.select().from(dispute).where(eq(dispute.shopOrderId, shopOrderId)).limit(1),
+            db.select().from(shop).where(eq(shop.id, order.shopId)).limit(1),
+          ])
 
-        const baseUrl = getBaseUrl()
-        await sendNotificationEmail(order.buyer.id, 'dispute_update', {
-          orderNumber: shopOrderId.slice(0, 8),
-          buyerName: order.buyer.name,
-          shopName: shopRecord?.name ?? 'Eurtisan',
-          status: 'opened',
-          disputeUrl: disputeRecord
-            ? `${baseUrl}/disputes/${disputeRecord.id}`
-            : `${baseUrl}/orders/${order.platformOrderId}`,
-        })
-      }
-    } catch {
-      // Notification/email errors must not break the primary business transaction
-    }
+          const baseUrl = getBaseUrl()
+          await sendNotificationEmail(order.buyer.id, 'dispute_update', {
+            orderNumber: shopOrderId.slice(0, 8),
+            buyerName: order.buyer.name,
+            shopName: shopRecord?.name ?? 'Eurtisan',
+            status: 'opened',
+            disputeUrl: disputeRecord
+              ? `${baseUrl}/disputes/${disputeRecord.id}`
+              : `${baseUrl}/orders/${order.platformOrderId}`,
+          })
+        }
+      },
+      { shopOrderId },
+    )
   }
 
   return result

@@ -211,18 +211,17 @@ describe('addItemToCart', () => {
     expect(item?.quantity).toBe(5)
   })
 
-  it('caps quantity at product stock', async () => {
+  it('throws when requested quantity exceeds available stock', async () => {
     await seedUser()
     await seedShop()
     const sessionId = generateSessionId()
     const c = await createAnonymousCart(sessionId)
     const p = await seedProduct({ stockCount: 5 })
 
-    const item = await addItemToCart(c.id, p.id, 10)
-    expect(item?.quantity).toBe(5)
+    await expect(addItemToCart(c.id, p.id, 10)).rejects.toThrow('Only 5 units available')
   })
 
-  it('caps existing + new quantity at stock', async () => {
+  it('throws when existing + new quantity exceeds available stock', async () => {
     await seedUser()
     await seedShop()
     const sessionId = generateSessionId()
@@ -230,22 +229,20 @@ describe('addItemToCart', () => {
     const p = await seedProduct({ stockCount: 5 })
 
     await addItemToCart(c.id, p.id, 3)
-    const item = await addItemToCart(c.id, p.id, 5)
-    expect(item?.quantity).toBe(5)
+    await expect(addItemToCart(c.id, p.id, 5)).rejects.toThrow('Only 5 units available')
   })
 
-  it('returns null when stock is zero', async () => {
+  it('throws when stock is zero', async () => {
     await seedUser()
     await seedShop()
     const sessionId = generateSessionId()
     const c = await createAnonymousCart(sessionId)
     const p = await seedProduct({ stockCount: 0 })
 
-    const item = await addItemToCart(c.id, p.id, 3)
-    expect(item).toBeNull()
+    await expect(addItemToCart(c.id, p.id, 3)).rejects.toThrow('Only 0 units available')
   })
 
-  it('deletes existing item when capped to zero stock', async () => {
+  it('throws when adding to depleted stock with existing item', async () => {
     await seedUser()
     await seedShop()
     const sessionId = generateSessionId()
@@ -253,14 +250,14 @@ describe('addItemToCart', () => {
     const p = await seedProduct({ stockCount: 0 })
 
     await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
-    const item = await addItemToCart(c.id, p.id, 1)
-    expect(item).toBeNull()
+    await expect(addItemToCart(c.id, p.id, 1)).rejects.toThrow('Only 0 units available')
 
     const remaining = await db.select().from(cartItem).where(eq(cartItem.cartId, c.id))
-    expect(remaining).toHaveLength(0)
+    expect(remaining).toHaveLength(1)
+    expect(remaining[0].quantity).toBe(2)
   })
 
-  it('caps quantity at available stock accounting for reservations', async () => {
+  it('throws when available stock accounting for reservations is insufficient', async () => {
     await seedUser()
     await seedShop()
     const sessionId = generateSessionId()
@@ -286,8 +283,7 @@ describe('addItemToCart', () => {
       expiresAt: new Date(Date.now() + 60_000),
     })
 
-    const item = await addItemToCart(c.id, p.id, 10)
-    expect(item?.quantity).toBe(3)
+    await expect(addItemToCart(c.id, p.id, 10)).rejects.toThrow('Only 3 units available')
   })
 
   it('atomically upserts preventing duplicate rows on parallel additions', async () => {
@@ -300,17 +296,33 @@ describe('addItemToCart', () => {
     // Rapid parallel additions to the same cart/product
     await Promise.all([
       addItemToCart(c.id, p.id, 3),
-      addItemToCart(c.id, p.id, 4),
-      addItemToCart(c.id, p.id, 5),
+      addItemToCart(c.id, p.id, 3),
+      addItemToCart(c.id, p.id, 3),
     ])
 
     // Only one row should ever exist
     const items = await db.select().from(cartItem).where(eq(cartItem.cartId, c.id))
     expect(items).toHaveLength(1)
-    expect(items[0].quantity).toBe(10) // capped at stock
+    expect(items[0].quantity).toBe(9)
   })
 
-  it('caps existing quantity at available stock when product stock dropped', async () => {
+  it('updates existing quantity when product stock dropped but still sufficient', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct({ stockCount: 10 })
+
+    await addItemToCart(c.id, p.id, 2)
+
+    // Simulate stock drop (e.g., due to another order)
+    await db.update(product).set({ stockCount: 5 }).where(eq(product.id, p.id))
+
+    const item = await addItemToCart(c.id, p.id, 3)
+    expect(item?.quantity).toBe(5) // 2 + 3 = 5, matches new available stock
+  })
+
+  it('throws when adding to existing item after stock dropped below requested total', async () => {
     await seedUser()
     await seedShop()
     const sessionId = generateSessionId()
@@ -322,8 +334,63 @@ describe('addItemToCart', () => {
     // Simulate stock drop (e.g., due to another order)
     await db.update(product).set({ stockCount: 5 }).where(eq(product.id, p.id))
 
-    const item = await addItemToCart(c.id, p.id, 1)
-    expect(item?.quantity).toBe(5) // capped at new available stock
+    await expect(addItemToCart(c.id, p.id, 1)).rejects.toThrow('Only 5 units available')
+  })
+
+  it('creates a cart reservation on add', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct()
+
+    await addItemToCart(c.id, p.id, 3)
+
+    const reservations = await db
+      .select()
+      .from(inventoryReservation)
+      .where(eq(inventoryReservation.cartId, c.id))
+
+    expect(reservations).toHaveLength(1)
+    expect(reservations[0].productId).toBe(p.id)
+    expect(reservations[0].quantity).toBe(3)
+  })
+
+  it('updates the cart reservation when quantity changes', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct()
+
+    await addItemToCart(c.id, p.id, 2)
+    await addItemToCart(c.id, p.id, 3)
+
+    const reservations = await db
+      .select()
+      .from(inventoryReservation)
+      .where(eq(inventoryReservation.cartId, c.id))
+
+    expect(reservations).toHaveLength(1)
+    expect(reservations[0].quantity).toBe(5)
+  })
+
+  it('deletes the cart reservation when item is removed', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const c = await createAnonymousCart(sessionId)
+    const p = await seedProduct()
+
+    await addItemToCart(c.id, p.id, 2)
+    await removeItemFromCart(c.id, p.id)
+
+    const reservations = await db
+      .select()
+      .from(inventoryReservation)
+      .where(eq(inventoryReservation.cartId, c.id))
+
+    expect(reservations).toHaveLength(0)
   })
 })
 
@@ -389,7 +456,8 @@ describe('mergeAnonymousCartIntoUserCart', () => {
     await seedShop()
     await seedProducts()
     const userCart = await createUserCart(u.id)
-    await addItemToCart(userCart.id, 'prod-b', 3)
+    // Direct insert to bypass stock reservation so anonymous cart can still add
+    await db.insert(cartItem).values({ cartId: userCart.id, productId: 'prod-b', quantity: 3 })
 
     const sessionId = generateSessionId()
     const anonCart = await createAnonymousCart(sessionId)
@@ -429,11 +497,12 @@ describe('mergeAnonymousCartIntoUserCart', () => {
     await seedShop()
     await seedProducts()
     const userCart = await createUserCart(u.id)
-    await addItemToCart(userCart.id, 'prod-c', 1)
+    // Direct insert to bypass stock reservation so anonymous cart can still add
+    await db.insert(cartItem).values({ cartId: userCart.id, productId: 'prod-c', quantity: 1 })
 
     const sessionId = generateSessionId()
     const anonCart = await createAnonymousCart(sessionId)
-    await addItemToCart(anonCart.id, 'prod-c', 5)
+    await addItemToCart(anonCart.id, 'prod-c', 1)
 
     await mergeAnonymousCartIntoUserCart(sessionId, u.id)
 
@@ -447,7 +516,8 @@ describe('mergeAnonymousCartIntoUserCart', () => {
     await seedShop()
     await seedProducts()
     const userCart = await createUserCart(u.id)
-    await addItemToCart(userCart.id, 'prod-a', 2)
+    // Direct insert so user cart holds 4 without reducing available stock for anon cart
+    await db.insert(cartItem).values({ cartId: userCart.id, productId: 'prod-a', quantity: 4 })
 
     // Reserve 5 units of prod-a via another order
     const [order] = await db
@@ -470,13 +540,13 @@ describe('mergeAnonymousCartIntoUserCart', () => {
 
     const sessionId = generateSessionId()
     const anonCart = await createAnonymousCart(sessionId)
-    await addItemToCart(anonCart.id, 'prod-a', 5)
+    await addItemToCart(anonCart.id, 'prod-a', 3)
 
     await mergeAnonymousCartIntoUserCart(sessionId, u.id)
 
     const mergedCart = await getCartWithItemsByUserId(u.id)
     const itemA = mergedCart?.items.find((i) => i.productId === 'prod-a')
-    // stock=10, reserved=5, available=5; user has 2, anon has 5, combined=7 -> capped at 5
+    // stock=10, reserved=5, available=5; user has 4, anon has 3, combined=7 -> capped at 5
     expect(itemA?.quantity).toBe(5)
   })
 })
@@ -715,20 +785,20 @@ describe('getCartDetailsBySessionId', () => {
     expect(result?.totalItems).toBe(3)
   })
 
-  it('marks deleted products as unavailable', async () => {
+  it('removes cart items when product is deleted due to cascade', async () => {
     await seedUser()
     await seedShop()
     const sessionId = generateSessionId()
     const c = await createAnonymousCart(sessionId)
     const p = await seedProduct({ id: 'prod-1' })
 
-    await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
+    await addItemToCart(c.id, p.id, 2)
     await db.delete(product).where(eq(product.id, p.id))
 
     const result = await getCartDetailsBySessionId(sessionId)
     expect(result).not.toBeNull()
-    expect(result?.shops[0].items[0].unavailable).toBe(true)
-    expect(result?.shops[0].items[0].product).toBeNull()
+    expect(result?.shops).toHaveLength(0)
+    expect(result?.totalItems).toBe(0)
   })
 
   it('marks inactive products as unavailable', async () => {
@@ -885,7 +955,8 @@ describe('clearExpiredCarts', () => {
       })
       .returning()
 
-    await clearExpiredCarts()
+    const result = await clearExpiredCarts()
+    expect(result.deletedCount).toBe(1)
 
     const remaining = await db.select().from(cart).where(eq(cart.id, expiredCart.id))
     expect(remaining).toHaveLength(0)
@@ -901,9 +972,49 @@ describe('clearExpiredCarts', () => {
       })
       .returning()
 
-    await clearExpiredCarts()
+    const result = await clearExpiredCarts()
+    expect(result.deletedCount).toBe(0)
 
     const remaining = await db.select().from(cart).where(eq(cart.id, freshCart.id))
+    expect(remaining).toHaveLength(1)
+  })
+
+  it('deletes associated cart items', async () => {
+    await seedUser()
+    await seedShop()
+    const sessionId = generateSessionId()
+    const [expiredCart] = await db
+      .insert(cart)
+      .values({
+        sessionId,
+        expiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      })
+      .returning()
+
+    const p = await seedProduct()
+    await db.insert(cartItem).values({ cartId: expiredCart.id, productId: p.id, quantity: 2 })
+
+    await clearExpiredCarts()
+
+    const remainingItems = await db
+      .select()
+      .from(cartItem)
+      .where(eq(cartItem.cartId, expiredCart.id))
+    expect(remainingItems).toHaveLength(0)
+  })
+
+  it('respects batch size', async () => {
+    for (let i = 0; i < 3; i++) {
+      await db.insert(cart).values({
+        sessionId: generateSessionId(),
+        expiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      })
+    }
+
+    const result = await clearExpiredCarts(2)
+    expect(result.deletedCount).toBe(2)
+
+    const remaining = await db.select().from(cart)
     expect(remaining).toHaveLength(1)
   })
 })
@@ -919,7 +1030,8 @@ describe('cleanupExpiredCarts alias', () => {
       })
       .returning()
 
-    await cleanupExpiredCarts()
+    const result = await cleanupExpiredCarts()
+    expect(result.deletedCount).toBe(1)
 
     const remaining = await db.select().from(cart).where(eq(cart.id, expiredCart.id))
     expect(remaining).toHaveLength(0)

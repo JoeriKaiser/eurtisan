@@ -282,8 +282,6 @@ function AdminSearchModal({
                       type='button'
                       onClick={() => handleSelect(item.href)}
                       className='flex w-full items-center gap-3 px-4 py-2 text-left text-sm text-text-primary hover:bg-bg-inset transition-colors'
-                      role='option'
-                      aria-selected={false}
                     >
                       <span className='text-text-muted'>{item.icon}</span>
                       <span>{item.label}</span>

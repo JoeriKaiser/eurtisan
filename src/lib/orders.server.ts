@@ -16,6 +16,7 @@ export type OrderStatus =
   | 'refunded'
   | 'disputed'
   | 'manual_review'
+  | 'chargeback'
 
 export interface OrderItemDetail {
   id: string
@@ -49,7 +50,7 @@ export interface OrderShopGroup {
   trackingNumber: string | null
   trackingUrl: string | null
   deliveredAt: Date | null
-  shippingLabel: ShippingLabelInfo | null
+  shippingLabels: ShippingLabelInfo[]
   trackingStatus: string | null
   items: OrderItemDetail[]
 }
@@ -136,11 +137,17 @@ export async function getBuyerOrderDetailQuery(
           .where(inArray(shippingLabel.shopOrderId, shopOrderIds))
       : []
 
-  const labelMap = new Map(labelsResult.map((l) => [l.shopOrderId, l]))
+  const labelsByShopOrderId = new Map<string, typeof labelsResult>()
+  for (const label of labelsResult) {
+    const list = labelsByShopOrderId.get(label.shopOrderId) ?? []
+    list.push(label)
+    labelsByShopOrderId.set(label.shopOrderId, list)
+  }
 
   const trackingStatuses = await Promise.all(
     shopOrdersResult.map(async (so) => {
-      const label = labelMap.get(so.shopOrder.id)
+      const labels = labelsByShopOrderId.get(so.shopOrder.id) ?? []
+      const label = labels.find((l) => l.trackingNumber)
       if (!label?.trackingNumber) return null
 
       // Check in-memory cache first
@@ -194,7 +201,7 @@ export async function getBuyerOrderDetailQuery(
   }
 
   const shops: OrderShopGroup[] = shopOrdersResult.map((so) => {
-    const label = labelMap.get(so.shopOrder.id)
+    const labels = labelsByShopOrderId.get(so.shopOrder.id) ?? []
     return {
       shopOrderId: so.shopOrder.id,
       shopId: so.shopOrder.shopId,
@@ -209,14 +216,12 @@ export async function getBuyerOrderDetailQuery(
       trackingNumber: so.shopOrder.trackingNumber,
       trackingUrl: so.shopOrder.trackingUrl,
       deliveredAt: so.shopOrder.deliveredAt,
-      shippingLabel: label
-        ? {
-            carrier: label.carrier,
-            trackingNumber: label.trackingNumber,
-            labelUrl: label.labelUrl,
-            createdAt: label.createdAt,
-          }
-        : null,
+      shippingLabels: labels.map((label) => ({
+        carrier: label.carrier,
+        trackingNumber: label.trackingNumber,
+        labelUrl: label.labelUrl,
+        createdAt: label.createdAt,
+      })),
       trackingStatus: trackingStatusMap.get(so.shopOrder.id) ?? null,
       items: (itemsByShopOrderId.get(so.shopOrder.id) ?? []).map((item) => ({
         id: item.id,

@@ -30,15 +30,11 @@ import { createReview } from '#/lib/reviews'
 import type { ReviewableItem } from '#/lib/reviews.server'
 import { getCarrierTrackingUrl } from '#/lib/shipping'
 import { m } from '#/paraglide/messages'
-
-const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  year: 'numeric',
-  month: 'long',
-  day: 'numeric',
-})
+import { getLocalizedErrorMessage } from '#/lib/error-mapping'
+import { formatDateLong } from '#/lib/format-date'
 
 function formatDate(date: Date): string {
-  return DATE_FORMATTER.format(new Date(date))
+  return formatDateLong(new Date(date))
 }
 
 function isValidUrl(url: string | null): url is string {
@@ -166,7 +162,8 @@ export default function BuyerOrderDetailPage({
     } catch (err) {
       if (err instanceof Response) {
         const body = await err.json().catch(() => ({ message: 'Unknown error' }))
-        setDisputeError(body.message || 'Failed to open dispute')
+        const errorMsg = getLocalizedErrorMessage(body.code || body.message)
+        setDisputeError(errorMsg || 'Failed to open dispute')
       } else {
         setDisputeError('Failed to open dispute')
       }
@@ -349,54 +346,64 @@ export default function BuyerOrderDetailPage({
                 </div>
 
                 {/* Tracking Information */}
-                {shop.shippingLabel ? (
-                  <div className='rounded-lg border border-border-default bg-surface-inset p-3 space-y-2'>
-                    <div className='flex flex-wrap items-center justify-between gap-2'>
-                      <div className='space-y-0.5'>
-                        <p className='text-sm font-semibold text-text-primary'>
-                          {formatCarrierName(shop.shippingLabel.carrier)}
-                        </p>
-                        <p className='text-xs text-text-secondary'>
-                          {m.order_detail_tracking()}:{' '}
-                          <span className='font-mono text-text-primary'>
-                            {shop.shippingLabel.trackingNumber}
-                          </span>
-                        </p>
+                {shop.shippingLabels.length > 0 ? (
+                  <div className='space-y-2'>
+                    {shop.shippingLabels.map((label, idx) => (
+                      <div
+                        key={label.createdAt.getTime()}
+                        className='rounded-lg border border-border-default bg-surface-inset p-3 space-y-2'
+                      >
+                        <div className='flex flex-wrap items-center justify-between gap-2'>
+                          <div className='space-y-0.5'>
+                            <p className='text-sm font-semibold text-text-primary'>
+                              {formatCarrierName(label.carrier)}
+                              {shop.shippingLabels.length > 1 && (
+                                <span className='ml-1 text-xs font-normal text-text-muted'>
+                                  (Package {idx + 1})
+                                </span>
+                              )}
+                            </p>
+                            {label.trackingNumber && (
+                              <p className='text-xs text-text-secondary'>
+                                {m.order_detail_tracking()}:{' '}
+                                <span className='font-mono text-text-primary'>
+                                  {label.trackingNumber}
+                                </span>
+                              </p>
+                            )}
+                          </div>
+                          {label.trackingNumber &&
+                            (() => {
+                              const trackingUrl = getCarrierTrackingUrl(
+                                label.carrier,
+                                label.trackingNumber,
+                              )
+                              if (!trackingUrl) return null
+                              return (
+                                <a
+                                  href={trackingUrl}
+                                  target='_blank'
+                                  rel='noopener noreferrer'
+                                  className='inline-flex items-center gap-1 rounded-lg bg-accent-primary px-3 py-1.5 text-xs font-medium text-white transition hover:bg-accent-primary/90'
+                                >
+                                  <ExternalLink size={12} aria-hidden='true' />
+                                  {m.order_detail_track_package()}
+                                </a>
+                              )
+                            })()}
+                        </div>
+                        {idx === 0 && shop.trackingStatus && (
+                          <div className='flex items-center gap-2'>
+                            <Package size={14} aria-hidden='true' className='text-text-muted' />
+                            <span
+                              className={`text-xs font-medium ${trackingStatusColorClass(shop.trackingStatus)}`}
+                            >
+                              {formatTrackingStatus(shop.trackingStatus)}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                      {(isValidUrl(shop.trackingUrl) ||
-                        (shop.shippingLabel.trackingNumber &&
-                          getCarrierTrackingUrl(
-                            shop.shippingLabel.carrier,
-                            shop.shippingLabel.trackingNumber,
-                          ))) && (
-                        <a
-                          href={
-                            isValidUrl(shop.trackingUrl)
-                              ? shop.trackingUrl
-                              : getCarrierTrackingUrl(
-                                  shop.shippingLabel.carrier,
-                                  shop.shippingLabel.trackingNumber!,
-                                )!
-                          }
-                          target='_blank'
-                          rel='noopener noreferrer'
-                          className='inline-flex items-center gap-1 rounded-lg bg-accent-primary px-3 py-1.5 text-xs font-medium text-white transition hover:bg-accent-primary/90'
-                        >
-                          <ExternalLink size={12} aria-hidden='true' />
-                          {m.order_detail_track_package()}
-                        </a>
-                      )}
-                    </div>
-                    {shop.trackingStatus && (
-                      <div className='flex items-center gap-2'>
-                        <Package size={14} aria-hidden='true' className='text-text-muted' />
-                        <span
-                          className={`text-xs font-medium ${trackingStatusColorClass(shop.trackingStatus)}`}
-                        >
-                          {formatTrackingStatus(shop.trackingStatus)}
-                        </span>
-                      </div>
-                    )}
+                    ))}
                   </div>
                 ) : shop.trackingNumber ? (
                   <div className='rounded-lg border border-border-default bg-surface-inset p-3 space-y-2'>

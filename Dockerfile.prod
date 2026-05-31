@@ -51,6 +51,8 @@ COPY --from=builder /app/src ./src
 # node_modules at runtime (no source imports to resolve).
 COPY --from=builder /app/seed-staging.bundle.mjs ./seed-staging.bundle.mjs
 
+LABEL app=eurtisan
+
 ENV NODE_ENV=production
 EXPOSE 3000
 

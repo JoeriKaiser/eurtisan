@@ -306,6 +306,31 @@ describe('MolliePaymentProvider (real with mocked fetch)', () => {
       expect(result.checkoutUrl).toBe('https://checkout.mollie.com/pay/tr_real_12345')
     })
 
+    it('passes billingCountry as restrictPaymentMethodsToCountry', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            id: 'tr_real_12345',
+            _links: { checkout: { href: 'https://checkout.mollie.com/pay/tr_real_12345' } },
+          }),
+          { status: 200 },
+        ),
+      )
+
+      await provider.createPayment(
+        2500,
+        'EUR',
+        'Real order',
+        'https://example.com/redirect',
+        'https://example.com/webhook',
+        'FR',
+      )
+
+      const requestInit = fetchSpy.mock.calls[0]?.[1] as { body?: string }
+      const body = JSON.parse(requestInit?.body ?? '{}')
+      expect(body.restrictPaymentMethodsToCountry).toBe('FR')
+    })
+
     it('throws on API error', async () => {
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(
         new Response(JSON.stringify({ status: 401, title: 'Unauthorized request' }), {

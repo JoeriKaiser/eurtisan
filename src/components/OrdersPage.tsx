@@ -5,18 +5,13 @@ import type { BuyerOrderListItem } from '#/lib/orders.server'
 import { statusBadgeVariant } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
+import { formatDateLong } from '#/lib/format-date'
 
 export { OrdersError } from './OrdersError'
 export { OrdersLoading } from './OrdersLoading'
 
-const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  year: 'numeric',
-  month: 'long',
-  day: 'numeric',
-})
-
 function formatDate(date: Date): string {
-  return DATE_FORMATTER.format(new Date(date))
+  return formatDateLong(new Date(date))
 }
 
 export interface OrdersPageProps {

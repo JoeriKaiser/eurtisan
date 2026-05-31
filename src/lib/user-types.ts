@@ -8,4 +8,5 @@ export interface SafeUser {
   image: string | null
   role: UserRole
   bannedAt: Date | null
+  twoFactorEnabled: boolean
 }

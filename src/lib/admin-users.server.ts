@@ -126,7 +126,7 @@ export async function updateUserRoleQuery(
   const newLevel = ROLE_HIERARCHY[role] ?? -1
   if (newLevel < oldLevel) {
     const ctx = await auth.$context
-    await ctx.internalAdapter.deleteSessions(userId)
+    await ctx.internalAdapter.deleteUserSessions(userId)
   }
 
   return updated
@@ -155,7 +155,7 @@ export async function banUserQuery(
   }
 
   const ctx = await auth.$context
-  await ctx.internalAdapter.deleteSessions(userId)
+  await ctx.internalAdapter.deleteUserSessions(userId)
 
   return updated
 }

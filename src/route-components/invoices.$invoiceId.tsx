@@ -4,12 +4,8 @@ import { formatPriceEUR } from '#/lib/pricing'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
 import { Badge } from '#/components/ui/badge'
-
-const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  year: 'numeric',
-  month: 'long',
-  day: 'numeric',
-})
+import { m } from '#/paraglide/messages'
+import { getLocale } from '#/paraglide/runtime'
 
 function parseSafeDate(val: any): Date {
   if (val instanceof Date && !Number.isNaN(val.getTime())) {
@@ -53,7 +49,7 @@ export function InvoiceDetailComponent() {
             </button>
             <div className='hidden sm:block'>
               <h1 className='text-sm font-semibold text-text-primary'>
-                {isPlatformFee ? 'Platform Fee Invoice' : 'Customer Invoice'}
+                {isPlatformFee ? m.invoice_platform_fee_title() : m.invoice_customer_title()}
               </h1>
               <p className='text-xs text-text-muted'>{invoice.invoiceNumber}</p>
             </div>
@@ -64,7 +60,7 @@ export function InvoiceDetailComponent() {
               variant={isPlatformFee ? 'primary' : 'success'}
               className='font-medium capitalize'
             >
-              {isPlatformFee ? 'Platform Fee' : 'Customer Invoice'}
+              {isPlatformFee ? m.invoice_platform_fee_badge() : m.invoice_customer_title()}
             </Badge>
             <Button
               variant='primary'
@@ -72,7 +68,7 @@ export function InvoiceDetailComponent() {
               className='flex items-center gap-2 shadow-sm font-medium'
             >
               <Printer size={16} />
-              Print / Save PDF
+              {m.invoice_print_button()}
             </Button>
           </div>
         </div>
@@ -97,23 +93,26 @@ export function InvoiceDetailComponent() {
                     Eurtisan
                   </span>
                 </div>
-                <p className='text-xs text-text-muted print:text-gray-500'>
-                  Europe's Artisan & Maker Marketplace
-                </p>
+                <p className='text-xs text-text-muted print:text-gray-500'>{m.invoice_tagline()}</p>
               </div>
 
               <div className='text-left sm:text-right space-y-1.5'>
                 <h2 className='text-lg font-bold tracking-tight text-text-primary print:text-black'>
-                  INVOICE
+                  {m.invoice_heading()}
                 </h2>
                 <div className='text-sm font-mono text-text-secondary print:text-gray-700'>
-                  Number:{' '}
+                  {m.invoice_number_prefix()}{' '}
                   <span className='font-bold text-text-primary print:text-black'>
                     {invoice.invoiceNumber}
                   </span>
                 </div>
                 <div className='text-xs text-text-muted print:text-gray-500'>
-                  Date: {DATE_FORMATTER.format(parseSafeDate(invoice.createdAt))}
+                  {m.invoice_date_prefix()}{' '}
+                  {new Intl.DateTimeFormat(getLocale(), {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                  }).format(parseSafeDate(invoice.createdAt))}
                 </div>
                 {details.reverseCharge && (
                   <Badge
@@ -121,7 +120,7 @@ export function InvoiceDetailComponent() {
                     className='mt-2 font-medium inline-flex items-center gap-1.5 print:border print:border-gray-400 print:text-black'
                   >
                     <ShieldCheck size={12} />
-                    Reverse Charge
+                    {m.invoice_reverse_charge()}
                   </Badge>
                 )}
               </div>
@@ -131,7 +130,7 @@ export function InvoiceDetailComponent() {
             <div className='grid grid-cols-1 gap-8 sm:grid-cols-2 py-8 border-b border-border-default'>
               <div className='space-y-3'>
                 <h3 className='text-xs font-semibold uppercase tracking-wider text-text-muted print:text-gray-500'>
-                  {isPlatformFee ? 'Issuer (Supplier)' : 'Seller (on behalf of Artisan)'}
+                  {isPlatformFee ? m.invoice_issuer_supplier() : m.invoice_issuer_seller()}
                 </h3>
                 <div className='text-sm text-text-secondary print:text-black space-y-1'>
                   <p className='font-bold text-text-primary print:text-black'>
@@ -145,7 +144,7 @@ export function InvoiceDetailComponent() {
                   <p className='font-medium'>{details.from.address.country}</p>
                   {details.from.vatId && (
                     <p className='mt-2 text-xs font-mono text-text-muted print:text-gray-600'>
-                      VAT ID: {details.from.vatId}
+                      {m.invoice_vat_id()} {details.from.vatId}
                     </p>
                   )}
                 </div>
@@ -153,7 +152,7 @@ export function InvoiceDetailComponent() {
 
               <div className='space-y-3'>
                 <h3 className='text-xs font-semibold uppercase tracking-wider text-text-muted print:text-gray-500'>
-                  {isPlatformFee ? 'Customer (Artisan)' : 'Buyer (Customer)'}
+                  {isPlatformFee ? m.invoice_customer_artisan() : m.invoice_buyer_customer()}
                 </h3>
                 <div className='text-sm text-text-secondary print:text-black space-y-1'>
                   <p className='font-bold text-text-primary print:text-black'>{details.to.name}</p>
@@ -165,7 +164,7 @@ export function InvoiceDetailComponent() {
                   <p className='font-medium'>{details.to.address.country}</p>
                   {details.to.vatId && (
                     <p className='mt-2 text-xs font-mono text-text-muted print:text-gray-600'>
-                      VAT ID: {details.to.vatId}
+                      {m.invoice_vat_id()} {details.to.vatId}
                     </p>
                   )}
                 </div>
@@ -178,12 +177,12 @@ export function InvoiceDetailComponent() {
                 <table className='w-full text-left text-sm print:text-black'>
                   <thead>
                     <tr className='border-b border-border-default pb-2 text-xs font-semibold uppercase tracking-wider text-text-muted print:text-gray-500'>
-                      <th className='pb-3 font-medium'>Description</th>
-                      <th className='pb-3 text-right font-medium'>Qty</th>
-                      <th className='pb-3 text-right font-medium'>Unit Price (excl. VAT)</th>
-                      <th className='pb-3 text-right font-medium'>VAT Rate</th>
-                      <th className='pb-3 text-right font-medium'>VAT Amount</th>
-                      <th className='pb-3 text-right font-medium'>Total</th>
+                      <th className='pb-3 font-medium'>{m.invoice_th_description()}</th>
+                      <th className='pb-3 text-right font-medium'>{m.invoice_th_qty()}</th>
+                      <th className='pb-3 text-right font-medium'>{m.invoice_th_unit_price()}</th>
+                      <th className='pb-3 text-right font-medium'>{m.invoice_th_vat_rate()}</th>
+                      <th className='pb-3 text-right font-medium'>{m.invoice_th_vat_amount()}</th>
+                      <th className='pb-3 text-right font-medium'>{m.invoice_th_total()}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -222,7 +221,7 @@ export function InvoiceDetailComponent() {
                     {!isPlatformFee && details.shipping && details.shipping.costCents > 0 && (
                       <tr className='border-b border-border-subtle print:border-gray-200'>
                         <td className='py-4 font-medium text-text-primary print:text-black'>
-                          Shipping & Delivery ({details.shipping.method})
+                          {m.invoice_shipping_delivery({ method: details.shipping.method })}
                         </td>
                         <td className='py-4 text-right tabular-nums text-text-secondary print:text-black'>
                           1
@@ -252,47 +251,32 @@ export function InvoiceDetailComponent() {
             <div className='flex flex-col gap-6 sm:flex-row sm:justify-between sm:items-start pt-8 border-t border-border-default'>
               <div className='max-w-md text-xs text-text-muted print:text-gray-500 space-y-2 leading-relaxed'>
                 <h4 className='font-semibold uppercase tracking-wider text-text-primary print:text-black'>
-                  Legal Disclosures & Notes
+                  {m.invoice_legal_disclosures_title()}
                 </h4>
                 {isPlatformFee ? (
                   <>
-                    <p>
-                      This invoice represents the platform fee commission charged by Joeri Kaiser
-                      (Eurtisan) to the artisan. Amounts are automatically settled via split payment
-                      transactions.
-                    </p>
+                    <p>{m.invoice_disclosure_platform_fee_desc()}</p>
                     {details.reverseCharge ? (
                       <p className='font-semibold text-warning-strong print:text-black'>
-                        Reverse charge: Customer to account for VAT under Art 44 of the VAT
-                        Directive / Autoliquidation : Art. 283 du CGI.
+                        {m.invoice_disclosure_platform_fee_reverse()}
                       </p>
                     ) : (
                       <p className='font-semibold text-text-primary print:text-black'>
-                        TVA non applicable, article 293 B du CGI.
+                        {m.invoice_disclosure_platform_fee_exempt()}
                       </p>
                     )}
                   </>
                 ) : (
                   <>
-                    <p>
-                      This invoice is issued by Eurtisan on behalf of the Artisan Shop owner. The
-                      seller of record is the Artisan Shop named under the issuer section.
-                    </p>
+                    <p>{m.invoice_disclosure_customer_desc()}</p>
                     {!details.from.isVatRegistered ? (
-                      <p className='font-semibold'>
-                        VAT Exempt: Artisan is registered as a small business under EU Article
-                        281-294 and does not charge VAT on sales.
-                      </p>
+                      <p className='font-semibold'>{m.invoice_disclosure_customer_exempt()}</p>
                     ) : details.reverseCharge ? (
                       <p className='font-semibold text-warning-strong print:text-black'>
-                        Reverse charge: Buyer to account for VAT under Art 44 of the VAT Directive /
-                        Autoliquidation : Art. 283 du CGI.
+                        {m.invoice_disclosure_customer_reverse()}
                       </p>
                     ) : (
-                      <p>
-                        VAT rates are computed based on the destination principle (OSS) using the
-                        shipping destination.
-                      </p>
+                      <p>{m.invoice_disclosure_customer_vat_desc()}</p>
                     )}
                   </>
                 )}
@@ -300,7 +284,7 @@ export function InvoiceDetailComponent() {
 
               <div className='w-full sm:w-80 shrink-0 space-y-3 text-sm text-text-secondary print:text-black'>
                 <div className='flex justify-between'>
-                  <span>Net Subtotal:</span>
+                  <span>{m.invoice_net_subtotal()}</span>
                   <span className='tabular-nums font-medium'>
                     {formatPriceEUR(invoice.subtotalCents)}
                   </span>
@@ -309,13 +293,13 @@ export function InvoiceDetailComponent() {
                 {/* VAT breakdown detail list */}
                 <div className='space-y-1 border-b border-border-subtle pb-3 print:border-gray-200'>
                   <div className='flex justify-between text-xs text-text-muted print:text-gray-500'>
-                    <span>Total VAT:</span>
+                    <span>{m.invoice_total_vat()}</span>
                     <span className='tabular-nums'>{formatPriceEUR(invoice.vatAmountCents)}</span>
                   </div>
                 </div>
 
                 <div className='flex justify-between text-base font-bold text-text-primary print:text-black'>
-                  <span>Total Amount (incl. VAT):</span>
+                  <span>{m.invoice_total_amount()}</span>
                   <span className='tabular-nums'>{formatPriceEUR(invoice.totalCents)}</span>
                 </div>
               </div>

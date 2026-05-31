@@ -3,6 +3,7 @@ import { db } from '#/db/index'
 import { shop } from '#/db/schema'
 import { logger } from './logger.server'
 import { sanitizeRichText, validatePlainText } from './xss'
+import { isPostgresUniqueViolation } from './db-errors'
 import { validateVatId } from './vat'
 
 export { ImageValidationError } from './image-utils'
@@ -99,15 +100,6 @@ export async function updateShopInternal(
     throw new Error('Shop not found.')
   }
 
-  // Slug uniqueness check — platform-wide, excluding the current shop.
-  if (input.slug !== undefined && input.slug !== shopRecord.slug) {
-    const trimmedSlug = input.slug.trim()
-    const isUnique = await checkSlugUniquePlatformWide(trimmedSlug, shopId)
-    if (!isUnique) {
-      throw new SlugCollisionError(trimmedSlug)
-    }
-  }
-
   // Build update payload with only provided fields.
   const updateData: Record<string, unknown> = {
     updatedAt: new Date(),
@@ -171,9 +163,17 @@ export async function updateShopInternal(
     }
   }
 
-  const [updated] = await db.update(shop).set(updateData).where(eq(shop.id, shopId)).returning()
-
-  return updated
+  try {
+    const [updated] = await db.update(shop).set(updateData).where(eq(shop.id, shopId)).returning()
+    return updated
+  } catch (err) {
+    if (isPostgresUniqueViolation(err, 'shop_slug_unique')) {
+      const slug =
+        typeof updateData.slug === 'string' ? updateData.slug : (input.slug ?? shopRecord.slug)
+      throw new SlugCollisionError(String(slug))
+    }
+    throw err
+  }
 }
 
 /**

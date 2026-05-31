@@ -46,6 +46,15 @@ check: up
 	docker compose exec app bun run check
 
 # Testing
+
+E2E_DATABASE_URL ?= postgresql://eurtisan:eurtisan@db-test:5432/eurtisan_test
+
+db-migrate-e2e: up
+	docker compose exec -e DATABASE_URL=$(E2E_DATABASE_URL) app bun run db:migrate
+
+db-seed-e2e: db-migrate-e2e
+	docker compose exec -e DATABASE_URL=$(E2E_DATABASE_URL) app bun run db:seed
+
 test: up
 	docker compose exec app bun run test $(filter-out test,$(MAKECMDGOALS))
 
@@ -55,8 +64,12 @@ test-related: up
 e2e-install: up
 	docker compose exec app bunx playwright install --with-deps chromium
 
-e2e: up
-	docker compose exec app bunx playwright test
+e2e: up db-seed-e2e
+	docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d app --force-recreate
+	docker compose -f docker-compose.yml -f docker-compose.e2e.yml exec -e E2E_DATABASE_URL=$(E2E_DATABASE_URL) app bunx playwright test; \
+		e2e_exit=$$?; \
+		docker compose up -d app --force-recreate; \
+		exit $$e2e_exit
 
 e2e-ui:
 	@echo "Playwright UI mode requires a display server (X11/Wayland) and cannot run inside a headless Docker container."

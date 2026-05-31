@@ -26,6 +26,8 @@ interface FeedbackState {
 /* -------------------------------------------------------------------------- */
 
 const MAX_IMAGES = 10
+const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5MB
+const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const SLUG_DEBOUNCE_MS = 400
 
 /* -------------------------------------------------------------------------- */
@@ -201,26 +203,51 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
 
       const filesToAdd = Array.from(files).slice(0, remaining)
 
-      const placeholders: UploadedImage[] = filesToAdd.map((file) => ({
-        id: crypto.randomUUID(),
-        key: '',
-        previewUrl: URL.createObjectURL(file),
-        altText: '',
-        uploading: true,
-        error: null,
-      }))
+      const placeholders: UploadedImage[] = filesToAdd.map((file) => {
+        if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+          return {
+            id: crypto.randomUUID(),
+            key: '',
+            previewUrl: '',
+            altText: '',
+            uploading: false,
+            error: m.creator_product_new_images_error_type(),
+          }
+        }
+        if (file.size > MAX_IMAGE_SIZE) {
+          return {
+            id: crypto.randomUUID(),
+            key: '',
+            previewUrl: '',
+            altText: '',
+            uploading: false,
+            error: m.creator_product_new_images_error_size(),
+          }
+        }
+        return {
+          id: crypto.randomUUID(),
+          key: '',
+          previewUrl: URL.createObjectURL(file),
+          altText: '',
+          uploading: true,
+          error: null,
+        }
+      })
 
       setImages((prev) => [...prev, ...placeholders])
       dispatchForm({ type: 'clearFieldError', field: 'images' })
 
-      const results = await uploadMultiple(filesToAdd, 'products')
+      const validFiles = filesToAdd.filter((_file, index) => !placeholders[index]?.error)
+      const results = validFiles.length > 0 ? await uploadMultiple(validFiles, 'products') : []
 
       setImages((prev) =>
         prev.map((img) => {
           const placeholder = placeholders.find((p) => p.id === img.id)
           if (!placeholder) return img
-          const idx = placeholders.indexOf(placeholder)
-          const result = results[idx]
+          if (placeholder.error) return img
+          const validIndex = validFiles.indexOf(filesToAdd[placeholders.indexOf(placeholder)])
+          if (validIndex < 0) return img
+          const result = results[validIndex]
           if (!result) {
             return { ...img, uploading: false, error: uploadError ?? 'Upload failed' }
           }
@@ -291,7 +318,9 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
             errors.description = m.creator_product_new_description_too_long()
             break
           case 'priceCents':
-            if (issue.code === 'too_big') {
+            if (!formState.values.price.trim() || Number.isNaN(priceCents)) {
+              errors.price = m.creator_product_new_price_required()
+            } else if (issue.code === 'too_big') {
               errors.price = m.creator_product_new_price_too_high()
             } else {
               errors.price = m.creator_product_new_price_positive()

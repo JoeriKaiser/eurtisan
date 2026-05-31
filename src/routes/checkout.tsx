@@ -22,7 +22,7 @@ export const Route = createFileRoute('/checkout')({
   head: () => ({
     meta: [
       { title: `${m.checkout_title()} | Eurtisan` },
-      { name: 'description', content: m.checkout_title() },
+      { name: 'description', content: m.checkout_meta_description() },
     ],
   }),
   component: CheckoutRouteComponent,

@@ -3,7 +3,8 @@
  *
  * Runs continuously in the background, periodically invoking
  * `releaseExpiredReservations()` to delete inventory locks whose
- * `expiresAt` timestamp has passed.
+ * `expiresAt` timestamp has passed, and `cancelAbandonedPendingPaymentOrders()`
+ * to cancel stale `pending_payment` orders and release their stock.
  *
  * Configuration (via environment variables):
  *   INVENTORY_CLEANUP_INTERVAL_MS — polling interval in milliseconds (default: 60_000)
@@ -14,7 +15,10 @@
  *
  * Graceful shutdown is handled on SIGINT / SIGTERM.
  */
-import { releaseExpiredReservations } from '#/lib/inventory.server'
+import {
+  cancelAbandonedPendingPaymentOrders,
+  releaseExpiredReservations,
+} from '#/lib/inventory.server'
 
 const INTERVAL_MS = Number.parseInt(process.env.INVENTORY_CLEANUP_INTERVAL_MS ?? '60000', 10)
 
@@ -24,12 +28,23 @@ let isRunning = true
 
 async function tick(): Promise<void> {
   try {
-    const result = await releaseExpiredReservations(BATCH_SIZE)
-    if (result.releasedCount > 0) {
-      console.log(`[inventory-cleanup] Released ${result.releasedCount} expired reservation(s)`)
+    const reservationResult = await releaseExpiredReservations(BATCH_SIZE)
+    if (reservationResult.releasedCount > 0) {
+      console.log(
+        `[inventory-cleanup] Released ${reservationResult.releasedCount} expired reservation(s)`,
+      )
     }
   } catch (err) {
     console.error('[inventory-cleanup] Error releasing expired reservations:', err)
+  }
+
+  try {
+    const orderResult = await cancelAbandonedPendingPaymentOrders(BATCH_SIZE)
+    if (orderResult.cancelledCount > 0) {
+      console.log(`[inventory-cleanup] Cancelled ${orderResult.cancelledCount} abandoned order(s)`)
+    }
+  } catch (err) {
+    console.error('[inventory-cleanup] Error cancelling abandoned orders:', err)
   }
 }
 

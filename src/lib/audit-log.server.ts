@@ -2,6 +2,7 @@ import { db } from '#/db/index'
 import { auditLog } from '#/db/schema'
 import { logger } from './logger.server'
 import type { SafeUser } from './server-auth'
+import { lt, sql } from 'drizzle-orm'
 
 /**
  * Emits an audit log entry for an admin action.
@@ -30,6 +31,7 @@ export async function emitAuditEvent(
     // Audit logging must never break the primary business transaction.
     // Emit structured JSON error log as fallback so aggregators can flag failures.
     logger.error('Audit emission failed', err, {
+      alert: true,
       event: 'audit_emission_failed',
       actorId: actor.id,
       actorName: actor.name,
@@ -131,4 +133,27 @@ export async function listAuditLogQuery(params: {
     page: params.page,
     pageSize: params.pageSize,
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                 Retention                                  */
+/* -------------------------------------------------------------------------- */
+
+export interface PurgeOldAuditLogsResult {
+  deletedCount: number
+}
+
+/**
+ * Deletes audit log entries older than the retention period.
+ *
+ * Default retention is 365 days. This is idempotent: repeated calls
+ * simply find zero remaining old rows after the first successful run.
+ */
+export async function purgeOldAuditLogs(retentionDays = 365): Promise<PurgeOldAuditLogsResult> {
+  const result = await db
+    .delete(auditLog)
+    .where(lt(auditLog.createdAt, sql`now() - ${retentionDays} * interval '1 day'`))
+    .returning({ id: auditLog.id })
+
+  return { deletedCount: result.length }
 }

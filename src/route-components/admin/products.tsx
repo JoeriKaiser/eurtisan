@@ -19,6 +19,7 @@ import { toggleProductActive } from '#/lib/admin-products'
 import type { CategoryTreeNode } from '#/lib/categories'
 import { cn } from '#/lib/cn'
 import { downloadCSV, generateCSV } from '#/lib/csv-export'
+import { MAX_BULK_SELECTION } from '#/lib/admin-constants'
 import { m } from '#/paraglide/messages'
 const PAGE_SIZES = [10, 20, 50] as const
 /* -------------------------------------------------------------------------- */
@@ -97,7 +98,7 @@ export function AdminProductsPage() {
     setBulk((prev) => {
       const next = new Set(prev.selectedProductIds)
       if (next.has(productId)) next.delete(productId)
-      else next.add(productId)
+      else if (next.size < MAX_BULK_SELECTION) next.add(productId)
       return { ...prev, selectedProductIds: next }
     })
   }, [])
@@ -107,12 +108,17 @@ export function AdminProductsPage() {
       if (prev.selectedProductIds.size === products.products.length) {
         return { ...prev, selectedProductIds: new Set() }
       }
-      return { ...prev, selectedProductIds: new Set(products.products.map((p) => p.id)) }
+      return {
+        ...prev,
+        selectedProductIds: new Set(
+          products.products.slice(0, MAX_BULK_SELECTION).map((p) => p.id),
+        ),
+      }
     })
   }, [products.products])
 
   const handleBulkToggleActive = useCallback(async () => {
-    const ids = Array.from(bulk.selectedProductIds)
+    const ids = Array.from(bulk.selectedProductIds).slice(0, MAX_BULK_SELECTION)
     if (ids.length === 0) return
     setBulk((prev) => ({ ...prev, progress: { current: 0, total: ids.length } }))
     setStatus((prev) => ({ ...prev, actionError: null }))

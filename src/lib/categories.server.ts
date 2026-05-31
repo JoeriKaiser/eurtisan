@@ -5,6 +5,8 @@ import { categories, product } from '#/db/schema'
 import { buildCategoryTree, sanitizeSlug } from './category-tree'
 import type { deleteCategorySchema, updateCategorySchema } from './categories'
 import type { SafeUser } from './server-auth'
+import { isPostgresUniqueViolation } from './db-errors'
+import { withServerCache } from './server-cache.server'
 import { sanitizeRichText, validatePlainText } from './xss'
 
 export async function detectCircularReference(
@@ -24,13 +26,21 @@ export async function detectCircularReference(
   return false
 }
 
+const CATEGORY_ROOTS_CACHE_KEY = 'cache:categories:roots'
+const CATEGORY_TREE_CACHE_KEY = 'cache:categories:tree'
+const CATEGORY_CACHE_TTL_MS = 5 * 60_000
+
 export async function listCategoriesQuery() {
-  return db.select().from(categories).where(isNull(categories.parentId))
+  return withServerCache(CATEGORY_ROOTS_CACHE_KEY, CATEGORY_CACHE_TTL_MS, () =>
+    db.select().from(categories).where(isNull(categories.parentId)),
+  )
 }
 
 export async function listCategoryTreeQuery() {
-  const all = await db.select().from(categories)
-  return buildCategoryTree(all)
+  return withServerCache(CATEGORY_TREE_CACHE_KEY, CATEGORY_CACHE_TTL_MS, async () => {
+    const all = await db.select().from(categories)
+    return buildCategoryTree(all)
+  })
 }
 
 export async function listCategoriesWithCountsQuery() {
@@ -158,32 +168,34 @@ export async function updateCategoryInternal(
 
   const slug = data.slug ? sanitizeSlug(data.slug) : undefined
 
-  if (slug !== undefined) {
-    const slugExists = await db.select().from(categories).where(eq(categories.slug, slug))
-    if (slugExists.some((c) => c.id !== data.id)) {
-      throw new Response(
-        JSON.stringify({
-          error: 'Conflict',
-          message: `A category with slug "${slug}" already exists`,
-        }),
-        { status: 409, headers: { 'Content-Type': 'application/json' } },
-      )
-    }
-  }
-
   const updateValues: Partial<typeof categories.$inferInsert> = {}
   if (data.name !== undefined) updateValues.name = validatePlainText(data.name, 'Category name')
   if (slug !== undefined) updateValues.slug = slug
   if (data.description !== undefined) updateValues.description = sanitizeRichText(data.description)
   if (data.parentId !== undefined) updateValues.parentId = data.parentId
 
-  const [updated] = await db
-    .update(categories)
-    .set(updateValues)
-    .where(eq(categories.id, data.id))
-    .returning()
+  try {
+    const [updated] = await db
+      .update(categories)
+      .set(updateValues)
+      .where(eq(categories.id, data.id))
+      .returning()
 
-  return updated
+    return updated
+  } catch (err) {
+    if (isPostgresUniqueViolation(err)) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Conflict',
+          message: slug
+            ? `A category with slug "${slug}" already exists`
+            : 'A category with this slug already exists',
+        }),
+        { status: 409, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+    throw err
+  }
 }
 
 export async function deleteCategoryInternal(

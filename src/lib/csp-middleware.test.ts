@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { runWithCspNonce } from './csp-nonce.server'
 import { cspMiddlewareHandler } from '../start'
 import { buildCspHeader } from './csp'
 
@@ -26,8 +27,11 @@ describe('CSP middleware integration', () => {
     expect(directiveMap.get('frame-ancestors')).toBe("'none'")
     expect(directiveMap.get('base-uri')).toBe("'self'")
     expect(directiveMap.get('form-action')).toBe("'self'")
-    expect(directiveMap.get('style-src')).toBe("'self' https://fonts.googleapis.com")
+    expect(directiveMap.get('style-src')).toBe("'self'")
     expect(directiveMap.get('script-src')).toBe("'self' 'unsafe-inline'")
+
+    const withNonce = buildCspHeader({ nonce: 'abc123' })
+    expect(withNonce).toContain("script-src 'self' 'nonce-abc123'")
   })
 
   it('does not contain eval-related unsafe directives', () => {
@@ -35,39 +39,49 @@ describe('CSP middleware integration', () => {
     expect(csp).not.toContain("'unsafe-eval'")
   })
 
-  it('sets the Content-Security-Policy header on the response', async () => {
-    const result = await cspMiddlewareHandler({
-      next: async () => ({
-        response: new Response('ok', {
-          status: 200,
-          headers: { 'content-type': 'text/plain' },
+  it('sets the Content-Security-Policy header on HTML responses when nonce is present', async () => {
+    const result = await runWithCspNonce('test-nonce-xyz', async () =>
+      cspMiddlewareHandler({
+        next: async () => ({
+          response: new Response('<html><script>window.__test=1</script></html>', {
+            status: 200,
+            headers: { 'content-type': 'text/html; charset=utf-8' },
+          }),
         }),
       }),
-    })
+    )
     const csp = result.response.headers.get('content-security-policy')
+    const html = await result.response.text()
+
+    if (process.env.NODE_ENV === 'development') {
+      expect(csp).toBeNull()
+      return
+    }
 
     expect(csp).toBeTruthy()
-    expect(csp).toContain("default-src 'self'")
-    expect(csp).toContain("frame-ancestors 'none'")
-    expect(csp).toContain("base-uri 'self'")
-    expect(csp).toContain("form-action 'self'")
+    expect(csp).toContain("'nonce-test-nonce-xyz'")
+    expect(html).toContain('nonce="test-nonce-xyz"')
   })
 
   it('preserves existing response headers while adding CSP', async () => {
-    const result = await cspMiddlewareHandler({
-      next: async () => ({
-        response: new Response('ok', {
-          status: 200,
-          headers: {
-            'content-type': 'application/json',
-            'x-custom': 'custom-value',
-          },
+    const result = await runWithCspNonce('header-test-nonce', async () =>
+      cspMiddlewareHandler({
+        next: async () => ({
+          response: new Response('ok', {
+            status: 200,
+            headers: {
+              'content-type': 'application/json',
+              'x-custom': 'custom-value',
+            },
+          }),
         }),
       }),
-    })
+    )
     const headers = result.response.headers
 
-    expect(headers.get('content-security-policy')).toBeTruthy()
+    if (process.env.NODE_ENV !== 'development') {
+      expect(headers.get('content-security-policy')).toBeTruthy()
+    }
     expect(headers.get('content-type')).toBe('application/json')
     expect(headers.get('x-custom')).toBe('custom-value')
     expect(result.response.status).toBe(200)

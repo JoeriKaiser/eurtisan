@@ -447,6 +447,57 @@ describe('createReviewQuery', () => {
     }
   })
 
+  it('throws 403 when buyer is the shop owner (self-purchase)', async () => {
+    await seedUser()
+    await seedShop()
+    const p = await seedProduct()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 1000,
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 500,
+        subtotalCents: 1000,
+        status: 'delivered',
+        deliveredAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+      })
+      .returning()
+
+    try {
+      await createReviewQuery(so.id, p.id, 'user-1', 5, null)
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(403)
+      const body = await (err as Response).json()
+      expect(body.message).toContain('own')
+    }
+  })
+
   it('throws 403 when order is not delivered', async () => {
     await seedUser()
     await seedShop()
@@ -497,7 +548,8 @@ describe('createReviewQuery', () => {
 
   it('throws 403 with daysRemaining when before eligibility period', async () => {
     await seedUser()
-    await seedShop()
+    await seedUser({ id: 'user-2', name: 'Owner', email: 'owner@example.com' })
+    await seedShop({ ownerId: 'user-2' })
     await seedProduct()
 
     const [order] = await db
@@ -549,7 +601,8 @@ describe('createReviewQuery', () => {
 
   it('throws 409 when duplicate review is attempted', async () => {
     await seedUser()
-    await seedShop()
+    await seedUser({ id: 'user-2', name: 'Owner', email: 'owner@example.com' })
+    await seedShop({ ownerId: 'user-2' })
     const p = await seedProduct()
 
     const [order] = await db
@@ -606,7 +659,8 @@ describe('createReviewQuery', () => {
 
   it('creates a review when all conditions are met', async () => {
     await seedUser()
-    await seedShop()
+    await seedUser({ id: 'user-2', name: 'Owner', email: 'owner@example.com' })
+    await seedShop({ ownerId: 'user-2' })
     const p = await seedProduct()
 
     const [order] = await db
@@ -662,7 +716,8 @@ describe('createReviewQuery', () => {
 
   it('sanitizes HTML in comments', async () => {
     await seedUser()
-    await seedShop()
+    await seedUser({ id: 'user-2', name: 'Owner', email: 'owner@example.com' })
+    await seedShop({ ownerId: 'user-2' })
     const p = await seedProduct()
 
     const [order] = await db
@@ -712,7 +767,8 @@ describe('createReviewQuery', () => {
 
   it('allows null comment', async () => {
     await seedUser()
-    await seedShop()
+    await seedUser({ id: 'user-2', name: 'Owner', email: 'owner@example.com' })
+    await seedShop({ ownerId: 'user-2' })
     const p = await seedProduct()
 
     const [order] = await db

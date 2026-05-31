@@ -254,8 +254,10 @@ describe('getCreatorDashboardStatsQuery', () => {
     await seedProduct()
     const buyer = await seedBuyer()
 
-    const lastMonth = new Date()
-    lastMonth.setMonth(lastMonth.getMonth() - 1)
+    const startOfMonth = new Date()
+    startOfMonth.setDate(1)
+    startOfMonth.setHours(0, 0, 0, 0)
+    const lastMonth = new Date(startOfMonth.getTime() - 1)
 
     const po1 = await seedPlatformOrder(buyer.id)
     const po2 = await seedPlatformOrder(buyer.id)
@@ -515,6 +517,10 @@ describe('role guard', () => {
         role: 'customer' as const,
         bannedAt: null,
         banReason: null,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+        twoFactorEnabled: false,
+        deletedAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -549,6 +555,10 @@ describe('role guard', () => {
         role: 'creator' as const,
         bannedAt: null,
         banReason: null,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+        twoFactorEnabled: true,
+        deletedAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -578,6 +588,10 @@ describe('role guard', () => {
         role: 'admin' as const,
         bannedAt: null,
         banReason: null,
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+        twoFactorEnabled: true,
+        deletedAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       },

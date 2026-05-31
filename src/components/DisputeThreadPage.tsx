@@ -7,20 +7,14 @@ import { addDisputeMessage } from '#/lib/disputes'
 import type { DisputeDetail } from '#/lib/disputes.server'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
+import { getLocalizedErrorMessage } from '#/lib/error-mapping'
+import { formatDateLongWithTime } from '#/lib/format-date'
 
 export { DisputeThreadError } from './DisputeThreadError'
 export { DisputeThreadLoading } from './DisputeThreadLoading'
 
-const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  year: 'numeric',
-  month: 'long',
-  day: 'numeric',
-  hour: '2-digit',
-  minute: '2-digit',
-})
-
 function formatDate(date: Date): string {
-  return DATE_FORMATTER.format(new Date(date))
+  return formatDateLongWithTime(date)
 }
 
 export interface DisputeThreadPageProps {
@@ -49,7 +43,8 @@ export default function DisputeThreadPage({ dispute }: DisputeThreadPageProps) {
     } catch (err) {
       if (err instanceof Response) {
         const body = await err.json().catch(() => ({ message: 'Unknown error' }))
-        setSubmitError(body.message || m.dispute_error_send())
+        const errorMsg = getLocalizedErrorMessage(body.code || body.message)
+        setSubmitError(errorMsg || m.dispute_error_send())
       } else {
         setSubmitError(m.dispute_error_send())
       }

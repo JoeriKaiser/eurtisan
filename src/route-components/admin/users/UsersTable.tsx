@@ -3,13 +3,10 @@ import { Button } from '#/components/ui/button'
 import type { AdminUserListItem, PaginatedUsers } from '#/lib/admin-users'
 import { cn } from '#/lib/cn'
 import { m } from '#/paraglide/messages'
-
-const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  dateStyle: 'medium',
-})
+import { formatDateMedium } from '#/lib/format-date'
 
 function formatDate(date: Date | string): string {
-  return DATE_FORMATTER.format(new Date(date))
+  return formatDateMedium(new Date(date))
 }
 
 interface UsersTableProps {

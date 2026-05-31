@@ -5,6 +5,12 @@ import { m } from '#/paraglide/messages'
 
 export const Route = createFileRoute('/account/')({
   beforeLoad: async () => guardAuth(),
+  head: () => ({
+    meta: [
+      { title: `${m.account_title()} | Eurtisan` },
+      { name: 'description', content: m.account_hub_description() },
+    ],
+  }),
   component: Account,
 })
 

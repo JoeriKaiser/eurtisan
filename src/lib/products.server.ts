@@ -2,7 +2,9 @@ import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from 'dr
 import { db } from '#/db/index'
 import { categories, product, productImage, shop } from '#/db/schema'
 import { logger } from './logger.server'
+import { searchQueriesTotal } from './metrics.server'
 import { sanitizeRichText, validatePlainText } from './xss'
+import { withServerCache } from './server-cache.server'
 
 function parsePriceToCents(price: string): number {
   const parsed = parseFloat(price.trim())
@@ -447,22 +449,27 @@ export async function getFeaturedShopsQuery(limit: number): Promise<FeaturedShop
   }))
 }
 
+const MARKETPLACE_STATS_CACHE_KEY = 'cache:marketplace:stats'
+const MARKETPLACE_STATS_TTL_MS = 60_000
+
 export async function getMarketplaceStatsQuery(): Promise<{
   sellerCount: number
   productCount: number
 }> {
-  const [[shopResult], [productResult]] = await Promise.all([
-    db
-      .select({ count: count() })
-      .from(shop)
-      .where(and(eq(shop.status, 'active'), eq(shop.isSuspended, false))),
-    db.select({ count: count() }).from(product).where(eq(product.isActive, true)),
-  ])
+  return withServerCache(MARKETPLACE_STATS_CACHE_KEY, MARKETPLACE_STATS_TTL_MS, async () => {
+    const [[shopResult], [productResult]] = await Promise.all([
+      db
+        .select({ count: count() })
+        .from(shop)
+        .where(and(eq(shop.status, 'active'), eq(shop.isSuspended, false))),
+      db.select({ count: count() }).from(product).where(eq(product.isActive, true)),
+    ])
 
-  return {
-    sellerCount: Number(shopResult?.count ?? 0),
-    productCount: Number(productResult?.count ?? 0),
-  }
+    return {
+      sellerCount: Number(shopResult?.count ?? 0),
+      productCount: Number(productResult?.count ?? 0),
+    }
+  })
 }
 
 let tsvectorAvailable: boolean | null = null
@@ -511,6 +518,14 @@ export async function searchProductsQuery(
     pageSize,
   })
   if (meiliResult) {
+    if (trimmedQuery) {
+      searchQueriesTotal.inc({ has_results: meiliResult.products.length > 0 ? 'true' : 'false' })
+      logger.info('[search] query executed', {
+        query: trimmedQuery,
+        results: meiliResult.products.length,
+        total: meiliResult.total,
+      })
+    }
     return meiliResult
   }
 
@@ -591,6 +606,15 @@ export async function searchProductsQuery(
 
     return base.limit(pageSize).offset(offset)
   })()
+
+  if (trimmedQuery) {
+    searchQueriesTotal.inc({ has_results: products.length > 0 ? 'true' : 'false' })
+    logger.info('[search] query executed', {
+      query: trimmedQuery,
+      results: products.length,
+      total: total,
+    })
+  }
 
   return {
     products: products as PublicProduct[],

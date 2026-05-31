@@ -12,12 +12,13 @@
  * files. This file wraps it with a full Node.js HTTP server.
  */
 
-import { randomUUID } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { extname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { logger, requestIdStore } from './src/lib/logger.server.ts'
+import { runWithCspNonce } from './src/lib/csp-nonce.server.ts'
 
 const DIRNAME = fileURLToPath(new URL('.', import.meta.url))
 const CLIENT_DIR = join(DIRNAME, '../client')
@@ -163,7 +164,9 @@ const server = createServer(async (req, res) => {
 
         const cacheControl = url.startsWith('/assets/')
           ? 'public, max-age=31536000, immutable'
-          : 'public, max-age=86400'
+          : url.startsWith('/uploads/')
+            ? 'public, max-age=3600'
+            : 'public, max-age=86400'
 
         const headers = {
           'Content-Type': staticResult.mime,
@@ -251,8 +254,9 @@ const server = createServer(async (req, res) => {
       body: req.method !== 'GET' && req.method !== 'HEAD' ? body : undefined,
     })
 
-    // Delegate to TanStack Start
-    const response = await tanstackHandler(request)
+    // Delegate to TanStack Start (nonce scoped for CSP middleware)
+    const cspNonce = randomBytes(16).toString('base64')
+    const response = await runWithCspNonce(cspNonce, () => tanstackHandler(request))
 
     const responseHeaders = {}
     response.headers.forEach((value, key) => {
@@ -261,6 +265,8 @@ const server = createServer(async (req, res) => {
         responseHeaders[key] = value
       }
     })
+
+    responseHeaders['Vary'] = 'Accept-Encoding, Accept-Language'
 
     // Add cache headers for public/private HTML routes
     if (req.method === 'GET' || req.method === 'HEAD') {

@@ -23,7 +23,7 @@ export default function Footer() {
             <a
               href='https://x.com/tan_stack'
               target='_blank'
-              rel='noreferrer'
+              rel='noopener noreferrer'
               className='rounded-xl p-2 text-text-secondary transition-colors duration-fast ease-out hover:bg-bg-inset hover:text-text-primary'
             >
               <span className='sr-only'>{m.sr_follow_x()}</span>
@@ -37,7 +37,7 @@ export default function Footer() {
             <a
               href='https://github.com/TanStack'
               target='_blank'
-              rel='noreferrer'
+              rel='noopener noreferrer'
               className='rounded-xl p-2 text-text-secondary transition-colors duration-fast ease-out hover:bg-bg-inset hover:text-text-primary'
             >
               <span className='sr-only'>{m.sr_github()}</span>

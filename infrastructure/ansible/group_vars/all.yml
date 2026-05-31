@@ -7,7 +7,7 @@ postgres_user: eurtisan
 postgres_db: eurtisan
 
 # ── Email ────────────────────────────────────────────────────────────────
-email_from_address: noreply@eurtisan.eu
+email_from_address: support@eurtisan.eu
 email_from_name: Eurtisan
 email_smtp_port: "587"
 
@@ -32,3 +32,7 @@ email_smtp_port: "587"
 #   umami_script_url: "https://analytics.example.com/script.js"
 #   umami_website_id: "your-website-uuid"
 #   umami_host_url: "https://analytics.example.com"
+
+# PostgreSQL WAL archiving (enable for production PITR — see docs/DEPLOYMENT.md)
+postgres_wal_archive_enabled: false
+# postgres_wal_archive_path: "s3://your-bucket/eurtisan/wal"
