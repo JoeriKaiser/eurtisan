@@ -210,11 +210,12 @@ describe('SmtpEmailProvider (real with mocked nodemailer)', () => {
 
     expect(sendMailMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        from: { name: 'Eurtisan', address: 'noreply@eurtisan.eu' },
+        from: { name: 'Eurtisan', address: 'support@eurtisan.eu' },
         to: 'buyer@example.com',
         subject: expect.stringContaining('42'),
         text: expect.stringContaining('Pottery by Alice'),
         html: expect.stringContaining('Pottery by Alice'),
+        replyTo: 'support@eurtisan.eu',
       }),
     )
 
@@ -267,6 +268,123 @@ describe('SmtpEmailProvider (real with mocked nodemailer)', () => {
     expect(sendMailMock).toHaveBeenCalledWith(
       expect.objectContaining({
         from: { name: 'Eurtisan Team', address: 'hello@eurtisan.eu' },
+      }),
+    )
+  })
+
+  it('uses custom reply-to from environment variables', async () => {
+    const originalReplyTo = process.env.EMAIL_REPLY_TO_ADDRESS
+    process.env.EMAIL_REPLY_TO_ADDRESS = 'help@eurtisan.eu'
+
+    const sendMailMock = vi.fn().mockResolvedValue({ messageId: 'msg-xyz' })
+    vi.mocked(nodemailer.createTransport).mockReturnValue({
+      sendMail: sendMailMock,
+    } as unknown as ReturnType<typeof nodemailer.createTransport>)
+
+    const customProvider = new SmtpEmailProvider()
+
+    await customProvider.sendTransactional('buyer@example.com', 'order_confirmation', {
+      orderNumber: '1',
+    })
+
+    expect(sendMailMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        replyTo: 'help@eurtisan.eu',
+      }),
+    )
+
+    if (originalReplyTo === undefined) {
+      delete process.env.EMAIL_REPLY_TO_ADDRESS
+    } else {
+      process.env.EMAIL_REPLY_TO_ADDRESS = originalReplyTo
+    }
+  })
+})
+
+describe('SmtpEmailProvider TLS configuration', () => {
+  const originalEnv: Record<string, string | undefined> = {}
+
+  function setEnv(key: string, value: string) {
+    if (!(key in originalEnv)) {
+      originalEnv[key] = process.env[key]
+    }
+    process.env[key] = value
+  }
+
+  afterEach(() => {
+    for (const [key, value] of Object.entries(originalEnv)) {
+      if (value === undefined) {
+        delete process.env[key]
+      } else {
+        process.env[key] = value
+      }
+    }
+    for (const key of Object.keys(originalEnv)) {
+      delete originalEnv[key]
+    }
+    vi.restoreAllMocks()
+  })
+
+  it('skips TLS verification in non-production environments', () => {
+    setEnv('NODE_ENV', 'development')
+    setEnv('EMAIL_SMTP_HOST', 'smtp.example.com')
+    setEnv('EMAIL_SMTP_PORT', '587')
+
+    const createTransportSpy = vi.mocked(nodemailer.createTransport)
+
+    new SmtpEmailProvider()
+
+    expect(createTransportSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tls: { rejectUnauthorized: false },
+      }),
+    )
+  })
+
+  it('skips TLS verification for mailpit in production', () => {
+    setEnv('NODE_ENV', 'production')
+    setEnv('EMAIL_SMTP_HOST', 'mailpit')
+    setEnv('EMAIL_SMTP_PORT', '1025')
+
+    const createTransportSpy = vi.mocked(nodemailer.createTransport)
+
+    new SmtpEmailProvider()
+
+    expect(createTransportSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tls: { rejectUnauthorized: false },
+      }),
+    )
+  })
+
+  it('skips TLS verification for localhost in production', () => {
+    setEnv('NODE_ENV', 'production')
+    setEnv('EMAIL_SMTP_HOST', 'localhost')
+    setEnv('EMAIL_SMTP_PORT', '1025')
+
+    const createTransportSpy = vi.mocked(nodemailer.createTransport)
+
+    new SmtpEmailProvider()
+
+    expect(createTransportSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tls: { rejectUnauthorized: false },
+      }),
+    )
+  })
+
+  it('enforces TLS verification in production with real hosts', () => {
+    setEnv('NODE_ENV', 'production')
+    setEnv('EMAIL_SMTP_HOST', 'smtp.example.com')
+    setEnv('EMAIL_SMTP_PORT', '587')
+
+    const createTransportSpy = vi.mocked(nodemailer.createTransport)
+
+    new SmtpEmailProvider()
+
+    expect(createTransportSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tls: undefined,
       }),
     )
   })

@@ -50,7 +50,7 @@ describe('ProductCard', () => {
 
   it('renders price in EUR format', () => {
     render(<ProductCard product={makeProduct()} />)
-    expect(screen.getByText('€29,99')).toBeDefined()
+    expect(screen.getByText('€29.99')).toBeDefined()
   })
 
   it('renders shop name', () => {

@@ -1,6 +1,6 @@
 import { and, count, desc, eq, gte, ilike, inArray, lte, or, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { orderItem, platformOrder, shop, shopOrder, user } from '#/db/schema'
+import { orderItem, platformOrder, shippingLabel, shop, shopOrder, user } from '#/db/schema'
 import type { ShippingAddress } from './checkout.server'
 import type { OrderShopGroup, OrderStatus } from './orders.server'
 
@@ -207,6 +207,14 @@ export async function getPlatformOrderDetailQuery(
       ? await db.select().from(orderItem).where(inArray(orderItem.shopOrderId, shopOrderIds))
       : []
 
+  const labelsResult =
+    shopOrderIds.length > 0
+      ? await db
+          .select()
+          .from(shippingLabel)
+          .where(inArray(shippingLabel.shopOrderId, shopOrderIds))
+      : []
+
   const itemsByShopOrderId = new Map<string, typeof itemsResult>()
   for (const item of itemsResult) {
     const list = itemsByShopOrderId.get(item.shopOrderId) ?? []
@@ -214,33 +222,48 @@ export async function getPlatformOrderDetailQuery(
     itemsByShopOrderId.set(item.shopOrderId, list)
   }
 
-  const shops: OrderShopGroup[] = shopOrdersResult.map((so) => ({
-    shopOrderId: so.shopOrder.id,
-    shopId: so.shopOrder.shopId,
-    shopName: so.shop?.name ?? 'Unknown shop',
-    shippingMethod: so.shopOrder.shippingMethod as 'standard' | 'express' | 'manual',
-    shippingCostCents: so.shopOrder.shippingCostCents,
-    subtotalCents: so.shopOrder.subtotalCents,
-    vatAmountCents: so.shopOrder.vatAmountCents,
-    shippingVatRateBasisPoints: so.shopOrder.shippingVatRateBasisPoints,
-    shippingVatAmountCents: so.shopOrder.shippingVatAmountCents,
-    status: so.shopOrder.status as OrderStatus,
-    trackingNumber: so.shopOrder.trackingNumber,
-    trackingUrl: so.shopOrder.trackingUrl,
-    deliveredAt: so.shopOrder.deliveredAt,
-    shippingLabel: null,
-    trackingStatus: null,
-    items: (itemsByShopOrderId.get(so.shopOrder.id) ?? []).map((item) => ({
-      id: item.id,
-      productId: item.productId,
-      productName: item.productName,
-      unitPriceCents: item.unitPriceCents,
-      quantity: item.quantity,
-      totalCents: item.totalCents,
-      vatRateBasisPoints: item.vatRateBasisPoints,
-      vatAmountCents: item.vatAmountCents,
-    })),
-  }))
+  const labelsByShopOrderId = new Map<string, typeof labelsResult>()
+  for (const label of labelsResult) {
+    const list = labelsByShopOrderId.get(label.shopOrderId) ?? []
+    list.push(label)
+    labelsByShopOrderId.set(label.shopOrderId, list)
+  }
+
+  const shops: OrderShopGroup[] = shopOrdersResult.map((so) => {
+    const labels = labelsByShopOrderId.get(so.shopOrder.id) ?? []
+    return {
+      shopOrderId: so.shopOrder.id,
+      shopId: so.shopOrder.shopId,
+      shopName: so.shop?.name ?? 'Unknown shop',
+      shippingMethod: so.shopOrder.shippingMethod as 'standard' | 'express' | 'manual',
+      shippingCostCents: so.shopOrder.shippingCostCents,
+      subtotalCents: so.shopOrder.subtotalCents,
+      vatAmountCents: so.shopOrder.vatAmountCents,
+      shippingVatRateBasisPoints: so.shopOrder.shippingVatRateBasisPoints,
+      shippingVatAmountCents: so.shopOrder.shippingVatAmountCents,
+      status: so.shopOrder.status as OrderStatus,
+      trackingNumber: so.shopOrder.trackingNumber,
+      trackingUrl: so.shopOrder.trackingUrl,
+      deliveredAt: so.shopOrder.deliveredAt,
+      shippingLabels: labels.map((label) => ({
+        carrier: label.carrier,
+        trackingNumber: label.trackingNumber,
+        labelUrl: label.labelUrl,
+        createdAt: label.createdAt,
+      })),
+      trackingStatus: null,
+      items: (itemsByShopOrderId.get(so.shopOrder.id) ?? []).map((item) => ({
+        id: item.id,
+        productId: item.productId,
+        productName: item.productName,
+        unitPriceCents: item.unitPriceCents,
+        quantity: item.quantity,
+        totalCents: item.totalCents,
+        vatRateBasisPoints: item.vatRateBasisPoints,
+        vatAmountCents: item.vatAmountCents,
+      })),
+    }
+  })
 
   return {
     id: order.id,

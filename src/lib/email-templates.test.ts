@@ -200,3 +200,28 @@ describe('renderTemplate — password_reset', () => {
     expect(result.text).toContain('https://eurtisan.example.com/reset-password?token=xyz')
   })
 })
+
+describe('renderTemplate — account_security_alert', () => {
+  it('renders HTML and plain text with all fields', () => {
+    const result = renderTemplate('account_security_alert', {
+      userName: 'Frank',
+      lockoutDurationMinutes: 30,
+    })
+
+    expect(result.subject).toBe('Security alert: your Eurtisan account has been temporarily locked')
+    expect(result.html).toContain('Frank')
+    expect(result.html).toContain('30')
+
+    expect(result.text).toContain('Frank')
+    expect(result.text).toContain('30')
+  })
+})
+
+describe('renderFallbackPlainText — account_security_alert', () => {
+  it('returns a safe plain-text fallback', () => {
+    const result = renderFallbackPlainText('account_security_alert', { userName: 'Frank' })
+
+    expect(result.subject).toBe('[Eurtisan] account security alert')
+    expect(result.text).toContain('account security alert')
+  })
+})

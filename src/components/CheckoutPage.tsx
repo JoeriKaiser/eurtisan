@@ -8,7 +8,9 @@ import { createCheckout, getCheckoutSummary } from '#/lib/checkout'
 import type { CheckoutShopGroup, CheckoutSummary, ShippingOption } from '#/lib/checkout.server'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
+import { getLocalizedErrorMessage } from '#/lib/error-mapping'
 import { PickupPointSelectorModal } from './checkout/PickupPointSelectorModal'
+
 import { CheckoutOrderItems } from './checkout/CheckoutOrderItems'
 import { CheckoutMondialRelaySection } from './checkout/CheckoutMondialRelaySection'
 
@@ -156,9 +158,10 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
         } catch (err) {
           if (err instanceof Response) {
             const body = await err.json().catch(() => ({}))
+            const errorMsg = getLocalizedErrorMessage(body.code || body.message)
             setStatus((prev) => ({
               ...prev,
-              submitError: body.message || m.checkout_error_submit(),
+              submitError: errorMsg || m.checkout_error_submit(),
             }))
           } else {
             setStatus((prev) => ({ ...prev, submitError: m.checkout_error_submit() }))

@@ -26,7 +26,7 @@ describe('CSP middleware integration', () => {
     expect(directiveMap.get('frame-ancestors')).toBe("'none'")
     expect(directiveMap.get('base-uri')).toBe("'self'")
     expect(directiveMap.get('form-action')).toBe("'self'")
-    expect(directiveMap.get('style-src')).toBe("'self' https://fonts.googleapis.com")
+    expect(directiveMap.get('style-src')).toBe("'self'")
     expect(directiveMap.get('script-src')).toBe("'self' 'unsafe-inline'")
   })
 

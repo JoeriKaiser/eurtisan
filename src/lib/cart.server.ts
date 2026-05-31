@@ -1,9 +1,15 @@
 import { getCookie, getRequestProtocol, setCookie } from '@tanstack/react-start/server'
-import { and, eq, gt, gte, inArray, sql, sum } from 'drizzle-orm'
+import { and, eq, gte, inArray, isNull, lt, ne, or, sql, sum } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { cart, cartItem, inventoryReservation, product, productImage, shop } from '#/db/schema'
 import { ANONYMOUS_SESSION_COOKIE } from './cart-constants'
-import { getAvailableStock, getAvailableStockForProducts } from './inventory.server'
+import {
+  getAvailableStock,
+  getAvailableStockForProducts,
+  getAvailableStockForProductsInTx,
+  releaseCartStockInTx,
+  reserveCartStockInTx,
+} from './inventory.server'
 
 export const AUTH_CART_DAYS = 30
 export const ANON_CART_DAYS = 7
@@ -246,6 +252,8 @@ export async function createUserCart(userId: string) {
 /*                               Cart Mutations                               */
 /* -------------------------------------------------------------------------- */
 
+const CART_RESERVATION_TTL_MS = 60 * 60 * 1000 // 1 hour
+
 export async function addItemToCart(cartId: string, productId: string, quantity: number) {
   return db.transaction(async (tx) => {
     // Lock product row to serialize concurrent cart mutations for this product
@@ -256,10 +264,11 @@ export async function addItemToCart(cartId: string, productId: string, quantity:
       .for('update')
 
     if (!productRow) {
-      return null
+      throw new Error('Product not found')
     }
 
-    // Calculate available stock inside the transaction
+    // Calculate available stock inside the transaction, excluding this cart's
+    // own reservation so we don't double-count when updating quantity.
     const [reservationResult] = await tx
       .select({ totalReserved: sum(inventoryReservation.quantity) })
       .from(inventoryReservation)
@@ -267,18 +276,31 @@ export async function addItemToCart(cartId: string, productId: string, quantity:
         and(
           eq(inventoryReservation.productId, productId),
           gte(inventoryReservation.expiresAt, sql`now()`),
+          or(isNull(inventoryReservation.cartId), ne(inventoryReservation.cartId, cartId)),
         ),
       )
 
     const totalReserved = Number(reservationResult?.totalReserved ?? 0)
     const availableStock = Math.max(0, productRow.stockCount - totalReserved)
 
-    const finalQty = Math.min(quantity, availableStock)
+    const [existingItem] = await tx
+      .select()
+      .from(cartItem)
+      .where(and(eq(cartItem.cartId, cartId), eq(cartItem.productId, productId)))
+      .limit(1)
 
-    if (finalQty <= 0) {
+    const existingQuantity = existingItem?.quantity ?? 0
+    const requestedTotal = existingQuantity + quantity
+
+    if (requestedTotal > availableStock) {
+      throw new Error(`Only ${availableStock} units available`)
+    }
+
+    if (requestedTotal <= 0) {
       await tx
         .delete(cartItem)
         .where(and(eq(cartItem.cartId, cartId), eq(cartItem.productId, productId)))
+      await releaseCartStockInTx(tx, cartId, productId)
       return null
     }
 
@@ -287,16 +309,25 @@ export async function addItemToCart(cartId: string, productId: string, quantity:
       .values({
         cartId,
         productId,
-        quantity: finalQty,
+        quantity: requestedTotal,
       })
       .onConflictDoUpdate({
         target: [cartItem.cartId, cartItem.productId],
         set: {
-          quantity: sql`LEAST(${cartItem.quantity} + ${quantity}, ${availableStock})`,
+          quantity: requestedTotal,
           updatedAt: new Date(),
         },
       })
       .returning()
+
+    // Upsert a lightweight cart reservation with a 1-hour TTL
+    await reserveCartStockInTx(
+      tx,
+      cartId,
+      productId,
+      result.quantity,
+      new Date(Date.now() + CART_RESERVATION_TTL_MS),
+    )
 
     return result
   })
@@ -307,16 +338,18 @@ export async function updateCartItemQuantity(cartId: string, productId: string, 
     await db
       .delete(cartItem)
       .where(and(eq(cartItem.cartId, cartId), eq(cartItem.productId, productId)))
+    await releaseCartStockInTx(db, cartId, productId)
     return null
   }
 
-  const availableStock = await getAvailableStock(productId)
+  const availableStock = await getAvailableStock(productId, cartId)
   const cappedQty = Math.min(quantity, availableStock)
 
   if (cappedQty <= 0) {
     await db
       .delete(cartItem)
       .where(and(eq(cartItem.cartId, cartId), eq(cartItem.productId, productId)))
+    await releaseCartStockInTx(db, cartId, productId)
     return null
   }
 
@@ -325,6 +358,8 @@ export async function updateCartItemQuantity(cartId: string, productId: string, 
     .from(cartItem)
     .where(and(eq(cartItem.cartId, cartId), eq(cartItem.productId, productId)))
     .limit(1)
+
+  let result: typeof cartItem.$inferSelect
 
   if (existing.length === 0) {
     const [newItem] = await db
@@ -335,21 +370,35 @@ export async function updateCartItemQuantity(cartId: string, productId: string, 
         quantity: cappedQty,
       })
       .returning()
-    return newItem
+    result = newItem
+  } else {
+    const [updated] = await db
+      .update(cartItem)
+      .set({ quantity: cappedQty, updatedAt: new Date() })
+      .where(eq(cartItem.id, existing[0].id))
+      .returning()
+    result = updated
   }
 
-  const [updated] = await db
-    .update(cartItem)
-    .set({ quantity: cappedQty, updatedAt: new Date() })
-    .where(eq(cartItem.id, existing[0].id))
-    .returning()
-  return updated
+  // Upsert a lightweight cart reservation with a 1-hour TTL
+  await db.transaction(async (tx) => {
+    await reserveCartStockInTx(
+      tx,
+      cartId,
+      productId,
+      result.quantity,
+      new Date(Date.now() + CART_RESERVATION_TTL_MS),
+    )
+  })
+
+  return result
 }
 
 export async function removeItemFromCart(cartId: string, productId: string) {
   await db
     .delete(cartItem)
     .where(and(eq(cartItem.cartId, cartId), eq(cartItem.productId, productId)))
+  await releaseCartStockInTx(db, cartId, productId)
 }
 
 export async function touchCartExpiry(cartId: string, days: number = AUTH_CART_DAYS) {
@@ -398,9 +447,15 @@ export async function mergeAnonymousCartIntoUserCart(sessionId: string, userId: 
     const products = await tx.select().from(product).where(inArray(product.id, productIds))
     const productById = new Map(products.map((p) => [p.id, p]))
 
-    // Fetch available stock and existing user cart items in parallel
+    // Release anonymous cart reservations so they don't reduce available
+    // stock during the merge calculation.
+    await releaseCartStockInTx(tx, anonCartId)
+
+    // Fetch available stock and existing user cart items in parallel.
+    // Exclude the user cart's own reservations so they don't double-count
+    // against available inventory during the merge.
     const [availableStockMap, existingUserItems] = await Promise.all([
-      getAvailableStockForProducts(productIds),
+      getAvailableStockForProductsInTx(tx, productIds, userCartId),
       tx
         .select()
         .from(cartItem)
@@ -448,6 +503,24 @@ export async function mergeAnonymousCartIntoUserCart(sessionId: string, userId: 
 
     mutations.push(tx.delete(cart).where(eq(cart.id, anonCartId)))
     await Promise.all(mutations)
+
+    // Re-create cart reservations for the final user cart items (anon cart
+    // reservations are cascade-deleted when the anonymous cart is removed).
+    const finalUserItems = await tx.select().from(cartItem).where(eq(cartItem.cartId, userCartId))
+
+    // Sort to guarantee deterministic lock ordering and avoid deadlocks.
+    finalUserItems.sort((a, b) => a.productId.localeCompare(b.productId))
+
+    const reservationExpiresAt = new Date(Date.now() + CART_RESERVATION_TTL_MS)
+    for (const item of finalUserItems) {
+      await reserveCartStockInTx(
+        tx,
+        userCartId,
+        item.productId,
+        item.quantity,
+        reservationExpiresAt,
+      )
+    }
   })
 }
 
@@ -466,9 +539,29 @@ export async function handlePostLoginCartMerge(
 /*                            Expired Cart Cleanup                            */
 /* -------------------------------------------------------------------------- */
 
-export async function clearExpiredCarts() {
-  const now = new Date()
-  await db.delete(cart).where(and(gt(cart.expiresAt, new Date(0)), gt(sql`${now}`, cart.expiresAt)))
+export interface CleanupExpiredCartsResult {
+  deletedCount: number
+}
+
+export async function clearExpiredCarts(batchSize = 100): Promise<CleanupExpiredCartsResult> {
+  return db.transaction(async (tx) => {
+    const expired = await tx
+      .select({ id: cart.id })
+      .from(cart)
+      .where(lt(cart.expiresAt, sql`now()`))
+      .limit(batchSize)
+
+    if (expired.length === 0) {
+      return { deletedCount: 0 }
+    }
+
+    const ids = expired.map((r) => r.id)
+
+    await tx.delete(cartItem).where(inArray(cartItem.cartId, ids))
+    await tx.delete(cart).where(inArray(cart.id, ids))
+
+    return { deletedCount: expired.length }
+  })
 }
 
 // Backward-compatible alias

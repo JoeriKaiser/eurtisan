@@ -132,11 +132,15 @@ export async function removeProductFromMeilisearch(productId: string): Promise<v
   }
 }
 
+function escapeMeiliFilterValue(value: string): string {
+  return value.replace(/"/g, '\\"')
+}
+
 export async function removeShopProductsFromMeilisearch(shopId: string): Promise<void> {
   if (!meilisearch) return
   try {
     await meilisearch.index(PRODUCTS_INDEX).deleteDocuments({
-      filter: `shopId = "${shopId}"`,
+      filter: `shopId = "${escapeMeiliFilterValue(shopId)}"`,
     })
   } catch (err) {
     logger.error('Failed to remove shop products from Meilisearch', err)
@@ -241,11 +245,11 @@ export async function searchProductsMeilisearch(
   const meiliFilters: string[] = ['isActive = true']
 
   if (filters.shopSlug) {
-    meiliFilters.push(`shopSlug = "${filters.shopSlug}"`)
+    meiliFilters.push(`shopSlug = "${escapeMeiliFilterValue(filters.shopSlug)}"`)
   }
 
   if (filters.categorySlug) {
-    meiliFilters.push(`categorySlug = "${filters.categorySlug}"`)
+    meiliFilters.push(`categorySlug = "${escapeMeiliFilterValue(filters.categorySlug)}"`)
   }
 
   if (filters.minPriceCents !== undefined) {
@@ -376,13 +380,7 @@ export async function processMeilisearchSyncQueue(
           await removeProductFromMeilisearch(item.productId)
         }
 
-        await db
-          .update(meilisearchSyncQueue)
-          .set({
-            status: 'completed',
-            updatedAt: new Date(),
-          })
-          .where(eq(meilisearchSyncQueue.id, item.id))
+        await db.delete(meilisearchSyncQueue).where(eq(meilisearchSyncQueue.id, item.id))
       } catch (err: any) {
         const attempts = item.attempts + 1
         const lastError = err?.message || String(err)

@@ -2,6 +2,7 @@ import { eq, inArray } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { invoices, platformOrder, shopOrder, orderItem, shop, user } from '#/db/schema'
 import { normalizeCountryCode } from './vat.server'
+import { PLATFORM_FEE_PERCENT } from './platform-constants'
 
 export interface BillingAddress {
   name: string
@@ -384,7 +385,7 @@ export async function createInvoicesForPlatformOrder(
 
       // ─── B. GENERATE PLATFORM FEE INVOICE ───
       const platformFeeInvoiceNumber = `INV-FEE-${so.id.toUpperCase()}`
-      const rawFeeCents = Math.round(so.subtotalCents * 0.1) // 10% commission
+      const rawFeeCents = Math.round(so.subtotalCents * (PLATFORM_FEE_PERCENT / 100))
 
       const feeVatDetails = calculatePlatformFeeVat(
         shopBusinessAddress?.country ?? shopOrigin?.country ?? '',
@@ -401,7 +402,7 @@ export async function createInvoicesForPlatformOrder(
         items: [
           {
             id: 'platform-commission',
-            name: `Eurtisan Platform Commission Fee (10% on Sale Subtotal ${so.subtotalCents / 100} EUR)`,
+            name: `Eurtisan Platform Commission Fee (${PLATFORM_FEE_PERCENT}% on Sale Subtotal ${so.subtotalCents / 100} EUR)`,
             quantity: 1,
             unitPriceCents: feeVatDetails.totalCents,
             totalCents: feeVatDetails.totalCents,

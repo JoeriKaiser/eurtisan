@@ -76,9 +76,19 @@ export function getBrevoApiKey(): string | undefined {
  */
 export function getEmailFromAddress(): string {
   if (typeof process !== 'undefined') {
-    return process.env.EMAIL_FROM_ADDRESS ?? 'noreply@eurtisan.eu'
+    return process.env.EMAIL_FROM_ADDRESS ?? 'support@eurtisan.eu'
   }
-  return 'noreply@eurtisan.eu'
+  return 'support@eurtisan.eu'
+}
+
+/**
+ * Reply-To address for transactional emails (server-only).
+ */
+export function getEmailReplyToAddress(): string {
+  if (typeof process !== 'undefined') {
+    return process.env.EMAIL_REPLY_TO_ADDRESS ?? 'support@eurtisan.eu'
+  }
+  return 'support@eurtisan.eu'
 }
 
 /**

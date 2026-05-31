@@ -74,23 +74,49 @@ export default function OrderDetailPage({ order }: OrderDetailPageProps) {
                     <Truck size={14} aria-hidden='true' />
                     {shop.shippingMethod}: {formatPriceEUR(shop.shippingCostCents)}
                   </span>
-                  {shop.trackingNumber && (
-                    <span className='inline-flex items-center gap-1'>
-                      <Package size={14} aria-hidden='true' />
-                      {m.order_detail_tracking()}:{' '}
-                      {shop.trackingUrl ? (
-                        <a
-                          href={shop.trackingUrl}
-                          target='_blank'
-                          rel='noopener noreferrer'
-                          className='text-accent-primary hover:underline'
+                  {shop.shippingLabels.length > 0 ? (
+                    <div className='flex flex-wrap items-center gap-2'>
+                      {shop.shippingLabels.map((label) => (
+                        <span
+                          key={label.createdAt.getTime()}
+                          className='inline-flex items-center gap-1'
                         >
-                          {shop.trackingNumber}
-                        </a>
-                      ) : (
-                        shop.trackingNumber
-                      )}
-                    </span>
+                          <Package size={14} aria-hidden='true' />
+                          {m.order_detail_tracking()}:{' '}
+                          {label.labelUrl ? (
+                            <a
+                              href={label.labelUrl}
+                              target='_blank'
+                              rel='noopener noreferrer'
+                              className='text-accent-primary hover:underline'
+                            >
+                              {label.trackingNumber ?? label.carrier}
+                            </a>
+                          ) : (
+                            (label.trackingNumber ?? label.carrier)
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    shop.trackingNumber && (
+                      <span className='inline-flex items-center gap-1'>
+                        <Package size={14} aria-hidden='true' />
+                        {m.order_detail_tracking()}:{' '}
+                        {shop.trackingUrl ? (
+                          <a
+                            href={shop.trackingUrl}
+                            target='_blank'
+                            rel='noopener noreferrer'
+                            className='text-accent-primary hover:underline'
+                          >
+                            {shop.trackingNumber}
+                          </a>
+                        ) : (
+                          shop.trackingNumber
+                        )}
+                      </span>
+                    )
                   )}
                 </div>
 

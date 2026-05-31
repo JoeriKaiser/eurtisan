@@ -14,6 +14,7 @@ import { logger } from '#/lib/logger.server'
 import {
   getEmailFromAddress,
   getEmailFromName,
+  getEmailReplyToAddress,
   getEmailSmtpHost,
   getEmailSmtpPort,
 } from '#/lib/env.server'
@@ -40,20 +41,27 @@ export class SmtpEmailProvider implements EmailProvider {
   private readonly transporter: nodemailer.Transporter | undefined
   private readonly senderEmail: string
   private readonly senderName: string
+  private readonly replyTo: string
 
   constructor(options?: { mock?: boolean }) {
     this.mockMode = options?.mock ?? !isSmtpConfigured()
     this.senderEmail = getEmailFromAddress()
     this.senderName = getEmailFromName()
+    this.replyTo = getEmailReplyToAddress()
 
     if (!this.mockMode) {
+      const host = getEmailSmtpHost()
+      if (!host) {
+        throw new Error('SMTP host is not configured')
+      }
+      const isDevServer = host === 'mailpit' || host === 'localhost' || host === '127.0.0.1'
+      const skipTlsVerify = process.env.NODE_ENV !== 'production' || isDevServer
+
       this.transporter = nodemailer.createTransport({
-        host: getEmailSmtpHost(),
+        host,
         port: getEmailSmtpPort(),
         secure: false,
-        tls: {
-          rejectUnauthorized: false,
-        },
+        tls: skipTlsVerify ? { rejectUnauthorized: false } : undefined,
       })
     }
   }
@@ -133,6 +141,7 @@ export class SmtpEmailProvider implements EmailProvider {
       subject,
       text: textBody,
       html: htmlBody,
+      replyTo: this.replyTo,
     })
 
     return {

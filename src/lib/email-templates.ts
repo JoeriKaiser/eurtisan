@@ -5,6 +5,8 @@
  * Render errors are caught by the caller so a plain-text fallback can be sent.
  */
 
+import { m } from '#/paraglide/messages'
+import { getLocale } from '#/paraglide/runtime'
 import type { EmailTemplate } from './email-provider'
 
 /** Result of rendering a template. */
@@ -30,6 +32,8 @@ export function renderTemplate(
       return renderEmailVerification(data)
     case 'password_reset':
       return renderPasswordReset(data)
+    case 'account_security_alert':
+      return renderAccountSecurityAlert(data)
     default: {
       // Exhaustiveness check — should never happen at runtime with correct types.
       const _exhaustive: never = template
@@ -69,7 +73,7 @@ function renderOrderConfirmation(data: Record<string, unknown>): RenderedEmail {
       const name = String(i.name ?? 'Item')
       const quantity = Number(i.quantity ?? 1)
       const price = String(i.price ?? '—')
-      return `<li>${escapeHtml(name)} — Qty ${quantity} — ${escapeHtml(price)}</li>`
+      return `<li>${escapeHtml(m.email_item_line({ name, quantity, price }))}</li>`
     })
     .join('')
 
@@ -80,39 +84,54 @@ function renderOrderConfirmation(data: Record<string, unknown>): RenderedEmail {
       const name = String(i.name ?? 'Item')
       const quantity = Number(i.quantity ?? 1)
       const price = String(i.price ?? '—')
-      return `- ${name} — Qty ${quantity} — ${price}`
+      return `- ${m.email_item_line({ name, quantity, price })}`
     })
     .join('\n')
 
-  const contentHtml = `<div style="font-size: 20px; font-weight: 700; color: #111827; line-height: 1.3;">Thank you for your order, ${escapeHtml(buyerName)}!</div>
+  const contentHtml = `<div style="font-size: 20px; font-weight: 700; color: #111827; line-height: 1.3;">${escapeHtml(
+    m.email_order_confirmation_title({ buyerName }),
+  )}</div>
   <br />
-  <div style="color: #374151; font-size: 16px; line-height: 1.5;">Your order <strong>#${escapeHtml(orderNumber)}</strong> from <strong>${escapeHtml(shopName)}</strong> has been received and is being prepared.</div>
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">${m
+    .email_order_confirmation_body({
+      orderNumber,
+      shopName,
+    })
+    .replace(`#${orderNumber}`, `<strong>#${escapeHtml(orderNumber)}</strong>`)
+    .replace(shopName, `<strong>${escapeHtml(shopName)}</strong>`)}</div>
   <br />
-  <div style="font-weight: 600; color: #111827; font-size: 16px; line-height: 1.5;">Items:</div>
+  <div style="font-weight: 600; color: #111827; font-size: 16px; line-height: 1.5;">${escapeHtml(
+    m.email_order_confirmation_items(),
+  )}</div>
   <ul style="padding-left: 20px; color: #374151; font-size: 16px; line-height: 1.5;">${itemsListHtml}</ul>
   <br />
-  <div style="font-weight: 600; color: #111827; font-size: 16px; line-height: 1.5;">Total: ${escapeHtml(total)}</div>
-  ${orderUrl ? `<br /><div style="font-size: 16px; line-height: 1.5;"><a href="${escapeHtml(orderUrl)}" style="color: #2563eb; text-decoration: underline;">View your order</a></div>` : ''}
+  <div style="font-weight: 600; color: #111827; font-size: 16px; line-height: 1.5;">${escapeHtml(
+    m.email_total({ total }),
+  )}</div>
+  ${orderUrl ? `<br /><div style="font-size: 16px; line-height: 1.5;"><a href="${escapeHtml(orderUrl)}" style="color: #2563eb; text-decoration: underline;">${escapeHtml(m.email_order_confirmation_view())}</a></div>` : ''}
   <br /><br />
   <div style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-    Eurtisan — Empowering European artisans and their communities.
+    ${escapeHtml(m.email_footer())}
   </div>`
 
-  const html = wrapInEmailTemplate('Order Confirmation', contentHtml)
+  const html = wrapInEmailTemplate(
+    m.email_order_confirmation_subject({ orderNumber, shopName }),
+    contentHtml,
+  )
 
-  const text = `Thank you for your order, ${buyerName}!
+  const text = `${m.email_order_confirmation_title({ buyerName })}
 
-Your order #${orderNumber} from ${shopName} has been received and is being prepared.
+${m.email_order_confirmation_body({ orderNumber, shopName })}
 
-Items:
+${m.email_order_confirmation_items()}
 ${itemsListText || '- No items'}
 
-Total: ${total}
-${orderUrl ? `View your order: ${orderUrl}` : ''}
+${m.email_total({ total })}
+${orderUrl ? `${m.email_order_confirmation_view_txt({ orderUrl })}` : ''}
 
-Eurtisan — Empowering European artisans and their communities.`
+${m.email_footer()}`
 
-  return { subject: `Order Confirmation #${orderNumber} — ${shopName}`, html, text }
+  return { subject: m.email_order_confirmation_subject({ orderNumber, shopName }), html, text }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -128,41 +147,49 @@ function renderShippingNotification(data: Record<string, unknown>): RenderedEmai
   const estimatedDelivery = String(data.estimatedDelivery ?? '—')
   const trackingUrl = String(data.trackingUrl ?? '')
 
-  const contentHtml = `<div style="font-size: 20px; font-weight: 700; color: #111827; line-height: 1.3;">Your order is on its way, ${escapeHtml(buyerName)}!</div>
+  const contentHtml = `<div style="font-size: 20px; font-weight: 700; color: #111827; line-height: 1.3;">${escapeHtml(
+    m.email_shipping_title({ buyerName }),
+  )}</div>
   <br />
-  <div style="color: #374151; font-size: 16px; line-height: 1.5;">Your order <strong>#${escapeHtml(orderNumber)}</strong> from <strong>${escapeHtml(shopName)}</strong> has been shipped.</div>
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">${m
+    .email_shipping_body({
+      orderNumber,
+      shopName,
+    })
+    .replace(`#${orderNumber}`, `<strong>#${escapeHtml(orderNumber)}</strong>`)
+    .replace(shopName, `<strong>${escapeHtml(shopName)}</strong>`)}</div>
   <br />
   <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f9fafb; border-radius: 8px; width: 100%;" bgcolor="#f9fafb">
     <tr>
       <td style="padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.5; color: #374151;">
-        <div><strong>Carrier:</strong> ${escapeHtml(carrier)}</div>
+        <div><strong>${escapeHtml(m.email_shipping_carrier())}</strong> ${escapeHtml(carrier)}</div>
         <br />
-        <div><strong>Tracking number:</strong> ${escapeHtml(trackingNumber)}</div>
+        <div><strong>${escapeHtml(m.email_shipping_tracking_number())}</strong> ${escapeHtml(trackingNumber)}</div>
         <br />
-        <div><strong>Estimated delivery:</strong> ${escapeHtml(estimatedDelivery)}</div>
+        <div><strong>${escapeHtml(m.email_shipping_estimated_delivery())}</strong> ${escapeHtml(estimatedDelivery)}</div>
       </td>
     </tr>
   </table>
-  ${trackingUrl ? `<br /><div style="font-size: 16px; line-height: 1.5;"><a href="${escapeHtml(trackingUrl)}" rel="noopener noreferrer" style="color: #2563eb; text-decoration: underline;">Track your shipment</a></div>` : ''}
+  ${trackingUrl ? `<br /><div style="font-size: 16px; line-height: 1.5;"><a href="${escapeHtml(trackingUrl)}" rel="noopener noreferrer" style="color: #2563eb; text-decoration: underline;">${escapeHtml(m.email_shipping_track())}</a></div>` : ''}
   <br /><br />
   <div style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-    Eurtisan — Empowering European artisans and their communities.
+    ${escapeHtml(m.email_footer())}
   </div>`
 
-  const html = wrapInEmailTemplate('Shipping Notification', contentHtml)
+  const html = wrapInEmailTemplate(m.email_shipping_subject({ orderNumber, shopName }), contentHtml)
 
-  const text = `Your order is on its way, ${buyerName}!
+  const text = `${m.email_shipping_title({ buyerName })}
 
-Your order #${orderNumber} from ${shopName} has been shipped.
+${m.email_shipping_body({ orderNumber, shopName })}
 
-Carrier: ${carrier}
-Tracking number: ${trackingNumber}
-Estimated delivery: ${estimatedDelivery}
-${trackingUrl ? `Track your shipment: ${trackingUrl}` : ''}
+${m.email_shipping_carrier()} ${carrier}
+${m.email_shipping_tracking_number()} ${trackingNumber}
+${m.email_shipping_estimated_delivery()} ${estimatedDelivery}
+${trackingUrl ? `${m.email_shipping_track_txt({ trackingUrl })}` : ''}
 
-Eurtisan — Empowering European artisans and their communities.`
+${m.email_footer()}`
 
-  return { subject: `Your order #${orderNumber} has shipped — ${shopName}`, html, text }
+  return { subject: m.email_shipping_subject({ orderNumber, shopName }), html, text }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -177,41 +204,51 @@ function renderDisputeUpdate(data: Record<string, unknown>): RenderedEmail {
   const message = String(data.message ?? '')
   const disputeUrl = String(data.disputeUrl ?? '')
 
-  const contentHtml = `<div style="font-size: 20px; font-weight: 700; color: #111827; line-height: 1.3;">Dispute update for order #${escapeHtml(orderNumber)}</div>
+  const contentHtml = `<div style="font-size: 20px; font-weight: 700; color: #111827; line-height: 1.3;">${escapeHtml(
+    m.email_dispute_title({ orderNumber }),
+  )}</div>
   <br />
-  <div style="color: #374151; font-size: 16px; line-height: 1.5;">Hi ${escapeHtml(buyerName)},</div>
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">${escapeHtml(
+    m.email_greeting({ name: buyerName }),
+  )}</div>
   <br />
-  <div style="color: #374151; font-size: 16px; line-height: 1.5;">There is an update regarding the dispute for your order <strong>#${escapeHtml(orderNumber)}</strong> from <strong>${escapeHtml(shopName)}</strong>.</div>
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">${m
+    .email_dispute_body({
+      orderNumber,
+      shopName,
+    })
+    .replace(`#${orderNumber}`, `<strong>#${escapeHtml(orderNumber)}</strong>`)
+    .replace(shopName, `<strong>${escapeHtml(shopName)}</strong>`)}</div>
   <br />
   <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f9fafb; border-radius: 8px; width: 100%;" bgcolor="#f9fafb">
     <tr>
       <td style="padding: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 15px; line-height: 1.5; color: #111827; font-weight: 600;">
-        Status: ${escapeHtml(status)}
+        ${escapeHtml(m.email_dispute_status({ status }))}
       </td>
     </tr>
   </table>
   ${message ? `<br /><div style="color: #374151; font-size: 16px; line-height: 1.5;">${escapeHtml(message)}</div>` : ''}
-  ${disputeUrl ? `<br /><div style="font-size: 16px; line-height: 1.5;"><a href="${escapeHtml(disputeUrl)}" style="color: #2563eb; text-decoration: underline;">View dispute details</a></div>` : ''}
+  ${disputeUrl ? `<br /><div style="font-size: 16px; line-height: 1.5;"><a href="${escapeHtml(disputeUrl)}" style="color: #2563eb; text-decoration: underline;">${escapeHtml(m.email_dispute_view())}</a></div>` : ''}
   <br /><br />
   <div style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-    Eurtisan — Empowering European artisans and their communities.
+    ${escapeHtml(m.email_footer())}
   </div>`
 
-  const html = wrapInEmailTemplate('Dispute Update', contentHtml)
+  const html = wrapInEmailTemplate(m.email_dispute_subject({ orderNumber, shopName }), contentHtml)
 
-  const text = `Dispute update for order #${orderNumber}
+  const text = `${m.email_dispute_title({ orderNumber })}
 
-Hi ${buyerName},
+${m.email_greeting({ name: buyerName })}
 
-There is an update regarding the dispute for your order #${orderNumber} from ${shopName}.
+${m.email_dispute_body({ orderNumber, shopName })}
 
-Status: ${status}
+${m.email_dispute_status({ status })}
 ${message ? `\n${message}` : ''}
-${disputeUrl ? `\nView dispute details: ${disputeUrl}` : ''}
+${disputeUrl ? `\n${m.email_dispute_view_txt({ disputeUrl })}` : ''}
 
-Eurtisan — Empowering European artisans and their communities.`
+${m.email_footer()}`
 
-  return { subject: `Dispute update for order #${orderNumber} — ${shopName}`, html, text }
+  return { subject: m.email_dispute_subject({ orderNumber, shopName }), html, text }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -222,41 +259,49 @@ function renderEmailVerification(data: Record<string, unknown>): RenderedEmail {
   const userName = String(data.userName ?? 'Valued Customer')
   const verificationUrl = String(data.verificationUrl ?? '')
 
-  const contentHtml = `<div style="font-size: 20px; font-weight: 700; color: #111827; line-height: 1.3;">Verify your email address</div>
+  const contentHtml = `<div style="font-size: 20px; font-weight: 700; color: #111827; line-height: 1.3;">${escapeHtml(
+    m.email_verify_title(),
+  )}</div>
   <br />
-  <div style="color: #374151; font-size: 16px; line-height: 1.5;">Hi ${escapeHtml(userName)},</div>
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">${escapeHtml(
+    m.email_greeting({ name: userName }),
+  )}</div>
   <br />
-  <div style="color: #374151; font-size: 16px; line-height: 1.5;">Thank you for signing up for Eurtisan! Please verify your email address to complete your account setup.</div>
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">${escapeHtml(
+    m.email_verify_body(),
+  )}</div>
   <br />
   <table border="0" cellspacing="0" cellpadding="0">
     <tr>
       <td align="center" bgcolor="#2563eb" style="border-radius: 6px; padding: 12px 24px;">
-        <a href="${escapeHtml(verificationUrl)}" target="_blank" style="color: #ffffff; text-decoration: none; font-weight: 500; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px;">Verify Email Address</a>
+        <a href="${escapeHtml(verificationUrl)}" target="_blank" style="color: #ffffff; text-decoration: none; font-weight: 500; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px;">${escapeHtml(m.email_verify_button())}</a>
       </td>
     </tr>
   </table>
   <br />
-  <div style="color: #374151; font-size: 14px; line-height: 1.5;">If the button doesn't work, you can copy and paste the following link into your browser:</div>
+  <div style="color: #374151; font-size: 14px; line-height: 1.5;">${escapeHtml(
+    m.email_link_fallback(),
+  )}</div>
   <br />
   <div style="font-size: 14px; line-height: 1.5;"><a href="${escapeHtml(verificationUrl)}" style="color: #2563eb; text-decoration: underline;">${escapeHtml(verificationUrl)}</a></div>
   <br /><br />
   <div style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-    Eurtisan — Empowering European artisans and their communities.
+    ${escapeHtml(m.email_footer())}
   </div>`
 
-  const html = wrapInEmailTemplate('Verify your email address', contentHtml)
+  const html = wrapInEmailTemplate(m.email_verify_title(), contentHtml)
 
-  const text = `Verify your email address
+  const text = `${m.email_verify_title()}
 
-Hi ${userName},
+${m.email_greeting({ name: userName })}
 
-Thank you for signing up for Eurtisan! Please verify your email address to complete your account setup.
+${m.email_verify_body()}
 
-Verify Email Address: ${verificationUrl}
+${m.email_verify_button()}: ${verificationUrl}
 
-Eurtisan — Empowering European artisans and their communities.`
+${m.email_footer()}`
 
-  return { subject: 'Verify your Eurtisan account', html, text }
+  return { subject: m.email_verify_subject(), html, text }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -267,45 +312,98 @@ function renderPasswordReset(data: Record<string, unknown>): RenderedEmail {
   const userName = String(data.userName ?? 'Valued Customer')
   const resetUrl = String(data.resetUrl ?? '')
 
-  const contentHtml = `<div style="font-size: 20px; font-weight: 700; color: #111827; line-height: 1.3;">Reset your password</div>
+  const contentHtml = `<div style="font-size: 20px; font-weight: 700; color: #111827; line-height: 1.3;">${escapeHtml(
+    m.email_reset_title(),
+  )}</div>
   <br />
-  <div style="color: #374151; font-size: 16px; line-height: 1.5;">Hi ${escapeHtml(userName)},</div>
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">${escapeHtml(
+    m.email_greeting({ name: userName }),
+  )}</div>
   <br />
-  <div style="color: #374151; font-size: 16px; line-height: 1.5;">We received a request to reset the password for your Eurtisan account. Click the button below to choose a new password.</div>
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">${escapeHtml(
+    m.email_reset_body(),
+  )}</div>
   <br />
   <table border="0" cellspacing="0" cellpadding="0">
     <tr>
       <td align="center" bgcolor="#2563eb" style="border-radius: 6px; padding: 12px 24px;">
-        <a href="${escapeHtml(resetUrl)}" target="_blank" style="color: #ffffff; text-decoration: none; font-weight: 500; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px;">Reset Password</a>
+        <a href="${escapeHtml(resetUrl)}" target="_blank" style="color: #ffffff; text-decoration: none; font-weight: 500; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px;">${escapeHtml(m.email_reset_button())}</a>
       </td>
     </tr>
   </table>
   <br />
-  <div style="color: #374151; font-size: 16px; line-height: 1.5;">If you did not request this, you can safely ignore this email.</div>
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">${escapeHtml(
+    m.email_reset_ignore(),
+  )}</div>
   <br />
-  <div style="color: #374151; font-size: 14px; line-height: 1.5;">If the button doesn't work, you can copy and paste the following link into your browser:</div>
+  <div style="color: #374151; font-size: 14px; line-height: 1.5;">${escapeHtml(
+    m.email_link_fallback(),
+  )}</div>
   <br />
   <div style="font-size: 14px; line-height: 1.5;"><a href="${escapeHtml(resetUrl)}" style="color: #2563eb; text-decoration: underline;">${escapeHtml(resetUrl)}</a></div>
   <br /><br />
   <div style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-    Eurtisan — Empowering European artisans and their communities.
+    ${escapeHtml(m.email_footer())}
   </div>`
 
-  const html = wrapInEmailTemplate('Reset your password', contentHtml)
+  const html = wrapInEmailTemplate(m.email_reset_title(), contentHtml)
 
-  const text = `Reset your password
+  const text = `${m.email_reset_title()}
 
-Hi ${userName},
+${m.email_greeting({ name: userName })}
 
-We received a request to reset the password for your Eurtisan account. Click the link below to choose a new password.
+${m.email_reset_body()}
 
-Reset Password: ${resetUrl}
+${m.email_reset_link_txt({ resetUrl })}
 
-If you did not request this, you can safely ignore this email.
+${m.email_reset_ignore()}
 
-Eurtisan — Empowering European artisans and their communities.`
+${m.email_footer()}`
 
-  return { subject: 'Reset your Eurtisan password', html, text }
+  return { subject: m.email_reset_subject(), html, text }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                         Account Security Alert                             */
+/* -------------------------------------------------------------------------- */
+
+function renderAccountSecurityAlert(data: Record<string, unknown>): RenderedEmail {
+  const userName = String(data.userName ?? 'Valued Customer')
+  const lockoutDurationMinutes = Number(data.lockoutDurationMinutes ?? 30)
+
+  const contentHtml = `<div style="font-size: 20px; font-weight: 700; color: #111827; line-height: 1.3;">${escapeHtml(
+    m.email_security_alert_title(),
+  )}</div>
+  <br />
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">${escapeHtml(
+    m.email_greeting({ name: userName }),
+  )}</div>
+  <br />
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">${escapeHtml(
+    m.email_security_alert_body({ lockoutDurationMinutes: String(lockoutDurationMinutes) }),
+  )}</div>
+  <br />
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">${escapeHtml(
+    m.email_security_alert_ignore(),
+  )}</div>
+  <br /><br />
+  <div style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+    ${escapeHtml(m.email_footer())}
+  </div>`
+
+  const html = wrapInEmailTemplate(m.email_security_alert_title(), contentHtml)
+
+  const text = `${m.email_security_alert_title()}
+
+${m.email_greeting({ name: userName })}
+
+${m.email_security_alert_body({ lockoutDurationMinutes: String(lockoutDurationMinutes) })}
+
+${m.email_security_alert_ignore()}
+
+${m.email_footer()}`
+
+  return { subject: m.email_security_alert_subject(), html, text }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -323,7 +421,7 @@ function escapeHtml(input: string): string {
 
 function wrapInEmailTemplate(title: string, contentHtml: string): string {
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="${escapeHtml(getLocale())}">
 <head>
   <meta charset="UTF-8">
   <title>${escapeHtml(title)}</title>

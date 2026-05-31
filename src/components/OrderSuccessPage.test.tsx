@@ -60,7 +60,7 @@ function makeOrder(status: OrderDetail['status'] = 'paid'): OrderDetail {
         trackingNumber: null,
         trackingUrl: null,
         deliveredAt: null,
-        shippingLabel: null,
+        shippingLabels: [],
         trackingStatus: null,
         items: [
           {
@@ -93,20 +93,20 @@ describe('OrderSuccessPage', () => {
 
   it('renders total', () => {
     render(<OrderSuccessPage order={makeOrder('paid')} />)
-    expect(screen.getByText('€25,00')).toBeDefined()
+    expect(screen.getByText('€25.00')).toBeDefined()
   })
 
   it('renders shop name and items', () => {
     render(<OrderSuccessPage order={makeOrder('paid')} />)
     expect(screen.getByText('Test Shop')).toBeDefined()
     expect(screen.getAllByText('Vase').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText('€10,00 × 2')).toBeDefined()
-    expect(screen.getAllByText('€20,00').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('€10.00 × 2')).toBeDefined()
+    expect(screen.getAllByText('€20.00').length).toBeGreaterThanOrEqual(1)
   })
 
   it('renders shipping method and cost', () => {
     render(<OrderSuccessPage order={makeOrder('paid')} />)
-    expect(screen.getByText(/standard:\s*€5,00/i)).toBeDefined()
+    expect(screen.getByText(/standard:\s*€5.00/i)).toBeDefined()
   })
 
   it('renders continue shopping button', () => {
@@ -130,7 +130,7 @@ describe('OrderSuccessPage', () => {
       trackingNumber: 'TRACK123',
       trackingUrl: 'https://example.com/track',
       deliveredAt: null,
-      shippingLabel: null,
+      shippingLabels: [],
       trackingStatus: null,
       items: [
         {
@@ -163,7 +163,7 @@ describe('OrderSuccessPage', () => {
     it('still renders order details while pending', () => {
       render(<OrderSuccessPage order={makeOrder('pending_payment')} />)
       expect(screen.getByText('order-123')).toBeDefined()
-      expect(screen.getByText('€25,00')).toBeDefined()
+      expect(screen.getByText('€25.00')).toBeDefined()
       expect(screen.getByText('Test Shop')).toBeDefined()
     })
 
@@ -183,7 +183,7 @@ describe('OrderSuccessPage', () => {
     it('still renders order details when cancelled', () => {
       render(<OrderSuccessPage order={makeOrder('cancelled')} />)
       expect(screen.getByText('order-123')).toBeDefined()
-      expect(screen.getByText('€25,00')).toBeDefined()
+      expect(screen.getByText('€25.00')).toBeDefined()
       expect(screen.getByText('Test Shop')).toBeDefined()
     })
 

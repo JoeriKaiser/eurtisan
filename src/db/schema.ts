@@ -37,6 +37,8 @@ export const user = pgTable(
     role: userRoleEnum().notNull().default('customer'),
     bannedAt: timestamp('banned_at'),
     banReason: text('ban_reason'),
+    failedLoginAttempts: integer('failed_login_attempts').notNull().default(0),
+    lockedUntil: timestamp('locked_until'),
     createdAt: timestamp().notNull().defaultNow(),
     updatedAt: timestamp().notNull().defaultNow(),
   },
@@ -52,7 +54,8 @@ export const session = pgTable(
   {
     id: text().primaryKey(),
     expiresAt: timestamp().notNull(),
-    token: text().notNull().unique(),
+    token: text(),
+    tokenHash: text('token_hash'),
     createdAt: timestamp().notNull().defaultNow(),
     updatedAt: timestamp().notNull().defaultNow(),
     ipAddress: text(),
@@ -64,6 +67,7 @@ export const session = pgTable(
   (table) => [
     index('session_userId_idx').on(table.userId),
     index('session_expires_at_idx').on(table.expiresAt),
+    uniqueIndex('session_token_hash_unique').on(table.tokenHash),
   ],
 )
 
@@ -99,7 +103,10 @@ export const verification = pgTable(
     createdAt: timestamp().notNull().defaultNow(),
     updatedAt: timestamp().notNull().defaultNow(),
   },
-  (table) => [index('verification_identifier_idx').on(table.identifier)],
+  (table) => [
+    index('verification_identifier_idx').on(table.identifier),
+    index('verification_expires_at_idx').on(table.expiresAt),
+  ],
 )
 
 export const shop = pgTable(
@@ -338,6 +345,7 @@ export const platformOrder = pgTable(
     shippingAddress: jsonb('shipping_address').notNull(),
     billingAddress: jsonb('billing_address').notNull(),
     totalCents: integer('total_cents').notNull().default(0),
+    refundedCents: integer('refunded_cents').notNull().default(0),
     status: orderStatusEnum().notNull().default('pending_payment'),
     cancelledAt: timestamp('cancelled_at'),
     cancellationReason: text('cancellation_reason'),
@@ -373,6 +381,7 @@ export const shopOrder = pgTable(
     vatAmountCents: integer('vat_amount_cents').notNull().default(0),
     shippingVatRateBasisPoints: integer('shipping_vat_rate_basis_points').notNull().default(0),
     shippingVatAmountCents: integer('shipping_vat_amount_cents').notNull().default(0),
+    refundedCents: integer('refunded_cents').notNull().default(0),
     status: orderStatusEnum().notNull().default('pending_payment'),
     trackingNumber: text('tracking_number'),
     trackingUrl: text('tracking_url'),
@@ -423,9 +432,10 @@ export const inventoryReservation = pgTable(
       .notNull()
       .references(() => product.id, { onDelete: 'cascade' }),
     quantity: integer().notNull(),
-    platformOrderId: uuid('platform_order_id')
-      .notNull()
-      .references(() => platformOrder.id, { onDelete: 'cascade' }),
+    platformOrderId: uuid('platform_order_id').references(() => platformOrder.id, {
+      onDelete: 'cascade',
+    }),
+    cartId: uuid('cart_id').references(() => cart.id, { onDelete: 'cascade' }),
     expiresAt: timestamp('expires_at').notNull(),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
@@ -436,6 +446,7 @@ export const inventoryReservation = pgTable(
       table.productId,
       table.platformOrderId,
     ),
+    uniqueIndex('inventory_reservation_product_cart_unique').on(table.productId, table.cartId),
   ],
 )
 

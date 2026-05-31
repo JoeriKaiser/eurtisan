@@ -63,6 +63,8 @@ import { Route as SellOnboardingDraftIdRouteImport } from './routes/sell/onboard
 import { Route as OrdersPlatformOrderIdSuccessRouteImport } from './routes/orders.$platformOrderId.success'
 import { Route as CreatorProductsNewRouteImport } from './routes/creator/products/new'
 import { Route as ApiWebhooksMollieRouteImport } from './routes/api/webhooks/mollie'
+import { Route as ApiHealthReadyRouteImport } from './routes/api/health.ready'
+import { Route as ApiHealthLiveRouteImport } from './routes/api/health.live'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AdminOrdersPlatformOrderIdRouteImport } from './routes/admin/orders.$platformOrderId'
 import { Route as AdminDisputesDisputeIdRouteImport } from './routes/admin/disputes/$disputeId'
@@ -359,6 +361,16 @@ const ApiWebhooksMollieRoute = ApiWebhooksMollieRouteImport.update({
   path: '/api/webhooks/mollie',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiHealthReadyRoute = ApiHealthReadyRouteImport.update({
+  id: '/ready',
+  path: '/ready',
+  getParentRoute: () => ApiHealthRoute,
+} as any)
+const ApiHealthLiveRoute = ApiHealthLiveRouteImport.update({
+  id: '/live',
+  path: '/live',
+  getParentRoute: () => ApiHealthRoute,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -524,7 +536,7 @@ export interface FileRoutesByFullPath {
   '/admin/products': typeof AdminProductsRoute
   '/admin/shops': typeof AdminShopsRoute
   '/admin/users': typeof AdminUsersRoute
-  '/api/health': typeof ApiHealthRoute
+  '/api/health': typeof ApiHealthRouteWithChildren
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
@@ -547,6 +559,8 @@ export interface FileRoutesByFullPath {
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/orders/$platformOrderId': typeof AdminOrdersPlatformOrderIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/health/live': typeof ApiHealthLiveRoute
+  '/api/health/ready': typeof ApiHealthReadyRoute
   '/api/webhooks/mollie': typeof ApiWebhooksMollieRoute
   '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
@@ -602,7 +616,7 @@ export interface FileRoutesByTo {
   '/admin/products': typeof AdminProductsRoute
   '/admin/shops': typeof AdminShopsRoute
   '/admin/users': typeof AdminUsersRoute
-  '/api/health': typeof ApiHealthRoute
+  '/api/health': typeof ApiHealthRouteWithChildren
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
@@ -624,6 +638,8 @@ export interface FileRoutesByTo {
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/orders/$platformOrderId': typeof AdminOrdersPlatformOrderIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/health/live': typeof ApiHealthLiveRoute
+  '/api/health/ready': typeof ApiHealthReadyRoute
   '/api/webhooks/mollie': typeof ApiWebhooksMollieRoute
   '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
@@ -681,7 +697,7 @@ export interface FileRoutesById {
   '/admin/products': typeof AdminProductsRoute
   '/admin/shops': typeof AdminShopsRoute
   '/admin/users': typeof AdminUsersRoute
-  '/api/health': typeof ApiHealthRoute
+  '/api/health': typeof ApiHealthRouteWithChildren
   '/api/products': typeof ApiProductsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
@@ -704,6 +720,8 @@ export interface FileRoutesById {
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/orders/$platformOrderId': typeof AdminOrdersPlatformOrderIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/health/live': typeof ApiHealthLiveRoute
+  '/api/health/ready': typeof ApiHealthReadyRoute
   '/api/webhooks/mollie': typeof ApiWebhooksMollieRoute
   '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
@@ -786,6 +804,8 @@ export interface FileRouteTypes {
     | '/admin/disputes/$disputeId'
     | '/admin/orders/$platformOrderId'
     | '/api/auth/$'
+    | '/api/health/live'
+    | '/api/health/ready'
     | '/api/webhooks/mollie'
     | '/creator/products/new'
     | '/orders/$platformOrderId/success'
@@ -863,6 +883,8 @@ export interface FileRouteTypes {
     | '/admin/disputes/$disputeId'
     | '/admin/orders/$platformOrderId'
     | '/api/auth/$'
+    | '/api/health/live'
+    | '/api/health/ready'
     | '/api/webhooks/mollie'
     | '/creator/products/new'
     | '/orders/$platformOrderId/success'
@@ -942,6 +964,8 @@ export interface FileRouteTypes {
     | '/admin/disputes/$disputeId'
     | '/admin/orders/$platformOrderId'
     | '/api/auth/$'
+    | '/api/health/live'
+    | '/api/health/ready'
     | '/api/webhooks/mollie'
     | '/creator/products/new'
     | '/orders/$platformOrderId/success'
@@ -992,7 +1016,7 @@ export interface RootRouteChildren {
   VerifyEmailRoute: typeof VerifyEmailRoute
   AccountOrdersRoute: typeof AccountOrdersRouteWithChildren
   AccountSettingsRoute: typeof AccountSettingsRoute
-  ApiHealthRoute: typeof ApiHealthRoute
+  ApiHealthRoute: typeof ApiHealthRouteWithChildren
   ApiProductsRoute: typeof ApiProductsRoute
   CategorySlugRoute: typeof CategorySlugRoute
   CategoryAllRoute: typeof CategoryAllRoute
@@ -1397,6 +1421,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWebhooksMollieRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/health/ready': {
+      id: '/api/health/ready'
+      path: '/ready'
+      fullPath: '/api/health/ready'
+      preLoaderRoute: typeof ApiHealthReadyRouteImport
+      parentRoute: typeof ApiHealthRoute
+    }
+    '/api/health/live': {
+      id: '/api/health/live'
+      path: '/live'
+      fullPath: '/api/health/live'
+      preLoaderRoute: typeof ApiHealthLiveRouteImport
+      parentRoute: typeof ApiHealthRoute
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -1689,6 +1727,20 @@ const AccountOrdersRouteWithChildren = AccountOrdersRoute._addFileChildren(
   AccountOrdersRouteChildren,
 )
 
+interface ApiHealthRouteChildren {
+  ApiHealthLiveRoute: typeof ApiHealthLiveRoute
+  ApiHealthReadyRoute: typeof ApiHealthReadyRoute
+}
+
+const ApiHealthRouteChildren: ApiHealthRouteChildren = {
+  ApiHealthLiveRoute: ApiHealthLiveRoute,
+  ApiHealthReadyRoute: ApiHealthReadyRoute,
+}
+
+const ApiHealthRouteWithChildren = ApiHealthRoute._addFileChildren(
+  ApiHealthRouteChildren,
+)
+
 interface ShopsShopSlugRouteChildren {
   ShopsShopSlugProductsProductSlugRoute: typeof ShopsShopSlugProductsProductSlugRoute
 }
@@ -1799,7 +1851,7 @@ const rootRouteChildren: RootRouteChildren = {
   VerifyEmailRoute: VerifyEmailRoute,
   AccountOrdersRoute: AccountOrdersRouteWithChildren,
   AccountSettingsRoute: AccountSettingsRoute,
-  ApiHealthRoute: ApiHealthRoute,
+  ApiHealthRoute: ApiHealthRouteWithChildren,
   ApiProductsRoute: ApiProductsRoute,
   CategorySlugRoute: CategorySlugRoute,
   CategoryAllRoute: CategoryAllRoute,

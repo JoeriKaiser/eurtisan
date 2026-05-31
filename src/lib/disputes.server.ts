@@ -6,6 +6,7 @@ import {
   dispute,
   disputeMessage,
   orderItem,
+  payout,
   platformOrder,
   shop,
   shopOrder,
@@ -194,7 +195,11 @@ export async function openDisputeQuery(
   const daysSinceDelivery = (Date.now() - shopOrderRecord.deliveredAt.getTime()) / MS_PER_DAY
   if (daysSinceDelivery > DISPUTE_WINDOW_DAYS) {
     throw new Response(
-      JSON.stringify({ error: 'Forbidden', message: 'Dispute window has expired (30 days)' }),
+      JSON.stringify({
+        error: 'Forbidden',
+        message: 'Dispute window has expired (30 days)',
+        code: 'DISPUTE_WINDOW_EXPIRED',
+      }),
       { status: 403, headers: { 'Content-Type': 'application/json' } },
     )
   }
@@ -608,13 +613,22 @@ export async function resolveDisputeQuery(
   }
 
   const [platformOrderRecord] = await db
-    .select({ molliePaymentId: platformOrder.molliePaymentId })
+    .select({
+      molliePaymentId: platformOrder.molliePaymentId,
+      totalCents: platformOrder.totalCents,
+      refundedCents: platformOrder.refundedCents,
+    })
     .from(platformOrder)
     .where(eq(platformOrder.id, shopOrderRecord.platformOrderId))
     .limit(1)
 
   const molliePaymentId = platformOrderRecord?.molliePaymentId ?? null
   const orderTotalCents = shopOrderRecord.subtotalCents + shopOrderRecord.shippingCostCents
+
+  // Cumulative refund guard: prevent refunding more than the shop order total
+  // or the platform order total across multiple disputes.
+  const existingShopRefunded = shopOrderRecord.refundedCents ?? 0
+  const existingPlatformRefunded = platformOrderRecord?.refundedCents ?? 0
 
   let refundCents: number | null = null
 
@@ -650,6 +664,30 @@ export async function resolveDisputeQuery(
     refundCents = input.refundCents
   }
 
+  if (refundCents !== null && refundCents > 0) {
+    if (existingShopRefunded + refundCents > orderTotalCents) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Bad Request',
+          message: `Cumulative refund would exceed shop order total of ${orderTotalCents} cents`,
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+    if (
+      platformOrderRecord &&
+      existingPlatformRefunded + refundCents > platformOrderRecord.totalCents
+    ) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Bad Request',
+          message: `Cumulative refund would exceed platform order total of ${platformOrderRecord.totalCents} cents`,
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+  }
+
   const [shopRecord] = await db
     .select({ ownerId: shop.ownerId })
     .from(shop)
@@ -657,6 +695,25 @@ export async function resolveDisputeQuery(
     .limit(1)
 
   const creatorUserId = shopRecord?.ownerId ?? null
+
+  // Block refunds when the seller has already received a payout
+  if (refundCents !== null && refundCents > 0) {
+    const [sentPayout] = await db
+      .select()
+      .from(payout)
+      .where(and(eq(payout.shopOrderId, shopOrderRecord.id), eq(payout.status, 'sent')))
+      .limit(1)
+
+    if (sentPayout) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Conflict',
+          message: 'Refund cannot be processed because the seller payout has already been sent',
+        }),
+        { status: 409, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+  }
 
   // Process refund through Mollie BEFORE starting the DB transaction
   if (refundCents !== null && refundCents > 0 && molliePaymentId) {
@@ -716,10 +773,31 @@ export async function resolveDisputeQuery(
       })
     }
 
+    // Re-verify payout status after locking to prevent refund after payout
+    if (input.resolution !== 'close') {
+      const [sentPayout] = await tx
+        .select()
+        .from(payout)
+        .where(and(eq(payout.shopOrderId, lockedShopOrder.id), eq(payout.status, 'sent')))
+        .limit(1)
+
+      if (sentPayout) {
+        throw new Response(
+          JSON.stringify({
+            error: 'Conflict',
+            message: 'Refund cannot be processed because the seller payout has already been sent',
+          }),
+          { status: 409, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+    }
+
     // Restore inventory to sellable pool for refund outcomes
     if (input.resolution !== 'close') {
       await releaseStockInTx(tx, lockedShopOrder.platformOrderId)
     }
+
+    const shopOrderRefundIncrement = refundCents ?? 0
 
     const [[updated]] = await Promise.all([
       tx
@@ -734,8 +812,21 @@ export async function resolveDisputeQuery(
         .returning(),
       tx
         .update(shopOrder)
-        .set({ status: newOrderStatus, updatedAt: new Date() })
+        .set({
+          status: newOrderStatus,
+          refundedCents: lockedShopOrder.refundedCents + shopOrderRefundIncrement,
+          updatedAt: new Date(),
+        })
         .where(eq(shopOrder.id, lockedDispute.shopOrderId)),
+      shopOrderRefundIncrement > 0
+        ? tx
+            .update(platformOrder)
+            .set({
+              refundedCents: sql`${platformOrder.refundedCents} + ${shopOrderRefundIncrement}`,
+              updatedAt: new Date(),
+            })
+            .where(eq(platformOrder.id, lockedShopOrder.platformOrderId))
+        : Promise.resolve(),
     ])
 
     await recalcPlatformOrderStatus(tx, lockedShopOrder.platformOrderId)

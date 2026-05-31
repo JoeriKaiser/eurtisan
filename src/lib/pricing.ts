@@ -1,12 +1,20 @@
-/**
- * Format a price in cents to a EUR string using European formatting.
- * Examples: 1250 → "€12,50", 9900 → "€99,00"
- */
-const priceFormatter = new Intl.NumberFormat('de-DE', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-})
+import { getLocale } from '#/paraglide/runtime'
+
+const formatters: Record<string, Intl.NumberFormat> = {}
 
 export function formatPriceEUR(cents: number): string {
-  return `€${priceFormatter.format(cents / 100)}`
+  let locale = 'en'
+  try {
+    locale = getLocale()
+  } catch {
+    // Fallback if URL is invalid or cannot be parsed (e.g., in test environments)
+  }
+
+  if (!formatters[locale]) {
+    formatters[locale] = new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: 'EUR',
+    })
+  }
+  return formatters[locale].format(cents / 100)
 }

@@ -13,6 +13,12 @@ interface ImportMetaEnv {
    */
   readonly VITE_UMAMI_HOST_URL?: string
 
+  /**
+   * Optional SRI integrity hash for the Umami tracking script.
+   * Generate with: openssl dgst -sha384 -binary <(curl -sL SCRIPT_URL) | openssl base64 -A
+   */
+  readonly VITE_UMAMI_SCRIPT_INTEGRITY?: string
+
   /** Meilisearch host URL exposed to the browser (e.g. https://search.example.com) */
   readonly VITE_MEILISEARCH_HOST?: string
 

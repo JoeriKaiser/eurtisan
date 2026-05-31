@@ -147,8 +147,8 @@ describe('AdminDisputeDetailPage', () => {
 
     expect(screen.getByText('Items Purchased')).toBeDefined()
     expect(screen.getByText('Ceramic Vase')).toBeDefined()
-    // €20,00 appears in both subtotal and item total — verify at least one exists
-    expect(screen.getAllByText('€20,00').length).toBeGreaterThanOrEqual(1)
+    // €20.00 appears in both subtotal and item total — verify at least one exists
+    expect(screen.getAllByText('€20.00').length).toBeGreaterThanOrEqual(1)
   })
 
   it('renders participant emails', () => {

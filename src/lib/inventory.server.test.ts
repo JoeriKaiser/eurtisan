@@ -2,13 +2,14 @@ import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { db } from '#/db/index'
-import { inventoryReservation, platformOrder, product, shop, user } from '#/db/schema'
+import { inventoryReservation, platformOrder, product, shop, shopOrder, user } from '#/db/schema'
 
-import { releaseExpiredReservations } from './inventory.server'
+import { cancelAbandonedPendingPaymentOrders, releaseExpiredReservations } from './inventory.server'
 
 describe('releaseExpiredReservations (inArray batch delete)', () => {
   beforeEach(async () => {
     await db.delete(inventoryReservation)
+    await db.delete(shopOrder)
     await db.delete(platformOrder)
     await db.delete(product)
     await db.delete(shop)
@@ -151,5 +152,258 @@ describe('releaseExpiredReservations (inArray batch delete)', () => {
       .where(eq(inventoryReservation.platformOrderId, order.id))
 
     expect(remaining).toHaveLength(1)
+  })
+})
+
+describe('cancelAbandonedPendingPaymentOrders', () => {
+  beforeEach(async () => {
+    await db.delete(inventoryReservation)
+    await db.delete(shopOrder)
+    await db.delete(platformOrder)
+    await db.delete(product)
+    await db.delete(shop)
+    await db.delete(user)
+  })
+
+  async function seedUserShopProduct() {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: 'user-1',
+        name: 'Test',
+        email: 'test@example.com',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-1',
+        name: 'Test Shop',
+        slug: 'test-shop',
+        ownerId: u.id,
+      })
+      .returning()
+
+    const [p] = await db
+      .insert(product)
+      .values({
+        id: 'prod-1',
+        name: 'Vase',
+        slug: 'vase',
+        priceCents: 2999,
+        shopId: s.id,
+        stockCount: 10,
+      })
+      .returning()
+
+    return { user: u, shop: s, product: p }
+  }
+
+  it('cancels multiple abandoned pending_payment orders and releases stock', async () => {
+    const { product: p } = await seedUserShopProduct()
+
+    const orders = []
+    for (let i = 0; i < 3; i++) {
+      const [order] = await db
+        .insert(platformOrder)
+        .values({
+          userId: 'user-1',
+          shippingAddress: { street: `${i} Oak` },
+          billingAddress: { street: `${i} Oak` },
+          totalCents: 100,
+          status: 'pending_payment',
+          createdAt: new Date(Date.now() - 31 * 60_000),
+        })
+        .returning()
+      orders.push(order)
+
+      await db.insert(shopOrder).values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        status: 'pending_payment',
+      })
+
+      await db.insert(inventoryReservation).values({
+        productId: p.id,
+        platformOrderId: order.id,
+        quantity: 1,
+        expiresAt: new Date(Date.now() + 60_000),
+      })
+    }
+
+    const result = await cancelAbandonedPendingPaymentOrders(100)
+    expect(result.cancelledCount).toBe(3)
+
+    for (const order of orders) {
+      const [updatedPlatformOrder] = await db
+        .select()
+        .from(platformOrder)
+        .where(eq(platformOrder.id, order.id))
+
+      expect(updatedPlatformOrder.status).toBe('cancelled')
+      expect(updatedPlatformOrder.cancelledAt).not.toBeNull()
+      expect(updatedPlatformOrder.cancellationReason).toBe(
+        'Abandoned: payment not received within 30 minutes',
+      )
+
+      const [updatedShopOrder] = await db
+        .select()
+        .from(shopOrder)
+        .where(eq(shopOrder.platformOrderId, order.id))
+
+      expect(updatedShopOrder.status).toBe('cancelled')
+
+      const reservations = await db
+        .select()
+        .from(inventoryReservation)
+        .where(eq(inventoryReservation.platformOrderId, order.id))
+
+      expect(reservations).toHaveLength(0)
+    }
+  })
+
+  it('does not cancel recent pending_payment orders', async () => {
+    const { product: p } = await seedUserShopProduct()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: { street: '123 Main' },
+        billingAddress: { street: '123 Main' },
+        totalCents: 100,
+        status: 'pending_payment',
+        createdAt: new Date(Date.now() - 5 * 60_000),
+      })
+      .returning()
+
+    await db.insert(shopOrder).values({
+      platformOrderId: order.id,
+      shopId: 'shop-1',
+      status: 'pending_payment',
+    })
+
+    await db.insert(inventoryReservation).values({
+      productId: p.id,
+      platformOrderId: order.id,
+      quantity: 2,
+      expiresAt: new Date(Date.now() + 60_000),
+    })
+
+    const result = await cancelAbandonedPendingPaymentOrders()
+    expect(result.cancelledCount).toBe(0)
+
+    const [platformOrderRow] = await db
+      .select()
+      .from(platformOrder)
+      .where(eq(platformOrder.id, order.id))
+
+    expect(platformOrderRow.status).toBe('pending_payment')
+    expect(platformOrderRow.cancelledAt).toBeNull()
+
+    const [shopOrderRow] = await db
+      .select()
+      .from(shopOrder)
+      .where(eq(shopOrder.platformOrderId, order.id))
+
+    expect(shopOrderRow.status).toBe('pending_payment')
+
+    const reservations = await db
+      .select()
+      .from(inventoryReservation)
+      .where(eq(inventoryReservation.platformOrderId, order.id))
+
+    expect(reservations).toHaveLength(1)
+  })
+
+  it('does not cancel orders with other statuses', async () => {
+    const { product: p } = await seedUserShopProduct()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: { street: '123 Main' },
+        billingAddress: { street: '123 Main' },
+        totalCents: 100,
+        status: 'paid',
+        createdAt: new Date(Date.now() - 31 * 60_000),
+      })
+      .returning()
+
+    await db.insert(shopOrder).values({
+      platformOrderId: order.id,
+      shopId: 'shop-1',
+      status: 'paid',
+    })
+
+    await db.insert(inventoryReservation).values({
+      productId: p.id,
+      platformOrderId: order.id,
+      quantity: 2,
+      expiresAt: new Date(Date.now() + 60_000),
+    })
+
+    const result = await cancelAbandonedPendingPaymentOrders()
+    expect(result.cancelledCount).toBe(0)
+
+    const [platformOrderRow] = await db
+      .select()
+      .from(platformOrder)
+      .where(eq(platformOrder.id, order.id))
+
+    expect(platformOrderRow.status).toBe('paid')
+
+    const reservations = await db
+      .select()
+      .from(inventoryReservation)
+      .where(eq(inventoryReservation.platformOrderId, order.id))
+
+    expect(reservations).toHaveLength(1)
+  })
+
+  it('returns zero when no abandoned orders exist', async () => {
+    await seedUserShopProduct()
+
+    const result = await cancelAbandonedPendingPaymentOrders()
+    expect(result.cancelledCount).toBe(0)
+  })
+
+  it('respects the batch size limit', async () => {
+    await seedUserShopProduct()
+
+    const orders = []
+    for (let i = 0; i < 5; i++) {
+      const [order] = await db
+        .insert(platformOrder)
+        .values({
+          userId: 'user-1',
+          shippingAddress: { street: `${i} Oak` },
+          billingAddress: { street: `${i} Oak` },
+          totalCents: 100,
+          status: 'pending_payment',
+          createdAt: new Date(Date.now() - 31 * 60_000),
+        })
+        .returning()
+      orders.push(order)
+
+      await db.insert(shopOrder).values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        status: 'pending_payment',
+      })
+    }
+
+    const result = await cancelAbandonedPendingPaymentOrders(2)
+    expect(result.cancelledCount).toBe(2)
+
+    const cancelled = await db
+      .select()
+      .from(platformOrder)
+      .where(eq(platformOrder.status, 'cancelled'))
+
+    expect(cancelled).toHaveLength(2)
   })
 })

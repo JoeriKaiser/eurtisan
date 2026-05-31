@@ -30,6 +30,7 @@ export interface PaymentProvider {
     description: string,
     redirectUrl: string,
     webhookUrl: string,
+    billingCountry?: string,
   ): Promise<CreatePaymentResult>
 
   /**

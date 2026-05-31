@@ -641,7 +641,7 @@ describe('CreatorProductEditPage', () => {
     )
 
     // Desktop delete button text
-    const deleteButton = screen.getByText('Delete product')
+    const deleteButton = screen.getByRole('button', { name: /Delete product/i })
     fireEvent.click(deleteButton)
 
     expect(screen.getByText('Are you sure you want to delete this product?')).toBeTruthy()
@@ -661,7 +661,7 @@ describe('CreatorProductEditPage', () => {
       />,
     )
 
-    const deleteButton = screen.getByText('Delete product')
+    const deleteButton = screen.getByRole('button', { name: /Delete product/i })
     fireEvent.click(deleteButton)
 
     // Click the dialog's Cancel button (second "Cancel" in DOM — the first is the form Cancel)
@@ -686,7 +686,7 @@ describe('CreatorProductEditPage', () => {
       />,
     )
 
-    const deleteButton = screen.getByText('Delete product')
+    const deleteButton = screen.getByRole('button', { name: /Delete product/i })
     fireEvent.click(deleteButton)
 
     const confirmButton = screen.getByRole('button', { name: 'Delete' })

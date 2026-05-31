@@ -10,7 +10,7 @@ import {
   shopOrder,
   user,
 } from '#/db/schema'
-import { emitAuditEvent, listAuditLogQuery } from './audit-log.server'
+import { emitAuditEvent, listAuditLogQuery, purgeOldAuditLogs } from './audit-log.server'
 
 beforeEach(async () => {
   await db.delete(auditLog)
@@ -190,5 +190,67 @@ describe('listAuditLogQuery', () => {
     const result = await listAuditLogQuery({ page: 1, pageSize: 10, actorId: a.id })
     expect(result.entries.length).toBe(1)
     expect(result.entries[0].actorId).toBe(a.id)
+  })
+})
+
+describe('purgeOldAuditLogs', () => {
+  beforeEach(async () => {
+    await db.delete(auditLog)
+    await db.delete(user)
+  })
+
+  async function seedUser() {
+    const [u] = await db
+      .insert(user)
+      .values({
+        id: crypto.randomUUID(),
+        name: 'Admin',
+        email: 'admin@example.com',
+        emailVerified: true,
+        role: 'admin',
+      })
+      .returning()
+    return u
+  }
+
+  it('deletes audit logs older than the retention period', async () => {
+    const u = await seedUser()
+
+    await db.insert(auditLog).values({
+      actorId: u.id,
+      actorName: u.name,
+      action: 'shop.suspend',
+      resourceType: 'shop',
+      createdAt: new Date(Date.now() - 366 * 24 * 60 * 60 * 1000),
+    })
+
+    const result = await purgeOldAuditLogs(365)
+    expect(result.deletedCount).toBe(1)
+
+    const remaining = await db.select().from(auditLog)
+    expect(remaining).toHaveLength(0)
+  })
+
+  it('retains audit logs within the retention period', async () => {
+    const u = await seedUser()
+
+    await db.insert(auditLog).values({
+      actorId: u.id,
+      actorName: u.name,
+      action: 'shop.suspend',
+      resourceType: 'shop',
+      createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    })
+
+    const result = await purgeOldAuditLogs(365)
+    expect(result.deletedCount).toBe(0)
+
+    const remaining = await db.select().from(auditLog)
+    expect(remaining).toHaveLength(1)
+  })
+
+  it('returns zero when no audit logs exist', async () => {
+    const result = await purgeOldAuditLogs(365)
+    expect(result.deletedCount).toBe(0)
   })
 })

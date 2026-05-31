@@ -9,6 +9,7 @@ import {
   orderItem,
   platformOrder,
   product,
+  productVariant,
   shop,
   shopOrder,
   user,
@@ -128,6 +129,20 @@ async function seedProduct(overrides?: Partial<typeof product.$inferInsert>) {
     .then((rows) => rows[0])
 }
 
+async function seedProductVariant(overrides?: Partial<typeof productVariant.$inferInsert>) {
+  return db
+    .insert(productVariant)
+    .values({
+      id: 'var-1',
+      productId: 'prod-1',
+      name: 'Standard',
+      stockCount: 10,
+      ...overrides,
+    })
+    .returning()
+    .then((rows) => rows[0])
+}
+
 async function seedOrderItem(overrides?: Partial<typeof orderItem.$inferInsert>) {
   return db
     .insert(orderItem)
@@ -191,6 +206,7 @@ beforeEach(async () => {
   await db.delete(platformOrder)
   await db.delete(cartItem)
   await db.delete(cart)
+  await db.delete(productVariant)
   await db.delete(product)
   await db.delete(shop)
   await db.delete(user)
@@ -211,6 +227,7 @@ afterAll(async () => {
   await db.delete(platformOrder)
   await db.delete(cartItem)
   await db.delete(cart)
+  await db.delete(productVariant)
   await db.delete(product)
   await db.delete(shop)
   await db.delete(user)
@@ -730,6 +747,49 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
 
       const [updatedProduct] = await db.select().from(product).where(eq(product.id, prod.id))
       expect(updatedProduct.stockCount).toBe(7)
+    })
+
+    it('decrements variant stock and deletes reservation when payment is paid', async () => {
+      stubPaymentStatus = 'paid'
+      const order = await seedPlatformOrder()
+      const shopOrd = await seedShopOrder({ platformOrderId: order.id })
+      const prod = await seedProduct({ stockCount: 10 })
+      const variant = await seedProductVariant({ productId: prod.id, stockCount: 8 })
+      await seedOrderItem({
+        shopOrderId: shopOrd.id,
+        productId: prod.id,
+        variantId: variant.id,
+        quantity: 3,
+      })
+      await seedInventoryReservation({ productId: prod.id, platformOrderId: order.id, quantity: 3 })
+
+      const provider = createStubPaymentProvider()
+      const req = mockRequest(
+        { id: 'tr_mock_000042' },
+        { 'X-Mollie-Signature': 'mock_sig_tr_mock_000042' },
+      )
+
+      const res = await processMollieWebhook(req, { db, paymentProvider: provider })
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.status).toBe('processed')
+
+      // Variant stock should be decremented, product stock untouched
+      const [updatedVariant] = await db
+        .select()
+        .from(productVariant)
+        .where(eq(productVariant.id, variant.id))
+      expect(updatedVariant.stockCount).toBe(5)
+
+      const [updatedProduct] = await db.select().from(product).where(eq(product.id, prod.id))
+      expect(updatedProduct.stockCount).toBe(10)
+
+      // Reservation should be removed
+      const reservations = await db
+        .select()
+        .from(inventoryReservation)
+        .where(eq(inventoryReservation.platformOrderId, order.id))
+      expect(reservations).toHaveLength(0)
     })
   })
 

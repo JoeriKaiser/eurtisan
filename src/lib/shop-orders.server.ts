@@ -15,6 +15,7 @@ import { getBaseUrl } from './env.server'
 import { logOrderDelivered, logOrderShipped } from './order-logger'
 import type { OrderStatus } from './orders.server'
 import { createPayoutForShopOrder } from './payouts.server'
+import { calculatePackageDimensions, calculatePackageWeight } from './shipping-estimate'
 import { validatePlainText, validateTrackingUrl } from './xss'
 
 function maskEmail(email: string): string {
@@ -67,7 +68,7 @@ export interface ShopOrderDetail {
   buyer: ShopOrderBuyer
   shippingAddress: ShippingAddress
   items: ShopOrderItemDetail[]
-  label: ShippingLabelDetail | null
+  labels: ShippingLabelDetail[]
 }
 
 export interface ShopOrderListItem {
@@ -91,8 +92,8 @@ export interface ShopOrderListItem {
 
 const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   pending_payment: ['paid', 'cancelled'],
-  paid: ['processing', 'shipped', 'cancelled', 'refunded'],
-  processing: ['shipped', 'cancelled', 'refunded'],
+  paid: ['processing', 'shipped', 'refunded'],
+  processing: ['shipped', 'refunded'],
   shipped: ['delivered', 'disputed', 'refunded'],
   delivered: ['completed', 'disputed', 'refunded'],
   completed: ['refunded'],
@@ -200,7 +201,7 @@ export async function getShopOrderQuery(
     return null
   }
 
-  const [[buyerRecord], items, [labelRecord]] = await Promise.all([
+  const [[buyerRecord], items, labelRecords] = await Promise.all([
     tx
       .select({
         id: user.id,
@@ -232,8 +233,7 @@ export async function getShopOrderQuery(
         createdAt: shippingLabel.createdAt,
       })
       .from(shippingLabel)
-      .where(eq(shippingLabel.shopOrderId, shopOrderId))
-      .limit(1),
+      .where(eq(shippingLabel.shopOrderId, shopOrderId)),
   ])
 
   return {
@@ -254,7 +254,7 @@ export async function getShopOrderQuery(
     buyer: buyerRecord ?? { id: platformOrderRecord.userId, name: 'Unknown', email: '' },
     shippingAddress: platformOrderRecord.shippingAddress as ShippingAddress,
     items,
-    label: labelRecord ?? null,
+    labels: labelRecords,
   }
 }
 
@@ -549,10 +549,8 @@ export async function createShippingLabelForOrderQuery(
 
   // Build a sensible package estimate from order item count
   const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0)
-  const weightGrams = Math.max(100, itemCount * 250)
-  const lengthCm = Math.max(10, itemCount * 5)
-  const widthCm = Math.max(10, itemCount * 4)
-  const heightCm = Math.max(5, itemCount * 3)
+  const weightGrams = calculatePackageWeight(itemCount)
+  const { lengthCm, widthCm, heightCm } = calculatePackageDimensions(itemCount)
 
   try {
     const label = await mondialRelayProvider.createLabel({

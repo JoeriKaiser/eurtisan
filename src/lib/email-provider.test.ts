@@ -8,6 +8,7 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BrevoEmailProvider, brevoEmailProvider, resetMockEmailCounter } from '#/integrations/email'
+import { logger } from '#/lib/logger.server'
 import * as emailTemplates from './email-templates'
 
 beforeEach(() => {
@@ -194,11 +195,12 @@ describe('BrevoEmailProvider (real with mocked fetch)', () => {
     const requestBody = JSON.parse((fetchSpy.mock.calls[0]?.[1] as RequestInit)?.body as string)
 
     expect(requestBody).toMatchObject({
-      sender: { email: 'noreply@eurtisan.eu', name: 'Eurtisan' },
+      sender: { email: 'support@eurtisan.eu', name: 'Eurtisan' },
       to: [{ email: 'buyer@example.com' }],
       subject: expect.stringContaining('99'),
       textContent: expect.stringContaining('Woodworks'),
       htmlContent: expect.stringContaining('Woodworks'),
+      replyTo: { email: 'support@eurtisan.eu' },
     })
   })
 
@@ -207,7 +209,7 @@ describe('BrevoEmailProvider (real with mocked fetch)', () => {
       new Response(JSON.stringify({ messageId: 'brevo-msg-789' }), { status: 201 }),
     )
 
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
     vi.spyOn(emailTemplates, 'renderTemplate').mockImplementation(() => {
       throw new Error('Simulated render failure')
     })
@@ -218,12 +220,12 @@ describe('BrevoEmailProvider (real with mocked fetch)', () => {
 
     expect(result.messageId).toBe('brevo-msg-789')
     expect(result.accepted).toBe(true)
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[BrevoEmailProvider] Template render error (real):',
+    expect(errorSpy).toHaveBeenCalledWith(
+      '[BrevoEmailProvider] Template render error (real)',
       expect.any(Error),
     )
 
-    consoleSpy.mockRestore()
+    errorSpy.mockRestore()
     vi.restoreAllMocks()
   })
 
@@ -256,6 +258,29 @@ describe('BrevoEmailProvider (real with mocked fetch)', () => {
 
     const requestBody = JSON.parse((fetchSpy.mock.calls[0]?.[1] as RequestInit)?.body as string)
     expect(requestBody.sender).toEqual({ email: 'hello@eurtisan.eu', name: 'Eurtisan Team' })
+  })
+
+  it('uses custom reply-to from environment variables', async () => {
+    const originalReplyTo = process.env.EMAIL_REPLY_TO_ADDRESS
+    process.env.EMAIL_REPLY_TO_ADDRESS = 'help@eurtisan.eu'
+
+    const customProvider = new BrevoEmailProvider()
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(JSON.stringify({ messageId: 'msg-abc' }), { status: 201 }))
+
+    await customProvider.sendTransactional('buyer@example.com', 'order_confirmation', {
+      orderNumber: '1',
+    })
+
+    const requestBody = JSON.parse((fetchSpy.mock.calls[0]?.[1] as RequestInit)?.body as string)
+    expect(requestBody.replyTo).toEqual({ email: 'help@eurtisan.eu' })
+
+    if (originalReplyTo === undefined) {
+      delete process.env.EMAIL_REPLY_TO_ADDRESS
+    } else {
+      process.env.EMAIL_REPLY_TO_ADDRESS = originalReplyTo
+    }
   })
 })
 

@@ -40,6 +40,10 @@ vi.mock('#/paraglide/messages', () => ({
     checkout_error_submit: () => 'Could not complete checkout. Please try again.',
     product_no_image: () => 'No image available',
     cart_shop_subtotal: () => 'Subtotal',
+    error_cart_empty: () => 'Cart is empty',
+    error_out_of_stock: () => 'Some items are out of stock',
+    error_dispute_window_expired: () => 'Dispute window has expired (30 days)',
+    error_unexpected: () => 'An unexpected error occurred',
   },
 }))
 
@@ -303,11 +307,11 @@ describe('CheckoutPage', () => {
   it('updates grand total when shipping method changes', () => {
     render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
     // Standard shipping: 2000 + 500 = 2500
-    expect(screen.getAllByText('€25,00').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('€25.00').length).toBeGreaterThanOrEqual(1)
 
     fireEvent.click(screen.getByLabelText(/DHL Express/i))
     // Express shipping: 2000 + 1000 = 3000
-    expect(screen.getAllByText('€30,00').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('€30.00').length).toBeGreaterThanOrEqual(1)
   })
 
   it('renders multiple shop groups', () => {

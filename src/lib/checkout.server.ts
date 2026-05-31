@@ -22,12 +22,13 @@ import { getBaseUrl } from './env.server'
 import {
   getAvailableStockForProducts,
   InsufficientStockError,
-  releaseStockInTx,
+  releaseCartStockInTx,
   reserveStockInTx,
 } from './inventory.server'
 import { logOrderCreated } from './order-logger'
 import type { PaymentProvider } from './payment-provider'
 import { formatPriceEUR } from './pricing'
+import { calculatePackageDimensions, calculatePackageWeight } from './shipping-estimate'
 import { calculateVat } from './vat.server'
 
 /* -------------------------------------------------------------------------- */
@@ -163,10 +164,8 @@ function getPlatformOrigin(): ProviderShippingAddress {
 function estimatePackageFromItems(items: CheckoutItem[]): Package {
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0)
   return {
-    weightGrams: totalItems * 500,
-    lengthCm: 20,
-    widthCm: totalItems * 5, // rough stacking
-    heightCm: 15,
+    weightGrams: calculatePackageWeight(totalItems),
+    ...calculatePackageDimensions(totalItems),
   }
 }
 
@@ -204,6 +203,7 @@ function ratesToShippingOptions(rates: Rate[], fallbackOnEmpty = false): Shippin
 export async function getShippingOptionsForShop(
   items: CheckoutItem[],
   shippingAddress?: ShippingAddress,
+  origin?: ProviderShippingAddress,
 ): Promise<ShippingOption[]> {
   if (!shippingAddress) {
     // No address yet — return fallback so the UI can show a placeholder.
@@ -211,7 +211,7 @@ export async function getShippingOptionsForShop(
   }
 
   const pkg = estimatePackageFromItems(items)
-  const origin = getPlatformOrigin()
+  const effectiveOrigin = origin ?? getPlatformOrigin()
   const destination: ProviderShippingAddress = {
     street: shippingAddress.street,
     city: shippingAddress.city,
@@ -221,7 +221,7 @@ export async function getShippingOptionsForShop(
   }
 
   try {
-    const rates = await mondialRelayProvider.getRates(origin, destination, pkg)
+    const rates = await mondialRelayProvider.getRates(effectiveOrigin, destination, pkg)
     if (rates.length === 0) {
       return [UNSUPPORTED_FALLBACK]
     }
@@ -340,20 +340,26 @@ export async function getCheckoutSummaryQuery(
 
   const shops = Array.from(groups.values())
 
-  // Fetch real shipping rates from the provider in parallel
-  await Promise.all(
-    shops.map(async (shop) => {
-      shop.shippingOptions = await getShippingOptionsForShop(shop.items, shippingAddress)
-    }),
-  )
-
-  // Index shop records for O(1) lookup
+  // Index shop records for O(1) lookup before fetching shipping rates
   const shopRecordById = new Map<string, (typeof items)[number]['shop']>()
   for (const r of items) {
     if (r.shop?.id) {
       shopRecordById.set(r.shop.id, r.shop)
     }
   }
+
+  // Fetch real shipping rates from the provider in parallel
+  await Promise.all(
+    shops.map(async (shop) => {
+      const shopRecord = shopRecordById.get(shop.shopId)
+      const shopOrigin = shopRecord?.shippingOrigin as ProviderShippingAddress | null
+      shop.shippingOptions = await getShippingOptionsForShop(
+        shop.items,
+        shippingAddress,
+        shopOrigin ?? undefined,
+      )
+    }),
+  )
 
   // Calculate VAT estimates per shop based on shipping destination
   const selectionByShopId = new Map(shippingSelections?.map((s) => [s.shopId, s]) ?? [])
@@ -476,10 +482,13 @@ export async function createCheckoutWithProvider(
     .where(eq(cartItem.cartId, input.cartId))
 
   if (cartItems.length === 0) {
-    throw new Response(JSON.stringify({ error: 'Conflict', message: 'Cart is empty' }), {
-      status: 409,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    throw new Response(
+      JSON.stringify({ error: 'Conflict', message: 'Cart is empty', code: 'CART_EMPTY' }),
+      {
+        status: 409,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    )
   }
 
   // 3. Build per-shop CheckoutItem lists to call the shipping provider
@@ -498,10 +507,26 @@ export async function createCheckoutWithProvider(
     shopItemsMap.set(row.product.shopId, items)
   }
 
+  // Fetch shop records to resolve per-shop shipping origins
+  const shopIds = Array.from(shopItemsMap.keys())
+  const shopRecords =
+    shopIds.length > 0 ? await db.select().from(shop).where(inArray(shop.id, shopIds)) : []
+  const originByShopId = new Map<string, ProviderShippingAddress | undefined>()
+  for (const sr of shopRecords) {
+    const origin = sr.shippingOrigin as ProviderShippingAddress | null
+    if (origin) {
+      originByShopId.set(sr.id, origin)
+    }
+  }
+
   // 4. Fetch available shipping options per shop from the provider in parallel
   const shippingEntries = await Promise.all(
     Array.from(shopItemsMap.entries()).map(async ([shopId, items]) => {
-      const options = await getShippingOptionsForShop(items, input.shippingAddress)
+      const options = await getShippingOptionsForShop(
+        items,
+        input.shippingAddress,
+        originByShopId.get(shopId),
+      )
       return [shopId, options] as [string, ShippingOption[]]
     }),
   )
@@ -629,10 +654,13 @@ export async function createCheckoutWithProvider(
       .where(eq(cartItem.cartId, input.cartId))
 
     if (items.length === 0) {
-      throw new Response(JSON.stringify({ error: 'Conflict', message: 'Cart is empty' }), {
-        status: 409,
-        headers: { 'Content-Type': 'application/json' },
-      })
+      throw new Response(
+        JSON.stringify({ error: 'Conflict', message: 'Cart is empty', code: 'CART_EMPTY' }),
+        {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      )
     }
 
     // 2. Validate product and shop approval status
@@ -654,7 +682,11 @@ export async function createCheckoutWithProvider(
       }
     }
 
-    // 3. Validate available stock for every product (accounting for reservations)
+    // 3. Release cart reservations before validating stock so the cart's own
+    //    reservations are not double-counted against available inventory.
+    await releaseCartStockInTx(tx, input.cartId)
+
+    // 4. Validate available stock for every product (accounting for reservations)
     const productIds = items.map((r) => r.product?.id).filter((id): id is string => !!id)
     const availableStockMap = await getAvailableStockForProducts(productIds)
 
@@ -675,6 +707,7 @@ export async function createCheckoutWithProvider(
         JSON.stringify({
           error: 'Conflict',
           message: 'Some items are out of stock',
+          code: 'ITEMS_OUT_OF_STOCK',
           productIds: outOfStockProductIds,
         }),
         { status: 409, headers: { 'Content-Type': 'application/json' } },
@@ -834,6 +867,7 @@ export async function createCheckoutWithProvider(
             JSON.stringify({
               error: 'Conflict',
               message: 'Some items are out of stock',
+              code: 'ITEMS_OUT_OF_STOCK',
               productIds: [lineItem.product.id],
             }),
             { status: 409, headers: { 'Content-Type': 'application/json' } },
@@ -867,6 +901,7 @@ export async function createCheckoutWithProvider(
       `Eurtisan order ${platformOrderId}`,
       redirectUrl,
       webhookUrl,
+      input.shippingAddress.country,
     )
 
     // Persist the Mollie payment ID on the platform order
@@ -877,26 +912,8 @@ export async function createCheckoutWithProvider(
 
     checkoutUrl = payment.checkoutUrl
   } catch (_err) {
-    // Payment initiation failed — cancel the order and restore inventory
-    await db.transaction(async (tx) => {
-      await Promise.all([
-        tx
-          .update(platformOrder)
-          .set({
-            status: 'cancelled',
-            cancelledAt: new Date(),
-            cancellationReason: 'Payment provider error',
-            updatedAt: new Date(),
-          })
-          .where(eq(platformOrder.id, platformOrderId)),
-        tx
-          .update(shopOrder)
-          .set({ status: 'cancelled', updatedAt: new Date() })
-          .where(eq(shopOrder.platformOrderId, platformOrderId)),
-        releaseStockInTx(tx, platformOrderId),
-      ])
-    })
-
+    // Payment initiation failed — keep the order in pending_payment so the
+    // buyer can retry via retryPayment().  Stock remains reserved.
     throw new Response(
       JSON.stringify({
         error: 'Service Unavailable',
@@ -1010,4 +1027,90 @@ export async function createCheckoutWithProvider(
   })
 
   return { platformOrderId, checkoutUrl }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              retryPayment                                  */
+/* -------------------------------------------------------------------------- */
+
+export interface RetryPaymentResult {
+  checkoutUrl: string
+}
+
+/**
+ * Retry payment creation for an existing platform order that is still in
+ * `pending_payment` status.  Useful when the original Mollie call failed
+ * because of a transient network error or 5xx.
+ */
+export async function retryPayment(
+  platformOrderId: string,
+  userId: string,
+  paymentProvider: PaymentProvider,
+): Promise<RetryPaymentResult> {
+  const [order] = await db
+    .select()
+    .from(platformOrder)
+    .where(eq(platformOrder.id, platformOrderId))
+    .limit(1)
+
+  if (!order) {
+    throw new Response(JSON.stringify({ error: 'Not Found', message: 'Order not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  if (order.userId !== userId) {
+    throw new Response(JSON.stringify({ error: 'Forbidden', message: 'Access denied' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  if (order.status !== 'pending_payment') {
+    throw new Response(
+      JSON.stringify({
+        error: 'Conflict',
+        message: 'Order is not in pending payment status',
+      }),
+      { status: 409, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  const baseUrl = getBaseUrl()
+  const redirectUrl = `${baseUrl}/orders/${platformOrderId}/success`
+  const webhookUrl = `${baseUrl}/api/webhooks/mollie`
+
+  let checkoutUrl: string
+
+  const shippingAddress = order.shippingAddress as { country?: string } | null
+  const buyerCountry = shippingAddress?.country
+
+  try {
+    const payment = await paymentProvider.createPayment(
+      order.totalCents,
+      'EUR',
+      `Eurtisan order ${platformOrderId}`,
+      redirectUrl,
+      webhookUrl,
+      buyerCountry,
+    )
+
+    await db
+      .update(platformOrder)
+      .set({ molliePaymentId: payment.paymentId, updatedAt: new Date() })
+      .where(eq(platformOrder.id, platformOrderId))
+
+    checkoutUrl = payment.checkoutUrl
+  } catch (_err) {
+    throw new Response(
+      JSON.stringify({
+        error: 'Service Unavailable',
+        message: 'Payment could not be initiated. Please try again.',
+      }),
+      { status: 503, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  return { checkoutUrl }
 }

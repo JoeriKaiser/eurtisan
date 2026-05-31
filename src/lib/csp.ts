@@ -10,9 +10,8 @@
  *   require custom server wiring to pass the nonce into
  *   `router.options.ssr.nonce` on every request.
  *
- * - `style-src 'self' https://fonts.googleapis.com`
- *   Stylesheets (via `<link>` or `@import`) are restricted to self-hosted and
- *   Google Fonts stylesheets only.
+ * - `style-src 'self'`
+ *   Stylesheets (via `<link>` or `@import`) are restricted to self-hosted only.
  *
  * - `style-src-attr 'unsafe-inline'`
  *   Inline `style` attributes are allowed. The app uses them for dynamic
@@ -30,6 +29,10 @@
  *   image CDNs or OAuth avatars are currently used, so the broad `https:`
  *   scheme has been removed. `data:` is retained for inline base64 thumbnails
  *   and placeholders.
+ *
+ * - `font-src 'self'`
+ *   Fonts are self-hosted in `/fonts/` to eliminate the external dependency
+ *   and enable stricter cross-origin isolation policies.
  */
 
 /** External origins the frontend legitimately connects to. */
@@ -91,10 +94,10 @@ export function buildCspHeader(): string {
   const directives: Record<string, string> = {
     'default-src': "'self'",
     'script-src': Array.from(scriptSrc).join(' '),
-    'style-src': "'self' https://fonts.googleapis.com",
+    'style-src': "'self'",
     'style-src-attr': "'unsafe-inline'",
     'img-src': "'self' data:",
-    'font-src': "'self' https://fonts.gstatic.com",
+    'font-src': "'self'",
     'connect-src': Array.from(connectSrc).join(' '),
     'frame-src': "'self' https://checkout.mollie.com",
     'frame-ancestors': "'none'",

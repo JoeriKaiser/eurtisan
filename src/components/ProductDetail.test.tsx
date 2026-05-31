@@ -104,7 +104,7 @@ describe('ProductDetail', () => {
 
   it('renders price in EUR format', () => {
     render(<ProductDetail product={makeProduct()} />)
-    expect(screen.getByText('€29,99')).toBeDefined()
+    expect(screen.getByText('€29.99')).toBeDefined()
   })
 
   it('renders full description', () => {

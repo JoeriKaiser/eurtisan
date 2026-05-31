@@ -612,10 +612,10 @@ describe('isValidStatusTransition', () => {
     expect(isValidStatusTransition('delivered', 'completed')).toBe(true)
   })
 
-  it('allows cancellation from most statuses', () => {
+  it('allows cancellation only from pending_payment', () => {
     expect(isValidStatusTransition('pending_payment', 'cancelled')).toBe(true)
-    expect(isValidStatusTransition('paid', 'cancelled')).toBe(true)
-    expect(isValidStatusTransition('processing', 'cancelled')).toBe(true)
+    expect(isValidStatusTransition('paid', 'cancelled')).toBe(false)
+    expect(isValidStatusTransition('processing', 'cancelled')).toBe(false)
   })
 
   it('allows refund from most statuses', () => {
@@ -960,6 +960,106 @@ describe('updateShopOrderStatusQuery', () => {
 
     expect(updated.status).toBe('processing')
     expect(updated.trackingNumber).toBeNull()
+  })
+
+  it('throws 400 when cancelling a paid order (refund-first enforcement)', async () => {
+    await seedUser()
+    await seedShop()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        totalCents: 1000,
+        status: 'paid',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 100,
+        subtotalCents: 900,
+        status: 'paid',
+      })
+      .returning()
+
+    try {
+      await updateShopOrderStatusQuery(so.id, { status: 'cancelled' })
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(400)
+      const body = await (err as Response).json()
+      expect(body.message).toBe("Invalid status transition from 'paid' to 'cancelled'")
+    }
+  })
+
+  it('throws 400 when cancelling a processing order (refund-first enforcement)', async () => {
+    await seedUser()
+    await seedShop()
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: 'user-1',
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '00000',
+          country: 'DE',
+        },
+        totalCents: 1000,
+        status: 'processing',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 100,
+        subtotalCents: 900,
+        status: 'processing',
+      })
+      .returning()
+
+    try {
+      await updateShopOrderStatusQuery(so.id, { status: 'cancelled' })
+      expect.fail('Should have thrown')
+    } catch (err) {
+      expect(err instanceof Response).toBe(true)
+      expect((err as Response).status).toBe(400)
+      const body = await (err as Response).json()
+      expect(body.message).toBe("Invalid status transition from 'processing' to 'cancelled'")
+    }
   })
 
   it('decrements stock and deletes reservations when transitioning to paid', async () => {
@@ -1941,8 +2041,8 @@ describe('createShippingLabelForOrderQuery', () => {
     expect(label.labelUrl).toBeTruthy()
 
     const orderWithLabel = await getShopOrderQuery(so.id)
-    expect(orderWithLabel?.label).not.toBeNull()
-    expect(orderWithLabel?.label?.carrier).toBe('mondial_relay')
+    expect(orderWithLabel?.labels).toHaveLength(1)
+    expect(orderWithLabel?.labels[0].carrier).toBe('mondial_relay')
   })
 })
 
@@ -1997,7 +2097,8 @@ describe('markShopOrderShippedWithLabelQuery', () => {
     expect(updated.status).toBe('shipped')
     expect(updated.trackingNumber).toBeTruthy()
     expect(updated.trackingUrl).toBeTruthy()
-    expect(updated.label).not.toBeNull()
+    expect(updated.labels).toHaveLength(1)
+    expect(updated.labels[0].trackingNumber).toBeTruthy()
 
     const [platformRecord] = await db
       .select()

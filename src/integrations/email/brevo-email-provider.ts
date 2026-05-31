@@ -10,7 +10,12 @@
 
 import type { EmailProvider, EmailSendResult, EmailTemplate } from '#/lib/email-provider'
 import { renderFallbackPlainText, renderTemplate } from '#/lib/email-templates'
-import { getBrevoApiKey, getEmailFromAddress, getEmailFromName } from '#/lib/env.server'
+import {
+  getBrevoApiKey,
+  getEmailFromAddress,
+  getEmailFromName,
+  getEmailReplyToAddress,
+} from '#/lib/env.server'
 import { logger } from '#/lib/logger.server'
 
 /** Brevo SMTP API endpoint. */
@@ -47,12 +52,14 @@ export class BrevoEmailProvider implements EmailProvider {
   private readonly apiKey: string | undefined
   private readonly senderEmail: string
   private readonly senderName: string
+  private readonly replyTo: string
 
   constructor(options?: { mock?: boolean }) {
     this.mockMode = options?.mock ?? !isRealModeEnabled()
     this.apiKey = getBrevoApiKey()
     this.senderEmail = getSenderEmail()
     this.senderName = getSenderName()
+    this.replyTo = getEmailReplyToAddress()
 
     if (process.env.NODE_ENV === 'production' && this.mockMode && !this.apiKey) {
       throw new Error(
@@ -136,6 +143,7 @@ export class BrevoEmailProvider implements EmailProvider {
       to: [{ email: to }],
       subject,
       textContent: textBody,
+      replyTo: { email: this.replyTo },
     }
 
     if (htmlBody) {

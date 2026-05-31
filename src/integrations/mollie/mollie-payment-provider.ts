@@ -137,12 +137,20 @@ export class MolliePaymentProvider implements PaymentProvider {
     description: string,
     redirectUrl: string,
     webhookUrl: string,
+    billingCountry?: string,
   ): Promise<CreatePaymentResult> {
     if (this.mockMode) {
       return this.createPaymentMock(amountCents, currency, description, redirectUrl)
     }
 
-    return this.createPaymentReal(amountCents, currency, description, redirectUrl, webhookUrl)
+    return this.createPaymentReal(
+      amountCents,
+      currency,
+      description,
+      redirectUrl,
+      webhookUrl,
+      billingCountry,
+    )
   }
 
   private async createPaymentMock(
@@ -175,6 +183,7 @@ export class MolliePaymentProvider implements PaymentProvider {
     description: string,
     redirectUrl: string,
     webhookUrl: string,
+    billingCountry?: string,
   ): Promise<CreatePaymentResult> {
     const apiKey = getMollieApiKey()
 
@@ -182,7 +191,7 @@ export class MolliePaymentProvider implements PaymentProvider {
       throw new Error('MOLLIE_API_KEY is not set')
     }
 
-    const body = {
+    const body: Record<string, unknown> = {
       amount: {
         currency: currency.toUpperCase(),
         value: `${(amountCents / 100).toFixed(2)}`,
@@ -190,6 +199,10 @@ export class MolliePaymentProvider implements PaymentProvider {
       description,
       redirectUrl,
       webhookUrl,
+    }
+
+    if (billingCountry) {
+      body.restrictPaymentMethodsToCountry = billingCountry
     }
 
     const response = await fetch('https://api.mollie.com/v2/payments', {

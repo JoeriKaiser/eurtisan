@@ -39,6 +39,10 @@ vi.mock('#/paraglide/messages', () => ({
     dispute_description_label: () => 'Description',
     orders_back_to_list: () => 'Back to orders',
     error_not_found_description: () => 'The page you are looking for does not exist.',
+    error_cart_empty: () => 'Cart is empty',
+    error_out_of_stock: () => 'Some items are out of stock',
+    error_dispute_window_expired: () => 'Dispute window has expired (30 days)',
+    error_unexpected: () => 'An unexpected error occurred',
   },
 }))
 
@@ -85,7 +89,7 @@ describe('DisputeThreadPage', () => {
     expect(screen.getByText('dispute-123')).toBeDefined()
     expect(screen.getByText('damaged')).toBeDefined()
     expect(screen.getByText('Test Shop')).toBeDefined()
-    expect(screen.getByText('€25,00')).toBeDefined()
+    expect(screen.getByText('€25.00')).toBeDefined()
     expect(screen.getByText('The item arrived broken.')).toBeDefined()
   })
 

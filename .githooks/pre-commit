@@ -1,0 +1,53 @@
+#!/bin/bash
+# Pre-commit hook: scan staged changes for potential secrets
+# Enable with: git config core.hooksPath .githooks
+
+set -euo pipefail
+
+# Only check staged text files (exclude binary files and large diffs)
+staged_files=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null || true)
+
+if [ -z "$staged_files" ]; then
+  exit 0
+fi
+
+# Patterns that look like hardcoded secrets/secrets in source
+# This is intentionally conservative to avoid false positives
+patterns=(
+  # API keys, passwords, secrets, tokens followed by an assignment or colon and a value
+  -e '(api[_-]?key|password|secret|token|auth|private[_-]?key)\s*[=:]\s*["'\''`][a-zA-Z0-9_\-]{16,}["'\''`]'
+  # AWS keys
+  -e 'AKIA[0-9A-Z]{16}'
+  # Generic high-entropy strings that look like secrets in env files
+  -e '(api[_-]?key|password|secret|token)\s*=\s*[^\s]+'
+)
+
+# Build grep args
+args=()
+for p in "${patterns[@]}"; do
+  args+=("$p")
+done
+
+# Filter to reasonable file types (skip lockfiles, images, etc.)
+filtered_files=$(echo "$staged_files" | grep -vE '\.(lock|png|jpg|jpeg|gif|ico|svg|mp4|webm|pdf|zip|tar|gz|woff2?|ttf|eot)$' || true)
+
+if [ -z "$filtered_files" ]; then
+  exit 0
+fi
+
+# Check staged content (only the lines being added/modified)
+matches=$(git diff --cached --no-color -U0 -- $filtered_files 2>/dev/null | grep -Ei "${args[@]}" || true)
+
+if [ -n "$matches" ]; then
+  echo ""
+  echo "⚠️  Potential secret detected in staged changes."
+  echo "Please review the following matches:"
+  echo ""
+  echo "$matches"
+  echo ""
+  echo "If these are safe (e.g., variable names, example values), stage with --no-verify."
+  echo "Otherwise, remove secrets and use environment variables or a secrets manager."
+  exit 1
+fi
+
+exit 0

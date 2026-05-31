@@ -162,7 +162,7 @@ describe('CartPage', () => {
   it('renders product details', () => {
     render(<CartPage cart={makeCart()} />)
     expect(screen.getByText('Vase')).toBeDefined()
-    expect(screen.getByText('€10,00')).toBeDefined()
+    expect(screen.getByText('€10.00')).toBeDefined()
   })
 
   it('renders product image', () => {
@@ -275,7 +275,7 @@ describe('CartPage', () => {
   it('renders total prominently', () => {
     render(<CartPage cart={makeCart()} />)
     expect(screen.getAllByText('Total').length).toBeGreaterThanOrEqual(1)
-    const totals = screen.getAllByText('€20,00')
+    const totals = screen.getAllByText('€20.00')
     expect(totals.some((el) => el.className.includes('text-xl'))).toBe(true)
   })
 

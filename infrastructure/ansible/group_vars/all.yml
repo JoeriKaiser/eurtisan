@@ -7,7 +7,7 @@ postgres_user: eurtisan
 postgres_db: eurtisan
 
 # ── Email ────────────────────────────────────────────────────────────────
-email_from_address: noreply@eurtisan.eu
+email_from_address: support@eurtisan.eu
 email_from_name: Eurtisan
 email_smtp_port: "587"
 

@@ -154,6 +154,19 @@ export async function createReviewQuery(
     })
   }
 
+  const [shopRecord] = await db
+    .select()
+    .from(shop)
+    .where(eq(shop.id, shopOrderRecord.shopId))
+    .limit(1)
+
+  if (shopRecord?.ownerId === buyerUserId) {
+    throw new Response(
+      JSON.stringify({ error: 'Forbidden', message: 'You cannot review your own product' }),
+      { status: 403, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
   if (shopOrderRecord.status !== 'delivered') {
     throw new Response(
       JSON.stringify({ error: 'Forbidden', message: 'Order must be delivered before reviewing' }),

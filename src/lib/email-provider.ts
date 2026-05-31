@@ -13,6 +13,7 @@ export type EmailTemplate =
   | 'dispute_update'
   | 'email_verification'
   | 'password_reset'
+  | 'account_security_alert'
 
 /** Result returned after attempting to send an email. */
 export interface EmailSendResult {

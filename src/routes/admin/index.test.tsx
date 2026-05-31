@@ -161,8 +161,8 @@ describe('AdminDashboard', () => {
     expect(screen.getByText('paid')).toBeDefined()
     expect(screen.getByText('shipped')).toBeDefined()
     // Price formatting
-    expect(screen.getByText('€25,00')).toBeDefined()
-    expect(screen.getByText('€50,00')).toBeDefined()
+    expect(screen.getByText('€25.00')).toBeDefined()
+    expect(screen.getByText('€50.00')).toBeDefined()
   })
 
   it('renders trend chart titles', () => {

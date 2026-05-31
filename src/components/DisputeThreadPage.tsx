@@ -7,6 +7,7 @@ import { addDisputeMessage } from '#/lib/disputes'
 import type { DisputeDetail } from '#/lib/disputes.server'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
+import { getLocalizedErrorMessage } from '#/lib/error-mapping'
 
 export { DisputeThreadError } from './DisputeThreadError'
 export { DisputeThreadLoading } from './DisputeThreadLoading'
@@ -49,7 +50,8 @@ export default function DisputeThreadPage({ dispute }: DisputeThreadPageProps) {
     } catch (err) {
       if (err instanceof Response) {
         const body = await err.json().catch(() => ({ message: 'Unknown error' }))
-        setSubmitError(body.message || m.dispute_error_send())
+        const errorMsg = getLocalizedErrorMessage(body.code || body.message)
+        setSubmitError(errorMsg || m.dispute_error_send())
       } else {
         setSubmitError(m.dispute_error_send())
       }

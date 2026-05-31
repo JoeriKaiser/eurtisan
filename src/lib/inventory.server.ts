@@ -1,8 +1,15 @@
-import { and, eq, gte, inArray, lt, sql, sum } from 'drizzle-orm'
+import { and, eq, gte, inArray, isNull, lt, ne, or, sql, sum } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { db } from '#/db/index'
 import type * as schema from '#/db/schema'
-import { inventoryReservation, orderItem, product, productVariant, shopOrder } from '#/db/schema'
+import {
+  inventoryReservation,
+  orderItem,
+  platformOrder,
+  product,
+  productVariant,
+  shopOrder,
+} from '#/db/schema'
 
 type DbOrTx = NodePgDatabase<typeof schema>
 
@@ -20,20 +27,53 @@ export class InsufficientStockError extends Error {
 /**
  * Calculate available stock for a single product, accounting for active
  * reservations.
+ *
+ * @param excludeCartId Optional cart ID whose reservations should be excluded
+ *   from the total (used when updating a cart so its own reservations don't
+ *   double-count against available inventory).
  */
-export async function getAvailableStock(productId: string): Promise<number> {
-  const [productRow] = await db.select().from(product).where(eq(product.id, productId)).limit(1)
+export async function getAvailableStock(
+  productId: string,
+  excludeCartId?: string,
+): Promise<number> {
+  return _getAvailableStock(db, productId, excludeCartId)
+}
+
+export async function getAvailableStockInTx(
+  tx: DbOrTx,
+  productId: string,
+  excludeCartId?: string,
+): Promise<number> {
+  return _getAvailableStock(tx, productId, excludeCartId)
+}
+
+async function _getAvailableStock(
+  executor: DbOrTx,
+  productId: string,
+  excludeCartId?: string,
+): Promise<number> {
+  const [productRow] = await executor
+    .select()
+    .from(product)
+    .where(eq(product.id, productId))
+    .limit(1)
 
   if (!productRow) return 0
 
-  const [reservationResult] = await db
+  const [reservationResult] = await executor
     .select({ totalReserved: sum(inventoryReservation.quantity) })
     .from(inventoryReservation)
     .where(
-      and(
-        eq(inventoryReservation.productId, productId),
-        gte(inventoryReservation.expiresAt, sql`now()`),
-      ),
+      excludeCartId
+        ? and(
+            eq(inventoryReservation.productId, productId),
+            gte(inventoryReservation.expiresAt, sql`now()`),
+            or(isNull(inventoryReservation.cartId), ne(inventoryReservation.cartId, excludeCartId)),
+          )
+        : and(
+            eq(inventoryReservation.productId, productId),
+            gte(inventoryReservation.expiresAt, sql`now()`),
+          ),
     )
 
   const totalReserved = Number(reservationResult?.totalReserved ?? 0)
@@ -42,25 +82,54 @@ export async function getAvailableStock(productId: string): Promise<number> {
 
 /**
  * Batch calculate available stock for multiple products.
+ *
+ * @param excludeCartId Optional cart ID whose reservations should be excluded
+ *   from the total.
  */
 export async function getAvailableStockForProducts(
   productIds: string[],
+  excludeCartId?: string,
+): Promise<Map<string, number>> {
+  return _getAvailableStockForProducts(db, productIds, excludeCartId)
+}
+
+export async function getAvailableStockForProductsInTx(
+  tx: DbOrTx,
+  productIds: string[],
+  excludeCartId?: string,
+): Promise<Map<string, number>> {
+  return _getAvailableStockForProducts(tx, productIds, excludeCartId)
+}
+
+async function _getAvailableStockForProducts(
+  executor: DbOrTx,
+  productIds: string[],
+  excludeCartId?: string,
 ): Promise<Map<string, number>> {
   if (productIds.length === 0) return new Map()
 
   const [products, reservations] = await Promise.all([
-    db.select().from(product).where(inArray(product.id, productIds)),
-    db
+    executor.select().from(product).where(inArray(product.id, productIds)),
+    executor
       .select({
         productId: inventoryReservation.productId,
         totalReserved: sum(inventoryReservation.quantity),
       })
       .from(inventoryReservation)
       .where(
-        and(
-          inArray(inventoryReservation.productId, productIds),
-          gte(inventoryReservation.expiresAt, sql`now()`),
-        ),
+        excludeCartId
+          ? and(
+              inArray(inventoryReservation.productId, productIds),
+              gte(inventoryReservation.expiresAt, sql`now()`),
+              or(
+                isNull(inventoryReservation.cartId),
+                ne(inventoryReservation.cartId, excludeCartId),
+              ),
+            )
+          : and(
+              inArray(inventoryReservation.productId, productIds),
+              gte(inventoryReservation.expiresAt, sql`now()`),
+            ),
       )
       .groupBy(inventoryReservation.productId),
   ])
@@ -212,6 +281,105 @@ export async function releaseStockInTx(tx: DbOrTx, platformOrderId: string): Pro
     .where(eq(inventoryReservation.platformOrderId, platformOrderId))
 }
 
+/**
+ * Reserve stock for a cart item inside an existing transaction.
+ *
+ * Locks the product row and checks available stock (excluding the cart's own
+ * reservation so quantities can be updated in place). Upserts a reservation
+ * row keyed by `(productId, cartId)`.
+ */
+export async function reserveCartStockInTx(
+  tx: DbOrTx,
+  cartId: string,
+  productId: string,
+  quantity: number,
+  expiresAt: Date,
+): Promise<void> {
+  if (quantity <= 0) {
+    await tx
+      .delete(inventoryReservation)
+      .where(
+        and(eq(inventoryReservation.cartId, cartId), eq(inventoryReservation.productId, productId)),
+      )
+    return
+  }
+
+  const [productRow] = await tx
+    .select()
+    .from(product)
+    .where(eq(product.id, productId))
+    .for('update')
+
+  if (!productRow) {
+    throw new Error(`Product ${productId} not found`)
+  }
+
+  const [reservationResult] = await tx
+    .select({ totalReserved: sum(inventoryReservation.quantity) })
+    .from(inventoryReservation)
+    .where(
+      and(
+        eq(inventoryReservation.productId, productId),
+        gte(inventoryReservation.expiresAt, sql`now()`),
+        // Exclude this cart's own reservation so we don't double-count
+        // when updating quantity.
+        or(isNull(inventoryReservation.cartId), ne(inventoryReservation.cartId, cartId)),
+      ),
+    )
+
+  const totalReserved = Number(reservationResult?.totalReserved ?? 0)
+  const availableQuantity = productRow.stockCount - totalReserved
+
+  if (quantity > availableQuantity) {
+    throw new InsufficientStockError(
+      `Requested ${quantity} but only ${availableQuantity} available`,
+      availableQuantity,
+      quantity,
+    )
+  }
+
+  const [existing] = await tx
+    .select()
+    .from(inventoryReservation)
+    .where(
+      and(eq(inventoryReservation.cartId, cartId), eq(inventoryReservation.productId, productId)),
+    )
+
+  if (existing) {
+    await tx
+      .update(inventoryReservation)
+      .set({ quantity, expiresAt })
+      .where(eq(inventoryReservation.id, existing.id))
+  } else {
+    await tx.insert(inventoryReservation).values({
+      cartId,
+      productId,
+      quantity,
+      expiresAt,
+    })
+  }
+}
+
+/**
+ * Release all cart stock reservations for a given cart (optionally scoped to a
+ * single product).
+ */
+export async function releaseCartStockInTx(
+  tx: DbOrTx,
+  cartId: string,
+  productId?: string,
+): Promise<void> {
+  if (productId) {
+    await tx
+      .delete(inventoryReservation)
+      .where(
+        and(eq(inventoryReservation.cartId, cartId), eq(inventoryReservation.productId, productId)),
+      )
+  } else {
+    await tx.delete(inventoryReservation).where(eq(inventoryReservation.cartId, cartId))
+  }
+}
+
 export interface ReleaseExpiredResult {
   releasedCount: number
 }
@@ -247,6 +415,63 @@ export async function releaseExpiredReservations(batchSize = 100): Promise<Relea
     await tx.delete(inventoryReservation).where(inArray(inventoryReservation.id, ids))
 
     return { releasedCount: expired.length }
+  })
+}
+
+export interface CancelAbandonedOrdersResult {
+  cancelledCount: number
+}
+
+/**
+ * Cancel platform orders stuck in `pending_payment` for more than 30 minutes.
+ *
+ * For every matching order:
+ * - Updates the `platform_order` status to `cancelled` and records metadata.
+ * - Updates related `shop_order` rows to `cancelled`.
+ * - Deletes `inventory_reservation` rows to release held stock.
+ *
+ * This is idempotent: running it multiple times in a row simply finds zero
+ * remaining abandoned orders after the first successful call.
+ */
+export async function cancelAbandonedPendingPaymentOrders(
+  batchSize = 100,
+): Promise<CancelAbandonedOrdersResult> {
+  return db.transaction(async (tx) => {
+    const abandoned = await tx
+      .select({ id: platformOrder.id })
+      .from(platformOrder)
+      .where(
+        and(
+          eq(platformOrder.status, 'pending_payment'),
+          lt(platformOrder.createdAt, sql`now() - interval '30 minutes'`),
+        ),
+      )
+      .limit(batchSize)
+
+    if (abandoned.length === 0) {
+      return { cancelledCount: 0 }
+    }
+
+    const ids = abandoned.map((o) => o.id)
+    const now = new Date()
+
+    await tx
+      .update(platformOrder)
+      .set({
+        status: 'cancelled',
+        cancelledAt: now,
+        cancellationReason: 'Abandoned: payment not received within 30 minutes',
+      })
+      .where(inArray(platformOrder.id, ids))
+
+    await tx
+      .update(shopOrder)
+      .set({ status: 'cancelled' })
+      .where(inArray(shopOrder.platformOrderId, ids))
+
+    await tx.delete(inventoryReservation).where(inArray(inventoryReservation.platformOrderId, ids))
+
+    return { cancelledCount: abandoned.length }
   })
 }
 
