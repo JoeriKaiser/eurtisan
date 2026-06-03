@@ -23,7 +23,10 @@ export const authMiddleware = createMiddleware({ type: 'request' }).server(
     }
 
     const { auth } = await import('./auth')
+    console.log('AUTH MIDDLEWARE REQUEST URL:', request.url)
+    console.log('AUTH MIDDLEWARE HEADERS:', Object.fromEntries(request.headers.entries()))
     const result = await auth.api.getSession({ headers: request.headers })
+    console.log('AUTH MIDDLEWARE SESSION RESULT:', result)
 
     const user: SafeUser | null = result
       ? {

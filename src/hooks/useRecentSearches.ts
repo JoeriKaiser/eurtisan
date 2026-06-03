@@ -29,13 +29,15 @@ function parseSearches(raw: string | null): string[] {
   }
 }
 
+const EMPTY_ARRAY: string[] = []
+
 function getSnapshot(): string[] {
-  if (typeof window === 'undefined') return []
+  if (typeof window === 'undefined') return EMPTY_ARRAY
   return parseSearches(window.localStorage.getItem(STORAGE_KEY))
 }
 
 function getServerSnapshot(): string[] {
-  return []
+  return EMPTY_ARRAY
 }
 
 function subscribe(callback: () => void): () => void {

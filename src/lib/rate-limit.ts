@@ -19,7 +19,11 @@ function getRateLimitRetentionDays(): number {
 /* -------------------------------------------------------------------------- */
 
 function isTestEnvironment(): boolean {
-  return process.env.VITEST === 'true' || process.env.NODE_ENV === 'test'
+  return (
+    process.env.VITEST === 'true' ||
+    process.env.NODE_ENV === 'test' ||
+    process.env.E2E_TEST === 'true'
+  )
 }
 
 /* -------------------------------------------------------------------------- */

@@ -19,6 +19,7 @@ test.describe('shop creation onboarding', () => {
   test('creator can start a new shop and progress through onboarding', async ({ page }) => {
     // 1. Navigate to Seller Hub and wait for hydration
     await page.goto('/sell')
+    await page.waitForSelector('html[data-hydrated="true"]')
     await page.waitForLoadState('networkidle')
     await expect(page.getByRole('heading', { name: 'Seller Hub' })).toBeVisible()
 

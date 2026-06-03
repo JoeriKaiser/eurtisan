@@ -131,6 +131,7 @@ services:
       IMGPROXY_SALT: ${IMGPROXY_SALT:-}
       VITE_IMGPROXY_BASE_URL: http://localhost:8080
       VITE_S3_BUCKET: eurtisan-uploads
+      PLAYWRIGHT_BROWSERS_PATH: /app/node_modules/playwright-browsers
     depends_on:
       db:
         condition: service_healthy

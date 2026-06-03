@@ -5,7 +5,13 @@ const authFile = 'e2e/.auth/admin.json'
 const baseURL = process.env.BASE_URL || 'http://localhost:3000'
 
 setup('authenticate as admin', async ({ page }) => {
-  const response = await fetch(`${baseURL}/api/auth/sign-in/email`, {
+  // Listen for console logs and errors from the browser page
+  page.on('console', msg => console.log('PAGE LOG:', msg.text()))
+  page.on('pageerror', err => console.log('PAGE ERROR:', err.message))
+
+  const signInUrl = `${baseURL}/api/auth/sign-in/email`
+  console.log('Sending sign-in request to:', signInUrl)
+  const response = await fetch(signInUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -14,13 +20,19 @@ setup('authenticate as admin', async ({ page }) => {
     }),
   })
 
+  console.log('Sign-in Response status:', response.status)
+  const responseBodyText = await response.text()
+  console.log('Sign-in Response body:', responseBodyText)
+
   expect(response.ok).toBeTruthy()
 
   const setCookie = response.headers.get('set-cookie')
+  console.log('Sign-in Set-Cookie header:', setCookie)
   expect(setCookie).toBeTruthy()
 
   const sessionCookie = setCookie!.split(';')[0]
   const [cookieName, cookieValue] = sessionCookie.split('=')
+  console.log(`Setting cookie: ${cookieName} = ${cookieValue}`)
 
   await page.context().addCookies([
     {
@@ -35,6 +47,10 @@ setup('authenticate as admin', async ({ page }) => {
   ])
 
   await page.goto('/admin')
+  console.log('Navigated to /admin. Current URL:', page.url())
+  await page.waitForSelector('html[data-hydrated="true"]')
+  console.log('Page hydrated. Current URL:', page.url())
+  
   await expect(page.getByRole('heading', { name: 'Admin Dashboard' })).toBeVisible({ timeout: 10000 })
 
   await page.context().storageState({ path: authFile })

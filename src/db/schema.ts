@@ -467,6 +467,8 @@ export const inventoryReservation = pgTable(
   ],
 )
 
+export const moderationStatusEnum = pgEnum('moderation_status', ['approved', 'flagged', 'hidden'])
+
 export const review = pgTable(
   'review',
   {
@@ -482,12 +484,14 @@ export const review = pgTable(
       .references(() => user.id, { onDelete: 'cascade' }),
     rating: integer().notNull(),
     comment: text(),
+    moderationStatus: moderationStatusEnum('moderation_status').notNull().default('approved'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (table) => [
     index('review_product_id_idx').on(table.productId),
     index('review_shop_order_id_idx').on(table.shopOrderId),
     index('review_buyer_user_id_idx').on(table.buyerUserId),
+    index('review_moderation_status_idx').on(table.moderationStatus),
     uniqueIndex('review_shop_order_product_unique').on(table.shopOrderId, table.productId),
     check('rating_range', sql`${table.rating} BETWEEN 1 AND 5`),
   ],

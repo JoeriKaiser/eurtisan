@@ -1,9 +1,10 @@
-import { ChevronLeft, ChevronRight, MessageSquare, Star } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MessageSquare, Star, Flag } from 'lucide-react'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getProductReviews } from '#/lib/reviews'
+import { getProductReviews, reportReview } from '#/lib/reviews'
 import type { ProductReviewsResult } from '#/lib/reviews.server'
 import { m } from '#/paraglide/messages'
+import { useAuth } from '#/lib/auth-hooks'
 
 export interface ProductReviewsProps {
   productId: string
@@ -70,6 +71,8 @@ function DistributionBar({
 
 export default function ProductReviews({ productId }: ProductReviewsProps) {
   const [page, setPage] = useState(1)
+  const { user } = useAuth()
+  const [reportedReviews, setReportedReviews] = useState<Record<string, boolean>>({})
 
   const { data, isLoading, error } = useQuery<ProductReviewsResult>({
     queryKey: ['product-reviews', productId, page],
@@ -79,6 +82,15 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
       }),
     placeholderData: (previousData) => previousData,
   })
+
+  const handleReport = async (reviewId: string) => {
+    try {
+      await reportReview({ data: { reviewId } })
+      setReportedReviews((prev) => ({ ...prev, [reviewId]: true }))
+    } catch (err) {
+      console.error('Failed to report review:', err)
+    }
+  }
 
   if (isLoading && !data) {
     return (
@@ -170,9 +182,38 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
                   {review.buyerName}
                 </span>
               </div>
-              <time className='flex-shrink-0 text-xs text-[var(--ds-text-muted)]'>
-                {formatReviewDate(review.createdAt)}
-              </time>
+              <div className='flex items-center gap-2 flex-shrink-0'>
+                <time className='text-xs text-[var(--ds-text-muted)]'>
+                  {formatReviewDate(review.createdAt)}
+                </time>
+                {user && (
+                  <button
+                    type='button'
+                    onClick={() => handleReport(review.id)}
+                    disabled={reportedReviews[review.id]}
+                    className='rounded p-1 text-[var(--ds-text-muted)] hover:bg-[var(--ds-bg-inset)] hover:text-[var(--ds-error)] transition disabled:opacity-50 disabled:cursor-not-allowed'
+                    title={
+                      reportedReviews[review.id]
+                        ? m.reviews_report_success()
+                        : m.reviews_report_button()
+                    }
+                    aria-label={
+                      reportedReviews[review.id]
+                        ? m.reviews_report_success()
+                        : m.reviews_report_button()
+                    }
+                  >
+                    <Flag
+                      size={14}
+                      className={
+                        reportedReviews[review.id]
+                          ? 'fill-[var(--ds-error)] text-[var(--ds-error)]'
+                          : ''
+                      }
+                    />
+                  </button>
+                )}
+              </div>
             </div>
             <div className='mb-2 ml-10'>
               <StarRating rating={review.rating} />

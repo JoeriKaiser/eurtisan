@@ -37,7 +37,7 @@ const config = defineConfig(({ mode }) => ({
     paraglideVitePlugin({
       project: './project.inlang',
       outdir: './src/paraglide',
-      outputStructure: 'message-modules',
+      outputStructure: 'locale-modules',
       cookieName: 'PARAGLIDE_LOCALE',
       strategy: ['url', 'cookie', 'preferredLanguage', 'baseLocale'],
       urlPatterns: [

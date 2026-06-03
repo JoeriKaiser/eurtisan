@@ -3,6 +3,15 @@ import { describe, expect, it, vi } from 'vitest'
 import { authClient } from './auth-client'
 import { useAuth, useCanAccess, useHasRole } from './auth-hooks'
 
+vi.mock('react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react')>()
+  return {
+    ...actual,
+    useState: (_initial: any) => [true, vi.fn()],
+    useEffect: (f: any) => f(),
+  }
+})
+
 vi.mock('./auth-client', () => ({
   authClient: {
     useSession: vi.fn(),

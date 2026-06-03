@@ -1,6 +1,5 @@
 import { createMiddleware, createStart } from '@tanstack/react-start'
 import { buildCspHeader } from './lib/csp'
-import { getCspNonce, injectScriptNonces } from './lib/csp-nonce.server'
 
 function isDev(): boolean {
   return process.env.NODE_ENV === 'development'
@@ -11,6 +10,7 @@ export async function cspMiddlewareHandler({ next }: { next: () => Promise<unkno
   const response = result.response
 
   const newHeaders = new Headers(response.headers)
+  const { getCspNonce, injectScriptNonces } = await import('./lib/csp-nonce.server')
   const nonce = getCspNonce()
 
   if (!isDev() && nonce) {

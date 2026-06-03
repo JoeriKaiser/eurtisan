@@ -71,6 +71,7 @@ export function wrapAdapter(adapter: DBAdapter<BetterAuthOptions>): DBAdapter<Be
       return adapter.create({ model, data, select, forceAllowId })
     }) as DBAdapter['create'],
     findOne: (async ({ model, where, select, join }) => {
+      console.log('AUTH DB ADAPTER findOne:', model, 'where:', JSON.stringify(where))
       if (model === 'session' && where) {
         const { newWhere, tokenMap } = transformSessionWhere(where)
         const result = await adapter.findOne({ model, where: newWhere, select, join })
@@ -171,6 +172,11 @@ export const betterAuthOptions = {
         type: 'string',
         required: false,
         defaultValue: 'customer',
+      },
+      twoFactorEnabled: {
+        type: 'boolean',
+        required: false,
+        defaultValue: false,
       },
     },
   },

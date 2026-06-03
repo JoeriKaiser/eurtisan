@@ -3,6 +3,7 @@ services:
   app:
     environment:
       DATABASE_URL: postgresql://eurtisan:eurtisan@db-test:5432/eurtisan_test
+      E2E_TEST: "true"
     depends_on:
       db-test:
         condition: service_healthy

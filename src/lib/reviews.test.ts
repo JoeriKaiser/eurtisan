@@ -8,6 +8,9 @@ import {
   createReviewQuery,
   getProductReviewsQuery,
   getReviewableItemsQuery,
+  reportReviewQuery,
+  getAdminReviewsQuery,
+  updateReviewModerationStatusQuery,
 } from './reviews.server'
 
 beforeEach(async () => {
@@ -1108,5 +1111,220 @@ describe('getProductReviewsQuery', () => {
     expect(result.page).toBe(1)
     expect(result.pageSize).toBe(1)
     expect(result.totalPages).toBe(0)
+  })
+})
+
+describe('review moderation and flagging', () => {
+  it('reports a review successfully setting status to flagged', async () => {
+    const buyer = await seedUser()
+    const s = await seedShop()
+    const p = await seedProduct()
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: buyer.id,
+        shippingAddress: {
+          name: 'Alice',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Alice',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 1000,
+      })
+      .returning()
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: s.id,
+        shippingMethod: 'standard',
+        shippingCostCents: 500,
+        subtotalCents: 1000,
+        status: 'delivered',
+        deliveredAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+      })
+      .returning()
+    const [r] = await db
+      .insert(review)
+      .values({
+        shopOrderId: so.id,
+        productId: p.id,
+        buyerUserId: buyer.id,
+        rating: 5,
+        comment: 'Excellent!',
+      })
+      .returning()
+
+    expect(r.moderationStatus).toBe('approved')
+
+    await reportReviewQuery(r.id, buyer.id)
+
+    const [updated] = await db.select().from(review).where(eq(review.id, r.id))
+    expect(updated.moderationStatus).toBe('flagged')
+  })
+
+  it('filters out hidden reviews from product reviews', async () => {
+    const buyer = await seedUser()
+    const s = await seedShop()
+    const p = await seedProduct()
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: buyer.id,
+        shippingAddress: {
+          name: 'Alice',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Alice',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 1000,
+      })
+      .returning()
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: s.id,
+        shippingMethod: 'standard',
+        shippingCostCents: 500,
+        subtotalCents: 1000,
+        status: 'delivered',
+        deliveredAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+      })
+      .returning()
+
+    const [r1] = await db
+      .insert(review)
+      .values({
+        shopOrderId: so.id,
+        productId: p.id,
+        buyerUserId: buyer.id,
+        rating: 5,
+        comment: 'Visible review',
+        moderationStatus: 'approved',
+      })
+      .returning()
+
+    const [order2] = await db
+      .insert(platformOrder)
+      .values({
+        userId: buyer.id,
+        shippingAddress: {
+          name: 'Alice',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Alice',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 1000,
+      })
+      .returning()
+    const [so2] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order2.id,
+        shopId: s.id,
+        shippingMethod: 'standard',
+        shippingCostCents: 500,
+        subtotalCents: 1000,
+        status: 'delivered',
+        deliveredAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+      })
+      .returning()
+
+    await db.insert(review).values({
+      shopOrderId: so2.id,
+      productId: p.id,
+      buyerUserId: buyer.id,
+      rating: 1,
+      comment: 'Hidden review',
+      moderationStatus: 'hidden',
+    })
+
+    const result = await getProductReviewsQuery(p.id, 1, 10)
+    expect(result.reviews).toHaveLength(1)
+    expect(result.reviews[0].id).toBe(r1.id)
+    expect(result.averageRating).toBe(5)
+  })
+
+  it('admin queries and status updates work correctly', async () => {
+    const buyer = await seedUser()
+    const s = await seedShop()
+    const p = await seedProduct()
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: buyer.id,
+        shippingAddress: {
+          name: 'Alice',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Alice',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 1000,
+      })
+      .returning()
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: s.id,
+        shippingMethod: 'standard',
+        shippingCostCents: 500,
+        subtotalCents: 1000,
+        status: 'delivered',
+        deliveredAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+      })
+      .returning()
+    const [r] = await db
+      .insert(review)
+      .values({
+        shopOrderId: so.id,
+        productId: p.id,
+        buyerUserId: buyer.id,
+        rating: 4,
+        comment: 'Comment',
+        moderationStatus: 'flagged',
+      })
+      .returning()
+
+    const flaggedResult = await getAdminReviewsQuery('flagged', 1, 10)
+    expect(flaggedResult.reviews).toHaveLength(1)
+    expect(flaggedResult.reviews[0].id).toBe(r.id)
+
+    await updateReviewModerationStatusQuery(r.id, 'hidden')
+    const [updated] = await db.select().from(review).where(eq(review.id, r.id))
+    expect(updated.moderationStatus).toBe('hidden')
   })
 })

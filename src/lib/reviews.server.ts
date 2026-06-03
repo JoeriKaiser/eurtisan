@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, sql } from 'drizzle-orm'
+import { and, count, desc, eq, inArray, ne, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { orderItem, platformOrder, product, review, shop, shopOrder, user } from '#/db/schema'
 import { assertUserRateLimit } from './rate-limit'
@@ -290,7 +290,7 @@ export async function getProductReviewsQuery(
   const [totalResult] = await db
     .select({ total: count() })
     .from(review)
-    .where(eq(review.productId, productId))
+    .where(and(eq(review.productId, productId), ne(review.moderationStatus, 'hidden')))
 
   const total = totalResult?.total ?? 0
   const totalPages = Math.ceil(total / validatedPageSize)
@@ -308,21 +308,21 @@ export async function getProductReviewsQuery(
       })
       .from(review)
       .innerJoin(user, eq(review.buyerUserId, user.id))
-      .where(eq(review.productId, productId))
+      .where(and(eq(review.productId, productId), ne(review.moderationStatus, 'hidden')))
       .orderBy(desc(review.createdAt))
       .limit(validatedPageSize)
       .offset(offset),
     db
       .select({ average: sql<number | null>`round(avg(${review.rating})::numeric, 1)` })
       .from(review)
-      .where(eq(review.productId, productId)),
+      .where(and(eq(review.productId, productId), ne(review.moderationStatus, 'hidden'))),
     db
       .select({
         rating: review.rating,
         count: count(),
       })
       .from(review)
-      .where(eq(review.productId, productId))
+      .where(and(eq(review.productId, productId), ne(review.moderationStatus, 'hidden')))
       .groupBy(review.rating),
   ])
 
@@ -351,4 +351,100 @@ export async function getProductReviewsQuery(
     pageSize: validatedPageSize,
     totalPages: Math.ceil(total / validatedPageSize),
   }
+}
+
+export async function reportReviewQuery(reviewId: string, reporterUserId: string): Promise<void> {
+  await assertUserRateLimit(reporterUserId, 10, 15 * 60 * 1000)
+
+  const [reviewRecord] = await db.select().from(review).where(eq(review.id, reviewId)).limit(1)
+
+  if (!reviewRecord) {
+    throw new Response(JSON.stringify({ error: 'Not Found', message: 'Review not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  if (reviewRecord.moderationStatus === 'approved') {
+    await db.update(review).set({ moderationStatus: 'flagged' }).where(eq(review.id, reviewId))
+  }
+}
+
+export interface AdminReview {
+  id: string
+  productId: string
+  productName: string
+  buyerName: string
+  rating: number
+  comment: string | null
+  moderationStatus: 'approved' | 'flagged' | 'hidden'
+  createdAt: Date
+}
+
+export interface AdminReviewsResult {
+  reviews: AdminReview[]
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+export async function getAdminReviewsQuery(
+  status: 'all' | 'approved' | 'flagged' | 'hidden',
+  page: number,
+  pageSize: number,
+): Promise<AdminReviewsResult> {
+  const validatedPageSize = Math.min(100, Math.max(1, pageSize))
+
+  const whereClause = status === 'all' ? undefined : eq(review.moderationStatus, status)
+
+  const [totalResult] = await db.select({ total: count() }).from(review).where(whereClause)
+
+  const total = totalResult?.total ?? 0
+  const totalPages = Math.ceil(total / validatedPageSize)
+  const validatedPage = totalPages > 0 ? Math.min(Math.max(1, page), totalPages) : Math.max(1, page)
+  const offset = (validatedPage - 1) * validatedPageSize
+
+  const reviewsResult = await db
+    .select({
+      id: review.id,
+      productId: review.productId,
+      productName: product.name,
+      buyerName: user.name,
+      rating: review.rating,
+      comment: review.comment,
+      moderationStatus: review.moderationStatus,
+      createdAt: review.createdAt,
+    })
+    .from(review)
+    .innerJoin(user, eq(review.buyerUserId, user.id))
+    .innerJoin(product, eq(review.productId, product.id))
+    .where(whereClause)
+    .orderBy(desc(review.createdAt))
+    .limit(validatedPageSize)
+    .offset(offset)
+
+  return {
+    reviews: reviewsResult,
+    total,
+    page: validatedPage,
+    pageSize: validatedPageSize,
+    totalPages,
+  }
+}
+
+export async function updateReviewModerationStatusQuery(
+  reviewId: string,
+  status: 'approved' | 'flagged' | 'hidden',
+): Promise<void> {
+  const [reviewRecord] = await db.select().from(review).where(eq(review.id, reviewId)).limit(1)
+
+  if (!reviewRecord) {
+    throw new Response(JSON.stringify({ error: 'Not Found', message: 'Review not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  await db.update(review).set({ moderationStatus: status }).where(eq(review.id, reviewId))
 }

@@ -148,7 +148,7 @@ export async function createProductInternal(data: {
     throw new Error('Invalid category_id')
   }
 
-  let newProduct
+  let newProduct: typeof product.$inferSelect
   try {
     newProduct = await db.transaction(async (tx) => {
       const [inserted] = await tx
@@ -254,7 +254,7 @@ export async function updateProductInternal(data: {
     oldImageKeys = oldImages.map((i) => i.url).filter((url): url is string => !!url)
   }
 
-  let updatedProduct
+  let updatedProduct: typeof product.$inferSelect
   try {
     updatedProduct = await db.transaction(async (tx) => {
       const [result] = await tx

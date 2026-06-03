@@ -42,16 +42,24 @@ export function RootComponent() {
   // Register PWA service worker
   useEffect(() => {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker
-        .register('/sw.js')
-        .then((registration) => {
-          // eslint-disable-next-line no-console
-          console.log('[SW] Registered:', registration.scope)
+      if (import.meta.env.DEV) {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          for (const registration of registrations) {
+            registration.unregister()
+          }
         })
-        .catch((error) => {
-          // eslint-disable-next-line no-console
-          console.error('[SW] Registration failed:', error)
-        })
+      } else {
+        navigator.serviceWorker
+          .register('/sw.js')
+          .then((registration) => {
+            // eslint-disable-next-line no-console
+            console.log('[SW] Registered:', registration.scope)
+          })
+          .catch((error) => {
+            // eslint-disable-next-line no-console
+            console.error('[SW] Registration failed:', error)
+          })
+      }
     }
   }, [])
 

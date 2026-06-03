@@ -46,6 +46,7 @@ setup('authenticate as creator', async ({ page }) => {
 
   // Navigate to home page with the authenticated context
   await page.goto('/')
+  await page.waitForSelector('html[data-hydrated="true"]')
 
   // Verify logged-in state by checking for the known creator name in the header
   await expect(page.getByText(E2E_CREATOR.displayName)).toBeVisible()

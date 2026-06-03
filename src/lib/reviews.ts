@@ -8,6 +8,8 @@ export type {
   ProductReviewsResult,
   ReviewableItem,
   ReviewEligibilityResult,
+  AdminReview,
+  AdminReviewsResult,
 } from './reviews.server'
 
 export const getReviewableItems = createServerFn({ method: 'GET' })
@@ -73,4 +75,78 @@ export const createReview = createServerFn({ method: 'POST' })
       data.rating,
       data.comment ?? null,
     )
+  })
+
+export const reportReview = createServerFn({ method: 'POST' })
+  .middleware([authMiddleware])
+  .inputValidator(
+    z.object({
+      reviewId: z.string().uuid(),
+    }),
+  )
+  .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Response(
+        JSON.stringify({ error: 'Unauthorized', message: 'Authentication required' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const { reportReviewQuery } = await import('./reviews.server')
+    await reportReviewQuery(data.reviewId, context.user.id)
+    return { success: true }
+  })
+
+export const getAdminReviews = createServerFn({ method: 'GET' })
+  .middleware([authMiddleware])
+  .inputValidator(
+    z.object({
+      status: z.enum(['all', 'approved', 'flagged', 'hidden']).default('all'),
+      page: z.number().int().min(1).default(1),
+      pageSize: z.number().int().min(1).max(100).default(20),
+    }),
+  )
+  .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Response(
+        JSON.stringify({ error: 'Unauthorized', message: 'Authentication required' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+    if (context.user.role !== 'admin') {
+      throw new Response(JSON.stringify({ error: 'Forbidden', message: 'Admin access required' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const { getAdminReviewsQuery } = await import('./reviews.server')
+    return getAdminReviewsQuery(data.status, data.page, data.pageSize)
+  })
+
+export const updateReviewModerationStatus = createServerFn({ method: 'POST' })
+  .middleware([authMiddleware])
+  .inputValidator(
+    z.object({
+      reviewId: z.string().uuid(),
+      status: z.enum(['approved', 'flagged', 'hidden']),
+    }),
+  )
+  .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Response(
+        JSON.stringify({ error: 'Unauthorized', message: 'Authentication required' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+    if (context.user.role !== 'admin') {
+      throw new Response(JSON.stringify({ error: 'Forbidden', message: 'Admin access required' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const { updateReviewModerationStatusQuery } = await import('./reviews.server')
+    await updateReviewModerationStatusQuery(data.reviewId, data.status)
+    return { success: true }
   })

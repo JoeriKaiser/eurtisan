@@ -28,3 +28,6 @@ e2e/screenshots
 BUSINESS.md
 infrastructure/ansible/.vault_pass
 docker-compose.override.yml
+.agents/
+scratch/
+

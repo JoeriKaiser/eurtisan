@@ -2,6 +2,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { createRootRouteWithContext } from '@tanstack/react-router'
 import { hydrateQueryData } from '#/lib/hydrate-query'
 import { listCategories } from '#/lib/categories'
+import { getUnreadNotificationCount } from '#/lib/notifications'
 import { queryKeys } from '#/lib/query-keys'
 import { getCurrentUser } from '#/lib/server-auth'
 import { RootComponent } from '#/route-components/__root'
@@ -17,13 +18,15 @@ interface MyRouterContext {
 export const Route = createRootRouteWithContext<MyRouterContext>()({
   loader: async ({ context }) => {
     const [user, categories] = await Promise.all([
-      getCurrentUser().catch(() => null),
+      getCurrentUser().catch((err) => {
+        console.error('ROOT LOADER getCurrentUser ERROR:', err)
+        return null
+      }),
       listCategories({ data: { tree: true } }).catch(() => []),
     ])
     hydrateQueryData(context.queryClient, queryKeys.categoriesTree, categories)
     if (user) {
-      const { getUnreadNotificationCountQuery } = await import('#/lib/notifications.server')
-      const unread = await getUnreadNotificationCountQuery(user.id).catch(() => ({ count: 0 }))
+      const unread = await getUnreadNotificationCount().catch(() => ({ count: 0 }))
       hydrateQueryData(context.queryClient, queryKeys.unreadCount, unread)
     }
     return { user, categories }

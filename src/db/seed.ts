@@ -213,18 +213,17 @@ async function seedUsers() {
       emailVerified: true,
       role: k.role,
       image: avatarUrl(k.email),
+      twoFactorEnabled: false,
     })
-    if (k.role !== 'customer') {
-      const password = k.email.split('@')[0]
-      accounts.push({
-        id: crypto.randomUUID(),
-        accountId: id,
-        providerId: 'credential',
-        userId: id,
-        password: hashPassword(password),
-      })
-      console.log(`  Credentials: ${k.email} / ${password}`)
-    }
+    const password = k.email.split('@')[0]
+    accounts.push({
+      id: crypto.randomUUID(),
+      accountId: id,
+      providerId: 'credential',
+      userId: id,
+      password: hashPassword(password),
+    })
+    console.log(`  Credentials: ${k.email} / ${password}`)
   }
 
   // Random admins
@@ -239,6 +238,7 @@ async function seedUsers() {
       emailVerified: true,
       role: 'admin',
       image: avatarUrl(email),
+      twoFactorEnabled: false,
     })
   }
 
@@ -255,6 +255,7 @@ async function seedUsers() {
       emailVerified: true,
       role: 'creator',
       image: avatarUrl(email),
+      twoFactorEnabled: false,
     })
     accounts.push({
       id: crypto.randomUUID(),
