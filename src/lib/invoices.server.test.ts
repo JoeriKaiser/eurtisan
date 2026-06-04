@@ -64,6 +64,35 @@ describe('Invoicing VAT Engine', () => {
       reverseCharge: false,
     })
   })
+
+  it('throws an error on unrecognized or unmappable country names if they are not empty', () => {
+    expect(() => calculatePlatformFeeVat('Deutschland', false, 1200)).toThrowError(
+      'Unrecognized country code or name: "Deutschland"',
+    )
+    expect(() => calculatePlatformFeeVat('RandomState', false, 1200)).toThrowError(
+      'Unrecognized country code or name: "RandomState"',
+    )
+  })
+
+  it('does not throw an error and returns 0% VAT if country name is empty or only whitespace', () => {
+    const resultEmpty = calculatePlatformFeeVat('', false, 1200)
+    expect(resultEmpty).toEqual({
+      vatRateBasisPoints: 0,
+      vatAmountCents: 0,
+      subtotalCents: 1200,
+      totalCents: 1200,
+      reverseCharge: false,
+    })
+
+    const resultSpaces = calculatePlatformFeeVat('   ', false, 1200)
+    expect(resultSpaces).toEqual({
+      vatRateBasisPoints: 0,
+      vatAmountCents: 0,
+      subtotalCents: 1200,
+      totalCents: 1200,
+      reverseCharge: false,
+    })
+  })
 })
 
 describe('Platform Order Invoices Lifecycle', () => {
@@ -209,7 +238,7 @@ describe('Platform Order Invoices Lifecycle', () => {
 
     expect(feeInvoice).toBeDefined()
     expect(feeInvoice.type).toBe('platform_fee')
-    const expectedFee = Math.round(5000 * (PLATFORM_FEE_PERCENT / 100))
+    const expectedFee = Math.round((5000 - 800) * (PLATFORM_FEE_PERCENT / 100))
     expect(feeInvoice.totalCents).toBe(expectedFee)
     // Business address is FR (domestic B2B) so no reverse charge under franchise en base
     expect(feeInvoice.vatAmountCents).toBe(0)

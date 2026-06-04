@@ -144,6 +144,10 @@ export const step4LocationSchema = z
     currency: z.enum(ALLOWED_CURRENCIES),
     isVatRegistered: z.boolean().default(false),
     vatId: z.string().optional().or(z.literal('')),
+    legalEntityType: z.enum(['individual', 'business']).default('individual'),
+    dateOfBirth: z.string().optional().or(z.literal('')),
+    taxId: z.string().optional().or(z.literal('')),
+    businessRegistrationNumber: z.string().optional().or(z.literal('')),
   })
   .superRefine((data, ctx) => {
     if (data.isVatRegistered) {
@@ -153,14 +157,38 @@ export const step4LocationSchema = z
           message: 'VAT ID is required when VAT registered',
           path: ['vatId'],
         })
-        return
+      } else {
+        const validation = validateVatId(data.vatId.trim())
+        if (!validation.valid) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: validation.message ?? 'Invalid VAT ID format',
+            path: ['vatId'],
+          })
+        }
       }
-      const validation = validateVatId(data.vatId.trim())
-      if (!validation.valid) {
+    }
+    if (!data.taxId || data.taxId.trim().length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Tax Identification Number (TIN) is required for EU tax reporting',
+        path: ['taxId'],
+      })
+    }
+    if (data.legalEntityType === 'individual') {
+      if (!data.dateOfBirth || !/^\d{4}-\d{2}-\d{2}$/.test(data.dateOfBirth)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: validation.message ?? 'Invalid VAT ID format',
-          path: ['vatId'],
+          message: 'Date of birth is required in YYYY-MM-DD format for individual sellers',
+          path: ['dateOfBirth'],
+        })
+      }
+    } else if (data.legalEntityType === 'business') {
+      if (!data.businessRegistrationNumber || data.businessRegistrationNumber.trim().length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Business registration number is required for corporate sellers',
+          path: ['businessRegistrationNumber'],
         })
       }
     }
@@ -266,6 +294,10 @@ export interface ShopDraft {
   currency: string
   isVatRegistered: boolean
   vatId: string | null
+  legalEntityType: string | null
+  dateOfBirth: string | null
+  taxId: string | null
+  businessRegistrationNumber: string | null
   policies: PoliciesData | null
   announcement: string | null
   status: string

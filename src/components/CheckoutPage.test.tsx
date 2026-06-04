@@ -259,13 +259,13 @@ describe('CheckoutPage', () => {
       expect(mockCreateCheckout).toHaveBeenCalledWith({
         data: expect.objectContaining({
           cartId: 'cart-1',
-          shippingAddress: {
+          shippingAddress: expect.objectContaining({
             name: 'Test User',
             street: '123 Main St',
             city: 'Berlin',
             postalCode: '10115',
             country: 'Germany',
-          },
+          }),
           shippingSelections: expect.arrayContaining([
             expect.objectContaining({
               shopId: 'shop-1',

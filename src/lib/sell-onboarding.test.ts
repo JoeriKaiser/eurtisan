@@ -76,6 +76,24 @@ describe('step4LocationSchema', () => {
         shipsInternational: false,
       },
       currency: 'EUR',
+      legalEntityType: 'individual',
+      dateOfBirth: '1990-01-01',
+      taxId: 'TIN123456',
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('passes for business with registration number', () => {
+    const result = step4LocationSchema.safeParse({
+      shippingOrigin: {
+        country: 'FR',
+        processingTimeDays: { min: 1, max: 3 },
+        shipsInternational: false,
+      },
+      currency: 'EUR',
+      legalEntityType: 'business',
+      taxId: 'TIN123456',
+      businessRegistrationNumber: 'REG123456',
     })
     expect(result.success).toBe(true)
   })
@@ -88,6 +106,9 @@ describe('step4LocationSchema', () => {
         shipsInternational: false,
       },
       currency: 'EUR',
+      legalEntityType: 'individual',
+      dateOfBirth: '1990-01-01',
+      taxId: 'TIN123456',
     })
     expect(result.success).toBe(false)
   })
@@ -100,6 +121,9 @@ describe('step4LocationSchema', () => {
         shipsInternational: false,
       },
       currency: 'EUR',
+      legalEntityType: 'individual',
+      dateOfBirth: '1990-01-01',
+      taxId: 'TIN123456',
     })
     expect(result.success).toBe(false)
   })
@@ -112,6 +136,52 @@ describe('step4LocationSchema', () => {
         shipsInternational: false,
       },
       currency: 'LOL',
+      legalEntityType: 'individual',
+      dateOfBirth: '1990-01-01',
+      taxId: 'TIN123456',
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('fails for business without registration number', () => {
+    const result = step4LocationSchema.safeParse({
+      shippingOrigin: {
+        country: 'FR',
+        processingTimeDays: { min: 1, max: 3 },
+        shipsInternational: false,
+      },
+      currency: 'EUR',
+      legalEntityType: 'business',
+      taxId: 'TIN123456',
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('fails for individual with invalid DOB format', () => {
+    const result = step4LocationSchema.safeParse({
+      shippingOrigin: {
+        country: 'FR',
+        processingTimeDays: { min: 1, max: 3 },
+        shipsInternational: false,
+      },
+      currency: 'EUR',
+      legalEntityType: 'individual',
+      dateOfBirth: '1990/01/01',
+      taxId: 'TIN123456',
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('fails without taxId', () => {
+    const result = step4LocationSchema.safeParse({
+      shippingOrigin: {
+        country: 'FR',
+        processingTimeDays: { min: 1, max: 3 },
+        shipsInternational: false,
+      },
+      currency: 'EUR',
+      legalEntityType: 'individual',
+      dateOfBirth: '1990-01-01',
     })
     expect(result.success).toBe(false)
   })
@@ -316,6 +386,9 @@ describe('validateOnboardingStepData', () => {
           shipsInternational: false,
         },
         currency: 'EUR',
+        legalEntityType: 'individual',
+        dateOfBirth: '1985-05-12',
+        taxId: 'TIN789456',
       }),
     ).not.toThrow()
   })
@@ -331,6 +404,9 @@ describe('validateOnboardingStepData', () => {
         currency: 'EUR',
         isVatRegistered: true,
         vatId: '',
+        legalEntityType: 'individual',
+        dateOfBirth: '1985-05-12',
+        taxId: 'TIN789456',
       }),
     ).toThrow()
   })

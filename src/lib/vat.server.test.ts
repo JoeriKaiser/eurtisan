@@ -133,6 +133,48 @@ describe('VAT Calculation Engine', () => {
     })
     expect(result).toEqual({ vatAmountCents: 190, vatRateBasisPoints: 1900 })
   })
+
+  it('throws an error on unrecognized or unmappable country names if they are not empty', () => {
+    expect(() =>
+      calculateVat({
+        sellerCountry: 'FR',
+        buyerCountry: 'Deutschland',
+        isVatRegistered: true,
+        vatRateCategory: 'standard',
+        inclusiveAmountCents: 1190,
+      }),
+    ).toThrowError('Unrecognized country code or name: "Deutschland"')
+
+    expect(() =>
+      calculateVat({
+        sellerCountry: 'FR',
+        buyerCountry: 'RandomState',
+        isVatRegistered: true,
+        vatRateCategory: 'standard',
+        inclusiveAmountCents: 1190,
+      }),
+    ).toThrowError('Unrecognized country code or name: "RandomState"')
+  })
+
+  it('does not throw an error and returns 0% VAT if country name is empty or only whitespace', () => {
+    const resultEmpty = calculateVat({
+      sellerCountry: 'FR',
+      buyerCountry: '',
+      isVatRegistered: true,
+      vatRateCategory: 'standard',
+      inclusiveAmountCents: 1190,
+    })
+    expect(resultEmpty).toEqual({ vatAmountCents: 0, vatRateBasisPoints: 0 })
+
+    const resultSpaces = calculateVat({
+      sellerCountry: 'FR',
+      buyerCountry: '   ',
+      isVatRegistered: true,
+      vatRateCategory: 'standard',
+      inclusiveAmountCents: 1190,
+    })
+    expect(resultSpaces).toEqual({ vatAmountCents: 0, vatRateBasisPoints: 0 })
+  })
 })
 
 describe('validateVatId', () => {

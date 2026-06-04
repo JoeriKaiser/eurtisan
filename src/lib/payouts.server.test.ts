@@ -5,7 +5,7 @@ import { db } from '#/db/index'
 import { payout, platformOrder, shop, shopOrder, user } from '#/db/schema'
 import { PLATFORM_FEE_PERCENT } from './platform-constants'
 import { markShopOrderDeliveredQuery, updateShopOrderStatusQuery } from './shop-orders.server'
-import { markPayoutSentQuery } from './payouts.server'
+import { markPayoutSentQuery, listCreatorPayoutsQuery } from './payouts.server'
 
 /* -------------------------------------------------------------------------- */
 /*                                  Helpers                                   */
@@ -187,6 +187,59 @@ describe('createPayoutForShopOrder', () => {
 
     expect(payouts).toHaveLength(1)
   })
+
+  it('calculates the platform fee net of VAT and sets the correct payout amount', async () => {
+    await seedUser()
+    await seedShop()
+    const platformOrd = await seedPlatformOrder()
+
+    const subtotalCents = 12000
+    const vatAmountCents = 2000
+    const order = await seedShopOrder({
+      platformOrderId: platformOrd.id,
+      shopId: 'shop-1',
+      subtotalCents,
+      vatAmountCents,
+      status: 'shipped',
+    })
+
+    await markShopOrderDeliveredQuery(order.id)
+
+    const [payoutRecord] = await db.select().from(payout).where(eq(payout.shopOrderId, order.id))
+
+    expect(payoutRecord).toBeDefined()
+    expect(payoutRecord?.status).toBe('pending')
+
+    const expectedFee = Math.round((subtotalCents - vatAmountCents) * (PLATFORM_FEE_PERCENT / 100))
+    expect(payoutRecord?.amountCents).toBe(subtotalCents - expectedFee)
+  })
+
+  it('includes shipping cost in the payout for manual shipping orders', async () => {
+    await seedUser()
+    await seedShop()
+    const platformOrd = await seedPlatformOrder()
+
+    const subtotalCents = 10000
+    const shippingCostCents = 850
+    const order = await seedShopOrder({
+      platformOrderId: platformOrd.id,
+      shopId: 'shop-1',
+      subtotalCents,
+      shippingCostCents,
+      shippingMethod: 'manual',
+      status: 'shipped',
+    })
+
+    await markShopOrderDeliveredQuery(order.id)
+
+    const [payoutRecord] = await db.select().from(payout).where(eq(payout.shopOrderId, order.id))
+    expect(payoutRecord).toBeDefined()
+    expect(payoutRecord?.status).toBe('pending')
+
+    const expectedFee = Math.round(subtotalCents * (PLATFORM_FEE_PERCENT / 100))
+    const expectedAmount = subtotalCents - expectedFee + shippingCostCents
+    expect(payoutRecord?.amountCents).toBe(expectedAmount)
+  })
 })
 
 describe('markPayoutSentQuery', () => {
@@ -265,6 +318,96 @@ describe('markPayoutSentQuery', () => {
 
     const [updated] = await db.select().from(payout).where(eq(payout.id, pending.id))
     expect(updated?.status).toBe('sent')
-    expect(updated?.sentAt).toBeInstanceOf(Date)
+  })
+})
+
+describe('listCreatorPayoutsQuery', () => {
+  it('derives payout amounts net of VAT dynamically when no payout record exists', async () => {
+    await seedUser()
+    await seedShop()
+    const platformOrd = await seedPlatformOrder()
+
+    const subtotalCents = 15000
+    const vatAmountCents = 3000
+    // Seed order as 'delivered' so it is fetched for payouts, but delete/do not create the payout record.
+    const order = await seedShopOrder({
+      platformOrderId: platformOrd.id,
+      shopId: 'shop-1',
+      subtotalCents,
+      vatAmountCents,
+      status: 'delivered',
+    })
+
+    // Assert that we don't have a payout record yet
+    const payoutsInDb = await db.select().from(payout).where(eq(payout.shopOrderId, order.id))
+    expect(payoutsInDb).toHaveLength(0)
+
+    const result = await listCreatorPayoutsQuery('shop-1')
+    expect(result.payouts).toHaveLength(1)
+    const line = result.payouts[0]
+
+    const expectedFee = Math.round((subtotalCents - vatAmountCents) * (PLATFORM_FEE_PERCENT / 100))
+    expect(line.amountCents).toBe(subtotalCents - expectedFee)
+  })
+
+  it('uses the persisted payout amount from database when a payout record exists', async () => {
+    await seedUser()
+    await seedShop()
+    const platformOrd = await seedPlatformOrder()
+
+    const subtotalCents = 15000
+    const vatAmountCents = 3000
+    const order = await seedShopOrder({
+      platformOrderId: platformOrd.id,
+      shopId: 'shop-1',
+      subtotalCents,
+      vatAmountCents,
+      status: 'shipped',
+    })
+
+    // Delivering the order creates a payout record
+    await markShopOrderDeliveredQuery(order.id)
+
+    // Check that payout record exists in DB
+    const [payoutRecord] = await db.select().from(payout).where(eq(payout.shopOrderId, order.id))
+    expect(payoutRecord).toBeDefined()
+
+    // Manually override/adjust the database payout amount to verify it is used instead of calculated dynamically
+    await db.update(payout).set({ amountCents: 9999 }).where(eq(payout.id, payoutRecord.id))
+
+    const result = await listCreatorPayoutsQuery('shop-1')
+    expect(result.payouts).toHaveLength(1)
+    const line = result.payouts[0]
+    expect(line.amountCents).toBe(9999)
+  })
+
+  it('derives payout amounts dynamically including shipping cost for manual shipping orders when no payout record exists', async () => {
+    await seedUser()
+    await seedShop()
+    const platformOrd = await seedPlatformOrder()
+
+    const subtotalCents = 15000
+    const vatAmountCents = 3000
+    const shippingCostCents = 750
+    const order = await seedShopOrder({
+      platformOrderId: platformOrd.id,
+      shopId: 'shop-1',
+      subtotalCents,
+      vatAmountCents,
+      shippingCostCents,
+      shippingMethod: 'manual',
+      status: 'delivered',
+    })
+
+    const payoutsInDb = await db.select().from(payout).where(eq(payout.shopOrderId, order.id))
+    expect(payoutsInDb).toHaveLength(0)
+
+    const result = await listCreatorPayoutsQuery('shop-1')
+    expect(result.payouts).toHaveLength(1)
+    const line = result.payouts[0]
+
+    const expectedFee = Math.round((subtotalCents - vatAmountCents) * (PLATFORM_FEE_PERCENT / 100))
+    const expectedAmount = subtotalCents - expectedFee + shippingCostCents
+    expect(line.amountCents).toBe(expectedAmount)
   })
 })

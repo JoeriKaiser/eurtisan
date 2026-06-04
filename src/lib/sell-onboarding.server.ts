@@ -106,6 +106,10 @@ export async function getShopDraftQuery(
     currency: record.currency,
     isVatRegistered: record.isVatRegistered,
     vatId: record.vatId,
+    legalEntityType: record.legalEntityType,
+    dateOfBirth: record.dateOfBirth,
+    taxId: record.taxId,
+    businessRegistrationNumber: record.businessRegistrationNumber,
     policies: (record.policies as PoliciesData | null) ?? null,
     announcement: record.announcement,
     status: record.status,
@@ -209,6 +213,16 @@ export async function saveOnboardingStepInternal(
   if (d.currency !== undefined) updateData.currency = String(d.currency)
   if (d.isVatRegistered !== undefined) updateData.isVatRegistered = Boolean(d.isVatRegistered)
   if (d.vatId !== undefined) updateData.vatId = d.vatId ? String(d.vatId).trim() : null
+  if (d.legalEntityType !== undefined)
+    updateData.legalEntityType = d.legalEntityType ? String(d.legalEntityType) : null
+  if (d.dateOfBirth !== undefined)
+    updateData.dateOfBirth = d.dateOfBirth ? String(d.dateOfBirth).trim() : null
+  if (d.taxId !== undefined)
+    updateData.taxId = d.taxId ? String(d.taxId).trim() : null
+  if (d.businessRegistrationNumber !== undefined)
+    updateData.businessRegistrationNumber = d.businessRegistrationNumber
+      ? String(d.businessRegistrationNumber).trim()
+      : null
   if (d.policies !== undefined) updateData.policies = d.policies
   if (d.announcement !== undefined)
     updateData.announcement = d.announcement ? String(d.announcement) : null
@@ -298,6 +312,20 @@ export async function submitShopForReviewInternal(
 
   if (record.status !== 'draft' && record.status !== 'changes_requested') {
     throw new Error('FORBIDDEN')
+  }
+
+  // Fail-Safe Onboarding Check for DAC7 Compliance
+  if (!record.taxId || record.taxId.trim() === '') {
+    throw new Error('MISSING_TAX_ID')
+  }
+  if (record.legalEntityType === 'individual') {
+    if (!record.dateOfBirth || !/^\d{4}-\d{2}-\d{2}$/.test(record.dateOfBirth)) {
+      throw new Error('MISSING_OR_INVALID_DOB')
+    }
+  } else if (record.legalEntityType === 'business') {
+    if (!record.businessRegistrationNumber || record.businessRegistrationNumber.trim() === '') {
+      throw new Error('MISSING_BUSINESS_REGISTRATION')
+    }
   }
 
   const [listingCount] = await db

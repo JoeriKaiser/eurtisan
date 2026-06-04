@@ -155,6 +155,12 @@ export const shop = pgTable(
     isVatRegistered: boolean('is_vat_registered').notNull().default(false),
     vatId: text('vat_id'),
 
+    // DAC7 Compliance
+    legalEntityType: text('legal_entity_type'),
+    dateOfBirth: text('date_of_birth'),
+    taxId: text('tax_id'),
+    businessRegistrationNumber: text('business_registration_number'),
+
     // Policies
     policies: jsonb('policies'),
 

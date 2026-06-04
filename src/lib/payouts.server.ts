@@ -37,9 +37,17 @@ export async function createPayoutForShopOrder(
   shopOrderId: string,
   shopId: string,
   subtotalCents: number,
+  vatAmountCents: number,
+  shippingCostCents: number,
+  shippingMethod: 'standard' | 'express' | 'manual',
 ): Promise<void> {
-  const feeCents = Math.round(subtotalCents * (PLATFORM_FEE_PERCENT / 100))
-  const amountCents = subtotalCents - feeCents
+  const netSubtotalCents = subtotalCents - vatAmountCents
+  const feeCents = Math.round(netSubtotalCents * (PLATFORM_FEE_PERCENT / 100))
+  let amountCents = subtotalCents - feeCents
+
+  if (shippingMethod === 'manual') {
+    amountCents += shippingCostCents
+  }
 
   await tx
     .insert(payout)
@@ -110,15 +118,32 @@ export async function markPayoutSentQuery(payoutId: string): Promise<{ success: 
  * Helper: derives a single CreatorPayoutLine from a raw order row.
  */
 function derivePayoutLine(
-  order: { id: string; subtotalCents: number; status: string; createdAt: Date },
+  order: {
+    id: string
+    subtotalCents: number
+    vatAmountCents: number
+    shippingCostCents: number
+    shippingMethod: 'standard' | 'express' | 'manual'
+    status: string
+    createdAt: Date
+  },
   payoutStatus: 'pending' | 'sent' | null,
+  payoutAmountCents?: number | null,
 ): CreatorPayoutLine {
   const isRefund = order.status === 'refunded'
 
-  // Compute the creator's cut: subtotal minus platform fee.
-  const feeCents = Math.round(order.subtotalCents * (PLATFORM_FEE_PERCENT / 100))
-  const netAmount = order.subtotalCents - feeCents
-  const amountCents = isRefund ? -Math.abs(netAmount) : netAmount
+  let amountCents = payoutAmountCents ?? 0
+  if (payoutAmountCents === null || payoutAmountCents === undefined) {
+    const netSubtotal = order.subtotalCents - order.vatAmountCents
+    const feeCents = Math.round(netSubtotal * (PLATFORM_FEE_PERCENT / 100))
+    let netAmount = order.subtotalCents - feeCents
+    if (order.shippingMethod === 'manual') {
+      netAmount += order.shippingCostCents
+    }
+    amountCents = isRefund ? -Math.abs(netAmount) : netAmount
+  } else if (isRefund) {
+    amountCents = -Math.abs(amountCents)
+  }
 
   // Derive payout status from the underlying order status and any payout records
   let status: CreatorPayoutLine['status'] = 'pending'
@@ -339,9 +364,13 @@ export async function listCreatorPayoutsQuery(
     .select({
       id: shopOrder.id,
       subtotalCents: shopOrder.subtotalCents,
+      vatAmountCents: shopOrder.vatAmountCents,
+      shippingCostCents: shopOrder.shippingCostCents,
+      shippingMethod: shopOrder.shippingMethod,
       status: shopOrder.status,
       createdAt: shopOrder.createdAt,
       payoutStatus: payout.status,
+      payoutAmountCents: payout.amountCents,
     })
     .from(shopOrder)
     .leftJoin(payout, eq(shopOrder.id, payout.shopOrderId))
@@ -365,7 +394,7 @@ export async function listCreatorPayoutsQuery(
 
   // Derive payout lines for all orders and filter by status if requested
   let payouts: CreatorPayoutLine[] = allOrders.map((order) =>
-    derivePayoutLine(order, order.payoutStatus),
+    derivePayoutLine(order, order.payoutStatus, order.payoutAmountCents),
   )
 
   if (statusFilter) {

@@ -414,6 +414,13 @@
       "when": 1780516902307,
       "tag": "0058_boring_layla_miller",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1780607319271,
+      "tag": "0059_flippant_hulk",
+      "breakpoints": true
     }
   ]
 }

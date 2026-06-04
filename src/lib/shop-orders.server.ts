@@ -659,7 +659,15 @@ export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<
 
     await recalcPlatformOrderStatus(tx, record.platformOrderId)
 
-    await createPayoutForShopOrder(tx, shopOrderId, record.shopId, record.subtotalCents)
+    await createPayoutForShopOrder(
+      tx,
+      shopOrderId,
+      record.shopId,
+      record.subtotalCents,
+      record.vatAmountCents,
+      record.shippingCostCents,
+      record.shippingMethod as 'standard' | 'express' | 'manual',
+    )
 
     const updated = await getShopOrderQuery(shopOrderId, tx)
     if (!updated) {
@@ -750,7 +758,15 @@ export async function updateShopOrderStatusQuery(
     }
 
     if (nextStatus === 'delivered' || nextStatus === 'completed') {
-      await createPayoutForShopOrder(tx, shopOrderId, record.shopId, record.subtotalCents)
+      await createPayoutForShopOrder(
+        tx,
+        shopOrderId,
+        record.shopId,
+        record.subtotalCents,
+        record.vatAmountCents,
+        record.shippingCostCents,
+        record.shippingMethod as 'standard' | 'express' | 'manual',
+      )
     }
 
     const updated = await getShopOrderQuery(shopOrderId, tx)

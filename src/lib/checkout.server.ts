@@ -36,7 +36,7 @@ import {
   type ShopLegalIdentity,
 } from './shop-legal-identity'
 import { scheduleBackgroundWork } from './background-work.server'
-import { calculateVat } from './vat.server'
+import { calculateVat, normalizeCountryCode } from './vat.server'
 
 /* -------------------------------------------------------------------------- */
 /*                                  Types                                     */
@@ -107,6 +107,7 @@ export interface ShippingAddress {
   city: string
   postalCode: string
   country: string
+  vatId?: string | null
   pickupPoint?: {
     id: string
     name: string
@@ -265,6 +266,50 @@ export function getShippingCost(method: 'standard' | 'express'): number {
   return method === 'express' ? 1000 : 500
 }
 
+function isCrossBorderB2b(
+  sellerCountryCode: string,
+  buyerCountryCode: string,
+  isSellerVatRegistered: boolean,
+  buyerVatId?: string | null,
+): boolean {
+  if (!isSellerVatRegistered || !buyerVatId) return false
+  const seller = normalizeCountryCode(sellerCountryCode)
+  const buyer = normalizeCountryCode(buyerCountryCode)
+  if (!seller || !buyer || seller === buyer) return false
+
+  const euCountries = [
+    'AT',
+    'BE',
+    'BG',
+    'CY',
+    'CZ',
+    'DE',
+    'DK',
+    'EE',
+    'EL',
+    'ES',
+    'FI',
+    'FR',
+    'GR',
+    'HR',
+    'HU',
+    'IE',
+    'IT',
+    'LT',
+    'LU',
+    'LV',
+    'MT',
+    'NL',
+    'PL',
+    'PT',
+    'RO',
+    'SE',
+    'SI',
+    'SK',
+  ]
+  return euCountries.includes(seller) && euCountries.includes(buyer)
+}
+
 /* -------------------------------------------------------------------------- */
 /*                            getCheckoutSummary                              */
 /* -------------------------------------------------------------------------- */
@@ -416,21 +461,45 @@ export async function getCheckoutSummaryQuery(
 
     const sellerCountry = (shopRecord.shippingOrigin as { country?: string } | null)?.country ?? ''
     const buyerCountry = shippingAddress?.country ?? ''
+    const reverseChargeApplies = isCrossBorderB2b(
+      sellerCountry,
+      shippingAddress?.country ?? '',
+      shopRecord.isVatRegistered,
+      shippingAddress?.vatId,
+    )
 
     let vatEstimateCents = 0
+    let adjustedSubtotalCents = 0
     for (const row of items) {
       if (row.shop?.id !== shopGroup.shopId || !row.product) continue
       const prod = row.product
       const qty = row.item.quantity
-      const itemVat = calculateVat({
-        sellerCountry,
-        buyerCountry,
-        isVatRegistered: shopRecord.isVatRegistered,
-        vatRateCategory: (prod.vatRateCategory as 'standard' | 'reduced' | 'exempt') ?? 'standard',
-        inclusiveAmountCents: prod.priceCents * qty,
-      })
-      vatEstimateCents += itemVat.vatAmountCents
+
+      if (reverseChargeApplies) {
+        // Zero-rated cross-border B2B: extract domestic VAT from the price
+        const domesticVat = calculateVat({
+          sellerCountry,
+          buyerCountry: sellerCountry,
+          isVatRegistered: shopRecord.isVatRegistered,
+          vatRateCategory: (prod.vatRateCategory as 'standard' | 'reduced' | 'exempt') ?? 'standard',
+          inclusiveAmountCents: prod.priceCents * qty,
+        })
+        const netLineTotal = (prod.priceCents * qty) - domesticVat.vatAmountCents
+        adjustedSubtotalCents += netLineTotal
+      } else {
+        const itemVat = calculateVat({
+          sellerCountry,
+          buyerCountry,
+          isVatRegistered: shopRecord.isVatRegistered,
+          vatRateCategory: (prod.vatRateCategory as 'standard' | 'reduced' | 'exempt') ?? 'standard',
+          inclusiveAmountCents: prod.priceCents * qty,
+        })
+        vatEstimateCents += itemVat.vatAmountCents
+        adjustedSubtotalCents += prod.priceCents * qty
+      }
     }
+
+    shopGroup.subtotalCents = adjustedSubtotalCents
 
     // Shipping VAT estimate (using standard rate on selected shipping)
     const selection = selectionByShopId.get(shopGroup.shopId)
@@ -445,15 +514,28 @@ export async function getCheckoutSummaryQuery(
         optionByFallback ??
         shopGroup.shippingOptions[0])
       : (optionByFallback ?? shopGroup.shippingOptions[0])
+
     if (selectedOption && selectedOption.costCents > 0) {
-      const shippingVat = calculateVat({
-        sellerCountry,
-        buyerCountry,
-        isVatRegistered: shopRecord.isVatRegistered,
-        vatRateCategory: 'standard',
-        inclusiveAmountCents: selectedOption.costCents,
-      })
-      vatEstimateCents += shippingVat.vatAmountCents
+      if (reverseChargeApplies) {
+        // Zero-rated cross-border B2B: extract domestic VAT from the shipping cost
+        const domesticShippingVat = calculateVat({
+          sellerCountry,
+          buyerCountry: sellerCountry,
+          isVatRegistered: shopRecord.isVatRegistered,
+          vatRateCategory: 'standard',
+          inclusiveAmountCents: selectedOption.costCents,
+        })
+        selectedOption.costCents = selectedOption.costCents - domesticShippingVat.vatAmountCents
+      } else {
+        const shippingVat = calculateVat({
+          sellerCountry,
+          buyerCountry,
+          isVatRegistered: shopRecord.isVatRegistered,
+          vatRateCategory: 'standard',
+          inclusiveAmountCents: selectedOption.costCents,
+        })
+        vatEstimateCents += shippingVat.vatAmountCents
+      }
     }
 
     shopGroup.vatEstimateCents = vatEstimateCents
@@ -769,6 +851,8 @@ export async function createCheckoutWithProvider(
         items: Array<{
           product: typeof product.$inferSelect
           quantity: number
+          unitPriceCents: number
+          lineTotalCents: number
           vatRateBasisPoints: number
           vatAmountCents: number
         }>
@@ -785,49 +869,105 @@ export async function createCheckoutWithProvider(
       if (!prod || !shopRec) continue
       const qty = row.item.quantity
       const sellerCountry = (shopRec.shippingOrigin as { country?: string } | null)?.country ?? ''
-      const buyerCountry = input.shippingAddress.country
-
-      const itemVat = calculateVat({
+      const reverseChargeApplies = isCrossBorderB2b(
         sellerCountry,
-        buyerCountry,
-        isVatRegistered: shopRec.isVatRegistered,
-        vatRateCategory: (prod.vatRateCategory as 'standard' | 'reduced' | 'exempt') ?? 'standard',
-        inclusiveAmountCents: prod.priceCents * qty,
-      })
+        input.billingAddress.country,
+        shopRec.isVatRegistered,
+        input.billingAddress.vatId,
+      )
+
+      let lineTotalCents = prod.priceCents * qty
+      let itemVatCents = 0
+      let itemVatBasisPoints = 0
+      let unitPriceCents = prod.priceCents
+
+      if (reverseChargeApplies) {
+        const domesticVat = calculateVat({
+          sellerCountry,
+          buyerCountry: sellerCountry,
+          isVatRegistered: shopRec.isVatRegistered,
+          vatRateCategory: (prod.vatRateCategory as 'standard' | 'reduced' | 'exempt') ?? 'standard',
+          inclusiveAmountCents: prod.priceCents * qty,
+        })
+        lineTotalCents = (prod.priceCents * qty) - domesticVat.vatAmountCents
+        itemVatCents = 0
+        itemVatBasisPoints = 0
+        unitPriceCents = Math.round(lineTotalCents / qty)
+      } else {
+        const itemVat = calculateVat({
+          sellerCountry,
+          buyerCountry: input.shippingAddress.country,
+          isVatRegistered: shopRec.isVatRegistered,
+          vatRateCategory: (prod.vatRateCategory as 'standard' | 'reduced' | 'exempt') ?? 'standard',
+          inclusiveAmountCents: prod.priceCents * qty,
+        })
+        lineTotalCents = prod.priceCents * qty
+        itemVatCents = itemVat.vatAmountCents
+        itemVatBasisPoints = itemVat.vatRateBasisPoints
+        unitPriceCents = prod.priceCents
+      }
 
       const existing = shopGroups.get(prod.shopId)
       if (existing) {
         existing.items.push({
           product: prod,
           quantity: qty,
-          vatRateBasisPoints: itemVat.vatRateBasisPoints,
-          vatAmountCents: itemVat.vatAmountCents,
+          unitPriceCents,
+          lineTotalCents,
+          vatRateBasisPoints: itemVatBasisPoints,
+          vatAmountCents: itemVatCents,
         })
-        existing.subtotalCents += prod.priceCents * qty
-        existing.vatAmountCents += itemVat.vatAmountCents
+        existing.subtotalCents += lineTotalCents
+        existing.vatAmountCents += itemVatCents
       } else {
         const shipCost = shippingCostByShop.get(prod.shopId) ?? 0
-        const shippingVat = calculateVat({
-          sellerCountry,
-          buyerCountry,
-          isVatRegistered: shopRec.isVatRegistered,
-          vatRateCategory: 'standard',
-          inclusiveAmountCents: shipCost,
-        })
+        let shipCostCents = shipCost
+        let shippingVatCents = 0
+        let shippingVatRateBasisPoints = 0
+
+        if (reverseChargeApplies) {
+          const domesticShippingVat = calculateVat({
+            sellerCountry,
+            buyerCountry: sellerCountry,
+            isVatRegistered: shopRec.isVatRegistered,
+            vatRateCategory: 'standard',
+            inclusiveAmountCents: shipCost,
+          })
+          shipCostCents = shipCost - domesticShippingVat.vatAmountCents
+          shippingVatCents = 0
+          shippingVatRateBasisPoints = 0
+        } else {
+          const shippingVat = calculateVat({
+            sellerCountry,
+            buyerCountry: input.shippingAddress.country,
+            isVatRegistered: shopRec.isVatRegistered,
+            vatRateCategory: 'standard',
+            inclusiveAmountCents: shipCost,
+          })
+          shipCostCents = shipCost
+          shippingVatCents = shippingVat.vatAmountCents
+          shippingVatRateBasisPoints = shippingVat.vatRateBasisPoints
+        }
+
+        // Update shippingCostByShop so grandTotalCents is computed correctly
+        shippingCostByShop.set(prod.shopId, shipCostCents)
+
         shopGroups.set(prod.shopId, {
           shopId: prod.shopId,
           items: [
             {
               product: prod,
               quantity: qty,
-              vatRateBasisPoints: itemVat.vatRateBasisPoints,
-              vatAmountCents: itemVat.vatAmountCents,
+              unitPriceCents,
+              lineTotalCents,
+              vatRateBasisPoints: itemVatBasisPoints,
+              vatAmountCents: itemVatCents,
             },
           ],
-          subtotalCents: prod.priceCents * qty,
-          vatAmountCents: itemVat.vatAmountCents,
-          shippingVatRateBasisPoints: shippingVat.vatRateBasisPoints,
-          shippingVatAmountCents: shippingVat.vatAmountCents,
+          subtotalCents: lineTotalCents,
+          vatAmountCents: itemVatCents,
+          shippingVatRateBasisPoints: shippingVatRateBasisPoints,
+          shippingVatAmountCents: shippingVatCents,
         })
       }
     }
@@ -879,9 +1019,9 @@ export async function createCheckoutWithProvider(
               shopOrderId: shopOrderRecord.id,
               productId: lineItem.product.id,
               productName: lineItem.product.name,
-              unitPriceCents: lineItem.product.priceCents,
+              unitPriceCents: lineItem.unitPriceCents,
               quantity: lineItem.quantity,
-              totalCents: lineItem.product.priceCents * lineItem.quantity,
+              totalCents: lineItem.lineTotalCents,
               vatRateBasisPoints: lineItem.vatRateBasisPoints,
               vatAmountCents: lineItem.vatAmountCents,
             }),

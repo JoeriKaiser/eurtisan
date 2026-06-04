@@ -140,6 +140,10 @@ export function Step4Location() {
     currency: string
     isVatRegistered?: boolean
     vatId?: string | null
+    legalEntityType?: 'individual' | 'business'
+    dateOfBirth?: string | null
+    taxId?: string | null
+    businessRegistrationNumber?: string | null
   }
 
   const [form, setForm] = useState({
@@ -153,6 +157,10 @@ export function Step4Location() {
     currency: data.currency ?? 'EUR',
     isVatRegistered: data.isVatRegistered ?? false,
     vatId: data.vatId ?? '',
+    legalEntityType: data.legalEntityType ?? 'individual',
+    dateOfBirth: data.dateOfBirth ?? '',
+    taxId: data.taxId ?? '',
+    businessRegistrationNumber: data.businessRegistrationNumber ?? '',
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
@@ -185,6 +193,10 @@ export function Step4Location() {
       currency: form.currency,
       isVatRegistered: form.isVatRegistered,
       vatId: form.vatId,
+      legalEntityType: form.legalEntityType,
+      dateOfBirth: form.dateOfBirth,
+      taxId: form.taxId,
+      businessRegistrationNumber: form.businessRegistrationNumber,
     })
     if (!result.success) {
       const fieldErrors: Record<string, string> = {}
@@ -212,6 +224,10 @@ export function Step4Location() {
       currency: form.currency,
       isVatRegistered: form.isVatRegistered,
       vatId: form.vatId,
+      legalEntityType: form.legalEntityType,
+      dateOfBirth: form.dateOfBirth,
+      taxId: form.taxId,
+      businessRegistrationNumber: form.businessRegistrationNumber,
     })
   }, [form, saveStep])
 
@@ -398,6 +414,83 @@ export function Step4Location() {
               className='mt-1'
             />
             {errors.vatId && <p className='mt-1 text-sm text-error'>{errors.vatId}</p>}
+          </div>
+        )}
+      </div>
+
+      <div className='border-t border-border-default pt-6 space-y-4'>
+        <div>
+          <h3 className='text-sm font-semibold text-text-primary uppercase tracking-wider mb-2'>
+            Tax Identity & DAC7 Compliance
+          </h3>
+          <p className='text-xs text-text-secondary mb-4'>
+            In accordance with European Union DAC7 regulations, Eurtisan is required to collect and verify tax identity information for all sellers.
+          </p>
+        </div>
+
+        <div>
+          <Label htmlFor='legal-entity-type' required>
+            Legal Entity Type
+          </Label>
+          <Select
+            id='legal-entity-type'
+            value={form.legalEntityType}
+            onChange={(e) => setForm((prev) => ({ ...prev, legalEntityType: e.target.value as 'individual' | 'business' }))}
+            className='mt-1'
+          >
+            <option value='individual'>Individual / Sole Proprietor</option>
+            <option value='business'>Registered Business / Corporation</option>
+          </Select>
+          {errors.legalEntityType && (
+            <p className='mt-1 text-sm text-error'>{errors.legalEntityType}</p>
+          )}
+        </div>
+
+        <div>
+          <Label htmlFor='tax-id' required>
+            Tax Identification Number (TIN)
+          </Label>
+          <Input
+            id='tax-id'
+            value={form.taxId}
+            onChange={(e) => setForm((prev) => ({ ...prev, taxId: e.target.value }))}
+            placeholder='TIN required for EU tax reporting'
+            className='mt-1'
+          />
+          {errors.taxId && <p className='mt-1 text-sm text-error'>{errors.taxId}</p>}
+        </div>
+
+        {form.legalEntityType === 'individual' && (
+          <div className='space-y-1.5'>
+            <Label htmlFor='date-of-birth' required>
+              Date of Birth
+            </Label>
+            <Input
+              id='date-of-birth'
+              type='date'
+              value={form.dateOfBirth}
+              onChange={(e) => setForm((prev) => ({ ...prev, dateOfBirth: e.target.value }))}
+              className='mt-1'
+            />
+            {errors.dateOfBirth && <p className='mt-1 text-sm text-error'>{errors.dateOfBirth}</p>}
+          </div>
+        )}
+
+        {form.legalEntityType === 'business' && (
+          <div className='space-y-1.5'>
+            <Label htmlFor='business-registration-number' required>
+              Business Registration Number
+            </Label>
+            <Input
+              id='business-registration-number'
+              value={form.businessRegistrationNumber}
+              onChange={(e) => setForm((prev) => ({ ...prev, businessRegistrationNumber: e.target.value }))}
+              placeholder='e.g. SIRET or Trade Registry Number'
+              className='mt-1'
+            />
+            {errors.businessRegistrationNumber && (
+              <p className='mt-1 text-sm text-error'>{errors.businessRegistrationNumber}</p>
+            )}
           </div>
         )}
       </div>

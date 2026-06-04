@@ -98,8 +98,11 @@ export function calculateVat(input: VatCalculationInput): VatCalculationResult {
     return { vatAmountCents: 0, vatRateBasisPoints: 0 }
   }
 
-  // Check if buyer is in EU (by checking if the country has a VAT rate definition)
   const buyerCode = normalizeCountryCode(buyerCountry)
+  if (!buyerCode && buyerCountry.trim() !== '') {
+    throw new Error(`Unrecognized country code or name: "${buyerCountry}"`)
+  }
+
   const rates = buyerCode ? EU_VAT_RATES[buyerCode] : undefined
   if (!rates) {
     // Export out of the EU is VAT-exempt

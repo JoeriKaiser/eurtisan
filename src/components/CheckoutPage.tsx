@@ -41,6 +41,7 @@ const shippingAddressSchema = z.object({
   city: z.string().min(1, m.checkout_error_city_required()).max(255),
   postalCode: z.string().min(1, m.checkout_error_postal_required()).max(50),
   country: z.string().min(1, m.checkout_error_country_required()).max(100),
+  vatId: z.string().optional().nullable(),
   pickupPoint: pickupPointSchema.optional(),
 })
 
@@ -54,6 +55,7 @@ const checkoutFormSchema = z
       city: z.string().max(255),
       postalCode: z.string().max(50),
       country: z.string().max(100),
+      vatId: z.string().optional().nullable(),
     }),
     shippingSelections: z.array(
       z.object({
@@ -127,6 +129,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
           city: '',
           postalCode: '',
           country: '',
+          vatId: '',
           pickupPoint: undefined,
         },
         billingAddress: {
@@ -135,6 +138,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
           city: '',
           postalCode: '',
           country: '',
+          vatId: '',
         },
         sameAsShipping: true as boolean,
         shippingSelections: defaultShippingSelections,
@@ -603,9 +607,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                           )}
                         </div>
                       )}
-                    </form.Field>
-
-                    <form.Field name='billingAddress.country'>
+                    </form.Field>                     <form.Field name='billingAddress.country'>
                       {(field) => (
                         <div className='grid gap-2 sm:col-span-2'>
                           <label
@@ -626,6 +628,42 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                           {field.state.meta.errors[0] && (
                             <p id={`${field.name}-error`} className='text-xs text-error'>
                               {getFieldError(field.state.meta.errors[0])}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </form.Field>
+
+                    <form.Field name='billingAddress.vatId'>
+                      {(field) => (
+                        <div className='grid gap-2 sm:col-span-2'>
+                          <div className='flex items-center justify-between'>
+                            <label
+                              htmlFor={field.name}
+                              className='text-sm font-medium text-text-primary'
+                            >
+                              VAT ID (Optional)
+                            </label>
+                            <span className='text-xs text-text-muted'>
+                              For EU VAT-registered businesses
+                            </span>
+                          </div>
+                          <Input
+                            id={field.name}
+                            name={field.name}
+                            value={field.state.value ?? ''}
+                            onChange={(e) => field.handleChange(e.target.value)}
+                            onBlur={field.handleBlur}
+                            error={getFieldError(field.state.meta.errors[0])}
+                            placeholder='e.g., DE123456789'
+                          />
+                          {field.state.meta.errors[0] ? (
+                            <p id={`${field.name}-error`} className='text-xs text-error'>
+                              {getFieldError(field.state.meta.errors[0])}
+                            </p>
+                          ) : (
+                            <p className='text-xs text-text-muted'>
+                              Enter to enable zero-rated EU cross-border billing. Must match the billing country.
                             </p>
                           )}
                         </div>

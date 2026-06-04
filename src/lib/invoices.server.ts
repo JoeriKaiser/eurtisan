@@ -121,6 +121,9 @@ export function calculatePlatformFeeVat(
   reverseCharge: boolean
 } {
   const buyerCode = normalizeCountryCode(buyerCountry)
+  if (!buyerCode && buyerCountry.trim() !== '') {
+    throw new Error(`Unrecognized country code or name: "${buyerCountry}"`)
+  }
   const isEU =
     buyerCode &&
     buyerCode !== 'GB' &&
@@ -339,16 +342,6 @@ export async function createInvoicesForPlatformOrder(
       const totalVat = so.vatAmountCents + so.shippingVatAmountCents
       const totalNet = totalGross - totalVat
 
-      const customerInvoiceLines: InvoiceLineItem[] = itemsList.map((item: any) => ({
-        id: item.productId,
-        name: item.productName,
-        quantity: item.quantity,
-        unitPriceCents: item.unitPriceCents,
-        totalCents: item.totalCents,
-        vatRateBasisPoints: item.vatRateBasisPoints,
-        vatAmountCents: item.vatAmountCents,
-      }))
-
       const customerReverseCharge = isReverseChargeCustomerInvoice(
         shopAddress?.country ?? '',
         billingAddr.country,
@@ -356,14 +349,24 @@ export async function createInvoicesForPlatformOrder(
         billingAddr.vatId,
       )
 
+      const customerInvoiceLines: InvoiceLineItem[] = itemsList.map((item: any) => ({
+        id: item.productId,
+        name: item.productName,
+        quantity: item.quantity,
+        unitPriceCents: item.unitPriceCents,
+        totalCents: item.totalCents,
+        vatRateBasisPoints: customerReverseCharge ? 0 : item.vatRateBasisPoints,
+        vatAmountCents: customerReverseCharge ? 0 : item.vatAmountCents,
+      }))
+
       const customerBillingDetails: BillingDetails = {
         from: shopParty,
         to: buyerParty,
         items: customerInvoiceLines,
         shipping: {
           costCents: so.shippingCostCents,
-          vatRateBasisPoints: so.shippingVatRateBasisPoints,
-          vatAmountCents: so.shippingVatAmountCents,
+          vatRateBasisPoints: customerReverseCharge ? 0 : so.shippingVatRateBasisPoints,
+          vatAmountCents: customerReverseCharge ? 0 : so.shippingVatAmountCents,
           method: so.shippingMethod,
         },
         reverseCharge: customerReverseCharge,
@@ -385,7 +388,8 @@ export async function createInvoicesForPlatformOrder(
 
       // ─── B. GENERATE PLATFORM FEE INVOICE ───
       const platformFeeInvoiceNumber = `INV-FEE-${so.id.toUpperCase()}`
-      const rawFeeCents = Math.round(so.subtotalCents * (PLATFORM_FEE_PERCENT / 100))
+      const netSubtotalCents = so.subtotalCents - so.vatAmountCents
+      const rawFeeCents = Math.round(netSubtotalCents * (PLATFORM_FEE_PERCENT / 100))
 
       const feeVatDetails = calculatePlatformFeeVat(
         shopBusinessAddress?.country ?? shopOrigin?.country ?? '',
@@ -402,7 +406,7 @@ export async function createInvoicesForPlatformOrder(
         items: [
           {
             id: 'platform-commission',
-            name: `Eurtisan Platform Commission Fee (${PLATFORM_FEE_PERCENT}% on Sale Subtotal ${so.subtotalCents / 100} EUR)`,
+            name: `Eurtisan Platform Commission Fee (${PLATFORM_FEE_PERCENT}% on Sale Subtotal ${netSubtotalCents / 100} EUR)`,
             quantity: 1,
             unitPriceCents: feeVatDetails.totalCents,
             totalCents: feeVatDetails.totalCents,

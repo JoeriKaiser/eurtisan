@@ -3,6 +3,7 @@ import z from 'zod'
 import { authMiddleware } from './auth-middleware'
 import { createUserRateLimitMiddleware } from './rate-limit'
 import { isoCountryCodeSchema, isPostalCodeValid } from './address-validation'
+import { validateVatId } from './vat'
 
 export type {
   CheckoutInput,
@@ -42,6 +43,7 @@ const shippingAddressSchema = z
     city: z.string().min(1).max(255),
     postalCode: z.string().min(3).max(20),
     country: isoCountryCodeSchema,
+    vatId: z.string().optional().nullable(),
     pickupPoint: pickupPointSchema.optional(),
   })
   .superRefine((data, ctx) => {
@@ -51,6 +53,25 @@ const shippingAddressSchema = z
         message: `Invalid postal code format for ${data.country}`,
         path: ['postalCode'],
       })
+    }
+    if (data.vatId) {
+      const cleaned = data.vatId.replace(/\s/g, '').toUpperCase()
+      const prefix = cleaned.slice(0, 2)
+      if (prefix !== data.country) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `VAT ID country code prefix (${prefix}) must match address country (${data.country})`,
+          path: ['vatId'],
+        })
+      }
+      const { valid, message } = validateVatId(data.vatId)
+      if (!valid) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: message ?? 'Invalid VAT ID format',
+          path: ['vatId'],
+        })
+      }
     }
   })
 

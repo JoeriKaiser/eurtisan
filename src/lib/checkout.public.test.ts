@@ -104,4 +104,37 @@ describe('checkoutInputSchema', () => {
     })
     expect(result.success).toBe(false)
   })
+
+  it('accepts valid VAT ID matching country code', () => {
+    const result = checkoutInputSchema.safeParse({
+      ...validInput,
+      billingAddress: {
+        ...validInput.billingAddress,
+        vatId: 'DE123456789',
+      },
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects VAT ID with prefix mismatching country code', () => {
+    const result = checkoutInputSchema.safeParse({
+      ...validInput,
+      billingAddress: {
+        ...validInput.billingAddress,
+        vatId: 'FR12345678901',
+      },
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects invalid format VAT ID', () => {
+    const result = checkoutInputSchema.safeParse({
+      ...validInput,
+      billingAddress: {
+        ...validInput.billingAddress,
+        vatId: 'DE123',
+      },
+    })
+    expect(result.success).toBe(false)
+  })
 })
