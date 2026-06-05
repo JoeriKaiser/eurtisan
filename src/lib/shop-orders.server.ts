@@ -669,6 +669,34 @@ export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<
       record.shippingMethod as 'standard' | 'express' | 'manual',
     )
 
+    // Trigger DAC7 threshold warnings if the creator lacks a Tax ID
+    try {
+      const { getDac7ComplianceStatus } = await import('./dac7.server')
+      const currentYear = new Date().getFullYear()
+      const dac7Status = await getDac7ComplianceStatus(record.shopId, currentYear)
+
+      if (dac7Status.approachingLimit || dac7Status.exceededLimit) {
+        const [shopRecord] = await tx
+          .select({ ownerId: shop.ownerId, taxId: shop.taxId, name: shop.name })
+          .from(shop)
+          .where(eq(shop.id, record.shopId))
+          .limit(1)
+
+        if (shopRecord && !shopRecord.taxId) {
+          const { createNotification } = await import('./notifications.server')
+          await createNotification(shopRecord.ownerId, 'dac7_warning_limit', {
+            shopId: record.shopId,
+            shopName: shopRecord.name,
+            transactionCount: dac7Status.transactionCount,
+            grossSalesCents: dac7Status.grossSalesCents,
+            limitType: dac7Status.exceededLimit ? 'exceeded' : 'approaching',
+          })
+        }
+      }
+    } catch (err) {
+      console.error('Failed to trigger DAC7 compliance warning:', err)
+    }
+
     const updated = await getShopOrderQuery(shopOrderId, tx)
     if (!updated) {
       throw new Response(

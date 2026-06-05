@@ -73,6 +73,12 @@ const EU_VAT_RATES: Record<string, { standard: number; reduced: number }> = {
   SE: { standard: 2500, reduced: 1200 },
 }
 
+export function getStandardVatRate(country: string): number {
+  const code = normalizeCountryCode(country)
+  if (!code) return 0
+  return EU_VAT_RATES[code]?.standard ?? 0
+}
+
 export interface VatCalculationInput {
   sellerCountry: string
   buyerCountry: string
@@ -121,4 +127,83 @@ export function calculateVat(input: VatCalculationInput): VatCalculationResult {
   const vatAmountCents = inclusiveAmountCents - baseAmountCents
 
   return { vatAmountCents, vatRateBasisPoints }
+}
+
+/**
+ * Strict alphanumeric validation patterns for EU VAT formats.
+ */
+export const EU_VAT_REGEXES: Record<string, RegExp> = {
+  AT: /^ATU\d{8}$/, // Austria
+  BE: /^BE[01]\d{9}$/, // Belgium
+  BG: /^BG\d{9,10}$/, // Bulgaria
+  CY: /^CY\d{8}[A-Z]$/, // Cyprus
+  CZ: /^CZ\d{8,10}$/, // Czech Republic
+  DE: /^DE\d{9}$/, // Germany
+  DK: /^DK\d{8}$/, // Denmark
+  EE: /^EE\d{9}$/, // Estonia
+  EL: /^EL\d{9}$/, // Greece
+  GR: /^GR\d{9}$/, // Greece (alternative country code)
+  ES: /^ES[A-Z0-9]\d{7}[A-Z0-9]$/, // Spain
+  FI: /^FI\d{8}$/, // Finland
+  FR: /^FR[A-Z0-9]{2}\d{9}$/, // France
+  HR: /^HR\d{11}$/, // Croatia
+  HU: /^HU\d{8}$/, // Hungary
+  IE: /^IE(\d{7}[A-W]|\d[A-Z0-9+*]\d{5}[A-W])$/, // Ireland
+  IT: /^IT\d{11}$/, // Italy
+  LT: /^LT(\d{9}|\d{12})$/, // Lithuania
+  LU: /^LU\d{8}$/, // Luxembourg
+  LV: /^LV\d{11}$/, // Latvia
+  MT: /^MT\d{8}$/, // Malta
+  NL: /^NL\d{9}B\d{2}$/, // Netherlands
+  PL: /^PL\d{10}$/, // Poland
+  PT: /^PT\d{9}$/, // Portugal
+  RO: /^RO\d{2,10}$/, // Romania
+  SE: /^SE\d{12}$/, // Sweden
+  SI: /^SI\d{8}$/, // Slovenia
+  SK: /^SK\d{10}$/, // Slovakia
+}
+
+/**
+ * Validates the format of a VAT ID offline using country-specific regexes.
+ */
+export function isVatIdFormatValid(vatId: string, countryCode: string): boolean {
+  const normalizedCountry = countryCode.toUpperCase().trim()
+  const pattern = EU_VAT_REGEXES[normalizedCountry]
+  if (!pattern) return false
+
+  // Strip spaces, hyphens, and dots for a clean alphanumeric check
+  const cleanVat = vatId.toUpperCase().replace(/[\s.-]+/g, '')
+  return pattern.test(cleanVat)
+}
+
+/**
+ * Verifies a VAT ID with the European Commission's public VIES API.
+ * Aborts and returns true (graceful fallback) if the API is down or times out.
+ */
+export async function verifyVatIdVies(vatId: string, countryCode: string): Promise<boolean> {
+  const cleanVat = vatId.toUpperCase().replace(/[\s.-]+/g, '')
+  // Extract number part if it starts with the country code prefix
+  const vatNumber = cleanVat.startsWith(countryCode) ? cleanVat.slice(2) : cleanVat
+
+  const url = `https://ec.europa.eu/taxation_customs/vies/rest-api/ms/${countryCode}/vat/${vatNumber}`
+
+  try {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 2000)
+
+    const response = await fetch(url, { signal: controller.signal })
+    clearTimeout(timeoutId)
+
+    if (!response.ok) {
+      console.warn(`VIES API returned status ${response.status} for ${countryCode}-${vatNumber}`)
+      return true
+    }
+
+    const data = (await response.json()) as { isValid: boolean }
+    return data.isValid
+  } catch (err) {
+    console.error(`VIES validation failed or timed out:`, err)
+    // Fallback to true so downtime does not block checkout
+    return true
+  }
 }

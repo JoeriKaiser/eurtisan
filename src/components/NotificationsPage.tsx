@@ -13,6 +13,7 @@ const TYPE_ICONS: Record<NotificationType, React.ReactNode> = {
   dispute_opened: <AlertTriangle size={18} aria-hidden='true' />,
   dispute_resolved: <Bell size={18} aria-hidden='true' />,
   payout_sent: <Banknote size={18} aria-hidden='true' />,
+  dac7_warning_limit: <AlertTriangle size={18} aria-hidden='true' />,
 }
 
 function formatRelativeTime(date: Date): string {
@@ -55,6 +56,11 @@ function resolveDeepLink(item: NotificationItem): string | null {
       if (shopId) return `/studio/${shopId}`
       break
     }
+    case 'dac7_warning_limit': {
+      const shopId = data.shopId
+      if (shopId) return `/studio/${shopId}/settings`
+      break
+    }
   }
   return null
 }
@@ -73,6 +79,11 @@ function notificationPreview(item: NotificationItem): string {
       return m.notification_dispute_opened({ orderId: data.orderId ?? '' })
     case 'payout_sent':
       return m.notification_payout_sent({ amount: data.amount ?? '' })
+    case 'dac7_warning_limit':
+      return m.notification_dac7_warning({
+        shopName: data.shopName ?? '',
+        limitType: data.limitType ?? '',
+      })
     default:
       return ''
   }

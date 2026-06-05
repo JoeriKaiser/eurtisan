@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { invoices, orderItem, shopOrder, platformOrder, shop, user, product } from '#/db/schema'
@@ -91,6 +91,62 @@ describe('Invoicing VAT Engine', () => {
       subtotalCents: 1200,
       totalCents: 1200,
       reverseCharge: false,
+    })
+  })
+
+  describe('when PLATFORM_VAT_LIABLE is true', () => {
+    const originalVatLiable = process.env.PLATFORM_VAT_LIABLE
+
+    beforeEach(() => {
+      process.env.PLATFORM_VAT_LIABLE = 'true'
+    })
+
+    afterEach(() => {
+      process.env.PLATFORM_VAT_LIABLE = originalVatLiable
+    })
+
+    it('charges standard French VAT (20%) for domestic platform fee (supplier FR, customer FR)', () => {
+      const result = calculatePlatformFeeVat('FR', false, 1200) // 12.00 EUR total fee (inclusive of 20% VAT)
+      expect(result).toEqual({
+        vatRateBasisPoints: 2000,
+        vatAmountCents: 200,
+        subtotalCents: 1000,
+        totalCents: 1200,
+        reverseCharge: false,
+      })
+    })
+
+    it('applies reverse charge (0% VAT) for cross-border EU B2B (supplier FR, customer DE with VAT ID)', () => {
+      const result = calculatePlatformFeeVat('DE', true, 1000)
+      expect(result).toEqual({
+        vatRateBasisPoints: 0,
+        vatAmountCents: 0,
+        subtotalCents: 1000,
+        totalCents: 1000,
+        reverseCharge: true,
+      })
+    })
+
+    it('charges destination country standard rate (e.g. 21% for NL) for EU B2C (supplier FR, customer NL)', () => {
+      const result = calculatePlatformFeeVat('NL', false, 1210) // 12.10 EUR total fee (inclusive of 21% VAT)
+      expect(result).toEqual({
+        vatRateBasisPoints: 2100,
+        vatAmountCents: 210,
+        subtotalCents: 1000,
+        totalCents: 1210,
+        reverseCharge: false,
+      })
+    })
+
+    it('exempts VAT (0%) for exports outside the EU (supplier FR, customer US)', () => {
+      const result = calculatePlatformFeeVat('US', false, 1000)
+      expect(result).toEqual({
+        vatRateBasisPoints: 0,
+        vatAmountCents: 0,
+        subtotalCents: 1000,
+        totalCents: 1000,
+        reverseCharge: false,
+      })
     })
   })
 })
@@ -350,6 +406,9 @@ describe('Platform Order Invoices Lifecycle', () => {
 
     expect(custInvoice).toBeDefined()
     expect(custInvoice.type).toBe('customer')
+    expect(custInvoice.vatAmountCents).toBe(0)
+    expect(custInvoice.subtotalCents).toBe(1200)
+    expect(custInvoice.totalCents).toBe(1200)
 
     const custDetails = custInvoice.billingDetails as any
     expect(custDetails.from.vatId).toBe('FR12345678901')
@@ -357,6 +416,114 @@ describe('Platform Order Invoices Lifecycle', () => {
     expect(custDetails.to.vatId).toBe('DE999999999')
     expect(custDetails.to.address.country).toBe('DE')
     expect(custDetails.reverseCharge).toBe(true)
+  })
+
+  it('correctly sets vatAmountCents to 0 and subtotalCents to totalGross in DB even if shopOrder had non-zero VAT when reverse charge applies', async () => {
+    await db.insert(user).values([
+      { id: 'buyer-b2b-err', name: 'Acme GmbH 2', email: 'buyer-b2b-err@example.com', role: 'customer' },
+      { id: 'creator-b2b-err', name: 'Pierre Artisan 2', email: 'pierre-err@artisan.fr', role: 'creator' },
+    ])
+
+    await db.insert(shop).values({
+      id: 'shop-france-err',
+      name: 'Atelier Pierre 2',
+      slug: 'atelier-pierre-2',
+      ownerId: 'creator-b2b-err',
+      isVatRegistered: true,
+      vatId: 'FR12345678901',
+      businessAddress: {
+        street: '12 Rue de la Paix',
+        city: 'Paris',
+        postalCode: '75002',
+        country: 'FR',
+      },
+      shippingOrigin: {
+        street: '12 Rue de la Paix',
+        city: 'Paris',
+        postalCode: '75002',
+        country: 'FR',
+      },
+    })
+
+    const [po] = await db
+      .insert(platformOrder)
+      .values({
+        id: '99999999-9999-9999-9999-999999999999',
+        userId: 'buyer-b2b-err',
+        shippingAddress: {
+          name: 'Acme GmbH 2',
+          street: 'Hauptstraße 1',
+          city: 'Berlin',
+          postalCode: '10117',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Acme GmbH 2',
+          street: 'Hauptstraße 1',
+          city: 'Berlin',
+          postalCode: '10117',
+          country: 'DE',
+          vatId: 'DE999999999',
+        },
+        totalCents: 1200,
+        status: 'paid',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        id: '88888888-8888-8888-8888-888888888888',
+        platformOrderId: po.id,
+        shopId: 'shop-france-err',
+        shippingMethod: 'standard',
+        shippingCostCents: 200,
+        subtotalCents: 1000,
+        vatAmountCents: 190,
+        shippingVatRateBasisPoints: 1900,
+        shippingVatAmountCents: 10,
+        status: 'paid',
+      })
+      .returning()
+
+    await db.insert(product).values({
+      id: 'prod-b2b-err',
+      name: 'B2B Product 2',
+      slug: 'b2b-product-2',
+      priceCents: 1000,
+      shopId: 'shop-france-err',
+      vatRateCategory: 'standard',
+    })
+
+    await db.insert(orderItem).values({
+      id: '99999999-8888-7777-6666-555555555555',
+      shopOrderId: so.id,
+      productId: 'prod-b2b-err',
+      productName: 'B2B Product 2',
+      unitPriceCents: 1000,
+      quantity: 1,
+      totalCents: 1000,
+      vatRateBasisPoints: 1900,
+      vatAmountCents: 190,
+    })
+
+    await createInvoicesForPlatformOrder(po.id)
+
+    const customerInvNumber = `INV-${so.id.toUpperCase()}`
+    const [custInvoice] = await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.invoiceNumber, customerInvNumber))
+
+    expect(custInvoice).toBeDefined()
+    expect(custInvoice.vatAmountCents).toBe(0)
+    expect(custInvoice.subtotalCents).toBe(1200)
+    expect(custInvoice.totalCents).toBe(1200)
+
+    const custDetails = custInvoice.billingDetails as any
+    expect(custDetails.reverseCharge).toBe(true)
+    expect(custDetails.items[0].vatAmountCents).toBe(0)
+    expect(custDetails.shipping.vatAmountCents).toBe(0)
   })
 
   it('generates invoices for multiple shop orders using batched queries', async () => {

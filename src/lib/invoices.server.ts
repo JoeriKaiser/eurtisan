@@ -1,7 +1,7 @@
 import { eq, inArray } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { invoices, platformOrder, shopOrder, orderItem, shop, user } from '#/db/schema'
-import { normalizeCountryCode } from './vat.server'
+import { normalizeCountryCode, getStandardVatRate } from './vat.server'
 import { PLATFORM_FEE_PERCENT } from './platform-constants'
 
 export interface BillingAddress {
@@ -160,27 +160,49 @@ export function calculatePlatformFeeVat(
 
   let vatRateBasisPoints = 0
   let reverseCharge = false
+  const platformVatLiable = process.env.PLATFORM_VAT_LIABLE === 'true'
 
-  if (buyerCode === 'FR') {
-    // Domestic B2B: Under the "Franchise en base de TVA" regime, no VAT is charged.
-    vatRateBasisPoints = 0
-  } else if (isEU) {
-    if (isBuyerVatRegistered) {
-      // Cross-Border EU B2B: Reverse charge (0% VAT)
-      vatRateBasisPoints = 0
-      reverseCharge = true
+  if (platformVatLiable) {
+    if (buyerCode === 'FR') {
+      // Domestic: Eurtisan charges standard French VAT (20%)
+      vatRateBasisPoints = 2000
+    } else if (isEU) {
+      if (isBuyerVatRegistered) {
+        // Cross-Border EU B2B: Reverse charge (0% VAT)
+        vatRateBasisPoints = 0
+        reverseCharge = true
+      } else {
+        // Cross-Border EU B2C: OSS VAT (rate of the destination EU country)
+        vatRateBasisPoints = getStandardVatRate(buyerCountry)
+      }
     } else {
-      // Cross-Border EU B2C: Under the "Franchise en base de TVA" regime, no VAT is charged.
+      // Export (outside EU): VAT-exempt (0% VAT)
       vatRateBasisPoints = 0
     }
   } else {
-    // Export (outside EU): VAT-exempt (0% VAT)
-    vatRateBasisPoints = 0
+    // Under Franchise en base de TVA
+    if (buyerCode === 'FR') {
+      // Domestic B2B/B2C: Under the "Franchise en base de TVA" regime, no VAT is charged.
+      vatRateBasisPoints = 0
+    } else if (isEU) {
+      if (isBuyerVatRegistered) {
+        // Cross-Border EU B2B: Reverse charge (0% VAT)
+        vatRateBasisPoints = 0
+        reverseCharge = true
+      } else {
+        // Cross-Border EU B2C: Under the "Franchise en base de TVA" regime, no VAT is charged.
+        vatRateBasisPoints = 0
+      }
+    } else {
+      // Export (outside EU): VAT-exempt (0% VAT)
+      vatRateBasisPoints = 0
+    }
   }
 
-  // Under franchise en base de TVA, the subtotal equals the total because no VAT is charged (TVA non applicable)
-  const subtotalCents = inclusiveAmountCents
-  const vatAmountCents = 0
+  // Base exclusive price: Round to nearest cent to ensure base + vat equals total exactly
+  const baseAmountCents = Math.round((inclusiveAmountCents * 10000) / (10000 + vatRateBasisPoints))
+  const vatAmountCents = inclusiveAmountCents - baseAmountCents
+  const subtotalCents = baseAmountCents
 
   return {
     vatRateBasisPoints,
@@ -349,6 +371,9 @@ export async function createInvoicesForPlatformOrder(
         billingAddr.vatId,
       )
 
+      const finalVatAmount = customerReverseCharge ? 0 : totalVat
+      const finalSubtotal = customerReverseCharge ? totalGross : totalNet
+
       const customerInvoiceLines: InvoiceLineItem[] = itemsList.map((item: any) => ({
         id: item.productId,
         name: item.productName,
@@ -378,8 +403,8 @@ export async function createInvoicesForPlatformOrder(
           invoiceNumber: customerInvoiceNumber,
           type: 'customer',
           shopOrderId: so.id,
-          subtotalCents: totalNet,
-          vatAmountCents: totalVat,
+          subtotalCents: finalSubtotal,
+          vatAmountCents: finalVatAmount,
           totalCents: totalGross,
           vatRateBasisPoints: 0, // Mix of rates possible, detail is in items snapshot
           billingDetails: customerBillingDetails,

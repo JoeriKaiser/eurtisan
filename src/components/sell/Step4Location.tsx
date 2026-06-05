@@ -424,7 +424,8 @@ export function Step4Location() {
             Tax Identity & DAC7 Compliance
           </h3>
           <p className='text-xs text-text-secondary mb-4'>
-            In accordance with European Union DAC7 regulations, Eurtisan is required to collect and verify tax identity information for all sellers.
+            In accordance with European Union DAC7 regulations, Eurtisan is required to collect and
+            verify tax identity information for all sellers.
           </p>
         </div>
 
@@ -435,7 +436,12 @@ export function Step4Location() {
           <Select
             id='legal-entity-type'
             value={form.legalEntityType}
-            onChange={(e) => setForm((prev) => ({ ...prev, legalEntityType: e.target.value as 'individual' | 'business' }))}
+            onChange={(e) =>
+              setForm((prev) => ({
+                ...prev,
+                legalEntityType: e.target.value as 'individual' | 'business',
+              }))
+            }
             className='mt-1'
           >
             <option value='individual'>Individual / Sole Proprietor</option>
@@ -484,7 +490,9 @@ export function Step4Location() {
             <Input
               id='business-registration-number'
               value={form.businessRegistrationNumber}
-              onChange={(e) => setForm((prev) => ({ ...prev, businessRegistrationNumber: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, businessRegistrationNumber: e.target.value }))
+              }
               placeholder='e.g. SIRET or Trade Registry Number'
               className='mt-1'
             />

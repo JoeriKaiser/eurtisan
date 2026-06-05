@@ -270,7 +270,14 @@ export function InvoiceDetailComponent() {
                   <>
                     <p>{m.invoice_disclosure_customer_desc()}</p>
                     {!details.from.isVatRegistered ? (
-                      <p className='font-semibold'>{m.invoice_disclosure_customer_exempt()}</p>
+                      <div className='space-y-1'>
+                        <p className='font-semibold'>{m.invoice_disclosure_customer_exempt()}</p>
+                        {details.from.address.country?.toUpperCase() === 'FR' && (
+                          <p className='font-semibold text-text-primary print:text-black mt-1'>
+                            {m.invoice_disclosure_platform_fee_exempt()}
+                          </p>
+                        )}
+                      </div>
                     ) : details.reverseCharge ? (
                       <p className='font-semibold text-warning-strong print:text-black'>
                         {m.invoice_disclosure_customer_reverse()}

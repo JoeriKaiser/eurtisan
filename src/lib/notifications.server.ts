@@ -13,6 +13,7 @@ export const notificationTypeEnum = z.enum([
   'dispute_opened',
   'dispute_resolved',
   'payout_sent',
+  'dac7_warning_limit',
 ])
 
 export type NotificationType = z.infer<typeof notificationTypeEnum>

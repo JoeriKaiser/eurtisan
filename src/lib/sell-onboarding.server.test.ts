@@ -111,9 +111,9 @@ describe('sell-onboarding.server', () => {
         taxId: null,
       })
 
-      await expect(
-        submitShopForReviewInternal('user-1', 'creator', 'shop-1'),
-      ).rejects.toThrowError('MISSING_TAX_ID')
+      await expect(submitShopForReviewInternal('user-1', 'creator', 'shop-1')).rejects.toThrowError(
+        'MISSING_TAX_ID',
+      )
     })
 
     it('throws error if DOB is missing or invalid for individual', async () => {
@@ -124,14 +124,14 @@ describe('sell-onboarding.server', () => {
         dateOfBirth: null,
       })
 
-      await expect(
-        submitShopForReviewInternal('user-1', 'creator', 'shop-1'),
-      ).rejects.toThrowError('MISSING_OR_INVALID_DOB')
+      await expect(submitShopForReviewInternal('user-1', 'creator', 'shop-1')).rejects.toThrowError(
+        'MISSING_OR_INVALID_DOB',
+      )
 
       await db.update(shop).set({ dateOfBirth: '1990/01/01' }).where(eq(shop.id, 'shop-1'))
-      await expect(
-        submitShopForReviewInternal('user-1', 'creator', 'shop-1'),
-      ).rejects.toThrowError('MISSING_OR_INVALID_DOB')
+      await expect(submitShopForReviewInternal('user-1', 'creator', 'shop-1')).rejects.toThrowError(
+        'MISSING_OR_INVALID_DOB',
+      )
     })
 
     it('throws error if business registration number is missing for business', async () => {
@@ -142,9 +142,9 @@ describe('sell-onboarding.server', () => {
         businessRegistrationNumber: null,
       })
 
-      await expect(
-        submitShopForReviewInternal('user-1', 'creator', 'shop-1'),
-      ).rejects.toThrowError('MISSING_BUSINESS_REGISTRATION')
+      await expect(submitShopForReviewInternal('user-1', 'creator', 'shop-1')).rejects.toThrowError(
+        'MISSING_BUSINESS_REGISTRATION',
+      )
     })
 
     it('throws error if no listings exist', async () => {
@@ -155,9 +155,9 @@ describe('sell-onboarding.server', () => {
         dateOfBirth: '1990-01-01',
       })
 
-      await expect(
-        submitShopForReviewInternal('user-1', 'creator', 'shop-1'),
-      ).rejects.toThrowError('MISSING_LISTING')
+      await expect(submitShopForReviewInternal('user-1', 'creator', 'shop-1')).rejects.toThrowError(
+        'MISSING_LISTING',
+      )
     })
 
     it('submits shop for review on successful validation', async () => {

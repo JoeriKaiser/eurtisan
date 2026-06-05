@@ -36,7 +36,12 @@ import {
   type ShopLegalIdentity,
 } from './shop-legal-identity'
 import { scheduleBackgroundWork } from './background-work.server'
-import { calculateVat, normalizeCountryCode } from './vat.server'
+import {
+  calculateVat,
+  normalizeCountryCode,
+  isVatIdFormatValid,
+  verifyVatIdVies,
+} from './vat.server'
 
 /* -------------------------------------------------------------------------- */
 /*                                  Types                                     */
@@ -310,6 +315,42 @@ function isCrossBorderB2b(
   return euCountries.includes(seller) && euCountries.includes(buyer)
 }
 
+async function validateBuyerVatId(
+  sellerCountryCode: string,
+  buyerCountryCode: string,
+  isSellerVatRegistered: boolean,
+  buyerVatId?: string | null,
+): Promise<void> {
+  if (!isCrossBorderB2b(sellerCountryCode, buyerCountryCode, isSellerVatRegistered, buyerVatId)) {
+    return
+  }
+
+  // 1. Offline format check
+  if (!isVatIdFormatValid(buyerVatId!, buyerCountryCode)) {
+    throw new Response(
+      JSON.stringify({
+        error: 'Bad Request',
+        message: `Invalid VAT ID format for country ${buyerCountryCode}`,
+      }),
+      { status: 400, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  // 2. VIES API check (if enabled)
+  if (process.env.ENABLE_VIES_VALIDATION === 'true') {
+    const isValid = await verifyVatIdVies(buyerVatId!, buyerCountryCode)
+    if (!isValid) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Bad Request',
+          message: `VAT ID could not be verified via VIES for country ${buyerCountryCode}`,
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /*                            getCheckoutSummary                              */
 /* -------------------------------------------------------------------------- */
@@ -468,6 +509,15 @@ export async function getCheckoutSummaryQuery(
       shippingAddress?.vatId,
     )
 
+    if (reverseChargeApplies) {
+      await validateBuyerVatId(
+        sellerCountry,
+        buyerCountry,
+        shopRecord.isVatRegistered,
+        shippingAddress?.vatId,
+      )
+    }
+
     let vatEstimateCents = 0
     let adjustedSubtotalCents = 0
     for (const row of items) {
@@ -481,17 +531,19 @@ export async function getCheckoutSummaryQuery(
           sellerCountry,
           buyerCountry: sellerCountry,
           isVatRegistered: shopRecord.isVatRegistered,
-          vatRateCategory: (prod.vatRateCategory as 'standard' | 'reduced' | 'exempt') ?? 'standard',
+          vatRateCategory:
+            (prod.vatRateCategory as 'standard' | 'reduced' | 'exempt') ?? 'standard',
           inclusiveAmountCents: prod.priceCents * qty,
         })
-        const netLineTotal = (prod.priceCents * qty) - domesticVat.vatAmountCents
+        const netLineTotal = prod.priceCents * qty - domesticVat.vatAmountCents
         adjustedSubtotalCents += netLineTotal
       } else {
         const itemVat = calculateVat({
           sellerCountry,
           buyerCountry,
           isVatRegistered: shopRecord.isVatRegistered,
-          vatRateCategory: (prod.vatRateCategory as 'standard' | 'reduced' | 'exempt') ?? 'standard',
+          vatRateCategory:
+            (prod.vatRateCategory as 'standard' | 'reduced' | 'exempt') ?? 'standard',
           inclusiveAmountCents: prod.priceCents * qty,
         })
         vatEstimateCents += itemVat.vatAmountCents
@@ -782,6 +834,19 @@ export async function createCheckoutWithProvider(
       .leftJoin(shop, eq(product.shopId, shop.id))
       .where(eq(cartItem.cartId, input.cartId))
 
+    // Lock all involved product rows in deterministic, sorted order to eliminate deadlock risks
+    const productIdsToLock = Array.from(
+      new Set(items.map((row) => row.product?.id).filter((id): id is string => !!id)),
+    )
+    productIdsToLock.sort()
+    for (const prodId of productIdsToLock) {
+      await tx
+        .select()
+        .from(product)
+        .where(eq(product.id, prodId))
+        .for('update')
+    }
+
     if (items.length === 0) {
       throw new Response(
         JSON.stringify({ error: 'Conflict', message: 'Cart is empty', code: 'CART_EMPTY' }),
@@ -876,6 +941,15 @@ export async function createCheckoutWithProvider(
         input.billingAddress.vatId,
       )
 
+      if (reverseChargeApplies) {
+        await validateBuyerVatId(
+          sellerCountry,
+          input.billingAddress.country,
+          shopRec.isVatRegistered,
+          input.billingAddress.vatId,
+        )
+      }
+
       let lineTotalCents = prod.priceCents * qty
       let itemVatCents = 0
       let itemVatBasisPoints = 0
@@ -886,10 +960,11 @@ export async function createCheckoutWithProvider(
           sellerCountry,
           buyerCountry: sellerCountry,
           isVatRegistered: shopRec.isVatRegistered,
-          vatRateCategory: (prod.vatRateCategory as 'standard' | 'reduced' | 'exempt') ?? 'standard',
+          vatRateCategory:
+            (prod.vatRateCategory as 'standard' | 'reduced' | 'exempt') ?? 'standard',
           inclusiveAmountCents: prod.priceCents * qty,
         })
-        lineTotalCents = (prod.priceCents * qty) - domesticVat.vatAmountCents
+        lineTotalCents = prod.priceCents * qty - domesticVat.vatAmountCents
         itemVatCents = 0
         itemVatBasisPoints = 0
         unitPriceCents = Math.round(lineTotalCents / qty)
@@ -898,7 +973,8 @@ export async function createCheckoutWithProvider(
           sellerCountry,
           buyerCountry: input.shippingAddress.country,
           isVatRegistered: shopRec.isVatRegistered,
-          vatRateCategory: (prod.vatRateCategory as 'standard' | 'reduced' | 'exempt') ?? 'standard',
+          vatRateCategory:
+            (prod.vatRateCategory as 'standard' | 'reduced' | 'exempt') ?? 'standard',
           inclusiveAmountCents: prod.priceCents * qty,
         })
         lineTotalCents = prod.priceCents * qty

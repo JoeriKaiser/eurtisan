@@ -7,6 +7,10 @@ import ProductReviews from './ProductReviews'
 
 const mockGetProductReviews = vi.hoisted(() => vi.fn())
 
+vi.mock('#/lib/auth-hooks', () => ({
+  useAuth: () => ({ user: null }),
+}))
+
 vi.mock('#/lib/reviews', () => ({
   getProductReviews: mockGetProductReviews,
 }))

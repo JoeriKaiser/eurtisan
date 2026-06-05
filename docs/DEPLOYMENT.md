@@ -285,3 +285,48 @@ infrastructure/
 │       └── eurtisan/                # App deployment
 ├── README.md                        # Detailed infrastructure docs
 ```
+
+
+---
+
+## Recovery objectives (RTO / RPO)
+
+| Objective | Target | Notes |
+|-----------|--------|-------|
+| **RPO** (max data loss) | **< 1 hour** with WAL archiving to object storage; **< 24 hours** with nightly backups only | Nightly dump at 03:00 UTC; enable WAL for production |
+| **RTO** (max downtime) | **< 4 hours** | Restore DB from backup + redeploy app; communicate via status channel |
+
+## WAL archiving (PostgreSQL PITR)
+
+Production should enable continuous archiving to S3-compatible storage (same bucket family as uploads):
+
+1. Mount or configure `archive_command` to copy `%p` WAL segments to object storage
+2. Set `archive_mode = on`, `wal_level = replica` in PostgreSQL config
+3. Test restore quarterly using [docs/runbooks/backup-restore.md](./runbooks/backup-restore.md)
+
+Ansible variables (see `infrastructure/ansible/group_vars/all.yml`):
+
+- `postgres_wal_archive_enabled: true`
+- `postgres_wal_archive_path` — object storage prefix for WAL files
+
+## Transactional email DNS
+
+Before sending live mail, complete SPF, DKIM, and DMARC per [docs/EMAIL_DNS.md](./EMAIL_DNS.md).
+
+## Object storage (uploads)
+
+Product and shop images use **S3-compatible storage** (Garage locally, Scaleway in production) with presigned uploads — see `.env.example` (`S3_*`, `IMGPROXY_*`). This allows horizontal scaling without shared local disk.
+
+## Prometheus metrics
+
+The app exposes `GET /api/metrics` for Prometheus. Optional protection: set `METRICS_TOKEN` and configure scrape `authorization: Bearer <token>`.
+
+Grafana Alloy/Prometheus should scrape `eurtisan-app:3000` with `metrics_path: /api/metrics`.
+
+## Incident runbooks
+
+See [docs/runbooks/README.md](./runbooks/README.md) for database, payments, Meilisearch, disk, backup, and chargeback procedures.
+
+## Audit logging
+
+See [AUDIT_LOG_POLICY.md](./AUDIT_LOG_POLICY.md) for which admin actions are audited.

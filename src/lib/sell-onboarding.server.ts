@@ -217,8 +217,7 @@ export async function saveOnboardingStepInternal(
     updateData.legalEntityType = d.legalEntityType ? String(d.legalEntityType) : null
   if (d.dateOfBirth !== undefined)
     updateData.dateOfBirth = d.dateOfBirth ? String(d.dateOfBirth).trim() : null
-  if (d.taxId !== undefined)
-    updateData.taxId = d.taxId ? String(d.taxId).trim() : null
+  if (d.taxId !== undefined) updateData.taxId = d.taxId ? String(d.taxId).trim() : null
   if (d.businessRegistrationNumber !== undefined)
     updateData.businessRegistrationNumber = d.businessRegistrationNumber
       ? String(d.businessRegistrationNumber).trim()

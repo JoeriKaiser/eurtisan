@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { calculateVat, normalizeCountryCode } from './vat.server'
+import {
+  calculateVat,
+  normalizeCountryCode,
+  isVatIdFormatValid,
+  verifyVatIdVies,
+} from './vat.server'
 import { validateVatId } from './vat'
 
 describe('VAT Calculation Engine', () => {
@@ -210,5 +215,59 @@ describe('validateVatId', () => {
 
   it('ignores spaces and normalises case', () => {
     expect(validateVatId('de 123 456 789')).toEqual({ valid: true })
+  })
+})
+
+describe('isVatIdFormatValid (Offline Check)', () => {
+  it('validates correct formats', () => {
+    expect(isVatIdFormatValid('DE123456789', 'DE')).toBe(true)
+    expect(isVatIdFormatValid('FR 12 345678901', 'FR')).toBe(true)
+    expect(isVatIdFormatValid('NL123456789B01', 'NL')).toBe(true)
+  })
+
+  it('rejects incorrect formats', () => {
+    expect(isVatIdFormatValid('DE123', 'DE')).toBe(false)
+    expect(isVatIdFormatValid('FR123', 'FR')).toBe(false)
+    expect(isVatIdFormatValid('NL123', 'NL')).toBe(false)
+    expect(isVatIdFormatValid('DE123456789', 'FR')).toBe(false)
+  })
+})
+
+describe('verifyVatIdVies (Online Check)', () => {
+  it('gracefully falls back to true if VIES endpoint is unreachable or fails', async () => {
+    // We mock a global fetch failure
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = () => Promise.reject(new Error('Network error'))
+
+    try {
+      const result = await verifyVatIdVies('DE123456789', 'DE')
+      expect(result).toBe(true) // Fallback behavior
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it('verifies validity based on VIES API response', async () => {
+    const originalFetch = globalThis.fetch
+
+    // Valid mock response
+    globalThis.fetch = () =>
+      Promise.resolve(new Response(JSON.stringify({ isValid: true }), { status: 200 }))
+    try {
+      const result = await verifyVatIdVies('DE123456789', 'DE')
+      expect(result).toBe(true)
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+
+    // Invalid mock response
+    globalThis.fetch = () =>
+      Promise.resolve(new Response(JSON.stringify({ isValid: false }), { status: 200 }))
+    try {
+      const result = await verifyVatIdVies('DE123456789', 'DE')
+      expect(result).toBe(false)
+    } finally {
+      globalThis.fetch = originalFetch
+    }
   })
 })

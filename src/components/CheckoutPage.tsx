@@ -527,7 +527,6 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                         </div>
                       )}
                     </form.Field>
-
                     <form.Field name='billingAddress.street'>
                       {(field) => (
                         <div className='grid gap-2 sm:col-span-2'>
@@ -554,7 +553,6 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                         </div>
                       )}
                     </form.Field>
-
                     <form.Field name='billingAddress.city'>
                       {(field) => (
                         <div className='grid gap-2'>
@@ -581,7 +579,6 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                         </div>
                       )}
                     </form.Field>
-
                     <form.Field name='billingAddress.postalCode'>
                       {(field) => (
                         <div className='grid gap-2'>
@@ -607,7 +604,8 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                           )}
                         </div>
                       )}
-                    </form.Field>                     <form.Field name='billingAddress.country'>
+                    </form.Field>{' '}
+                    <form.Field name='billingAddress.country'>
                       {(field) => (
                         <div className='grid gap-2 sm:col-span-2'>
                           <label
@@ -633,7 +631,6 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                         </div>
                       )}
                     </form.Field>
-
                     <form.Field name='billingAddress.vatId'>
                       {(field) => (
                         <div className='grid gap-2 sm:col-span-2'>
@@ -663,7 +660,8 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                             </p>
                           ) : (
                             <p className='text-xs text-text-muted'>
-                              Enter to enable zero-rated EU cross-border billing. Must match the billing country.
+                              Enter to enable zero-rated EU cross-border billing. Must match the
+                              billing country.
                             </p>
                           )}
                         </div>

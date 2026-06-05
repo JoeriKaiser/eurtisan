@@ -12,6 +12,7 @@ import {
   shop,
   shopOrder,
   user,
+  invoices,
 } from '#/db/schema'
 import { mondialRelayProvider, resetMockShippingCounter } from '#/integrations/shipping'
 import {
@@ -46,6 +47,7 @@ function createStubPaymentProvider(): PaymentProvider {
 
 beforeEach(async () => {
   resetMockShippingCounter()
+  await db.delete(invoices)
   await db.delete(inventoryReservation)
   await db.delete(orderItem)
   await db.delete(shopOrder)
@@ -58,6 +60,7 @@ beforeEach(async () => {
 })
 
 afterAll(async () => {
+  await db.delete(invoices)
   await db.delete(inventoryReservation)
   await db.delete(orderItem)
   await db.delete(shopOrder)
