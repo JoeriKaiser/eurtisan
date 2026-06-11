@@ -1,4 +1,30 @@
 ---
+- name: Check if swap is enabled
+  command: swapon --show
+  register: swap_check
+  changed_when: false
+
+- name: Provision swap space if missing
+  when: swap_check.stdout == ""
+  block:
+    - name: Create 4GB swap file
+      command: fallocate -l 4G /swapfile
+    - name: Set swap file permissions
+      file:
+        path: /swapfile
+        owner: root
+        group: root
+        mode: "0600"
+    - name: Make swap space
+      command: mkswap /swapfile
+    - name: Enable swap space
+      command: swapon /swapfile
+    - name: Persist swap file in fstab
+      lineinfile:
+        path: /etc/fstab
+        line: "/swapfile none swap sw 0 0"
+        state: present
+
 - name: Find conflicting Docker APT source files
   find:
     paths: /etc/apt/sources.list.d
