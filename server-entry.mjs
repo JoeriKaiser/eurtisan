@@ -17,8 +17,8 @@ import { existsSync, readFileSync, statSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { extname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { logger, requestIdStore } from './src/lib/logger.server.ts'
-import { runWithCspNonce } from './src/lib/csp-nonce.server.ts'
+import { logger, requestIdStore } from '../../src/lib/logger.server.ts'
+import { runWithCspNonce } from '../../src/lib/csp-nonce.server.ts'
 
 const DIRNAME = fileURLToPath(new URL('.', import.meta.url))
 const CLIENT_DIR = join(DIRNAME, '../client')
