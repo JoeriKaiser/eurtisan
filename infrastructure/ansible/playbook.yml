@@ -5,10 +5,20 @@
   become: yes
 
   pre_tasks:
+    - name: Get SSH host key
+      ansible.builtin.command: ssh-keyscan -H "{{ ansible_host | default(inventory_hostname) }}"
+      register: ssh_keyscan_output
+      delegate_to: localhost
+      changed_when: false
+      become: no
+      tags: [always]
+
     - name: Ensure target host is in known_hosts
       ansible.builtin.known_hosts:
-        name: "{{ inventory_hostname }}"
+        name: "{{ ansible_host | default(inventory_hostname) }}"
+        key: "{{ item }}"
         state: present
+      loop: "{{ ssh_keyscan_output.stdout_lines | reject('match', '^#') | list }}"
       delegate_to: localhost
       become: no
       tags: [always]
