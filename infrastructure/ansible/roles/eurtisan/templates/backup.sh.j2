@@ -107,7 +107,7 @@ done
 TOTAL_TABLES=$(docker exec "$VERIFY_CONTAINER" psql -U verify -d "$VERIFY_DB" -tAc \
   "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';" 2>/dev/null || echo "0")
 
-if [[ ${#MISSING[@]} -gt 0 ]]; then
+if [[ {{ '${#' }}MISSING[@]} -gt 0 ]]; then
   MISSING_STR=$(printf '%s,' "${MISSING[@]}")
   MISSING_STR="${MISSING_STR%,}"
   json_log "error" "Backup verification failed: missing expected tables" "{\"missing_tables\":\"$MISSING_STR\",\"total_tables\":$TOTAL_TABLES,\"file\":\"$BACKUP_FILE\"}"
