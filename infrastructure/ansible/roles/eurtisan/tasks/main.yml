@@ -134,7 +134,7 @@
   command: "{{ docker_compose }} build app"
   args:
     chdir: /opt/eurtisan
-  async: 600
+  async: 1800
   poll: 15
 
 - name: Run database migrations
