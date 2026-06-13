@@ -21,6 +21,8 @@ import { cn } from '#/lib/cn'
 import { downloadCSV, generateCSV } from '#/lib/csv-export'
 import { MAX_BULK_SELECTION } from '#/lib/admin-constants'
 import { m } from '#/paraglide/messages'
+import { getImageUrl } from '#/lib/image-url'
+
 const PAGE_SIZES = [10, 20, 50] as const
 /* -------------------------------------------------------------------------- */
 
@@ -472,7 +474,7 @@ export function AdminProductsPage() {
                     <div className='flex items-center gap-3'>
                       {p.thumbnailUrl ? (
                         <img
-                          src={p.thumbnailUrl}
+                          src={getImageUrl(p.thumbnailUrl, { width: 80, format: 'webp' })}
                           alt=''
                           className='size-10 rounded-lg object-cover border border-border-default flex-shrink-0'
                         />

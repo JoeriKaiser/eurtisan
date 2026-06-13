@@ -14,7 +14,7 @@ export function ShopStatusRouteComponent() {
       icon: React.ReactNode
       title: string
       description: string
-      cta?: { label: string; href: string }
+      cta?: { label: string; href: string; search?: Record<string, string> }
     }
   > = {
     pending_review: {
@@ -32,7 +32,11 @@ export function ShopStatusRouteComponent() {
       icon: <Check size={48} className='text-purple-500' />,
       title: m.onboarding_status_approved_title(),
       description: m.onboarding_status_approved_desc(),
-      cta: { label: m.onboarding_status_approved_cta(), href: '/sell/shops/$shopId/payment' },
+      cta: {
+        label: m.onboarding_status_approved_cta(),
+        href: '/creator/payouts',
+        search: { shopId: status.id },
+      },
     },
     active: {
       icon: <Store size={48} className='text-green-500' />,
@@ -71,7 +75,12 @@ export function ShopStatusRouteComponent() {
             )}
             {config.cta && (
               <div className='mt-6'>
-                <Link to={config.cta.href} params={{ shopId: status.id }} className='no-underline'>
+                <Link
+                  to={config.cta.href}
+                  params={{ shopId: status.id }}
+                  search={config.cta.search}
+                  className='no-underline'
+                >
                   <Button variant='primary'>{config.cta.label}</Button>
                 </Link>
               </div>

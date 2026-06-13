@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { Edit, ImageOff, ToggleLeft, ToggleRight } from 'lucide-react'
 import { formatPriceEUR } from '#/lib/pricing'
+import { getImageUrl } from '#/lib/image-url'
 import { m } from '#/paraglide/messages'
 import { Badge } from '../ui/badge'
 
@@ -42,7 +43,7 @@ export function ProductTableRow({
           <div className='size-10 flex-shrink-0 overflow-hidden rounded-lg bg-surface-inset'>
             {product.thumbnailUrl ? (
               <img
-                src={product.thumbnailUrl}
+                src={getImageUrl(product.thumbnailUrl, { width: 80, format: 'webp' })}
                 alt=''
                 className='h-full w-full object-cover'
                 loading='lazy'
@@ -145,9 +146,8 @@ export function ProductTableRow({
           {/* Edit link */}
           {currentShopId && (
             <Link
-              to='/studio/$shopId'
-              params={{ shopId: currentShopId }}
-              search={{ productId: product.id, tab: 'products' }}
+              to='/creator/products/$productId/edit'
+              params={{ productId: product.id }}
               className='inline-flex items-center justify-center rounded-lg p-1.5 text-text-muted transition-colors hover:bg-surface-inset hover:text-text-primary'
               aria-label={m.creator_products_edit({ name: product.name })}
             >
