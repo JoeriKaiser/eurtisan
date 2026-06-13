@@ -20,6 +20,7 @@ vi.mock('#/lib/auth', () => ({
 describe('Mollie Connect OAuth Callback', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
+    vi.unstubAllEnvs()
     await db.delete(shop)
     await db.delete(user)
   })
@@ -59,7 +60,11 @@ describe('Mollie Connect OAuth Callback', () => {
   })
 
   describe('GET Handler', () => {
-    const getHandler = (Route.options.server as any).handlers.GET
+    const getHandler = (
+      Route.options.server as {
+        handlers: { GET: (ctx: { request: Request }) => Promise<Response> }
+      }
+    ).handlers.GET
 
     it('returns 400 if code or state is missing', async () => {
       const reqEmpty = new Request('https://eurtisan.eu/api/auth/mollie/callback')
@@ -132,7 +137,7 @@ describe('Mollie Connect OAuth Callback', () => {
       expect(res.status).toBe(403)
     })
 
-    it('connects payouts and redirects successfully if user owns the shop', async () => {
+    it('returns 502 when Mollie Connect credentials are missing', async () => {
       await db.insert(user).values({ id: 'user-owner', name: 'Owner', email: 'owner@example.com' })
       await db
         .insert(shop)
@@ -148,6 +153,42 @@ describe('Mollie Connect OAuth Callback', () => {
       )
       const res = await getHandler({ request: req })
 
+      expect(res.status).toBe(502)
+      const body = await res.json()
+      expect(body.error).toBe('Bad Gateway')
+    })
+
+    it('connects payouts and redirects successfully when user owns the shop', async () => {
+      await db.insert(user).values({ id: 'user-owner', name: 'Owner', email: 'owner@example.com' })
+      await db
+        .insert(shop)
+        .values({ id: 'shop-123', name: 'Test Shop', slug: 'test-shop', ownerId: 'user-owner' })
+
+      mockGetSession.mockResolvedValueOnce({
+        user: { id: 'user-owner', role: 'creator' },
+      })
+
+      vi.stubEnv('MOLLIE_CLIENT_ID', 'test-client-id')
+      vi.stubEnv('MOLLIE_CLIENT_SECRET', 'test-client-secret')
+
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            organization_id: 'org_12345',
+            access_token: 'access-token',
+            refresh_token: 'refresh-token',
+            expires_in: 3600,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      )
+
+      const state = signMollieState('shop-123', 'user-owner')
+      const req = new Request(
+        `https://eurtisan.eu/api/auth/mollie/callback?code=123&state=${encodeURIComponent(state)}`,
+      )
+      const res = await getHandler({ request: req })
+
       expect(res.status).toBe(302)
       expect(res.headers.get('Location')).toContain(
         '/creator/payouts?shopId=shop-123&success=mollie_connected',
@@ -156,7 +197,9 @@ describe('Mollie Connect OAuth Callback', () => {
       // Verify DB was updated
       const [updatedShop] = await db.select().from(shop).where(eq(shop.id, 'shop-123'))
       expect(updatedShop.paymentConnected).toBe(true)
-      expect(updatedShop.mollieAccountId).toMatch(/^org_mock_/)
+      expect(updatedShop.mollieAccountId).toBe('org_12345')
+
+      fetchSpy.mockRestore()
     })
 
     it('connects payouts and redirects successfully if user is admin (even if not owner)', async () => {
@@ -168,6 +211,21 @@ describe('Mollie Connect OAuth Callback', () => {
       mockGetSession.mockResolvedValueOnce({
         user: { id: 'user-admin', role: 'admin' },
       })
+
+      vi.stubEnv('MOLLIE_CLIENT_ID', 'test-client-id')
+      vi.stubEnv('MOLLIE_CLIENT_SECRET', 'test-client-secret')
+
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            organization_id: 'org_67890',
+            access_token: 'access-token',
+            refresh_token: 'refresh-token',
+            expires_in: 3600,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      )
 
       const state = signMollieState('shop-123', 'user-admin')
       const req = new Request(
@@ -183,6 +241,9 @@ describe('Mollie Connect OAuth Callback', () => {
       // Verify DB was updated
       const [updatedShop] = await db.select().from(shop).where(eq(shop.id, 'shop-123'))
       expect(updatedShop.paymentConnected).toBe(true)
+      expect(updatedShop.mollieAccountId).toBe('org_67890')
+
+      fetchSpy.mockRestore()
     })
   })
 })
