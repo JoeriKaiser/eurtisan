@@ -30,4 +30,5 @@ infrastructure/ansible/.vault_pass
 docker-compose.override.yml
 .agents/
 scratch/
+skills-lock.json
 
