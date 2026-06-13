@@ -1,8 +1,6 @@
 import { Link, useRouter } from '@tanstack/react-router'
 import { ArrowRight, Search } from 'lucide-react'
 import { useState } from 'react'
-import { Button } from '../ui/button'
-import { Input } from '../ui/input'
 import { m } from '#/paraglide/messages'
 
 interface HomeHeroSectionProps {
@@ -81,88 +79,125 @@ export function HomeHeroSection({
   }
 
   return (
-    <section className='relative overflow-hidden bg-gradient-to-b from-accent-primary-subtle/20 to-bg-base border-b border-border-subtle/60 pt-20 pb-28 md:pt-32 md:pb-40'>
-      <div className='pointer-events-none absolute inset-0'>
-        <div className='absolute -left-20 -top-20 size-[360px] rounded-full opacity-35 radial-glow-moss dark:opacity-20' />
-        <div className='absolute -bottom-20 -right-20 size-[400px] rounded-full opacity-30 radial-glow-sage dark:opacity-15' />
+    <section className='relative overflow-hidden border-b border-border-subtle bg-bg-base pt-16 pb-24 md:pt-20 md:pb-32'>
+      {/* Background atmospheric glows */}
+      <div className='pointer-events-none absolute inset-0 select-none'>
+        <div className='absolute -left-20 -top-20 size-[360px] rounded-full opacity-35 radial-glow-moss dark:opacity-25' />
+        <div className='absolute -bottom-20 -right-20 size-[400px] rounded-full opacity-30 radial-glow-sage dark:opacity-20' />
       </div>
 
       <div className='max-w-7xl mx-auto px-6 relative z-10 animate-fade-in-up'>
-        <div className='max-w-3xl'>
-          <p className='island-kicker mb-3 font-sans text-xs font-bold uppercase tracking-wider text-accent-primary'>
-            {m.home_hero_kicker()}
-          </p>
-          <h1 className='display-title mb-6 text-4xl font-semibold tracking-tight text-text-primary sm:text-5xl lg:text-7xl leading-[1.1]'>
-            {m.home_hero_title()}
-          </h1>
-          <p className='mb-8 max-w-xl font-sans text-base leading-relaxed text-text-secondary sm:text-lg'>
-            {m.home_hero_desc()}
-          </p>
+        <div className='flex flex-col lg:flex-row lg:items-center lg:justify-between gap-12 lg:gap-8'>
+          {/* Left Content Column */}
+          <div className='max-w-2xl lg:w-[55%]'>
+            <span className='inline-flex items-center gap-1.5 rounded-full bg-accent-primary-subtle px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-accent-primary mb-6'>
+              {m.home_hero_kicker()}
+            </span>
+            <h1 className='display-title mb-6 text-4xl font-bold tracking-tight text-text-primary sm:text-5xl lg:text-6xl xl:text-7xl leading-[1.08]'>
+              {m.home_hero_title()}
+            </h1>
+            <p className='mb-8 max-w-lg font-sans text-base leading-relaxed text-text-secondary sm:text-lg'>
+              {m.home_hero_desc()}
+            </p>
 
-          {/* Hero Search */}
-          <search className='mb-8 max-w-lg block'>
-            <form onSubmit={handleSearch}>
-              <div className='relative flex gap-2'>
-                <div className='relative flex-1'>
-                  <Search className='absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted' />
-                  <Input
-                    type='search'
-                    placeholder={m.home_search_placeholder()}
-                    className={`pl-9 bg-bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2 ${
-                      searchError ? 'border-error ring-1 ring-error' : ''
-                    }`}
-                    value={searchQuery}
-                    onChange={(e) => {
-                      setSearchQuery(e.target.value)
-                      if (searchError) setSearchError(false)
-                    }}
-                    aria-label={m.home_search_placeholder()}
-                    aria-invalid={searchError}
-                    aria-describedby={searchError ? 'search-error' : undefined}
-                  />
+            {/* Hero Search */}
+            <search className='mb-8 max-w-lg block'>
+              <form onSubmit={handleSearch}>
+                <div className='relative flex gap-2 items-center'>
+                  <div className='relative flex-1'>
+                    <Search className='absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-text-muted' />
+                    <input
+                      type='search'
+                      placeholder={m.home_search_placeholder()}
+                      className={`flex h-12 w-full rounded-full border bg-bg-elevated/85 backdrop-blur-sm px-4 pl-10 text-sm text-text-primary placeholder:text-text-muted transition-colors duration-fast ease-out focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20 disabled:cursor-not-allowed disabled:opacity-50 ${
+                        searchError
+                          ? 'border-error focus-visible:border-error focus-visible:ring-error/20'
+                          : 'border-border-default hover:border-border-strong'
+                      }`}
+                      value={searchQuery}
+                      onChange={(e) => {
+                        setSearchQuery(e.target.value)
+                        if (searchError) setSearchError(false)
+                      }}
+                      aria-label={m.home_search_placeholder()}
+                      aria-invalid={searchError}
+                      aria-describedby={searchError ? 'search-error' : undefined}
+                    />
+                  </div>
+                  <button
+                    type='submit'
+                    className='group relative flex items-center justify-between gap-3 h-12 pl-6 pr-2 bg-accent-primary text-text-on-primary hover:bg-accent-primary-hover active:bg-accent-primary-active rounded-full font-semibold shadow-md active:scale-[0.98] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
+                  >
+                    <span>{m.home_search_button()}</span>
+                    <span className='flex size-6 rounded-full bg-black/10 dark:bg-white/10 items-center justify-center transition-transform duration-300 group-hover:scale-105 group-hover:bg-black/15 dark:group-hover:bg-white/15'>
+                      <Search className='size-3.5 text-current' />
+                    </span>
+                  </button>
                 </div>
-                <Button
-                  type='submit'
-                  variant='primary'
-                  className='focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
-                >
-                  {m.home_search_button()}
-                </Button>
-              </div>
-              <div className='min-h-[1.5rem] mt-1.5' aria-live='assertive'>
-                {searchError && (
-                  <p id='search-error' className='text-sm text-error font-medium'>
-                    {m.home_search_error_empty()}
-                  </p>
-                )}
-              </div>
-            </form>
-          </search>
+                {/* Search validation error — absolute layout to avoid layout shift (CLS) */}
+                <div className='relative min-h-[1.5rem] mt-1' aria-live='assertive'>
+                  {searchError && (
+                    <p id='search-error' className='absolute text-xs text-error font-semibold'>
+                      {m.home_search_error_empty()}
+                    </p>
+                  )}
+                </div>
+              </form>
+            </search>
 
-          {/* Hero Action Buttons */}
-          <div className='flex flex-wrap gap-4'>
-            <Link
-              to={primaryLink}
-              search={isPrimaryRedirect ? { redirect: '/sell' } : undefined}
-              className='no-underline'
-            >
-              <Button
-                size='lg'
-                className='gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
+            {/* Hero Action Buttons */}
+            <div className='flex flex-wrap gap-4 items-center mt-2'>
+              <Link
+                to={primaryLink}
+                search={isPrimaryRedirect ? { redirect: '/sell' } : undefined}
+                className='no-underline'
               >
-                {primaryText}
-                <ArrowRight size={18} />
-              </Button>
-            </Link>
-            <Link to='/search' className='no-underline'>
-              <Button
-                size='lg'
-                variant='secondary'
-                className='focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
-              >
-                {m.home_hero_cta_explore()}
-              </Button>
-            </Link>
+                <button
+                  type='button'
+                  className='group relative flex items-center justify-between gap-3 h-12 pl-6 pr-2 bg-accent-primary text-text-on-primary hover:bg-accent-primary-hover active:bg-accent-primary-active rounded-full font-semibold shadow-md active:scale-[0.98] transition-all duration-300 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
+                >
+                  <span>{primaryText}</span>
+                  <span className='flex size-6 rounded-full bg-black/10 dark:bg-white/10 items-center justify-center transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-[1px] group-hover:bg-black/15'>
+                    <ArrowRight size={14} />
+                  </span>
+                </button>
+              </Link>
+              <Link to='/search' className='no-underline'>
+                <button
+                  type='button'
+                  className='h-12 px-6 bg-surface-default text-text-primary border border-border-default hover:bg-bg-inset hover:border-border-strong rounded-full font-semibold shadow-sm hover:shadow active:scale-[0.98] transition-all duration-300 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
+                >
+                  {m.home_hero_cta_explore()}
+                </button>
+              </Link>
+            </div>
+          </div>
+
+          {/* Right Visual Column (Double-Bezel nested architecture) */}
+          <div className='hidden lg:flex items-center justify-center lg:w-[42%]'>
+            <div className='relative p-2 rounded-[2.5rem] bg-black/5 dark:bg-white/5 border border-border-subtle shadow-xl w-full aspect-[4/3] overflow-hidden'>
+              <div className='relative w-full h-full overflow-hidden rounded-[calc(2.5rem-0.5rem)] bg-bg-elevated shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] group'>
+                <img
+                  src='/images/hero_artisan_goods.png'
+                  alt='European artisan studio'
+                  className='w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]'
+                />
+                {/* Visual glassmorphic scrim overlay */}
+                <div className='absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent p-6 flex items-end justify-between pointer-events-none'>
+                  <div className='text-white'>
+                    <p className='text-[9px] uppercase tracking-widest font-bold opacity-80'>
+                      Featured Maker
+                    </p>
+                    <h4 className='font-serif text-base font-bold tracking-wide mt-0.5'>
+                      La Poterie de Biot
+                    </h4>
+                  </div>
+                  <span className='text-[10px] font-bold text-white bg-white/20 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10 tracking-wide'>
+                    France
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

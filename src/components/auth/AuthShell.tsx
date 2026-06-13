@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 import { m } from '#/paraglide/messages'
+import Logo from '../Logo'
 
 interface Props {
   title: string
@@ -29,13 +30,8 @@ export function AuthShell({ title, description, children }: Props) {
         {/* Card Shell */}
         <div className='island-shell relative rounded-2xl border border-border-default bg-surface-default/80 pt-5 pb-6 px-5 shadow-xl backdrop-blur-md sm:pt-6 sm:pb-8 sm:px-8'>
           {/* Logo & Header */}
-          <div className='mb-4 text-center'>
-            <Link
-              to='/'
-              className='inline-block mb-2 text-3xl font-bold tracking-tight text-accent-primary hover:opacity-90 transition-opacity'
-            >
-              {m.nav_logo()}
-            </Link>
+          <div className='mb-4 flex flex-col items-center text-center'>
+            <Logo className='mb-2 justify-center' textClassName='text-3xl' />
             <h1 className='text-2xl font-semibold tracking-tight text-text-primary'>{title}</h1>
             {description && <p className='mt-1 text-sm text-text-secondary'>{description}</p>}
           </div>

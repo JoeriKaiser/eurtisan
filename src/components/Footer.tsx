@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { m } from '#/paraglide/messages'
 import LocaleDropdown from './LocaleDropdown'
+import Logo from './Logo'
 
 export default function Footer() {
   const year = new Date().getFullYear()
@@ -10,12 +11,7 @@ export default function Footer() {
       <div className='max-w-7xl mx-auto grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-5'>
         {/* Left Column: Brand & Tagline */}
         <div className='flex flex-col gap-4 lg:col-span-2'>
-          <Link
-            to='/'
-            className='font-display text-2xl font-bold tracking-tight text-text-primary no-underline hover:text-accent-primary transition-colors'
-          >
-            {m.nav_logo()}
-          </Link>
+          <Logo textClassName='text-2xl' />
           <p className='text-sm text-text-secondary leading-relaxed max-w-xs'>
             {m.footer_tagline()}
           </p>

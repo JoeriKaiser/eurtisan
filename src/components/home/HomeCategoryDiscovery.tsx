@@ -14,56 +14,77 @@ export function HomeCategoryDiscovery({ categories }: HomeCategoryDiscoveryProps
   const [firstCategory, ...otherCategories] = categories
 
   return (
-    <section aria-labelledby='categories-heading'>
-      <div className='mb-8 flex items-end justify-between gap-4'>
+    <section aria-labelledby='categories-heading' className='py-8 animate-fade-in-up'>
+      <div className='mb-10 flex items-end justify-between gap-4'>
         <div>
           <h2
             id='categories-heading'
-            className='display-title text-2xl font-semibold tracking-tight text-text-primary sm:text-3xl'
+            className='display-title text-3xl font-bold tracking-tight text-text-primary sm:text-4xl'
           >
             {m.home_categories_title()}
           </h2>
-          <p className='mt-1 text-sm text-text-secondary font-sans'>
+          <p className='mt-1.5 text-xs sm:text-sm text-text-secondary font-sans'>
             {m.home_categories_subtitle()}
           </p>
         </div>
       </div>
 
-      <div className='space-y-4'>
-        {/* Spotlight Category */}
+      <div className='space-y-6'>
+        {/* Spotlight Category (Editorial Split Bento Card inside Double-Bezel) */}
         {firstCategory && (
           <Link
             to='/category/$slug'
             params={{ slug: firstCategory.slug }}
-            className='group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-border-default bg-surface-default p-6 sm:p-8 shadow-sm transition-all duration-fast ease-out hover:-translate-y-0.5 hover:border-accent-primary hover:shadow-md hover:ring-2 hover:ring-accent-primary/20 no-underline min-h-[180px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
+            className='group relative p-2 rounded-[2.5rem] bg-black/5 dark:bg-white/5 border border-border-subtle shadow-md hover:border-border-strong hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 flex flex-col no-underline'
           >
-            <div className='pointer-events-none absolute -right-10 -top-10 size-32 rounded-full opacity-20 radial-glow-moss' />
+            <div className='w-full h-full bg-bg-elevated rounded-[calc(2.5rem-0.5rem)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] overflow-hidden flex flex-col md:flex-row min-h-[260px]'>
+              {/* Left Panel */}
+              <div className='flex-1 p-8 flex flex-col justify-between relative z-10'>
+                <div>
+                  <div className='flex items-center justify-between gap-4 mb-6'>
+                    <div className='flex size-14 items-center justify-center rounded-2xl bg-accent-primary-subtle text-accent-primary border border-accent-primary/10 transition-colors duration-300 group-hover:bg-accent-primary group-hover:text-text-on-primary'>
+                      {(() => {
+                        const Icon = getCategoryIcon(firstCategory.name)
+                        return <Icon size={26} strokeWidth={1.5} />
+                      })()}
+                    </div>
+                    <span className='inline-flex items-center gap-1 rounded-full bg-accent-primary-subtle px-3 py-1 text-[9px] font-bold text-accent-primary uppercase tracking-widest border border-accent-primary/10'>
+                      Spotlight
+                    </span>
+                  </div>
 
-            <div className='flex items-start justify-between gap-4 relative z-10'>
-              <div className='flex size-14 items-center justify-center rounded-xl bg-accent-primary-subtle text-accent-primary transition-colors duration-fast group-hover:bg-accent-primary group-hover:text-text-on-primary'>
-                {(() => {
-                  const Icon = getCategoryIcon(firstCategory.name)
-                  return <Icon size={28} strokeWidth={1.5} />
-                })()}
+                  <h3 className='display-title text-2xl sm:text-3xl font-bold text-text-primary mb-2'>
+                    {firstCategory.name}
+                  </h3>
+                  <p className='text-xs sm:text-sm text-text-secondary max-w-lg font-sans leading-relaxed'>
+                    {firstCategory.description || m.home_categories_subtitle()}
+                  </p>
+                </div>
+
+                <div className='mt-8 flex items-center gap-2 text-xs font-bold text-accent-primary group-hover:text-accent-primary-hover transition-colors'>
+                  <span>Explore collection</span>
+                  <span className='transition-transform duration-300 group-hover:translate-x-1'>
+                    &rarr;
+                  </span>
+                </div>
               </div>
-              <span className='inline-flex items-center gap-1 rounded-full bg-accent-primary-subtle px-2.5 py-0.5 text-[10px] font-semibold text-accent-primary uppercase tracking-wider'>
-                Spotlight
-              </span>
-            </div>
-            <div className='mt-6 relative z-10'>
-              <h3 className='display-title text-xl sm:text-2xl font-semibold text-text-primary mb-1'>
-                {firstCategory.name}
-              </h3>
-              <p className='text-xs sm:text-sm text-text-secondary max-w-md font-sans'>
-                {firstCategory.description || m.home_categories_subtitle()}
-              </p>
+
+              {/* Right Visual Panel */}
+              <div className='hidden md:block w-[40%] relative overflow-hidden bg-bg-inset border-l border-border-subtle/70'>
+                <img
+                  src='/images/spotlight_ceramics.png'
+                  alt='Pottery craft showcase'
+                  className='absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]'
+                />
+                <div className='absolute inset-0 bg-gradient-to-r from-bg-elevated/40 via-transparent to-transparent pointer-events-none' />
+              </div>
             </div>
           </Link>
         )}
 
         {/* Remaining Categories Grid */}
         {otherCategories.length > 0 && (
-          <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3'>
+          <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
             {otherCategories.slice(0, 6).map((category) => (
               <CategoryCard
                 key={category.id}

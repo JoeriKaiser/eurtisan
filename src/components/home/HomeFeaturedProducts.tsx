@@ -10,41 +10,57 @@ interface HomeFeaturedProductsProps {
 
 export function HomeFeaturedProducts({ products }: HomeFeaturedProductsProps) {
   return (
-    <section aria-labelledby='products-heading'>
-      <div className='mb-8 flex items-end justify-between gap-4'>
+    <section aria-labelledby='products-heading' className='py-8 animate-fade-in-up'>
+      <div className='mb-10 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4'>
         <div>
           <h2
             id='products-heading'
-            className='display-title text-2xl font-semibold tracking-tight text-text-primary sm:text-3xl'
+            className='display-title text-3xl font-bold tracking-tight text-text-primary sm:text-4xl'
           >
             {m.home_products_title()}
           </h2>
-          <p className='mt-1 text-sm text-text-secondary font-sans'>{m.home_products_subtitle()}</p>
+          <p className='mt-1.5 text-xs sm:text-sm text-text-secondary font-sans'>
+            {m.home_products_subtitle()}
+          </p>
         </div>
         <Link
           to='/search'
-          className='group text-sm font-bold text-accent-primary hover:text-accent-primary-hover no-underline inline-flex items-center gap-1 transition-colors'
+          className='group text-sm font-bold text-accent-primary hover:text-accent-primary-hover no-underline inline-flex items-center gap-1.5 transition-colors self-start sm:self-auto'
         >
           View all products
-          <ArrowRight size={16} className='transition-transform group-hover:translate-x-0.5' />
+          <ArrowRight
+            size={15}
+            className='transition-transform duration-300 group-hover:translate-x-1'
+          />
         </Link>
       </div>
 
       {products.length === 0 ? (
-        <div className='island-shell rounded-2xl p-8 text-center sm:p-12'>
-          <Package size={48} className='mx-auto mb-4 text-text-muted' aria-hidden='true' />
-          <h3 className='mb-2 text-lg font-semibold text-text-primary display-title'>
-            {m.home_products_empty_title()}
-          </h3>
-          <p className='mb-6 text-text-secondary font-sans text-sm max-w-md mx-auto'>
-            {m.home_products_empty_desc()}
-          </p>
-          <Link
-            to='/category/all'
-            className='inline-flex items-center gap-2 rounded-lg bg-accent-primary px-6 py-3 text-sm font-semibold text-text-on-primary no-underline transition-colors hover:bg-accent-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
-          >
-            {m.home_products_empty_cta()}
-          </Link>
+        /* Double-Bezel outer shell */
+        <div className='p-2 rounded-[2rem] bg-black/5 dark:bg-white/5 border border-border-subtle shadow-md'>
+          {/* Inner core */}
+          <div className='bg-bg-elevated rounded-[calc(2rem-0.5rem)] p-8 sm:p-14 text-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]'>
+            <div className='max-w-md mx-auto flex flex-col items-center'>
+              <div className='size-14 rounded-full bg-accent-primary-subtle flex items-center justify-center text-accent-primary mb-5 border border-accent-primary/10'>
+                <Package size={26} strokeWidth={1.5} aria-hidden='true' />
+              </div>
+              <h3 className='mb-2 text-xl font-bold text-text-primary display-title'>
+                {m.home_products_empty_title()}
+              </h3>
+              <p className='mb-8 text-text-secondary font-sans text-xs sm:text-sm leading-relaxed'>
+                {m.home_products_empty_desc()}
+              </p>
+              <Link
+                to='/category/all'
+                className='group inline-flex items-center justify-between gap-3 h-12 pl-6 pr-2 bg-accent-primary text-text-on-primary rounded-full font-semibold shadow-md active:scale-[0.98] transition-all no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
+              >
+                <span>{m.home_products_empty_cta()}</span>
+                <span className='flex size-6 rounded-full bg-black/10 dark:bg-white/10 items-center justify-center transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-[1px]'>
+                  <ArrowRight size={14} />
+                </span>
+              </Link>
+            </div>
+          </div>
         </div>
       ) : (
         <div className='grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'>

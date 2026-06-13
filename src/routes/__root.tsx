@@ -54,6 +54,11 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         rel: 'stylesheet',
         href: '/fonts/fonts.css',
       },
+      {
+        rel: 'icon',
+        type: 'image/svg+xml',
+        href: '/favicon.svg',
+      },
     ],
   }),
   errorComponent: RootError,

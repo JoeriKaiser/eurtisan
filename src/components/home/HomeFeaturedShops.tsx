@@ -11,40 +11,49 @@ export function HomeFeaturedShops({ shops }: HomeFeaturedShopsProps) {
   if (shops.length === 0) {
     return (
       <section
-        className='island-shell rounded-2xl p-8 text-center sm:p-12'
+        className='p-2 rounded-[2rem] bg-black/5 dark:bg-white/5 border border-border-subtle shadow-md text-center'
         aria-labelledby='shops-empty-heading'
       >
-        <Store size={48} className='mx-auto mb-4 text-text-muted' aria-hidden='true' />
-        <h3
-          id='shops-empty-heading'
-          className='mb-2 text-lg font-semibold text-text-primary display-title'
-        >
-          {m.home_shops_empty_title()}
-        </h3>
-        <p className='mb-6 text-text-secondary font-sans text-sm max-w-md mx-auto'>
-          {m.home_shops_empty_desc()}
-        </p>
-        <Link
-          to='/sell'
-          className='inline-flex items-center gap-2 rounded-lg bg-accent-primary px-6 py-3 text-sm font-semibold text-text-on-primary no-underline transition-colors hover:bg-accent-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
-        >
-          {m.home_open_shop()}
-        </Link>
+        <div className='bg-bg-elevated rounded-[calc(2rem-0.5rem)] p-8 sm:p-12 text-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] flex flex-col items-center justify-center'>
+          <div className='size-14 rounded-full bg-accent-primary-subtle flex items-center justify-center text-accent-primary mb-5 border border-accent-primary/10'>
+            <Store size={26} strokeWidth={1.5} aria-hidden='true' />
+          </div>
+          <h3
+            id='shops-empty-heading'
+            className='mb-2 text-xl font-bold text-text-primary display-title'
+          >
+            {m.home_shops_empty_title()}
+          </h3>
+          <p className='mb-8 text-text-secondary font-sans text-xs sm:text-sm max-w-md mx-auto leading-relaxed'>
+            {m.home_shops_empty_desc()}
+          </p>
+          <Link
+            to='/sell'
+            className='group inline-flex items-center justify-between gap-3 h-12 pl-6 pr-2 bg-accent-primary text-text-on-primary rounded-full font-semibold shadow-md active:scale-[0.98] transition-all no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
+          >
+            <span>{m.home_open_shop()}</span>
+            <span className='flex size-6 rounded-full bg-black/10 dark:bg-white/10 items-center justify-center transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-[1px]'>
+              <ArrowUpRight size={14} />
+            </span>
+          </Link>
+        </div>
       </section>
     )
   }
 
   return (
-    <section aria-labelledby='shops-heading'>
-      <div className='mb-8 flex items-end justify-between gap-4'>
+    <section aria-labelledby='shops-heading' className='py-8 animate-fade-in-up'>
+      <div className='mb-10 flex items-end justify-between gap-4'>
         <div>
           <h2
             id='shops-heading'
-            className='display-title text-2xl font-semibold tracking-tight text-text-primary sm:text-3xl'
+            className='display-title text-3xl font-bold tracking-tight text-text-primary sm:text-4xl'
           >
             {m.home_shops_title()}
           </h2>
-          <p className='mt-1 text-sm text-text-secondary font-sans'>{m.home_shops_subtitle()}</p>
+          <p className='mt-1.5 text-xs sm:text-sm text-text-secondary font-sans'>
+            {m.home_shops_subtitle()}
+          </p>
         </div>
       </div>
       <div className='grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'>
@@ -53,37 +62,39 @@ export function HomeFeaturedShops({ shops }: HomeFeaturedShopsProps) {
             key={shop.id}
             to='/shops/$shopSlug'
             params={{ shopSlug: shop.slug }}
-            className='island-shell group flex items-start gap-4 rounded-2xl p-5 no-underline transition-all duration-fast ease-out hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
+            className='group relative p-1.5 rounded-[20px] bg-black/5 dark:bg-white/5 border border-border-subtle transition-all duration-300 hover:shadow-md hover:border-border-strong hover:-translate-y-0.5 flex no-underline'
           >
-            <div className='flex size-14 shrink-0 items-center justify-center rounded-xl bg-accent-primary-subtle text-accent-primary transition-colors duration-fast group-hover:bg-accent-primary group-hover:text-text-on-primary overflow-hidden'>
-              {shop.image ? (
-                <img src={shop.image} alt='' className='h-full w-full object-cover' />
-              ) : (
-                <Store size={24} strokeWidth={1.5} />
-              )}
-            </div>
-            <div className='min-w-0 flex-1'>
-              {shop.category && (
-                <span className='inline-block mb-0.5 text-[10px] font-bold uppercase tracking-wider text-accent-primary'>
-                  {shop.category}
-                </span>
-              )}
-              <h3 className='text-sm font-semibold text-text-primary truncate font-sans group-hover:text-accent-primary transition-colors'>
-                Shop {shop.name.startsWith('Shop ') ? shop.name.substring(5) : shop.name}
-              </h3>
-              {shop.tagline && (
-                <p className='text-xs text-text-secondary truncate mt-0.5 font-sans italic'>
-                  "{shop.tagline}"
+            <div className='w-full h-full bg-bg-elevated rounded-[calc(20px-6px)] p-5 flex items-start gap-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]'>
+              <div className='flex size-14 shrink-0 items-center justify-center rounded-xl bg-accent-primary-subtle text-accent-primary overflow-hidden border border-accent-primary/10 transition-transform duration-500 group-hover:scale-105'>
+                {shop.image ? (
+                  <img src={shop.image} alt='' className='h-full w-full object-cover' />
+                ) : (
+                  <Store size={24} strokeWidth={1.5} />
+                )}
+              </div>
+              <div className='min-w-0 flex-1'>
+                {shop.category && (
+                  <span className='inline-block mb-1 text-[9px] font-bold uppercase tracking-widest text-accent-primary'>
+                    {shop.category}
+                  </span>
+                )}
+                <h3 className='text-sm font-bold text-text-primary truncate font-sans group-hover:text-accent-primary transition-colors'>
+                  Shop {shop.name.startsWith('Shop ') ? shop.name.substring(5) : shop.name}
+                </h3>
+                {shop.tagline && (
+                  <p className='text-xs text-text-secondary truncate mt-1 font-sans italic opacity-95'>
+                    "{shop.tagline}"
+                  </p>
+                )}
+                <p className='text-xs text-text-muted font-sans mt-2 font-semibold'>
+                  {shop.productCount} {shop.productCount === 1 ? 'product' : 'products'}
                 </p>
-              )}
-              <p className='text-xs text-text-muted font-sans mt-1.5 font-medium'>
-                {shop.productCount} {shop.productCount === 1 ? 'product' : 'products'}
-              </p>
+              </div>
+              <ArrowUpRight
+                size={15}
+                className='text-text-muted transition-all duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-accent-primary self-start mt-1 shrink-0'
+              />
             </div>
-            <ArrowUpRight
-              size={16}
-              className='text-text-muted transition-colors transition-transform duration-fast group-hover:translate-x-0.5 group-hover:translate-y--0.5 group-hover:text-accent-primary self-start mt-1 shrink-0'
-            />
           </Link>
         ))}
       </div>

@@ -22,7 +22,7 @@ if (isLocalhost) {
     );
   });
 } else {
-  const CACHE_NAME = 'eurtisan-v1';
+  const CACHE_NAME = 'eurtisan-v2';
   const STATIC_ASSETS = [
     '/',
     '/favicon.ico',

@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { Button } from '../ui/button'
+import { ArrowRight } from 'lucide-react'
 import { m } from '#/paraglide/messages'
 
 interface HomePreFooterCTAProps {
@@ -43,28 +43,37 @@ export function HomePreFooterCTA({
 
   return (
     <section
-      className='relative overflow-hidden rounded-[2rem] border border-border-default bg-bg-inset px-6 py-14 sm:px-12 sm:py-20 text-center shadow-inner'
+      className='p-2 rounded-[3rem] bg-black/5 dark:bg-white/5 border border-border-subtle shadow-xl w-full relative overflow-hidden animate-fade-in-up'
       aria-labelledby='pre-footer-heading'
     >
-      <div className='pointer-events-none absolute -left-20 -bottom-20 size-64 rounded-full opacity-35 radial-glow-moss-strong dark:opacity-20' />
-      <div className='relative max-w-xl mx-auto'>
-        <h2
-          id='pre-footer-heading'
-          className='display-title mb-4 text-3xl font-semibold tracking-tight text-text-primary sm:text-4xl'
-        >
-          {preFooterTitle}
-        </h2>
-        <p className='mb-8 text-base leading-relaxed text-text-secondary sm:text-lg font-sans'>
-          {preFooterDesc}
-        </p>
-        <Link to={preFooterCtaLink} className='no-underline'>
-          <Button
-            size='lg'
-            className='focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
+      {/* Inner core */}
+      <div className='bg-bg-inset rounded-[calc(3rem-0.5rem)] px-6 py-16 sm:px-12 sm:py-24 text-center relative overflow-hidden shadow-inner'>
+        {/* Layered radial glow blobs */}
+        <div className='pointer-events-none absolute -left-20 -bottom-20 size-[320px] rounded-full opacity-40 radial-glow-moss-strong dark:opacity-25' />
+        <div className='pointer-events-none absolute -right-20 -top-20 size-[320px] rounded-full opacity-30 radial-glow-sage dark:opacity-20' />
+
+        <div className='relative max-w-xl mx-auto flex flex-col items-center'>
+          <h2
+            id='pre-footer-heading'
+            className='display-title mb-6 text-3xl font-bold tracking-tight text-text-primary sm:text-4xl leading-[1.15]'
           >
-            {preFooterCtaText}
-          </Button>
-        </Link>
+            {preFooterTitle}
+          </h2>
+          <p className='mb-8 text-base leading-relaxed text-text-secondary sm:text-lg font-sans max-w-md'>
+            {preFooterDesc}
+          </p>
+          <Link to={preFooterCtaLink} className='no-underline'>
+            <button
+              type='button'
+              className='group relative flex items-center justify-between gap-3 h-12 pl-6 pr-2 bg-accent-primary text-text-on-primary hover:bg-accent-primary-hover active:bg-accent-primary-active rounded-full font-semibold shadow-md active:scale-[0.98] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
+            >
+              <span>{preFooterCtaText}</span>
+              <span className='flex size-6 rounded-full bg-black/10 dark:bg-white/10 items-center justify-center transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-[1px]'>
+                <ArrowRight size={14} />
+              </span>
+            </button>
+          </Link>
+        </div>
       </div>
     </section>
   )

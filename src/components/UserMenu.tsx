@@ -36,7 +36,7 @@ export default function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className='flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-text-primary transition-colors duration-fast ease-out hover:bg-bg-inset'
+        className='flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-text-primary transition-colors duration-fast ease-out hover:bg-bg-inset outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
         aria-haspopup='menu'
       >
         {user.image ? (

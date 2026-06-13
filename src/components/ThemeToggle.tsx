@@ -51,7 +51,7 @@ export default function ThemeToggle() {
       aria-label={isDark ? m.theme_label_dark() : m.theme_label_light()}
       aria-pressed={isDark}
       title={isDark ? m.theme_label_dark() : m.theme_label_light()}
-      className='inline-flex items-center rounded-lg p-1.5 text-text-secondary transition-colors duration-fast ease-out hover:bg-bg-inset hover:text-text-primary flex-shrink-0'
+      className='inline-flex items-center rounded-lg p-1.5 text-text-secondary transition-colors duration-fast ease-out hover:bg-bg-inset hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2 outline-none flex-shrink-0'
     >
       {isDark ? <Moon size={18} /> : <Sun size={18} />}
     </button>

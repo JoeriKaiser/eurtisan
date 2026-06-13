@@ -8,6 +8,7 @@ import { useAuth } from '#/lib/auth-hooks'
 import { authClient } from '#/lib/auth-client'
 import { Dialog, DialogBackdrop, DialogPortal } from './ui/primitives/dialog'
 import ThemeToggle from './ThemeToggle'
+import Logo from './Logo'
 
 interface MobileNavDrawerProps {
   isOpen: boolean
@@ -42,29 +43,9 @@ export default function MobileNavDrawer({
         >
           {/* Header */}
           <div className='flex items-center justify-between border-b border-border-default pb-4 mb-4'>
-            <Link
-              to='/'
-              onClick={onClose}
-              className='flex items-center gap-2 text-lg font-bold tracking-tight text-text-primary no-underline transition-colors hover:text-accent-primary'
-            >
-              <svg
-                className='size-5 text-accent-primary transition-transform duration-fast ease-out hover:scale-110'
-                viewBox='0 0 24 24'
-                fill='none'
-                stroke='currentColor'
-                strokeWidth='2.5'
-                strokeLinecap='round'
-                strokeLinejoin='round'
-                aria-hidden='true'
-              >
-                <path d='M12 2L2 7l10 5 10-5-10-5z' />
-                <path d='M2 17l10 5 10-5' />
-                <path d='M2 12l10 5 10-5' />
-              </svg>
-              <span className='text-accent-primary'>{m.nav_logo()}</span>
-            </Link>
+            <Logo onClick={onClose} textClassName='text-lg' />
             <BaseDialog.Close
-              className='inline-flex items-center justify-center rounded-lg p-1.5 text-text-secondary transition-colors hover:bg-bg-inset hover:text-text-primary focus-visible:bg-bg-inset outline-none'
+              className='inline-flex items-center justify-center rounded-lg p-1.5 text-text-secondary transition-colors hover:bg-bg-inset hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2 outline-none'
               aria-label='Close menu'
             >
               <X size={18} aria-hidden='true' />
@@ -79,7 +60,7 @@ export default function MobileNavDrawer({
                 onClose()
                 onOpenSearch()
               }}
-              className='w-full h-10 pl-9 pr-3 relative rounded-lg border border-border-default bg-surface-inset text-sm text-text-muted text-left transition-all duration-fast outline-none cursor-pointer flex items-center min-w-0'
+              className='w-full h-10 pl-9 pr-3 relative rounded-lg border border-border-default bg-surface-inset text-sm text-text-muted text-left transition-all duration-fast outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2 cursor-pointer flex items-center min-w-0'
               aria-label={m.search_header_placeholder()}
             >
               <span className='absolute left-3 top-1/2 -translate-y-1/2 text-text-muted'>
@@ -117,7 +98,7 @@ export default function MobileNavDrawer({
                 <button
                   type='button'
                   onClick={() => setCategoriesExpanded(!categoriesExpanded)}
-                  className='flex w-full items-center justify-between py-2 text-base font-semibold text-text-primary outline-none focus-visible:text-accent-primary'
+                  className='flex w-full items-center justify-between py-2 text-base font-semibold text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2 px-1.5 rounded-lg'
                   aria-expanded={categoriesExpanded}
                   aria-controls='mobile-categories-list'
                 >
@@ -263,7 +244,7 @@ export default function MobileNavDrawer({
                         onClose()
                       }}
                       aria-pressed={isActive}
-                      className={`rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-all duration-fast cursor-pointer ${
+                      className={`rounded-md px-3 py-1.5 text-xs font-semibold uppercase tracking-wide transition-all duration-fast cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2 ${
                         isActive
                           ? 'bg-surface-default text-text-primary shadow-sm border border-border-default/10'
                           : 'text-text-secondary hover:bg-surface-default/50 hover:text-text-primary'
