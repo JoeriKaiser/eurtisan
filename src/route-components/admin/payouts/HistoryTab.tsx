@@ -6,6 +6,33 @@ import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 import { formatDateMediumTime } from '#/lib/format-date'
 
+export type PayoutStatus = 'pending' | 'in_transit' | 'sent' | 'failed' | 'reversed'
+
+const statusVariantMap: Record<
+  PayoutStatus,
+  'warning' | 'primary' | 'success' | 'error' | 'secondary'
+> = {
+  pending: 'warning',
+  in_transit: 'primary',
+  sent: 'success',
+  failed: 'error',
+  reversed: 'secondary',
+}
+
+const statusMessageMap: Record<PayoutStatus, () => string> = {
+  pending: () => m.admin_payouts_status_pending(),
+  in_transit: () => m.admin_payouts_status_in_transit(),
+  sent: () => m.admin_payouts_status_sent(),
+  failed: () => m.admin_payouts_status_failed(),
+  reversed: () => m.admin_payouts_status_reversed(),
+}
+
+export function PayoutStatusBadge({ status }: { status: string }) {
+  const normalized =
+    (status as PayoutStatus) in statusMessageMap ? (status as PayoutStatus) : 'pending'
+  return <Badge variant={statusVariantMap[normalized]}>{statusMessageMap[normalized]()}</Badge>
+}
+
 interface HistoryPayout {
   payoutId: string
   creatorName: string
@@ -112,11 +139,7 @@ export function HistoryTab({ historyData, onPageChange, onPageSizeChange }: Hist
 
                 {/* Status */}
                 <td className='py-3 pr-4'>
-                  <Badge variant={payout.status === 'sent' ? 'success' : 'warning'}>
-                    {payout.status === 'sent'
-                      ? m.admin_payouts_status_sent()
-                      : m.admin_payouts_status_pending()}
-                  </Badge>
+                  <PayoutStatusBadge status={payout.status} />
                 </td>
 
                 {/* Sent at */}

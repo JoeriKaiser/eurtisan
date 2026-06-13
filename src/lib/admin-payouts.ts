@@ -57,36 +57,42 @@ export const listPendingPayouts = createServerFn({ method: 'GET' })
   })
 
 /* -------------------------------------------------------------------------- */
-/*                            Mark Payout Sent                                 */
+/*                            Execute / Retry Payout                           */
 /* -------------------------------------------------------------------------- */
 
-const markPayoutSentInputSchema = z.object({
+const executePayoutInputSchema = z.object({
   payoutId: z.string().min(1, 'Payout ID is required.'),
 })
 
 /**
- * Marks a pending payout as sent. Idempotent — marking an already-sent
- * payout succeeds without side effects.
+ * Executes a pending or failed payout by creating a Mollie delayed-routing route.
+ * Idempotent — executing an already-sent payout returns the existing route ID.
  * Admin only.
  */
-export const markPayoutSent = createServerFn({ method: 'POST' })
+export const executePayout = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(markPayoutSentInputSchema)
+  .inputValidator(executePayoutInputSchema)
   .handler(async ({ context, data }) => {
     const modules = await Promise.all([
       requireAdmin(context),
       import('./payouts.server'),
       import('./audit-log.server'),
     ])
-    const { markPayoutSentQuery } = modules[1]
+    const { executePayoutQuery } = modules[1]
     const { emitAuditEvent } = modules[2]
     const [result] = await Promise.all([
-      markPayoutSentQuery(data.payoutId),
-      emitAuditEvent(context.user, 'payout.mark_sent', 'payout', data.payoutId),
+      executePayoutQuery(data.payoutId),
+      emitAuditEvent(context.user, 'payout.execute', 'payout', data.payoutId),
     ])
 
     return result
   })
+
+/**
+ * @deprecated Use {@link executePayout} instead. Kept for compatibility with
+ * existing admin UI call sites during migration.
+ */
+export const markPayoutSent = executePayout
 
 /* -------------------------------------------------------------------------- */
 /*                          List Payout History                                */

@@ -182,6 +182,9 @@ export const shop = pgTable(
 
     // Payment
     mollieAccountId: text('mollie_account_id'),
+    mollieAccessToken: text('mollie_access_token'),
+    mollieRefreshToken: text('mollie_refresh_token'),
+    mollieTokenExpiresAt: timestamp('mollie_token_expires_at'),
     paymentConnected: boolean('payment_connected').notNull().default(false),
     paymentConnectedAt: timestamp('payment_connected_at'),
 
@@ -503,7 +506,13 @@ export const review = pgTable(
   ],
 )
 
-export const payoutStatusEnum = pgEnum('payout_status', ['pending', 'sent'])
+export const payoutStatusEnum = pgEnum('payout_status', [
+  'pending',
+  'in_transit',
+  'sent',
+  'failed',
+  'reversed',
+])
 
 export const payout = pgTable(
   'payout',
@@ -515,6 +524,13 @@ export const payout = pgTable(
       .references(() => shop.id, { onDelete: 'cascade' }),
     amountCents: integer('amount_cents').notNull().default(0),
     status: payoutStatusEnum().notNull().default('pending'),
+    molliePaymentId: text('mollie_payment_id'),
+    mollieRouteId: text('mollie_route_id'),
+    executedAt: timestamp('executed_at'),
+    failedAt: timestamp('failed_at'),
+    failureReason: text('failure_reason'),
+    reversedAt: timestamp('reversed_at'),
+    reversalReason: text('reversal_reason'),
     sentAt: timestamp('sent_at'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
@@ -523,6 +539,8 @@ export const payout = pgTable(
     index('payout_shop_id_idx').on(table.shopId),
     index('payout_status_idx').on(table.status),
     index('payout_created_at_idx').on(table.createdAt),
+    index('payout_mollie_payment_id_idx').on(table.molliePaymentId),
+    index('payout_mollie_route_id_idx').on(table.mollieRouteId),
   ],
 )
 
@@ -692,5 +710,25 @@ export const meilisearchSyncQueue = pgTable(
       'meilisearch_sync_queue_status_check',
       sql`${table.status} IN ('pending', 'completed', 'failed')`,
     ),
+  ],
+)
+
+export const payoutReconciliationLog = pgTable(
+  'payout_reconciliation_log',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    payoutId: uuid('payout_id')
+      .notNull()
+      .references(() => payout.id, { onDelete: 'cascade' }),
+    event: text('event').notNull(),
+    molliePaymentId: text('mollie_payment_id'),
+    mollieRouteId: text('mollie_route_id'),
+    amountCents: integer('amount_cents'),
+    payload: jsonb('payload'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('payout_reconciliation_log_payout_id_idx').on(table.payoutId),
+    index('payout_reconciliation_log_created_at_idx').on(table.createdAt),
   ],
 )

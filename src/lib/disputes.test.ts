@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
 import {
@@ -814,6 +814,10 @@ describe('getDisputeDetailQuery', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('resolveDisputeQuery', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('throws 404 for nonexistent dispute', async () => {
     try {
       await resolveDisputeQuery(
@@ -1443,9 +1447,9 @@ describe('resolveDisputeQuery', () => {
     refundSpy.mockRestore()
   })
 
-  it('blocks full_refund when payout has already been sent', async () => {
+  it('reverses routed payout for full_refund when payout has already been sent', async () => {
     await seedUser()
-    await seedShop()
+    await seedShop({ mollieAccountId: 'mollie-account-1' })
 
     const refundSpy = vi.spyOn(molliePaymentProvider, 'refundPayment').mockResolvedValue(undefined)
 
@@ -1465,35 +1469,36 @@ describe('resolveDisputeQuery', () => {
       'user-1',
     )
 
-    try {
-      await resolveDisputeQuery(
-        d.id,
-        { resolution: 'full_refund' },
-        { userId: 'admin-1', role: 'admin' },
-      )
-      expect.fail('Should have thrown')
-    } catch (err) {
-      expect(err instanceof Response).toBe(true)
-      expect((err as Response).status).toBe(409)
-    }
+    const result = await resolveDisputeQuery(
+      d.id,
+      { resolution: 'full_refund' },
+      { userId: 'admin-1', role: 'admin' },
+    )
 
-    // Refund should not have been called
-    expect(refundSpy).not.toHaveBeenCalled()
+    expect(result.status).toBe('resolved')
+    expect(result.resolution).toBe('full_refund')
+    expect(result.refundCents).toBe(2500)
 
-    // Dispute should remain open
+    expect(refundSpy).toHaveBeenCalledTimes(1)
+    expect(refundSpy).toHaveBeenCalledWith('tr_mock_000001', 2500, { reverseRouting: true })
+
     const [updatedDispute] = await db.select().from(dispute).where(eq(dispute.id, d.id))
-    expect(updatedDispute.status).toBe('open')
+    expect(updatedDispute.status).toBe('resolved')
 
-    // Order should remain disputed
     const [updatedSo] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
-    expect(updatedSo.status).toBe('disputed')
+    expect(updatedSo.status).toBe('refunded')
+    expect(updatedSo.refundedCents).toBe(2500)
+
+    const [updatedPayout] = await db.select().from(payout).where(eq(payout.shopOrderId, so.id))
+    expect(updatedPayout.status).toBe('reversed')
+    expect(updatedPayout.reversalReason).toBe('full_refund')
 
     refundSpy.mockRestore()
   })
 
-  it('blocks partial_refund when payout has already been sent', async () => {
+  it('reverses routed payout for partial_refund when payout has already been sent', async () => {
     await seedUser()
-    await seedShop()
+    await seedShop({ mollieAccountId: 'mollie-account-1' })
 
     const refundSpy = vi.spyOn(molliePaymentProvider, 'refundPayment').mockResolvedValue(undefined)
 
@@ -1513,22 +1518,27 @@ describe('resolveDisputeQuery', () => {
       'user-1',
     )
 
-    try {
-      await resolveDisputeQuery(
-        d.id,
-        { resolution: 'partial_refund', refundCents: 1000 },
-        { userId: 'admin-1', role: 'admin' },
-      )
-      expect.fail('Should have thrown')
-    } catch (err) {
-      expect(err instanceof Response).toBe(true)
-      expect((err as Response).status).toBe(409)
-    }
+    const result = await resolveDisputeQuery(
+      d.id,
+      { resolution: 'partial_refund', refundCents: 1000 },
+      { userId: 'admin-1', role: 'admin' },
+    )
 
-    expect(refundSpy).not.toHaveBeenCalled()
+    expect(result.status).toBe('resolved')
+    expect(result.resolution).toBe('partial_refund')
+    expect(result.refundCents).toBe(1000)
+
+    expect(refundSpy).toHaveBeenCalledTimes(1)
+    expect(refundSpy).toHaveBeenCalledWith('tr_mock_000001', 1000, {
+      routingReversals: [{ organizationId: 'mollie-account-1', amountCents: 1000 }],
+    })
 
     const [updatedDispute] = await db.select().from(dispute).where(eq(dispute.id, d.id))
-    expect(updatedDispute.status).toBe('open')
+    expect(updatedDispute.status).toBe('resolved')
+
+    const [updatedPayout] = await db.select().from(payout).where(eq(payout.shopOrderId, so.id))
+    expect(updatedPayout.status).toBe('reversed')
+    expect(updatedPayout.reversalReason).toBe('partial_refund')
 
     refundSpy.mockRestore()
   })

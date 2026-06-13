@@ -37,7 +37,7 @@ export interface CreatorPayoutsPageProps {
   shops: CreatorShop[]
   payouts: PaginatedPayouts
   currentShopId: string | null
-  initialStatus: 'all' | 'pending' | 'processing' | 'sent'
+  initialStatus: 'all' | 'pending' | 'in_transit' | 'sent' | 'failed' | 'reversed'
 }
 
 // eslint-disable-next-line
@@ -66,8 +66,9 @@ export function CreatorPayoutsPage({
       } else {
         throw new Error('No redirection URL returned from the server.')
       }
-    } catch (err: any) {
-      setMollieError(err?.message || 'Failed to connect with Mollie.')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to connect with Mollie.'
+      setMollieError(message)
       setConnectLoading(false)
     }
   }, [activeShop])
@@ -79,8 +80,9 @@ export function CreatorPayoutsPage({
       setMollieError(null)
       await disconnectMollie({ data: { shopId: activeShop.id } })
       await router.invalidate()
-    } catch (err: any) {
-      setMollieError(err?.message || 'Failed to disconnect Mollie account.')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to disconnect Mollie account.'
+      setMollieError(message)
     } finally {
       setDisconnectLoading(false)
     }
@@ -110,7 +112,7 @@ export function CreatorPayoutsPage({
   )
 
   const handleStatusFilter = useCallback(
-    (status: 'all' | 'pending' | 'processing' | 'sent') => {
+    (status: CreatorPayoutsPageProps['initialStatus']) => {
       setStatusFilter(status)
       router.navigate({
         to: '/creator/payouts',
@@ -323,34 +325,37 @@ export function CreatorPayoutsPage({
             role='tablist'
             aria-label='Filter by payout status'
           >
-            {(['all', 'pending', 'processing', 'sent'] as const).map((value) => {
-              const isSelected = statusFilter === value
-              const label =
-                value === 'all'
-                  ? m.creator_payouts_filter_all()
-                  : value === 'pending'
-                    ? m.creator_payouts_filter_pending()
-                    : value === 'processing'
-                      ? m.creator_payouts_filter_processing()
-                      : m.creator_payouts_filter_sent()
+            {(['all', 'pending', 'in_transit', 'sent', 'failed', 'reversed'] as const).map(
+              (value) => {
+                const isSelected = statusFilter === value
+                const labelMap: Record<typeof value, () => string> = {
+                  all: () => m.creator_payouts_filter_all(),
+                  pending: () => m.creator_payouts_filter_pending(),
+                  in_transit: () => m.creator_payouts_filter_in_transit(),
+                  sent: () => m.creator_payouts_filter_sent(),
+                  failed: () => m.creator_payouts_filter_failed(),
+                  reversed: () => m.creator_payouts_filter_reversed(),
+                }
+                const label = labelMap[value]()
 
-              return (
-                <button
-                  key={value}
-                  type='button'
-                  role='tab'
-                  aria-selected={isSelected}
-                  onClick={() => handleStatusFilter(value)}
-                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                    isSelected
-                      ? 'bg-surface-default text-text-primary shadow-sm'
-                      : 'text-text-secondary hover:text-text-primary'
-                  }`}
-                >
-                  {label}
-                </button>
-              )
-            })}
+                return (
+                  <button
+                    key={value}
+                    type='button'
+                    role='tab'
+                    aria-selected={isSelected}
+                    onClick={() => handleStatusFilter(value)}
+                    className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                      isSelected
+                        ? 'bg-surface-default text-text-primary shadow-sm'
+                        : 'text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                )
+              },
+            )}
           </div>
         </div>
 
@@ -376,19 +381,26 @@ export function CreatorPayoutsPage({
             </thead>
             <tbody>
               {payoutsData.map((payout) => {
-                const statusLabel =
-                  payout.status === 'pending'
-                    ? m.creator_payouts_status_pending()
-                    : payout.status === 'processing'
-                      ? m.creator_payouts_status_processing()
-                      : m.creator_payouts_status_sent()
+                const statusLabelMap: Record<CreatorPayoutLine['status'], () => string> = {
+                  pending: () => m.creator_payouts_status_pending(),
+                  in_transit: () => m.creator_payouts_status_in_transit(),
+                  sent: () => m.creator_payouts_status_sent(),
+                  failed: () => m.creator_payouts_status_failed(),
+                  reversed: () => m.creator_payouts_status_reversed(),
+                }
+                const statusLabel = statusLabelMap[payout.status]()
 
-                const statusVariant =
-                  payout.status === 'pending'
-                    ? 'warning'
-                    : payout.status === 'processing'
-                      ? 'primary'
-                      : 'success'
+                const statusVariantMap: Record<
+                  CreatorPayoutLine['status'],
+                  'warning' | 'primary' | 'success' | 'error' | 'secondary'
+                > = {
+                  pending: 'warning',
+                  in_transit: 'primary',
+                  sent: 'success',
+                  failed: 'error',
+                  reversed: 'secondary',
+                }
+                const statusVariant = statusVariantMap[payout.status]
 
                 return (
                   <tr

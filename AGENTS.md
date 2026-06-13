@@ -6,6 +6,28 @@
 >
 > Quality Constraint: Production-grade by default. No shortcuts. If an implementation is incomplete or deviates from best practices, it must be improved before it is considered done.
 
+---
+
+# Current North Star Objective
+
+**The immediate priority is making Eurtisan production-ready from a store-owner perspective.**
+
+A store owner must have complete, reliable control over their store, products, orders, customers, payouts, taxes, and operational visibility before the platform launches. A full evidence-based audit of the current state is captured in:
+
+- `docs/AUDIT_STORE_OWNER_2026-06-12.md`
+
+Agents working on this project should orient every non-trivial change toward closing the gaps documented in that audit. The P0 launch blockers are:
+
+1. **Real payouts** — `markPayoutSent` must move actual money via a payment rail; until then, payouts are a status flag only. -- DONE
+2. **Real shipping with Sendcloud** — replace the mocked Mondial Relay integration with a genuine Sendcloud integration for labels, rates, and tracking; silent mock fallbacks are not acceptable in production. The provisional Sendcloud webhook URL for status/tracking updates is `${PUBLIC_URL}/api/webhooks/sendcloud` (see `docs/SENDCLOUD_INTEGRATION_PLAN.md`).
+3. **Reliable owner navigation** — broken product-edit links, post-approval payment links, and studio settings links must be fixed.
+4. **Honest analytics** — fake homepage stats and placeholder shop dashboards must be replaced with real data.
+5. **Production hardening** — lock down Grafana, implement analytics consent, fix edge CSP, and align observability/deployment topology with standalone production.
+
+When requirements conflict, prefer the audit priorities and the Decision Hierarchy below. Do not treat mock integrations, placeholder endpoints, or hardcoded marketing data as "good enough" for production.
+
+---
+
 <!-- intent-skills:start -->
 ## Skill Loading
 
@@ -820,6 +842,27 @@ MEILISEARCH_API_KEY=your-master-key
 #     -d '{"actions":["search"],"indexes":["products"],"expiresAt":null}'
 VITE_MEILISEARCH_HOST=http://localhost:7700
 VITE_MEILISEARCH_SEARCH_KEY=your-search-only-key
+
+# Mollie Payments (buyer checkout, refunds)
+MOLLIE_API_KEY=
+MOLLIE_WEBHOOK_SECRET=
+# Set to 'true' explicitly for local mock-payment testing
+MOCK_PAYMENTS_ENABLED=
+
+# Mollie Connect (seller onboarding and payouts)
+MOLLIE_CLIENT_ID=
+MOLLIE_CLIENT_SECRET=
+
+# Mollie test mode. Set to 'true' to use Mollie's test environment.
+# Defaults to 'true' in development, 'false' in production.
+MOLLIE_TEST_MODE=true
+
+# Mock payouts (no external Mollie Routes API calls).
+# Useful for local development when MOLLIE_API_KEY is not set.
+MOCK_PAYOUTS_ENABLED=false
+
+# Payout reconciliation job interval (milliseconds). Default: 6 hours.
+PAYOUT_RECONCILIATION_INTERVAL_MS=21600000
 ```
 
 Generate auth secret:

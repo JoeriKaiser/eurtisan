@@ -5,7 +5,12 @@ import { db } from '#/db/index'
 import { payout, platformOrder, shop, shopOrder, user } from '#/db/schema'
 import { PLATFORM_FEE_PERCENT } from './platform-constants'
 import { markShopOrderDeliveredQuery, updateShopOrderStatusQuery } from './shop-orders.server'
-import { markPayoutSentQuery, listCreatorPayoutsQuery } from './payouts.server'
+import { executePayoutQuery, markPayoutSentQuery, listCreatorPayoutsQuery } from './payouts.server'
+import {
+  clearMockRouteFailure,
+  resetMockRouteCounter,
+  setMockRouteFailure,
+} from '#/integrations/mollie'
 
 /* -------------------------------------------------------------------------- */
 /*                                  Helpers                                   */
@@ -41,6 +46,8 @@ async function seedShop(overrides?: Partial<typeof shop.$inferInsert>) {
       name: 'Test Shop',
       slug: 'test-shop',
       ownerId: 'user-1',
+      mollieAccountId: 'org_test',
+      paymentConnected: true,
       ...overrides,
     })
     .returning()
@@ -68,6 +75,7 @@ async function seedPlatformOrder(overrides?: Partial<typeof platformOrder.$infer
       },
       totalCents: 10000,
       status: 'paid',
+      molliePaymentId: 'tr_test',
       ...overrides,
     })
     .returning()
@@ -318,6 +326,131 @@ describe('markPayoutSentQuery', () => {
 
     const [updated] = await db.select().from(payout).where(eq(payout.id, pending.id))
     expect(updated?.status).toBe('sent')
+  })
+})
+
+describe('executePayoutQuery', () => {
+  beforeEach(() => {
+    resetMockRouteCounter()
+    clearMockRouteFailure()
+  })
+
+  it('creates a Mollie route and updates the payout to sent', async () => {
+    await seedUser()
+    await seedShop()
+    const platformOrd = await seedPlatformOrder()
+    const order = await seedShopOrder({
+      platformOrderId: platformOrd.id,
+      shopId: 'shop-1',
+      subtotalCents: 5000,
+      status: 'shipped',
+    })
+    await markShopOrderDeliveredQuery(order.id)
+
+    const [pending] = await db.select().from(payout).where(eq(payout.shopOrderId, order.id))
+
+    const result = await executePayoutQuery(pending.id)
+    expect(result.success).toBe(true)
+    expect(result.routeId).toMatch(/^crt_mock_/)
+
+    const [updated] = await db.select().from(payout).where(eq(payout.id, pending.id))
+    expect(updated?.status).toBe('sent')
+    expect(updated?.mollieRouteId).toBe(result.routeId)
+    expect(updated?.molliePaymentId).toBe('tr_test')
+    expect(updated?.executedAt).toBeInstanceOf(Date)
+  })
+
+  it('is idempotent for already-sent payouts', async () => {
+    await seedUser()
+    await seedShop()
+    const platformOrd = await seedPlatformOrder()
+    const order = await seedShopOrder({
+      platformOrderId: platformOrd.id,
+      shopId: 'shop-1',
+      subtotalCents: 5000,
+      status: 'shipped',
+    })
+    await markShopOrderDeliveredQuery(order.id)
+
+    const [pending] = await db.select().from(payout).where(eq(payout.shopOrderId, order.id))
+    const first = await executePayoutQuery(pending.id)
+    const second = await executePayoutQuery(pending.id)
+
+    expect(first.routeId).toBe(second.routeId)
+
+    const rows = await db.select().from(payout).where(eq(payout.shopOrderId, order.id))
+    expect(rows).toHaveLength(1)
+  })
+
+  it('fails when the platform order has no Mollie payment ID', async () => {
+    await seedUser()
+    await seedShop()
+    const platformOrd = await seedPlatformOrder({ molliePaymentId: null })
+    const order = await seedShopOrder({
+      platformOrderId: platformOrd.id,
+      shopId: 'shop-1',
+      subtotalCents: 5000,
+      status: 'shipped',
+    })
+    await markShopOrderDeliveredQuery(order.id)
+
+    const [pending] = await db.select().from(payout).where(eq(payout.shopOrderId, order.id))
+
+    await expect(executePayoutQuery(pending.id)).rejects.toBeInstanceOf(Response)
+
+    const [updated] = await db.select().from(payout).where(eq(payout.id, pending.id))
+    expect(updated?.status).toBe('failed')
+    expect(updated?.failureReason).toContain('no Mollie payment ID')
+  })
+
+  it('fails when the shop has no connected Mollie account', async () => {
+    await seedUser()
+    await seedShop({ mollieAccountId: null, paymentConnected: false })
+    const platformOrd = await seedPlatformOrder()
+    const order = await seedShopOrder({
+      platformOrderId: platformOrd.id,
+      shopId: 'shop-1',
+      subtotalCents: 5000,
+      status: 'shipped',
+    })
+    await markShopOrderDeliveredQuery(order.id)
+
+    const [pending] = await db.select().from(payout).where(eq(payout.shopOrderId, order.id))
+
+    await expect(executePayoutQuery(pending.id)).rejects.toBeInstanceOf(Response)
+
+    const [updated] = await db.select().from(payout).where(eq(payout.id, pending.id))
+    expect(updated?.status).toBe('failed')
+    expect(updated?.failureReason).toContain('no connected Mollie account')
+  })
+
+  it('records a route_failed reconciliation log when Mollie returns an error', async () => {
+    await seedUser()
+    await seedShop()
+    const platformOrd = await seedPlatformOrder()
+    const order = await seedShopOrder({
+      platformOrderId: platformOrd.id,
+      shopId: 'shop-1',
+      subtotalCents: 5000,
+      status: 'delivered',
+    })
+
+    const [pending] = await db
+      .insert(payout)
+      .values({
+        shopOrderId: order.id,
+        shopId: 'shop-1',
+        amountCents: 4500,
+        status: 'pending',
+      })
+      .returning()
+
+    setMockRouteFailure('Mollie API error')
+    await expect(executePayoutQuery(pending.id)).rejects.toBeInstanceOf(Response)
+
+    const [updated] = await db.select().from(payout).where(eq(payout.id, pending.id))
+    expect(updated?.status).toBe('failed')
+    expect(updated?.failureReason).toBe('Mollie API error')
   })
 })
 

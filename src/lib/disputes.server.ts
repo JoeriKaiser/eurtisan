@@ -696,29 +696,51 @@ export async function resolveDisputeQuery(
 
   const creatorUserId = shopRecord?.ownerId ?? null
 
-  // Block refunds when the seller has already received a payout
+  // Determine whether the payout has already been routed. If so, the refund
+  // must reverse the route so the seller is clawed back automatically.
+  let routedPayout: typeof payout.$inferSelect | undefined
+  let sellerMollieAccountId: string | undefined
   if (refundCents !== null && refundCents > 0) {
-    const [sentPayout] = await db
+    const [payoutRecord] = await db
       .select()
       .from(payout)
-      .where(and(eq(payout.shopOrderId, shopOrderRecord.id), eq(payout.status, 'sent')))
+      .where(eq(payout.shopOrderId, shopOrderRecord.id))
       .limit(1)
 
-    if (sentPayout) {
-      throw new Response(
-        JSON.stringify({
-          error: 'Conflict',
-          message: 'Refund cannot be processed because the seller payout has already been sent',
-        }),
-        { status: 409, headers: { 'Content-Type': 'application/json' } },
-      )
+    if (payoutRecord?.status === 'sent') {
+      routedPayout = payoutRecord
+      const [shopRecord] = await db
+        .select({ mollieAccountId: shop.mollieAccountId })
+        .from(shop)
+        .where(eq(shop.id, shopOrderRecord.shopId))
+        .limit(1)
+      sellerMollieAccountId = shopRecord?.mollieAccountId ?? undefined
     }
   }
 
   // Process refund through Mollie BEFORE starting the DB transaction
   if (refundCents !== null && refundCents > 0 && molliePaymentId) {
     try {
-      await molliePaymentProvider.refundPayment(molliePaymentId, refundCents)
+      const isFullRefund = input.resolution === 'full_refund'
+      if (routedPayout && sellerMollieAccountId) {
+        if (isFullRefund) {
+          await molliePaymentProvider.refundPayment(molliePaymentId, refundCents, {
+            reverseRouting: true,
+          })
+        } else {
+          const reversalAmountCents = Math.min(refundCents, routedPayout.amountCents)
+          await molliePaymentProvider.refundPayment(molliePaymentId, refundCents, {
+            routingReversals: [
+              {
+                organizationId: sellerMollieAccountId,
+                amountCents: reversalAmountCents,
+              },
+            ],
+          })
+        }
+      } else {
+        await molliePaymentProvider.refundPayment(molliePaymentId, refundCents)
+      }
     } catch (err) {
       logger.error(
         `Mollie refund failed for payment ${molliePaymentId}, dispute ${disputeId}, amount ${refundCents} cents`,
@@ -728,6 +750,7 @@ export async function resolveDisputeQuery(
           disputeId,
           molliePaymentId,
           refundCents,
+          routed: !!routedPayout,
         },
       )
       throw new Response(
@@ -779,25 +802,6 @@ export async function resolveDisputeQuery(
       })
     }
 
-    // Re-verify payout status after locking to prevent refund after payout
-    if (input.resolution !== 'close') {
-      const [sentPayout] = await tx
-        .select()
-        .from(payout)
-        .where(and(eq(payout.shopOrderId, lockedShopOrder.id), eq(payout.status, 'sent')))
-        .limit(1)
-
-      if (sentPayout) {
-        throw new Response(
-          JSON.stringify({
-            error: 'Conflict',
-            message: 'Refund cannot be processed because the seller payout has already been sent',
-          }),
-          { status: 409, headers: { 'Content-Type': 'application/json' } },
-        )
-      }
-    }
-
     // Restore inventory to sellable pool for refund outcomes
     if (input.resolution !== 'close') {
       await releaseStockInTx(tx, lockedShopOrder.platformOrderId)
@@ -834,6 +838,18 @@ export async function resolveDisputeQuery(
             .where(eq(platformOrder.id, lockedShopOrder.platformOrderId))
         : Promise.resolve(),
     ])
+
+    // Mark routed payout as reversed when a refund was issued
+    if (routedPayout && input.resolution !== 'close') {
+      await tx
+        .update(payout)
+        .set({
+          status: 'reversed',
+          reversedAt: new Date(),
+          reversalReason: input.resolution,
+        })
+        .where(eq(payout.id, routedPayout.id))
+    }
 
     await recalcPlatformOrderStatus(tx, lockedShopOrder.platformOrderId)
 

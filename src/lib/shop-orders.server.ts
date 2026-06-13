@@ -12,10 +12,11 @@ import {
 import { mondialRelayProvider } from '#/integrations/shipping'
 import type { ShippingAddress } from './checkout.server'
 import { getBaseUrl } from './env.server'
+import { logger } from './logger.server'
 import { scheduleBackgroundWork } from './background-work.server'
 import { logOrderDelivered, logOrderShipped } from './order-logger'
 import type { OrderStatus } from './orders.server'
-import { createPayoutForShopOrder } from './payouts.server'
+import { createPayoutForShopOrder, executePayoutQuery } from './payouts.server'
 import { calculatePackageDimensions, calculatePackageWeight } from './shipping-estimate'
 import { validatePlainText, validateTrackingUrl } from './xss'
 
@@ -612,7 +613,11 @@ export async function markShopOrderShippedWithLabelQuery(
 
 export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<ShopOrderDetail> {
   // Fetch current status before transaction to know if this is a real transition
-  const { result, didTransition } = await db.transaction(async (tx) => {
+  const {
+    shopOrder: updatedShopOrder,
+    didTransition,
+    payoutId,
+  } = await db.transaction(async (tx) => {
     const [record] = await tx
       .select()
       .from(shopOrder)
@@ -637,7 +642,7 @@ export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<
           { status: 404, headers: { 'Content-Type': 'application/json' } },
         )
       }
-      return { result: order, didTransition: false }
+      return { shopOrder: order, didTransition: false }
     }
 
     if (!isValidStatusTransition(currentStatus, 'delivered')) {
@@ -659,7 +664,7 @@ export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<
 
     await recalcPlatformOrderStatus(tx, record.platformOrderId)
 
-    await createPayoutForShopOrder(
+    const payoutId = await createPayoutForShopOrder(
       tx,
       shopOrderId,
       record.shopId,
@@ -704,17 +709,41 @@ export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<
         { status: 404, headers: { 'Content-Type': 'application/json' } },
       )
     }
-    return { result: updated, didTransition: true }
+    return { shopOrder: updated, didTransition: true, payoutId }
   })
+
+  if (!updatedShopOrder) {
+    throw new Response(
+      JSON.stringify({
+        error: 'Internal Server Error',
+        message: 'Failed to retrieve updated shop order',
+      }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
 
   if (didTransition) {
     logOrderDelivered({
       shopOrderId,
-      platformOrderId: result.platformOrderId,
+      platformOrderId: updatedShopOrder.platformOrderId,
     })
+
+    if (payoutId) {
+      scheduleBackgroundWork(`execute-payout-${payoutId}`, async () => {
+        try {
+          await executePayoutQuery(payoutId)
+        } catch (err) {
+          logger.error(`Auto payout execution failed for ${payoutId}`, err, {
+            alert: true,
+            shopOrderId,
+            payoutId,
+          })
+        }
+      })
+    }
   }
 
-  return result
+  return updatedShopOrder
 }
 
 export async function updateShopOrderStatusQuery(
@@ -723,7 +752,7 @@ export async function updateShopOrderStatusQuery(
 ): Promise<ShopOrderDetail> {
   const validatedTrackingUrl = validateTrackingUrl(input.trackingUrl)
 
-  const result = await db.transaction(async (tx) => {
+  const { updated: updatedShopOrder, payoutId } = await db.transaction(async (tx) => {
     const [record] = await tx.select().from(shopOrder).where(eq(shopOrder.id, shopOrderId)).limit(1)
 
     if (!record) {
@@ -785,8 +814,9 @@ export async function updateShopOrderStatusQuery(
       }
     }
 
+    let payoutId: string | undefined
     if (nextStatus === 'delivered' || nextStatus === 'completed') {
-      await createPayoutForShopOrder(
+      payoutId = await createPayoutForShopOrder(
         tx,
         shopOrderId,
         record.shopId,
@@ -805,8 +835,22 @@ export async function updateShopOrderStatusQuery(
       )
     }
 
-    return updated
+    return { updated, payoutId }
   })
+
+  if ((input.status === 'delivered' || input.status === 'completed') && payoutId) {
+    scheduleBackgroundWork(`execute-payout-${payoutId}`, async () => {
+      try {
+        await executePayoutQuery(payoutId)
+      } catch (err) {
+        logger.error(`Auto payout execution failed for ${payoutId}`, err, {
+          alert: true,
+          shopOrderId,
+          payoutId,
+        })
+      }
+    })
+  }
 
   // Notify buyer when a dispute is opened
   if (input.status === 'disputed') {
@@ -843,5 +887,5 @@ export async function updateShopOrderStatusQuery(
     )
   }
 
-  return result
+  return updatedShopOrder
 }

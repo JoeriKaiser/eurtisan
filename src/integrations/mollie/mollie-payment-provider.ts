@@ -13,6 +13,7 @@ import {
   getBaseUrl,
   getMockPaymentsEnabled,
   getMollieApiKey,
+  getMollieTestMode,
   getMollieWebhookSecret,
 } from '#/lib/env.server'
 import type { CreatePaymentResult, PaymentProvider } from '#/lib/payment-provider'
@@ -290,15 +291,29 @@ export class MolliePaymentProvider implements PaymentProvider {
   // refundPayment
   // -----------------------------------------------------------------------
 
-  async refundPayment(paymentId: string, amountCents?: number): Promise<void> {
+  async refundPayment(
+    paymentId: string,
+    amountCents?: number,
+    options?: {
+      reverseRouting?: boolean
+      routingReversals?: { organizationId: string; amountCents: number }[]
+    },
+  ): Promise<void> {
     if (this.mockMode) {
-      return this.refundPaymentMock(paymentId, amountCents)
+      return this.refundPaymentMock(paymentId, amountCents, options)
     }
 
-    return this.refundPaymentReal(paymentId, amountCents)
+    return this.refundPaymentReal(paymentId, amountCents, options)
   }
 
-  private async refundPaymentMock(paymentId: string, _amountCents?: number): Promise<void> {
+  private async refundPaymentMock(
+    paymentId: string,
+    _amountCents?: number,
+    _options?: {
+      reverseRouting?: boolean
+      routingReversals?: { organizationId: string; amountCents: number }[]
+    },
+  ): Promise<void> {
     // In mock mode we only validate that the payment ID looks plausible.
     // A real implementation would verify the payment exists and is refundable.
     if (!paymentId.startsWith(MOCK_ID_PREFIX) && paymentId.length < 8) {
@@ -308,7 +323,14 @@ export class MolliePaymentProvider implements PaymentProvider {
     await delay(30)
   }
 
-  private async refundPaymentReal(paymentId: string, amountCents?: number): Promise<void> {
+  private async refundPaymentReal(
+    paymentId: string,
+    amountCents?: number,
+    options?: {
+      reverseRouting?: boolean
+      routingReversals?: { organizationId: string; amountCents: number }[]
+    },
+  ): Promise<void> {
     const apiKey = getMollieApiKey()
 
     if (!apiKey) {
@@ -322,6 +344,27 @@ export class MolliePaymentProvider implements PaymentProvider {
         currency: 'EUR',
         value: `${(amountCents / 100).toFixed(2)}`,
       }
+    }
+
+    if (options?.reverseRouting) {
+      body.reverseRouting = true
+    }
+
+    if (options?.routingReversals && options.routingReversals.length > 0) {
+      body.routingReversals = options.routingReversals.map((reversal) => ({
+        amount: {
+          currency: 'EUR',
+          value: `${(reversal.amountCents / 100).toFixed(2)}`,
+        },
+        source: {
+          type: 'organization',
+          organizationId: reversal.organizationId,
+        },
+      }))
+    }
+
+    if (getMollieTestMode()) {
+      body.testmode = true
     }
 
     const response = await fetch(`https://api.mollie.com/v2/payments/${paymentId}/refunds`, {

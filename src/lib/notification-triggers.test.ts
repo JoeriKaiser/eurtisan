@@ -1033,11 +1033,51 @@ describe('markPayoutSentQuery notification', () => {
       name: 'Test Shop',
       slug: 'test-shop',
       ownerId: seller.id,
+      mollieAccountId: 'org_mock_1',
+      paymentConnected: true,
     })
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: seller.id,
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 5000,
+        status: 'paid',
+        molliePaymentId: 'tr_mock_payout_1',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 0,
+        subtotalCents: 5000,
+        vatAmountCents: 0,
+        status: 'delivered',
+      })
+      .returning()
 
     const [p] = await db
       .insert(payout)
       .values({
+        shopOrderId: so.id,
         shopId: 'shop-1',
         amountCents: 5000,
         status: 'pending',
@@ -1065,11 +1105,51 @@ describe('markPayoutSentQuery notification', () => {
       name: 'Test Shop',
       slug: 'test-shop',
       ownerId: seller.id,
+      mollieAccountId: 'org_mock_1',
+      paymentConnected: true,
     })
+
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: seller.id,
+        shippingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        billingAddress: {
+          name: 'Test',
+          street: 'St',
+          city: 'City',
+          postalCode: '12345',
+          country: 'DE',
+        },
+        totalCents: 5000,
+        status: 'paid',
+        molliePaymentId: 'tr_mock_payout_1',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: 'shop-1',
+        shippingMethod: 'standard',
+        shippingCostCents: 0,
+        subtotalCents: 5000,
+        vatAmountCents: 0,
+        status: 'delivered',
+      })
+      .returning()
 
     const [p] = await db
       .insert(payout)
       .values({
+        shopOrderId: so.id,
         shopId: 'shop-1',
         amountCents: 5000,
         status: 'sent',

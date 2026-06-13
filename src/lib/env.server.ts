@@ -56,6 +56,70 @@ export function getMollieWebhookSecret(): string | undefined {
   return undefined
 }
 
+/**
+ * Mollie Connect OAuth client ID (server-only).
+ * Required for seller onboarding via Mollie Connect.
+ */
+export function getMollieClientId(): string | undefined {
+  if (typeof process !== 'undefined') {
+    return process.env.MOLLIE_CLIENT_ID
+  }
+  return undefined
+}
+
+/**
+ * Mollie Connect OAuth client secret (server-only).
+ * Required for exchanging the OAuth authorization code for tokens.
+ */
+export function getMollieClientSecret(): string | undefined {
+  if (typeof process !== 'undefined') {
+    return process.env.MOLLIE_CLIENT_SECRET
+  }
+  return undefined
+}
+
+/**
+ * When true, all Mollie API calls use test mode (no real money movement).
+ * Defaults to true outside production, false in production.
+ */
+export function getMollieTestMode(): boolean {
+  if (typeof process !== 'undefined') {
+    if (process.env.MOLLIE_TEST_MODE !== undefined) {
+      return process.env.MOLLIE_TEST_MODE === 'true'
+    }
+    return process.env.NODE_ENV !== 'production'
+  }
+  return true
+}
+
+/**
+ * When true, payout route creation is mocked (no external HTTP calls).
+ * Useful for local development when MOLLIE_API_KEY is not configured.
+ */
+export function getMockPayoutsEnabled(): boolean {
+  if (typeof process !== 'undefined') {
+    return process.env.MOCK_PAYOUTS_ENABLED === 'true'
+  }
+  return false
+}
+
+/**
+ * Interval between payout reconciliation job runs (milliseconds).
+ * Defaults to 6 hours.
+ */
+export function getPayoutReconciliationIntervalMs(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.PAYOUT_RECONCILIATION_INTERVAL_MS
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed
+      }
+    }
+  }
+  return 6 * 60 * 60 * 1000
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Email (Brevo)                                                           */
 /* -------------------------------------------------------------------------- */

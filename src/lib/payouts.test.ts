@@ -281,7 +281,7 @@ describe('listCreatorPayoutsQuery', () => {
     const completed = result.payouts.find((p) => p.orderStatus === 'completed')
 
     expect(delivered?.status).toBe('pending')
-    expect(completed?.status).toBe('processing')
+    expect(completed?.status).toBe('in_transit')
   })
 
   it('marks completed orders as sent when a sent payout record exists', async () => {
@@ -330,7 +330,7 @@ describe('listCreatorPayoutsQuery', () => {
     })
 
     const result = await listCreatorPayoutsQuery('shop-1')
-    expect(result.payouts[0].status).toBe('processing')
+    expect(result.payouts[0].status).toBe('pending')
   })
 
   it('tracks payout status per-order, not globally per-shop', async () => {
@@ -368,7 +368,7 @@ describe('listCreatorPayoutsQuery', () => {
     const line2 = result.payouts.find((p) => p.orderId === order2.id)
 
     expect(line1?.status).toBe('sent')
-    expect(line2?.status).toBe('processing')
+    expect(line2?.status).toBe('in_transit')
   })
 
   it('supports pagination', async () => {
@@ -553,7 +553,7 @@ describe('listCreatorPayoutsQuery', () => {
     expect(payout.orderId).toBe(order.id)
     expect(payout.date).toBeInstanceOf(Date)
     expect(typeof payout.amountCents).toBe('number')
-    expect(['pending', 'processing', 'sent']).toContain(payout.status)
+    expect(['pending', 'in_transit', 'sent']).toContain(payout.status)
     expect(payout.orderStatus).toBe('completed')
     expect(payout.isRefund).toBe(false)
   })

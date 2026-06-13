@@ -840,11 +840,7 @@ export async function createCheckoutWithProvider(
     )
     productIdsToLock.sort()
     for (const prodId of productIdsToLock) {
-      await tx
-        .select()
-        .from(product)
-        .where(eq(product.id, prodId))
-        .for('update')
+      await tx.select().from(product).where(eq(product.id, prodId)).for('update')
     }
 
     if (items.length === 0) {

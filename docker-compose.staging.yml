@@ -129,6 +129,24 @@ services:
     command: >
       sh -c "bun run src/jobs/meilisearch-sync.ts"
 
+  payout-reconciliation:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: eurtisan-payout-reconciliation-staging
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "bun run src/jobs/payout-reconciliation.ts"
+
 volumes:
   postgres_data:
   meilisearch_data:

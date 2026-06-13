@@ -4,6 +4,7 @@ import { db } from '#/db/index'
 import { shop } from '#/db/schema'
 import { verifyMollieState } from '#/lib/auth-utils'
 import { auth } from '#/lib/auth'
+import { getMollieClientId, getMollieClientSecret } from '#/lib/env.server'
 import { logger } from '#/lib/logger.server'
 
 export const Route = createFileRoute('/api/auth/mollie/callback')({
@@ -60,17 +61,29 @@ export const Route = createFileRoute('/api/auth/mollie/callback')({
           )
         }
 
-        const mollieClientId = process.env.MOLLIE_CLIENT_ID
-        const mollieClientSecret = process.env.MOLLIE_CLIENT_SECRET
+        const mollieClientId = getMollieClientId()
+        const mollieClientSecret = getMollieClientSecret()
         const isMockMode = !mollieClientId || !mollieClientSecret
 
         let mollieAccountId = ''
+        let accessToken: string | undefined
+        let refreshToken: string | undefined
+        let tokenExpiresAt: Date | undefined
 
         if (isMockMode) {
-          // Mock mode: generate a dummy mollieAccountId
+          if (typeof process !== 'undefined' && process.env.NODE_ENV === 'production') {
+            return new Response(
+              JSON.stringify({
+                error: 'Bad Gateway',
+                message: 'Mollie Connect credentials are not configured.',
+              }),
+              { status: 502, headers: { 'Content-Type': 'application/json' } },
+            )
+          }
+          // Development mock mode: generate a dummy organization ID
           mollieAccountId = `org_mock_${crypto.randomUUID().slice(0, 8)}`
         } else {
-          // Real mode: Exchange the code for Mollie organization ID
+          // Real mode: Exchange the code for Mollie organization ID and tokens
           try {
             const { getBaseUrl } = await import('#/lib/env.server')
             const baseUrl = getBaseUrl()
@@ -95,8 +108,18 @@ export const Route = createFileRoute('/api/auth/mollie/callback')({
               throw new Error('Mollie OAuth token exchange failed')
             }
 
-            const data = (await response.json()) as { organization_id: string }
+            const data = (await response.json()) as {
+              organization_id: string
+              access_token?: string
+              refresh_token?: string
+              expires_in?: number
+            }
             mollieAccountId = data.organization_id
+            accessToken = data.access_token
+            refreshToken = data.refresh_token
+            if (data.expires_in) {
+              tokenExpiresAt = new Date(Date.now() + data.expires_in * 1000)
+            }
           } catch (err) {
             logger.error('Mollie Connect OAuth exchange exception', err)
             return new Response(
@@ -117,6 +140,9 @@ export const Route = createFileRoute('/api/auth/mollie/callback')({
           paymentConnectedAt: new Date(),
           updatedAt: new Date(),
         }
+        if (accessToken) updatePayload.mollieAccessToken = accessToken
+        if (refreshToken) updatePayload.mollieRefreshToken = refreshToken
+        if (tokenExpiresAt) updatePayload.mollieTokenExpiresAt = tokenExpiresAt
         if (shopRecord.status === 'approved' || shopRecord.status === 'active') {
           updatePayload.status = 'active'
         }

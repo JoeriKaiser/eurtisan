@@ -30,12 +30,16 @@ vi.mock('#/paraglide/messages', () => ({
     creator_payouts_col_amount: () => 'Amount',
     creator_payouts_col_status: () => 'Status',
     creator_payouts_status_pending: () => 'Pending',
-    creator_payouts_status_processing: () => 'Processing',
+    creator_payouts_status_in_transit: () => 'In Transit',
     creator_payouts_status_sent: () => 'Sent',
+    creator_payouts_status_failed: () => 'Failed',
+    creator_payouts_status_reversed: () => 'Reversed',
     creator_payouts_filter_all: () => 'All',
     creator_payouts_filter_pending: () => 'Pending',
-    creator_payouts_filter_processing: () => 'Processing',
+    creator_payouts_filter_in_transit: () => 'In Transit',
     creator_payouts_filter_sent: () => 'Sent',
+    creator_payouts_filter_failed: () => 'Failed',
+    creator_payouts_filter_reversed: () => 'Reversed',
     creator_payouts_empty_title: () => 'No payouts yet',
     creator_payouts_empty_description: () =>
       'Payouts will appear once your orders are completed or delivered.',
@@ -147,7 +151,7 @@ describe('CreatorPayoutsPage', () => {
         makePayoutLine({
           orderId: '770e8400-e29b-41d4-a716-446655440002',
           amountCents: -1000,
-          status: 'processing',
+          status: 'in_transit',
           isRefund: true,
           orderStatus: 'refunded',
         }),
@@ -190,7 +194,7 @@ describe('CreatorPayoutsPage', () => {
         makePayoutLine({
           orderId: '770e8400-e29b-41d4-a716-446655440002',
           amountCents: 10000,
-          status: 'processing',
+          status: 'in_transit',
         }),
       ],
       total: 3,
@@ -210,7 +214,7 @@ describe('CreatorPayoutsPage', () => {
     expect(tbody).toBeDefined()
     if (!tbody) throw new Error('tbody not found')
     expect(within(tbody).getByText('Pending')).toBeDefined()
-    expect(within(tbody).getByText('Processing')).toBeDefined()
+    expect(within(tbody).getByText('In Transit')).toBeDefined()
     expect(within(tbody).getByText('Sent')).toBeDefined()
 
     // Amounts
@@ -226,7 +230,7 @@ describe('CreatorPayoutsPage', () => {
           amountCents: -1500,
           isRefund: true,
           orderStatus: 'refunded',
-          status: 'processing',
+          status: 'in_transit',
         }),
       ],
       total: 1,
@@ -297,7 +301,7 @@ describe('CreatorPayoutsPage', () => {
     expect(allTab.getAttribute('aria-selected')).toBe('false')
   })
 
-  it('renders all four filter tabs', () => {
+  it('renders all six filter tabs', () => {
     render(
       <CreatorPayoutsPage
         shops={[{ id: 'shop-1', name: 'Test Shop', slug: 'test-shop' }]}
@@ -309,8 +313,10 @@ describe('CreatorPayoutsPage', () => {
 
     expect(screen.getByRole('tab', { name: 'All' })).toBeDefined()
     expect(screen.getByRole('tab', { name: 'Pending' })).toBeDefined()
-    expect(screen.getByRole('tab', { name: 'Processing' })).toBeDefined()
+    expect(screen.getByRole('tab', { name: 'In Transit' })).toBeDefined()
     expect(screen.getByRole('tab', { name: 'Sent' })).toBeDefined()
+    expect(screen.getByRole('tab', { name: 'Failed' })).toBeDefined()
+    expect(screen.getByRole('tab', { name: 'Reversed' })).toBeDefined()
   })
 
   it('renders pagination controls when multiple pages exist', () => {

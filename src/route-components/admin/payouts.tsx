@@ -1,7 +1,7 @@
-import { useLoaderData, useNavigate, useSearch } from '@tanstack/react-router'
+import { useLoaderData, useNavigate, useRouter, useSearch } from '@tanstack/react-router'
 import { AlertTriangle, CheckCircle } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
-import { markPayoutSent } from '#/lib/admin-payouts'
+import { executePayout } from '#/lib/admin-payouts'
 import { downloadCSV, generateCSV } from '#/lib/csv-export'
 import { m } from '#/paraglide/messages'
 import { HistoryFilters } from './payouts/HistoryFilters'
@@ -18,6 +18,7 @@ type Tab = 'pending' | 'history'
 export function AdminPayoutsPage() {
   const initialData = useLoaderData({ from: '/admin/payouts' })
   const navigate = useNavigate()
+  const router = useRouter()
   const search = useSearch({ from: '/admin/payouts' })
 
   // Derive history data fresh on every render so pagination works.
@@ -93,32 +94,40 @@ export function AdminPayoutsPage() {
     navigateWithParams({ query: '', from: '', to: '', page: 1 })
   }, [navigateWithParams])
 
-  /* ---- Mark as sent ---- */
-  const handleMarkSent = useCallback(async (payoutId: string) => {
-    setStatus({ actionPayoutId: payoutId, actionError: null, successMessage: null })
+  /* ---- Execute / Retry payout ---- */
+  const handleMarkSent = useCallback(
+    async (payoutId: string) => {
+      setStatus({ actionPayoutId: payoutId, actionError: null, successMessage: null })
 
-    try {
-      await markPayoutSent({ data: { payoutId } })
+      try {
+        const result = await executePayout({ data: { payoutId } })
 
-      setStatus((prev) => ({
-        ...prev,
-        successMessage: m.admin_payouts_marked_sent_success(),
-      }))
+        setStatus((prev) => ({
+          ...prev,
+          successMessage: result.success
+            ? m.admin_payouts_payout_sent_success()
+            : m.admin_payouts_action_error(),
+        }))
 
-      if (successTimerRef.current) clearTimeout(successTimerRef.current)
-      successTimerRef.current = setTimeout(
-        () => setStatus((prev) => ({ ...prev, successMessage: null })),
-        3000,
-      )
-    } catch (err) {
-      setStatus((prev) => ({
-        ...prev,
-        actionError: err instanceof Error ? err.message : m.admin_payouts_action_error(),
-      }))
-    } finally {
-      setStatus((prev) => ({ ...prev, actionPayoutId: null }))
-    }
-  }, [])
+        // Refresh loader data so the updated status is reflected in the table.
+        await router.invalidate()
+
+        if (successTimerRef.current) clearTimeout(successTimerRef.current)
+        successTimerRef.current = setTimeout(
+          () => setStatus((prev) => ({ ...prev, successMessage: null })),
+          3000,
+        )
+      } catch (err) {
+        setStatus((prev) => ({
+          ...prev,
+          actionError: err instanceof Error ? err.message : m.admin_payouts_action_error(),
+        }))
+      } finally {
+        setStatus((prev) => ({ ...prev, actionPayoutId: null }))
+      }
+    },
+    [router],
+  )
 
   /* ---- Derived data ---- */
   const currentTab = search.tab as Tab

@@ -420,8 +420,18 @@ describe('Platform Order Invoices Lifecycle', () => {
 
   it('correctly sets vatAmountCents to 0 and subtotalCents to totalGross in DB even if shopOrder had non-zero VAT when reverse charge applies', async () => {
     await db.insert(user).values([
-      { id: 'buyer-b2b-err', name: 'Acme GmbH 2', email: 'buyer-b2b-err@example.com', role: 'customer' },
-      { id: 'creator-b2b-err', name: 'Pierre Artisan 2', email: 'pierre-err@artisan.fr', role: 'creator' },
+      {
+        id: 'buyer-b2b-err',
+        name: 'Acme GmbH 2',
+        email: 'buyer-b2b-err@example.com',
+        role: 'customer',
+      },
+      {
+        id: 'creator-b2b-err',
+        name: 'Pierre Artisan 2',
+        email: 'pierre-err@artisan.fr',
+        role: 'creator',
+      },
     ])
 
     await db.insert(shop).values({

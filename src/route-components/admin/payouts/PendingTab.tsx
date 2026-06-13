@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { Banknote, ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '#/components/ui/button'
+import { PayoutStatusBadge } from './HistoryTab'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 import { formatDateMediumTime } from '#/lib/format-date'
@@ -10,6 +11,8 @@ interface PendingPayout {
   creatorName: string
   shopName: string
   amountCents: number
+  status: string
+  failureReason: string | null
   createdAt: Date | string | null
 }
 
@@ -73,6 +76,9 @@ export function PendingTab({
               <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary text-right'>
                 {m.admin_payouts_col_amount()}
               </th>
+              <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
+                {m.admin_payouts_col_status()}
+              </th>
               <th
                 scope='col'
                 className='pb-3 pr-4 font-semibold text-text-secondary hidden sm:table-cell'
@@ -87,6 +93,7 @@ export function PendingTab({
           <tbody className='divide-y divide-border-subtle'>
             {payouts.map((payout) => {
               const isProcessing = actionPayoutId === payout.payoutId
+              const isFailed = payout.status === 'failed'
 
               return (
                 <tr key={payout.payoutId} className='group transition-colors hover:bg-bg-inset/40'>
@@ -111,6 +118,21 @@ export function PendingTab({
                     {formatPriceEUR(payout.amountCents)}
                   </td>
 
+                  {/* Status */}
+                  <td className='py-3 pr-4'>
+                    <div className='flex flex-col gap-0.5'>
+                      <PayoutStatusBadge status={payout.status} />
+                      {isFailed && payout.failureReason && (
+                        <span
+                          className='max-w-[200px] truncate text-xs text-text-muted'
+                          title={payout.failureReason}
+                        >
+                          {payout.failureReason}
+                        </span>
+                      )}
+                    </div>
+                  </td>
+
                   {/* Created */}
                   <td className='py-3 pr-4 hidden sm:table-cell text-text-secondary'>
                     {formatDate(payout.createdAt)}
@@ -119,16 +141,18 @@ export function PendingTab({
                   {/* Actions */}
                   <td className='py-3 text-right'>
                     <Button
-                      variant='primary'
+                      variant={isFailed ? 'danger' : 'primary'}
                       size='sm'
                       onClick={() => onMarkSent(payout.payoutId)}
                       disabled={isProcessing}
                       isLoading={isProcessing}
-                      aria-label={m.admin_payouts_mark_sent_aria({
-                        creator: payout.creatorName,
-                      })}
+                      aria-label={
+                        isFailed
+                          ? m.admin_payouts_retry_payout_aria({ creator: payout.creatorName })
+                          : m.admin_payouts_send_payout_aria({ creator: payout.creatorName })
+                      }
                     >
-                      {m.admin_payouts_mark_sent()}
+                      {isFailed ? m.admin_payouts_retry_payout() : m.admin_payouts_send_payout()}
                     </Button>
                   </td>
                 </tr>

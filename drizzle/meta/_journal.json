@@ -421,6 +421,13 @@
       "when": 1780607319271,
       "tag": "0059_flippant_hulk",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1781302783260,
+      "tag": "0060_daffy_captain_stacy",
+      "breakpoints": true
     }
   ]
 }

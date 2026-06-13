@@ -13,6 +13,16 @@ export interface CreatePaymentResult {
 }
 
 /**
+ * Routing reversal for partial refunds on split payments.
+ */
+export interface RoutingReversal {
+  /** Connected seller Mollie organization ID. */
+  organizationId: string
+  /** Amount to claw back from the seller, in euro cents. */
+  amountCents: number
+}
+
+/**
  * Payment provider interface.
  *
  * Every payment provider (currently only Mollie) must implement these three
@@ -66,6 +76,14 @@ export interface PaymentProvider {
    * Refund a previously created payment.
    *
    * Pass `amountCents` for a partial refund; omit for a full refund.
+   *
+   * For split payments, pass `reverseRouting: true` for a full refund or
+   * `routingReversals` for a partial refund so the platform can claw back the
+   * seller's share automatically.
    */
-  refundPayment(paymentId: string, amountCents?: number): Promise<void>
+  refundPayment(
+    paymentId: string,
+    amountCents?: number,
+    options?: { reverseRouting?: boolean; routingReversals?: RoutingReversal[] },
+  ): Promise<void>
 }

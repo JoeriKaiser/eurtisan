@@ -9,7 +9,10 @@ import { m } from '#/paraglide/messages'
 
 const payoutSearchSchema = z.object({
   shopId: z.string().optional(),
-  status: z.enum(['all', 'pending', 'processing', 'sent']).optional().default('all'),
+  status: z
+    .enum(['all', 'pending', 'in_transit', 'sent', 'failed', 'reversed'])
+    .optional()
+    .default('all'),
   page: z.coerce.number().int().min(1).optional().default(1),
 })
 

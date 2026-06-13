@@ -1,7 +1,9 @@
 import { and, count, desc, eq, gte, ilike, inArray, lte, or } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { payout, shop, shopOrder, user } from '#/db/schema'
+import { payout, payoutReconciliationLog, platformOrder, shop, shopOrder, user } from '#/db/schema'
+import { createMollieRoute } from '#/integrations/mollie'
 import { signMollieState } from './auth-utils'
+import { logger } from './logger.server'
 import { PLATFORM_FEE_PERCENT } from './platform-constants'
 
 /* -------------------------------------------------------------------------- */
@@ -16,8 +18,8 @@ export interface CreatorPayoutLine {
   orderId: string
   date: Date
   amountCents: number
-  /** Payout lifecycle status derived from the underlying order and any payout records. */
-  status: 'pending' | 'processing' | 'sent'
+  /** Payout lifecycle status as tracked in the database. */
+  status: 'pending' | 'in_transit' | 'sent' | 'failed' | 'reversed'
   /** Original shop_order status, exposed so the UI can differentiate refunds. */
   orderStatus: string
   /** True when this line represents a refund deduction. */
@@ -31,6 +33,8 @@ export interface CreatorPayoutLine {
 /**
  * Idempotently inserts a pending payout record for a shop order.
  * Uses ON CONFLICT DO NOTHING so duplicate calls are safe.
+ *
+ * Returns the id of the inserted or existing payout row.
  */
 export async function createPayoutForShopOrder(
   tx: Omit<typeof db, '$client'>,
@@ -40,7 +44,7 @@ export async function createPayoutForShopOrder(
   vatAmountCents: number,
   shippingCostCents: number,
   shippingMethod: 'standard' | 'express' | 'manual',
-): Promise<void> {
+): Promise<string | undefined> {
   const netSubtotalCents = subtotalCents - vatAmountCents
   const feeCents = Math.round(netSubtotalCents * (PLATFORM_FEE_PERCENT / 100))
   let amountCents = subtotalCents - feeCents
@@ -49,7 +53,17 @@ export async function createPayoutForShopOrder(
     amountCents += shippingCostCents
   }
 
-  await tx
+  const [existing] = await tx
+    .select({ id: payout.id })
+    .from(payout)
+    .where(eq(payout.shopOrderId, shopOrderId))
+    .limit(1)
+
+  if (existing) {
+    return existing.id
+  }
+
+  const [created] = await tx
     .insert(payout)
     .values({
       shopOrderId,
@@ -58,15 +72,56 @@ export async function createPayoutForShopOrder(
       status: 'pending',
       createdAt: new Date(),
     })
-    .onConflictDoNothing({ target: payout.shopOrderId })
+    .returning({ id: payout.id })
+
+  return created?.id
 }
 
 /* -------------------------------------------------------------------------- */
-/*                          Mark Payout Sent (existing)                        */
+/*                          Reconciliation Log                                 */
 /* -------------------------------------------------------------------------- */
 
-export async function markPayoutSentQuery(payoutId: string): Promise<{ success: boolean }> {
-  return db.transaction(async (tx) => {
+async function insertPayoutReconciliationLog(
+  tx: Omit<typeof db, '$client'>,
+  input: {
+    payoutId: string
+    event: string
+    molliePaymentId?: string | null
+    mollieRouteId?: string | null
+    amountCents?: number
+    payload?: Record<string, unknown>
+  },
+): Promise<void> {
+  await tx.insert(payoutReconciliationLog).values({
+    payoutId: input.payoutId,
+    event: input.event,
+    molliePaymentId: input.molliePaymentId ?? null,
+    mollieRouteId: input.mollieRouteId ?? null,
+    amountCents: input.amountCents ?? null,
+    payload: input.payload ?? {},
+  })
+}
+
+/* -------------------------------------------------------------------------- */
+/*                          Execute Payout                                     */
+/* -------------------------------------------------------------------------- */
+
+export interface ExecutePayoutResult {
+  success: boolean
+  routeId?: string
+}
+
+/**
+ * Executes a payout by creating a Mollie delayed-routing route from the platform
+ * payment to the seller's connected Mollie organization.
+ *
+ * Idempotent:
+ * - If the payout is already `sent`, returns the existing route ID without side effects.
+ * - If the payout is `failed`, retries the route creation.
+ * - If the payout is `reversed`, returns an error (reversed payouts cannot be re-executed).
+ */
+export async function executePayoutQuery(payoutId: string): Promise<ExecutePayoutResult> {
+  const txResult = await db.transaction(async (tx) => {
     const [payoutRecord] = await tx
       .select()
       .from(payout)
@@ -75,39 +130,211 @@ export async function markPayoutSentQuery(payoutId: string): Promise<{ success: 
       .limit(1)
 
     if (!payoutRecord) {
-      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Payout not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      })
+      return { kind: 'error' as const, status: 404, message: 'Payout not found' }
     }
 
     if (payoutRecord.status === 'sent') {
-      return { success: true }
+      return { kind: 'success' as const, routeId: payoutRecord.mollieRouteId ?? undefined }
+    }
+
+    if (payoutRecord.status === 'reversed') {
+      return {
+        kind: 'error' as const,
+        status: 409,
+        message: 'Payout has been reversed and cannot be re-executed',
+      }
+    }
+
+    if (!['pending', 'failed', 'in_transit'].includes(payoutRecord.status)) {
+      return {
+        kind: 'error' as const,
+        status: 409,
+        message: `Payout cannot be executed from status '${payoutRecord.status}'`,
+      }
+    }
+
+    // Load the related order and shop to obtain Mollie IDs.
+    if (!payoutRecord.shopOrderId) {
+      const reason = 'Payout has no associated shop order'
+      await tx
+        .update(payout)
+        .set({ status: 'failed', failedAt: new Date(), failureReason: reason })
+        .where(eq(payout.id, payoutId))
+      await insertPayoutReconciliationLog(tx, {
+        payoutId,
+        event: 'route_failed',
+        amountCents: payoutRecord.amountCents,
+        payload: { reason },
+      })
+      return { kind: 'error' as const, status: 412, message: reason }
+    }
+
+    const [orderRecord] = await tx
+      .select({
+        platformOrderId: shopOrder.platformOrderId,
+      })
+      .from(shopOrder)
+      .where(eq(shopOrder.id, payoutRecord.shopOrderId))
+      .limit(1)
+
+    const [platformOrderRecord] = orderRecord?.platformOrderId
+      ? await tx
+          .select({ molliePaymentId: platformOrder.molliePaymentId })
+          .from(platformOrder)
+          .where(eq(platformOrder.id, orderRecord.platformOrderId))
+          .limit(1)
+      : [null]
+
+    const [shopRecord] = await tx
+      .select({
+        ownerId: shop.ownerId,
+        mollieAccountId: shop.mollieAccountId,
+        paymentConnected: shop.paymentConnected,
+      })
+      .from(shop)
+      .where(eq(shop.id, payoutRecord.shopId))
+      .limit(1)
+
+    const molliePaymentId = platformOrderRecord?.molliePaymentId
+    const mollieAccountId = shopRecord?.mollieAccountId
+
+    if (!molliePaymentId) {
+      const reason = 'Platform order has no Mollie payment ID'
+      await tx
+        .update(payout)
+        .set({ status: 'failed', failedAt: new Date(), failureReason: reason })
+        .where(eq(payout.id, payoutId))
+      await insertPayoutReconciliationLog(tx, {
+        payoutId,
+        event: 'route_failed',
+        amountCents: payoutRecord.amountCents,
+        payload: { reason },
+      })
+      return { kind: 'error' as const, status: 412, message: reason }
+    }
+
+    if (!mollieAccountId || !shopRecord?.paymentConnected) {
+      const reason = 'Shop has no connected Mollie account'
+      await tx
+        .update(payout)
+        .set({ status: 'failed', failedAt: new Date(), failureReason: reason })
+        .where(eq(payout.id, payoutId))
+      await insertPayoutReconciliationLog(tx, {
+        payoutId,
+        event: 'route_failed',
+        molliePaymentId,
+        amountCents: payoutRecord.amountCents,
+        payload: { reason, paymentConnected: shopRecord?.paymentConnected ?? false },
+      })
+      return { kind: 'error' as const, status: 412, message: reason }
+    }
+
+    // Mark in_transit before the external call so concurrent callers see it.
+    await tx
+      .update(payout)
+      .set({ status: 'in_transit', molliePaymentId })
+      .where(eq(payout.id, payoutId))
+
+    let route: { id: string }
+    try {
+      route = await createMollieRoute({
+        paymentId: molliePaymentId,
+        amountCents: payoutRecord.amountCents,
+        currency: 'EUR',
+        destinationOrganizationId: mollieAccountId,
+        description: `Eurtisan payout for order ${payoutRecord.shopOrderId}`,
+      })
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : 'Mollie route creation failed'
+      await tx
+        .update(payout)
+        .set({ status: 'failed', failedAt: new Date(), failureReason: reason })
+        .where(eq(payout.id, payoutId))
+      await insertPayoutReconciliationLog(tx, {
+        payoutId,
+        event: 'route_failed',
+        molliePaymentId,
+        amountCents: payoutRecord.amountCents,
+        payload: { reason: reason },
+      })
+      return { kind: 'error' as const, status: 502, message: reason }
     }
 
     await tx
       .update(payout)
-      .set({ status: 'sent', sentAt: new Date() })
+      .set({
+        status: 'sent',
+        molliePaymentId,
+        mollieRouteId: route.id,
+        sentAt: new Date(),
+        executedAt: new Date(),
+      })
       .where(eq(payout.id, payoutId))
 
-    const shopRecord = await tx.select().from(shop).where(eq(shop.id, payoutRecord.shopId)).limit(1)
+    await insertPayoutReconciliationLog(tx, {
+      payoutId,
+      event: 'route_created',
+      molliePaymentId,
+      mollieRouteId: route.id,
+      amountCents: payoutRecord.amountCents,
+      payload: { destinationOrganizationId: mollieAccountId },
+    })
 
     // Create notification — errors must not break the payout transaction
     try {
       const { createNotification } = await import('./notifications.server')
-      if (shopRecord[0]) {
-        await createNotification(shopRecord[0].ownerId, 'payout_sent', {
+      if (shopRecord.ownerId) {
+        await createNotification(shopRecord.ownerId, 'payout_sent', {
           payoutId,
           shopId: payoutRecord.shopId,
           amount: String(payoutRecord.amountCents / 100),
         })
       }
-    } catch {
-      // swallow
+    } catch (notifyErr) {
+      logger.error('Failed to send payout_sent notification', notifyErr, {
+        payoutId,
+        shopId: payoutRecord.shopId,
+      })
     }
 
-    return { success: true }
+    return { kind: 'success' as const, routeId: route.id }
   })
+
+  if (txResult.kind === 'error') {
+    throw new Response(
+      JSON.stringify({ error: getErrorCodeForStatus(txResult.status), message: txResult.message }),
+      {
+        status: txResult.status,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    )
+  }
+
+  return { success: true, routeId: txResult.routeId }
+}
+
+function getErrorCodeForStatus(status: number): string {
+  switch (status) {
+    case 404:
+      return 'Not Found'
+    case 409:
+      return 'Conflict'
+    case 412:
+      return 'Precondition Failed'
+    case 502:
+      return 'Bad Gateway'
+    default:
+      return 'Internal Server Error'
+  }
+}
+
+/**
+ * @deprecated Use {@link executePayoutQuery} instead. This alias exists only to
+ * ease migration of existing callers and tests.
+ */
+export async function markPayoutSentQuery(payoutId: string): Promise<{ success: boolean }> {
+  const result = await executePayoutQuery(payoutId)
+  return { success: result.success }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -127,7 +354,7 @@ function derivePayoutLine(
     status: string
     createdAt: Date
   },
-  payoutStatus: 'pending' | 'sent' | null,
+  payoutStatus: CreatorPayoutLine['status'] | null,
   payoutAmountCents?: number | null,
 ): CreatorPayoutLine {
   const isRefund = order.status === 'refunded'
@@ -145,15 +372,11 @@ function derivePayoutLine(
     amountCents = -Math.abs(amountCents)
   }
 
-  // Derive payout status from the underlying order status and any payout records
-  let status: CreatorPayoutLine['status'] = 'pending'
-  if (isRefund) {
-    // Refunds are adjustments — status is not meaningful; use 'processing' as neutral default
-    status = 'processing'
-  } else if (order.status === 'completed') {
-    status = payoutStatus === 'sent' ? 'sent' : 'processing'
-  } else if (order.status === 'delivered') {
-    status = payoutStatus === 'sent' ? 'sent' : 'pending'
+  // Use the persisted payout status when available; otherwise fall back to a
+  // status derived from the order lifecycle.
+  let status: CreatorPayoutLine['status'] = payoutStatus ?? 'pending'
+  if (!payoutStatus && order.status === 'completed') {
+    status = 'in_transit'
   }
 
   return {
@@ -176,13 +399,14 @@ function derivePayoutLine(
 export interface AdminPayoutRow {
   payoutId: string
   amountCents: number
-  status: 'pending' | 'sent'
+  status: CreatorPayoutLine['status']
   sentAt: Date | null
   createdAt: Date
   shopName: string
   shopId: string
   creatorName: string
   creatorId: string
+  failureReason: string | null
 }
 
 /* -------------------------------------------------------------------------- */
@@ -209,7 +433,7 @@ export async function listPendingPayoutsQuery(
   const boundedPageSize = Math.min(100, Math.max(1, pageSize))
   const offset = (boundedPage - 1) * boundedPageSize
 
-  const where = eq(payout.status, 'pending')
+  const where = inArray(payout.status, ['pending', 'failed'])
 
   const [countRow] = await db
     .select({ total: count() })
@@ -227,6 +451,7 @@ export async function listPendingPayoutsQuery(
       status: payout.status,
       sentAt: payout.sentAt,
       createdAt: payout.createdAt,
+      failureReason: payout.failureReason,
       shopName: shop.name,
       shopId: shop.id,
       creatorName: user.name,
@@ -302,6 +527,7 @@ export async function listPayoutHistoryQuery(
       status: payout.status,
       sentAt: payout.sentAt,
       createdAt: payout.createdAt,
+      failureReason: payout.failureReason,
       shopName: shop.name,
       shopId: shop.id,
       creatorName: user.name,
@@ -344,8 +570,8 @@ export async function listCreatorPayoutsQuery(
   options: {
     page?: number
     pageSize?: number
-    /** Filter by derived payout status. Omit or pass 'all' for no filtering. */
-    status?: 'pending' | 'processing' | 'sent' | 'all'
+    /** Filter by payout status. Omit or pass 'all' for no filtering. */
+    status?: CreatorPayoutLine['status'] | 'all'
   } = {},
 ): Promise<{
   payouts: CreatorPayoutLine[]
@@ -417,16 +643,23 @@ export async function listCreatorPayoutsQuery(
 }
 
 /**
- * Generates the Mollie Connect authorization URL or a local mock OAuth page redirect if keys are not set.
+ * Generates the Mollie Connect authorization URL.
+ *
+ * In non-production environments without configured credentials, returns the
+ * local mock OAuth page so developers can test the flow. In production,
+ * missing credentials are a fatal configuration error.
  */
 export async function getMollieConnectUrlQuery(shopId: string, userId: string): Promise<string> {
-  const mollieClientId = process.env.MOLLIE_CLIENT_ID
-  const { getBaseUrl } = await import('./env.server')
+  const { getBaseUrl, getMollieClientId } = await import('./env.server')
+  const mollieClientId = getMollieClientId()
   const baseUrl = getBaseUrl()
   const redirectUri = `${baseUrl}/api/auth/mollie/callback`
   const state = signMollieState(shopId, userId)
 
   if (!mollieClientId) {
+    if (typeof process !== 'undefined' && process.env.NODE_ENV === 'production') {
+      throw new Error('MOLLIE_CLIENT_ID is required in production for Mollie Connect onboarding')
+    }
     return `${baseUrl}/mollie-mock-oauth?shopId=${encodeURIComponent(shopId)}&state=${encodeURIComponent(state)}&redirect_uri=${encodeURIComponent(redirectUri)}`
   }
 
@@ -447,6 +680,9 @@ export async function disconnectMollieQuery(shopId: string): Promise<{ success: 
     .update(shop)
     .set({
       mollieAccountId: null,
+      mollieAccessToken: null,
+      mollieRefreshToken: null,
+      mollieTokenExpiresAt: null,
       paymentConnected: false,
       paymentConnectedAt: null,
       status: 'approved',
