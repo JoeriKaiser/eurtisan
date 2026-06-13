@@ -42,6 +42,13 @@ export interface CreatorDashboardStats {
   totalShopCount: number
 }
 
+export interface ShopDashboardStats {
+  pendingOrdersCount: number
+  lowStockProductCount: number
+  revenueThisMonthCents: number
+  totalActiveProducts: number
+}
+
 export interface OrderActivity {
   kind: 'order'
   id: string
@@ -134,6 +141,48 @@ export async function getCreatorDashboardStatsQuery(
     pendingOrdersCount: Number(pendingResult?.count ?? 0),
     lowStockProductCount: Number(lowStockResult?.count ?? 0),
     totalShopCount,
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                             Per-Shop Dashboard Stats                       */
+/* -------------------------------------------------------------------------- */
+
+export async function getShopDashboardStatsQuery(shopId: string): Promise<ShopDashboardStats> {
+  const now = new Date()
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+  const [[lowStockResult], [pendingResult], [revenueResult], [activeProductsResult]] =
+    await Promise.all([
+      db
+        .select({ count: count() })
+        .from(product)
+        .where(and(eq(product.shopId, shopId), lt(product.stockCount, 5))),
+      db
+        .select({ count: count() })
+        .from(shopOrder)
+        .where(and(eq(shopOrder.shopId, shopId), inArray(shopOrder.status, PENDING_STATUSES))),
+      db
+        .select({ total: sum(shopOrder.subtotalCents) })
+        .from(shopOrder)
+        .where(
+          and(
+            eq(shopOrder.shopId, shopId),
+            inArray(shopOrder.status, REVENUE_STATUSES),
+            gte(shopOrder.createdAt, startOfMonth),
+          ),
+        ),
+      db
+        .select({ count: count() })
+        .from(product)
+        .where(and(eq(product.shopId, shopId), eq(product.isActive, true))),
+    ])
+
+  return {
+    pendingOrdersCount: Number(pendingResult?.count ?? 0),
+    lowStockProductCount: Number(lowStockResult?.count ?? 0),
+    revenueThisMonthCents: Number(revenueResult?.total ?? 0),
+    totalActiveProducts: Number(activeProductsResult?.count ?? 0),
   }
 }
 

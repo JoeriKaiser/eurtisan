@@ -6,6 +6,7 @@ import { requireRole } from './authz'
 import {
   getCreatorDashboardStatsQuery,
   getCreatorRecentActivityQuery,
+  getShopDashboardStatsQuery,
 } from './creator-dashboard.server'
 
 vi.mock('./auth', () => ({
@@ -498,6 +499,71 @@ describe('getCreatorRecentActivityQuery', () => {
     const result = await getCreatorRecentActivityQuery('user-1', 10)
     expect(result).toHaveLength(1)
     expect(result[0].shopId).toBe('shop-1')
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/*                          getShopDashboardStatsQuery                        */
+/* -------------------------------------------------------------------------- */
+
+describe('getShopDashboardStatsQuery', () => {
+  it('returns zeroed stats for a shop with no products or orders', async () => {
+    await seedUser()
+    await seedShop()
+
+    const result = await getShopDashboardStatsQuery('shop-1')
+    expect(result).toEqual({
+      pendingOrdersCount: 0,
+      lowStockProductCount: 0,
+      revenueThisMonthCents: 0,
+      totalActiveProducts: 0,
+    })
+  })
+
+  it('returns correct stats for a single shop', async () => {
+    await seedUser()
+    await seedShop()
+    await seedProduct({ stockCount: 3, isActive: true })
+    const buyer = await seedBuyer()
+    const po = await seedPlatformOrder(buyer.id)
+    await seedShopOrder({ platformOrderId: po.id, status: 'paid', subtotalCents: 5000 })
+
+    const result = await getShopDashboardStatsQuery('shop-1')
+    expect(result.pendingOrdersCount).toBe(1)
+    expect(result.lowStockProductCount).toBe(1)
+    expect(result.revenueThisMonthCents).toBe(5000)
+    expect(result.totalActiveProducts).toBe(1)
+  })
+
+  it('only counts active products', async () => {
+    await seedUser()
+    await seedShop()
+    await seedProduct({ id: 'prod-active', slug: 'prod-active', isActive: true })
+    await seedProduct({ id: 'prod-inactive', slug: 'prod-inactive', isActive: false })
+
+    const result = await getShopDashboardStatsQuery('shop-1')
+    expect(result.totalActiveProducts).toBe(1)
+  })
+
+  it('does not count products or orders from other shops', async () => {
+    await seedUser()
+    await seedShop({ id: 'shop-1', slug: 'shop-1' })
+    await seedShop({ id: 'shop-2', slug: 'shop-2', name: 'Other Shop' })
+    await seedProduct({ id: 'prod-1', slug: 'prod-1', stockCount: 2, shopId: 'shop-1' })
+    await seedProduct({ id: 'prod-2', slug: 'prod-2', stockCount: 2, shopId: 'shop-2' })
+
+    const buyer = await seedBuyer()
+    const po = await seedPlatformOrder(buyer.id)
+    await seedShopOrder({
+      platformOrderId: po.id,
+      shopId: 'shop-2',
+      status: 'paid',
+      subtotalCents: 3000,
+    })
+
+    const result = await getShopDashboardStatsQuery('shop-1')
+    expect(result.lowStockProductCount).toBe(1)
+    expect(result.revenueThisMonthCents).toBe(0)
   })
 })
 
