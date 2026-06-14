@@ -17,7 +17,8 @@ import type {
   ShippingAddress as ProviderShippingAddress,
   Rate,
 } from '#/integrations/shipping'
-import { mondialRelayProvider } from '#/integrations/shipping'
+import { getShippingProvider } from '#/integrations/shipping'
+import { scheduleBackgroundWork } from './background-work.server'
 import { getBaseUrl } from './env.server'
 import {
   getAvailableStockForProducts,
@@ -25,21 +26,20 @@ import {
   releaseCartStockInTx,
   reserveStockInTx,
 } from './inventory.server'
-import { logOrderCreated } from './order-logger'
 import { ordersCreatedTotal } from './metrics.server'
+import { logOrderCreated } from './order-logger'
 import type { PaymentProvider } from './payment-provider'
 import { formatPriceEUR } from './pricing'
-import { calculatePackageDimensions, calculatePackageWeight } from './shipping-estimate'
+import { calculatePackageFromItems } from './shipping-estimate'
 import {
   buildShopLegalIdentity,
-  toSellerEmailPayload,
   type ShopLegalIdentity,
+  toSellerEmailPayload,
 } from './shop-legal-identity'
-import { scheduleBackgroundWork } from './background-work.server'
 import {
   calculateVat,
-  normalizeCountryCode,
   isVatIdFormatValid,
+  normalizeCountryCode,
   verifyVatIdVies,
 } from './vat.server'
 
@@ -50,9 +50,9 @@ import {
 export interface ShippingOption {
   /** The rate ID from the carrier for validation in createCheckout. */
   rateId?: string
-  /** Carrier identifier (e.g. "mondial_relay"). */
+  /** Carrier identifier (e.g. "dhl", "postnl"). */
   carrier?: string
-  /** Human-readable service name (e.g. "Mondial Relay Standard"). */
+  /** Human-readable service name (e.g. "DHL Paket", "PostNL Standard"). */
   serviceName?: string
   /** Price in euro cents (integer). */
   costCents: number
@@ -67,6 +67,8 @@ export interface ShippingOption {
   label: string
   /** Method identifier for backward compatibility. */
   method: 'standard' | 'express' | 'manual'
+  /** Whether this option supports service point / pick-up delivery. */
+  supportsServicePoint?: boolean
 }
 
 export interface CheckoutItem {
@@ -76,6 +78,10 @@ export interface CheckoutItem {
   priceCents: number
   quantity: number
   imageUrl: string | null
+  weightGrams: number | null
+  lengthCm: number | null
+  widthCm: number | null
+  heightCm: number | null
 }
 
 export interface CheckoutShopGroup {
@@ -177,11 +183,7 @@ function getPlatformOrigin(): ProviderShippingAddress {
  * of 500 g and 20×15×5 cm, summed across all items in the shop group.
  */
 function estimatePackageFromItems(items: CheckoutItem[]): Package {
-  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0)
-  return {
-    weightGrams: calculatePackageWeight(totalItems),
-    ...calculatePackageDimensions(totalItems),
-  }
+  return calculatePackageFromItems(items)
 }
 
 /**
@@ -204,6 +206,7 @@ function ratesToShippingOptions(rates: Rate[], fallbackOnEmpty = false): Shippin
         label: rate.serviceName,
         method: rate.serviceName.toLowerCase().includes('express') ? 'express' : 'standard',
         fallback: false,
+        supportsServicePoint: rate.supportsServicePoint,
       }) satisfies ShippingOption,
   )
 }
@@ -211,7 +214,7 @@ function ratesToShippingOptions(rates: Rate[], fallbackOnEmpty = false): Shippin
 /**
  * Resolve shipping options for a single shop in the cart.
  *
- * Calls the {@link mondialRelayProvider} when a shipping address is available;
+ * Calls the active shipping provider when a shipping address is available;
  * falls back to manual options when the provider is unavailable or the
  * destination is unsupported.
  */
@@ -236,7 +239,8 @@ export async function getShippingOptionsForShop(
   }
 
   try {
-    const rates = await mondialRelayProvider.getRates(effectiveOrigin, destination, pkg)
+    const provider = getShippingProvider()
+    const rates = await provider.getRates(effectiveOrigin, destination, pkg)
     if (rates.length === 0) {
       return [UNSUPPORTED_FALLBACK]
     }
@@ -414,6 +418,10 @@ export async function getCheckoutSummaryQuery(
       priceCents: productRecord.priceCents,
       quantity,
       imageUrl: imageByProduct.get(productRecord.id) ?? null,
+      weightGrams: productRecord.weightGrams ?? null,
+      lengthCm: productRecord.lengthCm ?? null,
+      widthCm: productRecord.widthCm ?? null,
+      heightCm: productRecord.heightCm ?? null,
     }
 
     const existing = groups.get(shopRecord.id)
@@ -684,6 +692,10 @@ export async function createCheckoutWithProvider(
       priceCents: row.product.priceCents,
       quantity: row.item.quantity,
       imageUrl: null,
+      weightGrams: row.product.weightGrams,
+      lengthCm: row.product.lengthCm,
+      widthCm: row.product.widthCm,
+      heightCm: row.product.heightCm,
     })
     shopItemsMap.set(row.product.shopId, items)
   }
@@ -802,6 +814,33 @@ export async function createCheckoutWithProvider(
         }),
         { status: 400, headers: { 'Content-Type': 'application/json' } },
       )
+    }
+
+    // Validate service point selection when the method supports it.
+    if (matchingOption.supportsServicePoint) {
+      const point = input.shippingAddress.pickupPoint
+      if (!point) {
+        throw new Response(
+          JSON.stringify({
+            error: 'Bad Request',
+            message: `Pick-up point required for shop ${shopId}`,
+          }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+
+      const provider = getShippingProvider()
+      const servicePointMethods = await provider.getServicePointMethods(point.id)
+      const methodIds = new Set(servicePointMethods.map((m) => m.rateId))
+      if (!methodIds.has(selection.rateId ?? '')) {
+        throw new Response(
+          JSON.stringify({
+            error: 'Bad Request',
+            message: `Selected shipping method does not support the chosen pick-up point for shop ${shopId}`,
+          }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
     }
   }
 
@@ -1076,6 +1115,7 @@ export async function createCheckoutWithProvider(
             platformOrderId: platformOrderRecord.id,
             shopId: group.shopId,
             shippingMethod: shipMethod,
+            shippingRateId: selection?.rateId ?? null,
             shippingCostCents: shipCost,
             subtotalCents: group.subtotalCents,
             vatAmountCents: group.vatAmountCents,
@@ -1096,6 +1136,10 @@ export async function createCheckoutWithProvider(
               totalCents: lineItem.lineTotalCents,
               vatRateBasisPoints: lineItem.vatRateBasisPoints,
               vatAmountCents: lineItem.vatAmountCents,
+              weightGrams: lineItem.product.weightGrams,
+              lengthCm: lineItem.product.lengthCm,
+              widthCm: lineItem.product.widthCm,
+              heightCm: lineItem.product.heightCm,
             }),
           ),
         )

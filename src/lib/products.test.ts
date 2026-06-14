@@ -20,6 +20,7 @@ import { createProductSchema } from './products'
 import {
   createProductInternal,
   getFeaturedShopsQuery,
+  getMarketplaceStatsQuery,
   getProductBySlugQuery,
   getProductsByShopSlugQuery,
   getShopBySlugQuery,
@@ -2046,5 +2047,78 @@ describe('Shop Status Visibility Constraints', () => {
     const s2 = await getShopBySlugQuery('shop-active')
     expect(s2).not.toBeNull()
     expect(s2?.slug).toBe('shop-active')
+  })
+})
+
+describe('getMarketplaceStatsQuery', () => {
+  beforeEach(async () => {
+    await db.delete(productImage)
+    await db.delete(product)
+    await db.delete(shop)
+    await db.delete(user)
+  })
+
+  async function seedShopWithOrigin(
+    slug: string,
+    origin: { country: string },
+    overrides?: Partial<typeof shop.$inferInsert>,
+  ) {
+    await db.insert(shop).values({
+      id: slug,
+      name: slug,
+      slug,
+      ownerId: 'user-1',
+      status: 'active',
+      shippingOrigin: origin,
+      ...overrides,
+    })
+  }
+
+  it('counts active sellers, products, and distinct countries', async () => {
+    await db.insert(user).values({
+      id: 'user-1',
+      name: 'Creator',
+      email: 'creator@example.com',
+      emailVerified: true,
+    })
+
+    await seedShopWithOrigin('shop-de', { country: 'DE' })
+    await seedShopWithOrigin('shop-fr', { country: 'FR' })
+    await seedShopWithOrigin('shop-none', { country: 'DE' }, { status: 'pending_review' })
+
+    await db.insert(product).values([
+      {
+        id: 'prod-1',
+        name: 'A',
+        slug: 'a',
+        priceCents: 1000,
+        stockCount: 1,
+        shopId: 'shop-de',
+        isActive: true,
+      },
+      {
+        id: 'prod-2',
+        name: 'B',
+        slug: 'b',
+        priceCents: 1000,
+        stockCount: 1,
+        shopId: 'shop-de',
+        isActive: true,
+      },
+      {
+        id: 'prod-3',
+        name: 'C',
+        slug: 'c',
+        priceCents: 1000,
+        stockCount: 1,
+        shopId: 'shop-fr',
+        isActive: false,
+      },
+    ])
+
+    const stats = await getMarketplaceStatsQuery()
+    expect(stats.sellerCount).toBe(2)
+    expect(stats.productCount).toBe(2)
+    expect(stats.countryCount).toBe(2)
   })
 })

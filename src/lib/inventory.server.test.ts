@@ -1,10 +1,23 @@
+import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { db } from '#/db/index'
-import { inventoryReservation, platformOrder, product, shop, shopOrder, user } from '#/db/schema'
+import {
+  inventoryReservation,
+  orderItem,
+  platformOrder,
+  product,
+  shop,
+  shopOrder,
+  user,
+} from '#/db/schema'
 
-import { cancelAbandonedPendingPaymentOrders, releaseExpiredReservations } from './inventory.server'
+import {
+  cancelAbandonedPendingPaymentOrders,
+  releaseExpiredReservations,
+  restoreShopOrderStockInTx,
+} from './inventory.server'
 
 describe('releaseExpiredReservations (inArray batch delete)', () => {
   beforeEach(async () => {
@@ -405,5 +418,134 @@ describe('cancelAbandonedPendingPaymentOrders', () => {
       .where(eq(platformOrder.status, 'cancelled'))
 
     expect(cancelled).toHaveLength(2)
+  })
+})
+
+describe('restoreShopOrderStockInTx', () => {
+  beforeEach(async () => {
+    await db.delete(orderItem)
+    await db.delete(inventoryReservation)
+    await db.delete(shopOrder)
+    await db.delete(platformOrder)
+    await db.delete(product)
+    await db.delete(shop)
+    await db.delete(user)
+  })
+
+  async function seedRestoreFixture() {
+    const [owner] = await db
+      .insert(user)
+      .values({
+        id: randomUUID(),
+        name: 'Owner',
+        email: 'owner@example.com',
+        role: 'creator',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [shopRecord] = await db
+      .insert(shop)
+      .values({
+        id: randomUUID(),
+        name: 'Test Shop',
+        slug: 'test-shop',
+        ownerId: owner.id,
+      })
+      .returning()
+
+    const [buyer] = await db
+      .insert(user)
+      .values({
+        id: randomUUID(),
+        name: 'Buyer',
+        email: 'buyer@example.com',
+        role: 'customer',
+      })
+      .returning()
+
+    const [prod] = await db
+      .insert(product)
+      .values({
+        id: randomUUID(),
+        name: 'Vase',
+        slug: 'vase',
+        priceCents: 1000,
+        shopId: shopRecord.id,
+        stockCount: 5,
+      })
+      .returning()
+
+    const [po] = await db
+      .insert(platformOrder)
+      .values({
+        id: randomUUID(),
+        userId: buyer.id,
+        shippingAddress: { name: 'Buyer', country: 'FR' },
+        billingAddress: { name: 'Buyer', country: 'FR' },
+        totalCents: 2000,
+        status: 'paid',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        id: randomUUID(),
+        platformOrderId: po.id,
+        shopId: shopRecord.id,
+        status: 'paid',
+      })
+      .returning()
+
+    await db.insert(orderItem).values({
+      id: randomUUID(),
+      shopOrderId: so.id,
+      productId: prod.id,
+      productName: 'Vase',
+      unitPriceCents: 1000,
+      quantity: 2,
+      totalCents: 2000,
+      vatRateBasisPoints: 0,
+      vatAmountCents: 0,
+    })
+
+    await db.insert(inventoryReservation).values({
+      productId: prod.id,
+      platformOrderId: po.id,
+      quantity: 2,
+      expiresAt: new Date(Date.now() + 60_000),
+    })
+
+    return { product: prod, platformOrder: po, shopOrder: so }
+  }
+
+  it('restores product stock and removes the reservation', async () => {
+    const { product: prod, platformOrder: po, shopOrder: so } = await seedRestoreFixture()
+
+    await db.transaction(async (tx) => {
+      await restoreShopOrderStockInTx(tx, po.id, so.id)
+    })
+
+    const [updated] = await db.select().from(product).where(eq(product.id, prod.id))
+    expect(updated.stockCount).toBe(7)
+
+    const reservations = await db
+      .select()
+      .from(inventoryReservation)
+      .where(eq(inventoryReservation.platformOrderId, po.id))
+    expect(reservations).toHaveLength(0)
+  })
+
+  it('restores stock even when the reservation was already released', async () => {
+    const { product: prod, platformOrder: po, shopOrder: so } = await seedRestoreFixture()
+    await db.delete(inventoryReservation).where(eq(inventoryReservation.platformOrderId, po.id))
+
+    await db.transaction(async (tx) => {
+      await restoreShopOrderStockInTx(tx, po.id, so.id)
+    })
+
+    const [updated] = await db.select().from(product).where(eq(product.id, prod.id))
+    expect(updated.stockCount).toBe(7)
   })
 })

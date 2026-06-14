@@ -65,6 +65,7 @@ import { Route as SellStatusShopIdRouteImport } from './routes/sell/status/$shop
 import { Route as SellOnboardingDraftIdRouteImport } from './routes/sell/onboarding/$draftId'
 import { Route as OrdersPlatformOrderIdSuccessRouteImport } from './routes/orders.$platformOrderId.success'
 import { Route as CreatorProductsNewRouteImport } from './routes/creator/products/new'
+import { Route as ApiWebhooksSendcloudRouteImport } from './routes/api/webhooks/sendcloud'
 import { Route as ApiWebhooksMollieRouteImport } from './routes/api/webhooks/mollie'
 import { Route as ApiWebhooksBrevoRouteImport } from './routes/api/webhooks/brevo'
 import { Route as ApiHealthReadyRouteImport } from './routes/api/health.ready'
@@ -375,6 +376,11 @@ const CreatorProductsNewRoute = CreatorProductsNewRouteImport.update({
   path: '/new',
   getParentRoute: () => CreatorProductsRoute,
 } as any)
+const ApiWebhooksSendcloudRoute = ApiWebhooksSendcloudRouteImport.update({
+  id: '/api/webhooks/sendcloud',
+  path: '/api/webhooks/sendcloud',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiWebhooksMollieRoute = ApiWebhooksMollieRouteImport.update({
   id: '/api/webhooks/mollie',
   path: '/api/webhooks/mollie',
@@ -590,6 +596,7 @@ export interface FileRoutesByFullPath {
   '/api/health/ready': typeof ApiHealthReadyRoute
   '/api/webhooks/brevo': typeof ApiWebhooksBrevoRoute
   '/api/webhooks/mollie': typeof ApiWebhooksMollieRoute
+  '/api/webhooks/sendcloud': typeof ApiWebhooksSendcloudRoute
   '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
   '/sell/onboarding/$draftId': typeof SellOnboardingDraftIdRouteWithChildren
@@ -673,6 +680,7 @@ export interface FileRoutesByTo {
   '/api/health/ready': typeof ApiHealthReadyRoute
   '/api/webhooks/brevo': typeof ApiWebhooksBrevoRoute
   '/api/webhooks/mollie': typeof ApiWebhooksMollieRoute
+  '/api/webhooks/sendcloud': typeof ApiWebhooksSendcloudRoute
   '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
   '/sell/status/$shopId': typeof SellStatusShopIdRoute
@@ -759,6 +767,7 @@ export interface FileRoutesById {
   '/api/health/ready': typeof ApiHealthReadyRoute
   '/api/webhooks/brevo': typeof ApiWebhooksBrevoRoute
   '/api/webhooks/mollie': typeof ApiWebhooksMollieRoute
+  '/api/webhooks/sendcloud': typeof ApiWebhooksSendcloudRoute
   '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
   '/sell/onboarding/$draftId': typeof SellOnboardingDraftIdRouteWithChildren
@@ -847,6 +856,7 @@ export interface FileRouteTypes {
     | '/api/health/ready'
     | '/api/webhooks/brevo'
     | '/api/webhooks/mollie'
+    | '/api/webhooks/sendcloud'
     | '/creator/products/new'
     | '/orders/$platformOrderId/success'
     | '/sell/onboarding/$draftId'
@@ -930,6 +940,7 @@ export interface FileRouteTypes {
     | '/api/health/ready'
     | '/api/webhooks/brevo'
     | '/api/webhooks/mollie'
+    | '/api/webhooks/sendcloud'
     | '/creator/products/new'
     | '/orders/$platformOrderId/success'
     | '/sell/status/$shopId'
@@ -1015,6 +1026,7 @@ export interface FileRouteTypes {
     | '/api/health/ready'
     | '/api/webhooks/brevo'
     | '/api/webhooks/mollie'
+    | '/api/webhooks/sendcloud'
     | '/creator/products/new'
     | '/orders/$platformOrderId/success'
     | '/sell/onboarding/$draftId'
@@ -1082,6 +1094,7 @@ export interface RootRouteChildren {
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiWebhooksBrevoRoute: typeof ApiWebhooksBrevoRoute
   ApiWebhooksMollieRoute: typeof ApiWebhooksMollieRoute
+  ApiWebhooksSendcloudRoute: typeof ApiWebhooksSendcloudRoute
   SellOnboardingDraftIdRoute: typeof SellOnboardingDraftIdRouteWithChildren
   SellStatusShopIdRoute: typeof SellStatusShopIdRoute
   ApiAdminPayoutsPayoutIdRoute: typeof ApiAdminPayoutsPayoutIdRoute
@@ -1485,6 +1498,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/creator/products/new'
       preLoaderRoute: typeof CreatorProductsNewRouteImport
       parentRoute: typeof CreatorProductsRoute
+    }
+    '/api/webhooks/sendcloud': {
+      id: '/api/webhooks/sendcloud'
+      path: '/api/webhooks/sendcloud'
+      fullPath: '/api/webhooks/sendcloud'
+      preLoaderRoute: typeof ApiWebhooksSendcloudRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/webhooks/mollie': {
       id: '/api/webhooks/mollie'
@@ -1950,6 +1970,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiWebhooksBrevoRoute: ApiWebhooksBrevoRoute,
   ApiWebhooksMollieRoute: ApiWebhooksMollieRoute,
+  ApiWebhooksSendcloudRoute: ApiWebhooksSendcloudRoute,
   SellOnboardingDraftIdRoute: SellOnboardingDraftIdRouteWithChildren,
   SellStatusShopIdRoute: SellStatusShopIdRoute,
   ApiAdminPayoutsPayoutIdRoute: ApiAdminPayoutsPayoutIdRoute,

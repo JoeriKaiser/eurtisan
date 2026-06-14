@@ -2,6 +2,10 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '#/db/index'
 import { payout, payoutReconciliationLog, platformOrder, shop, shopOrder, user } from '#/db/schema'
 import { eq } from 'drizzle-orm'
+import {
+  resetMockRouteStatus,
+  setMockRouteStatus,
+} from '#/integrations/mollie/mollie-routes-client'
 import { reconcilePayouts } from './payout-reconciliation.server'
 
 async function seedUser() {
@@ -77,6 +81,7 @@ async function seedShopOrder(overrides: Partial<typeof shopOrder.$inferInsert> =
 
 describe('reconcilePayouts', () => {
   beforeEach(async () => {
+    resetMockRouteStatus()
     await db.delete(payoutReconciliationLog)
     await db.delete(payout)
     await db.delete(shopOrder)
@@ -127,5 +132,44 @@ describe('reconcilePayouts', () => {
       .where(eq(payoutReconciliationLog.payoutId, payoutRecord.id))
     expect(logs).toHaveLength(1)
     expect(logs[0]?.event).toBe('route_missing')
+  })
+
+  it('marks a sent payout as returned when Mollie reports the route as returned', async () => {
+    setMockRouteStatus('returned')
+    await seedUser()
+    await seedShop()
+    const po = await seedPlatformOrder()
+    const so = await seedShopOrder({ platformOrderId: po.id })
+
+    const [payoutRecord] = await db
+      .insert(payout)
+      .values({
+        shopOrderId: so.id,
+        shopId: 'shop-1',
+        amountCents: 4500,
+        status: 'sent',
+        molliePaymentId: 'tr_test',
+        mollieRouteId: 'crt_mock_1',
+        sentAt: new Date(),
+      })
+      .returning()
+
+    const result = await reconcilePayouts()
+
+    expect(result.checked).toBe(1)
+    expect(result.reversed).toBe(1)
+    expect(result.errors).toBe(0)
+
+    const updated = await db.select().from(payout).where(eq(payout.id, payoutRecord.id)).limit(1)
+    expect(updated[0]?.status).toBe('returned')
+    expect(updated[0]?.returnedAt).toBeInstanceOf(Date)
+    expect(updated[0]?.returnReason).toBe('mollie_route_returned')
+
+    const logs = await db
+      .select()
+      .from(payoutReconciliationLog)
+      .where(eq(payoutReconciliationLog.payoutId, payoutRecord.id))
+    expect(logs).toHaveLength(1)
+    expect(logs[0]?.event).toBe('route_returned')
   })
 })

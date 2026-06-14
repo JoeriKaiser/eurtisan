@@ -34,11 +34,16 @@ export interface HomePageProps {
   stats?: {
     sellerCount: number
     productCount: number
+    countryCount: number
   }
 }
 
 const DEFAULT_SELLER_SHOPS: NonNullable<HomePageProps['sellerShops']> = []
-const DEFAULT_STATS: NonNullable<HomePageProps['stats']> = { sellerCount: 0, productCount: 0 }
+const DEFAULT_STATS: NonNullable<HomePageProps['stats']> = {
+  sellerCount: 0,
+  productCount: 0,
+  countryCount: 0,
+}
 
 export default function HomePage({
   categories,

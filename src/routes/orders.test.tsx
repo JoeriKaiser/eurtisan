@@ -134,6 +134,7 @@ function makeOrderDetail(overrides?: Partial<OrderDetail>): OrderDetail {
         shopId: 'shop-1',
         shopName: 'Test Shop',
         shippingMethod: 'standard',
+        shippingRateId: null,
         shippingCostCents: 500,
         subtotalCents: 2000,
         vatAmountCents: 0,
@@ -245,6 +246,7 @@ describe('Order detail page', () => {
           shopId: 'shop-1',
           shopName: 'Test Shop',
           shippingMethod: 'standard',
+          shippingRateId: null,
           shippingCostCents: 500,
           subtotalCents: 2000,
           vatAmountCents: 0,
@@ -256,7 +258,7 @@ describe('Order detail page', () => {
           deliveredAt: null,
           shippingLabels: [
             {
-              carrier: 'mondial_relay',
+              carrier: 'sendcloud',
               trackingNumber: 'TRACK123',
               labelUrl: 'https://label.example.com/123',
               createdAt: new Date('2026-05-10T12:00:00Z'),
@@ -279,7 +281,7 @@ describe('Order detail page', () => {
       ],
     })
     render(<BuyerOrderDetailPage order={order} />)
-    expect(screen.getByText('Mondial Relay')).toBeDefined()
+    expect(screen.getByText('Sendcloud')).toBeDefined()
     expect(screen.getByText('TRACK123')).toBeDefined()
     expect(screen.getByRole('link', { name: 'Track package' })).toBeDefined()
     expect(screen.getByText('In transit')).toBeDefined()
@@ -293,6 +295,7 @@ describe('Order detail page', () => {
           shopId: 'shop-1',
           shopName: 'Test Shop',
           shippingMethod: 'standard',
+          shippingRateId: null,
           shippingCostCents: 500,
           subtotalCents: 2000,
           vatAmountCents: 0,
@@ -304,7 +307,7 @@ describe('Order detail page', () => {
           deliveredAt: null,
           shippingLabels: [
             {
-              carrier: 'mondial_relay',
+              carrier: 'sendcloud',
               trackingNumber: 'TRACK123',
               labelUrl: 'https://label.example.com/123',
               createdAt: new Date('2026-05-10T12:00:00Z'),
@@ -329,7 +332,7 @@ describe('Order detail page', () => {
     render(<BuyerOrderDetailPage order={order} />)
     const link = screen.getByRole('link', { name: 'Track package' })
     expect(link).toBeDefined()
-    expect(link.getAttribute('href')).toContain('mondialrelay.com')
+    expect(link.getAttribute('href')).toContain('sendcloud.com')
   })
 
   it('shows tracking status summary for delivered orders', () => {
@@ -340,6 +343,7 @@ describe('Order detail page', () => {
           shopId: 'shop-1',
           shopName: 'Test Shop',
           shippingMethod: 'standard',
+          shippingRateId: null,
           shippingCostCents: 500,
           subtotalCents: 2000,
           vatAmountCents: 0,
@@ -351,7 +355,7 @@ describe('Order detail page', () => {
           deliveredAt: new Date('2026-05-10T12:00:00Z'),
           shippingLabels: [
             {
-              carrier: 'mondial_relay',
+              carrier: 'sendcloud',
               trackingNumber: 'TRACK123',
               labelUrl: 'https://label.example.com/123',
               createdAt: new Date('2026-05-10T12:00:00Z'),
@@ -385,6 +389,7 @@ describe('Order detail page', () => {
           shopId: 'shop-1',
           shopName: 'Test Shop',
           shippingMethod: 'standard',
+          shippingRateId: null,
           shippingCostCents: 500,
           subtotalCents: 2000,
           vatAmountCents: 0,
@@ -423,6 +428,7 @@ describe('Order detail page', () => {
           shopId: 'shop-1',
           shopName: 'Test Shop',
           shippingMethod: 'standard',
+          shippingRateId: null,
           shippingCostCents: 500,
           subtotalCents: 2000,
           vatAmountCents: 0,
@@ -461,6 +467,7 @@ describe('Order detail page', () => {
           shopId: 'shop-1',
           shopName: 'Shop A',
           shippingMethod: 'standard',
+          shippingRateId: null,
           shippingCostCents: 500,
           subtotalCents: 2000,
           vatAmountCents: 0,
@@ -472,7 +479,7 @@ describe('Order detail page', () => {
           deliveredAt: null,
           shippingLabels: [
             {
-              carrier: 'mondial_relay',
+              carrier: 'sendcloud',
               trackingNumber: 'TRACK001',
               labelUrl: 'https://label.example.com/001',
               createdAt: new Date('2026-05-10T12:00:00Z'),
@@ -497,6 +504,7 @@ describe('Order detail page', () => {
           shopId: 'shop-2',
           shopName: 'Shop B',
           shippingMethod: 'express',
+          shippingRateId: null,
           shippingCostCents: 800,
           subtotalCents: 1500,
           vatAmountCents: 0,
@@ -553,6 +561,7 @@ describe('Order detail page', () => {
           shopId: 'shop-1',
           shopName: 'Test Shop',
           shippingMethod: 'standard',
+          shippingRateId: null,
           shippingCostCents: 500,
           subtotalCents: 2000,
           vatAmountCents: 0,
@@ -606,6 +615,7 @@ describe('Order detail page', () => {
           shopId: 'shop-1',
           shopName: 'Test Shop',
           shippingMethod: 'standard',
+          shippingRateId: null,
           shippingCostCents: 500,
           subtotalCents: 2000,
           vatAmountCents: 0,
@@ -655,6 +665,7 @@ describe('Order detail page', () => {
           shopId: 'shop-1',
           shopName: 'Test Shop',
           shippingMethod: 'standard',
+          shippingRateId: null,
           shippingCostCents: 500,
           subtotalCents: 2000,
           vatAmountCents: 0,
@@ -695,6 +706,7 @@ describe('Order detail page', () => {
           shopId: 'shop-1',
           shopName: 'Test Shop',
           shippingMethod: 'standard',
+          shippingRateId: null,
           shippingCostCents: 500,
           subtotalCents: 2000,
           vatAmountCents: 0,
@@ -736,6 +748,7 @@ describe('Order detail page', () => {
           shopId: 'shop-1',
           shopName: 'Test Shop',
           shippingMethod: 'standard',
+          shippingRateId: null,
           shippingCostCents: 500,
           subtotalCents: 2000,
           vatAmountCents: 0,
@@ -776,6 +789,7 @@ describe('Order detail page', () => {
           shopId: 'shop-1',
           shopName: 'Test Shop',
           shippingMethod: 'standard',
+          shippingRateId: null,
           shippingCostCents: 500,
           subtotalCents: 2000,
           vatAmountCents: 0,

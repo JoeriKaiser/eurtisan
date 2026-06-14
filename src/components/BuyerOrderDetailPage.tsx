@@ -280,7 +280,7 @@ export default function BuyerOrderDetailPage({
               {order.shippingAddress.pickupPoint && (
                 <div className='mt-3 p-3 rounded-lg border border-accent-secondary/20 bg-surface-inset not-italic'>
                   <p className='text-[10px] font-bold text-accent-primary uppercase tracking-wider mb-1'>
-                    Mondial Relay Pick-up Point
+                    Pick-up Point
                   </p>
                   <p className='font-semibold text-text-primary'>
                     {order.shippingAddress.pickupPoint.name}

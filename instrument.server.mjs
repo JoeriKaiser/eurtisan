@@ -34,3 +34,26 @@ process.on('unhandledRejection', (reason, promise) => {
     stack: reason instanceof Error ? reason.stack : undefined,
   })
 })
+
+/* -------------------------------------------------------------------------- */
+/*                        Production mock-mode guard                         */
+/* -------------------------------------------------------------------------- */
+
+if (env === 'production') {
+  const forbiddenMocks = []
+  if (process.env.MOCK_PAYMENTS_ENABLED === 'true') forbiddenMocks.push('MOCK_PAYMENTS_ENABLED')
+  if (process.env.MOCK_PAYOUTS_ENABLED === 'true') forbiddenMocks.push('MOCK_PAYOUTS_ENABLED')
+
+  if (forbiddenMocks.length > 0) {
+    const message = `FATAL: Mock modes are not allowed in production: ${forbiddenMocks.join(', ')}`
+    logStructured('fatal', message, { forbiddenMocks })
+    throw new Error(message)
+  }
+
+  if (!process.env.METRICS_TOKEN || process.env.METRICS_TOKEN.trim().length === 0) {
+    const message =
+      'FATAL: METRICS_TOKEN is required in production to protect /api/metrics from public access'
+    logStructured('fatal', message)
+    throw new Error(message)
+  }
+}

@@ -56,6 +56,8 @@ export interface Rate {
     min: number
     max: number
   }
+  /** Whether this method supports service point / pick-up delivery. */
+  supportsServicePoint?: boolean
 }
 
 // ---------------------------------------------------------------------------
@@ -74,6 +76,8 @@ export interface ShipmentDetails {
   carrierService: string
   /** Optional reference number (e.g. shop order ID). */
   reference?: string
+  /** Optional service point for pick-up delivery. */
+  pickupPoint?: ServicePoint
 }
 
 /** A shipping label created by a carrier. */
@@ -86,6 +90,8 @@ export interface Label {
   labelUrl: string
   /** Carrier identifier (e.g. "dhl", "dpd", "postnl"). */
   carrier: string
+  /** Carrier-specific parcel identifier used for reconciliation and webhooks. */
+  externalParcelId?: string
 }
 
 // ---------------------------------------------------------------------------
@@ -117,13 +123,37 @@ export interface TrackingInfo {
 }
 
 // ---------------------------------------------------------------------------
+// Service point types
+// ---------------------------------------------------------------------------
+
+/** A carrier service point / pick-up point. */
+export interface ServicePoint {
+  /** Unique identifier within the carrier's service point network. */
+  id: string
+  /** Human-readable point name (e.g. "Auchan Paris Rivoli"). */
+  name: string
+  /** Street address. */
+  street: string
+  /** Postal / ZIP code. */
+  postalCode: string
+  /** City. */
+  city: string
+  /** ISO 3166-1 alpha-2 country code. */
+  country: string
+  /** Optional distance string (e.g. "0.4 km"). */
+  distance?: string
+  /** Optional carrier operating the point. */
+  carrier?: string
+}
+
+// ---------------------------------------------------------------------------
 // Provider interface
 // ---------------------------------------------------------------------------
 
 /**
  * Shipping provider interface.
  *
- * Every shipping carrier integration must implement these three methods.
+ * Every shipping carrier integration must implement these methods.
  * The implementation is injected into order workflows so it can be swapped
  * for a mock in development or for different carriers in production.
  */
@@ -148,4 +178,16 @@ export interface ShippingProvider {
    * @returns Current tracking information including all events.
    */
   trackShipment(trackingNumber: string): Promise<TrackingInfo>
+
+  /**
+   * Find service points / pick-up points near the given postal code and country.
+   *
+   * @returns Array of service points, sorted by distance when available.
+   */
+  getServicePoints(postalCode: string, country: string, carrier?: string): Promise<ServicePoint[]>
+
+  /**
+   * Get shipping methods that support delivery to the given service point.
+   */
+  getServicePointMethods(servicePointId: string): Promise<Rate[]>
 }

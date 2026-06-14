@@ -387,6 +387,7 @@ export function CreatorPayoutsPage({
                   sent: () => m.creator_payouts_status_sent(),
                   failed: () => m.creator_payouts_status_failed(),
                   reversed: () => m.creator_payouts_status_reversed(),
+                  returned: () => m.creator_payouts_status_returned(),
                 }
                 const statusLabel = statusLabelMap[payout.status]()
 
@@ -399,6 +400,7 @@ export function CreatorPayoutsPage({
                   sent: 'success',
                   failed: 'error',
                   reversed: 'secondary',
+                  returned: 'secondary',
                 }
                 const statusVariant = statusVariantMap[payout.status]
 

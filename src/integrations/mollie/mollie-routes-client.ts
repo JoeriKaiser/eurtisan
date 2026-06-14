@@ -24,6 +24,8 @@ export interface MollieRoute {
   amount: { currency: string; value: string }
   description: string
   destination: { type: 'organization'; organizationId: string }
+  /** Route status as reported by Mollie delayed routing (e.g. pending, routing, routed, returned). */
+  status?: string
 }
 
 export interface MollieRouteError {
@@ -66,6 +68,21 @@ export function setMockRouteFailure(reason?: string): void {
 export function clearMockRouteFailure(): void {
   shouldFailNextMockRoute = false
   nextMockRouteFailureReason = undefined
+}
+
+let mockRouteStatus = 'routed'
+
+/**
+ * Configures the status returned by the mock get-route client.
+ * For tests only.
+ */
+export function setMockRouteStatus(status: string): void {
+  mockRouteStatus = status
+}
+
+/** Resets the mock route status to the default. For tests only. */
+export function resetMockRouteStatus(): void {
+  mockRouteStatus = 'routed'
 }
 
 /* -------------------------------------------------------------------------- */
@@ -229,6 +246,7 @@ async function getMollieRouteReal(paymentId: string, routeId: string): Promise<M
     amount: { currency: string; value: string }
     description?: string
     destination: { type: string; organizationId: string }
+    status?: string
   }
 
   return {
@@ -237,6 +255,7 @@ async function getMollieRouteReal(paymentId: string, routeId: string): Promise<M
     amount: data.amount,
     description: data.description ?? '',
     destination: data.destination as { type: 'organization'; organizationId: string },
+    status: data.status,
   }
 }
 
@@ -282,6 +301,7 @@ async function getMollieRouteMock(
     amount: { currency: 'EUR', value: '0.00' },
     description: 'Mock route',
     destination: { type: 'organization', organizationId: 'org_mock' },
+    status: mockRouteStatus,
   }
 }
 

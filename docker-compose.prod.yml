@@ -172,7 +172,107 @@ services:
       db:
         condition: service_healthy
     command: >
-      sh -c "bun run src/jobs/payout-reconciliation.ts"
+      sh -c "bun run job:payout-reconciliation"
+
+  sendcloud-reconciliation:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: eurtisan-sendcloud-reconciliation
+    restart: unless-stopped
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "bun run job:sendcloud-reconciliation"
+
+  session-cleanup:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: eurtisan-session-cleanup
+    restart: unless-stopped
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "bun run job:session-cleanup"
+
+  cart-cleanup:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: eurtisan-cart-cleanup
+    restart: unless-stopped
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "bun run job:cart-cleanup"
+
+  audit-log-cleanup:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: eurtisan-audit-log-cleanup
+    restart: unless-stopped
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "bun run job:audit-log-cleanup"
+
+  verification-cleanup:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: eurtisan-verification-cleanup
+    restart: unless-stopped
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "bun run job:verification-cleanup"
 
 volumes:
   postgres_data:

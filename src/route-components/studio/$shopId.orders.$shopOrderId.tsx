@@ -2,7 +2,8 @@ import { Link, useLoaderData, useParams, useRouter } from '@tanstack/react-route
 import { ArrowLeft } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { Badge } from '#/components/ui/badge'
-import { markShopOrderDelivered } from '#/lib/shop-orders'
+import { markShopOrderDelivered, refundShopOrder } from '#/lib/shop-orders'
+import { m } from '#/paraglide/messages'
 import { ShopOrderShipDialog } from '#/route-components/studio/ShopOrderShipDialog'
 import {
   BuyerInfoCard,
@@ -40,6 +41,7 @@ export function ShopOrderDetailPage() {
   const [status, setStatus] = useState({
     actionError: null as string | null,
     isMarkingDelivered: false,
+    isRefunding: false,
   })
 
   const handleShipped = useCallback(() => {
@@ -75,8 +77,36 @@ export function ShopOrderDetailPage() {
     }
   }, [shopOrderId, router])
 
+  const handleRefund = useCallback(async () => {
+    if (!window.confirm(m.order_refund_confirm())) return
+    setStatus((prev) => ({ ...prev, isRefunding: true, actionError: null }))
+    try {
+      await refundShopOrder({ data: { shopOrderId } })
+      router.invalidate()
+    } catch (err) {
+      if (err instanceof Response) {
+        try {
+          const body = await err.json()
+          setStatus((prev) => ({
+            ...prev,
+            actionError: body.message || m.order_refund_error(),
+          }))
+        } catch {
+          setStatus((prev) => ({ ...prev, actionError: m.order_refund_error() }))
+        }
+      } else if (err instanceof Error) {
+        setStatus((prev) => ({ ...prev, actionError: err.message }))
+      } else {
+        setStatus((prev) => ({ ...prev, actionError: m.order_refund_error() }))
+      }
+    } finally {
+      setStatus((prev) => ({ ...prev, isRefunding: false }))
+    }
+  }, [shopOrderId, router])
+
   const canShip = ['paid', 'processing'].includes(order.status)
   const canDeliver = order.status === 'shipped'
+  const canRefund = ['paid', 'processing', 'shipped', 'delivered'].includes(order.status)
 
   return (
     <main className='page-wrap px-4 py-12'>
@@ -114,9 +144,12 @@ export function ShopOrderDetailPage() {
             status={order.status}
             canShip={canShip}
             canDeliver={canDeliver}
+            canRefund={canRefund}
             isMarkingDelivered={status.isMarkingDelivered}
+            isRefunding={status.isRefunding}
             onShip={() => setDialog((prev) => ({ key: prev.key + 1, open: true }))}
             onMarkDelivered={handleMarkDelivered}
+            onRefund={handleRefund}
           />
 
           <div className='grid gap-4 sm:grid-cols-2'>

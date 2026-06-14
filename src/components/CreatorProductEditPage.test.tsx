@@ -132,6 +132,10 @@ interface ProductDetail {
   vatRateCategory: string
   shopId: string
   categoryId: string | null
+  weightGrams: number | null
+  lengthCm: number | null
+  widthCm: number | null
+  heightCm: number | null
   images: ProductImageRecord[]
 }
 
@@ -168,6 +172,10 @@ function makeProduct(overrides?: Partial<ProductDetail>): ProductDetail {
     vatRateCategory: 'standard',
     shopId: 'shop-1',
     categoryId: 'cat-1',
+    weightGrams: null,
+    lengthCm: null,
+    widthCm: null,
+    heightCm: null,
     images: [
       {
         id: 'img-1',
@@ -507,6 +515,10 @@ describe('CreatorProductEditPage', () => {
       vatRateCategory: 'standard',
       shopId: 'shop-1',
       categoryId: 'cat-1',
+      weightGrams: null,
+      lengthCm: null,
+      widthCm: null,
+      heightCm: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     })
@@ -602,6 +614,10 @@ describe('CreatorProductEditPage', () => {
       shopId: 'shop-1',
       categoryId: null,
       vatRateCategory: 'standard',
+      weightGrams: null,
+      lengthCm: null,
+      widthCm: null,
+      heightCm: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     })

@@ -1,10 +1,21 @@
+import { randomUUID } from 'node:crypto'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { invoices, orderItem, shopOrder, platformOrder, shop, user, product } from '#/db/schema'
+import {
+  invoices,
+  invoiceNumberSequence,
+  orderItem,
+  shopOrder,
+  platformOrder,
+  shop,
+  user,
+  product,
+} from '#/db/schema'
 import { PLATFORM_FEE_PERCENT } from './platform-constants'
 import {
   calculatePlatformFeeVat,
+  createCreditNoteForShopOrder,
   createInvoicesForPlatformOrder,
   getInvoiceByIdQuery,
 } from './invoices.server'
@@ -260,14 +271,14 @@ describe('Platform Order Invoices Lifecycle', () => {
     })
 
     // 2. Generate Invoices
-    await createInvoicesForPlatformOrder(po.id)
+    const created = await createInvoicesForPlatformOrder(po.id)
+    const { customerInvoiceNumber, platformFeeInvoiceNumber } = created.get(so.id)!
 
     // 3. Verify Customer Invoice
-    const customerInvNumber = `INV-${so.id.toUpperCase()}`
     const [custInvoice] = await db
       .select()
       .from(invoices)
-      .where(eq(invoices.invoiceNumber, customerInvNumber))
+      .where(eq(invoices.invoiceNumber, customerInvoiceNumber))
 
     expect(custInvoice).toBeDefined()
     expect(custInvoice.type).toBe('customer')
@@ -286,11 +297,10 @@ describe('Platform Order Invoices Lifecycle', () => {
     expect(custDetails.reverseCharge).toBe(false)
 
     // 4. Verify Platform Fee Invoice
-    const feeInvNumber = `INV-FEE-${so.id.toUpperCase()}`
     const [feeInvoice] = await db
       .select()
       .from(invoices)
-      .where(eq(invoices.invoiceNumber, feeInvNumber))
+      .where(eq(invoices.invoiceNumber, platformFeeInvoiceNumber))
 
     expect(feeInvoice).toBeDefined()
     expect(feeInvoice.type).toBe('platform_fee')
@@ -396,13 +406,13 @@ describe('Platform Order Invoices Lifecycle', () => {
       vatAmountCents: 0,
     })
 
-    await createInvoicesForPlatformOrder(po.id)
+    const created = await createInvoicesForPlatformOrder(po.id)
+    const { customerInvoiceNumber } = created.get(so.id)!
 
-    const customerInvNumber = `INV-${so.id.toUpperCase()}`
     const [custInvoice] = await db
       .select()
       .from(invoices)
-      .where(eq(invoices.invoiceNumber, customerInvNumber))
+      .where(eq(invoices.invoiceNumber, customerInvoiceNumber))
 
     expect(custInvoice).toBeDefined()
     expect(custInvoice.type).toBe('customer')
@@ -517,13 +527,13 @@ describe('Platform Order Invoices Lifecycle', () => {
       vatAmountCents: 190,
     })
 
-    await createInvoicesForPlatformOrder(po.id)
+    const created = await createInvoicesForPlatformOrder(po.id)
+    const { customerInvoiceNumber } = created.get(so.id)!
 
-    const customerInvNumber = `INV-${so.id.toUpperCase()}`
     const [custInvoice] = await db
       .select()
       .from(invoices)
-      .where(eq(invoices.invoiceNumber, customerInvNumber))
+      .where(eq(invoices.invoiceNumber, customerInvoiceNumber))
 
     expect(custInvoice).toBeDefined()
     expect(custInvoice.vatAmountCents).toBe(0)
@@ -659,17 +669,19 @@ describe('Platform Order Invoices Lifecycle', () => {
       },
     ])
 
-    await createInvoicesForPlatformOrder(po.id)
+    const created = await createInvoicesForPlatformOrder(po.id)
+    const so1Numbers = created.get(so1.id)!
+    const so2Numbers = created.get(so2.id)!
 
     // Verify customer invoices for both shop orders
     const custInv1 = await db
       .select()
       .from(invoices)
-      .where(eq(invoices.invoiceNumber, `INV-${so1.id.toUpperCase()}`))
+      .where(eq(invoices.invoiceNumber, so1Numbers.customerInvoiceNumber))
     const custInv2 = await db
       .select()
       .from(invoices)
-      .where(eq(invoices.invoiceNumber, `INV-${so2.id.toUpperCase()}`))
+      .where(eq(invoices.invoiceNumber, so2Numbers.customerInvoiceNumber))
 
     expect(custInv1).toHaveLength(1)
     expect(custInv2).toHaveLength(1)
@@ -688,11 +700,11 @@ describe('Platform Order Invoices Lifecycle', () => {
     const feeInv1 = await db
       .select()
       .from(invoices)
-      .where(eq(invoices.invoiceNumber, `INV-FEE-${so1.id.toUpperCase()}`))
+      .where(eq(invoices.invoiceNumber, so1Numbers.platformFeeInvoiceNumber))
     const feeInv2 = await db
       .select()
       .from(invoices)
-      .where(eq(invoices.invoiceNumber, `INV-FEE-${so2.id.toUpperCase()}`))
+      .where(eq(invoices.invoiceNumber, so2Numbers.platformFeeInvoiceNumber))
 
     expect(feeInv1).toHaveLength(1)
     expect(feeInv2).toHaveLength(1)
@@ -737,35 +749,170 @@ describe('Platform Order Invoices Lifecycle', () => {
       })
       .returning()
 
-    await createInvoicesForPlatformOrder(po.id)
-
-    const customerInvNumber = `INV-${so.id.toUpperCase()}`
-    const feeInvNumber = `INV-FEE-${so.id.toUpperCase()}`
+    const created = await createInvoicesForPlatformOrder(po.id)
+    const { customerInvoiceNumber, platformFeeInvoiceNumber } = created.get(so.id)!
 
     // 1. Admin can access customer invoice
-    const resAdminCust = await getInvoiceByIdQuery(customerInvNumber, 'admin-id', 'admin')
+    const resAdminCust = await getInvoiceByIdQuery(customerInvoiceNumber, 'admin-id', 'admin')
     expect(resAdminCust).toBeDefined()
 
     // 2. Admin can access platform fee invoice
-    const resAdminFee = await getInvoiceByIdQuery(feeInvNumber, 'admin-id', 'admin')
+    const resAdminFee = await getInvoiceByIdQuery(platformFeeInvoiceNumber, 'admin-id', 'admin')
     expect(resAdminFee).toBeDefined()
 
     // 3. Buyer can access customer invoice
-    const resBuyerCust = await getInvoiceByIdQuery(customerInvNumber, 'buyer-2', 'customer')
+    const resBuyerCust = await getInvoiceByIdQuery(customerInvoiceNumber, 'buyer-2', 'customer')
     expect(resBuyerCust).toBeDefined()
 
     // 4. Buyer cannot access platform fee invoice
-    await expect(getInvoiceByIdQuery(feeInvNumber, 'buyer-2', 'customer')).rejects.toThrow()
+    await expect(
+      getInvoiceByIdQuery(platformFeeInvoiceNumber, 'buyer-2', 'customer'),
+    ).rejects.toThrow()
 
     // 5. Creator can access customer invoice
-    const resCreatorCust = await getInvoiceByIdQuery(customerInvNumber, 'creator-2', 'creator')
+    const resCreatorCust = await getInvoiceByIdQuery(customerInvoiceNumber, 'creator-2', 'creator')
     expect(resCreatorCust).toBeDefined()
 
     // 6. Creator can access platform fee invoice
-    const resCreatorFee = await getInvoiceByIdQuery(feeInvNumber, 'creator-2', 'creator')
+    const resCreatorFee = await getInvoiceByIdQuery(
+      platformFeeInvoiceNumber,
+      'creator-2',
+      'creator',
+    )
     expect(resCreatorFee).toBeDefined()
 
     // 7. Stranger cannot access customer invoice
-    await expect(getInvoiceByIdQuery(customerInvNumber, 'stranger', 'customer')).rejects.toThrow()
+    await expect(
+      getInvoiceByIdQuery(customerInvoiceNumber, 'stranger', 'customer'),
+    ).rejects.toThrow()
+  })
+})
+
+describe('Sequential invoice numbering', () => {
+  beforeEach(async () => {
+    await db.delete(invoiceNumberSequence)
+    await db.delete(invoices)
+    await db.delete(orderItem)
+    await db.delete(shopOrder)
+    await db.delete(platformOrder)
+    await db.delete(product)
+    await db.delete(shop)
+    await db.delete(user)
+  })
+
+  async function seedNumberingFixture() {
+    const suffix = randomUUID().slice(0, 8)
+    const [buyer] = await db
+      .insert(user)
+      .values({
+        id: randomUUID(),
+        name: 'Buyer',
+        email: `buyer-${suffix}@example.com`,
+        role: 'customer',
+      })
+      .returning()
+    const [owner] = await db
+      .insert(user)
+      .values({
+        id: randomUUID(),
+        name: 'Owner',
+        email: `owner-${suffix}@example.com`,
+        role: 'creator',
+      })
+      .returning()
+    const [shopRecord] = await db
+      .insert(shop)
+      .values({
+        id: randomUUID(),
+        name: 'Number Shop',
+        slug: `number-shop-${suffix}`,
+        ownerId: owner.id,
+      })
+      .returning()
+    const [prod] = await db
+      .insert(product)
+      .values({
+        id: randomUUID(),
+        name: 'Item',
+        slug: `item-${suffix}`,
+        priceCents: 1000,
+        shopId: shopRecord.id,
+      })
+      .returning()
+    const [po] = await db
+      .insert(platformOrder)
+      .values({
+        id: randomUUID(),
+        userId: buyer.id,
+        shippingAddress: { name: 'Buyer', country: 'FR' },
+        billingAddress: { name: 'Buyer', country: 'FR' },
+        totalCents: 1200,
+        status: 'paid',
+      })
+      .returning()
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        id: randomUUID(),
+        platformOrderId: po.id,
+        shopId: shopRecord.id,
+        shippingMethod: 'standard',
+        shippingCostCents: 200,
+        subtotalCents: 1000,
+        vatAmountCents: 0,
+        shippingVatRateBasisPoints: 0,
+        shippingVatAmountCents: 0,
+        status: 'paid',
+      })
+      .returning()
+    await db.insert(orderItem).values({
+      id: randomUUID(),
+      shopOrderId: so.id,
+      productId: prod.id,
+      productName: 'Item',
+      unitPriceCents: 1000,
+      quantity: 1,
+      totalCents: 1000,
+      vatRateBasisPoints: 0,
+      vatAmountCents: 0,
+    })
+    return { shopOrder: so }
+  }
+
+  it('allocates sequential customer and platform fee invoice numbers', async () => {
+    const { shopOrder: so1 } = await seedNumberingFixture()
+    const { shopOrder: so2 } = await seedNumberingFixture()
+
+    const created1 = await createInvoicesForPlatformOrder(so1.platformOrderId)
+    const created2 = await createInvoicesForPlatformOrder(so2.platformOrderId)
+
+    const n1 = created1.get(so1.id)
+    const n2 = created2.get(so2.id)
+    expect(n1).toBeDefined()
+    expect(n2).toBeDefined()
+
+    const match = /^INV-\d{4}-(\d{5})$/
+    const m1 = n1?.customerInvoiceNumber.match(match)
+    const m2 = n2?.customerInvoiceNumber.match(match)
+    expect(m1).not.toBeNull()
+    expect(m2).not.toBeNull()
+    expect(Number(m2?.[1])).toBe(Number(m1?.[1]) + 1)
+  })
+
+  it('creates a credit note linked to the original customer invoice', async () => {
+    const { shopOrder: so } = await seedNumberingFixture()
+    await createInvoicesForPlatformOrder(so.platformOrderId)
+
+    const creditNoteNumber = await createCreditNoteForShopOrder(so.id)
+    expect(creditNoteNumber).toMatch(/^CN-\d{4}-\d{5}$/)
+
+    const [note] = await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.invoiceNumber, creditNoteNumber!))
+    expect(note).toBeDefined()
+    expect(note.type).toBe('credit_note')
+    expect(note.originalInvoiceNumber).toBeDefined()
+    expect(note.totalCents).toBeLessThan(0)
   })
 })

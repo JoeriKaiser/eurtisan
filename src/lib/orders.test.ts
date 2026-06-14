@@ -14,7 +14,7 @@ import {
   shopOrder,
   user,
 } from '#/db/schema'
-import { mondialRelayProvider } from '#/integrations/shipping'
+import { mockShippingProvider, resetMockShippingCounter } from '#/integrations/shipping'
 
 import {
   cancelOrderQuery,
@@ -24,8 +24,10 @@ import {
 } from './orders.server'
 
 beforeEach(async () => {
+  resetMockShippingCounter()
   await db.delete(inventoryReservation)
   await db.delete(orderItem)
+  await db.delete(shippingLabel)
   await db.delete(shopOrder)
   await db.delete(platformOrder)
   await db.delete(cartItem)
@@ -302,17 +304,17 @@ describe('getBuyerOrderDetailQuery', () => {
 
     await db.insert(shippingLabel).values({
       shopOrderId: so.id,
-      carrier: 'mondial_relay',
-      trackingNumber: 'MR12345678',
-      labelUrl: 'https://mock.mondialrelay.example.com/labels/mrlbl_MR12345678.pdf',
+      carrier: 'sendcloud',
+      trackingNumber: 'SC12345678',
+      labelUrl: 'https://mock.sendcloud.example.com/labels/sclbl_SC12345678.pdf',
     })
 
     const result = await getBuyerOrderDetailQuery(order.id, 'user-1')
     expect(result).not.toBeNull()
     expect(result?.shops).toHaveLength(1)
     expect(result?.shops[0].shippingLabels).toHaveLength(1)
-    expect(result?.shops[0].shippingLabels[0].carrier).toBe('mondial_relay')
-    expect(result?.shops[0].shippingLabels[0].trackingNumber).toBe('MR12345678')
+    expect(result?.shops[0].shippingLabels[0].carrier).toBe('sendcloud')
+    expect(result?.shops[0].shippingLabels[0].trackingNumber).toBe('SC12345678')
     expect(result?.shops[0].trackingStatus).not.toBeNull()
   })
 
@@ -410,11 +412,11 @@ describe('getBuyerOrderDetailQuery', () => {
 
     await db.insert(shippingLabel).values({
       shopOrderId: so.id,
-      carrier: 'mondial_relay',
-      trackingNumber: 'MR_CACHE_TEST_123',
+      carrier: 'sendcloud',
+      trackingNumber: 'SC_CACHE_TEST_123',
     })
 
-    const trackSpy = vi.spyOn(mondialRelayProvider, 'trackShipment')
+    const trackSpy = vi.spyOn(mockShippingProvider, 'trackShipment')
 
     // First call: should query the provider
     const res1 = await getBuyerOrderDetailQuery(order.id, 'user-1')
@@ -468,18 +470,18 @@ describe('getBuyerOrderDetailQuery', () => {
 
     await db.insert(shippingLabel).values({
       shopOrderId: so.id,
-      carrier: 'mondial_relay',
-      trackingNumber: 'MR_TIMEOUT_TEST_123',
+      carrier: 'sendcloud',
+      trackingNumber: 'SC_TIMEOUT_TEST_123',
     })
 
     // Mock tracking status to delay longer than the 1s timeout
     const trackSpy = vi
-      .spyOn(mondialRelayProvider, 'trackShipment')
+      .spyOn(mockShippingProvider, 'trackShipment')
       .mockImplementation(async () => {
         await new Promise((resolve) => setTimeout(resolve, 1500))
         return {
-          trackingNumber: 'MR_TIMEOUT_TEST_123',
-          carrier: 'mondial_relay',
+          trackingNumber: 'SC_TIMEOUT_TEST_123',
+          carrier: 'sendcloud',
           status: 'in_transit',
           events: [],
         }
@@ -535,13 +537,13 @@ describe('getBuyerOrderDetailQuery', () => {
 
     await db.insert(shippingLabel).values({
       shopOrderId: so.id,
-      carrier: 'mondial_relay',
-      trackingNumber: 'MR_FALLBACK_TEST_123',
+      carrier: 'sendcloud',
+      trackingNumber: 'SC_FALLBACK_TEST_123',
     })
 
     let mockTime = Date.now()
     const dateSpy = vi.spyOn(Date, 'now').mockImplementation(() => mockTime)
-    const trackSpy = vi.spyOn(mondialRelayProvider, 'trackShipment')
+    const trackSpy = vi.spyOn(mockShippingProvider, 'trackShipment')
 
     // First call: should query the provider and cache it
     const res1 = await getBuyerOrderDetailQuery(order.id, 'user-1')

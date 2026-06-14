@@ -172,8 +172,8 @@ export function ShopOrderShipDialog({
                 )}
                 {form.mode === 'label' && (
                   <p className='text-sm text-text-secondary'>
-                    The system will generate a shipping label via Mondial Relay using your shop's
-                    origin address and the buyer's shipping address.
+                    The system will generate a shipping label via Sendcloud using your shop's origin
+                    address and the buyer's shipping address.
                   </p>
                 )}
                 {status.error && (

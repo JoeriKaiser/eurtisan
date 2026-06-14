@@ -1,5 +1,6 @@
 import { useLocation } from '@tanstack/react-router'
 import { useEffect } from 'react'
+import { useAnalyticsConsent } from '#/hooks/use-analytics-consent'
 
 interface UmamiConfig {
   scriptUrl: string
@@ -20,13 +21,13 @@ function getUmamiConfig(): UmamiConfig | null {
 
 /**
  * Renders the Umami tracking script when the required environment
- * variables are present. Safe to render on both server and client;
- * it returns `null` when Umami is not configured so it produces no
- * markup in development or when disabled.
+ * variables are present and the user has granted analytics consent.
+ * Respects Do Not Track automatically.
  */
 export function UmamiScript() {
   const location = useLocation()
   const config = getUmamiConfig()
+  const { consent } = useAnalyticsConsent()
 
   useEffect(() => {
     if (window.umami && location.pathname) {
@@ -34,7 +35,7 @@ export function UmamiScript() {
     }
   }, [location.pathname])
 
-  if (!config) return null
+  if (!config || consent !== 'granted') return null
 
   return (
     <script

@@ -1,16 +1,16 @@
 import { useRouter } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import { Button } from '#/components/ui/button'
+import { FeedbackBanner } from '#/components/ui/FeedbackBanner'
+import { useImageUpload } from '#/hooks/useImageUpload'
 import type { CreatorShop } from '#/lib/creator-dashboard'
 import { createProduct } from '#/lib/creator-products'
 import { createProductSchema } from '#/lib/creator-products.schema'
-import { useImageUpload } from '#/hooks/useImageUpload'
 import { m } from '#/paraglide/messages'
-import { Button } from '#/components/ui/button'
-import { FeedbackBanner } from '#/components/ui/FeedbackBanner'
 import { CancelConfirmationDialog } from './CancelConfirmationDialog'
-import { ProductNewImageUploader, type UploadedImage } from './ProductNewImageUploader'
 import { ProductNewFormFields } from './ProductNewFormFields'
+import { ProductNewImageUploader, type UploadedImage } from './ProductNewImageUploader'
 
 /* -------------------------------------------------------------------------- */
 /*                                    Types                                   */
@@ -57,6 +57,10 @@ export interface FormValues {
   categoryId: string
   isActive: boolean
   vatRateCategory: 'standard' | 'reduced' | 'exempt'
+  weightGrams: string
+  lengthCm: string
+  widthCm: string
+  heightCm: string
 }
 
 interface FormState {
@@ -85,6 +89,10 @@ function createInitialFormState(initialShops: CreatorShop[]): FormState {
       categoryId: '',
       isActive: true,
       vatRateCategory: 'standard',
+      weightGrams: '',
+      lengthCm: '',
+      widthCm: '',
+      heightCm: '',
     },
     fieldErrors: {},
     slugError: null,
@@ -142,6 +150,10 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
     formState.values.description !== '' ||
     formState.values.price !== '' ||
     formState.values.stockCount !== '0' ||
+    formState.values.weightGrams !== '' ||
+    formState.values.lengthCm !== '' ||
+    formState.values.widthCm !== '' ||
+    formState.values.heightCm !== '' ||
     formState.values.categoryId !== '' ||
     images.length > 0
 
@@ -285,6 +297,16 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
       categoryId: formState.values.categoryId || undefined,
       isActive: formState.values.isActive,
       vatRateCategory: formState.values.vatRateCategory,
+      weightGrams: formState.values.weightGrams
+        ? Number.parseInt(formState.values.weightGrams, 10)
+        : undefined,
+      lengthCm: formState.values.lengthCm
+        ? Number.parseInt(formState.values.lengthCm, 10)
+        : undefined,
+      widthCm: formState.values.widthCm ? Number.parseInt(formState.values.widthCm, 10) : undefined,
+      heightCm: formState.values.heightCm
+        ? Number.parseInt(formState.values.heightCm, 10)
+        : undefined,
       images: images
         .filter((img) => !img.error && !img.uploading && img.key)
         .map((img) => ({ key: img.key, altText: img.altText || undefined })),
@@ -397,6 +419,18 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
           categoryId: formState.values.categoryId || undefined,
           isActive: formState.values.isActive,
           vatRateCategory: formState.values.vatRateCategory,
+          weightGrams: formState.values.weightGrams
+            ? Number.parseInt(formState.values.weightGrams, 10)
+            : undefined,
+          lengthCm: formState.values.lengthCm
+            ? Number.parseInt(formState.values.lengthCm, 10)
+            : undefined,
+          widthCm: formState.values.widthCm
+            ? Number.parseInt(formState.values.widthCm, 10)
+            : undefined,
+          heightCm: formState.values.heightCm
+            ? Number.parseInt(formState.values.heightCm, 10)
+            : undefined,
           images: images
             .filter((img) => !img.error && !img.uploading && img.key)
             .map((img) => ({ key: img.key, altText: img.altText || undefined })),

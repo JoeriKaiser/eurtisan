@@ -1,7 +1,14 @@
 /**
  * Prometheus metrics scrape endpoint.
  *
- * When METRICS_TOKEN is set, requests must send Authorization: Bearer <token>.
+ * When METRICS_TOKEN is set, requests must send either:
+ *   Authorization: Bearer <token>
+ * or include the token in the `token` query parameter.
+ *
+ * The query-parameter fallback lets Prometheus scrape with a static
+ * `params` configuration when header-based secrets are inconvenient to
+ * inject; traffic between Prometheus and the app travels over the internal
+ * Docker network only.
  */
 import { createFileRoute } from '@tanstack/react-router'
 import { getMetricsBody, metricsContentType } from '#/lib/metrics.server'
@@ -12,7 +19,11 @@ function isAuthorized(request: Request): boolean {
     return true
   }
   const auth = request.headers.get('authorization')
-  return auth === `Bearer ${token}`
+  if (auth === `Bearer ${token}`) {
+    return true
+  }
+  const url = new URL(request.url)
+  return url.searchParams.get('token') === token
 }
 
 export async function getMetricsResponse(request: Request): Promise<Response> {

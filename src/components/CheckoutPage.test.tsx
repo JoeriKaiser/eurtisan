@@ -6,10 +6,12 @@ import CheckoutPage from './CheckoutPage'
 
 const mockCreateCheckout = vi.hoisted(() => vi.fn())
 const mockGetCheckoutSummary = vi.hoisted(() => vi.fn())
+const mockGetServicePoints = vi.hoisted(() => vi.fn())
 
 vi.mock('#/lib/checkout', () => ({
   createCheckout: mockCreateCheckout,
   getCheckoutSummary: mockGetCheckoutSummary,
+  getServicePoints: mockGetServicePoints,
 }))
 
 vi.mock('@tanstack/react-router', () => ({
@@ -87,6 +89,10 @@ function makeSummary(overrides?: Partial<Parameters<typeof CheckoutPage>[0]['sum
             priceCents: 1000,
             quantity: 2,
             imageUrl: 'http://example.com/vase.jpg',
+            weightGrams: null,
+            lengthCm: null,
+            widthCm: null,
+            heightCm: null,
           },
         ],
         subtotalCents: 2000,
@@ -121,7 +127,9 @@ function makeSummary(overrides?: Partial<Parameters<typeof CheckoutPage>[0]['sum
   }
 }
 
-function makeMondialSummary(overrides?: Partial<Parameters<typeof CheckoutPage>[0]['summary']>) {
+function makeServicePointSummary(
+  overrides?: Partial<Parameters<typeof CheckoutPage>[0]['summary']>,
+) {
   return {
     ...makeSummary(),
     shops: [
@@ -132,19 +140,20 @@ function makeMondialSummary(overrides?: Partial<Parameters<typeof CheckoutPage>[
             method: 'standard' as const,
             costCents: 500,
             label: 'Standard',
-            rateId: 'rate-std-1',
-            carrier: 'mondial_relay',
-            serviceName: 'Mondial Relay Standard',
+            rateId: 'sendcloud_std_test_001',
+            carrier: 'sendcloud',
+            serviceName: 'Sendcloud Standard',
             estimatedDays: { min: 2, max: 4 },
             fallback: false,
+            supportsServicePoint: true,
           },
           {
             method: 'express' as const,
             costCents: 1000,
             label: 'Express',
-            rateId: 'rate-xpr-1',
-            carrier: 'mondial_relay',
-            serviceName: 'Mondial Relay Express',
+            rateId: 'sendcloud_xpr_test_001',
+            carrier: 'sendcloud',
+            serviceName: 'Sendcloud Express',
             estimatedDays: { min: 1, max: 1 },
             fallback: false,
           },
@@ -161,6 +170,27 @@ describe('CheckoutPage', () => {
     mockCreateCheckout.mockResolvedValue({ platformOrderId: 'order-1' })
     // Return the same summary by default for rate fetches
     mockGetCheckoutSummary.mockResolvedValue(makeSummary())
+    // Return deterministic mock service points for the pick-up point modal
+    mockGetServicePoints.mockResolvedValue([
+      {
+        id: 'FR-75001-01',
+        name: 'Relay Pick-up - Auchan',
+        street: '25 Rue de Rivoli',
+        postalCode: '75001',
+        city: 'Paris',
+        country: 'FR',
+        distance: '0.4 km',
+      },
+      {
+        id: 'FR-75001-02',
+        name: 'Épicerie du Coin',
+        street: '14 Rue Saint-Denis',
+        postalCode: '75001',
+        city: 'Paris',
+        country: 'FR',
+        distance: '0.8 km',
+      },
+    ])
   })
 
   it('renders checkout title', () => {
@@ -354,6 +384,10 @@ describe('CheckoutPage', () => {
               priceCents: 1000,
               quantity: 1,
               imageUrl: null,
+              weightGrams: null,
+              lengthCm: null,
+              widthCm: null,
+              heightCm: null,
             },
           ],
           subtotalCents: 1000,
@@ -384,6 +418,10 @@ describe('CheckoutPage', () => {
               priceCents: 2000,
               quantity: 1,
               imageUrl: null,
+              weightGrams: null,
+              lengthCm: null,
+              widthCm: null,
+              heightCm: null,
             },
           ],
           subtotalCents: 2000,
@@ -425,6 +463,10 @@ describe('CheckoutPage', () => {
               priceCents: 1000,
               quantity: 1,
               imageUrl: null,
+              weightGrams: null,
+              lengthCm: null,
+              widthCm: null,
+              heightCm: null,
             },
           ],
           subtotalCents: 1000,
@@ -446,10 +488,10 @@ describe('CheckoutPage', () => {
     expect(screen.getAllByText('Manual shipping — contact seller').length).toBeGreaterThanOrEqual(1)
   })
 
-  describe('Mondial Relay Integration', () => {
-    it('renders Mondial Relay pick-up point selection section and warning banner when Mondial Relay is selected', () => {
-      render(<CheckoutPage summary={makeMondialSummary()} cartId='cart-1' />)
-      expect(screen.getByText('Mondial Relay Pick-up Point')).toBeDefined()
+  describe('Service Point Selection', () => {
+    it('renders pick-up point selection section and warning banner when a service-point option is selected', () => {
+      render(<CheckoutPage summary={makeServicePointSummary()} cartId='cart-1' />)
+      expect(screen.getByText('Pick-up Point')).toBeDefined()
       expect(
         screen.getByText('Please select a pick-up point before placing your order.'),
       ).toBeDefined()
@@ -459,10 +501,10 @@ describe('CheckoutPage', () => {
     })
 
     it('opens pick-up point selector modal and allows selecting a point', async () => {
-      render(<CheckoutPage summary={makeMondialSummary()} cartId='cart-1' />)
+      render(<CheckoutPage summary={makeServicePointSummary()} cartId='cart-1' />)
 
       // Initially, no pickup point is shown
-      expect(screen.queryByText('Locker Mondial Relay - Auchan')).toBeNull()
+      expect(screen.queryByText('Relay Pick-up - Auchan')).toBeNull()
 
       // Fill in postal code and country to avoid empty required fields in modal search
       fireEvent.change(screen.getByLabelText('Postal code'), { target: { value: '75001' } })
@@ -473,16 +515,16 @@ describe('CheckoutPage', () => {
 
       // Verify the dialog is visible and shows details
       expect(screen.getByRole('dialog')).toBeDefined()
-      expect(
-        screen.getByRole('heading', { name: 'Select Mondial Relay Pick-up Point' }),
-      ).toBeDefined()
+      expect(screen.getByRole('heading', { name: 'Select Pick-up Point' })).toBeDefined()
 
       // Click Search in the modal
       fireEvent.click(screen.getByRole('button', { name: 'Search' }))
 
-      // Now the mock pickup points should be displayed
-      expect(screen.getByText('Locker Mondial Relay - Auchan')).toBeDefined()
-      expect(screen.getByText('25 Rue de Rivoli')).toBeDefined()
+      // Now the mock service points should be displayed
+      await waitFor(() => {
+        expect(screen.getByText('Relay Pick-up - Auchan')).toBeDefined()
+        expect(screen.getByText('25 Rue de Rivoli')).toBeDefined()
+      })
 
       // Click Select on the first pick-up point
       const selectButtons = screen.getAllByRole('button', { name: 'Select' })
@@ -491,7 +533,7 @@ describe('CheckoutPage', () => {
       // The modal should close and the selected point details should be rendered on the main page
       await waitFor(() => {
         expect(screen.queryByRole('dialog')).toBeNull()
-        expect(screen.getByText('Locker Mondial Relay - Auchan')).toBeDefined()
+        expect(screen.getByText('Relay Pick-up - Auchan')).toBeDefined()
         expect(screen.getByText('25 Rue de Rivoli')).toBeDefined()
         // The warning banner should be gone
         expect(

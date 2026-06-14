@@ -78,13 +78,22 @@ async function checkBrevo(): Promise<'connected' | 'disconnected' | 'skipped'> {
   }
 }
 
+/**
+ * Disk-space check for the health endpoint.
+ *
+ * `HEALTH_DISK_PATH` can be set to the mount point that actually stores
+ * application data (e.g. `/var/lib/postgresql/data` for the database volume or
+ * `/` for the app container root). The previous default of `/tmp` reported the
+ * wrong filesystem and could mask disk-pressure issues.
+ */
 async function checkDisk(): Promise<{
   healthy: boolean
   availableBytes: number
   totalBytes: number
 }> {
+  const path = process.env.HEALTH_DISK_PATH || '/'
   try {
-    const stats = await statfs('/tmp')
+    const stats = await statfs(path)
     const availableBytes = stats.bavail * stats.bsize
     const totalBytes = stats.blocks * stats.bsize
     return {

@@ -19,7 +19,7 @@ export interface CreatorPayoutLine {
   date: Date
   amountCents: number
   /** Payout lifecycle status as tracked in the database. */
-  status: 'pending' | 'in_transit' | 'sent' | 'failed' | 'reversed'
+  status: 'pending' | 'in_transit' | 'sent' | 'failed' | 'reversed' | 'returned'
   /** Original shop_order status, exposed so the UI can differentiate refunds. */
   orderStatus: string
   /** True when this line represents a refund deduction. */
@@ -142,6 +142,14 @@ export async function executePayoutQuery(payoutId: string): Promise<ExecutePayou
         kind: 'error' as const,
         status: 409,
         message: 'Payout has been reversed and cannot be re-executed',
+      }
+    }
+
+    if (payoutRecord.status === 'returned') {
+      return {
+        kind: 'error' as const,
+        status: 409,
+        message: 'Payout has been returned and cannot be re-executed',
       }
     }
 
@@ -292,6 +300,7 @@ export async function executePayoutQuery(payoutId: string): Promise<ExecutePayou
       }
     } catch (notifyErr) {
       logger.error('Failed to send payout_sent notification', notifyErr, {
+        alert: true,
         payoutId,
         shopId: payoutRecord.shopId,
       })
@@ -558,7 +567,7 @@ export async function listPayoutHistoryQuery(
  * - Amount is subtotal minus platform fee ({@link PLATFORM_FEE_PERCENT}).
  * - Payout status is derived from the underlying order status and any existing payout records:
  *   - `delivered` → `pending`
- *   - `completed` → `processing`
+ *   - `completed` → `in_transit`
  *   - If a matching payout record exists with status `sent` → `sent`
  * - When `status` filter is provided, all matching orders are fetched, statuses derived,
  *   and results are filtered in-memory before pagination.

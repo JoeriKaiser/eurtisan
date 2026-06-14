@@ -282,6 +282,43 @@ export async function releaseStockInTx(tx: DbOrTx, platformOrderId: string): Pro
 }
 
 /**
+ * Restore stock for the items of a single shop order and delete their
+ * reservations.
+ *
+ * Increments each product's `stockCount` by the ordered quantity and removes
+ * the matching `(productId, platformOrderId)` reservation rows. Safe to call
+ * when no reservation exists — the stock is still restored.
+ */
+export async function restoreShopOrderStockInTx(
+  tx: DbOrTx,
+  platformOrderId: string,
+  shopOrderId: string,
+): Promise<void> {
+  const items = await tx
+    .select({ productId: orderItem.productId, quantity: orderItem.quantity })
+    .from(orderItem)
+    .where(eq(orderItem.shopOrderId, shopOrderId))
+
+  if (items.length === 0) return
+
+  for (const item of items) {
+    await tx
+      .update(product)
+      .set({ stockCount: sql`${product.stockCount} + ${item.quantity}` })
+      .where(eq(product.id, item.productId))
+
+    await tx
+      .delete(inventoryReservation)
+      .where(
+        and(
+          eq(inventoryReservation.productId, item.productId),
+          eq(inventoryReservation.platformOrderId, platformOrderId),
+        ),
+      )
+  }
+}
+
+/**
  * Reserve stock for a cart item inside an existing transaction.
  *
  * Locks the product row and checks available stock (excluding the cart's own

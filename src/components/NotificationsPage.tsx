@@ -1,5 +1,5 @@
 import { useRouter } from '@tanstack/react-router'
-import { AlertTriangle, Banknote, Bell, Package, Star, Truck } from 'lucide-react'
+import { AlertTriangle, Banknote, Bell, Package, Star, Truck, Undo2 } from 'lucide-react'
 import type { NotificationItem, NotificationType } from '#/lib/notifications.server'
 import { useMarkAllNotificationsRead, useMarkNotificationRead } from '#/lib/notifications-hooks'
 import { m } from '#/paraglide/messages'
@@ -9,6 +9,7 @@ import { formatDateShort } from '#/lib/format-date'
 const TYPE_ICONS: Record<NotificationType, React.ReactNode> = {
   order_placed: <Package size={18} aria-hidden='true' />,
   order_shipped: <Truck size={18} aria-hidden='true' />,
+  order_refunded: <Undo2 size={18} aria-hidden='true' />,
   review_received: <Star size={18} aria-hidden='true' />,
   dispute_opened: <AlertTriangle size={18} aria-hidden='true' />,
   dispute_resolved: <Bell size={18} aria-hidden='true' />,
@@ -36,7 +37,8 @@ function resolveDeepLink(item: NotificationItem): string | null {
 
   switch (item.type) {
     case 'order_placed':
-    case 'order_shipped': {
+    case 'order_shipped':
+    case 'order_refunded': {
       const orderId = data.orderId ?? data.platformOrderId
       if (orderId) return `/orders/${orderId}`
       break
@@ -73,6 +75,8 @@ function notificationPreview(item: NotificationItem): string {
       return m.notification_order_placed({ orderId: data.orderId ?? data.platformOrderId ?? '' })
     case 'order_shipped':
       return m.notification_order_shipped({ orderId: data.orderId ?? data.platformOrderId ?? '' })
+    case 'order_refunded':
+      return m.notification_order_refunded({ orderId: data.orderId ?? data.platformOrderId ?? '' })
     case 'review_received':
       return m.notification_review_received({ productName: data.productName ?? '' })
     case 'dispute_opened':

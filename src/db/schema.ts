@@ -255,6 +255,10 @@ export const product = pgTable(
       .notNull()
       .references(() => shop.id, { onDelete: 'cascade' }),
     categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
+    weightGrams: integer('weight_grams'),
+    lengthCm: integer('length_cm'),
+    widthCm: integer('width_cm'),
+    heightCm: integer('height_cm'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
@@ -273,6 +277,13 @@ export const product = pgTable(
     uniqueIndex('product_shop_slug_unique').on(table.shopId, table.slug),
     check('stock_count_non_negative', sql`${table.stockCount} >= 0`),
     check('price_cents_non_negative', sql`${table.priceCents} >= 0`),
+    check(
+      'product_weight_grams_positive',
+      sql`${table.weightGrams} IS NULL OR ${table.weightGrams} > 0`,
+    ),
+    check('product_length_cm_positive', sql`${table.lengthCm} IS NULL OR ${table.lengthCm} > 0`),
+    check('product_width_cm_positive', sql`${table.widthCm} IS NULL OR ${table.widthCm} > 0`),
+    check('product_height_cm_positive', sql`${table.heightCm} IS NULL OR ${table.heightCm} > 0`),
   ],
 )
 
@@ -402,6 +413,7 @@ export const shopOrder = pgTable(
       .notNull()
       .references(() => shop.id, { onDelete: 'cascade' }),
     shippingMethod: shippingMethodEnum('shipping_method').notNull().default('standard'),
+    shippingRateId: text('shipping_rate_id'),
     shippingCostCents: integer('shipping_cost_cents').notNull().default(0),
     subtotalCents: integer('subtotal_cents').notNull().default(0),
     vatAmountCents: integer('vat_amount_cents').notNull().default(0),
@@ -442,6 +454,10 @@ export const orderItem = pgTable(
     totalCents: integer('total_cents').notNull().default(0),
     vatRateBasisPoints: integer('vat_rate_basis_points').notNull().default(0),
     vatAmountCents: integer('vat_amount_cents').notNull().default(0),
+    weightGrams: integer('weight_grams'),
+    lengthCm: integer('length_cm'),
+    widthCm: integer('width_cm'),
+    heightCm: integer('height_cm'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (table) => [
@@ -512,6 +528,7 @@ export const payoutStatusEnum = pgEnum('payout_status', [
   'sent',
   'failed',
   'reversed',
+  'returned',
 ])
 
 export const payout = pgTable(
@@ -531,6 +548,8 @@ export const payout = pgTable(
     failureReason: text('failure_reason'),
     reversedAt: timestamp('reversed_at'),
     reversalReason: text('reversal_reason'),
+    returnedAt: timestamp('returned_at'),
+    returnReason: text('return_reason'),
     sentAt: timestamp('sent_at'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
@@ -615,9 +634,30 @@ export const shippingLabel = pgTable(
     carrier: text('carrier').notNull(),
     trackingNumber: text('tracking_number'),
     labelUrl: text('label_url'),
+    externalParcelId: text('external_parcel_id'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (table) => [index('shipping_label_shop_order_id_idx').on(table.shopOrderId)],
+)
+
+export const sendcloudWebhookEvent = pgTable(
+  'sendcloud_webhook_event',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    payload: jsonb('payload').notNull(),
+    signatureHeader: text('signature_header'),
+    trackingNumber: text('tracking_number'),
+    parcelId: text('parcel_id'),
+    status: text('status'),
+    processedAt: timestamp('processed_at'),
+    error: text(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('sendcloud_webhook_event_tracking_number_idx').on(table.trackingNumber),
+    index('sendcloud_webhook_event_parcel_id_idx').on(table.parcelId),
+    index('sendcloud_webhook_event_created_at_idx').on(table.createdAt),
+  ],
 )
 
 export const auditLog = pgTable(
@@ -667,7 +707,18 @@ export const emailSuppression = pgTable('email_suppression', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 })
 
-export const invoiceTypeEnum = pgEnum('invoice_type', ['platform_fee', 'customer'])
+export const invoiceTypeEnum = pgEnum('invoice_type', ['platform_fee', 'customer', 'credit_note'])
+
+export const invoiceNumberSequence = pgTable(
+  'invoice_number_sequence',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    prefix: text('prefix').notNull().unique(),
+    lastNumber: integer('last_number').notNull().default(0),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [index('invoice_number_sequence_prefix_idx').on(table.prefix)],
+)
 
 export const invoices = pgTable(
   'invoices',
@@ -678,6 +729,7 @@ export const invoices = pgTable(
     shopOrderId: uuid('shop_order_id')
       .notNull()
       .references(() => shopOrder.id, { onDelete: 'cascade' }),
+    originalInvoiceNumber: text('original_invoice_number'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     vatRateBasisPoints: integer('vat_rate_basis_points').notNull().default(0),
     vatAmountCents: integer('vat_amount_cents').notNull().default(0),

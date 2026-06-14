@@ -101,6 +101,38 @@ export async function reconcilePayouts(): Promise<ReconciliationResult> {
 
       const hasRefund = refundList.refunds.length > 0
       const routeMissing = route === null
+      const routeReturned = route?.status === 'returned'
+
+      if (routeReturned) {
+        await db.transaction(async (tx) => {
+          await tx
+            .update(payout)
+            .set({
+              status: 'returned',
+              returnedAt: new Date(),
+              returnReason: 'mollie_route_returned',
+            })
+            .where(eq(payout.id, record.id))
+
+          await tx.insert(payoutReconciliationLog).values({
+            payoutId: record.id,
+            event: 'route_returned',
+            molliePaymentId: paymentId,
+            mollieRouteId: routeId,
+            amountCents: record.amountCents,
+            payload: {
+              routeStatus: route?.status,
+            },
+          })
+        })
+
+        reversed += 1
+        logger.info(`Payout ${record.id} marked returned during reconciliation`, {
+          payoutId: record.id,
+          routeStatus: route?.status,
+        })
+        continue
+      }
 
       if (routeMissing || hasRefund) {
         await db.transaction(async (tx) => {

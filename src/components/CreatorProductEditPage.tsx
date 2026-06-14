@@ -20,6 +20,10 @@ interface ProductDetail {
   vatRateCategory: string
   shopId: string
   categoryId: string | null
+  weightGrams: number | null
+  lengthCm: number | null
+  widthCm: number | null
+  heightCm: number | null
   images: ProductImageRecord[]
 }
 

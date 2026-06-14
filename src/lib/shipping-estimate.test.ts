@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { calculatePackageDimensions, calculatePackageWeight } from './shipping-estimate'
+import {
+  calculatePackageDimensions,
+  calculatePackageFromItems,
+  calculatePackageWeight,
+} from './shipping-estimate'
 
 describe('calculatePackageWeight', () => {
   it('returns 500g per item', () => {
@@ -34,5 +38,60 @@ describe('calculatePackageDimensions', () => {
   it('scales width linearly with item count', () => {
     const dims10 = calculatePackageDimensions(10)
     expect(dims10.widthCm).toBe(50)
+  })
+})
+
+describe('calculatePackageFromItems', () => {
+  it('sums weights and uses bounding-box dimensions when all fields are present', () => {
+    const pkg = calculatePackageFromItems([
+      { quantity: 2, weightGrams: 300, lengthCm: 20, widthCm: 15, heightCm: 10 },
+      { quantity: 1, weightGrams: 500, lengthCm: 30, widthCm: 20, heightCm: 15 },
+    ])
+
+    expect(pkg.weightGrams).toBe(1100)
+    expect(pkg.lengthCm).toBe(30)
+    expect(pkg.widthCm).toBe(20)
+    expect(pkg.heightCm).toBe(35) // 2 * 10 + 15
+  })
+
+  it('falls back to defaults for items missing dimensions', () => {
+    const pkg = calculatePackageFromItems([
+      { quantity: 1, weightGrams: null, lengthCm: null, widthCm: null, heightCm: null },
+    ])
+
+    expect(pkg.weightGrams).toBe(500)
+    expect(pkg.lengthCm).toBe(20)
+    expect(pkg.widthCm).toBe(15)
+    expect(pkg.heightCm).toBe(15)
+  })
+
+  it('mixes real and fallback dimensions correctly', () => {
+    const pkg = calculatePackageFromItems([
+      { quantity: 1, weightGrams: 250, lengthCm: 10, widthCm: 10, heightCm: 10 },
+      { quantity: 1, weightGrams: null, lengthCm: null, widthCm: null, heightCm: null },
+    ])
+
+    expect(pkg.weightGrams).toBe(750)
+    expect(pkg.lengthCm).toBe(20)
+    expect(pkg.widthCm).toBe(15)
+    expect(pkg.heightCm).toBe(25)
+  })
+
+  it('enforces minimum package dimensions', () => {
+    const pkg = calculatePackageFromItems([])
+
+    expect(pkg.weightGrams).toBe(100)
+    expect(pkg.lengthCm).toBe(10)
+    expect(pkg.widthCm).toBe(10)
+    expect(pkg.heightCm).toBe(5)
+  })
+
+  it('multiplies weight and height by quantity', () => {
+    const pkg = calculatePackageFromItems([
+      { quantity: 3, weightGrams: 200, lengthCm: 12, widthCm: 8, heightCm: 5 },
+    ])
+
+    expect(pkg.weightGrams).toBe(600)
+    expect(pkg.heightCm).toBe(15)
   })
 })

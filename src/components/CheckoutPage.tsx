@@ -6,14 +6,12 @@ import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { createCheckout, getCheckoutSummary } from '#/lib/checkout'
 import type { CheckoutShopGroup, CheckoutSummary, ShippingOption } from '#/lib/checkout.server'
+import { getLocalizedErrorMessage } from '#/lib/error-mapping'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
-import { getLocalizedErrorMessage } from '#/lib/error-mapping'
-import { PickupPointSelectorModal } from './checkout/PickupPointSelectorModal'
-
 import { CheckoutLegalDisclosures } from './checkout/CheckoutLegalDisclosures'
 import { CheckoutOrderItems } from './checkout/CheckoutOrderItems'
-import { CheckoutMondialRelaySection } from './checkout/CheckoutMondialRelaySection'
+import { PickupPointSelectorModal } from './checkout/PickupPointSelectorModal'
 
 function getFieldError(error: unknown): string | undefined {
   if (typeof error === 'string') return error
@@ -176,31 +174,31 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
     }),
   )
 
-  // Mondial Relay Pick-up Point state and selection tracking
+  // Service point pick-up state and selection tracking
   const [dialog, setDialog] = useState({ open: false, key: 0 })
 
   const shippingSelections = form.state.values.shippingSelections
-  const hasMondialRelaySelection = shippingSelections.some((sel, idx) => {
+  const hasServicePointSelection = shippingSelections.some((sel, idx) => {
     const shopGroup = currentSummary.shops[idx]
     if (!shopGroup) return false
     const selectedOption = shopGroup.shippingOptions.find(
       (opt) => opt.rateId === sel.rateId && opt.method === sel.method,
     )
-    return selectedOption?.carrier === 'mondial_relay'
+    return selectedOption?.supportsServicePoint === true
   })
 
   const selectedPickupPoint = form.state.values.shippingAddress.pickupPoint
 
-  // Helper: clear pickup point if no shop has Mondial Relay selected
-  const clearPickupPointIfNoMondialRelay = useCallback(() => {
-    const stillHasMondialRelay = currentSummary.shops.some((shop) => {
+  // Helper: clear pickup point if no selected method supports service points
+  const clearPickupPointIfNoServicePointMethod = useCallback(() => {
+    const stillHasServicePoint = currentSummary.shops.some((shop) => {
       const sel = form.state.values.shippingSelections.find((s) => s.shopId === shop.shopId)
       const selectedOption = shop.shippingOptions.find(
         (o) => o.rateId === sel?.rateId && o.method === sel?.method,
       )
-      return selectedOption?.carrier === 'mondial_relay'
+      return selectedOption?.supportsServicePoint === true
     })
-    if (!stillHasMondialRelay && form.state.values.shippingAddress.pickupPoint) {
+    if (!stillHasServicePoint && form.state.values.shippingAddress.pickupPoint) {
       form.setFieldValue('shippingAddress.pickupPoint', undefined)
     }
   }, [currentSummary.shops, form])
@@ -237,7 +235,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
           form.setFieldValue(`shippingSelections[${i}].rateId`, defaultSel.rateId)
           form.setFieldValue(`shippingSelections[${i}].costCents`, defaultSel.costCents)
         }
-        clearPickupPointIfNoMondialRelay()
+        clearPickupPointIfNoServicePointMethod()
 
         // Check if any shop has only unsupported fallbacks
         for (const shop of updatedSummary.shops) {
@@ -262,7 +260,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
         setStatus((prev) => ({ ...prev, isFetchingRates: false }))
       }
     },
-    [cartId, form, clearPickupPointIfNoMondialRelay],
+    [cartId, form, clearPickupPointIfNoServicePointMethod],
   )
 
   // Listen for address field changes and debounce rate fetching
@@ -325,7 +323,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
       {/* Client-side preventDefault is required because this form is managed
           entirely by TanStack React Form. It performs conditional validation
           (billing address rules depend on sameAsShipping), debounced async
-          shipping-rate fetching, Mondial Relay pick-up point selection, and
+          shipping-rate fetching, service point pick-up point selection, and
           finally redirects to an external payment provider URL. A native
           <form action> would forfeit all of this client-side orchestration. */}
       <form
@@ -740,7 +738,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                                             method: option.method,
                                             costCents: option.costCents,
                                           })
-                                          clearPickupPointIfNoMondialRelay()
+                                          clearPickupPointIfNoServicePointMethod()
                                         }}
                                         className='size-4 accent-accent-primary'
                                       />
@@ -779,11 +777,51 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
             </div>
           </section>
 
-          <CheckoutMondialRelaySection
-            hasMondialRelaySelection={hasMondialRelaySelection}
-            selectedPickupPoint={selectedPickupPoint}
-            onOpenPicker={openPickupPointPicker}
-          />
+          {hasServicePointSelection && (
+            <section className='island-shell rounded-2xl p-4 sm:p-6 border border-accent-secondary/30 bg-surface-default shadow-sm relative overflow-hidden'>
+              <div className='absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-accent-primary to-accent-secondary' />
+              <div className='mb-4 flex items-center gap-2'>
+                <Truck size={18} className='text-accent-primary' aria-hidden='true' />
+                <h2 className='text-lg font-semibold text-text-primary'>Pick-up Point</h2>
+              </div>
+
+              {selectedPickupPoint ? (
+                <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-4 rounded-xl border border-success/30 bg-success/5'>
+                  <div>
+                    <h3 className='text-sm font-semibold text-text-primary flex items-center gap-1.5'>
+                      <span className='size-2 rounded-full bg-success animate-pulse' />
+                      {selectedPickupPoint.name}
+                    </h3>
+                    <p className='text-xs text-text-secondary mt-1'>{selectedPickupPoint.street}</p>
+                    <p className='text-xs text-text-secondary'>
+                      {selectedPickupPoint.postalCode} {selectedPickupPoint.city},{' '}
+                      {selectedPickupPoint.country}
+                    </p>
+                    <span className='inline-block text-[10px] font-mono bg-bg-inset text-text-secondary px-1.5 py-0.5 rounded mt-2'>
+                      ID: {selectedPickupPoint.id}
+                    </span>
+                  </div>
+                  <Button type='button' variant='secondary' onClick={openPickupPointPicker}>
+                    Change Pick-up Point
+                  </Button>
+                </div>
+              ) : (
+                <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-4 rounded-xl border border-warning/30 bg-warning/5'>
+                  <div>
+                    <h3 className='text-sm font-semibold text-warning-strong'>
+                      No Pick-up Point Selected
+                    </h3>
+                    <p className='text-xs text-text-secondary mt-1'>
+                      Please choose a pick-up point location to complete your order.
+                    </p>
+                  </div>
+                  <Button type='button' variant='primary' onClick={openPickupPointPicker}>
+                    Select Pick-up Point
+                  </Button>
+                </div>
+              )}
+            </section>
+          )}
 
           <CheckoutOrderItems currentSummary={currentSummary} />
         </div>
@@ -883,7 +921,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
             <form.Subscribe selector={(state) => state.isSubmitting}>
               {(isSubmitting) => {
                 const disableSubmit =
-                  isSubmitting || (hasMondialRelaySelection && !selectedPickupPoint)
+                  isSubmitting || (hasServicePointSelection && !selectedPickupPoint)
                 return (
                   <>
                     <Button
@@ -902,7 +940,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                         m.checkout_confirm_button()
                       )}
                     </Button>
-                    {hasMondialRelaySelection && !selectedPickupPoint && (
+                    {hasServicePointSelection && !selectedPickupPoint && (
                       <p className='mt-2.5 text-xs text-error text-center' role='alert'>
                         Please select a pick-up point before placing your order.
                       </p>
@@ -921,6 +959,24 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
         onOpenChange={(open) => setDialog((prev) => ({ ...prev, open }))}
         postalCode={form.state.values.shippingAddress.postalCode || ''}
         country={form.state.values.shippingAddress.country || 'FR'}
+        carrier={(() => {
+          const firstServicePointSelection = shippingSelections.find((sel, idx) => {
+            const shopGroup = currentSummary.shops[idx]
+            if (!shopGroup) return false
+            const selectedOption = shopGroup.shippingOptions.find(
+              (opt) => opt.rateId === sel.rateId && opt.method === sel.method,
+            )
+            return selectedOption?.supportsServicePoint === true
+          })
+          if (!firstServicePointSelection) return undefined
+          const shopGroup = currentSummary.shops.find(
+            (s) => s.shopId === firstServicePointSelection.shopId,
+          )
+          const option = shopGroup?.shippingOptions.find(
+            (o) => o.rateId === firstServicePointSelection.rateId,
+          )
+          return option?.carrier
+        })()}
         onSelect={(point) => {
           form.setFieldValue('shippingAddress.pickupPoint', {
             id: point.id,

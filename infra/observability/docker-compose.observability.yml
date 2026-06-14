@@ -2,17 +2,17 @@ services:
   alloy:
     image: grafana/alloy:v1.5.0
     container_name: eurtisan-alloy
+    environment:
+      - APP_CONTAINER_NAME=${APP_CONTAINER_NAME:-eurtisan-app}
     volumes:
       - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - alloy_data:/var/lib/alloy
     command: run --server.http.listen-addr=127.0.0.1:12345 --storage.path=/var/lib/alloy /etc/alloy/config.alloy
-    # No host ports exposed. Traefik reaches Alloy via the coolify Docker network.
-    # For debugging: docker exec -it eurtisan-alloy wget -qO- http://localhost:8027
+    # No host ports exposed. The app reaches Alloy via the eurtisan Docker network.
     networks:
       - eurtisan
-      - coolify
     restart: unless-stopped
 
   grafana:
@@ -24,16 +24,14 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-changeme}
-      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-https://staging.eurtisan.eu/grafana}
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-https://eurtisan.eu/grafana}
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
       - GF_AUTH_ANONYMOUS_ENABLED=false
       - GF_SECURITY_DISABLE_GRAVATAR=true
       - GF_SECURITY_ANGULAR_SUPPORT_ENABLED=false
-    # No host ports exposed. Traefik reaches Grafana via the coolify Docker network.
-    # For debugging: docker exec -it eurtisan-grafana wget -qO- http://localhost:3000/api/health
+    # No host ports exposed. Caddy reaches Grafana via the eurtisan Docker network.
     networks:
       - eurtisan
-      - coolify
     restart: unless-stopped
     depends_on:
       - loki
@@ -93,6 +91,4 @@ volumes:
 
 networks:
   eurtisan:
-    external: true
-  coolify:
     external: true

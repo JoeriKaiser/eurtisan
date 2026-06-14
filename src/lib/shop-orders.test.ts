@@ -1590,14 +1590,14 @@ describe('markShopOrderShippedQuery', () => {
 
     // Find all 'order_shipped' events in console.log
     const loggedEvents = consoleSpy.mock.calls
-      .map((args: any[]) => {
+      .map((args: unknown[]) => {
         try {
-          return JSON.parse(args[0])
+          return JSON.parse(String(args[0]))
         } catch {
           return null
         }
       })
-      .filter((entry: any) => entry && entry.event === 'order_shipped')
+      .filter((entry: unknown) => entry && (entry as { event?: string }).event === 'order_shipped')
 
     // Expect only 1 transition/log
     expect(loggedEvents).toHaveLength(1)
@@ -1808,14 +1808,16 @@ describe('markShopOrderDeliveredQuery', () => {
 
     // Find all 'order_delivered' events in console.log
     const loggedEvents = consoleSpy.mock.calls
-      .map((args: any[]) => {
+      .map((args: unknown[]) => {
         try {
-          return JSON.parse(args[0])
+          return JSON.parse(String(args[0]))
         } catch {
           return null
         }
       })
-      .filter((entry: any) => entry && entry.event === 'order_delivered')
+      .filter(
+        (entry: unknown) => entry && (entry as { event?: string }).event === 'order_delivered',
+      )
 
     // Expect only 1 log
     expect(loggedEvents).toHaveLength(1)
@@ -2036,13 +2038,13 @@ describe('createShippingLabelForOrderQuery', () => {
       .returning()
 
     const label = await createShippingLabelForOrderQuery(so.id)
-    expect(label.carrier).toBe('mondial_relay')
+    expect(label.carrier).toBe('sendcloud')
     expect(label.trackingNumber).toBeTruthy()
     expect(label.labelUrl).toBeTruthy()
 
     const orderWithLabel = await getShopOrderQuery(so.id)
     expect(orderWithLabel?.labels).toHaveLength(1)
-    expect(orderWithLabel?.labels[0].carrier).toBe('mondial_relay')
+    expect(orderWithLabel?.labels[0].carrier).toBe('sendcloud')
   })
 })
 

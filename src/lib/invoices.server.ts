@@ -1,8 +1,44 @@
-import { eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { invoices, platformOrder, shopOrder, orderItem, shop, user } from '#/db/schema'
+import {
+  invoiceNumberSequence,
+  invoices,
+  platformOrder,
+  shopOrder,
+  orderItem,
+  shop,
+  user,
+} from '#/db/schema'
 import { normalizeCountryCode, getStandardVatRate } from './vat.server'
 import { PLATFORM_FEE_PERCENT } from './platform-constants'
+
+/**
+ * Allocates the next sequential number for an invoice prefix.
+ * The format is `{PREFIX}-{YYYY}-{00001}`.
+ */
+async function allocateNextInvoiceNumber(
+  activeDb: Omit<typeof db, '$client'>,
+  prefix: string,
+): Promise<string> {
+  const year = new Date().getFullYear()
+  const [row] = await activeDb
+    .insert(invoiceNumberSequence)
+    .values({ prefix, lastNumber: 1 })
+    .onConflictDoUpdate({
+      target: invoiceNumberSequence.prefix,
+      set: {
+        lastNumber: sql`${invoiceNumberSequence.lastNumber} + 1`,
+        updatedAt: new Date(),
+      },
+    })
+    .returning({ lastNumber: invoiceNumberSequence.lastNumber })
+
+  if (!row) {
+    throw new Error(`Failed to allocate invoice number for prefix ${prefix}`)
+  }
+
+  return `${prefix}-${year}-${String(row.lastNumber).padStart(5, '0')}`
+}
 
 export interface BillingAddress {
   name: string
@@ -217,10 +253,15 @@ export function calculatePlatformFeeVat(
  * Automatically generates customer and platform fee invoices for all shop orders under a platform order.
  * This is designed to run inside a database transaction when the payment goes through.
  */
+export interface CreatedInvoiceNumbers {
+  customerInvoiceNumber: string
+  platformFeeInvoiceNumber: string
+}
+
 export async function createInvoicesForPlatformOrder(
   platformOrderId: string,
   tx?: any,
-): Promise<void> {
+): Promise<Map<string, CreatedInvoiceNumbers>> {
   const activeDb = tx ?? db
 
   // 1. Fetch platform order with buyer user details
@@ -268,7 +309,7 @@ export async function createInvoicesForPlatformOrder(
     .where(eq(shopOrder.platformOrderId, platformOrderId))) as (typeof shopOrder.$inferSelect)[]
 
   if (shopOrdersList.length === 0) {
-    return
+    return new Map()
   }
 
   // 3. Batch-fetch shops, owners, and order items to avoid N+1 queries
@@ -314,6 +355,8 @@ export async function createInvoicesForPlatformOrder(
     }
   }
 
+  const created = new Map<string, CreatedInvoiceNumbers>()
+
   await Promise.all(
     shopOrdersList.map(async (so: typeof shopOrder.$inferSelect) => {
       const shopRecord = shopsById.get(so.shopId)
@@ -357,7 +400,7 @@ export async function createInvoicesForPlatformOrder(
       const itemsList = itemsByShopOrderId.get(so.id) ?? []
 
       // ─── A. GENERATE CUSTOMER INVOICE ───
-      const customerInvoiceNumber = `INV-${so.id.toUpperCase()}`
+      const customerInvoiceNumber = await allocateNextInvoiceNumber(activeDb, 'INV')
 
       // Calculate total net from items and shipping
       const totalGross = so.subtotalCents + so.shippingCostCents
@@ -411,8 +454,10 @@ export async function createInvoicesForPlatformOrder(
         })
         .onConflictDoNothing() // Idempotency fallback
 
+      created.set(so.id, { customerInvoiceNumber, platformFeeInvoiceNumber: '' })
+
       // ─── B. GENERATE PLATFORM FEE INVOICE ───
-      const platformFeeInvoiceNumber = `INV-FEE-${so.id.toUpperCase()}`
+      const platformFeeInvoiceNumber = await allocateNextInvoiceNumber(activeDb, 'INV-FEE')
       const netSubtotalCents = so.subtotalCents - so.vatAmountCents
       const rawFeeCents = Math.round(netSubtotalCents * (PLATFORM_FEE_PERCENT / 100))
 
@@ -455,8 +500,57 @@ export async function createInvoicesForPlatformOrder(
           billingDetails: platformBillingDetails,
         })
         .onConflictDoNothing() // Idempotency fallback
+
+      created.set(so.id, { customerInvoiceNumber, platformFeeInvoiceNumber })
     }),
   )
+
+  return created
+}
+
+/**
+ * Creates a credit note that cancels the original customer invoice for a shop order.
+ * The credit note uses the same billing details with negated amounts and links back
+ * to the original invoice number.
+ */
+export async function createCreditNoteForShopOrder(
+  shopOrderId: string,
+  tx?: any,
+): Promise<string | null> {
+  const activeDb = tx ?? db
+
+  const [original] = await activeDb
+    .select({
+      invoiceNumber: invoices.invoiceNumber,
+      billingDetails: invoices.billingDetails,
+      subtotalCents: invoices.subtotalCents,
+      vatAmountCents: invoices.vatAmountCents,
+      totalCents: invoices.totalCents,
+      vatRateBasisPoints: invoices.vatRateBasisPoints,
+    })
+    .from(invoices)
+    .where(and(eq(invoices.shopOrderId, shopOrderId), eq(invoices.type, 'customer')))
+    .limit(1)
+
+  if (!original) {
+    return null
+  }
+
+  const creditNoteNumber = await allocateNextInvoiceNumber(activeDb, 'CN')
+
+  await activeDb.insert(invoices).values({
+    invoiceNumber: creditNoteNumber,
+    type: 'credit_note',
+    shopOrderId,
+    originalInvoiceNumber: original.invoiceNumber,
+    subtotalCents: -original.subtotalCents,
+    vatAmountCents: -original.vatAmountCents,
+    totalCents: -original.totalCents,
+    vatRateBasisPoints: original.vatRateBasisPoints,
+    billingDetails: original.billingDetails,
+  })
+
+  return creditNoteNumber
 }
 
 /**

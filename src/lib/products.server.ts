@@ -1,4 +1,17 @@
-import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  count,
+  countDistinct,
+  desc,
+  eq,
+  gte,
+  ilike,
+  inArray,
+  lte,
+  or,
+  sql,
+} from 'drizzle-orm'
 import { db } from '#/db/index'
 import { categories, product, productImage, shop } from '#/db/schema'
 import { logger } from './logger.server'
@@ -455,19 +468,33 @@ const MARKETPLACE_STATS_TTL_MS = 60_000
 export async function getMarketplaceStatsQuery(): Promise<{
   sellerCount: number
   productCount: number
+  countryCount: number
 }> {
   return withServerCache(MARKETPLACE_STATS_CACHE_KEY, MARKETPLACE_STATS_TTL_MS, async () => {
-    const [[shopResult], [productResult]] = await Promise.all([
+    const [[shopResult], [productResult], [countryResult]] = await Promise.all([
       db
         .select({ count: count() })
         .from(shop)
         .where(and(eq(shop.status, 'active'), eq(shop.isSuspended, false))),
       db.select({ count: count() }).from(product).where(eq(product.isActive, true)),
+      db
+        .select({
+          count: countDistinct(sql`lower(${shop.shippingOrigin}->>'country')`),
+        })
+        .from(shop)
+        .where(
+          and(
+            eq(shop.status, 'active'),
+            eq(shop.isSuspended, false),
+            sql`${shop.shippingOrigin}->>'country' is not null`,
+          ),
+        ),
     ])
 
     return {
       sellerCount: Number(shopResult?.count ?? 0),
       productCount: Number(productResult?.count ?? 0),
+      countryCount: Number(countryResult?.count ?? 0),
     }
   })
 }

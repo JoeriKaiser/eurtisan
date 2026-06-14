@@ -54,8 +54,8 @@ describe('SmtpEmailProvider (mock)', () => {
       orderNumber: '42',
       buyerName: 'Alice',
       shopName: 'Pottery by Alice',
-      trackingNumber: 'MR12345678',
-      carrier: 'Mondial Relay',
+      trackingNumber: 'SC12345678',
+      carrier: 'Sendcloud',
       estimatedDelivery: '2026-05-20',
     })
 

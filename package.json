@@ -22,6 +22,8 @@
     "job:cart-cleanup": "bun run src/jobs/cart-cleanup.ts",
     "job:meilisearch-sync": "bun run src/jobs/meilisearch-sync.ts",
     "job:audit-log-cleanup": "bun run src/jobs/audit-log-cleanup.ts",
+    "job:sendcloud-reconciliation": "bun run src/jobs/sendcloud-reconciliation.ts",
+    "job:payout-reconciliation": "bun run src/jobs/payout-reconciliation.ts",
     "db:studio": "drizzle-kit studio",
     "lint": "biome lint --write --unsafe ./src",
     "format": "biome format --write ./src",

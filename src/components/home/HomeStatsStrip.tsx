@@ -4,6 +4,7 @@ interface HomeStatsStripProps {
   stats: {
     sellerCount: number
     productCount: number
+    countryCount: number
   }
 }
 
@@ -53,7 +54,7 @@ export function HomeStatsStrip({ stats }: HomeStatsStripProps) {
 
               <div className='pt-6 first:pt-0 sm:pt-0'>
                 <span className='block text-4xl sm:text-5xl font-extrabold text-accent-primary font-sans tracking-tight leading-none'>
-                  27
+                  {stats.countryCount}
                 </span>
                 <span className='block text-[10px] font-bold text-text-secondary uppercase tracking-widest mt-2.5'>
                   {m.home_stats_eu()}

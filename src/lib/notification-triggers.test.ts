@@ -25,12 +25,12 @@ vi.mock('#/integrations/email', async (importOriginal) => {
   }
 })
 
+import { flushBackgroundWorkForTests } from './background-work.server'
 import { createCheckoutQuery } from './checkout.server'
 import { openDisputeQuery, resolveDisputeQuery } from './disputes.server'
 import { getNotificationsQuery } from './notifications.server'
 import { markPayoutSentQuery } from './payouts.server'
 import { createReviewQuery } from './reviews.server'
-import { flushBackgroundWorkForTests } from './background-work.server'
 import { markShopOrderShippedQuery, updateShopOrderStatusQuery } from './shop-orders.server'
 
 beforeEach(async () => {
@@ -121,7 +121,7 @@ describe('createCheckoutQuery notifications', () => {
     const result = await createCheckoutQuery(
       {
         cartId: c.id,
-        shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 538 }],
+        shippingSelections: [{ shopId: 'shop-1', method: 'express', costCents: 861 }],
         shippingAddress: {
           name: 'Test',
           street: 'St',
@@ -175,7 +175,7 @@ describe('createCheckoutQuery notifications', () => {
     const result = await createCheckoutQuery(
       {
         cartId: c.id,
-        shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 538 }],
+        shippingSelections: [{ shopId: 'shop-1', method: 'express', costCents: 861 }],
         shippingAddress: {
           name: 'Test',
           street: 'St',
@@ -493,7 +493,7 @@ describe('createCheckoutQuery emails', () => {
     await createCheckoutQuery(
       {
         cartId: c.id,
-        shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 538 }],
+        shippingSelections: [{ shopId: 'shop-1', method: 'express', costCents: 861 }],
         shippingAddress: {
           name: 'Test',
           street: 'St',
@@ -549,7 +549,7 @@ describe('createCheckoutQuery emails', () => {
     await createCheckoutQuery(
       {
         cartId: c.id,
-        shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 538 }],
+        shippingSelections: [{ shopId: 'shop-1', method: 'express', costCents: 861 }],
         shippingAddress: {
           name: 'Test',
           street: 'St',
@@ -605,7 +605,7 @@ describe('createCheckoutQuery emails', () => {
     const result = await createCheckoutQuery(
       {
         cartId: c.id,
-        shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 538 }],
+        shippingSelections: [{ shopId: 'shop-1', method: 'express', costCents: 861 }],
         shippingAddress: {
           name: 'Test',
           street: 'St',
@@ -691,7 +691,7 @@ describe('markShopOrderShippedQuery emails', () => {
     expect(buyerEmailCall?.[1]).toBe('shipping_notification')
     expect(buyerEmailCall?.[2]).toMatchObject({
       trackingNumber: 'TRACK-123',
-      carrier: 'Mondial Relay',
+      carrier: 'Sendcloud',
     })
   })
 

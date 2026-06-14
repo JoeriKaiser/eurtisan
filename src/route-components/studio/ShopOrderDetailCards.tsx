@@ -6,11 +6,13 @@ import {
   MapPin,
   Package,
   Truck,
+  Undo2,
 } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
 import { isSupportedShippingCountry } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
+import { m } from '#/paraglide/messages'
 import { ShopOrderStatusTimeline } from '#/route-components/studio/ShopOrderStatusTimeline'
 
 /* ------------------------------------------------------------------ */
@@ -70,18 +72,24 @@ interface OrderStatusSectionProps {
   status: string
   canShip: boolean
   canDeliver: boolean
+  canRefund: boolean
   isMarkingDelivered: boolean
+  isRefunding: boolean
   onShip: () => void
   onMarkDelivered: () => void
+  onRefund: () => void
 }
 
 export function OrderStatusSection({
   status,
   canShip,
   canDeliver,
+  canRefund,
   isMarkingDelivered,
+  isRefunding,
   onShip,
   onMarkDelivered,
+  onRefund,
 }: OrderStatusSectionProps) {
   return (
     <>
@@ -92,18 +100,29 @@ export function OrderStatusSection({
           </CardContent>
         </Card>
       )}
-      {(canShip || canDeliver) && (
+      {(canShip || canDeliver || canRefund) && (
         <div className='flex flex-wrap gap-3'>
           {canShip && (
             <Button onClick={onShip}>
               <Truck size={16} aria-hidden='true' />
-              Mark as Shipped
+              {m.order_action_ship()}
             </Button>
           )}
           {canDeliver && (
             <Button variant='secondary' onClick={onMarkDelivered} isLoading={isMarkingDelivered}>
               <CheckCircle2 size={16} aria-hidden='true' />
-              Mark as Delivered
+              {m.order_action_deliver()}
+            </Button>
+          )}
+          {canRefund && (
+            <Button
+              variant='secondary'
+              onClick={onRefund}
+              isLoading={isRefunding}
+              className='text-error hover:bg-error/10'
+            >
+              <Undo2 size={16} aria-hidden='true' />
+              {m.order_action_refund()}
             </Button>
           )}
         </div>
@@ -277,7 +296,7 @@ export function ShippingAddressCard({ address }: ShippingAddressCardProps) {
           {address.pickupPoint && (
             <div className='mt-3 p-3 rounded-lg border border-accent-secondary/20 bg-surface-inset not-italic'>
               <p className='text-[10px] font-bold text-accent-primary uppercase tracking-wider mb-1'>
-                Mondial Relay Pick-up Point
+                Pick-up Point
               </p>
               <p className='font-semibold text-text-primary text-sm'>{address.pickupPoint.name}</p>
               <p className='text-xs text-text-secondary'>{address.pickupPoint.street}</p>

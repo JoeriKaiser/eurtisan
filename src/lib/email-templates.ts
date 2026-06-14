@@ -29,6 +29,8 @@ export function renderTemplate(
       return renderShippingNotification(data)
     case 'dispute_update':
       return renderDisputeUpdate(data)
+    case 'order_refunded':
+      return renderOrderRefunded(data)
     case 'email_verification':
       return renderEmailVerification(data)
     case 'password_reset':
@@ -261,6 +263,45 @@ ${disputeUrl ? `\n${m.email_dispute_view_txt({ disputeUrl })}` : ''}
 ${renderEmailLegalFooterText()}`
 
   return { subject: m.email_dispute_subject({ orderNumber, shopName }), html, text }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              Order Refunded                                */
+/* -------------------------------------------------------------------------- */
+
+function renderOrderRefunded(data: Record<string, unknown>): RenderedEmail {
+  const orderNumber = String(data.orderNumber ?? '—')
+  const buyerName = String(data.buyerName ?? 'Valued Customer')
+  const shopName = String(data.shopName ?? 'Eurtisan')
+  const refundAmount = String(data.refundAmount ?? '—')
+  const orderUrl = String(data.orderUrl ?? '')
+
+  const contentHtml = `<div style="font-size: 20px; font-weight: 700; color: #111827; line-height: 1.3;">${escapeHtml(
+    m.email_refund_title({ orderNumber }),
+  )}</div>
+  <br />
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">${escapeHtml(
+    m.email_greeting({ name: buyerName }),
+  )}</div>
+  <br />
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">${escapeHtml(
+    m.email_refund_body({ orderNumber, shopName, refundAmount }),
+  )}</div>
+  <br />
+  ${orderUrl ? `<div style="font-size: 14px; line-height: 1.5;"><a href="${escapeHtml(orderUrl)}" style="color: #2563eb; text-decoration: underline;">${escapeHtml(m.email_refund_view())}</a></div><br />` : ''}
+  ${renderEmailLegalFooterHtml()}`
+
+  const html = wrapInEmailTemplate(m.email_refund_title({ orderNumber }), contentHtml)
+
+  const text = `${m.email_refund_title({ orderNumber })}
+
+${m.email_greeting({ name: buyerName })}
+
+${m.email_refund_body({ orderNumber, shopName, refundAmount })}
+
+${orderUrl ? `${m.email_refund_view_txt({ orderUrl })}\n\n` : ''}${renderEmailLegalFooterText()}`
+
+  return { subject: m.email_refund_subject({ orderNumber, shopName }), html, text }
 }
 
 /* -------------------------------------------------------------------------- */

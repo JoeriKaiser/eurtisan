@@ -9,9 +9,10 @@ import {
   DialogPortal,
   DialogTitle,
 } from '#/components/ui/primitives/dialog'
+import { getServicePoints } from '#/lib/checkout'
 import { m } from '#/paraglide/messages'
 
-export interface MockPickupPoint {
+export interface ServicePoint {
   id: string
   name: string
   street: string
@@ -21,79 +22,13 @@ export interface MockPickupPoint {
   distance?: string
 }
 
-function getMockPickupPoints(postalCode: string, country: string): MockPickupPoint[] {
-  const cleanPc = (postalCode || '75001').trim()
-  const cleanCountry = (country || 'FR').toUpperCase()
-
-  if (cleanCountry === 'DE') {
-    return [
-      {
-        id: `DE-${cleanPc}-01`,
-        name: 'Mondial Relay Schließfach - Edeka',
-        street: 'Friedrichstraße 50',
-        postalCode: cleanPc,
-        city: 'Berlin',
-        country: 'DE',
-        distance: '0.2 km',
-      },
-      {
-        id: `DE-${cleanPc}-02`,
-        name: 'Späti 24 Kiosk',
-        street: 'Kottbusser Damm 12',
-        postalCode: cleanPc,
-        city: 'Berlin',
-        country: 'DE',
-        distance: '0.6 km',
-      },
-      {
-        id: `DE-${cleanPc}-03`,
-        name: 'Blumenhaus Edelweiß',
-        street: 'Karl-Marx-Allee 85',
-        postalCode: cleanPc,
-        city: 'Berlin',
-        country: 'DE',
-        distance: '1.1 km',
-      },
-    ]
-  }
-
-  return [
-    {
-      id: `${cleanCountry}-${cleanPc}-01`,
-      name: 'Locker Mondial Relay - Auchan',
-      street: '25 Rue de Rivoli',
-      postalCode: cleanPc,
-      city: 'Paris',
-      country: cleanCountry,
-      distance: '0.4 km',
-    },
-    {
-      id: `${cleanCountry}-${cleanPc}-02`,
-      name: 'Épicerie du Coin (Relais Colis)',
-      street: '14 Rue Saint-Denis',
-      postalCode: cleanPc,
-      city: 'Paris',
-      country: cleanCountry,
-      distance: '0.8 km',
-    },
-    {
-      id: `${cleanCountry}-${cleanPc}-03`,
-      name: 'Pressing de la Mairie',
-      street: '88 Boulevard Voltaire',
-      postalCode: cleanPc,
-      city: 'Paris',
-      country: cleanCountry,
-      distance: '1.5 km',
-    },
-  ]
-}
-
 interface PickupPointSelectorModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   postalCode: string
   country: string
-  onSelect: (point: MockPickupPoint) => void
+  carrier?: string
+  onSelect: (point: ServicePoint) => void
 }
 
 export function PickupPointSelectorModal({
@@ -101,18 +36,38 @@ export function PickupPointSelectorModal({
   onOpenChange,
   postalCode: initialPostalCode,
   country: initialCountry,
+  carrier,
   onSelect,
 }: PickupPointSelectorModalProps) {
   const [searchPostalCode, setSearchPostalCode] = useState(initialPostalCode)
   const [searchCountry, setSearchCountry] = useState(initialCountry)
-  const [points, setPoints] = useState<MockPickupPoint[]>([])
+  const [points, setPoints] = useState<ServicePoint[]>([])
   const [hasSearched, setHasSearched] = useState(false)
+  const [isSearching, setIsSearching] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault()
-    const results = getMockPickupPoints(searchPostalCode, searchCountry)
-    setPoints(results)
-    setHasSearched(true)
+    setIsSearching(true)
+    setError(null)
+    setHasSearched(false)
+
+    try {
+      const results = await getServicePoints({
+        data: {
+          postalCode: searchPostalCode,
+          country: searchCountry,
+          carrier,
+        },
+      })
+      setPoints(results)
+    } catch {
+      setError('Failed to load pick-up points. Please try again.')
+      setPoints([])
+    } finally {
+      setHasSearched(true)
+      setIsSearching(false)
+    }
   }
 
   return (
@@ -122,10 +77,10 @@ export function PickupPointSelectorModal({
           <DialogBackdrop />
           <DialogPopup className='w-full max-w-lg'>
             <DialogTitle className='text-lg font-semibold text-text-primary mb-2'>
-              Select Mondial Relay Pick-up Point
+              Select Pick-up Point
             </DialogTitle>
             <DialogDescription className='text-sm text-text-secondary mb-4'>
-              Search and select a convenient parcel locker or shop for delivery.
+              Search and select a convenient service point for delivery.
             </DialogDescription>
 
             <form onSubmit={handleSearch} className='flex gap-3 mb-6'>
@@ -163,9 +118,17 @@ export function PickupPointSelectorModal({
                 />
               </div>
               <div className='flex items-end'>
-                <Button type='submit'>Search</Button>
+                <Button type='submit' isLoading={isSearching}>
+                  Search
+                </Button>
               </div>
             </form>
+
+            {error && (
+              <p className='mb-4 text-sm text-error' role='alert'>
+                {error}
+              </p>
+            )}
 
             <div className='space-y-3 max-h-72 overflow-y-auto pr-1'>
               {points.map((point) => (
@@ -179,9 +142,11 @@ export function PickupPointSelectorModal({
                     <p className='text-xs text-text-secondary'>
                       {point.postalCode} {point.city}, {point.country}
                     </p>
-                    <span className='inline-block text-[11px] font-medium bg-bg-inset text-text-secondary px-1.5 py-0.5 rounded mt-2'>
-                      {point.distance} away
-                    </span>
+                    {point.distance && (
+                      <span className='inline-block text-[11px] font-medium bg-bg-inset text-text-secondary px-1.5 py-0.5 rounded mt-2'>
+                        {point.distance} away
+                      </span>
+                    )}
                   </div>
                   <Button
                     size='sm'
@@ -196,7 +161,7 @@ export function PickupPointSelectorModal({
                 </div>
               ))}
 
-              {hasSearched && points.length === 0 && (
+              {hasSearched && points.length === 0 && !error && (
                 <p className='text-sm text-text-muted italic text-center py-6'>
                   No pick-up points found for this area.
                 </p>

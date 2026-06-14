@@ -1,8 +1,8 @@
 import { Check } from 'lucide-react'
-import type { CreatorShop } from '#/lib/creator-dashboard'
-import { m } from '#/paraglide/messages'
 import { Input } from '#/components/ui/input'
 import { Switch } from '#/components/ui/switch'
+import type { CreatorShop } from '#/lib/creator-dashboard'
+import { m } from '#/paraglide/messages'
 
 export interface FormValues {
   shopId: string
@@ -14,6 +14,10 @@ export interface FormValues {
   categoryId: string
   isActive: boolean
   vatRateCategory: 'standard' | 'reduced' | 'exempt'
+  weightGrams: string
+  lengthCm: string
+  widthCm: string
+  heightCm: string
 }
 
 interface ProductNewFormFieldsProps {
@@ -207,6 +211,93 @@ export function ProductNewFormFields({
             </p>
           )}
         </div>
+      </div>
+
+      {/* Shipping dimensions */}
+      <div>
+        <div className='mb-2 flex items-center justify-between'>
+          <span className='block text-sm font-medium text-text-primary'>Shipping dimensions</span>
+          <span className='text-xs text-text-muted'>
+            Optional — used for accurate shipping rates
+          </span>
+        </div>
+        <div className='grid gap-4 sm:grid-cols-4'>
+          <div>
+            <label
+              htmlFor='product-weight'
+              className='mb-1 block text-xs font-medium text-text-secondary'
+            >
+              Weight (g)
+            </label>
+            <Input
+              id='product-weight'
+              type='number'
+              value={values.weightGrams}
+              onChange={(e) => onFieldChange('weightGrams', e.target.value)}
+              error={fieldErrors.weightGrams}
+              placeholder='500'
+              min='1'
+              step='1'
+            />
+          </div>
+          <div>
+            <label
+              htmlFor='product-length'
+              className='mb-1 block text-xs font-medium text-text-secondary'
+            >
+              Length (cm)
+            </label>
+            <Input
+              id='product-length'
+              type='number'
+              value={values.lengthCm}
+              onChange={(e) => onFieldChange('lengthCm', e.target.value)}
+              error={fieldErrors.lengthCm}
+              placeholder='20'
+              min='1'
+              step='1'
+            />
+          </div>
+          <div>
+            <label
+              htmlFor='product-width'
+              className='mb-1 block text-xs font-medium text-text-secondary'
+            >
+              Width (cm)
+            </label>
+            <Input
+              id='product-width'
+              type='number'
+              value={values.widthCm}
+              onChange={(e) => onFieldChange('widthCm', e.target.value)}
+              error={fieldErrors.widthCm}
+              placeholder='15'
+              min='1'
+              step='1'
+            />
+          </div>
+          <div>
+            <label
+              htmlFor='product-height'
+              className='mb-1 block text-xs font-medium text-text-secondary'
+            >
+              Height (cm)
+            </label>
+            <Input
+              id='product-height'
+              type='number'
+              value={values.heightCm}
+              onChange={(e) => onFieldChange('heightCm', e.target.value)}
+              error={fieldErrors.heightCm}
+              placeholder='5'
+              min='1'
+              step='1'
+            />
+          </div>
+        </div>
+        <p className='mt-1.5 text-xs text-text-muted'>
+          Leave blank to use a default estimate at checkout and label generation.
+        </p>
       </div>
 
       {/* Category selector */}

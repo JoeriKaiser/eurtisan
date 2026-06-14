@@ -152,6 +152,7 @@ describe('GET /api/shops/$shopId/dashboard', () => {
       pendingOrdersCount: 1,
       lowStockProductCount: 1,
       revenueThisMonthCents: 5000,
+      netRevenueThisMonthCents: 4500,
       totalActiveProducts: 1,
     })
   })

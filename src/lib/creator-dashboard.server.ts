@@ -1,6 +1,7 @@
 import { and, count, desc, eq, gte, inArray, lt, sum } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { platformOrder, product, review, shop, shopOrder, user } from '#/db/schema'
+import { PLATFORM_FEE_PERCENT } from '#/lib/platform-constants'
 
 export interface CreatorShop {
   id: string
@@ -46,6 +47,7 @@ export interface ShopDashboardStats {
   pendingOrdersCount: number
   lowStockProductCount: number
   revenueThisMonthCents: number
+  netRevenueThisMonthCents: number
   totalActiveProducts: number
 }
 
@@ -152,36 +154,56 @@ export async function getShopDashboardStatsQuery(shopId: string): Promise<ShopDa
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
 
-  const [[lowStockResult], [pendingResult], [revenueResult], [activeProductsResult]] =
-    await Promise.all([
-      db
-        .select({ count: count() })
-        .from(product)
-        .where(and(eq(product.shopId, shopId), lt(product.stockCount, 5))),
-      db
-        .select({ count: count() })
-        .from(shopOrder)
-        .where(and(eq(shopOrder.shopId, shopId), inArray(shopOrder.status, PENDING_STATUSES))),
-      db
-        .select({ total: sum(shopOrder.subtotalCents) })
-        .from(shopOrder)
-        .where(
-          and(
-            eq(shopOrder.shopId, shopId),
-            inArray(shopOrder.status, REVENUE_STATUSES),
-            gte(shopOrder.createdAt, startOfMonth),
-          ),
+  const [
+    [lowStockResult],
+    [pendingResult],
+    [revenueResult],
+    [refundResult],
+    [activeProductsResult],
+  ] = await Promise.all([
+    db
+      .select({ count: count() })
+      .from(product)
+      .where(and(eq(product.shopId, shopId), lt(product.stockCount, 5))),
+    db
+      .select({ count: count() })
+      .from(shopOrder)
+      .where(and(eq(shopOrder.shopId, shopId), inArray(shopOrder.status, PENDING_STATUSES))),
+    db
+      .select({ total: sum(shopOrder.subtotalCents) })
+      .from(shopOrder)
+      .where(
+        and(
+          eq(shopOrder.shopId, shopId),
+          inArray(shopOrder.status, REVENUE_STATUSES),
+          gte(shopOrder.createdAt, startOfMonth),
         ),
-      db
-        .select({ count: count() })
-        .from(product)
-        .where(and(eq(product.shopId, shopId), eq(product.isActive, true))),
-    ])
+      ),
+    db
+      .select({ total: sum(shopOrder.subtotalCents) })
+      .from(shopOrder)
+      .where(
+        and(
+          eq(shopOrder.shopId, shopId),
+          eq(shopOrder.status, 'refunded'),
+          gte(shopOrder.createdAt, startOfMonth),
+        ),
+      ),
+    db
+      .select({ count: count() })
+      .from(product)
+      .where(and(eq(product.shopId, shopId), eq(product.isActive, true))),
+  ])
+
+  const grossCents = Number(revenueResult?.total ?? 0)
+  const refundCents = Number(refundResult?.total ?? 0)
+  const netCents = Math.round((grossCents - refundCents) * (1 - PLATFORM_FEE_PERCENT / 100))
 
   return {
     pendingOrdersCount: Number(pendingResult?.count ?? 0),
     lowStockProductCount: Number(lowStockResult?.count ?? 0),
-    revenueThisMonthCents: Number(revenueResult?.total ?? 0),
+    revenueThisMonthCents: grossCents,
+    netRevenueThisMonthCents: netCents,
     totalActiveProducts: Number(activeProductsResult?.count ?? 0),
   }
 }

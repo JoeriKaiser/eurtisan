@@ -10,21 +10,56 @@
 
 # Current North Star Objective
 
-**The immediate priority is making Eurtisan production-ready from a store-owner perspective.**
+**The P0 launch blockers are resolved.** The next North Star is closing the remaining owner-facing capability, compliance, and operability gaps documented in `docs/AUDIT_STORE_OWNER_2026-06-12.md`. Agents should orient every non-trivial change toward these priorities:
 
-A store owner must have complete, reliable control over their store, products, orders, customers, payouts, taxes, and operational visibility before the platform launches. A full evidence-based audit of the current state is captured in:
+1. **Complete store ownership control**
+   - Full shop settings form (banner, policies, socials, announcement, business address).
+   - Shop closure / archive / pause / delete workflow.
+   - Remove debug logging from auth middleware.
 
-- `docs/AUDIT_STORE_OWNER_2026-06-12.md`
+2. **Product catalog maturity**
+   - Product variant UI and server functions (size, color, options).
+   - Audit logging for owner product mutations.
+   - Bulk operations, draft/versioning workflow, and low-stock notifications.
+   - Replace hardcoded Euro symbol / English VAT labels with i18n-ready values.
 
-Agents working on this project should orient every non-trivial change toward closing the gaps documented in that audit. The P0 launch blockers are:
+3. **Order lifecycle & fulfillment polish**
+   - Owner-initiated cancellation while `pending_payment`.
+   - Edit tracking numbers/URLs after shipment.
+   - Seller dispute dashboard.
+   - Resolve the `manual_review` dead-end state.
+   - Order-level audit log for owner actions (ship, deliver, tracking updates).
+   - Close the payout/dispute timing gap so sellers cannot be paid for later-refunded orders.
 
-1. **Real payouts** — `markPayoutSent` must move actual money via a payment rail; until then, payouts are a status flag only. -- DONE
-2. **Real shipping with Sendcloud** — replace the mocked Mondial Relay integration with a genuine Sendcloud integration for labels, rates, and tracking; silent mock fallbacks are not acceptable in production. The provisional Sendcloud webhook URL for status/tracking updates is `${PUBLIC_URL}/api/webhooks/sendcloud` (see `docs/SENDCLOUD_INTEGRATION_PLAN.md`).
-3. **Reliable owner navigation** — broken product-edit links, post-approval payment links, and studio settings links must be fixed.
-4. **Honest analytics** — fake homepage stats and placeholder shop dashboards must be replaced with real data.
-5. **Production hardening** — lock down Grafana, implement analytics consent, fix edge CSP, and align observability/deployment topology with standalone production.
+4. **Tax, VAT, and invoicing**
+   - Separate business address editing.
+   - Editable DAC7 tax identity after onboarding.
+   - Seller VAT reporting dashboard.
+   - Document tax env vars (`PLATFORM_VAT_LIABLE`, `ENABLE_VIES_VALIDATION`).
+   - Fix VIES fall-open behavior, VAT regex inconsistencies, and Greek VAT-ID handling.
+   - Remove `Promise.all` concurrency inside invoice transactions.
 
-When requirements conflict, prefer the audit priorities and the Decision Hierarchy below. Do not treat mock integrations, placeholder endpoints, or hardcoded marketing data as "good enough" for production.
+5. **Customer management for owners**
+   - Per-shop customer list, detail, and export.
+   - Customer analytics, notes/tags, and owner-initiated contact.
+   - GDPR tooling for shop-level customer data requests.
+
+6. **Analytics & reporting**
+   - Per-shop sales/revenue reporting beyond current-month aggregates.
+   - Wire the CSV export utility to owner reports.
+
+7. **Security, authorization & GDPR**
+   - Complete account deletion / right-to-erasure.
+   - Enforce 2FA on `/studio` routes.
+   - Audit admin read-only actions.
+   - Replace brittle `session: {} as never` authz casts.
+
+8. **Production operability**
+   - Backup strategy: consistent retention, offsite upload, WAL archiving, S3/Meilisearch backups.
+   - Deployment smoke tests and migration rollback plan.
+   - Alertmanager / Grafana alerting for health, job, and disk issues.
+
+When requirements conflict, prefer the audit priorities and the Decision Hierarchy below. Do not treat missing owner capabilities, placeholder UIs, or incomplete compliance workflows as "good enough" for production.
 
 ---
 
@@ -331,6 +366,7 @@ db:5432
 | ORM | Drizzle ORM | Typed SQL access |
 | Migrations | Drizzle Kit | Migration generation and execution |
 | Monitoring | Grafana Stack (self-hosted) | Loki (logs), Tempo (traces), Prometheus (metrics), Grafana (UI) |
+| Shipping | Sendcloud | Labels, rates, tracking, and service points via Sendcloud API v2; webhook endpoint at `/api/webhooks/sendcloud` |
 | Styling | Tailwind CSS v4 | Utility-first styling |
 | Toolchain | Bun | Runtime/package manager |
 | Lint / Format | Biome | Formatting + linting |
@@ -820,6 +856,19 @@ VITE_UMAMI_WEBSITE_ID=
 VITE_UMAMI_HOST_URL=
 VITE_UMAMI_SCRIPT_INTEGRITY=
 
+# Analytics consent banner (required in production)
+VITE_ANALYTICS_CONSENT_REQUIRED=true
+
+# Grafana admin IP allow-list (Caddy). Space-separated CIDR ranges.
+# Defaults to 0.0.0.0/32 (blocks all access) if unset.
+GRAFANA_ADMIN_IPS=
+
+# Public Grafana root URL used by the observability stack.
+GRAFANA_ROOT_URL=https://eurtisan.eu/grafana
+
+# Name of the app container as seen by Docker (used by Alloy log tailing).
+APP_CONTAINER_NAME=eurtisan-app
+
 # Database
 DATABASE_URL=postgresql://eurtisan:eurtisan@db:5432/eurtisan
 
@@ -857,12 +906,38 @@ MOLLIE_CLIENT_SECRET=
 # Defaults to 'true' in development, 'false' in production.
 MOLLIE_TEST_MODE=true
 
+# Sendcloud (shipping labels, rates, tracking, service points)
+SENDCLOUD_PUBLIC_KEY=your-sendcloud-public-key
+SENDCLOUD_SECRET_KEY=your-sendcloud-secret-key
+# Webhook secret for HMAC-SHA256 verification of Sendcloud status callbacks.
+SENDCLOUD_WEBHOOK_SECRET=your-sendcloud-webhook-secret
+# Optional: force the Sendcloud "Unstamped letter" method in non-production environments.
+# Defaults to 'true' when VITE_APP_ENV is not 'production'.
+SENDCLOUD_FORCE_UNSTAMPED_LETTER=true
+# Optional: explicit Sendcloud method id for the Unstamped letter service.
+SENDCLOUD_UNSTAMPED_LETTER_METHOD_ID=
+
 # Mock payouts (no external Mollie Routes API calls).
 # Useful for local development when MOLLIE_API_KEY is not set.
 MOCK_PAYOUTS_ENABLED=false
 
 # Payout reconciliation job interval (milliseconds). Default: 6 hours.
 PAYOUT_RECONCILIATION_INTERVAL_MS=21600000
+
+# Sendcloud reconciliation job interval (milliseconds). Default: 6 hours.
+SENDCLOUD_RECONCILIATION_INTERVAL_MS=21600000
+
+# Health-check disk path (mount point checked for free space). Use the path
+# that stores real application data in production, not /tmp.
+HEALTH_DISK_PATH=/
+
+# Cleanup job intervals (all have sensible defaults; uncomment to override):
+# SESSION_CLEANUP_INTERVAL_MS=60000
+# CART_CLEANUP_INTERVAL_MS=60000
+# VERIFICATION_CLEANUP_INTERVAL_MS=60000
+# AUDIT_LOG_CLEANUP_INTERVAL_MS=86400000
+# AUDIT_LOG_RETENTION_DAYS=365
+# INVENTORY_CLEANUP_INTERVAL_MS=60000
 ```
 
 Generate auth secret:
@@ -981,6 +1056,15 @@ If implementation and documentation diverge, the documentation is considered out
   - Observability (Faro/Grafana)
   - Database
   - Authentication
+
+- Background jobs required for production correctness must be deployed as long-running containers or scheduled processes. The following jobs are not optional at launch:
+  - `bun run job:payout-reconciliation` — reconciles payout status and alerts on stale pending payouts.
+  - `bun run job:sendcloud-reconciliation` — backfills missed Sendcloud webhook status updates and marks delivered orders. This job must be running before the Sendcloud integration is considered live in production.
+  - `bun run job:inventory-cleanup` — releases expired inventory reservations and cancels abandoned pending-payment orders.
+  - `bun run job:session-cleanup` — deletes expired Better Auth sessions.
+  - `bun run job:cart-cleanup` — deletes expired anonymous carts.
+  - `bun run job:audit-log-cleanup` — purges audit-log entries beyond the retention period.
+  - `bun run job:verification-cleanup` — deletes expired email/verification tokens.
 
 - Prefer deployment regions inside Europe.
 

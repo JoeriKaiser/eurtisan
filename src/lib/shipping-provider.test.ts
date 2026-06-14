@@ -213,6 +213,12 @@ describe('ShippingProvider types (compile-time shape check)', () => {
             events: [],
           }
         },
+        async getServicePoints(_postalCode, _country, _carrier) {
+          return []
+        },
+        async getServicePointMethods(_servicePointId) {
+          return []
+        },
       }
 
       expect(provider).toBeDefined()

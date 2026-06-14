@@ -35,6 +35,10 @@ interface ProductDetail {
   vatRateCategory: string
   shopId: string
   categoryId: string | null
+  weightGrams: number | null
+  lengthCm: number | null
+  widthCm: number | null
+  heightCm: number | null
   images: ProductImageRecord[]
 }
 
@@ -77,6 +81,10 @@ export interface FormValues {
   categoryId: string
   isActive: boolean
   vatRateCategory: 'standard' | 'reduced' | 'exempt'
+  weightGrams: string
+  lengthCm: string
+  widthCm: string
+  heightCm: string
 }
 
 interface FormState {
@@ -105,6 +113,10 @@ function createInitialFormState(product: ProductDetail): FormState {
       categoryId: product.categoryId ?? '',
       isActive: product.isActive,
       vatRateCategory: (product.vatRateCategory as 'standard' | 'reduced' | 'exempt') ?? 'standard',
+      weightGrams: product.weightGrams != null ? String(product.weightGrams) : '',
+      lengthCm: product.lengthCm != null ? String(product.lengthCm) : '',
+      widthCm: product.widthCm != null ? String(product.widthCm) : '',
+      heightCm: product.heightCm != null ? String(product.heightCm) : '',
     },
     fieldErrors: {},
     slugError: null,
@@ -182,6 +194,10 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
     categoryId: product.categoryId ?? '',
     isActive: product.isActive,
     vatRateCategory: product.vatRateCategory ?? 'standard',
+    weightGrams: product.weightGrams != null ? String(product.weightGrams) : '',
+    lengthCm: product.lengthCm != null ? String(product.lengthCm) : '',
+    widthCm: product.widthCm != null ? String(product.widthCm) : '',
+    heightCm: product.heightCm != null ? String(product.heightCm) : '',
     imageOrder: product.images.map((i) => i.id).join(','),
   }
 
@@ -194,6 +210,10 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
     formState.values.categoryId !== originalState.categoryId ||
     formState.values.isActive !== originalState.isActive ||
     formState.values.vatRateCategory !== originalState.vatRateCategory ||
+    formState.values.weightGrams !== originalState.weightGrams ||
+    formState.values.lengthCm !== originalState.lengthCm ||
+    formState.values.widthCm !== originalState.widthCm ||
+    formState.values.heightCm !== originalState.heightCm ||
     images.map((i) => i.id).join(',') !== originalState.imageOrder ||
     images.some((i) => i.isNew)
 
@@ -382,6 +402,18 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
           categoryId: formState.values.categoryId || undefined,
           isActive: formState.values.isActive,
           vatRateCategory: formState.values.vatRateCategory,
+          weightGrams: formState.values.weightGrams
+            ? Number.parseInt(formState.values.weightGrams, 10)
+            : undefined,
+          lengthCm: formState.values.lengthCm
+            ? Number.parseInt(formState.values.lengthCm, 10)
+            : undefined,
+          widthCm: formState.values.widthCm
+            ? Number.parseInt(formState.values.widthCm, 10)
+            : undefined,
+          heightCm: formState.values.heightCm
+            ? Number.parseInt(formState.values.heightCm, 10)
+            : undefined,
           images: images
             .filter((img) => !img.error && !img.uploading && img.key)
             .map((img) => ({ key: img.key, altText: img.altText || undefined })),

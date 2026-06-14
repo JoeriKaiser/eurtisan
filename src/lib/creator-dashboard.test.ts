@@ -516,6 +516,7 @@ describe('getShopDashboardStatsQuery', () => {
       pendingOrdersCount: 0,
       lowStockProductCount: 0,
       revenueThisMonthCents: 0,
+      netRevenueThisMonthCents: 0,
       totalActiveProducts: 0,
     })
   })
@@ -532,7 +533,23 @@ describe('getShopDashboardStatsQuery', () => {
     expect(result.pendingOrdersCount).toBe(1)
     expect(result.lowStockProductCount).toBe(1)
     expect(result.revenueThisMonthCents).toBe(5000)
+    expect(result.netRevenueThisMonthCents).toBe(4500)
     expect(result.totalActiveProducts).toBe(1)
+  })
+
+  it('subtracts refunds and platform fees from net revenue', async () => {
+    await seedUser()
+    await seedShop()
+    await seedProduct()
+    const buyer = await seedBuyer()
+    const po = await seedPlatformOrder(buyer.id)
+
+    await seedShopOrder({ platformOrderId: po.id, status: 'paid', subtotalCents: 10000 })
+    await seedShopOrder({ platformOrderId: po.id, status: 'refunded', subtotalCents: 2000 })
+
+    const result = await getShopDashboardStatsQuery('shop-1')
+    expect(result.revenueThisMonthCents).toBe(10000)
+    expect(result.netRevenueThisMonthCents).toBe(7200)
   })
 
   it('only counts active products', async () => {

@@ -105,13 +105,24 @@ export class MolliePaymentProvider implements PaymentProvider {
 
   constructor(options?: { mock?: boolean }) {
     const apiKey = getMollieApiKey()
+    const isProduction = typeof process !== 'undefined' && process.env.NODE_ENV === 'production'
+
+    if (isProduction && getMockPaymentsEnabled()) {
+      throw new Error(
+        'FATAL: MOCK_PAYMENTS_ENABLED cannot be true in production. ' +
+          'Set MOLLIE_API_KEY for live payments or run the app in a non-production environment.',
+      )
+    }
 
     if (options?.mock !== undefined) {
+      if (isProduction && options.mock) {
+        throw new Error('FATAL: mock payment provider cannot be constructed in production')
+      }
       this.mockMode = options.mock
     } else {
       const mockEnabled = getMockPaymentsEnabled()
       if (!apiKey && !mockEnabled) {
-        if (typeof process !== 'undefined' && process.env.NODE_ENV === 'production') {
+        if (isProduction) {
           throw new Error(
             'FATAL: MOLLIE_API_KEY is required in production. ' +
               'Set MOLLIE_API_KEY or explicitly enable mock mode with MOCK_PAYMENTS_ENABLED=true',
@@ -119,7 +130,8 @@ export class MolliePaymentProvider implements PaymentProvider {
         }
         this.mockMode = true
       } else {
-        this.mockMode = !apiKey || mockEnabled
+        // In production mock mode is never allowed, even if MOLLIE_API_KEY is missing.
+        this.mockMode = isProduction ? false : !apiKey || mockEnabled
       }
     }
 

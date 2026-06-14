@@ -3,21 +3,25 @@ import { db } from '#/db/index'
 import {
   dispute,
   orderItem,
+  payout,
   platformOrder,
   shippingLabel,
   shop,
   shopOrder,
   user,
 } from '#/db/schema'
-import { mondialRelayProvider } from '#/integrations/shipping'
+import { getShippingProvider } from '#/integrations/shipping'
+import { molliePaymentProvider } from '#/integrations/mollie'
+import { scheduleBackgroundWork } from './background-work.server'
+import { restoreShopOrderStockInTx } from './inventory.server'
+import { createCreditNoteForShopOrder } from './invoices.server'
 import type { ShippingAddress } from './checkout.server'
 import { getBaseUrl } from './env.server'
 import { logger } from './logger.server'
-import { scheduleBackgroundWork } from './background-work.server'
 import { logOrderDelivered, logOrderShipped } from './order-logger'
 import type { OrderStatus } from './orders.server'
 import { createPayoutForShopOrder, executePayoutQuery } from './payouts.server'
-import { calculatePackageDimensions, calculatePackageWeight } from './shipping-estimate'
+import { calculatePackageFromItems } from './shipping-estimate'
 import { validatePlainText, validateTrackingUrl } from './xss'
 
 function maskEmail(email: string): string {
@@ -36,6 +40,10 @@ export interface ShopOrderItemDetail {
   totalCents: number
   vatRateBasisPoints: number
   vatAmountCents: number
+  weightGrams: number | null
+  lengthCm: number | null
+  widthCm: number | null
+  heightCm: number | null
 }
 
 export interface ShopOrderBuyer {
@@ -58,6 +66,7 @@ export interface ShopOrderDetail {
   shopId: string
   status: string
   shippingMethod: 'standard' | 'express' | 'manual'
+  shippingRateId: string | null
   shippingCostCents: number
   subtotalCents: number
   vatAmountCents: number
@@ -217,6 +226,10 @@ export async function getShopOrderQuery(
         totalCents: orderItem.totalCents,
         vatRateBasisPoints: orderItem.vatRateBasisPoints,
         vatAmountCents: orderItem.vatAmountCents,
+        weightGrams: orderItem.weightGrams,
+        lengthCm: orderItem.lengthCm,
+        widthCm: orderItem.widthCm,
+        heightCm: orderItem.heightCm,
       })
       .from(orderItem)
       .where(eq(orderItem.shopOrderId, shopOrderId)),
@@ -240,6 +253,7 @@ export async function getShopOrderQuery(
     shopId: shopOrderRecord.shopId,
     status: shopOrderRecord.status,
     shippingMethod: shopOrderRecord.shippingMethod,
+    shippingRateId: shopOrderRecord.shippingRateId ?? null,
     shippingCostCents: shopOrderRecord.shippingCostCents,
     subtotalCents: shopOrderRecord.subtotalCents,
     vatAmountCents: shopOrderRecord.vatAmountCents,
@@ -473,19 +487,25 @@ export async function markShopOrderShippedQuery(
           getShopOrderQuery(shopOrderId),
         ])
         if (order) {
-          const [, [shopRecord]] = await Promise.all([
+          const [, [shopRecord], [latestLabel]] = await Promise.all([
             createNotification(order.buyer.id, 'order_shipped', {
               platformOrderId: order.platformOrderId,
               shopOrderId,
             }),
             db.select().from(shop).where(eq(shop.id, order.shopId)).limit(1),
+            db
+              .select({ carrier: shippingLabel.carrier })
+              .from(shippingLabel)
+              .where(eq(shippingLabel.shopOrderId, shopOrderId))
+              .orderBy(sql`${shippingLabel.createdAt} DESC`)
+              .limit(1),
           ])
           await sendNotificationEmail(order.buyer.id, 'shipping_notification', {
             orderNumber: shopOrderId.slice(0, 8),
             buyerName: order.buyer.name,
             shopName: shopRecord?.name ?? 'Eurtisan',
             trackingNumber: order.trackingNumber ?? null,
-            carrier: 'Mondial Relay',
+            carrier: latestLabel?.carrier ?? 'Sendcloud',
             trackingUrl: order.trackingUrl ?? null,
           })
         }
@@ -551,18 +571,19 @@ export async function createShippingLabelForOrderQuery(
 
   const destination = order.shippingAddress
 
-  // Build a sensible package estimate from order item count
-  const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0)
-  const weightGrams = calculatePackageWeight(itemCount)
-  const { lengthCm, widthCm, heightCm } = calculatePackageDimensions(itemCount)
+  // Build a shipping package from the order items, using real dimensions when available.
+  const pkg = calculatePackageFromItems(order.items)
 
   try {
-    const label = await mondialRelayProvider.createLabel({
+    const provider = getShippingProvider()
+    const label = await provider.createLabel({
       origin,
       destination,
-      package: { weightGrams, lengthCm, widthCm, heightCm },
-      carrierService: order.shippingMethod === 'express' ? 'mondial_xpr' : 'mondial_std',
+      package: pkg,
+      carrierService:
+        order.shippingRateId ?? (order.shippingMethod === 'express' ? 'express' : 'standard'),
       reference: shopOrderId,
+      pickupPoint: order.shippingAddress.pickupPoint,
     })
 
     // Insert shipping_label row (provider may also insert, but we ensure it here)
@@ -573,6 +594,7 @@ export async function createShippingLabelForOrderQuery(
         carrier: label.carrier,
         trackingNumber: label.trackingNumber,
         labelUrl: label.labelUrl,
+        externalParcelId: label.externalParcelId ?? null,
       })
       .returning()
 
@@ -888,4 +910,223 @@ export async function updateShopOrderStatusQuery(
   }
 
   return updatedShopOrder
+}
+
+/* -------------------------------------------------------------------------- */
+/*                          Owner-Initiated Refund                            */
+/* -------------------------------------------------------------------------- */
+
+export interface RefundShopOrderResult {
+  success: boolean
+  shopOrderId: string
+  creditNoteNumber: string | null
+}
+
+/**
+ * Issues a full refund for a shop order on behalf of the shop owner.
+ *
+ * - Authorizes the caller as the shop owner.
+ * - Calls Mollie to refund the parent payment.
+ * - Reverses any already-routed payout.
+ * - Releases inventory reservations.
+ * - Marks the shop order and platform order as refunded.
+ * - Creates a credit note linked to the original customer invoice.
+ */
+export async function refundShopOrderQuery(
+  userId: string,
+  shopOrderId: string,
+): Promise<RefundShopOrderResult> {
+  const [orderRecord] = await db
+    .select({
+      id: shopOrder.id,
+      platformOrderId: shopOrder.platformOrderId,
+      shopId: shopOrder.shopId,
+      status: shopOrder.status,
+      subtotalCents: shopOrder.subtotalCents,
+      refundedCents: shopOrder.refundedCents,
+    })
+    .from(shopOrder)
+    .innerJoin(shop, eq(shop.id, shopOrder.shopId))
+    .where(and(eq(shopOrder.id, shopOrderId), eq(shop.ownerId, userId)))
+    .limit(1)
+
+  if (!orderRecord) {
+    throw new Response(JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  if (!isValidStatusTransition(orderRecord.status as OrderStatus, 'refunded')) {
+    throw new Response(
+      JSON.stringify({
+        error: 'Conflict',
+        message: `Cannot refund a shop order in status '${orderRecord.status}'`,
+      }),
+      { status: 409, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  const [platformOrderRecord] = await db
+    .select({ molliePaymentId: platformOrder.molliePaymentId })
+    .from(platformOrder)
+    .where(eq(platformOrder.id, orderRecord.platformOrderId))
+    .limit(1)
+
+  if (!platformOrderRecord?.molliePaymentId) {
+    throw new Response(
+      JSON.stringify({
+        error: 'Bad Gateway',
+        message: 'Parent payment is not available for refund',
+      }),
+      { status: 502, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  const refundCents = orderRecord.subtotalCents - orderRecord.refundedCents
+  if (refundCents <= 0) {
+    throw new Response(
+      JSON.stringify({ error: 'Conflict', message: 'Order has already been fully refunded' }),
+      { status: 409, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  // Reverse any already-routed payout.
+  const [payoutRecord] = await db
+    .select()
+    .from(payout)
+    .where(eq(payout.shopOrderId, shopOrderId))
+    .limit(1)
+
+  let reverseRouting = false
+  let routingReversals: Array<{ organizationId: string; amountCents: number }> | undefined
+
+  if (payoutRecord?.status === 'sent' || payoutRecord?.status === 'in_transit') {
+    const [shopRecord] = await db
+      .select({ mollieAccountId: shop.mollieAccountId })
+      .from(shop)
+      .where(eq(shop.id, orderRecord.shopId))
+      .limit(1)
+
+    if (shopRecord?.mollieAccountId) {
+      if (refundCents >= payoutRecord.amountCents) {
+        reverseRouting = true
+      } else {
+        routingReversals = [
+          {
+            organizationId: shopRecord.mollieAccountId,
+            amountCents: Math.min(refundCents, payoutRecord.amountCents),
+          },
+        ]
+      }
+    }
+  }
+
+  try {
+    await molliePaymentProvider.refundPayment(platformOrderRecord.molliePaymentId, refundCents, {
+      ...(reverseRouting ? { reverseRouting: true } : {}),
+      ...(routingReversals ? { routingReversals } : {}),
+    })
+  } catch (err) {
+    logger.error(`Mollie refund failed for shop order ${shopOrderId}`, err, {
+      alert: true,
+      shopOrderId,
+      molliePaymentId: platformOrderRecord.molliePaymentId,
+      refundCents,
+    })
+    throw new Response(JSON.stringify({ error: 'Bad Gateway', message: 'Mollie refund failed' }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  const creditNoteNumber = await db.transaction(async (tx) => {
+    const [lockedOrder] = await tx
+      .select({
+        id: shopOrder.id,
+        status: shopOrder.status,
+        refundedCents: shopOrder.refundedCents,
+        subtotalCents: shopOrder.subtotalCents,
+      })
+      .from(shopOrder)
+      .where(eq(shopOrder.id, shopOrderId))
+      .for('update')
+      .limit(1)
+
+    if (!lockedOrder) {
+      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (
+      !isValidStatusTransition(lockedOrder.status as OrderStatus, 'refunded') ||
+      lockedOrder.refundedCents !== orderRecord.refundedCents
+    ) {
+      throw new Response(
+        JSON.stringify({ error: 'Conflict', message: 'Refund state changed during processing' }),
+        { status: 409, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    await tx
+      .update(shopOrder)
+      .set({
+        status: 'refunded',
+        refundedCents: lockedOrder.refundedCents + refundCents,
+        updatedAt: new Date(),
+      })
+      .where(eq(shopOrder.id, shopOrderId))
+
+    await tx
+      .update(platformOrder)
+      .set({
+        refundedCents: sql`${platformOrder.refundedCents} + ${refundCents}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(platformOrder.id, orderRecord.platformOrderId))
+
+    await restoreShopOrderStockInTx(tx, orderRecord.platformOrderId, shopOrderId)
+
+    if (payoutRecord?.status === 'sent' || payoutRecord?.status === 'in_transit') {
+      await tx
+        .update(payout)
+        .set({
+          status: 'reversed',
+          reversedAt: new Date(),
+          reversalReason: 'owner_refund',
+        })
+        .where(eq(payout.id, payoutRecord.id))
+    }
+
+    await recalcPlatformOrderStatus(tx, orderRecord.platformOrderId)
+
+    return createCreditNoteForShopOrder(shopOrderId, tx)
+  })
+
+  scheduleBackgroundWork(`refund-notifications-${shopOrderId}`, async () => {
+    const [{ createNotification, sendNotificationEmail }, order] = await Promise.all([
+      import('./notifications.server'),
+      getShopOrderQuery(shopOrderId),
+    ])
+    if (order) {
+      await createNotification(order.buyer.id, 'order_refunded', {
+        platformOrderId: order.platformOrderId,
+        shopOrderId,
+        amountCents: refundCents,
+      })
+      const [shopRecord] = await db.select().from(shop).where(eq(shop.id, order.shopId)).limit(1)
+      const baseUrl = getBaseUrl()
+      await sendNotificationEmail(order.buyer.id, 'order_refunded', {
+        orderNumber: shopOrderId.slice(0, 8),
+        buyerName: order.buyer.name,
+        shopName: shopRecord?.name ?? 'Eurtisan',
+        refundAmount: `${(refundCents / 100).toFixed(2)}`,
+        orderUrl: `${baseUrl}/orders/${order.platformOrderId}`,
+      })
+    }
+  })
+
+  return { success: true, shopOrderId, creditNoteNumber }
 }

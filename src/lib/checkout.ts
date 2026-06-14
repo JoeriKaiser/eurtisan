@@ -16,6 +16,7 @@ export type {
   ShippingOption,
   ShippingSelection,
 } from './checkout.server'
+export type { ServicePoint } from '#/integrations/shipping'
 
 const pickupPointSchema = z
   .object({
@@ -148,6 +149,34 @@ export const createCheckout = createServerFn({ method: 'POST' })
 
     const { createCheckoutQuery } = await import('./checkout.server')
     return createCheckoutQuery(data, context.user.id)
+  })
+
+const getServicePointsRateLimitMiddleware = createUserRateLimitMiddleware(
+  10,
+  60_000,
+  'service_points',
+)
+
+export const getServicePoints = createServerFn({ method: 'POST' })
+  .middleware([authMiddleware, getServicePointsRateLimitMiddleware])
+  .inputValidator(
+    z.object({
+      postalCode: z.string().min(3).max(20),
+      country: isoCountryCodeSchema,
+      carrier: z.string().optional(),
+    }),
+  )
+  .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Response(
+        JSON.stringify({ error: 'Unauthorized', message: 'Authentication required' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const { getShippingProvider } = await import('#/integrations/shipping')
+    const provider = getShippingProvider()
+    return provider.getServicePoints(data.postalCode, data.country, data.carrier)
   })
 
 const retryPaymentRateLimitMiddleware = createUserRateLimitMiddleware(3, 60_000, 'retry_payment')

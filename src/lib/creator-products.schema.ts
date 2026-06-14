@@ -25,6 +25,10 @@ export const createProductSchema = z.object({
   categoryId: z.string().uuid().optional(),
   isActive: z.boolean().optional().default(true),
   vatRateCategory: z.enum(['standard', 'reduced', 'exempt']).optional().default('standard'),
+  weightGrams: z.coerce.number().int().positive().optional(),
+  lengthCm: z.coerce.number().int().positive().optional(),
+  widthCm: z.coerce.number().int().positive().optional(),
+  heightCm: z.coerce.number().int().positive().optional(),
   images: z.array(productImageInputSchema).max(10).optional().default([]),
 })
 

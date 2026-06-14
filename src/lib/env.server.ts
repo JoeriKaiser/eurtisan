@@ -120,6 +120,92 @@ export function getPayoutReconciliationIntervalMs(): number {
   return 6 * 60 * 60 * 1000
 }
 
+/**
+ * Interval between Sendcloud shipment reconciliation job runs (milliseconds).
+ * Defaults to 6 hours.
+ */
+export function getSendcloudReconciliationIntervalMs(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.SENDCLOUD_RECONCILIATION_INTERVAL_MS
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed
+      }
+    }
+  }
+  return 6 * 60 * 60 * 1000
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Sendcloud Shipping                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Sendcloud public key (API username) for HTTP Basic Auth.
+ * Required in production for real label generation and tracking.
+ */
+export function getSendcloudPublicKey(): string | undefined {
+  if (typeof process !== 'undefined') {
+    return process.env.SENDCLOUD_PUBLIC_KEY
+  }
+  return undefined
+}
+
+/**
+ * Sendcloud secret key (API password) for HTTP Basic Auth and webhook HMAC.
+ * Required in production.
+ */
+export function getSendcloudSecretKey(): string | undefined {
+  if (typeof process !== 'undefined') {
+    return process.env.SENDCLOUD_SECRET_KEY
+  }
+  return undefined
+}
+
+/**
+ * Separate secret used for webhook HMAC-SHA256 verification.
+ * Defaults to the Sendcloud secret key if not set.
+ */
+export function getSendcloudWebhookSecret(): string | undefined {
+  if (typeof process !== 'undefined') {
+    return process.env.SENDCLOUD_WEBHOOK_SECRET?.trim() || process.env.SENDCLOUD_SECRET_KEY
+  }
+  return undefined
+}
+
+/**
+ * Explicit Unstamped letter shipping method ID for dev/staging.
+ * If unset, the provider discovers it at runtime via GET /shipping_methods.
+ */
+export function getSendcloudUnstampedLetterMethodId(): number | undefined {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.SENDCLOUD_UNSTAMPED_LETTER_METHOD_ID
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed
+      }
+    }
+  }
+  return undefined
+}
+
+/**
+ * When true, all label creation is forced to the Unstamped letter method.
+ * Defaults to true outside production to avoid paid labels in dev/staging.
+ * Can be explicitly disabled by setting SENDCLOUD_FORCE_UNSTAMPED_LETTER=false.
+ */
+export function getSendcloudForceUnstampedLetter(): boolean {
+  if (typeof process !== 'undefined') {
+    if (process.env.SENDCLOUD_FORCE_UNSTAMPED_LETTER !== undefined) {
+      return process.env.SENDCLOUD_FORCE_UNSTAMPED_LETTER === 'true'
+    }
+    return process.env.NODE_ENV !== 'production'
+  }
+  return true
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Email (Brevo)                                                           */
 /* -------------------------------------------------------------------------- */

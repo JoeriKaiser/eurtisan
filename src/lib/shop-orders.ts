@@ -269,6 +269,21 @@ export const markShopOrderDelivered = createServerFn({ method: 'POST' })
     return markShopOrderDeliveredQuery(data.shopOrderId)
   })
 
+export const refundShopOrder = createServerFn({ method: 'POST' })
+  .middleware([authMiddleware])
+  .inputValidator(z.object({ shopOrderId: z.string().uuid() }))
+  .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Response(
+        JSON.stringify({ error: 'Unauthorized', message: 'Authentication required' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const { refundShopOrderQuery } = await import('./shop-orders.server')
+    return refundShopOrderQuery(context.user.id, data.shopOrderId)
+  })
+
 export const listShopOrders = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .inputValidator(

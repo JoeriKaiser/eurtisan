@@ -353,9 +353,10 @@ describe('HomePage', () => {
   })
 
   it('renders marketplace statistics', () => {
-    const stats = { sellerCount: 45, productCount: 820 }
+    const stats = { sellerCount: 45, productCount: 820, countryCount: 12 }
     render(<HomePage categories={[]} products={[]} shops={[]} stats={stats} />)
     expect(screen.getByText('45')).toBeDefined()
     expect(screen.getByText('820')).toBeDefined()
+    expect(screen.getByText('12')).toBeDefined()
   })
 })

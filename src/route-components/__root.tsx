@@ -1,8 +1,10 @@
 import { FaroErrorBoundary } from '@grafana/faro-react'
 import { Outlet, useRouter } from '@tanstack/react-router'
 import { lazy, Suspense, useEffect } from 'react'
+import { useAnalyticsConsent } from '#/hooks/use-analytics-consent'
 import { getFaro, initFaro } from '#/integrations/faro'
 import { m } from '#/paraglide/messages'
+import { AnalyticsConsentBanner } from '../components/AnalyticsConsentBanner'
 import CartProvider from '../components/CartProvider'
 import Footer from '../components/Footer'
 import Header from '../components/Header'
@@ -15,10 +17,14 @@ export function RootComponent() {
   const router = useRouter()
   const isOnboarding = router.state.location.pathname.includes('/sell/onboarding/')
 
-  // Initialize Faro as early as possible on the client
+  const { consent } = useAnalyticsConsent()
+
+  // Initialize Faro only after the user has granted analytics consent.
   useEffect(() => {
-    initFaro()
-  }, [])
+    if (consent === 'granted') {
+      initFaro()
+    }
+  }, [consent])
 
   // Track route changes for RUM
   useEffect(() => {
@@ -82,6 +88,7 @@ export function RootComponent() {
           <Outlet />
         </main>
         {!isOnboarding && <Footer />}
+        <AnalyticsConsentBanner />
         {Devtools && (
           <Suspense fallback={null}>
             <Devtools />

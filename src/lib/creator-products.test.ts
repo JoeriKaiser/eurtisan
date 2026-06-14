@@ -141,6 +141,44 @@ describe('createProductSchema', () => {
     })
     expect(result.success).toBe(true)
   })
+
+  it('accepts valid shipping dimensions', () => {
+    const result = createProductSchema.safeParse({
+      name: 'Handmade Vase',
+      slug: 'handmade-vase',
+      priceCents: 2999,
+      weightGrams: 500,
+      lengthCm: 20,
+      widthCm: 15,
+      heightCm: 5,
+    })
+    expect(result.success).toBe(true)
+    if (!result.success) return
+    expect(result.data.weightGrams).toBe(500)
+    expect(result.data.lengthCm).toBe(20)
+    expect(result.data.widthCm).toBe(15)
+    expect(result.data.heightCm).toBe(5)
+  })
+
+  it('rejects non-positive shipping dimensions', () => {
+    const result = createProductSchema.safeParse({
+      name: 'Handmade Vase',
+      slug: 'handmade-vase',
+      priceCents: 2999,
+      weightGrams: 0,
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects non-integer shipping dimensions', () => {
+    const result = createProductSchema.safeParse({
+      name: 'Handmade Vase',
+      slug: 'handmade-vase',
+      priceCents: 2999,
+      weightGrams: 1.5,
+    })
+    expect(result.success).toBe(false)
+  })
 })
 
 describe('updateProductSchema', () => {
@@ -328,6 +366,41 @@ describe('createProductInternal', () => {
     expect(result.isActive).toBe(true)
   })
 
+  it('persists shipping dimensions', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
+      .returning()
+
+    const result = await createProductInternal({
+      name: 'Heavy Vase',
+      slug: 'heavy-vase',
+      priceCents: 4999,
+      stockCount: 5,
+      shopId: s.id,
+      weightGrams: 1200,
+      lengthCm: 25,
+      widthCm: 20,
+      heightCm: 15,
+    })
+
+    expect(result.weightGrams).toBe(1200)
+    expect(result.lengthCm).toBe(25)
+    expect(result.widthCm).toBe(20)
+    expect(result.heightCm).toBe(15)
+
+    const [row] = await db.select().from(product).where(eq(product.id, result.id)).limit(1)
+    expect(row.weightGrams).toBe(1200)
+    expect(row.lengthCm).toBe(25)
+    expect(row.widthCm).toBe(20)
+    expect(row.heightCm).toBe(15)
+  })
+
   it('rejects duplicate slug within the same shop', async () => {
     const [u] = await db
       .insert(user)
@@ -457,6 +530,51 @@ describe('updateProductInternal', () => {
     expect(result.name).toBe('Updated Vase')
     expect(result.priceCents).toBe(3999)
     expect(result.slug).toBe('vase') // unchanged
+  })
+
+  it('updates shipping dimensions', async () => {
+    const [u] = await db
+      .insert(user)
+      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
+      .returning()
+
+    const [s] = await db
+      .insert(shop)
+      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
+      .returning()
+
+    const [p] = await db
+      .insert(product)
+      .values({
+        id: 'prod-1',
+        name: 'Vase',
+        slug: 'vase',
+        priceCents: 2999,
+        stockCount: 10,
+        shopId: s.id,
+      })
+      .returning()
+
+    const result = await updateProductInternal({
+      productId: p.id,
+      shopId: s.id,
+      userId: u.id,
+      weightGrams: 800,
+      lengthCm: 18,
+      widthCm: 12,
+      heightCm: 8,
+    })
+
+    expect(result.weightGrams).toBe(800)
+    expect(result.lengthCm).toBe(18)
+    expect(result.widthCm).toBe(12)
+    expect(result.heightCm).toBe(8)
+
+    const [row] = await db.select().from(product).where(eq(product.id, p.id)).limit(1)
+    expect(row.weightGrams).toBe(800)
+    expect(row.lengthCm).toBe(18)
+    expect(row.widthCm).toBe(12)
+    expect(row.heightCm).toBe(8)
   })
 
   it('rejects slug change to an existing slug', async () => {

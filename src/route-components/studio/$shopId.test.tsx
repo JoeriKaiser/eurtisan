@@ -10,7 +10,7 @@ vi.mock('@tanstack/react-router', () => ({
     stats: {
       pendingOrdersCount: 3,
       lowStockProductCount: 2,
-      revenueThisMonthCents: 12500,
+      netRevenueThisMonthCents: 12500,
       totalActiveProducts: 7,
     },
   }),
@@ -46,7 +46,7 @@ vi.mock('#/paraglide/messages', () => ({
     studio_nav_settings_desc: () => 'Shop profile, VAT, and shipping origin.',
     studio_metric_pending_orders: () => 'Pending orders',
     studio_metric_low_stock: () => 'Low stock',
-    studio_metric_revenue_this_month: () => 'Revenue this month',
+    studio_metric_net_revenue_this_month: () => 'Net revenue this month',
     studio_metric_active_products: () => 'Active products',
   },
 }))

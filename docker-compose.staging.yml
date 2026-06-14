@@ -33,7 +33,7 @@ services:
       meilisearch:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health/ready"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -145,7 +145,97 @@ services:
       db:
         condition: service_healthy
     command: >
-      sh -c "bun run src/jobs/payout-reconciliation.ts"
+      sh -c "bun run job:payout-reconciliation"
+
+  sendcloud-reconciliation:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: eurtisan-sendcloud-reconciliation-staging
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "bun run job:sendcloud-reconciliation"
+
+  session-cleanup:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: eurtisan-session-cleanup-staging
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "bun run job:session-cleanup"
+
+  cart-cleanup:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: eurtisan-cart-cleanup-staging
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "bun run job:cart-cleanup"
+
+  audit-log-cleanup:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: eurtisan-audit-log-cleanup-staging
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "bun run job:audit-log-cleanup"
+
+  verification-cleanup:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: eurtisan-verification-cleanup-staging
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "bun run job:verification-cleanup"
 
 volumes:
   postgres_data:

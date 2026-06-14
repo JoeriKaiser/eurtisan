@@ -427,6 +427,10 @@ describe('CreatorProductNewPage', () => {
       vatRateCategory: 'standard',
       shopId: 'shop-1',
       categoryId: null,
+      weightGrams: null,
+      lengthCm: null,
+      widthCm: null,
+      heightCm: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     })
@@ -495,6 +499,10 @@ describe('CreatorProductNewPage', () => {
       vatRateCategory: 'standard',
       shopId: 'shop-1',
       categoryId: null,
+      weightGrams: null,
+      lengthCm: null,
+      widthCm: null,
+      heightCm: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     })

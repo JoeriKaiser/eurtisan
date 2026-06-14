@@ -1,7 +1,7 @@
 import { count, desc, eq, inArray } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { orderItem, platformOrder, shippingLabel, shop, shopOrder } from '#/db/schema'
-import { mondialRelayProvider } from '#/integrations/shipping'
+import { getShippingProvider } from '#/integrations/shipping'
 import type { ShippingAddress } from './checkout.server'
 import { releaseStockInTx } from './inventory.server'
 
@@ -41,6 +41,7 @@ export interface OrderShopGroup {
   shopId: string
   shopName: string
   shippingMethod: 'standard' | 'express' | 'manual'
+  shippingRateId: string | null
   shippingCostCents: number
   subtotalCents: number
   vatAmountCents: number
@@ -159,7 +160,8 @@ export async function getBuyerOrderDetailQuery(
       let timerId: ReturnType<typeof setTimeout> | undefined
       try {
         // Fetch with a 1-second timeout wrapper
-        const trackPromise = mondialRelayProvider.trackShipment(label.trackingNumber)
+        const provider = getShippingProvider()
+        const trackPromise = provider.trackShipment(label.trackingNumber)
         const timeoutPromise = new Promise<never>((_, reject) => {
           timerId = setTimeout(() => reject(new Error('Timeout')), API_TIMEOUT_MS)
         })
@@ -207,6 +209,7 @@ export async function getBuyerOrderDetailQuery(
       shopId: so.shopOrder.shopId,
       shopName: so.shop?.name ?? 'Unknown shop',
       shippingMethod: so.shopOrder.shippingMethod,
+      shippingRateId: so.shopOrder.shippingRateId ?? null,
       shippingCostCents: so.shopOrder.shippingCostCents,
       subtotalCents: so.shopOrder.subtotalCents,
       vatAmountCents: so.shopOrder.vatAmountCents,

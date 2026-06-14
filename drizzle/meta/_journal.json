@@ -428,6 +428,41 @@
       "when": 1781302783260,
       "tag": "0060_daffy_captain_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1781361075184,
+      "tag": "0061_lucky_human_robot",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1781423836962,
+      "tag": "0062_wooden_vulcan",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1781424874050,
+      "tag": "0063_huge_shockwave",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1781428985180,
+      "tag": "0064_breezy_colonel_america",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1781430226836,
+      "tag": "0065_wealthy_penance",
+      "breakpoints": true
     }
   ]
 }

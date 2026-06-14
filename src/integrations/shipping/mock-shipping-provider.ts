@@ -1,13 +1,9 @@
 /**
- * Mondial Relay shipping provider — mock implementation.
+ * Mock shipping provider for tests and local development.
  *
- * All API calls are mocked with realistic but deterministic responses for
- * development. Uses MONDIAL_RELAY_API_KEY for configuration; degrades
- * gracefully when the key is missing so the full shipping flow (get rates →
- * create label → track shipment) works end-to-end in development.
- *
- * Mock data is deterministic: the same inputs always produce the same
- * tracking numbers and rates for testability.
+ * Implements the full ShippingProvider interface without making any network
+ * calls. Output is deterministic so tests remain stable. Used automatically
+ * in test environments and when Sendcloud credentials are not configured.
  */
 
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'
@@ -16,6 +12,7 @@ import type {
   Label,
   Package,
   Rate,
+  ServicePoint,
   ShipmentDetails,
   ShippingAddress,
   ShippingProvider,
@@ -27,59 +24,41 @@ import type {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Deterministic tracking number prefix. */
-const TRACKING_PREFIX = 'MR'
+const TRACKING_PREFIX = 'SC'
 
 let _mockCounter = 0
 
-/**
- * Generate a deterministic tracking number from the destination country,
- * postal code, and package weight. The same inputs always produce the same
- * tracking number.
- */
-function deterministicTrackingNumber(
-  country: string,
-  postalCode: string,
-  weightGrams: number,
-): string {
-  const seed = `${country}:${postalCode}:${weightGrams}`
+function deterministicHash(seed: string): string {
   let hash = 0
   for (let i = 0; i < seed.length; i++) {
     const char = seed.charCodeAt(i)
     hash = (hash << 5) - hash + char
     hash |= 0
   }
-  const suffix = Math.abs(hash).toString(16).toUpperCase().padStart(8, '0')
-  return `${TRACKING_PREFIX}${suffix}`
+  return Math.abs(hash).toString(16).toUpperCase().padStart(8, '0')
 }
 
-/**
- * Generate a deterministic label ID.
- */
+function deterministicTrackingNumber(
+  country: string,
+  postalCode: string,
+  weightGrams: number,
+): string {
+  const seed = `${country}:${postalCode}:${weightGrams}:${_mockCounter}`
+  return `${TRACKING_PREFIX}${deterministicHash(seed)}`
+}
+
 function deterministicLabelId(trackingNumber: string): string {
-  return `mrlbl_${trackingNumber}`
+  return `sclbl_${trackingNumber}`
 }
 
-/**
- * Build a pseudo ISO-8601 timestamp offset from now by the given number of hours.
- */
 function timestampOffsetHours(offsetHours: number): string {
-  const d = new Date(Date.now() + offsetHours * 3_600_000)
-  return d.toISOString()
-}
-
-/**
- * Resets the mock counter so tests are deterministic.
- */
-export function resetMockShippingCounter(): void {
-  _mockCounter = 0
+  return new Date(Date.now() + offsetHours * 3_600_000).toISOString()
 }
 
 // ---------------------------------------------------------------------------
-// Rate calculation (mock)
+// Rate calculation
 // ---------------------------------------------------------------------------
 
-/** Base EUR rates for standard and express shipping within Europe. */
 function calculateRates(
   _origin: ShippingAddress,
   destination: ShippingAddress,
@@ -90,15 +69,11 @@ function calculateRates(
   const weightKg = pkg.weightGrams / 1000
   const volumeCm3 = pkg.lengthCm * pkg.widthCm * pkg.heightCm
 
-  // Base standard rate: €4.95 + weight surcharge
   const standardBase = 495
-  const standardWeightCharge = Math.round(weightKg * 85) // €0.85/kg
+  const standardWeightCharge = Math.round(weightKg * 85)
   const standardPrice = standardBase + standardWeightCharge
-
-  // Express rate: roughly 1.6× standard with faster delivery
   const expressPrice = Math.round(standardPrice * 1.6)
 
-  // Delivery estimates based on destination
   const isIntraCountry = _origin.country === destination.country
   const standardDays = isIntraCountry ? { min: 2, max: 4 } : { min: 3, max: 7 }
   const expressDays = isIntraCountry ? { min: 1, max: 1 } : { min: 1, max: 3 }
@@ -111,16 +86,17 @@ function calculateRates(
 
   return [
     {
-      rateId: `mondial_std_${rateId}`,
-      carrier: 'mondial_relay',
-      serviceName: 'Mondial Relay Standard',
+      rateId: `sendcloud_std_${rateId}`,
+      carrier: 'sendcloud',
+      serviceName: 'Sendcloud Standard',
       priceCents: standardPrice,
       estimatedDays: standardDays,
+      supportsServicePoint: true,
     },
     {
-      rateId: `mondial_xpr_${rateId}`,
-      carrier: 'mondial_relay',
-      serviceName: 'Mondial Relay Express',
+      rateId: `sendcloud_xpr_${rateId}`,
+      carrier: 'sendcloud',
+      serviceName: 'Sendcloud Express',
       priceCents: expressPrice,
       estimatedDays: expressDays,
     },
@@ -128,10 +104,9 @@ function calculateRates(
 }
 
 // ---------------------------------------------------------------------------
-// Tracking events (mock)
+// Tracking events
 // ---------------------------------------------------------------------------
 
-/** Generate a realistic tracking timeline for a shipment. */
 function buildTrackingEvents(_trackingNumber: string): TrackingEvent[] {
   const hoursAgo = 48
   const baseTime = new Date(Date.now() - hoursAgo * 3_600_000)
@@ -144,17 +119,17 @@ function buildTrackingEvents(_trackingNumber: string): TrackingEvent[] {
     {
       timestamp: ts(0),
       status: 'label_created',
-      location: 'Mondial Relay Hub — Lille, FR',
+      location: 'Sendcloud Hub — Lille, FR',
     },
     {
       timestamp: ts(4),
       status: 'Shipment picked up by carrier',
-      location: 'Mondial Relay Hub — Lille, FR',
+      location: 'Sendcloud Hub — Lille, FR',
     },
     {
       timestamp: ts(8),
       status: 'Package received at sorting centre',
-      location: 'Mondial Relay Sorting — Paris, FR',
+      location: 'Sendcloud Sorting — Paris, FR',
     },
     {
       timestamp: ts(16),
@@ -180,7 +155,7 @@ function buildTrackingEvents(_trackingNumber: string): TrackingEvent[] {
 }
 
 // ---------------------------------------------------------------------------
-// Label generation (mock)
+// Label generation
 // ---------------------------------------------------------------------------
 
 function buildMockLabel(trackingNumber: string, _shipmentDetails: ShipmentDetails): Label {
@@ -189,57 +164,107 @@ function buildMockLabel(trackingNumber: string, _shipmentDetails: ShipmentDetail
   return {
     labelId,
     trackingNumber,
-    labelUrl: `https://mock.mondialrelay.example.com/labels/${labelId}.pdf`,
-    carrier: 'mondial_relay',
+    labelUrl: `https://mock.sendcloud.example.com/labels/${labelId}.pdf`,
+    carrier: 'sendcloud',
+    externalParcelId: labelId,
   }
+}
+
+// ---------------------------------------------------------------------------
+// Service points
+// ---------------------------------------------------------------------------
+
+function buildMockServicePoints(postalCode: string, country: string): ServicePoint[] {
+  const cleanPc = (postalCode || '75001').trim()
+  const cleanCountry = (country || 'FR').toUpperCase()
+
+  if (cleanCountry === 'DE') {
+    return [
+      {
+        id: `DE-${cleanPc}-01`,
+        name: 'Packstation - Edeka',
+        street: 'Friedrichstraße 50',
+        postalCode: cleanPc,
+        city: 'Berlin',
+        country: 'DE',
+        distance: '0.2 km',
+      },
+      {
+        id: `DE-${cleanPc}-02`,
+        name: 'Späti 24 Kiosk',
+        street: 'Kottbusser Damm 12',
+        postalCode: cleanPc,
+        city: 'Berlin',
+        country: 'DE',
+        distance: '0.6 km',
+      },
+      {
+        id: `DE-${cleanPc}-03`,
+        name: 'Blumenhaus Edelweiß',
+        street: 'Karl-Marx-Allee 85',
+        postalCode: cleanPc,
+        city: 'Berlin',
+        country: 'DE',
+        distance: '1.1 km',
+      },
+    ]
+  }
+
+  return [
+    {
+      id: `${cleanCountry}-${cleanPc}-01`,
+      name: 'Relay Pick-up - Auchan',
+      street: '25 Rue de Rivoli',
+      postalCode: cleanPc,
+      city: 'Paris',
+      country: cleanCountry,
+      distance: '0.4 km',
+    },
+    {
+      id: `${cleanCountry}-${cleanPc}-02`,
+      name: 'Épicerie du Coin',
+      street: '14 Rue Saint-Denis',
+      postalCode: cleanPc,
+      city: 'Paris',
+      country: cleanCountry,
+      distance: '0.8 km',
+    },
+    {
+      id: `${cleanCountry}-${cleanPc}-03`,
+      name: 'Pressing de la Mairie',
+      street: '88 Boulevard Voltaire',
+      postalCode: cleanPc,
+      city: 'Paris',
+      country: cleanCountry,
+      distance: '1.5 km',
+    },
+  ]
 }
 
 // ---------------------------------------------------------------------------
 // Provider
 // ---------------------------------------------------------------------------
 
-export type MondialRelayProviderDeps = {
+export type MockShippingProviderDeps = {
   /** Optional database instance for inserting shipping_label rows. */
   db?: PostgresJsDatabase<Record<string, never>>
 }
 
-export class MondialRelayProvider implements ShippingProvider {
-  private readonly apiKey: string | undefined
+export class MockShippingProvider implements ShippingProvider {
   private readonly db?: PostgresJsDatabase<Record<string, never>>
 
-  constructor(deps?: MondialRelayProviderDeps) {
-    this.apiKey = process.env.MONDIAL_RELAY_API_KEY
+  constructor(deps?: MockShippingProviderDeps) {
     this.db = deps?.db
-
-    if (!this.apiKey) {
-      // Operating in mock mode without a configured API key. This is expected
-      // in development. The provider continues to serve deterministic mock
-      // data so the full shipping flow remains functional.
-      console.warn(
-        'MondialRelayProvider: MONDIAL_RELAY_API_KEY is not set. ' +
-          'All shipping calls will use mock data.',
-      )
-    }
   }
-
-  // -----------------------------------------------------------------------
-  // getRates
-  // -----------------------------------------------------------------------
 
   async getRates(
     origin: ShippingAddress,
     destination: ShippingAddress,
     pkg: Package,
   ): Promise<Rate[]> {
-    // Simulate network latency
     await delay(40)
-
     return calculateRates(origin, destination, pkg)
   }
-
-  // -----------------------------------------------------------------------
-  // createLabel
-  // -----------------------------------------------------------------------
 
   async createLabel(shipmentDetails: ShipmentDetails): Promise<Label> {
     await delay(60)
@@ -252,23 +277,18 @@ export class MondialRelayProvider implements ShippingProvider {
 
     const label = buildMockLabel(trackingNumber, shipmentDetails)
 
-    // Insert a shipping_label row when a database instance is available and a
-    // shop order reference is provided.
     if (this.db && shipmentDetails.reference) {
       await this.db.insert(shippingLabel).values({
         shopOrderId: shipmentDetails.reference,
         carrier: label.carrier,
         trackingNumber: label.trackingNumber,
         labelUrl: label.labelUrl,
+        externalParcelId: label.externalParcelId ?? null,
       })
     }
 
     return label
   }
-
-  // -----------------------------------------------------------------------
-  // trackShipment
-  // -----------------------------------------------------------------------
 
   async trackShipment(trackingNumber: string): Promise<TrackingInfo> {
     await delay(30)
@@ -278,20 +298,48 @@ export class MondialRelayProvider implements ShippingProvider {
 
     return {
       trackingNumber,
-      carrier: 'mondial_relay',
+      carrier: 'sendcloud',
       status: latestEvent.status,
       estimatedDelivery: timestampOffsetHours(2),
       events,
     }
   }
+
+  async getServicePoints(postalCode: string, country: string): Promise<ServicePoint[]> {
+    await delay(50)
+    return buildMockServicePoints(postalCode, country)
+  }
+
+  async getServicePointMethods(_servicePointId: string): Promise<Rate[]> {
+    await delay(40)
+    // In the mock, only the standard rate supports service points.
+    const origin: ShippingAddress = {
+      street: 'Mock Origin',
+      city: 'Berlin',
+      postalCode: '10115',
+      country: 'DE',
+    }
+    const destination: ShippingAddress = {
+      street: 'Mock Destination',
+      city: 'Paris',
+      postalCode: '75001',
+      country: 'FR',
+    }
+    const pkg: Package = { weightGrams: 500, lengthCm: 20, widthCm: 15, heightCm: 5 }
+    const rates = await this.getRates(origin, destination, pkg)
+    return rates.filter((r) => r.supportsServicePoint)
+  }
 }
 
-// ---------------------------------------------------------------------------
-// Default singleton
-// ---------------------------------------------------------------------------
+/** Default mock shipping provider instance used by the application. */
+export const mockShippingProvider = new MockShippingProvider()
 
-/** Default Mondial Relay shipping provider instance used by the application. */
-export const mondialRelayProvider = new MondialRelayProvider()
+/**
+ * Resets the mock counter so tests are deterministic.
+ */
+export function resetMockShippingCounter(): void {
+  _mockCounter = 0
+}
 
 // ---------------------------------------------------------------------------
 // Internal helpers

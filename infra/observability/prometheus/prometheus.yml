@@ -9,6 +9,12 @@ scrape_configs:
 
   - job_name: 'eurtisan'
     metrics_path: /api/metrics
+    # The /api/metrics endpoint requires METRICS_TOKEN in production.
+    # Configure the scrape token with one of the following methods:
+    #   1. Add `params: { token: ['<token>'] }` here and keep this file generated
+    #      from Ansible (so the token is never committed).
+    #   2. Use `authorization: { type: Bearer, credentials_file: /run/secrets/metrics_token }`
+    #      and mount the token via Docker secrets or an Ansible-managed file.
     static_configs:
       - targets: ['eurtisan-app:3000']
 

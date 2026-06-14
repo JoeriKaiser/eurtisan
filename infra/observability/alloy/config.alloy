@@ -13,13 +13,13 @@ discovery.relabel "eurtisan" {
 
   rule {
     source_labels = ["__meta_docker_container_name"]
-    regex         = "/eurtisan-app-staging"
+    regex         = "/" + env("APP_CONTAINER_NAME")
     action        = "keep"
   }
 
   rule {
     source_labels = ["__meta_docker_container_name"]
-    regex         = "/eurtisan-app-staging"
+    regex         = "/" + env("APP_CONTAINER_NAME")
     target_label  = "job"
     replacement   = "eurtisan"
   }

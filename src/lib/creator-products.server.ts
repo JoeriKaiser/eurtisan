@@ -32,6 +32,10 @@ export async function verifyProductOwnership(productId: string, userId: string) 
       vatRateCategory: product.vatRateCategory,
       shopId: product.shopId,
       categoryId: product.categoryId,
+      weightGrams: product.weightGrams,
+      lengthCm: product.lengthCm,
+      widthCm: product.widthCm,
+      heightCm: product.heightCm,
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
       shopOwnerId: shop.ownerId,
@@ -141,6 +145,10 @@ export async function createProductInternal(data: {
   categoryId?: string
   isActive?: boolean
   vatRateCategory?: 'standard' | 'reduced' | 'exempt'
+  weightGrams?: number
+  lengthCm?: number
+  widthCm?: number
+  heightCm?: number
   images?: ProductImageInput[]
 }) {
   const categoryValid = await validateCategory(data.categoryId)
@@ -164,6 +172,10 @@ export async function createProductInternal(data: {
           categoryId: data.categoryId ?? null,
           isActive: data.isActive ?? true,
           vatRateCategory: data.vatRateCategory ?? 'standard',
+          weightGrams: data.weightGrams ?? null,
+          lengthCm: data.lengthCm ?? null,
+          widthCm: data.widthCm ?? null,
+          heightCm: data.heightCm ?? null,
         })
         .returning()
 
@@ -217,6 +229,10 @@ export async function updateProductInternal(data: {
   categoryId?: string
   isActive?: boolean
   vatRateCategory?: 'standard' | 'reduced' | 'exempt'
+  weightGrams?: number
+  lengthCm?: number
+  widthCm?: number
+  heightCm?: number
   images?: ProductImageInput[]
 }) {
   const productRecord = await verifyProductOwnership(data.productId, data.userId)
@@ -243,6 +259,10 @@ export async function updateProductInternal(data: {
   if (data.categoryId !== undefined) updateData.categoryId = data.categoryId ?? null
   if (data.isActive !== undefined) updateData.isActive = data.isActive
   if (data.vatRateCategory !== undefined) updateData.vatRateCategory = data.vatRateCategory
+  if (data.weightGrams !== undefined) updateData.weightGrams = data.weightGrams ?? null
+  if (data.lengthCm !== undefined) updateData.lengthCm = data.lengthCm ?? null
+  if (data.widthCm !== undefined) updateData.widthCm = data.widthCm ?? null
+  if (data.heightCm !== undefined) updateData.heightCm = data.heightCm ?? null
 
   // Remember old image keys so we can clean them up from S3 after a successful commit
   let oldImageKeys: string[] = []

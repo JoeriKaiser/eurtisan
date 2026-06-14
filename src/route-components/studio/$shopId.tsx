@@ -65,8 +65,8 @@ export function ShopDashboard() {
           <MetricCard label={m.studio_metric_pending_orders()} value={stats.pendingOrdersCount} />
           <MetricCard label={m.studio_metric_low_stock()} value={stats.lowStockProductCount} />
           <MetricCard
-            label={m.studio_metric_revenue_this_month()}
-            value={formatPriceEUR(stats.revenueThisMonthCents)}
+            label={m.studio_metric_net_revenue_this_month()}
+            value={formatPriceEUR(stats.netRevenueThisMonthCents)}
           />
           <MetricCard label={m.studio_metric_active_products()} value={stats.totalActiveProducts} />
         </div>

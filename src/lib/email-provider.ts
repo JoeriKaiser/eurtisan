@@ -11,6 +11,7 @@ export type EmailTemplate =
   | 'order_confirmation'
   | 'shipping_notification'
   | 'dispute_update'
+  | 'order_refunded'
   | 'email_verification'
   | 'password_reset'
   | 'account_security_alert'

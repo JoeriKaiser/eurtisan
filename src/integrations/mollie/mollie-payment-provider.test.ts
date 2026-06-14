@@ -56,25 +56,23 @@ describe('MolliePaymentProvider production safety', () => {
     )
   })
 
-  it('works in production when MOCK_PAYMENTS_ENABLED is explicitly true', () => {
+  it('throws in production when MOCK_PAYMENTS_ENABLED is explicitly true', () => {
     setEnv('NODE_ENV', 'production')
     setEnv('MOLLIE_API_KEY', '')
     setEnv('MOCK_PAYMENTS_ENABLED', 'true')
-    setEnv('PUBLIC_URL', 'https://example.com')
 
-    const provider = new MolliePaymentProvider()
-    return expect(
-      provider.createPayment(
-        1000,
-        'EUR',
-        'Test',
-        'https://example.com/orders/123/success',
-        'https://example.com/webhook',
-      ),
-    ).resolves.toEqual(
-      expect.objectContaining({
-        paymentId: expect.stringMatching(/^tr_mock_/),
-      }),
+    expect(() => new MolliePaymentProvider()).toThrow(
+      'FATAL: MOCK_PAYMENTS_ENABLED cannot be true in production',
+    )
+  })
+
+  it('throws in production when constructed with mock: true', () => {
+    setEnv('NODE_ENV', 'production')
+    setEnv('MOLLIE_API_KEY', 'test_live_key')
+    setEnv('MOCK_PAYMENTS_ENABLED', 'false')
+
+    expect(() => new MolliePaymentProvider({ mock: true })).toThrow(
+      'FATAL: mock payment provider cannot be constructed in production',
     )
   })
 

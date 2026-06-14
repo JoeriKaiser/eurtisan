@@ -1,77 +1,77 @@
-¶Caddyfile#CE69
-1:# Caddy reverse proxy configuration
-2:# Domain is injected via the CADDY_DOMAIN environment variable
-3:
-4:{$CADDY_DOMAIN} {
-5:	# Compression — brotli requires the caddy-brotli plugin (https://github.com/darkweak/caddy-brotli)
-6:	encode brotli gzip zstd
-7:
-8:	# Faro collector endpoint
-9:	handle /collect* {
-10:		reverse_proxy alloy:8027
-11:	}
-12:
-13:	# Grafana UI — restrict to admin IPs only
-14:	# TODO: Replace with actual admin IP ranges before production
-15:	handle /grafana* {
-16:		# @not_admin not remote_ip 1.2.3.4/32 10.0.0.0/24
-17:		# respond @not_admin "Forbidden" 403
-18:		reverse_proxy grafana:3000
-19:	}
-20:
-21:	# Image serving via imgproxy
-22:	handle /uploads/* {
-23:		reverse_proxy imgproxy:8080
-24:	}
-25:
-26:	# Edge rate limiting for authentication endpoints
-27:	handle /api/auth* {
-28:		rate_limit {
-29:			zone auth {
-30:				key {remote_host}
-31:				events 20
-32:				window 1m
-33:			}
-34:		}
-35:		reverse_proxy app:3000 {
-36:			header_up X-Forwarded-Proto {scheme}
-37:			header_up X-Forwarded-Host {host}
-38:		}
-39:	}
-40:
-41:	# Main application
-42:	handle {
-43:		reverse_proxy app:3000 {
-44:			header_up X-Forwarded-Proto {scheme}
-45:			header_up X-Forwarded-Host {host}
-46:		}
-47:	}
-48:
-49:	# Stricter referrer policy on checkout and order flows
-50:	@checkout_paths path /checkout /cart /orders*
-51:	header @checkout_paths Referrer-Policy "strict-origin"
-52:
-53:	# Security headers
-54:	header {
-55:		Vary "Accept-Encoding, Accept-Language"
-56:		X-Content-Type-Options "nosniff"
-57:		X-Frame-Options "DENY"
-58:		Referrer-Policy "strict-origin-when-cross-origin"
-59:		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+# Caddy reverse proxy configuration
+# Domain is injected via the CADDY_DOMAIN environment variable
+
+{$CADDY_DOMAIN} {
+	# Compression — gzip and zstd are included in the official Caddy image.
+	# Brotli is intentionally omitted because it requires a third-party plugin.
+	encode gzip zstd
+
+	# Faro collector endpoint
+	handle /collect* {
+		reverse_proxy alloy:8027
+	}
+
+	# Grafana UI — restrict to admin IPs only.
+	# Set GRAFANA_ADMIN_IPS to a space-separated list of CIDR ranges.
+	# Defaults to 0.0.0.0/32 so the route is blocked if the variable is not set.
+	handle /grafana* {
+		@not_admin not remote_ip {$GRAFANA_ADMIN_IPS:0.0.0.0/32}
+		respond @not_admin "Forbidden" 403
+		reverse_proxy grafana:3000
+	}
+
+	# Image serving via imgproxy
+	handle /uploads/* {
+		reverse_proxy imgproxy:8080
+	}
+
+	# Edge rate limiting for authentication endpoints
+	handle /api/auth* {
+		rate_limit {
+			zone auth {
+				key {remote_host}
+				events 20
+				window 1m
+			}
+		}
+		reverse_proxy app:3000 {
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+
+	# Main application
+	handle {
+		reverse_proxy app:3000 {
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+
+	# Stricter referrer policy on checkout and order flows
+	@checkout_paths path /checkout /cart /orders*
+	header @checkout_paths Referrer-Policy "strict-origin"
+
+	# Security headers
+	header {
+		Vary "Accept-Encoding, Accept-Language"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
 		Expect-CT "max-age=86400, enforce"
-60:		Cross-Origin-Opener-Policy "same-origin"
-61:		Cross-Origin-Embedder-Policy "require-corp"
-62:		Cross-Origin-Resource-Policy "same-origin"
-63:		Document-Policy "force-load-at-top"
-64:		# Baseline edge CSP — covers all known external resources used by the app
-65:		# (Mollie, Brevo, Meilisearch, Umami). The app may emit a
-66:		# more specific policy at runtime; this ensures non-app responses
-67:		# (error pages, static files, upstream services) are also protected.
-68:		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.umami.is https://analytics.eurtisan.eu; style-src 'self' 'unsafe-inline'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://api.mollie.com https://api.brevo.com https://search.eurtisan.eu https://cdn.umami.is https://api.umami.is https://analytics.eurtisan.eu; frame-src 'self' https://checkout.mollie.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
-69:		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
-70:	}
-71:
-72:	# Automatic HTTPS via Let's Encrypt
-73:	# Caddy handles certificate provisioning and renewal
-74:}
-75:
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Embedder-Policy "require-corp"
+		Cross-Origin-Resource-Policy "same-origin"
+		Document-Policy "force-load-at-top"
+		# Baseline edge CSP — covers all known external resources used by the app
+		# (Mollie, Brevo, Meilisearch, Umami). The app emits a nonce-based policy
+		# for HTML responses; this line protects non-app responses (error pages,
+		# static files, upstream services). Inline scripts are not allowed here.
+		Content-Security-Policy "default-src 'self'; script-src 'self' https://cdn.umami.is https://analytics.eurtisan.eu; style-src 'self' 'unsafe-inline'; style-src-attr 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob:; connect-src 'self' https://api.mollie.com https://api.brevo.com https://search.eurtisan.eu https://cdn.umami.is https://api.umami.is https://analytics.eurtisan.eu; frame-src 'self' https://checkout.mollie.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+	}
+
+	# Automatic HTTPS via Let's Encrypt
+	# Caddy handles certificate provisioning and renewal
+}
