@@ -6,9 +6,11 @@ import {
   getCreatorRecentActivity,
   getCreatorShops,
 } from '#/lib/creator-dashboard'
+import { guardPrivilegedRole } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
 
 export const Route = createFileRoute('/creator/')({
+  beforeLoad: async () => guardPrivilegedRole('creator'),
   loader: async () => {
     const [stats, activity, shops] = await Promise.all([
       getCreatorDashboardStats(),

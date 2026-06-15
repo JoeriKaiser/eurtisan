@@ -5,6 +5,7 @@ import { CreatorPayoutsError } from '#/components/CreatorPayoutsError'
 import { CreatorPayoutsRouteComponent } from '#/route-components/creator/payouts'
 import { getCreatorShops } from '#/lib/creator-dashboard'
 import { listCreatorPayouts } from '#/lib/payouts'
+import { guardPrivilegedRole } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
 
 const payoutSearchSchema = z.object({
@@ -18,6 +19,7 @@ const payoutSearchSchema = z.object({
 
 export const Route = createFileRoute('/creator/payouts')({
   validateSearch: payoutSearchSchema,
+  beforeLoad: async () => guardPrivilegedRole('creator'),
   loaderDeps: ({ search: { shopId, status, page } }) => ({ shopId, status, page }),
   loader: async ({ deps }) => {
     const shops = await getCreatorShops()

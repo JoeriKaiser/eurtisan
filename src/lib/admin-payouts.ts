@@ -1,6 +1,8 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
+import type { SafeUser } from './server-auth'
+import { requirePrivileged2FA } from './server-auth'
 
 export type { AdminPayoutRow } from './payouts.server'
 
@@ -51,9 +53,21 @@ export const listPendingPayouts = createServerFn({ method: 'GET' })
   .inputValidator(listPendingPayoutsInputSchema)
   .handler(async ({ context, data }) => {
     await requireAdmin(context)
+    requirePrivileged2FA(context.user as SafeUser)
 
-    const { listPendingPayoutsQuery } = await import('./payouts.server')
-    return listPendingPayoutsQuery(data.page, data.pageSize)
+    const [{ listPendingPayoutsQuery }, { emitAdminReadAudit }] = await Promise.all([
+      import('./payouts.server'),
+      import('./audit-log.server'),
+    ])
+    const result = await listPendingPayoutsQuery(data.page, data.pageSize)
+
+    await emitAdminReadAudit(context.user, 'admin.read.payout', 'payout', undefined, {
+      page: data.page,
+      pageSize: data.pageSize,
+      total: result.total,
+    })
+
+    return result
   })
 
 /* -------------------------------------------------------------------------- */
@@ -78,6 +92,7 @@ export const executePayout = createServerFn({ method: 'POST' })
       import('./payouts.server'),
       import('./audit-log.server'),
     ])
+    requirePrivileged2FA(context.user as SafeUser)
     const { executePayoutQuery } = modules[1]
     const { emitAuditEvent } = modules[2]
     const [result] = await Promise.all([
@@ -124,13 +139,28 @@ export const listPayoutHistory = createServerFn({ method: 'GET' })
   .inputValidator(listPayoutHistoryInputSchema)
   .handler(async ({ context, data }) => {
     await requireAdmin(context)
+    requirePrivileged2FA(context.user as SafeUser)
 
-    const { listPayoutHistoryQuery } = await import('./payouts.server')
-    return listPayoutHistoryQuery({
+    const [{ listPayoutHistoryQuery }, { emitAdminReadAudit }] = await Promise.all([
+      import('./payouts.server'),
+      import('./audit-log.server'),
+    ])
+    const result = await listPayoutHistoryQuery({
       page: data.page,
       pageSize: data.pageSize,
       from: data.from,
       to: data.to,
       query: data.query,
     })
+
+    await emitAdminReadAudit(context.user, 'admin.read.payout', 'payout', undefined, {
+      query: data.query,
+      from: data.from?.toISOString(),
+      to: data.to?.toISOString(),
+      page: data.page,
+      pageSize: data.pageSize,
+      total: result.total,
+    })
+
+    return result
   })

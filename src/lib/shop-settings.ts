@@ -1,7 +1,10 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
+import { requirePrivileged2FA } from './server-auth'
+import type { SafeUser } from './server-auth'
 import { validateVatId } from './vat'
+import { policiesSchema, socialRowSchema, type Policies, type SocialRow } from './sell-onboarding'
 
 export type { ShopRecord, UpdateShopInput } from './shop-settings.server'
 
@@ -10,6 +13,16 @@ export type { ShopRecord, UpdateShopInput } from './shop-settings.server'
 /* -------------------------------------------------------------------------- */
 
 const shippingOriginSchema = z
+  .object({
+    street: z.string().min(1),
+    city: z.string().min(1),
+    postalCode: z.string().min(1),
+    country: z.string().length(2),
+  })
+  .optional()
+  .nullable()
+
+const businessAddressSchema = z
   .object({
     street: z.string().min(1),
     city: z.string().min(1),
@@ -33,6 +46,7 @@ export const updateShopSchema = z
       .optional(),
     description: z.string().max(2000).optional(),
     shippingOrigin: shippingOriginSchema,
+    businessAddress: businessAddressSchema,
     isVatRegistered: z.boolean().optional(),
     vatId: z.string().optional().nullable(),
     image: z
@@ -47,6 +61,9 @@ export const updateShopSchema = z
       .regex(/^(products|shops)\/[^/]+\.(jpg|jpeg|png|webp)$/, 'Invalid image key format')
       .optional()
       .nullable(),
+    announcement: z.string().max(500).optional().nullable(),
+    policies: policiesSchema.optional().nullable(),
+    socials: z.array(socialRowSchema).optional(),
   })
   .superRefine((data, ctx) => {
     if (data.isVatRegistered) {
@@ -115,15 +132,20 @@ export const updateShop = createServerFn({ method: 'POST' })
       )
     }
 
-    const { requireRole, requireShopOwnership } = await import('./authz')
-    let ctx = requireRole('creator')({ user: context.user as never, session: {} as never })
-    ctx = await requireShopOwnership(ctx, data.shopId)
+    const { requireRoleForUser, requireShopOwnershipForUser } = await import('./authz')
+    requireRoleForUser('creator', context.user)
+    await requireShopOwnershipForUser(context.user, data.shopId)
+    requirePrivileged2FA(context.user as SafeUser)
 
     const { updateShopInternal, SlugCollisionError } = await import('./shop-settings.server')
+    const { db } = await import('#/db/index')
+    const { shopSocials } = await import('#/db/schema')
+    const { eq } = await import('drizzle-orm')
 
     try {
       const { shopId, ...input } = data
       const record = await updateShopInternal(shopId, input)
+      const socials = await db.select().from(shopSocials).where(eq(shopSocials.shopId, shopId))
       return {
         id: record.id,
         name: record.name,
@@ -133,6 +155,7 @@ export const updateShop = createServerFn({ method: 'POST' })
         ownerId: record.ownerId,
         image: record.image,
         bannerImage: record.bannerImage,
+        announcement: record.announcement,
         createdAt: record.createdAt,
         updatedAt: record.updatedAt,
         shippingOrigin: record.shippingOrigin as {
@@ -141,8 +164,21 @@ export const updateShop = createServerFn({ method: 'POST' })
           postalCode: string
           country: string
         } | null,
+        businessAddress: record.businessAddress as {
+          street: string
+          city: string
+          postalCode: string
+          country: string
+        } | null,
         isVatRegistered: record.isVatRegistered,
         vatId: record.vatId,
+        policies: (record.policies as Policies | null) ?? null,
+        socials: socials.map(
+          (s): SocialRow => ({
+            platform: s.platform as SocialRow['platform'],
+            url: s.url,
+          }),
+        ),
       }
     } catch (err) {
       if (err instanceof SlugCollisionError) {
@@ -179,8 +215,9 @@ export const checkShopSlug = createServerFn({ method: 'GET' })
       )
     }
 
-    const { requireRole } = await import('./authz')
-    requireRole('creator')({ user: context.user as never, session: {} as never })
+    const { requireRoleForUser } = await import('./authz')
+    requireRoleForUser('creator', context.user)
+    requirePrivileged2FA(context.user as SafeUser)
 
     const { checkSlugUniquePlatformWide } = await import('./shop-settings.server')
     const available = await checkSlugUniquePlatformWide(data.slug, data.excludeShopId)
@@ -208,9 +245,10 @@ export const uploadShopImage = createServerFn({ method: 'POST' })
       )
     }
 
-    const { requireRole, requireShopOwnership } = await import('./authz')
-    let ctx = requireRole('creator')({ user: context.user as never, session: {} as never })
-    ctx = await requireShopOwnership(ctx, data.shopId)
+    const { requireRoleForUser, requireShopOwnershipForUser } = await import('./authz')
+    requireRoleForUser('creator', context.user)
+    await requireShopOwnershipForUser(context.user, data.shopId)
+    requirePrivileged2FA(context.user as SafeUser)
 
     const { uploadShopImageInternal } = await import('./shop-settings.server')
 

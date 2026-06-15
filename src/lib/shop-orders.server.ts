@@ -18,11 +18,26 @@ import { createCreditNoteForShopOrder } from './invoices.server'
 import type { ShippingAddress } from './checkout.server'
 import { getBaseUrl } from './env.server'
 import { logger } from './logger.server'
-import { logOrderDelivered, logOrderShipped } from './order-logger'
+import {
+  logOrderCancelled,
+  logOrderDelivered,
+  logOrderShipped,
+  logOrderTrackingUpdated,
+  logManualReviewResolved,
+} from './order-logger'
 import type { OrderStatus } from './orders.server'
-import { createPayoutForShopOrder, executePayoutQuery } from './payouts.server'
+import { createPayoutForShopOrder } from './payouts.server'
 import { calculatePackageFromItems } from './shipping-estimate'
 import { validatePlainText, validateTrackingUrl } from './xss'
+
+/** Dispute window in days after an order is marked delivered before a payout may be released. */
+const DISPUTE_WINDOW_DAYS = 14
+
+function addDisputeWindow(date = new Date()): Date {
+  const d = new Date(date)
+  d.setDate(d.getDate() + DISPUTE_WINDOW_DAYS)
+  return d
+}
 
 function maskEmail(email: string): string {
   const [local, domain] = email.split('@')
@@ -111,7 +126,7 @@ const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
   cancelled: [],
   refunded: [],
   disputed: ['refunded', 'completed'],
-  manual_review: [],
+  manual_review: ['paid', 'cancelled'],
   chargeback: [],
 }
 
@@ -128,7 +143,12 @@ export function derivePlatformStatus(shopOrderStatuses: OrderStatus[]): OrderSta
     return 'pending_payment'
   }
 
-  // 1. If ANY shop order is disputed, the overall status is disputed.
+  // 1. If ANY shop order is under manual review, the overall status is manual_review.
+  if (shopOrderStatuses.some((s) => s === 'manual_review')) {
+    return 'manual_review'
+  }
+
+  // 2. If ANY shop order is disputed, the overall status is disputed.
   if (shopOrderStatuses.some((s) => s === 'disputed')) {
     return 'disputed'
   }
@@ -137,7 +157,7 @@ export function derivePlatformStatus(shopOrderStatuses: OrderStatus[]): OrderSta
     return 'chargeback'
   }
 
-  // 2. Filter out cancelled and refunded statuses for active resolution derivation.
+  // 3. Filter out cancelled and refunded statuses for active resolution derivation.
   const nonTerminalStatuses = shopOrderStatuses.filter((s) => s !== 'cancelled' && s !== 'refunded')
 
   if (nonTerminalStatuses.length === 0) {
@@ -317,12 +337,11 @@ export async function listShopOrdersQuery(
 
   if (options.search?.trim()) {
     const searchTerm = `%${options.search.trim()}%`
-    conditions.push(
-      or(
-        ilike(user.name, searchTerm),
-        ilike(sql<string>`CAST(${shopOrder.id} AS TEXT)`, searchTerm),
-      )!,
+    const searchCondition = or(
+      ilike(user.name, searchTerm),
+      ilike(sql<string>`CAST(${shopOrder.id} AS TEXT)`, searchTerm),
     )
+    if (searchCondition) conditions.push(searchCondition)
   }
 
   const where = and(...conditions)
@@ -635,11 +654,7 @@ export async function markShopOrderShippedWithLabelQuery(
 
 export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<ShopOrderDetail> {
   // Fetch current status before transaction to know if this is a real transition
-  const {
-    shopOrder: updatedShopOrder,
-    didTransition,
-    payoutId,
-  } = await db.transaction(async (tx) => {
+  const { shopOrder: updatedShopOrder, didTransition } = await db.transaction(async (tx) => {
     const [record] = await tx
       .select()
       .from(shopOrder)
@@ -677,16 +692,26 @@ export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<
       )
     }
 
+    const disputeWindowExpiresAt = record.disputeWindowExpiresAt ?? addDisputeWindow()
+
     // Sequential within transaction: recalc depends on the update, and getShopOrderQuery
     // reads the updated state.
     await tx
       .update(shopOrder)
-      .set({ status: 'delivered', deliveredAt: new Date(), updatedAt: new Date() })
+      .set({
+        status: 'delivered',
+        deliveredAt: new Date(),
+        disputeWindowExpiresAt,
+        updatedAt: new Date(),
+      })
       .where(eq(shopOrder.id, shopOrderId))
 
     await recalcPlatformOrderStatus(tx, record.platformOrderId)
 
-    const payoutId = await createPayoutForShopOrder(
+    // Create a pending payout record, but do not execute it yet. Payout release is
+    // gated on the dispute window closing so sellers cannot be paid for orders that
+    // are later disputed/refunded.
+    await createPayoutForShopOrder(
       tx,
       shopOrderId,
       record.shopId,
@@ -731,7 +756,7 @@ export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<
         { status: 404, headers: { 'Content-Type': 'application/json' } },
       )
     }
-    return { shopOrder: updated, didTransition: true, payoutId }
+    return { shopOrder: updated, didTransition: true }
   })
 
   if (!updatedShopOrder) {
@@ -750,19 +775,9 @@ export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<
       platformOrderId: updatedShopOrder.platformOrderId,
     })
 
-    if (payoutId) {
-      scheduleBackgroundWork(`execute-payout-${payoutId}`, async () => {
-        try {
-          await executePayoutQuery(payoutId)
-        } catch (err) {
-          logger.error(`Auto payout execution failed for ${payoutId}`, err, {
-            alert: true,
-            shopOrderId,
-            payoutId,
-          })
-        }
-      })
-    }
+    // Payout execution is intentionally deferred until the dispute window closes
+    // to avoid paying sellers for later-disputed orders. The payout reconciliation
+    // job releases held payouts once the window has expired.
   }
 
   return updatedShopOrder
@@ -774,7 +789,7 @@ export async function updateShopOrderStatusQuery(
 ): Promise<ShopOrderDetail> {
   const validatedTrackingUrl = validateTrackingUrl(input.trackingUrl)
 
-  const { updated: updatedShopOrder, payoutId } = await db.transaction(async (tx) => {
+  const updatedShopOrder = await db.transaction(async (tx) => {
     const [record] = await tx.select().from(shopOrder).where(eq(shopOrder.id, shopOrderId)).limit(1)
 
     if (!record) {
@@ -814,6 +829,13 @@ export async function updateShopOrderStatusQuery(
       }
     }
 
+    if (nextStatus === 'delivered' || nextStatus === 'completed') {
+      updateData.disputeWindowExpiresAt = record.disputeWindowExpiresAt ?? addDisputeWindow()
+      if (nextStatus === 'delivered') {
+        updateData.deliveredAt = new Date()
+      }
+    }
+
     // Sequential within transaction: recalc depends on the update, and getShopOrderQuery
     // reads the updated state.
     await tx.update(shopOrder).set(updateData).where(eq(shopOrder.id, shopOrderId))
@@ -836,9 +858,8 @@ export async function updateShopOrderStatusQuery(
       }
     }
 
-    let payoutId: string | undefined
     if (nextStatus === 'delivered' || nextStatus === 'completed') {
-      payoutId = await createPayoutForShopOrder(
+      await createPayoutForShopOrder(
         tx,
         shopOrderId,
         record.shopId,
@@ -857,24 +878,9 @@ export async function updateShopOrderStatusQuery(
       )
     }
 
-    return { updated, payoutId }
+    return updated
   })
 
-  if ((input.status === 'delivered' || input.status === 'completed') && payoutId) {
-    scheduleBackgroundWork(`execute-payout-${payoutId}`, async () => {
-      try {
-        await executePayoutQuery(payoutId)
-      } catch (err) {
-        logger.error(`Auto payout execution failed for ${payoutId}`, err, {
-          alert: true,
-          shopOrderId,
-          payoutId,
-        })
-      }
-    })
-  }
-
-  // Notify buyer when a dispute is opened
   if (input.status === 'disputed') {
     scheduleBackgroundWork(
       'shop_order_dispute_notifications',
@@ -1089,7 +1095,7 @@ export async function refundShopOrderQuery(
 
     await restoreShopOrderStockInTx(tx, orderRecord.platformOrderId, shopOrderId)
 
-    if (payoutRecord?.status === 'sent' || payoutRecord?.status === 'in_transit') {
+    if (payoutRecord && ['pending', 'in_transit', 'sent'].includes(payoutRecord.status)) {
       await tx
         .update(payout)
         .set({
@@ -1129,4 +1135,257 @@ export async function refundShopOrderQuery(
   })
 
   return { success: true, shopOrderId, creditNoteNumber }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                          Owner-Initiated Cancellation                      */
+/* -------------------------------------------------------------------------- */
+
+export interface CancelShopOrderInput {
+  reason?: string
+}
+
+export async function cancelShopOrderQuery(
+  shopOrderId: string,
+  input: CancelShopOrderInput = {},
+): Promise<ShopOrderDetail> {
+  const cancelled = await db.transaction(async (tx) => {
+    const [record] = await tx
+      .select()
+      .from(shopOrder)
+      .where(eq(shopOrder.id, shopOrderId))
+      .for('update')
+      .limit(1)
+
+    if (!record) {
+      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const currentStatus = record.status as OrderStatus
+    if (currentStatus === 'cancelled') {
+      const order = await getShopOrderQuery(shopOrderId, tx)
+      if (!order) {
+        throw new Response(
+          JSON.stringify({ error: 'Not Found', message: 'Shop order not found after update' }),
+          { status: 404, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+      return order
+    }
+
+    if (!isValidStatusTransition(currentStatus, 'cancelled')) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Bad Request',
+          message: `Cannot cancel a shop order in status '${currentStatus}'`,
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    await tx
+      .update(shopOrder)
+      .set({ status: 'cancelled', updatedAt: new Date() })
+      .where(eq(shopOrder.id, shopOrderId))
+
+    await restoreShopOrderStockInTx(tx, record.platformOrderId, shopOrderId)
+
+    // Reverse any pending payout that may have been created prematurely.
+    const [payoutRecord] = await tx
+      .select()
+      .from(payout)
+      .where(eq(payout.shopOrderId, shopOrderId))
+      .limit(1)
+
+    if (payoutRecord && ['pending', 'in_transit'].includes(payoutRecord.status)) {
+      await tx
+        .update(payout)
+        .set({ status: 'reversed', reversedAt: new Date(), reversalReason: 'order_cancelled' })
+        .where(eq(payout.id, payoutRecord.id))
+    }
+
+    await recalcPlatformOrderStatus(tx, record.platformOrderId)
+
+    const order = await getShopOrderQuery(shopOrderId, tx)
+    if (!order) {
+      throw new Response(
+        JSON.stringify({ error: 'Not Found', message: 'Shop order not found after update' }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+    return order
+  })
+
+  logOrderCancelled({
+    platformOrderId: cancelled.platformOrderId,
+    reason: input.reason,
+  })
+
+  return cancelled
+}
+
+/* -------------------------------------------------------------------------- */
+/*                          Tracking Info Updates                             */
+/* -------------------------------------------------------------------------- */
+
+export interface UpdateShopOrderTrackingInput {
+  trackingNumber?: string | null
+  trackingUrl?: string | null
+}
+
+export async function updateShopOrderTrackingQuery(
+  shopOrderId: string,
+  input: UpdateShopOrderTrackingInput,
+): Promise<ShopOrderDetail> {
+  const validatedTrackingUrl = validateTrackingUrl(input.trackingUrl)
+  const sanitizedTrackingNumber =
+    input.trackingNumber === null || input.trackingNumber === undefined
+      ? input.trackingNumber
+      : input.trackingNumber
+        ? validatePlainText(input.trackingNumber, 'Tracking number')
+        : input.trackingNumber
+
+  const updated = await db.transaction(async (tx) => {
+    const [record] = await tx
+      .select()
+      .from(shopOrder)
+      .where(eq(shopOrder.id, shopOrderId))
+      .for('update')
+      .limit(1)
+
+    if (!record) {
+      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (record.status !== 'shipped') {
+      throw new Response(
+        JSON.stringify({
+          error: 'Bad Request',
+          message: 'Tracking information can only be updated for shipped orders',
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const historyEntry = {
+      updatedAt: new Date().toISOString(),
+      trackingNumber: sanitizedTrackingNumber ?? record.trackingNumber ?? null,
+      trackingUrl: validatedTrackingUrl ?? record.trackingUrl ?? null,
+    }
+
+    await tx
+      .update(shopOrder)
+      .set({
+        trackingNumber: sanitizedTrackingNumber,
+        trackingUrl: validatedTrackingUrl,
+        trackingHistory: sql`${shopOrder.trackingHistory} || ${JSON.stringify([historyEntry])}::jsonb`,
+        updatedAt: new Date(),
+      })
+      .where(eq(shopOrder.id, shopOrderId))
+
+    const order = await getShopOrderQuery(shopOrderId, tx)
+    if (!order) {
+      throw new Response(
+        JSON.stringify({ error: 'Not Found', message: 'Shop order not found after update' }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+    return order
+  })
+
+  logOrderTrackingUpdated({
+    shopOrderId,
+    platformOrderId: updated.platformOrderId,
+    trackingNumber: updated.trackingNumber,
+    trackingUrl: updated.trackingUrl,
+  })
+
+  return updated
+}
+
+/* -------------------------------------------------------------------------- */
+/*                          Manual Review Resolution                          */
+/* -------------------------------------------------------------------------- */
+
+export interface ResolveManualReviewInput {
+  resolution: 'paid' | 'cancelled'
+  reason?: string
+}
+
+export async function resolveManualReviewQuery(
+  shopOrderId: string,
+  input: ResolveManualReviewInput,
+): Promise<ShopOrderDetail> {
+  const resolved = await db.transaction(async (tx) => {
+    const [record] = await tx
+      .select()
+      .from(shopOrder)
+      .where(eq(shopOrder.id, shopOrderId))
+      .for('update')
+      .limit(1)
+
+    if (!record) {
+      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const currentStatus = record.status as OrderStatus
+    if (!isValidStatusTransition(currentStatus, input.resolution)) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Bad Request',
+          message: `Cannot resolve manual review from '${currentStatus}' to '${input.resolution}'`,
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    await tx
+      .update(shopOrder)
+      .set({ status: input.resolution, updatedAt: new Date() })
+      .where(eq(shopOrder.id, shopOrderId))
+
+    if (input.resolution === 'paid') {
+      const [platformRecord] = await tx
+        .select({ status: platformOrder.status })
+        .from(platformOrder)
+        .where(eq(platformOrder.id, record.platformOrderId))
+        .limit(1)
+
+      if (platformRecord?.status === 'paid') {
+        const { decrementStockForPaidOrder } = await import('./inventory.server')
+        await decrementStockForPaidOrder(tx, record.platformOrderId)
+      }
+    } else if (input.resolution === 'cancelled') {
+      await restoreShopOrderStockInTx(tx, record.platformOrderId, shopOrderId)
+    }
+
+    await recalcPlatformOrderStatus(tx, record.platformOrderId)
+
+    const order = await getShopOrderQuery(shopOrderId, tx)
+    if (!order) {
+      throw new Response(
+        JSON.stringify({ error: 'Not Found', message: 'Shop order not found after update' }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+    return order
+  })
+
+  logManualReviewResolved({
+    shopOrderId,
+    platformOrderId: resolved.platformOrderId,
+    resolution: input.resolution,
+    reason: input.reason,
+  })
+
+  return resolved
 }

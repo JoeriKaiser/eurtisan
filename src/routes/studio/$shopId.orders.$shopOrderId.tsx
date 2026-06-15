@@ -3,10 +3,10 @@ import { ShopOrderDetailPage } from '#/route-components/studio/$shopId.orders.$s
 import { ShopOrderDetailPending } from '#/route-components/studio/$shopId.orders.$shopOrderId.pending'
 import { ShopOrderDetailError } from '#/route-components/studio/$shopId.orders.$shopOrderId.error'
 import { getShopOrderDetail } from '#/lib/shop-orders'
-import { guardAuth } from '#/lib/route-guards'
+import { guardShopOwnership } from '#/lib/route-guards'
 
 export const Route = createFileRoute('/studio/$shopId/orders/$shopOrderId')({
-  beforeLoad: async () => guardAuth(),
+  beforeLoad: async ({ params }) => guardShopOwnership(params.shopId),
   loader: async ({ params }) => {
     const order = await getShopOrderDetail({ data: { shopOrderId: params.shopOrderId } }).catch(
       (err) => {

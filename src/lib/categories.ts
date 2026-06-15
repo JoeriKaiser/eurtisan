@@ -1,6 +1,8 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
+import { requirePrivileged2FA } from './server-auth'
+import type { SafeUser } from './server-auth'
 import { sanitizeRichText, validatePlainText } from './xss'
 import { buildCategoryTree, sanitizeSlug, type CategoryTreeNode } from './category-tree'
 import { invalidateServerCache } from './server-cache.server'
@@ -23,6 +25,7 @@ export const createCategory = createServerFn({
     if (!context.user || context.user.role !== 'admin') {
       throw new Error('Unauthorized: admin access required')
     }
+    requirePrivileged2FA(context.user as SafeUser)
 
     const slug = data.slug ? sanitizeSlug(data.slug) : sanitizeSlug(data.name)
 
@@ -139,6 +142,10 @@ export const updateCategory = createServerFn({
   .middleware([authMiddleware])
   .inputValidator(updateCategorySchema)
   .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Error('UNAUTHENTICATED')
+    }
+    requirePrivileged2FA(context.user as SafeUser)
     // False positive from analyzer: the next await uses functions destructured from this Promise.all.
     const [{ updateCategoryInternal }, { emitAuditEvent }] = await Promise.all([
       import('./categories.server'),
@@ -169,6 +176,10 @@ export const deleteCategory = createServerFn({
   .middleware([authMiddleware])
   .inputValidator(deleteCategorySchema)
   .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Error('UNAUTHENTICATED')
+    }
+    requirePrivileged2FA(context.user as SafeUser)
     const [{ deleteCategoryInternal }, { emitAuditEvent }] = await Promise.all([
       import('./categories.server'),
       import('./audit-log.server'),

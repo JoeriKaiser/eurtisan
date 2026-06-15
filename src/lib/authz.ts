@@ -4,6 +4,7 @@ import { db } from '#/db/index'
 import { shop, type user, type userRoleEnum } from '#/db/schema'
 import { auth } from './auth'
 import { CsrfError, validateCsrf } from './csrf'
+import type { SafeUser } from './user-types'
 
 export type UserRole = (typeof userRoleEnum.enumValues)[number]
 
@@ -19,6 +20,10 @@ export interface AuthContext {
     createdAt: Date
     updatedAt: Date
   }
+}
+
+export interface SafeAuthContext {
+  user: SafeUser
 }
 
 const ROLE_HIERARCHY: Record<UserRole, number> = {
@@ -81,6 +86,12 @@ export async function requireAuth(request: Request): Promise<AuthContext> {
       message: 'Account suspended.',
     })
   }
+  if ((result.user as unknown as { deletedAt?: string | null }).deletedAt) {
+    throw new AuthError(403, {
+      error: 'Forbidden',
+      message: 'Account deleted.',
+    })
+  }
   return result as AuthContext
 }
 
@@ -133,6 +144,61 @@ export async function requireShopOwnership(ctx: AuthContext, shopId: string): Pr
   }
 
   return ctx
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              SafeUser Helpers                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Role check for the SafeUser shape produced by authMiddleware.
+ * Returns the user on success, or throws AuthError(403).
+ */
+export function requireRoleForUser(minRole: UserRole, user: SafeUser): SafeUser {
+  const userLevel = ROLE_HIERARCHY[user.role] ?? -1
+  const requiredLevel = ROLE_HIERARCHY[minRole]
+
+  if (userLevel < requiredLevel) {
+    throw new AuthError(403, {
+      error: 'Forbidden',
+      message: `Insufficient role. Required: '${minRole}' or higher.`,
+    })
+  }
+  return user
+}
+
+/**
+ * Ownership check for the SafeUser shape produced by authMiddleware.
+ * Admin users bypass this check. Returns the user on success,
+ * or throws AuthError(403).
+ */
+export async function requireShopOwnershipForUser(
+  user: SafeUser,
+  shopId: string,
+): Promise<SafeUser> {
+  if (user.role === 'admin') {
+    return user
+  }
+
+  const shopRecord = await db.query.shop.findFirst({
+    where: eq(shop.id, shopId),
+  })
+
+  if (!shopRecord) {
+    throw new AuthError(403, {
+      error: 'Forbidden',
+      message: 'Shop not found or access denied.',
+    })
+  }
+
+  if (shopRecord.ownerId !== user.id) {
+    throw new AuthError(403, {
+      error: 'Forbidden',
+      message: 'You do not have permission to access this shop.',
+    })
+  }
+
+  return user
 }
 
 /**

@@ -1,6 +1,8 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
+import { requirePrivileged2FA } from './server-auth'
+import type { SafeUser } from './server-auth'
 
 export type { CreatorPayoutLine } from './payouts.server'
 export { PLATFORM_FEE_PERCENT } from './platform-constants'
@@ -31,12 +33,10 @@ export const listCreatorPayouts = createServerFn({ method: 'GET' })
       )
     }
 
-    const { requireRole, requireShopOwnership } = await import('./authz')
-    let ctx = requireRole('creator')({
-      user: context.user as never,
-      session: {} as never,
-    })
-    ctx = await requireShopOwnership(ctx, data.shopId)
+    const { requireRoleForUser, requireShopOwnershipForUser } = await import('./authz')
+    requireRoleForUser('creator', context.user)
+    await requireShopOwnershipForUser(context.user, data.shopId)
+    requirePrivileged2FA(context.user as SafeUser)
 
     const { listCreatorPayoutsQuery } = await import('./payouts.server')
     return listCreatorPayoutsQuery(data.shopId, {
@@ -60,12 +60,10 @@ export const getMollieConnectUrl = createServerFn({ method: 'POST' })
       )
     }
 
-    const { requireRole, requireShopOwnership } = await import('./authz')
-    let ctx = requireRole('creator')({
-      user: context.user as never,
-      session: {} as never,
-    })
-    ctx = await requireShopOwnership(ctx, data.shopId)
+    const { requireRoleForUser, requireShopOwnershipForUser } = await import('./authz')
+    requireRoleForUser('creator', context.user)
+    await requireShopOwnershipForUser(context.user, data.shopId)
+    requirePrivileged2FA(context.user as SafeUser)
 
     const { getMollieConnectUrlQuery } = await import('./payouts.server')
     const url = await getMollieConnectUrlQuery(data.shopId, context.user.id)
@@ -86,12 +84,10 @@ export const disconnectMollie = createServerFn({ method: 'POST' })
       )
     }
 
-    const { requireRole, requireShopOwnership } = await import('./authz')
-    let ctx = requireRole('creator')({
-      user: context.user as never,
-      session: {} as never,
-    })
-    ctx = await requireShopOwnership(ctx, data.shopId)
+    const { requireRoleForUser, requireShopOwnershipForUser } = await import('./authz')
+    requireRoleForUser('creator', context.user)
+    await requireShopOwnershipForUser(context.user, data.shopId)
+    requirePrivileged2FA(context.user as SafeUser)
 
     const { disconnectMollieQuery } = await import('./payouts.server')
     return disconnectMollieQuery(data.shopId)

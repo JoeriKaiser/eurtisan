@@ -1,10 +1,11 @@
 import { and, eq, ne } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { shop } from '#/db/schema'
+import { shop, shopSocials } from '#/db/schema'
 import { logger } from './logger.server'
 import { sanitizeRichText, validatePlainText } from './xss'
 import { isPostgresUniqueViolation } from './db-errors'
 import { validateVatId } from './vat'
+import { validateSocialUrl } from './sell-onboarding.server'
 
 export { ImageValidationError } from './image-utils'
 
@@ -68,6 +69,8 @@ export type UpdateShopInput = {
   description?: string
   /** Optional shipping origin address for label generation. */
   shippingOrigin?: ShippingOrigin | null
+  /** Optional business address for invoices and legal disclosures. */
+  businessAddress?: BusinessAddress | null
   /** Whether the shop is registered for VAT. */
   isVatRegistered?: boolean
   /** VAT identification number (required when isVatRegistered is true). */
@@ -76,6 +79,42 @@ export type UpdateShopInput = {
   image?: string | null
   /** Shop banner image key (S3 object key). */
   bannerImage?: string | null
+  /** Optional public announcement shown on the shop page. */
+  announcement?: string | null
+  /** Optional shop policies (returns, exchanges, custom orders, etc.). */
+  policies?: Policies | null
+  /** Optional social links to display on the shop page. */
+  socials?: SocialRow[]
+}
+
+export interface BusinessAddress {
+  street: string
+  city: string
+  postalCode: string
+  country: string
+}
+
+export interface Policies {
+  returns: {
+    accepted: boolean
+    windowDays?: number
+    conditions?: string
+  }
+  exchanges: {
+    accepted: boolean
+    conditions?: string
+  }
+  customOrders: {
+    accepted: boolean
+    details?: string
+  }
+  paymentMethods: string[]
+  additionalInfo?: string
+}
+
+export interface SocialRow {
+  platform: string
+  url: string
 }
 
 export type ShopRecord = typeof shop.$inferSelect
@@ -132,6 +171,10 @@ export async function updateShopInternal(
     updateData.shippingOrigin = input.shippingOrigin
   }
 
+  if (input.businessAddress !== undefined) {
+    updateData.businessAddress = input.businessAddress
+  }
+
   if (input.isVatRegistered !== undefined) {
     updateData.isVatRegistered = input.isVatRegistered
   }
@@ -146,6 +189,28 @@ export async function updateShopInternal(
 
   if (input.bannerImage !== undefined) {
     updateData.bannerImage = input.bannerImage
+  }
+
+  if (input.announcement !== undefined) {
+    updateData.announcement = input.announcement ? input.announcement.trim() : null
+  }
+
+  if (input.policies !== undefined) {
+    updateData.policies = input.policies
+  }
+
+  // Social links are maintained in a separate table.
+  if (input.socials !== undefined) {
+    await db.delete(shopSocials).where(eq(shopSocials.shopId, shopId))
+    if (input.socials.length > 0) {
+      const validatedSocials = input.socials.map((s, index) => ({
+        id: crypto.randomUUID(),
+        shopId,
+        platform: String(s.platform),
+        url: validateSocialUrl(s.url, `Social URL #${index + 1}`),
+      }))
+      await db.insert(shopSocials).values(validatedSocials)
+    }
   }
 
   // VAT validation: when VAT registered, a valid VAT ID is required.

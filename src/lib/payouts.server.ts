@@ -180,10 +180,27 @@ export async function executePayoutQuery(payoutId: string): Promise<ExecutePayou
     const [orderRecord] = await tx
       .select({
         platformOrderId: shopOrder.platformOrderId,
+        status: shopOrder.status,
+        disputeWindowExpiresAt: shopOrder.disputeWindowExpiresAt,
       })
       .from(shopOrder)
       .where(eq(shopOrder.id, payoutRecord.shopOrderId))
       .limit(1)
+
+    if (orderRecord) {
+      if (!['delivered', 'completed'].includes(orderRecord.status)) {
+        const reason = `Payout cannot be executed while shop order status is '${orderRecord.status}'`
+        return { kind: 'error' as const, status: 409, message: reason }
+      }
+
+      if (
+        orderRecord.disputeWindowExpiresAt &&
+        new Date(orderRecord.disputeWindowExpiresAt) > new Date()
+      ) {
+        const reason = 'Dispute window has not expired'
+        return { kind: 'error' as const, status: 409, message: reason }
+      }
+    }
 
     const [platformOrderRecord] = orderRecord?.platformOrderId
       ? await tx

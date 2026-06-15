@@ -1,6 +1,8 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
+import type { SafeUser } from './server-auth'
+import { requirePrivileged2FA } from './server-auth'
 
 const listAuditLogInputSchema = z.object({
   action: z.string().optional(),
@@ -35,9 +37,10 @@ export const listAuditLog = createServerFn({ method: 'GET', strict: { output: fa
   .inputValidator((data: unknown) => listAuditLogInputSchema.parse(data))
   .handler(async ({ context, data }) => {
     await requireAdmin(context)
+    requirePrivileged2FA(context.user as SafeUser)
 
-    const { listAuditLogQuery } = await import('./audit-log.server')
-    return listAuditLogQuery({
+    const { listAuditLogQuery, emitAdminReadAudit } = await import('./audit-log.server')
+    const result = await listAuditLogQuery({
       action: data.action,
       actorId: data.actorId,
       resourceType: data.resourceType,
@@ -47,4 +50,18 @@ export const listAuditLog = createServerFn({ method: 'GET', strict: { output: fa
       page: data.page,
       pageSize: data.pageSize,
     })
+
+    await emitAdminReadAudit(context.user, 'admin.read.audit_log', 'audit_log', undefined, {
+      action: data.action,
+      actorId: data.actorId,
+      resourceType: data.resourceType,
+      resourceId: data.resourceId,
+      from: data.from,
+      to: data.to,
+      page: data.page,
+      pageSize: data.pageSize,
+      total: result.total,
+    })
+
+    return result
   })

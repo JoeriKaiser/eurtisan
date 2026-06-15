@@ -1,6 +1,8 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
+import { requirePrivileged2FA } from './server-auth'
+import type { SafeUser } from './server-auth'
 
 export type {
   CreatorActivity,
@@ -28,8 +30,9 @@ export const getCreatorDashboardStats = createServerFn({ method: 'GET' })
       )
     }
 
-    const { requireRole } = await import('./authz')
-    requireRole('creator')({ user: context.user as never, session: {} as never })
+    const { requireRoleForUser } = await import('./authz')
+    requireRoleForUser('creator', context.user)
+    requirePrivileged2FA(context.user as SafeUser)
 
     const { getCreatorDashboardStatsQuery } = await import('./creator-dashboard.server')
     return getCreatorDashboardStatsQuery(context.user.id)
@@ -51,8 +54,9 @@ export const getCreatorShops = createServerFn({ method: 'GET' })
       )
     }
 
-    const { requireRole } = await import('./authz')
-    requireRole('creator')({ user: context.user as never, session: {} as never })
+    const { requireRoleForUser } = await import('./authz')
+    requireRoleForUser('creator', context.user)
+    requirePrivileged2FA(context.user as SafeUser)
 
     const { getCreatorShopsQuery } = await import('./creator-dashboard.server')
     return getCreatorShopsQuery(context.user.id)
@@ -80,8 +84,9 @@ export const getCreatorShop = createServerFn({ method: 'GET' })
       )
     }
 
-    const { requireRole } = await import('./authz')
-    requireRole('creator')({ user: context.user as never, session: {} as never })
+    const { requireRoleForUser } = await import('./authz')
+    requireRoleForUser('creator', context.user)
+    requirePrivileged2FA(context.user as SafeUser)
 
     const { getCreatorShopQuery } = await import('./creator-dashboard.server')
     return getCreatorShopQuery(context.user.id, data.shopId)
@@ -109,9 +114,41 @@ export const getCreatorRecentActivity = createServerFn({ method: 'GET' })
       )
     }
 
-    const { requireRole } = await import('./authz')
-    requireRole('creator')({ user: context.user as never, session: {} as never })
+    const { requireRoleForUser } = await import('./authz')
+    requireRoleForUser('creator', context.user)
+    requirePrivileged2FA(context.user as SafeUser)
 
     const { getCreatorRecentActivityQuery } = await import('./creator-dashboard.server')
     return getCreatorRecentActivityQuery(context.user.id, data.limit)
+  })
+
+/**
+ * Returns dashboard stats scoped to a single shop.
+ * The caller must own the shop.
+ */
+export const getShopDashboardStats = createServerFn({ method: 'GET' })
+  .middleware([authMiddleware])
+  .inputValidator(
+    z.object({
+      shopId: z.string().min(1, 'Shop ID is required.'),
+    }),
+  )
+  .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Unauthorized',
+          message: 'Authentication required. Please sign in.',
+        }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const { requireRoleForUser, requireShopOwnershipForUser } = await import('./authz')
+    requireRoleForUser('creator', context.user)
+    await requireShopOwnershipForUser(context.user, data.shopId)
+    requirePrivileged2FA(context.user as SafeUser)
+
+    const { getShopDashboardStatsQuery } = await import('./creator-dashboard.server')
+    return getShopDashboardStatsQuery(data.shopId)
   })

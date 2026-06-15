@@ -15,6 +15,8 @@ export type OrderLifecycleEvent =
   | 'order_disputed'
   | 'order_resolved'
   | 'order_cancelled'
+  | 'order_tracking_updated'
+  | 'manual_review_resolved'
 
 export interface OrderLogEntry {
   event: OrderLifecycleEvent
@@ -132,6 +134,38 @@ export function logOrderCancelled(params: { platformOrderId: string; reason?: st
     event: 'order_cancelled',
     timestamp: new Date().toISOString(),
     orderId: params.platformOrderId,
+    reason: params.reason,
+  })
+}
+
+export function logOrderTrackingUpdated(params: {
+  shopOrderId: string
+  platformOrderId: string
+  trackingNumber?: string | null
+  trackingUrl?: string | null
+}): void {
+  logOrderLifecycle({
+    event: 'order_tracking_updated',
+    timestamp: new Date().toISOString(),
+    orderId: params.platformOrderId,
+    shopOrderId: params.shopOrderId,
+    trackingNumber: params.trackingNumber ?? undefined,
+    trackingUrl: params.trackingUrl ?? undefined,
+  })
+}
+
+export function logManualReviewResolved(params: {
+  shopOrderId: string
+  platformOrderId: string
+  resolution: 'paid' | 'cancelled'
+  reason?: string
+}): void {
+  logOrderLifecycle({
+    event: 'manual_review_resolved',
+    timestamp: new Date().toISOString(),
+    orderId: params.platformOrderId,
+    shopOrderId: params.shopOrderId,
+    resolution: params.resolution,
     reason: params.reason,
   })
 }

@@ -1,6 +1,8 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
+import type { SafeUser } from './server-auth'
+import { requirePrivileged2FA } from './server-auth'
 
 export type {
   AdminOrderDetail,
@@ -67,9 +69,13 @@ export const listAllPlatformOrders = createServerFn({ method: 'GET' })
   )
   .handler(async ({ context, data }) => {
     await requireAdmin(context)
+    requirePrivileged2FA(context.user as SafeUser)
 
-    const { listAllPlatformOrdersQuery } = await import('./admin-orders.server')
-    return listAllPlatformOrdersQuery(
+    const [{ listAllPlatformOrdersQuery }, { emitAdminReadAudit }] = await Promise.all([
+      import('./admin-orders.server'),
+      import('./audit-log.server'),
+    ])
+    const result = await listAllPlatformOrdersQuery(
       data.query,
       data.page,
       data.pageSize,
@@ -77,6 +83,18 @@ export const listAllPlatformOrders = createServerFn({ method: 'GET' })
       data.to,
       data.statuses,
     )
+
+    await emitAdminReadAudit(context.user, 'admin.read.order', 'order', undefined, {
+      query: data.query,
+      statuses: data.statuses,
+      from: data.from?.toISOString(),
+      to: data.to?.toISOString(),
+      page: data.page,
+      pageSize: data.pageSize,
+      total: result.total,
+    })
+
+    return result
   })
 
 /* -------------------------------------------------------------------------- */
@@ -95,17 +113,23 @@ export const getPlatformOrderDetail = createServerFn({ method: 'GET' })
     }),
   )
   .handler(async ({ context, data }) => {
-    const { getPlatformOrderDetailQuery } = await import('./admin-orders.server')
+    const [{ getPlatformOrderDetailQuery }, { emitAdminReadAudit }] = await Promise.all([
+      import('./admin-orders.server'),
+      import('./audit-log.server'),
+    ])
     const [, result] = await Promise.all([
       requireAdmin(context),
       getPlatformOrderDetailQuery(data.orderId),
     ])
+    requirePrivileged2FA(context.user as SafeUser)
     if (!result) {
       throw new Response(JSON.stringify({ error: 'Not Found', message: 'Order not found' }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' },
       })
     }
+
+    await emitAdminReadAudit(context.user, 'admin.read.order', 'order', data.orderId)
 
     return result
   })

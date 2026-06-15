@@ -7,19 +7,21 @@ import { CreatorProductEditRouteComponent } from '#/route-components/creator/pro
 import { listCategories } from '#/lib/categories'
 import { getCreatorShops } from '#/lib/creator-dashboard'
 import { getCreatorProductDetail } from '#/lib/creator-products'
-import { guardRole } from '#/lib/route-guards'
+import { getProductVariantMatrix } from '#/lib/product-variants'
+import { guardPrivilegedRole } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
 
 export const Route = createFileRoute('/creator/products/$productId/edit')({
-  beforeLoad: async () => guardRole('creator'),
+  beforeLoad: async () => guardPrivilegedRole('creator'),
   loader: async ({ params }) => {
-    const [shops, categories, product] = await Promise.all([
+    const [shops, categories, product, variantMatrix] = await Promise.all([
       getCreatorShops(),
       listCategories({ data: { tree: false } }),
       getCreatorProductDetail({ data: { productId: params.productId } }),
+      getProductVariantMatrix({ data: { productId: params.productId } }),
     ])
 
-    return { shops, categories, product }
+    return { shops, categories, product, variantMatrix }
   },
   head: () => ({
     meta: [

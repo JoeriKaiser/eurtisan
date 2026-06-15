@@ -1,8 +1,9 @@
-import { invalidateServerCache } from './server-cache.server'
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
 import type { SafeUser } from './server-auth'
+import { requirePrivileged2FA } from './server-auth'
+import { invalidateServerCache } from './server-cache.server'
 
 export type { AdminCategoryItem } from './admin-categories.server'
 
@@ -46,9 +47,19 @@ export const listCategoriesAdmin = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     await requireAdmin(context)
+    requirePrivileged2FA(context.user as SafeUser)
 
-    const { listCategoriesAdminQuery } = await import('./admin-categories.server')
-    return listCategoriesAdminQuery()
+    const [{ listCategoriesAdminQuery }, { emitAdminReadAudit }] = await Promise.all([
+      import('./admin-categories.server'),
+      import('./audit-log.server'),
+    ])
+    const result = await listCategoriesAdminQuery()
+
+    await emitAdminReadAudit(context.user, 'admin.read.category', 'category', undefined, {
+      count: result.length,
+    })
+
+    return result
   })
 
 export const moveCategory = createServerFn({ method: 'POST' })
@@ -60,6 +71,7 @@ export const moveCategory = createServerFn({ method: 'POST' })
       import('./admin-categories.server'),
       import('./audit-log.server'),
     ])
+    requirePrivileged2FA(context.user as SafeUser)
     const { moveCategoryQuery } = modules[1]
     const { emitAuditEvent } = modules[2]
     const [result] = await Promise.all([
@@ -82,6 +94,7 @@ export const reorderCategories = createServerFn({ method: 'POST' })
       import('./admin-categories.server'),
       import('./audit-log.server'),
     ])
+    requirePrivileged2FA(context.user as SafeUser)
     const { reorderCategoriesQuery } = modules[1]
     const { emitAuditEvent } = modules[2]
     const [result] = await Promise.all([

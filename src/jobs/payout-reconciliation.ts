@@ -14,7 +14,11 @@
  *
  * Graceful shutdown is handled on SIGINT / SIGTERM.
  */
-import { alertOnStalePendingPayouts, reconcilePayouts } from '#/lib/payout-reconciliation.server'
+import {
+  alertOnStalePendingPayouts,
+  reconcilePayouts,
+  releaseHeldPayouts,
+} from '#/lib/payout-reconciliation.server'
 import { getPayoutReconciliationIntervalMs } from '#/lib/env.server'
 
 const INTERVAL_MS = getPayoutReconciliationIntervalMs()
@@ -40,6 +44,17 @@ async function tick(): Promise<void> {
     }
   } catch (err) {
     console.error('[payout-reconciliation] Error checking stale payouts:', err)
+  }
+
+  try {
+    const releaseResult = await releaseHeldPayouts()
+    if (releaseResult.checked > 0) {
+      console.log(
+        `[payout-reconciliation] Released ${releaseResult.released} of ${releaseResult.checked} held payout(s), errors ${releaseResult.errors}`,
+      )
+    }
+  } catch (err) {
+    console.error('[payout-reconciliation] Error releasing held payouts:', err)
   }
 }
 

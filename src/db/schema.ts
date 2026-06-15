@@ -8,6 +8,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -22,6 +23,8 @@ export const shopStatusEnum = pgEnum('shop_status', [
   'changes_requested',
   'approved',
   'active',
+  'paused',
+  'archived',
   'rejected',
   'suspended',
 ])
@@ -188,6 +191,11 @@ export const shop = pgTable(
     paymentConnected: boolean('payment_connected').notNull().default(false),
     paymentConnectedAt: timestamp('payment_connected_at'),
 
+    // Lifecycle
+    pausedAt: timestamp('paused_at'),
+    archivedAt: timestamp('archived_at'),
+    scheduledDeleteAt: timestamp('scheduled_delete_at'),
+
     ownerId: text()
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
@@ -255,6 +263,7 @@ export const product = pgTable(
       .notNull()
       .references(() => shop.id, { onDelete: 'cascade' }),
     categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
+    lowStockThreshold: integer('low_stock_threshold').notNull().default(5),
     weightGrams: integer('weight_grams'),
     lengthCm: integer('length_cm'),
     widthCm: integer('width_cm'),
@@ -310,12 +319,65 @@ export const productVariant = pgTable(
     productId: text('product_id')
       .notNull()
       .references(() => product.id, { onDelete: 'cascade' }),
+    sku: text(),
     name: text().notNull(),
+    priceAdjustmentCents: integer('price_adjustment_cents').notNull().default(0),
     stockCount: integer('stock_count').notNull().default(0),
+    isActive: boolean('is_active').notNull().default(true),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
-  (table) => [index('product_variant_product_id_idx').on(table.productId)],
+  (table) => [
+    index('product_variant_product_id_idx').on(table.productId),
+    uniqueIndex('product_variant_sku_unique').on(table.sku),
+  ],
+)
+
+export const productOption = pgTable(
+  'product_option',
+  {
+    id: text().primaryKey(),
+    productId: text('product_id')
+      .notNull()
+      .references(() => product.id, { onDelete: 'cascade' }),
+    name: text().notNull(),
+    displayOrder: integer('display_order').notNull().default(0),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [index('product_option_product_id_idx').on(table.productId)],
+)
+
+export const productOptionValue = pgTable(
+  'product_option_value',
+  {
+    id: text().primaryKey(),
+    optionId: text('option_id')
+      .notNull()
+      .references(() => productOption.id, { onDelete: 'cascade' }),
+    value: text().notNull(),
+    displayOrder: integer('display_order').notNull().default(0),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [index('product_option_value_option_id_idx').on(table.optionId)],
+)
+
+export const productVariantOption = pgTable(
+  'product_variant_option',
+  {
+    variantId: text('variant_id')
+      .notNull()
+      .references(() => productVariant.id, { onDelete: 'cascade' }),
+    optionValueId: text('option_value_id')
+      .notNull()
+      .references(() => productOptionValue.id, { onDelete: 'cascade' }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.variantId, table.optionValueId] }),
+    index('product_variant_option_variant_id_idx').on(table.variantId),
+    index('product_variant_option_option_value_id_idx').on(table.optionValueId),
+  ],
 )
 
 export const cart = pgTable(
@@ -423,6 +485,8 @@ export const shopOrder = pgTable(
     status: orderStatusEnum().notNull().default('pending_payment'),
     trackingNumber: text('tracking_number'),
     trackingUrl: text('tracking_url'),
+    trackingHistory: jsonb('tracking_history').notNull().default(sql`'[]'::jsonb`),
+    disputeWindowExpiresAt: timestamp('dispute_window_expires_at'),
     deliveredAt: timestamp('delivered_at'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -622,6 +686,90 @@ export const disputeMessage = pgTable(
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (table) => [index('dispute_message_dispute_id_idx').on(table.disputeId)],
+)
+
+export const customerNote = pgTable(
+  'customer_note',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    shopId: text('shop_id')
+      .notNull()
+      .references(() => shop.id, { onDelete: 'cascade' }),
+    customerEmailHash: text('customer_email_hash').notNull(),
+    content: text().notNull(),
+    createdBy: text('created_by')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('customer_note_shop_id_customer_email_hash_idx').on(
+      table.shopId,
+      table.customerEmailHash,
+    ),
+  ],
+)
+
+export const customerTag = pgTable(
+  'customer_tag',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    shopId: text('shop_id')
+      .notNull()
+      .references(() => shop.id, { onDelete: 'cascade' }),
+    customerEmailHash: text('customer_email_hash').notNull(),
+    tag: text().notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('customer_tag_shop_customer_tag_unique').on(
+      table.shopId,
+      table.customerEmailHash,
+      table.tag,
+    ),
+  ],
+)
+
+export const ownerMessageThread = pgTable(
+  'owner_message_thread',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    shopId: text('shop_id')
+      .notNull()
+      .references(() => shop.id, { onDelete: 'cascade' }),
+    customerUserId: text('customer_user_id').references(() => user.id, { onDelete: 'cascade' }),
+    customerEmailHash: text('customer_email_hash').notNull(),
+    subject: text().notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('owner_message_thread_shop_id_customer_email_hash_idx').on(
+      table.shopId,
+      table.customerEmailHash,
+    ),
+  ],
+)
+
+export const ownerMessage = pgTable(
+  'owner_message',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    threadId: uuid('thread_id')
+      .notNull()
+      .references(() => ownerMessageThread.id, { onDelete: 'cascade' }),
+    senderRole: text('sender_role').notNull(),
+    body: text().notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('owner_message_thread_id_idx').on(table.threadId),
+    check(
+      'owner_message_sender_role_check',
+      sql`${table.senderRole} IN ('owner', 'buyer', 'system')`,
+    ),
+  ],
 )
 
 export const shippingLabel = pgTable(

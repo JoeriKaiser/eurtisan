@@ -12,18 +12,19 @@
 
 **The P0 launch blockers are resolved.** The next North Star is closing the remaining owner-facing capability, compliance, and operability gaps documented in `docs/AUDIT_STORE_OWNER_2026-06-12.md`. Agents should orient every non-trivial change toward these priorities:
 
-1. **Complete store ownership control**
+1. **[DONE] Complete store ownership control**
    - Full shop settings form (banner, policies, socials, announcement, business address).
    - Shop closure / archive / pause / delete workflow.
    - Remove debug logging from auth middleware.
 
-2. **Product catalog maturity**
-   - Product variant UI and server functions (size, color, options).
-   - Audit logging for owner product mutations.
-   - Bulk operations, draft/versioning workflow, and low-stock notifications.
-   - Replace hardcoded Euro symbol / English VAT labels with i18n-ready values.
+2. **[PARTIAL] Product catalog maturity**
+   - [DONE] Product variant UI and server functions (size, color, options).
+   - [DONE] Audit logging for owner product mutations.
+   - [DONE] Bulk operations and low-stock notifications.
+   - [PENDING] Draft/versioning workflow.
+   - [PENDING] Replace hardcoded Euro symbol / English VAT labels with i18n-ready values.
 
-3. **Order lifecycle & fulfillment polish**
+3. **[DONE] Order lifecycle & fulfillment polish**
    - Owner-initiated cancellation while `pending_payment`.
    - Edit tracking numbers/URLs after shipment.
    - Seller dispute dashboard.
@@ -31,7 +32,7 @@
    - Order-level audit log for owner actions (ship, deliver, tracking updates).
    - Close the payout/dispute timing gap so sellers cannot be paid for later-refunded orders.
 
-4. **Tax, VAT, and invoicing**
+4. **[PENDING] Tax, VAT, and invoicing**
    - Separate business address editing.
    - Editable DAC7 tax identity after onboarding.
    - Seller VAT reporting dashboard.
@@ -39,25 +40,28 @@
    - Fix VIES fall-open behavior, VAT regex inconsistencies, and Greek VAT-ID handling.
    - Remove `Promise.all` concurrency inside invoice transactions.
 
-5. **Customer management for owners**
+5. **[DONE] Customer management for owners**
    - Per-shop customer list, detail, and export.
    - Customer analytics, notes/tags, and owner-initiated contact.
    - GDPR tooling for shop-level customer data requests.
 
-6. **Analytics & reporting**
+6. **[SKIPPED] Analytics & reporting**
    - Per-shop sales/revenue reporting beyond current-month aggregates.
    - Wire the CSV export utility to owner reports.
+   - *Rationale: Grafana already covers observability and infra analytics; owner-facing reports can be added later if needed.*
 
-7. **Security, authorization & GDPR**
+7. **[DONE] Security, authorization & GDPR**
    - Complete account deletion / right-to-erasure.
-   - Enforce 2FA on `/studio` routes.
+   - Enforce 2FA on `/studio` routes and their server functions.
    - Audit admin read-only actions.
    - Replace brittle `session: {} as never` authz casts.
 
-8. **Production operability**
+8. **[PENDING] Production operability**
    - Backup strategy: consistent retention, offsite upload, WAL archiving, S3/Meilisearch backups.
    - Deployment smoke tests and migration rollback plan.
    - Alertmanager / Grafana alerting for health, job, and disk issues.
+
+> **Status as of 2026-06-14:** Phases 0–6 of the owner-operations push are implemented and staged (shop settings/lifecycle, product variants, order lifecycle, customer management, 2FA enforcement, admin read-audit logging, and account deletion). Analytics & reporting is intentionally skipped because Grafana covers that domain. Remaining gaps are tax/VAT/invoicing improvements and production-operability work.
 
 When requirements conflict, prefer the audit priorities and the Decision Hierarchy below. Do not treat missing owner capabilities, placeholder UIs, or incomplete compliance workflows as "good enough" for production.
 
@@ -382,6 +386,7 @@ db:5432
 - Plan for deletion/export workflows.
 - Avoid retaining unnecessary personally identifiable information.
 - Treat privacy as a core architectural concern.
+- Account deletion must anonymize or redact PII across all retained records (user, shop, invoices, payouts, orders, disputes, reviews, audit logs). See `docs/DATA_RETENTION.md` for the exact retention exceptions and why they remain.
 
 ## Currency
 
@@ -523,6 +528,8 @@ Prefer:
 - Sanitize user-generated content before rendering.
 - Avoid leaking internal implementation details to users.
 - Use least-privilege principles whenever possible.
+- Enforce two-factor authentication for privileged roles (`creator`, `admin`) on every route and server function they can reach; route-level guards alone are not sufficient.
+- Treat deleted accounts as deactivated: reject sessions, server functions, and mutations for users with `deletedAt` set.
 
 ---
 
@@ -545,6 +552,8 @@ All resource access must validate:
 - User identity
 - Ownership or permissions
 - Organization/store relationships where applicable
+- Two-factor authentication for privileged roles (`creator`, `admin`) on both routes and server functions
+- Whether the account has been deleted or banned (deleted users must not be able to act through sessions or server functions)
 
 ---
 
@@ -1003,6 +1012,8 @@ make auth-secret
 12. `make e2e` does not pass through CLI flags. Playwright options like `--project=chromium` must be passed directly: `docker compose exec app bunx playwright test e2e/admin-panel.spec.ts --project=chromium`.
 13. The `instrument.server.mjs` file must remain importable by Node at startup. Do not add TypeScript or ESM-only dependencies to it.
 14. The observability stack (`infra/observability/`) is deployed separately from the app and persists across app deploys.
+15. Privileged server functions (`creator`/`admin` actions) enforce 2FA independently of route guards via `requirePrivileged2FA`. Tests that call these functions must either set `twoFactorEnabled: true` on the test user or rely on the dev/test bypass.
+16. Accounts with `deletedAt` set are treated as deactivated. `authMiddleware` and server-auth helpers reject them, so any test that reuses a deleted user record should expect `UNAUTHENTICATED`/`BANNED` behavior.
 
 ---
 

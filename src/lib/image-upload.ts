@@ -9,6 +9,8 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
+import { requirePrivileged2FA } from './server-auth'
+import type { SafeUser } from './server-auth'
 import {
   buildImgproxyUrl,
   buildS3PublicUrl,
@@ -37,8 +39,9 @@ export const getPresignedUploadUrl = createServerFn({ method: 'POST' })
       throw new Error('UNAUTHENTICATED')
     }
 
-    const { requireRole } = await import('./authz')
-    requireRole('creator')({ user: context.user as never, session: {} as never })
+    const { requireRoleForUser } = await import('./authz')
+    requireRoleForUser('creator', context.user)
+    requirePrivileged2FA(context.user as SafeUser)
 
     const ext =
       data.contentType === 'image/jpeg' ? 'jpg' : data.contentType === 'image/png' ? 'png' : 'webp'

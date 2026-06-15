@@ -10,7 +10,12 @@ import {
   shopOrder,
   user,
 } from '#/db/schema'
-import { emitAuditEvent, listAuditLogQuery, purgeOldAuditLogs } from './audit-log.server'
+import {
+  emitAdminReadAudit,
+  emitAuditEvent,
+  listAuditLogQuery,
+  purgeOldAuditLogs,
+} from './audit-log.server'
 
 beforeEach(async () => {
   await db.delete(auditLog)
@@ -45,6 +50,7 @@ describe('emitAuditEvent', () => {
         image: null,
         role: 'admin',
         bannedAt: null,
+        deletedAt: null,
         twoFactorEnabled: true,
       },
       'shop.suspend',
@@ -66,40 +72,102 @@ describe('emitAuditEvent', () => {
     const rows = await db.select().from(auditLog)
     expect(rows.length).toBe(0)
   })
+})
+
+describe('emitAdminReadAudit', () => {
+  async function adminActor(overrides?: Partial<typeof user.$inferInsert>): Promise<{
+    id: string
+    name: string
+    email: string
+    emailVerified: boolean
+    image: null
+    role: 'admin' | 'customer' | 'creator'
+    bannedAt: null
+    deletedAt: null
+    twoFactorEnabled: boolean
+  }> {
+    const id = overrides?.id ?? crypto.randomUUID()
+    await db.insert(user).values({
+      id,
+      name: overrides?.name ?? 'Admin',
+      email: overrides?.email ?? `admin-${id.slice(0, 8)}@example.com`,
+      emailVerified: overrides?.emailVerified ?? true,
+      role: (overrides?.role as 'admin' | 'customer' | 'creator') ?? 'admin',
+      twoFactorEnabled: true,
+    })
+    return {
+      id,
+      name: overrides?.name ?? 'Admin',
+      email: overrides?.email ?? `admin-${id.slice(0, 8)}@example.com`,
+      emailVerified: overrides?.emailVerified ?? true,
+      image: null,
+      role: (overrides?.role as 'admin' | 'customer' | 'creator') ?? 'admin',
+      bannedAt: null,
+      deletedAt: null,
+      twoFactorEnabled: true,
+    }
+  }
+
+  it('inserts an audit log entry for an admin actor', async () => {
+    await emitAdminReadAudit(await adminActor(), 'admin.read.user', 'user', undefined, {
+      page: 1,
+      total: 5,
+    })
+
+    const rows = await db.select().from(auditLog)
+    expect(rows.length).toBe(1)
+    expect(rows[0].action).toBe('admin.read.user')
+    expect(rows[0].resourceType).toBe('user')
+    expect(rows[0].resourceId).toBeNull()
+    expect(rows[0].metadata).toEqual({ page: 1, total: 5 })
+  })
+
+  it('no-ops when actor is null', async () => {
+    await emitAdminReadAudit(null, 'admin.read.user', 'user')
+
+    const rows = await db.select().from(auditLog)
+    expect(rows.length).toBe(0)
+  })
+
+  it('no-ops when actor is not an admin', async () => {
+    await emitAdminReadAudit(await adminActor({ role: 'customer' }), 'admin.read.user', 'user')
+
+    const rows = await db.select().from(auditLog)
+    expect(rows.length).toBe(0)
+  })
+
+  it('no-ops for creator role even when privileged', async () => {
+    await emitAdminReadAudit(await adminActor({ role: 'creator' }), 'admin.read.order', 'order')
+
+    const rows = await db.select().from(auditLog)
+    expect(rows.length).toBe(0)
+  })
+
+  it('includes resourceId when provided', async () => {
+    await emitAdminReadAudit(await adminActor(), 'admin.read.order', 'order', 'order-1')
+
+    const rows = await db.select().from(auditLog)
+    expect(rows.length).toBe(1)
+    expect(rows[0].resourceId).toBe('order-1')
+  })
 
   it('logs a structured fallback error log to console.error when DB insert fails', async () => {
+    const actor = await adminActor()
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-
     const originalInsert = db.insert
     db.insert = vi.fn().mockImplementation(() => {
       throw new Error('Database connection lost')
     })
 
     try {
-      await emitAuditEvent(
-        {
-          id: 'user-1',
-          name: 'Admin',
-          email: 'admin@example.com',
-          emailVerified: true,
-          role: 'admin',
-          image: null,
-          bannedAt: null,
-          twoFactorEnabled: true,
-        },
-        'shop.suspend',
-        'shop',
-        'shop-1',
-        { reason: 'Violation' },
-      )
+      await emitAdminReadAudit(actor, 'admin.read.user', 'user')
 
       expect(consoleErrorSpy).toHaveBeenCalled()
       const logOutput = consoleErrorSpy.mock.calls[0][0]
       const parsed = JSON.parse(logOutput)
       expect(parsed.level).toBe('error')
       expect(parsed.event).toBe('audit_emission_failed')
-      expect(parsed.actorId).toBe('user-1')
-      expect(parsed.error).toBe('Database connection lost')
+      expect(parsed.action).toBe('admin.read.user')
     } finally {
       db.insert = originalInsert
       consoleErrorSpy.mockRestore()

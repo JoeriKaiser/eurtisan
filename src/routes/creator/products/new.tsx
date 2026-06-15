@@ -6,11 +6,11 @@ import {
 import { CreatorProductNewRouteComponent } from '#/route-components/creator/products/new'
 import { listCategories } from '#/lib/categories'
 import { getCreatorShops } from '#/lib/creator-dashboard'
-import { guardRole } from '#/lib/route-guards'
+import { guardPrivilegedRole } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
 
 export const Route = createFileRoute('/creator/products/new')({
-  beforeLoad: async () => guardRole('creator'),
+  beforeLoad: async () => guardPrivilegedRole('creator'),
   loader: async () => {
     const [shops, categories] = await Promise.all([
       getCreatorShops(),

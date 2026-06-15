@@ -911,6 +911,7 @@ function makeAdminUser(id = 'admin-1'): SafeUser {
     image: null,
     role: 'admin',
     bannedAt: null,
+    deletedAt: null,
     twoFactorEnabled: true,
   }
 }
@@ -924,6 +925,7 @@ function makeCustomerUser(id = 'customer-1'): SafeUser {
     image: null,
     role: 'customer',
     bannedAt: null,
+    deletedAt: null,
     twoFactorEnabled: false,
   }
 }

@@ -1,6 +1,8 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
+import type { SafeUser } from './server-auth'
+import { requirePrivileged2FA } from './server-auth'
 import { validateVatId } from './vat'
 
 /* -------------------------------------------------------------------------- */
@@ -88,7 +90,7 @@ const shippingOriginSchema = z.object({
   shipsInternational: z.boolean(),
 })
 
-const policiesSchema = z.object({
+export const policiesSchema = z.object({
   returns: z.object({
     accepted: z.boolean(),
     windowDays: z.number().int().optional(),
@@ -198,10 +200,14 @@ export const step5PoliciesSchema = z.object({
   policies: policiesSchema.optional(),
 })
 
-const socialRowSchema = z.object({
+export type Policies = z.infer<typeof policiesSchema>
+
+export const socialRowSchema = z.object({
   platform: z.enum(SOCIAL_PLATFORMS),
   url: z.string().min(1),
 })
+
+export type SocialRow = z.infer<typeof socialRowSchema>
 
 export const step6SocialsSchema = z.object({
   socials: z.array(socialRowSchema).default([]),
@@ -536,8 +542,19 @@ export const getShopsForModeration = createServerFn({ method: 'GET' })
   )
   .handler(async ({ context, data }) => {
     if (!context.user || context.user.role !== 'admin') throw new Error('FORBIDDEN')
-    const { getShopsForModerationInternal } = await import('./sell-onboarding.server')
-    return getShopsForModerationInternal(data.status)
+    requirePrivileged2FA(context.user as SafeUser)
+    const [{ getShopsForModerationInternal }, { emitAdminReadAudit }] = await Promise.all([
+      import('./sell-onboarding.server'),
+      import('./audit-log.server'),
+    ])
+    const result = await getShopsForModerationInternal(data.status)
+
+    await emitAdminReadAudit(context.user, 'admin.read.shop', 'shop', undefined, {
+      status: data.status,
+      count: result.length,
+    })
+
+    return result
   })
 
 export const moderateShop = createServerFn({ method: 'POST' })
@@ -545,6 +562,7 @@ export const moderateShop = createServerFn({ method: 'POST' })
   .inputValidator(moderationActionSchema)
   .handler(async ({ context, data }) => {
     if (!context.user || context.user.role !== 'admin') throw new Error('FORBIDDEN')
+    requirePrivileged2FA(context.user as SafeUser)
     const [{ moderateShopInternal }, { emitAuditEvent }] = await Promise.all([
       import('./sell-onboarding.server'),
       import('./audit-log.server'),

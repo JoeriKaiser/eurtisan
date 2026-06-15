@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
 import type { SafeUser } from './server-auth'
+import { requirePrivileged2FA } from './server-auth'
 
 export type { AdminProductListItem, PaginatedProducts } from './admin-products.server'
 
@@ -52,9 +53,27 @@ export const listAllProducts = createServerFn({ method: 'GET' })
   .inputValidator((data: unknown) => listAllProductsInputSchema.parse(data))
   .handler(async ({ context, data }) => {
     await requireAdmin(context)
+    requirePrivileged2FA(context.user as SafeUser)
 
-    const { listAllProductsQuery } = await import('./admin-products.server')
-    return listAllProductsQuery(data)
+    const [{ listAllProductsQuery }, { emitAdminReadAudit }] = await Promise.all([
+      import('./admin-products.server'),
+      import('./audit-log.server'),
+    ])
+    const result = await listAllProductsQuery(data)
+
+    await emitAdminReadAudit(context.user, 'admin.read.product', 'product', undefined, {
+      query: data.query,
+      shopId: data.shopId,
+      categoryId: data.categoryId,
+      status: data.status,
+      minPriceCents: data.minPriceCents,
+      maxPriceCents: data.maxPriceCents,
+      page: data.page,
+      pageSize: data.pageSize,
+      total: result.total,
+    })
+
+    return result
   })
 
 export const toggleProductActive = createServerFn({ method: 'POST' })
@@ -66,6 +85,7 @@ export const toggleProductActive = createServerFn({ method: 'POST' })
       import('./admin-products.server'),
       import('./audit-log.server'),
     ])
+    requirePrivileged2FA(context.user as SafeUser)
     const { toggleProductActiveQuery } = modules[1]
     const { emitAuditEvent } = modules[2]
     const result = await toggleProductActiveQuery(data.productId)

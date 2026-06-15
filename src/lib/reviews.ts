@@ -1,15 +1,17 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
+import type { SafeUser } from './server-auth'
+import { requirePrivileged2FA } from './server-auth'
 
 export type {
+  AdminReview,
+  AdminReviewsResult,
   CreatedReview,
   ProductReview,
   ProductReviewsResult,
   ReviewableItem,
   ReviewEligibilityResult,
-  AdminReview,
-  AdminReviewsResult,
 } from './reviews.server'
 
 export const getReviewableItems = createServerFn({ method: 'GET' })
@@ -119,9 +121,22 @@ export const getAdminReviews = createServerFn({ method: 'GET' })
         headers: { 'Content-Type': 'application/json' },
       })
     }
+    requirePrivileged2FA(context.user as SafeUser)
 
-    const { getAdminReviewsQuery } = await import('./reviews.server')
-    return getAdminReviewsQuery(data.status, data.page, data.pageSize)
+    const [{ getAdminReviewsQuery }, { emitAdminReadAudit }] = await Promise.all([
+      import('./reviews.server'),
+      import('./audit-log.server'),
+    ])
+    const result = await getAdminReviewsQuery(data.status, data.page, data.pageSize)
+
+    await emitAdminReadAudit(context.user, 'admin.read.review', 'review', undefined, {
+      status: data.status,
+      page: data.page,
+      pageSize: data.pageSize,
+      total: result.total,
+    })
+
+    return result
   })
 
 export const updateReviewModerationStatus = createServerFn({ method: 'POST' })
@@ -145,8 +160,17 @@ export const updateReviewModerationStatus = createServerFn({ method: 'POST' })
         headers: { 'Content-Type': 'application/json' },
       })
     }
+    requirePrivileged2FA(context.user as SafeUser)
 
-    const { updateReviewModerationStatusQuery } = await import('./reviews.server')
+    const [{ updateReviewModerationStatusQuery }, { emitAuditEvent }] = await Promise.all([
+      import('./reviews.server'),
+      import('./audit-log.server'),
+    ])
     await updateReviewModerationStatusQuery(data.reviewId, data.status)
+
+    await emitAuditEvent(context.user, 'review.moderate', 'review', data.reviewId, {
+      status: data.status,
+    })
+
     return { success: true }
   })

@@ -1,8 +1,25 @@
+import { lt, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { auditLog } from '#/db/schema'
 import { logger } from './logger.server'
 import type { SafeUser } from './server-auth'
-import { lt, sql } from 'drizzle-orm'
+
+/**
+ * Emits an audit log entry for admin read-only access to sensitive resources.
+ *
+ * Silently no-ops when the actor is missing or is not an admin, so it can be
+ * safely called after any admin-only read query.
+ */
+export async function emitAdminReadAudit(
+  actor: SafeUser | null,
+  action: string,
+  resourceType: string,
+  resourceId?: string,
+  metadata?: Record<string, unknown>,
+): Promise<void> {
+  if (!actor || actor.role !== 'admin') return
+  return emitAuditEvent(actor, action, resourceType, resourceId, metadata)
+}
 
 /**
  * Emits an audit log entry for an admin action.

@@ -44,6 +44,8 @@ vi.mock('#/paraglide/messages', () => ({
     studio_nav_payouts_desc: () => 'Connect Mollie and view payouts.',
     studio_nav_settings: () => 'Settings',
     studio_nav_settings_desc: () => 'Shop profile, VAT, and shipping origin.',
+    studio_nav_customers: () => 'Customers',
+    studio_nav_customers_desc: () => 'View customers, notes, tags, and order history.',
     studio_metric_pending_orders: () => 'Pending orders',
     studio_metric_low_stock: () => 'Low stock',
     studio_metric_net_revenue_this_month: () => 'Net revenue this month',
@@ -72,6 +74,10 @@ describe('ShopDashboard', () => {
 
   it('links navigation cards to the correct routes', () => {
     render(<ShopDashboard />)
+
+    const customersLink = screen.getByRole('link', { name: /customers/i })
+    expect(customersLink.getAttribute('href')).toBe('/studio/$shopId/customers')
+    expect(customersLink.getAttribute('data-params')).toBe(JSON.stringify({ shopId: 'shop-1' }))
 
     const ordersLink = screen.getByRole('link', { name: /orders/i })
     expect(ordersLink.getAttribute('href')).toBe('/studio/$shopId/orders')

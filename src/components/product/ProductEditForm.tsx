@@ -12,6 +12,8 @@ import { CancelConfirmationDialog } from './CancelConfirmationDialog'
 import { DeleteConfirmationDialog } from './DeleteConfirmationDialog'
 import { ProductEditImageUploader, type ImageEntry } from './ProductEditImageUploader'
 import { ProductEditFormFields } from './ProductEditFormFields'
+import { ProductVariantsManager } from './ProductVariantsManager'
+import type { ProductVariantMatrix } from '#/lib/product-variants'
 
 /* -------------------------------------------------------------------------- */
 /*                                    Types                                   */
@@ -153,9 +155,15 @@ interface ProductEditFormProps {
   shops: CreatorShop[]
   categories: Array<{ id: string; name: string; slug: string }>
   product: ProductDetail
+  variantMatrix?: ProductVariantMatrix
 }
 
-export function ProductEditForm({ shops, categories, product }: ProductEditFormProps) {
+export function ProductEditForm({
+  shops,
+  categories,
+  product,
+  variantMatrix = { productId: product.id, options: [], variants: [] },
+}: ProductEditFormProps) {
   const router = useRouter()
 
   const [formState, dispatchForm] = useReducer(formReducer, product, createInitialFormState)
@@ -594,6 +602,8 @@ export function ProductEditForm({ shops, categories, product }: ProductEditFormP
           </div>
         </form>
       </section>
+
+      <ProductVariantsManager productId={product.id} initialMatrix={variantMatrix} />
 
       <CancelConfirmationDialog
         open={showCancelConfirm}

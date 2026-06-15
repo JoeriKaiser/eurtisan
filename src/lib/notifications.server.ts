@@ -15,6 +15,7 @@ export const notificationTypeEnum = z.enum([
   'payout_sent',
   'order_refunded',
   'dac7_warning_limit',
+  'low_stock',
 ])
 
 export type NotificationType = z.infer<typeof notificationTypeEnum>

@@ -13,3 +13,25 @@ Summary for GDPR and operations. Align `/privacy` if customer-facing text must m
 | DB backups | 30 days (+ off-site) | `infrastructure/README.md` |
 
 Review when adding PII or changing observability retention.
+
+## Account deletion / right-to-erasure
+
+Self-service deletion is implemented in `src/lib/account-data.server.ts` (`deleteUserAccount`). The user row is anonymized (`name` → `'Deleted User'`, `email` → `deleted-<uuid>@anonymized.eurtisan.invalid`, `deletedAt` set) and the following retained data is redacted:
+
+| Table | Columns retained | Redaction on deletion |
+|-------|------------------|-----------------------|
+| `user` | `id`, `role`, `createdAt`, `updatedAt`, `deletedAt` | `name`, `email`, `image` anonymized; `emailVerified`, `twoFactorEnabled` reset |
+| `platform_order` | All order financial/transaction data | `shippingAddress`, `billingAddress` replaced with redacted address object |
+| `shop_order` | All order financial/fulfillment data | No direct PII; retained for tax/dispute history |
+| `invoices` | `invoiceNumber`, type, amounts, VAT, shop order link | `billingDetails` replaced with redacted address object |
+| `shop` (owned) | `id`, name, slug, status, financial/tax data | `businessAddress`, `shippingOrigin` replaced with redacted address object; status set to `archived` |
+| `payout_reconciliation_log` | Event metadata required for reconciliation | `payload` personal fields (`buyerName`, `buyerEmail`, `address`, `shippingAddress`, `billingAddress`, `name`, `email`) masked or replaced |
+| `audit_log` | `actorId`, action, resource, metadata | `actorName` set to `'Deleted User'`; `actorId` kept for traceability |
+| `order_item` | Product snapshots, quantities, prices | No direct PII; retained for order history |
+| `review` | Rating, product link | `comment` set to `null` |
+| `dispute` | Reason, status, resolution | `description` redacted |
+| `dispute_message` (sent by user) | Thread context | `message` replaced with `'[message removed — account deleted]'` |
+
+Deleted rows in `session`, `account`, `twoFactor`, `notification`, `cart`, and `cart_item` are removed. `product` rows belonging to owned shops are deactivated (`isActive = false`).
+
+The deletion workflow blocks `admin` users and rejects deleted users at authentication time (`authMiddleware`, `src/lib/server-auth.ts`, `src/lib/authz.ts`).

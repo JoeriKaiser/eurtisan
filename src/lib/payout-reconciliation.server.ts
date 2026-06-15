@@ -1,9 +1,10 @@
 import { and, eq, gte, inArray, isNotNull, lte, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { payout, payoutReconciliationLog } from '#/db/schema'
+import { payout, payoutReconciliationLog, shopOrder } from '#/db/schema'
 import { getMollieRoute } from '#/integrations/mollie'
 import { getMollieApiKey, getMollieTestMode } from '#/lib/env.server'
 import { logger } from '#/lib/logger.server'
+import { executePayoutQuery } from './payouts.server'
 
 /* -------------------------------------------------------------------------- */
 /*                                  Types                                     */
@@ -91,8 +92,9 @@ export async function reconcilePayouts(): Promise<ReconciliationResult> {
 
   for (const record of payoutsToCheck) {
     try {
-      const paymentId = record.molliePaymentId!
-      const routeId = record.mollieRouteId!
+      if (!record.molliePaymentId || !record.mollieRouteId) continue
+      const paymentId = record.molliePaymentId
+      const routeId = record.mollieRouteId
 
       const [route, refundList] = await Promise.all([
         getMollieRoute(paymentId, routeId),
@@ -210,4 +212,56 @@ export async function alertOnStalePendingPayouts(): Promise<number> {
   }
 
   return stalePayouts.length
+}
+
+/**
+ * Releases payouts whose dispute windows have expired.
+ *
+ * Pending payouts attached to delivered/completed shop orders become eligible
+ * for execution once the order's dispute window is over. This closes the
+ * payout/dispute timing gap so sellers cannot be paid for orders that are
+ * later disputed or refunded.
+ */
+export async function releaseHeldPayouts(): Promise<{
+  checked: number
+  released: number
+  errors: number
+}> {
+  const heldPayouts = await db
+    .select({
+      id: payout.id,
+      shopOrderId: payout.shopOrderId,
+    })
+    .from(payout)
+    .innerJoin(shopOrder, eq(payout.shopOrderId, shopOrder.id))
+    .where(
+      and(
+        eq(payout.status, 'pending'),
+        inArray(shopOrder.status, ['delivered', 'completed']),
+        lte(shopOrder.disputeWindowExpiresAt, sql`now()`),
+      ),
+    )
+
+  let released = 0
+  let errors = 0
+
+  for (const record of heldPayouts) {
+    try {
+      await executePayoutQuery(record.id)
+      released += 1
+      logger.info(`Released held payout ${record.id} for shop order ${record.shopOrderId}`, {
+        payoutId: record.id,
+        shopOrderId: record.shopOrderId,
+      })
+    } catch (err) {
+      errors += 1
+      logger.error(`Failed to release held payout ${record.id}`, err, {
+        alert: true,
+        payoutId: record.id,
+        shopOrderId: record.shopOrderId,
+      })
+    }
+  }
+
+  return { checked: heldPayouts.length, released, errors }
 }

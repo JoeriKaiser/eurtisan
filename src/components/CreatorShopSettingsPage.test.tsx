@@ -50,6 +50,53 @@ vi.mock('#/paraglide/messages', () => ({
     creator_shop_image_size_error: () => 'Image must be 5MB or smaller.',
     creator_shop_image_upload_error: () =>
       'Failed to upload image. Please check the file and try again.',
+    creator_shop_banner_image_label: () => 'Shop banner',
+    creator_shop_banner_image_hint: () => 'Upload a wide banner image.',
+    creator_shop_banner_image_upload: () => 'Upload banner',
+    creator_shop_banner_image_change: () => 'Change banner',
+    creator_shop_banner_image_remove: () => 'Remove banner',
+    creator_shop_banner_image_empty: () => 'No banner uploaded yet.',
+    creator_shop_banner_image_preview_alt: () => 'Shop banner preview',
+    creator_shop_business_address_title: () => 'Business Address',
+    creator_shop_business_address_description: () => 'Used on invoices.',
+    creator_shop_address_street_label: () => 'Street',
+    creator_shop_address_street_placeholder: () => '123 Main St',
+    creator_shop_address_city_label: () => 'City',
+    creator_shop_address_city_placeholder: () => 'Paris',
+    creator_shop_address_postal_label: () => 'Postal code',
+    creator_shop_address_postal_placeholder: () => '75001',
+    creator_shop_address_country_label: () => 'Country',
+    creator_shop_address_country_placeholder: () => 'FR',
+    creator_shop_announcement_label: () => 'Announcement',
+    creator_shop_announcement_description: () => 'Short public message.',
+    creator_shop_announcement_placeholder: () => 'Welcome!',
+    creator_shop_socials_title: () => 'Socials',
+    creator_shop_socials_description: () => 'Social links.',
+    creator_shop_socials_platform_label: () => 'Platform',
+    creator_shop_socials_platform_placeholder: () => 'Select platform',
+    creator_shop_socials_url_label: () => 'URL',
+    creator_shop_socials_add: () => 'Add link',
+    creator_shop_socials_remove: () => 'Remove',
+    creator_shop_policies_title: () => 'Policies',
+    creator_shop_policies_description: () => 'Return and exchange policies.',
+    creator_shop_policies_returns_title: () => 'Returns',
+    creator_shop_policies_returns_placeholder: () => 'Return policy.',
+    creator_shop_policies_exchanges_title: () => 'Exchanges',
+    creator_shop_policies_exchanges_placeholder: () => 'Exchange policy.',
+    creator_shop_policies_custom_orders_title: () => 'Custom orders',
+    creator_shop_policies_custom_orders_placeholder: () => 'Custom order policy.',
+    creator_shop_policies_additional_label: () => 'Additional info',
+    creator_shop_policies_additional_placeholder: () => 'Notes.',
+    creator_shop_lifecycle_title: () => 'Shop status',
+    creator_shop_lifecycle_description: () => 'Pause, archive or delete.',
+    creator_shop_pause: () => 'Pause shop',
+    creator_shop_resume: () => 'Resume shop',
+    creator_shop_archive: () => 'Archive shop',
+    creator_shop_request_deletion: () => 'Request deletion',
+    creator_shop_cancel_deletion: () => 'Cancel deletion',
+    creator_shop_deletion_scheduled: () => 'Scheduled for deletion.',
+    creator_shop_lifecycle_success: () => 'Status updated.',
+    creator_shop_lifecycle_error: () => 'Status update failed.',
     creator_shop_save: () => 'Save changes',
     creator_shop_saving: () => 'Saving…',
     creator_shop_save_success: () => 'Shop settings saved successfully.',
@@ -88,10 +135,17 @@ function makeShop(overrides?: Record<string, unknown>) {
     slug: 'test-shop',
     description: 'A description',
     image: null,
+    bannerImage: null,
+    announcement: null,
+    status: 'active',
+    scheduledDeleteAt: null,
     ownerId: 'user-1',
     shippingOrigin: null,
+    businessAddress: null,
     isVatRegistered: false,
     vatId: null,
+    policies: null,
+    socials: [],
     createdAt: new Date('2025-01-01'),
     updatedAt: new Date('2025-01-01'),
     ...overrides,
@@ -169,7 +223,7 @@ describe('CreatorShopSettingsPage', () => {
     render(<CreatorShopSettingsPage shop={shop} allShops={shops} />)
 
     expect(screen.getByText('Select shop')).toBeTruthy()
-    expect(screen.getByRole('combobox')).toBeTruthy()
+    expect(screen.getByLabelText('Select shop')).toBeTruthy()
   })
 
   it('does not show shop selector when creator has only one shop', () => {
@@ -188,7 +242,7 @@ describe('CreatorShopSettingsPage', () => {
 
     render(<CreatorShopSettingsPage shop={shop} allShops={shops} />)
 
-    const selector = screen.getByRole('combobox')
+    const selector = screen.getByLabelText('Select shop')
     fireEvent.change(selector, { target: { value: 'shop-2' } })
 
     expect(mockNavigate).toHaveBeenCalledWith({

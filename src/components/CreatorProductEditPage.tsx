@@ -1,4 +1,5 @@
 import type { CreatorShop } from '#/lib/creator-dashboard'
+import type { ProductVariantMatrix } from '#/lib/product-variants'
 import { ProductEditForm } from './product/ProductEditForm'
 import { ProductEditNoShopState } from './product/ProductEditNoShopState'
 
@@ -31,6 +32,7 @@ export interface CreatorProductEditPageProps {
   shops: CreatorShop[]
   categories: Array<{ id: string; name: string; slug: string }>
   product: ProductDetail
+  variantMatrix?: ProductVariantMatrix
 }
 
 export { CreatorProductEditLoading } from './product/CreatorProductEditLoading'
@@ -40,12 +42,19 @@ export function CreatorProductEditPage({
   shops,
   categories,
   product,
+  variantMatrix = { productId: product.id, options: [], variants: [] },
 }: CreatorProductEditPageProps) {
   if (shops.length === 0) {
     return <ProductEditNoShopState />
   }
 
   return (
-    <ProductEditForm key={product.id} shops={shops} categories={categories} product={product} />
+    <ProductEditForm
+      key={product.id}
+      shops={shops}
+      categories={categories}
+      product={product}
+      variantMatrix={variantMatrix}
+    />
   )
 }

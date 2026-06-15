@@ -1,7 +1,8 @@
 import { and, count, desc, eq, gte, inArray, lt, sum } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { platformOrder, product, review, shop, shopOrder, user } from '#/db/schema'
+import { platformOrder, product, review, shop, shopOrder, shopSocials, user } from '#/db/schema'
 import { PLATFORM_FEE_PERCENT } from '#/lib/platform-constants'
+import type { Policies, SocialRow } from '#/lib/sell-onboarding'
 
 export interface CreatorShop {
   id: string
@@ -24,10 +25,17 @@ export interface CreatorShopDetail {
   slug: string
   description: string | null
   image: string | null
+  bannerImage: string | null
+  announcement: string | null
+  status: string
+  scheduledDeleteAt: Date | null
   ownerId: string
   shippingOrigin: ShippingOrigin | null
+  businessAddress: ShippingOrigin | null
   isVatRegistered: boolean
   vatId: string | null
+  policies: Policies | null
+  socials: SocialRow[]
   createdAt: Date
   updatedAt: Date
 }
@@ -234,11 +242,15 @@ export async function getCreatorShopQuery(
   userId: string,
   shopId: string,
 ): Promise<CreatorShopDetail | null> {
-  const [record] = await db
-    .select()
-    .from(shop)
-    .where(and(eq(shop.id, shopId), eq(shop.ownerId, userId)))
-    .limit(1)
+  const [record, socials] = await Promise.all([
+    db
+      .select()
+      .from(shop)
+      .where(and(eq(shop.id, shopId), eq(shop.ownerId, userId)))
+      .limit(1)
+      .then((rows) => rows[0]),
+    db.select().from(shopSocials).where(eq(shopSocials.shopId, shopId)),
+  ])
 
   if (!record) return null
 
@@ -248,10 +260,20 @@ export async function getCreatorShopQuery(
     slug: record.slug,
     description: record.description,
     image: record.image,
+    bannerImage: record.bannerImage,
+    announcement: record.announcement,
+    status: record.status,
+    scheduledDeleteAt: record.scheduledDeleteAt,
     ownerId: record.ownerId,
     shippingOrigin: (record.shippingOrigin as ShippingOrigin | null) ?? null,
+    businessAddress: (record.businessAddress as ShippingOrigin | null) ?? null,
     isVatRegistered: record.isVatRegistered,
     vatId: record.vatId,
+    policies: (record.policies as Policies | null) ?? null,
+    socials: socials.map((s) => ({
+      platform: s.platform as SocialRow['platform'],
+      url: s.url,
+    })),
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   }

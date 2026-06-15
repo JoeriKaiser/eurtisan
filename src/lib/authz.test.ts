@@ -121,6 +121,23 @@ describe('requireAuth', () => {
       expect((err as AuthError).body.message).toContain('Account suspended')
     }
   })
+
+  it('throws AuthError(403) when user is deleted', async () => {
+    const user = makeUser('customer')
+    ;(user as unknown as { deletedAt: Date | null }).deletedAt = new Date()
+    const session = makeSession(user.id)
+    mockGetSession.mockResolvedValue({ user, session })
+
+    try {
+      await requireAuth(makeRequest())
+      expect.fail('should have thrown')
+    } catch (err) {
+      expect(err).toBeInstanceOf(AuthError)
+      expect((err as AuthError).status).toBe(403)
+      expect((err as AuthError).body.error).toBe('Forbidden')
+      expect((err as AuthError).body.message).toContain('Account deleted')
+    }
+  })
 })
 
 describe('requireRole', () => {

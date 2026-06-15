@@ -1,5 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import { authMiddleware } from './auth-middleware'
+import type { SafeUser } from './server-auth'
+import { requirePrivileged2FA } from './server-auth'
 
 export type { AdminDashboardStats, RecentOrder, RecentSignup } from './admin-dashboard.server'
 
@@ -36,9 +38,22 @@ export const getAdminDashboardStats = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     await requireAdmin(context)
+    requirePrivileged2FA(context.user as SafeUser)
 
-    const { getAdminDashboardStatsQuery } = await import('./admin-dashboard.server')
-    return getAdminDashboardStatsQuery()
+    const [{ getAdminDashboardStatsQuery }, { emitAdminReadAudit }] = await Promise.all([
+      import('./admin-dashboard.server'),
+      import('./audit-log.server'),
+    ])
+    const result = await getAdminDashboardStatsQuery()
+
+    await emitAdminReadAudit(context.user, 'admin.read.dashboard', 'dashboard', undefined, {
+      totalUsers: result.totalUsers,
+      activeShops: result.activeShops,
+      openDisputes: result.openDisputes,
+      pendingPayouts: result.pendingPayouts,
+    })
+
+    return result
   })
 
 /**
@@ -49,9 +64,20 @@ export const getRecentSignups = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     await requireAdmin(context)
+    requirePrivileged2FA(context.user as SafeUser)
 
-    const { getRecentSignupsQuery } = await import('./admin-dashboard.server')
-    return getRecentSignupsQuery(5)
+    const [{ getRecentSignupsQuery }, { emitAdminReadAudit }] = await Promise.all([
+      import('./admin-dashboard.server'),
+      import('./audit-log.server'),
+    ])
+    const result = await getRecentSignupsQuery(5)
+
+    await emitAdminReadAudit(context.user, 'admin.read.user', 'user', undefined, {
+      limit: 5,
+      count: result.length,
+    })
+
+    return result
   })
 
 /**
@@ -62,9 +88,20 @@ export const getRecentOrders = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     await requireAdmin(context)
+    requirePrivileged2FA(context.user as SafeUser)
 
-    const { getRecentOrdersQuery } = await import('./admin-dashboard.server')
-    return getRecentOrdersQuery(5)
+    const [{ getRecentOrdersQuery }, { emitAdminReadAudit }] = await Promise.all([
+      import('./admin-dashboard.server'),
+      import('./audit-log.server'),
+    ])
+    const result = await getRecentOrdersQuery(5)
+
+    await emitAdminReadAudit(context.user, 'admin.read.order', 'order', undefined, {
+      limit: 5,
+      count: result.length,
+    })
+
+    return result
   })
 
 /**
@@ -75,9 +112,19 @@ export const getDashboardTrends = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     await requireAdmin(context)
+    requirePrivileged2FA(context.user as SafeUser)
 
-    const { getDashboardTrendsQuery } = await import('./admin-dashboard.server')
-    return getDashboardTrendsQuery(30)
+    const [{ getDashboardTrendsQuery }, { emitAdminReadAudit }] = await Promise.all([
+      import('./admin-dashboard.server'),
+      import('./audit-log.server'),
+    ])
+    const result = await getDashboardTrendsQuery(30)
+
+    await emitAdminReadAudit(context.user, 'admin.read.dashboard', 'dashboard', undefined, {
+      days: 30,
+    })
+
+    return result
   })
 
 /**
@@ -88,7 +135,18 @@ export const getRecentAuditEntries = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     await requireAdmin(context)
+    requirePrivileged2FA(context.user as SafeUser)
 
-    const { getRecentAuditEntriesQuery } = await import('./admin-dashboard.server')
-    return getRecentAuditEntriesQuery(5)
+    const [{ getRecentAuditEntriesQuery }, { emitAdminReadAudit }] = await Promise.all([
+      import('./admin-dashboard.server'),
+      import('./audit-log.server'),
+    ])
+    const result = await getRecentAuditEntriesQuery(5)
+
+    await emitAdminReadAudit(context.user, 'admin.read.audit_log', 'audit_log', undefined, {
+      limit: 5,
+      count: result.length,
+    })
+
+    return result
   })

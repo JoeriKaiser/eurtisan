@@ -5,13 +5,19 @@ import type { CreatorShopDetail } from '#/lib/creator-dashboard'
 import { checkShopSlug, updateShop } from '#/lib/shop-settings'
 import { useImageUpload } from '#/hooks/useImageUpload'
 import { getImageUrl } from '#/lib/image-url'
+import type { Policies, SocialRow } from '#/lib/sell-onboarding'
 import { m } from '#/paraglide/messages'
 import { useCallback, useReducer, useRef, useState } from 'react'
 import { ShopSelector } from './ShopSelector'
 import { ShopSettingsFormFields } from './ShopSettingsFormFields'
 import { ShopSettingsImageUploader } from './ShopSettingsImageUploader'
 import { ShopSettingsShippingOrigin } from './ShopSettingsShippingOrigin'
+import { ShopSettingsBusinessAddress } from './ShopSettingsBusinessAddress'
 import { ShopSettingsVatSettings } from './ShopSettingsVatSettings'
+import { ShopSettingsAnnouncement } from './ShopSettingsAnnouncement'
+import { ShopSettingsSocials } from './ShopSettingsSocials'
+import { ShopSettingsPolicies } from './ShopSettingsPolicies'
+import { ShopSettingsLifecycle } from './ShopSettingsLifecycle'
 
 /* -------------------------------------------------------------------------- */
 /*                                    Types                                   */
@@ -42,8 +48,13 @@ export interface FormValues {
   originCity: string
   originPostal: string
   originCountry: string
+  businessStreet: string
+  businessCity: string
+  businessPostal: string
+  businessCountry: string
   isVatRegistered: boolean
   vatId: string
+  announcement: string
 }
 
 interface FormState {
@@ -76,8 +87,13 @@ function createInitialFormState(shop: CreatorShopDetail): FormState {
       originCity: shop.shippingOrigin?.city ?? '',
       originPostal: shop.shippingOrigin?.postalCode ?? '',
       originCountry: shop.shippingOrigin?.country ?? '',
+      businessStreet: shop.businessAddress?.street ?? '',
+      businessCity: shop.businessAddress?.city ?? '',
+      businessPostal: shop.businessAddress?.postalCode ?? '',
+      businessCountry: shop.businessAddress?.country ?? '',
       isVatRegistered: shop.isVatRegistered,
       vatId: shop.vatId ?? '',
+      announcement: shop.announcement ?? '',
     },
     nameError: null,
     descriptionError: null,
@@ -133,6 +149,18 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
   const [imageError, setImageError] = useState<string | null>(null)
   const [imageUploading, setImageUploading] = useState(false)
 
+  const [bannerImageKey, setBannerImageKey] = useState<string | null>(
+    initialShop.bannerImage ?? null,
+  )
+  const [bannerImagePreview, setBannerImagePreview] = useState<string | null>(
+    initialShop.bannerImage ? getImageUrl(initialShop.bannerImage) : null,
+  )
+  const [bannerImageError, setBannerImageError] = useState<string | null>(null)
+  const [bannerImageUploading, setBannerImageUploading] = useState(false)
+
+  const [socials, setSocials] = useState<SocialRow[]>(initialShop.socials ?? [])
+  const [policies, setPolicies] = useState<Policies | null>(initialShop.policies ?? null)
+
   const slugTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [submissionState, dispatchSubmission] = useReducer(
@@ -158,21 +186,37 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
 
   const slugChanged = formState.values.slug !== initialShop.slug
   const imageChanged = imageKey !== initialShop.image
+  const bannerImageChanged = bannerImageKey !== initialShop.bannerImage
   const originChanged =
     formState.values.originStreet !== (initialShop.shippingOrigin?.street ?? '') ||
     formState.values.originCity !== (initialShop.shippingOrigin?.city ?? '') ||
     formState.values.originPostal !== (initialShop.shippingOrigin?.postalCode ?? '') ||
     formState.values.originCountry !== (initialShop.shippingOrigin?.country ?? '')
+  const businessAddressChanged =
+    formState.values.businessStreet !== (initialShop.businessAddress?.street ?? '') ||
+    formState.values.businessCity !== (initialShop.businessAddress?.city ?? '') ||
+    formState.values.businessPostal !== (initialShop.businessAddress?.postalCode ?? '') ||
+    formState.values.businessCountry !== (initialShop.businessAddress?.country ?? '')
   const vatChanged =
     formState.values.isVatRegistered !== initialShop.isVatRegistered ||
     formState.values.vatId !== (initialShop.vatId ?? '')
+  const announcementChanged = formState.values.announcement !== (initialShop.announcement ?? '')
+  const socialsChanged =
+    JSON.stringify(socials.map((s) => [s.platform, s.url]).sort()) !==
+    JSON.stringify((initialShop.socials ?? []).map((s) => [s.platform, s.url]).sort())
+  const policiesChanged = JSON.stringify(policies) !== JSON.stringify(initialShop.policies ?? null)
   const hasChanges =
     formState.values.name !== initialShop.name ||
     slugChanged ||
     formState.values.description !== (initialShop.description ?? '') ||
     imageChanged ||
+    bannerImageChanged ||
     originChanged ||
-    vatChanged
+    businessAddressChanged ||
+    vatChanged ||
+    announcementChanged ||
+    socialsChanged ||
+    policiesChanged
 
   /* ----------------------------- Slug validation ---------------------------- */
 
@@ -274,6 +318,56 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
     if (input) input.value = ''
   }
 
+  /* --------------------------- Banner image handling ------------------------- */
+
+  const handleBannerImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setBannerImageError(null)
+
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      setBannerImageError(m.creator_shop_image_type_error())
+      return
+    }
+
+    if (file.size > MAX_IMAGE_SIZE) {
+      setBannerImageError(m.creator_shop_image_size_error())
+      return
+    }
+
+    setBannerImageUploading(true)
+    setBannerImagePreview(URL.createObjectURL(file))
+
+    try {
+      const result = await upload(file, 'shops')
+      if (result) {
+        setBannerImageKey(result.key)
+        setBannerImagePreview(result.previewUrl)
+      } else {
+        setBannerImageError(uploadError ?? 'Upload failed')
+        setBannerImagePreview(null)
+        setBannerImageKey(null)
+      }
+    } catch {
+      setBannerImageError('Upload failed')
+      setBannerImagePreview(null)
+      setBannerImageKey(null)
+    } finally {
+      setBannerImageUploading(false)
+      const input = document.getElementById('shop-banner-image-upload') as HTMLInputElement
+      if (input) input.value = ''
+    }
+  }
+
+  const handleRemoveBannerImage = () => {
+    setBannerImageKey(null)
+    setBannerImagePreview(null)
+    setBannerImageError(null)
+    const input = document.getElementById('shop-banner-image-upload') as HTMLInputElement
+    if (input) input.value = ''
+  }
+
   /* ---------------------------- Form submission ---------------------------- */
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -317,9 +411,19 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
           postalCode: string
           country: string
         } | null
+        businessAddress?: {
+          street: string
+          city: string
+          postalCode: string
+          country: string
+        } | null
         isVatRegistered?: boolean
         vatId?: string | null
         image?: string | null
+        bannerImage?: string | null
+        announcement?: string | null
+        socials?: SocialRow[]
+        policies?: Policies | null
       } = { shopId: initialShop.id }
 
       if (formState.values.name !== initialShop.name)
@@ -344,6 +448,21 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
             : null
       }
 
+      if (businessAddressChanged) {
+        updatePayload.businessAddress =
+          formState.values.businessStreet.trim() ||
+          formState.values.businessCity.trim() ||
+          formState.values.businessPostal.trim() ||
+          formState.values.businessCountry.trim()
+            ? {
+                street: formState.values.businessStreet.trim(),
+                city: formState.values.businessCity.trim(),
+                postalCode: formState.values.businessPostal.trim(),
+                country: formState.values.businessCountry.trim().toUpperCase(),
+              }
+            : null
+      }
+
       if (vatChanged) {
         updatePayload.isVatRegistered = formState.values.isVatRegistered
         updatePayload.vatId = formState.values.isVatRegistered
@@ -353,6 +472,22 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
 
       if (imageChanged) {
         updatePayload.image = imageKey
+      }
+
+      if (bannerImageChanged) {
+        updatePayload.bannerImage = bannerImageKey
+      }
+
+      if (announcementChanged) {
+        updatePayload.announcement = formState.values.announcement.trim() || null
+      }
+
+      if (socialsChanged) {
+        updatePayload.socials = socials
+      }
+
+      if (policiesChanged) {
+        updatePayload.policies = policies
       }
 
       if (Object.keys(updatePayload).length > 1) {
@@ -470,6 +605,36 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
                 }
               />
 
+              <ShopSettingsBusinessAddress
+                street={formState.values.businessStreet}
+                city={formState.values.businessCity}
+                postal={formState.values.businessPostal}
+                country={formState.values.businessCountry}
+                onStreetChange={(value) =>
+                  dispatchForm({ type: 'setField', field: 'businessStreet', value })
+                }
+                onCityChange={(value) =>
+                  dispatchForm({ type: 'setField', field: 'businessCity', value })
+                }
+                onPostalChange={(value) =>
+                  dispatchForm({ type: 'setField', field: 'businessPostal', value })
+                }
+                onCountryChange={(value) =>
+                  dispatchForm({ type: 'setField', field: 'businessCountry', value })
+                }
+              />
+
+              <ShopSettingsAnnouncement
+                value={formState.values.announcement}
+                onChange={(value) =>
+                  dispatchForm({ type: 'setField', field: 'announcement', value })
+                }
+              />
+
+              <ShopSettingsSocials socials={socials} onChange={setSocials} />
+
+              <ShopSettingsPolicies policies={policies} onChange={setPolicies} />
+
               <ShopSettingsVatSettings
                 isVatRegistered={formState.values.isVatRegistered}
                 vatId={formState.values.vatId}
@@ -482,12 +647,35 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
               />
             </div>
 
-            <ShopSettingsImageUploader
-              imagePreview={imagePreview}
-              imageError={imageError}
-              onImageSelect={handleImageSelect}
-              onRemoveImage={handleRemoveImage}
-            />
+            <div className='space-y-8'>
+              <ShopSettingsImageUploader
+                imagePreview={imagePreview}
+                imageError={imageError}
+                onImageSelect={handleImageSelect}
+                onRemoveImage={handleRemoveImage}
+              />
+
+              <ShopSettingsImageUploader
+                id='shop-banner-image-upload'
+                imagePreview={bannerImagePreview}
+                imageError={bannerImageError}
+                onImageSelect={handleBannerImageSelect}
+                onRemoveImage={handleRemoveBannerImage}
+                label={m.creator_shop_banner_image_label()}
+                hint={m.creator_shop_banner_image_hint()}
+                emptyText={m.creator_shop_banner_image_empty()}
+                changeText={m.creator_shop_banner_image_change()}
+                uploadText={m.creator_shop_banner_image_upload()}
+                removeLabel={m.creator_shop_banner_image_remove()}
+                previewAlt={m.creator_shop_banner_image_preview_alt()}
+                aspectClass='aspect-[3/1]'
+              />
+            </div>
+          </div>
+
+          {/* Lifecycle */}
+          <div className='mt-10'>
+            <ShopSettingsLifecycle shop={initialShop} onChanged={() => router.invalidate()} />
           </div>
 
           {/* Submit */}
@@ -496,7 +684,9 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
               type='submit'
               variant='primary'
               isLoading={submissionState.saving}
-              disabled={!hasChanges || formState.slugChecking || imageUploading}
+              disabled={
+                !hasChanges || formState.slugChecking || imageUploading || bannerImageUploading
+              }
             >
               {submissionState.saving ? m.creator_shop_saving() : m.creator_shop_save()}
             </Button>
@@ -509,6 +699,13 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
                   setImageKey(initialShop.image ?? null)
                   setImagePreview(initialShop.image ? getImageUrl(initialShop.image) : null)
                   setImageError(null)
+                  setBannerImageKey(initialShop.bannerImage ?? null)
+                  setBannerImagePreview(
+                    initialShop.bannerImage ? getImageUrl(initialShop.bannerImage) : null,
+                  )
+                  setBannerImageError(null)
+                  setSocials(initialShop.socials ?? [])
+                  setPolicies(initialShop.policies ?? null)
                   dispatchSubmission({ type: 'set', feedback: null })
                 }}
               >

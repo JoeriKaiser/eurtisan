@@ -1,12 +1,19 @@
 import { useRouter } from '@tanstack/react-router'
-import { Package } from 'lucide-react'
+import { Package, Trash2 } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
-import { toggleProductActive } from '#/lib/creator-products'
+import {
+  bulkDeleteProducts,
+  bulkToggleProductActive,
+  toggleProductActive,
+} from '#/lib/creator-products'
 import { m } from '#/paraglide/messages'
+import { Button } from '#/components/ui/button'
+import { FeedbackBanner } from '#/components/ui/FeedbackBanner'
 import { CreatorProductsError } from './CreatorProductsError'
 import { CreatorProductsFilterBar } from './CreatorProductsFilterBar'
 import { CreatorProductsLoading } from './CreatorProductsLoading'
 import { CreatorProductsPagination } from './CreatorProductsPagination'
+import { DeleteConfirmationDialog } from './product/DeleteConfirmationDialog'
 import { type CreatorProduct, ProductTableRow } from './product/ProductTableRow'
 
 export { CreatorProductsError, CreatorProductsLoading }
@@ -54,6 +61,15 @@ export function CreatorProductsPage({
   const [toggleStates, setToggleStates] = useState<Record<string, boolean>>({})
   const [togglingProducts, setTogglingProducts] = useState<Record<string, boolean>>({})
 
+  /* ---- Bulk selection state ---- */
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkLoading, setBulkLoading] = useState(false)
+  const [bulkFeedback, setBulkFeedback] = useState<{
+    type: 'success' | 'error'
+    message: string
+  } | null>(null)
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false)
+
   /* ---- Local filter states (mirrored to search params) ---- */
   const [localSearch, setLocalSearch] = useState(initialSearch.search ?? '')
   const localSearchRef = useRef(localSearch)
@@ -63,6 +79,7 @@ export function CreatorProductsPage({
   const navigateWithParams = useCallback(
     (overrides: Record<string, string | number | undefined>) => {
       setToggleStates({})
+      setSelectedIds(new Set())
       const params: Record<string, string | number> = {
         page: initialSearch.page,
         pageSize: initialSearch.pageSize,
@@ -128,6 +145,7 @@ export function CreatorProductsPage({
   const handleShopChange = useCallback(
     (newShopId: string) => {
       setToggleStates({})
+      setSelectedIds(new Set())
       setLocalSearch('')
       router.navigate({
         to: '/creator/products',
@@ -167,6 +185,73 @@ export function CreatorProductsPage({
   }
   const isToggling = (p: CreatorProduct): boolean => {
     return togglingProducts[p.id] ?? false
+  }
+
+  /* ---- Selection handlers ---- */
+  const handleSelect = useCallback((productId: string, selected: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (selected) {
+        next.add(productId)
+      } else {
+        next.delete(productId)
+      }
+      return next
+    })
+  }, [])
+
+  const handleSelectAll = useCallback(
+    (selected: boolean) => {
+      setSelectedIds(selected ? new Set(products.map((p) => p.id)) : new Set())
+    },
+    [products],
+  )
+
+  const showBulkFeedback = (type: 'success' | 'error', message: string) => {
+    setBulkFeedback({ type, message })
+    window.setTimeout(() => setBulkFeedback(null), 4000)
+  }
+
+  const runBulkAction = async (action: () => Promise<unknown>) => {
+    if (!currentShopId || selectedIds.size === 0) return
+    setBulkLoading(true)
+    try {
+      await action()
+      setSelectedIds(new Set())
+      await router.invalidate()
+      showBulkFeedback('success', m.creator_products_bulk_action_success())
+    } catch {
+      showBulkFeedback('error', m.creator_products_bulk_action_error())
+    } finally {
+      setBulkLoading(false)
+    }
+  }
+
+  const handleBulkActivate = () => {
+    if (!currentShopId) return
+    runBulkAction(() =>
+      bulkToggleProductActive({
+        data: { shopId: currentShopId, productIds: Array.from(selectedIds), isActive: true },
+      }),
+    )
+  }
+
+  const handleBulkDeactivate = () => {
+    if (!currentShopId) return
+    runBulkAction(() =>
+      bulkToggleProductActive({
+        data: { shopId: currentShopId, productIds: Array.from(selectedIds), isActive: false },
+      }),
+    )
+  }
+
+  const handleBulkDelete = () => {
+    if (!currentShopId) return
+    runBulkAction(() =>
+      bulkDeleteProducts({
+        data: { shopId: currentShopId, productIds: Array.from(selectedIds), hard: false },
+      }),
+    )
   }
 
   /* ---- No shops ---- */
@@ -226,12 +311,65 @@ export function CreatorProductsPage({
           onActiveChange={handleActiveFilter}
         />
 
+        {/* Bulk actions */}
+        {selectedIds.size > 0 && (
+          <div className='mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-border-subtle bg-surface-inset p-3'>
+            <span className='text-sm font-medium text-text-primary'>
+              {m.creator_products_bulk_selected({ count: String(selectedIds.size) })}
+            </span>
+            <div className='flex items-center gap-2'>
+              <Button
+                type='button'
+                variant='secondary'
+                size='sm'
+                onClick={handleBulkActivate}
+                isLoading={bulkLoading}
+                disabled={bulkLoading}
+              >
+                {m.creator_products_bulk_activate()}
+              </Button>
+              <Button
+                type='button'
+                variant='secondary'
+                size='sm'
+                onClick={handleBulkDeactivate}
+                isLoading={bulkLoading}
+                disabled={bulkLoading}
+              >
+                {m.creator_products_bulk_deactivate()}
+              </Button>
+              <Button
+                type='button'
+                variant='danger'
+                size='sm'
+                onClick={() => setShowBulkDeleteDialog(true)}
+                isLoading={bulkLoading}
+                disabled={bulkLoading}
+              >
+                <Trash2 size={16} aria-hidden='true' />
+                {m.creator_products_bulk_delete()}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {bulkFeedback && <FeedbackBanner type={bulkFeedback.type} message={bulkFeedback.message} />}
+
         {/* Table */}
         <div className='overflow-x-auto'>
           <table className='w-full text-left text-sm'>
             <caption className='sr-only'>{m.creator_products_title()}</caption>
             <thead>
               <tr className='border-b border-border-default'>
+                <th className='pb-3 pr-3'>
+                  <input
+                    type='checkbox'
+                    checked={products.length > 0 && products.every((p) => selectedIds.has(p.id))}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                    className='size-4 rounded border-border-default text-accent-primary focus:ring-accent-secondary'
+                    aria-label={m.creator_products_select_all()}
+                  />
+                </th>
                 <th className='pb-3 pr-4 font-medium text-text-secondary'>
                   {m.creator_products_col_product()}
                 </th>
@@ -257,7 +395,9 @@ export function CreatorProductsPage({
                   currentShopId={currentShopId}
                   active={isActive(product)}
                   toggling={isToggling(product)}
+                  selected={selectedIds.has(product.id)}
                   onToggle={handleToggle}
+                  onSelect={handleSelect}
                 />
               ))}
             </tbody>
@@ -291,6 +431,21 @@ export function CreatorProductsPage({
             onPageSizeChange={handlePageSizeChange}
           />
         )}
+        <DeleteConfirmationDialog
+          open={showBulkDeleteDialog}
+          title={m.creator_products_bulk_delete()}
+          description={m.creator_products_bulk_delete_confirm({
+            count: String(selectedIds.size),
+          })}
+          cancelLabel={m.creator_product_new_cancel()}
+          confirmLabel={m.creator_products_bulk_delete()}
+          deleting={bulkLoading}
+          onCancel={() => setShowBulkDeleteDialog(false)}
+          onConfirm={() => {
+            setShowBulkDeleteDialog(false)
+            handleBulkDelete()
+          }}
+        />
       </section>
     </main>
   )

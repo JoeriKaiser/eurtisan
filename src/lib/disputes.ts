@@ -1,6 +1,8 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
+import type { SafeUser } from './server-auth'
+import { requirePrivileged2FA } from './server-auth'
 
 export const openDisputeSchema = z.object({
   shopOrderId: z.string().uuid(),
@@ -82,14 +84,28 @@ export const listOpenDisputes = createServerFn({ method: 'GET' })
         headers: { 'Content-Type': 'application/json' },
       })
     }
+    requirePrivileged2FA(context.user as SafeUser)
 
-    const { listOpenDisputesQuery } = await import('./disputes.server')
-    return listOpenDisputesQuery({
+    const [{ listOpenDisputesQuery }, { emitAdminReadAudit }] = await Promise.all([
+      import('./disputes.server'),
+      import('./audit-log.server'),
+    ])
+    const result = await listOpenDisputesQuery({
       page: data.page,
       pageSize: data.pageSize,
       status: data.status,
       query: data.query,
     })
+
+    await emitAdminReadAudit(context.user, 'admin.read.dispute', 'dispute', undefined, {
+      status: data.status,
+      query: data.query,
+      page: data.page,
+      pageSize: data.pageSize,
+      total: result.total,
+    })
+
+    return result
   })
 
 export const getDisputeDetail = createServerFn({ method: 'GET' })
@@ -103,8 +119,15 @@ export const getDisputeDetail = createServerFn({ method: 'GET' })
       )
     }
 
-    const { getDisputeDetailQuery } = await import('./disputes.server')
-    return getDisputeDetailQuery(data.disputeId, context.user.id, context.user.role)
+    const [{ getDisputeDetailQuery }, { emitAdminReadAudit }] = await Promise.all([
+      import('./disputes.server'),
+      import('./audit-log.server'),
+    ])
+    const result = await getDisputeDetailQuery(data.disputeId, context.user.id, context.user.role)
+
+    await emitAdminReadAudit(context.user, 'admin.read.dispute', 'dispute', data.disputeId)
+
+    return result
   })
 
 export const resolveDispute = createServerFn({ method: 'POST' })
@@ -124,6 +147,7 @@ export const resolveDispute = createServerFn({ method: 'POST' })
         headers: { 'Content-Type': 'application/json' },
       })
     }
+    requirePrivileged2FA(context.user as SafeUser)
 
     const [{ resolveDisputeQuery }, { emitAuditEvent }] = await Promise.all([
       import('./disputes.server'),

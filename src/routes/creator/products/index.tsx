@@ -7,6 +7,7 @@ import {
 } from '#/components/CreatorProductsPage'
 import { getCreatorShops } from '#/lib/creator-dashboard'
 import { listCreatorProducts } from '#/lib/creator-products'
+import { guardPrivilegedRole } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
 
 const productSearchSchema = z.object({
@@ -19,6 +20,7 @@ const productSearchSchema = z.object({
 
 export const Route = createFileRoute('/creator/products/')({
   validateSearch: productSearchSchema,
+  beforeLoad: async () => guardPrivilegedRole('creator'),
   loaderDeps: ({ search: { shopId, page, pageSize, active, search } }) => ({
     shopId,
     page,

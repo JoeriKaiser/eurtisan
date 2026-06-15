@@ -2,7 +2,17 @@ import { Link, useLoaderData, useParams, useRouter } from '@tanstack/react-route
 import { ArrowLeft } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { Badge } from '#/components/ui/badge'
-import { markShopOrderDelivered, refundShopOrder } from '#/lib/shop-orders'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { Label } from '#/components/ui/label'
+import { Textarea } from '#/components/ui/textarea'
+import {
+  cancelShopOrder,
+  markShopOrderDelivered,
+  refundShopOrder,
+  resolveShopOrderManualReview,
+  updateShopOrderTracking,
+} from '#/lib/shop-orders'
 import { m } from '#/paraglide/messages'
 import { ShopOrderShipDialog } from '#/route-components/studio/ShopOrderShipDialog'
 import {
@@ -28,85 +38,140 @@ function getStatusBadgeVariant(orderStatus: string): React.ComponentProps<typeof
     case 'paid':
     case 'processing':
       return 'warning'
+    case 'manual_review':
+      return 'warning'
     default:
       return 'default'
   }
+}
+
+function parseResponseError(err: unknown): Promise<string> {
+  if (err instanceof Response) {
+    return err
+      .json()
+      .then((body) => body.message || 'An error occurred')
+      .catch(() => 'An error occurred')
+  }
+  if (err instanceof Error) return Promise.resolve(err.message)
+  return Promise.resolve('An unexpected error occurred')
 }
 
 export function ShopOrderDetailPage() {
   const { shopId, shopOrderId } = useParams({ from: '/studio/$shopId/orders/$shopOrderId' })
   const { order } = useLoaderData({ from: '/studio/$shopId/orders/$shopOrderId' })
   const router = useRouter()
-  const [dialog, setDialog] = useState({ open: false, key: 0 })
+  const [shipDialog, setShipDialog] = useState({ open: false, key: 0 })
+  const [reviewDialog, setReviewDialog] = useState(false)
+  const [trackingForm, setTrackingForm] = useState({
+    editing: false,
+    number: order.trackingNumber ?? '',
+    url: order.trackingUrl ?? '',
+  })
   const [status, setStatus] = useState({
     actionError: null as string | null,
     isMarkingDelivered: false,
     isRefunding: false,
+    isCancelling: false,
+    isEditingTracking: false,
+    isResolvingReview: false,
   })
+  const [review, setReview] = useState<{ resolution: 'paid' | 'cancelled'; reason: string }>({
+    resolution: 'paid',
+    reason: '',
+  })
+
+  const setError = useCallback((message: string) => {
+    setStatus((prev) => ({ ...prev, actionError: message }))
+  }, [])
+
+  const clearError = useCallback(() => {
+    setStatus((prev) => ({ ...prev, actionError: null }))
+  }, [])
+
+  const withLoading = useCallback(
+    async <T,>(
+      key: keyof typeof status,
+      fn: () => Promise<T>,
+      errorMessage?: string,
+    ): Promise<T | undefined> => {
+      setStatus((prev) => ({ ...prev, [key]: true }))
+      clearError()
+      try {
+        const result = await fn()
+        router.invalidate()
+        return result
+      } catch (err) {
+        const message = await parseResponseError(err)
+        setError(errorMessage || message)
+      } finally {
+        setStatus((prev) => ({ ...prev, [key]: false }))
+      }
+    },
+    [clearError, setError, router],
+  )
 
   const handleShipped = useCallback(() => {
     router.invalidate()
   }, [router])
 
-  const handleMarkDelivered = useCallback(async () => {
-    setStatus((prev) => ({ ...prev, isMarkingDelivered: true, actionError: null }))
-    try {
-      await markShopOrderDelivered({ data: { shopOrderId } })
-      router.invalidate()
-    } catch (err) {
-      if (err instanceof Response) {
-        try {
-          const body = await err.json()
-          setStatus((prev) => ({
-            ...prev,
-            actionError: body.message || 'Failed to mark order as delivered',
-          }))
-        } catch {
-          setStatus((prev) => ({
-            ...prev,
-            actionError: 'Failed to mark order as delivered',
-          }))
-        }
-      } else if (err instanceof Error) {
-        setStatus((prev) => ({ ...prev, actionError: err.message }))
-      } else {
-        setStatus((prev) => ({ ...prev, actionError: 'An unexpected error occurred' }))
-      }
-    } finally {
-      setStatus((prev) => ({ ...prev, isMarkingDelivered: false }))
-    }
-  }, [shopOrderId, router])
+  const handleMarkDelivered = useCallback(() => {
+    void withLoading('isMarkingDelivered', () => markShopOrderDelivered({ data: { shopOrderId } }))
+  }, [withLoading, shopOrderId])
 
-  const handleRefund = useCallback(async () => {
+  const handleRefund = useCallback(() => {
     if (!window.confirm(m.order_refund_confirm())) return
-    setStatus((prev) => ({ ...prev, isRefunding: true, actionError: null }))
-    try {
-      await refundShopOrder({ data: { shopOrderId } })
-      router.invalidate()
-    } catch (err) {
-      if (err instanceof Response) {
-        try {
-          const body = await err.json()
-          setStatus((prev) => ({
-            ...prev,
-            actionError: body.message || m.order_refund_error(),
-          }))
-        } catch {
-          setStatus((prev) => ({ ...prev, actionError: m.order_refund_error() }))
-        }
-      } else if (err instanceof Error) {
-        setStatus((prev) => ({ ...prev, actionError: err.message }))
-      } else {
-        setStatus((prev) => ({ ...prev, actionError: m.order_refund_error() }))
-      }
-    } finally {
-      setStatus((prev) => ({ ...prev, isRefunding: false }))
-    }
-  }, [shopOrderId, router])
+    void withLoading(
+      'isRefunding',
+      () => refundShopOrder({ data: { shopOrderId } }),
+      m.order_refund_error(),
+    )
+  }, [withLoading, shopOrderId])
+
+  const handleCancel = useCallback(() => {
+    if (!window.confirm(m.order_cancel_confirm())) return
+    void withLoading(
+      'isCancelling',
+      () => cancelShopOrder({ data: { shopOrderId } }),
+      m.order_cancel_error(),
+    )
+  }, [withLoading, shopOrderId])
+
+  const handleSaveTracking = useCallback(() => {
+    void withLoading(
+      'isEditingTracking',
+      () =>
+        updateShopOrderTracking({
+          data: {
+            shopOrderId,
+            trackingNumber: trackingForm.number.trim() || null,
+            trackingUrl: trackingForm.url.trim() || null,
+          },
+        }),
+      m.order_tracking_error(),
+    ).then(() => setTrackingForm((prev) => ({ ...prev, editing: false })))
+  }, [withLoading, shopOrderId, trackingForm.number, trackingForm.url])
+
+  const handleResolveReview = useCallback(() => {
+    void withLoading(
+      'isResolvingReview',
+      () =>
+        resolveShopOrderManualReview({
+          data: {
+            shopOrderId,
+            resolution: review.resolution,
+            reason: review.reason.trim() || undefined,
+          },
+        }),
+      m.manual_review_resolve_error(),
+    ).then(() => setReviewDialog(false))
+  }, [withLoading, shopOrderId, review.resolution, review.reason])
 
   const canShip = ['paid', 'processing'].includes(order.status)
   const canDeliver = order.status === 'shipped'
   const canRefund = ['paid', 'processing', 'shipped', 'delivered'].includes(order.status)
+  const canCancel = order.status === 'pending_payment'
+  const canEditTracking = order.status === 'shipped'
+  const canResolveReview = order.status === 'manual_review'
 
   return (
     <main className='page-wrap px-4 py-12'>
@@ -145,12 +210,76 @@ export function ShopOrderDetailPage() {
             canShip={canShip}
             canDeliver={canDeliver}
             canRefund={canRefund}
+            canCancel={canCancel}
+            canEditTracking={canEditTracking}
+            canResolveReview={canResolveReview}
             isMarkingDelivered={status.isMarkingDelivered}
             isRefunding={status.isRefunding}
-            onShip={() => setDialog((prev) => ({ key: prev.key + 1, open: true }))}
+            isCancelling={status.isCancelling}
+            isEditingTracking={status.isEditingTracking}
+            isResolvingReview={status.isResolvingReview}
+            onShip={() => setShipDialog((prev) => ({ key: prev.key + 1, open: true }))}
             onMarkDelivered={handleMarkDelivered}
             onRefund={handleRefund}
+            onCancel={handleCancel}
+            onEditTracking={() =>
+              setTrackingForm({
+                editing: true,
+                number: order.trackingNumber ?? '',
+                url: order.trackingUrl ?? '',
+              })
+            }
+            onResolveReview={() => setReviewDialog(true)}
           />
+
+          {trackingForm.editing && (
+            <div className='rounded-xl border border-border-subtle bg-surface-default p-4'>
+              <h3 className='mb-3 text-sm font-semibold text-text-primary'>Edit Tracking</h3>
+              <div className='space-y-3'>
+                <div>
+                  <Label htmlFor='tracking-number'>Tracking number</Label>
+                  <Input
+                    id='tracking-number'
+                    value={trackingForm.number}
+                    onChange={(e) =>
+                      setTrackingForm((prev) => ({ ...prev, number: e.target.value }))
+                    }
+                    placeholder='Tracking number'
+                  />
+                </div>
+                <div>
+                  <Label htmlFor='tracking-url'>Tracking URL</Label>
+                  <Input
+                    id='tracking-url'
+                    value={trackingForm.url}
+                    onChange={(e) => setTrackingForm((prev) => ({ ...prev, url: e.target.value }))}
+                    placeholder='https://carrier.example/track/...'
+                  />
+                </div>
+                <div className='flex gap-3'>
+                  <Button
+                    variant='primary'
+                    isLoading={status.isEditingTracking}
+                    onClick={handleSaveTracking}
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    variant='ghost'
+                    onClick={() =>
+                      setTrackingForm({
+                        editing: false,
+                        number: order.trackingNumber ?? '',
+                        url: order.trackingUrl ?? '',
+                      })
+                    }
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className='grid gap-4 sm:grid-cols-2'>
             <BuyerInfoCard buyer={order.buyer} />
@@ -178,12 +307,68 @@ export function ShopOrderDetailPage() {
         </div>
       </div>
       <ShopOrderShipDialog
-        key={dialog.key}
+        key={shipDialog.key}
         orderId={shopOrderId}
-        open={dialog.open}
-        onOpenChange={(open) => setDialog((prev) => ({ ...prev, open }))}
+        open={shipDialog.open}
+        onOpenChange={(open) => setShipDialog((prev) => ({ ...prev, open }))}
         onShipped={handleShipped}
       />
+
+      {reviewDialog && (
+        <div
+          className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4'
+          role='dialog'
+          aria-modal='true'
+          aria-labelledby='review-dialog-title'
+        >
+          <div className='w-full max-w-md rounded-2xl bg-surface-default p-6 shadow-xl'>
+            <h2 id='review-dialog-title' className='mb-2 text-lg font-semibold text-text-primary'>
+              Resolve Manual Review
+            </h2>
+            <p className='mb-4 text-sm text-text-secondary'>
+              Choose how to resolve this order that is under manual review.
+            </p>
+            <div className='mb-4 flex gap-3'>
+              <Button
+                type='button'
+                variant={review.resolution === 'paid' ? 'primary' : 'secondary'}
+                onClick={() => setReview((prev) => ({ ...prev, resolution: 'paid' }))}
+              >
+                {m.manual_review_resolve_paid()}
+              </Button>
+              <Button
+                type='button'
+                variant={review.resolution === 'cancelled' ? 'primary' : 'secondary'}
+                onClick={() => setReview((prev) => ({ ...prev, resolution: 'cancelled' }))}
+              >
+                {m.manual_review_resolve_cancel()}
+              </Button>
+            </div>
+            <div className='mb-6'>
+              <Label htmlFor='review-reason'>Reason (optional)</Label>
+              <Textarea
+                id='review-reason'
+                value={review.reason}
+                onChange={(e) => setReview((prev) => ({ ...prev, reason: e.target.value }))}
+                placeholder='Add a note about the decision...'
+                rows={3}
+              />
+            </div>
+            <div className='flex justify-end gap-3'>
+              <Button variant='ghost' onClick={() => setReviewDialog(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant='primary'
+                isLoading={status.isResolvingReview}
+                onClick={handleResolveReview}
+              >
+                Resolve
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

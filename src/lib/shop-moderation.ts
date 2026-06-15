@@ -2,6 +2,8 @@ import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 
 import { authMiddleware } from './auth-middleware'
+import type { SafeUser } from './server-auth'
+import { requirePrivileged2FA } from './server-auth'
 
 export type {
   ModerateAction,
@@ -76,9 +78,13 @@ export const listAllShops = createServerFn({ method: 'GET' })
   .inputValidator((data: unknown) => listAllShopsInputSchema.parse(data))
   .handler(async ({ context, data }) => {
     await requireAdmin(context)
+    requirePrivileged2FA(context.user as SafeUser)
 
-    const { listAllShopsQuery } = await import('./shop-moderation.server')
-    return listAllShopsQuery({
+    const [{ listAllShopsQuery }, { emitAdminReadAudit }] = await Promise.all([
+      import('./shop-moderation.server'),
+      import('./audit-log.server'),
+    ])
+    const result = await listAllShopsQuery({
       filter: data.filter,
       query: data.query,
       sortBy: data.sortBy,
@@ -86,6 +92,18 @@ export const listAllShops = createServerFn({ method: 'GET' })
       page: data.page,
       pageSize: data.pageSize,
     })
+
+    await emitAdminReadAudit(context.user, 'admin.read.shop', 'shop', undefined, {
+      filter: data.filter,
+      query: data.query,
+      sortBy: data.sortBy,
+      sortDir: data.sortDir,
+      page: data.page,
+      pageSize: data.pageSize,
+      total: result.total,
+    })
+
+    return result
   })
 
 /**
@@ -106,6 +124,7 @@ export const moderateShop = createServerFn({ method: 'POST' })
       import('./shop-moderation.server'),
       import('./audit-log.server'),
     ])
+    requirePrivileged2FA(context.user as SafeUser)
     const { moderateShopQuery } = modules[1]
     const { emitAuditEvent } = modules[2]
 

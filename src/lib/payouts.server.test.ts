@@ -98,6 +98,13 @@ async function seedShopOrder(overrides: Partial<typeof shopOrder.$inferInsert>) 
     .then((rows) => rows[0])
 }
 
+async function expireDisputeWindow(shopOrderId: string) {
+  await db
+    .update(shopOrder)
+    .set({ disputeWindowExpiresAt: new Date(Date.now() - 24 * 60 * 60 * 1000) })
+    .where(eq(shopOrder.id, shopOrderId))
+}
+
 /* -------------------------------------------------------------------------- */
 /*                                 Tests                                      */
 /* -------------------------------------------------------------------------- */
@@ -268,6 +275,7 @@ describe('markPayoutSentQuery', () => {
       status: 'shipped',
     })
     await markShopOrderDeliveredQuery(order.id)
+    await expireDisputeWindow(order.id)
 
     const [pending] = await db.select().from(payout).where(eq(payout.shopOrderId, order.id))
 
@@ -290,6 +298,7 @@ describe('markPayoutSentQuery', () => {
       status: 'shipped',
     })
     await markShopOrderDeliveredQuery(order.id)
+    await expireDisputeWindow(order.id)
 
     const [pending] = await db.select().from(payout).where(eq(payout.shopOrderId, order.id))
     await markPayoutSentQuery(pending.id)
@@ -313,6 +322,7 @@ describe('markPayoutSentQuery', () => {
       status: 'shipped',
     })
     await markShopOrderDeliveredQuery(order.id)
+    await expireDisputeWindow(order.id)
 
     const [pending] = await db.select().from(payout).where(eq(payout.shopOrderId, order.id))
 
@@ -346,6 +356,7 @@ describe('executePayoutQuery', () => {
       status: 'shipped',
     })
     await markShopOrderDeliveredQuery(order.id)
+    await expireDisputeWindow(order.id)
 
     const [pending] = await db.select().from(payout).where(eq(payout.shopOrderId, order.id))
 
@@ -371,6 +382,7 @@ describe('executePayoutQuery', () => {
       status: 'shipped',
     })
     await markShopOrderDeliveredQuery(order.id)
+    await expireDisputeWindow(order.id)
 
     const [pending] = await db.select().from(payout).where(eq(payout.shopOrderId, order.id))
     const first = await executePayoutQuery(pending.id)
@@ -393,6 +405,7 @@ describe('executePayoutQuery', () => {
       status: 'shipped',
     })
     await markShopOrderDeliveredQuery(order.id)
+    await expireDisputeWindow(order.id)
 
     const [pending] = await db.select().from(payout).where(eq(payout.shopOrderId, order.id))
 
@@ -414,6 +427,7 @@ describe('executePayoutQuery', () => {
       status: 'shipped',
     })
     await markShopOrderDeliveredQuery(order.id)
+    await expireDisputeWindow(order.id)
 
     const [pending] = await db.select().from(payout).where(eq(payout.shopOrderId, order.id))
 

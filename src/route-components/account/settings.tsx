@@ -40,8 +40,6 @@ export function AccountSettings() {
       const message = err instanceof Error ? err.message : ''
       if (message.includes('EMAIL_MISMATCH')) {
         setDeleteError(m.account_delete_email_mismatch())
-      } else if (message.includes('ACTIVE_SHOP_EXISTS')) {
-        setDeleteError(m.account_delete_active_shop())
       } else {
         setDeleteError(m.account_delete_error())
       }

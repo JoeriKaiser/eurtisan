@@ -14,21 +14,32 @@ const RESOURCE_TYPES = [
 ]
 
 const ACTION_TYPES = [
-  { value: '', label: m.admin_audit_log_filter_action_all() },
-  { value: 'shop.suspend', label: 'shop.suspend' },
-  { value: 'shop.unsuspend', label: 'shop.unsuspend' },
-  { value: 'shop.approve', label: 'shop.approve' },
-  { value: 'shop.reject', label: 'shop.reject' },
-  { value: 'shop.request_changes', label: 'shop.request_changes' },
-  { value: 'user.change_role', label: 'user.change_role' },
-  { value: 'user.ban', label: 'user.ban' },
-  { value: 'user.unban', label: 'user.unban' },
-  { value: 'payout.mark_sent', label: 'payout.mark_sent' },
-  { value: 'dispute.resolve', label: 'dispute.resolve' },
-  { value: 'category.create', label: 'category.create' },
-  { value: 'category.update', label: 'category.update' },
-  { value: 'category.delete', label: 'category.delete' },
-  { value: 'product.toggle_active', label: 'product.toggle_active' },
+  '',
+  'shop.suspend',
+  'shop.unsuspend',
+  'shop.approve',
+  'shop.reject',
+  'shop.request_changes',
+  'user.change_role',
+  'user.ban',
+  'user.unban',
+  'payout.mark_sent',
+  'dispute.resolve',
+  'category.create',
+  'category.update',
+  'category.delete',
+  'product.toggle_active',
+  'review.moderate',
+  'admin.read.user',
+  'admin.read.shop',
+  'admin.read.order',
+  'admin.read.payout',
+  'admin.read.product',
+  'admin.read.category',
+  'admin.read.dispute',
+  'admin.read.review',
+  'admin.read.audit_log',
+  'admin.read.dashboard',
 ]
 
 interface FiltersState {
@@ -66,8 +77,8 @@ export function AuditLogFilters({
           className='h-9 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
         >
           {ACTION_TYPES.map((a) => (
-            <option key={a.value} value={a.value}>
-              {a.label}
+            <option key={a} value={a}>
+              {a || m.admin_audit_log_filter_action_all()}
             </option>
           ))}
         </select>
@@ -104,7 +115,7 @@ export function AuditLogFilters({
             type='text'
             value={filters.actor}
             onChange={(e) => onFilterChange({ ...filters, actor: e.target.value })}
-            placeholder='User ID…'
+            placeholder={m.admin_audit_log_filter_actor_placeholder()}
             aria-label={m.admin_audit_log_filter_actor()}
             className='size-9 rounded-md border border-border-default bg-surface-default pl-8 pr-3 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none'
           />

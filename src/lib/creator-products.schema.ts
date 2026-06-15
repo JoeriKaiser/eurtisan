@@ -58,6 +58,18 @@ export const toggleProductActiveSchema = z.object({
   shopId: z.string().min(1),
 })
 
+export const bulkToggleProductActiveSchema = z.object({
+  shopId: z.string().min(1),
+  productIds: z.array(z.string().min(1)).min(1).max(100),
+  isActive: z.boolean(),
+})
+
+export const bulkDeleteProductsSchema = z.object({
+  shopId: z.string().min(1),
+  productIds: z.array(z.string().min(1)).min(1).max(100),
+  hard: z.boolean().optional().default(false),
+})
+
 export const getCreatorProductDetailSchema = z.object({
   productId: z.string().min(1),
 })

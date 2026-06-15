@@ -22,7 +22,9 @@ interface ProductTableRowProps {
   currentShopId: string | null
   active: boolean
   toggling: boolean
+  selected?: boolean
   onToggle: (productId: string, shopId: string, currentActive: boolean) => void
+  onSelect?: (productId: string, selected: boolean) => void
 }
 
 export function ProductTableRow({
@@ -30,13 +32,26 @@ export function ProductTableRow({
   currentShopId,
   active,
   toggling,
+  selected = false,
   onToggle,
+  onSelect = () => {},
 }: ProductTableRowProps) {
   return (
     <tr
       key={product.id}
       className='border-b border-border-subtle transition-colors hover:bg-bg-inset'
     >
+      {/* Selection checkbox */}
+      <td className='py-3 pr-3'>
+        <input
+          type='checkbox'
+          checked={selected}
+          onChange={(e) => onSelect(product.id, e.target.checked)}
+          className='size-4 rounded border-border-default text-accent-primary focus:ring-accent-secondary'
+          aria-label={m.creator_products_select_row({ name: product.name })}
+        />
+      </td>
+
       {/* Product cell with thumbnail */}
       <td className='py-3 pr-4'>
         <div className='flex items-center gap-3'>

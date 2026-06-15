@@ -7,6 +7,9 @@ import {
   Package,
   Truck,
   Undo2,
+  XCircle,
+  Pencil,
+  ShieldAlert,
 } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
@@ -73,11 +76,20 @@ interface OrderStatusSectionProps {
   canShip: boolean
   canDeliver: boolean
   canRefund: boolean
+  canCancel: boolean
+  canEditTracking: boolean
+  canResolveReview: boolean
   isMarkingDelivered: boolean
   isRefunding: boolean
+  isCancelling: boolean
+  isEditingTracking: boolean
+  isResolvingReview: boolean
   onShip: () => void
   onMarkDelivered: () => void
   onRefund: () => void
+  onCancel: () => void
+  onEditTracking: () => void
+  onResolveReview: () => void
 }
 
 export function OrderStatusSection({
@@ -85,11 +97,20 @@ export function OrderStatusSection({
   canShip,
   canDeliver,
   canRefund,
+  canCancel,
+  canEditTracking,
+  canResolveReview,
   isMarkingDelivered,
   isRefunding,
+  isCancelling,
+  isEditingTracking,
+  isResolvingReview,
   onShip,
   onMarkDelivered,
   onRefund,
+  onCancel,
+  onEditTracking,
+  onResolveReview,
 }: OrderStatusSectionProps) {
   return (
     <>
@@ -100,7 +121,7 @@ export function OrderStatusSection({
           </CardContent>
         </Card>
       )}
-      {(canShip || canDeliver || canRefund) && (
+      {(canShip || canDeliver || canRefund || canCancel || canEditTracking || canResolveReview) && (
         <div className='flex flex-wrap gap-3'>
           {canShip && (
             <Button onClick={onShip}>
@@ -108,10 +129,22 @@ export function OrderStatusSection({
               {m.order_action_ship()}
             </Button>
           )}
+          {canEditTracking && (
+            <Button variant='secondary' onClick={onEditTracking} isLoading={isEditingTracking}>
+              <Pencil size={16} aria-hidden='true' />
+              {m.order_action_edit_tracking()}
+            </Button>
+          )}
           {canDeliver && (
             <Button variant='secondary' onClick={onMarkDelivered} isLoading={isMarkingDelivered}>
               <CheckCircle2 size={16} aria-hidden='true' />
               {m.order_action_deliver()}
+            </Button>
+          )}
+          {canResolveReview && (
+            <Button variant='secondary' onClick={onResolveReview} isLoading={isResolvingReview}>
+              <ShieldAlert size={16} aria-hidden='true' />
+              {m.order_action_resolve_review()}
             </Button>
           )}
           {canRefund && (
@@ -123,6 +156,17 @@ export function OrderStatusSection({
             >
               <Undo2 size={16} aria-hidden='true' />
               {m.order_action_refund()}
+            </Button>
+          )}
+          {canCancel && (
+            <Button
+              variant='ghost'
+              onClick={onCancel}
+              isLoading={isCancelling}
+              className='text-error hover:bg-error/10'
+            >
+              <XCircle size={16} aria-hidden='true' />
+              {m.order_action_cancel()}
             </Button>
           )}
         </div>

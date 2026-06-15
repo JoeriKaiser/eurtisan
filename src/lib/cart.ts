@@ -1,6 +1,8 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
+import { requirePrivileged2FA } from './server-auth'
+import type { SafeUser } from './server-auth'
 
 export type {
   CartDetail,
@@ -177,6 +179,7 @@ export const runClearExpiredCarts = createServerFn({ method: 'POST' })
     if (!context.user || context.user.role !== 'admin') {
       throw new Error('FORBIDDEN')
     }
+    requirePrivileged2FA(context.user as SafeUser)
     const { clearExpiredCarts } = await import('./cart.server')
     await clearExpiredCarts()
     return { success: true }

@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
 import type { SafeUser } from './server-auth'
+import { requirePrivileged2FA } from './server-auth'
 
 export type { AdminUserListItem, PaginatedUsers } from './admin-users.server'
 
@@ -59,9 +60,24 @@ export const listUsers = createServerFn({ method: 'GET' })
   .inputValidator((data: unknown) => listUsersInputSchema.parse(data))
   .handler(async ({ context, data }) => {
     await requireAdmin(context)
+    requirePrivileged2FA(context.user as SafeUser)
 
-    const { listUsersQuery } = await import('./admin-users.server')
-    return listUsersQuery(data)
+    const [{ listUsersQuery }, { emitAdminReadAudit }] = await Promise.all([
+      import('./admin-users.server'),
+      import('./audit-log.server'),
+    ])
+    const result = await listUsersQuery(data)
+
+    await emitAdminReadAudit(context.user, 'admin.read.user', 'user', undefined, {
+      query: data.query,
+      role: data.role,
+      status: data.status,
+      page: data.page,
+      pageSize: data.pageSize,
+      total: result.total,
+    })
+
+    return result
   })
 
 export const updateUserRole = createServerFn({ method: 'POST' })
@@ -73,6 +89,7 @@ export const updateUserRole = createServerFn({ method: 'POST' })
       import('./admin-users.server'),
       import('./audit-log.server'),
     ])
+    requirePrivileged2FA(context.user as SafeUser)
     const { updateUserRoleQuery } = modules[1]
     const { emitAuditEvent } = modules[2]
     const [result] = await Promise.all([
@@ -94,6 +111,7 @@ export const banUser = createServerFn({ method: 'POST' })
       import('./admin-users.server'),
       import('./audit-log.server'),
     ])
+    requirePrivileged2FA(context.user as SafeUser)
     const { banUserQuery } = modules[1]
     const { emitAuditEvent } = modules[2]
     const [result] = await Promise.all([
@@ -115,6 +133,7 @@ export const unbanUser = createServerFn({ method: 'POST' })
       import('./admin-users.server'),
       import('./audit-log.server'),
     ])
+    requirePrivileged2FA(context.user as SafeUser)
     const { unbanUserQuery } = modules[1]
     const { emitAuditEvent } = modules[2]
     const [result] = await Promise.all([

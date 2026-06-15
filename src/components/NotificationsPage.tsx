@@ -1,5 +1,14 @@
 import { useRouter } from '@tanstack/react-router'
-import { AlertTriangle, Banknote, Bell, Package, Star, Truck, Undo2 } from 'lucide-react'
+import {
+  AlertTriangle,
+  Banknote,
+  Bell,
+  Package,
+  PackageMinus,
+  Star,
+  Truck,
+  Undo2,
+} from 'lucide-react'
 import type { NotificationItem, NotificationType } from '#/lib/notifications.server'
 import { useMarkAllNotificationsRead, useMarkNotificationRead } from '#/lib/notifications-hooks'
 import { m } from '#/paraglide/messages'
@@ -15,6 +24,7 @@ const TYPE_ICONS: Record<NotificationType, React.ReactNode> = {
   dispute_resolved: <Bell size={18} aria-hidden='true' />,
   payout_sent: <Banknote size={18} aria-hidden='true' />,
   dac7_warning_limit: <AlertTriangle size={18} aria-hidden='true' />,
+  low_stock: <PackageMinus size={18} aria-hidden='true' />,
 }
 
 function formatRelativeTime(date: Date): string {
@@ -63,6 +73,11 @@ function resolveDeepLink(item: NotificationItem): string | null {
       if (shopId) return `/studio/${shopId}/settings`
       break
     }
+    case 'low_stock': {
+      const productId = data.productId
+      if (productId) return `/creator/products/${productId}/edit`
+      break
+    }
   }
   return null
 }
@@ -88,6 +103,8 @@ function notificationPreview(item: NotificationItem): string {
         shopName: data.shopName ?? '',
         limitType: data.limitType ?? '',
       })
+    case 'low_stock':
+      return m.notification_low_stock({ productName: data.productName ?? '' })
     default:
       return ''
   }

@@ -4,15 +4,21 @@ import { db } from '#/db/index'
 import type { SerializableValue } from './notifications.server'
 import {
   account,
+  auditLog,
   cart,
   cartItem,
   dispute,
   disputeMessage,
+  invoices,
   notification,
+  payout,
+  payoutReconciliationLog,
   platformOrder,
+  product,
   review,
   session,
   shop,
+  shopOrder,
   twoFactor,
   user,
 } from '#/db/schema'
@@ -143,6 +149,42 @@ function redactedAddress(): Record<string, string> {
   }
 }
 
+const PAYOUT_PAYLOAD_PII_KEYS = new Set([
+  'buyerName',
+  'buyerEmail',
+  'address',
+  'shippingAddress',
+  'billingAddress',
+  'name',
+  'email',
+])
+
+function redactPayoutPayload(payload: unknown): unknown {
+  if (payload === null || typeof payload !== 'object') {
+    return payload
+  }
+
+  if (Array.isArray(payload)) {
+    return payload.map(redactPayoutPayload)
+  }
+
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(payload)) {
+    if (PAYOUT_PAYLOAD_PII_KEYS.has(key)) {
+      if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+        result[key] = redactedAddress()
+      } else {
+        result[key] = '[redacted]'
+      }
+    } else if (typeof value === 'object') {
+      result[key] = redactPayoutPayload(value)
+    } else {
+      result[key] = value
+    }
+  }
+  return result
+}
+
 export async function deleteUserAccount(userId: string): Promise<void> {
   const [profile] = await db.select().from(user).where(eq(user.id, userId)).limit(1)
   if (!profile || profile.deletedAt) {
@@ -158,15 +200,30 @@ export async function deleteUserAccount(userId: string): Promise<void> {
     .from(shop)
     .where(eq(shop.ownerId, userId))
 
-  const activeShop = ownedShops.find((s) => s.status === 'active' || s.status === 'approved')
-  if (activeShop) {
-    throw new Error('ACTIVE_SHOP_EXISTS')
-  }
-
+  const ownedShopIds = ownedShops.map((s) => s.id)
   const anonymizedEmail = `deleted-${userId}@${ANONYMIZED_EMAIL_DOMAIN}`
   const redacted = redactedAddress()
 
   await db.transaction(async (tx) => {
+    if (ownedShopIds.length > 0) {
+      await tx
+        .update(shop)
+        .set({
+          status: 'archived',
+          archivedAt: new Date(),
+          scheduledDeleteAt: null,
+          businessAddress: redacted,
+          shippingOrigin: redacted,
+          updatedAt: new Date(),
+        })
+        .where(inArray(shop.id, ownedShopIds))
+
+      await tx
+        .update(product)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(inArray(product.shopId, ownedShopIds))
+    }
+
     const userOrders = await tx
       .select({ id: platformOrder.id })
       .from(platformOrder)
@@ -210,6 +267,31 @@ export async function deleteUserAccount(userId: string): Promise<void> {
       .update(disputeMessage)
       .set({ message: '[message removed — account deleted]' })
       .where(eq(disputeMessage.senderUserId, userId))
+
+    const ownedShopInvoiceIds = await tx
+      .select({ id: invoices.id })
+      .from(invoices)
+      .innerJoin(shopOrder, eq(invoices.shopOrderId, shopOrder.id))
+      .where(inArray(shopOrder.shopId, ownedShopIds))
+
+    for (const invoice of ownedShopInvoiceIds) {
+      await tx.update(invoices).set({ billingDetails: redacted }).where(eq(invoices.id, invoice.id))
+    }
+
+    const ownedPayoutLogRows = await tx
+      .select({ id: payoutReconciliationLog.id, payload: payoutReconciliationLog.payload })
+      .from(payoutReconciliationLog)
+      .innerJoin(payout, eq(payoutReconciliationLog.payoutId, payout.id))
+      .where(inArray(payout.shopId, ownedShopIds))
+
+    for (const logRow of ownedPayoutLogRows) {
+      await tx
+        .update(payoutReconciliationLog)
+        .set({ payload: redactPayoutPayload(logRow.payload) })
+        .where(eq(payoutReconciliationLog.id, logRow.id))
+    }
+
+    await tx.update(auditLog).set({ actorName: 'Deleted User' }).where(eq(auditLog.actorId, userId))
 
     await tx.delete(session).where(eq(session.userId, userId))
     await tx.delete(account).where(eq(account.userId, userId))

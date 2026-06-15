@@ -1,11 +1,20 @@
 import { and, count, desc, eq, ilike, inArray, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { categories, meilisearchSyncQueue, product, productImage, shop } from '#/db/schema'
+import {
+  categories,
+  meilisearchSyncQueue,
+  product,
+  productImage,
+  productVariant,
+  shop,
+} from '#/db/schema'
 import { type ProductImageInput, validateImageKey } from './image-utils'
 import { deleteImageFromStorage } from './image-storage.server'
 import { logger } from './logger.server'
 import { isPostgresUniqueViolation } from './db-errors'
 import { sanitizeRichText, validatePlainText } from './xss'
+import { writeAuditLog, type AuditActor } from './audit-logger'
+import { createNotification } from './notifications.server'
 
 export {
   createProductSchema,
@@ -135,22 +144,25 @@ async function replaceProductImages(
 /*                             Internal Queries                               */
 /* -------------------------------------------------------------------------- */
 
-export async function createProductInternal(data: {
-  name: string
-  description?: string
-  slug: string
-  priceCents: number
-  stockCount: number
-  shopId: string
-  categoryId?: string
-  isActive?: boolean
-  vatRateCategory?: 'standard' | 'reduced' | 'exempt'
-  weightGrams?: number
-  lengthCm?: number
-  widthCm?: number
-  heightCm?: number
-  images?: ProductImageInput[]
-}) {
+export async function createProductInternal(
+  data: {
+    name: string
+    description?: string
+    slug: string
+    priceCents: number
+    stockCount: number
+    shopId: string
+    categoryId?: string
+    isActive?: boolean
+    vatRateCategory?: 'standard' | 'reduced' | 'exempt'
+    weightGrams?: number
+    lengthCm?: number
+    widthCm?: number
+    heightCm?: number
+    images?: ProductImageInput[]
+  },
+  actor?: AuditActor,
+) {
   const categoryValid = await validateCategory(data.categoryId)
   if (!categoryValid) {
     throw new Error('Invalid category_id')
@@ -214,27 +226,40 @@ export async function createProductInternal(data: {
     })
     .catch(() => {})
 
+  if (actor) {
+    await writeAuditLog({
+      actor,
+      action: 'product_created',
+      resourceType: 'product',
+      resourceId: newProduct.id,
+      metadata: { shopId: newProduct.shopId, name: newProduct.name },
+    })
+  }
+
   return newProduct
 }
 
-export async function updateProductInternal(data: {
-  productId: string
-  shopId: string
-  userId: string
-  name?: string
-  description?: string
-  slug?: string
-  priceCents?: number
-  stockCount?: number
-  categoryId?: string
-  isActive?: boolean
-  vatRateCategory?: 'standard' | 'reduced' | 'exempt'
-  weightGrams?: number
-  lengthCm?: number
-  widthCm?: number
-  heightCm?: number
-  images?: ProductImageInput[]
-}) {
+export async function updateProductInternal(
+  data: {
+    productId: string
+    shopId: string
+    userId: string
+    name?: string
+    description?: string
+    slug?: string
+    priceCents?: number
+    stockCount?: number
+    categoryId?: string
+    isActive?: boolean
+    vatRateCategory?: 'standard' | 'reduced' | 'exempt'
+    weightGrams?: number
+    lengthCm?: number
+    widthCm?: number
+    heightCm?: number
+    images?: ProductImageInput[]
+  },
+  actor?: AuditActor,
+) {
   const productRecord = await verifyProductOwnership(data.productId, data.userId)
 
   // Ensure the product belongs to the specified shop
@@ -337,15 +362,32 @@ export async function updateProductInternal(data: {
     })
     .catch(() => {})
 
+  if (actor) {
+    await writeAuditLog({
+      actor,
+      action: 'product_updated',
+      resourceType: 'product',
+      resourceId: updatedProduct.id,
+      metadata: { shopId: updatedProduct.shopId, name: updatedProduct.name },
+    })
+  }
+
+  if (data.stockCount !== undefined) {
+    await notifyLowStockIfNeeded(updatedProduct.id)
+  }
+
   return updatedProduct
 }
 
-export async function deleteProductInternal(data: {
-  productId: string
-  shopId: string
-  hard: boolean
-  userId: string
-}) {
+export async function deleteProductInternal(
+  data: {
+    productId: string
+    shopId: string
+    hard: boolean
+    userId: string
+  },
+  actor?: AuditActor,
+) {
   const productRecord = await verifyProductOwnership(data.productId, data.userId)
 
   // Ensure the product belongs to the specified shop
@@ -400,6 +442,16 @@ export async function deleteProductInternal(data: {
       })
       .catch(() => {})
 
+    if (actor) {
+      await writeAuditLog({
+        actor,
+        action: 'product_deleted',
+        resourceType: 'product',
+        resourceId: data.productId,
+        metadata: { shopId: productRecord.shopId, name: productRecord.name, hard: true },
+      })
+    }
+
     return { deleted: true, hard: true }
   }
 
@@ -436,6 +488,16 @@ export async function deleteProductInternal(data: {
       }
     })
     .catch(() => {})
+
+  if (actor) {
+    await writeAuditLog({
+      actor,
+      action: 'product_deleted',
+      resourceType: 'product',
+      resourceId: data.productId,
+      metadata: { shopId: productRecord.shopId, name: productRecord.name, hard: false },
+    })
+  }
 
   return { deleted: true, hard: false }
 }
@@ -548,11 +610,14 @@ export async function getCreatorProductDetailInternal(productId: string, userId:
 /*                               Toggle Active                                */
 /* -------------------------------------------------------------------------- */
 
-export async function toggleProductActiveInternal(data: {
-  productId: string
-  shopId: string
-  userId: string
-}) {
+export async function toggleProductActiveInternal(
+  data: {
+    productId: string
+    shopId: string
+    userId: string
+  },
+  actor?: AuditActor,
+) {
   const productRecord = await verifyProductOwnership(data.productId, data.userId)
 
   if (productRecord.shopId !== data.shopId) {
@@ -595,5 +660,292 @@ export async function toggleProductActiveInternal(data: {
     })
     .catch(() => {})
 
+  if (actor) {
+    await writeAuditLog({
+      actor,
+      action: updated.isActive ? 'product_activated' : 'product_deactivated',
+      resourceType: 'product',
+      resourceId: updated.id,
+      metadata: { shopId: updated.shopId, name: updated.name },
+    })
+  }
+
   return { productId: updated.id, isActive: updated.isActive }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              Bulk Operations                               */
+/* -------------------------------------------------------------------------- */
+
+export async function bulkToggleProductActiveInternal(
+  data: {
+    shopId: string
+    productIds: string[]
+    isActive: boolean
+    userId: string
+  },
+  actor?: AuditActor,
+) {
+  const ownedProducts = await db
+    .select({
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      slug: product.slug,
+      priceCents: product.priceCents,
+      stockCount: product.stockCount,
+      isActive: product.isActive,
+      vatRateCategory: product.vatRateCategory,
+      shopId: product.shopId,
+      categoryId: product.categoryId,
+      weightGrams: product.weightGrams,
+      lengthCm: product.lengthCm,
+      widthCm: product.widthCm,
+      heightCm: product.heightCm,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+    })
+    .from(product)
+    .innerJoin(shop, eq(product.shopId, shop.id))
+    .where(
+      and(
+        eq(shop.ownerId, data.userId),
+        eq(product.shopId, data.shopId),
+        inArray(product.id, data.productIds),
+      ),
+    )
+
+  if (ownedProducts.length === 0) {
+    return { updated: 0 }
+  }
+
+  const ownedIds = ownedProducts.map((p) => p.id)
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(product)
+      .set({ isActive: data.isActive, updatedAt: new Date() })
+      .where(inArray(product.id, ownedIds))
+
+    await tx.insert(meilisearchSyncQueue).values(
+      ownedIds.map((productId) => ({
+        productId,
+        action: 'index' as const,
+      })),
+    )
+  })
+
+  import('./meilisearch-products.server')
+    .then(async ({ syncProductToMeilisearch }) => {
+      for (const p of ownedProducts) {
+        try {
+          await syncProductToMeilisearch({ ...p, isActive: data.isActive })
+        } catch {
+          // ignored, background poller will pick it up
+        }
+      }
+    })
+    .catch(() => {})
+
+  if (actor) {
+    for (const p of ownedProducts) {
+      await writeAuditLog({
+        actor,
+        action: data.isActive ? 'product_activated' : 'product_deactivated',
+        resourceType: 'product',
+        resourceId: p.id,
+        metadata: { shopId: p.shopId, name: p.name },
+      })
+    }
+  }
+
+  return { updated: ownedIds.length }
+}
+
+export async function bulkDeleteProductsInternal(
+  data: {
+    shopId: string
+    productIds: string[]
+    hard: boolean
+    userId: string
+  },
+  actor?: AuditActor,
+) {
+  const ownedProducts = await db
+    .select({
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      slug: product.slug,
+      priceCents: product.priceCents,
+      stockCount: product.stockCount,
+      isActive: product.isActive,
+      vatRateCategory: product.vatRateCategory,
+      shopId: product.shopId,
+      categoryId: product.categoryId,
+      weightGrams: product.weightGrams,
+      lengthCm: product.lengthCm,
+      widthCm: product.widthCm,
+      heightCm: product.heightCm,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+    })
+    .from(product)
+    .innerJoin(shop, eq(product.shopId, shop.id))
+    .where(
+      and(
+        eq(shop.ownerId, data.userId),
+        eq(product.shopId, data.shopId),
+        inArray(product.id, data.productIds),
+      ),
+    )
+
+  if (ownedProducts.length === 0) {
+    return { deleted: 0 }
+  }
+
+  const ownedIds = ownedProducts.map((p) => p.id)
+
+  if (data.hard) {
+    const oldImages = await db
+      .select({ productId: productImage.productId, url: productImage.url })
+      .from(productImage)
+      .where(inArray(productImage.productId, ownedIds))
+
+    await db.transaction(async (tx) => {
+      await tx.delete(product).where(inArray(product.id, ownedIds))
+
+      await tx.insert(meilisearchSyncQueue).values(
+        ownedIds.map((productId) => ({
+          productId,
+          action: 'delete' as const,
+        })),
+      )
+    })
+
+    for (const img of oldImages) {
+      try {
+        await deleteImageFromStorage(img.url)
+      } catch (err) {
+        logger.error(`Failed to delete product image from S3: ${img.url}`, err)
+      }
+    }
+
+    import('./meilisearch-products.server')
+      .then(async ({ removeProductFromMeilisearch }) => {
+        for (const productId of ownedIds) {
+          try {
+            await removeProductFromMeilisearch(productId)
+            await db
+              .update(meilisearchSyncQueue)
+              .set({ status: 'completed', updatedAt: new Date() })
+              .where(
+                and(
+                  eq(meilisearchSyncQueue.productId, productId),
+                  eq(meilisearchSyncQueue.action, 'delete'),
+                ),
+              )
+          } catch {
+            // ignored, background poller will pick it up
+          }
+        }
+      })
+      .catch(() => {})
+  } else {
+    await db.transaction(async (tx) => {
+      await tx
+        .update(product)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(inArray(product.id, ownedIds))
+
+      await tx.insert(meilisearchSyncQueue).values(
+        ownedIds.map((productId) => ({
+          productId,
+          action: 'index' as const,
+        })),
+      )
+    })
+
+    import('./meilisearch-products.server')
+      .then(async ({ syncProductToMeilisearch }) => {
+        for (const p of ownedProducts) {
+          try {
+            await syncProductToMeilisearch({ ...p, isActive: false })
+            await db
+              .update(meilisearchSyncQueue)
+              .set({ status: 'completed', updatedAt: new Date() })
+              .where(
+                and(
+                  eq(meilisearchSyncQueue.productId, p.id),
+                  eq(meilisearchSyncQueue.action, 'index'),
+                ),
+              )
+          } catch {
+            // ignored, background poller will pick it up
+          }
+        }
+      })
+      .catch(() => {})
+  }
+
+  if (actor) {
+    for (const p of ownedProducts) {
+      await writeAuditLog({
+        actor,
+        action: 'product_deleted',
+        resourceType: 'product',
+        resourceId: p.id,
+        metadata: { shopId: p.shopId, name: p.name, hard: data.hard },
+      })
+    }
+  }
+
+  return { deleted: ownedIds.length }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              Low Stock Notifications                       */
+/* -------------------------------------------------------------------------- */
+
+export async function notifyLowStockIfNeeded(productId: string): Promise<void> {
+  const [productRecord] = await db
+    .select({
+      productId: product.id,
+      name: product.name,
+      stockCount: product.stockCount,
+      lowStockThreshold: product.lowStockThreshold,
+      shopId: product.shopId,
+      ownerId: shop.ownerId,
+    })
+    .from(product)
+    .innerJoin(shop, eq(product.shopId, shop.id))
+    .where(eq(product.id, productId))
+    .limit(1)
+
+  if (!productRecord) return
+
+  const variantStockResult = await db
+    .select({ total: sql<number>`COALESCE(SUM(${productVariant.stockCount}), 0)` })
+    .from(productVariant)
+    .where(eq(productVariant.productId, productId))
+
+  const totalVariantStock = Number(variantStockResult[0]?.total ?? 0)
+  const totalStock = totalVariantStock > 0 ? totalVariantStock : productRecord.stockCount
+
+  if (totalStock <= productRecord.lowStockThreshold) {
+    try {
+      await createNotification(productRecord.ownerId, 'low_stock', {
+        productId,
+        productName: productRecord.name,
+        shopId: productRecord.shopId,
+        stockCount: totalStock,
+        threshold: productRecord.lowStockThreshold,
+      })
+    } catch (err) {
+      logger.error(`Failed to create low-stock notification for product ${productId}`, err, {
+        alert: true,
+        productId,
+      })
+    }
+  }
 }

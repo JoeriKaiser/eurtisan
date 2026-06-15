@@ -38,6 +38,9 @@ export const requireAuthUser = createServerFn({ method: 'GET' })
     if (context.user.bannedAt) {
       throw new Error('BANNED')
     }
+    if (context.user.deletedAt) {
+      throw new Error('BANNED')
+    }
     return context.user
   })
 
@@ -53,6 +56,9 @@ export const requireRoleUser = createServerFn({ method: 'GET' })
       throw new Error('UNAUTHENTICATED')
     }
     if (context.user.bannedAt) {
+      throw new Error('BANNED')
+    }
+    if (context.user.deletedAt) {
       throw new Error('BANNED')
     }
     const userLevel = ROLE_HIERARCHY[context.user.role] ?? -1
@@ -75,6 +81,9 @@ export const verifyShopOwnership = createServerFn({ method: 'GET' })
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
     }
+    if (context.user.deletedAt) {
+      throw new Error('BANNED')
+    }
 
     if (context.user.role === 'admin') {
       return context.user
@@ -91,6 +100,27 @@ export const verifyShopOwnership = createServerFn({ method: 'GET' })
 
     return context.user
   })
+
+/**
+ * Throws when a privileged user (creator or admin) has not enabled two-factor
+ * authentication. Development and test environments bypass the check so local
+ * workflows and the test suite do not require a configured TOTP device.
+ */
+export function requirePrivileged2FA(user: SafeUser): void {
+  const isDevOrTest =
+    typeof process !== 'undefined' &&
+    (process.env.NODE_ENV === 'development' ||
+      process.env.E2E_TEST === 'true' ||
+      process.env.VITEST === 'true')
+
+  if (isDevOrTest) {
+    return
+  }
+
+  if ((user.role === 'creator' || user.role === 'admin') && !user.twoFactorEnabled) {
+    throw new Error('TWO_FACTOR_REQUIRED')
+  }
+}
 
 export interface BecomeCreatorInput {
   shopName?: string

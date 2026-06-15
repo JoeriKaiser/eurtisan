@@ -1,5 +1,5 @@
 import { Link, useLoaderData, useParams } from '@tanstack/react-router'
-import { Banknote, Package, Settings, Tags } from 'lucide-react'
+import { Banknote, Package, Settings, Tags, Users } from 'lucide-react'
 import { m } from '#/paraglide/messages'
 import { formatPriceEUR } from '#/lib/pricing'
 
@@ -27,6 +27,13 @@ export function ShopDashboard() {
       title: m.studio_nav_orders(),
       description: m.studio_nav_orders_desc(),
       to: '/studio/$shopId/orders' as const,
+      params: { shopId },
+    },
+    {
+      icon: Users,
+      title: m.studio_nav_customers(),
+      description: m.studio_nav_customers_desc(),
+      to: '/studio/$shopId/customers' as const,
       params: { shopId },
     },
     {
