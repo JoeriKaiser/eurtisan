@@ -792,6 +792,7 @@
   "creator_payouts_status_returned": "Returned",
   "analytics_consent_title": "Analytics consent",
   "analytics_consent_description": "We use cookie-less analytics to improve the marketplace. Your data stays in the EU and is never sold.",
+  "analytics_consent_learn_more": "Read our privacy policy.",
   "analytics_consent_accept": "Accept",
   "analytics_consent_decline": "Decline",
   "creator_payouts_filter_all": "All",

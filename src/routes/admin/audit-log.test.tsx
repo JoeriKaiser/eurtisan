@@ -59,6 +59,7 @@ vi.mock('#/paraglide/messages', () => ({
     admin_audit_log_filter_resource_all: () => 'All resources',
     admin_audit_log_filter_date_from: () => 'From',
     admin_audit_log_filter_date_to: () => 'To',
+    admin_audit_log_filter_actor_placeholder: () => 'User ID...',
     admin_audit_log_empty: () => 'No audit entries found.',
     admin_audit_log_expand: () => 'Expand details',
     admin_audit_log_collapse: () => 'Collapse details',

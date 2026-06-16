@@ -1,5 +1,6 @@
 import { useAnalyticsConsent } from '#/hooks/use-analytics-consent'
 import { Button } from '#/components/ui/button'
+import { Link } from '@tanstack/react-router'
 import { m } from '#/paraglide/messages'
 
 export function AnalyticsConsentBanner() {
@@ -14,11 +15,19 @@ export function AnalyticsConsentBanner() {
       role='dialog'
       aria-live='polite'
       aria-label={m.analytics_consent_title()}
-      className='fixed bottom-0 left-0 right-0 z-toast border-t border-border-subtle bg-bg-elevated p-4 shadow-lg'
+      className='fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-md z-toast border border-border-subtle bg-bg-elevated p-5 rounded-xl shadow-xl'
     >
-      <div className='mx-auto flex max-w-7xl flex-col items-center gap-4 sm:flex-row sm:justify-between'>
-        <p className='text-sm text-text-secondary'>{m.analytics_consent_description()}</p>
-        <div className='flex shrink-0 gap-3'>
+      <div className='flex flex-col gap-4'>
+        <p className='text-sm text-text-secondary leading-relaxed'>
+          {m.analytics_consent_description()}{' '}
+          <Link
+            to='/privacy'
+            className='underline hover:text-text-primary transition-colors font-medium'
+          >
+            {m.analytics_consent_learn_more()}
+          </Link>
+        </p>
+        <div className='flex justify-end gap-3'>
           <Button type='button' variant='secondary' size='sm' onClick={() => setConsent('denied')}>
             {m.analytics_consent_decline()}
           </Button>

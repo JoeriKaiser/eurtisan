@@ -792,6 +792,7 @@
   "creator_payouts_status_returned": "Geweigerd",
   "analytics_consent_title": "Analytics toestemming",
   "analytics_consent_description": "We gebruiken cookie-loze analytics om de marketplace te verbeteren. Jouw data blijft in de EU en wordt nooit verkocht.",
+  "analytics_consent_learn_more": "Lees ons privacybeleid.",
   "analytics_consent_accept": "Accepteren",
   "analytics_consent_decline": "Afwijzen",
   "creator_payouts_filter_all": "Alle",
