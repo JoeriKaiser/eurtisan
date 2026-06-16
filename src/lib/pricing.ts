@@ -1,6 +1,6 @@
 import { getLocale } from '#/paraglide/runtime'
 
-const formatters: Record<string, Intl.NumberFormat> = {}
+const formatters = new Map<string, Intl.NumberFormat>()
 
 export function formatPriceEUR(cents: number): string {
   let locale = 'en'
@@ -10,11 +10,16 @@ export function formatPriceEUR(cents: number): string {
     // Fallback if URL is invalid or cannot be parsed (e.g., in test environments)
   }
 
-  if (!formatters[locale]) {
-    formatters[locale] = new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency: 'EUR',
-    })
+  let formatter = formatters.get(locale)
+  if (!formatter) {
+    formatter = Reflect.construct(Intl.NumberFormat, [
+      locale,
+      {
+        style: 'currency',
+        currency: 'EUR',
+      },
+    ]) as Intl.NumberFormat
+    formatters.set(locale, formatter)
   }
-  return formatters[locale].format(cents / 100)
+  return formatter.format(cents / 100)
 }

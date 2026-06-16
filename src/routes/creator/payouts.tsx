@@ -19,8 +19,8 @@ const payoutSearchSchema = z.object({
 
 export const Route = createFileRoute('/creator/payouts')({
   validateSearch: payoutSearchSchema,
-  beforeLoad: async () => guardPrivilegedRole('creator'),
   loaderDeps: ({ search: { shopId, status, page } }) => ({ shopId, status, page }),
+  beforeLoad: async () => guardPrivilegedRole('creator'),
   loader: async ({ deps }) => {
     const shops = await getCreatorShops()
     const targetShop = shops.find((s) => s.id === deps.shopId) ?? shops[0] ?? null

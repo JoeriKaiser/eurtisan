@@ -86,6 +86,32 @@ describe('sendVerificationEmail', () => {
     const [, , data] = sendTransactional.mock.calls[0]
     expect(data.verificationUrl).toContain('redirect=%2Fdashboard')
   })
+
+  it('rejects external callbackURL to prevent open redirects', async () => {
+    const { createEmailProvider } = await import('#/integrations/email')
+    const sendTransactional = vi.fn()
+    vi.mocked(createEmailProvider).mockReturnValue({ sendTransactional } as EmailProvider)
+
+    const sendVerificationEmail = betterAuthOptions.emailVerification?.sendVerificationEmail
+    expect(sendVerificationEmail).toBeDefined()
+
+    await sendVerificationEmail?.({
+      user: {
+        id: 'user-123',
+        email: 'test@example.com',
+        name: 'Test User',
+        emailVerified: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+      url: 'http://localhost:3000/api/auth/verify-email?token=secret-token&callbackURL=https%3A%2F%2Fevil.com',
+      token: 'secret-token',
+    })
+
+    const [, , data] = sendTransactional.mock.calls[0]
+    expect(data.verificationUrl).not.toContain('evil.com')
+    expect(data.verificationUrl).toContain('redirect=%2F')
+  })
 })
 
 describe('hashSessionToken', () => {

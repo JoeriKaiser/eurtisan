@@ -1,26 +1,11 @@
 import { useLoaderData } from '@tanstack/react-router'
 import { Printer, ArrowLeft, ShieldCheck } from 'lucide-react'
 import { formatPriceEUR } from '#/lib/pricing'
+import { formatDateLong } from '#/lib/format-date'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
 import { Badge } from '#/components/ui/badge'
 import { m } from '#/paraglide/messages'
-import { getLocale } from '#/paraglide/runtime'
-
-function parseSafeDate(val: any): Date {
-  if (val instanceof Date && !Number.isNaN(val.getTime())) {
-    return val
-  }
-  if (typeof val === 'string' || typeof val === 'number') {
-    const d = new Date(val)
-    if (!Number.isNaN(d.getTime())) return d
-  }
-  if (val && typeof val === 'object' && '$date' in val) {
-    const d = new Date(val.$date)
-    if (!Number.isNaN(d.getTime())) return d
-  }
-  return new Date()
-}
 
 function handlePrint() {
   window.print()
@@ -107,12 +92,7 @@ export function InvoiceDetailComponent() {
                   </span>
                 </div>
                 <div className='text-xs text-text-muted print:text-gray-500'>
-                  {m.invoice_date_prefix()}{' '}
-                  {new Intl.DateTimeFormat(getLocale(), {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  }).format(parseSafeDate(invoice.createdAt))}
+                  {m.invoice_date_prefix()} {formatDateLong(invoice.createdAt)}
                 </div>
                 {details.reverseCharge && (
                   <Badge

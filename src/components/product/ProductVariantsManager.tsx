@@ -115,10 +115,10 @@ export function ProductVariantsManager({ productId, initialMatrix }: ProductVari
 
   const handleAddOption = async () => {
     const name = optionName.trim()
-    const values = optionValues
-      .split(',')
-      .map((v) => v.trim())
-      .filter(Boolean)
+    const values = optionValues.split(',').flatMap((v) => {
+      const trimmed = v.trim()
+      return trimmed ? [trimmed] : []
+    })
 
     if (!name || values.length === 0) {
       showError(m.creator_product_variants_error_option())
@@ -151,10 +151,10 @@ export function ProductVariantsManager({ productId, initialMatrix }: ProductVari
   const handleUpdateOption = async () => {
     if (!editingOptionId) return
     const name = editOptionName.trim()
-    const values = editOptionValues
-      .split(',')
-      .map((v) => v.trim())
-      .filter(Boolean)
+    const values = editOptionValues.split(',').flatMap((v) => {
+      const trimmed = v.trim()
+      return trimmed ? [trimmed] : []
+    })
 
     if (!name || values.length === 0) {
       showError(m.creator_product_variants_error_option())

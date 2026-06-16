@@ -25,15 +25,15 @@ function getUmamiConfig(): UmamiConfig | null {
  * Respects Do Not Track automatically.
  */
 export function UmamiScript() {
-  const location = useLocation()
+  const { pathname } = useLocation()
   const config = getUmamiConfig()
   const { consent } = useAnalyticsConsent()
 
   useEffect(() => {
-    if (window.umami && location.pathname) {
-      window.umami.track((props) => ({ ...props, url: location.pathname }))
+    if (window.umami && pathname) {
+      window.umami.track((props) => ({ ...props, url: pathname }))
     }
-  }, [location.pathname])
+  }, [pathname])
 
   if (!config || consent !== 'granted') return null
 

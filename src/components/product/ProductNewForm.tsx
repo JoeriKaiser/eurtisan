@@ -307,9 +307,11 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
       heightCm: formState.values.heightCm
         ? Number.parseInt(formState.values.heightCm, 10)
         : undefined,
-      images: images
-        .filter((img) => !img.error && !img.uploading && img.key)
-        .map((img) => ({ key: img.key, altText: img.altText || undefined })),
+      images: images.flatMap((img) =>
+        !img.error && !img.uploading && img.key
+          ? [{ key: img.key, altText: img.altText || undefined }]
+          : [],
+      ),
     }
 
     const result = createProductSchema.safeParse(payload)
@@ -431,9 +433,11 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
           heightCm: formState.values.heightCm
             ? Number.parseInt(formState.values.heightCm, 10)
             : undefined,
-          images: images
-            .filter((img) => !img.error && !img.uploading && img.key)
-            .map((img) => ({ key: img.key, altText: img.altText || undefined })),
+          images: images.flatMap((img) =>
+            !img.error && !img.uploading && img.key
+              ? [{ key: img.key, altText: img.altText || undefined }]
+              : [],
+          ),
         },
       })
 

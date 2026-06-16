@@ -11,6 +11,7 @@ import { db } from '#/db/index'
 import { createEmailProvider } from '#/integrations/email'
 import { ANONYMOUS_SESSION_COOKIE } from './cart-constants'
 import { getBaseUrl } from './env.server'
+import { safeRedirect } from './auth-utils'
 
 export function hashSessionToken(token: string): string {
   return createHash('sha256').update(token).digest('hex')
@@ -156,7 +157,8 @@ export const betterAuthOptions = {
     autoSignInAfterVerification: true,
     sendVerificationEmail: async ({ user, url, token }) => {
       const parsedUrl = new URL(url)
-      const callbackURL = parsedUrl.searchParams.get('callbackURL') || '/'
+      const searchParams = parsedUrl.searchParams
+      const callbackURL = safeRedirect(searchParams.get('callbackURL'))
       const verificationUrl = `${parsedUrl.origin}/verify-email?token=${token}&redirect=${encodeURIComponent(callbackURL)}`
 
       const emailProvider = createEmailProvider()

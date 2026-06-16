@@ -27,12 +27,14 @@ export const Route = createFileRoute('/mollie-mock-oauth')({
       throw notFound()
     }
   },
-  component: () => {
-    const search = Route.useSearch()
-    return (
-      <Suspense fallback={null}>
-        <LazyMollieMockOauth {...search} />
-      </Suspense>
-    )
-  },
+  component: MollieMockOauthRouteComponent,
 })
+
+function MollieMockOauthRouteComponent() {
+  const search = Route.useSearch()
+  return (
+    <Suspense fallback={null}>
+      <LazyMollieMockOauth {...search} />
+    </Suspense>
+  )
+}

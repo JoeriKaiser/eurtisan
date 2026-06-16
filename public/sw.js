@@ -43,9 +43,7 @@ if (isLocalhost) {
     event.waitUntil(
       caches.keys().then((keys) => {
         return Promise.all(
-          keys
-            .filter((key) => key !== CACHE_NAME)
-            .map((key) => caches.delete(key)),
+          keys.flatMap((key) => key !== CACHE_NAME ? [caches.delete(key)] : []),
         );
       }),
     );

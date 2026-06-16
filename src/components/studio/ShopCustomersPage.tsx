@@ -21,6 +21,11 @@ interface ShopCustomersPageProps {
 export function ShopCustomersPage({ shopId, result, searchQuery, page }: ShopCustomersPageProps) {
   const router = useRouter()
   const [localSearch, setLocalSearch] = useState(searchQuery)
+  const prevSearchQueryRef = useRef(searchQuery)
+  if (searchQuery !== prevSearchQueryRef.current) {
+    setLocalSearch(searchQuery)
+    prevSearchQueryRef.current = searchQuery
+  }
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const navigateWithSearch = useCallback(

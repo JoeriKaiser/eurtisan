@@ -459,7 +459,12 @@ export async function getCheckoutSummaryQuery(
   }
 
   const ownerIds = [
-    ...new Set(shops.map((s) => shopRecordById.get(s.shopId)?.ownerId).filter(Boolean)),
+    ...new Set(
+      shops.flatMap((s) => {
+        const ownerId = shopRecordById.get(s.shopId)?.ownerId
+        return ownerId ? [ownerId] : []
+      }),
+    ),
   ]
   const ownerRows =
     ownerIds.length > 0

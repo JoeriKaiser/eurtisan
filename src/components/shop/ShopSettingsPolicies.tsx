@@ -132,6 +132,7 @@ export function ShopSettingsPolicies({ policies, onChange }: ShopSettingsPolicie
             value={returns.conditions}
             onChange={(e) => setReturns((prev) => ({ ...prev, conditions: e.target.value }))}
             placeholder={m.creator_shop_policies_returns_placeholder()}
+            aria-label={m.creator_shop_policies_returns_title()}
             className='w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary placeholder:text-text-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:border-accent-secondary focus-visible:ring-accent-secondary/20 resize-y'
           />
         </PolicyCard>
@@ -147,6 +148,7 @@ export function ShopSettingsPolicies({ policies, onChange }: ShopSettingsPolicie
             value={exchanges.conditions}
             onChange={(e) => setExchanges((prev) => ({ ...prev, conditions: e.target.value }))}
             placeholder={m.creator_shop_policies_exchanges_placeholder()}
+            aria-label={m.creator_shop_policies_exchanges_title()}
             className='w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary placeholder:text-text-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:border-accent-secondary focus-visible:ring-accent-secondary/20 resize-y'
           />
         </PolicyCard>
@@ -162,6 +164,7 @@ export function ShopSettingsPolicies({ policies, onChange }: ShopSettingsPolicie
             value={custom.details}
             onChange={(e) => setCustom((prev) => ({ ...prev, details: e.target.value }))}
             placeholder={m.creator_shop_policies_custom_orders_placeholder()}
+            aria-label={m.creator_shop_policies_custom_orders_title()}
             className='w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary placeholder:text-text-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:border-accent-secondary focus-visible:ring-accent-secondary/20 resize-y'
           />
         </PolicyCard>

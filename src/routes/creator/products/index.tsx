@@ -20,7 +20,6 @@ const productSearchSchema = z.object({
 
 export const Route = createFileRoute('/creator/products/')({
   validateSearch: productSearchSchema,
-  beforeLoad: async () => guardPrivilegedRole('creator'),
   loaderDeps: ({ search: { shopId, page, pageSize, active, search } }) => ({
     shopId,
     page,
@@ -28,6 +27,7 @@ export const Route = createFileRoute('/creator/products/')({
     active,
     search,
   }),
+  beforeLoad: async () => guardPrivilegedRole('creator'),
   loader: async ({ deps }) => {
     const shops = await getCreatorShops()
     const targetShop = shops.find((s) => s.id === deps.shopId) ?? shops[0] ?? null

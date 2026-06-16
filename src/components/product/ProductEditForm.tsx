@@ -167,7 +167,7 @@ export function ProductEditForm({
   const router = useRouter()
 
   const [formState, dispatchForm] = useReducer(formReducer, product, createInitialFormState)
-  const [images, setImages] = useState<ImageEntry[]>(
+  const [images, setImages] = useState<ImageEntry[]>(() =>
     product.images.map((img) => ({
       id: img.id,
       key: img.url,
@@ -319,9 +319,10 @@ export function ProductEditForm({
   )
 
   const handleRemoveImage = (imageId: string) => {
-    setImages((prev) =>
-      prev.filter((img) => img.id !== imageId).map((img, i) => ({ ...img, sortOrder: i })),
-    )
+    setImages((prev) => {
+      let count = 0
+      return prev.flatMap((img) => (img.id !== imageId ? [{ ...img, sortOrder: count++ }] : []))
+    })
   }
 
   const moveImageUp = (imageId: string) => {
@@ -422,9 +423,11 @@ export function ProductEditForm({
           heightCm: formState.values.heightCm
             ? Number.parseInt(formState.values.heightCm, 10)
             : undefined,
-          images: images
-            .filter((img) => !img.error && !img.uploading && img.key)
-            .map((img) => ({ key: img.key, altText: img.altText || undefined })),
+          images: images.flatMap((img) =>
+            !img.error && !img.uploading && img.key
+              ? [{ key: img.key, altText: img.altText || undefined }]
+              : [],
+          ),
         },
       })
 

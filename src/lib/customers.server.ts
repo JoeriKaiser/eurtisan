@@ -498,15 +498,19 @@ export async function exportCustomerData(
       subtotalCents: order.subtotalCents,
       itemCount: order.itemCount,
       createdAt: order.createdAt.toISOString(),
-      items: orderItems
-        .filter((item) => item.shopOrderId === order.shopOrderId)
-        .map((item) => ({
-          productId: item.productId,
-          productName: item.productName,
-          quantity: item.quantity,
-          unitPriceCents: item.unitPriceCents,
-          totalCents: item.totalCents,
-        })),
+      items: orderItems.flatMap((item) =>
+        item.shopOrderId === order.shopOrderId
+          ? [
+              {
+                productId: item.productId,
+                productName: item.productName,
+                quantity: item.quantity,
+                unitPriceCents: item.unitPriceCents,
+                totalCents: item.totalCents,
+              },
+            ]
+          : [],
+      ),
     })),
     notes: detail.notes.map((note) => ({
       id: note.id,
