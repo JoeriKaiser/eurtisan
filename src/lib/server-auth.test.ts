@@ -2,8 +2,10 @@ import { eq } from 'drizzle-orm'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
-import { shop, user } from '#/db/schema'
-
+import { shop } from '#/db/schema'
+import { clearTestTables } from '#/test/cleanup'
+import { createUser } from '#/test/factories'
+import { auth } from './auth'
 import {
   becomeCreatorInternal,
   requireAuthUser,
@@ -11,7 +13,6 @@ import {
   requireRoleUser,
   verifyShopOwnership,
 } from './server-auth'
-import { auth } from './auth'
 
 vi.mock('./auth', () => ({
   auth: {
@@ -24,23 +25,18 @@ vi.mock('./auth', () => ({
 const mockGetSession = auth.api.getSession as unknown as ReturnType<typeof vi.fn>
 
 beforeEach(async () => {
-  await db.delete(shop)
-  await db.delete(user)
+  await clearTestTables()
 })
 
-async function seedCustomer(overrides?: Partial<typeof user.$inferInsert>) {
-  return db
-    .insert(user)
-    .values({
-      id: 'user-1',
-      name: 'Test Customer',
-      email: 'customer@example.com',
-      emailVerified: true,
-      role: 'customer',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+async function seedCustomer(overrides?: Parameters<typeof createUser>[0]) {
+  return createUser({
+    id: 'user-1',
+    name: 'Test Customer',
+    email: 'customer@example.com',
+    emailVerified: true,
+    role: 'customer',
+    ...overrides,
+  })
 }
 
 describe('becomeCreatorInternal', () => {

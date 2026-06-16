@@ -3,6 +3,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 
 import { db } from '#/db/index'
 import { rateLimit } from '#/db/schema'
+import { clearTestTables } from '#/test/cleanup'
 import { getRateLimitRetentionDays } from './env.server'
 import {
   assertAuthRateLimit,
@@ -15,11 +16,11 @@ import {
 } from './rate-limit'
 
 beforeEach(async () => {
-  await db.delete(rateLimit)
+  await clearTestTables()
 })
 
 afterAll(async () => {
-  await db.delete(rateLimit)
+  await clearTestTables()
 })
 
 describe('extractClientIp', () => {

@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { db } from '#/db/index'
-import { payout, platformOrder, shop, shopOrder, user } from '#/db/schema'
+import type { platformOrder, shopOrder, user } from '#/db/schema'
+import { payout, shop } from '#/db/schema'
+import { clearTestTables } from '#/test/cleanup'
+import { createPlatformOrder, createShop, createShopOrder, createUser } from '#/test/factories'
 import { PLATFORM_FEE_PERCENT } from './payouts'
 import { listCreatorPayoutsQuery } from './payouts.server'
 
@@ -10,82 +13,48 @@ import { listCreatorPayoutsQuery } from './payouts.server'
 /* -------------------------------------------------------------------------- */
 
 beforeEach(async () => {
-  await db.delete(payout)
-  await db.delete(shopOrder)
-  await db.delete(platformOrder)
-  await db.delete(shop)
-  await db.delete(user)
+  await clearTestTables()
 })
 
 async function seedUser(overrides?: Partial<typeof user.$inferInsert>) {
-  return db
-    .insert(user)
-    .values({
-      id: 'user-1',
-      name: 'Test Creator',
-      email: 'creator@example.com',
-      emailVerified: true,
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+  return createUser({
+    id: 'user-1',
+    name: 'Test Creator',
+    email: 'creator@example.com',
+    emailVerified: true,
+    ...overrides,
+  })
 }
 
 async function seedShop(overrides?: Partial<typeof shop.$inferInsert>) {
-  return db
-    .insert(shop)
-    .values({
-      id: 'shop-1',
-      name: 'Test Shop',
-      slug: 'test-shop',
-      ownerId: 'user-1',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+  return createShop('user-1', {
+    id: 'shop-1',
+    name: 'Test Shop',
+    slug: 'test-shop',
+    ...overrides,
+  })
 }
 
 async function seedPlatformOrder(overrides?: Partial<typeof platformOrder.$inferInsert>) {
-  return db
-    .insert(platformOrder)
-    .values({
-      userId: 'user-1',
-      shippingAddress: {
-        name: 'Buyer',
-        street: '123 Main St',
-        city: 'Berlin',
-        postalCode: '10115',
-        country: 'DE',
-      },
-      billingAddress: {
-        name: 'Buyer',
-        street: '123 Main St',
-        city: 'Berlin',
-        postalCode: '10115',
-        country: 'DE',
-      },
-      totalCents: 10000,
-      status: 'paid',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+  return createPlatformOrder('user-1', {
+    totalCents: 10000,
+    status: 'paid',
+    ...overrides,
+  })
 }
 
-async function seedShopOrder(overrides: Partial<typeof shopOrder.$inferInsert>) {
-  return db
-    .insert(shopOrder)
-    .values({
-      platformOrderId: '00000000-0000-0000-0000-000000000000',
-      shopId: 'shop-1',
+async function seedShopOrder(overrides?: Partial<typeof shopOrder.$inferInsert>) {
+  return createShopOrder(
+    overrides?.platformOrderId ?? '00000000-0000-0000-0000-000000000000',
+    overrides?.shopId ?? 'shop-1',
+    {
       shippingMethod: 'standard',
       shippingCostCents: 500,
       subtotalCents: 5000,
       status: 'paid',
       ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+    },
+  )
 }
 
 /* -------------------------------------------------------------------------- */

@@ -1,16 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { db } from '#/db/index'
-import {
-  auditLog,
-  orderItem,
-  payout,
-  platformOrder,
-  product,
-  shop,
-  shopOrder,
-  user,
-} from '#/db/schema'
+import { auditLog } from '#/db/schema'
+import { clearTestTables } from '#/test/cleanup'
+import { createPayout, createPlatformOrder, createShop, createUser } from '#/test/factories'
 
 import { listAllPlatformOrdersQuery } from './admin-orders.server'
 import { listUsersQuery } from './admin-users.server'
@@ -22,62 +15,39 @@ import { listPendingPayoutsQuery } from './payouts.server'
 /* -------------------------------------------------------------------------- */
 
 beforeEach(async () => {
-  await db.delete(auditLog)
-  await db.delete(payout)
-  await db.delete(orderItem)
-  await db.delete(shopOrder)
-  await db.delete(platformOrder)
-  await db.delete(product)
-  await db.delete(shop)
-  await db.delete(user)
+  await clearTestTables()
 })
 
-async function seedAdmin(overrides?: Partial<typeof user.$inferInsert>) {
-  const [u] = await db
-    .insert(user)
-    .values({
-      id: crypto.randomUUID(),
-      name: 'Admin User',
-      email: 'admin@example.com',
-      emailVerified: true,
-      role: 'admin',
-      twoFactorEnabled: true,
-      ...overrides,
-    })
-    .returning()
-  return u
+async function seedAdmin(overrides?: Parameters<typeof createUser>[0]) {
+  return createUser({
+    name: 'Admin User',
+    email: 'admin@example.com',
+    emailVerified: true,
+    role: 'admin',
+    twoFactorEnabled: true,
+    ...overrides,
+  })
 }
 
-async function seedCustomer(overrides?: Partial<typeof user.$inferInsert>) {
-  const [u] = await db
-    .insert(user)
-    .values({
-      id: crypto.randomUUID(),
-      name: 'Customer User',
-      email: 'customer@example.com',
-      emailVerified: true,
-      role: 'customer',
-      ...overrides,
-    })
-    .returning()
-  return u
+async function seedCustomer(overrides?: Parameters<typeof createUser>[0]) {
+  return createUser({
+    name: 'Customer User',
+    email: 'customer@example.com',
+    emailVerified: true,
+    role: 'customer',
+    ...overrides,
+  })
 }
 
-async function seedShop(overrides?: Partial<typeof shop.$inferInsert>) {
-  const [s] = await db
-    .insert(shop)
-    .values({
-      id: crypto.randomUUID(),
-      name: 'Test Shop',
-      slug: 'test-shop',
-      ownerId: '00000000-0000-0000-0000-000000000000',
-      ...overrides,
-    })
-    .returning()
-  return s
+async function seedShop(overrides?: Parameters<typeof createShop>[1]) {
+  return createShop('00000000-0000-0000-0000-000000000000', {
+    name: 'Test Shop',
+    slug: 'test-shop',
+    ...overrides,
+  })
 }
 
-function safeAdmin(actor: typeof user.$inferSelect): {
+function safeAdmin(actor: Awaited<ReturnType<typeof createUser>>): {
   id: string
   name: string
   email: string
@@ -105,7 +75,7 @@ function safeAdmin(actor: typeof user.$inferSelect): {
 /*                        Integration: query + audit                          */
 /* -------------------------------------------------------------------------- */
 
-describe('admin read audit integration', () => {
+describe.sequential('admin read audit integration', () => {
   it('listUsers logs admin.read.user when an admin queries users', async () => {
     const admin = await seedAdmin()
     await seedCustomer({ name: 'Alice', email: 'alice@example.com' })
@@ -135,8 +105,9 @@ describe('admin read audit integration', () => {
   it('listAllPlatformOrders logs admin.read.order when an admin queries orders', async () => {
     const admin = await seedAdmin()
     const customer = await seedCustomer({ name: 'Buyer', email: 'buyer@example.com' })
-    await db.insert(platformOrder).values({
-      userId: customer.id,
+    await createPlatformOrder(customer, {
+      totalCents: 2500,
+      status: 'paid',
       shippingAddress: {
         name: 'Buyer',
         street: '123 Main St',
@@ -151,8 +122,6 @@ describe('admin read audit integration', () => {
         postalCode: '10115',
         country: 'DE',
       },
-      totalCents: 2500,
-      status: 'paid',
     })
 
     const result = await listAllPlatformOrdersQuery(undefined, 1, 20)
@@ -178,8 +147,7 @@ describe('admin read audit integration', () => {
     const admin = await seedAdmin()
     const creator = await seedCustomer({ name: 'Creator', email: 'creator@example.com' })
     const s = await seedShop({ ownerId: creator.id, slug: 'creator-shop' })
-    await db.insert(payout).values({
-      shopId: s.id,
+    await createPayout(s, {
       amountCents: 5000,
       status: 'pending',
     })

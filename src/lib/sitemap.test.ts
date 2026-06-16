@@ -1,23 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { db } from '#/db/index'
-import {
-  cart,
-  cartItem,
-  categories,
-  dispute,
-  disputeMessage,
-  inventoryReservation,
-  notification,
-  orderItem,
-  payout,
-  platformOrder,
-  product,
-  productImage,
-  review,
-  shop,
-  shopOrder,
-  user,
-} from '#/db/schema'
+import { clearTestTables } from '#/test/cleanup'
+import { createCategory, createProduct, createShop, createUser } from '#/test/factories'
 import {
   buildSitemapXml,
   buildUrlElement,
@@ -35,22 +18,7 @@ vi.mock('./auth', () => ({
 }))
 
 beforeEach(async () => {
-  await db.delete(disputeMessage)
-  await db.delete(dispute)
-  await db.delete(review)
-  await db.delete(inventoryReservation)
-  await db.delete(orderItem)
-  await db.delete(shopOrder)
-  await db.delete(platformOrder)
-  await db.delete(payout)
-  await db.delete(notification)
-  await db.delete(cartItem)
-  await db.delete(cart)
-  await db.delete(productImage)
-  await db.delete(product)
-  await db.delete(categories)
-  await db.delete(shop)
-  await db.delete(user)
+  await clearTestTables()
 })
 
 describe('buildUrlElement', () => {
@@ -150,21 +118,12 @@ describe('generateSitemapEntries', () => {
   })
 
   it('excludes suspended shops', async () => {
-    // Create a suspended shop
-    const [shopOwner] = await db
-      .insert(user)
-      .values({
-        id: 'user-suspended-owner',
-        name: 'Suspended Owner',
-        email: 'suspended@test.com',
-      })
-      .returning()
-
-    await db.insert(shop).values({
+    const shopOwner = await createUser({ id: 'user-suspended-owner' })
+    await createShop(shopOwner, {
       id: 'shop-suspended',
       name: 'Suspended Shop',
       slug: 'suspended-shop',
-      ownerId: shopOwner.id,
+      status: 'suspended',
       isSuspended: true,
     })
 
@@ -175,32 +134,18 @@ describe('generateSitemapEntries', () => {
   })
 
   it('excludes inactive products', async () => {
-    const [shopOwner] = await db
-      .insert(user)
-      .values({
-        id: 'user-inactive-owner',
-        name: 'Inactive Owner',
-        email: 'inactive@test.com',
-      })
-      .returning()
+    const shopOwner = await createUser({ id: 'user-inactive-owner' })
+    const activeShop = await createShop(shopOwner, {
+      id: 'shop-for-inactive-product',
+      name: 'Test Shop',
+      slug: 'test-shop-inactive',
+      isSuspended: false,
+    })
 
-    const [activeShop] = await db
-      .insert(shop)
-      .values({
-        id: 'shop-for-inactive-product',
-        name: 'Test Shop',
-        slug: 'test-shop-inactive',
-        ownerId: shopOwner.id,
-        isSuspended: false,
-      })
-      .returning()
-
-    await db.insert(product).values({
+    await createProduct(activeShop, {
       id: 'product-inactive',
       name: 'Inactive Product',
       slug: 'inactive-product',
-      priceCents: 1000,
-      shopId: activeShop.id,
       isActive: false,
     })
 
@@ -211,20 +156,11 @@ describe('generateSitemapEntries', () => {
   })
 
   it('includes active shops in sitemap', async () => {
-    const [shopOwner] = await db
-      .insert(user)
-      .values({
-        id: 'user-active-owner',
-        name: 'Active Owner',
-        email: 'active@test.com',
-      })
-      .returning()
-
-    await db.insert(shop).values({
+    const shopOwner = await createUser({ id: 'user-active-owner' })
+    await createShop(shopOwner, {
       id: 'shop-active-1',
       name: 'Active Shop',
       slug: 'active-shop',
-      ownerId: shopOwner.id,
       isSuspended: false,
     })
 
@@ -237,32 +173,18 @@ describe('generateSitemapEntries', () => {
   })
 
   it('includes active products from non-suspended shops', async () => {
-    const [shopOwner] = await db
-      .insert(user)
-      .values({
-        id: 'user-product-owner',
-        name: 'Product Owner',
-        email: 'product@test.com',
-      })
-      .returning()
+    const shopOwner = await createUser({ id: 'user-product-owner' })
+    const activeShop = await createShop(shopOwner, {
+      id: 'shop-for-product',
+      name: 'Product Shop',
+      slug: 'product-shop',
+      isSuspended: false,
+    })
 
-    const [activeShop] = await db
-      .insert(shop)
-      .values({
-        id: 'shop-for-product',
-        name: 'Product Shop',
-        slug: 'product-shop',
-        ownerId: shopOwner.id,
-        isSuspended: false,
-      })
-      .returning()
-
-    await db.insert(product).values({
+    await createProduct(activeShop, {
       id: 'product-active-1',
       name: 'Active Product',
       slug: 'active-product',
-      priceCents: 2000,
-      shopId: activeShop.id,
       isActive: true,
     })
 
@@ -275,40 +197,23 @@ describe('generateSitemapEntries', () => {
   })
 
   it('includes categories with active products', async () => {
-    const [shopOwner] = await db
-      .insert(user)
-      .values({
-        id: 'user-cat-owner',
-        name: 'Cat Owner',
-        email: 'cat@test.com',
-      })
-      .returning()
+    const shopOwner = await createUser({ id: 'user-cat-owner' })
+    const activeShop = await createShop(shopOwner, {
+      id: 'shop-for-cat',
+      name: 'Cat Shop',
+      slug: 'cat-shop',
+      isSuspended: false,
+    })
 
-    const [activeShop] = await db
-      .insert(shop)
-      .values({
-        id: 'shop-for-cat',
-        name: 'Cat Shop',
-        slug: 'cat-shop',
-        ownerId: shopOwner.id,
-        isSuspended: false,
-      })
-      .returning()
+    const category = await createCategory({
+      name: 'Test Category',
+      slug: 'test-category',
+    })
 
-    const [category] = await db
-      .insert(categories)
-      .values({
-        name: 'Test Category',
-        slug: 'test-category',
-      })
-      .returning()
-
-    await db.insert(product).values({
+    await createProduct(activeShop, {
       id: 'product-in-cat',
       name: 'Categorized Product',
       slug: 'categorized-product',
-      priceCents: 1500,
-      shopId: activeShop.id,
       categoryId: category.id,
       isActive: true,
     })
@@ -322,32 +227,19 @@ describe('generateSitemapEntries', () => {
   })
 
   it('excludes products from suspended shops', async () => {
-    const [shopOwner] = await db
-      .insert(user)
-      .values({
-        id: 'user-suspended-shop-owner',
-        name: 'Suspended Shop Owner',
-        email: 'suspended-shop-owner@test.com',
-      })
-      .returning()
+    const shopOwner = await createUser({ id: 'user-suspended-shop-owner' })
+    const suspendedShop = await createShop(shopOwner, {
+      id: 'shop-suspended-2',
+      name: 'Suspended Shop 2',
+      slug: 'suspended-shop-2',
+      status: 'suspended',
+      isSuspended: true,
+    })
 
-    const [suspendedShop] = await db
-      .insert(shop)
-      .values({
-        id: 'shop-suspended-2',
-        name: 'Suspended Shop 2',
-        slug: 'suspended-shop-2',
-        ownerId: shopOwner.id,
-        isSuspended: true,
-      })
-      .returning()
-
-    await db.insert(product).values({
+    await createProduct(suspendedShop, {
       id: 'product-in-suspended-shop',
       name: 'Product in Suspended Shop',
       slug: 'product-in-suspended-shop',
-      priceCents: 500,
-      shopId: suspendedShop.id,
       isActive: true,
     })
 

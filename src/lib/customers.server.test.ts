@@ -1,20 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { db } from '#/db/index'
-import {
-  customerNote,
-  customerTag,
-  orderItem,
-  platformOrder,
-  shop,
-  shopOrder,
-  user,
-} from '#/db/schema'
-import { hashEmail, listShopCustomers } from './customers.server'
+import { clearTestTables } from '#/test/cleanup'
 import {
   addCustomerNoteSchema,
   addCustomerTagSchema,
   listCustomersSchema,
 } from './customers.schema'
+import { hashEmail, listShopCustomers } from './customers.server'
 
 vi.mock('./auth', () => ({
   auth: {
@@ -25,13 +16,7 @@ vi.mock('./auth', () => ({
 }))
 
 beforeEach(async () => {
-  await db.delete(customerNote)
-  await db.delete(customerTag)
-  await db.delete(orderItem)
-  await db.delete(shopOrder)
-  await db.delete(platformOrder)
-  await db.delete(shop)
-  await db.delete(user)
+  await clearTestTables()
 })
 
 describe('hashEmail', () => {

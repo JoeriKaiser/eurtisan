@@ -3,19 +3,30 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { db } from '#/db/index'
 import {
-  cart,
-  cartItem,
+  type cart,
   inventoryReservation,
-  orderItem,
+  type orderItem,
   platformOrder,
   product,
   productVariant,
-  shop,
+  type shop,
   shopOrder,
-  user,
+  type user,
 } from '#/db/schema'
 import { cancelOrderQuery } from '#/lib/orders.server'
 import type { PaymentProvider } from '#/lib/payment-provider'
+import { clearTestTables } from '#/test/cleanup'
+import {
+  createCart,
+  createInventoryReservation,
+  createOrderItem,
+  createPlatformOrder,
+  createProduct,
+  createProductVariant,
+  createShop,
+  createShopOrder,
+  createUser,
+} from '#/test/factories'
 import { processMollieWebhook } from './mollie'
 
 // ---------------------------------------------------------------------------
@@ -42,139 +53,105 @@ function createStubPaymentProvider(overrides?: Partial<PaymentProvider>): Paymen
 }
 
 // ---------------------------------------------------------------------------
-// Database seed helpers
+// Database seed helpers (thin wrappers around shared factories; stable IDs are
+// kept because the webhook payloads and cancellation assertions rely on them)
 // ---------------------------------------------------------------------------
 
 async function seedUser(overrides?: Partial<typeof user.$inferInsert>) {
-  return db
-    .insert(user)
-    .values({
-      id: 'user-1',
-      name: 'Test',
-      email: 'test@example.com',
-      emailVerified: true,
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+  return createUser({
+    id: 'user-1',
+    name: 'Test',
+    email: 'test@example.com',
+    emailVerified: true,
+    ...overrides,
+  })
 }
 
 async function seedShop(overrides?: Partial<typeof shop.$inferInsert>) {
-  return db
-    .insert(shop)
-    .values({
-      id: 'shop-1',
-      name: 'Test Shop',
-      slug: 'test-shop',
-      ownerId: 'user-1',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+  return createShop('user-1', {
+    id: 'shop-1',
+    name: 'Test Shop',
+    slug: 'test-shop',
+    ...overrides,
+  })
 }
 
 async function seedPlatformOrder(overrides?: Partial<typeof platformOrder.$inferInsert>) {
-  return db
-    .insert(platformOrder)
-    .values({
-      id: '10000000-0000-0000-0000-000000000042',
-      userId: 'user-1',
-      shippingAddress: { name: 'T', street: 'S', city: 'C', postalCode: '1', country: 'NL' },
-      billingAddress: { name: 'T', street: 'S', city: 'C', postalCode: '1', country: 'NL' },
-      totalCents: 1000,
-      status: 'pending_payment',
-      molliePaymentId: 'tr_mock_000042',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+  return createPlatformOrder('user-1', {
+    id: '10000000-0000-0000-0000-000000000042',
+    shippingAddress: { name: 'T', street: 'S', city: 'C', postalCode: '1', country: 'NL' },
+    billingAddress: { name: 'T', street: 'S', city: 'C', postalCode: '1', country: 'NL' },
+    totalCents: 1000,
+    status: 'pending_payment',
+    molliePaymentId: 'tr_mock_000042',
+    ...overrides,
+  })
 }
 
 async function seedShopOrder(overrides?: Partial<typeof shopOrder.$inferInsert>) {
-  return db
-    .insert(shopOrder)
-    .values({
-      platformOrderId: '10000000-0000-0000-0000-000000000042',
-      shopId: 'shop-1',
+  const { platformOrderId, shopId, ...rest } = overrides ?? {}
+  return createShopOrder(
+    platformOrderId ?? '10000000-0000-0000-0000-000000000042',
+    shopId ?? 'shop-1',
+    {
       shippingMethod: 'standard',
       shippingCostCents: 500,
       subtotalCents: 1000,
       status: 'pending_payment',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+      ...rest,
+    },
+  )
 }
 
 async function seedCart(overrides?: Partial<typeof cart.$inferInsert>) {
-  return db
-    .insert(cart)
-    .values({ userId: 'user-1', ...overrides })
-    .returning()
-    .then((rows) => rows[0])
+  return createCart('user-1', overrides)
 }
 
 async function seedProduct(overrides?: Partial<typeof product.$inferInsert>) {
-  return db
-    .insert(product)
-    .values({
-      id: 'prod-1',
-      name: 'Test Product',
-      slug: 'test-product',
-      priceCents: 1000,
-      stockCount: 10,
-      shopId: 'shop-1',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+  return createProduct('shop-1', {
+    id: 'prod-1',
+    name: 'Test Product',
+    slug: 'test-product',
+    priceCents: 1000,
+    stockCount: 10,
+    ...overrides,
+  })
 }
 
 async function seedProductVariant(overrides?: Partial<typeof productVariant.$inferInsert>) {
-  return db
-    .insert(productVariant)
-    .values({
-      id: 'var-1',
-      productId: 'prod-1',
-      name: 'Standard',
-      stockCount: 10,
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+  const { productId, ...rest } = overrides ?? {}
+  return createProductVariant(productId ?? 'prod-1', {
+    id: 'var-1',
+    name: 'Standard',
+    stockCount: 10,
+    ...rest,
+  })
 }
 
 async function seedOrderItem(overrides?: Partial<typeof orderItem.$inferInsert>) {
-  return db
-    .insert(orderItem)
-    .values({
+  const { shopOrderId, productId, ...rest } = overrides ?? {}
+  return createOrderItem(
+    shopOrderId ?? '00000000-0000-0000-0000-000000000002',
+    { id: productId ?? 'prod-1', name: 'Test Product', priceCents: 1000 },
+    {
       id: '00000000-0000-0000-0000-000000000001',
-      shopOrderId: '00000000-0000-0000-0000-000000000002',
-      productId: 'prod-1',
-      productName: 'Test Product',
-      unitPriceCents: 1000,
       quantity: 1,
       totalCents: 1000,
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+      ...rest,
+    },
+  )
 }
 
 async function seedInventoryReservation(
   overrides?: Partial<typeof inventoryReservation.$inferInsert>,
 ) {
-  return db
-    .insert(inventoryReservation)
-    .values({
-      productId: 'prod-1',
-      platformOrderId: '10000000-0000-0000-0000-000000000042',
-      quantity: 1,
-      expiresAt: new Date(Date.now() + 60_000),
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+  const { productId, ...rest } = overrides ?? {}
+  return createInventoryReservation(productId ?? 'prod-1', {
+    platformOrderId: '10000000-0000-0000-0000-000000000042',
+    quantity: 1,
+    expiresAt: new Date(Date.now() + 60_000),
+    ...rest,
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -201,16 +178,7 @@ beforeEach(async () => {
   stubVerifyResult = true
   stubPaymentStatus = 'paid'
   stubPaymentAmount = 1000
-  await db.delete(inventoryReservation)
-  await db.delete(orderItem)
-  await db.delete(shopOrder)
-  await db.delete(platformOrder)
-  await db.delete(cartItem)
-  await db.delete(cart)
-  await db.delete(productVariant)
-  await db.delete(product)
-  await db.delete(shop)
-  await db.delete(user)
+  await clearTestTables()
 
   // Seed base data needed by most tests
   await seedUser()
@@ -222,16 +190,7 @@ afterAll(async () => {
   stubVerifyResult = true
   stubPaymentStatus = 'paid'
   stubPaymentAmount = 1000
-  await db.delete(inventoryReservation)
-  await db.delete(orderItem)
-  await db.delete(shopOrder)
-  await db.delete(platformOrder)
-  await db.delete(cartItem)
-  await db.delete(cart)
-  await db.delete(productVariant)
-  await db.delete(product)
-  await db.delete(shop)
-  await db.delete(user)
+  await clearTestTables()
 })
 
 // ---------------------------------------------------------------------------

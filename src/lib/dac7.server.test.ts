@@ -1,40 +1,41 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { db } from '#/db/index'
-import { shopOrder, platformOrder, shop, user } from '#/db/schema'
+import { shopOrder } from '#/db/schema'
+import { clearTestTables } from '#/test/cleanup'
+import { createPlatformOrder, createShop, createShopOrder, createUser } from '#/test/factories'
 import { getDac7ComplianceStatus } from './dac7.server'
 
 describe('DAC7 Threshold Engine', () => {
   const currentYear = new Date().getFullYear()
 
   beforeEach(async () => {
-    // Clean up tables in reverse order of foreign keys
-    await db.delete(shopOrder)
-    await db.delete(platformOrder)
-    await db.delete(shop)
-    await db.delete(user)
+    await clearTestTables()
 
     // Seed base user and shop
-    await db.insert(user).values({
+    const creator = await createUser({
       id: 'creator-user',
       name: 'Alice Artisan',
       email: 'alice@artisan.de',
       role: 'creator',
     })
 
-    await db.insert(shop).values({
+    await createShop(creator, {
       id: 'shop-1',
       name: 'Alice Store',
       slug: 'alice-store',
-      ownerId: 'creator-user',
       isVatRegistered: false,
     })
 
-    await db.insert(user).values({
+    await createUser({
       id: 'buyer-user',
       name: 'Bob Buyer',
       email: 'bob@buyer.com',
       role: 'customer',
     })
+  })
+
+  afterAll(async () => {
+    await clearTestTables()
   })
 
   it('returns zero transactions and sales if no orders exist', async () => {
@@ -49,32 +50,15 @@ describe('DAC7 Threshold Engine', () => {
 
   it('aggregates completed and delivered orders for the correct calendar year', async () => {
     // Insert a platform order
-    await db.insert(platformOrder).values({
+    const platformOrder = await createPlatformOrder('buyer-user', {
       id: 'a1111111-1111-1111-1111-111111111111',
-      userId: 'buyer-user',
-      shippingAddress: {
-        name: 'Bob',
-        street: '123 St',
-        city: 'Paris',
-        postalCode: '75001',
-        country: 'FR',
-      },
-      billingAddress: {
-        name: 'Bob',
-        street: '123 St',
-        city: 'Paris',
-        postalCode: '75001',
-        country: 'FR',
-      },
       totalCents: 3500,
       status: 'paid',
     })
 
     // Insert completed order in current year
-    await db.insert(shopOrder).values({
+    await createShopOrder(platformOrder, 'shop-1', {
       id: 'b1111111-1111-1111-1111-111111111111',
-      platformOrderId: 'a1111111-1111-1111-1111-111111111111',
-      shopId: 'shop-1',
       status: 'completed',
       subtotalCents: 2000,
       shippingCostCents: 500,
@@ -82,10 +66,8 @@ describe('DAC7 Threshold Engine', () => {
     })
 
     // Insert delivered order in current year
-    await db.insert(shopOrder).values({
+    await createShopOrder(platformOrder, 'shop-1', {
       id: 'b2222222-2222-2222-2222-222222222222',
-      platformOrderId: 'a1111111-1111-1111-1111-111111111111',
-      shopId: 'shop-1',
       status: 'delivered',
       subtotalCents: 1000,
       shippingCostCents: 0,
@@ -93,10 +75,8 @@ describe('DAC7 Threshold Engine', () => {
     })
 
     // Insert a pending payment order (should NOT be aggregated)
-    await db.insert(shopOrder).values({
+    await createShopOrder(platformOrder, 'shop-1', {
       id: 'b3333333-3333-3333-3333-333333333333',
-      platformOrderId: 'a1111111-1111-1111-1111-111111111111',
-      shopId: 'shop-1',
       status: 'pending_payment',
       subtotalCents: 5000,
       shippingCostCents: 1000,
@@ -105,10 +85,8 @@ describe('DAC7 Threshold Engine', () => {
 
     // Insert order in different year (should NOT be aggregated)
     const diffYear = currentYear - 1
-    await db.insert(shopOrder).values({
+    await createShopOrder(platformOrder, 'shop-1', {
       id: 'b4444444-4444-4444-4444-444444444444',
-      platformOrderId: 'a1111111-1111-1111-1111-111111111111',
-      shopId: 'shop-1',
       status: 'completed',
       subtotalCents: 5000,
       shippingCostCents: 500,
@@ -124,41 +102,22 @@ describe('DAC7 Threshold Engine', () => {
   })
 
   it('correctly flags approaching limit (24 transactions or €1,600 revenue)', async () => {
-    await db.insert(platformOrder).values({
+    const platformOrder = await createPlatformOrder('buyer-user', {
       id: 'a1111111-1111-1111-1111-111111111111',
-      userId: 'buyer-user',
-      shippingAddress: {
-        name: 'Bob',
-        street: '123 St',
-        city: 'Paris',
-        postalCode: '75001',
-        country: 'FR',
-      },
-      billingAddress: {
-        name: 'Bob',
-        street: '123 St',
-        city: 'Paris',
-        postalCode: '75001',
-        country: 'FR',
-      },
       totalCents: 200000,
       status: 'paid',
     })
 
     // 1. Test volume threshold: 24 completed orders
-    const ordersToInsert = []
     for (let i = 0; i < 24; i++) {
-      ordersToInsert.push({
+      await createShopOrder(platformOrder, 'shop-1', {
         id: `b1000000-0000-0000-0000-${String(i).padStart(12, '0')}`,
-        platformOrderId: 'a1111111-1111-1111-1111-111111111111',
-        shopId: 'shop-1',
-        status: 'completed' as const,
+        status: 'completed',
         subtotalCents: 10,
         shippingCostCents: 0,
         createdAt: new Date(`${currentYear}-01-01T12:00:00Z`),
       })
     }
-    await db.insert(shopOrder).values(ordersToInsert)
 
     let status = await getDac7ComplianceStatus('shop-1', currentYear)
     expect(status.transactionCount).toBe(24)
@@ -169,10 +128,8 @@ describe('DAC7 Threshold Engine', () => {
     await db.delete(shopOrder)
 
     // 2. Test revenue threshold: €1,600 gross sales (160,000 cents)
-    await db.insert(shopOrder).values({
+    await createShopOrder(platformOrder, 'shop-1', {
       id: 'b2000000-0000-0000-0000-000000000001',
-      platformOrderId: 'a1111111-1111-1111-1111-111111111111',
-      shopId: 'shop-1',
       status: 'completed',
       subtotalCents: 155000,
       shippingCostCents: 5000, // €1,550 + €50 = €1,600 (160,000 cents)
@@ -186,41 +143,22 @@ describe('DAC7 Threshold Engine', () => {
   })
 
   it('correctly flags exceeded limit (30 transactions or €2,000 revenue)', async () => {
-    await db.insert(platformOrder).values({
+    const platformOrder = await createPlatformOrder('buyer-user', {
       id: 'a1111111-1111-1111-1111-111111111111',
-      userId: 'buyer-user',
-      shippingAddress: {
-        name: 'Bob',
-        street: '123 St',
-        city: 'Paris',
-        postalCode: '75001',
-        country: 'FR',
-      },
-      billingAddress: {
-        name: 'Bob',
-        street: '123 St',
-        city: 'Paris',
-        postalCode: '75001',
-        country: 'FR',
-      },
       totalCents: 300000,
       status: 'paid',
     })
 
     // 1. Test volume threshold: 30 completed orders
-    const ordersToInsert = []
     for (let i = 0; i < 30; i++) {
-      ordersToInsert.push({
+      await createShopOrder(platformOrder, 'shop-1', {
         id: `b1000000-0000-0000-0000-${String(i).padStart(12, '0')}`,
-        platformOrderId: 'a1111111-1111-1111-1111-111111111111',
-        shopId: 'shop-1',
-        status: 'completed' as const,
+        status: 'completed',
         subtotalCents: 10,
         shippingCostCents: 0,
         createdAt: new Date(`${currentYear}-01-01T12:00:00Z`),
       })
     }
-    await db.insert(shopOrder).values(ordersToInsert)
 
     let status = await getDac7ComplianceStatus('shop-1', currentYear)
     expect(status.transactionCount).toBe(30)
@@ -231,10 +169,8 @@ describe('DAC7 Threshold Engine', () => {
     await db.delete(shopOrder)
 
     // 2. Test revenue threshold: €2,000 gross sales (200,000 cents)
-    await db.insert(shopOrder).values({
+    await createShopOrder(platformOrder, 'shop-1', {
       id: 'b2000000-0000-0000-0000-000000000001',
-      platformOrderId: 'a1111111-1111-1111-1111-111111111111',
-      shopId: 'shop-1',
       status: 'completed',
       subtotalCents: 195000,
       shippingCostCents: 5000, // €1,950 + €50 = €2,000 (200,000 cents)

@@ -1,8 +1,16 @@
 import { eq } from 'drizzle-orm'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
-import { categories, product, productImage, shop, user } from '#/db/schema'
+import { product, productImage } from '#/db/schema'
+import { clearTestTables } from '#/test/cleanup'
+import {
+  createCategory,
+  createProduct,
+  createProductImage,
+  createShop,
+  createUser,
+} from '#/test/factories'
 
 import {
   checkSlugUniqueness,
@@ -10,6 +18,7 @@ import {
   createProductSchema,
   deleteProductInternal,
   listCreatorProductsInternal,
+  toggleProductActiveInternal,
   updateProductInternal,
   updateProductSchema,
   validateCategory,
@@ -29,11 +38,11 @@ vi.mock('./image-storage.server', () => ({
 }))
 
 beforeEach(async () => {
-  await db.delete(productImage)
-  await db.delete(product)
-  await db.delete(categories)
-  await db.delete(shop)
-  await db.delete(user)
+  await clearTestTables()
+})
+
+afterAll(async () => {
+  await clearTestTables()
 })
 
 /* -------------------------------------------------------------------------- */
@@ -211,10 +220,7 @@ describe('validateCategory', () => {
   })
 
   it('returns true for existing category', async () => {
-    const [cat] = await db
-      .insert(categories)
-      .values({ name: 'Pottery', slug: 'pottery' })
-      .returning()
+    const cat = await createCategory({ name: 'Pottery', slug: 'pottery' })
     expect(await validateCategory(cat.id)).toBe(true)
   })
 
@@ -225,111 +231,52 @@ describe('validateCategory', () => {
 
 describe('checkSlugUniqueness', () => {
   it('returns true when slug is unique', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
 
     expect(await checkSlugUniqueness('new-slug', s.id)).toBe(true)
   })
 
   it('returns false when slug exists in shop', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
 
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
-
-    await db.insert(product).values({
-      id: 'prod-1',
-      name: 'Vase',
-      slug: 'vase',
-      priceCents: 2999,
-      stockCount: 10,
-      shopId: s.id,
-    })
+    await createProduct(s, { name: 'Vase', slug: 'vase', priceCents: 2999 })
 
     expect(await checkSlugUniqueness('vase', s.id)).toBe(false)
   })
 
   it('returns true when excluding the same product', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
 
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
+    const p = await createProduct(s, { name: 'Vase', slug: 'vase', priceCents: 2999 })
 
-    await db.insert(product).values({
-      id: 'prod-1',
-      name: 'Vase',
-      slug: 'vase',
-      priceCents: 2999,
-      stockCount: 10,
-      shopId: s.id,
-    })
-
-    expect(await checkSlugUniqueness('vase', s.id, 'prod-1')).toBe(true)
+    expect(await checkSlugUniqueness('vase', s.id, p.id)).toBe(true)
   })
 })
 
 describe('verifyProductOwnership', () => {
   it('returns product when user owns the shop', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
-
-    const [p] = await db
-      .insert(product)
-      .values({ id: 'prod-1', name: 'Vase', slug: 'vase', priceCents: 2999, shopId: s.id })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
+    const p = await createProduct(s, { name: 'Vase', slug: 'vase', priceCents: 2999 })
 
     const result = await verifyProductOwnership(p.id, u.id)
     expect(result.id).toBe(p.id)
   })
 
   it('throws NOT_FOUND for nonexistent product', async () => {
-    await expect(verifyProductOwnership('nonexistent', 'user-1')).rejects.toThrow('NOT_FOUND')
+    const u = await createUser()
+
+    await expect(verifyProductOwnership('nonexistent', u.id)).rejects.toThrow('NOT_FOUND')
   })
 
   it('throws FORBIDDEN when user does not own the shop', async () => {
-    const [u1] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [u2] = await db
-      .insert(user)
-      .values({ id: 'user-2', name: 'Test2', email: 'test2@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u1.id })
-      .returning()
-
-    const [p] = await db
-      .insert(product)
-      .values({ id: 'prod-1', name: 'Vase', slug: 'vase', priceCents: 2999, shopId: s.id })
-      .returning()
+    const u1 = await createUser()
+    const u2 = await createUser()
+    const s = await createShop(u1, { name: 'Test Shop', slug: 'test-shop' })
+    const p = await createProduct(s, { name: 'Vase', slug: 'vase', priceCents: 2999 })
 
     await expect(verifyProductOwnership(p.id, u2.id)).rejects.toThrow('FORBIDDEN')
   })
@@ -341,15 +288,8 @@ describe('verifyProductOwnership', () => {
 
 describe('createProductInternal', () => {
   it('creates a product successfully', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
 
     const result = await createProductInternal({
       name: 'Handmade Vase',
@@ -367,15 +307,8 @@ describe('createProductInternal', () => {
   })
 
   it('persists shipping dimensions', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
 
     const result = await createProductInternal({
       name: 'Heavy Vase',
@@ -402,15 +335,8 @@ describe('createProductInternal', () => {
   })
 
   it('rejects duplicate slug within the same shop', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
 
     await createProductInternal({
       name: 'Vase',
@@ -432,20 +358,9 @@ describe('createProductInternal', () => {
   })
 
   it('allows same slug in different shops', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s1] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop 1', slug: 'test-shop-1', ownerId: u.id })
-      .returning()
-
-    const [s2] = await db
-      .insert(shop)
-      .values({ id: 'shop-2', name: 'Test Shop 2', slug: 'test-shop-2', ownerId: u.id })
-      .returning()
+    const u = await createUser()
+    const s1 = await createShop(u, { name: 'Test Shop 1', slug: 'test-shop-1' })
+    const s2 = await createShop(u, { name: 'Test Shop 2', slug: 'test-shop-2' })
 
     await createProductInternal({
       name: 'Vase',
@@ -468,15 +383,8 @@ describe('createProductInternal', () => {
   })
 
   it('rejects invalid category_id', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
 
     await expect(
       createProductInternal({
@@ -497,27 +405,9 @@ describe('createProductInternal', () => {
 
 describe('updateProductInternal', () => {
   it('updates product fields partially', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
-
-    const [p] = await db
-      .insert(product)
-      .values({
-        id: 'prod-1',
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        stockCount: 10,
-        shopId: s.id,
-      })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
+    const p = await createProduct(s, { name: 'Vase', slug: 'vase', priceCents: 2999 })
 
     const result = await updateProductInternal({
       productId: p.id,
@@ -533,27 +423,9 @@ describe('updateProductInternal', () => {
   })
 
   it('updates shipping dimensions', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
-
-    const [p] = await db
-      .insert(product)
-      .values({
-        id: 'prod-1',
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        stockCount: 10,
-        shopId: s.id,
-      })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
+    const p = await createProduct(s, { name: 'Vase', slug: 'vase', priceCents: 2999 })
 
     const result = await updateProductInternal({
       productId: p.id,
@@ -578,24 +450,15 @@ describe('updateProductInternal', () => {
   })
 
   it('rejects slug change to an existing slug', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
 
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
-
-    await db.insert(product).values([
-      { id: 'prod-1', name: 'Vase', slug: 'vase', priceCents: 2999, shopId: s.id },
-      { id: 'prod-2', name: 'Bowl', slug: 'bowl', priceCents: 1999, shopId: s.id },
-    ])
+    const p1 = await createProduct(s, { name: 'Vase', slug: 'vase', priceCents: 2999 })
+    await createProduct(s, { name: 'Bowl', slug: 'bowl', priceCents: 1999 })
 
     await expect(
       updateProductInternal({
-        productId: 'prod-1',
+        productId: p1.id,
         shopId: s.id,
         userId: u.id,
         slug: 'bowl',
@@ -604,32 +467,10 @@ describe('updateProductInternal', () => {
   })
 
   it('throws FORBIDDEN when product does not belong to shop', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s1] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop 1', slug: 'test-shop-1', ownerId: u.id })
-      .returning()
-
-    const [s2] = await db
-      .insert(shop)
-      .values({ id: 'shop-2', name: 'Test Shop 2', slug: 'test-shop-2', ownerId: u.id })
-      .returning()
-
-    const [p] = await db
-      .insert(product)
-      .values({
-        id: 'prod-1',
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        stockCount: 10,
-        shopId: s1.id,
-      })
-      .returning()
+    const u = await createUser()
+    const s1 = await createShop(u, { name: 'Test Shop 1', slug: 'test-shop-1' })
+    const s2 = await createShop(u, { name: 'Test Shop 2', slug: 'test-shop-2' })
+    const p = await createProduct(s1, { name: 'Vase', slug: 'vase', priceCents: 2999 })
 
     await expect(
       updateProductInternal({
@@ -642,32 +483,10 @@ describe('updateProductInternal', () => {
   })
 
   it('throws FORBIDDEN when user does not own the product shop', async () => {
-    const [u1] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [u2] = await db
-      .insert(user)
-      .values({ id: 'user-2', name: 'Test2', email: 'test2@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u1.id })
-      .returning()
-
-    const [p] = await db
-      .insert(product)
-      .values({
-        id: 'prod-1',
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        stockCount: 10,
-        shopId: s.id,
-      })
-      .returning()
+    const u1 = await createUser()
+    const u2 = await createUser()
+    const s = await createShop(u1, { name: 'Test Shop', slug: 'test-shop' })
+    const p = await createProduct(s, { name: 'Vase', slug: 'vase', priceCents: 2999 })
 
     await expect(
       updateProductInternal({
@@ -686,28 +505,14 @@ describe('updateProductInternal', () => {
 
 describe('deleteProductInternal', () => {
   it('soft deletes a product', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
-
-    const [p] = await db
-      .insert(product)
-      .values({
-        id: 'prod-1',
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        stockCount: 10,
-        shopId: s.id,
-        isActive: true,
-      })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
+    const p = await createProduct(s, {
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 2999,
+      isActive: true,
+    })
 
     const result = await deleteProductInternal({
       productId: p.id,
@@ -724,27 +529,9 @@ describe('deleteProductInternal', () => {
   })
 
   it('hard deletes a product', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
-
-    const [p] = await db
-      .insert(product)
-      .values({
-        id: 'prod-1',
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        stockCount: 10,
-        shopId: s.id,
-      })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
+    const p = await createProduct(s, { name: 'Vase', slug: 'vase', priceCents: 2999 })
 
     const result = await deleteProductInternal({
       productId: p.id,
@@ -761,32 +548,10 @@ describe('deleteProductInternal', () => {
   })
 
   it('throws FORBIDDEN when user does not own the product', async () => {
-    const [u1] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [u2] = await db
-      .insert(user)
-      .values({ id: 'user-2', name: 'Test2', email: 'test2@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u1.id })
-      .returning()
-
-    const [p] = await db
-      .insert(product)
-      .values({
-        id: 'prod-1',
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        stockCount: 10,
-        shopId: s.id,
-      })
-      .returning()
+    const u1 = await createUser()
+    const u2 = await createUser()
+    const s = await createShop(u1, { name: 'Test Shop', slug: 'test-shop' })
+    const p = await createProduct(s, { name: 'Vase', slug: 'vase', priceCents: 2999 })
 
     await expect(
       deleteProductInternal({
@@ -805,52 +570,28 @@ describe('deleteProductInternal', () => {
 
 describe('listCreatorProductsInternal', () => {
   async function seedShopWithProducts() {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
+    const cat = await createCategory({ name: 'Pottery', slug: 'pottery' })
 
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
+    const p1 = await createProduct(s, {
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 2999,
+      categoryId: cat.id,
+      isActive: true,
+    })
 
-    const [cat] = await db
-      .insert(categories)
-      .values({ name: 'Pottery', slug: 'pottery' })
-      .returning()
+    const p2 = await createProduct(s, {
+      name: 'Bowl',
+      slug: 'bowl',
+      priceCents: 1999,
+      categoryId: cat.id,
+      isActive: false,
+    })
 
-    const [p1] = await db
-      .insert(product)
-      .values({
-        id: 'prod-1',
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        stockCount: 10,
-        shopId: s.id,
-        categoryId: cat.id,
-        isActive: true,
-      })
-      .returning()
-
-    const [p2] = await db
-      .insert(product)
-      .values({
-        id: 'prod-2',
-        name: 'Bowl',
-        slug: 'bowl',
-        priceCents: 1999,
-        shopId: s.id,
-        categoryId: cat.id,
-        isActive: false,
-      })
-      .returning()
-
-    await db.insert(productImage).values([
-      { id: 'img-1', productId: p1.id, url: 'http://example.com/1.jpg', sortOrder: 0 },
-      { id: 'img-2', productId: p1.id, url: 'http://example.com/2.jpg', sortOrder: 1 },
-    ])
+    await createProductImage(p1, { url: 'http://example.com/1.jpg', sortOrder: 0 })
+    await createProductImage(p1, { url: 'http://example.com/2.jpg', sortOrder: 1 })
 
     return { u, s, cat, p1, p2 }
   }
@@ -999,15 +740,8 @@ describe('image validation', () => {
 
 describe('createProductInternal with images', () => {
   it('creates a product with images and preserves sort order', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
 
     const result = await createProductInternal({
       name: 'Vase',
@@ -1040,15 +774,8 @@ describe('createProductInternal with images', () => {
   })
 
   it('rejects invalid image key format during creation', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
 
     await expect(
       createProductInternal({
@@ -1069,33 +796,13 @@ describe('createProductInternal with images', () => {
 
 describe('updateProductInternal with images', () => {
   it('replaces images on update and cleans up orphans', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
-
-    const [p] = await db
-      .insert(product)
-      .values({
-        id: 'prod-1',
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        stockCount: 10,
-        shopId: s.id,
-      })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
+    const p = await createProduct(s, { name: 'Vase', slug: 'vase', priceCents: 2999 })
 
     // Seed initial images
-    await db.insert(productImage).values([
-      { id: 'img-1', productId: p.id, url: 'products/old-1.jpg', altText: 'Old 1', sortOrder: 0 },
-      { id: 'img-2', productId: p.id, url: 'products/old-2.jpg', altText: 'Old 2', sortOrder: 1 },
-    ])
+    await createProductImage(p, { url: 'products/old-1.jpg', altText: 'Old 1', sortOrder: 0 })
+    await createProductImage(p, { url: 'products/old-2.jpg', altText: 'Old 2', sortOrder: 1 })
 
     await updateProductInternal({
       productId: p.id,
@@ -1116,33 +823,11 @@ describe('updateProductInternal with images', () => {
   })
 
   it('preserves existing images when images field is omitted', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
+    const p = await createProduct(s, { name: 'Vase', slug: 'vase', priceCents: 2999 })
 
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
-
-    const [p] = await db
-      .insert(product)
-      .values({
-        id: 'prod-1',
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        stockCount: 10,
-        shopId: s.id,
-      })
-      .returning()
-
-    await db
-      .insert(productImage)
-      .values([
-        { id: 'img-1', productId: p.id, url: 'products/old-1.jpg', altText: 'Old 1', sortOrder: 0 },
-      ])
+    await createProductImage(p, { url: 'products/old-1.jpg', altText: 'Old 1', sortOrder: 0 })
 
     await updateProductInternal({
       productId: p.id,
@@ -1158,33 +843,11 @@ describe('updateProductInternal with images', () => {
   })
 
   it('rejects invalid image key format during update', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
+    const p = await createProduct(s, { name: 'Vase', slug: 'vase', priceCents: 2999 })
 
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
-
-    const [p] = await db
-      .insert(product)
-      .values({
-        id: 'prod-1',
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        stockCount: 10,
-        shopId: s.id,
-      })
-      .returning()
-
-    await db
-      .insert(productImage)
-      .values([
-        { id: 'img-1', productId: p.id, url: 'products/old-1.jpg', altText: 'Old 1', sortOrder: 0 },
-      ])
+    await createProductImage(p, { url: 'products/old-1.jpg', altText: 'Old 1', sortOrder: 0 })
 
     await expect(
       updateProductInternal({
@@ -1213,33 +876,11 @@ describe('updateProductInternal with images', () => {
 
 describe('deleteProductInternal with images', () => {
   it('hard deletes product and removes images', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
+    const p = await createProduct(s, { name: 'Vase', slug: 'vase', priceCents: 2999 })
 
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
-
-    const [p] = await db
-      .insert(product)
-      .values({
-        id: 'prod-1',
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        stockCount: 10,
-        shopId: s.id,
-      })
-      .returning()
-
-    await db
-      .insert(productImage)
-      .values([
-        { id: 'img-1', productId: p.id, url: '/uploads/test.jpg', altText: 'Test', sortOrder: 0 },
-      ])
+    await createProductImage(p, { url: '/uploads/test.jpg', altText: 'Test', sortOrder: 0 })
 
     const result = await deleteProductInternal({
       productId: p.id,
@@ -1265,15 +906,8 @@ describe('deleteProductInternal with images', () => {
 
 describe('description sanitization', () => {
   it('escapes HTML tags in description on create', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
 
     const result = await createProductInternal({
       name: 'Vase',
@@ -1288,27 +922,9 @@ describe('description sanitization', () => {
   })
 
   it('escapes HTML tags in description on update', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
-
-    const [p] = await db
-      .insert(product)
-      .values({
-        id: 'prod-1',
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        stockCount: 10,
-        shopId: s.id,
-      })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
+    const p = await createProduct(s, { name: 'Vase', slug: 'vase', priceCents: 2999 })
 
     const result = await updateProductInternal({
       productId: p.id,
@@ -1321,15 +937,8 @@ describe('description sanitization', () => {
   })
 
   it('handles null description', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
 
     const result = await createProductInternal({
       name: 'Vase',
@@ -1347,32 +956,16 @@ describe('description sanitization', () => {
 /*                           toggleProductActive                              */
 /* -------------------------------------------------------------------------- */
 
-import { toggleProductActiveInternal } from './creator-products.server'
-
 describe('toggleProductActiveInternal', () => {
   it('toggles from active to inactive', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
-
-    const [p] = await db
-      .insert(product)
-      .values({
-        id: 'prod-1',
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        stockCount: 10,
-        shopId: s.id,
-        isActive: true,
-      })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
+    const p = await createProduct(s, {
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 2999,
+      isActive: true,
+    })
 
     const result = await toggleProductActiveInternal({
       productId: p.id,
@@ -1387,28 +980,14 @@ describe('toggleProductActiveInternal', () => {
   })
 
   it('toggles from inactive to active', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
-
-    const [p] = await db
-      .insert(product)
-      .values({
-        id: 'prod-1',
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        stockCount: 10,
-        shopId: s.id,
-        isActive: false,
-      })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
+    const p = await createProduct(s, {
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 2999,
+      isActive: false,
+    })
 
     const result = await toggleProductActiveInternal({
       productId: p.id,
@@ -1423,15 +1002,8 @@ describe('toggleProductActiveInternal', () => {
   })
 
   it('throws NOT_FOUND for nonexistent product', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
 
     await expect(
       toggleProductActiveInternal({
@@ -1443,32 +1015,10 @@ describe('toggleProductActiveInternal', () => {
   })
 
   it('throws FORBIDDEN when product does not belong to shop', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [s1] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop 1', slug: 'test-shop-1', ownerId: u.id })
-      .returning()
-
-    const [s2] = await db
-      .insert(shop)
-      .values({ id: 'shop-2', name: 'Test Shop 2', slug: 'test-shop-2', ownerId: u.id })
-      .returning()
-
-    const [p] = await db
-      .insert(product)
-      .values({
-        id: 'prod-1',
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        stockCount: 10,
-        shopId: s1.id,
-      })
-      .returning()
+    const u = await createUser()
+    const s1 = await createShop(u, { name: 'Test Shop 1', slug: 'test-shop-1' })
+    const s2 = await createShop(u, { name: 'Test Shop 2', slug: 'test-shop-2' })
+    const p = await createProduct(s1, { name: 'Vase', slug: 'vase', priceCents: 2999 })
 
     await expect(
       toggleProductActiveInternal({
@@ -1480,32 +1030,10 @@ describe('toggleProductActiveInternal', () => {
   })
 
   it('throws FORBIDDEN when user does not own the product shop', async () => {
-    const [u1] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
-
-    const [u2] = await db
-      .insert(user)
-      .values({ id: 'user-2', name: 'Test2', email: 'test2@example.com', emailVerified: true })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u1.id })
-      .returning()
-
-    const [p] = await db
-      .insert(product)
-      .values({
-        id: 'prod-1',
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        stockCount: 10,
-        shopId: s.id,
-      })
-      .returning()
+    const u1 = await createUser()
+    const u2 = await createUser()
+    const s = await createShop(u1, { name: 'Test Shop', slug: 'test-shop' })
+    const p = await createProduct(s, { name: 'Vase', slug: 'vase', priceCents: 2999 })
 
     await expect(
       toggleProductActiveInternal({
@@ -1523,45 +1051,31 @@ describe('toggleProductActiveInternal', () => {
 
 describe('listCreatorProductsInternal with search', () => {
   async function seedShopWithProducts() {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
+    const u = await createUser()
+    const s = await createShop(u, { name: 'Test Shop', slug: 'test-shop' })
 
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: u.id })
-      .returning()
+    const p1 = await createProduct(s, {
+      name: 'Ceramic Vase',
+      slug: 'ceramic-vase',
+      priceCents: 2999,
+      isActive: true,
+    })
 
-    await db.insert(product).values([
-      {
-        id: 'prod-1',
-        name: 'Ceramic Vase',
-        slug: 'ceramic-vase',
-        priceCents: 2999,
-        stockCount: 10,
-        shopId: s.id,
-        isActive: true,
-      },
-      {
-        id: 'prod-2',
-        name: 'Wooden Bowl',
-        slug: 'wooden-bowl',
-        priceCents: 1999,
-        shopId: s.id,
-        isActive: true,
-      },
-      {
-        id: 'prod-3',
-        name: 'Ceramic Plate',
-        slug: 'ceramic-plate',
-        priceCents: 1599,
-        shopId: s.id,
-        isActive: false,
-      },
-    ])
+    const p2 = await createProduct(s, {
+      name: 'Wooden Bowl',
+      slug: 'wooden-bowl',
+      priceCents: 1999,
+      isActive: true,
+    })
 
-    return { u, s }
+    const p3 = await createProduct(s, {
+      name: 'Ceramic Plate',
+      slug: 'ceramic-plate',
+      priceCents: 1599,
+      isActive: false,
+    })
+
+    return { u, s, p1, p2, p3 }
   }
 
   it('filters products by name search', async () => {
@@ -1638,13 +1152,11 @@ describe('listCreatorProductsInternal with search', () => {
   })
 
   it('returns thumbnail URL for products with images', async () => {
-    const { s } = await seedShopWithProducts()
+    const { s, p1, p2 } = await seedShopWithProducts()
 
-    await db.insert(productImage).values([
-      { id: 'img-1', productId: 'prod-1', url: '/uploads/vase.jpg', sortOrder: 0 },
-      { id: 'img-2', productId: 'prod-1', url: '/uploads/vase-back.jpg', sortOrder: 1 },
-      { id: 'img-3', productId: 'prod-2', url: '/uploads/bowl.jpg', sortOrder: 0 },
-    ])
+    await createProductImage(p1, { url: '/uploads/vase.jpg', sortOrder: 0 })
+    await createProductImage(p1, { url: '/uploads/vase-back.jpg', sortOrder: 1 })
+    await createProductImage(p2, { url: '/uploads/bowl.jpg', sortOrder: 0 })
 
     const result = await listCreatorProductsInternal({
       shopId: s.id,

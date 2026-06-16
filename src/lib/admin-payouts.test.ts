@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { db } from '#/db/index'
-import { orderItem, platformOrder, product, payout, shopOrder, shop, user } from '#/db/schema'
+import { clearTestTables } from '#/test/cleanup'
+import { createPayout, createShop, createUser } from '#/test/factories'
 
 import {
   listPayoutHistoryQuery,
@@ -9,59 +9,47 @@ import {
   markPayoutSentQuery,
 } from './payouts.server'
 
+// These tests share a single database; disable concurrent execution so
+// beforeEach cleanup doesn't race with seeding in other tests.
+// biome-ignore lint/suspicious/noExportsInTest: Vitest per-file config.
+export const config = {
+  sequence: { concurrent: false },
+}
+
 /* -------------------------------------------------------------------------- */
 /*                                  Helpers                                   */
 /* -------------------------------------------------------------------------- */
 
 beforeEach(async () => {
-  await db.delete(payout)
-  await db.delete(orderItem)
-  await db.delete(shopOrder)
-  await db.delete(platformOrder)
-  await db.delete(product)
-  await db.delete(shop)
-  await db.delete(user)
+  await clearTestTables()
 })
 
-async function seedUser(overrides?: Partial<typeof user.$inferInsert>) {
-  return db
-    .insert(user)
-    .values({
-      id: 'user-1',
-      name: 'Test Creator',
-      email: 'creator@example.com',
-      emailVerified: true,
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+async function seedUser(overrides?: Parameters<typeof createUser>[0]) {
+  return createUser({
+    id: 'user-1',
+    name: 'Test Creator',
+    email: 'creator@example.com',
+    ...overrides,
+  })
 }
 
-async function seedShop(overrides?: Partial<typeof shop.$inferInsert>) {
-  return db
-    .insert(shop)
-    .values({
-      id: 'shop-1',
-      name: 'Test Shop',
-      slug: 'test-shop',
-      ownerId: 'user-1',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+async function seedShop(overrides?: Parameters<typeof createShop>[1]) {
+  const ownerId = overrides?.ownerId ?? 'user-1'
+  return createShop(ownerId, {
+    id: 'shop-1',
+    name: 'Test Shop',
+    slug: 'test-shop',
+    ...overrides,
+  })
 }
 
-async function seedPayout(overrides?: Partial<typeof payout.$inferInsert>) {
-  return db
-    .insert(payout)
-    .values({
-      shopId: 'shop-1',
-      amountCents: 5000,
-      status: 'pending',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+async function seedPayout(overrides?: Parameters<typeof createPayout>[1]) {
+  const shopId = overrides?.shopId ?? 'shop-1'
+  return createPayout(shopId, {
+    amountCents: 5000,
+    status: 'pending',
+    ...overrides,
+  })
 }
 
 /* -------------------------------------------------------------------------- */

@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { db } from '#/db/index'
-import { shop, user } from '#/db/schema'
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { shop, user } from '#/db/schema'
+import { clearTestTables } from '#/test/cleanup'
+import { createShop, createUser } from '#/test/factories'
 import { Route } from './settings'
 
 const mockGetSession = vi.fn()
@@ -25,39 +26,33 @@ const handlers = (
 ).handlers
 
 async function seedUser(overrides?: Partial<typeof user.$inferInsert>) {
-  return db
-    .insert(user)
-    .values({
-      id: 'user-1',
-      name: 'Test Creator',
-      email: 'creator@example.com',
-      emailVerified: true,
-      role: 'creator',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+  return createUser({
+    id: 'user-1',
+    name: 'Test Creator',
+    email: 'creator@example.com',
+    emailVerified: true,
+    role: 'creator',
+    ...overrides,
+  })
 }
 
 async function seedShop(overrides?: Partial<typeof shop.$inferInsert>) {
-  return db
-    .insert(shop)
-    .values({
-      id: 'shop-1',
-      name: 'Test Shop',
-      slug: 'test-shop',
-      ownerId: 'user-1',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+  return createShop('user-1', {
+    id: 'shop-1',
+    name: 'Test Shop',
+    slug: 'test-shop',
+    ...overrides,
+  })
 }
+
+afterAll(async () => {
+  await clearTestTables()
+})
 
 describe('GET /api/shops/$shopId/settings', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
-    await db.delete(shop)
-    await db.delete(user)
+    await clearTestTables()
   })
 
   it('returns shop details for the owner', async () => {
@@ -95,7 +90,7 @@ describe('GET /api/shops/$shopId/settings', () => {
   it('returns 403 for a non-owner creator', async () => {
     await seedUser()
     await seedShop()
-    await db.insert(user).values({
+    await createUser({
       id: 'user-2',
       name: 'Other Creator',
       email: 'other@example.com',
@@ -126,8 +121,7 @@ describe('GET /api/shops/$shopId/settings', () => {
 describe('PATCH /api/shops/$shopId/settings', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
-    await db.delete(shop)
-    await db.delete(user)
+    await clearTestTables()
   })
 
   it('updates and returns the shop for the owner', async () => {
@@ -172,11 +166,10 @@ describe('PATCH /api/shops/$shopId/settings', () => {
   it('returns 409 on slug collision', async () => {
     await seedUser()
     await seedShop({ id: 'shop-1', slug: 'test-shop' })
-    await db.insert(shop).values({
+    await createShop('user-1', {
       id: 'shop-2',
       name: 'Other Shop',
       slug: 'taken-slug',
-      ownerId: 'user-1',
     })
 
     mockGetSession.mockResolvedValueOnce({
@@ -198,7 +191,7 @@ describe('PATCH /api/shops/$shopId/settings', () => {
   it('returns 403 for a non-owner creator', async () => {
     await seedUser()
     await seedShop()
-    await db.insert(user).values({
+    await createUser({
       id: 'user-2',
       name: 'Other Creator',
       email: 'other@example.com',

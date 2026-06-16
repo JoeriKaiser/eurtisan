@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { db } from '#/db/index'
-import { platformOrder, product, shop, shopOrder, user } from '#/db/schema'
+import { clearTestTables } from '#/test/cleanup'
+import {
+  createPlatformOrder,
+  createProduct,
+  createShop,
+  createShopOrder,
+  createUser,
+} from '#/test/factories'
 import { Route } from './dashboard'
 
 const mockGetSession = vi.fn()
@@ -21,114 +27,66 @@ const getHandler = (
   }
 ).handlers.GET
 
-async function seedUser(overrides?: Partial<typeof user.$inferInsert>) {
-  return db
-    .insert(user)
-    .values({
-      id: 'user-1',
-      name: 'Test Creator',
-      email: 'creator@example.com',
-      emailVerified: true,
-      role: 'creator',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+async function seedUser() {
+  return createUser({
+    id: 'user-1',
+    name: 'Test Creator',
+    email: 'creator@example.com',
+    role: 'creator',
+  })
 }
 
-async function seedShop(overrides?: Partial<typeof shop.$inferInsert>) {
-  return db
-    .insert(shop)
-    .values({
-      id: 'shop-1',
-      name: 'Test Shop',
-      slug: 'test-shop',
-      ownerId: 'user-1',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+async function seedShop() {
+  return createShop('user-1', { id: 'shop-1', name: 'Test Shop', slug: 'test-shop' })
 }
 
-async function seedProduct(overrides?: Partial<typeof product.$inferInsert>) {
-  return db
-    .insert(product)
-    .values({
-      id: 'prod-1',
-      name: 'Vase',
-      slug: 'vase',
-      priceCents: 1000,
-      stockCount: 10,
-      shopId: 'shop-1',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+async function seedProduct(overrides?: Parameters<typeof createProduct>[1]) {
+  return createProduct('shop-1', { id: 'prod-1', name: 'Vase', slug: 'vase', ...overrides })
 }
 
 async function seedBuyer() {
-  return db
-    .insert(user)
-    .values({
-      id: 'buyer-1',
-      name: 'Test Buyer',
-      email: 'buyer@example.com',
-      emailVerified: true,
-      role: 'customer',
-    })
-    .returning()
-    .then((rows) => rows[0])
+  return createUser({
+    id: 'buyer-1',
+    name: 'Test Buyer',
+    email: 'buyer@example.com',
+    role: 'customer',
+  })
 }
 
 async function seedPlatformOrder(buyerId: string) {
-  return db
-    .insert(platformOrder)
-    .values({
-      userId: buyerId,
-      shippingAddress: {
-        name: 'Buyer',
-        street: 'St',
-        city: 'City',
-        postalCode: '00000',
-        country: 'DE',
-      },
-      billingAddress: {
-        name: 'Buyer',
-        street: 'St',
-        city: 'City',
-        postalCode: '00000',
-        country: 'DE',
-      },
-      totalCents: 1000,
-    })
-    .returning()
-    .then((rows) => rows[0])
+  return createPlatformOrder(buyerId, {
+    shippingAddress: {
+      name: 'Buyer',
+      street: 'St',
+      city: 'City',
+      postalCode: '00000',
+      country: 'DE',
+    },
+    billingAddress: {
+      name: 'Buyer',
+      street: 'St',
+      city: 'City',
+      postalCode: '00000',
+      country: 'DE',
+    },
+    totalCents: 1000,
+  })
 }
 
-async function seedShopOrder(overrides?: Partial<typeof shopOrder.$inferInsert>) {
-  return db
-    .insert(shopOrder)
-    .values({
-      platformOrderId: 'placeholder',
-      shopId: 'shop-1',
-      shippingMethod: 'standard',
-      shippingCostCents: 100,
-      subtotalCents: 900,
-      status: 'paid',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+async function seedShopOrder(overrides?: Parameters<typeof createShopOrder>[2]) {
+  return createShopOrder('placeholder', 'shop-1', {
+    shippingMethod: 'standard',
+    shippingCostCents: 100,
+    subtotalCents: 900,
+    status: 'paid',
+    ...overrides,
+  })
 }
 
 describe('GET /api/shops/$shopId/dashboard', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
-    await db.delete(shopOrder)
-    await db.delete(platformOrder)
-    await db.delete(product)
-    await db.delete(shop)
-    await db.delete(user)
+    await clearTestTables()
   })
 
   it('returns real per-shop metrics for the owner', async () => {
@@ -169,7 +127,7 @@ describe('GET /api/shops/$shopId/dashboard', () => {
   it('returns 403 for a non-owner creator', async () => {
     await seedUser()
     await seedShop()
-    await db.insert(user).values({
+    await createUser({
       id: 'user-2',
       name: 'Other Creator',
       email: 'other@example.com',

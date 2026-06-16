@@ -3,92 +3,75 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { db } from '#/db/index'
 import {
-  platformOrder,
+  type platformOrder,
   sendcloudWebhookEvent,
-  shippingLabel,
-  shop,
+  type shippingLabel,
+  type shop,
   shopOrder,
-  user,
+  type user,
 } from '#/db/schema'
 import { flushBackgroundWorkForTests } from '#/lib/background-work.server'
+import { clearTestTables } from '#/test/cleanup'
+import {
+  createPlatformOrder,
+  createShippingLabel,
+  createShop,
+  createShopOrder,
+  createUser,
+} from '#/test/factories'
 import { processSendcloudWebhook } from './sendcloud'
 
 // ---------------------------------------------------------------------------
-// Database seed helpers
+// Database seed helpers (thin wrappers around shared factories)
 // ---------------------------------------------------------------------------
 
 async function seedUser(overrides?: Partial<typeof user.$inferInsert>) {
-  return db
-    .insert(user)
-    .values({
-      id: 'sendcloud-user-1',
-      name: 'Sendcloud Test',
-      email: 'sendcloud-test@example.com',
-      emailVerified: true,
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+  return createUser({
+    id: 'sendcloud-user-1',
+    name: 'Sendcloud Test',
+    email: 'sendcloud-test@example.com',
+    emailVerified: true,
+    ...overrides,
+  })
 }
 
 async function seedShop(overrides?: Partial<typeof shop.$inferInsert>) {
-  return db
-    .insert(shop)
-    .values({
-      id: 'sendcloud-shop-1',
-      name: 'Sendcloud Test Shop',
-      slug: 'sendcloud-test-shop',
-      ownerId: 'sendcloud-user-1',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+  return createShop('sendcloud-user-1', {
+    id: 'sendcloud-shop-1',
+    name: 'Sendcloud Test Shop',
+    slug: 'sendcloud-test-shop',
+    ...overrides,
+  })
 }
 
 async function seedPlatformOrder(overrides?: Partial<typeof platformOrder.$inferInsert>) {
-  return db
-    .insert(platformOrder)
-    .values({
-      id: '10000000-0000-0000-0000-000000000123',
-      userId: 'sendcloud-user-1',
-      shippingAddress: { name: 'T', street: 'S', city: 'C', postalCode: '1', country: 'NL' },
-      billingAddress: { name: 'T', street: 'S', city: 'C', postalCode: '1', country: 'NL' },
-      totalCents: 1000,
-      status: 'shipped',
-      molliePaymentId: 'tr_mock_000123',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+  return createPlatformOrder('sendcloud-user-1', {
+    id: '10000000-0000-0000-0000-000000000123',
+    shippingAddress: { name: 'T', street: 'S', city: 'C', postalCode: '1', country: 'NL' },
+    billingAddress: { name: 'T', street: 'S', city: 'C', postalCode: '1', country: 'NL' },
+    totalCents: 1000,
+    status: 'shipped',
+    molliePaymentId: 'tr_mock_000123',
+    ...overrides,
+  })
 }
 
 async function seedShopOrder(overrides?: Partial<typeof shopOrder.$inferInsert>) {
-  return db
-    .insert(shopOrder)
-    .values({
-      platformOrderId: '10000000-0000-0000-0000-000000000123',
-      shopId: 'sendcloud-shop-1',
-      shippingMethod: 'standard',
-      shippingCostCents: 500,
-      subtotalCents: 1000,
-      status: 'shipped',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+  return createShopOrder('10000000-0000-0000-0000-000000000123', 'sendcloud-shop-1', {
+    shippingMethod: 'standard',
+    shippingCostCents: 500,
+    subtotalCents: 1000,
+    status: 'shipped',
+    ...overrides,
+  })
 }
 
 async function seedShippingLabel(overrides?: Partial<typeof shippingLabel.$inferInsert>) {
-  return db
-    .insert(shippingLabel)
-    .values({
-      shopOrderId: '00000000-0000-0000-0000-000000000000',
-      carrier: 'sendcloud',
-      trackingNumber: 'SC12345678',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+  return createShippingLabel('00000000-0000-0000-0000-000000000000', {
+    carrier: 'sendcloud',
+    trackingNumber: 'SC12345678',
+    ...overrides,
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -112,24 +95,14 @@ function mockRequest(body: unknown, headers?: Record<string, string>): Request {
 // ---------------------------------------------------------------------------
 
 beforeEach(async () => {
-  await db.delete(sendcloudWebhookEvent)
-  await db.delete(shippingLabel)
-  await db.delete(shopOrder)
-  await db.delete(platformOrder)
-  await db.delete(shop)
-  await db.delete(user)
+  await clearTestTables()
 
   await seedUser()
   await seedShop()
 })
 
 afterEach(async () => {
-  await db.delete(shippingLabel)
-  await db.delete(shopOrder)
-  await db.delete(platformOrder)
-  await db.delete(shop)
-  await db.delete(user)
-  await db.delete(sendcloudWebhookEvent)
+  await clearTestTables()
 })
 
 // ---------------------------------------------------------------------------

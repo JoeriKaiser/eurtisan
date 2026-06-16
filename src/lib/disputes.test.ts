@@ -2,21 +2,21 @@ import { eq } from 'drizzle-orm'
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
-import {
-  dispute,
-  disputeMessage,
-  inventoryReservation,
-  notification,
-  orderItem,
-  payout,
-  platformOrder,
-  product,
-  shop,
-  shopOrder,
-  user,
-} from '#/db/schema'
+import { dispute, inventoryReservation, payout, platformOrder, shopOrder } from '#/db/schema'
 
 import { molliePaymentProvider } from '#/integrations/mollie'
+
+import { clearTestTables } from '#/test/cleanup'
+import {
+  createInventoryReservation,
+  createOrderItem,
+  createPayout,
+  createPlatformOrder,
+  createProduct,
+  createShop,
+  createShopOrder,
+  createUser,
+} from '#/test/factories'
 
 import {
   addDisputeMessageQuery,
@@ -27,59 +27,29 @@ import {
 } from './disputes.server'
 
 beforeEach(async () => {
-  await db.delete(notification)
-  await db.delete(disputeMessage)
-  await db.delete(dispute)
-  await db.delete(orderItem)
-  await db.delete(inventoryReservation)
-  await db.delete(payout)
-  await db.delete(shopOrder)
-  await db.delete(platformOrder)
-  await db.delete(product)
-  await db.delete(shop)
-  await db.delete(user)
+  await clearTestTables()
 })
 
 afterAll(async () => {
-  await db.delete(notification)
-  await db.delete(disputeMessage)
-  await db.delete(dispute)
-  await db.delete(orderItem)
-  await db.delete(inventoryReservation)
-  await db.delete(payout)
-  await db.delete(shopOrder)
-  await db.delete(platformOrder)
-  await db.delete(product)
-  await db.delete(shop)
-  await db.delete(user)
+  await clearTestTables()
 })
 
-async function seedUser(overrides?: Partial<typeof user.$inferInsert>) {
-  return db
-    .insert(user)
-    .values({
-      id: 'user-1',
-      name: 'Test',
-      email: 'test@example.com',
-      emailVerified: true,
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+async function seedUser(overrides?: Parameters<typeof createUser>[0]) {
+  return createUser({
+    id: 'user-1',
+    name: 'Test',
+    email: 'test@example.com',
+    ...overrides,
+  })
 }
 
-async function seedShop(overrides?: Partial<typeof shop.$inferInsert>) {
-  return db
-    .insert(shop)
-    .values({
-      id: 'shop-1',
-      name: 'Test Shop',
-      slug: 'test-shop',
-      ownerId: 'user-1',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+async function seedShop(overrides?: Parameters<typeof createShop>[1]) {
+  return createShop('user-1', {
+    id: 'shop-1',
+    name: 'Test Shop',
+    slug: 'test-shop',
+    ...overrides,
+  })
 }
 
 async function seedDeliveredOrder(overrides?: {
@@ -89,63 +59,33 @@ async function seedDeliveredOrder(overrides?: {
   shippingCostCents?: number
   molliePaymentId?: string
 }) {
-  const u = overrides?.userId ?? 'user-1'
-  const [order] = await db
-    .insert(platformOrder)
-    .values({
-      userId: u,
-      shippingAddress: {
-        name: 'Test',
-        street: 'St',
-        city: 'City',
-        postalCode: '12345',
-        country: 'DE',
-      },
-      billingAddress: {
-        name: 'Test',
-        street: 'St',
-        city: 'City',
-        postalCode: '12345',
-        country: 'DE',
-      },
-      totalCents: 2500,
-      molliePaymentId: overrides?.molliePaymentId ?? null,
-    })
-    .returning()
+  const buyerId = overrides?.userId ?? 'user-1'
+  const order = await createPlatformOrder(buyerId, {
+    totalCents: 2500,
+    molliePaymentId: overrides?.molliePaymentId ?? null,
+  })
 
-  const [so] = await db
-    .insert(shopOrder)
-    .values({
-      platformOrderId: order.id,
-      shopId: 'shop-1',
-      shippingMethod: 'standard',
-      shippingCostCents: overrides?.shippingCostCents ?? 500,
-      subtotalCents: overrides?.subtotalCents ?? 2000,
-      status: 'delivered',
-      deliveredAt: overrides?.deliveredAt ?? new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-    })
-    .returning()
+  const so = await createShopOrder(order, 'shop-1', {
+    shippingMethod: 'standard',
+    shippingCostCents: overrides?.shippingCostCents ?? 500,
+    subtotalCents: overrides?.subtotalCents ?? 2000,
+    status: 'delivered',
+    deliveredAt: overrides?.deliveredAt ?? new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+  })
 
   return { order, shopOrder: so }
 }
 
 async function seedProductAndReservation(platformOrderId: string, shopOrderId: string) {
-  const [prod] = await db
-    .insert(product)
-    .values({
-      id: 'prod-1',
-      name: 'Test Product',
-      slug: 'test-product',
-      priceCents: 2000,
-      stockCount: 10,
-      shopId: 'shop-1',
-    })
-    .returning()
+  const prod = await createProduct('shop-1', {
+    id: 'prod-1',
+    name: 'Test Product',
+    slug: 'test-product',
+    priceCents: 2000,
+    stockCount: 10,
+  })
 
-  await db.insert(orderItem).values({
-    shopOrderId,
-    productId: prod.id,
-    productName: prod.name,
+  await createOrderItem(shopOrderId, prod, {
     quantity: 2,
     unitPriceCents: prod.priceCents,
     totalCents: prod.priceCents * 2,
@@ -153,11 +93,9 @@ async function seedProductAndReservation(platformOrderId: string, shopOrderId: s
     vatAmountCents: 400,
   })
 
-  await db.insert(inventoryReservation).values({
-    productId: prod.id,
+  await createInventoryReservation(prod, {
     platformOrderId,
     quantity: 2,
-    expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
   })
 
   return prod
@@ -189,39 +127,12 @@ describe('openDisputeQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '12345',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '12345',
-          country: 'DE',
-        },
-        totalCents: 1000,
-      })
-      .returning()
-
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'shipped',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', { totalCents: 1000 })
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'shipped',
+    })
 
     try {
       await openDisputeQuery(
@@ -282,40 +193,13 @@ describe('openDisputeQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '12345',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '12345',
-          country: 'DE',
-        },
-        totalCents: 1000,
-      })
-      .returning()
-
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'delivered',
-        deliveredAt: null,
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', { totalCents: 1000 })
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'delivered',
+      deliveredAt: null,
+    })
 
     try {
       await openDisputeQuery(
@@ -727,23 +611,16 @@ describe('getDisputeDetailQuery', () => {
     )
 
     // Seed a product so the order item FK constraint is satisfied
-    await db.insert(product).values({
-      id: 'product-1',
+    const prod = await createProduct('shop-1', {
       name: 'Test Product',
       slug: 'test-product',
       priceCents: 1000,
       stockCount: 10,
-      shopId: 'shop-1',
     })
 
     // Seed an order item to test items array
-    await db.insert(orderItem).values({
-      shopOrderId: so.id,
-      productId: 'product-1',
-      productName: 'Test Product',
-      unitPriceCents: 1000,
+    await createOrderItem(so, prod, {
       quantity: 2,
-      totalCents: 2000,
     })
 
     await addDisputeMessageQuery(d.id, 'Message 1', 'user-1', 'customer')
@@ -1457,9 +1334,8 @@ describe('resolveDisputeQuery', () => {
     await seedProductAndReservation(order.id, so.id)
 
     // Seed a sent payout for this shop order
-    await db.insert(payout).values({
+    await createPayout(so.shopId, {
       shopOrderId: so.id,
-      shopId: so.shopId,
       amountCents: 1800,
       status: 'sent',
     })
@@ -1506,9 +1382,8 @@ describe('resolveDisputeQuery', () => {
     await seedProductAndReservation(order.id, so.id)
 
     // Seed a sent payout for this shop order
-    await db.insert(payout).values({
+    await createPayout(so.shopId, {
       shopOrderId: so.id,
-      shopId: so.shopId,
       amountCents: 1800,
       status: 'sent',
     })
@@ -1553,9 +1428,8 @@ describe('resolveDisputeQuery', () => {
     await seedProductAndReservation(order.id, so.id)
 
     // Seed a sent payout for this shop order
-    await db.insert(payout).values({
+    await createPayout(so.shopId, {
       shopOrderId: so.id,
-      shopId: so.shopId,
       amountCents: 1800,
       status: 'sent',
     })

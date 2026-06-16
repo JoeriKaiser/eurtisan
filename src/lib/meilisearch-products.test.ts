@@ -2,28 +2,20 @@ import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
-import {
-  categories,
-  inventoryReservation,
-  orderItem,
-  platformOrder,
-  product,
-  productImage,
-  shop,
-  shopOrder,
-  user,
-  meilisearchSyncQueue,
-} from '#/db/schema'
+import { meilisearchSyncQueue, shop } from '#/db/schema'
+
+import { clearTestTables } from '#/test/cleanup'
+import { createCategory, createProduct, createShop, createUser } from '#/test/factories'
 
 import {
   configureProductsIndex,
   PRODUCTS_INDEX,
   populateProductsIndex,
+  processMeilisearchSyncQueue,
   removeProductFromMeilisearch,
   removeShopProductsFromMeilisearch,
   searchProductsMeilisearch,
   syncProductToMeilisearch,
-  processMeilisearchSyncQueue,
 } from './meilisearch-products.server'
 
 const {
@@ -63,15 +55,7 @@ vi.mock('./meilisearch.server', () => ({
 }))
 
 beforeEach(async () => {
-  await db.delete(inventoryReservation)
-  await db.delete(orderItem)
-  await db.delete(shopOrder)
-  await db.delete(platformOrder)
-  await db.delete(productImage)
-  await db.delete(product)
-  await db.delete(categories)
-  await db.delete(shop)
-  await db.delete(user)
+  await clearTestTables()
 
   mockAddDocuments.mockClear()
   mockUpdateSettings.mockClear()
@@ -134,44 +118,39 @@ describe('configureProductsIndex', () => {
 async function seedShopAndProduct(
   overrides: { shopSuspended?: boolean; productActive?: boolean; categoryId?: string } = {},
 ) {
-  const [u] = await db
-    .insert(user)
-    .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-    .returning()
+  const u = await createUser({
+    id: 'user-1',
+    name: 'Test',
+    email: 'test@example.com',
+    emailVerified: true,
+  })
 
-  const [s] = await db
-    .insert(shop)
-    .values({
-      id: 'shop-1',
-      name: 'Test Shop',
-      slug: 'test-shop',
-      ownerId: u.id,
-      isSuspended: overrides.shopSuspended ?? false,
-      status: 'active',
-    })
-    .returning()
+  const s = await createShop(u, {
+    id: 'shop-1',
+    name: 'Test Shop',
+    slug: 'test-shop',
+    isSuspended: overrides.shopSuspended ?? false,
+    status: 'active',
+  })
 
   let catId: string | undefined
   if (overrides.categoryId !== undefined) {
-    const [cat] = await db
-      .insert(categories)
-      .values({ id: overrides.categoryId, name: 'Pottery', slug: 'pottery' })
-      .returning()
+    const cat = await createCategory({
+      id: overrides.categoryId,
+      name: 'Pottery',
+      slug: 'pottery',
+    })
     catId = cat.id
   }
 
-  const [p] = await db
-    .insert(product)
-    .values({
-      id: 'prod-1',
-      name: 'Vase',
-      slug: 'vase',
-      priceCents: 2999,
-      shopId: s.id,
-      categoryId: catId ?? null,
-      isActive: overrides.productActive ?? true,
-    })
-    .returning()
+  const p = await createProduct(s, {
+    id: 'prod-1',
+    name: 'Vase',
+    slug: 'vase',
+    priceCents: 2999,
+    categoryId: catId ?? null,
+    isActive: overrides.productActive ?? true,
+  })
 
   return { shop: s, product: p, categoryId: catId }
 }
@@ -252,61 +231,59 @@ describe('removeShopProductsFromMeilisearch', () => {
 
 describe('populateProductsIndex', () => {
   async function seedData() {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
+    const u = await createUser({
+      id: 'user-1',
+      name: 'Test',
+      email: 'test@example.com',
+      emailVerified: true,
+    })
 
-    const [s1] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Shop 1', slug: 'shop-1', ownerId: u.id, status: 'active' })
-      .returning()
+    const s1 = await createShop(u, {
+      id: 'shop-1',
+      name: 'Shop 1',
+      slug: 'shop-1',
+      status: 'active',
+    })
 
-    const [s2] = await db
-      .insert(shop)
-      .values({
-        id: 'shop-2',
-        name: 'Shop 2',
-        slug: 'shop-2',
-        ownerId: u.id,
-        isSuspended: true,
-        status: 'active',
-      })
-      .returning()
+    const s2 = await createShop(u, {
+      id: 'shop-2',
+      name: 'Shop 2',
+      slug: 'shop-2',
+      isSuspended: true,
+      status: 'active',
+    })
 
-    const [cat] = await db
-      .insert(categories)
-      .values({ id: '550e8400-e29b-41d4-a716-446655440001', name: 'Pottery', slug: 'pottery' })
-      .returning()
+    const cat = await createCategory({
+      id: '550e8400-e29b-41d4-a716-446655440001',
+      name: 'Pottery',
+      slug: 'pottery',
+    })
 
-    await db.insert(product).values([
-      {
-        id: 'prod-1',
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        shopId: s1.id,
-        categoryId: cat.id,
-        isActive: true,
-      },
-      {
-        id: 'prod-2',
-        name: 'Bowl',
-        slug: 'bowl',
-        priceCents: 1999,
-        shopId: s1.id,
-        isActive: false,
-      },
-      {
-        id: 'prod-3',
-        name: 'Plate',
-        slug: 'plate',
-        priceCents: 4999,
-        shopId: s2.id,
-        categoryId: cat.id,
-        isActive: true,
-      },
-    ])
+    await createProduct(s1, {
+      id: 'prod-1',
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 2999,
+      categoryId: cat.id,
+      isActive: true,
+    })
+
+    await createProduct(s1, {
+      id: 'prod-2',
+      name: 'Bowl',
+      slug: 'bowl',
+      priceCents: 1999,
+      isActive: false,
+    })
+
+    await createProduct(s2, {
+      id: 'prod-3',
+      name: 'Plate',
+      slug: 'plate',
+      priceCents: 4999,
+      categoryId: cat.id,
+      isActive: true,
+    })
 
     return { s1, s2, cat }
   }
@@ -326,27 +303,29 @@ describe('populateProductsIndex', () => {
   })
 
   it('streams products in batches without accumulating all docs in memory', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
+    const u = await createUser({
+      id: 'user-1',
+      name: 'Test',
+      email: 'test@example.com',
+      emailVerified: true,
+    })
 
-    const [s] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Shop 1', slug: 'shop-1', ownerId: u.id, status: 'active' })
-      .returning()
+    const s = await createShop(u, {
+      id: 'shop-1',
+      name: 'Shop 1',
+      slug: 'shop-1',
+      status: 'active',
+    })
 
     // Seed 5 active products
-    const productsToInsert = Array.from({ length: 5 }, (_, i) => ({
-      id: `prod-${String(i + 1).padStart(3, '0')}`,
-      name: `Product ${i + 1}`,
-      slug: `product-${i + 1}`,
-      priceCents: 1000 + i * 100,
-      shopId: s.id,
-      isActive: true,
-    }))
-
-    await db.insert(product).values(productsToInsert)
+    for (let i = 0; i < 5; i++) {
+      await createProduct(s, {
+        name: `Product ${i + 1}`,
+        slug: `product-${i + 1}`,
+        priceCents: 1000 + i * 100,
+        isActive: true,
+      })
+    }
 
     const result = await populateProductsIndex(2)
     expect(result.synced).toBe(5)
@@ -366,60 +345,65 @@ describe('populateProductsIndex', () => {
 
 describe('searchProductsMeilisearch', () => {
   async function seedSearchData() {
-    const [u] = await db
-      .insert(user)
-      .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-      .returning()
+    const u = await createUser({
+      id: 'user-1',
+      name: 'Test',
+      email: 'test@example.com',
+      emailVerified: true,
+    })
 
-    const [s1] = await db
-      .insert(shop)
-      .values({ id: 'shop-1', name: 'Shop 1', slug: 'shop-1', ownerId: u.id, status: 'active' })
-      .returning()
+    const s1 = await createShop(u, {
+      id: 'shop-1',
+      name: 'Shop 1',
+      slug: 'shop-1',
+      status: 'active',
+    })
 
-    const [s2] = await db
-      .insert(shop)
-      .values({ id: 'shop-2', name: 'Shop 2', slug: 'shop-2', ownerId: u.id, status: 'active' })
-      .returning()
+    const s2 = await createShop(u, {
+      id: 'shop-2',
+      name: 'Shop 2',
+      slug: 'shop-2',
+      status: 'active',
+    })
 
-    const [c1] = await db
-      .insert(categories)
-      .values({ id: '550e8400-e29b-41d4-a716-446655440001', name: 'Pottery', slug: 'pottery' })
-      .returning()
+    const c1 = await createCategory({
+      id: '550e8400-e29b-41d4-a716-446655440001',
+      name: 'Pottery',
+      slug: 'pottery',
+    })
 
-    const [c2] = await db
-      .insert(categories)
-      .values({ id: '550e8400-e29b-41d4-a716-446655440002', name: 'Tableware', slug: 'tableware' })
-      .returning()
+    const c2 = await createCategory({
+      id: '550e8400-e29b-41d4-a716-446655440002',
+      name: 'Tableware',
+      slug: 'tableware',
+    })
 
-    await db.insert(product).values([
-      {
-        id: 'prod-1',
-        name: 'Ceramic Vase',
-        slug: 'ceramic-vase',
-        priceCents: 2999,
-        shopId: s1.id,
-        categoryId: c1.id,
-        isActive: true,
-      },
-      {
-        id: 'prod-2',
-        name: 'Wooden Bowl',
-        slug: 'wooden-bowl',
-        priceCents: 1999,
-        shopId: s1.id,
-        categoryId: c2.id,
-        isActive: true,
-      },
-      {
-        id: 'prod-3',
-        name: 'Glass Plate',
-        slug: 'glass-plate',
-        priceCents: 4999,
-        shopId: s2.id,
-        categoryId: c2.id,
-        isActive: true,
-      },
-    ])
+    await createProduct(s1, {
+      id: 'prod-1',
+      name: 'Ceramic Vase',
+      slug: 'ceramic-vase',
+      priceCents: 2999,
+      categoryId: c1.id,
+      isActive: true,
+    })
+
+    await createProduct(s1, {
+      id: 'prod-2',
+      name: 'Wooden Bowl',
+      slug: 'wooden-bowl',
+      priceCents: 1999,
+      categoryId: c2.id,
+      isActive: true,
+    })
+
+    await createProduct(s2, {
+      id: 'prod-3',
+      name: 'Glass Plate',
+      slug: 'glass-plate',
+      priceCents: 4999,
+      categoryId: c2.id,
+      isActive: true,
+    })
 
     return { s1, s2, c1, c2 }
   }
@@ -623,10 +607,6 @@ describe('searchProductsMeilisearch', () => {
 })
 
 describe('processMeilisearchSyncQueue', () => {
-  beforeEach(async () => {
-    await db.delete(meilisearchSyncQueue)
-  })
-
   it('does nothing when the queue is empty', async () => {
     const result = await processMeilisearchSyncQueue()
     expect(result.processedCount).toBe(0)

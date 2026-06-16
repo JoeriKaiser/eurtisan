@@ -1,111 +1,45 @@
 import { eq } from 'drizzle-orm'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { db } from '#/db/index'
+import { payout, platformOrder, product, shopOrder } from '#/db/schema'
+import { clearTestTables } from '#/test/cleanup'
 import {
-  inventoryReservation,
-  orderItem,
-  payout,
-  platformOrder,
-  product,
-  shop,
-  shopOrder,
-  user,
-} from '#/db/schema'
+  createOrderItem,
+  createPlatformOrder,
+  createProduct,
+  createShop,
+  createShopOrder,
+  createUser,
+} from '#/test/factories'
 import {
   cancelShopOrderQuery,
+  markShopOrderDeliveredQuery,
   resolveManualReviewQuery,
   updateShopOrderTrackingQuery,
-  markShopOrderDeliveredQuery,
 } from './shop-orders.server'
 
 beforeEach(async () => {
-  await db.delete(payout)
-  await db.delete(inventoryReservation)
-  await db.delete(orderItem)
-  await db.delete(shopOrder)
-  await db.delete(platformOrder)
-  await db.delete(product)
-  await db.delete(shop)
-  await db.delete(user)
+  await clearTestTables()
 })
 
-async function seedUser(overrides?: Partial<typeof user.$inferInsert>) {
-  return db
-    .insert(user)
-    .values({
-      id: 'user-1',
-      name: 'Test',
-      email: 'test@example.com',
-      emailVerified: true,
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
-}
-
-async function seedShop(overrides?: Partial<typeof shop.$inferInsert>) {
-  return db
-    .insert(shop)
-    .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: 'user-1', ...overrides })
-    .returning()
-    .then((rows) => rows[0])
-}
-
-async function seedProduct(overrides?: Partial<typeof product.$inferInsert>) {
-  return db
-    .insert(product)
-    .values({
-      id: 'prod-1',
-      name: 'Vase',
-      slug: 'vase',
-      priceCents: 1000,
-      stockCount: 10,
-      shopId: 'shop-1',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
-}
+afterAll(async () => {
+  await clearTestTables()
+})
 
 async function seedPaidOrder(status: typeof shopOrder.$inferSelect.status = 'pending_payment') {
-  await seedUser()
-  await seedShop()
-
-  const [platformOrd] = await db
-    .insert(platformOrder)
-    .values({
-      userId: 'user-1',
-      shippingAddress: {
-        name: 'Buyer',
-        street: 'St',
-        city: 'Berlin',
-        postalCode: '10115',
-        country: 'DE',
-      },
-      billingAddress: {
-        name: 'Buyer',
-        street: 'St',
-        city: 'Berlin',
-        postalCode: '10115',
-        country: 'DE',
-      },
-      totalCents: 1000,
-      status: 'pending_payment',
-    })
-    .returning()
-
-  const [so] = await db
-    .insert(shopOrder)
-    .values({
-      platformOrderId: platformOrd.id,
-      shopId: 'shop-1',
-      shippingMethod: 'standard',
-      shippingCostCents: 0,
-      subtotalCents: 1000,
-      status,
-    })
-    .returning()
+  const owner = await createUser({ role: 'creator' })
+  const shop = await createShop(owner)
+  const buyer = await createUser()
+  const platformOrd = await createPlatformOrder(buyer, {
+    status: 'pending_payment',
+    totalCents: 1000,
+  })
+  const so = await createShopOrder(platformOrd, shop, {
+    status,
+    subtotalCents: 1000,
+    shippingCostCents: 0,
+  })
 
   return { platformOrder: platformOrd, shopOrder: so }
 }
@@ -166,13 +100,18 @@ describe('resolveManualReviewQuery', () => {
   it('resolves manual_review to paid', async () => {
     const { shopOrder: so, platformOrder: po } = await seedPaidOrder('manual_review')
     await db.update(platformOrder).set({ status: 'paid' }).where(eq(platformOrder.id, po.id))
-    await seedProduct()
-    await db.insert(orderItem).values({
-      shopOrderId: so.id,
-      productId: 'prod-1',
-      productName: 'Vase',
-      unitPriceCents: 1000,
+
+    const owner = await createUser({ role: 'creator' })
+    const shop = await createShop(owner)
+    const prod = await createProduct(shop, {
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 1000,
+      stockCount: 10,
+    })
+    await createOrderItem(so, prod, {
       quantity: 1,
+      unitPriceCents: 1000,
       totalCents: 1000,
       vatRateBasisPoints: 0,
       vatAmountCents: 0,
@@ -181,19 +120,24 @@ describe('resolveManualReviewQuery', () => {
     const updated = await resolveManualReviewQuery(so.id, { resolution: 'paid' })
     expect(updated.status).toBe('paid')
 
-    const [productRecord] = await db.select().from(product).where(eq(product.id, 'prod-1'))
+    const [productRecord] = await db.select().from(product).where(eq(product.id, prod.id))
     expect(productRecord?.stockCount).toBe(9)
   })
 
   it('resolves manual_review to cancelled and restocks', async () => {
     const { shopOrder: so } = await seedPaidOrder('manual_review')
-    await seedProduct()
-    await db.insert(orderItem).values({
-      shopOrderId: so.id,
-      productId: 'prod-1',
-      productName: 'Vase',
-      unitPriceCents: 1000,
+
+    const owner = await createUser({ role: 'creator' })
+    const shop = await createShop(owner)
+    const prod = await createProduct(shop, {
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 1000,
+      stockCount: 10,
+    })
+    await createOrderItem(so, prod, {
       quantity: 1,
+      unitPriceCents: 1000,
       totalCents: 1000,
       vatRateBasisPoints: 0,
       vatAmountCents: 0,
@@ -202,50 +146,29 @@ describe('resolveManualReviewQuery', () => {
     const updated = await resolveManualReviewQuery(so.id, { resolution: 'cancelled' })
     expect(updated.status).toBe('cancelled')
 
-    const [productRecord] = await db.select().from(product).where(eq(product.id, 'prod-1'))
+    const [productRecord] = await db.select().from(product).where(eq(product.id, prod.id))
     expect(productRecord?.stockCount).toBe(11)
   })
 })
 
 describe('markShopOrderDeliveredQuery dispute window', () => {
   it('sets a future dispute window and creates a pending payout without executing it', async () => {
-    await seedUser()
-    await seedShop({ mollieAccountId: 'org_test', paymentConnected: true })
-    const [platformOrd] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Buyer',
-          street: 'St',
-          city: 'Berlin',
-          postalCode: '10115',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Buyer',
-          street: 'St',
-          city: 'Berlin',
-          postalCode: '10115',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'paid',
-        molliePaymentId: 'tr_test',
-      })
-      .returning()
-
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: platformOrd.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 0,
-        subtotalCents: 1000,
-        status: 'shipped',
-      })
-      .returning()
+    const owner = await createUser({ role: 'creator' })
+    const shop = await createShop(owner, {
+      mollieAccountId: 'org_test',
+      paymentConnected: true,
+    })
+    const buyer = await createUser()
+    const platformOrd = await createPlatformOrder(buyer, {
+      status: 'paid',
+      totalCents: 1000,
+      molliePaymentId: 'tr_test',
+    })
+    const so = await createShopOrder(platformOrd, shop, {
+      status: 'shipped',
+      subtotalCents: 1000,
+      shippingCostCents: 0,
+    })
 
     await markShopOrderDeliveredQuery(so.id)
 

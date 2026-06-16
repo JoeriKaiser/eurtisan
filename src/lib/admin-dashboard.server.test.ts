@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { db } from '#/db/index'
-import { auditLog, platformOrder, shop, user } from '#/db/schema'
+import { clearTestTables } from '#/test/cleanup'
+import { createAuditLog, createPlatformOrder, createShop, createUser } from '#/test/factories'
 import {
   getAdminDashboardStatsQuery,
   getDashboardTrendsQuery,
@@ -9,14 +9,44 @@ import {
   getRecentSignupsQuery,
 } from './admin-dashboard.server'
 
-beforeEach(async () => {
-  await db.delete(auditLog)
-  await db.delete(platformOrder)
-  await db.delete(shop)
-  await db.delete(user)
-})
+/* -------------------------------------------------------------------------- */
+/*                                  Helpers                                   */
+/* -------------------------------------------------------------------------- */
 
-describe('admin-dashboard.server', () => {
+async function seedUser(overrides?: Parameters<typeof createUser>[0]) {
+  return createUser({ id: 'u-1', name: 'Test', email: 'test@example.com', ...overrides })
+}
+
+async function seedShop(overrides?: Parameters<typeof createShop>[1]) {
+  const ownerId = overrides?.ownerId ?? 'u-1'
+  return createShop(ownerId, { id: 's-1', name: 'Shop One', slug: 'shop-one', ...overrides })
+}
+
+async function seedPlatformOrder(overrides?: Parameters<typeof createPlatformOrder>[1]) {
+  return createPlatformOrder('u-1', {
+    shippingAddress: {},
+    billingAddress: {},
+    ...overrides,
+  })
+}
+
+async function seedAuditLog(overrides?: Parameters<typeof createAuditLog>[1]) {
+  return createAuditLog('u-audit', {
+    actorName: 'Test Actor',
+    resourceType: 'shop',
+    ...overrides,
+  })
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                   Tests                                    */
+/* -------------------------------------------------------------------------- */
+
+describe.sequential('admin-dashboard.server', () => {
+  beforeEach(async () => {
+    await clearTestTables()
+  })
+
   describe('getAdminDashboardStatsQuery', () => {
     it('returns zeros when database is empty', async () => {
       const stats = await getAdminDashboardStatsQuery()
@@ -27,20 +57,15 @@ describe('admin-dashboard.server', () => {
     })
 
     it('counts active shops (non-suspended)', async () => {
-      await db.insert(user).values({
-        id: 'u-1',
-        name: 'Alice',
-        email: 'alice@test.com',
-        role: 'creator',
-      })
-      await db.insert(shop).values({
+      await seedUser({ id: 'u-1', name: 'Alice', email: 'alice@test.com', role: 'creator' })
+      await seedShop({
         id: 's-1',
         ownerId: 'u-1',
         name: 'Shop One',
         slug: 'shop-one',
         isSuspended: false,
       })
-      await db.insert(shop).values({
+      await seedShop({
         id: 's-2',
         ownerId: 'u-1',
         name: 'Shop Two',
@@ -61,14 +86,14 @@ describe('admin-dashboard.server', () => {
     })
 
     it('returns most recent signups ordered newest first', async () => {
-      await db.insert(user).values({
+      await seedUser({
         id: 'u-old',
         name: 'Old',
         email: 'old@test.com',
         role: 'customer',
         createdAt: new Date('2026-01-01T00:00:00Z'),
       })
-      await db.insert(user).values({
+      await seedUser({
         id: 'u-new',
         name: 'New',
         email: 'new@test.com',
@@ -90,34 +115,17 @@ describe('admin-dashboard.server', () => {
     })
 
     it('returns recent orders ordered newest first', async () => {
-      await db.insert(user).values({
-        id: 'u-1',
-        name: 'Alice',
-        email: 'alice@test.com',
-        role: 'customer',
+      await seedUser({ id: 'u-1', name: 'Alice', email: 'alice@test.com', role: 'customer' })
+      const ord1 = await seedPlatformOrder({
+        status: 'paid',
+        totalCents: 1000,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
       })
-      const [ord1] = await db
-        .insert(platformOrder)
-        .values({
-          userId: 'u-1',
-          status: 'paid',
-          totalCents: 1000,
-          shippingAddress: {},
-          billingAddress: {},
-          createdAt: new Date('2026-01-01T00:00:00Z'),
-        })
-        .returning()
-      const [ord2] = await db
-        .insert(platformOrder)
-        .values({
-          userId: 'u-1',
-          status: 'shipped',
-          totalCents: 2000,
-          shippingAddress: {},
-          billingAddress: {},
-          createdAt: new Date('2026-05-01T00:00:00Z'),
-        })
-        .returning()
+      const ord2 = await seedPlatformOrder({
+        status: 'shipped',
+        totalCents: 2000,
+        createdAt: new Date('2026-05-01T00:00:00Z'),
+      })
 
       const orders = await getRecentOrdersQuery(5)
       expect(orders).toHaveLength(2)
@@ -140,7 +148,7 @@ describe('admin-dashboard.server', () => {
     it('includes non-zero values for days with data', async () => {
       const today = new Date()
       today.setHours(12, 0, 0, 0)
-      await db.insert(user).values({
+      await seedUser({
         id: 'u-today',
         name: 'Today',
         email: 'today@test.com',
@@ -161,22 +169,15 @@ describe('admin-dashboard.server', () => {
     })
 
     it('returns most recent audit entries ordered newest first', async () => {
-      await db.insert(user).values({
-        id: 'u-audit',
-        name: 'Audit',
-        email: 'audit@test.com',
-        role: 'admin',
-      })
-      await db.insert(auditLog).values({
-        actorId: 'u-audit',
+      await seedUser({ id: 'u-audit', name: 'Audit', email: 'audit@test.com', role: 'admin' })
+      await seedAuditLog({
         actorName: 'Old Admin',
         action: 'shop.approve',
         resourceType: 'shop',
         resourceId: 's-1',
         createdAt: new Date('2026-01-01T00:00:00Z'),
       })
-      await db.insert(auditLog).values({
-        actorId: 'u-audit',
+      await seedAuditLog({
         actorName: 'New Admin',
         action: 'shop.suspend',
         resourceType: 'shop',

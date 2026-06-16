@@ -1,41 +1,32 @@
-import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '#/db/index'
 import {
-  invoices,
   inventoryReservation,
-  orderItem,
+  invoices,
   payout,
   platformOrder,
   product,
-  shop,
   shopOrder,
-  user,
 } from '#/db/schema'
+import { clearTestTables } from '#/test/cleanup'
+import {
+  createInventoryReservation,
+  createOrderItem,
+  createPayout,
+  createPlatformOrder,
+  createProduct,
+  createShop,
+  createShopOrder,
+  createUser,
+} from '#/test/factories'
+import { flushBackgroundWorkForTests } from './background-work.server'
 import { createInvoicesForPlatformOrder } from './invoices.server'
 import { refundShopOrderQuery } from './shop-orders.server'
-import { flushBackgroundWorkForTests } from './background-work.server'
-
-const OWNER_ID = randomUUID()
-const BUYER_ID = randomUUID()
-const SHOP_ID = randomUUID()
-const PRODUCT_ID = randomUUID()
-const PO_ID = randomUUID()
-const SO_ID = randomUUID()
-const OI_ID = randomUUID()
 
 describe('refundShopOrderQuery', () => {
   beforeEach(async () => {
-    await db.delete(invoices)
-    await db.delete(payout)
-    await db.delete(orderItem)
-    await db.delete(inventoryReservation)
-    await db.delete(shopOrder)
-    await db.delete(platformOrder)
-    await db.delete(product)
-    await db.delete(shop)
-    await db.delete(user)
+    await clearTestTables()
   })
 
   async function seedRefundFixture(options?: {
@@ -43,83 +34,51 @@ describe('refundShopOrderQuery', () => {
     productStockCount?: number
     reservedQuantity?: number
   }) {
-    const [owner] = await db
-      .insert(user)
-      .values({
-        id: OWNER_ID,
-        name: 'Owner',
-        email: 'owner@example.com',
-        role: 'creator',
-        emailVerified: true,
-      })
-      .returning()
+    const owner = await createUser({
+      name: 'Owner',
+      email: 'owner@example.com',
+      role: 'creator',
+      emailVerified: true,
+    })
 
-    const [buyer] = await db
-      .insert(user)
-      .values({
-        id: BUYER_ID,
-        name: 'Buyer',
-        email: 'buyer@example.com',
-        role: 'customer',
-      })
-      .returning()
+    const buyer = await createUser({
+      name: 'Buyer',
+      email: 'buyer@example.com',
+      role: 'customer',
+    })
 
-    const [shopRecord] = await db
-      .insert(shop)
-      .values({
-        id: SHOP_ID,
-        name: 'Test Shop',
-        slug: 'test-shop',
-        ownerId: owner.id,
-        mollieAccountId: 'org_test',
-      })
-      .returning()
+    const shopRecord = await createShop(owner, {
+      name: 'Test Shop',
+      slug: 'test-shop',
+      mollieAccountId: 'org_test',
+    })
 
-    const [prod] = await db
-      .insert(product)
-      .values({
-        id: PRODUCT_ID,
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 1000,
-        shopId: shopRecord.id,
-        stockCount: options?.productStockCount ?? 5,
-      })
-      .returning()
+    const prod = await createProduct(shopRecord, {
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 1000,
+      stockCount: options?.productStockCount ?? 5,
+    })
 
-    const [po] = await db
-      .insert(platformOrder)
-      .values({
-        id: PO_ID,
-        userId: buyer.id,
-        shippingAddress: { name: 'Buyer', country: 'FR' },
-        billingAddress: { name: 'Buyer', country: 'FR' },
-        totalCents: 1200,
-        status: 'paid',
-        molliePaymentId: 'tr_mock_000001',
-      })
-      .returning()
+    const po = await createPlatformOrder(buyer, {
+      shippingAddress: { name: 'Buyer', country: 'FR' },
+      billingAddress: { name: 'Buyer', country: 'FR' },
+      totalCents: 1200,
+      status: 'paid',
+      molliePaymentId: 'tr_mock_000001',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        id: SO_ID,
-        platformOrderId: po.id,
-        shopId: shopRecord.id,
-        shippingMethod: 'standard',
-        shippingCostCents: 200,
-        subtotalCents: 1000,
-        vatAmountCents: 0,
-        shippingVatRateBasisPoints: 0,
-        shippingVatAmountCents: 0,
-        status: 'paid',
-      })
-      .returning()
+    const so = await createShopOrder(po, shopRecord, {
+      shippingMethod: 'standard',
+      shippingCostCents: 200,
+      subtotalCents: 1000,
+      vatAmountCents: 0,
+      shippingVatRateBasisPoints: 0,
+      shippingVatAmountCents: 0,
+      status: 'paid',
+    })
 
-    await db.insert(orderItem).values({
-      id: OI_ID,
-      shopOrderId: so.id,
-      productId: prod.id,
+    await createOrderItem(so, prod, {
       productName: 'Vase',
       unitPriceCents: 1000,
       quantity: 2,
@@ -129,8 +88,7 @@ describe('refundShopOrderQuery', () => {
     })
 
     if (options?.reservedQuantity) {
-      await db.insert(inventoryReservation).values({
-        productId: prod.id,
+      await createInventoryReservation(prod, {
         platformOrderId: po.id,
         quantity: options.reservedQuantity,
         expiresAt: new Date(Date.now() + 60_000),
@@ -140,9 +98,8 @@ describe('refundShopOrderQuery', () => {
     await createInvoicesForPlatformOrder(po.id)
 
     if (options?.payoutStatus) {
-      await db.insert(payout).values({
+      await createPayout(shopRecord, {
         shopOrderId: so.id,
-        shopId: shopRecord.id,
         amountCents: 900,
         status: options.payoutStatus,
         molliePaymentId: 'tr_test',

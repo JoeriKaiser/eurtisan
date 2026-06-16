@@ -1,9 +1,11 @@
+import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { db } from '#/db/index'
-import { shop, user } from '#/db/schema'
+import { shop } from '#/db/schema'
 import { signMollieState, verifyMollieState } from '#/lib/auth-utils'
+import { clearTestTables } from '#/test/cleanup'
+import { createShop, createUser } from '#/test/factories'
 import { Route } from './callback'
-import { eq } from 'drizzle-orm'
 
 const mockGetSession = vi.fn()
 
@@ -17,12 +19,19 @@ vi.mock('#/lib/auth', () => ({
   },
 }))
 
+async function seedUser(id: string) {
+  return createUser({ id, name: 'Owner', email: `${id}@example.com` })
+}
+
+async function seedShop(id: string, ownerId: string) {
+  return createShop(ownerId, { id, name: 'Test Shop', slug: `test-shop-${id}` })
+}
+
 describe('Mollie Connect OAuth Callback', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
     vi.unstubAllEnvs()
-    await db.delete(shop)
-    await db.delete(user)
+    await clearTestTables()
   })
 
   describe('Cryptographic State Helpers', () => {
@@ -118,11 +127,9 @@ describe('Mollie Connect OAuth Callback', () => {
 
     it('returns 403 if the user does not own the shop and is not admin', async () => {
       // Seed a user
-      await db.insert(user).values({ id: 'user-owner', name: 'Owner', email: 'owner@example.com' })
+      await seedUser('user-owner')
       // Seed a shop owned by user-owner
-      await db
-        .insert(shop)
-        .values({ id: 'shop-123', name: 'Test Shop', slug: 'test-shop', ownerId: 'user-owner' })
+      await seedShop('shop-123', 'user-owner')
 
       mockGetSession.mockResolvedValueOnce({
         user: { id: 'user-attacker', role: 'creator' },
@@ -138,10 +145,8 @@ describe('Mollie Connect OAuth Callback', () => {
     })
 
     it('returns 502 when Mollie Connect credentials are missing', async () => {
-      await db.insert(user).values({ id: 'user-owner', name: 'Owner', email: 'owner@example.com' })
-      await db
-        .insert(shop)
-        .values({ id: 'shop-123', name: 'Test Shop', slug: 'test-shop', ownerId: 'user-owner' })
+      await seedUser('user-owner')
+      await seedShop('shop-123', 'user-owner')
 
       mockGetSession.mockResolvedValueOnce({
         user: { id: 'user-owner', role: 'creator' },
@@ -159,10 +164,8 @@ describe('Mollie Connect OAuth Callback', () => {
     })
 
     it('connects payouts and redirects successfully when user owns the shop', async () => {
-      await db.insert(user).values({ id: 'user-owner', name: 'Owner', email: 'owner@example.com' })
-      await db
-        .insert(shop)
-        .values({ id: 'shop-123', name: 'Test Shop', slug: 'test-shop', ownerId: 'user-owner' })
+      await seedUser('user-owner')
+      await seedShop('shop-123', 'user-owner')
 
       mockGetSession.mockResolvedValueOnce({
         user: { id: 'user-owner', role: 'creator' },
@@ -203,10 +206,8 @@ describe('Mollie Connect OAuth Callback', () => {
     })
 
     it('connects payouts and redirects successfully if user is admin (even if not owner)', async () => {
-      await db.insert(user).values({ id: 'user-owner', name: 'Owner', email: 'owner@example.com' })
-      await db
-        .insert(shop)
-        .values({ id: 'shop-123', name: 'Test Shop', slug: 'test-shop', ownerId: 'user-owner' })
+      await seedUser('user-owner')
+      await seedShop('shop-123', 'user-owner')
 
       mockGetSession.mockResolvedValueOnce({
         user: { id: 'user-admin', role: 'admin' },

@@ -6,15 +6,24 @@ import {
   cart,
   cartItem,
   inventoryReservation,
-  invoices,
   orderItem,
   platformOrder,
   product,
-  shop,
+  type shop,
   shopOrder,
-  user,
+  type user,
 } from '#/db/schema'
 import { getShippingProvider, resetMockShippingCounter } from '#/integrations/shipping'
+import { clearTestTables } from '#/test/cleanup'
+import {
+  createCart,
+  createCartItem,
+  createInventoryReservation,
+  createPlatformOrder,
+  createProduct,
+  createShop,
+  createUser,
+} from '#/test/factories'
 import {
   type CheckoutInput,
   createCheckoutWithProvider,
@@ -66,74 +75,42 @@ describe.sequential('checkout', () => {
       },
     ])
 
-    await db.delete(invoices)
-    await db.delete(inventoryReservation)
-    await db.delete(orderItem)
-    await db.delete(shopOrder)
-    await db.delete(platformOrder)
-    await db.delete(cartItem)
-    await db.delete(cart)
-    await db.delete(product)
-    await db.delete(shop)
-    await db.delete(user)
+    await clearTestTables()
   })
 
   afterAll(async () => {
-    await db.delete(invoices)
-    await db.delete(inventoryReservation)
-    await db.delete(orderItem)
-    await db.delete(shopOrder)
-    await db.delete(platformOrder)
-    await db.delete(cartItem)
-    await db.delete(cart)
-    await db.delete(product)
-    await db.delete(shop)
-    await db.delete(user)
+    await clearTestTables()
   })
 
   async function seedUser(overrides?: Partial<typeof user.$inferInsert>) {
-    return db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-        ...overrides,
-      })
-      .returning()
-      .then((rows) => rows[0])
+    return createUser({
+      id: 'user-1',
+      name: 'Test',
+      email: 'test@example.com',
+      emailVerified: true,
+      ...overrides,
+    })
   }
 
   async function seedShop(overrides?: Partial<typeof shop.$inferInsert>) {
-    return db
-      .insert(shop)
-      .values({
-        id: 'shop-1',
-        name: 'Test Shop',
-        slug: 'test-shop',
-        ownerId: 'user-1',
-        status: 'active',
-        ...overrides,
-      })
-      .returning()
-      .then((rows) => rows[0])
+    return createShop('user-1', {
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      status: 'active',
+      ...overrides,
+    })
   }
 
   async function seedProduct(overrides?: Partial<typeof product.$inferInsert>) {
-    return db
-      .insert(product)
-      .values({
-        id: 'prod-1',
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 1000,
-        stockCount: 10,
-        shopId: 'shop-1',
-        ...overrides,
-      })
-      .returning()
-      .then((rows) => rows[0])
+    return createProduct('shop-1', {
+      id: 'prod-1',
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 1000,
+      stockCount: 10,
+      ...overrides,
+    })
   }
 
   describe('getCheckoutSummaryQuery', () => {
@@ -146,11 +123,7 @@ describe.sequential('checkout', () => {
       await seedUser()
       await seedShop()
       const otherUser = await seedUser({ id: 'user-2', name: 'Other', email: 'other@example.com' })
-      const c = await db
-        .insert(cart)
-        .values({ userId: otherUser.id })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart(otherUser.id)
 
       const result = await getCheckoutSummaryQuery(c.id, 'user-1')
       expect(result).toBeNull()
@@ -159,14 +132,10 @@ describe.sequential('checkout', () => {
     it('returns summary grouped by shop with fallback shipping options when no address', async () => {
       await seedUser()
       await seedShop()
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct()
 
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
+      await createCartItem(c.id, p.id, { quantity: 2 })
 
       const result = await getCheckoutSummaryQuery(c.id, 'user-1')
       expect(result).not.toBeNull()
@@ -182,14 +151,10 @@ describe.sequential('checkout', () => {
     it('returns summary with live shipping rates when address is provided', async () => {
       await seedUser()
       await seedShop()
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct()
 
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
+      await createCartItem(c.id, p.id, { quantity: 2 })
 
       const result = await getCheckoutSummaryQuery(c.id, 'user-1', {
         name: 'Test User',
@@ -222,14 +187,10 @@ describe.sequential('checkout', () => {
           country: 'FR',
         },
       })
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct()
 
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+      await createCartItem(c.id, p.id, { quantity: 1 })
 
       const spy = vi.spyOn(getShippingProvider(), 'getRates').mockResolvedValue([
         {
@@ -268,18 +229,12 @@ describe.sequential('checkout', () => {
     it('calculates subtotals and grand total correctly', async () => {
       await seedUser()
       await seedShop()
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p1 = await seedProduct({ id: 'prod-1', priceCents: 1000 })
       const p2 = await seedProduct({ id: 'prod-2', name: 'Bowl', slug: 'bowl', priceCents: 2000 })
 
-      await db.insert(cartItem).values([
-        { cartId: c.id, productId: p1.id, quantity: 2 },
-        { cartId: c.id, productId: p2.id, quantity: 1 },
-      ])
+      await createCartItem(c.id, p1.id, { quantity: 2 })
+      await createCartItem(c.id, p2.id, { quantity: 1 })
 
       const result = await getCheckoutSummaryQuery(c.id, 'user-1')
       expect(result?.shops[0].subtotalCents).toBe(4000)
@@ -289,14 +244,10 @@ describe.sequential('checkout', () => {
     it('calculates grand total and VAT estimate using selected shipping options when selections are provided', async () => {
       await seedUser()
       await seedShop()
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct({ id: 'prod-1', priceCents: 1000 })
 
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+      await createCartItem(c.id, p.id, { quantity: 1 })
 
       const resDefault = await getCheckoutSummaryQuery(c.id, 'user-1', {
         name: 'Test',
@@ -340,11 +291,7 @@ describe.sequential('checkout', () => {
       await seedUser()
       await seedShop()
       const shop2 = await seedShop({ id: 'shop-2', name: 'Second Shop', slug: 'second-shop' })
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p1 = await seedProduct({ id: 'prod-1', shopId: 'shop-1', priceCents: 1000 })
       const p2 = await seedProduct({
         id: 'prod-2',
@@ -354,10 +301,8 @@ describe.sequential('checkout', () => {
         priceCents: 2000,
       })
 
-      await db.insert(cartItem).values([
-        { cartId: c.id, productId: p1.id, quantity: 1 },
-        { cartId: c.id, productId: p2.id, quantity: 1 },
-      ])
+      await createCartItem(c.id, p1.id, { quantity: 1 })
+      await createCartItem(c.id, p2.id, { quantity: 1 })
 
       const result = await getCheckoutSummaryQuery(c.id, 'user-1')
       expect(result?.shops).toHaveLength(2)
@@ -371,14 +316,10 @@ describe.sequential('checkout', () => {
     it('skips unavailable items in checkout summary', async () => {
       await seedUser()
       await seedShop()
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct()
 
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
+      await createCartItem(c.id, p.id, { quantity: 2 })
       await db.delete(product).where(eq(product.id, p.id))
 
       const result = await getCheckoutSummaryQuery(c.id, 'user-1')
@@ -434,11 +375,7 @@ describe.sequential('checkout', () => {
     it('throws 404 when cart belongs to another user', async () => {
       await seedUser()
       const otherUser = await seedUser({ id: 'user-2', name: 'Other', email: 'other@example.com' })
-      const c = await db
-        .insert(cart)
-        .values({ userId: otherUser.id })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart(otherUser.id)
       const input = makeInput(c.id)
 
       try {
@@ -452,11 +389,7 @@ describe.sequential('checkout', () => {
 
     it('throws 409 when cart is empty', async () => {
       await seedUser()
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const input = makeInput(c.id)
 
       try {
@@ -471,14 +404,10 @@ describe.sequential('checkout', () => {
     it('throws 409 with productIds when stock is exhausted', async () => {
       await seedUser()
       await seedShop()
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct({ stockCount: 1 })
 
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 5 })
+      await createCartItem(c.id, p.id, { quantity: 5 })
 
       const input = makeInput(c.id, {
         shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 708 }],
@@ -498,18 +427,12 @@ describe.sequential('checkout', () => {
     it('throws 409 with multiple productIds when multiple items are out of stock', async () => {
       await seedUser()
       await seedShop()
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p1 = await seedProduct({ id: 'prod-1', stockCount: 1 })
       const p2 = await seedProduct({ id: 'prod-2', name: 'Bowl', slug: 'bowl', stockCount: 0 })
 
-      await db.insert(cartItem).values([
-        { cartId: c.id, productId: p1.id, quantity: 5 },
-        { cartId: c.id, productId: p2.id, quantity: 1 },
-      ])
+      await createCartItem(c.id, p1.id, { quantity: 5 })
+      await createCartItem(c.id, p2.id, { quantity: 1 })
 
       const input = makeInput(c.id, {
         shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 750 }],
@@ -531,14 +454,10 @@ describe.sequential('checkout', () => {
     it('throws 400 when shipping selection is missing for a shop', async () => {
       await seedUser()
       await seedShop()
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct()
 
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+      await createCartItem(c.id, p.id, { quantity: 1 })
 
       const input = makeInput(c.id, { shippingSelections: [] })
 
@@ -554,14 +473,10 @@ describe.sequential('checkout', () => {
     it('creates platform_order, shop_order, and order_item records', async () => {
       await seedUser()
       await seedShop()
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct()
 
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
+      await createCartItem(c.id, p.id, { quantity: 2 })
 
       const input = makeInput(c.id, {
         shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 580 }],
@@ -621,14 +536,10 @@ describe.sequential('checkout', () => {
     it('uses express shipping cost when selected', async () => {
       await seedUser()
       await seedShop()
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct()
 
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+      await createCartItem(c.id, p.id, { quantity: 1 })
 
       const input = makeInput(c.id, {
         shippingSelections: [{ shopId: 'shop-1', method: 'express', costCents: 861 }],
@@ -653,11 +564,7 @@ describe.sequential('checkout', () => {
       await seedUser()
       await seedShop()
       const shop2 = await seedShop({ id: 'shop-2', name: 'Second Shop', slug: 'second-shop' })
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p1 = await seedProduct({ id: 'prod-1', shopId: 'shop-1', priceCents: 1000 })
       const p2 = await seedProduct({
         id: 'prod-2',
@@ -667,10 +574,8 @@ describe.sequential('checkout', () => {
         priceCents: 2000,
       })
 
-      await db.insert(cartItem).values([
-        { cartId: c.id, productId: p1.id, quantity: 1 },
-        { cartId: c.id, productId: p2.id, quantity: 1 },
-      ])
+      await createCartItem(c.id, p1.id, { quantity: 1 })
+      await createCartItem(c.id, p2.id, { quantity: 1 })
 
       const input = makeInput(c.id, {
         shippingSelections: [
@@ -703,14 +608,10 @@ describe.sequential('checkout', () => {
     it('clears cart and items after successful order creation', async () => {
       await seedUser()
       await seedShop()
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct()
 
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+      await createCartItem(c.id, p.id, { quantity: 1 })
 
       const input = makeInput(c.id)
       await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
@@ -725,14 +626,10 @@ describe.sequential('checkout', () => {
     it('returns platformOrderId and checkoutUrl on success', async () => {
       await seedUser()
       await seedShop()
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct()
 
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+      await createCartItem(c.id, p.id, { quantity: 1 })
 
       const input = makeInput(c.id)
       const result = await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
@@ -746,14 +643,10 @@ describe.sequential('checkout', () => {
     it('stores molliePaymentId on the platform order', async () => {
       await seedUser()
       await seedShop()
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct()
 
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+      await createCartItem(c.id, p.id, { quantity: 1 })
 
       const input = makeInput(c.id)
       const result = await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
@@ -770,14 +663,10 @@ describe.sequential('checkout', () => {
     it('keeps order in pending_payment and retains stock when payment provider fails', async () => {
       await seedUser()
       await seedShop()
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct({ stockCount: 5 })
 
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
+      await createCartItem(c.id, p.id, { quantity: 2 })
 
       const failingProvider: PaymentProvider = {
         createPayment: async () => {
@@ -819,14 +708,10 @@ describe.sequential('checkout', () => {
     it('does not trust client-provided totals', async () => {
       await seedUser()
       await seedShop()
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct({ priceCents: 1234 })
 
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 3 })
+      await createCartItem(c.id, p.id, { quantity: 3 })
 
       const input = makeInput(c.id, {
         shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 623 }],
@@ -844,14 +729,10 @@ describe.sequential('checkout', () => {
     it('creates inventory reservations for every cart item', async () => {
       await seedUser()
       await seedShop()
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct()
 
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 2 })
+      await createCartItem(c.id, p.id, { quantity: 2 })
 
       const input = makeInput(c.id, {
         shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 580 }],
@@ -871,41 +752,18 @@ describe.sequential('checkout', () => {
     it('throws 409 when existing reservations reduce available stock below cart quantity', async () => {
       await seedUser()
       await seedShop()
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct({ stockCount: 10 })
 
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 8 })
+      await createCartItem(c.id, p.id, { quantity: 8 })
 
       // Another order reserves 5 units
-      const [otherOrder] = await db
-        .insert(platformOrder)
-        .values({
-          userId: 'user-1',
-          shippingAddress: {
-            name: 'Other',
-            street: 'St',
-            city: 'City',
-            postalCode: '00000',
-            country: 'DE',
-          },
-          billingAddress: {
-            name: 'Other',
-            street: 'St',
-            city: 'City',
-            postalCode: '00000',
-            country: 'DE',
-          },
-          totalCents: 1000,
-          status: 'pending_payment',
-        })
-        .returning()
+      const otherOrder = await createPlatformOrder('user-1', {
+        totalCents: 1000,
+        status: 'pending_payment',
+      })
 
-      await db.insert(inventoryReservation).values({
-        productId: p.id,
+      await createInventoryReservation(p.id, {
         platformOrderId: otherOrder.id,
         quantity: 5,
         expiresAt: new Date(Date.now() + 60_000),
@@ -930,11 +788,7 @@ describe.sequential('checkout', () => {
       await seedUser()
       await seedShop()
       const shop2 = await seedShop({ id: 'shop-2', name: 'Second Shop', slug: 'second-shop' })
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p1 = await seedProduct({ id: 'prod-1', shopId: 'shop-1', priceCents: 1000 })
       const p2 = await seedProduct({
         id: 'prod-2',
@@ -944,10 +798,8 @@ describe.sequential('checkout', () => {
         priceCents: 2000,
       })
 
-      await db.insert(cartItem).values([
-        { cartId: c.id, productId: p1.id, quantity: 1 },
-        { cartId: c.id, productId: p2.id, quantity: 2 },
-      ])
+      await createCartItem(c.id, p1.id, { quantity: 1 })
+      await createCartItem(c.id, p2.id, { quantity: 2 })
 
       const input = makeInput(c.id, {
         shippingSelections: [
@@ -972,13 +824,9 @@ describe.sequential('checkout', () => {
     it('throws 503 when shipping provider is down/unavailable', async () => {
       await seedUser()
       await seedShop()
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct({ id: 'prod-1', shopId: 'shop-1', priceCents: 1000 })
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+      await createCartItem(c.id, p.id, { quantity: 1 })
 
       // Force shipping provider to throw an error
       const spy = vi
@@ -1011,14 +859,10 @@ describe.sequential('checkout', () => {
     it('succeeds when all items and shops are active', async () => {
       await seedUser()
       await seedShop({ status: 'active' })
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct({ isActive: true })
 
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+      await createCartItem(c.id, p.id, { quantity: 1 })
 
       const input = makeInput(c.id)
       const result = await createCheckoutWithProvider(input, 'user-1', createStubPaymentProvider())
@@ -1030,14 +874,10 @@ describe.sequential('checkout', () => {
     it('throws 400 when a product is inactive', async () => {
       await seedUser()
       await seedShop({ status: 'active' })
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct({ isActive: false })
 
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+      await createCartItem(c.id, p.id, { quantity: 1 })
 
       const input = makeInput(c.id)
 
@@ -1055,14 +895,10 @@ describe.sequential('checkout', () => {
     it('throws 400 when a shop is suspended', async () => {
       await seedUser()
       await seedShop({ status: 'active', isSuspended: true })
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct()
 
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+      await createCartItem(c.id, p.id, { quantity: 1 })
 
       const input = makeInput(c.id)
 
@@ -1080,14 +916,10 @@ describe.sequential('checkout', () => {
     it('throws 400 when a shop status is not active', async () => {
       await seedUser()
       await seedShop({ status: 'pending_review' })
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct()
 
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+      await createCartItem(c.id, p.id, { quantity: 1 })
 
       const input = makeInput(c.id)
 
@@ -1105,14 +937,10 @@ describe.sequential('checkout', () => {
     it('throws 400 when shipping rateId does not match any available option', async () => {
       await seedUser()
       await seedShop()
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct()
 
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+      await createCartItem(c.id, p.id, { quantity: 1 })
 
       const input = makeInput(c.id, {
         shippingSelections: [
@@ -1134,14 +962,10 @@ describe.sequential('checkout', () => {
     it('throws 400 when shipping method does not match any available option', async () => {
       await seedUser()
       await seedShop()
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct()
 
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+      await createCartItem(c.id, p.id, { quantity: 1 })
 
       const input = makeInput(c.id, {
         shippingSelections: [{ shopId: 'shop-1', method: 'express', costCents: 861 }],
@@ -1174,14 +998,10 @@ describe.sequential('checkout', () => {
     it('throws 400 when shipping costCents does not match the quoted option', async () => {
       await seedUser()
       await seedShop()
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct()
 
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+      await createCartItem(c.id, p.id, { quantity: 1 })
 
       const input = makeInput(c.id, {
         shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 999 }],
@@ -1201,14 +1021,10 @@ describe.sequential('checkout', () => {
     it('throws 400 when user tries to skip shipping selection entirely', async () => {
       await seedUser()
       await seedShop()
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct()
 
-      await db.insert(cartItem).values({ cartId: c.id, productId: p.id, quantity: 1 })
+      await createCartItem(c.id, p.id, { quantity: 1 })
 
       const input = makeInput(c.id, { shippingSelections: [] })
 
@@ -1242,26 +1058,14 @@ describe.sequential('checkout', () => {
       const user2 = await seedUser({ id: 'user-2', name: 'User 2', email: 'user2@example.com' })
 
       // Cart 1: product A then product B
-      const c1 = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
-      await db.insert(cartItem).values([
-        { cartId: c1.id, productId: p1.id, quantity: 1 },
-        { cartId: c1.id, productId: p2.id, quantity: 1 },
-      ])
+      const c1 = await createCart('user-1')
+      await createCartItem(c1.id, p1.id, { quantity: 1 })
+      await createCartItem(c1.id, p2.id, { quantity: 1 })
 
       // Cart 2: product B then product A (opposite insertion order)
-      const c2 = await db
-        .insert(cart)
-        .values({ userId: user2.id })
-        .returning()
-        .then((rows) => rows[0])
-      await db.insert(cartItem).values([
-        { cartId: c2.id, productId: p2.id, quantity: 1 },
-        { cartId: c2.id, productId: p1.id, quantity: 1 },
-      ])
+      const c2 = await createCart(user2.id)
+      await createCartItem(c2.id, p2.id, { quantity: 1 })
+      await createCartItem(c2.id, p1.id, { quantity: 1 })
 
       const input1 = makeInput(c1.id, {
         shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 580 }],
@@ -1292,11 +1096,7 @@ describe.sequential('checkout', () => {
     it('succeeds when cart reservations exist (releases them before order reservations)', async () => {
       await seedUser()
       await seedShop()
-      const c = await db
-        .insert(cart)
-        .values({ userId: 'user-1' })
-        .returning()
-        .then((rows) => rows[0])
+      const c = await createCart('user-1')
       const p = await seedProduct({ stockCount: 5 })
 
       // Create a cart reservation by using addItemToCart (quantity 2 matches the
@@ -1360,28 +1160,10 @@ describe.sequential('checkout', () => {
       await seedShop()
       const otherUser = await seedUser({ id: 'user-2', name: 'Other', email: 'other@example.com' })
 
-      const [order] = await db
-        .insert(platformOrder)
-        .values({
-          userId: otherUser.id,
-          shippingAddress: {
-            name: 'Test',
-            street: 'St',
-            city: 'City',
-            postalCode: '12345',
-            country: 'DE',
-          },
-          billingAddress: {
-            name: 'Test',
-            street: 'St',
-            city: 'City',
-            postalCode: '12345',
-            country: 'DE',
-          },
-          totalCents: 1000,
-          status: 'pending_payment',
-        })
-        .returning()
+      const order = await createPlatformOrder(otherUser.id, {
+        totalCents: 1000,
+        status: 'pending_payment',
+      })
 
       try {
         await retryPayment(order.id, 'user-1', createStubPaymentProvider())
@@ -1396,28 +1178,10 @@ describe.sequential('checkout', () => {
       await seedUser()
       await seedShop()
 
-      const [order] = await db
-        .insert(platformOrder)
-        .values({
-          userId: 'user-1',
-          shippingAddress: {
-            name: 'Test',
-            street: 'St',
-            city: 'City',
-            postalCode: '12345',
-            country: 'DE',
-          },
-          billingAddress: {
-            name: 'Test',
-            street: 'St',
-            city: 'City',
-            postalCode: '12345',
-            country: 'DE',
-          },
-          totalCents: 1000,
-          status: 'paid',
-        })
-        .returning()
+      const order = await createPlatformOrder('user-1', {
+        totalCents: 1000,
+        status: 'paid',
+      })
 
       try {
         await retryPayment(order.id, 'user-1', createStubPaymentProvider())
@@ -1432,28 +1196,10 @@ describe.sequential('checkout', () => {
       await seedUser()
       await seedShop()
 
-      const [order] = await db
-        .insert(platformOrder)
-        .values({
-          userId: 'user-1',
-          shippingAddress: {
-            name: 'Test',
-            street: 'St',
-            city: 'City',
-            postalCode: '12345',
-            country: 'DE',
-          },
-          billingAddress: {
-            name: 'Test',
-            street: 'St',
-            city: 'City',
-            postalCode: '12345',
-            country: 'DE',
-          },
-          totalCents: 2580,
-          status: 'pending_payment',
-        })
-        .returning()
+      const order = await createPlatformOrder('user-1', {
+        totalCents: 2580,
+        status: 'pending_payment',
+      })
 
       const result = await retryPayment(order.id, 'user-1', createStubPaymentProvider())
 
@@ -1473,28 +1219,10 @@ describe.sequential('checkout', () => {
       await seedUser()
       await seedShop()
 
-      const [order] = await db
-        .insert(platformOrder)
-        .values({
-          userId: 'user-1',
-          shippingAddress: {
-            name: 'Test',
-            street: 'St',
-            city: 'City',
-            postalCode: '12345',
-            country: 'DE',
-          },
-          billingAddress: {
-            name: 'Test',
-            street: 'St',
-            city: 'City',
-            postalCode: '12345',
-            country: 'DE',
-          },
-          totalCents: 1000,
-          status: 'pending_payment',
-        })
-        .returning()
+      const order = await createPlatformOrder('user-1', {
+        totalCents: 1000,
+        status: 'pending_payment',
+      })
 
       const failingProvider: PaymentProvider = {
         createPayment: async () => {
@@ -1523,29 +1251,11 @@ describe.sequential('checkout', () => {
       await seedUser()
       await seedShop()
 
-      const [order] = await db
-        .insert(platformOrder)
-        .values({
-          userId: 'user-1',
-          shippingAddress: {
-            name: 'Test',
-            street: 'St',
-            city: 'City',
-            postalCode: '12345',
-            country: 'DE',
-          },
-          billingAddress: {
-            name: 'Test',
-            street: 'St',
-            city: 'City',
-            postalCode: '12345',
-            country: 'DE',
-          },
-          totalCents: 1000,
-          status: 'pending_payment',
-          molliePaymentId: 'old_payment_id',
-        })
-        .returning()
+      const order = await createPlatformOrder('user-1', {
+        totalCents: 1000,
+        status: 'pending_payment',
+        molliePaymentId: 'old_payment_id',
+      })
 
       const result = await retryPayment(order.id, 'user-1', createStubPaymentProvider())
 

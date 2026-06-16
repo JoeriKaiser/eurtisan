@@ -1,19 +1,25 @@
 import { eq } from 'drizzle-orm'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { db } from '#/db/index'
 import { verification } from '#/db/schema'
+import { clearTestTables } from '#/test/cleanup'
+import { createVerification } from '#/test/factories'
 
 import { cleanupExpiredVerifications } from './verification-cleanup.server'
 
 describe('cleanupExpiredVerifications', () => {
   beforeEach(async () => {
-    await db.delete(verification)
+    await clearTestTables()
+  })
+
+  afterAll(async () => {
+    await clearTestTables()
   })
 
   it('deletes multiple expired verifications in a single batch via inArray', async () => {
     for (let i = 0; i < 3; i++) {
-      await db.insert(verification).values({
+      await createVerification({
         id: `ver-${i}`,
         identifier: `user-${i}@example.com`,
         value: `token-${i}`,
@@ -29,7 +35,7 @@ describe('cleanupExpiredVerifications', () => {
   })
 
   it('deletes a single expired verification when only one row matches', async () => {
-    await db.insert(verification).values({
+    await createVerification({
       id: 'ver-1',
       identifier: 'user@example.com',
       value: 'token-1',
@@ -44,7 +50,7 @@ describe('cleanupExpiredVerifications', () => {
   })
 
   it('returns zero when no expired verifications exist', async () => {
-    await db.insert(verification).values({
+    await createVerification({
       id: 'ver-1',
       identifier: 'user@example.com',
       value: 'token-1',
@@ -60,7 +66,7 @@ describe('cleanupExpiredVerifications', () => {
 
   it('respects the batch size limit', async () => {
     for (let i = 0; i < 5; i++) {
-      await db.insert(verification).values({
+      await createVerification({
         id: `ver-${i}`,
         identifier: `user-${i}@example.com`,
         value: `token-${i}`,

@@ -1,24 +1,24 @@
-import { randomUUID } from 'node:crypto'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { eq } from 'drizzle-orm'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { db } from '#/db/index'
+import { invoices } from '#/db/schema'
+import { clearTestTables } from '#/test/cleanup'
 import {
-  invoices,
-  invoiceNumberSequence,
-  orderItem,
-  shopOrder,
-  platformOrder,
-  shop,
-  user,
-  product,
-} from '#/db/schema'
-import { PLATFORM_FEE_PERCENT } from './platform-constants'
+  createOrderItem,
+  createPlatformOrder,
+  createProduct,
+  createShop,
+  createShopOrder,
+  createUser,
+} from '#/test/factories'
 import {
+  type BillingDetails,
   calculatePlatformFeeVat,
   createCreditNoteForShopOrder,
   createInvoicesForPlatformOrder,
   getInvoiceByIdQuery,
 } from './invoices.server'
+import { PLATFORM_FEE_PERCENT } from './platform-constants'
 
 describe('Invoicing VAT Engine', () => {
   it('does not charge VAT (0%) for domestic platform fee (supplier FR, customer FR)', () => {
@@ -164,31 +164,30 @@ describe('Invoicing VAT Engine', () => {
 
 describe('Platform Order Invoices Lifecycle', () => {
   beforeEach(async () => {
-    // Clean up tables
-    await db.delete(invoices)
-    await db.delete(orderItem)
-    await db.delete(shopOrder)
-    await db.delete(platformOrder)
-    await db.delete(product)
-    await db.delete(shop)
-    await db.delete(user)
+    await clearTestTables()
   })
 
   it('automatically generates customer and platform fee invoices with snapshots upon successful checkout', async () => {
     // 1. Seed database
-    // Seed buyer and creator users
-    await db.insert(user).values([
-      { id: 'buyer-1', name: 'John Doe', email: 'buyer@example.com', role: 'customer' },
-      { id: 'creator-1', name: 'Alice Artisan', email: 'alice@artisan.de', role: 'creator' },
-    ])
+    await createUser({
+      id: 'buyer-1',
+      name: 'John Doe',
+      email: 'buyer@example.com',
+      role: 'customer',
+    })
+    await createUser({
+      id: 'creator-1',
+      name: 'Alice Artisan',
+      email: 'alice@artisan.de',
+      role: 'creator',
+    })
 
     // Seed German shop (VAT registered) with French business address
     // to verify platform fee VAT uses businessAddress, not shippingOrigin
-    await db.insert(shop).values({
+    const shopRecord = await createShop('creator-1', {
       id: 'shop-germany',
       name: 'Black Forest Woodworks',
       slug: 'black-forest',
-      ownerId: 'creator-1',
       isVatRegistered: true,
       vatId: 'DE999999999',
       businessAddress: {
@@ -206,62 +205,50 @@ describe('Platform Order Invoices Lifecycle', () => {
     })
 
     // Seed platform order
-    const [po] = await db
-      .insert(platformOrder)
-      .values({
-        id: '11111111-1111-1111-1111-111111111111',
-        userId: 'buyer-1',
-        shippingAddress: {
-          name: 'John Doe',
-          street: 'Leipziger Str. 12',
-          city: 'Berlin',
-          postalCode: '10117',
-          country: 'Germany',
-        },
-        billingAddress: {
-          name: 'John Doe',
-          street: 'Leipziger Str. 12',
-          city: 'Berlin',
-          postalCode: '10117',
-          country: 'Germany',
-        },
-        totalCents: 5500, // 50.00 subtotal + 5.00 shipping
-        status: 'paid',
-      })
-      .returning()
+    const po = await createPlatformOrder('buyer-1', {
+      id: '11111111-1111-1111-1111-111111111111',
+      shippingAddress: {
+        name: 'John Doe',
+        street: 'Leipziger Str. 12',
+        city: 'Berlin',
+        postalCode: '10117',
+        country: 'Germany',
+      },
+      billingAddress: {
+        name: 'John Doe',
+        street: 'Leipziger Str. 12',
+        city: 'Berlin',
+        postalCode: '10117',
+        country: 'Germany',
+      },
+      totalCents: 5500, // 50.00 subtotal + 5.00 shipping
+      status: 'paid',
+    })
 
     // Seed shop order
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        id: '22222222-2222-2222-2222-222222222222',
-        platformOrderId: po.id,
-        shopId: 'shop-germany',
-        shippingMethod: 'standard',
-        shippingCostCents: 500,
-        subtotalCents: 5000,
-        vatAmountCents: 800, // 19% standard DE VAT on base amount (~4202 cents)
-        shippingVatRateBasisPoints: 1900,
-        shippingVatAmountCents: 80, // ~420 cents base + ~80 cents VAT
-        status: 'paid',
-      })
-      .returning()
+    const so = await createShopOrder(po, shopRecord, {
+      id: '22222222-2222-2222-2222-222222222222',
+      shippingMethod: 'standard',
+      shippingCostCents: 500,
+      subtotalCents: 5000,
+      vatAmountCents: 800, // 19% standard DE VAT on base amount (~4202 cents)
+      shippingVatRateBasisPoints: 1900,
+      shippingVatAmountCents: 80, // ~420 cents base + ~80 cents VAT
+      status: 'paid',
+    })
 
     // Seed product
-    await db.insert(product).values({
+    const product = await createProduct(shopRecord, {
       id: 'prod-wooden-clock',
       name: 'Handcrafted Wooden Clock',
       slug: 'wooden-clock',
       priceCents: 5000,
-      shopId: 'shop-germany',
       vatRateCategory: 'standard',
     })
 
     // Seed order items
-    await db.insert(orderItem).values({
+    await createOrderItem(so, product, {
       id: '33333333-3333-3333-3333-333333333333',
-      shopOrderId: so.id,
-      productId: 'prod-wooden-clock',
       productName: 'Handcrafted Wooden Clock',
       unitPriceCents: 5000,
       quantity: 1,
@@ -272,7 +259,10 @@ describe('Platform Order Invoices Lifecycle', () => {
 
     // 2. Generate Invoices
     const created = await createInvoicesForPlatformOrder(po.id)
-    const { customerInvoiceNumber, platformFeeInvoiceNumber } = created.get(so.id)!
+    const invoiceNumbers = created.get(so.id)
+    expect(invoiceNumbers).toBeDefined()
+    if (!invoiceNumbers) throw new Error('Expected invoice numbers for shop order')
+    const { customerInvoiceNumber, platformFeeInvoiceNumber } = invoiceNumbers
 
     // 3. Verify Customer Invoice
     const [custInvoice] = await db
@@ -286,14 +276,15 @@ describe('Platform Order Invoices Lifecycle', () => {
     expect(custInvoice.vatAmountCents).toBe(880) // 800 + 80
     expect(custInvoice.subtotalCents).toBe(4620) // 5500 - 880
 
-    const custDetails = custInvoice.billingDetails as any
+    const custDetails = custInvoice.billingDetails as BillingDetails
     expect(custDetails.from.name).toBe('Black Forest Woodworks')
     expect(custDetails.from.vatId).toBe('DE999999999')
     expect(custDetails.from.address.country).toBe('FR')
     expect(custDetails.to.name).toBe('John Doe')
     expect(custDetails.to.address.city).toBe('Berlin')
     expect(custDetails.items[0].name).toBe('Handcrafted Wooden Clock')
-    expect(custDetails.shipping.costCents).toBe(500)
+    expect(custDetails.shipping).toBeDefined()
+    expect(custDetails.shipping?.costCents).toBe(500)
     expect(custDetails.reverseCharge).toBe(false)
 
     // 4. Verify Platform Fee Invoice
@@ -310,7 +301,7 @@ describe('Platform Order Invoices Lifecycle', () => {
     expect(feeInvoice.vatAmountCents).toBe(0)
     expect(feeInvoice.subtotalCents).toBe(expectedFee)
 
-    const feeDetails = feeInvoice.billingDetails as any
+    const feeDetails = feeInvoice.billingDetails as BillingDetails
     expect(feeDetails.from.name).toBe('Joeri Kaiser (Eurtisan)')
     expect(feeDetails.to.name).toBe('Black Forest Woodworks (c/o Alice Artisan)')
     expect(feeDetails.to.address.country).toBe('FR')
@@ -318,16 +309,23 @@ describe('Platform Order Invoices Lifecycle', () => {
   })
 
   it('sets reverseCharge=true on customer invoice for cross-border EU B2B when buyer has VAT ID', async () => {
-    await db.insert(user).values([
-      { id: 'buyer-b2b', name: 'Acme GmbH', email: 'buyer-b2b@example.com', role: 'customer' },
-      { id: 'creator-b2b', name: 'Pierre Artisan', email: 'pierre@artisan.fr', role: 'creator' },
-    ])
+    await createUser({
+      id: 'buyer-b2b',
+      name: 'Acme GmbH',
+      email: 'buyer-b2b@example.com',
+      role: 'customer',
+    })
+    await createUser({
+      id: 'creator-b2b',
+      name: 'Pierre Artisan',
+      email: 'pierre@artisan.fr',
+      role: 'creator',
+    })
 
-    await db.insert(shop).values({
+    const shopRecord = await createShop('creator-b2b', {
       id: 'shop-france',
       name: 'Atelier Pierre',
       slug: 'atelier-pierre',
-      ownerId: 'creator-b2b',
       isVatRegistered: true,
       vatId: 'FR12345678901',
       businessAddress: {
@@ -344,60 +342,48 @@ describe('Platform Order Invoices Lifecycle', () => {
       },
     })
 
-    const [po] = await db
-      .insert(platformOrder)
-      .values({
-        id: '66666666-6666-6666-6666-666666666666',
-        userId: 'buyer-b2b',
-        shippingAddress: {
-          name: 'Acme GmbH',
-          street: 'Hauptstraße 1',
-          city: 'Berlin',
-          postalCode: '10117',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Acme GmbH',
-          street: 'Hauptstraße 1',
-          city: 'Berlin',
-          postalCode: '10117',
-          country: 'DE',
-          vatId: 'DE999999999',
-        },
-        totalCents: 1200,
-        status: 'paid',
-      })
-      .returning()
+    const po = await createPlatformOrder('buyer-b2b', {
+      id: '66666666-6666-6666-6666-666666666666',
+      shippingAddress: {
+        name: 'Acme GmbH',
+        street: 'Hauptstraße 1',
+        city: 'Berlin',
+        postalCode: '10117',
+        country: 'DE',
+      },
+      billingAddress: {
+        name: 'Acme GmbH',
+        street: 'Hauptstraße 1',
+        city: 'Berlin',
+        postalCode: '10117',
+        country: 'DE',
+        vatId: 'DE999999999',
+      },
+      totalCents: 1200,
+      status: 'paid',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        id: '77777777-7777-7777-7777-777777777777',
-        platformOrderId: po.id,
-        shopId: 'shop-france',
-        shippingMethod: 'standard',
-        shippingCostCents: 200,
-        subtotalCents: 1000,
-        vatAmountCents: 0,
-        shippingVatRateBasisPoints: 0,
-        shippingVatAmountCents: 0,
-        status: 'paid',
-      })
-      .returning()
+    const so = await createShopOrder(po, shopRecord, {
+      id: '77777777-7777-7777-7777-777777777777',
+      shippingMethod: 'standard',
+      shippingCostCents: 200,
+      subtotalCents: 1000,
+      vatAmountCents: 0,
+      shippingVatRateBasisPoints: 0,
+      shippingVatAmountCents: 0,
+      status: 'paid',
+    })
 
-    await db.insert(product).values({
+    const product = await createProduct(shopRecord, {
       id: 'prod-b2b',
       name: 'B2B Product',
       slug: 'b2b-product',
       priceCents: 1000,
-      shopId: 'shop-france',
       vatRateCategory: 'standard',
     })
 
-    await db.insert(orderItem).values({
+    await createOrderItem(so, product, {
       id: '88888888-8888-8888-8888-888888888888',
-      shopOrderId: so.id,
-      productId: 'prod-b2b',
       productName: 'B2B Product',
       unitPriceCents: 1000,
       quantity: 1,
@@ -407,7 +393,10 @@ describe('Platform Order Invoices Lifecycle', () => {
     })
 
     const created = await createInvoicesForPlatformOrder(po.id)
-    const { customerInvoiceNumber } = created.get(so.id)!
+    const invoiceNumbers = created.get(so.id)
+    expect(invoiceNumbers).toBeDefined()
+    if (!invoiceNumbers) throw new Error('Expected invoice numbers for shop order')
+    const { customerInvoiceNumber } = invoiceNumbers
 
     const [custInvoice] = await db
       .select()
@@ -420,7 +409,7 @@ describe('Platform Order Invoices Lifecycle', () => {
     expect(custInvoice.subtotalCents).toBe(1200)
     expect(custInvoice.totalCents).toBe(1200)
 
-    const custDetails = custInvoice.billingDetails as any
+    const custDetails = custInvoice.billingDetails as BillingDetails
     expect(custDetails.from.vatId).toBe('FR12345678901')
     expect(custDetails.from.address.country).toBe('FR')
     expect(custDetails.to.vatId).toBe('DE999999999')
@@ -429,26 +418,23 @@ describe('Platform Order Invoices Lifecycle', () => {
   })
 
   it('correctly sets vatAmountCents to 0 and subtotalCents to totalGross in DB even if shopOrder had non-zero VAT when reverse charge applies', async () => {
-    await db.insert(user).values([
-      {
-        id: 'buyer-b2b-err',
-        name: 'Acme GmbH 2',
-        email: 'buyer-b2b-err@example.com',
-        role: 'customer',
-      },
-      {
-        id: 'creator-b2b-err',
-        name: 'Pierre Artisan 2',
-        email: 'pierre-err@artisan.fr',
-        role: 'creator',
-      },
-    ])
+    await createUser({
+      id: 'buyer-b2b-err',
+      name: 'Acme GmbH 2',
+      email: 'buyer-b2b-err@example.com',
+      role: 'customer',
+    })
+    await createUser({
+      id: 'creator-b2b-err',
+      name: 'Pierre Artisan 2',
+      email: 'pierre-err@artisan.fr',
+      role: 'creator',
+    })
 
-    await db.insert(shop).values({
+    const shopRecord = await createShop('creator-b2b-err', {
       id: 'shop-france-err',
       name: 'Atelier Pierre 2',
       slug: 'atelier-pierre-2',
-      ownerId: 'creator-b2b-err',
       isVatRegistered: true,
       vatId: 'FR12345678901',
       businessAddress: {
@@ -465,60 +451,48 @@ describe('Platform Order Invoices Lifecycle', () => {
       },
     })
 
-    const [po] = await db
-      .insert(platformOrder)
-      .values({
-        id: '99999999-9999-9999-9999-999999999999',
-        userId: 'buyer-b2b-err',
-        shippingAddress: {
-          name: 'Acme GmbH 2',
-          street: 'Hauptstraße 1',
-          city: 'Berlin',
-          postalCode: '10117',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Acme GmbH 2',
-          street: 'Hauptstraße 1',
-          city: 'Berlin',
-          postalCode: '10117',
-          country: 'DE',
-          vatId: 'DE999999999',
-        },
-        totalCents: 1200,
-        status: 'paid',
-      })
-      .returning()
+    const po = await createPlatformOrder('buyer-b2b-err', {
+      id: '99999999-9999-9999-9999-999999999999',
+      shippingAddress: {
+        name: 'Acme GmbH 2',
+        street: 'Hauptstraße 1',
+        city: 'Berlin',
+        postalCode: '10117',
+        country: 'DE',
+      },
+      billingAddress: {
+        name: 'Acme GmbH 2',
+        street: 'Hauptstraße 1',
+        city: 'Berlin',
+        postalCode: '10117',
+        country: 'DE',
+        vatId: 'DE999999999',
+      },
+      totalCents: 1200,
+      status: 'paid',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        id: '88888888-8888-8888-8888-888888888888',
-        platformOrderId: po.id,
-        shopId: 'shop-france-err',
-        shippingMethod: 'standard',
-        shippingCostCents: 200,
-        subtotalCents: 1000,
-        vatAmountCents: 190,
-        shippingVatRateBasisPoints: 1900,
-        shippingVatAmountCents: 10,
-        status: 'paid',
-      })
-      .returning()
+    const so = await createShopOrder(po, shopRecord, {
+      id: '88888888-8888-8888-8888-888888888888',
+      shippingMethod: 'standard',
+      shippingCostCents: 200,
+      subtotalCents: 1000,
+      vatAmountCents: 190,
+      shippingVatRateBasisPoints: 1900,
+      shippingVatAmountCents: 10,
+      status: 'paid',
+    })
 
-    await db.insert(product).values({
+    const product = await createProduct(shopRecord, {
       id: 'prod-b2b-err',
       name: 'B2B Product 2',
       slug: 'b2b-product-2',
       priceCents: 1000,
-      shopId: 'shop-france-err',
       vatRateCategory: 'standard',
     })
 
-    await db.insert(orderItem).values({
+    await createOrderItem(so, product, {
       id: '99999999-8888-7777-6666-555555555555',
-      shopOrderId: so.id,
-      productId: 'prod-b2b-err',
       productName: 'B2B Product 2',
       unitPriceCents: 1000,
       quantity: 1,
@@ -528,7 +502,10 @@ describe('Platform Order Invoices Lifecycle', () => {
     })
 
     const created = await createInvoicesForPlatformOrder(po.id)
-    const { customerInvoiceNumber } = created.get(so.id)!
+    const invoiceNumbers = created.get(so.id)
+    expect(invoiceNumbers).toBeDefined()
+    if (!invoiceNumbers) throw new Error('Expected invoice numbers for shop order')
+    const { customerInvoiceNumber } = invoiceNumbers
 
     const [custInvoice] = await db
       .select()
@@ -540,138 +517,131 @@ describe('Platform Order Invoices Lifecycle', () => {
     expect(custInvoice.subtotalCents).toBe(1200)
     expect(custInvoice.totalCents).toBe(1200)
 
-    const custDetails = custInvoice.billingDetails as any
+    const custDetails = custInvoice.billingDetails as BillingDetails
     expect(custDetails.reverseCharge).toBe(true)
     expect(custDetails.items[0].vatAmountCents).toBe(0)
-    expect(custDetails.shipping.vatAmountCents).toBe(0)
+    expect(custDetails.shipping).toBeDefined()
+    expect(custDetails.shipping?.vatAmountCents).toBe(0)
   })
 
   it('generates invoices for multiple shop orders using batched queries', async () => {
     // Seed buyer and two creators
-    await db.insert(user).values([
-      { id: 'buyer-multi', name: 'Multi Buyer', email: 'multi@example.com', role: 'customer' },
-      { id: 'creator-3', name: 'Carlos', email: 'carlos@artisan.es', role: 'creator' },
-      { id: 'creator-4', name: 'Diana', email: 'diana@artisan.it', role: 'creator' },
-    ])
+    await createUser({
+      id: 'buyer-multi',
+      name: 'Multi Buyer',
+      email: 'multi@example.com',
+      role: 'customer',
+    })
+    await createUser({
+      id: 'creator-3',
+      name: 'Carlos',
+      email: 'carlos@artisan.es',
+      role: 'creator',
+    })
+    await createUser({
+      id: 'creator-4',
+      name: 'Diana',
+      email: 'diana@artisan.it',
+      role: 'creator',
+    })
 
-    await db.insert(shop).values([
-      {
-        id: 'shop-spain',
-        name: 'Atelier Carlos',
-        slug: 'atelier-carlos',
-        ownerId: 'creator-3',
-        isVatRegistered: true,
-        vatId: 'ES123456789',
-        businessAddress: {
-          street: 'Calle Mayor 1',
-          city: 'Madrid',
-          postalCode: '28001',
-          country: 'ES',
-        },
-        shippingOrigin: { country: 'ES' },
+    const shopSpain = await createShop('creator-3', {
+      id: 'shop-spain',
+      name: 'Atelier Carlos',
+      slug: 'atelier-carlos',
+      isVatRegistered: true,
+      vatId: 'ES123456789',
+      businessAddress: {
+        street: 'Calle Mayor 1',
+        city: 'Madrid',
+        postalCode: '28001',
+        country: 'ES',
       },
-      {
-        id: 'shop-italy',
-        name: 'Studio Diana',
-        slug: 'studio-diana',
-        ownerId: 'creator-4',
-        isVatRegistered: false,
-        businessAddress: null,
-        shippingOrigin: { country: 'IT' },
-      },
-    ])
+      shippingOrigin: { country: 'ES' },
+    })
 
-    const [po] = await db
-      .insert(platformOrder)
-      .values({
-        id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-        userId: 'buyer-multi',
-        shippingAddress: { name: 'Multi Buyer', country: 'FR' },
-        billingAddress: { name: 'Multi Buyer', country: 'FR' },
-        totalCents: 3000,
-        status: 'paid',
-      })
-      .returning()
+    const shopItaly = await createShop('creator-4', {
+      id: 'shop-italy',
+      name: 'Studio Diana',
+      slug: 'studio-diana',
+      isVatRegistered: false,
+      businessAddress: null,
+      shippingOrigin: { country: 'IT' },
+    })
 
-    const [so1] = await db
-      .insert(shopOrder)
-      .values({
-        id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
-        platformOrderId: po.id,
-        shopId: 'shop-spain',
-        shippingMethod: 'standard',
-        shippingCostCents: 200,
-        subtotalCents: 1000,
-        vatAmountCents: 0,
-        shippingVatRateBasisPoints: 0,
-        shippingVatAmountCents: 0,
-        status: 'paid',
-      })
-      .returning()
+    const po = await createPlatformOrder('buyer-multi', {
+      id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+      shippingAddress: { name: 'Multi Buyer', country: 'FR' },
+      billingAddress: { name: 'Multi Buyer', country: 'FR' },
+      totalCents: 3000,
+      status: 'paid',
+    })
 
-    const [so2] = await db
-      .insert(shopOrder)
-      .values({
-        id: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
-        platformOrderId: po.id,
-        shopId: 'shop-italy',
-        shippingMethod: 'express',
-        shippingCostCents: 300,
-        subtotalCents: 1500,
-        vatAmountCents: 0,
-        shippingVatRateBasisPoints: 0,
-        shippingVatAmountCents: 0,
-        status: 'paid',
-      })
-      .returning()
+    const so1 = await createShopOrder(po, shopSpain, {
+      id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+      shippingMethod: 'standard',
+      shippingCostCents: 200,
+      subtotalCents: 1000,
+      vatAmountCents: 0,
+      shippingVatRateBasisPoints: 0,
+      shippingVatAmountCents: 0,
+      status: 'paid',
+    })
 
-    await db.insert(product).values([
-      {
-        id: 'prod-spain',
-        name: 'Spanish Tile',
-        slug: 'spanish-tile',
-        priceCents: 1000,
-        shopId: 'shop-spain',
-        vatRateCategory: 'standard',
-      },
-      {
-        id: 'prod-italy',
-        name: 'Italian Leather',
-        slug: 'italian-leather',
-        priceCents: 1500,
-        shopId: 'shop-italy',
-        vatRateCategory: 'standard',
-      },
-    ])
+    const so2 = await createShopOrder(po, shopItaly, {
+      id: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+      shippingMethod: 'express',
+      shippingCostCents: 300,
+      subtotalCents: 1500,
+      vatAmountCents: 0,
+      shippingVatRateBasisPoints: 0,
+      shippingVatAmountCents: 0,
+      status: 'paid',
+    })
 
-    await db.insert(orderItem).values([
-      {
-        id: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
-        shopOrderId: so1.id,
-        productId: 'prod-spain',
-        productName: 'Spanish Tile',
-        unitPriceCents: 1000,
-        quantity: 1,
-        totalCents: 1000,
-        vatRateBasisPoints: 0,
-        vatAmountCents: 0,
-      },
-      {
-        id: 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
-        shopOrderId: so2.id,
-        productId: 'prod-italy',
-        productName: 'Italian Leather',
-        unitPriceCents: 1500,
-        quantity: 1,
-        totalCents: 1500,
-        vatRateBasisPoints: 0,
-        vatAmountCents: 0,
-      },
-    ])
+    const prodSpain = await createProduct(shopSpain, {
+      id: 'prod-spain',
+      name: 'Spanish Tile',
+      slug: 'spanish-tile',
+      priceCents: 1000,
+      vatRateCategory: 'standard',
+    })
+
+    const prodItaly = await createProduct(shopItaly, {
+      id: 'prod-italy',
+      name: 'Italian Leather',
+      slug: 'italian-leather',
+      priceCents: 1500,
+      vatRateCategory: 'standard',
+    })
+
+    await createOrderItem(so1, prodSpain, {
+      id: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+      productName: 'Spanish Tile',
+      unitPriceCents: 1000,
+      quantity: 1,
+      totalCents: 1000,
+      vatRateBasisPoints: 0,
+      vatAmountCents: 0,
+    })
+
+    await createOrderItem(so2, prodItaly, {
+      id: 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+      productName: 'Italian Leather',
+      unitPriceCents: 1500,
+      quantity: 1,
+      totalCents: 1500,
+      vatRateBasisPoints: 0,
+      vatAmountCents: 0,
+    })
 
     const created = await createInvoicesForPlatformOrder(po.id)
-    const so1Numbers = created.get(so1.id)!
-    const so2Numbers = created.get(so2.id)!
+    const so1Numbers = created.get(so1.id)
+    expect(so1Numbers).toBeDefined()
+    if (!so1Numbers) throw new Error('Expected invoice numbers for first shop order')
+    const so2Numbers = created.get(so2.id)
+    expect(so2Numbers).toBeDefined()
+    if (!so2Numbers) throw new Error('Expected invoice numbers for second shop order')
 
     // Verify customer invoices for both shop orders
     const custInv1 = await db
@@ -688,11 +658,11 @@ describe('Platform Order Invoices Lifecycle', () => {
     expect(custInv1[0].type).toBe('customer')
     expect(custInv2[0].type).toBe('customer')
 
-    const details1 = custInv1[0].billingDetails as any
+    const details1 = custInv1[0].billingDetails as BillingDetails
     expect(details1.from.name).toBe('Atelier Carlos')
     expect(details1.to.name).toBe('Multi Buyer')
 
-    const details2 = custInv2[0].billingDetails as any
+    const details2 = custInv2[0].billingDetails as BillingDetails
     expect(details2.from.name).toBe('Studio Diana')
     expect(details2.to.name).toBe('Multi Buyer')
 
@@ -714,43 +684,50 @@ describe('Platform Order Invoices Lifecycle', () => {
 
   it('enforces role-based authorization rules on getInvoiceByIdQuery', async () => {
     // Setup buyer, creator, and admin
-    await db.insert(user).values([
-      { id: 'buyer-2', name: 'John Doe', email: 'buyer@example.com', role: 'customer' },
-      { id: 'creator-2', name: 'Alice Artisan', email: 'alice@artisan.de', role: 'creator' },
-      { id: 'stranger', name: 'Bob', email: 'bob@example.com', role: 'customer' },
-    ])
+    await createUser({
+      id: 'buyer-2',
+      name: 'John Doe',
+      email: 'buyer@example.com',
+      role: 'customer',
+    })
+    await createUser({
+      id: 'creator-2',
+      name: 'Alice Artisan',
+      email: 'alice@artisan.de',
+      role: 'creator',
+    })
+    await createUser({
+      id: 'stranger',
+      name: 'Bob',
+      email: 'bob@example.com',
+      role: 'customer',
+    })
 
-    await db.insert(shop).values({
+    const shopRecord = await createShop('creator-2', {
       id: 'shop-2',
       name: 'Woodworks',
       slug: 'woodworks',
-      ownerId: 'creator-2',
       shippingOrigin: { country: 'Germany' },
     })
 
-    const [po] = await db
-      .insert(platformOrder)
-      .values({
-        id: '44444444-4444-4444-4444-444444444444',
-        userId: 'buyer-2',
-        shippingAddress: { name: 'Buyer', country: 'Germany' },
-        billingAddress: { name: 'Buyer', country: 'Germany' },
-        status: 'paid',
-      })
-      .returning()
+    const po = await createPlatformOrder('buyer-2', {
+      id: '44444444-4444-4444-4444-444444444444',
+      shippingAddress: { name: 'Buyer', country: 'Germany' },
+      billingAddress: { name: 'Buyer', country: 'Germany' },
+      totalCents: 0,
+      status: 'paid',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        id: '55555555-5555-5555-5555-555555555555',
-        platformOrderId: po.id,
-        shopId: 'shop-2',
-        status: 'paid',
-      })
-      .returning()
+    const so = await createShopOrder(po, shopRecord, {
+      id: '55555555-5555-5555-5555-555555555555',
+      status: 'paid',
+    })
 
     const created = await createInvoicesForPlatformOrder(po.id)
-    const { customerInvoiceNumber, platformFeeInvoiceNumber } = created.get(so.id)!
+    const invoiceNumbers = created.get(so.id)
+    expect(invoiceNumbers).toBeDefined()
+    if (!invoiceNumbers) throw new Error('Expected invoice numbers for shop order')
+    const { customerInvoiceNumber, platformFeeInvoiceNumber } = invoiceNumbers
 
     // 1. Admin can access customer invoice
     const resAdminCust = await getInvoiceByIdQuery(customerInvoiceNumber, 'admin-id', 'admin')
@@ -790,85 +767,30 @@ describe('Platform Order Invoices Lifecycle', () => {
 
 describe('Sequential invoice numbering', () => {
   beforeEach(async () => {
-    await db.delete(invoiceNumberSequence)
-    await db.delete(invoices)
-    await db.delete(orderItem)
-    await db.delete(shopOrder)
-    await db.delete(platformOrder)
-    await db.delete(product)
-    await db.delete(shop)
-    await db.delete(user)
+    await clearTestTables()
   })
 
   async function seedNumberingFixture() {
-    const suffix = randomUUID().slice(0, 8)
-    const [buyer] = await db
-      .insert(user)
-      .values({
-        id: randomUUID(),
-        name: 'Buyer',
-        email: `buyer-${suffix}@example.com`,
-        role: 'customer',
-      })
-      .returning()
-    const [owner] = await db
-      .insert(user)
-      .values({
-        id: randomUUID(),
-        name: 'Owner',
-        email: `owner-${suffix}@example.com`,
-        role: 'creator',
-      })
-      .returning()
-    const [shopRecord] = await db
-      .insert(shop)
-      .values({
-        id: randomUUID(),
-        name: 'Number Shop',
-        slug: `number-shop-${suffix}`,
-        ownerId: owner.id,
-      })
-      .returning()
-    const [prod] = await db
-      .insert(product)
-      .values({
-        id: randomUUID(),
-        name: 'Item',
-        slug: `item-${suffix}`,
-        priceCents: 1000,
-        shopId: shopRecord.id,
-      })
-      .returning()
-    const [po] = await db
-      .insert(platformOrder)
-      .values({
-        id: randomUUID(),
-        userId: buyer.id,
-        shippingAddress: { name: 'Buyer', country: 'FR' },
-        billingAddress: { name: 'Buyer', country: 'FR' },
-        totalCents: 1200,
-        status: 'paid',
-      })
-      .returning()
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        id: randomUUID(),
-        platformOrderId: po.id,
-        shopId: shopRecord.id,
-        shippingMethod: 'standard',
-        shippingCostCents: 200,
-        subtotalCents: 1000,
-        vatAmountCents: 0,
-        shippingVatRateBasisPoints: 0,
-        shippingVatAmountCents: 0,
-        status: 'paid',
-      })
-      .returning()
-    await db.insert(orderItem).values({
-      id: randomUUID(),
-      shopOrderId: so.id,
-      productId: prod.id,
+    const buyer = await createUser({ name: 'Buyer', role: 'customer' })
+    const owner = await createUser({ name: 'Owner', role: 'creator' })
+    const shopRecord = await createShop(owner, { name: 'Number Shop' })
+    const prod = await createProduct(shopRecord, { name: 'Item' })
+    const po = await createPlatformOrder(buyer, {
+      shippingAddress: { name: 'Buyer', country: 'FR' },
+      billingAddress: { name: 'Buyer', country: 'FR' },
+      totalCents: 1200,
+      status: 'paid',
+    })
+    const so = await createShopOrder(po, shopRecord, {
+      shippingMethod: 'standard',
+      shippingCostCents: 200,
+      subtotalCents: 1000,
+      vatAmountCents: 0,
+      shippingVatRateBasisPoints: 0,
+      shippingVatAmountCents: 0,
+      status: 'paid',
+    })
+    await createOrderItem(so, prod, {
       productName: 'Item',
       unitPriceCents: 1000,
       quantity: 1,
@@ -905,11 +827,13 @@ describe('Sequential invoice numbering', () => {
 
     const creditNoteNumber = await createCreditNoteForShopOrder(so.id)
     expect(creditNoteNumber).toMatch(/^CN-\d{4}-\d{5}$/)
+    expect(creditNoteNumber).toBeDefined()
+    if (!creditNoteNumber) throw new Error('Expected credit note number')
 
     const [note] = await db
       .select()
       .from(invoices)
-      .where(eq(invoices.invoiceNumber, creditNoteNumber!))
+      .where(eq(invoices.invoiceNumber, creditNoteNumber))
     expect(note).toBeDefined()
     expect(note.type).toBe('credit_note')
     expect(note.originalInvoiceNumber).toBeDefined()

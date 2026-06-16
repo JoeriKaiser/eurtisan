@@ -1,16 +1,20 @@
 import { eq } from 'drizzle-orm'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
+import { inventoryReservation, platformOrder, product } from '#/db/schema'
+
+import { clearTestTables } from '#/test/cleanup'
 import {
-  inventoryReservation,
-  orderItem,
-  platformOrder,
-  product,
-  shop,
-  shopOrder,
-  user,
-} from '#/db/schema'
+  createInventoryReservation,
+  createOrderItem,
+  createPlatformOrder,
+  createProduct,
+  createShop,
+  createShopOrder,
+  createUser,
+} from '#/test/factories'
+import { makeTestAddress } from '#/test/helpers'
 
 import {
   createShippingLabelForOrderQuery,
@@ -27,57 +31,41 @@ import {
 } from './shop-orders.server'
 
 beforeEach(async () => {
-  await db.delete(inventoryReservation)
-  await db.delete(orderItem)
-  await db.delete(shopOrder)
-  await db.delete(platformOrder)
-  await db.delete(product)
-  await db.delete(shop)
-  await db.delete(user)
+  await clearTestTables()
 })
 
-async function seedUser(overrides?: Partial<typeof user.$inferInsert>) {
-  return db
-    .insert(user)
-    .values({
-      id: 'user-1',
-      name: 'Test',
-      email: 'test@example.com',
-      emailVerified: true,
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+afterAll(async () => {
+  await clearTestTables()
+})
+
+async function seedUser(overrides?: Parameters<typeof createUser>[0]) {
+  return createUser({
+    id: 'user-1',
+    name: 'Test',
+    email: 'test@example.com',
+    emailVerified: true,
+    ...overrides,
+  })
 }
 
-async function seedShop(overrides?: Partial<typeof shop.$inferInsert>) {
-  return db
-    .insert(shop)
-    .values({
-      id: 'shop-1',
-      name: 'Test Shop',
-      slug: 'test-shop',
-      ownerId: 'user-1',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+async function seedShop(overrides?: Parameters<typeof createShop>[1]) {
+  return createShop('user-1', {
+    id: 'shop-1',
+    name: 'Test Shop',
+    slug: 'test-shop',
+    ...overrides,
+  })
 }
 
-async function seedProduct(overrides?: Partial<typeof product.$inferInsert>) {
-  return db
-    .insert(product)
-    .values({
-      id: 'prod-1',
-      name: 'Vase',
-      slug: 'vase',
-      priceCents: 1000,
-      stockCount: 10,
-      shopId: 'shop-1',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+async function seedProduct(overrides?: Parameters<typeof createProduct>[1]) {
+  return createProduct('shop-1', {
+    id: 'prod-1',
+    name: 'Vase',
+    slug: 'vase',
+    priceCents: 1000,
+    stockCount: 10,
+    ...overrides,
+  })
 }
 
 describe('getShopOrderDetailQuery', () => {
@@ -90,40 +78,19 @@ describe('getShopOrderDetailQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test Buyer',
-          street: '123 Main St',
-          city: 'Berlin',
-          postalCode: '10115',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test Buyer',
-          street: '123 Main St',
-          city: 'Berlin',
-          postalCode: '10115',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'paid',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress(),
+      billingAddress: makeTestAddress(),
+      totalCents: 1000,
+      status: 'paid',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'paid',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'paid',
+    })
 
     const result = await getShopOrderDetailQuery(so.id)
     expect(result).not.toBeNull()
@@ -136,46 +103,21 @@ describe('getShopOrderDetailQuery', () => {
     await seedShop()
     const p = await seedProduct()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test Buyer',
-          street: '123 Main St',
-          city: 'Berlin',
-          postalCode: '10115',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test Buyer',
-          street: '123 Main St',
-          city: 'Berlin',
-          postalCode: '10115',
-          country: 'DE',
-        },
-        totalCents: 2500,
-        status: 'paid',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress(),
+      billingAddress: makeTestAddress(),
+      totalCents: 2500,
+      status: 'paid',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 500,
-        subtotalCents: 2000,
-        status: 'paid',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 500,
+      subtotalCents: 2000,
+      status: 'paid',
+    })
 
-    await db.insert(orderItem).values({
-      shopOrderId: so.id,
-      productId: p.id,
-      productName: p.name,
-      unitPriceCents: p.priceCents,
+    await createOrderItem(so, p, {
       quantity: 2,
       totalCents: 2000,
     })
@@ -198,46 +140,21 @@ describe('getShopOrderQuery', () => {
     await seedShop()
     const p = await seedProduct()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test Buyer',
-          street: '123 Main St',
-          city: 'Berlin',
-          postalCode: '10115',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test Buyer',
-          street: '123 Main St',
-          city: 'Berlin',
-          postalCode: '10115',
-          country: 'DE',
-        },
-        totalCents: 2500,
-        status: 'paid',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress(),
+      billingAddress: makeTestAddress(),
+      totalCents: 2500,
+      status: 'paid',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 500,
-        subtotalCents: 2000,
-        status: 'paid',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 500,
+      subtotalCents: 2000,
+      status: 'paid',
+    })
 
-    await db.insert(orderItem).values({
-      shopOrderId: so.id,
-      productId: p.id,
-      productName: p.name,
-      unitPriceCents: p.priceCents,
+    await createOrderItem(so, p, {
       quantity: 2,
       totalCents: 2000,
     })
@@ -264,40 +181,31 @@ describe('getShopOrderQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'express',
-        shippingCostCents: 1000,
-        subtotalCents: 0,
-        trackingNumber: 'TRACK123',
-        trackingUrl: 'https://track.example.com/123',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'express',
+      shippingCostCents: 1000,
+      subtotalCents: 0,
+      trackingNumber: 'TRACK123',
+      trackingUrl: 'https://track.example.com/123',
+    })
 
     const result = await getShopOrderQuery(so.id)
     expect(result?.trackingNumber).toBe('TRACK123')
@@ -321,46 +229,33 @@ describe('listShopOrdersQuery', () => {
     await seedShop()
     const p = await seedProduct()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 2500,
-        status: 'paid',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 2500,
+      status: 'paid',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 500,
-        subtotalCents: 2000,
-        status: 'paid',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 500,
+      subtotalCents: 2000,
+      status: 'paid',
+    })
 
-    await db.insert(orderItem).values({
-      shopOrderId: so.id,
-      productId: p.id,
-      productName: p.name,
-      unitPriceCents: p.priceCents,
+    await createOrderItem(so, p, {
       quantity: 2,
       totalCents: 2000,
     })
@@ -381,40 +276,32 @@ describe('listShopOrdersQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+    })
 
-    await db.insert(shopOrder).values({
-      platformOrderId: order.id,
-      shopId: 'shop-1',
+    await createShopOrder(order, 'shop-1', {
       shippingMethod: 'standard',
       shippingCostCents: 500,
       subtotalCents: 500,
       status: 'paid',
     })
 
-    await db.insert(shopOrder).values({
-      platformOrderId: order.id,
-      shopId: 'shop-1',
+    await createShopOrder(order, 'shop-1', {
       shippingMethod: 'standard',
       shippingCostCents: 500,
       subtotalCents: 500,
@@ -434,32 +321,26 @@ describe('listShopOrdersQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+    })
 
     for (let i = 0; i < 5; i++) {
-      await db.insert(shopOrder).values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
+      await createShopOrder(order, 'shop-1', {
         shippingMethod: 'standard',
         shippingCostCents: 100,
         subtotalCents: 100,
@@ -484,51 +365,38 @@ describe('listShopOrdersQuery', () => {
   it('only returns orders for the specified shop', async () => {
     await seedUser()
     await seedShop()
-    const shop2 = await db
-      .insert(shop)
-      .values({
-        id: 'shop-2',
-        name: 'Other Shop',
-        slug: 'other-shop',
-        ownerId: 'user-1',
-      })
-      .returning()
-      .then((rows) => rows[0])
+    const shop2 = await createShop('user-1', {
+      id: 'shop-2',
+      name: 'Other Shop',
+      slug: 'other-shop',
+    })
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+    })
 
-    await db.insert(shopOrder).values({
-      platformOrderId: order.id,
-      shopId: 'shop-1',
+    await createShopOrder(order, 'shop-1', {
       shippingMethod: 'standard',
       shippingCostCents: 100,
       subtotalCents: 100,
       status: 'paid',
     })
 
-    await db.insert(shopOrder).values({
-      platformOrderId: order.id,
-      shopId: shop2.id,
+    await createShopOrder(order, shop2, {
       shippingMethod: 'standard',
       shippingCostCents: 100,
       subtotalCents: 100,
@@ -545,58 +413,44 @@ describe('listShopOrdersQuery', () => {
     await seedShop()
     const p = await seedProduct()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'paid',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'paid',
+    })
 
-    await db.insert(orderItem).values([
-      {
-        shopOrderId: so.id,
-        productId: p.id,
-        productName: 'Vase',
-        unitPriceCents: 500,
-        quantity: 1,
-        totalCents: 500,
-      },
-      {
-        shopOrderId: so.id,
-        productId: p.id,
-        productName: 'Bowl',
-        unitPriceCents: 400,
-        quantity: 1,
-        totalCents: 400,
-      },
-    ])
+    await createOrderItem(so, p, {
+      productName: 'Vase',
+      unitPriceCents: 500,
+      quantity: 1,
+      totalCents: 500,
+    })
+
+    await createOrderItem(so, p, {
+      productName: 'Bowl',
+      unitPriceCents: 400,
+      quantity: 1,
+      totalCents: 400,
+    })
 
     const result = await listShopOrdersQuery('shop-1')
     expect(result.orders[0].itemCount).toBe(2)
@@ -720,40 +574,31 @@ describe('updateShopOrderStatusQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'pending_payment',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+      status: 'pending_payment',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'pending_payment',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'pending_payment',
+    })
 
     try {
       await updateShopOrderStatusQuery(so.id, { status: 'shipped' })
@@ -768,40 +613,31 @@ describe('updateShopOrderStatusQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'paid',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+      status: 'paid',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'paid',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'paid',
+    })
 
     const updated = await updateShopOrderStatusQuery(so.id, { status: 'processing' })
     expect(updated.status).toBe('processing')
@@ -817,40 +653,31 @@ describe('updateShopOrderStatusQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'processing',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+      status: 'processing',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'processing',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'processing',
+    })
 
     const updated = await updateShopOrderStatusQuery(so.id, {
       status: 'shipped',
@@ -867,40 +694,31 @@ describe('updateShopOrderStatusQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'processing',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+      status: 'processing',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'processing',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'processing',
+    })
 
     try {
       await updateShopOrderStatusQuery(so.id, {
@@ -918,40 +736,31 @@ describe('updateShopOrderStatusQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'paid',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+      status: 'paid',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'paid',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'paid',
+    })
 
     const updated = await updateShopOrderStatusQuery(so.id, {
       status: 'processing',
@@ -966,40 +775,31 @@ describe('updateShopOrderStatusQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'paid',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+      status: 'paid',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'paid',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'paid',
+    })
 
     try {
       await updateShopOrderStatusQuery(so.id, { status: 'cancelled' })
@@ -1016,40 +816,31 @@ describe('updateShopOrderStatusQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'processing',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+      status: 'processing',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'processing',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'processing',
+    })
 
     try {
       await updateShopOrderStatusQuery(so.id, { status: 'cancelled' })
@@ -1067,52 +858,26 @@ describe('updateShopOrderStatusQuery', () => {
     await seedShop()
     const p = await seedProduct({ stockCount: 10 })
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test Buyer',
-          street: '123 Main St',
-          city: 'Berlin',
-          postalCode: '10115',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test Buyer',
-          street: '123 Main St',
-          city: 'Berlin',
-          postalCode: '10115',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'pending_payment',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress(),
+      billingAddress: makeTestAddress(),
+      totalCents: 1000,
+      status: 'pending_payment',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'pending_payment',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'pending_payment',
+    })
 
-    await db.insert(orderItem).values({
-      shopOrderId: so.id,
-      productId: p.id,
-      productName: p.name,
-      unitPriceCents: p.priceCents,
+    await createOrderItem(so, p, {
       quantity: 3,
       totalCents: p.priceCents * 3,
     })
 
-    await db.insert(inventoryReservation).values({
-      productId: p.id,
+    await createInventoryReservation(p, {
       platformOrderId: order.id,
       quantity: 3,
       expiresAt: new Date(Date.now() + 60_000),
@@ -1153,40 +918,31 @@ describe('markShopOrderShippedQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'processing',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+      status: 'processing',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'processing',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'processing',
+    })
 
     try {
       await markShopOrderShippedQuery(so.id, { trackingUrl: 'not-a-url' })
@@ -1201,40 +957,31 @@ describe('markShopOrderShippedQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'processing',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+      status: 'processing',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'processing',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'processing',
+    })
 
     try {
       await markShopOrderShippedQuery(so.id, { trackingUrl: 'javascript:alert(1)' })
@@ -1249,40 +996,31 @@ describe('markShopOrderShippedQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'processing',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+      status: 'processing',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'processing',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'processing',
+    })
 
     try {
       await markShopOrderShippedQuery(so.id, {
@@ -1299,40 +1037,31 @@ describe('markShopOrderShippedQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'pending_payment',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+      status: 'pending_payment',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'pending_payment',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'pending_payment',
+    })
 
     try {
       await markShopOrderShippedQuery(so.id, {})
@@ -1347,40 +1076,31 @@ describe('markShopOrderShippedQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'paid',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+      status: 'paid',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'paid',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'paid',
+    })
 
     const updated = await markShopOrderShippedQuery(so.id, {
       trackingNumber: 'TRACK-123',
@@ -1402,40 +1122,31 @@ describe('markShopOrderShippedQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'processing',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+      status: 'processing',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'processing',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'processing',
+    })
 
     const updated = await markShopOrderShippedQuery(so.id, {})
     expect(updated.status).toBe('shipped')
@@ -1445,42 +1156,33 @@ describe('markShopOrderShippedQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'shipped',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+      status: 'shipped',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'shipped',
-        trackingNumber: 'OLD-TRACK',
-        trackingUrl: 'https://old.example.com',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'shipped',
+      trackingNumber: 'OLD-TRACK',
+      trackingUrl: 'https://old.example.com',
+    })
 
     const updated = await markShopOrderShippedQuery(so.id, {})
     expect(updated.status).toBe('shipped')
@@ -1492,42 +1194,33 @@ describe('markShopOrderShippedQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'shipped',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+      status: 'shipped',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'shipped',
-        trackingNumber: 'OLD-TRACK',
-        trackingUrl: 'https://old.example.com',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'shipped',
+      trackingNumber: 'OLD-TRACK',
+      trackingUrl: 'https://old.example.com',
+    })
 
     const updated = await markShopOrderShippedQuery(so.id, {
       trackingNumber: 'NEW-TRACK',
@@ -1542,40 +1235,31 @@ describe('markShopOrderShippedQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'paid',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+      status: 'paid',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'paid',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'paid',
+    })
 
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
@@ -1620,40 +1304,31 @@ describe('markShopOrderDeliveredQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'paid',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+      status: 'paid',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'paid',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'paid',
+    })
 
     try {
       await markShopOrderDeliveredQuery(so.id)
@@ -1668,40 +1343,31 @@ describe('markShopOrderDeliveredQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'shipped',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+      status: 'shipped',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'shipped',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'shipped',
+    })
 
     const updated = await markShopOrderDeliveredQuery(so.id)
     expect(updated.status).toBe('delivered')
@@ -1717,40 +1383,31 @@ describe('markShopOrderDeliveredQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'delivered',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+      status: 'delivered',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'delivered',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'delivered',
+    })
 
     const updated = await markShopOrderDeliveredQuery(so.id)
     expect(updated.status).toBe('delivered')
@@ -1760,40 +1417,31 @@ describe('markShopOrderDeliveredQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'shipped',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+      status: 'shipped',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'shipped',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'shipped',
+    })
 
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
@@ -1829,52 +1477,39 @@ describe('recalcPlatformOrderStatus', () => {
   it('updates platform order to shipped when all shop orders are shipped', async () => {
     await seedUser()
     await seedShop()
-    const shop2 = await db
-      .insert(shop)
-      .values({
-        id: 'shop-2',
-        name: 'Other Shop',
-        slug: 'other-shop',
-        ownerId: 'user-1',
-      })
-      .returning()
-      .then((rows) => rows[0])
+    const shop2 = await createShop('user-1', {
+      id: 'shop-2',
+      name: 'Other Shop',
+      slug: 'other-shop',
+    })
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 2000,
-        status: 'processing',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 2000,
+      status: 'processing',
+    })
 
-    await db.insert(shopOrder).values({
-      platformOrderId: order.id,
-      shopId: 'shop-1',
+    await createShopOrder(order, 'shop-1', {
       shippingMethod: 'standard',
       shippingCostCents: 100,
       subtotalCents: 900,
       status: 'shipped',
     })
 
-    await db.insert(shopOrder).values({
-      platformOrderId: order.id,
-      shopId: shop2.id,
+    await createShopOrder(order, shop2, {
       shippingMethod: 'standard',
       shippingCostCents: 100,
       subtotalCents: 900,
@@ -1891,32 +1526,26 @@ describe('recalcPlatformOrderStatus', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test',
-          street: 'St',
-          city: 'City',
-          postalCode: '00000',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'shipped',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      billingAddress: makeTestAddress({
+        name: 'Test',
+        street: 'St',
+        city: 'City',
+        postalCode: '00000',
+        country: 'DE',
+      }),
+      totalCents: 1000,
+      status: 'shipped',
+    })
 
-    await db.insert(shopOrder).values({
-      platformOrderId: order.id,
-      shopId: 'shop-1',
+    await createShopOrder(order, 'shop-1', {
       shippingMethod: 'standard',
       shippingCostCents: 100,
       subtotalCents: 900,
@@ -1945,40 +1574,19 @@ describe('createShippingLabelForOrderQuery', () => {
     await seedUser()
     await seedShop()
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test Buyer',
-          street: '123 Main St',
-          city: 'Berlin',
-          postalCode: '10115',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test Buyer',
-          street: '123 Main St',
-          city: 'Berlin',
-          postalCode: '10115',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'paid',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress(),
+      billingAddress: makeTestAddress(),
+      totalCents: 1000,
+      status: 'paid',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'paid',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'paid',
+    })
 
     try {
       await createShippingLabelForOrderQuery(so.id)
@@ -2002,40 +1610,19 @@ describe('createShippingLabelForOrderQuery', () => {
       },
     })
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test Buyer',
-          street: '123 Main St',
-          city: 'Berlin',
-          postalCode: '10115',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test Buyer',
-          street: '123 Main St',
-          city: 'Berlin',
-          postalCode: '10115',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'paid',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress(),
+      billingAddress: makeTestAddress(),
+      totalCents: 1000,
+      status: 'paid',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'paid',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'paid',
+    })
 
     const label = await createShippingLabelForOrderQuery(so.id)
     expect(label.carrier).toBe('sendcloud')
@@ -2060,40 +1647,19 @@ describe('markShopOrderShippedWithLabelQuery', () => {
       },
     })
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test Buyer',
-          street: '123 Main St',
-          city: 'Berlin',
-          postalCode: '10115',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test Buyer',
-          street: '123 Main St',
-          city: 'Berlin',
-          postalCode: '10115',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'paid',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress(),
+      billingAddress: makeTestAddress(),
+      totalCents: 1000,
+      status: 'paid',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'paid',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'paid',
+    })
 
     const updated = await markShopOrderShippedWithLabelQuery(so.id)
     expect(updated.status).toBe('shipped')
@@ -2113,40 +1679,19 @@ describe('markShopOrderShippedWithLabelQuery', () => {
     await seedUser()
     await seedShop() // no shipping origin
 
-    const [order] = await db
-      .insert(platformOrder)
-      .values({
-        userId: 'user-1',
-        shippingAddress: {
-          name: 'Test Buyer',
-          street: '123 Main St',
-          city: 'Berlin',
-          postalCode: '10115',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Test Buyer',
-          street: '123 Main St',
-          city: 'Berlin',
-          postalCode: '10115',
-          country: 'DE',
-        },
-        totalCents: 1000,
-        status: 'paid',
-      })
-      .returning()
+    const order = await createPlatformOrder('user-1', {
+      shippingAddress: makeTestAddress(),
+      billingAddress: makeTestAddress(),
+      totalCents: 1000,
+      status: 'paid',
+    })
 
-    const [so] = await db
-      .insert(shopOrder)
-      .values({
-        platformOrderId: order.id,
-        shopId: 'shop-1',
-        shippingMethod: 'standard',
-        shippingCostCents: 100,
-        subtotalCents: 900,
-        status: 'paid',
-      })
-      .returning()
+    const so = await createShopOrder(order, 'shop-1', {
+      shippingMethod: 'standard',
+      shippingCostCents: 100,
+      subtotalCents: 900,
+      status: 'paid',
+    })
 
     try {
       await markShopOrderShippedWithLabelQuery(so.id)

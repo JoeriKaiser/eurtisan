@@ -1,21 +1,18 @@
 import { eq } from 'drizzle-orm'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
+import { product, shop } from '#/db/schema'
+import { clearTestTables } from '#/test/cleanup'
 import {
-  cart,
-  cartItem,
-  categories,
-  inventoryReservation,
-  orderItem,
-  platformOrder,
-  product,
-  productImage,
-  shop,
-  shopOrder,
-  user,
-} from '#/db/schema'
-
+  createCategory,
+  createProduct,
+  createProductImage,
+  createShop,
+  createUser,
+} from '#/test/factories'
+import { logger } from './logger.server'
+import { syncProductToMeilisearch } from './meilisearch-products.server'
 import { createProductSchema } from './products'
 import {
   createProductInternal,
@@ -32,13 +29,6 @@ import {
   listShopsQuery,
   searchProductsQuery,
 } from './products.server'
-import { syncProductToMeilisearch } from './meilisearch-products.server'
-import { logger } from './logger.server'
-
-/** Public catalog queries only include shops with status "active". */
-function shopValues(values: typeof shop.$inferInsert): typeof shop.$inferInsert {
-  return { status: 'active', ...values }
-}
 
 vi.mock('./auth', () => ({
   auth: {
@@ -62,17 +52,11 @@ vi.mock('./logger.server', () => ({
 }))
 
 beforeEach(async () => {
-  await db.delete(inventoryReservation)
-  await db.delete(orderItem)
-  await db.delete(shopOrder)
-  await db.delete(platformOrder)
-  await db.delete(cartItem)
-  await db.delete(cart)
-  await db.delete(productImage)
-  await db.delete(product)
-  await db.delete(categories)
-  await db.delete(shop)
-  await db.delete(user)
+  await clearTestTables()
+})
+
+afterAll(async () => {
+  await clearTestTables()
 })
 
 describe('createProductSchema', () => {
@@ -118,35 +102,9 @@ describe('createProductSchema', () => {
 
 describe('listProductsByShopQuery', () => {
   it('returns products for a specific shop', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop',
-          slug: 'test-shop',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
-
-    await db.insert(product).values({
-      id: 'prod-1',
-      name: 'Vase',
-      slug: 'vase',
-      priceCents: 2999,
-      shopId: s.id,
-    })
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, { id: 'shop-1', name: 'Test Shop', slug: 'test-shop' })
+    await createProduct(s, { id: 'prod-1', name: 'Vase', slug: 'vase', priceCents: 2999 })
 
     const result = await listProductsByShopQuery(s.id)
     expect(result).toHaveLength(1)
@@ -154,36 +112,20 @@ describe('listProductsByShopQuery', () => {
   })
 
   it('enforces maximum limit of 100', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-limit',
-        name: 'Test',
-        email: 'limit@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-limit',
-          name: 'Test Shop',
-          slug: 'test-shop-limit',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
+    const u = await createUser({ id: 'user-limit' })
+    const s = await createShop(u, {
+      id: 'shop-limit',
+      name: 'Test Shop',
+      slug: 'test-shop-limit',
+    })
 
     // Insert 5 products
     for (let i = 0; i < 5; i++) {
-      await db.insert(product).values({
+      await createProduct(s, {
         id: `prod-limit-${i}`,
         name: `Product ${i}`,
         slug: `product-${i}`,
         priceCents: 1000,
-        shopId: s.id,
       })
     }
 
@@ -199,39 +141,14 @@ describe('listProductsByShopQuery', () => {
 
 describe('listProductsByCategorySlugQuery', () => {
   it('returns products for a category slug', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop',
-          slug: 'test-shop',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
-
-    const [cat] = await db
-      .insert(categories)
-      .values({ name: 'Pottery', slug: 'pottery' })
-      .returning()
-
-    await db.insert(product).values({
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, { id: 'shop-1', name: 'Test Shop', slug: 'test-shop' })
+    const cat = await createCategory({ name: 'Pottery', slug: 'pottery' })
+    await createProduct(s, {
       id: 'prod-1',
       name: 'Vase',
       slug: 'vase',
       priceCents: 2999,
-      shopId: s.id,
       categoryId: cat.id,
     })
 
@@ -251,40 +168,19 @@ describe('listProductsByCategorySlugQuery', () => {
   })
 
   it('excludes products from suspended shops', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop',
-          slug: 'test-shop',
-          ownerId: u.id,
-          isSuspended: true,
-        }),
-      )
-      .returning()
-
-    const [cat] = await db
-      .insert(categories)
-      .values({ name: 'Pottery', slug: 'pottery' })
-      .returning()
-
-    await db.insert(product).values({
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, {
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      isSuspended: true,
+    })
+    const cat = await createCategory({ name: 'Pottery', slug: 'pottery' })
+    await createProduct(s, {
       id: 'prod-1',
       name: 'Vase',
       slug: 'vase',
       priceCents: 2999,
-      shopId: s.id,
       categoryId: cat.id,
     })
 
@@ -294,39 +190,14 @@ describe('listProductsByCategorySlugQuery', () => {
   })
 
   it('excludes inactive products', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop',
-          slug: 'test-shop',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
-
-    const [cat] = await db
-      .insert(categories)
-      .values({ name: 'Pottery', slug: 'pottery' })
-      .returning()
-
-    await db.insert(product).values({
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, { id: 'shop-1', name: 'Test Shop', slug: 'test-shop' })
+    const cat = await createCategory({ name: 'Pottery', slug: 'pottery' })
+    await createProduct(s, {
       id: 'prod-1',
       name: 'Vase',
       slug: 'vase',
       priceCents: 2999,
-      shopId: s.id,
       categoryId: cat.id,
       isActive: false,
     })
@@ -337,41 +208,21 @@ describe('listProductsByCategorySlugQuery', () => {
   })
 
   it('enforces maximum page size of 100', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-cat-limit',
-        name: 'Test',
-        email: 'cat-limit@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-cat-limit',
-          name: 'Test Shop',
-          slug: 'test-shop-cat-limit',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
-
-    const [cat] = await db
-      .insert(categories)
-      .values({ name: 'Pottery', slug: 'pottery-limit' })
-      .returning()
+    const u = await createUser({ id: 'user-cat-limit' })
+    const s = await createShop(u, {
+      id: 'shop-cat-limit',
+      name: 'Test Shop',
+      slug: 'test-shop-cat-limit',
+    })
+    const cat = await createCategory({ name: 'Pottery', slug: 'pottery-limit' })
 
     // Insert 5 products
     for (let i = 0; i < 5; i++) {
-      await db.insert(product).values({
+      await createProduct(s, {
         id: `prod-cat-limit-${i}`,
         name: `Product ${i}`,
         slug: `product-${i}`,
         priceCents: 1000,
-        shopId: s.id,
         categoryId: cat.id,
       })
     }
@@ -387,61 +238,29 @@ describe('listProductsByCategorySlugQuery', () => {
 
 describe('getProductBySlugQuery', () => {
   it('returns product by slug with images ordered by sortOrder', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, { id: 'shop-1', name: 'Test Shop', slug: 'test-shop' })
+    const cat = await createCategory({ name: 'Pottery', slug: 'pottery' })
+    const p = await createProduct(s, {
+      id: 'prod-1',
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 2999,
+      categoryId: cat.id,
+    })
 
-    const [s] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop',
-          slug: 'test-shop',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
-
-    const [cat] = await db
-      .insert(categories)
-      .values({ name: 'Pottery', slug: 'pottery' })
-      .returning()
-
-    const [p] = await db
-      .insert(product)
-      .values({
-        id: 'prod-1',
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        shopId: s.id,
-        categoryId: cat.id,
-      })
-      .returning()
-
-    await db.insert(productImage).values([
-      {
-        id: 'img-1',
-        productId: p.id,
-        url: 'http://example.com/1.jpg',
-        altText: 'First',
-        sortOrder: 1,
-      },
-      {
-        id: 'img-2',
-        productId: p.id,
-        url: 'http://example.com/2.jpg',
-        altText: 'Second',
-        sortOrder: 0,
-      },
-    ])
+    await createProductImage(p, {
+      id: 'img-1',
+      url: 'http://example.com/1.jpg',
+      altText: 'First',
+      sortOrder: 1,
+    })
+    await createProductImage(p, {
+      id: 'img-2',
+      url: 'http://example.com/2.jpg',
+      altText: 'Second',
+      sortOrder: 0,
+    })
 
     const result = await getProductBySlugQuery('test-shop', 'vase')
     expect(result).not.toBeNull()
@@ -461,70 +280,27 @@ describe('getProductBySlugQuery', () => {
   })
 
   it('returns null when shop is suspended', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop',
-          slug: 'test-shop',
-          ownerId: u.id,
-          isSuspended: true,
-        }),
-      )
-      .returning()
-
-    await db.insert(product).values({
-      id: 'prod-1',
-      name: 'Vase',
-      slug: 'vase',
-      priceCents: 2999,
-      shopId: s.id,
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, {
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      isSuspended: true,
     })
+    await createProduct(s, { id: 'prod-1', name: 'Vase', slug: 'vase', priceCents: 2999 })
 
     const result = await getProductBySlugQuery('test-shop', 'vase')
     expect(result).toBeNull()
   })
 
   it('returns null when product is inactive', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop',
-          slug: 'test-shop',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
-
-    await db.insert(product).values({
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, { id: 'shop-1', name: 'Test Shop', slug: 'test-shop' })
+    await createProduct(s, {
       id: 'prod-1',
       name: 'Vase',
       slug: 'vase',
       priceCents: 2999,
-      shopId: s.id,
       isActive: false,
     })
 
@@ -535,71 +311,40 @@ describe('getProductBySlugQuery', () => {
 
 describe('listProductsQuery', () => {
   async function seedShopAndProducts() {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
+    const u = await createUser({ id: 'user-1' })
+    const s1 = await createShop(u, {
+      id: 'shop-1',
+      name: 'Test Shop 1',
+      slug: 'test-shop-1',
+    })
+    const s2 = await createShop(u, {
+      id: 'shop-2',
+      name: 'Test Shop 2',
+      slug: 'test-shop-2',
+    })
+    const cat = await createCategory({ name: 'Pottery', slug: 'pottery' })
 
-    const [s1] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop 1',
-          slug: 'test-shop-1',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
-
-    const [s2] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-2',
-          name: 'Test Shop 2',
-          slug: 'test-shop-2',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
-
-    const [cat] = await db
-      .insert(categories)
-      .values({ name: 'Pottery', slug: 'pottery' })
-      .returning()
-
-    await db.insert(product).values([
-      {
-        id: 'prod-1',
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        shopId: s1.id,
-        categoryId: cat.id,
-      },
-      {
-        id: 'prod-2',
-        name: 'Bowl',
-        slug: 'bowl',
-        priceCents: 1999,
-        shopId: s1.id,
-        categoryId: cat.id,
-      },
-      {
-        id: 'prod-3',
-        name: 'Plate',
-        slug: 'plate',
-        priceCents: 4999,
-        shopId: s2.id,
-        categoryId: cat.id,
-      },
-    ])
+    await createProduct(s1, {
+      id: 'prod-1',
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 2999,
+      categoryId: cat.id,
+    })
+    await createProduct(s1, {
+      id: 'prod-2',
+      name: 'Bowl',
+      slug: 'bowl',
+      priceCents: 1999,
+      categoryId: cat.id,
+    })
+    await createProduct(s2, {
+      id: 'prod-3',
+      name: 'Plate',
+      slug: 'plate',
+      priceCents: 4999,
+      categoryId: cat.id,
+    })
 
     return { s1, s2, cat }
   }
@@ -696,32 +441,10 @@ describe('listProductsQuery', () => {
 
 describe('getProductsByShopSlugQuery', () => {
   it('returns paginated active products for a shop', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop',
-          slug: 'test-shop',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
-
-    await db.insert(product).values([
-      { id: 'prod-1', name: 'Vase', slug: 'vase', priceCents: 2999, shopId: s.id },
-      { id: 'prod-2', name: 'Bowl', slug: 'bowl', priceCents: 1999, shopId: s.id },
-    ])
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, { id: 'shop-1', name: 'Test Shop', slug: 'test-shop' })
+    await createProduct(s, { id: 'prod-1', name: 'Vase', slug: 'vase', priceCents: 2999 })
+    await createProduct(s, { id: 'prod-2', name: 'Bowl', slug: 'bowl', priceCents: 1999 })
 
     const result = await getProductsByShopSlugQuery('test-shop', { page: 1, pageSize: 10 })
     expect(result.products).toHaveLength(2)
@@ -739,28 +462,13 @@ describe('getProductsByShopSlugQuery', () => {
   })
 
   it('throws 404 for suspended shop', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop',
-          slug: 'test-shop',
-          ownerId: u.id,
-          isSuspended: true,
-        }),
-      )
-      .returning()
+    const u = await createUser({ id: 'user-1' })
+    await createShop(u, {
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      isSuspended: true,
+    })
 
     try {
       await getProductsByShopSlugQuery('test-shop')
@@ -774,27 +482,8 @@ describe('getProductsByShopSlugQuery', () => {
 
 describe('createProductInternal', () => {
   it('creates a product successfully', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop',
-          slug: 'test-shop',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, { id: 'shop-1', name: 'Test Shop', slug: 'test-shop' })
 
     const result = await createProductInternal({
       name: 'Vase',
@@ -809,27 +498,8 @@ describe('createProductInternal', () => {
   })
 
   it('rejects duplicate slug within the same shop', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop',
-          slug: 'test-shop',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, { id: 'shop-1', name: 'Test Shop', slug: 'test-shop' })
 
     await createProductInternal({
       name: 'Vase',
@@ -849,39 +519,17 @@ describe('createProductInternal', () => {
   })
 
   it('allows same slug in different shops', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    const [s1] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop 1',
-          slug: 'test-shop-1',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
-
-    const [s2] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-2',
-          name: 'Test Shop 2',
-          slug: 'test-shop-2',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
+    const u = await createUser({ id: 'user-1' })
+    const s1 = await createShop(u, {
+      id: 'shop-1',
+      name: 'Test Shop 1',
+      slug: 'test-shop-1',
+    })
+    const s2 = await createShop(u, {
+      id: 'shop-2',
+      name: 'Test Shop 2',
+      slug: 'test-shop-2',
+    })
 
     await createProductInternal({
       name: 'Vase',
@@ -902,27 +550,8 @@ describe('createProductInternal', () => {
   })
 
   it('succeeds when Meilisearch sync fails and logs a warning', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop',
-          slug: 'test-shop',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, { id: 'shop-1', name: 'Test Shop', slug: 'test-shop' })
 
     vi.mocked(syncProductToMeilisearch).mockRejectedValueOnce(new Error('Meili down'))
 
@@ -945,28 +574,13 @@ describe('createProductInternal', () => {
 
 describe('getShopBySlugQuery', () => {
   it('returns shop summary by slug', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop',
-          description: 'A test shop',
-          slug: 'test-shop',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
+    const u = await createUser({ id: 'user-1' })
+    await createShop(u, {
+      id: 'shop-1',
+      name: 'Test Shop',
+      description: 'A test shop',
+      slug: 'test-shop',
+    })
 
     const result = await getShopBySlugQuery('test-shop')
     expect(result).not.toBeNull()
@@ -981,28 +595,13 @@ describe('getShopBySlugQuery', () => {
   })
 
   it('returns null for suspended shop', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop',
-          slug: 'test-shop',
-          ownerId: u.id,
-          isSuspended: true,
-        }),
-      )
-      .returning()
+    const u = await createUser({ id: 'user-1' })
+    await createShop(u, {
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      isSuspended: true,
+    })
 
     const result = await getShopBySlugQuery('test-shop')
     expect(result).toBeNull()
@@ -1011,40 +610,28 @@ describe('getShopBySlugQuery', () => {
 
 describe('getShopProductsQuery', () => {
   async function seedShopWithProducts() {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, { id: 'shop-1', name: 'Test Shop', slug: 'test-shop' })
 
-    const [s] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop',
-          slug: 'test-shop',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
-
-    await db.insert(product).values([
-      { id: 'prod-1', name: 'Ceramic Vase', slug: 'ceramic-vase', priceCents: 2999, shopId: s.id },
-      { id: 'prod-2', name: 'Wooden Bowl', slug: 'wooden-bowl', priceCents: 1999, shopId: s.id },
-      {
-        id: 'prod-3',
-        name: 'Glass Plate',
-        slug: 'glass-plate',
-        priceCents: 4999,
-        shopId: s.id,
-        isActive: false,
-      },
-    ])
+    await createProduct(s, {
+      id: 'prod-1',
+      name: 'Ceramic Vase',
+      slug: 'ceramic-vase',
+      priceCents: 2999,
+    })
+    await createProduct(s, {
+      id: 'prod-2',
+      name: 'Wooden Bowl',
+      slug: 'wooden-bowl',
+      priceCents: 1999,
+    })
+    await createProduct(s, {
+      id: 'prod-3',
+      name: 'Glass Plate',
+      slug: 'glass-plate',
+      priceCents: 4999,
+      isActive: false,
+    })
 
     return { shop: s }
   }
@@ -1112,28 +699,13 @@ describe('getShopProductsQuery', () => {
   })
 
   it('throws 404 for suspended shop', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop',
-          slug: 'test-shop',
-          ownerId: u.id,
-          isSuspended: true,
-        }),
-      )
-      .returning()
+    const u = await createUser({ id: 'user-1' })
+    await createShop(u, {
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      isSuspended: true,
+    })
 
     try {
       await getShopProductsQuery('test-shop')
@@ -1155,70 +727,28 @@ describe('getShopProductsQuery', () => {
 })
 
 describe('listRecentProductsQuery', () => {
-  beforeEach(async () => {
-    await db.delete(inventoryReservation)
-    await db.delete(orderItem)
-    await db.delete(shopOrder)
-    await db.delete(platformOrder)
-    await db.delete(cartItem)
-    await db.delete(cart)
-    await db.delete(productImage)
-    await db.delete(product)
-    await db.delete(categories)
-    await db.delete(shop)
-    await db.delete(user)
-  })
-
   it('includes the primary image for each product', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, { id: 'shop-1', name: 'Test Shop', slug: 'test-shop' })
+    const p = await createProduct(s, {
+      id: 'prod-1',
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 2999,
+    })
 
-    const [s] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop',
-          slug: 'test-shop',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
-
-    const [p] = await db
-      .insert(product)
-      .values({
-        id: 'prod-1',
-        name: 'Vase',
-        slug: 'vase',
-        priceCents: 2999,
-        shopId: s.id,
-      })
-      .returning()
-
-    await db.insert(productImage).values([
-      {
-        id: 'img-1',
-        productId: p.id,
-        url: 'http://example.com/1.jpg',
-        altText: 'First',
-        sortOrder: 1,
-      },
-      {
-        id: 'img-2',
-        productId: p.id,
-        url: 'http://example.com/2.jpg',
-        altText: 'Second',
-        sortOrder: 0,
-      },
-    ])
+    await createProductImage(p, {
+      id: 'img-1',
+      url: 'http://example.com/1.jpg',
+      altText: 'First',
+      sortOrder: 1,
+    })
+    await createProductImage(p, {
+      id: 'img-2',
+      url: 'http://example.com/2.jpg',
+      altText: 'Second',
+      sortOrder: 0,
+    })
 
     const result = await listRecentProductsQuery(8)
     expect(result).toHaveLength(1)
@@ -1230,34 +760,13 @@ describe('listRecentProductsQuery', () => {
   })
 
   it('returns null image when product has no images', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop',
-          slug: 'test-shop',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
-
-    await db.insert(product).values({
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, { id: 'shop-1', name: 'Test Shop', slug: 'test-shop' })
+    await createProduct(s, {
       id: 'prod-1',
       name: 'Vase',
       slug: 'vase',
       priceCents: 2999,
-      shopId: s.id,
     })
 
     const result = await listRecentProductsQuery(8)
@@ -1266,35 +775,18 @@ describe('listRecentProductsQuery', () => {
   })
 
   it('excludes products from suspended shops', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop',
-          slug: 'test-shop',
-          ownerId: u.id,
-          isSuspended: true,
-        }),
-      )
-      .returning()
-
-    await db.insert(product).values({
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, {
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      isSuspended: true,
+    })
+    await createProduct(s, {
       id: 'prod-1',
       name: 'Vase',
       slug: 'vase',
       priceCents: 2999,
-      shopId: s.id,
     })
 
     const result = await listRecentProductsQuery(8)
@@ -1302,34 +794,13 @@ describe('listRecentProductsQuery', () => {
   })
 
   it('excludes inactive products', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop',
-          slug: 'test-shop',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
-
-    await db.insert(product).values({
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, { id: 'shop-1', name: 'Test Shop', slug: 'test-shop' })
+    await createProduct(s, {
       id: 'prod-1',
       name: 'Vase',
       slug: 'vase',
       priceCents: 2999,
-      shopId: s.id,
       isActive: false,
     })
 
@@ -1339,60 +810,24 @@ describe('listRecentProductsQuery', () => {
 })
 
 describe('getFeaturedShopsQuery', () => {
-  beforeEach(async () => {
-    await db.delete(inventoryReservation)
-    await db.delete(orderItem)
-    await db.delete(shopOrder)
-    await db.delete(platformOrder)
-    await db.delete(cartItem)
-    await db.delete(cart)
-    await db.delete(productImage)
-    await db.delete(product)
-    await db.delete(categories)
-    await db.delete(shop)
-    await db.delete(user)
-  })
-
   it('returns active shops ordered by newest first with productCount', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
+    const u = await createUser({ id: 'user-1' })
+    const s1 = await createShop(u, {
+      id: 'shop-1',
+      name: 'Old Shop',
+      slug: 'old-shop',
+      createdAt: new Date(Date.now() - 1000),
+    })
+    const s2 = await createShop(u, {
+      id: 'shop-2',
+      name: 'New Shop',
+      slug: 'new-shop',
+      createdAt: new Date(),
+    })
 
-    const [s1] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Old Shop',
-          slug: 'old-shop',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
-
-    const [s2] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-2',
-          name: 'New Shop',
-          slug: 'new-shop',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
-
-    await db.insert(product).values([
-      { id: 'prod-1', name: 'Vase', slug: 'vase', priceCents: 2999, shopId: s1.id },
-      { id: 'prod-2', name: 'Bowl', slug: 'bowl', priceCents: 1999, shopId: s2.id },
-      { id: 'prod-3', name: 'Plate', slug: 'plate', priceCents: 4999, shopId: s2.id },
-    ])
+    await createProduct(s1, { id: 'prod-1', name: 'Vase', slug: 'vase', priceCents: 2999 })
+    await createProduct(s2, { id: 'prod-2', name: 'Bowl', slug: 'bowl', priceCents: 1999 })
+    await createProduct(s2, { id: 'prod-3', name: 'Plate', slug: 'plate', priceCents: 4999 })
 
     const result = await getFeaturedShopsQuery(10)
     expect(result).toHaveLength(2)
@@ -1403,40 +838,14 @@ describe('getFeaturedShopsQuery', () => {
   })
 
   it('excludes suspended shops', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Active Shop',
-          slug: 'active-shop',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
-
-    await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-2',
-          name: 'Suspended Shop',
-          slug: 'suspended-shop',
-          ownerId: u.id,
-          isSuspended: true,
-        }),
-      )
-      .returning()
+    const u = await createUser({ id: 'user-1' })
+    await createShop(u, { id: 'shop-1', name: 'Active Shop', slug: 'active-shop' })
+    await createShop(u, {
+      id: 'shop-2',
+      name: 'Suspended Shop',
+      slug: 'suspended-shop',
+      isSuspended: true,
+    })
 
     const result = await getFeaturedShopsQuery(10)
     expect(result).toHaveLength(1)
@@ -1444,27 +853,8 @@ describe('getFeaturedShopsQuery', () => {
   })
 
   it('returns shops with zero products', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Empty Shop',
-          slug: 'empty-shop',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
+    const u = await createUser({ id: 'user-1' })
+    await createShop(u, { id: 'shop-1', name: 'Empty Shop', slug: 'empty-shop' })
 
     const result = await getFeaturedShopsQuery(10)
     expect(result).toHaveLength(1)
@@ -1473,23 +863,10 @@ describe('getFeaturedShopsQuery', () => {
   })
 
   it('respects the limit', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    await db
-      .insert(shop)
-      .values([
-        shopValues({ id: 'shop-1', name: 'Shop 1', slug: 'shop-1', ownerId: u.id }),
-        shopValues({ id: 'shop-2', name: 'Shop 2', slug: 'shop-2', ownerId: u.id }),
-        shopValues({ id: 'shop-3', name: 'Shop 3', slug: 'shop-3', ownerId: u.id }),
-      ])
+    const u = await createUser({ id: 'user-1' })
+    await createShop(u, { id: 'shop-1', name: 'Shop 1', slug: 'shop-1' })
+    await createShop(u, { id: 'shop-2', name: 'Shop 2', slug: 'shop-2' })
+    await createShop(u, { id: 'shop-3', name: 'Shop 3', slug: 'shop-3' })
 
     const result = await getFeaturedShopsQuery(2)
     expect(result).toHaveLength(2)
@@ -1497,106 +874,36 @@ describe('getFeaturedShopsQuery', () => {
 })
 
 describe('product database constraints', () => {
-  beforeEach(async () => {
-    await db.delete(inventoryReservation)
-    await db.delete(orderItem)
-    await db.delete(shopOrder)
-    await db.delete(platformOrder)
-    await db.delete(cartItem)
-    await db.delete(cart)
-    await db.delete(productImage)
-    await db.delete(product)
-    await db.delete(categories)
-    await db.delete(shop)
-    await db.delete(user)
-  })
-
   it('enforces unique slug within the same shop', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, { id: 'shop-1', name: 'Test Shop', slug: 'test-shop' })
 
-    const [s] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop',
-          slug: 'test-shop',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
-
-    await db.insert(product).values({
-      id: 'prod-1',
-      name: 'Vase',
-      slug: 'vase',
-      priceCents: 2999,
-      shopId: s.id,
-    })
+    await createProduct(s, { id: 'prod-1', name: 'Vase', slug: 'vase', priceCents: 2999 })
 
     await expect(
-      (async () => {
-        await db.insert(product).values({
-          id: 'prod-2',
-          name: 'Another Vase',
-          slug: 'vase',
-          priceCents: 3999,
-          shopId: s.id,
-        })
-      })(),
+      createProduct(s, {
+        id: 'prod-2',
+        name: 'Another Vase',
+        slug: 'vase',
+        priceCents: 3999,
+      }),
     ).rejects.toThrow()
   })
 
   it('allows duplicate slug across different shops at database level', async () => {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
-
-    const [s1] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop 1',
-          slug: 'test-shop-1',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
-
-    const [s2] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-2',
-          name: 'Test Shop 2',
-          slug: 'test-shop-2',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
-
-    await db.insert(product).values({
-      id: 'prod-1',
-      name: 'Vase',
-      slug: 'vase',
-      priceCents: 2999,
-      shopId: s1.id,
+    const u = await createUser({ id: 'user-1' })
+    const s1 = await createShop(u, {
+      id: 'shop-1',
+      name: 'Test Shop 1',
+      slug: 'test-shop-1',
     })
+    const s2 = await createShop(u, {
+      id: 'shop-2',
+      name: 'Test Shop 2',
+      slug: 'test-shop-2',
+    })
+
+    await createProduct(s1, { id: 'prod-1', name: 'Vase', slug: 'vase', priceCents: 2999 })
 
     const result = await db
       .insert(product)
@@ -1617,84 +924,56 @@ describe('product database constraints', () => {
 
 describe('searchProductsQuery', () => {
   async function seedSearchProducts() {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: 'user-1',
-        name: 'Test',
-        email: 'test@example.com',
-        emailVerified: true,
-      })
-      .returning()
+    const u = await createUser({ id: 'user-1' })
+    const s1 = await createShop(u, {
+      id: 'shop-1',
+      name: 'Test Shop 1',
+      slug: 'test-shop-1',
+    })
+    const s2 = await createShop(u, {
+      id: 'shop-2',
+      name: 'Test Shop 2',
+      slug: 'test-shop-2',
+    })
+    const c1 = await createCategory({
+      id: '550e8400-e29b-41d4-a716-446655440001',
+      name: 'Pottery',
+      slug: 'pottery',
+    })
+    const c2 = await createCategory({
+      id: '550e8400-e29b-41d4-a716-446655440002',
+      name: 'Tableware',
+      slug: 'tableware',
+    })
 
-    const [s1] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-1',
-          name: 'Test Shop 1',
-          slug: 'test-shop-1',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
-
-    const [s2] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: 'shop-2',
-          name: 'Test Shop 2',
-          slug: 'test-shop-2',
-          ownerId: u.id,
-        }),
-      )
-      .returning()
-
-    const [c1] = await db
-      .insert(categories)
-      .values({ id: '550e8400-e29b-41d4-a716-446655440001', name: 'Pottery', slug: 'pottery' })
-      .returning()
-
-    const [c2] = await db
-      .insert(categories)
-      .values({ id: '550e8400-e29b-41d4-a716-446655440002', name: 'Tableware', slug: 'tableware' })
-      .returning()
-
-    await db.insert(product).values([
-      {
-        id: 'prod-1',
-        name: 'Ceramic Vase',
-        slug: 'ceramic-vase',
-        priceCents: 2999,
-        shopId: s1.id,
-        categoryId: c1.id,
-      },
-      {
-        id: 'prod-2',
-        name: 'Wooden Bowl',
-        slug: 'wooden-bowl',
-        priceCents: 1999,
-        shopId: s1.id,
-        categoryId: c2.id,
-      },
-      {
-        id: 'prod-3',
-        name: 'Glass Plate',
-        slug: 'glass-plate',
-        priceCents: 4999,
-        shopId: s2.id,
-        categoryId: c2.id,
-      },
-      {
-        id: 'prod-4',
-        name: 'vase-like',
-        slug: 'vase-like',
-        priceCents: 999,
-        shopId: s2.id,
-        categoryId: c1.id,
-      },
-    ])
+    await createProduct(s1, {
+      id: 'prod-1',
+      name: 'Ceramic Vase',
+      slug: 'ceramic-vase',
+      priceCents: 2999,
+      categoryId: c1.id,
+    })
+    await createProduct(s1, {
+      id: 'prod-2',
+      name: 'Wooden Bowl',
+      slug: 'wooden-bowl',
+      priceCents: 1999,
+      categoryId: c2.id,
+    })
+    await createProduct(s2, {
+      id: 'prod-3',
+      name: 'Glass Plate',
+      slug: 'glass-plate',
+      priceCents: 4999,
+      categoryId: c2.id,
+    })
+    await createProduct(s2, {
+      id: 'prod-4',
+      name: 'vase-like',
+      slug: 'vase-like',
+      priceCents: 999,
+      categoryId: c1.id,
+    })
 
     return { s1, s2, c1, c2 }
   }
@@ -1899,71 +1178,42 @@ describe('searchProductsQuery', () => {
 
 describe('Shop Status Visibility Constraints', () => {
   async function seedShopWithStatus(status: 'draft' | 'pending_review' | 'approved' | 'active') {
-    const [u] = await db
-      .insert(user)
-      .values({
-        id: `user-${status}`,
-        name: 'Test Creator',
-        email: `creator-${status}@example.com`,
-        emailVerified: true,
-      })
-      .returning()
-
-    const [s] = await db
-      .insert(shop)
-      .values(
-        shopValues({
-          id: `shop-${status}`,
-          name: `Shop ${status}`,
-          slug: `shop-${status}`,
-          ownerId: u.id,
-          status,
-        }),
-      )
-      .returning()
-
-    const [cat] = await db
-      .insert(categories)
-      .values({ name: `Category ${status}`, slug: `cat-${status}` })
-      .returning()
-
-    const [p1] = await db
-      .insert(product)
-      .values({
-        id: `prod-${status}-active`,
-        name: `Product Active ${status}`,
-        slug: `prod-active-${status}`,
-        priceCents: 1000,
-        stockCount: 10,
-        isActive: true,
-        shopId: s.id,
-        categoryId: cat.id,
-      })
-      .returning()
-
-    const [p2] = await db
-      .insert(product)
-      .values({
-        id: `prod-${status}-inactive`,
-        name: `Product Inactive ${status}`,
-        slug: `prod-inactive-${status}`,
-        priceCents: 2000,
-        stockCount: 5,
-        isActive: false,
-        shopId: s.id,
-        categoryId: cat.id,
-      })
-      .returning()
+    const u = await createUser({
+      id: `user-${status}`,
+      name: 'Test Creator',
+      email: `creator-${status}@example.com`,
+    })
+    const s = await createShop(u, {
+      id: `shop-${status}`,
+      name: `Shop ${status}`,
+      slug: `shop-${status}`,
+      status,
+    })
+    const cat = await createCategory({
+      name: `Category ${status}`,
+      slug: `cat-${status}`,
+    })
+    const p1 = await createProduct(s, {
+      id: `prod-${status}-active`,
+      name: `Product Active ${status}`,
+      slug: `prod-active-${status}`,
+      priceCents: 1000,
+      stockCount: 10,
+      isActive: true,
+      categoryId: cat.id,
+    })
+    const p2 = await createProduct(s, {
+      id: `prod-${status}-inactive`,
+      name: `Product Inactive ${status}`,
+      slug: `prod-inactive-${status}`,
+      priceCents: 2000,
+      stockCount: 5,
+      isActive: false,
+      categoryId: cat.id,
+    })
 
     return { user: u, shop: s, activeProduct: p1, inactiveProduct: p2 }
   }
-
-  beforeEach(async () => {
-    await db.delete(product)
-    await db.delete(shop)
-    await db.delete(user)
-    await db.delete(categories)
-  })
 
   it('only returns products from active shops in listProductsQuery', async () => {
     await seedShopWithStatus('draft')
@@ -2001,26 +1251,17 @@ describe('Shop Status Visibility Constraints', () => {
 
   it('enforces maximum limit of 100 in listShopsQuery', async () => {
     for (let i = 0; i < 3; i++) {
-      const [u] = await db
-        .insert(user)
-        .values({
-          id: `user-limit-${i}`,
-          name: 'Test Creator',
-          email: `creator-limit-${i}@example.com`,
-          emailVerified: true,
-        })
-        .returning()
-
-      await db
-        .insert(shop)
-        .values({
-          id: `shop-limit-${i}`,
-          name: `Shop ${i}`,
-          slug: `shop-limit-${i}`,
-          ownerId: u.id,
-          status: 'active',
-        })
-        .returning()
+      const u = await createUser({
+        id: `user-limit-${i}`,
+        name: 'Test Creator',
+        email: `creator-limit-${i}@example.com`,
+      })
+      await createShop(u, {
+        id: `shop-limit-${i}`,
+        name: `Shop ${i}`,
+        slug: `shop-limit-${i}`,
+        status: 'active',
+      })
     }
 
     const result = await listShopsQuery(200)
@@ -2051,23 +1292,15 @@ describe('Shop Status Visibility Constraints', () => {
 })
 
 describe('getMarketplaceStatsQuery', () => {
-  beforeEach(async () => {
-    await db.delete(productImage)
-    await db.delete(product)
-    await db.delete(shop)
-    await db.delete(user)
-  })
-
   async function seedShopWithOrigin(
     slug: string,
     origin: { country: string },
     overrides?: Partial<typeof shop.$inferInsert>,
   ) {
-    await db.insert(shop).values({
+    await createShop('user-1', {
       id: slug,
       name: slug,
       slug,
-      ownerId: 'user-1',
       status: 'active',
       shippingOrigin: origin,
       ...overrides,
@@ -2075,46 +1308,38 @@ describe('getMarketplaceStatsQuery', () => {
   }
 
   it('counts active sellers, products, and distinct countries', async () => {
-    await db.insert(user).values({
+    await createUser({
       id: 'user-1',
       name: 'Creator',
       email: 'creator@example.com',
-      emailVerified: true,
     })
 
     await seedShopWithOrigin('shop-de', { country: 'DE' })
     await seedShopWithOrigin('shop-fr', { country: 'FR' })
     await seedShopWithOrigin('shop-none', { country: 'DE' }, { status: 'pending_review' })
 
-    await db.insert(product).values([
-      {
-        id: 'prod-1',
-        name: 'A',
-        slug: 'a',
-        priceCents: 1000,
-        stockCount: 1,
-        shopId: 'shop-de',
-        isActive: true,
-      },
-      {
-        id: 'prod-2',
-        name: 'B',
-        slug: 'b',
-        priceCents: 1000,
-        stockCount: 1,
-        shopId: 'shop-de',
-        isActive: true,
-      },
-      {
-        id: 'prod-3',
-        name: 'C',
-        slug: 'c',
-        priceCents: 1000,
-        stockCount: 1,
-        shopId: 'shop-fr',
-        isActive: false,
-      },
-    ])
+    await createProduct('shop-de', {
+      id: 'prod-1',
+      name: 'A',
+      slug: 'a',
+      priceCents: 1000,
+      stockCount: 1,
+    })
+    await createProduct('shop-de', {
+      id: 'prod-2',
+      name: 'B',
+      slug: 'b',
+      priceCents: 1000,
+      stockCount: 1,
+    })
+    await createProduct('shop-fr', {
+      id: 'prod-3',
+      name: 'C',
+      slug: 'c',
+      priceCents: 1000,
+      stockCount: 1,
+      isActive: false,
+    })
 
     const stats = await getMarketplaceStatsQuery()
     expect(stats.sellerCount).toBe(2)

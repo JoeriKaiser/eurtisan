@@ -1,93 +1,33 @@
+import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '#/db/index'
-import { payout, payoutReconciliationLog, platformOrder, shop, shopOrder, user } from '#/db/schema'
-import { eq } from 'drizzle-orm'
+import { payout, payoutReconciliationLog } from '#/db/schema'
 import {
   resetMockRouteStatus,
   setMockRouteStatus,
 } from '#/integrations/mollie/mollie-routes-client'
+import { clearTestTables } from '#/test/cleanup'
+import { createPlatformOrder, createShop, createShopOrder, createUser } from '#/test/factories'
 import { reconcilePayouts } from './payout-reconciliation.server'
 
 async function seedUser() {
-  return db
-    .insert(user)
-    .values({
-      id: 'user-1',
-      name: 'Test Creator',
-      email: 'creator@example.com',
-      emailVerified: true,
-    })
-    .returning()
-    .then((rows) => rows[0])
+  return createUser({ id: 'user-1' })
 }
 
 async function seedShop() {
-  return db
-    .insert(shop)
-    .values({
-      id: 'shop-1',
-      name: 'Test Shop',
-      slug: 'test-shop',
-      ownerId: 'user-1',
-      mollieAccountId: 'org_test',
-      paymentConnected: true,
-    })
-    .returning()
-    .then((rows) => rows[0])
-}
-
-async function seedPlatformOrder() {
-  return db
-    .insert(platformOrder)
-    .values({
-      userId: 'user-1',
-      shippingAddress: {
-        name: 'Buyer',
-        street: 'St',
-        city: 'City',
-        postalCode: '12345',
-        country: 'DE',
-      },
-      billingAddress: {
-        name: 'Buyer',
-        street: 'St',
-        city: 'City',
-        postalCode: '12345',
-        country: 'DE',
-      },
-      totalCents: 10000,
-      status: 'paid',
-      molliePaymentId: 'tr_test',
-    })
-    .returning()
-    .then((rows) => rows[0])
-}
-
-async function seedShopOrder(overrides: Partial<typeof shopOrder.$inferInsert> = {}) {
-  return db
-    .insert(shopOrder)
-    .values({
-      platformOrderId: '00000000-0000-0000-0000-000000000000',
-      shopId: 'shop-1',
-      shippingMethod: 'standard',
-      shippingCostCents: 500,
-      subtotalCents: 5000,
-      status: 'delivered',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+  return createShop('user-1', {
+    id: 'shop-1',
+    name: 'Test Shop',
+    slug: 'test-shop',
+    mollieAccountId: 'org_test',
+    paymentConnected: true,
+  })
 }
 
 describe('reconcilePayouts', () => {
   beforeEach(async () => {
     resetMockRouteStatus()
-    await db.delete(payoutReconciliationLog)
-    await db.delete(payout)
-    await db.delete(shopOrder)
-    await db.delete(platformOrder)
-    await db.delete(shop)
-    await db.delete(user)
+    await clearTestTables()
   })
 
   it('does nothing when there are no payouts to check', async () => {
@@ -100,8 +40,8 @@ describe('reconcilePayouts', () => {
   it('marks a sent payout as reversed when its route no longer exists', async () => {
     await seedUser()
     await seedShop()
-    const po = await seedPlatformOrder()
-    const so = await seedShopOrder({ platformOrderId: po.id })
+    const po = await createPlatformOrder('user-1')
+    const so = await createShopOrder(po, 'shop-1', { status: 'delivered' })
 
     const [payoutRecord] = await db
       .insert(payout)
@@ -138,8 +78,8 @@ describe('reconcilePayouts', () => {
     setMockRouteStatus('returned')
     await seedUser()
     await seedShop()
-    const po = await seedPlatformOrder()
-    const so = await seedShopOrder({ platformOrderId: po.id })
+    const po = await createPlatformOrder('user-1')
+    const so = await createShopOrder(po, 'shop-1', { status: 'delivered' })
 
     const [payoutRecord] = await db
       .insert(payout)

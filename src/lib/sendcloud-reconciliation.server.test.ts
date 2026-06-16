@@ -2,18 +2,17 @@ import { eq } from 'drizzle-orm'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
-import {
-  notification,
-  payout,
-  payoutReconciliationLog,
-  platformOrder,
-  shippingLabel,
-  shop,
-  shopOrder,
-  user,
-} from '#/db/schema'
+import { shopOrder } from '#/db/schema'
 import { getShippingProvider } from '#/integrations/shipping'
 import type { ShippingProvider, TrackingInfo } from '#/lib/shipping-provider'
+import { clearTestTables } from '#/test/cleanup'
+import {
+  createPlatformOrder,
+  createShippingLabel,
+  createShop,
+  createShopOrder,
+  createUser,
+} from '#/test/factories'
 
 import { reconcileSendcloudShipments } from './sendcloud-reconciliation.server'
 
@@ -27,102 +26,30 @@ const mockProvider = {
   trackShipment: mockTrackShipment,
 } as unknown as ShippingProvider
 
-async function cleanupTables() {
-  await db.delete(payoutReconciliationLog)
-  await db.delete(payout)
-  await db.delete(notification)
-  await db.delete(shippingLabel)
-  await db.delete(shopOrder)
-  await db.delete(platformOrder)
-  await db.delete(shop)
-  await db.delete(user)
-}
-
-async function seedUser() {
-  return db
-    .insert(user)
-    .values({ id: 'user-1', name: 'Test', email: 'test@example.com', emailVerified: true })
-    .returning()
-    .then((rows) => rows[0])
-}
-
-async function seedShop() {
-  return db
-    .insert(shop)
-    .values({ id: 'shop-1', name: 'Test Shop', slug: 'test-shop', ownerId: 'user-1' })
-    .returning()
-    .then((rows) => rows[0])
-}
-
-async function seedPlatformOrder(overrides?: Partial<typeof platformOrder.$inferInsert>) {
-  return db
-    .insert(platformOrder)
-    .values({
-      userId: 'user-1',
-      shippingAddress: { name: 'T', street: 'S', city: 'C', postalCode: '1', country: 'NL' },
-      billingAddress: { name: 'T', street: 'S', city: 'C', postalCode: '1', country: 'NL' },
-      totalCents: 1000,
-      status: 'paid',
-      molliePaymentId: 'tr_mock_000001',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
-}
-
-async function seedShopOrder(
-  platformOrderId: string,
-  overrides?: Partial<typeof shopOrder.$inferInsert>,
-) {
-  return db
-    .insert(shopOrder)
-    .values({
-      platformOrderId,
-      shopId: 'shop-1',
-      shippingMethod: 'standard',
-      shippingCostCents: 500,
-      subtotalCents: 1000,
-      status: 'shipped',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
-}
-
-async function seedShippingLabel(
-  shopOrderId: string,
-  overrides?: Partial<typeof shippingLabel.$inferInsert>,
-) {
-  return db
-    .insert(shippingLabel)
-    .values({
-      shopOrderId,
-      carrier: 'sendcloud',
-      trackingNumber: 'SC123',
-      labelUrl: 'https://example.com/label.pdf',
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
-}
+let testUser: Awaited<ReturnType<typeof createUser>>
+let testShop: Awaited<ReturnType<typeof createShop>>
 
 beforeEach(async () => {
-  await cleanupTables()
+  await clearTestTables()
   vi.mocked(getShippingProvider).mockReturnValue(mockProvider)
   mockTrackShipment.mockReset()
-  await seedUser()
-  await seedShop()
+  testUser = await createUser()
+  testShop = await createShop(testUser)
 })
 
 afterEach(async () => {
-  await cleanupTables()
+  await clearTestTables()
 })
 
 describe('reconcileSendcloudShipments', () => {
   it('marks shipped orders as delivered when provider reports delivered', async () => {
-    const order = await seedPlatformOrder()
-    const sOrder = await seedShopOrder(order.id)
-    await seedShippingLabel(sOrder.id, {
+    const order = await createPlatformOrder(testUser, { totalCents: 1000 })
+    const sOrder = await createShopOrder(order, testShop, {
+      status: 'shipped',
+      shippingCostCents: 500,
+      subtotalCents: 1000,
+    })
+    await createShippingLabel(sOrder, {
       trackingNumber: 'SC123',
       createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
     })
@@ -149,9 +76,13 @@ describe('reconcileSendcloudShipments', () => {
   })
 
   it('does nothing when provider reports in_transit', async () => {
-    const order = await seedPlatformOrder()
-    const sOrder = await seedShopOrder(order.id)
-    await seedShippingLabel(sOrder.id, {
+    const order = await createPlatformOrder(testUser, { totalCents: 1000 })
+    const sOrder = await createShopOrder(order, testShop, {
+      status: 'shipped',
+      shippingCostCents: 500,
+      subtotalCents: 1000,
+    })
+    await createShippingLabel(sOrder, {
       trackingNumber: 'SC123',
       createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
     })
@@ -177,9 +108,13 @@ describe('reconcileSendcloudShipments', () => {
   })
 
   it('counts errors when provider throws', async () => {
-    const order = await seedPlatformOrder()
-    const sOrder = await seedShopOrder(order.id)
-    await seedShippingLabel(sOrder.id, {
+    const order = await createPlatformOrder(testUser, { totalCents: 1000 })
+    const sOrder = await createShopOrder(order, testShop, {
+      status: 'shipped',
+      shippingCostCents: 500,
+      subtotalCents: 1000,
+    })
+    await createShippingLabel(sOrder, {
       trackingNumber: 'SC123',
       createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
     })
@@ -200,9 +135,13 @@ describe('reconcileSendcloudShipments', () => {
   })
 
   it('skips labels newer than the grace period', async () => {
-    const order = await seedPlatformOrder()
-    const sOrder = await seedShopOrder(order.id)
-    await seedShippingLabel(sOrder.id, {
+    const order = await createPlatformOrder(testUser, { totalCents: 1000 })
+    const sOrder = await createShopOrder(order, testShop, {
+      status: 'shipped',
+      shippingCostCents: 500,
+      subtotalCents: 1000,
+    })
+    await createShippingLabel(sOrder, {
       trackingNumber: 'SC123',
       createdAt: new Date(Date.now() + 60_000),
     })
