@@ -124,7 +124,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
 
   return createPortal(
     <dialog
-      className='fixed inset-0 z-modal m-0 flex max-h-none max-w-none flex-col items-start justify-start bg-transparent p-0 sm:items-center sm:justify-start sm:pt-[10vh] open:flex'
+      className='fixed inset-0 z-modal m-0 flex h-full w-full max-h-none max-w-none flex-col items-start justify-start bg-transparent p-0 sm:items-center sm:justify-start sm:pt-[10vh] open:flex'
       aria-label={m.search_overlay_title()}
       open
     >

@@ -60,6 +60,7 @@ import { Route as AdminAuditLogRouteImport } from './routes/admin/audit-log'
 import { Route as AccountSettingsRouteImport } from './routes/account/settings'
 import { Route as AccountSecurityRouteImport } from './routes/account/security'
 import { Route as AccountOrdersRouteImport } from './routes/account/orders'
+import { Route as ShopsShopSlugIndexRouteImport } from './routes/shops/$shopSlug.index'
 import { Route as CreatorProductsIndexRouteImport } from './routes/creator/products/index'
 import { Route as StudioShopIdOrdersRouteImport } from './routes/studio/$shopId.orders'
 import { Route as StudioShopIdCustomersRouteImport } from './routes/studio/$shopId.customers'
@@ -353,6 +354,11 @@ const AccountOrdersRoute = AccountOrdersRouteImport.update({
   path: '/account/orders',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ShopsShopSlugIndexRoute = ShopsShopSlugIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ShopsShopSlugRoute,
+} as any)
 const CreatorProductsIndexRoute = CreatorProductsIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -624,6 +630,7 @@ export interface FileRoutesByFullPath {
   '/studio/$shopId/customers': typeof StudioShopIdCustomersRouteWithChildren
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
   '/creator/products/': typeof CreatorProductsIndexRoute
+  '/shops/$shopSlug/': typeof ShopsShopSlugIndexRoute
   '/api/admin/payouts/$payoutId': typeof ApiAdminPayoutsPayoutIdRoute
   '/api/auth/mollie/callback': typeof ApiAuthMollieCallbackRoute
   '/api/shops/$shopId/dashboard': typeof ApiShopsShopIdDashboardRoute
@@ -686,7 +693,6 @@ export interface FileRoutesByTo {
   '/invoices/$invoiceId': typeof InvoicesInvoiceIdRoute
   '/orders/$platformOrderId': typeof OrdersPlatformOrderIdRouteWithChildren
   '/robots/txt': typeof RobotsTxtRoute
-  '/shops/$shopSlug': typeof ShopsShopSlugRouteWithChildren
   '/sitemap/xml': typeof SitemapXmlRoute
   '/studio/$shopId': typeof StudioShopIdRouteWithChildren
   '/account': typeof AccountIndexRoute
@@ -709,6 +715,7 @@ export interface FileRoutesByTo {
   '/studio/$shopId/customers': typeof StudioShopIdCustomersRouteWithChildren
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
   '/creator/products': typeof CreatorProductsIndexRoute
+  '/shops/$shopSlug': typeof ShopsShopSlugIndexRoute
   '/api/admin/payouts/$payoutId': typeof ApiAdminPayoutsPayoutIdRoute
   '/api/auth/mollie/callback': typeof ApiAuthMollieCallbackRoute
   '/api/shops/$shopId/dashboard': typeof ApiShopsShopIdDashboardRoute
@@ -800,6 +807,7 @@ export interface FileRoutesById {
   '/studio/$shopId/customers': typeof StudioShopIdCustomersRouteWithChildren
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
   '/creator/products/': typeof CreatorProductsIndexRoute
+  '/shops/$shopSlug/': typeof ShopsShopSlugIndexRoute
   '/api/admin/payouts/$payoutId': typeof ApiAdminPayoutsPayoutIdRoute
   '/api/auth/mollie/callback': typeof ApiAuthMollieCallbackRoute
   '/api/shops/$shopId/dashboard': typeof ApiShopsShopIdDashboardRoute
@@ -892,6 +900,7 @@ export interface FileRouteTypes {
     | '/studio/$shopId/customers'
     | '/studio/$shopId/orders'
     | '/creator/products/'
+    | '/shops/$shopSlug/'
     | '/api/admin/payouts/$payoutId'
     | '/api/auth/mollie/callback'
     | '/api/shops/$shopId/dashboard'
@@ -954,7 +963,6 @@ export interface FileRouteTypes {
     | '/invoices/$invoiceId'
     | '/orders/$platformOrderId'
     | '/robots/txt'
-    | '/shops/$shopSlug'
     | '/sitemap/xml'
     | '/studio/$shopId'
     | '/account'
@@ -977,6 +985,7 @@ export interface FileRouteTypes {
     | '/studio/$shopId/customers'
     | '/studio/$shopId/orders'
     | '/creator/products'
+    | '/shops/$shopSlug'
     | '/api/admin/payouts/$payoutId'
     | '/api/auth/mollie/callback'
     | '/api/shops/$shopId/dashboard'
@@ -1067,6 +1076,7 @@ export interface FileRouteTypes {
     | '/studio/$shopId/customers'
     | '/studio/$shopId/orders'
     | '/creator/products/'
+    | '/shops/$shopSlug/'
     | '/api/admin/payouts/$payoutId'
     | '/api/auth/mollie/callback'
     | '/api/shops/$shopId/dashboard'
@@ -1497,6 +1507,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/account/orders'
       preLoaderRoute: typeof AccountOrdersRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/shops/$shopSlug/': {
+      id: '/shops/$shopSlug/'
+      path: '/'
+      fullPath: '/shops/$shopSlug/'
+      preLoaderRoute: typeof ShopsShopSlugIndexRouteImport
+      parentRoute: typeof ShopsShopSlugRoute
     }
     '/creator/products/': {
       id: '/creator/products/'
@@ -1951,10 +1968,12 @@ const ApiHealthRouteWithChildren = ApiHealthRoute._addFileChildren(
 )
 
 interface ShopsShopSlugRouteChildren {
+  ShopsShopSlugIndexRoute: typeof ShopsShopSlugIndexRoute
   ShopsShopSlugProductsProductSlugRoute: typeof ShopsShopSlugProductsProductSlugRoute
 }
 
 const ShopsShopSlugRouteChildren: ShopsShopSlugRouteChildren = {
+  ShopsShopSlugIndexRoute: ShopsShopSlugIndexRoute,
   ShopsShopSlugProductsProductSlugRoute: ShopsShopSlugProductsProductSlugRoute,
 }
 
