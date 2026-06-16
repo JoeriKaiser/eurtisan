@@ -29,6 +29,7 @@ services:
         condition: service_healthy
 
   app:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile.prod
@@ -113,6 +114,7 @@ services:
       - eurtisan
 
   inventory-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile.prod
@@ -133,6 +135,7 @@ services:
       sh -c "bun run src/jobs/inventory-cleanup.ts"
 
   meilisearch-sync:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile.prod
@@ -155,6 +158,7 @@ services:
       sh -c "bun run src/jobs/meilisearch-sync.ts"
 
   payout-reconciliation:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile.prod
@@ -175,6 +179,7 @@ services:
       sh -c "bun run job:payout-reconciliation"
 
   sendcloud-reconciliation:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile.prod
@@ -195,6 +200,7 @@ services:
       sh -c "bun run job:sendcloud-reconciliation"
 
   session-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile.prod
@@ -215,6 +221,7 @@ services:
       sh -c "bun run job:session-cleanup"
 
   cart-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile.prod
@@ -235,6 +242,7 @@ services:
       sh -c "bun run job:cart-cleanup"
 
   audit-log-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile.prod
@@ -255,6 +263,7 @@ services:
       sh -c "bun run job:audit-log-cleanup"
 
   verification-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: Dockerfile.prod

@@ -16,11 +16,15 @@ dist
 # Development / IDE
 .vscode
 .idea
+.agents
 *.swp
 *.swo
 
 # Testing
+e2e/.auth
 e2e/playwright-report
+e2e/report
+e2e/screenshots
 e2e/test-results
 coverage
 
@@ -40,6 +44,7 @@ docs
 
 # Infrastructure (not needed inside the image)
 infrastructure
+infra
 
 # CI configs (not needed at runtime)
 .github
@@ -50,3 +55,9 @@ public/uploads
 # Temporary files
 scratch
 *.tmp
+
+# Generated local caches
+project.inlang/cache
+
+# Load tests (not needed at runtime)
+load-tests
