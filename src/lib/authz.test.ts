@@ -56,6 +56,7 @@ function makeUser(
     failedLoginAttempts: 0,
     lockedUntil: null,
     twoFactorEnabled: false,
+    unsubscribeToken: null,
     deletedAt: null,
     createdAt: new Date(),
     updatedAt: new Date(),

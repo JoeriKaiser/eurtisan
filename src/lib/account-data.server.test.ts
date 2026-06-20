@@ -18,6 +18,7 @@ import {
   shop,
   twoFactor,
   user,
+  userEmailPreference,
 } from '#/db/schema'
 
 import { clearTestTables } from '#/test/cleanup'
@@ -309,5 +310,31 @@ describe('deleteUserAccount', () => {
 
     const updated = await db.query.user.findFirst({ where: eq(user.id, u.id) })
     expect(updated?.deletedAt).toBeInstanceOf(Date)
+  })
+
+  it('clears the unsubscribe token on deletion', async () => {
+    const u = await createUser()
+
+    await deleteUserAccount(u.id)
+
+    const updated = await db.query.user.findFirst({ where: eq(user.id, u.id) })
+    expect(updated?.unsubscribeToken).toBeNull()
+  })
+
+  it('deletes user email preferences on deletion', async () => {
+    const u = await createUser()
+    await db.insert(userEmailPreference).values({
+      userId: u.id,
+      category: 'seller_updates',
+      enabled: true,
+    })
+
+    await deleteUserAccount(u.id)
+
+    const preferences = await db
+      .select()
+      .from(userEmailPreference)
+      .where(eq(userEmailPreference.userId, u.id))
+    expect(preferences).toHaveLength(0)
   })
 })

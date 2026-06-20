@@ -18,25 +18,26 @@ export interface RenderedEmail {
 }
 
 /** Render a template with the given data. Throws on missing required fields. */
-export function renderTemplate(
+export async function renderTemplate(
   template: EmailTemplate,
   data: Record<string, unknown>,
-): RenderedEmail {
+  to?: string,
+): Promise<RenderedEmail> {
   switch (template) {
     case 'order_confirmation':
-      return renderOrderConfirmation(data)
+      return renderOrderConfirmation(data, to)
     case 'shipping_notification':
-      return renderShippingNotification(data)
+      return renderShippingNotification(data, to)
     case 'dispute_update':
-      return renderDisputeUpdate(data)
+      return renderDisputeUpdate(data, to)
     case 'order_refunded':
-      return renderOrderRefunded(data)
+      return renderOrderRefunded(data, to)
     case 'email_verification':
-      return renderEmailVerification(data)
+      return renderEmailVerification(data, to)
     case 'password_reset':
-      return renderPasswordReset(data)
+      return renderPasswordReset(data, to)
     case 'account_security_alert':
-      return renderAccountSecurityAlert(data)
+      return renderAccountSecurityAlert(data, to)
     default: {
       // Exhaustiveness check — should never happen at runtime with correct types.
       const _exhaustive: never = template
@@ -61,7 +62,10 @@ export function renderFallbackPlainText(
 /*                            Order Confirmation                              */
 /* -------------------------------------------------------------------------- */
 
-function renderOrderConfirmation(data: Record<string, unknown>): RenderedEmail {
+async function renderOrderConfirmation(
+  data: Record<string, unknown>,
+  to?: string,
+): Promise<RenderedEmail> {
   const orderNumber = String(data.orderNumber ?? '—')
   const buyerName = String(data.buyerName ?? 'Valued Customer')
   const shopName = String(data.shopName ?? 'Eurtisan')
@@ -129,7 +133,7 @@ function renderOrderConfirmation(data: Record<string, unknown>): RenderedEmail {
   ${orderUrl ? `<br /><div style="font-size: 16px; line-height: 1.5;"><a href="${escapeHtml(orderUrl)}" style="color: #2563eb; text-decoration: underline;">${escapeHtml(m.email_order_confirmation_view())}</a></div>` : ''}
   ${sellerBlockHtml}
   <br /><br />
-  ${renderEmailLegalFooterHtml()}`
+  ${await renderEmailLegalFooterHtml(to)}`
 
   const html = wrapInEmailTemplate(
     m.email_order_confirmation_subject({ orderNumber, shopName }),
@@ -147,7 +151,7 @@ ${m.email_total({ total })}
 ${orderUrl ? `${m.email_order_confirmation_view_txt({ orderUrl })}` : ''}
 ${sellerTradeName && sellerContactEmail ? `\n${m.email_seller_identity_title()}: ${sellerTradeName}${sellerAddress ? `, ${sellerAddress}` : ''}\n${m.checkout_seller_contact_label()}: ${sellerContactEmail}${sellerVatId ? `\n${m.checkout_seller_vat_label()}: ${sellerVatId}` : ''}` : ''}
 
-${renderEmailLegalFooterText()}`
+${await renderEmailLegalFooterText(to)}`
 
   return { subject: m.email_order_confirmation_subject({ orderNumber, shopName }), html, text }
 }
@@ -156,7 +160,10 @@ ${renderEmailLegalFooterText()}`
 /*                          Shipping Notification                             */
 /* -------------------------------------------------------------------------- */
 
-function renderShippingNotification(data: Record<string, unknown>): RenderedEmail {
+async function renderShippingNotification(
+  data: Record<string, unknown>,
+  to?: string,
+): Promise<RenderedEmail> {
   const orderNumber = String(data.orderNumber ?? '—')
   const buyerName = String(data.buyerName ?? 'Valued Customer')
   const shopName = String(data.shopName ?? 'Eurtisan')
@@ -190,7 +197,7 @@ function renderShippingNotification(data: Record<string, unknown>): RenderedEmai
   </table>
   ${trackingUrl ? `<br /><div style="font-size: 16px; line-height: 1.5;"><a href="${escapeHtml(trackingUrl)}" rel="noopener noreferrer" style="color: #2563eb; text-decoration: underline;">${escapeHtml(m.email_shipping_track())}</a></div>` : ''}
   <br /><br />
-  ${renderEmailLegalFooterHtml()}`
+  ${await renderEmailLegalFooterHtml(to)}`
 
   const html = wrapInEmailTemplate(m.email_shipping_subject({ orderNumber, shopName }), contentHtml)
 
@@ -203,7 +210,7 @@ ${m.email_shipping_tracking_number()} ${trackingNumber}
 ${m.email_shipping_estimated_delivery()} ${estimatedDelivery}
 ${trackingUrl ? `${m.email_shipping_track_txt({ trackingUrl })}` : ''}
 
-${renderEmailLegalFooterText()}`
+${await renderEmailLegalFooterText(to)}`
 
   return { subject: m.email_shipping_subject({ orderNumber, shopName }), html, text }
 }
@@ -212,7 +219,10 @@ ${renderEmailLegalFooterText()}`
 /*                             Dispute Update                                 */
 /* -------------------------------------------------------------------------- */
 
-function renderDisputeUpdate(data: Record<string, unknown>): RenderedEmail {
+async function renderDisputeUpdate(
+  data: Record<string, unknown>,
+  to?: string,
+): Promise<RenderedEmail> {
   const orderNumber = String(data.orderNumber ?? '—')
   const buyerName = String(data.buyerName ?? 'Valued Customer')
   const shopName = String(data.shopName ?? 'Eurtisan')
@@ -246,7 +256,7 @@ function renderDisputeUpdate(data: Record<string, unknown>): RenderedEmail {
   ${message ? `<br /><div style="color: #374151; font-size: 16px; line-height: 1.5;">${escapeHtml(message)}</div>` : ''}
   ${disputeUrl ? `<br /><div style="font-size: 16px; line-height: 1.5;"><a href="${escapeHtml(disputeUrl)}" style="color: #2563eb; text-decoration: underline;">${escapeHtml(m.email_dispute_view())}</a></div>` : ''}
   <br /><br />
-  ${renderEmailLegalFooterHtml()}`
+  ${await renderEmailLegalFooterHtml(to)}`
 
   const html = wrapInEmailTemplate(m.email_dispute_subject({ orderNumber, shopName }), contentHtml)
 
@@ -260,7 +270,7 @@ ${m.email_dispute_status({ status })}
 ${message ? `\n${message}` : ''}
 ${disputeUrl ? `\n${m.email_dispute_view_txt({ disputeUrl })}` : ''}
 
-${renderEmailLegalFooterText()}`
+${await renderEmailLegalFooterText(to)}`
 
   return { subject: m.email_dispute_subject({ orderNumber, shopName }), html, text }
 }
@@ -269,7 +279,10 @@ ${renderEmailLegalFooterText()}`
 /*                              Order Refunded                                */
 /* -------------------------------------------------------------------------- */
 
-function renderOrderRefunded(data: Record<string, unknown>): RenderedEmail {
+async function renderOrderRefunded(
+  data: Record<string, unknown>,
+  to?: string,
+): Promise<RenderedEmail> {
   const orderNumber = String(data.orderNumber ?? '—')
   const buyerName = String(data.buyerName ?? 'Valued Customer')
   const shopName = String(data.shopName ?? 'Eurtisan')
@@ -289,7 +302,7 @@ function renderOrderRefunded(data: Record<string, unknown>): RenderedEmail {
   )}</div>
   <br />
   ${orderUrl ? `<div style="font-size: 14px; line-height: 1.5;"><a href="${escapeHtml(orderUrl)}" style="color: #2563eb; text-decoration: underline;">${escapeHtml(m.email_refund_view())}</a></div><br />` : ''}
-  ${renderEmailLegalFooterHtml()}`
+  ${await renderEmailLegalFooterHtml(to)}`
 
   const html = wrapInEmailTemplate(m.email_refund_title({ orderNumber }), contentHtml)
 
@@ -299,7 +312,7 @@ ${m.email_greeting({ name: buyerName })}
 
 ${m.email_refund_body({ orderNumber, shopName, refundAmount })}
 
-${orderUrl ? `${m.email_refund_view_txt({ orderUrl })}\n\n` : ''}${renderEmailLegalFooterText()}`
+${orderUrl ? `${m.email_refund_view_txt({ orderUrl })}\n\n` : ''}${await renderEmailLegalFooterText(to)}`
 
   return { subject: m.email_refund_subject({ orderNumber, shopName }), html, text }
 }
@@ -308,7 +321,10 @@ ${orderUrl ? `${m.email_refund_view_txt({ orderUrl })}\n\n` : ''}${renderEmailLe
 /*                            Email Verification                              */
 /* -------------------------------------------------------------------------- */
 
-function renderEmailVerification(data: Record<string, unknown>): RenderedEmail {
+async function renderEmailVerification(
+  data: Record<string, unknown>,
+  to?: string,
+): Promise<RenderedEmail> {
   const userName = String(data.userName ?? 'Valued Customer')
   const verificationUrl = String(data.verificationUrl ?? '')
 
@@ -338,7 +354,7 @@ function renderEmailVerification(data: Record<string, unknown>): RenderedEmail {
   <br />
   <div style="font-size: 14px; line-height: 1.5;"><a href="${escapeHtml(verificationUrl)}" style="color: #2563eb; text-decoration: underline;">${escapeHtml(verificationUrl)}</a></div>
   <br /><br />
-  ${renderEmailLegalFooterHtml()}`
+  ${await renderEmailLegalFooterHtml(to)}`
 
   const html = wrapInEmailTemplate(m.email_verify_title(), contentHtml)
 
@@ -350,7 +366,7 @@ ${m.email_verify_body()}
 
 ${m.email_verify_button()}: ${verificationUrl}
 
-${renderEmailLegalFooterText()}`
+${await renderEmailLegalFooterText(to)}`
 
   return { subject: m.email_verify_subject(), html, text }
 }
@@ -359,7 +375,10 @@ ${renderEmailLegalFooterText()}`
 /*                            Password Reset                                  */
 /* -------------------------------------------------------------------------- */
 
-function renderPasswordReset(data: Record<string, unknown>): RenderedEmail {
+async function renderPasswordReset(
+  data: Record<string, unknown>,
+  to?: string,
+): Promise<RenderedEmail> {
   const userName = String(data.userName ?? 'Valued Customer')
   const resetUrl = String(data.resetUrl ?? '')
 
@@ -393,7 +412,7 @@ function renderPasswordReset(data: Record<string, unknown>): RenderedEmail {
   <br />
   <div style="font-size: 14px; line-height: 1.5;"><a href="${escapeHtml(resetUrl)}" style="color: #2563eb; text-decoration: underline;">${escapeHtml(resetUrl)}</a></div>
   <br /><br />
-  ${renderEmailLegalFooterHtml()}`
+  ${await renderEmailLegalFooterHtml(to)}`
 
   const html = wrapInEmailTemplate(m.email_reset_title(), contentHtml)
 
@@ -407,7 +426,7 @@ ${m.email_reset_link_txt({ resetUrl })}
 
 ${m.email_reset_ignore()}
 
-${renderEmailLegalFooterText()}`
+${await renderEmailLegalFooterText(to)}`
 
   return { subject: m.email_reset_subject(), html, text }
 }
@@ -416,7 +435,10 @@ ${renderEmailLegalFooterText()}`
 /*                         Account Security Alert                             */
 /* -------------------------------------------------------------------------- */
 
-function renderAccountSecurityAlert(data: Record<string, unknown>): RenderedEmail {
+async function renderAccountSecurityAlert(
+  data: Record<string, unknown>,
+  to?: string,
+): Promise<RenderedEmail> {
   const userName = String(data.userName ?? 'Valued Customer')
   const lockoutDurationMinutes = Number(data.lockoutDurationMinutes ?? 30)
 
@@ -436,7 +458,7 @@ function renderAccountSecurityAlert(data: Record<string, unknown>): RenderedEmai
     m.email_security_alert_ignore(),
   )}</div>
   <br /><br />
-  ${renderEmailLegalFooterHtml()}`
+  ${await renderEmailLegalFooterHtml(to)}`
 
   const html = wrapInEmailTemplate(m.email_security_alert_title(), contentHtml)
 
@@ -448,7 +470,7 @@ ${m.email_security_alert_body({ lockoutDurationMinutes: String(lockoutDurationMi
 
 ${m.email_security_alert_ignore()}
 
-${renderEmailLegalFooterText()}`
+${await renderEmailLegalFooterText(to)}`
 
   return { subject: m.email_security_alert_subject(), html, text }
 }

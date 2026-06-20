@@ -21,6 +21,10 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      # Hardcode Mailpit so staging can never accidentally send via Brevo,
+      # even if a production .env is copied in by mistake.
+      - EMAIL_SMTP_HOST=mailpit
+      - EMAIL_SMTP_PORT=1025
     ports:
       # Direct access fallback (SSH tunnel or IP-whitelisted).
       # Traefik routes internally via the coolify network — this port is not required for that.
@@ -245,6 +249,63 @@ services:
         condition: service_healthy
     command: >
       sh -c "bun run job:verification-cleanup"
+
+  email-outbox-worker:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: eurtisan-email-outbox-worker-staging
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "bun run job:email-outbox-worker"
+
+  email-suppression-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: eurtisan-email-suppression-cleanup-staging
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "bun run job:email-suppression-cleanup"
+
+  email-retention-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: eurtisan-email-retention-cleanup-staging
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "bun run job:email-retention-cleanup"
 
 volumes:
   postgres_data:

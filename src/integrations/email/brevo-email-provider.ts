@@ -19,6 +19,7 @@ import {
 import { logger } from '#/lib/logger.server'
 import { isEmailSuppressed } from '#/lib/email-suppression.server'
 import { emailFailedTotal, emailSentTotal, emailSuppressedSkipsTotal } from '#/lib/metrics.server'
+import { retryWithBackoff } from '#/lib/retry.server'
 
 /** Brevo SMTP API endpoint. */
 const BREVO_API_URL = 'https://api.brevo.com/v3/smtp/email'
@@ -50,6 +51,7 @@ function getSenderName(): string {
 }
 
 export class BrevoEmailProvider implements EmailProvider {
+  readonly name = 'brevo' as const
   private readonly mockMode: boolean
   private readonly apiKey: string | undefined
   private readonly senderEmail: string
@@ -74,19 +76,20 @@ export class BrevoEmailProvider implements EmailProvider {
     to: string,
     template: EmailTemplate,
     data: Record<string, unknown>,
+    headers?: Record<string, string>,
   ): Promise<EmailSendResult> {
     if (await isEmailSuppressed(to)) {
       emailSuppressedSkipsTotal.inc()
       logger.warn('[BrevoEmailProvider] Skipping suppressed recipient', { template })
-      return { messageId: 'suppressed', accepted: false }
+      return { messageId: 'suppressed', accepted: false, provider: 'brevo' }
     }
 
     if (this.mockMode) {
-      return this.sendMock(to, template, data)
+      return this.sendMock(to, template, data, headers)
     }
 
     try {
-      return await this.sendReal(to, template, data)
+      return await this.sendReal(to, template, data, headers)
     } catch (err) {
       emailFailedTotal.inc({ template })
       logger.error('[BrevoEmailProvider] Transactional email send failed', err, {
@@ -102,14 +105,15 @@ export class BrevoEmailProvider implements EmailProvider {
   /* ------------------------------------------------------------------ */
 
   private async sendMock(
-    _to: string,
+    to: string,
     template: EmailTemplate,
     data: Record<string, unknown>,
+    _headers?: Record<string, string>,
   ): Promise<EmailSendResult> {
     await delay(20)
 
     try {
-      renderTemplate(template, data)
+      await renderTemplate(template, data, to)
     } catch (err) {
       renderFallbackPlainText(template, data)
       logger.error('[BrevoEmailProvider] Template render error (mock)', err)
@@ -122,7 +126,7 @@ export class BrevoEmailProvider implements EmailProvider {
       to: '[REDACTED]',
     })
 
-    return { messageId, accepted: true }
+    return { messageId, accepted: true, provider: 'brevo' }
   }
 
   /* ------------------------------------------------------------------ */
@@ -133,6 +137,7 @@ export class BrevoEmailProvider implements EmailProvider {
     to: string,
     template: EmailTemplate,
     data: Record<string, unknown>,
+    headers?: Record<string, string>,
   ): Promise<EmailSendResult> {
     const apiKey = this.apiKey
     if (!apiKey) {
@@ -144,7 +149,7 @@ export class BrevoEmailProvider implements EmailProvider {
     let textBody = ''
 
     try {
-      const rendered = renderTemplate(template, data)
+      const rendered = await renderTemplate(template, data, to)
       subject = rendered.subject
       htmlBody = rendered.html
       textBody = rendered.text
@@ -165,6 +170,10 @@ export class BrevoEmailProvider implements EmailProvider {
 
     if (htmlBody) {
       payload.htmlContent = htmlBody
+    }
+
+    if (headers && Object.keys(headers).length > 0) {
+      payload.headers = Object.entries(headers).map(([name, value]) => ({ name, value }))
     }
 
     const response = await retryWithBackoff(
@@ -221,6 +230,7 @@ export class BrevoEmailProvider implements EmailProvider {
     return {
       messageId: result.messageId ?? `brevo_${Date.now()}`,
       accepted: true,
+      provider: 'brevo',
     }
   }
 }
@@ -234,26 +244,4 @@ export const brevoEmailProvider = new BrevoEmailProvider()
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-async function retryWithBackoff<T>(
-  operation: () => Promise<T>,
-  shouldRetry: (error: unknown) => boolean,
-  delays = [1000, 2000, 4000],
-): Promise<T> {
-  let lastError: unknown
-
-  for (let i = 0; i <= delays.length; i++) {
-    try {
-      return await operation()
-    } catch (err) {
-      lastError = err
-      if (i === delays.length || !shouldRetry(err)) {
-        throw err
-      }
-      await delay(delays[i])
-    }
-  }
-
-  throw lastError
 }

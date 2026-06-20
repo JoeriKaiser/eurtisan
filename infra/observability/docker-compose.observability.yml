@@ -70,6 +70,7 @@ services:
     container_name: eurtisan-prometheus
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
     # Localhost-only for SSH tunnel debugging. Not exposed publicly.
     ports:
@@ -82,12 +83,35 @@ services:
       - '--storage.tsdb.retention.time=15d'
       - '--storage.tsdb.path=/prometheus'
 
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: eurtisan-alertmanager
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    # Localhost-only for SSH tunnel debugging. Not exposed publicly.
+    ports:
+      - "127.0.0.1:9093:9093"
+    networks:
+      - eurtisan
+    restart: unless-stopped
+    environment:
+      - ALERTMANAGER_SMTP_HOST=${ALERTMANAGER_SMTP_HOST:-}
+      - ALERTMANAGER_SMTP_PORT=${ALERTMANAGER_SMTP_PORT:-587}
+      - ALERTMANAGER_SMTP_FROM=${ALERTMANAGER_SMTP_FROM:-}
+      - ALERTMANAGER_SMTP_TO=${ALERTMANAGER_SMTP_TO:-}
+      - ALERTMANAGER_WEBHOOK_URL=${ALERTMANAGER_WEBHOOK_URL:-}
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+
 volumes:
   alloy_data:
   grafana_data:
   loki_data:
   tempo_data:
   prometheus_data:
+  alertmanager_data:
 
 networks:
   eurtisan:

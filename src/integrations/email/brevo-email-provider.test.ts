@@ -27,10 +27,6 @@ function createMockResponse(status: number, bodyText: string) {
   } as unknown as Response
 }
 
-function stubAbortTimeout(): void {
-  vi.spyOn(AbortSignal, 'timeout').mockImplementation(() => new AbortController().signal)
-}
-
 afterEach(() => {
   for (const [key, value] of Object.entries(originalEnv)) {
     if (value === undefined) {
@@ -43,7 +39,6 @@ afterEach(() => {
     delete originalEnv[key]
   }
   vi.restoreAllMocks()
-  vi.useRealTimers()
 })
 
 describe('BrevoEmailProvider sendReal timeout', () => {
@@ -69,8 +64,6 @@ describe('BrevoEmailProvider sendReal timeout', () => {
 
   it('re-throws non-abort fetch errors after exhausting retries', async () => {
     setEnv('BREVO_API_KEY', 'test-api-key')
-    vi.useFakeTimers()
-    stubAbortTimeout()
 
     const networkError = new TypeError('fetch failed')
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(networkError)
@@ -78,7 +71,7 @@ describe('BrevoEmailProvider sendReal timeout', () => {
     const provider = new BrevoEmailProvider({ mock: false })
 
     let caughtError: unknown
-    const promise = provider
+    await provider
       .sendTransactional('alice@example.com', 'order_confirmation', {
         orderNumber: '42',
       })
@@ -86,15 +79,12 @@ describe('BrevoEmailProvider sendReal timeout', () => {
         caughtError = err
       })
 
-    await vi.runAllTimersAsync()
-    await promise
-
     expect(caughtError).toBeInstanceOf(Error)
     expect((caughtError as Error).message).toBe('fetch failed')
     expect(fetchSpy).toHaveBeenCalledTimes(4)
 
     fetchSpy.mockRestore()
-  })
+  }, 15000)
 })
 
 describe('BrevoEmailProvider retry logic', () => {
@@ -120,8 +110,6 @@ describe('BrevoEmailProvider retry logic', () => {
 
   it('retries on 5xx errors and succeeds on recovery', async () => {
     setEnv('BREVO_API_KEY', 'test-api-key')
-    vi.useFakeTimers()
-    stubAbortTimeout()
 
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
@@ -130,24 +118,19 @@ describe('BrevoEmailProvider retry logic', () => {
 
     const provider = new BrevoEmailProvider({ mock: false })
 
-    const promise = provider.sendTransactional('alice@example.com', 'order_confirmation', {
+    const result = await provider.sendTransactional('alice@example.com', 'order_confirmation', {
       orderNumber: '42',
     })
-
-    await vi.runAllTimersAsync()
-    const result = await promise
 
     expect(result.accepted).toBe(true)
     expect(result.messageId).toBe('test-msg-id')
     expect(fetchSpy).toHaveBeenCalledTimes(2)
 
     fetchSpy.mockRestore()
-  })
+  }, 10000)
 
   it('retries on network errors and succeeds on recovery', async () => {
     setEnv('BREVO_API_KEY', 'test-api-key')
-    vi.useFakeTimers()
-    stubAbortTimeout()
 
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
@@ -157,24 +140,19 @@ describe('BrevoEmailProvider retry logic', () => {
 
     const provider = new BrevoEmailProvider({ mock: false })
 
-    const promise = provider.sendTransactional('alice@example.com', 'order_confirmation', {
+    const result = await provider.sendTransactional('alice@example.com', 'order_confirmation', {
       orderNumber: '42',
     })
-
-    await vi.runAllTimersAsync()
-    const result = await promise
 
     expect(result.accepted).toBe(true)
     expect(result.messageId).toBe('test-msg-id')
     expect(fetchSpy).toHaveBeenCalledTimes(3)
 
     fetchSpy.mockRestore()
-  })
+  }, 10000)
 
   it('exhausts all retries on persistent 5xx and throws last error', async () => {
     setEnv('BREVO_API_KEY', 'test-api-key')
-    vi.useFakeTimers()
-    stubAbortTimeout()
 
     const fetchSpy = vi
       .spyOn(globalThis, 'fetch')
@@ -183,7 +161,7 @@ describe('BrevoEmailProvider retry logic', () => {
     const provider = new BrevoEmailProvider({ mock: false })
 
     let caughtError: unknown
-    const promise = provider
+    await provider
       .sendTransactional('alice@example.com', 'order_confirmation', {
         orderNumber: '42',
       })
@@ -191,12 +169,45 @@ describe('BrevoEmailProvider retry logic', () => {
         caughtError = err
       })
 
-    await vi.runAllTimersAsync()
-    await promise
-
     expect(caughtError).toBeInstanceOf(Error)
     expect((caughtError as Error).message).toBe('Brevo API error (502): Bad Gateway')
     expect(fetchSpy).toHaveBeenCalledTimes(4)
+
+    fetchSpy.mockRestore()
+  }, 15000)
+})
+
+describe('BrevoEmailProvider result shape', () => {
+  it('returns the provider field', async () => {
+    const provider = new BrevoEmailProvider({ mock: true })
+    const result = await provider.sendTransactional('alice@example.com', 'order_confirmation', {
+      orderNumber: '42',
+    })
+    expect(result.provider).toBe('brevo')
+    expect(result.accepted).toBe(true)
+  })
+})
+
+describe('BrevoEmailProvider headers', () => {
+  it('forwards headers in the payload', async () => {
+    setEnv('BREVO_API_KEY', 'test-api-key')
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(createMockResponse(200, 'OK'))
+
+    const provider = new BrevoEmailProvider({ mock: false })
+    await provider.sendTransactional(
+      'alice@example.com',
+      'order_confirmation',
+      { orderNumber: '42' },
+      { 'List-Unsubscribe': '<http://example.com/unsub>', 'X-Custom': 'value' },
+    )
+
+    const call = fetchSpy.mock.calls[0]
+    const body = JSON.parse(call[1]?.body as string)
+    expect(body.headers).toEqual([
+      { name: 'List-Unsubscribe', value: '<http://example.com/unsub>' },
+      { name: 'X-Custom', value: 'value' },
+    ])
 
     fetchSpy.mockRestore()
   })

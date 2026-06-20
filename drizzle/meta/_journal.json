@@ -477,6 +477,20 @@
       "when": 1781445365658,
       "tag": "0067_narrow_violations",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1781990327640,
+      "tag": "0068_famous_mephistopheles",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1781991502541,
+      "tag": "0069_magical_molecule_man",
+      "breakpoints": true
     }
   ]
 }

@@ -9,9 +9,12 @@ import { tanstackStartCookies } from 'better-auth/tanstack-start'
 
 import { db } from '#/db/index'
 import { createEmailProvider } from '#/integrations/email'
+import { checkAuthEmailRateLimit } from './email-rate-limit.server'
 import { ANONYMOUS_SESSION_COOKIE } from './cart-constants'
 import { getBaseUrl } from './env.server'
 import { safeRedirect } from './auth-utils'
+import { logEmailEvent } from './email-send-log.server'
+import { sha256Hex } from './hash.server'
 
 export function hashSessionToken(token: string): string {
   return createHash('sha256').update(token).digest('hex')
@@ -134,6 +137,44 @@ const baseDrizzleAdapter = drizzleAdapter(db, {
   provider: 'pg',
 })
 
+async function sendAuthEmail(
+  email: string,
+  template: 'password_reset' | 'email_verification',
+  data: Record<string, unknown>,
+): Promise<void> {
+  const rateLimit = await checkAuthEmailRateLimit(email, template)
+  if (!rateLimit.allowed) {
+    // Silently no-op: do not leak whether the address exists.
+    return
+  }
+
+  const provider = createEmailProvider()
+  const recipientHash = await sha256Hex(email.toLowerCase())
+
+  try {
+    const result = await provider.sendTransactional(email, template, data)
+    await logEmailEvent({
+      recipientHash,
+      template,
+      category: 'account_security',
+      provider: provider.name,
+      providerMessageId: result.messageId,
+      status: 'accepted',
+    })
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err)
+    await logEmailEvent({
+      recipientHash,
+      template,
+      category: 'account_security',
+      provider: provider.name,
+      status: 'failed',
+      statusDetail: detail,
+    })
+    throw err
+  }
+}
+
 export const betterAuthOptions = {
   database: (options: Parameters<typeof baseDrizzleAdapter>[0]) => {
     const adapter = baseDrizzleAdapter(options)
@@ -145,8 +186,7 @@ export const betterAuthOptions = {
     requireEmailVerification: true,
     revokeSessionsOnPasswordReset: true,
     sendResetPassword: async ({ user, url }) => {
-      const emailProvider = createEmailProvider()
-      await emailProvider.sendTransactional(user.email, 'password_reset', {
+      await sendAuthEmail(user.email, 'password_reset', {
         userName: user.name,
         resetUrl: url,
       })
@@ -161,8 +201,7 @@ export const betterAuthOptions = {
       const callbackURL = safeRedirect(searchParams.get('callbackURL'))
       const verificationUrl = `${parsedUrl.origin}/verify-email?token=${token}&redirect=${encodeURIComponent(callbackURL)}`
 
-      const emailProvider = createEmailProvider()
-      await emailProvider.sendTransactional(user.email, 'email_verification', {
+      await sendAuthEmail(user.email, 'email_verification', {
         userName: user.name,
         verificationUrl,
       })

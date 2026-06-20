@@ -7,7 +7,9 @@ postgres_user: eurtisan
 postgres_db: eurtisan
 
 # ── Email ────────────────────────────────────────────────────────────────
-email_from_address: support@eurtisan.eu
+# Production should use the dedicated transactional subdomain once it is
+# verified in Brevo (see docs/EMAIL_DNS.md). Until then, keep the root domain.
+email_from_address: noreply@mail.eurtisan.eu
 email_from_name: Eurtisan
 email_smtp_port: "587"
 

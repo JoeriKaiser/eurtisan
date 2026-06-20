@@ -24,7 +24,13 @@ import {
 } from '#/test/factories'
 
 import { flushBackgroundWorkForTests } from './background-work.server'
+import { flushEmailOutboxForTests } from './email-outbox.server'
 import { createCheckoutQuery } from './checkout.server'
+
+async function flushAll(): Promise<void> {
+  await flushBackgroundWorkForTests()
+  await flushEmailOutboxForTests()
+}
 import { openDisputeQuery, resolveDisputeQuery } from './disputes.server'
 import { getNotificationsQuery } from './notifications.server'
 import { markPayoutSentQuery } from './payouts.server'
@@ -72,7 +78,7 @@ describe('createCheckoutQuery notifications', () => {
       buyer.id,
     )
 
-    await flushBackgroundWorkForTests()
+    await flushAll()
     const buyerNotifications = await getNotificationsQuery(buyer.id, 1, 10)
     expect(buyerNotifications.notifications).toHaveLength(1)
     expect(buyerNotifications.notifications[0].type).toBe('order_placed')
@@ -112,7 +118,7 @@ describe('createCheckoutQuery notifications', () => {
       buyer.id,
     )
 
-    await flushBackgroundWorkForTests()
+    await flushAll()
     const sellerNotifications = await getNotificationsQuery(seller.id, 1, 10)
     expect(sellerNotifications.notifications).toHaveLength(1)
     expect(sellerNotifications.notifications[0].type).toBe('order_placed')
@@ -139,7 +145,7 @@ describe('markShopOrderShippedQuery notification', () => {
 
     await markShopOrderShippedQuery(so.id, {})
 
-    await flushBackgroundWorkForTests()
+    await flushAll()
     const buyerNotifications = await getNotificationsQuery(buyer.id, 1, 10)
     expect(buyerNotifications.notifications).toHaveLength(1)
     expect(buyerNotifications.notifications[0].type).toBe('order_shipped')
@@ -168,7 +174,7 @@ describe('markShopOrderShippedQuery notification', () => {
     // Idempotent tracking update should not create another notification
     await markShopOrderShippedQuery(so.id, { trackingNumber: 'TRACK-456' })
 
-    await flushBackgroundWorkForTests()
+    await flushAll()
     const buyerNotifications = await getNotificationsQuery(buyer.id, 1, 10)
     expect(buyerNotifications.notifications).toHaveLength(1)
   })
@@ -193,7 +199,7 @@ describe('createReviewQuery notification', () => {
 
     const result = await createReviewQuery(so.id, product.id, buyer.id, 5, 'Great!')
 
-    await flushBackgroundWorkForTests()
+    await flushAll()
     const sellerNotifications = await getNotificationsQuery(seller.id, 1, 10)
     expect(sellerNotifications.notifications).toHaveLength(1)
     expect(sellerNotifications.notifications[0].type).toBe('review_received')
@@ -222,7 +228,7 @@ describe('updateShopOrderStatusQuery dispute notification', () => {
 
     await updateShopOrderStatusQuery(so.id, { status: 'disputed' })
 
-    await flushBackgroundWorkForTests()
+    await flushAll()
     const buyerNotifications = await getNotificationsQuery(buyer.id, 1, 10)
     expect(buyerNotifications.notifications).toHaveLength(1)
     expect(buyerNotifications.notifications[0].type).toBe('dispute_opened')
@@ -242,6 +248,7 @@ describe('createCheckoutQuery emails', () => {
     const sendSpy = vi.spyOn(brevoEmailProvider, 'sendTransactional').mockResolvedValue({
       messageId: 'msg-test',
       accepted: true,
+      provider: 'brevo',
     })
 
     const buyer = await createUser({ email: 'buyer@example.com' })
@@ -274,7 +281,7 @@ describe('createCheckoutQuery emails', () => {
       buyer.id,
     )
 
-    await flushBackgroundWorkForTests()
+    await flushAll()
     const buyerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'buyer@example.com')
     expect(buyerEmailCall).toBeDefined()
     expect(buyerEmailCall?.[1]).toBe('order_confirmation')
@@ -284,6 +291,7 @@ describe('createCheckoutQuery emails', () => {
     const sendSpy = vi.spyOn(brevoEmailProvider, 'sendTransactional').mockResolvedValue({
       messageId: 'msg-test',
       accepted: true,
+      provider: 'brevo',
     })
 
     const buyer = await createUser({ email: 'buyer@example.com' })
@@ -316,7 +324,7 @@ describe('createCheckoutQuery emails', () => {
       buyer.id,
     )
 
-    await flushBackgroundWorkForTests()
+    await flushAll()
     const sellerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'seller@example.com')
     expect(sellerEmailCall).toBeDefined()
     expect(sellerEmailCall?.[1]).toBe('order_confirmation')
@@ -369,6 +377,7 @@ describe('markShopOrderShippedQuery emails', () => {
     const sendSpy = vi.spyOn(brevoEmailProvider, 'sendTransactional').mockResolvedValue({
       messageId: 'msg-test',
       accepted: true,
+      provider: 'brevo',
     })
 
     const buyer = await createUser({ email: 'buyer@example.com' })
@@ -385,7 +394,7 @@ describe('markShopOrderShippedQuery emails', () => {
 
     await markShopOrderShippedQuery(so.id, { trackingNumber: 'TRACK-123' })
 
-    await flushBackgroundWorkForTests()
+    await flushAll()
     const buyerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'buyer@example.com')
     expect(buyerEmailCall).toBeDefined()
     expect(buyerEmailCall?.[1]).toBe('shipping_notification')
@@ -426,6 +435,7 @@ describe('dispute email notifications', () => {
     const sendSpy = vi.spyOn(brevoEmailProvider, 'sendTransactional').mockResolvedValue({
       messageId: 'msg-test',
       accepted: true,
+      provider: 'brevo',
     })
 
     const buyer = await createUser({ email: 'buyer@example.com' })
@@ -445,7 +455,7 @@ describe('dispute email notifications', () => {
       buyer.id,
     )
 
-    await flushBackgroundWorkForTests()
+    await flushAll()
     const buyerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'buyer@example.com')
     expect(buyerEmailCall).toBeDefined()
     expect(buyerEmailCall?.[1]).toBe('dispute_update')
@@ -460,6 +470,7 @@ describe('dispute email notifications', () => {
     const sendSpy = vi.spyOn(brevoEmailProvider, 'sendTransactional').mockResolvedValue({
       messageId: 'msg-test',
       accepted: true,
+      provider: 'brevo',
     })
 
     const buyer = await createUser({ email: 'buyer@example.com' })
@@ -475,7 +486,7 @@ describe('dispute email notifications', () => {
 
     await updateShopOrderStatusQuery(so.id, { status: 'disputed' })
 
-    await flushBackgroundWorkForTests()
+    await flushAll()
     const buyerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'buyer@example.com')
     expect(buyerEmailCall).toBeDefined()
     expect(buyerEmailCall?.[1]).toBe('dispute_update')
@@ -488,6 +499,7 @@ describe('dispute email notifications', () => {
     const sendSpy = vi.spyOn(brevoEmailProvider, 'sendTransactional').mockResolvedValue({
       messageId: 'msg-test',
       accepted: true,
+      provider: 'brevo',
     })
 
     const buyer = await createUser({ email: 'buyer@example.com' })
@@ -511,9 +523,9 @@ describe('dispute email notifications', () => {
 
     await resolveDisputeQuery(d.id, { resolution: 'close' }, { userId: 'admin-1', role: 'admin' })
 
-    await flushBackgroundWorkForTests()
+    await flushAll()
     const buyerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'buyer@example.com')
-    await flushBackgroundWorkForTests()
+    await flushAll()
     const sellerEmailCall = sendSpy.mock.calls.find((call) => call[0] === 'seller@example.com')
 
     expect(buyerEmailCall).toBeDefined()
@@ -587,7 +599,7 @@ describe('markPayoutSentQuery notification', () => {
 
     await markPayoutSentQuery(p.id)
 
-    await flushBackgroundWorkForTests()
+    await flushAll()
     const sellerNotifications = await getNotificationsQuery(seller.id, 1, 10)
     expect(sellerNotifications.notifications).toHaveLength(1)
     expect(sellerNotifications.notifications[0].type).toBe('payout_sent')
@@ -628,7 +640,7 @@ describe('markPayoutSentQuery notification', () => {
 
     await markPayoutSentQuery(p.id)
 
-    await flushBackgroundWorkForTests()
+    await flushAll()
     const sellerNotifications = await getNotificationsQuery(seller.id, 1, 10)
     expect(sellerNotifications.notifications).toHaveLength(0)
   })

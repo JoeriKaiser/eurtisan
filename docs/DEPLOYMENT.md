@@ -167,6 +167,8 @@ ssh -i ~/.ssh/server_id_rsa -L 8025:127.0.0.1:8025 ubuntu@STAGING_IP -N
 
 Then open `http://localhost:8025`.
 
+Staging email is hardcoded to Mailpit in `docker-compose.staging.yml` (`EMAIL_SMTP_HOST=mailpit`, `EMAIL_SMTP_PORT=1025`). These compose-level environment variables override any accidental `.env` value, so staging can never send real email even if a production `.env` is copied in by mistake. `BREVO_API_KEY` must never be set in staging `.env`.
+
 **Payments (Mollie):** Use Mollie's **test API key** in staging. No real money is charged. Set in `secrets.yml`:
 
 ```yaml

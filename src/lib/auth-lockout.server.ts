@@ -3,6 +3,9 @@ import { eq } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { user } from '#/db/schema'
 import { createEmailProvider } from '#/integrations/email'
+import { checkAuthEmailRateLimit } from '#/lib/email-rate-limit.server'
+import { logEmailEvent } from '#/lib/email-send-log.server'
+import { sha256Hex } from '#/lib/hash.server'
 
 const MAX_FAILED_ATTEMPTS = 5
 const LOCKOUT_DURATION_MINUTES = 30
@@ -68,14 +71,39 @@ export async function recordFailedSignIn(email: string): Promise<void> {
     .where(eq(user.id, targetUser.id))
 
   if (lockedUntil) {
-    const emailProvider = createEmailProvider()
-    await emailProvider
-      .sendTransactional(targetUser.email, 'account_security_alert', {
+    const rateLimit = await checkAuthEmailRateLimit(targetUser.email, 'account_security_alert')
+    if (!rateLimit.allowed) {
+      // Rate limit exceeded; skip the alert but still lock the account.
+      return
+    }
+
+    const provider = createEmailProvider()
+    const recipientHash = await sha256Hex(targetUser.email.toLowerCase())
+
+    try {
+      const result = await provider.sendTransactional(targetUser.email, 'account_security_alert', {
         userName: targetUser.name,
         lockoutDurationMinutes: LOCKOUT_DURATION_MINUTES,
       })
-      .catch(() => {
-        // Intentionally swallowed — do not fail authentication because email failed
+      await logEmailEvent({
+        recipientHash,
+        template: 'account_security_alert',
+        category: 'account_security',
+        provider: provider.name,
+        providerMessageId: result.messageId,
+        status: 'accepted',
       })
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err)
+      await logEmailEvent({
+        recipientHash,
+        template: 'account_security_alert',
+        category: 'account_security',
+        provider: provider.name,
+        status: 'failed',
+        statusDetail: detail,
+      })
+      // Intentionally swallowed — do not fail authentication because email failed.
+    }
   }
 }

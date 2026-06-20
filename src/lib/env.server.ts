@@ -313,3 +313,143 @@ export function getRateLimitRetentionDays(): number {
   }
   return 30
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Email outbox & pipeline                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Polling interval for the email outbox worker (milliseconds).
+ * Defaults to 10 seconds.
+ */
+export function getEmailOutboxWorkerIntervalMs(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.EMAIL_OUTBOX_WORKER_INTERVAL_MS
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed
+      }
+    }
+  }
+  return 10_000
+}
+
+/**
+ * Max rows to process per outbox worker tick.
+ * Defaults to 50.
+ */
+export function getEmailOutboxWorkerBatchSize(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.EMAIL_OUTBOX_WORKER_BATCH_SIZE
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed
+      }
+    }
+  }
+  return 50
+}
+
+/**
+ * Default max retries for outbox emails.
+ * Defaults to 3.
+ */
+export function getEmailMaxRetries(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.EMAIL_MAX_RETRIES
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed >= 0) {
+        return parsed
+      }
+    }
+  }
+  return 3
+}
+
+/**
+ * Daily per-email limit for password reset emails.
+ * Defaults to 5.
+ */
+export function getEmailRateLimitPasswordResetPerEmailDay(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.EMAIL_RATE_LIMIT_PASSWORD_RESET_PER_EMAIL_DAY
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed
+      }
+    }
+  }
+  return 5
+}
+
+/**
+ * Daily per-email limit for email verification emails.
+ * Defaults to 5.
+ */
+export function getEmailRateLimitVerificationPerEmailDay(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.EMAIL_RATE_LIMIT_VERIFICATION_PER_EMAIL_DAY
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed
+      }
+    }
+  }
+  return 5
+}
+
+/**
+ * Hourly per-email limit for account security alert emails.
+ * Defaults to 10.
+ */
+export function getEmailRateLimitSecurityAlertPerEmailHour(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.EMAIL_RATE_LIMIT_SECURITY_ALERT_PER_EMAIL_HOUR
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed
+      }
+    }
+  }
+  return 10
+}
+
+/**
+ * Number of days to retain soft-bounce suppressions before automatic cleanup.
+ * Defaults to 30.
+ */
+export function getEmailSuppressionSoftBounceRetentionDays(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.EMAIL_SUPPRESSION_SOFT_BOUNCE_RETENTION_DAYS
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed
+      }
+    }
+  }
+  return 30
+}
+
+/**
+ * Number of days to retain email_send_log rows before cleanup.
+ * Defaults to 90.
+ */
+export function getEmailSendLogRetentionDays(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.EMAIL_SEND_LOG_RETENTION_DAYS
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed
+      }
+    }
+  }
+  return 90
+}

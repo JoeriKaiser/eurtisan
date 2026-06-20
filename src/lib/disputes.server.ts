@@ -271,13 +271,19 @@ export async function openDisputeQuery(
       db.select().from(shop).where(eq(shop.id, shopOrderRecord.shopId)).limit(1),
     ])
 
-    await sendNotificationEmail(buyerUserId, 'dispute_update', {
-      orderNumber: input.shopOrderId.slice(0, 8),
-      buyerName: buyerRecord?.name,
-      shopName: shopRecord?.name ?? 'Eurtisan',
-      status: 'opened',
-      message: input.reason,
-      disputeUrl: `${getBaseUrl()}/disputes/${result.id}`,
+    await sendNotificationEmail({
+      userId: buyerUserId,
+      template: 'dispute_update',
+      data: {
+        orderNumber: input.shopOrderId.slice(0, 8),
+        buyerName: buyerRecord?.name,
+        shopName: shopRecord?.name ?? 'Eurtisan',
+        status: 'opened',
+        message: input.reason,
+        disputeUrl: `${getBaseUrl()}/disputes/${result.id}`,
+      },
+      idempotencyKey: `dispute:${result.id}:opened`,
+      category: 'transactional',
     })
   } catch {
     // Email errors must not break the primary business flow
@@ -936,23 +942,35 @@ export async function resolveDisputeQuery(
             ? `A partial refund has been issued.`
             : 'The dispute has been resolved.'
 
-    await sendNotificationEmail(finalDisputeRecord.buyerUserId, 'dispute_update', {
-      orderNumber: finalDisputeRecord.shopOrderId.slice(0, 8),
-      buyerName: buyerRecord?.name,
-      shopName: shopRecord2?.name ?? 'Eurtisan',
-      status: input.resolution,
-      message,
-      disputeUrl: `${baseUrl}/disputes/${disputeId}`,
-    })
-
-    if (finalCreatorUserId) {
-      await sendNotificationEmail(finalCreatorUserId, 'dispute_update', {
+    await sendNotificationEmail({
+      userId: finalDisputeRecord.buyerUserId,
+      template: 'dispute_update',
+      data: {
         orderNumber: finalDisputeRecord.shopOrderId.slice(0, 8),
-        buyerName: sellerRecord?.name,
+        buyerName: buyerRecord?.name,
         shopName: shopRecord2?.name ?? 'Eurtisan',
         status: input.resolution,
         message,
         disputeUrl: `${baseUrl}/disputes/${disputeId}`,
+      },
+      idempotencyKey: `dispute:${disputeId}:${input.resolution}`,
+      category: 'transactional',
+    })
+
+    if (finalCreatorUserId) {
+      await sendNotificationEmail({
+        userId: finalCreatorUserId,
+        template: 'dispute_update',
+        data: {
+          orderNumber: finalDisputeRecord.shopOrderId.slice(0, 8),
+          buyerName: sellerRecord?.name,
+          shopName: shopRecord2?.name ?? 'Eurtisan',
+          status: input.resolution,
+          message,
+          disputeUrl: `${baseUrl}/disputes/${disputeId}`,
+        },
+        idempotencyKey: `dispute:${disputeId}:${input.resolution}:seller`,
+        category: 'transactional',
       })
     }
   } catch {

@@ -37,7 +37,7 @@ export const checkoutFailuresTotal = new Counter({
 
 export const webhookProcessedTotal = new Counter({
   name: 'eurtisan_webhook_processed_total',
-  help: 'Mollie webhook processing outcomes',
+  help: 'Webhook processing outcomes',
   labelNames: ['status'] as const,
   registers: [metricsRegistry],
 })
@@ -53,6 +53,32 @@ export const emailFailedTotal = new Counter({
   name: 'eurtisan_email_failed_total',
   help: 'Transactional email send failures',
   labelNames: ['template'] as const,
+  registers: [metricsRegistry],
+})
+
+export const emailQueuedTotal = new Counter({
+  name: 'eurtisan_email_queued_total',
+  help: 'Emails inserted into the outbox',
+  labelNames: ['template'] as const,
+  registers: [metricsRegistry],
+})
+
+export const emailBouncedTotal = new Counter({
+  name: 'eurtisan_email_bounced_total',
+  help: 'Bounce events received from provider',
+  labelNames: ['reason'] as const,
+  registers: [metricsRegistry],
+})
+
+export const emailComplainedTotal = new Counter({
+  name: 'eurtisan_email_complained_total',
+  help: 'Spam/complaint events received from provider',
+  registers: [metricsRegistry],
+})
+
+export const emailDeliveredTotal = new Counter({
+  name: 'eurtisan_email_delivered_total',
+  help: 'Delivery confirmations received from provider',
   registers: [metricsRegistry],
 })
 

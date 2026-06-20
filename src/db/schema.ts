@@ -44,6 +44,7 @@ export const user = pgTable(
     lockedUntil: timestamp('locked_until'),
     twoFactorEnabled: boolean('two_factor_enabled').notNull().default(false),
     deletedAt: timestamp('deleted_at'),
+    unsubscribeToken: text('unsubscribe_token').unique(),
     createdAt: timestamp().notNull().defaultNow(),
     updatedAt: timestamp().notNull().defaultNow(),
   },
@@ -51,6 +52,7 @@ export const user = pgTable(
     index('user_name_email_idx').on(table.name, table.email),
     index('user_created_at_idx').on(table.createdAt),
     index('user_role_idx').on(table.role),
+    index('user_unsubscribe_token_idx').on(table.unsubscribeToken),
   ],
 )
 
@@ -847,13 +849,133 @@ export const rateLimit = pgTable(
   ],
 )
 
-export const emailSuppression = pgTable('email_suppression', {
-  email: text().primaryKey(),
-  reason: text().notNull(),
-  source: text(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-})
+export const emailOutboxStatusEnum = pgEnum('email_outbox_status', [
+  'pending',
+  'sending',
+  'sent',
+  'failed',
+  'suppressed',
+  'bounced',
+])
+
+export const emailSendLogStatusEnum = pgEnum('email_send_log_status', [
+  'accepted',
+  'delivered',
+  'bounced',
+  'complained',
+  'failed',
+  'suppressed',
+  'skipped',
+])
+
+export const emailOutbox = pgTable(
+  'email_outbox',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
+    idempotencyKey: text('idempotency_key').notNull().unique(),
+    recipientEmail: text('recipient_email').notNull(),
+    recipientHash: text('recipient_hash').notNull(),
+    template: text().notNull(),
+    locale: text().notNull().default('en'),
+    data: jsonb().notNull(),
+    category: text().notNull().default('transactional'),
+    status: emailOutboxStatusEnum('status').notNull().default('pending'),
+    scheduledAt: timestamp('scheduled_at').notNull().defaultNow(),
+    sentAt: timestamp('sent_at'),
+    provider: text(),
+    providerMessageId: text('provider_message_id'),
+    failureReason: text('failure_reason'),
+    retryCount: integer('retry_count').notNull().default(0),
+    maxRetries: integer('max_retries').notNull().default(3),
+    nextRetryAt: timestamp('next_retry_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('email_outbox_status_scheduled_idx').on(table.status, table.scheduledAt),
+    index('email_outbox_next_retry_idx').on(table.status, table.nextRetryAt),
+    index('email_outbox_idempotency_idx').on(table.idempotencyKey),
+    index('email_outbox_recipient_hash_idx').on(table.recipientHash),
+    index('email_outbox_user_id_idx').on(table.userId),
+  ],
+)
+
+export const emailSendLog = pgTable(
+  'email_send_log',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    outboxId: uuid('outbox_id').references(() => emailOutbox.id, { onDelete: 'set null' }),
+    recipientHash: text('recipient_hash').notNull(),
+    template: text().notNull(),
+    category: text().notNull().default('transactional'),
+    provider: text().notNull(),
+    providerMessageId: text('provider_message_id'),
+    status: emailSendLogStatusEnum('status').notNull(),
+    statusDetail: text('status_detail'),
+    eventData: jsonb('event_data'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('email_send_log_outbox_idx').on(table.outboxId),
+    index('email_send_log_recipient_hash_idx').on(table.recipientHash),
+    index('email_send_log_provider_msg_idx').on(table.provider, table.providerMessageId),
+    index('email_send_log_created_at_idx').on(table.createdAt),
+  ],
+)
+
+export const brevoWebhookEvent = pgTable(
+  'brevo_webhook_event',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    payload: jsonb('payload').notNull(),
+    signatureHeader: text('signature_header'),
+    processedAt: timestamp('processed_at'),
+    error: text(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('brevo_webhook_event_created_at_idx').on(table.createdAt),
+    index('brevo_webhook_event_processed_at_idx').on(table.processedAt),
+  ],
+)
+
+export const emailSuppression = pgTable(
+  'email_suppression',
+  {
+    email: text().primaryKey(),
+    reason: text().notNull(),
+    source: text(),
+    expiresAt: timestamp('expires_at'), // null = permanent
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [index('email_suppression_expires_at_idx').on(table.expiresAt)],
+)
+
+export const emailPreferenceCategoryEnum = pgEnum('email_preference_category', [
+  'seller_updates',
+  'marketing',
+  'platform_announcements',
+])
+
+export const userEmailPreference = pgTable(
+  'user_email_preference',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    category: emailPreferenceCategoryEnum('category').notNull(),
+    enabled: boolean().notNull().default(true),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('user_email_preference_user_category_idx').on(table.userId, table.category),
+    index('user_email_preference_user_idx').on(table.userId),
+  ],
+)
 
 export const invoiceTypeEnum = pgEnum('invoice_type', ['platform_fee', 'customer', 'credit_note'])
 

@@ -1,11 +1,17 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useLoaderData } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { deleteMyAccount, exportMyData } from '#/lib/account-data'
+import { updateMyEmailPreference } from '#/lib/account-email-preferences.server'
 import { m } from '#/paraglide/messages'
 
 export function AccountSettings() {
+  const { preferences: initialPreferences } = useLoaderData({ from: '/account/settings' })
+  const [preferences, setPreferences] = useState(initialPreferences)
+  const [preferenceStatus, setPreferenceStatus] = useState<
+    Record<string, 'idle' | 'saving' | 'saved' | 'error'>
+  >({})
   const [exportStatus, setExportStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [deleteStatus, setDeleteStatus] = useState<'idle' | 'loading' | 'error'>('idle')
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -43,6 +49,29 @@ export function AccountSettings() {
       } else {
         setDeleteError(m.account_delete_error())
       }
+    }
+  }
+
+  async function handlePreferenceChange(category: string, enabled: boolean) {
+    setPreferenceStatus((prev) => ({ ...prev, [category]: 'saving' }))
+    setPreferences((prev) => prev.map((p) => (p.category === category ? { ...p, enabled } : p)))
+
+    try {
+      await updateMyEmailPreference({
+        data: {
+          category: category as 'seller_updates' | 'marketing' | 'platform_announcements',
+          enabled,
+        },
+      })
+      setPreferenceStatus((prev) => ({ ...prev, [category]: 'saved' }))
+      window.setTimeout(() => {
+        setPreferenceStatus((prev) => ({ ...prev, [category]: 'idle' }))
+      }, 2000)
+    } catch {
+      setPreferenceStatus((prev) => ({ ...prev, [category]: 'error' }))
+      setPreferences((prev) =>
+        prev.map((p) => (p.category === category ? { ...p, enabled: !enabled } : p)),
+      )
     }
   }
 
@@ -84,6 +113,79 @@ export function AccountSettings() {
                   {m.account_export_error()}
                 </p>
               )}
+            </div>
+
+            <div className='border-t border-border-default pt-6'>
+              <h2 className='text-lg font-semibold text-text-primary'>
+                {m.account_email_preferences_title()}
+              </h2>
+              <p className='mt-1 text-sm text-text-secondary'>
+                {m.account_email_preferences_description()}
+              </p>
+              <div className='mt-4 space-y-4' aria-live='polite'>
+                {preferences.map((preference) => {
+                  const status = preferenceStatus[preference.category]
+                  const getMessage = (key: string) =>
+                    (m as unknown as Record<string, () => string>)[key]?.() ?? key
+                  const label = getMessage(preference.labelKey)
+                  const description = getMessage(preference.descriptionKey)
+                  const isMarketing = preference.category === 'marketing'
+
+                  return (
+                    <div
+                      key={preference.category}
+                      className='flex items-start justify-between gap-4'
+                    >
+                      <div className='flex-1'>
+                        <label
+                          htmlFor={`preference-${preference.category}`}
+                          className='block text-sm font-medium text-text-primary'
+                        >
+                          {label}
+                        </label>
+                        <p className='text-sm text-text-secondary'>{description}</p>
+                        {isMarketing && (
+                          <p className='text-xs text-text-secondary'>
+                            {m.account_email_preference_marketing_note?.() ?? ''}
+                          </p>
+                        )}
+                      </div>
+                      <div className='flex min-w-[120px] flex-col items-end gap-1'>
+                        <button
+                          id={`preference-${preference.category}`}
+                          type='button'
+                          role='switch'
+                          aria-checked={preference.enabled}
+                          aria-label={label}
+                          disabled={status === 'saving'}
+                          onClick={() =>
+                            handlePreferenceChange(preference.category, !preference.enabled)
+                          }
+                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 ${
+                            preference.enabled ? 'bg-accent-primary' : 'bg-gray-300'
+                          } ${status === 'saving' ? 'opacity-70' : ''}`}
+                        >
+                          <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              preference.enabled ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                          />
+                        </button>
+                        <span className='h-4 text-xs'>
+                          {status === 'saved' && (
+                            <span className='text-success'>
+                              {m.account_email_preference_saved()}
+                            </span>
+                          )}
+                          {status === 'error' && (
+                            <span className='text-error'>{m.account_email_preference_error()}</span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
 
             <div className='border-t border-border-default pt-6'>

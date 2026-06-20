@@ -18,6 +18,8 @@ import {
   getEmailSmtpHost,
   getEmailSmtpPort,
 } from '#/lib/env.server'
+import { emailFailedTotal, emailSentTotal } from '#/lib/metrics.server'
+import { retryWithBackoff } from '#/lib/retry.server'
 
 let mockCounter = 0
 
@@ -37,6 +39,7 @@ function isSmtpConfigured(): boolean {
 }
 
 export class SmtpEmailProvider implements EmailProvider {
+  readonly name = 'smtp' as const
   private readonly mockMode: boolean
   private readonly transporter: nodemailer.Transporter | undefined
   private readonly senderEmail: string
@@ -70,12 +73,13 @@ export class SmtpEmailProvider implements EmailProvider {
     to: string,
     template: EmailTemplate,
     data: Record<string, unknown>,
+    headers?: Record<string, string>,
   ): Promise<EmailSendResult> {
     if (this.mockMode) {
       return this.sendMock(to, template, data)
     }
 
-    return this.sendReal(to, template, data)
+    return this.sendReal(to, template, data, headers)
   }
 
   /* ------------------------------------------------------------------ */
@@ -83,14 +87,14 @@ export class SmtpEmailProvider implements EmailProvider {
   /* ------------------------------------------------------------------ */
 
   private async sendMock(
-    _to: string,
+    to: string,
     template: EmailTemplate,
     data: Record<string, unknown>,
   ): Promise<EmailSendResult> {
     await delay(20)
 
     try {
-      renderTemplate(template, data)
+      await renderTemplate(template, data, to)
     } catch (err) {
       renderFallbackPlainText(template, data)
       logger.error('[SmtpEmailProvider] Template render error (mock)', err)
@@ -103,7 +107,7 @@ export class SmtpEmailProvider implements EmailProvider {
       to: '[REDACTED]',
     })
 
-    return { messageId, accepted: true }
+    return { messageId, accepted: true, provider: 'smtp' }
   }
 
   /* ------------------------------------------------------------------ */
@@ -114,6 +118,7 @@ export class SmtpEmailProvider implements EmailProvider {
     to: string,
     template: EmailTemplate,
     data: Record<string, unknown>,
+    headers?: Record<string, string>,
   ): Promise<EmailSendResult> {
     if (!this.transporter) {
       throw new Error('SMTP transporter is not initialised')
@@ -124,7 +129,7 @@ export class SmtpEmailProvider implements EmailProvider {
     let textBody = ''
 
     try {
-      const rendered = renderTemplate(template, data)
+      const rendered = await renderTemplate(template, data, to)
       subject = rendered.subject
       htmlBody = rendered.html
       textBody = rendered.text
@@ -135,18 +140,53 @@ export class SmtpEmailProvider implements EmailProvider {
       logger.error('[SmtpEmailProvider] Template render error (real)', err)
     }
 
-    const info = await this.transporter.sendMail({
+    const mailOptions: nodemailer.SendMailOptions = {
       from: { name: this.senderName, address: this.senderEmail },
       to,
       subject,
       text: textBody,
       html: htmlBody,
       replyTo: this.replyTo,
-    })
+    }
 
-    return {
-      messageId: info.messageId ?? `smtp_${Date.now()}`,
-      accepted: true,
+    if (headers && Object.keys(headers).length > 0) {
+      mailOptions.headers = Object.entries(headers).map(([key, value]) => ({ key, value }))
+    }
+
+    try {
+      const info = await retryWithBackoff(
+        async () => this.transporter?.sendMail(mailOptions),
+        (err) => {
+          if (!(err instanceof Error)) return false
+          const code = (err as NodeJS.ErrnoException).code
+          const message = err.message.toLowerCase()
+          // Retry transient network errors and 5xx SMTP responses.
+          if (
+            code === 'ECONNREFUSED' ||
+            code === 'ETIMEDOUT' ||
+            code === 'ECONNRESET' ||
+            message.includes('5xx') ||
+            message.includes('5.')
+          ) {
+            return true
+          }
+          // Do not retry auth errors or invalid recipients.
+          if (code === 'EAUTH' || message.includes('recipient')) {
+            return false
+          }
+          return false
+        },
+      )
+
+      emailSentTotal.inc({ template })
+      return {
+        messageId: info.messageId ?? `smtp_${Date.now()}`,
+        accepted: true,
+        provider: 'smtp',
+      }
+    } catch (err) {
+      emailFailedTotal.inc({ template })
+      throw err
     }
   }
 }

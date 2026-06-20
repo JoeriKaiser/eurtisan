@@ -1298,14 +1298,20 @@ export async function createCheckoutWithProvider(
       await createNotification(userId, 'order_placed', {
         platformOrderId,
       })
-      await sendNotificationEmail(userId, 'order_confirmation', {
-        orderNumber: platformOrderId.slice(0, 8),
-        buyerName: buyerRecord?.name,
-        shopName: 'Eurtisan',
-        items: buyerItems,
-        total: formatPriceEUR(result.grandTotalCents),
-        orderUrl: `${baseUrl}/orders/${platformOrderId}`,
-        ...buyerSellerPayload,
+      await sendNotificationEmail({
+        userId,
+        template: 'order_confirmation',
+        data: {
+          orderNumber: platformOrderId.slice(0, 8),
+          buyerName: buyerRecord?.name,
+          shopName: 'Eurtisan',
+          items: buyerItems,
+          total: formatPriceEUR(result.grandTotalCents),
+          orderUrl: `${baseUrl}/orders/${platformOrderId}`,
+          ...buyerSellerPayload,
+        },
+        idempotencyKey: `order:${platformOrderId}:confirmation:buyer`,
+        category: 'transactional',
       })
 
       // Index order items by shopName for O(1) lookup
@@ -1350,19 +1356,25 @@ export async function createCheckoutWithProvider(
               platformOrderId,
               shopOrderId: so.shopOrderId,
             }),
-            sendNotificationEmail(shopRecord.ownerId, 'order_confirmation', {
-              orderNumber: so.shopOrderId.slice(0, 8),
-              buyerName: sellerRecord?.name ?? null,
-              shopName: shopRecord.name,
-              items: sellerItems,
-              total: formatPriceEUR(
-                sellerItems.reduce((sum, item) => {
-                  const cents = shopItemByName.get(item.name)?.totalCents ?? 0
-                  return sum + cents
-                }, 0),
-              ),
-              orderUrl: `${baseUrl}/studio/${so.shopId}/orders/${so.shopOrderId}`,
-              ...sellerPayload,
+            sendNotificationEmail({
+              userId: shopRecord.ownerId,
+              template: 'order_confirmation',
+              data: {
+                orderNumber: so.shopOrderId.slice(0, 8),
+                buyerName: sellerRecord?.name ?? null,
+                shopName: shopRecord.name,
+                items: sellerItems,
+                total: formatPriceEUR(
+                  sellerItems.reduce((sum, item) => {
+                    const cents = shopItemByName.get(item.name)?.totalCents ?? 0
+                    return sum + cents
+                  }, 0),
+                ),
+                orderUrl: `${baseUrl}/studio/${so.shopId}/orders/${so.shopOrderId}`,
+                ...sellerPayload,
+              },
+              idempotencyKey: `order:${platformOrderId}:confirmation:seller:${so.shopId}`,
+              category: 'transactional',
             }),
           ])
         }),

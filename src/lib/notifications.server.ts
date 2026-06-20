@@ -2,9 +2,10 @@ import { and, count, desc, eq, isNull } from 'drizzle-orm'
 import z from 'zod'
 import { db } from '#/db/index'
 import { notification, user } from '#/db/schema'
-import { createEmailProvider } from '#/integrations/email'
-import { logger } from '#/lib/logger.server'
+import { enqueueEmail } from '#/lib/email-outbox.server'
 import type { EmailTemplate } from '#/lib/email-provider'
+import type { EmailCategory } from '#/lib/email-preferences.server'
+import { logger } from '#/lib/logger.server'
 
 export const notificationTypeEnum = z.enum([
   'order_placed',
@@ -96,18 +97,28 @@ export async function createNotification(
 /*                            Notification Email                              */
 /* -------------------------------------------------------------------------- */
 
+export interface SendNotificationEmailOptions {
+  userId: string
+  template: EmailTemplate
+  data: Record<string, SerializableValue>
+  idempotencyKey: string
+  category: EmailCategory
+}
+
 /**
- * Fire-and-forget email delivery for a notification recipient.
+ * Durable email delivery for a notification recipient.
  *
- * Looks up the user's email address, renders the appropriate template, and
- * hands the message to the active email provider. All errors are caught and
- * logged so the enclosing business flow never breaks.
+ * Looks up the user's email address and inserts the email into the outbox.
+ * The outbox worker handles rendering, sending, retries, and audit logging.
+ * Errors are caught and logged so the enclosing business flow never breaks.
  */
-export async function sendNotificationEmail(
-  userId: string,
-  template: EmailTemplate,
-  data: Record<string, SerializableValue>,
-): Promise<void> {
+export async function sendNotificationEmail({
+  userId,
+  template,
+  data,
+  idempotencyKey,
+  category,
+}: SendNotificationEmailOptions): Promise<void> {
   try {
     const [userRecord] = await db
       .select({ email: user.email, name: user.name })
@@ -120,15 +131,22 @@ export async function sendNotificationEmail(
       return
     }
 
-    const provider = createEmailProvider()
-    await provider.sendTransactional(userRecord.email, template, {
-      ...data,
-      buyerName: data.buyerName ?? userRecord.name ?? 'Valued Customer',
-    })
-  } catch (err) {
-    logger.error('Notification email failed', {
+    await enqueueEmail({
+      to: userRecord.email,
       userId,
       template,
+      data: {
+        ...data,
+        buyerName: data.buyerName ?? userRecord.name ?? 'Valued Customer',
+      },
+      category,
+      idempotencyKey,
+    })
+  } catch (err) {
+    logger.error('Notification email enqueue failed', {
+      userId,
+      template,
+      idempotencyKey,
       error: err instanceof Error ? err.message : String(err),
       alert: true,
     })

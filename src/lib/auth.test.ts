@@ -29,8 +29,15 @@ describe('auth configuration', () => {
 describe('sendVerificationEmail', () => {
   it('builds a URL with token but without email', async () => {
     const { createEmailProvider } = await import('#/integrations/email')
-    const sendTransactional = vi.fn()
-    vi.mocked(createEmailProvider).mockReturnValue({ sendTransactional } as EmailProvider)
+    const sendTransactional = vi.fn().mockResolvedValue({
+      messageId: 'msg-test',
+      accepted: true,
+      provider: 'brevo',
+    })
+    vi.mocked(createEmailProvider).mockReturnValue({
+      name: 'brevo',
+      sendTransactional,
+    } as EmailProvider)
 
     const sendVerificationEmail = betterAuthOptions.emailVerification?.sendVerificationEmail
     expect(sendVerificationEmail).toBeDefined()
@@ -64,8 +71,15 @@ describe('sendVerificationEmail', () => {
 
   it('preserves redirect from callbackURL', async () => {
     const { createEmailProvider } = await import('#/integrations/email')
-    const sendTransactional = vi.fn()
-    vi.mocked(createEmailProvider).mockReturnValue({ sendTransactional } as EmailProvider)
+    const sendTransactional = vi.fn().mockResolvedValue({
+      messageId: 'msg-test',
+      accepted: true,
+      provider: 'brevo',
+    })
+    vi.mocked(createEmailProvider).mockReturnValue({
+      name: 'brevo',
+      sendTransactional,
+    } as EmailProvider)
 
     const sendVerificationEmail = betterAuthOptions.emailVerification?.sendVerificationEmail
     expect(sendVerificationEmail).toBeDefined()
@@ -89,8 +103,15 @@ describe('sendVerificationEmail', () => {
 
   it('rejects external callbackURL to prevent open redirects', async () => {
     const { createEmailProvider } = await import('#/integrations/email')
-    const sendTransactional = vi.fn()
-    vi.mocked(createEmailProvider).mockReturnValue({ sendTransactional } as EmailProvider)
+    const sendTransactional = vi.fn().mockResolvedValue({
+      messageId: 'msg-test',
+      accepted: true,
+      provider: 'brevo',
+    })
+    vi.mocked(createEmailProvider).mockReturnValue({
+      name: 'brevo',
+      sendTransactional,
+    } as EmailProvider)
 
     const sendVerificationEmail = betterAuthOptions.emailVerification?.sendVerificationEmail
     expect(sendVerificationEmail).toBeDefined()

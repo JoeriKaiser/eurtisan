@@ -519,13 +519,19 @@ export async function markShopOrderShippedQuery(
               .orderBy(sql`${shippingLabel.createdAt} DESC`)
               .limit(1),
           ])
-          await sendNotificationEmail(order.buyer.id, 'shipping_notification', {
-            orderNumber: shopOrderId.slice(0, 8),
-            buyerName: order.buyer.name,
-            shopName: shopRecord?.name ?? 'Eurtisan',
-            trackingNumber: order.trackingNumber ?? null,
-            carrier: latestLabel?.carrier ?? 'Sendcloud',
-            trackingUrl: order.trackingUrl ?? null,
+          await sendNotificationEmail({
+            userId: order.buyer.id,
+            template: 'shipping_notification',
+            data: {
+              orderNumber: shopOrderId.slice(0, 8),
+              buyerName: order.buyer.name,
+              shopName: shopRecord?.name ?? 'Eurtisan',
+              trackingNumber: order.trackingNumber ?? null,
+              carrier: latestLabel?.carrier ?? 'Sendcloud',
+              trackingUrl: order.trackingUrl ?? null,
+            },
+            idempotencyKey: `order:${shopOrderId}:shipped`,
+            category: 'transactional',
           })
         }
       },
@@ -900,14 +906,20 @@ export async function updateShopOrderStatusQuery(
           ])
 
           const baseUrl = getBaseUrl()
-          await sendNotificationEmail(order.buyer.id, 'dispute_update', {
-            orderNumber: shopOrderId.slice(0, 8),
-            buyerName: order.buyer.name,
-            shopName: shopRecord?.name ?? 'Eurtisan',
-            status: 'opened',
-            disputeUrl: disputeRecord
-              ? `${baseUrl}/disputes/${disputeRecord.id}`
-              : `${baseUrl}/orders/${order.platformOrderId}`,
+          await sendNotificationEmail({
+            userId: order.buyer.id,
+            template: 'dispute_update',
+            data: {
+              orderNumber: shopOrderId.slice(0, 8),
+              buyerName: order.buyer.name,
+              shopName: shopRecord?.name ?? 'Eurtisan',
+              status: 'opened',
+              disputeUrl: disputeRecord
+                ? `${baseUrl}/disputes/${disputeRecord.id}`
+                : `${baseUrl}/orders/${order.platformOrderId}`,
+            },
+            idempotencyKey: `dispute:${disputeRecord?.id ?? shopOrderId}:opened`,
+            category: 'transactional',
           })
         }
       },
@@ -1124,12 +1136,18 @@ export async function refundShopOrderQuery(
       })
       const [shopRecord] = await db.select().from(shop).where(eq(shop.id, order.shopId)).limit(1)
       const baseUrl = getBaseUrl()
-      await sendNotificationEmail(order.buyer.id, 'order_refunded', {
-        orderNumber: shopOrderId.slice(0, 8),
-        buyerName: order.buyer.name,
-        shopName: shopRecord?.name ?? 'Eurtisan',
-        refundAmount: `${(refundCents / 100).toFixed(2)}`,
-        orderUrl: `${baseUrl}/orders/${order.platformOrderId}`,
+      await sendNotificationEmail({
+        userId: order.buyer.id,
+        template: 'order_refunded',
+        data: {
+          orderNumber: shopOrderId.slice(0, 8),
+          buyerName: order.buyer.name,
+          shopName: shopRecord?.name ?? 'Eurtisan',
+          refundAmount: `${(refundCents / 100).toFixed(2)}`,
+          orderUrl: `${baseUrl}/orders/${order.platformOrderId}`,
+        },
+        idempotencyKey: `order:${shopOrderId}:refunded`,
+        category: 'transactional',
       })
     }
   })

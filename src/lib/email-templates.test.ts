@@ -9,8 +9,8 @@ import { describe, expect, it } from 'vitest'
 import { renderFallbackPlainText, renderTemplate } from './email-templates'
 
 describe('renderTemplate — order_confirmation', () => {
-  it('renders HTML and plain text with all fields', () => {
-    const result = renderTemplate('order_confirmation', {
+  it('renders HTML and plain text with all fields', async () => {
+    const result = await renderTemplate('order_confirmation', {
       orderNumber: 'ORD-123',
       buyerName: 'Alice',
       shopName: 'Pottery by Alice',
@@ -36,8 +36,8 @@ describe('renderTemplate — order_confirmation', () => {
     expect(result.text).toContain('https://eurtisan.example.com/orders/123')
   })
 
-  it('handles missing optional fields gracefully', () => {
-    const result = renderTemplate('order_confirmation', {
+  it('handles missing optional fields gracefully', async () => {
+    const result = await renderTemplate('order_confirmation', {
       orderNumber: 'ORD-456',
     })
 
@@ -47,8 +47,8 @@ describe('renderTemplate — order_confirmation', () => {
     expect(result.text).toContain('No items')
   })
 
-  it('escapes HTML in user-provided strings', () => {
-    const result = renderTemplate('order_confirmation', {
+  it('escapes HTML in user-provided strings', async () => {
+    const result = await renderTemplate('order_confirmation', {
       orderNumber: 'XSS-TEST',
       buyerName: '<script>alert(1)</script>',
       shopName: 'Shop <b>Test</b>',
@@ -62,8 +62,8 @@ describe('renderTemplate — order_confirmation', () => {
 })
 
 describe('renderTemplate — shipping_notification', () => {
-  it('renders HTML and plain text with all fields', () => {
-    const result = renderTemplate('shipping_notification', {
+  it('renders HTML and plain text with all fields', async () => {
+    const result = await renderTemplate('shipping_notification', {
       orderNumber: 'ORD-123',
       buyerName: 'Bob',
       shopName: 'Woodworks',
@@ -86,8 +86,8 @@ describe('renderTemplate — shipping_notification', () => {
     expect(result.text).toContain('2026-06-01')
   })
 
-  it('handles missing optional fields gracefully', () => {
-    const result = renderTemplate('shipping_notification', {
+  it('handles missing optional fields gracefully', async () => {
+    const result = await renderTemplate('shipping_notification', {
       orderNumber: 'ORD-789',
     })
 
@@ -98,8 +98,8 @@ describe('renderTemplate — shipping_notification', () => {
 })
 
 describe('renderTemplate — dispute_update', () => {
-  it('renders HTML and plain text with all fields', () => {
-    const result = renderTemplate('dispute_update', {
+  it('renders HTML and plain text with all fields', async () => {
+    const result = await renderTemplate('dispute_update', {
       orderNumber: 'ORD-123',
       buyerName: 'Charlie',
       shopName: 'Leather Goods',
@@ -119,8 +119,8 @@ describe('renderTemplate — dispute_update', () => {
     expect(result.text).toContain('A refund of €30 has been issued.')
   })
 
-  it('handles missing optional fields gracefully', () => {
-    const result = renderTemplate('dispute_update', {
+  it('handles missing optional fields gracefully', async () => {
+    const result = await renderTemplate('dispute_update', {
       orderNumber: 'ORD-999',
     })
 
@@ -170,8 +170,8 @@ describe('renderFallbackPlainText', () => {
 })
 
 describe('renderTemplate — email_verification', () => {
-  it('renders HTML and plain text with all fields', () => {
-    const result = renderTemplate('email_verification', {
+  it('renders HTML and plain text with all fields', async () => {
+    const result = await renderTemplate('email_verification', {
       userName: 'Dave',
       verificationUrl: 'https://eurtisan.example.com/verify-email?token=abc',
     })
@@ -186,8 +186,8 @@ describe('renderTemplate — email_verification', () => {
 })
 
 describe('renderTemplate — password_reset', () => {
-  it('renders HTML and plain text with all fields', () => {
-    const result = renderTemplate('password_reset', {
+  it('renders HTML and plain text with all fields', async () => {
+    const result = await renderTemplate('password_reset', {
       userName: 'Eve',
       resetUrl: 'https://eurtisan.example.com/reset-password?token=xyz',
     })
@@ -202,8 +202,8 @@ describe('renderTemplate — password_reset', () => {
 })
 
 describe('renderTemplate — account_security_alert', () => {
-  it('renders HTML and plain text with all fields', () => {
-    const result = renderTemplate('account_security_alert', {
+  it('renders HTML and plain text with all fields', async () => {
+    const result = await renderTemplate('account_security_alert', {
       userName: 'Frank',
       lockoutDurationMinutes: 30,
     })

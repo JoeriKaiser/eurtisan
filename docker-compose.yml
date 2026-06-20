@@ -146,6 +146,25 @@ services:
       - eurtisan
     command: bun run dev
 
+  email-outbox-worker:
+    build: .
+    container_name: eurtisan-email-outbox-worker-dev
+    env_file:
+      - .env.garage
+    environment:
+      EMAIL_SMTP_HOST: mailpit
+      EMAIL_SMTP_PORT: 1025
+      MOCK_PAYMENTS_ENABLED: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - eurtisan_node_modules:/app/node_modules
+    networks:
+      - eurtisan
+    command: bun run job:email-outbox-worker
+
 volumes:
   eurtisan_postgres_data:
   eurtisan_meilisearch_data:

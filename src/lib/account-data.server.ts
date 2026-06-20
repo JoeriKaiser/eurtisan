@@ -1,7 +1,7 @@
 import { eq, inArray } from 'drizzle-orm'
 
 import { db } from '#/db/index'
-import type { SerializableValue } from './notifications.server'
+import { deletePendingOutboxRowsForUser } from '#/lib/email-outbox.server'
 import {
   account,
   auditLog,
@@ -21,7 +21,9 @@ import {
   shopOrder,
   twoFactor,
   user,
+  userEmailPreference,
 } from '#/db/schema'
+import type { SerializableValue } from './notifications.server'
 const ANONYMIZED_EMAIL_DOMAIN = 'anonymized.eurtisan.invalid'
 
 export interface UserDataExport {
@@ -296,6 +298,12 @@ export async function deleteUserAccount(userId: string): Promise<void> {
     await tx.delete(session).where(eq(session.userId, userId))
     await tx.delete(account).where(eq(account.userId, userId))
     await tx.delete(twoFactor).where(eq(twoFactor.userId, userId))
+    await tx.delete(userEmailPreference).where(eq(userEmailPreference.userId, userId))
+
+    // Delete pending emails before anonymizing the address. The CASCADE on
+    // userId would remove them after the update, but explicit deletion is
+    // safer and avoids sending to an anonymized address.
+    await deletePendingOutboxRowsForUser(userId, tx)
 
     await tx
       .update(user)
@@ -305,6 +313,7 @@ export async function deleteUserAccount(userId: string): Promise<void> {
         image: null,
         emailVerified: false,
         twoFactorEnabled: false,
+        unsubscribeToken: null,
         deletedAt: new Date(),
         updatedAt: new Date(),
       })

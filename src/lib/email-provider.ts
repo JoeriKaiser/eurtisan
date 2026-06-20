@@ -16,12 +16,17 @@ export type EmailTemplate =
   | 'password_reset'
   | 'account_security_alert'
 
+/** Provider identifiers. */
+export type EmailProviderName = 'brevo' | 'smtp' | 'mock'
+
 /** Result returned after attempting to send an email. */
 export interface EmailSendResult {
   /** Provider-specific message identifier (mock IDs are fine in dev). */
   messageId: string
   /** Whether the message was accepted by the provider (not a guarantee of delivery). */
   accepted: boolean
+  /** Provider that accepted or rejected the message. */
+  provider: EmailProviderName
 }
 
 /**
@@ -32,6 +37,9 @@ export interface EmailSendResult {
  * mock in development or for a different provider in production.
  */
 export interface EmailProvider {
+  /** Provider name for metrics and logging. */
+  readonly name: EmailProviderName
+
   /**
    * Send a transactional email using the named template.
    *
@@ -43,10 +51,12 @@ export interface EmailProvider {
    * @param to - Recipient email address.
    * @param template - Template identifier.
    * @param data - Template variables (specific to each template).
+   * @param headers - Optional transport headers (e.g. List-Unsubscribe).
    */
   sendTransactional(
     to: string,
     template: EmailTemplate,
     data: Record<string, unknown>,
+    headers?: Record<string, string>,
   ): Promise<EmailSendResult>
 }

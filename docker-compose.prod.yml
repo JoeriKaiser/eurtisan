@@ -283,6 +283,69 @@ services:
     command: >
       sh -c "bun run job:verification-cleanup"
 
+  email-outbox-worker:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: eurtisan-email-outbox-worker
+    restart: unless-stopped
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "bun run job:email-outbox-worker"
+
+  email-suppression-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: eurtisan-email-suppression-cleanup
+    restart: unless-stopped
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "bun run job:email-suppression-cleanup"
+
+  email-retention-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: eurtisan-email-retention-cleanup
+    restart: unless-stopped
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "bun run job:email-retention-cleanup"
+
 volumes:
   postgres_data:
   meilisearch_data:

@@ -14,6 +14,7 @@ import {
 
 vi.mock('#/integrations/email', () => ({
   createEmailProvider: vi.fn(() => ({
+    name: 'mock',
     sendTransactional: vi.fn(),
   })),
 }))
@@ -75,8 +76,11 @@ describe('recordFailedSignIn', () => {
   })
 
   it('locks account after 5 attempts and sends email', async () => {
-    const sendTransactional = vi.fn().mockResolvedValue({ messageId: 'mock', accepted: true })
+    const sendTransactional = vi
+      .fn()
+      .mockResolvedValue({ messageId: 'mock', accepted: true, provider: 'mock' })
     ;(createEmailProvider as ReturnType<typeof vi.fn>).mockReturnValue({
+      name: 'mock',
       sendTransactional,
     } as unknown as ReturnType<typeof createEmailProvider>)
 
@@ -94,8 +98,11 @@ describe('recordFailedSignIn', () => {
   })
 
   it('does not send email before lockout threshold', async () => {
-    const sendTransactional = vi.fn().mockResolvedValue({ messageId: 'mock', accepted: true })
+    const sendTransactional = vi
+      .fn()
+      .mockResolvedValue({ messageId: 'mock', accepted: true, provider: 'mock' })
     ;(createEmailProvider as ReturnType<typeof vi.fn>).mockReturnValue({
+      name: 'mock',
       sendTransactional,
     } as unknown as ReturnType<typeof createEmailProvider>)
 

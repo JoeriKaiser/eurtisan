@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as VerifyEmailRouteImport } from './routes/verify-email'
+import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SigninRouteImport } from './routes/signin'
 import { Route as SearchRouteImport } from './routes/search'
@@ -45,6 +46,7 @@ import { Route as CreatorProductsRouteImport } from './routes/creator/products'
 import { Route as CreatorPayoutsRouteImport } from './routes/creator/payouts'
 import { Route as CategoryAllRouteImport } from './routes/category/all'
 import { Route as CategorySlugRouteImport } from './routes/category/$slug'
+import { Route as ApiUnsubscribeRouteImport } from './routes/api/unsubscribe'
 import { Route as ApiProductsRouteImport } from './routes/api/products'
 import { Route as ApiMetricsRouteImport } from './routes/api/metrics'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
@@ -102,6 +104,11 @@ import { Route as ApiShopsShopIdOrdersShopOrderIdRouteImport } from './routes/ap
 const VerifyEmailRoute = VerifyEmailRouteImport.update({
   id: '/verify-email',
   path: '/verify-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UnsubscribeRoute = UnsubscribeRouteImport.update({
+  id: '/unsubscribe',
+  path: '/unsubscribe',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TermsRoute = TermsRouteImport.update({
@@ -277,6 +284,11 @@ const CategoryAllRoute = CategoryAllRouteImport.update({
 const CategorySlugRoute = CategorySlugRouteImport.update({
   id: '/category/$slug',
   path: '/category/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiUnsubscribeRoute = ApiUnsubscribeRouteImport.update({
+  id: '/api/unsubscribe',
+  path: '/api/unsubscribe',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiProductsRoute = ApiProductsRouteImport.update({
@@ -581,6 +593,7 @@ export interface FileRoutesByFullPath {
   '/search': typeof SearchRoute
   '/signin': typeof SigninRoute
   '/terms': typeof TermsRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/verify-email': typeof VerifyEmailRoute
   '/account/orders': typeof AccountOrdersRouteWithChildren
   '/account/security': typeof AccountSecurityRoute
@@ -597,6 +610,7 @@ export interface FileRoutesByFullPath {
   '/api/health': typeof ApiHealthRouteWithChildren
   '/api/metrics': typeof ApiMetricsRoute
   '/api/products': typeof ApiProductsRoute
+  '/api/unsubscribe': typeof ApiUnsubscribeRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
   '/creator/payouts': typeof CreatorPayoutsRoute
@@ -669,6 +683,7 @@ export interface FileRoutesByTo {
   '/search': typeof SearchRoute
   '/signin': typeof SigninRoute
   '/terms': typeof TermsRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/verify-email': typeof VerifyEmailRoute
   '/account/orders': typeof AccountOrdersRouteWithChildren
   '/account/security': typeof AccountSecurityRoute
@@ -685,6 +700,7 @@ export interface FileRoutesByTo {
   '/api/health': typeof ApiHealthRouteWithChildren
   '/api/metrics': typeof ApiMetricsRoute
   '/api/products': typeof ApiProductsRoute
+  '/api/unsubscribe': typeof ApiUnsubscribeRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
   '/creator/payouts': typeof CreatorPayoutsRoute
@@ -758,6 +774,7 @@ export interface FileRoutesById {
   '/search': typeof SearchRoute
   '/signin': typeof SigninRoute
   '/terms': typeof TermsRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/verify-email': typeof VerifyEmailRoute
   '/account/orders': typeof AccountOrdersRouteWithChildren
   '/account/security': typeof AccountSecurityRoute
@@ -774,6 +791,7 @@ export interface FileRoutesById {
   '/api/health': typeof ApiHealthRouteWithChildren
   '/api/metrics': typeof ApiMetricsRoute
   '/api/products': typeof ApiProductsRoute
+  '/api/unsubscribe': typeof ApiUnsubscribeRoute
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
   '/creator/payouts': typeof CreatorPayoutsRoute
@@ -851,6 +869,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/signin'
     | '/terms'
+    | '/unsubscribe'
     | '/verify-email'
     | '/account/orders'
     | '/account/security'
@@ -867,6 +886,7 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/api/metrics'
     | '/api/products'
+    | '/api/unsubscribe'
     | '/category/$slug'
     | '/category/all'
     | '/creator/payouts'
@@ -939,6 +959,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/signin'
     | '/terms'
+    | '/unsubscribe'
     | '/verify-email'
     | '/account/orders'
     | '/account/security'
@@ -955,6 +976,7 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/api/metrics'
     | '/api/products'
+    | '/api/unsubscribe'
     | '/category/$slug'
     | '/category/all'
     | '/creator/payouts'
@@ -1027,6 +1049,7 @@ export interface FileRouteTypes {
     | '/search'
     | '/signin'
     | '/terms'
+    | '/unsubscribe'
     | '/verify-email'
     | '/account/orders'
     | '/account/security'
@@ -1043,6 +1066,7 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/api/metrics'
     | '/api/products'
+    | '/api/unsubscribe'
     | '/category/$slug'
     | '/category/all'
     | '/creator/payouts'
@@ -1119,6 +1143,7 @@ export interface RootRouteChildren {
   SearchRoute: typeof SearchRoute
   SigninRoute: typeof SigninRoute
   TermsRoute: typeof TermsRoute
+  UnsubscribeRoute: typeof UnsubscribeRoute
   VerifyEmailRoute: typeof VerifyEmailRoute
   AccountOrdersRoute: typeof AccountOrdersRouteWithChildren
   AccountSecurityRoute: typeof AccountSecurityRoute
@@ -1126,6 +1151,7 @@ export interface RootRouteChildren {
   ApiHealthRoute: typeof ApiHealthRouteWithChildren
   ApiMetricsRoute: typeof ApiMetricsRoute
   ApiProductsRoute: typeof ApiProductsRoute
+  ApiUnsubscribeRoute: typeof ApiUnsubscribeRoute
   CategorySlugRoute: typeof CategorySlugRoute
   CategoryAllRoute: typeof CategoryAllRoute
   DisputesDisputeIdRoute: typeof DisputesDisputeIdRoute
@@ -1156,6 +1182,13 @@ declare module '@tanstack/react-router' {
       path: '/verify-email'
       fullPath: '/verify-email'
       preLoaderRoute: typeof VerifyEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/unsubscribe': {
+      id: '/unsubscribe'
+      path: '/unsubscribe'
+      fullPath: '/unsubscribe'
+      preLoaderRoute: typeof UnsubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/terms': {
@@ -1401,6 +1434,13 @@ declare module '@tanstack/react-router' {
       path: '/category/$slug'
       fullPath: '/category/$slug'
       preLoaderRoute: typeof CategorySlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/unsubscribe': {
+      id: '/api/unsubscribe'
+      path: '/api/unsubscribe'
+      fullPath: '/api/unsubscribe'
+      preLoaderRoute: typeof ApiUnsubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/products': {
@@ -2054,6 +2094,7 @@ const rootRouteChildren: RootRouteChildren = {
   SearchRoute: SearchRoute,
   SigninRoute: SigninRoute,
   TermsRoute: TermsRoute,
+  UnsubscribeRoute: UnsubscribeRoute,
   VerifyEmailRoute: VerifyEmailRoute,
   AccountOrdersRoute: AccountOrdersRouteWithChildren,
   AccountSecurityRoute: AccountSecurityRoute,
@@ -2061,6 +2102,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiHealthRoute: ApiHealthRouteWithChildren,
   ApiMetricsRoute: ApiMetricsRoute,
   ApiProductsRoute: ApiProductsRoute,
+  ApiUnsubscribeRoute: ApiUnsubscribeRoute,
   CategorySlugRoute: CategorySlugRoute,
   CategoryAllRoute: CategoryAllRoute,
   DisputesDisputeIdRoute: DisputesDisputeIdRoute,

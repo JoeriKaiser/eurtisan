@@ -8,7 +8,10 @@ Summary for GDPR and operations. Align `/privacy` if customer-facing text must m
 | Audit log | ~2 years | `AUDIT_LOG_POLICY.md`, `job:audit-log-cleanup` |
 | Application logs (Loki) | 30 days | `retention_period: 720h` in `infra/observability/loki/loki.yml` |
 | Sessions | Until expiry | `job:session-cleanup` |
-| Email suppression | Until removed | Brevo hard bounces / complaints |
+| Email suppression | Until removed / 30 days for soft bounces | `job:email-suppression-cleanup`; hard bounces/spam are permanent |
+| Email outbox | 7 days for terminal rows | `job:email-retention-cleanup` deletes sent/failed/suppressed/bounced rows |
+| Email send log | 90 days (configurable) | `job:email-retention-cleanup`; set `EMAIL_SEND_LOG_RETENTION_DAYS` |
+| Brevo webhook events | 30 days | `job:email-retention-cleanup` |
 | S3 uploads | Until entity deleted | Optional bucket lifecycle rules |
 | DB backups | 30 days (+ off-site) | `infrastructure/README.md` |
 
