@@ -220,6 +220,38 @@ describe('SendcloudProvider', () => {
       expect(body.parcel.to_service_point).toBe('SP12345')
     })
 
+    it('sends the declared order value for customs', async () => {
+      const fetchFn = makeFetch({
+        id: 987,
+        tracking_number: '3SABC1234567',
+        label: { normal_printer: 'https://sendcloud.example.com/label.pdf', a4_printer: null },
+        status: { message: 'Label created' },
+      })
+
+      const provider = new SendcloudProvider({
+        publicKey: 'pk',
+        secretKey: 'sk',
+        fetch: fetchFn,
+      })
+
+      await provider.createLabel({
+        origin,
+        destination,
+        package: pkg,
+        carrierService: '123',
+        reference: 'order-uuid-1',
+        declaredValueCents: 1234,
+      })
+
+      const calls = (fetchFn as ReturnType<typeof vi.fn>).mock.calls
+      const parcelCall = calls.find((call) => String(call[0]).includes('/parcels'))
+      expect(parcelCall).toBeDefined()
+      const requestInit = parcelCall?.[1] as { body: string }
+      const body = JSON.parse(requestInit.body)
+      expect(body.parcel.total_order_value).toBe('12.34')
+      expect(body.parcel.total_order_value_currency).toBe('EUR')
+    })
+
     it('throws SendcloudError on API failure', async () => {
       const fetchFn = makeFetch({ error: { message: 'Invalid shipment id' } }, 400)
 

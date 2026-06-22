@@ -4,7 +4,13 @@ import z from 'zod'
 
 import { db } from '#/db/index'
 import { shop, shopOrder } from '#/db/schema'
-import { authPipeline, requireRole, requireShopOwnership } from '#/lib/authz'
+import {
+  authPipeline,
+  authPipelinePrivileged,
+  requireRole,
+  requireShopOwnership,
+} from '#/lib/authz'
+import { requirePrivileged2FA } from '#/lib/server-auth'
 import { getShopOrderQuery, updateShopOrderStatusQuery } from '#/lib/shop-orders.server'
 import { validatePlainText, validateTrackingUrl } from '#/lib/xss'
 
@@ -39,6 +45,10 @@ export const Route = createFileRoute('/api/shops/$shopId/orders/$shopOrderId')({
           }
           const isBuyer = order.buyer.id === ctx.user.id
 
+          if (isAdmin || isOwner) {
+            requirePrivileged2FA(ctx.user)
+          }
+
           if (!isAdmin && !isOwner && !isBuyer) {
             return new Response(
               JSON.stringify({
@@ -56,7 +66,7 @@ export const Route = createFileRoute('/api/shops/$shopId/orders/$shopOrderId')({
         }),
 
       POST: async ({ request, params }) =>
-        authPipeline(
+        authPipelinePrivileged(
           request,
           [requireRole('creator'), (ctx) => requireShopOwnership(ctx, params.shopId)],
           async () => {
@@ -121,7 +131,7 @@ export const Route = createFileRoute('/api/shops/$shopId/orders/$shopOrderId')({
         ),
 
       PUT: async ({ request, params }) =>
-        authPipeline(
+        authPipelinePrivileged(
           request,
           [requireRole('creator'), (ctx) => requireShopOwnership(ctx, params.shopId)],
           async () => {

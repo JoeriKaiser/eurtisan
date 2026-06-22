@@ -55,6 +55,7 @@ describe.sequential('checkout', () => {
       getPaymentStatus: async () => 'paid',
       getPaymentAmount: async () => 1000,
       refundPayment: async () => undefined,
+      cancelPayment: async () => undefined,
     }
   }
 
@@ -676,6 +677,7 @@ describe.sequential('checkout', () => {
         getPaymentStatus: async () => 'paid',
         getPaymentAmount: async () => 1000,
         refundPayment: async () => undefined,
+        cancelPayment: async () => undefined,
       }
 
       const input = makeInput(c.id, {
@@ -1232,6 +1234,7 @@ describe.sequential('checkout', () => {
         getPaymentStatus: async () => 'paid',
         getPaymentAmount: async () => 1000,
         refundPayment: async () => undefined,
+        cancelPayment: async () => undefined,
       }
 
       try {

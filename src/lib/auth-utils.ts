@@ -19,7 +19,6 @@ function getAuthSecret(): string {
     if (process.env.NODE_ENV === 'production') {
       throw new Error('BETTER_AUTH_SECRET is required in production')
     }
-    console.warn('BETTER_AUTH_SECRET not set — using fallback for development only')
     return 'fallback-secret'
   }
   return secret

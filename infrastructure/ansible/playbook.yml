@@ -29,6 +29,20 @@
       when: grafana_admin_password is not defined or grafana_admin_password == ''
       tags: [always]
 
+    - name: Validate metrics scrape token is set
+      ansible.builtin.fail:
+        msg: "metrics_token must be set in secrets.yml (run 'make infra-secrets' to generate one)"
+      when: metrics_token is not defined or metrics_token == ''
+      tags: [always]
+
+    - name: Validate metrics scrape token is not a weak placeholder
+      ansible.builtin.fail:
+        msg: "metrics_token appears to be a weak placeholder; generate a strong random value with 'make infra-secrets'"
+      when:
+        - metrics_token is defined
+        - metrics_token | length < 16 or metrics_token in ['changeme', 'metrics-token', 'token', 'secret']
+      tags: [always]
+
   roles:
     - role: common
       tags: [common, setup]

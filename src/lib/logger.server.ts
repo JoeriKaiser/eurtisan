@@ -7,10 +7,76 @@
 
 import { AsyncLocalStorage } from 'node:async_hooks'
 
+import { alertLogTotal } from './metrics.server'
+
 export const requestIdStore = new AsyncLocalStorage<string>()
 
 export interface LogMeta extends Record<string, unknown> {
   error?: unknown
+}
+
+const SENSITIVE_KEYS = new Set([
+  // Auth / secrets
+  'password',
+  'token',
+  'authorization',
+  'apiKey',
+  'api_key',
+  'secret',
+  'refreshToken',
+  'idToken',
+  'accessToken',
+  // PII
+  'email',
+  'name',
+  'address',
+  'street',
+  'postalCode',
+  'city',
+  'country',
+  'phone',
+  'vatId',
+  'taxId',
+  'billingDetails',
+  'shippingAddress',
+  'billingAddress',
+])
+
+function isSensitiveKey(key: string): boolean {
+  return SENSITIVE_KEYS.has(key)
+}
+
+function redactValue(value: unknown): unknown {
+  if (value === null || value === undefined) {
+    return value
+  }
+  if (Array.isArray(value)) {
+    return value.map(redactValue)
+  }
+  if (typeof value === 'object') {
+    return redactObject(value as Record<string, unknown>)
+  }
+  return value
+}
+
+function redactObject<T extends Record<string, unknown>>(obj: T): T {
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(obj)) {
+    if (isSensitiveKey(key)) {
+      result[key] = '[REDACTED]'
+    } else {
+      result[key] = redactValue(value)
+    }
+  }
+  return result as T
+}
+
+/**
+ * Returns a deep copy of meta with sensitive keys redacted.
+ * The original meta object is never mutated.
+ */
+export function redactMeta<T extends Record<string, unknown>>(meta: T): T {
+  return redactObject(meta)
 }
 
 function writeLog(level: string, message: string, meta?: LogMeta): void {
@@ -22,7 +88,8 @@ function writeLog(level: string, message: string, meta?: LogMeta): void {
   }
 
   if (meta) {
-    for (const [key, value] of Object.entries(meta)) {
+    const safeMeta = redactMeta(meta)
+    for (const [key, value] of Object.entries(safeMeta)) {
       if (key === 'error' && value instanceof Error) {
         payload.error = value.message
         payload.stack = value.stack
@@ -30,6 +97,10 @@ function writeLog(level: string, message: string, meta?: LogMeta): void {
         payload[key] = value
       }
     }
+  }
+
+  if (payload.alert === true) {
+    alertLogTotal.inc({ level })
   }
 
   const line = JSON.stringify(payload)

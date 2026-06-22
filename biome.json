@@ -41,7 +41,11 @@
       "!**/dist",
       "!**/drizzle",
       "!**/src/routeTree.gen.ts",
-      "!**/src/paraglide"
+      "!**/src/paraglide",
+      "!**/e2e/.auth",
+      "!**/e2e/report",
+      "!**/e2e/screenshots",
+      "!**/e2e/test-results"
     ]
   }
 }

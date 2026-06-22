@@ -10,6 +10,7 @@
  * Usage:
  *   bun run src/jobs/meilisearch-sync.ts
  */
+import { withJobLock } from '#/lib/job-lock.server'
 import { processMeilisearchSyncQueue } from '#/lib/meilisearch-products.server'
 
 const INTERVAL_MS = Number.parseInt(process.env.MEILISEARCH_SYNC_INTERVAL_MS ?? '5000', 10)
@@ -28,7 +29,7 @@ async function tick(): Promise<void> {
   }
 }
 
-async function main(): Promise<void> {
+async function run(): Promise<void> {
   console.log(`[meilisearch-sync] Started (interval=${INTERVAL_MS}ms, batchSize=${BATCH_SIZE})`)
 
   await tick()
@@ -49,6 +50,13 @@ function shutdown(): void {
 
 process.on('SIGINT', shutdown)
 process.on('SIGTERM', shutdown)
+
+async function main(): Promise<void> {
+  const result = await withJobLock('meilisearch-sync', run)
+  if (result === undefined) {
+    console.log('[meilisearch-sync] Another instance is already running; exiting cleanly.')
+  }
+}
 
 main().catch((err) => {
   console.error('[meilisearch-sync] Fatal error:', err)

@@ -9,8 +9,8 @@
 # not sent anywhere.
 
 global:
-  smtp_smarthost: '${ALERTMANAGER_SMTP_HOST:localhost:25}'
-  smtp_from: '${ALERTMANAGER_SMTP_FROM:alerts@example.com}'
+  smtp_smarthost: '${ALERTMANAGER_SMTP_HOST}'
+  smtp_from: '${ALERTMANAGER_SMTP_FROM}'
   smtp_require_tls: false
 
 route:
@@ -18,7 +18,9 @@ route:
   group_wait: 30s
   group_interval: 5m
   repeat_interval: 4h
-  receiver: default
+  # Use 'null' in dev/local mode so alerts are logged but not sent.
+  # Production must set ALERTMANAGER_DEFAULT_RECEIVER=default in .env.
+  receiver: '${ALERTMANAGER_DEFAULT_RECEIVER:-null}'
   routes:
     - match:
         severity: critical
@@ -28,23 +30,25 @@ route:
 receivers:
   - name: default
     email_configs:
-      - to: '${ALERTMANAGER_SMTP_TO:}'
+      - to: '${ALERTMANAGER_SMTP_TO}'
         send_resolved: true
         headers:
           Subject: 'Eurtisan alert: {{ .GroupLabels.alertname }}'
     webhook_configs:
-      - url: '${ALERTMANAGER_WEBHOOK_URL:}'
+      - url: '${ALERTMANAGER_WEBHOOK_URL}'
         send_resolved: true
 
   - name: critical
     email_configs:
-      - to: '${ALERTMANAGER_SMTP_TO:}'
+      - to: '${ALERTMANAGER_SMTP_TO}'
         send_resolved: true
         headers:
           Subject: 'Eurtisan CRITICAL alert: {{ .GroupLabels.alertname }}'
     webhook_configs:
-      - url: '${ALERTMANAGER_WEBHOOK_URL:}'
+      - url: '${ALERTMANAGER_WEBHOOK_URL}'
         send_resolved: true
+
+  - name: 'null'
 
 inhibit_rules:
   - source_match:

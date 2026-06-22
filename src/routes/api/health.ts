@@ -4,6 +4,14 @@ import { statfs } from 'node:fs/promises'
 import { getPoolStats, pool } from '#/db.ts'
 import { getBrevoApiKey, getMockPaymentsEnabled, getMollieApiKey } from '#/lib/env.server.ts'
 import { isMeilisearchHealthy } from '#/lib/meilisearch-products.server.ts'
+import {
+  diskAvailableBytes,
+  healthBrevoConnected,
+  healthDbConnected,
+  healthDiskHealthy,
+  healthMeilisearchConnected,
+  healthMollieConnected,
+} from '#/lib/metrics.server.ts'
 
 export interface HealthCheckResult {
   status: 'ok' | 'error'
@@ -19,7 +27,16 @@ export interface HealthCheckResult {
   }
 }
 
-const DISK_THRESHOLD_BYTES = 500 * 1024 * 1024 // 500 MB
+function getDiskThresholdBytes(): number {
+  const raw = process.env.HEALTH_DISK_THRESHOLD_BYTES
+  if (raw) {
+    const parsed = Number.parseInt(raw, 10)
+    if (!Number.isNaN(parsed) && parsed > 0) {
+      return parsed
+    }
+  }
+  return 500 * 1024 * 1024 // 500 MB
+}
 
 async function checkDatabase(): Promise<boolean> {
   try {
@@ -85,6 +102,9 @@ async function checkBrevo(): Promise<'connected' | 'disconnected' | 'skipped'> {
  * application data (e.g. `/var/lib/postgresql/data` for the database volume or
  * `/` for the app container root). The previous default of `/tmp` reported the
  * wrong filesystem and could mask disk-pressure issues.
+ *
+ * `HEALTH_DISK_THRESHOLD_BYTES` configures the minimum free bytes considered
+ * healthy (default: 500 MB).
  */
 async function checkDisk(): Promise<{
   healthy: boolean
@@ -97,7 +117,7 @@ async function checkDisk(): Promise<{
     const availableBytes = stats.bavail * stats.bsize
     const totalBytes = stats.blocks * stats.bsize
     return {
-      healthy: availableBytes > DISK_THRESHOLD_BYTES,
+      healthy: availableBytes > getDiskThresholdBytes(),
       availableBytes,
       totalBytes,
     }
@@ -106,38 +126,56 @@ async function checkDisk(): Promise<{
   }
 }
 
-async function runChecks(): Promise<{
+async function runCriticalChecks(): Promise<{
   dbHealthy: boolean
   meilisearchHealthy: boolean
-  mollieStatus: 'connected' | 'disconnected' | 'skipped'
-  brevoStatus: 'connected' | 'disconnected' | 'skipped'
   diskStatus: { healthy: boolean; availableBytes: number; totalBytes: number }
 }> {
-  const [dbHealthy, meilisearchHealthy, mollieStatus, brevoStatus, diskStatus] = await Promise.all([
+  const [dbHealthy, meilisearchHealthy, diskStatus] = await Promise.all([
     checkDatabase(),
     checkMeilisearch(),
-    checkMollie(),
-    checkBrevo(),
     checkDisk(),
   ])
-  return { dbHealthy, meilisearchHealthy, mollieStatus, brevoStatus, diskStatus }
+
+  healthDbConnected.set(dbHealthy ? 1 : 0)
+  healthMeilisearchConnected.set(meilisearchHealthy ? 1 : 0)
+  healthDiskHealthy.set(diskStatus.healthy ? 1 : 0)
+  diskAvailableBytes.set(diskStatus.availableBytes)
+
+  return { dbHealthy, meilisearchHealthy, diskStatus }
+}
+
+async function runDependencyChecks(): Promise<{
+  mollieStatus: 'connected' | 'disconnected' | 'skipped'
+  brevoStatus: 'connected' | 'disconnected' | 'skipped'
+}> {
+  const [mollieStatus, brevoStatus] = await Promise.all([checkMollie(), checkBrevo()])
+
+  healthMollieConnected.set(mollieStatus === 'connected' || mollieStatus === 'skipped' ? 1 : 0)
+  healthBrevoConnected.set(brevoStatus === 'connected' || brevoStatus === 'skipped' ? 1 : 0)
+
+  return { mollieStatus, brevoStatus }
 }
 
 function buildResult(
   dbHealthy: boolean,
   meilisearchHealthy: boolean,
-  mollieStatus: 'connected' | 'disconnected' | 'skipped',
-  brevoStatus: 'connected' | 'disconnected' | 'skipped',
+  mollieStatus: 'connected' | 'disconnected' | 'skipped' | undefined,
+  brevoStatus: 'connected' | 'disconnected' | 'skipped' | undefined,
   diskStatus: { healthy: boolean; availableBytes: number; totalBytes: number },
 ): HealthCheckResult {
-  const criticalHealthy = dbHealthy && meilisearchHealthy
+  const criticalHealthy = dbHealthy && meilisearchHealthy && diskStatus.healthy
   const result: HealthCheckResult = {
     status: criticalHealthy ? 'ok' : 'error',
     db: dbHealthy ? 'connected' : 'disconnected',
     meilisearch: meilisearchHealthy ? 'connected' : 'disconnected',
-    mollie: mollieStatus,
-    brevo: brevoStatus,
     disk: diskStatus,
+  }
+  if (mollieStatus !== undefined) {
+    result.mollie = mollieStatus
+  }
+  if (brevoStatus !== undefined) {
+    result.brevo = brevoStatus
   }
   if (criticalHealthy) {
     result.pool = getPoolStats()
@@ -147,14 +185,18 @@ function buildResult(
 
 /**
  * Full health check (legacy /api/health endpoint).
+ *
+ * Limited to critical dependencies only; external provider status is available
+ * at /api/health/deps so readiness/liveness probes are not affected by
+ * third-party latency.
  */
 export async function checkHealth(): Promise<{
   body: HealthCheckResult
   status: number
 }> {
-  const { dbHealthy, meilisearchHealthy, mollieStatus, brevoStatus, diskStatus } = await runChecks()
-  const criticalHealthy = dbHealthy && meilisearchHealthy
-  const body = buildResult(dbHealthy, meilisearchHealthy, mollieStatus, brevoStatus, diskStatus)
+  const { dbHealthy, meilisearchHealthy, diskStatus } = await runCriticalChecks()
+  const criticalHealthy = dbHealthy && meilisearchHealthy && diskStatus.healthy
+  const body = buildResult(dbHealthy, meilisearchHealthy, undefined, undefined, diskStatus)
   return { body, status: criticalHealthy ? 200 : 503 }
 }
 
@@ -165,10 +207,27 @@ export async function checkReady(): Promise<{
   body: HealthCheckResult
   status: number
 }> {
-  const { dbHealthy, meilisearchHealthy, mollieStatus, brevoStatus, diskStatus } = await runChecks()
-  const criticalHealthy = dbHealthy && meilisearchHealthy
-  const body = buildResult(dbHealthy, meilisearchHealthy, mollieStatus, brevoStatus, diskStatus)
+  const { dbHealthy, meilisearchHealthy, diskStatus } = await runCriticalChecks()
+  const criticalHealthy = dbHealthy && meilisearchHealthy && diskStatus.healthy
+  const body = buildResult(dbHealthy, meilisearchHealthy, undefined, undefined, diskStatus)
   return { body, status: criticalHealthy ? 200 : 503 }
+}
+
+/**
+ * Dependency probe — reports external provider status (Mollie, Brevo) without
+ * impacting readiness decisions.
+ */
+export async function checkDependencies(): Promise<{
+  body: HealthCheckResult
+  status: number
+}> {
+  const { dbHealthy, meilisearchHealthy, diskStatus } = await runCriticalChecks()
+  const { mollieStatus, brevoStatus } = await runDependencyChecks()
+  const depsHealthy =
+    (mollieStatus === 'connected' || mollieStatus === 'skipped') &&
+    (brevoStatus === 'connected' || brevoStatus === 'skipped')
+  const body = buildResult(dbHealthy, meilisearchHealthy, mollieStatus, brevoStatus, diskStatus)
+  return { body, status: depsHealthy ? 200 : 503 }
 }
 
 /**

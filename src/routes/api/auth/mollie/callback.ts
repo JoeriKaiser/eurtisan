@@ -5,6 +5,7 @@ import { shop } from '#/db/schema'
 import { verifyMollieState } from '#/lib/auth-utils'
 import { auth } from '#/lib/auth'
 import { getMollieClientId, getMollieClientSecret } from '#/lib/env.server'
+import { encrypt } from '#/lib/encryption.server'
 import { logger } from '#/lib/logger.server'
 
 export const Route = createFileRoute('/api/auth/mollie/callback')({
@@ -135,8 +136,8 @@ export const Route = createFileRoute('/api/auth/mollie/callback')({
           paymentConnectedAt: new Date(),
           updatedAt: new Date(),
         }
-        if (accessToken) updatePayload.mollieAccessToken = accessToken
-        if (refreshToken) updatePayload.mollieRefreshToken = refreshToken
+        if (accessToken) updatePayload.mollieAccessToken = encrypt(accessToken)
+        if (refreshToken) updatePayload.mollieRefreshToken = encrypt(refreshToken)
         if (tokenExpiresAt) updatePayload.mollieTokenExpiresAt = tokenExpiresAt
         if (shopRecord.status === 'approved' || shopRecord.status === 'active') {
           updatePayload.status = 'active'

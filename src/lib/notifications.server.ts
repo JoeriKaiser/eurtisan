@@ -15,6 +15,7 @@ export const notificationTypeEnum = z.enum([
   'dispute_resolved',
   'payout_sent',
   'order_refunded',
+  'order_chargeback',
   'dac7_warning_limit',
   'low_stock',
 ])

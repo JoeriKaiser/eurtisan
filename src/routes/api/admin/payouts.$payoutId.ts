@@ -1,12 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { authPipeline, requireRole } from '#/lib/authz'
+import { authPipelinePrivileged, requireRole } from '#/lib/authz'
 import { executePayoutQuery } from '#/lib/payouts.server'
 
 export const Route = createFileRoute('/api/admin/payouts/$payoutId')({
   server: {
     handlers: {
       POST: async ({ request, params }) =>
-        authPipeline(request, [requireRole('admin')], async () => {
+        authPipelinePrivileged(request, [requireRole('admin')], async () => {
           try {
             const result = await executePayoutQuery(params.payoutId)
             return new Response(

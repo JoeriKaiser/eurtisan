@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { deleteMyAccount, exportMyData } from '#/lib/account-data'
-import { updateMyEmailPreference } from '#/lib/account-email-preferences.server'
+import { updateMyEmailPreference } from '#/lib/account-email-preferences'
 import { m } from '#/paraglide/messages'
 
 export function AccountSettings() {

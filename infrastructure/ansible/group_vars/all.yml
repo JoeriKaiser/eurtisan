@@ -26,6 +26,9 @@ email_smtp_port: "587"
 # Optional — webhook URL for backup failure alerts (e.g. Slack, Discord, OpsGenie).
 #   backup_alert_webhook: "https://hooks.slack.com/services/..."
 #
+# Optional — webhook URL for deploy failure/success alerts.
+#   deploy_alert_webhook: "https://hooks.slack.com/services/..."
+#
 # Optional — restrict staging access to specific IPs (comma-separated).
 # Only used when coexist_with_proxy is false (standalone staging).
 #   allowed_ips: "REDACTED.1,REDACTED.2"
@@ -35,6 +38,23 @@ email_smtp_port: "587"
 #   umami_website_id: "your-website-uuid"
 #   umami_host_url: "https://analytics.example.com"
 
+# ── Backups ──────────────────────────────────────────────────────────────
+# Local retention for nightly PostgreSQL dumps and Meilisearch dumps.
+backup_retention_days: 30
+
+# Off-site retention (days) for rclone-backed backups. Prefer bucket lifecycle
+# rules when available; the backup script falls back to `rclone delete`.
+backup_offsite_retention_days: 90
+
+# rclone remote for off-site backups, e.g. "eurtisan-backups:eurtisan"
+backup_offsite_rclone_remote: ""
+
+# rclone remote/path for S3 uploads secondary sync, e.g. "eurtisan-backups:uploads"
+backup_s3_uploads_rclone_remote: ""
+
 # PostgreSQL WAL archiving (enable for production PITR — see docs/DEPLOYMENT.md)
 postgres_wal_archive_enabled: false
-# postgres_wal_archive_path: "s3://your-bucket/eurtisan/wal"
+
+# Local or object-storage path for WAL segments. For object storage, use
+# rclone/wal-g/pgbackrest; the default local path is only suitable for testing.
+postgres_wal_archive_path: "/opt/eurtisan/backups/wal"

@@ -33,7 +33,12 @@ vi.mock('#/paraglide/messages', () => ({
     checkout_field_city: () => 'City',
     checkout_field_postal_code: () => 'Postal code',
     checkout_field_country: () => 'Country',
+    checkout_field_country_placeholder: () => 'Select a country',
     checkout_shipping_method: () => 'Shipping method',
+    shipping_estimatedDays: (inputs: { count: number }) =>
+      `${inputs.count} business day${inputs.count > 1 ? 's' : ''}`,
+    shipping_estimatedDays_range: (inputs: { min: number; max: number }) =>
+      `${inputs.min}–${inputs.max} business days`,
     checkout_shipping_standard: () => 'Standard',
     checkout_shipping_express: () => 'Express',
     checkout_order_items: () => 'Order items',
@@ -48,6 +53,7 @@ vi.mock('#/paraglide/messages', () => ({
     checkout_error_postal_required: () => 'Postal code is required',
     checkout_error_country_required: () => 'Country is required',
     checkout_error_submit: () => 'Could not complete checkout. Please try again.',
+    checkout_shippingUnsupported: () => 'We cannot ship to this address for this shop.',
     product_no_image: () => 'No image available',
     cart_shop_subtotal: () => 'Subtotal',
     error_cart_empty: () => 'Cart is empty',
@@ -273,7 +279,7 @@ describe('CheckoutPage', () => {
     fireEvent.change(screen.getByLabelText('Street address'), { target: { value: '123 Main St' } })
     fireEvent.change(screen.getByLabelText('City'), { target: { value: 'Berlin' } })
     fireEvent.change(screen.getByLabelText('Postal code'), { target: { value: '10115' } })
-    fireEvent.change(screen.getByLabelText('Country'), { target: { value: 'Germany' } })
+    fireEvent.change(screen.getByLabelText('Country'), { target: { value: 'DE' } })
 
     // Wait for the debounced rate fetch
     await waitFor(
@@ -294,7 +300,7 @@ describe('CheckoutPage', () => {
             street: '123 Main St',
             city: 'Berlin',
             postalCode: '10115',
-            country: 'Germany',
+            country: 'DE',
           }),
           shippingSelections: expect.arrayContaining([
             expect.objectContaining({
@@ -341,7 +347,7 @@ describe('CheckoutPage', () => {
     fireEvent.change(screen.getByLabelText('Street address'), { target: { value: '123 Main St' } })
     fireEvent.change(screen.getByLabelText('City'), { target: { value: 'Berlin' } })
     fireEvent.change(screen.getByLabelText('Postal code'), { target: { value: '10115' } })
-    fireEvent.change(screen.getByLabelText('Country'), { target: { value: 'Germany' } })
+    fireEvent.change(screen.getByLabelText('Country'), { target: { value: 'DE' } })
 
     // Wait for debounced rate fetch
     await waitFor(

@@ -3,6 +3,19 @@
   set_fact:
     compose_file: "{{ 'docker-compose.staging.yml' if (coexist_with_proxy | default(false)) else 'docker-compose.prod.yml' }}"
 
+- name: Validate alertmanager receiver configuration in production
+  ansible.builtin.fail:
+    msg: |
+      At least one alertmanager receiver must be configured in production.
+      Set one or both of the following in secrets.yml:
+        alertmanager_smtp_to (with alertmanager_smtp_host and alertmanager_smtp_from)
+        alertmanager_webhook_url
+  when:
+    - (alertmanager_smtp_to is not defined or alertmanager_smtp_to == '')
+    - (alertmanager_webhook_url is not defined or alertmanager_webhook_url == '')
+    - not (coexist_with_proxy | default(false))
+  tags: [always]
+
 - name: Determine if direct port access override is needed
   set_fact:
     use_port_override: "{{ (coexist_with_proxy | default(false)) and (app_access_ips is defined) }}"
@@ -19,7 +32,7 @@
 
 - name: Determine Docker Compose command
   set_fact:
-    docker_compose: "docker compose -f {{ compose_file }}{% if use_port_override %} -f docker-compose.override.yml{% endif %}"
+    docker_compose: "docker compose -f {{ compose_file }}{% if use_port_override %} -f docker-compose.override.yml{% endif %}{% if postgres_wal_archive_enabled | default(false) %} -f docker-compose.wal-archive.yml{% endif %}"
 
 - name: Determine image tag
   set_fact:
@@ -80,6 +93,40 @@
     group: eurtisan-backup
     mode: "0644"
 
+- name: Install rclone for off-site backups
+  ansible.builtin.apt:
+    name: rclone
+    state: present
+    update_cache: true
+  tags: [backup]
+
+- name: Ensure WAL archive directory exists
+  when: postgres_wal_archive_enabled | default(false)
+  file:
+    path: "{{ postgres_wal_archive_path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: [backup, wal]
+
+- name: Write WAL archiving Compose override
+  when: postgres_wal_archive_enabled | default(false)
+  copy:
+    dest: /opt/eurtisan/docker-compose.wal-archive.yml
+    content: |
+      services:
+        db:
+          command: >
+            postgres
+            -c wal_level=replica
+            -c archive_mode=on
+            -c archive_command='test ! -f {{ postgres_wal_archive_path }}/%f && cp %p {{ postgres_wal_archive_path }}/%f'
+            -c max_wal_senders=3
+          volumes:
+            - "{{ postgres_wal_archive_path }}:{{ postgres_wal_archive_path }}"
+  tags: [backup, wal]
+
 - name: Schedule nightly database backups
   cron:
     name: "Eurtisan database backup"
@@ -117,6 +164,13 @@
         delete: yes
         rsync_opts:
           - "--exclude=.git"
+          - "--exclude=prometheus/prometheus.yml"
+
+    - name: Render Prometheus scrape config with metrics token
+      template:
+        src: "{{ playbook_dir }}/../../infra/observability/prometheus/prometheus.yml"
+        dest: /opt/eurtisan/observability/prometheus/prometheus.yml
+        mode: "0644"
 
     - name: Ensure observability stack is running
       command: "docker compose -f /opt/eurtisan/observability/docker-compose.observability.yml --env-file /opt/eurtisan/.env up -d --force-recreate"

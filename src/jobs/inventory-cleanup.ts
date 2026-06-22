@@ -19,6 +19,7 @@ import {
   cancelAbandonedPendingPaymentOrders,
   releaseExpiredReservations,
 } from '#/lib/inventory.server'
+import { withJobLock } from '#/lib/job-lock.server'
 
 const INTERVAL_MS = Number.parseInt(process.env.INVENTORY_CLEANUP_INTERVAL_MS ?? '60000', 10)
 
@@ -48,7 +49,7 @@ async function tick(): Promise<void> {
   }
 }
 
-async function main(): Promise<void> {
+async function run(): Promise<void> {
   console.log(`[inventory-cleanup] Started (interval=${INTERVAL_MS}ms, batchSize=${BATCH_SIZE})`)
 
   // Run immediately on start, then on every interval
@@ -70,6 +71,13 @@ function shutdown(): void {
 
 process.on('SIGINT', shutdown)
 process.on('SIGTERM', shutdown)
+
+async function main(): Promise<void> {
+  const result = await withJobLock('inventory-cleanup', run)
+  if (result === undefined) {
+    console.log('[inventory-cleanup] Another instance is already running; exiting cleanly.')
+  }
+}
 
 main().catch((err) => {
   console.error('[inventory-cleanup] Fatal error:', err)

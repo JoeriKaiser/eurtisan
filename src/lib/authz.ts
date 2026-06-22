@@ -6,6 +6,8 @@ import { auth } from './auth'
 import { CsrfError, validateCsrf } from './csrf'
 import type { SafeUser } from './user-types'
 
+const PRIVILEGED_ROLES = new Set<UserRole>(['creator', 'admin'])
+
 export type UserRole = (typeof userRoleEnum.enumValues)[number]
 
 export interface AuthContext {
@@ -201,6 +203,30 @@ export async function requireShopOwnershipForUser(
   return user
 }
 
+function isDevOrTestBypass(): boolean {
+  return (
+    typeof process !== 'undefined' &&
+    (process.env.NODE_ENV === 'development' ||
+      process.env.E2E_TEST === 'true' ||
+      process.env.VITEST === 'true')
+  )
+}
+
+function requirePrivileged2FAForContext(ctx: AuthContext): AuthContext {
+  if (isDevOrTestBypass()) {
+    return ctx
+  }
+
+  const user = ctx.user as SafeUser
+  if (PRIVILEGED_ROLES.has(user.role) && !user.twoFactorEnabled) {
+    throw new AuthError(403, {
+      error: 'TWO_FACTOR_REQUIRED',
+      message: 'Two-factor authentication is required for this action.',
+    })
+  }
+  return ctx
+}
+
 /**
  * Composable pipeline that runs authentication gates in sequence.
  * Each gate receives the AuthContext and either returns it or throws AuthError.
@@ -227,4 +253,17 @@ export async function authPipeline(
     }
     throw err
   }
+}
+
+/**
+ * Privileged variant of authPipeline that enforces two-factor authentication
+ * for creator/admin users before running the role/ownership gates.
+ * Use this for all creator/admin API mutation and sensitive read endpoints.
+ */
+export async function authPipelinePrivileged(
+  request: Request,
+  gates: Array<(ctx: AuthContext) => AuthContext | Promise<AuthContext>>,
+  handler: (ctx: AuthContext) => Promise<Response>,
+): Promise<Response> {
+  return authPipeline(request, [requirePrivileged2FAForContext, ...gates], handler)
 }

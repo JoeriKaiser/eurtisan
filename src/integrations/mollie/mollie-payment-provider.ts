@@ -57,6 +57,8 @@ const mockPaymentStatuses = new Map<
   'pending' | 'paid' | 'expired' | 'failed' | 'cancelled' | 'chargeback'
 >()
 
+const mockPaymentCancelable = new Map<string, boolean>()
+
 const mockPaymentAmounts = new Map<string, number>()
 
 /**
@@ -83,6 +85,21 @@ export function setMockPaymentAmount(paymentId: string, amountCents: number): vo
  */
 export function resetMockPaymentStatuses(): void {
   mockPaymentStatuses.clear()
+}
+
+/**
+ * Configure whether a mock payment can be cancelled.
+ * If not set, a payment is considered cancellable unless its status is 'paid'.
+ */
+export function setMockPaymentCancelable(paymentId: string, cancelable: boolean): void {
+  mockPaymentCancelable.set(paymentId, cancelable)
+}
+
+/**
+ * Clear all mock payment cancelability overrides.
+ */
+export function resetMockPaymentCancelable(): void {
+  mockPaymentCancelable.clear()
 }
 
 /**
@@ -391,6 +408,60 @@ export class MolliePaymentProvider implements PaymentProvider {
     if (!response.ok) {
       const errorBody = await response.text()
       throw new Error(`Mollie refund error (${response.status}): ${errorBody}`)
+    }
+  }
+
+  // -----------------------------------------------------------------------
+  // cancelPayment
+  // -----------------------------------------------------------------------
+
+  async cancelPayment(paymentId: string): Promise<void> {
+    if (this.mockMode) {
+      return this.cancelPaymentMock(paymentId)
+    }
+
+    return this.cancelPaymentReal(paymentId)
+  }
+
+  private async cancelPaymentMock(paymentId: string): Promise<void> {
+    const status = mockPaymentStatuses.get(paymentId) ?? 'paid'
+    const cancelableOverride = mockPaymentCancelable.get(paymentId)
+    const isCancelable = cancelableOverride ?? status !== 'paid'
+
+    if (!isCancelable) {
+      throw new Error('Payment has already been captured')
+    }
+
+    await delay(20)
+  }
+
+  private async cancelPaymentReal(paymentId: string): Promise<void> {
+    const apiKey = getMollieApiKey()
+
+    if (!apiKey) {
+      throw new Error('MOLLIE_API_KEY is not set')
+    }
+
+    const query = getMollieTestMode() ? '?testmode=true' : ''
+    const response = await fetch(
+      `https://api.mollie.com/v2/payments/${encodeURIComponent(paymentId)}${query}`,
+      {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      },
+    )
+
+    if (response.status === 422) {
+      const body = await response.text()
+      throw new Error(`Payment has already been captured: ${body}`)
+    }
+
+    if (!response.ok && response.status !== 204) {
+      const body = await response.text()
+      throw new Error(`Mollie cancel payment error (${response.status}): ${body}`)
     }
   }
 

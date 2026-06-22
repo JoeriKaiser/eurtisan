@@ -3,7 +3,13 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '#/db/index'
 import { auditLog } from '#/db/schema'
 import { clearTestTables } from '#/test/cleanup'
-import { createPayout, createPlatformOrder, createShop, createUser } from '#/test/factories'
+import {
+  createPayout,
+  createPlatformOrder,
+  createShop,
+  createShopOrder,
+  createUser,
+} from '#/test/factories'
 
 import { listAllPlatformOrdersQuery } from './admin-orders.server'
 import { listUsersQuery } from './admin-users.server'
@@ -147,7 +153,10 @@ describe.sequential('admin read audit integration', () => {
     const admin = await seedAdmin()
     const creator = await seedCustomer({ name: 'Creator', email: 'creator@example.com' })
     const s = await seedShop({ ownerId: creator.id, slug: 'creator-shop' })
+    const po = await createPlatformOrder(creator.id)
+    const so = await createShopOrder(po, s, { subtotalCents: 5000 })
     await createPayout(s, {
+      shopOrderId: so.id,
       amountCents: 5000,
       status: 'pending',
     })

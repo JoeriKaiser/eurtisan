@@ -4,11 +4,68 @@
  * Exposed at GET /api/metrics (scraped by Grafana Prometheus in production).
  */
 
-import { Counter, collectDefaultMetrics, Registry } from 'prom-client'
+import { Counter, Gauge, collectDefaultMetrics, Registry } from 'prom-client'
 
 export const metricsRegistry = new Registry()
 
 collectDefaultMetrics({ register: metricsRegistry })
+
+export const healthDbConnected = new Gauge({
+  name: 'eurtisan_health_db_connected',
+  help: 'Whether the database connectivity check succeeded (1 = connected, 0 = disconnected)',
+  registers: [metricsRegistry],
+})
+
+export const healthMeilisearchConnected = new Gauge({
+  name: 'eurtisan_health_meilisearch_connected',
+  help: 'Whether the Meilisearch connectivity check succeeded (1 = connected, 0 = disconnected)',
+  registers: [metricsRegistry],
+})
+
+export const healthDiskHealthy = new Gauge({
+  name: 'eurtisan_health_disk_healthy',
+  help: 'Whether the disk health check reports sufficient free space (1 = healthy, 0 = unhealthy)',
+  registers: [metricsRegistry],
+})
+
+export const diskAvailableBytes = new Gauge({
+  name: 'eurtisan_disk_available_bytes',
+  help: 'Available bytes on the health-checked mount point',
+  registers: [metricsRegistry],
+})
+
+export const healthMollieConnected = new Gauge({
+  name: 'eurtisan_health_mollie_connected',
+  help: 'Whether Mollie API is reachable (1 = connected/skipped, 0 = disconnected)',
+  registers: [metricsRegistry],
+})
+
+export const healthBrevoConnected = new Gauge({
+  name: 'eurtisan_health_brevo_connected',
+  help: 'Whether Brevo API is reachable (1 = connected/skipped, 0 = disconnected)',
+  registers: [metricsRegistry],
+})
+
+export const alertLogTotal = new Counter({
+  name: 'eurtisan_alert_log_total',
+  help: 'Number of log lines explicitly marked for alerting',
+  labelNames: ['level'] as const,
+  registers: [metricsRegistry],
+})
+
+export const mollieWebhookFailedTotal = new Counter({
+  name: 'eurtisan_mollie_webhook_failed_total',
+  help: 'Mollie webhook requests that failed signature verification or returned 5xx',
+  labelNames: ['reason'] as const,
+  registers: [metricsRegistry],
+})
+
+export const sendcloudWebhookFailedTotal = new Counter({
+  name: 'eurtisan_sendcloud_webhook_failed_total',
+  help: 'Sendcloud webhook requests that failed signature verification or returned 5xx',
+  labelNames: ['reason'] as const,
+  registers: [metricsRegistry],
+})
 
 export const ordersCreatedTotal = new Counter({
   name: 'eurtisan_orders_created_total',

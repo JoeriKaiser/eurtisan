@@ -33,6 +33,7 @@ import {
   getEmailOutboxWorkerBatchSize,
   getEmailOutboxWorkerIntervalMs,
 } from '#/lib/env.server'
+import { withJobLock } from '#/lib/job-lock.server'
 import { logger } from '#/lib/logger.server'
 import { emailFailedTotal, emailSentTotal, emailSuppressedSkipsTotal } from '#/lib/metrics.server'
 
@@ -189,7 +190,7 @@ async function tick(): Promise<void> {
   }
 }
 
-async function main(): Promise<void> {
+async function run(): Promise<void> {
   console.log(
     `[email-outbox-worker] Started (interval=${INTERVAL_MS}ms, batchSize=${BATCH_SIZE}, maxRetries=${MAX_RETRIES})`,
   )
@@ -212,6 +213,13 @@ function shutdown(): void {
 
 process.on('SIGINT', shutdown)
 process.on('SIGTERM', shutdown)
+
+async function main(): Promise<void> {
+  const result = await withJobLock('email-outbox-worker', run)
+  if (result === undefined) {
+    console.log('[email-outbox-worker] Another instance is already running; exiting cleanly.')
+  }
+}
 
 if (!process.env.VITEST) {
   main().catch((err) => {

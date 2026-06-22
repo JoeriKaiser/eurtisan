@@ -10,29 +10,13 @@
 
 # Current North Star Objective
 
-**The P0 launch blockers are resolved.** The next North Star is closing the remaining owner-facing capability, compliance, and operability gaps documented in `docs/AUDIT_STORE_OWNER_2026-06-12.md`. Agents should orient every non-trivial change toward these priorities:
+**The P0 launch blockers are resolved.** The next North Star is closing the remaining owner-facing capability, compliance, and operability gaps. The single source of truth for launch blockers is `docs/PRODUCTION_READINESS_AUDIT.md`; the remediation plan index lives in `docs/plans/production-readiness/README.md`. Agents should orient every non-trivial change toward the remaining priorities below.
 
-1. **[DONE] Complete store ownership control**
-   - Full shop settings form (banner, policies, socials, announcement, business address).
-   - Shop closure / archive / pause / delete workflow.
-   - Remove debug logging from auth middleware.
+1. **Product catalog maturity**
+   - Draft/versioning workflow.
+   - Replace hardcoded Euro symbol / English VAT labels with i18n-ready values.
 
-2. **[PARTIAL] Product catalog maturity**
-   - [DONE] Product variant UI and server functions (size, color, options).
-   - [DONE] Audit logging for owner product mutations.
-   - [DONE] Bulk operations and low-stock notifications.
-   - [PENDING] Draft/versioning workflow.
-   - [PENDING] Replace hardcoded Euro symbol / English VAT labels with i18n-ready values.
-
-3. **[DONE] Order lifecycle & fulfillment polish**
-   - Owner-initiated cancellation while `pending_payment`.
-   - Edit tracking numbers/URLs after shipment.
-   - Seller dispute dashboard.
-   - Resolve the `manual_review` dead-end state.
-   - Order-level audit log for owner actions (ship, deliver, tracking updates).
-   - Close the payout/dispute timing gap so sellers cannot be paid for later-refunded orders.
-
-4. **[PENDING] Tax, VAT, and invoicing**
+2. **Tax, VAT, and invoicing**
    - Separate business address editing.
    - Editable DAC7 tax identity after onboarding.
    - Seller VAT reporting dashboard.
@@ -40,28 +24,21 @@
    - Fix VIES fall-open behavior, VAT regex inconsistencies, and Greek VAT-ID handling.
    - Remove `Promise.all` concurrency inside invoice transactions.
 
-5. **[DONE] Customer management for owners**
-   - Per-shop customer list, detail, and export.
-   - Customer analytics, notes/tags, and owner-initiated contact.
-   - GDPR tooling for shop-level customer data requests.
-
-6. **[SKIPPED] Analytics & reporting**
-   - Per-shop sales/revenue reporting beyond current-month aggregates.
-   - Wire the CSV export utility to owner reports.
-   - *Rationale: Grafana already covers observability and infra analytics; owner-facing reports can be added later if needed.*
-
-7. **[DONE] Security, authorization & GDPR**
-   - Complete account deletion / right-to-erasure.
-   - Enforce 2FA on `/studio` routes and their server functions.
-   - Audit admin read-only actions.
-   - Replace brittle `session: {} as never` authz casts.
-
-8. **[PENDING] Production operability**
+3. **Production operability**
    - Backup strategy: consistent retention, offsite upload, WAL archiving, S3/Meilisearch backups.
    - Deployment smoke tests and migration rollback plan.
    - Alertmanager / Grafana alerting for health, job, and disk issues.
 
-> **Status as of 2026-06-14:** Phases 0–6 of the owner-operations push are implemented and staged (shop settings/lifecycle, product variants, order lifecycle, customer management, 2FA enforcement, admin read-audit logging, and account deletion). Analytics & reporting is intentionally skipped because Grafana covers that domain. Remaining gaps are tax/VAT/invoicing improvements and production-operability work.
+> **Status as of 2026-06-21:** All P0 and P1 phases of the owner-operations push are implemented and staged (settings, variants, order fulfillment, customers, 2FA, deletion/erasure, and logs). Remaining gaps are product draft workflow, tax/VAT improvements, and production-operability/alerting work.
+
+### North Star → audit / phase reconciliation
+
+| North Star theme | Relevant audit IDs | Phase plan(s) | Status |
+|---|---|---|---|
+| Product catalog maturity | P0-18 (hardcoded Euro/VAT labels), P0-20 (`InvoiceDetailComponent` uses `any`), P1-5 (hardcoded EUR + `Promise.all` in invoice tx), P1-40–P1-45 (i18n/accessibility/route completeness/checkout fragility) | [Phase 5 — Tax, VAT & i18n](./docs/plans/production-readiness/phase-05-tax-vat-and-i18n.md) (VAT/i18n); product draft/versioning is planned as a follow-up feature. | In progress |
+| Tax, VAT, and invoicing | P0-15 (VIES fall-open), P0-16 (Greek VAT-ID handling), P0-18 (hardcoded labels), P0-20 (`any` in invoices), P1-3 (editable DAC7), P1-4 (undocumented tax env vars), P1-5 (invoice tx), P1-40–P1-45 (i18n gaps) | [Phase 5 — Tax, VAT & i18n](./docs/plans/production-readiness/phase-05-tax-vat-and-i18n.md) | In progress |
+| Production operability | P0-10 (deploy smoke tests), P0-12 (imgproxy health check), P1-17–P1-19 (backup/WAL), P1-20–P1-24 (alerting/jobs), P1-30 (health external calls), P1-31 (Faro CORS), P1-32 (S3/Meilisearch backups), P1-49 (job compose blocks) | [Phase 6 — Deployment, observability & backups](./docs/plans/production-readiness/phase-06-deployment-observability-and-backups.md) | In progress |
+| CI, testing & documentation | P0-6 (missing North Star audit doc), P1-25 (CI gaps), P1-26 (Bun version), P1-27 (E2E coverage), P1-28 (`.env.example` gaps) | [Phase 7 — CI, testing & documentation](./docs/plans/production-readiness/phase-07-ci-testing-and-documentation.md) | In progress |
 
 When requirements conflict, prefer the audit priorities and the Decision Hierarchy below. Do not treat missing owner capabilities, placeholder UIs, or incomplete compliance workflows as "good enough" for production.
 
@@ -926,6 +903,10 @@ SENDCLOUD_FORCE_UNSTAMPED_LETTER=true
 # Optional: explicit Sendcloud method id for the Unstamped letter service.
 SENDCLOUD_UNSTAMPED_LETTER_METHOD_ID=
 
+# Number of days to retain Sendcloud webhook event rows before cleanup.
+# Defaults to 30, minimum 1.
+SENDCLOUD_WEBHOOK_RETENTION_DAYS=30
+
 # Mock payouts (no external Mollie Routes API calls).
 # Useful for local development when MOLLIE_API_KEY is not set.
 MOCK_PAYOUTS_ENABLED=false
@@ -935,6 +916,16 @@ PAYOUT_RECONCILIATION_INTERVAL_MS=21600000
 
 # Sendcloud reconciliation job interval (milliseconds). Default: 6 hours.
 SENDCLOUD_RECONCILIATION_INTERVAL_MS=21600000
+
+# Tax / VAT
+# When true, cross-border EU B2B VAT IDs are verified live with VIES.
+# When false or unset, only offline format checks are performed.
+ENABLE_VIES_VALIDATION=false
+
+# When true, the platform charges VAT on platform fees per EU B2B/B2C rules.
+# When false, the platform operates under the French "Franchise en base de TVA" regime.
+# Defaults to true for safety.
+PLATFORM_VAT_LIABLE=true
 
 # Health-check disk path (mount point checked for free space). Use the path
 # that stores real application data in production, not /tmp.
@@ -1093,9 +1084,11 @@ ansible-playbook -i inventory/staging.yml playbook.yml --vault-password-file=.va
 All sensitive values live in `infrastructure/ansible/secrets.yml`, which is **encrypted with Ansible Vault**.
 
 - The vault password is stored in `infrastructure/ansible/.vault_pass` (`.gitignore`-d).
+- The committed `.vault_pass` is a placeholder; create it locally with the real password before running Ansible.
 - Edit secrets: `ansible-vault edit secrets.yml --vault-password-file=.vault_pass`
 - View secrets: `ansible-vault view secrets.yml --vault-password-file=.vault_pass`
-- Never commit `.vault_pass` or an unencrypted `secrets.yml`.
+- Rotate the vault password: `ansible-vault rekey secrets.yml --vault-password-file=.vault_pass --new-vault-password-file=.vault_pass.new`
+- Never commit `.vault_pass`, `.vault_pass.new`, or an unencrypted `secrets.yml`.
 
 For full details, see `infrastructure/ansible/README.md`.
 

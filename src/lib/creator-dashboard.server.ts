@@ -34,6 +34,10 @@ export interface CreatorShopDetail {
   businessAddress: ShippingOrigin | null
   isVatRegistered: boolean
   vatId: string | null
+  legalEntityType: 'individual' | 'business' | null
+  dateOfBirth: string | null
+  taxId: string | null
+  businessRegistrationNumber: string | null
   policies: Policies | null
   socials: SocialRow[]
   createdAt: Date
@@ -269,6 +273,10 @@ export async function getCreatorShopQuery(
     businessAddress: (record.businessAddress as ShippingOrigin | null) ?? null,
     isVatRegistered: record.isVatRegistered,
     vatId: record.vatId,
+    legalEntityType: record.legalEntityType as 'individual' | 'business' | null,
+    dateOfBirth: record.dateOfBirth,
+    taxId: record.taxId,
+    businessRegistrationNumber: record.businessRegistrationNumber,
     policies: (record.policies as Policies | null) ?? null,
     socials: socials.map((s) => ({
       platform: s.platform as SocialRow['platform'],

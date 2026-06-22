@@ -12,9 +12,15 @@ import { eq } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { orderItem, platformOrder, product, productVariant, shopOrder } from '#/db/schema'
 import { molliePaymentProvider } from '#/integrations/mollie'
+import { handleChargeback } from '#/lib/chargebacks.server'
 import { decrementStockForPaidOrder, releaseStockInTx } from '#/lib/inventory.server'
 import { logger } from '#/lib/logger.server'
-import { ordersCancelledTotal, ordersPaidTotal, webhookProcessedTotal } from '#/lib/metrics.server'
+import {
+  mollieWebhookFailedTotal,
+  ordersCancelledTotal,
+  ordersPaidTotal,
+  webhookProcessedTotal,
+} from '#/lib/metrics.server'
 import { logOrderPaid } from '#/lib/order-logger'
 import type { PaymentProvider } from '#/lib/payment-provider'
 
@@ -77,6 +83,7 @@ export async function processMollieWebhook(
     isValid = await provider.verifyWebhook(payload, signature, rawBody)
   } catch (error) {
     if (error instanceof TypeError || error instanceof RangeError) {
+      mollieWebhookFailedTotal.inc({ reason: 'malformed_signature' })
       return new Response(
         JSON.stringify({ error: 'Bad Request', message: 'Malformed signature' }),
         {
@@ -89,6 +96,7 @@ export async function processMollieWebhook(
   }
 
   if (!isValid) {
+    mollieWebhookFailedTotal.inc({ reason: 'invalid_signature' })
     return new Response(JSON.stringify({ error: 'Unauthorized', message: 'Invalid signature' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },
@@ -168,31 +176,9 @@ export async function processMollieWebhook(
       })
     }
 
-    await database.transaction(async (tx) => {
-      await tx
-        .update(platformOrder)
-        .set({
-          status: 'chargeback',
-          cancelledAt: new Date(),
-          cancellationReason: 'payment_chargeback',
-          updatedAt: new Date(),
-        })
-        .where(eq(platformOrder.id, order.id))
+    await handleChargeback(payload.id, { db: database })
 
-      await tx
-        .update(shopOrder)
-        .set({ status: 'chargeback', updatedAt: new Date() })
-        .where(eq(shopOrder.platformOrderId, order.id))
-    })
-
-    ordersCancelledTotal.inc()
     webhookProcessedTotal.inc({ status: 'chargeback' })
-    logger.error('Mollie chargeback received for platform order', undefined, {
-      alert: true,
-      platformOrderId: order.id,
-      molliePaymentId: payload.id,
-    })
-
     return new Response(JSON.stringify({ status: 'chargeback' }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
@@ -200,6 +186,18 @@ export async function processMollieWebhook(
   }
 
   if (paymentStatus === 'paid') {
+    // Safety net: if the order was already cancelled while the payment became
+    // paid, refund the buyer so captured funds do not remain unmatched (P0-14).
+    if (order.status === 'cancelled') {
+      const { refundCancelledPlatformOrder } = await import('#/lib/shop-orders.server')
+      await refundCancelledPlatformOrder(order.id, payload.id, provider)
+      webhookProcessedTotal.inc({ status: 'refunded_after_cancellation' })
+      return new Response(JSON.stringify({ status: 'refunded_after_cancellation' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
     const paymentAmountCents = await provider.getPaymentAmount(payload.id)
     if (paymentAmountCents !== order.totalCents) {
       logger.error('Mollie webhook amount mismatch', undefined, {

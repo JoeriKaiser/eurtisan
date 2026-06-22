@@ -1,10 +1,25 @@
+import { existsSync, statSync } from 'node:fs'
 import { E2E_CREATOR } from './fixtures/auth'
 import { test as setup, expect } from '@playwright/test'
 
 const authFile = 'e2e/.auth/creator.json'
 const baseURL = process.env.BASE_URL || 'http://localhost:3000'
 
+function isAuthFileFresh(path: string, maxAgeMs = 60 * 60 * 1000): boolean {
+  if (!existsSync(path)) return false
+  try {
+    return Date.now() - statSync(path).mtimeMs < maxAgeMs
+  } catch {
+    return false
+  }
+}
+
 setup('authenticate as creator', async ({ page }) => {
+  if (isAuthFileFresh(authFile)) {
+    setup.skip()
+    return
+  }
+
   // Sign in via Better Auth API using native fetch to avoid Playwright/Bun compat issues
   const response = await fetch(`${baseURL}/api/auth/sign-in/email`, {
     method: 'POST',
@@ -19,9 +34,9 @@ setup('authenticate as creator', async ({ page }) => {
 
   // Extract and parse the session cookie from the response
   const setCookie = response.headers.get('set-cookie')
-  expect(setCookie).toBeTruthy()
+  if (!setCookie) throw new Error('No set-cookie header returned from sign-in')
 
-  const sessionCookie = setCookie!.split(';')[0]
+  const sessionCookie = setCookie.split(';')[0]
   const [cookieName, cookieValue] = sessionCookie.split('=')
 
   // Set the cookie in the browser context before navigating
@@ -41,8 +56,8 @@ setup('authenticate as creator', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
 
   // Listen for console logs and errors from the browser page
-  page.on('console', msg => console.log('PAGE LOG:', msg.text()))
-  page.on('pageerror', err => console.log('PAGE ERROR:', err.message))
+  page.on('console', (msg) => console.log('PAGE LOG:', msg.text()))
+  page.on('pageerror', (err) => console.log('PAGE ERROR:', err.message))
 
   // Navigate to home page with the authenticated context
   await page.goto('/')

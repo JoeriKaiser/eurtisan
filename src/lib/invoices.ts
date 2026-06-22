@@ -2,6 +2,44 @@ import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
 
+const invoiceBillingAddressSchema = z.object({
+  name: z.string(),
+  street: z.string().optional(),
+  city: z.string().optional(),
+  postalCode: z.string().optional(),
+  country: z.string(),
+  vatId: z.string().optional().nullable(),
+  email: z.string().optional(),
+  isVatRegistered: z.boolean().optional(),
+})
+
+const invoiceLineItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  quantity: z.number().int(),
+  unitPriceCents: z.number().int(),
+  totalCents: z.number().int(),
+  vatRateBasisPoints: z.number().int(),
+  vatAmountCents: z.number().int(),
+})
+
+const invoiceShippingSchema = z.object({
+  costCents: z.number().int(),
+  vatRateBasisPoints: z.number().int(),
+  vatAmountCents: z.number().int(),
+  method: z.string(),
+})
+
+export const invoiceBillingDetailsSchema = z.object({
+  from: invoiceBillingAddressSchema,
+  to: invoiceBillingAddressSchema,
+  items: z.array(invoiceLineItemSchema),
+  shipping: invoiceShippingSchema.optional(),
+  reverseCharge: z.boolean().optional(),
+})
+
+export type InvoiceBillingDetails = z.infer<typeof invoiceBillingDetailsSchema>
+
 /**
  * Fetches authenticated invoice details by invoice number.
  * Access is gated based on user roles and relationships.

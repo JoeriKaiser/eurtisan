@@ -1,19 +1,25 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { db } from '#/db/index'
 import * as schema from '#/db/schema'
 import type { UserLike } from '#/test/helpers'
+
+function hashSessionToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex')
+}
 
 export async function createSession(
   user: UserLike | string,
   overrides?: Partial<typeof schema.session.$inferInsert>,
 ): Promise<typeof schema.session.$inferSelect> {
   const userId = typeof user === 'string' ? user : user.id
+  const id = `session-${randomUUID().replace(/-/g, '').slice(0, 12)}`
   const [row] = await db
     .insert(schema.session)
     .values({
-      id: `session-${randomUUID().replace(/-/g, '').slice(0, 12)}`,
+      id,
       userId,
       expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      tokenHash: hashSessionToken(id),
       ...overrides,
     })
     .returning()

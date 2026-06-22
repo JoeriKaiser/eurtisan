@@ -24,7 +24,7 @@ import {
 } from '#/components/ui/primitives/dialog'
 import { openDispute } from '#/lib/disputes'
 import type { OrderDetail, OrderShopGroup, OrderStatus } from '#/lib/orders.server'
-import { statusBadgeVariant } from '#/lib/orders-ui'
+import { getOrderStatusLabel, statusBadgeVariant } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
 import { createReview } from '#/lib/reviews'
 import type { ReviewableItem } from '#/lib/reviews.server'
@@ -231,7 +231,9 @@ export default function BuyerOrderDetailPage({
             </h1>
             <p className='mt-1 font-mono text-sm text-text-secondary'>{order.id}</p>
           </div>
-          <Badge variant={statusBadgeVariant(order.status)}>{order.status}</Badge>
+          <Badge variant={statusBadgeVariant(order.status)}>
+            {getOrderStatusLabel(order.status)}
+          </Badge>
         </div>
 
         <div className='island-shell rounded-2xl p-6'>
@@ -308,7 +310,9 @@ export default function BuyerOrderDetailPage({
               <section key={shop.shopOrderId} className='space-y-3'>
                 <div className='flex flex-wrap items-center justify-between gap-2'>
                   <h3 className='text-sm font-semibold text-text-primary'>{shop.shopName}</h3>
-                  <Badge variant={statusBadgeVariant(shop.status)}>{shop.status}</Badge>
+                  <Badge variant={statusBadgeVariant(shop.status)}>
+                    {getOrderStatusLabel(shop.status)}
+                  </Badge>
                 </div>
 
                 {/* Progress indicator for non-terminal statuses */}

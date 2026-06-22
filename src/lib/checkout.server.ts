@@ -19,7 +19,7 @@ import type {
 } from '#/integrations/shipping'
 import { getShippingProvider } from '#/integrations/shipping'
 import { scheduleBackgroundWork } from './background-work.server'
-import { getBaseUrl } from './env.server'
+import { getBaseUrl, getEnableViesValidation } from './env.server'
 import {
   getAvailableStockForProducts,
   InsufficientStockError,
@@ -29,6 +29,7 @@ import {
 import { ordersCreatedTotal } from './metrics.server'
 import { logOrderCreated } from './order-logger'
 import type { PaymentProvider } from './payment-provider'
+import { recalcPlatformOrderTree } from './financial-totals.server'
 import { formatPriceEUR } from './pricing'
 import { calculatePackageFromItems } from './shipping-estimate'
 import {
@@ -63,6 +64,8 @@ export interface ShippingOption {
   }
   /** True when this option is a fallback and not from a live carrier. */
   fallback?: boolean
+  /** Machine-readable error code when this option represents an unsupported destination. */
+  code?: 'SHIPPING_UNSUPPORTED'
   /** Short label for display (e.g. "Standard", "Express", "Manual — contact seller"). */
   label: string
   /** Method identifier for backward compatibility. */
@@ -158,6 +161,7 @@ const UNSUPPORTED_FALLBACK: ShippingOption = {
   costCents: 0,
   label: 'We cannot ship to this address — contact seller',
   fallback: true,
+  code: 'SHIPPING_UNSUPPORTED',
 }
 
 /** Error message shown when a destination is unsupported by the carrier. */
@@ -341,13 +345,13 @@ async function validateBuyerVatId(
   }
 
   // 2. VIES API check (if enabled)
-  if (process.env.ENABLE_VIES_VALIDATION === 'true') {
+  if (getEnableViesValidation()) {
     const isValid = await verifyVatIdVies(buyerVatId!, buyerCountryCode)
     if (!isValid) {
       throw new Response(
         JSON.stringify({
           error: 'Bad Request',
-          message: `VAT ID could not be verified via VIES for country ${buyerCountryCode}`,
+          message: 'VAT ID could not be verified. Please check the number or try again later.',
         }),
         { status: 400, headers: { 'Content-Type': 'application/json' } },
       )
@@ -763,10 +767,11 @@ export async function createCheckoutWithProvider(
       const hasRealOption = options.some((o) => !o.fallback)
       if (!hasRealOption && options.length > 0) {
         const fallbackOption = options[0]
-        if (fallbackOption.label === UNSUPPORTED_FALLBACK.label) {
+        if (fallbackOption.code === 'SHIPPING_UNSUPPORTED') {
           throw new Response(
             JSON.stringify({
               error: 'Unprocessable',
+              code: 'SHIPPING_UNSUPPORTED',
               message: UNSUPPORTED_DESTINATION_ERROR,
             }),
             { status: 422, headers: { 'Content-Type': 'application/json' } },
@@ -791,10 +796,11 @@ export async function createCheckoutWithProvider(
     }
 
     // Check for unsupported destination
-    if (matchingOption.fallback && matchingOption.label === UNSUPPORTED_FALLBACK.label) {
+    if (matchingOption.fallback && matchingOption.code === 'SHIPPING_UNSUPPORTED') {
       throw new Response(
         JSON.stringify({
           error: 'Unprocessable',
+          code: 'SHIPPING_UNSUPPORTED',
           message: UNSUPPORTED_DESTINATION_ERROR,
         }),
         { status: 422, headers: { 'Content-Type': 'application/json' } },
@@ -1153,7 +1159,10 @@ export async function createCheckoutWithProvider(
       }),
     )
 
-    // 8. Reserve stock for every cart item atomically
+    // 8. Recompute and persist all order totals as a defense-in-depth consistency check
+    await recalcPlatformOrderTree(tx, platformOrderRecord.id)
+
+    // 9. Reserve stock for every cart item atomically
     // Intentionally sequential within transaction to avoid row-lock contention on product inventory.
     // Sort by product ID to guarantee deterministic lock ordering and prevent deadlocks between
     // concurrent checkouts that have the same products in different cart insertion orders.

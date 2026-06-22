@@ -12,8 +12,9 @@ Summary for GDPR and operations. Align `/privacy` if customer-facing text must m
 | Email outbox | 7 days for terminal rows | `job:email-retention-cleanup` deletes sent/failed/suppressed/bounced rows |
 | Email send log | 90 days (configurable) | `job:email-retention-cleanup`; set `EMAIL_SEND_LOG_RETENTION_DAYS` |
 | Brevo webhook events | 30 days | `job:email-retention-cleanup` |
+| Sendcloud webhook events | 30 days | `job:sendcloud-retention-cleanup` |
 | S3 uploads | Until entity deleted | Optional bucket lifecycle rules |
-| DB backups | 30 days (+ off-site) | `infrastructure/README.md` |
+| DB backups | 30 days local, 90 days off-site | `infrastructure/README.md`; configure `BACKUP_RETENTION_DAYS` and `BACKUP_OFFSITE_RETENTION_DAYS` |
 
 Review when adding PII or changing observability retention.
 
@@ -26,7 +27,7 @@ Self-service deletion is implemented in `src/lib/account-data.server.ts` (`delet
 | `user` | `id`, `role`, `createdAt`, `updatedAt`, `deletedAt` | `name`, `email`, `image` anonymized; `emailVerified`, `twoFactorEnabled` reset |
 | `platform_order` | All order financial/transaction data | `shippingAddress`, `billingAddress` replaced with redacted address object |
 | `shop_order` | All order financial/fulfillment data | No direct PII; retained for tax/dispute history |
-| `invoices` | `invoiceNumber`, type, amounts, VAT, shop order link | `billingDetails` replaced with redacted address object |
+| `invoices` | `invoiceNumber`, type, amounts, VAT, shop order link | `billingDetails` replaced with redacted address object for both seller invoices (shops owned by the user) and buyer invoices (orders placed by the user) |
 | `shop` (owned) | `id`, name, slug, status, financial/tax data | `businessAddress`, `shippingOrigin` replaced with redacted address object; status set to `archived` |
 | `payout_reconciliation_log` | Event metadata required for reconciliation | `payload` personal fields (`buyerName`, `buyerEmail`, `address`, `shippingAddress`, `billingAddress`, `name`, `email`) masked or replaced |
 | `audit_log` | `actorId`, action, resource, metadata | `actorName` set to `'Deleted User'`; `actorId` kept for traceability |

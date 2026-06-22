@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { checkHealth, checkLive, checkReady } from './health'
+import { checkDependencies, checkHealth, checkLive, checkReady } from './health'
 
 const mockQuery = vi.fn()
 const mockIsMeilisearchHealthy = vi.fn()
@@ -31,7 +31,7 @@ describe('GET /api/health', () => {
     mockIsMeilisearchHealthy.mockReset()
   })
 
-  it('returns 200 and ok status when all dependencies are healthy', async () => {
+  it('returns 200 and ok status when critical dependencies are healthy', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ '?column?': 1 }] } as never)
     mockIsMeilisearchHealthy.mockResolvedValueOnce(true)
 
@@ -42,11 +42,11 @@ describe('GET /api/health', () => {
       status: 'ok',
       db: 'connected',
       meilisearch: 'connected',
-      mollie: 'skipped',
-      brevo: 'skipped',
       disk: { healthy: true },
       pool: { total: 5, idle: 2, waiting: 0 },
     })
+    expect(result.body.mollie).toBeUndefined()
+    expect(result.body.brevo).toBeUndefined()
     expect(result.body.disk).toBeDefined()
     expect(result.body.disk?.availableBytes).toBeGreaterThan(0)
     expect(result.body.disk?.totalBytes).toBeGreaterThan(0)
@@ -65,8 +65,6 @@ describe('GET /api/health', () => {
       status: 'error',
       db: 'disconnected',
       meilisearch: 'connected',
-      mollie: 'skipped',
-      brevo: 'skipped',
       disk: { healthy: true },
     })
   })
@@ -82,10 +80,24 @@ describe('GET /api/health', () => {
       status: 'error',
       db: 'connected',
       meilisearch: 'disconnected',
-      mollie: 'skipped',
-      brevo: 'skipped',
       disk: { healthy: true },
     })
+  })
+
+  it('returns 503 when disk is unhealthy', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ '?column?': 1 }] } as never)
+    mockIsMeilisearchHealthy.mockResolvedValueOnce(true)
+    vi.stubGlobal('process', {
+      ...process,
+      env: { ...process.env, HEALTH_DISK_THRESHOLD_BYTES: '999999999999999' },
+    })
+
+    const result = await checkHealth()
+
+    expect(result.status).toBe(503)
+    expect(result.body.disk?.healthy).toBe(false)
+
+    vi.unstubAllGlobals()
   })
 
   it('returns 503 when both dependencies are unreachable', async () => {
@@ -99,8 +111,6 @@ describe('GET /api/health', () => {
       status: 'error',
       db: 'disconnected',
       meilisearch: 'disconnected',
-      mollie: 'skipped',
-      brevo: 'skipped',
       disk: { healthy: true },
     })
   })
@@ -131,11 +141,11 @@ describe('GET /api/health/ready', () => {
       status: 'ok',
       db: 'connected',
       meilisearch: 'connected',
-      mollie: 'skipped',
-      brevo: 'skipped',
       disk: { healthy: true },
       pool: { total: 5, idle: 2, waiting: 0 },
     })
+    expect(result.body.mollie).toBeUndefined()
+    expect(result.body.brevo).toBeUndefined()
   })
 
   it('returns 503 when database is unreachable', async () => {
@@ -149,8 +159,6 @@ describe('GET /api/health/ready', () => {
       status: 'error',
       db: 'disconnected',
       meilisearch: 'connected',
-      mollie: 'skipped',
-      brevo: 'skipped',
       disk: { healthy: true },
     })
   })
@@ -166,6 +174,28 @@ describe('GET /api/health/ready', () => {
       status: 'error',
       db: 'connected',
       meilisearch: 'disconnected',
+      disk: { healthy: true },
+    })
+  })
+})
+
+describe('GET /api/health/deps', () => {
+  beforeEach(() => {
+    mockQuery.mockReset()
+    mockIsMeilisearchHealthy.mockReset()
+  })
+
+  it('returns 200 and includes external provider status when critical deps are healthy', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ '?column?': 1 }] } as never)
+    mockIsMeilisearchHealthy.mockResolvedValueOnce(true)
+
+    const result = await checkDependencies()
+
+    expect(result.status).toBe(200)
+    expect(result.body).toMatchObject({
+      status: 'ok',
+      db: 'connected',
+      meilisearch: 'connected',
       mollie: 'skipped',
       brevo: 'skipped',
       disk: { healthy: true },

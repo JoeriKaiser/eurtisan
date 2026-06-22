@@ -3,7 +3,6 @@ import z from 'zod'
 import { authMiddleware } from './auth-middleware'
 import type { SafeUser } from './server-auth'
 import { requirePrivileged2FA } from './server-auth'
-import { invalidateServerCache } from './server-cache.server'
 
 export type { AdminCategoryItem } from './admin-categories.server'
 
@@ -81,6 +80,7 @@ export const moveCategory = createServerFn({ method: 'POST' })
       }),
     ])
 
+    const { invalidateServerCache } = await import('./server-cache.server')
     invalidateServerCache('cache:categories:')
     return result
   })
@@ -104,6 +104,7 @@ export const reorderCategories = createServerFn({ method: 'POST' })
       }),
     ])
 
+    const { invalidateServerCache } = await import('./server-cache.server')
     invalidateServerCache('cache:categories:')
     return result
   })

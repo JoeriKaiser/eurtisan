@@ -3,6 +3,8 @@ import { db } from '#/db/index'
 import { payout, payoutReconciliationLog, platformOrder, shop, shopOrder, user } from '#/db/schema'
 import { createMollieRoute } from '#/integrations/mollie'
 import { signMollieState } from './auth-utils'
+import { disconnectMollieConnect } from './mollie-connect.server'
+import type { AuditActor } from './audit-logger'
 import { logger } from './logger.server'
 import { PLATFORM_FEE_PERCENT } from './platform-constants'
 
@@ -75,6 +77,83 @@ export async function createPayoutForShopOrder(
     .returning({ id: payout.id })
 
   return created?.id
+}
+
+/* -------------------------------------------------------------------------- */
+/*                          Payout Reversal Helper                             */
+/* -------------------------------------------------------------------------- */
+
+export interface PayoutReversalOptions {
+  reverseRouting?: boolean
+  routingReversals?: { organizationId: string; amountCents: number }[]
+}
+
+/**
+ * Reverses (or partially claws back) a routed payout for a refund.
+ *
+ * - If the refund amount covers the full payout, the payout is marked
+ *   `reversed` and `reverseRouting: true` is returned for the Mollie refund.
+ * - If the refund is partial, the payout record is left as-is and a partial
+ *   routing reversal is returned so Mollie can claw back only the refunded
+ *   portion from the seller.
+ * - If no routed payout exists or the shop has no Mollie account, an empty
+ *   options object is returned.
+ */
+export async function reversePayoutForRefund(
+  tx: Omit<typeof db, '$client'>,
+  shopOrderId: string,
+  refundCents: number,
+  reason: string,
+): Promise<PayoutReversalOptions> {
+  const [payoutRecord] = await tx
+    .select()
+    .from(payout)
+    .where(eq(payout.shopOrderId, shopOrderId))
+    .for('update')
+    .limit(1)
+
+  if (!payoutRecord) {
+    return {}
+  }
+
+  if (!['sent', 'in_transit'].includes(payoutRecord.status)) {
+    return {}
+  }
+
+  const [shopRecord] = await tx
+    .select({ mollieAccountId: shop.mollieAccountId })
+    .from(shop)
+    .where(eq(shop.id, payoutRecord.shopId))
+    .limit(1)
+
+  const sellerMollieAccountId = shopRecord?.mollieAccountId
+  if (!sellerMollieAccountId) {
+    return {}
+  }
+
+  if (refundCents >= payoutRecord.amountCents) {
+    await tx
+      .update(payout)
+      .set({
+        status: 'reversed',
+        reversedAt: new Date(),
+        reversalReason: reason,
+      })
+      .where(eq(payout.id, payoutRecord.id))
+
+    return { reverseRouting: true }
+  }
+
+  // Partial refund: do not mark the full payout as reversed. Mollie will
+  // claw back only the refunded portion from the seller's routed share.
+  return {
+    routingReversals: [
+      {
+        organizationId: sellerMollieAccountId,
+        amountCents: Math.min(refundCents, payoutRecord.amountCents),
+      },
+    ],
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -701,20 +780,10 @@ export async function getMollieConnectUrlQuery(shopId: string, userId: string): 
 /**
  * Disconnects a shop's connected Mollie account.
  */
-export async function disconnectMollieQuery(shopId: string): Promise<{ success: boolean }> {
-  await db
-    .update(shop)
-    .set({
-      mollieAccountId: null,
-      mollieAccessToken: null,
-      mollieRefreshToken: null,
-      mollieTokenExpiresAt: null,
-      paymentConnected: false,
-      paymentConnectedAt: null,
-      status: 'approved',
-      updatedAt: new Date(),
-    })
-    .where(eq(shop.id, shopId))
-
+export async function disconnectMollieQuery(
+  shopId: string,
+  actor: AuditActor,
+): Promise<{ success: boolean }> {
+  await disconnectMollieConnect({ shopId, actor })
   return { success: true }
 }

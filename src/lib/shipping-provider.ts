@@ -78,6 +78,11 @@ export interface ShipmentDetails {
   reference?: string
   /** Optional service point for pick-up delivery. */
   pickupPoint?: ServicePoint
+  /**
+   * Total order value in cents, used for customs declarations.
+   * Providers may fall back to 0.00 when omitted.
+   */
+  declaredValueCents?: number
 }
 
 /** A shipping label created by a carrier. */

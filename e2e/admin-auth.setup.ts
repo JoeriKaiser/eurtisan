@@ -1,13 +1,28 @@
+import { existsSync, statSync } from 'node:fs'
 import { E2E_ADMIN } from './fixtures/auth'
 import { test as setup, expect } from '@playwright/test'
 
 const authFile = 'e2e/.auth/admin.json'
 const baseURL = process.env.BASE_URL || 'http://localhost:3000'
 
+function isAuthFileFresh(path: string, maxAgeMs = 60 * 60 * 1000): boolean {
+  if (!existsSync(path)) return false
+  try {
+    return Date.now() - statSync(path).mtimeMs < maxAgeMs
+  } catch {
+    return false
+  }
+}
+
 setup('authenticate as admin', async ({ page }) => {
+  if (isAuthFileFresh(authFile)) {
+    setup.skip()
+    return
+  }
+
   // Listen for console logs and errors from the browser page
-  page.on('console', msg => console.log('PAGE LOG:', msg.text()))
-  page.on('pageerror', err => console.log('PAGE ERROR:', err.message))
+  page.on('console', (msg) => console.log('PAGE LOG:', msg.text()))
+  page.on('pageerror', (err) => console.log('PAGE ERROR:', err.message))
 
   const signInUrl = `${baseURL}/api/auth/sign-in/email`
   console.log('Sending sign-in request to:', signInUrl)
@@ -28,9 +43,9 @@ setup('authenticate as admin', async ({ page }) => {
 
   const setCookie = response.headers.get('set-cookie')
   console.log('Sign-in Set-Cookie header:', setCookie)
-  expect(setCookie).toBeTruthy()
+  if (!setCookie) throw new Error('No set-cookie header returned from admin sign-in')
 
-  const sessionCookie = setCookie!.split(';')[0]
+  const sessionCookie = setCookie.split(';')[0]
   const [cookieName, cookieValue] = sessionCookie.split('=')
   console.log(`Setting cookie: ${cookieName} = ${cookieValue}`)
 
@@ -50,8 +65,10 @@ setup('authenticate as admin', async ({ page }) => {
   console.log('Navigated to /admin. Current URL:', page.url())
   await page.waitForSelector('html[data-hydrated="true"]')
   console.log('Page hydrated. Current URL:', page.url())
-  
-  await expect(page.getByRole('heading', { name: 'Admin Dashboard' })).toBeVisible({ timeout: 10000 })
+
+  await expect(page.getByRole('heading', { name: 'Admin Dashboard' })).toBeVisible({
+    timeout: 10000,
+  })
 
   await page.context().storageState({ path: authFile })
 })

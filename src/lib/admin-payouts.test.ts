@@ -1,7 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { clearTestTables } from '#/test/cleanup'
-import { createPayout, createShop, createUser } from '#/test/factories'
+import {
+  createPayout,
+  createPlatformOrder,
+  createShop,
+  createShopOrder,
+  createUser,
+} from '#/test/factories'
 
 import {
   listPayoutHistoryQuery,
@@ -43,12 +49,17 @@ async function seedShop(overrides?: Parameters<typeof createShop>[1]) {
   })
 }
 
-async function seedPayout(overrides?: Parameters<typeof createPayout>[1]) {
+async function seedPayout(overrides?: Omit<Parameters<typeof createPayout>[1], 'shopOrderId'>) {
   const shopId = overrides?.shopId ?? 'shop-1'
+  const po = await createPlatformOrder('user-1')
+  const so = await createShopOrder(po, shopId, {
+    subtotalCents: overrides?.amountCents ?? 5000,
+  })
   return createPayout(shopId, {
     amountCents: 5000,
     status: 'pending',
     ...overrides,
+    shopOrderId: so.id,
   })
 }
 

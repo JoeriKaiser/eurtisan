@@ -1,0 +1,11 @@
+groups:
+  - name: checkout_failures
+    rules:
+      - alert: EurtisanCheckoutFailuresHigh
+        expr: rate(eurtisan_checkout_failures_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Elevated checkout failure rate
+          description: The checkout failure rate is above 0.1 per second over the last 5 minutes.

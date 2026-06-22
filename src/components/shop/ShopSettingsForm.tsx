@@ -14,6 +14,7 @@ import { ShopSettingsImageUploader } from './ShopSettingsImageUploader'
 import { ShopSettingsShippingOrigin } from './ShopSettingsShippingOrigin'
 import { ShopSettingsBusinessAddress } from './ShopSettingsBusinessAddress'
 import { ShopSettingsVatSettings } from './ShopSettingsVatSettings'
+import { ShopSettingsTaxIdentity } from './ShopSettingsTaxIdentity'
 import { ShopSettingsAnnouncement } from './ShopSettingsAnnouncement'
 import { ShopSettingsSocials } from './ShopSettingsSocials'
 import { ShopSettingsPolicies } from './ShopSettingsPolicies'
@@ -54,6 +55,10 @@ export interface FormValues {
   businessCountry: string
   isVatRegistered: boolean
   vatId: string
+  legalEntityType: 'individual' | 'business' | ''
+  dateOfBirth: string
+  taxId: string
+  businessRegistrationNumber: string
   announcement: string
 }
 
@@ -62,6 +67,9 @@ interface FormState {
   nameError: string | null
   descriptionError: string | null
   vatIdError: string | null
+  taxIdError: string | null
+  dateOfBirthError: string | null
+  businessRegistrationNumberError: string | null
   slugError: string | null
   slugAvailable: boolean | null
   slugChecking: boolean
@@ -72,6 +80,9 @@ type FormAction =
   | { type: 'setNameError'; error: string | null }
   | { type: 'setDescriptionError'; error: string | null }
   | { type: 'setVatIdError'; error: string | null }
+  | { type: 'setTaxIdError'; error: string | null }
+  | { type: 'setDateOfBirthError'; error: string | null }
+  | { type: 'setBusinessRegistrationNumberError'; error: string | null }
   | { type: 'setSlugError'; error: string | null }
   | { type: 'setSlugAvailable'; available: boolean | null }
   | { type: 'setSlugChecking'; checking: boolean }
@@ -93,11 +104,18 @@ function createInitialFormState(shop: CreatorShopDetail): FormState {
       businessCountry: shop.businessAddress?.country ?? '',
       isVatRegistered: shop.isVatRegistered,
       vatId: shop.vatId ?? '',
+      legalEntityType: shop.legalEntityType ?? '',
+      dateOfBirth: shop.dateOfBirth ?? '',
+      taxId: shop.taxId ?? '',
+      businessRegistrationNumber: shop.businessRegistrationNumber ?? '',
       announcement: shop.announcement ?? '',
     },
     nameError: null,
     descriptionError: null,
     vatIdError: null,
+    taxIdError: null,
+    dateOfBirthError: null,
+    businessRegistrationNumberError: null,
     slugError: null,
     slugAvailable: null,
     slugChecking: false,
@@ -114,6 +132,12 @@ function formReducer(state: FormState, action: FormAction): FormState {
       return { ...state, descriptionError: action.error }
     case 'setVatIdError':
       return { ...state, vatIdError: action.error }
+    case 'setTaxIdError':
+      return { ...state, taxIdError: action.error }
+    case 'setDateOfBirthError':
+      return { ...state, dateOfBirthError: action.error }
+    case 'setBusinessRegistrationNumberError':
+      return { ...state, businessRegistrationNumberError: action.error }
     case 'setSlugError':
       return { ...state, slugError: action.error }
     case 'setSlugAvailable':
@@ -200,6 +224,11 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
   const vatChanged =
     formState.values.isVatRegistered !== initialShop.isVatRegistered ||
     formState.values.vatId !== (initialShop.vatId ?? '')
+  const taxIdentityChanged =
+    formState.values.legalEntityType !== (initialShop.legalEntityType ?? '') ||
+    formState.values.dateOfBirth !== (initialShop.dateOfBirth ?? '') ||
+    formState.values.taxId !== (initialShop.taxId ?? '') ||
+    formState.values.businessRegistrationNumber !== (initialShop.businessRegistrationNumber ?? '')
   const announcementChanged = formState.values.announcement !== (initialShop.announcement ?? '')
   const socialsChanged =
     JSON.stringify(socials.map((s) => [s.platform, s.url]).sort()) !==
@@ -214,6 +243,7 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
     originChanged ||
     businessAddressChanged ||
     vatChanged ||
+    taxIdentityChanged ||
     announcementChanged ||
     socialsChanged ||
     policiesChanged
@@ -376,6 +406,9 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
     dispatchForm({ type: 'setNameError', error: null })
     dispatchForm({ type: 'setSlugError', error: null })
     dispatchForm({ type: 'setDescriptionError', error: null })
+    dispatchForm({ type: 'setTaxIdError', error: null })
+    dispatchForm({ type: 'setDateOfBirthError', error: null })
+    dispatchForm({ type: 'setBusinessRegistrationNumberError', error: null })
 
     if (!formState.values.name.trim()) {
       dispatchForm({ type: 'setNameError', error: m.creator_shop_name_required() })
@@ -395,6 +428,35 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
     if (formState.values.isVatRegistered && !formState.values.vatId.trim()) {
       dispatchForm({ type: 'setVatIdError', error: 'VAT ID is required when VAT registered' })
       return
+    }
+
+    if (
+      formState.values.taxId.trim() &&
+      !/^[A-Za-z0-9-]{3,30}$/.test(formState.values.taxId.trim())
+    ) {
+      dispatchForm({
+        type: 'setTaxIdError',
+        error: 'Tax ID must be 3–30 alphanumeric characters',
+      })
+      return
+    }
+
+    if (formState.values.legalEntityType === 'individual') {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(formState.values.dateOfBirth.trim())) {
+        dispatchForm({
+          type: 'setDateOfBirthError',
+          error: 'Date of birth is required in YYYY-MM-DD format',
+        })
+        return
+      }
+    } else if (formState.values.legalEntityType === 'business') {
+      if (!formState.values.businessRegistrationNumber.trim()) {
+        dispatchForm({
+          type: 'setBusinessRegistrationNumberError',
+          error: 'Business registration number is required for businesses',
+        })
+        return
+      }
     }
 
     dispatchSubmission({ type: 'start' })
@@ -419,6 +481,10 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
         } | null
         isVatRegistered?: boolean
         vatId?: string | null
+        legalEntityType?: 'individual' | 'business' | null
+        dateOfBirth?: string | null
+        taxId?: string | null
+        businessRegistrationNumber?: string | null
         image?: string | null
         bannerImage?: string | null
         announcement?: string | null
@@ -468,6 +534,18 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
         updatePayload.vatId = formState.values.isVatRegistered
           ? formState.values.vatId.trim() || null
           : null
+      }
+
+      if (taxIdentityChanged) {
+        updatePayload.legalEntityType =
+          formState.values.legalEntityType === 'individual' ||
+          formState.values.legalEntityType === 'business'
+            ? formState.values.legalEntityType
+            : null
+        updatePayload.dateOfBirth = formState.values.dateOfBirth.trim() || null
+        updatePayload.taxId = formState.values.taxId.trim() || null
+        updatePayload.businessRegistrationNumber =
+          formState.values.businessRegistrationNumber.trim() || null
       }
 
       if (imageChanged) {
@@ -644,6 +722,37 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
                 }
                 onVatIdChange={(value) => dispatchForm({ type: 'setField', field: 'vatId', value })}
                 onVatIdErrorClear={() => dispatchForm({ type: 'setVatIdError', error: null })}
+              />
+
+              <ShopSettingsTaxIdentity
+                legalEntityType={formState.values.legalEntityType}
+                dateOfBirth={formState.values.dateOfBirth}
+                taxId={formState.values.taxId}
+                businessRegistrationNumber={formState.values.businessRegistrationNumber}
+                taxIdError={formState.taxIdError}
+                dateOfBirthError={formState.dateOfBirthError}
+                businessRegistrationNumberError={formState.businessRegistrationNumberError}
+                onLegalEntityTypeChange={(value) =>
+                  dispatchForm({ type: 'setField', field: 'legalEntityType', value })
+                }
+                onDateOfBirthChange={(value) =>
+                  dispatchForm({ type: 'setField', field: 'dateOfBirth', value })
+                }
+                onTaxIdChange={(value) => dispatchForm({ type: 'setField', field: 'taxId', value })}
+                onBusinessRegistrationNumberChange={(value) =>
+                  dispatchForm({ type: 'setField', field: 'businessRegistrationNumber', value })
+                }
+                onFieldErrorClear={(field) =>
+                  dispatchForm({
+                    type:
+                      field === 'taxId'
+                        ? 'setTaxIdError'
+                        : field === 'dateOfBirth'
+                          ? 'setDateOfBirthError'
+                          : 'setBusinessRegistrationNumberError',
+                    error: null,
+                  })
+                }
               />
             </div>
 

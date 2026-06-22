@@ -123,6 +123,11 @@ export const getDisputeDetail = createServerFn({ method: 'GET' })
       import('./disputes.server'),
       import('./audit-log.server'),
     ])
+
+    if (context.user.role === 'admin' || context.user.role === 'creator') {
+      requirePrivileged2FA(context.user as SafeUser)
+    }
+
     const result = await getDisputeDetailQuery(data.disputeId, context.user.id, context.user.role)
 
     await emitAdminReadAudit(context.user, 'admin.read.dispute', 'dispute', data.disputeId)

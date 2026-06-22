@@ -19,6 +19,8 @@ export function getLocalizedErrorMessage(codeOrMessage: string | null | undefine
       return m.error_order_not_delivered()
     case 'ORDER_DELIVERY_DATE_MISSING':
       return m.error_order_delivery_date_missing()
+    case 'SHIPPING_UNSUPPORTED':
+      return m.error_shipping_unsupported()
   }
 
   // Fallback / Normalized matching by English message string

@@ -48,6 +48,7 @@ function createStubPaymentProvider(overrides?: Partial<PaymentProvider>): Paymen
     getPaymentStatus: async () => stubPaymentStatus,
     getPaymentAmount: async () => stubPaymentAmount,
     refundPayment: async () => undefined,
+    cancelPayment: async () => undefined,
     ...overrides,
   }
 }
@@ -932,6 +933,7 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
         getPaymentStatus: async () => 'paid',
         getPaymentAmount: async () => 1000,
         refundPayment: async () => undefined,
+        cancelPayment: async () => undefined,
       }
 
       const payload = { id: 'tr_mock_000042' }

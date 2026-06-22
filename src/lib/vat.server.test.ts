@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   calculateVat,
   normalizeCountryCode,
@@ -6,6 +6,7 @@ import {
   verifyVatIdVies,
 } from './vat.server'
 import { validateVatId } from './vat'
+import { logger } from './logger.server'
 
 describe('VAT Calculation Engine', () => {
   it('returns zero VAT if the seller is not VAT registered', () => {
@@ -231,19 +232,50 @@ describe('isVatIdFormatValid (Offline Check)', () => {
     expect(isVatIdFormatValid('NL123', 'NL')).toBe(false)
     expect(isVatIdFormatValid('DE123456789', 'FR')).toBe(false)
   })
+
+  it('accepts both EL and GR prefixes for Greek VAT IDs when country is GR', () => {
+    expect(isVatIdFormatValid('EL123456789', 'GR')).toBe(true)
+    expect(isVatIdFormatValid('GR123456789', 'GR')).toBe(true)
+    expect(isVatIdFormatValid('EL12345', 'GR')).toBe(false)
+  })
 })
 
 describe('verifyVatIdVies (Online Check)', () => {
-  it('gracefully falls back to true if VIES endpoint is unreachable or fails', async () => {
-    // We mock a global fetch failure
+  it('returns false when the VIES endpoint is unreachable or fails (fail closed)', async () => {
     const originalFetch = globalThis.fetch
     globalThis.fetch = () => Promise.reject(new Error('Network error'))
+    const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
 
     try {
       const result = await verifyVatIdVies('DE123456789', 'DE')
-      expect(result).toBe(true) // Fallback behavior
+      expect(result).toBe(false)
+      expect(errorSpy).toHaveBeenCalled()
+      const lastCall = errorSpy.mock.calls[errorSpy.mock.calls.length - 1]
+      expect(lastCall?.[lastCall.length - 1]).toMatchObject({ alert: true, viesCountryCode: 'DE' })
     } finally {
       globalThis.fetch = originalFetch
+      errorSpy.mockRestore()
+    }
+  })
+
+  it('returns false on non-OK VIES HTTP responses (fail closed)', async () => {
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = () => Promise.resolve(new Response('Service Unavailable', { status: 503 }))
+    const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
+
+    try {
+      const result = await verifyVatIdVies('DE123456789', 'DE')
+      expect(result).toBe(false)
+      expect(errorSpy).toHaveBeenCalled()
+      const lastCall = errorSpy.mock.calls[errorSpy.mock.calls.length - 1]
+      expect(lastCall?.[lastCall.length - 1]).toMatchObject({
+        alert: true,
+        viesCountryCode: 'DE',
+        status: 503,
+      })
+    } finally {
+      globalThis.fetch = originalFetch
+      errorSpy.mockRestore()
     }
   })
 
@@ -266,6 +298,40 @@ describe('verifyVatIdVies (Online Check)', () => {
     try {
       const result = await verifyVatIdVies('DE123456789', 'DE')
       expect(result).toBe(false)
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it('normalises Greek country code GR to EL for the VIES request', async () => {
+    const originalFetch = globalThis.fetch
+    let requestedUrl = ''
+    globalThis.fetch = (input) => {
+      requestedUrl = input.toString()
+      return Promise.resolve(new Response(JSON.stringify({ isValid: true }), { status: 200 }))
+    }
+
+    try {
+      const result = await verifyVatIdVies('EL123456789', 'GR')
+      expect(result).toBe(true)
+      expect(requestedUrl).toContain('/ms/EL/vat/123456789')
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it('strips the EL prefix from Greek VAT IDs before calling VIES', async () => {
+    const originalFetch = globalThis.fetch
+    let requestedUrl = ''
+    globalThis.fetch = (input) => {
+      requestedUrl = input.toString()
+      return Promise.resolve(new Response(JSON.stringify({ isValid: true }), { status: 200 }))
+    }
+
+    try {
+      await verifyVatIdVies('EL123456789', 'GR')
+      expect(requestedUrl).not.toContain('/vat/EL123456789')
+      expect(requestedUrl).toContain('/vat/123456789')
     } finally {
       globalThis.fetch = originalFetch
     }

@@ -5,7 +5,6 @@ import { requirePrivileged2FA } from './server-auth'
 import type { SafeUser } from './server-auth'
 import { sanitizeRichText, validatePlainText } from './xss'
 import { buildCategoryTree, sanitizeSlug, type CategoryTreeNode } from './category-tree'
-import { invalidateServerCache } from './server-cache.server'
 
 export { buildCategoryTree, sanitizeSlug, type CategoryTreeNode }
 
@@ -72,6 +71,7 @@ export const createCategory = createServerFn({
       import('./audit-log.server'),
     ])
 
+    const { invalidateServerCache } = await import('./server-cache.server')
     invalidateServerCache('cache:categories:')
 
     await emitAuditEvent(context.user, 'category.create', 'category', category.id, {
@@ -155,6 +155,7 @@ export const updateCategory = createServerFn({
     const result = await updateCategoryInternal(context.user, data)
 
     // Sequential: emitAuditEvent depends on result fields (name, slug, parentId).
+    const { invalidateServerCache } = await import('./server-cache.server')
     invalidateServerCache('cache:categories:')
 
     await emitAuditEvent(context.user, 'category.update', 'category', data.id, {
@@ -189,6 +190,7 @@ export const deleteCategory = createServerFn({
       deleteCategoryInternal(context.user, data),
       emitAuditEvent(context.user, 'category.delete', 'category', data.id),
     ])
+    const { invalidateServerCache } = await import('./server-cache.server')
     invalidateServerCache('cache:categories:')
 
     return result

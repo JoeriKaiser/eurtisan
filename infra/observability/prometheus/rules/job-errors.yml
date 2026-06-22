@@ -1,0 +1,11 @@
+groups:
+  - name: job_errors
+    rules:
+      - alert: EurtisanJobAlertLog
+        expr: increase(eurtisan_alert_log_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: A background job or service emitted an alert log line
+          description: "Logs containing `alert: true` were observed in the last 5 minutes."

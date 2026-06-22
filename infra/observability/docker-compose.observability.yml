@@ -4,6 +4,7 @@ services:
     container_name: eurtisan-alloy
     environment:
       - APP_CONTAINER_NAME=${APP_CONTAINER_NAME:-eurtisan-app}
+      - ALLOY_FARO_CORS_ORIGINS=${ALLOY_FARO_CORS_ORIGINS:-https://eurtisan.eu,https://staging.eurtisan.eu}
     volumes:
       - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -23,7 +24,7 @@ services:
       - grafana_data:/var/lib/grafana
     environment:
       - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-changeme}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
       - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-https://eurtisan.eu/grafana}
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
       - GF_AUTH_ANONYMOUS_ENABLED=false
@@ -96,6 +97,7 @@ services:
       - eurtisan
     restart: unless-stopped
     environment:
+      - ALERTMANAGER_DEFAULT_RECEIVER=${ALERTMANAGER_DEFAULT_RECEIVER:-null}
       - ALERTMANAGER_SMTP_HOST=${ALERTMANAGER_SMTP_HOST:-}
       - ALERTMANAGER_SMTP_PORT=${ALERTMANAGER_SMTP_PORT:-587}
       - ALERTMANAGER_SMTP_FROM=${ALERTMANAGER_SMTP_FROM:-}

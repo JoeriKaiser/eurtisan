@@ -281,4 +281,47 @@ describe('updateShopInternal', () => {
       'Unrecognised country code in VAT ID',
     )
   })
+
+  it('persists DAC7 tax identity fields', async () => {
+    await seedUser()
+    const s = await seedShop()
+    const updated = await updateShopInternal(s.id, {
+      legalEntityType: 'individual',
+      dateOfBirth: '1985-06-15',
+      taxId: 'FR1234567890',
+      businessRegistrationNumber: null,
+    })
+    expect(updated.legalEntityType).toBe('individual')
+    expect(updated.dateOfBirth).toBe('1985-06-15')
+    expect(updated.taxId).toBe('FR1234567890')
+    expect(updated.businessRegistrationNumber).toBeNull()
+  })
+
+  it('persists business DAC7 fields and clears optional dateOfBirth', async () => {
+    await seedUser()
+    const s = await seedShop({
+      legalEntityType: 'individual',
+      dateOfBirth: '1985-06-15',
+      taxId: 'TIN123',
+      businessRegistrationNumber: null,
+    })
+    const updated = await updateShopInternal(s.id, {
+      legalEntityType: 'business',
+      dateOfBirth: null,
+      taxId: 'TIN123',
+      businessRegistrationNumber: 'RCS PARIS 123 456 789',
+    })
+    expect(updated.legalEntityType).toBe('business')
+    expect(updated.dateOfBirth).toBeNull()
+    expect(updated.taxId).toBe('TIN123')
+    expect(updated.businessRegistrationNumber).toBe('RCS PARIS 123 456 789')
+  })
+
+  it('rejects an invalid taxId format', async () => {
+    await seedUser()
+    const s = await seedShop()
+    await expect(updateShopInternal(s.id, { taxId: '!' })).rejects.toThrow(
+      'Tax ID must be 3–30 alphanumeric characters',
+    )
+  })
 })

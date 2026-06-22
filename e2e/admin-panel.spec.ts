@@ -4,8 +4,8 @@ test.describe('admin panel navigation', () => {
   test.use({ storageState: 'e2e/.auth/admin.json' })
 
   test('admin pages render with sidebar links', async ({ page }) => {
-    page.on('console', msg => console.log('ADMIN PANEL PAGE LOG:', msg.text()))
-    page.on('pageerror', err => console.error('ADMIN PANEL PAGE ERROR:', err.message, err.stack))
+    page.on('console', (msg) => console.log('ADMIN PANEL PAGE LOG:', msg.text()))
+    page.on('pageerror', (err) => console.error('ADMIN PANEL PAGE ERROR:', err.message, err.stack))
     await page.setViewportSize({ width: 1440, height: 900 })
 
     // 1. Dashboard — verify sidebar links exist
@@ -36,4 +36,3 @@ test.describe('admin panel navigation', () => {
     })
   })
 })
-

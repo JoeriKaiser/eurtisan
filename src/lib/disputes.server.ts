@@ -6,7 +6,6 @@ import {
   dispute,
   disputeMessage,
   orderItem,
-  payout,
   platformOrder,
   shop,
   shopOrder,
@@ -14,17 +13,19 @@ import {
 } from '#/db/schema'
 import { molliePaymentProvider } from '#/integrations/mollie'
 import type { openDisputeSchema } from './disputes'
+import { DISPUTE_WINDOW_DAYS } from './constants'
 import { getBaseUrl } from './env.server'
 import { logger } from './logger.server'
 import { logOrderDisputed, logOrderResolved } from './order-logger'
 import type { OrderStatus } from './orders.server'
 import { recalcPlatformOrderStatus } from './shop-orders.server'
-import { releaseStockInTx } from './inventory.server'
+import { restoreShopOrderStockInTx } from './inventory.server'
+import { createCreditNoteForShopOrder } from './invoices.server'
+import { reversePayoutForRefund } from './payouts.server'
 import { sanitizeRichText, validatePlainText } from './xss'
 
 const creatorUser = alias(user, 'creator')
 
-const DISPUTE_WINDOW_DAYS = 30
 const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 export interface DisputeParticipant {
@@ -702,73 +703,8 @@ export async function resolveDisputeQuery(
 
   const creatorUserId = shopRecord?.ownerId ?? null
 
-  // Determine whether the payout has already been routed. If so, the refund
-  // must reverse the route so the seller is clawed back automatically.
-  let routedPayout: typeof payout.$inferSelect | undefined
-  let sellerMollieAccountId: string | undefined
-  if (refundCents !== null && refundCents > 0) {
-    const [payoutRecord] = await db
-      .select()
-      .from(payout)
-      .where(eq(payout.shopOrderId, shopOrderRecord.id))
-      .limit(1)
-
-    if (payoutRecord?.status === 'sent') {
-      routedPayout = payoutRecord
-      const [shopRecord] = await db
-        .select({ mollieAccountId: shop.mollieAccountId })
-        .from(shop)
-        .where(eq(shop.id, shopOrderRecord.shopId))
-        .limit(1)
-      sellerMollieAccountId = shopRecord?.mollieAccountId ?? undefined
-    }
-  }
-
-  // Process refund through Mollie BEFORE starting the DB transaction
-  if (refundCents !== null && refundCents > 0 && molliePaymentId) {
-    try {
-      const isFullRefund = input.resolution === 'full_refund'
-      if (routedPayout && sellerMollieAccountId) {
-        if (isFullRefund) {
-          await molliePaymentProvider.refundPayment(molliePaymentId, refundCents, {
-            reverseRouting: true,
-          })
-        } else {
-          const reversalAmountCents = Math.min(refundCents, routedPayout.amountCents)
-          await molliePaymentProvider.refundPayment(molliePaymentId, refundCents, {
-            routingReversals: [
-              {
-                organizationId: sellerMollieAccountId,
-                amountCents: reversalAmountCents,
-              },
-            ],
-          })
-        }
-      } else {
-        await molliePaymentProvider.refundPayment(molliePaymentId, refundCents)
-      }
-    } catch (err) {
-      logger.error(
-        `Mollie refund failed for payment ${molliePaymentId}, dispute ${disputeId}, amount ${refundCents} cents`,
-        err,
-        {
-          alert: true,
-          disputeId,
-          molliePaymentId,
-          refundCents,
-          routed: !!routedPayout,
-        },
-      )
-      throw new Response(
-        JSON.stringify({
-          error: 'Bad Gateway',
-          message: 'Mollie refund failed. The dispute has not been resolved.',
-        }),
-        { status: 502, headers: { 'Content-Type': 'application/json' } },
-      )
-    }
-  }
-
+  // Step 1: record the refund intent, reverse any routed payout, create the
+  // credit note, and mark the dispute resolved before contacting Mollie (P0-22).
   const newOrderStatus: OrderStatus = input.resolution === 'close' ? 'completed' : 'refunded'
 
   const result = await db.transaction(async (tx) => {
@@ -799,6 +735,7 @@ export async function resolveDisputeQuery(
       .select()
       .from(shopOrder)
       .where(eq(shopOrder.id, lockedDispute.shopOrderId))
+      .for('update')
       .limit(1)
 
     if (!lockedShopOrder) {
@@ -808,12 +745,41 @@ export async function resolveDisputeQuery(
       })
     }
 
-    // Restore inventory to sellable pool for refund outcomes
-    if (input.resolution !== 'close') {
-      await releaseStockInTx(tx, lockedShopOrder.platformOrderId)
+    if (lockedShopOrder.refundPendingCents > 0) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Conflict',
+          message: 'A refund is already in progress for this shop order',
+        }),
+        { status: 409, headers: { 'Content-Type': 'application/json' } },
+      )
     }
 
     const shopOrderRefundIncrement = refundCents ?? 0
+    let reversalOptions: {
+      reverseRouting?: boolean
+      routingReversals?: { organizationId: string; amountCents: number }[]
+    } = {}
+
+    if (input.resolution !== 'close') {
+      reversalOptions = await reversePayoutForRefund(
+        tx,
+        lockedDispute.shopOrderId,
+        shopOrderRefundIncrement,
+        input.resolution,
+      )
+
+      await tx
+        .update(shopOrder)
+        .set({
+          refundPendingCents: shopOrderRefundIncrement,
+          lastRefundAttemptedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(shopOrder.id, lockedDispute.shopOrderId))
+
+      await createCreditNoteForShopOrder(lockedDispute.shopOrderId, tx)
+    }
 
     const [[updated]] = await Promise.all([
       tx
@@ -826,14 +792,15 @@ export async function resolveDisputeQuery(
         })
         .where(eq(dispute.id, disputeId))
         .returning(),
-      tx
-        .update(shopOrder)
-        .set({
-          status: newOrderStatus,
-          refundedCents: lockedShopOrder.refundedCents + shopOrderRefundIncrement,
-          updatedAt: new Date(),
-        })
-        .where(eq(shopOrder.id, lockedDispute.shopOrderId)),
+      input.resolution === 'close'
+        ? tx
+            .update(shopOrder)
+            .set({
+              status: newOrderStatus,
+              updatedAt: new Date(),
+            })
+            .where(eq(shopOrder.id, lockedDispute.shopOrderId))
+        : Promise.resolve(),
       shopOrderRefundIncrement > 0
         ? tx
             .update(platformOrder)
@@ -844,18 +811,6 @@ export async function resolveDisputeQuery(
             .where(eq(platformOrder.id, lockedShopOrder.platformOrderId))
         : Promise.resolve(),
     ])
-
-    // Mark routed payout as reversed when a refund was issued
-    if (routedPayout && input.resolution !== 'close') {
-      await tx
-        .update(payout)
-        .set({
-          status: 'reversed',
-          reversedAt: new Date(),
-          reversalReason: input.resolution,
-        })
-        .where(eq(payout.id, routedPayout.id))
-    }
 
     await recalcPlatformOrderStatus(tx, lockedShopOrder.platformOrderId)
 
@@ -896,8 +851,98 @@ export async function resolveDisputeQuery(
         refundCents: updated.refundCents,
         updatedAt: updated.updatedAt,
       },
+      reversalOptions,
+      shopOrderRefundIncrement,
     }
   })
+
+  // Step 2: for refund resolutions, call Mollie after the intent is durable.
+  if (input.resolution !== 'close' && result.shopOrderRefundIncrement > 0 && molliePaymentId) {
+    try {
+      await molliePaymentProvider.refundPayment(
+        molliePaymentId,
+        result.shopOrderRefundIncrement,
+        result.reversalOptions,
+      )
+    } catch (err) {
+      logger.error(
+        `Mollie refund failed for payment ${molliePaymentId}, dispute ${disputeId}, amount ${result.shopOrderRefundIncrement} cents`,
+        err,
+        {
+          alert: true,
+          disputeId,
+          molliePaymentId,
+          refundCents: result.shopOrderRefundIncrement,
+        },
+      )
+      throw new Response(
+        JSON.stringify({
+          error: 'Bad Gateway',
+          message:
+            'Mollie refund failed. The dispute is marked resolved but the refund must be retried.',
+        }),
+        { status: 502, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    // Step 3: finalize the shop order status now that the buyer is refunded.
+    await db.transaction(async (tx) => {
+      const [lockedShopOrder] = await tx
+        .select({
+          id: shopOrder.id,
+          status: shopOrder.status,
+          refundedCents: shopOrder.refundedCents,
+          refundPendingCents: shopOrder.refundPendingCents,
+          platformOrderId: shopOrder.platformOrderId,
+        })
+        .from(shopOrder)
+        .where(eq(shopOrder.id, result.disputeRecord.shopOrderId))
+        .for('update')
+        .limit(1)
+
+      if (
+        !lockedShopOrder ||
+        lockedShopOrder.refundPendingCents !== result.shopOrderRefundIncrement
+      ) {
+        logger.error(
+          `Dispute refund finalization state mismatch for shop order ${result.disputeRecord.shopOrderId}`,
+          undefined,
+          {
+            alert: true,
+            shopOrderId: result.disputeRecord.shopOrderId,
+            refundCents: result.shopOrderRefundIncrement,
+            refundPendingCents: lockedShopOrder?.refundPendingCents,
+          },
+        )
+        throw new Response(
+          JSON.stringify({
+            error: 'Conflict',
+            message: 'Refund state changed during finalization',
+          }),
+          { status: 409, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+
+      await tx
+        .update(shopOrder)
+        .set({
+          status: 'refunded',
+          refundedCents: lockedShopOrder.refundedCents + result.shopOrderRefundIncrement,
+          refundPendingCents: 0,
+          updatedAt: new Date(),
+        })
+        .where(eq(shopOrder.id, lockedShopOrder.id))
+
+      await restoreShopOrderStockInTx(tx, lockedShopOrder.platformOrderId, lockedShopOrder.id)
+
+      await recalcPlatformOrderStatus(tx, lockedShopOrder.platformOrderId)
+    })
+  }
+
+  // Inventory is only restored for refunded outcomes; close leaves the sale final.
+  if (input.resolution !== 'close') {
+    // Stock was restored in the finalization transaction above.
+  }
 
   const {
     disputeRecord: finalDisputeRecord,

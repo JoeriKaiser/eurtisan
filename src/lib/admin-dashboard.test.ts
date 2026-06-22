@@ -115,7 +115,9 @@ async function seedDispute(
     .then((rows) => rows[0])
 }
 
-async function seedPayout(overrides?: Partial<typeof payout.$inferInsert>) {
+async function seedPayout(
+  overrides: Partial<typeof payout.$inferInsert> & { shopOrderId: string },
+) {
   return db
     .insert(payout)
     .values({
@@ -182,8 +184,12 @@ describe('getAdminDashboardStatsQuery', () => {
   it('counts only pending payouts, not sent ones', async () => {
     await seedUser()
     await seedShop()
-    await seedPayout({ status: 'pending' })
-    await seedPayout({ status: 'sent' })
+    const po1 = await seedPlatformOrder()
+    const so1 = await seedShopOrder({ platformOrderId: po1.id })
+    const po2 = await seedPlatformOrder()
+    const so2 = await seedShopOrder({ platformOrderId: po2.id })
+    await seedPayout({ shopOrderId: so1.id, status: 'pending' })
+    await seedPayout({ shopOrderId: so2.id, status: 'sent' })
 
     const result = await getAdminDashboardStatsQuery()
     expect(result.pendingPayouts).toBe(1)
@@ -201,7 +207,7 @@ describe('getAdminDashboardStatsQuery', () => {
     const so2 = await seedShopOrder({ platformOrderId: po2.id })
     await seedDispute(so1.id, { status: 'open' })
     await seedDispute(so2.id, { status: 'open' })
-    await seedPayout({ status: 'pending' })
+    await seedPayout({ shopOrderId: so1.id, status: 'pending' })
 
     const result = await getAdminDashboardStatsQuery()
 
@@ -220,7 +226,7 @@ describe('getAdminDashboardStatsQuery', () => {
     const po = await seedPlatformOrder()
     const so = await seedShopOrder({ platformOrderId: po.id })
     await seedDispute(so.id, { status: 'resolved' })
-    await seedPayout({ status: 'sent' })
+    await seedPayout({ shopOrderId: so.id, status: 'sent' })
 
     const result = await getAdminDashboardStatsQuery()
     expect(result).toEqual({

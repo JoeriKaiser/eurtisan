@@ -23,6 +23,7 @@ const TYPE_ICONS: Record<NotificationType, React.ReactNode> = {
   dispute_opened: <AlertTriangle size={18} aria-hidden='true' />,
   dispute_resolved: <Bell size={18} aria-hidden='true' />,
   payout_sent: <Banknote size={18} aria-hidden='true' />,
+  order_chargeback: <AlertTriangle size={18} aria-hidden='true' />,
   dac7_warning_limit: <AlertTriangle size={18} aria-hidden='true' />,
   low_stock: <PackageMinus size={18} aria-hidden='true' />,
 }

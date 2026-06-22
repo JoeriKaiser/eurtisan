@@ -3,6 +3,7 @@ import { Clock, Sparkles, Tag, TrendingUp, X } from 'lucide-react'
 import { useRecentSearches } from '#/hooks/useRecentSearches'
 import { cn } from '#/lib/cn'
 import { m } from '#/paraglide/messages'
+import { formatPriceEUR } from '#/lib/pricing'
 
 const TRENDING_SEARCHES = [
   'Ceramic mugs',
@@ -15,14 +16,14 @@ const TRENDING_SEARCHES = [
 
 const FEATURED_COLLECTIONS = [
   {
-    title: 'Summer Picks',
-    description: 'Bright, seasonal handmade goods',
+    title: m.search_featured_summer_title(),
+    description: m.search_featured_summer_description(),
     href: '/search?q=summer',
     color: 'bg-accent-primary-subtle text-accent-primary',
   },
   {
-    title: 'Under €25',
-    description: 'Affordable artisan gifts',
+    title: m.search_featured_under_price_title({ price: formatPriceEUR(2500) }),
+    description: m.search_featured_under_price_description(),
     href: '/search?maxPrice=2500',
     color: 'bg-accent-secondary-subtle text-accent-secondary',
   },

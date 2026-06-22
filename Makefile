@@ -141,6 +141,7 @@ infra-secrets:
 	@echo "postgres_password: $$(openssl rand -base64 32 | tr '+/' '-_')"
 	@echo "better_auth_secret: $$(openssl rand -base64 32 | tr '+/' '-_')"
 	@echo "meilisearch_api_key: $$(openssl rand -base64 32 | tr '+/' '-_')"
+	@echo "metrics_token: $$(openssl rand -base64 32 | tr '+/' '-_')"
 
 # Catch-all rule to allow passing arbitrary arguments (like file paths) to test/other commands without Make complaining
 %: FORCE

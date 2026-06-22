@@ -1,0 +1,11 @@
+groups:
+  - name: database_connectivity
+    rules:
+      - alert: EurtisanDatabaseDisconnected
+        expr: eurtisan_health_db_connected == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Eurtisan database connectivity check failed
+          description: The /api/health/ready database check has been failing for more than 1 minute.

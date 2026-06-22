@@ -13,8 +13,14 @@
  *
  * Graceful shutdown is handled on SIGINT / SIGTERM.
  */
-import { getSendcloudReconciliationIntervalMs } from '#/lib/env.server'
+import {
+  assertMockPayoutsNotProduction,
+  getSendcloudReconciliationIntervalMs,
+} from '#/lib/env.server'
+import { withJobLock } from '#/lib/job-lock.server'
 import { reconcileSendcloudShipments } from '#/lib/sendcloud-reconciliation.server'
+
+assertMockPayoutsNotProduction()
 
 const INTERVAL_MS = getSendcloudReconciliationIntervalMs()
 
@@ -33,7 +39,7 @@ async function tick(): Promise<void> {
   }
 }
 
-async function main(): Promise<void> {
+async function run(): Promise<void> {
   console.log(`[sendcloud-reconciliation] Started (interval=${INTERVAL_MS}ms)`)
 
   // Run immediately on start, then on every interval
@@ -55,6 +61,13 @@ function shutdown(): void {
 
 process.on('SIGINT', shutdown)
 process.on('SIGTERM', shutdown)
+
+async function main(): Promise<void> {
+  const result = await withJobLock('sendcloud-reconciliation', run)
+  if (result === undefined) {
+    console.log('[sendcloud-reconciliation] Another instance is already running; exiting cleanly.')
+  }
+}
 
 main().catch((err) => {
   console.error('[sendcloud-reconciliation] Fatal error:', err)

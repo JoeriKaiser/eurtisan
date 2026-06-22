@@ -28,7 +28,6 @@ export default function Header() {
 
   const loaderData = rootRoute.useLoaderData()
   const categories = (loaderData.categories ?? []) as CategoryTreeNode[]
-  console.log('CATEGORIES IN HEADER:', categories)
 
   // Scroll state to add border shadow on scroll
   const isScrolled = useSyncExternalStore(

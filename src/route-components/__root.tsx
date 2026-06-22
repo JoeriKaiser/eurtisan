@@ -54,28 +54,12 @@ export function RootComponent() {
             registration.unregister()
           }
         })
-      } else {
-        navigator.serviceWorker
-          .register('/sw.js')
-          .then((registration) => {
-            // eslint-disable-next-line no-console
-            console.log('[SW] Registered:', registration.scope)
-          })
-          .catch((error) => {
-            // eslint-disable-next-line no-console
-            console.error('[SW] Registration failed:', error)
-          })
       }
     }
   }, [])
 
   return (
-    <FaroErrorBoundary
-      onError={(error) => {
-        // eslint-disable-next-line no-console
-        console.error('[FaroErrorBoundary] Caught error:', error)
-      }}
-    >
+    <FaroErrorBoundary>
       <CartProvider>
         <a
           href='#main-content'

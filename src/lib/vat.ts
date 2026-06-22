@@ -7,11 +7,11 @@ const VAT_ID_PATTERNS: Record<string, RegExp> = {
   DE: /^DE\d{9}$/,
   DK: /^DK\d{8}$/,
   EE: /^EE\d{9}$/,
-  EL: /^EL\d{9}$/,
+  EL: /^EL\d{9}$/, // Greece (VIES prefix)
   ES: /^ES([A-Z]\d{7}[A-Z]|\d{8}[A-Z]|[A-Z]\d{8})$/,
   FI: /^FI\d{8}$/,
   FR: /^FR[A-Z]{2}\d{9}$/,
-  GR: /^GR\d{9}$/,
+  GR: /^GR\d{9}$/, // Greece (ISO prefix, accepted for convenience)
   HR: /^HR\d{11}$/,
   HU: /^HU\d{8}$/,
   IE: /^IE\d{7}[A-Z]{1,2}$/,

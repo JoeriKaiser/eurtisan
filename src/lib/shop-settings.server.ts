@@ -75,6 +75,14 @@ export type UpdateShopInput = {
   isVatRegistered?: boolean
   /** VAT identification number (required when isVatRegistered is true). */
   vatId?: string | null
+  /** Legal form of the seller: individual or business (DAC7 tax identity). */
+  legalEntityType?: 'individual' | 'business' | null
+  /** Seller date of birth in YYYY-MM-DD format (individual sellers, DAC7). */
+  dateOfBirth?: string | null
+  /** Tax identification number (DAC7). */
+  taxId?: string | null
+  /** Business registration number (business sellers, DAC7). */
+  businessRegistrationNumber?: string | null
   /** Shop icon image key (S3 object key). */
   image?: string | null
   /** Shop banner image key (S3 object key). */
@@ -183,6 +191,24 @@ export async function updateShopInternal(
     updateData.vatId = input.vatId ? input.vatId.trim() : null
   }
 
+  if (input.legalEntityType !== undefined) {
+    updateData.legalEntityType = input.legalEntityType
+  }
+
+  if (input.dateOfBirth !== undefined) {
+    updateData.dateOfBirth = input.dateOfBirth ? input.dateOfBirth.trim() : null
+  }
+
+  if (input.taxId !== undefined) {
+    updateData.taxId = input.taxId ? input.taxId.trim() : null
+  }
+
+  if (input.businessRegistrationNumber !== undefined) {
+    updateData.businessRegistrationNumber = input.businessRegistrationNumber
+      ? input.businessRegistrationNumber.trim()
+      : null
+  }
+
   if (input.image !== undefined) {
     updateData.image = input.image
   }
@@ -225,6 +251,42 @@ export async function updateShopInternal(
     const validation = validateVatId(effectiveVatId)
     if (!validation.valid) {
       throw new Error(validation.message ?? 'Invalid VAT ID format.')
+    }
+  }
+
+  // DAC7 tax identity validation.
+  const effectiveLegalEntityType =
+    input.legalEntityType !== undefined ? input.legalEntityType : shopRecord.legalEntityType
+  const effectiveTaxId =
+    input.taxId !== undefined
+      ? input.taxId
+        ? input.taxId.trim()
+        : null
+      : (shopRecord.taxId ?? null)
+  const effectiveDateOfBirth =
+    input.dateOfBirth !== undefined
+      ? input.dateOfBirth
+        ? input.dateOfBirth.trim()
+        : null
+      : (shopRecord.dateOfBirth ?? null)
+  const effectiveBusinessReg =
+    input.businessRegistrationNumber !== undefined
+      ? input.businessRegistrationNumber
+        ? input.businessRegistrationNumber.trim()
+        : null
+      : (shopRecord.businessRegistrationNumber ?? null)
+
+  if (effectiveTaxId && !/^[A-Za-z0-9-]{3,30}$/.test(effectiveTaxId)) {
+    throw new Error('Tax ID must be 3–30 alphanumeric characters.')
+  }
+
+  if (effectiveLegalEntityType === 'individual') {
+    if (!effectiveDateOfBirth) {
+      throw new Error('Date of birth is required for individual sellers.')
+    }
+  } else if (effectiveLegalEntityType === 'business') {
+    if (!effectiveBusinessReg) {
+      throw new Error('Business registration number is required for business sellers.')
     }
   }
 

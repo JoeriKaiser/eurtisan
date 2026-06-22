@@ -90,5 +90,8 @@ export const disconnectMollie = createServerFn({ method: 'POST' })
     requirePrivileged2FA(context.user as SafeUser)
 
     const { disconnectMollieQuery } = await import('./payouts.server')
-    return disconnectMollieQuery(data.shopId)
+    return disconnectMollieQuery(data.shopId, {
+      id: context.user.id,
+      name: context.user.name,
+    })
   })

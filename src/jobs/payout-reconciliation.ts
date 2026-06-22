@@ -14,12 +14,15 @@
  *
  * Graceful shutdown is handled on SIGINT / SIGTERM.
  */
+import { assertMockPayoutsNotProduction, getPayoutReconciliationIntervalMs } from '#/lib/env.server'
+import { withJobLock } from '#/lib/job-lock.server'
 import {
   alertOnStalePendingPayouts,
   reconcilePayouts,
   releaseHeldPayouts,
 } from '#/lib/payout-reconciliation.server'
-import { getPayoutReconciliationIntervalMs } from '#/lib/env.server'
+
+assertMockPayoutsNotProduction()
 
 const INTERVAL_MS = getPayoutReconciliationIntervalMs()
 
@@ -58,7 +61,7 @@ async function tick(): Promise<void> {
   }
 }
 
-async function main(): Promise<void> {
+async function run(): Promise<void> {
   console.log(`[payout-reconciliation] Started (interval=${INTERVAL_MS}ms)`)
 
   // Run immediately on start, then on every interval
@@ -80,6 +83,13 @@ function shutdown(): void {
 
 process.on('SIGINT', shutdown)
 process.on('SIGTERM', shutdown)
+
+async function main(): Promise<void> {
+  const result = await withJobLock('payout-reconciliation', run)
+  if (result === undefined) {
+    console.log('[payout-reconciliation] Another instance is already running; exiting cleanly.')
+  }
+}
 
 main().catch((err) => {
   console.error('[payout-reconciliation] Fatal error:', err)

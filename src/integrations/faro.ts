@@ -33,12 +33,18 @@ export function initFaro(): Faro | undefined {
 
   const collectorUrl = import.meta.env.VITE_FARO_COLLECTOR_URL
   if (!collectorUrl) {
-    console.warn('[Faro] VITE_FARO_COLLECTOR_URL is not set. RUM disabled.')
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.warn('[Faro] VITE_FARO_COLLECTOR_URL is not set. RUM disabled.')
+    }
     return undefined
   }
 
   if (typeof navigator !== 'undefined' && navigator.doNotTrack === '1') {
-    console.log('[Faro] Skipped: Do Not Track is enabled')
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.log('[Faro] Skipped: Do Not Track is enabled')
+    }
     return undefined
   }
 
@@ -46,7 +52,6 @@ export function initFaro(): Faro | undefined {
   if (import.meta.env.PROD) {
     const sampleRate = Number(import.meta.env.VITE_FARO_SAMPLE_RATE ?? '0.1')
     if (Number.isFinite(sampleRate) && Math.random() >= sampleRate) {
-      console.log('[Faro] Skipped initialization due to sampling.')
       return undefined
     }
   }
@@ -69,8 +74,8 @@ export function initFaro(): Faro | undefined {
       persistent: false,
     },
     beforeSend: (event) => {
-      // Fallback: log errors to console so they are not lost if the collector is unreachable
-      if (event.type === TransportItemType.EXCEPTION) {
+      // Optional dev fallback: log errors to console so they are not lost if the collector is unreachable
+      if (import.meta.env.DEV && event.type === TransportItemType.EXCEPTION) {
         const payload = event.payload as { type?: string; value?: string; stacktrace?: unknown }
         // eslint-disable-next-line no-console
         console.error(

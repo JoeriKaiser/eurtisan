@@ -109,6 +109,7 @@ vi.mock('#/lib/shop-orders', () => ({
 
 vi.mock('#/lib/orders-ui', () => ({
   FULFILLMENT_STATUSES: ['paid', 'processing', 'shipped', 'delivered'],
+  getOrderStatusLabel: (status: string) => status.replace('_', ' '),
   isStatusReached: (current: string, step: string) => {
     const order = ['paid', 'processing', 'shipped', 'delivered']
     return order.indexOf(current) >= order.indexOf(step)

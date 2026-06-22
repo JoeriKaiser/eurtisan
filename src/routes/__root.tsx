@@ -18,10 +18,7 @@ interface MyRouterContext {
 export const Route = createRootRouteWithContext<MyRouterContext>()({
   loader: async ({ context }) => {
     const [user, categories] = await Promise.all([
-      getCurrentUser().catch((err) => {
-        console.error('ROOT LOADER getCurrentUser ERROR:', err)
-        return null
-      }),
+      getCurrentUser().catch(() => null),
       listCategories({ data: { tree: true } }).catch(() => []),
     ])
     hydrateQueryData(context.queryClient, queryKeys.categoriesTree, categories)

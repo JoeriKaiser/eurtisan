@@ -4,19 +4,21 @@ import { useCallback, useRef, useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
+import { getOrderStatusLabel } from '#/lib/orders-ui'
+import type { OrderStatus } from '#/lib/orders.server'
 import { useLoaderData, useNavigate, useParams } from '@tanstack/react-router'
 
-const statusOptions = [
-  { value: '', label: 'All Statuses' },
-  { value: 'pending_payment', label: 'Pending Payment' },
-  { value: 'paid', label: 'Paid' },
-  { value: 'processing', label: 'Processing' },
-  { value: 'shipped', label: 'Shipped' },
-  { value: 'delivered', label: 'Delivered' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'cancelled', label: 'Cancelled' },
-  { value: 'refunded', label: 'Refunded' },
-  { value: 'disputed', label: 'Disputed' },
+const statusOptions: { value: '' | OrderStatus; label: string }[] = [
+  { value: '', label: m.orderStatus_all() },
+  { value: 'pending_payment', label: m.orderStatus_pending_payment() },
+  { value: 'paid', label: m.orderStatus_paid() },
+  { value: 'processing', label: m.orderStatus_processing() },
+  { value: 'shipped', label: m.orderStatus_shipped() },
+  { value: 'delivered', label: m.orderStatus_delivered() },
+  { value: 'completed', label: m.orderStatus_completed() },
+  { value: 'cancelled', label: m.orderStatus_cancelled() },
+  { value: 'refunded', label: m.orderStatus_refunded() },
+  { value: 'disputed', label: m.orderStatus_disputed() },
 ]
 
 function getStatusBadgeVariant(orderStatus: string): React.ComponentProps<typeof Badge>['variant'] {
@@ -205,8 +207,8 @@ export function ShopOrdersPage() {
                   <p className='text-xs text-text-secondary'>{order.buyerEmail}</p>
                 </div>
                 <div>
-                  <Badge variant={getStatusBadgeVariant(order.status)}>
-                    {order.status.replace('_', ' ')}
+                  <Badge variant={getStatusBadgeVariant(order.status as OrderStatus)}>
+                    {getOrderStatusLabel(order.status as OrderStatus)}
                   </Badge>
                 </div>
                 <div className='text-left sm:text-right'>

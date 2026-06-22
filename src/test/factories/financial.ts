@@ -4,7 +4,7 @@ import type { ShopLike, ShopOrderLike } from '#/test/helpers'
 
 export async function createPayout(
   shop: ShopLike | string,
-  overrides?: Partial<typeof schema.payout.$inferInsert>,
+  overrides: Partial<typeof schema.payout.$inferInsert> & { shopOrderId: string },
 ): Promise<typeof schema.payout.$inferSelect> {
   const shopId = typeof shop === 'string' ? shop : shop.id
   const [row] = await db

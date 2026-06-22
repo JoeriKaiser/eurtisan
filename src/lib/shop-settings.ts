@@ -32,6 +32,15 @@ const businessAddressSchema = z
   .optional()
   .nullable()
 
+const dateStringSchema = z
+  .string()
+  .optional()
+  .nullable()
+  .refine((value) => {
+    if (!value || value.trim().length === 0) return true
+    return /^\d{4}-\d{2}-\d{2}$/.test(value)
+  }, 'Date must be in YYYY-MM-DD format')
+
 export const updateShopSchema = z
   .object({
     shopId: z.string().min(1, 'Shop ID is required.'),
@@ -49,6 +58,10 @@ export const updateShopSchema = z
     businessAddress: businessAddressSchema,
     isVatRegistered: z.boolean().optional(),
     vatId: z.string().optional().nullable(),
+    legalEntityType: z.enum(['individual', 'business']).optional().nullable(),
+    dateOfBirth: dateStringSchema,
+    taxId: z.string().optional().nullable(),
+    businessRegistrationNumber: z.string().optional().nullable(),
     image: z
       .string()
       .min(1)
@@ -81,6 +94,32 @@ export const updateShopSchema = z
           code: z.ZodIssueCode.custom,
           message: validation.message ?? 'Invalid VAT ID format',
           path: ['vatId'],
+        })
+      }
+    }
+    if (data.legalEntityType === 'individual') {
+      if (!data.dateOfBirth || data.dateOfBirth.trim().length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Date of birth is required for individual sellers',
+          path: ['dateOfBirth'],
+        })
+      }
+    } else if (data.legalEntityType === 'business') {
+      if (!data.businessRegistrationNumber || data.businessRegistrationNumber.trim().length === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Business registration number is required for business sellers',
+          path: ['businessRegistrationNumber'],
+        })
+      }
+    }
+    if (data.taxId !== undefined && data.taxId !== null && data.taxId.trim().length > 0) {
+      if (!/^[A-Za-z0-9-]{3,30}$/.test(data.taxId.trim())) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Tax ID must be 3–30 alphanumeric characters',
+          path: ['taxId'],
         })
       }
     }
@@ -141,10 +180,26 @@ export const updateShop = createServerFn({ method: 'POST' })
     const { db } = await import('#/db/index')
     const { shopSocials } = await import('#/db/schema')
     const { eq } = await import('drizzle-orm')
+    const { emitAuditEvent } = await import('./audit-log.server')
 
     try {
       const { shopId, ...input } = data
       const record = await updateShopInternal(shopId, input)
+
+      // Audit DAC7 tax identity updates.
+      const dac7Fields: (keyof typeof input)[] = [
+        'taxId',
+        'legalEntityType',
+        'dateOfBirth',
+        'businessRegistrationNumber',
+      ]
+      const updatedDac7Fields = dac7Fields.filter((field) => input[field] !== undefined)
+      if (updatedDac7Fields.length > 0) {
+        emitAuditEvent(context.user as SafeUser, 'shop_tax_identity_updated', 'shop', shopId, {
+          fields: updatedDac7Fields,
+        })
+      }
+
       const socials = await db.select().from(shopSocials).where(eq(shopSocials.shopId, shopId))
       return {
         id: record.id,
@@ -172,6 +227,10 @@ export const updateShop = createServerFn({ method: 'POST' })
         } | null,
         isVatRegistered: record.isVatRegistered,
         vatId: record.vatId,
+        legalEntityType: record.legalEntityType as 'individual' | 'business' | null,
+        dateOfBirth: record.dateOfBirth,
+        taxId: record.taxId,
+        businessRegistrationNumber: record.businessRegistrationNumber,
         policies: (record.policies as Policies | null) ?? null,
         socials: socials.map(
           (s): SocialRow => ({

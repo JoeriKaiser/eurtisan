@@ -14,6 +14,7 @@
  *
  * Graceful shutdown is handled on SIGINT / SIGTERM.
  */
+import { withJobLock } from '#/lib/job-lock.server'
 import { cleanupExpiredSuppressions } from '#/lib/email-suppression-cleanup.server'
 
 const INTERVAL_MS = Number.parseInt(
@@ -35,7 +36,7 @@ async function tick(): Promise<void> {
   }
 }
 
-async function main(): Promise<void> {
+async function run(): Promise<void> {
   console.log(
     `[email-suppression-cleanup] Started (interval=${INTERVAL_MS}ms, batchSize=${BATCH_SIZE})`,
   )
@@ -57,6 +58,13 @@ function shutdown(): void {
 
 process.on('SIGINT', shutdown)
 process.on('SIGTERM', shutdown)
+
+async function main(): Promise<void> {
+  const result = await withJobLock('email-suppression-cleanup', run)
+  if (result === undefined) {
+    console.log('[email-suppression-cleanup] Another instance is already running; exiting cleanly.')
+  }
+}
 
 main().catch((err) => {
   console.error('[email-suppression-cleanup] Fatal error:', err)

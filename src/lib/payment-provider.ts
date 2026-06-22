@@ -86,4 +86,13 @@ export interface PaymentProvider {
     amountCents?: number,
     options?: { reverseRouting?: boolean; routingReversals?: RoutingReversal[] },
   ): Promise<void>
+
+  /**
+   * Cancel a payment that has not yet been completed.
+   *
+   * Useful for race conditions where an order is cancelled while the buyer's
+   * payment is still pending. If the payment has already been captured, the
+   * provider should throw so the caller can fall back to a refund.
+   */
+  cancelPayment(paymentId: string): Promise<void>
 }

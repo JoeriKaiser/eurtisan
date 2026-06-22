@@ -81,6 +81,9 @@ export const verifyShopOwnership = createServerFn({ method: 'GET' })
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
     }
+    if (context.user.bannedAt) {
+      throw new Error('BANNED')
+    }
     if (context.user.deletedAt) {
       throw new Error('BANNED')
     }

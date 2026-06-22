@@ -223,7 +223,9 @@ export function Step7Listing() {
           {m.onboarding_listing_label_price()}
         </Label>
         <div className='mt-1 flex items-center gap-2'>
-          <span className='text-text-muted'>€</span>
+          <span className='text-text-muted' aria-hidden='true'>
+            {m.currency_symbol()}
+          </span>
           <Input
             id='listing-price'
             type='number'

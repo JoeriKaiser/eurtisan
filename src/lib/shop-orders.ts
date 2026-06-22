@@ -41,6 +41,10 @@ export const getShopOrder = createServerFn({ method: 'GET' })
     const isOwner = isAdmin ? false : await isShopOwner(order.shopId, context.user.id)
     const isBuyer = order.buyer.id === context.user.id
 
+    if (isAdmin || isOwner) {
+      requirePrivileged2FA(context.user as SafeUser)
+    }
+
     if (!isAdmin && !isOwner && !isBuyer) {
       throw new Response(
         JSON.stringify({

@@ -11,6 +11,10 @@ import {
 } from '#/db/schema'
 import { normalizeCountryCode, getStandardVatRate } from './vat.server'
 import { PLATFORM_FEE_PERCENT } from './platform-constants'
+import { getPlatformVatLiable } from './env.server'
+
+/** Only supported currency. Used instead of hardcoded "EUR" strings. */
+export const SUPPORTED_CURRENCY = 'EUR' as const
 
 /**
  * Allocates the next sequential number for an invoice prefix.
@@ -196,7 +200,7 @@ export function calculatePlatformFeeVat(
 
   let vatRateBasisPoints = 0
   let reverseCharge = false
-  const platformVatLiable = process.env.PLATFORM_VAT_LIABLE === 'true'
+  const platformVatLiable = getPlatformVatLiable()
 
   if (platformVatLiable) {
     if (buyerCode === 'FR') {
@@ -357,153 +361,153 @@ export async function createInvoicesForPlatformOrder(
 
   const created = new Map<string, CreatedInvoiceNumbers>()
 
-  await Promise.all(
-    shopOrdersList.map(async (so: typeof shopOrder.$inferSelect) => {
-      const shopRecord = shopsById.get(so.shopId)
+  // Sequential invoice number allocation prevents races and guarantees
+  // strictly increasing numbers within a prefix. Do not parallelize.
+  for (const so of shopOrdersList) {
+    const shopRecord = shopsById.get(so.shopId)
 
-      if (!shopRecord) {
-        throw new Error(`Shop ${so.shopId} not found`)
-      }
+    if (!shopRecord) {
+      throw new Error(`Shop ${so.shopId} not found`)
+    }
 
-      const ownerUser = ownersById.get(shopRecord.ownerId)
+    const ownerUser = ownersById.get(shopRecord.ownerId)
 
-      const shopOrigin = shopRecord.shippingOrigin as {
-        street?: string
-        city?: string
-        postalCode?: string
-        country?: string
-      } | null
+    const shopOrigin = shopRecord.shippingOrigin as {
+      street?: string
+      city?: string
+      postalCode?: string
+      country?: string
+    } | null
 
-      const shopBusinessAddress = shopRecord.businessAddress as {
-        street?: string
-        city?: string
-        postalCode?: string
-        country?: string
-      } | null
+    const shopBusinessAddress = shopRecord.businessAddress as {
+      street?: string
+      city?: string
+      postalCode?: string
+      country?: string
+    } | null
 
-      const shopAddress = shopBusinessAddress ?? shopOrigin
+    const shopAddress = shopBusinessAddress ?? shopOrigin
 
-      const shopParty: BillingParty = {
-        name: shopRecord.name,
-        email: ownerUser?.email,
-        vatId: shopRecord.vatId,
-        isVatRegistered: shopRecord.isVatRegistered,
-        address: {
-          street: shopAddress?.street,
-          city: shopAddress?.city,
-          postalCode: shopAddress?.postalCode,
-          country: shopAddress?.country ?? '',
-        },
-      }
+    const shopParty: BillingParty = {
+      name: shopRecord.name,
+      email: ownerUser?.email,
+      vatId: shopRecord.vatId,
+      isVatRegistered: shopRecord.isVatRegistered,
+      address: {
+        street: shopAddress?.street,
+        city: shopAddress?.city,
+        postalCode: shopAddress?.postalCode,
+        country: shopAddress?.country ?? '',
+      },
+    }
 
-      // 4. Lookup order items from pre-fetched batch
-      const itemsList = itemsByShopOrderId.get(so.id) ?? []
+    // 4. Lookup order items from pre-fetched batch
+    const itemsList = itemsByShopOrderId.get(so.id) ?? []
 
-      // ─── A. GENERATE CUSTOMER INVOICE ───
-      const customerInvoiceNumber = await allocateNextInvoiceNumber(activeDb, 'INV')
+    // ─── A. GENERATE CUSTOMER INVOICE ───
+    const customerInvoiceNumber = await allocateNextInvoiceNumber(activeDb, 'INV')
 
-      // Calculate total net from items and shipping
-      const totalGross = so.subtotalCents + so.shippingCostCents
-      const totalVat = so.vatAmountCents + so.shippingVatAmountCents
-      const totalNet = totalGross - totalVat
+    // Calculate total net from items and shipping
+    const totalGross = so.subtotalCents + so.shippingCostCents
+    const totalVat = so.vatAmountCents + so.shippingVatAmountCents
+    const totalNet = totalGross - totalVat
 
-      const customerReverseCharge = isReverseChargeCustomerInvoice(
-        shopAddress?.country ?? '',
-        billingAddr.country,
-        shopRecord.isVatRegistered && !!shopRecord.vatId,
-        billingAddr.vatId,
-      )
+    const customerReverseCharge = isReverseChargeCustomerInvoice(
+      shopAddress?.country ?? '',
+      billingAddr.country,
+      shopRecord.isVatRegistered && !!shopRecord.vatId,
+      billingAddr.vatId,
+    )
 
-      const finalVatAmount = customerReverseCharge ? 0 : totalVat
-      const finalSubtotal = customerReverseCharge ? totalGross : totalNet
+    const finalVatAmount = customerReverseCharge ? 0 : totalVat
+    const finalSubtotal = customerReverseCharge ? totalGross : totalNet
 
-      const customerInvoiceLines: InvoiceLineItem[] = itemsList.map((item: any) => ({
-        id: item.productId,
-        name: item.productName,
-        quantity: item.quantity,
-        unitPriceCents: item.unitPriceCents,
-        totalCents: item.totalCents,
-        vatRateBasisPoints: customerReverseCharge ? 0 : item.vatRateBasisPoints,
-        vatAmountCents: customerReverseCharge ? 0 : item.vatAmountCents,
-      }))
+    const customerInvoiceLines: InvoiceLineItem[] = itemsList.map((item: any) => ({
+      id: item.productId,
+      name: item.productName,
+      quantity: item.quantity,
+      unitPriceCents: item.unitPriceCents,
+      totalCents: item.totalCents,
+      vatRateBasisPoints: customerReverseCharge ? 0 : item.vatRateBasisPoints,
+      vatAmountCents: customerReverseCharge ? 0 : item.vatAmountCents,
+    }))
 
-      const customerBillingDetails: BillingDetails = {
-        from: shopParty,
-        to: buyerParty,
-        items: customerInvoiceLines,
-        shipping: {
-          costCents: so.shippingCostCents,
-          vatRateBasisPoints: customerReverseCharge ? 0 : so.shippingVatRateBasisPoints,
-          vatAmountCents: customerReverseCharge ? 0 : so.shippingVatAmountCents,
-          method: so.shippingMethod,
-        },
-        reverseCharge: customerReverseCharge,
-      }
+    const customerBillingDetails: BillingDetails = {
+      from: shopParty,
+      to: buyerParty,
+      items: customerInvoiceLines,
+      shipping: {
+        costCents: so.shippingCostCents,
+        vatRateBasisPoints: customerReverseCharge ? 0 : so.shippingVatRateBasisPoints,
+        vatAmountCents: customerReverseCharge ? 0 : so.shippingVatAmountCents,
+        method: so.shippingMethod,
+      },
+      reverseCharge: customerReverseCharge,
+    }
 
-      await activeDb
-        .insert(invoices)
-        .values({
-          invoiceNumber: customerInvoiceNumber,
-          type: 'customer',
-          shopOrderId: so.id,
-          subtotalCents: finalSubtotal,
-          vatAmountCents: finalVatAmount,
-          totalCents: totalGross,
-          vatRateBasisPoints: 0, // Mix of rates possible, detail is in items snapshot
-          billingDetails: customerBillingDetails,
-        })
-        .onConflictDoNothing() // Idempotency fallback
+    await activeDb
+      .insert(invoices)
+      .values({
+        invoiceNumber: customerInvoiceNumber,
+        type: 'customer',
+        shopOrderId: so.id,
+        subtotalCents: finalSubtotal,
+        vatAmountCents: finalVatAmount,
+        totalCents: totalGross,
+        vatRateBasisPoints: 0, // Mix of rates possible, detail is in items snapshot
+        billingDetails: customerBillingDetails,
+      })
+      .onConflictDoNothing() // Idempotency fallback
 
-      created.set(so.id, { customerInvoiceNumber, platformFeeInvoiceNumber: '' })
+    created.set(so.id, { customerInvoiceNumber, platformFeeInvoiceNumber: '' })
 
-      // ─── B. GENERATE PLATFORM FEE INVOICE ───
-      const platformFeeInvoiceNumber = await allocateNextInvoiceNumber(activeDb, 'INV-FEE')
-      const netSubtotalCents = so.subtotalCents - so.vatAmountCents
-      const rawFeeCents = Math.round(netSubtotalCents * (PLATFORM_FEE_PERCENT / 100))
+    // ─── B. GENERATE PLATFORM FEE INVOICE ───
+    const platformFeeInvoiceNumber = await allocateNextInvoiceNumber(activeDb, 'INV-FEE')
+    const netSubtotalCents = so.subtotalCents - so.vatAmountCents
+    const rawFeeCents = Math.round(netSubtotalCents * (PLATFORM_FEE_PERCENT / 100))
 
-      const feeVatDetails = calculatePlatformFeeVat(
-        shopBusinessAddress?.country ?? shopOrigin?.country ?? '',
-        shopRecord.isVatRegistered && !!shopRecord.vatId,
-        rawFeeCents,
-      )
+    const feeVatDetails = calculatePlatformFeeVat(
+      shopBusinessAddress?.country ?? shopOrigin?.country ?? '',
+      shopRecord.isVatRegistered && !!shopRecord.vatId,
+      rawFeeCents,
+    )
 
-      const platformBillingDetails: BillingDetails = {
-        from: EURTISAN_BILLING_PARTY,
-        to: {
-          ...shopParty,
-          name: `${shopParty.name} (c/o ${ownerUser?.name || 'Owner'})`,
-        },
-        items: [
-          {
-            id: 'platform-commission',
-            name: `Eurtisan Platform Commission Fee (${PLATFORM_FEE_PERCENT}% on Sale Subtotal ${netSubtotalCents / 100} EUR)`,
-            quantity: 1,
-            unitPriceCents: feeVatDetails.totalCents,
-            totalCents: feeVatDetails.totalCents,
-            vatRateBasisPoints: feeVatDetails.vatRateBasisPoints,
-            vatAmountCents: feeVatDetails.vatAmountCents,
-          },
-        ],
-        reverseCharge: feeVatDetails.reverseCharge,
-      }
-
-      await activeDb
-        .insert(invoices)
-        .values({
-          invoiceNumber: platformFeeInvoiceNumber,
-          type: 'platform_fee',
-          shopOrderId: so.id,
-          subtotalCents: feeVatDetails.subtotalCents,
-          vatAmountCents: feeVatDetails.vatAmountCents,
+    const platformBillingDetails: BillingDetails = {
+      from: EURTISAN_BILLING_PARTY,
+      to: {
+        ...shopParty,
+        name: `${shopParty.name} (c/o ${ownerUser?.name || 'Owner'})`,
+      },
+      items: [
+        {
+          id: 'platform-commission',
+          name: `Eurtisan Platform Commission Fee (${PLATFORM_FEE_PERCENT}% on Sale Subtotal ${netSubtotalCents / 100} ${SUPPORTED_CURRENCY})`,
+          quantity: 1,
+          unitPriceCents: feeVatDetails.totalCents,
           totalCents: feeVatDetails.totalCents,
           vatRateBasisPoints: feeVatDetails.vatRateBasisPoints,
-          billingDetails: platformBillingDetails,
-        })
-        .onConflictDoNothing() // Idempotency fallback
+          vatAmountCents: feeVatDetails.vatAmountCents,
+        },
+      ],
+      reverseCharge: feeVatDetails.reverseCharge,
+    }
 
-      created.set(so.id, { customerInvoiceNumber, platformFeeInvoiceNumber })
-    }),
-  )
+    await activeDb
+      .insert(invoices)
+      .values({
+        invoiceNumber: platformFeeInvoiceNumber,
+        type: 'platform_fee',
+        shopOrderId: so.id,
+        subtotalCents: feeVatDetails.subtotalCents,
+        vatAmountCents: feeVatDetails.vatAmountCents,
+        totalCents: feeVatDetails.totalCents,
+        vatRateBasisPoints: feeVatDetails.vatRateBasisPoints,
+        billingDetails: platformBillingDetails,
+      })
+      .onConflictDoNothing() // Idempotency fallback
+
+    created.set(so.id, { customerInvoiceNumber, platformFeeInvoiceNumber })
+  }
 
   return created
 }
@@ -518,6 +522,16 @@ export async function createCreditNoteForShopOrder(
   tx?: any,
 ): Promise<string | null> {
   const activeDb = tx ?? db
+
+  const [existingCreditNote] = await activeDb
+    .select({ invoiceNumber: invoices.invoiceNumber })
+    .from(invoices)
+    .where(and(eq(invoices.shopOrderId, shopOrderId), eq(invoices.type, 'credit_note')))
+    .limit(1)
+
+  if (existingCreditNote) {
+    return existingCreditNote.invoiceNumber
+  }
 
   const [original] = await activeDb
     .select({

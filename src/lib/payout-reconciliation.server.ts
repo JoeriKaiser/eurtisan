@@ -54,6 +54,46 @@ async function listMollieRefundsForPayment(paymentId: string): Promise<MollieRef
   return (await response.json()) as MollieRefundList
 }
 
+function parseMollieAmountValue(value: string): number {
+  const normalized = value.replace(',', '.')
+  const parsed = Number.parseFloat(normalized)
+  if (Number.isNaN(parsed)) {
+    throw new Error(`Invalid Mollie amount value: ${value}`)
+  }
+  return Math.round(parsed * 100)
+}
+
+/**
+ * Attribute Mollie refunds to a specific shop order by treating each refund as
+ * belonging to this shop order while its amount fits within the remaining
+ * unrefunded portion of that shop order. This prevents an unrelated refund on
+ * the parent platform payment from reversing this shop order's payout.
+ */
+function attributeRefundsToShopOrder(
+  refunds: MollieRefundList['refunds'],
+  shopOrderTotalCents: number,
+  alreadyRefundedCents: number,
+): { attributedCents: number; attributedIds: string[] } {
+  const sorted = [...refunds]
+    .filter((r) => r.status === 'pending' || r.status === 'refunded' || r.status === 'queued')
+    .map((r) => ({ id: r.id, cents: parseMollieAmountValue(r.amount.value) }))
+    .sort((a, b) => a.cents - b.cents)
+
+  let attributedCents = 0
+  const attributedIds: string[] = []
+
+  for (const refund of sorted) {
+    const remaining = shopOrderTotalCents - alreadyRefundedCents - attributedCents
+    if (remaining <= 0) break
+    if (refund.cents <= remaining) {
+      attributedCents += refund.cents
+      attributedIds.push(refund.id)
+    }
+  }
+
+  return { attributedCents, attributedIds }
+}
+
 /* -------------------------------------------------------------------------- */
 /*                            Reconciliation                                  */
 /* -------------------------------------------------------------------------- */
@@ -61,8 +101,9 @@ async function listMollieRefundsForPayment(paymentId: string): Promise<MollieRef
 /**
  * Reconciles payout records against Mollie delayed-routing routes and refunds.
  *
+ * - Marks payouts as `returned` when their route was returned by Mollie.
  * - Marks payouts as `reversed` when their route no longer exists or when a
- *   refund has been created for the parent payment.
+ *   refund has been created for this shop order's portion of the parent payment.
  * - Emits reconciliation log entries for every state change.
  * - Logs alerts for unexpected discrepancies without mutating state.
  */
@@ -72,12 +113,17 @@ export async function reconcilePayouts(): Promise<ReconciliationResult> {
   const payoutsToCheck = await db
     .select({
       id: payout.id,
+      shopOrderId: payout.shopOrderId,
       amountCents: payout.amountCents,
       molliePaymentId: payout.molliePaymentId,
       mollieRouteId: payout.mollieRouteId,
       status: payout.status,
+      refundedCents: shopOrder.refundedCents,
+      subtotalCents: shopOrder.subtotalCents,
+      shippingCostCents: shopOrder.shippingCostCents,
     })
     .from(payout)
+    .innerJoin(shopOrder, eq(payout.shopOrderId, shopOrder.id))
     .where(
       and(
         inArray(payout.status, ['sent', 'in_transit']),
@@ -95,15 +141,15 @@ export async function reconcilePayouts(): Promise<ReconciliationResult> {
       if (!record.molliePaymentId || !record.mollieRouteId) continue
       const paymentId = record.molliePaymentId
       const routeId = record.mollieRouteId
+      const shopOrderTotalCents = record.subtotalCents + record.shippingCostCents
 
       const [route, refundList] = await Promise.all([
         getMollieRoute(paymentId, routeId),
-        listMollieRefundsForPayment(paymentId).catch(() => ({ refunds: [] })),
+        listMollieRefundsForPayment(paymentId),
       ])
 
-      const hasRefund = refundList.refunds.length > 0
-      const routeMissing = route === null
       const routeReturned = route?.status === 'returned'
+      const routeMissing = route === null
 
       if (routeReturned) {
         await db.transaction(async (tx) => {
@@ -136,26 +182,37 @@ export async function reconcilePayouts(): Promise<ReconciliationResult> {
         continue
       }
 
-      if (routeMissing || hasRefund) {
+      const { attributedCents: refundAttributedCents, attributedIds: refundAttributedIds } =
+        attributeRefundsToShopOrder(refundList.refunds, shopOrderTotalCents, record.refundedCents)
+
+      const totalRefundedCents = record.refundedCents + refundAttributedCents
+      const refundCoversPayout = totalRefundedCents >= record.amountCents
+
+      if (routeMissing || refundCoversPayout) {
+        const reason = routeMissing ? 'route_missing' : 'refund_detected'
+
         await db.transaction(async (tx) => {
           await tx
             .update(payout)
             .set({
               status: 'reversed',
               reversedAt: new Date(),
-              reversalReason: routeMissing ? 'route_missing' : 'refund_detected',
+              reversalReason: reason,
             })
             .where(eq(payout.id, record.id))
 
           await tx.insert(payoutReconciliationLog).values({
             payoutId: record.id,
-            event: routeMissing ? 'route_missing' : 'refund_detected',
+            event: reason,
             molliePaymentId: paymentId,
             mollieRouteId: routeId,
             amountCents: record.amountCents,
             payload: {
               routeMissing,
-              refundCount: refundList.refunds.length,
+              refundCoversPayout,
+              refundAttributedCents,
+              refundAttributedIds,
+              refundedCents: record.refundedCents,
             },
           })
         })
@@ -164,7 +221,9 @@ export async function reconcilePayouts(): Promise<ReconciliationResult> {
         logger.info(`Payout ${record.id} marked reversed during reconciliation`, {
           payoutId: record.id,
           routeMissing,
-          refundCount: refundList.refunds.length,
+          refundCoversPayout,
+          refundAttributedCents,
+          refundAttributedIds,
         })
       }
     } catch (err) {

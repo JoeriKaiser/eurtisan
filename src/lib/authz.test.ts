@@ -5,6 +5,7 @@ import { db } from '#/db/index'
 import {
   AuthError,
   authPipeline,
+  authPipelinePrivileged,
   requireAuth,
   requireRole,
   requireShopOwnership,
@@ -42,7 +43,7 @@ beforeEach(() => {
 
 function makeUser(
   role: 'customer' | 'creator' | 'admin',
-  overrides?: Partial<{ id: string; name: string; email: string }>,
+  overrides?: Partial<{ id: string; name: string; email: string; twoFactorEnabled: boolean }>,
 ) {
   return {
     id: 'user-1',
@@ -426,5 +427,81 @@ describe('authPipeline', () => {
     const response = await authPipeline(req, [], async () => new Response('OK'))
 
     expect(response.status).toBe(200)
+  })
+})
+
+describe('authPipelinePrivileged', () => {
+  beforeEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('succeeds when a privileged user has 2FA enabled', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('VITEST', 'false')
+
+    mockGetSession.mockResolvedValue({
+      user: makeUser('creator', { twoFactorEnabled: true }),
+      session: makeSession('user-1'),
+    })
+
+    const response = await authPipelinePrivileged(
+      makeRequest(),
+      [requireRole('creator')],
+      async () => new Response('OK'),
+    )
+    expect(response.status).toBe(200)
+  })
+
+  it('returns 403 when a privileged user has not enabled 2FA', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('VITEST', 'false')
+
+    mockGetSession.mockResolvedValue({
+      user: makeUser('creator', { twoFactorEnabled: false }),
+      session: makeSession('user-1'),
+    })
+
+    const response = await authPipelinePrivileged(
+      makeRequest(),
+      [requireRole('creator')],
+      async () => new Response('OK'),
+    )
+    expect(response.status).toBe(403)
+    const body = await response.json()
+    expect(body.error).toBe('TWO_FACTOR_REQUIRED')
+  })
+
+  it('bypasses 2FA enforcement under test environment', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('VITEST', 'true')
+
+    mockGetSession.mockResolvedValue({
+      user: makeUser('creator', { twoFactorEnabled: false }),
+      session: makeSession('user-1'),
+    })
+
+    const response = await authPipelinePrivileged(
+      makeRequest(),
+      [requireRole('creator')],
+      async () => new Response('OK'),
+    )
+    expect(response.status).toBe(200)
+  })
+
+  it('still applies role gates', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('VITEST', 'false')
+
+    mockGetSession.mockResolvedValue({
+      user: makeUser('customer', { twoFactorEnabled: true }),
+      session: makeSession('user-1'),
+    })
+
+    const response = await authPipelinePrivileged(
+      makeRequest(),
+      [requireRole('creator')],
+      async () => new Response('OK'),
+    )
+    expect(response.status).toBe(403)
   })
 })

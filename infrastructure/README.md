@@ -8,7 +8,9 @@ Provider-agnostic IaC for deploying Eurtisan on any VPS.
 |------|---------|
 | **Ansible** | Server hardening, Docker installation, app deployment |
 | **Caddy** | Reverse proxy with automatic HTTPS (Let's Encrypt) |
-| **Docker Compose** | Container orchestration (app, PostgreSQL, Meilisearch) |
+| **Docker Compose** | Container orchestration (app, PostgreSQL, Meilisearch, jobs) |
+| **Prometheus + Alertmanager** | Metrics and alerting |
+| **Grafana + Alloy + Loki + Tempo** | Observability stack |
 | **Forgejo Actions** | Optional future CI/CD via Codeberg (not configured yet) |
 
 ## Prerequisites
@@ -70,11 +72,14 @@ ansible-playbook -i inventory/production.yml playbook.yml -e @secrets.yml
 The playbook will:
 1. Harden the server (UFW, fail2ban, auto-updates)
 2. Install Docker + Docker Compose plugin
-3. Clone the repository to `/opt/eurtisan`
-4. Write the `.env` file
-5. Start all services
-6. Run database migrations
-7. Set up nightly database backups
+3. Install rclone for off-site backups
+4. Validate that at least one Alertmanager receiver is configured in production
+5. Clone the repository to `/opt/eurtisan`
+6. Write the `.env` file
+7. Start all services
+8. Run database migrations
+9. Set up nightly database backups with off-site upload when configured
+10. Configure PostgreSQL WAL archiving when enabled
 
 ### 4. Point DNS
 
@@ -129,9 +134,9 @@ infrastructure/
 ## Backup & Recovery
 
 Database backups run nightly at 03:00 UTC and are stored in `/opt/eurtisan/backups/`.
-Backups older than **30 days** are automatically pruned (override with `backup_retention_days` in Ansible).
+Backups older than **30 days** are automatically pruned locally (override with `backup_retention_days` in Ansible).
 
-
+Every backup is verified by restoring it into a temporary container before it is retained or uploaded.
 
 ### Off-site backups (recommended)
 
@@ -139,9 +144,17 @@ Configure an [rclone](https://rclone.org/) remote on the VPS and set in `secrets
 
 ```yaml
 backup_offsite_rclone_remote: "eurtisan-backups:eurtisan"
+backup_offsite_retention_days: 90
 ```
 
-Nightly `backup.sh` uploads each verified `.sql.gz` to that remote after the local test-restore check.
+Nightly `backup.sh` uploads each verified `.sql.gz` to that remote. Off-site backups older than `backup_offsite_retention_days` are pruned (or rely on a bucket lifecycle rule).
+
+### Meilisearch & S3 uploads
+
+- Meilisearch dumps are created alongside each database backup.
+- S3 uploads can be synced off-site by setting `backup_s3_uploads_rclone_remote`.
+
+Both are best-effort: failures are logged and alerted but do not fail the database backup.
 
 ### Hot standby / managed database (production)
 

@@ -13,6 +13,7 @@ import { sendcloudWebhookEvent, shippingLabel, shopOrder } from '#/db/schema'
 import { SendcloudProvider } from '#/integrations/shipping/sendcloud-provider'
 import { getSendcloudWebhookSecret } from '#/lib/env.server'
 import { logger } from '#/lib/logger.server'
+import { sendcloudWebhookFailedTotal } from '#/lib/metrics.server'
 import { markShopOrderDeliveredQuery } from '#/lib/shop-orders.server'
 
 /** Expected webhook payload shape from Sendcloud. */
@@ -78,6 +79,7 @@ export async function processSendcloudWebhook(
 
   // 3. Verify the webhook signature (mandatory security requirement).
   if (!secret) {
+    sendcloudWebhookFailedTotal.inc({ reason: 'secret_not_configured' })
     await markEventProcessed(database, eventRecord.id, 'secret_not_configured')
     logger.error('Sendcloud webhook secret is not configured')
     return jsonResponse(500, 'Internal Server Error', 'Webhook secret not configured')
@@ -88,12 +90,14 @@ export async function processSendcloudWebhook(
   try {
     isValid = await verify(rawBody, signature, secret)
   } catch (err) {
+    sendcloudWebhookFailedTotal.inc({ reason: 'malformed_signature' })
     await markEventProcessed(database, eventRecord.id, 'malformed_signature')
     logger.error('Sendcloud webhook signature verification failed', err)
     return jsonResponse(400, 'Bad Request', 'Malformed signature')
   }
 
   if (!isValid) {
+    sendcloudWebhookFailedTotal.inc({ reason: 'invalid_signature' })
     await markEventProcessed(database, eventRecord.id, 'invalid_signature')
     return jsonResponse(401, 'Unauthorized', 'Invalid signature')
   }

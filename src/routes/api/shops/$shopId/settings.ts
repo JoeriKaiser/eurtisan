@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { authPipeline, requireRole, requireShopOwnership } from '#/lib/authz'
+import { authPipelinePrivileged, requireRole, requireShopOwnership } from '#/lib/authz'
 import { updateShopSchema } from '#/lib/shop-settings'
 import { getCreatorShopQuery } from '#/lib/creator-dashboard.server'
 import { SlugCollisionError, updateShopInternal } from '#/lib/shop-settings.server'
@@ -9,7 +9,7 @@ export const Route = createFileRoute('/api/shops/$shopId/settings')({
   server: {
     handlers: {
       GET: async ({ request, params }) =>
-        authPipeline(
+        authPipelinePrivileged(
           request,
           [requireRole('creator'), (ctx) => requireShopOwnership(ctx, params.shopId)],
           async (ctx) => {
@@ -27,7 +27,7 @@ export const Route = createFileRoute('/api/shops/$shopId/settings')({
           },
         ),
       PATCH: async ({ request, params }) =>
-        authPipeline(
+        authPipelinePrivileged(
           request,
           [requireRole('creator'), (ctx) => requireShopOwnership(ctx, params.shopId)],
           async () => {

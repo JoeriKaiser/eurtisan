@@ -129,6 +129,8 @@ export function calculateVat(input: VatCalculationInput): VatCalculationResult {
   return { vatAmountCents, vatRateBasisPoints }
 }
 
+import { logger } from './logger.server'
+
 /**
  * Strict alphanumeric validation patterns for EU VAT formats.
  */
@@ -141,11 +143,11 @@ export const EU_VAT_REGEXES: Record<string, RegExp> = {
   DE: /^DE\d{9}$/, // Germany
   DK: /^DK\d{8}$/, // Denmark
   EE: /^EE\d{9}$/, // Estonia
-  EL: /^EL\d{9}$/, // Greece
-  GR: /^GR\d{9}$/, // Greece (alternative country code)
+  EL: /^EL\d{9}$/, // Greece (VIES uses EL)
   ES: /^ES[A-Z0-9]\d{7}[A-Z0-9]$/, // Spain
   FI: /^FI\d{8}$/, // Finland
   FR: /^FR[A-Z0-9]{2}\d{9}$/, // France
+  GR: /^GR\d{9}$/, // Greece (ISO-3166-1 alpha-2 code)
   HR: /^HR\d{11}$/, // Croatia
   HU: /^HU\d{8}$/, // Hungary
   IE: /^IE(\d{7}[A-W]|\d[A-Z0-9+*]\d{5}[A-W])$/, // Ireland
@@ -165,27 +167,47 @@ export const EU_VAT_REGEXES: Record<string, RegExp> = {
 
 /**
  * Validates the format of a VAT ID offline using country-specific regexes.
+ *
+ * Greek VAT IDs use the VIES prefix `EL` but shop/buyer addresses use the
+ * ISO code `GR`. This helper accepts either prefix when `countryCode` is `GR`.
  */
 export function isVatIdFormatValid(vatId: string, countryCode: string): boolean {
   const normalizedCountry = countryCode.toUpperCase().trim()
+  const cleanVat = vatId.toUpperCase().replace(/[\s.-]+/g, '')
+
+  // Greece: allow both EL (VIES) and GR (ISO) prefixes when address country is GR.
+  if (normalizedCountry === 'GR') {
+    return (
+      (EU_VAT_REGEXES.EL?.test(cleanVat) ?? false) || (EU_VAT_REGEXES.GR?.test(cleanVat) ?? false)
+    )
+  }
+
   const pattern = EU_VAT_REGEXES[normalizedCountry]
   if (!pattern) return false
 
-  // Strip spaces, hyphens, and dots for a clean alphanumeric check
-  const cleanVat = vatId.toUpperCase().replace(/[\s.-]+/g, '')
   return pattern.test(cleanVat)
 }
 
 /**
  * Verifies a VAT ID with the European Commission's public VIES API.
- * Aborts and returns true (graceful fallback) if the API is down or times out.
+ *
+ * VIES uses `EL` for Greece, so a `GR` country code is normalised to `EL` and
+ * any `EL` prefix is stripped before calling the API.
+ *
+ * Failures are now fail-closed: any network, timeout, HTTP, or invalid JSON
+ * error returns `false` and rejects checkout. An ops alert is emitted for
+ * infrastructure failures so on-call can investigate.
  */
 export async function verifyVatIdVies(vatId: string, countryCode: string): Promise<boolean> {
-  const cleanVat = vatId.toUpperCase().replace(/[\s.-]+/g, '')
-  // Extract number part if it starts with the country code prefix
-  const vatNumber = cleanVat.startsWith(countryCode) ? cleanVat.slice(2) : cleanVat
+  const normalizedCountry = countryCode.toUpperCase().trim()
+  // VIES expects EL for Greece; every other country uses its ISO code.
+  const viesCountryCode = normalizedCountry === 'GR' ? 'EL' : normalizedCountry
 
-  const url = `https://ec.europa.eu/taxation_customs/vies/rest-api/ms/${countryCode}/vat/${vatNumber}`
+  const cleanVat = vatId.toUpperCase().replace(/[\s.-]+/g, '')
+  // Strip the VIES country prefix if present to leave only the numeric part.
+  const vatNumber = cleanVat.startsWith(viesCountryCode) ? cleanVat.slice(2) : cleanVat
+
+  const url = `https://ec.europa.eu/taxation_customs/vies/rest-api/ms/${viesCountryCode}/vat/${vatNumber}`
 
   try {
     const controller = new AbortController()
@@ -195,15 +217,18 @@ export async function verifyVatIdVies(vatId: string, countryCode: string): Promi
     clearTimeout(timeoutId)
 
     if (!response.ok) {
-      console.warn(`VIES API returned status ${response.status} for ${countryCode}-${vatNumber}`)
-      return true
+      logger.error(
+        `VIES API returned non-OK status ${response.status}`,
+        new Error(`VIES HTTP ${response.status}`),
+        { alert: true, viesCountryCode, status: response.status },
+      )
+      return false
     }
 
     const data = (await response.json()) as { isValid: boolean }
-    return data.isValid
+    return data.isValid === true
   } catch (err) {
-    console.error(`VIES validation failed or timed out:`, err)
-    // Fallback to true so downtime does not block checkout
-    return true
+    logger.error('VIES validation failed or timed out', err, { alert: true, viesCountryCode })
+    return false
   }
 }

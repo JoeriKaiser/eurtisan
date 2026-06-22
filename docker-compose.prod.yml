@@ -27,6 +27,8 @@ services:
     depends_on:
       app:
         condition: service_healthy
+      imgproxy:
+        condition: service_healthy
 
   app:
     image: eurtisan-app:${IMAGE_TAG:-latest}
@@ -112,14 +114,16 @@ services:
       IMGPROXY_MAX_ANIMATION_FRAMES: 1
     networks:
       - eurtisan
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   inventory-cleanup:
     image: eurtisan-app:${IMAGE_TAG:-latest}
-    build:
-      context: .
-      dockerfile: Dockerfile.prod
     container_name: eurtisan-inventory-cleanup
-    restart: unless-stopped
     user: "1000:1000"
     env_file:
       - .env
@@ -131,16 +135,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: unless-stopped
+        delay: 10s
+        max_attempts: 5
+        window: 120s
     command: >
       sh -c "bun run src/jobs/inventory-cleanup.ts"
 
   meilisearch-sync:
     image: eurtisan-app:${IMAGE_TAG:-latest}
-    build:
-      context: .
-      dockerfile: Dockerfile.prod
     container_name: eurtisan-meilisearch-sync
-    restart: unless-stopped
     user: "1000:1000"
     env_file:
       - .env
@@ -154,16 +160,18 @@ services:
         condition: service_healthy
       meilisearch:
         condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: unless-stopped
+        delay: 10s
+        max_attempts: 5
+        window: 120s
     command: >
       sh -c "bun run src/jobs/meilisearch-sync.ts"
 
   payout-reconciliation:
     image: eurtisan-app:${IMAGE_TAG:-latest}
-    build:
-      context: .
-      dockerfile: Dockerfile.prod
     container_name: eurtisan-payout-reconciliation
-    restart: unless-stopped
     user: "1000:1000"
     env_file:
       - .env
@@ -175,16 +183,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: unless-stopped
+        delay: 10s
+        max_attempts: 5
+        window: 120s
     command: >
       sh -c "bun run job:payout-reconciliation"
 
   sendcloud-reconciliation:
     image: eurtisan-app:${IMAGE_TAG:-latest}
-    build:
-      context: .
-      dockerfile: Dockerfile.prod
     container_name: eurtisan-sendcloud-reconciliation
-    restart: unless-stopped
     user: "1000:1000"
     env_file:
       - .env
@@ -196,16 +206,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: unless-stopped
+        delay: 10s
+        max_attempts: 5
+        window: 120s
     command: >
       sh -c "bun run job:sendcloud-reconciliation"
 
   session-cleanup:
     image: eurtisan-app:${IMAGE_TAG:-latest}
-    build:
-      context: .
-      dockerfile: Dockerfile.prod
     container_name: eurtisan-session-cleanup
-    restart: unless-stopped
     user: "1000:1000"
     env_file:
       - .env
@@ -217,16 +229,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: unless-stopped
+        delay: 10s
+        max_attempts: 5
+        window: 120s
     command: >
       sh -c "bun run job:session-cleanup"
 
   cart-cleanup:
     image: eurtisan-app:${IMAGE_TAG:-latest}
-    build:
-      context: .
-      dockerfile: Dockerfile.prod
     container_name: eurtisan-cart-cleanup
-    restart: unless-stopped
     user: "1000:1000"
     env_file:
       - .env
@@ -238,16 +252,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: unless-stopped
+        delay: 10s
+        max_attempts: 5
+        window: 120s
     command: >
       sh -c "bun run job:cart-cleanup"
 
   audit-log-cleanup:
     image: eurtisan-app:${IMAGE_TAG:-latest}
-    build:
-      context: .
-      dockerfile: Dockerfile.prod
     container_name: eurtisan-audit-log-cleanup
-    restart: unless-stopped
     user: "1000:1000"
     env_file:
       - .env
@@ -259,16 +275,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: unless-stopped
+        delay: 10s
+        max_attempts: 5
+        window: 120s
     command: >
       sh -c "bun run job:audit-log-cleanup"
 
   verification-cleanup:
     image: eurtisan-app:${IMAGE_TAG:-latest}
-    build:
-      context: .
-      dockerfile: Dockerfile.prod
     container_name: eurtisan-verification-cleanup
-    restart: unless-stopped
     user: "1000:1000"
     env_file:
       - .env
@@ -280,16 +298,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: unless-stopped
+        delay: 10s
+        max_attempts: 5
+        window: 120s
     command: >
       sh -c "bun run job:verification-cleanup"
 
   email-outbox-worker:
     image: eurtisan-app:${IMAGE_TAG:-latest}
-    build:
-      context: .
-      dockerfile: Dockerfile.prod
     container_name: eurtisan-email-outbox-worker
-    restart: unless-stopped
     user: "1000:1000"
     env_file:
       - .env
@@ -301,16 +321,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: unless-stopped
+        delay: 10s
+        max_attempts: 5
+        window: 120s
     command: >
       sh -c "bun run job:email-outbox-worker"
 
   email-suppression-cleanup:
     image: eurtisan-app:${IMAGE_TAG:-latest}
-    build:
-      context: .
-      dockerfile: Dockerfile.prod
     container_name: eurtisan-email-suppression-cleanup
-    restart: unless-stopped
     user: "1000:1000"
     env_file:
       - .env
@@ -322,16 +344,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: unless-stopped
+        delay: 10s
+        max_attempts: 5
+        window: 120s
     command: >
       sh -c "bun run job:email-suppression-cleanup"
 
   email-retention-cleanup:
     image: eurtisan-app:${IMAGE_TAG:-latest}
-    build:
-      context: .
-      dockerfile: Dockerfile.prod
     container_name: eurtisan-email-retention-cleanup
-    restart: unless-stopped
     user: "1000:1000"
     env_file:
       - .env
@@ -343,8 +367,37 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: unless-stopped
+        delay: 10s
+        max_attempts: 5
+        window: 120s
     command: >
       sh -c "bun run job:email-retention-cleanup"
+
+  sendcloud-retention-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-sendcloud-retention-cleanup
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: unless-stopped
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+    command: >
+      sh -c "bun run job:sendcloud-retention-cleanup"
 
 volumes:
   postgres_data:

@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { authPipeline, requireRole, requireShopOwnership } from '#/lib/authz'
+import { authPipelinePrivileged, requireRole, requireShopOwnership } from '#/lib/authz'
 import { createProduct, listCreatorProducts } from '#/lib/creator-products'
 import { ImageValidationError } from '#/lib/image-utils'
 
@@ -14,7 +14,7 @@ export const Route = createFileRoute('/api/shops/$shopId/products')({
         const active = url.searchParams.get('active') ?? 'all'
         const categoryId = url.searchParams.get('categoryId') ?? undefined
 
-        return authPipeline(
+        return authPipelinePrivileged(
           request,
           [requireRole('creator'), (ctx) => requireShopOwnership(ctx, params.shopId)],
           async () => {
@@ -35,7 +35,7 @@ export const Route = createFileRoute('/api/shops/$shopId/products')({
         )
       },
       POST: async ({ request, params }) =>
-        authPipeline(
+        authPipelinePrivileged(
           request,
           [requireRole('creator'), (ctx) => requireShopOwnership(ctx, params.shopId)],
           async () => {

@@ -1,7 +1,13 @@
 import { CheckCircle2, Circle } from 'lucide-react'
-import { FULFILLMENT_STATUSES, isStatusReached, statusTimelineLabel } from '#/lib/orders-ui'
+import {
+  FULFILLMENT_STATUSES,
+  getOrderStatusLabel,
+  isStatusReached,
+  statusTimelineLabel,
+} from '#/lib/orders-ui'
+import type { OrderStatus } from '#/lib/orders.server'
 
-export function ShopOrderStatusTimeline({ status }: { status: string }) {
+export function ShopOrderStatusTimeline({ status }: { status: OrderStatus }) {
   const isTerminal = ['cancelled', 'refunded', 'disputed'].includes(status)
   return (
     <div className='space-y-4'>
@@ -39,7 +45,7 @@ export function ShopOrderStatusTimeline({ status }: { status: string }) {
               </span>
               {isLast && isTerminal && (
                 <span className='text-center text-xs font-medium text-error'>
-                  {status.replace('_', ' ')}
+                  {getOrderStatusLabel(status)}
                 </span>
               )}
             </li>

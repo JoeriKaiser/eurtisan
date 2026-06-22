@@ -14,6 +14,7 @@ import {
 import { Button } from '#/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
 import { isSupportedShippingCountry } from '#/lib/orders-ui'
+import type { OrderStatus } from '#/lib/orders.server'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 import { ShopOrderStatusTimeline } from '#/route-components/studio/ShopOrderStatusTimeline'
@@ -72,7 +73,7 @@ interface OrderTotals {
 /* ------------------------------------------------------------------ */
 
 interface OrderStatusSectionProps {
-  status: string
+  status: OrderStatus
   canShip: boolean
   canDeliver: boolean
   canRefund: boolean

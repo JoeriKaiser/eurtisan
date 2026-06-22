@@ -16,6 +16,7 @@ import {
   cleanupEmailOutbox,
   cleanupEmailSendLog,
 } from '#/lib/email-retention-cleanup.server'
+import { withJobLock } from '#/lib/job-lock.server'
 
 const INTERVAL_MS = Number.parseInt(
   process.env.EMAIL_RETENTION_CLEANUP_INTERVAL_MS ?? '86400000',
@@ -43,7 +44,7 @@ async function tick(): Promise<void> {
   }
 }
 
-async function main(): Promise<void> {
+async function run(): Promise<void> {
   console.log(
     `[email-retention-cleanup] Started (interval=${INTERVAL_MS}ms, batchSize=${BATCH_SIZE})`,
   )
@@ -65,6 +66,13 @@ function shutdown(): void {
 
 process.on('SIGINT', shutdown)
 process.on('SIGTERM', shutdown)
+
+async function main(): Promise<void> {
+  const result = await withJobLock('email-retention-cleanup', run)
+  if (result === undefined) {
+    console.log('[email-retention-cleanup] Another instance is already running; exiting cleanly.')
+  }
+}
 
 main().catch((err) => {
   console.error('[email-retention-cleanup] Fatal error:', err)

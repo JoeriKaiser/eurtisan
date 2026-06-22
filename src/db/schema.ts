@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm'
+import { isNotNull, sql } from 'drizzle-orm'
 import {
   boolean,
   check,
@@ -62,7 +62,7 @@ export const session = pgTable(
     id: text().primaryKey(),
     expiresAt: timestamp().notNull(),
     token: text(),
-    tokenHash: text('token_hash'),
+    tokenHash: text('token_hash').notNull(),
     createdAt: timestamp().notNull().defaultNow(),
     updatedAt: timestamp().notNull().defaultNow(),
     ipAddress: text(),
@@ -111,7 +111,14 @@ export const account = pgTable(
     createdAt: timestamp().notNull().defaultNow(),
     updatedAt: timestamp().notNull().defaultNow(),
   },
-  (table) => [index('account_userId_idx').on(table.userId)],
+  (table) => [
+    index('account_userId_idx').on(table.userId),
+    uniqueIndex('account_provider_account_unique').on(
+      table.providerId,
+      table.accountId,
+      table.userId,
+    ),
+  ],
 )
 
 export const verification = pgTable(
@@ -331,7 +338,9 @@ export const productVariant = pgTable(
   },
   (table) => [
     index('product_variant_product_id_idx').on(table.productId),
-    uniqueIndex('product_variant_sku_unique').on(table.sku),
+    uniqueIndex('product_variant_sku_unique').on(table.sku).where(isNotNull(table.sku)),
+    uniqueIndex('product_variant_product_name_unique').on(table.productId, table.name),
+    check('product_variant_stock_count_non_negative', sql`${table.stockCount} >= 0`),
   ],
 )
 
@@ -362,7 +371,10 @@ export const productOptionValue = pgTable(
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
-  (table) => [index('product_option_value_option_id_idx').on(table.optionId)],
+  (table) => [
+    index('product_option_value_option_id_idx').on(table.optionId),
+    uniqueIndex('product_option_value_option_value_unique').on(table.optionId, table.value),
+  ],
 )
 
 export const productVariantOption = pgTable(
@@ -417,6 +429,7 @@ export const cartItem = pgTable(
   (table) => [
     index('cart_item_cart_id_idx').on(table.cartId),
     uniqueIndex('cart_item_cart_id_product_id_unique').on(table.cartId, table.productId),
+    check('cart_item_quantity_positive', sql`${table.quantity} > 0`),
   ],
 )
 
@@ -463,6 +476,10 @@ export const platformOrder = pgTable(
     // data migrations (e.g. staging → production) may collide; remove or adjust
     // this constraint if such migrations are performed.
     uniqueIndex('platform_order_mollie_payment_id_unique').on(table.molliePaymentId),
+    check(
+      'platform_order_refunded_cents_not_over_total',
+      sql`${table.refundedCents} <= ${table.totalCents}`,
+    ),
   ],
 )
 
@@ -484,6 +501,8 @@ export const shopOrder = pgTable(
     shippingVatRateBasisPoints: integer('shipping_vat_rate_basis_points').notNull().default(0),
     shippingVatAmountCents: integer('shipping_vat_amount_cents').notNull().default(0),
     refundedCents: integer('refunded_cents').notNull().default(0),
+    refundPendingCents: integer('refund_pending_cents').notNull().default(0),
+    lastRefundAttemptedAt: timestamp('last_refund_attempted_at'),
     status: orderStatusEnum().notNull().default('pending_payment'),
     trackingNumber: text('tracking_number'),
     trackingUrl: text('tracking_url'),
@@ -498,6 +517,11 @@ export const shopOrder = pgTable(
     index('shop_order_shop_id_idx').on(table.shopId),
     index('shop_order_status_idx').on(table.status),
     index('shop_order_created_at_idx').on(table.createdAt),
+    check(
+      'shop_order_refunded_cents_not_over_total',
+      sql`${table.refundedCents} <= ${table.subtotalCents} + ${table.shippingCostCents}`,
+    ),
+    check('shop_order_refund_pending_cents_non_negative', sql`${table.refundPendingCents} >= 0`),
   ],
 )
 
@@ -529,6 +553,7 @@ export const orderItem = pgTable(
   (table) => [
     index('order_item_shop_order_id_idx').on(table.shopOrderId),
     index('order_item_product_id_idx').on(table.productId),
+    check('order_item_quantity_positive', sql`${table.quantity} > 0`),
   ],
 )
 
@@ -550,11 +575,20 @@ export const inventoryReservation = pgTable(
   (table) => [
     index('inventory_reservation_product_id_idx').on(table.productId),
     index('inventory_reservation_expires_at_idx').on(table.expiresAt),
-    uniqueIndex('inventory_reservation_product_order_unique').on(
-      table.productId,
-      table.platformOrderId,
+    uniqueIndex('inventory_reservation_product_order_unique')
+      .on(table.productId, table.platformOrderId)
+      .where(isNotNull(table.platformOrderId)),
+    uniqueIndex('inventory_reservation_product_cart_unique')
+      .on(table.productId, table.cartId)
+      .where(isNotNull(table.cartId)),
+    check(
+      'inventory_reservation_owner_check',
+      sql`
+        (${table.platformOrderId} IS NOT NULL AND ${table.cartId} IS NULL)
+        OR
+        (${table.platformOrderId} IS NULL AND ${table.cartId} IS NOT NULL)
+      `,
     ),
-    uniqueIndex('inventory_reservation_product_cart_unique').on(table.productId, table.cartId),
   ],
 )
 
@@ -601,7 +635,9 @@ export const payout = pgTable(
   'payout',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    shopOrderId: uuid('shop_order_id').references(() => shopOrder.id, { onDelete: 'cascade' }),
+    shopOrderId: uuid('shop_order_id')
+      .notNull()
+      .references(() => shopOrder.id, { onDelete: 'cascade' }),
     shopId: text('shop_id')
       .notNull()
       .references(() => shop.id, { onDelete: 'cascade' }),
@@ -1013,11 +1049,32 @@ export const invoices = pgTable(
   ],
 )
 
+export const financialTotalAudit = pgTable(
+  'financial_total_audit',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    entityType: text('entity_type').notNull(), // 'platform_order' | 'shop_order' | 'order_item'
+    entityId: text('entity_id').notNull(),
+    fieldName: text('field_name').notNull(),
+    storedCents: integer('stored_cents').notNull(),
+    computedCents: integer('computed_cents').notNull(),
+    diffCents: integer('diff_cents').notNull(),
+    resolvedAt: timestamp('resolved_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('financial_total_audit_entity_idx').on(table.entityType, table.entityId),
+    index('financial_total_audit_created_at_idx').on(table.createdAt),
+  ],
+)
+
 export const meilisearchSyncQueue = pgTable(
   'meilisearch_sync_queue',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    productId: text('product_id').notNull(),
+    productId: text('product_id')
+      .notNull()
+      .references(() => product.id, { onDelete: 'cascade' }),
     action: text('action').notNull(), // 'index' | 'delete'
     status: text('status').notNull().default('pending'), // 'pending' | 'failed' | 'completed'
     attempts: integer('attempts').notNull().default(0),

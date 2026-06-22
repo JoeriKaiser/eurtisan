@@ -13,6 +13,8 @@ All sensitive values (passwords, API keys, tokens) are stored in **`secrets.yml`
 ### Vault Password
 
 The vault password is stored in `.vault_pass` (`.gitignore`-d, never committed).
+The `.vault_pass` file in the repository is a placeholder; create it locally with
+the real password before running any Ansible command.
 
 If you need to share the password with a team member, use a secure channel (1Password, Bitwarden Send, etc.). Do not paste it in Slack or email.
 

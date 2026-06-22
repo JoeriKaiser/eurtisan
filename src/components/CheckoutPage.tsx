@@ -7,6 +7,7 @@ import { Input } from '#/components/ui/input'
 import { createCheckout, getCheckoutSummary } from '#/lib/checkout'
 import type { CheckoutShopGroup, CheckoutSummary, ShippingOption } from '#/lib/checkout.server'
 import { getLocalizedErrorMessage } from '#/lib/error-mapping'
+import { SUPPORTED_COUNTRY_CODES } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 import { CheckoutLegalDisclosures } from './checkout/CheckoutLegalDisclosures'
@@ -98,12 +99,14 @@ function getDefaultShippingSelection(
 }
 
 /**
- * Format estimated delivery days as a human-readable string.
+ * Format estimated delivery days as a localized human-readable string.
  */
 function formatEstimatedDays(days: ShippingOption['estimatedDays']): string | null {
   if (!days) return null
-  if (days.min === days.max) return `${days.min} business day${days.min > 1 ? 's' : ''}`
-  return `${days.min}–${days.max} business days`
+  if (days.min === days.max) {
+    return m.shipping_estimatedDays({ count: days.min })
+  }
+  return m.shipping_estimatedDays_range({ min: days.min, max: days.max })
 }
 
 export default function CheckoutPage({ summary: initialSummary, cartId }: CheckoutPageProps) {
@@ -242,11 +245,11 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
           if (
             shop.shippingOptions.length === 1 &&
             shop.shippingOptions[0].fallback &&
-            shop.shippingOptions[0].label.includes('cannot ship')
+            shop.shippingOptions[0].code === 'SHIPPING_UNSUPPORTED'
           ) {
             setStatus((prev) => ({
               ...prev,
-              rateError: `We cannot ship to this address for "${shop.shopName}".`,
+              rateError: m.checkout_shippingUnsupported(),
             }))
             break
           }
@@ -449,15 +452,28 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                     <label htmlFor={field.name} className='text-sm font-medium text-text-primary'>
                       {m.checkout_field_country()}
                     </label>
-                    <Input
+                    <select
                       id={field.name}
                       name={field.name}
                       value={field.state.value}
                       onChange={(e) => field.handleChange(e.target.value)}
                       onBlur={field.handleBlur}
-                      error={getFieldError(field.state.meta.errors[0])}
+                      aria-invalid={!!field.state.meta.errors[0]}
+                      aria-describedby={
+                        field.state.meta.errors[0] ? `${field.name}-error` : undefined
+                      }
                       autoComplete='country-name'
-                    />
+                      className='h-10 rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
+                    >
+                      <option value='' disabled>
+                        {m.checkout_field_country_placeholder()}
+                      </option>
+                      {SUPPORTED_COUNTRY_CODES.map((code) => (
+                        <option key={code} value={code}>
+                          {code}
+                        </option>
+                      ))}
+                    </select>
                     {field.state.meta.errors[0] && (
                       <p id={`${field.name}-error`} className='text-xs text-error'>
                         {getFieldError(field.state.meta.errors[0])}
@@ -612,15 +628,28 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                           >
                             {m.checkout_field_country()}
                           </label>
-                          <Input
+                          <select
                             id={field.name}
                             name={field.name}
                             value={field.state.value}
                             onChange={(e) => field.handleChange(e.target.value)}
                             onBlur={field.handleBlur}
-                            error={getFieldError(field.state.meta.errors[0])}
+                            aria-invalid={!!field.state.meta.errors[0]}
+                            aria-describedby={
+                              field.state.meta.errors[0] ? `${field.name}-error` : undefined
+                            }
                             autoComplete='country-name'
-                          />
+                            className='h-10 rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
+                          >
+                            <option value='' disabled>
+                              {m.checkout_field_country_placeholder()}
+                            </option>
+                            {SUPPORTED_COUNTRY_CODES.map((code) => (
+                              <option key={code} value={code}>
+                                {code}
+                              </option>
+                            ))}
+                          </select>
                           {field.state.meta.errors[0] && (
                             <p id={`${field.name}-error`} className='text-xs text-error'>
                               {getFieldError(field.state.meta.errors[0])}

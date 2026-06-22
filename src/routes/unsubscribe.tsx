@@ -2,7 +2,7 @@ import { createFileRoute, Link, useSearch } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import z from 'zod'
 
-import { unsubscribeByToken } from '#/lib/email-preferences.server'
+import { unsubscribeByToken } from '#/lib/unsubscribe'
 import { m } from '#/paraglide/messages'
 
 const unsubscribeSearchSchema = z.object({
@@ -33,7 +33,7 @@ function UnsubscribePage() {
         ? category
         : undefined
 
-    unsubscribeByToken(token, normalizedCategory)
+    unsubscribeByToken({ data: { token, category: normalizedCategory } })
       .then((result) => {
         if (result.success) {
           setStatus('success')

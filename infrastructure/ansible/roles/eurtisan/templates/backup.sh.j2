@@ -4,10 +4,15 @@ set -euo pipefail
 COMPOSE_FILE="{{ compose_file }}"
 BACKUP_DIR="/opt/eurtisan/backups"
 BACKUP_RETENTION_DAYS="{{ backup_retention_days | default(30) }}"
+BACKUP_OFFSITE_RETENTION_DAYS="{{ backup_offsite_retention_days | default(90) }}"
 OFFSITE_REMOTE="{{ backup_offsite_rclone_remote | default('') }}"
 POSTGRES_USER="{{ postgres_user }}"
 POSTGRES_DB="{{ postgres_db }}"
 WEBHOOK_URL="{{ backup_alert_webhook | default('') }}"
+MEILISEARCH_HOST="{{ meilisearch_host | default('http://meilisearch:7700') }}"
+MEILISEARCH_API_KEY="{{ meilisearch_api_key | default('') }}"
+S3_UPLOADS_BUCKET="{{ s3_uploads_bucket | default('') }}"
+S3_UPLOADS_REMOTE="{{ backup_s3_uploads_rclone_remote | default('') }}"
 
 json_log() {
   local level="$1"
@@ -33,6 +38,7 @@ trap cleanup EXIT
 
 mkdir -p "$BACKUP_DIR"
 BACKUP_FILE="$BACKUP_DIR/eurtisan-$(date +%Y%m%d-%H%M%S).sql.gz"
+DUMP_DATE_PREFIX="$(date +%Y%m%d-%H%M%S)"
 
 json_log "info" "Backup job started" "{\"file\":\"$BACKUP_FILE\"}"
 
@@ -123,8 +129,72 @@ fi
 
 json_log "info" "Backup verification completed successfully" "{\"file\":\"$BACKUP_FILE\",\"total_tables\":$TOTAL_TABLES}"
 
-# 4. Cleanup old backups
-DELETED=$(find "$BACKUP_DIR" -name "*.sql.gz" -mtime +7 -print -delete 2>/dev/null | wc -l)
-json_log "info" "Pruned old backups" "{\"deleted\":$DELETED}"
+# 4. Meilisearch dump
+if [[ -n "$MEILISEARCH_API_KEY" ]]; then
+  MEILI_DUMP_DIR="$BACKUP_DIR/meilisearch-$DUMP_DATE_PREFIX"
+  mkdir -p "$MEILI_DUMP_DIR"
+
+  json_log "info" "Starting Meilisearch dump" "{\"host\":\"$MEILISEARCH_HOST\"}"
+
+  # Trigger a dump; Meilisearch returns a task UID we could poll, but the dump
+  # endpoint is synchronous enough for our needs. Fall back to no-op on failure
+  # so a transient Meilisearch issue does not fail the whole backup.
+  if curl -fsS -X POST "$MEILISEARCH_HOST/dumps" \
+    -H "Authorization: Bearer $MEILISEARCH_API_KEY" \
+    -o "$MEILI_DUMP_DIR/dump-response.json" 2>/dev/null; then
+
+    DUMP_UID=$(python3 -c "import json,sys; print(json.load(open('$MEILI_DUMP_DIR/dump-response.json')).get('taskUid',''))" 2>/dev/null || true)
+    if [[ -n "$DUMP_UID" ]]; then
+      json_log "info" "Meilisearch dump task created" "{\"taskUid\":$DUMP_UID}"
+    else
+      # Meilisearch < v1.8 returns the dump file path directly.
+      json_log "info" "Meilisearch dump response saved" "{}"
+    fi
+  else
+    json_log "warn" "Meilisearch dump failed or endpoint unavailable" "{}"
+    send_alert "⚠️ Eurtisan backup warning on $(hostname): Meilisearch dump could not be created"
+  fi
+fi
+
+# 5. Off-site upload
+if [[ -n "$OFFSITE_REMOTE" ]]; then
+  json_log "info" "Uploading database backup off-site" "{\"remote\":\"$OFFSITE_REMOTE\",\"file\":\"$BACKUP_FILE\"}"
+
+  if ! rclone copyto "$BACKUP_FILE" "${OFFSITE_REMOTE}/$(basename "$BACKUP_FILE")"; then
+    json_log "error" "Off-site backup upload failed" "{\"file\":\"$BACKUP_FILE\",\"remote\":\"$OFFSITE_REMOTE\"}"
+    send_alert "🚨 Eurtisan backup WARNING on $(hostname): local backup OK, but off-site upload failed"
+    exit 1
+  fi
+
+  json_log "info" "Off-site backup upload succeeded" "{\"file\":\"$BACKUP_FILE\",\"remote\":\"$OFFSITE_REMOTE\"}"
+
+  # Prune off-site backups older than the configured retention. Best-effort:
+  # failures are logged but do not fail the job, because the local backup is
+  # still valid and a bucket lifecycle rule (preferred) may already handle this.
+  if rclone lsf "$OFFSITE_REMOTE" >/dev/null 2>&1; then
+    rclone delete --min-age "${BACKUP_OFFSITE_RETENTION_DAYS}d" "$OFFSITE_REMOTE" >/dev/null 2>&1 || true
+    json_log "info" "Pruned off-site backups older than ${BACKUP_OFFSITE_RETENTION_DAYS} days" "{\"remote\":\"$OFFSITE_REMOTE\"}"
+  fi
+fi
+
+# 6. S3 uploads sync (secondary copy)
+if [[ -n "$S3_UPLOADS_REMOTE" && -n "$OFFSITE_REMOTE" ]]; then
+  json_log "info" "Syncing S3 uploads bucket off-site" "{\"remote\":\"$S3_UPLOADS_REMOTE\"}"
+
+  if ! rclone sync "$S3_UPLOADS_REMOTE" "${OFFSITE_REMOTE}/uploads-${DUMP_DATE_PREFIX}"; then
+    json_log "warn" "S3 uploads off-site sync failed" "{\"remote\":\"$S3_UPLOADS_REMOTE\"}"
+    send_alert "⚠️ Eurtisan backup warning on $(hostname): S3 uploads off-site sync failed"
+  else
+    json_log "info" "S3 uploads off-site sync completed" "{\"remote\":\"$S3_UPLOADS_REMOTE\"}"
+  fi
+fi
+
+# 7. Cleanup old local backups
+DELETED=$(find "$BACKUP_DIR" -name "*.sql.gz" -mtime +"$BACKUP_RETENTION_DAYS" -print -delete 2>/dev/null | wc -l)
+json_log "info" "Pruned old backups" "{\"deleted\":$DELETED,\"retention_days\":$BACKUP_RETENTION_DAYS}"
+
+# Cleanup old local Meilisearch dumps
+MEILI_DELETED=$(find "$BACKUP_DIR" -maxdepth 1 -type d -name "meilisearch-*" -mtime +"$BACKUP_RETENTION_DAYS" -print -delete 2>/dev/null | wc -l)
+json_log "info" "Pruned old Meilisearch dumps" "{\"deleted\":$MEILI_DELETED,\"retention_days\":$BACKUP_RETENTION_DAYS}"
 
 json_log "info" "Backup job completed successfully" "{\"file\":\"$BACKUP_FILE\"}"

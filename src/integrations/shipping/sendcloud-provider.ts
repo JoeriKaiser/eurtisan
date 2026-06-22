@@ -394,6 +394,9 @@ export class SendcloudProvider implements ShippingProvider {
   private buildParcelPayload(details: ShipmentDetails, methodId: number): Record<string, unknown> {
     const { destination, package: pkg, reference, pickupPoint } = details
 
+    const declaredValueCents = details.declaredValueCents ?? 0
+    const totalOrderValue = (declaredValueCents / 100).toFixed(2)
+
     const parcel: Record<string, unknown> = {
       name: destination.company ?? 'Recipient',
       company_name: destination.company ?? '',
@@ -406,7 +409,7 @@ export class SendcloudProvider implements ShippingProvider {
       weight: (pkg.weightGrams / 1000).toFixed(3),
       order_number: reference ?? '',
       total_order_value_currency: 'EUR',
-      total_order_value: '0.00',
+      total_order_value: totalOrderValue,
     }
 
     if (pickupPoint) {

@@ -224,4 +224,21 @@ describe('deleted user rejection', () => {
       'UNAUTHENTICATED',
     )
   })
+
+  it('verifyShopOwnership rejects a banned user before ownership checks', async () => {
+    const customer = await seedCustomer({ bannedAt: new Date() })
+    mockGetSession.mockResolvedValue({
+      user: {
+        id: customer.id,
+        name: customer.name,
+        email: customer.email,
+        emailVerified: customer.emailVerified,
+        image: null,
+        role: customer.role,
+      },
+      session: { id: 'session-1', token: 'tok', expiresAt: new Date(), userId: customer.id },
+    })
+
+    await expect(verifyShopOwnership({ data: { shopId: 'shop-1' } })).rejects.toThrow()
+  })
 })

@@ -1,4 +1,34 @@
+import { m } from '#/paraglide/messages'
 import type { OrderStatus } from './orders.server'
+
+export function getOrderStatusLabel(status: OrderStatus): string {
+  switch (status) {
+    case 'pending_payment':
+      return m.orderStatus_pending_payment()
+    case 'paid':
+      return m.orderStatus_paid()
+    case 'processing':
+      return m.orderStatus_processing()
+    case 'shipped':
+      return m.orderStatus_shipped()
+    case 'delivered':
+      return m.orderStatus_delivered()
+    case 'completed':
+      return m.orderStatus_completed()
+    case 'cancelled':
+      return m.orderStatus_cancelled()
+    case 'refunded':
+      return m.orderStatus_refunded()
+    case 'disputed':
+      return m.orderStatus_disputed()
+    case 'manual_review':
+      return m.orderStatus_manual_review()
+    case 'chargeback':
+      return m.orderStatus_chargeback()
+    default:
+      return String(status)
+  }
+}
 
 export function statusBadgeVariant(status: OrderStatus) {
   switch (status) {
@@ -24,7 +54,7 @@ export function statusBadgeVariant(status: OrderStatus) {
 /*                            Supported Countries                             */
 /* -------------------------------------------------------------------------- */
 
-const SUPPORTED_COUNTRIES = new Set([
+export const SUPPORTED_COUNTRY_CODES = [
   'AT',
   'BE',
   'BG',
@@ -57,10 +87,13 @@ const SUPPORTED_COUNTRIES = new Set([
   'NO',
   'CH',
   'GB',
-])
+] as const
+
+const SUPPORTED_COUNTRIES = new Set(SUPPORTED_COUNTRY_CODES)
+type SupportedCountryCode = (typeof SUPPORTED_COUNTRY_CODES)[number]
 
 export function isSupportedShippingCountry(countryCode: string): boolean {
-  return SUPPORTED_COUNTRIES.has(countryCode.toUpperCase())
+  return SUPPORTED_COUNTRIES.has(countryCode.toUpperCase() as SupportedCountryCode)
 }
 
 /* -------------------------------------------------------------------------- */
@@ -79,16 +112,5 @@ export function isStatusReached(current: OrderStatus, step: OrderStatus): boolea
 }
 
 export function statusTimelineLabel(status: OrderStatus): string {
-  switch (status) {
-    case 'paid':
-      return 'Paid'
-    case 'processing':
-      return 'Processing'
-    case 'shipped':
-      return 'Shipped'
-    case 'delivered':
-      return 'Delivered'
-    default:
-      return status.replace('_', ' ')
-  }
+  return getOrderStatusLabel(status)
 }

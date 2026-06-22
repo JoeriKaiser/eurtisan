@@ -15,6 +15,7 @@ import { getBaseUrl } from './env.server'
 import { safeRedirect } from './auth-utils'
 import { logEmailEvent } from './email-send-log.server'
 import { sha256Hex } from './hash.server'
+import { decryptAccountTokens, decryptTwoFactorSecrets, encrypt } from './encryption.server'
 
 export function hashSessionToken(token: string): string {
   return createHash('sha256').update(token).digest('hex')
@@ -51,6 +52,39 @@ function injectToken(result: Record<string, unknown> | null, tokenMap: Map<strin
   return result
 }
 
+const ENCRYPTED_ACCOUNT_FIELDS = ['accessToken', 'refreshToken', 'idToken', 'password'] as const
+const ENCRYPTED_TWO_FACTOR_FIELDS = ['secret', 'backupCodes'] as const
+
+function encryptModelData(model: string, data: Record<string, unknown>): Record<string, unknown> {
+  if (model !== 'account' && model !== 'two_factor') return data
+  const fields = model === 'account' ? ENCRYPTED_ACCOUNT_FIELDS : ENCRYPTED_TWO_FACTOR_FIELDS
+  const encrypted: Record<string, unknown> = { ...data }
+  for (const field of fields) {
+    const value = encrypted[field]
+    if (typeof value === 'string' && value.length > 0) {
+      encrypted[field] = encrypt(value)
+    }
+  }
+  return encrypted
+}
+
+function decryptModelResult(
+  model: string,
+  result: Record<string, unknown> | null,
+): Record<string, unknown> | null {
+  if (!result) return null
+  if (model === 'account')
+    return decryptAccountTokens(result as Parameters<typeof decryptAccountTokens>[0]) as Record<
+      string,
+      unknown
+    >
+  if (model === 'two_factor')
+    return decryptTwoFactorSecrets(
+      result as Parameters<typeof decryptTwoFactorSecrets>[0],
+    ) as Record<string, unknown>
+  return result
+}
+
 export function wrapAdapter(adapter: DBAdapter<BetterAuthOptions>): DBAdapter<BetterAuthOptions> {
   return {
     ...adapter,
@@ -72,16 +106,32 @@ export function wrapAdapter(adapter: DBAdapter<BetterAuthOptions>): DBAdapter<Be
         })) as Record<string, unknown>
         return { ...result, token: originalToken } as unknown as typeof result
       }
+      if ((model === 'account' || model === 'two_factor') && data && typeof data === 'object') {
+        const encrypted = encryptModelData(model, data as Record<string, unknown>)
+        const result = (await adapter.create({
+          model,
+          data: encrypted,
+          select,
+          forceAllowId,
+        })) as Record<string, unknown> | null
+        return decryptModelResult(model, result) as unknown as typeof result
+      }
       return adapter.create({ model, data, select, forceAllowId })
     }) as DBAdapter['create'],
     findOne: (async ({ model, where, select, join }) => {
-      console.log('AUTH DB ADAPTER findOne:', model, 'where:', JSON.stringify(where))
       if (model === 'session' && where) {
         const { newWhere, tokenMap } = transformSessionWhere(where)
         const result = await adapter.findOne({ model, where: newWhere, select, join })
         return injectToken(
           result as Record<string, unknown> | null,
           tokenMap,
+        ) as unknown as typeof result
+      }
+      if ((model === 'account' || model === 'two_factor') && where) {
+        const result = await adapter.findOne({ model, where, select, join })
+        return decryptModelResult(
+          model,
+          result as Record<string, unknown> | null,
         ) as unknown as typeof result
       }
       return adapter.findOne({ model, where, select, join })
@@ -92,6 +142,12 @@ export function wrapAdapter(adapter: DBAdapter<BetterAuthOptions>): DBAdapter<Be
         const results = await adapter.findMany({ model, where: newWhere, ...rest })
         return results
           .map((r) => injectToken(r as Record<string, unknown>, tokenMap))
+          .filter((r): r is NonNullable<typeof r> => r !== null) as unknown as typeof results
+      }
+      if (model === 'account' || model === 'two_factor') {
+        const results = await adapter.findMany({ model, where, ...rest })
+        return results
+          .map((r) => decryptModelResult(model, r as Record<string, unknown>))
           .filter((r): r is NonNullable<typeof r> => r !== null) as unknown as typeof results
       }
       return adapter.findMany({ model, where, ...rest })
@@ -105,12 +161,29 @@ export function wrapAdapter(adapter: DBAdapter<BetterAuthOptions>): DBAdapter<Be
           tokenMap,
         ) as unknown as typeof result
       }
+      if ((model === 'account' || model === 'two_factor') && where) {
+        const encryptedUpdate = encryptModelData(model, update as Record<string, unknown>)
+        const result = await adapter.update({
+          model,
+          where,
+          update: encryptedUpdate,
+          ...rest,
+        })
+        return decryptModelResult(
+          model,
+          result as Record<string, unknown> | null,
+        ) as unknown as typeof result
+      }
       return adapter.update({ model, where, update, ...rest })
     }) as DBAdapter['update'],
     updateMany: (async ({ model, where, update, ...rest }) => {
       if (model === 'session' && where) {
         const { newWhere } = transformSessionWhere(where)
         return adapter.updateMany({ model, where: newWhere, update, ...rest })
+      }
+      if (model === 'account' || model === 'two_factor') {
+        const encryptedUpdate = encryptModelData(model, update as Record<string, unknown>)
+        return adapter.updateMany({ model, where, update: encryptedUpdate, ...rest })
       }
       return adapter.updateMany({ model, where, update, ...rest })
     }) as DBAdapter['updateMany'],

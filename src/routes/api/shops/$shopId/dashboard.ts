@@ -1,13 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { authPipeline, requireRole, requireShopOwnership } from '#/lib/authz'
+import { authPipelinePrivileged, requireRole, requireShopOwnership } from '#/lib/authz'
 import { getShopDashboardStatsQuery } from '#/lib/creator-dashboard.server'
 
 export const Route = createFileRoute('/api/shops/$shopId/dashboard')({
   server: {
     handlers: {
       GET: async ({ request, params }) =>
-        authPipeline(
+        authPipelinePrivileged(
           request,
           [requireRole('creator'), (ctx) => requireShopOwnership(ctx, params.shopId)],
           async () => {

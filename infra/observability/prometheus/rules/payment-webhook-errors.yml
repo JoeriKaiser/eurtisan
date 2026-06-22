@@ -1,0 +1,20 @@
+groups:
+  - name: payment_webhook_errors
+    rules:
+      - alert: EurtisanMollieWebhookFailed
+        expr: increase(eurtisan_mollie_webhook_failed_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Mollie webhook signature verification or 5xx errors detected
+          description: Mollie webhook requests failed signature verification or returned a server error in the last 5 minutes.
+
+      - alert: EurtisanSendcloudWebhookFailed
+        expr: increase(eurtisan_sendcloud_webhook_failed_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Sendcloud webhook signature verification or 5xx errors detected
+          description: Sendcloud webhook requests failed signature verification or returned a server error in the last 5 minutes.

@@ -71,8 +71,8 @@ export function PasswordStrengthIndicator({ password = '' }: Props) {
     if (score <= 4) {
       return {
         label: m.password_strength_good(),
-        color: 'bg-info',
-        textClass: 'text-info',
+        color: 'bg-accent-primary',
+        textClass: 'text-accent-primary',
         percent: 75,
       }
     }

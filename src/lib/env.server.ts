@@ -95,12 +95,26 @@ export function getMollieTestMode(): boolean {
 /**
  * When true, payout route creation is mocked (no external HTTP calls).
  * Useful for local development when MOLLIE_API_KEY is not configured.
+ *
+ * Disallowed in production. Use {@link assertMockPayoutsNotProduction} at
+ * process startup to enforce this.
  */
 export function getMockPayoutsEnabled(): boolean {
   if (typeof process !== 'undefined') {
     return process.env.MOCK_PAYOUTS_ENABLED === 'true'
   }
   return false
+}
+
+/**
+ * Throws if MOCK_PAYOUTS_ENABLED is true while running in production.
+ *
+ * Call this in every process startup path (app server and background jobs).
+ */
+export function assertMockPayoutsNotProduction(): void {
+  if (process.env.NODE_ENV === 'production' && process.env.MOCK_PAYOUTS_ENABLED === 'true') {
+    throw new Error('MOCK_PAYOUTS_ENABLED=true is not allowed in production')
+  }
 }
 
 /**
@@ -189,6 +203,23 @@ export function getSendcloudUnstampedLetterMethodId(): number | undefined {
     }
   }
   return undefined
+}
+
+/**
+ * Number of days to retain Sendcloud webhook event rows before cleanup.
+ * Defaults to 30, minimum 1.
+ */
+export function getSendcloudWebhookRetentionDays(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.SENDCLOUD_WEBHOOK_RETENTION_DAYS
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed)) {
+        return Math.max(1, parsed)
+      }
+    }
+  }
+  return 30
 }
 
 /**
@@ -291,6 +322,37 @@ export function getEmailSmtpPort(): number {
     }
   }
   return 1025
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Tax / VAT                                                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * When true, cross-border EU B2B VAT IDs are verified with the European
+ * Commission's VIES service. When false or unset, only offline format checks
+ * are performed. Defaults to false.
+ */
+export function getEnableViesValidation(): boolean {
+  if (typeof process !== 'undefined') {
+    return process.env.ENABLE_VIES_VALIDATION === 'true'
+  }
+  return false
+}
+
+/**
+ * When true, Eurtisan is treated as VAT liable for platform fee invoices and
+ * charges VAT according to EU B2B/B2C rules. When false, the platform operates
+ * under the French "Franchise en base de TVA" regime and does not charge VAT.
+ * Defaults to true for safety.
+ */
+export function getPlatformVatLiable(): boolean {
+  if (typeof process !== 'undefined') {
+    if (process.env.PLATFORM_VAT_LIABLE !== undefined) {
+      return process.env.PLATFORM_VAT_LIABLE !== 'false'
+    }
+  }
+  return true
 }
 
 /* -------------------------------------------------------------------------- */

@@ -21,6 +21,16 @@ import {
 import { PLATFORM_FEE_PERCENT } from './platform-constants'
 
 describe('Invoicing VAT Engine', () => {
+  const originalVatLiable = process.env.PLATFORM_VAT_LIABLE
+
+  beforeEach(() => {
+    process.env.PLATFORM_VAT_LIABLE = 'false'
+  })
+
+  afterEach(() => {
+    process.env.PLATFORM_VAT_LIABLE = originalVatLiable
+  })
+
   it('does not charge VAT (0%) for domestic platform fee (supplier FR, customer FR)', () => {
     const result = calculatePlatformFeeVat('FR', true, 1200) // 12.00 EUR total fee
     expect(result).toEqual({
@@ -163,8 +173,15 @@ describe('Invoicing VAT Engine', () => {
 })
 
 describe('Platform Order Invoices Lifecycle', () => {
+  const originalVatLiable = process.env.PLATFORM_VAT_LIABLE
+
   beforeEach(async () => {
+    process.env.PLATFORM_VAT_LIABLE = 'false'
     await clearTestTables()
+  })
+
+  afterEach(() => {
+    process.env.PLATFORM_VAT_LIABLE = originalVatLiable
   })
 
   it('automatically generates customer and platform fee invoices with snapshots upon successful checkout', async () => {
@@ -680,6 +697,21 @@ describe('Platform Order Invoices Lifecycle', () => {
     expect(feeInv2).toHaveLength(1)
     expect(feeInv1[0].type).toBe('platform_fee')
     expect(feeInv2[0].type).toBe('platform_fee')
+
+    // Customer invoice numbers within the same platform order must be strictly sequential.
+    const match = /^INV-\d{4}-(\d{5})$/
+    const m1 = so1Numbers.customerInvoiceNumber.match(match)
+    const m2 = so2Numbers.customerInvoiceNumber.match(match)
+    expect(m1).not.toBeNull()
+    expect(m2).not.toBeNull()
+    expect(Number(m2?.[1])).toBe(Number(m1?.[1]) + 1)
+
+    // Platform-fee invoice numbers are also sequential within their own prefix.
+    const f1 = so1Numbers.platformFeeInvoiceNumber.match(/^INV-FEE-\d{4}-(\d{5})$/)
+    const f2 = so2Numbers.platformFeeInvoiceNumber.match(/^INV-FEE-\d{4}-(\d{5})$/)
+    expect(f1).not.toBeNull()
+    expect(f2).not.toBeNull()
+    expect(Number(f2?.[1])).toBe(Number(f1?.[1]) + 1)
   })
 
   it('enforces role-based authorization rules on getInvoiceByIdQuery', async () => {
@@ -766,8 +798,15 @@ describe('Platform Order Invoices Lifecycle', () => {
 })
 
 describe('Sequential invoice numbering', () => {
+  const originalVatLiable = process.env.PLATFORM_VAT_LIABLE
+
   beforeEach(async () => {
+    process.env.PLATFORM_VAT_LIABLE = 'false'
     await clearTestTables()
+  })
+
+  afterEach(() => {
+    process.env.PLATFORM_VAT_LIABLE = originalVatLiable
   })
 
   async function seedNumberingFixture() {

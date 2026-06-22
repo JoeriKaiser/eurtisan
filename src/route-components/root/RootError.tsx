@@ -3,11 +3,6 @@ import { m } from '#/paraglide/messages'
 export function RootError({ error }: { error: Error }) {
   const isDev = import.meta.env.DEV
 
-  // Log full error server-side for debugging; client-side is handled by Faro.
-  if (typeof window === 'undefined') {
-    console.error('RootError:', error)
-  }
-
   return (
     <div className='page-wrap px-4 py-20 text-center'>
       <h1 className='display-title mb-4 text-3xl font-semibold text-text-primary'>

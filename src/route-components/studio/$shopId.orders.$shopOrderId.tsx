@@ -13,6 +13,8 @@ import {
   resolveShopOrderManualReview,
   updateShopOrderTracking,
 } from '#/lib/shop-orders'
+import { getOrderStatusLabel } from '#/lib/orders-ui'
+import type { OrderStatus } from '#/lib/orders.server'
 import { m } from '#/paraglide/messages'
 import { ShopOrderShipDialog } from '#/route-components/studio/ShopOrderShipDialog'
 import {
@@ -59,6 +61,7 @@ function parseResponseError(err: unknown): Promise<string> {
 export function ShopOrderDetailPage() {
   const { shopId, shopOrderId } = useParams({ from: '/studio/$shopId/orders/$shopOrderId' })
   const { order } = useLoaderData({ from: '/studio/$shopId/orders/$shopOrderId' })
+  const currentStatus = order.status as OrderStatus
   const router = useRouter()
   const [shipDialog, setShipDialog] = useState({ open: false, key: 0 })
   const [reviewDialog, setReviewDialog] = useState(false)
@@ -166,12 +169,14 @@ export function ShopOrderDetailPage() {
     ).then(() => setReviewDialog(false))
   }, [withLoading, shopOrderId, review.resolution, review.reason])
 
-  const canShip = ['paid', 'processing'].includes(order.status)
-  const canDeliver = order.status === 'shipped'
-  const canRefund = ['paid', 'processing', 'shipped', 'delivered'].includes(order.status)
-  const canCancel = order.status === 'pending_payment'
-  const canEditTracking = order.status === 'shipped'
-  const canResolveReview = order.status === 'manual_review'
+  const canShip = ['paid', 'processing'].includes(currentStatus)
+  const canDeliver = currentStatus === 'shipped'
+  const canRefund = ['paid', 'processing', 'shipped', 'delivered', 'manual_review'].includes(
+    currentStatus,
+  )
+  const canCancel = currentStatus === 'pending_payment'
+  const canEditTracking = currentStatus === 'shipped'
+  const canResolveReview = currentStatus === 'manual_review'
 
   return (
     <main className='page-wrap px-4 py-12'>
@@ -191,8 +196,8 @@ export function ShopOrderDetailPage() {
             <h1 className='display-title text-2xl font-semibold text-text-primary'>Order Detail</h1>
             <p className='font-mono text-sm text-text-secondary'>{shopOrderId.slice(0, 8)}…</p>
           </div>
-          <Badge variant={getStatusBadgeVariant(order.status)} className='text-sm'>
-            {order.status.replace('_', ' ')}
+          <Badge variant={getStatusBadgeVariant(currentStatus)} className='text-sm'>
+            {getOrderStatusLabel(currentStatus)}
           </Badge>
         </div>
         {status.actionError && (
@@ -206,7 +211,7 @@ export function ShopOrderDetailPage() {
         )}
         <div className='space-y-6'>
           <OrderStatusSection
-            status={order.status}
+            status={currentStatus}
             canShip={canShip}
             canDeliver={canDeliver}
             canRefund={canRefund}
@@ -344,6 +349,14 @@ export function ShopOrderDetailPage() {
                 {m.manual_review_resolve_cancel()}
               </Button>
             </div>
+            {review.resolution === 'cancelled' && (
+              <div
+                className='mb-4 rounded-lg border border-warning/20 bg-warning/5 p-3 text-sm text-warning'
+                role='alert'
+              >
+                {m.manual_review_cancel_refund_warning()}
+              </div>
+            )}
             <div className='mb-6'>
               <Label htmlFor='review-reason'>Reason (optional)</Label>
               <Textarea

@@ -31,7 +31,9 @@ faro.receiver "eurtisan" {
   server {
     listen_address = "0.0.0.0"
     listen_port    = 8027
-    cors_allowed_origins = ["https://eurtisan.eu", "https://staging.eurtisan.eu"]
+    # Comma-separated list of origins allowed to send Faro beacons.
+    # Configure via ALLOY_FARO_CORS_ORIGINS (default: production + staging).
+    cors_allowed_origins = split(env("ALLOY_FARO_CORS_ORIGINS"), ",")
   }
 
   output {

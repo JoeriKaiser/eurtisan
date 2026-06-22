@@ -20,6 +20,7 @@ import {
   user,
   userEmailPreference,
 } from '#/db/schema'
+import { hashEmail } from '#/lib/customers.server'
 
 import { clearTestTables } from '#/test/cleanup'
 import {
@@ -27,10 +28,14 @@ import {
   createAuditLog,
   createCart,
   createCartItem,
+  createCustomerNote,
+  createCustomerTag,
   createDispute,
   createDisputeMessage,
   createInvoice,
   createNotification,
+  createOwnerMessage,
+  createOwnerMessageThread,
   createPayout,
   createPayoutReconciliationLog,
   createPlatformOrder,
@@ -69,14 +74,177 @@ async function seedShop(ownerId: string, overrides?: Parameters<typeof createSho
   })
 }
 
-async function seedPayoutLog(shopId: string, payload: Record<string, unknown>) {
-  const p = await createPayout(shopId, { amountCents: 4500, status: 'sent' })
+async function seedPayoutLog(
+  shop: { id: string },
+  shopOrder: { id: string },
+  payload: Record<string, unknown>,
+) {
+  const p = await createPayout(shop.id, {
+    shopOrderId: shopOrder.id,
+    amountCents: 4500,
+    status: 'sent',
+  })
   return createPayoutReconciliationLog(p, { event: 'route_missing', payload })
 }
 
 describe('exportUserData', () => {
   it('throws when user does not exist', async () => {
     await expect(exportUserData('nonexistent-user-id')).rejects.toThrow('USER_NOT_FOUND')
+  })
+
+  it('includes user profile, shops, platform orders, and reviews', async () => {
+    const u = await createUser({ name: 'Jane Doe', email: 'jane@example.com' })
+    const s = await seedShop(u.id)
+    const order = await createPlatformOrder(u.id)
+    const productA = await createProduct(s.id)
+    const so = await createShopOrder(order, s)
+    await createReview(so, productA, u, { rating: 5, comment: 'Great!' })
+
+    const data = await exportUserData(u.id)
+
+    expect(data.user.id).toBe(u.id)
+    expect(data.user.email).toBe('jane@example.com')
+    expect(data.shops).toHaveLength(1)
+    expect(data.shops[0]?.id).toBe(s.id)
+    expect(data.platformOrders).toHaveLength(1)
+    expect(data.platformOrders[0]?.id).toBe(order.id)
+    expect(data.shopOrders).toHaveLength(1)
+    expect(data.shopOrders[0]?.id).toBe(so.id)
+    expect(data.reviews).toHaveLength(1)
+    expect(data.reviews[0]?.rating).toBe(5)
+  })
+
+  it('includes invoices as buyer and seller with third-party PII redacted', async () => {
+    const owner = await createUser({ role: 'creator', email: 'owner@example.com' })
+    const buyer = await createUser({ email: 'buyer@example.com' })
+    const s = await seedShop(owner.id)
+    const platformOrderRecord = await createPlatformOrder(buyer.id)
+    const so = await createShopOrder(platformOrderRecord, s)
+    const invoice = await createInvoice(so, {
+      billingDetails: {
+        from: {
+          name: 'Seller Business',
+          email: 'seller@example.com',
+          address: { street: 'Secret St' },
+        },
+        to: { name: 'Buyer Name', email: 'buyer@example.com', address: { street: 'Buyer St' } },
+      },
+    })
+
+    const buyerExport = await exportUserData(buyer.id)
+    expect(buyerExport.invoices.asBuyer).toHaveLength(1)
+    expect(buyerExport.invoices.asBuyer[0]?.invoiceNumber).toBe(invoice.invoiceNumber)
+    expect(buyerExport.invoices.asBuyer[0]?.billingDetails).toEqual({
+      from: { name: 'Seller Business' },
+      to: { name: 'Buyer Name', email: 'buyer@example.com', address: { street: 'Buyer St' } },
+    })
+    expect(buyerExport.invoices.asSeller).toHaveLength(0)
+
+    const sellerExport = await exportUserData(owner.id)
+    expect(sellerExport.invoices.asSeller).toHaveLength(1)
+    expect(sellerExport.invoices.asSeller[0]?.billingDetails).toEqual({
+      from: {
+        name: 'Seller Business',
+        email: 'seller@example.com',
+        address: { street: 'Secret St' },
+      },
+      to: { name: 'Buyer Name' },
+    })
+    expect(sellerExport.invoices.asBuyer).toHaveLength(0)
+  })
+
+  it('includes owner messages and dispute messages', async () => {
+    const owner = await createUser({ role: 'creator' })
+    const buyer = await createUser({ email: 'buyer@example.com' })
+    const s = await seedShop(owner.id)
+    const platformOrderRecord = await createPlatformOrder(buyer.id)
+    const so = await createShopOrder(platformOrderRecord, s)
+    const thread = await createOwnerMessageThread(s, {
+      customerUserId: buyer.id,
+      customerEmailHash: hashEmail(buyer.email),
+      subject: 'Order question',
+    })
+    await createOwnerMessage(thread, { senderRole: 'buyer', body: 'Hello!' })
+    const disputeRecord = await createDispute(so, buyer, {
+      reason: 'missing',
+      description: 'Missing item',
+    })
+    await createDisputeMessage(disputeRecord, buyer, { message: 'Where is my item?' })
+
+    const data = await exportUserData(buyer.id)
+
+    expect(data.messages.ownerThreads).toHaveLength(1)
+    expect(data.messages.ownerThreads[0]?.subject).toBe('Order question')
+    expect(data.messages.ownerThreads[0]?.messages).toHaveLength(1)
+    expect(data.messages.ownerThreads[0]?.messages[0]?.body).toBe('Hello!')
+    expect(data.messages.disputeMessages).toHaveLength(1)
+    expect(data.messages.disputeMessages[0]?.message).toBe('Where is my item?')
+  })
+
+  it('includes audit logs and email preferences', async () => {
+    const u = await createUser()
+    await createAuditLog(u, {
+      action: 'test.export',
+      resourceType: 'user',
+      resourceId: u.id,
+      metadata: { key: 'value' },
+    })
+    await db.insert(userEmailPreference).values({
+      userId: u.id,
+      category: 'seller_updates',
+      enabled: true,
+    })
+
+    const data = await exportUserData(u.id)
+
+    expect(data.auditLogs).toHaveLength(1)
+    expect(data.auditLogs[0]?.action).toBe('test.export')
+    expect(data.auditLogs[0]?.metadata).toEqual({ key: 'value' })
+    expect(data.emailPreferences).toHaveLength(1)
+    expect(data.emailPreferences[0]?.category).toBe('seller_updates')
+    expect(data.emailPreferences[0]?.enabled).toBe(true)
+  })
+
+  it('includes customer notes and tags by email hash', async () => {
+    const owner = await createUser({ role: 'creator' })
+    const buyer = await createUser({ email: 'buyer@example.com' })
+    const s = await seedShop(owner.id)
+    await createCustomerNote(s, owner, {
+      customerEmailHash: hashEmail(buyer.email),
+      content: 'VIP customer',
+    })
+    await createCustomerTag(s, { customerEmailHash: hashEmail(buyer.email), tag: 'vip' })
+
+    const data = await exportUserData(buyer.id)
+
+    expect(data.customerNotes).toHaveLength(1)
+    expect(data.customerNotes[0]?.content).toBe('VIP customer')
+    expect(data.customerTags).toHaveLength(1)
+    expect(data.customerTags[0]?.tag).toBe('vip')
+  })
+
+  it("does not include another user's PII", async () => {
+    const u = await createUser({ email: 'user@example.com' })
+    const other = await createUser({ email: 'other@example.com' })
+    const s = await seedShop(other.id)
+    const platformOrderRecord = await createPlatformOrder(other.id)
+    const so = await createShopOrder(platformOrderRecord, s)
+    await createInvoice(so, {
+      billingDetails: {
+        from: { name: 'Other Shop', email: 'other-shop@example.com' },
+        to: { name: 'Other Buyer', email: 'other@example.com' },
+      },
+    })
+    await createOwnerMessageThread(s, {
+      customerUserId: other.id,
+      customerEmailHash: hashEmail(other.email),
+    })
+
+    const data = await exportUserData(u.id)
+
+    expect(data.invoices.asBuyer).toHaveLength(0)
+    expect(data.invoices.asSeller).toHaveLength(0)
+    expect(data.messages.ownerThreads).toHaveLength(0)
   })
 })
 
@@ -173,10 +341,38 @@ describe('deleteUserAccount', () => {
     })
   })
 
+  it('redacts invoice billing details for buyer invoices', async () => {
+    const owner = await createUser({ role: 'creator', email: 'owner@example.com' })
+    const buyer = await createUser({ email: 'buyer@example.com' })
+    const s = await seedShop(owner.id)
+    const platformOrderRecord = await createPlatformOrder(buyer.id)
+    const so = await createShopOrder(platformOrderRecord, s)
+    const invoice = await createInvoice(so, {
+      billingDetails: {
+        from: { name: 'Test Shop', email: 'shop@example.com' },
+        to: { name: 'Buyer Name', email: 'buyer@example.com' },
+      },
+    })
+
+    await deleteUserAccount(buyer.id)
+
+    const updated = await db.query.invoices.findFirst({ where: eq(invoices.id, invoice.id) })
+    expect(updated?.billingDetails).toEqual({
+      name: 'Deleted User',
+      street: '[redacted]',
+      city: '[redacted]',
+      postalCode: '[redacted]',
+      country: 'XX',
+    })
+  })
+
   it('redacts payout reconciliation log payloads for owned shops', async () => {
     const owner = await createUser({ role: 'creator' })
+    const buyer = await createUser({ email: 'buyer@example.com' })
     const s = await seedShop(owner.id)
-    const log = await seedPayoutLog(s.id, {
+    const platformOrderRecord = await createPlatformOrder(buyer.id)
+    const so = await createShopOrder(platformOrderRecord, s)
+    const log = await seedPayoutLog(s, so, {
       buyerName: 'Alice',
       buyerEmail: 'alice@example.com',
       amount: 100,

@@ -1157,22 +1157,25 @@ async function seedOrders(
   console.log(`  ${shippingLabels.length} shipping labels`)
   console.log(`  ${reviews.length} reviews`)
   console.log(`  ${disputes.length} disputes, ${disputeMessages.length} messages`)
+
+  return shopOrders
 }
 
 // =============================================================================
 // Payouts
 // =============================================================================
-async function seedPayouts(shops: (typeof schema.shop.$inferInsert)[]) {
+async function seedPayouts(shopOrders: (typeof schema.shopOrder.$inferInsert)[]) {
   console.log('Seeding payouts...')
   const payouts: (typeof schema.payout.$inferInsert)[] = []
 
-  for (const shop of shops) {
-    const count = faker.number.int({ min: 0, max: 4 })
+  for (const shopOrder of shopOrders) {
+    const count = faker.number.int({ min: 0, max: 1 })
     for (let i = 0; i < count; i++) {
       const status = faker.helpers.arrayElement(schema.payoutStatusEnum.enumValues)
       payouts.push({
         id: crypto.randomUUID(),
-        shopId: shop.id!,
+        shopId: shopOrder.shopId!,
+        shopOrderId: shopOrder.id!,
         amountCents: faker.number.int({ min: 5000, max: 750000 }),
         status,
         sentAt: status === 'sent' ? faker.date.past({ years: 1 }) : undefined,
@@ -1268,8 +1271,8 @@ async function seed() {
   const [shops, categories] = await Promise.all([seedShops(users), seedCategories()])
   const products = await seedProducts(shops, categories)
   await seedCarts(users, products)
-  await seedOrders(users, shops, products)
-  await seedPayouts(shops)
+  const shopOrders = await seedOrders(users, shops, products)
+  await seedPayouts(shopOrders)
   await seedNotifications(users)
 
   console.log('\nConfiguring Meilisearch index...')

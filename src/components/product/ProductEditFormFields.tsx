@@ -163,8 +163,11 @@ export function ProductEditFormFields({
             {m.creator_product_new_price_label()}
           </label>
           <div className='relative'>
-            <span className='absolute left-3 top-1/2 -translate-y-1/2 text-sm text-text-muted'>
-              €
+            <span
+              className='absolute left-3 top-1/2 -translate-y-1/2 text-sm text-text-muted'
+              aria-hidden='true'
+            >
+              {m.currency_symbol()}
             </span>
             <Input
               id='product-price'

@@ -58,7 +58,10 @@ const shippingAddressSchema = z
     if (data.vatId) {
       const cleaned = data.vatId.replace(/\s/g, '').toUpperCase()
       const prefix = cleaned.slice(0, 2)
-      if (prefix !== data.country) {
+      // Greece uses ISO code GR in addresses but VAT IDs may start with EL (VIES) or GR.
+      const prefixMatches =
+        prefix === data.country || (data.country === 'GR' && (prefix === 'EL' || prefix === 'GR'))
+      if (!prefixMatches) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: `VAT ID country code prefix (${prefix}) must match address country (${data.country})`,

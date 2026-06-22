@@ -14,6 +14,7 @@
  *
  * Graceful shutdown is handled on SIGINT / SIGTERM.
  */
+import { withJobLock } from '#/lib/job-lock.server'
 import { cleanupExpiredVerifications } from '#/lib/verification-cleanup.server'
 
 const INTERVAL_MS = Number.parseInt(process.env.VERIFICATION_CLEANUP_INTERVAL_MS ?? '60000', 10)
@@ -33,7 +34,7 @@ async function tick(): Promise<void> {
   }
 }
 
-async function main(): Promise<void> {
+async function run(): Promise<void> {
   console.log(`[verification-cleanup] Started (interval=${INTERVAL_MS}ms, batchSize=${BATCH_SIZE})`)
 
   // Run immediately on start, then on every interval
@@ -55,6 +56,13 @@ function shutdown(): void {
 
 process.on('SIGINT', shutdown)
 process.on('SIGTERM', shutdown)
+
+async function main(): Promise<void> {
+  const result = await withJobLock('verification-cleanup', run)
+  if (result === undefined) {
+    console.log('[verification-cleanup] Another instance is already running; exiting cleanly.')
+  }
+}
 
 main().catch((err) => {
   console.error('[verification-cleanup] Fatal error:', err)

@@ -1,7 +1,7 @@
-import OrderDetailPage from '#/components/OrderDetailPage'
+import BuyerOrderDetailPage from '#/components/BuyerOrderDetailPage'
 import { useLoaderData } from '@tanstack/react-router'
 
 export function OrderDetailRouteComponent() {
   const { order } = useLoaderData({ from: '/account/orders/$orderId' })
-  return <OrderDetailPage order={order} />
+  return <BuyerOrderDetailPage order={order} />
 }

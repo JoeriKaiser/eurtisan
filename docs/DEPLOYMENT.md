@@ -114,7 +114,7 @@ Caddy on production automatically provisions Let's Encrypt certificates on the f
 
 ## 5. Deployment
 
-Deploy manually via SSH. Run the deploy script on the VPS:
+Deploy manually via SSH. The deploy script tags the currently running image as `eurtisan-app:rollback-before-deploy`, builds the new image, runs migrations, starts the services, and then performs post-deploy smoke tests.
 
 ```bash
 # Deploy latest main to staging
@@ -122,6 +122,45 @@ ssh -i ~/.ssh/server_id_rsa_1 ubuntu@STAGING_IP 'COMPOSE_FILE=docker-compose.sta
 
 # Deploy a specific tag to production
 ssh -i ~/.ssh/server_id_rsa_1 ubuntu@PROD_IP '/opt/eurtisan/deploy.sh v1.2.3'
+```
+
+### Smoke tests & rollback
+
+After `docker compose up -d`, the script polls:
+
+- `/api/health/ready` — critical dependencies (DB, Meilisearch, disk)
+- `/api/health/live` — process liveness
+- `/api/health` — critical dependencies (lightweight)
+
+If any probe fails within the timeout (120s by default), the script:
+
+1. Sends an alert to `DEPLOY_ALERT_WEBHOOK` (or `BACKUP_ALERT_WEBHOOK` if unset).
+2. Rolls back to `eurtisan-app:rollback-before-deploy`.
+3. Re-runs smoke tests against the rollback image.
+4. Exits non-zero so callers (CI/CD, `make deploy`) know the deploy failed.
+
+To bypass smoke tests in an emergency:
+
+```bash
+/opt/eurtisan/deploy.sh --skip-smoke-test main
+```
+
+### Migration rollback plan
+
+Migrations run **before** services are restarted. If a migration fails, the deploy script rolls back to the previous image and exits. The database is not touched by the rollback; because migrations run first, a failed migration leaves the schema partially applied. Treat migration failures as a production incident:
+
+1. Inspect the migration output from the deploy script.
+2. If the migration was destructive or inconsistent, restore the database from the most recent nightly backup plus WAL archives (see [docs/runbooks/backup-restore.md](./runbooks/backup-restore.md)).
+3. Fix the migration in a new commit and redeploy.
+
+For this reason, migrations must be backward-compatible when possible, and a current verified backup must exist before every production deploy.
+
+### Deploy notifications
+
+Set in `infrastructure/ansible/secrets.yml`:
+
+```yaml
+deploy_alert_webhook: "https://hooks.slack.com/services/..."
 ```
 
 ### Accessing Staging
@@ -242,7 +281,42 @@ docker compose -f docker-compose.prod.yml restart caddy
 
 ## 7. Backups
 
-Database backups run automatically every night at 03:00 UTC. Backups are stored in `/opt/eurtisan/backups/` and retained for 7 days.
+Database backups run automatically every night at 03:00 UTC. Backups are stored in `/opt/eurtisan/backups/` and retained for **30 days** (`BACKUP_RETENTION_DAYS`).
+
+Every backup is:
+
+1. Dumped with `pg_dump` and compressed with `gzip`.
+2. Restored into a temporary PostgreSQL container to verify integrity and expected tables.
+3. Optionally uploaded off-site via `rclone` when `BACKUP_OFFSITE_RCLONE_REMOTE` is configured.
+4. Pruned locally and off-site according to retention policies.
+
+When off-site upload is configured, the backup script sends a warning alert if the upload fails but exits non-zero, so the failure is surfaced even though the local backup is valid.
+
+### Meilisearch & S3 uploads
+
+The backup script also creates a Meilisearch dump and, when `BACKUP_S3_UPLOADS_RCLONE_REMOTE` is set, syncs the S3 uploads bucket off-site. These are best-effort: failures are logged and alerted but do not fail the database backup.
+
+### Configure off-site upload
+
+1. Install and configure an rclone remote on the VPS:
+
+   ```bash
+   ssh ubuntu@PROD_IP
+   rclone config
+   ```
+
+2. Set in `infrastructure/ansible/secrets.yml` or `group_vars/all.yml`:
+
+   ```yaml
+   backup_offsite_rclone_remote: "s3:eurtisan-backups/database"
+   backup_s3_uploads_rclone_remote: "s3:eurtisan-backups/uploads"
+   ```
+
+3. Re-run the playbook to render the updated backup script:
+
+   ```bash
+   make infra-setup-production
+   ```
 
 ### Manual backup
 
@@ -300,16 +374,22 @@ infrastructure/
 
 ## WAL archiving (PostgreSQL PITR)
 
-Production should enable continuous archiving to S3-compatible storage (same bucket family as uploads):
+Production should enable continuous archiving. The default Ansible configuration writes WAL segments to a local host path mounted into the container:
 
-1. Mount or configure `archive_command` to copy `%p` WAL segments to object storage
-2. Set `archive_mode = on`, `wal_level = replica` in PostgreSQL config
-3. Test restore quarterly using [docs/runbooks/backup-restore.md](./runbooks/backup-restore.md)
+```yaml
+# infrastructure/ansible/group_vars/all.yml
+postgres_wal_archive_enabled: true
+postgres_wal_archive_path: "/opt/eurtisan/backups/wal"
+```
+
+This path is mounted into the `db` service via `docker-compose.wal-archive.yml` and `archive_command` copies each completed WAL segment there. For S3-compatible object storage, replace the local path with a tool such as `wal-g` or `pgbackrest` and configure its credentials separately. Do **not** enable `archive_mode` without a working archive path, or PostgreSQL will stall.
+
+Quarterly restore tests (including PITR) are required — see [docs/runbooks/backup-restore.md](./runbooks/backup-restore.md).
 
 Ansible variables (see `infrastructure/ansible/group_vars/all.yml`):
 
 - `postgres_wal_archive_enabled: true`
-- `postgres_wal_archive_path` — object storage prefix for WAL files
+- `postgres_wal_archive_path` — local path or object-storage prefix for WAL files
 
 ## Transactional email DNS
 
@@ -324,6 +404,27 @@ Product and shop images use **S3-compatible storage** (Garage locally, Scaleway 
 The app exposes `GET /api/metrics` for Prometheus. Optional protection: set `METRICS_TOKEN` and configure scrape `authorization: Bearer <token>`.
 
 Grafana Alloy/Prometheus should scrape `eurtisan-app:3000` with `metrics_path: /api/metrics`.
+
+Alert rules live in `infra/observability/prometheus/rules/` and cover app health, database connectivity, Meilisearch health, disk space, job alert logs, payment-webhook errors, and checkout failures. Validate them with:
+
+```bash
+docker run --rm --entrypoint sh -v $(pwd)/infra/observability/prometheus/rules:/rules prom/prometheus:latest -c 'promtool check rules /rules/*.yml'
+```
+
+## Alertmanager configuration
+
+At least one alert receiver is required in production. Configure one or both of the following in `infrastructure/ansible/secrets.yml`:
+
+```yaml
+alertmanager_smtp_host: "smtp.example.com"
+alertmanager_smtp_port: "587"
+alertmanager_smtp_from: "alerts@eurtisan.eu"
+alertmanager_smtp_to: "ops@eurtisan.eu"
+# or
+alertmanager_webhook_url: "https://hooks.slack.com/services/..."
+```
+
+The playbook fails fast if neither is configured in production (`coexist_with_proxy: false`). In local/dev mode, Alertmanager defaults to the `null` receiver (alerts are logged but not sent).
 
 ## Incident runbooks
 

@@ -112,7 +112,25 @@ vi.mock('#/paraglide/messages', () => ({
     pagination_next: () => 'Next',
     pagination_page_of: ({ page, totalPages }: { page: number; totalPages: number }) =>
       `Page ${page} of ${totalPages}`,
+    orderStatus_all: () => 'All statuses',
+    orderStatus_pending_payment: () => 'Pending Payment',
+    orderStatus_paid: () => 'Paid',
+    orderStatus_manual_review: () => 'Manual review',
+    orderStatus_chargeback: () => 'Chargeback',
+    orderStatus_processing: () => 'Processing',
+    orderStatus_shipped: () => 'Shipped',
+    orderStatus_delivered: () => 'Delivered',
+    orderStatus_completed: () => 'Completed',
+    orderStatus_cancelled: () => 'Cancelled',
+    orderStatus_refunded: () => 'Refunded',
+    orderStatus_disputed: () => 'Disputed',
   },
+}))
+
+vi.mock('#/lib/orders-ui', () => ({
+  getStatusBadgeVariant: () => 'default',
+  getOrderStatusLabel: (status: string) => status.replace('_', ' '),
+  isSupportedShippingCountry: () => true,
 }))
 
 import { Route } from './$shopId.orders'
@@ -130,8 +148,8 @@ describe('ShopOrdersPage', () => {
     expect(screen.getByText('Shop Orders')).toBeDefined()
     expect(screen.getByText('Alice')).toBeDefined()
     expect(screen.getByText('Bob')).toBeDefined()
-    expect(screen.getByText('paid')).toBeDefined()
-    expect(screen.getByText('shipped')).toBeDefined()
+    expect(screen.getByText('Paid')).toBeDefined()
+    expect(screen.getByText('Shipped')).toBeDefined()
     expect(screen.getByText('€25.00')).toBeDefined()
     expect(screen.getByText('€40.00')).toBeDefined()
     expect(screen.getByText('a***@example.com')).toBeDefined()

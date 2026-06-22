@@ -71,10 +71,13 @@ import { Route as SellOnboardingDraftIdRouteImport } from './routes/sell/onboard
 import { Route as OrdersPlatformOrderIdSuccessRouteImport } from './routes/orders.$platformOrderId.success'
 import { Route as CreatorProductsNewRouteImport } from './routes/creator/products/new'
 import { Route as ApiWebhooksSendcloudRouteImport } from './routes/api/webhooks/sendcloud'
+import { Route as ApiWebhooksMollieChargebackRouteImport } from './routes/api/webhooks/mollie-chargeback'
 import { Route as ApiWebhooksMollieRouteImport } from './routes/api/webhooks/mollie'
 import { Route as ApiWebhooksBrevoRouteImport } from './routes/api/webhooks/brevo'
 import { Route as ApiHealthReadyRouteImport } from './routes/api/health.ready'
 import { Route as ApiHealthLiveRouteImport } from './routes/api/health.live'
+import { Route as ApiHealthDepsRouteImport } from './routes/api/health.deps'
+import { Route as ApiE2eMockPaymentStatusRouteImport } from './routes/api/e2e/mock-payment-status'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AdminOrdersPlatformOrderIdRouteImport } from './routes/admin/orders.$platformOrderId'
 import { Route as AdminDisputesDisputeIdRouteImport } from './routes/admin/disputes/$disputeId'
@@ -412,6 +415,12 @@ const ApiWebhooksSendcloudRoute = ApiWebhooksSendcloudRouteImport.update({
   path: '/api/webhooks/sendcloud',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiWebhooksMollieChargebackRoute =
+  ApiWebhooksMollieChargebackRouteImport.update({
+    id: '/api/webhooks/mollie-chargeback',
+    path: '/api/webhooks/mollie-chargeback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiWebhooksMollieRoute = ApiWebhooksMollieRouteImport.update({
   id: '/api/webhooks/mollie',
   path: '/api/webhooks/mollie',
@@ -431,6 +440,16 @@ const ApiHealthLiveRoute = ApiHealthLiveRouteImport.update({
   id: '/live',
   path: '/live',
   getParentRoute: () => ApiHealthRoute,
+} as any)
+const ApiHealthDepsRoute = ApiHealthDepsRouteImport.update({
+  id: '/deps',
+  path: '/deps',
+  getParentRoute: () => ApiHealthRoute,
+} as any)
+const ApiE2eMockPaymentStatusRoute = ApiE2eMockPaymentStatusRouteImport.update({
+  id: '/api/e2e/mock-payment-status',
+  path: '/api/e2e/mock-payment-status',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
@@ -632,10 +651,13 @@ export interface FileRoutesByFullPath {
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/orders/$platformOrderId': typeof AdminOrdersPlatformOrderIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/e2e/mock-payment-status': typeof ApiE2eMockPaymentStatusRoute
+  '/api/health/deps': typeof ApiHealthDepsRoute
   '/api/health/live': typeof ApiHealthLiveRoute
   '/api/health/ready': typeof ApiHealthReadyRoute
   '/api/webhooks/brevo': typeof ApiWebhooksBrevoRoute
   '/api/webhooks/mollie': typeof ApiWebhooksMollieRoute
+  '/api/webhooks/mollie-chargeback': typeof ApiWebhooksMollieChargebackRoute
   '/api/webhooks/sendcloud': typeof ApiWebhooksSendcloudRoute
   '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
@@ -720,10 +742,13 @@ export interface FileRoutesByTo {
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/orders/$platformOrderId': typeof AdminOrdersPlatformOrderIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/e2e/mock-payment-status': typeof ApiE2eMockPaymentStatusRoute
+  '/api/health/deps': typeof ApiHealthDepsRoute
   '/api/health/live': typeof ApiHealthLiveRoute
   '/api/health/ready': typeof ApiHealthReadyRoute
   '/api/webhooks/brevo': typeof ApiWebhooksBrevoRoute
   '/api/webhooks/mollie': typeof ApiWebhooksMollieRoute
+  '/api/webhooks/mollie-chargeback': typeof ApiWebhooksMollieChargebackRoute
   '/api/webhooks/sendcloud': typeof ApiWebhooksSendcloudRoute
   '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
@@ -813,10 +838,13 @@ export interface FileRoutesById {
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/orders/$platformOrderId': typeof AdminOrdersPlatformOrderIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/e2e/mock-payment-status': typeof ApiE2eMockPaymentStatusRoute
+  '/api/health/deps': typeof ApiHealthDepsRoute
   '/api/health/live': typeof ApiHealthLiveRoute
   '/api/health/ready': typeof ApiHealthReadyRoute
   '/api/webhooks/brevo': typeof ApiWebhooksBrevoRoute
   '/api/webhooks/mollie': typeof ApiWebhooksMollieRoute
+  '/api/webhooks/mollie-chargeback': typeof ApiWebhooksMollieChargebackRoute
   '/api/webhooks/sendcloud': typeof ApiWebhooksSendcloudRoute
   '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
@@ -908,10 +936,13 @@ export interface FileRouteTypes {
     | '/admin/disputes/$disputeId'
     | '/admin/orders/$platformOrderId'
     | '/api/auth/$'
+    | '/api/e2e/mock-payment-status'
+    | '/api/health/deps'
     | '/api/health/live'
     | '/api/health/ready'
     | '/api/webhooks/brevo'
     | '/api/webhooks/mollie'
+    | '/api/webhooks/mollie-chargeback'
     | '/api/webhooks/sendcloud'
     | '/creator/products/new'
     | '/orders/$platformOrderId/success'
@@ -996,10 +1027,13 @@ export interface FileRouteTypes {
     | '/admin/disputes/$disputeId'
     | '/admin/orders/$platformOrderId'
     | '/api/auth/$'
+    | '/api/e2e/mock-payment-status'
+    | '/api/health/deps'
     | '/api/health/live'
     | '/api/health/ready'
     | '/api/webhooks/brevo'
     | '/api/webhooks/mollie'
+    | '/api/webhooks/mollie-chargeback'
     | '/api/webhooks/sendcloud'
     | '/creator/products/new'
     | '/orders/$platformOrderId/success'
@@ -1088,10 +1122,13 @@ export interface FileRouteTypes {
     | '/admin/disputes/$disputeId'
     | '/admin/orders/$platformOrderId'
     | '/api/auth/$'
+    | '/api/e2e/mock-payment-status'
+    | '/api/health/deps'
     | '/api/health/live'
     | '/api/health/ready'
     | '/api/webhooks/brevo'
     | '/api/webhooks/mollie'
+    | '/api/webhooks/mollie-chargeback'
     | '/api/webhooks/sendcloud'
     | '/creator/products/new'
     | '/orders/$platformOrderId/success'
@@ -1162,8 +1199,10 @@ export interface RootRouteChildren {
   AccountIndexRoute: typeof AccountIndexRoute
   SellIndexRoute: typeof SellIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiE2eMockPaymentStatusRoute: typeof ApiE2eMockPaymentStatusRoute
   ApiWebhooksBrevoRoute: typeof ApiWebhooksBrevoRoute
   ApiWebhooksMollieRoute: typeof ApiWebhooksMollieRoute
+  ApiWebhooksMollieChargebackRoute: typeof ApiWebhooksMollieChargebackRoute
   ApiWebhooksSendcloudRoute: typeof ApiWebhooksSendcloudRoute
   SellOnboardingDraftIdRoute: typeof SellOnboardingDraftIdRouteWithChildren
   SellStatusShopIdRoute: typeof SellStatusShopIdRoute
@@ -1611,6 +1650,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiWebhooksSendcloudRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/webhooks/mollie-chargeback': {
+      id: '/api/webhooks/mollie-chargeback'
+      path: '/api/webhooks/mollie-chargeback'
+      fullPath: '/api/webhooks/mollie-chargeback'
+      preLoaderRoute: typeof ApiWebhooksMollieChargebackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/webhooks/mollie': {
       id: '/api/webhooks/mollie'
       path: '/api/webhooks/mollie'
@@ -1638,6 +1684,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/health/live'
       preLoaderRoute: typeof ApiHealthLiveRouteImport
       parentRoute: typeof ApiHealthRoute
+    }
+    '/api/health/deps': {
+      id: '/api/health/deps'
+      path: '/deps'
+      fullPath: '/api/health/deps'
+      preLoaderRoute: typeof ApiHealthDepsRouteImport
+      parentRoute: typeof ApiHealthRoute
+    }
+    '/api/e2e/mock-payment-status': {
+      id: '/api/e2e/mock-payment-status'
+      path: '/api/e2e/mock-payment-status'
+      fullPath: '/api/e2e/mock-payment-status'
+      preLoaderRoute: typeof ApiE2eMockPaymentStatusRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/auth/$': {
       id: '/api/auth/$'
@@ -1994,11 +2054,13 @@ const AccountOrdersRouteWithChildren = AccountOrdersRoute._addFileChildren(
 )
 
 interface ApiHealthRouteChildren {
+  ApiHealthDepsRoute: typeof ApiHealthDepsRoute
   ApiHealthLiveRoute: typeof ApiHealthLiveRoute
   ApiHealthReadyRoute: typeof ApiHealthReadyRoute
 }
 
 const ApiHealthRouteChildren: ApiHealthRouteChildren = {
+  ApiHealthDepsRoute: ApiHealthDepsRoute,
   ApiHealthLiveRoute: ApiHealthLiveRoute,
   ApiHealthReadyRoute: ApiHealthReadyRoute,
 }
@@ -2113,8 +2175,10 @@ const rootRouteChildren: RootRouteChildren = {
   AccountIndexRoute: AccountIndexRoute,
   SellIndexRoute: SellIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiE2eMockPaymentStatusRoute: ApiE2eMockPaymentStatusRoute,
   ApiWebhooksBrevoRoute: ApiWebhooksBrevoRoute,
   ApiWebhooksMollieRoute: ApiWebhooksMollieRoute,
+  ApiWebhooksMollieChargebackRoute: ApiWebhooksMollieChargebackRoute,
   ApiWebhooksSendcloudRoute: ApiWebhooksSendcloudRoute,
   SellOnboardingDraftIdRoute: SellOnboardingDraftIdRouteWithChildren,
   SellStatusShopIdRoute: SellStatusShopIdRoute,

@@ -4,8 +4,7 @@ import type { shop } from '../src/db/schema'
 import { E2E_CREATOR } from './fixtures/auth'
 
 const e2eDatabaseUrl =
-  process.env.E2E_DATABASE_URL ??
-  'postgresql://eurtisan:eurtisan@db-test:5432/eurtisan_test'
+  process.env.E2E_DATABASE_URL ?? 'postgresql://eurtisan:eurtisan@db-test:5432/eurtisan_test'
 
 type ShopRow = typeof shop.$inferSelect
 
@@ -152,7 +151,10 @@ test.describe('Invoices E2E flow', () => {
 
     await expect(page.getByRole('heading', { name: 'Payouts', exact: true })).toBeVisible()
 
-    const row = page.locator('tr').filter({ hasText: testShopOrder.id.slice(0, 8) }).first()
+    const row = page
+      .locator('tr')
+      .filter({ hasText: testShopOrder.id.slice(0, 8) })
+      .first()
     await expect(row).toBeVisible()
 
     const customerLink = row.locator('a', { hasText: 'Customer' })
@@ -171,7 +173,10 @@ test.describe('Invoices E2E flow', () => {
     await page.goto(`/creator/payouts?shopId=${testShopOrder.shopId}`)
     await page.waitForLoadState('networkidle')
 
-    const row2 = page.locator('tr').filter({ hasText: testShopOrder.id.slice(0, 8) }).first()
+    const row2 = page
+      .locator('tr')
+      .filter({ hasText: testShopOrder.id.slice(0, 8) })
+      .first()
     const feeLink2 = row2.locator('a', { hasText: 'Platform Fee' })
     await feeLink2.click()
 
