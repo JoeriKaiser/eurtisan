@@ -108,6 +108,19 @@ e2e-report: up
 playwright-cli: up
 	docker compose exec app bunx playwright-cli $(if $(CMD),$(CMD),$(filter-out playwright-cli,$(MAKECMDGOALS)))
 
+# Retrieve the last sent email from Mailpit as JSON
+email-last: up
+	docker compose exec app bun run scripts/mailpit-helper.ts last
+
+# Retrieve extracted links from the last sent email
+email-links: up
+	docker compose exec app bun run scripts/mailpit-helper.ts links
+
+# Check local Meilisearch indexing stats
+meili-status: up
+	docker compose exec app bun -e "fetch('http://meilisearch:7700/stats', { headers: { Authorization: 'Bearer meilisearch-api-key' } }).then(r => r.json()).then(console.log)"
+
+
 # Auth
 auth-secret: up
 	docker compose exec app bunx @better-auth/cli secret
