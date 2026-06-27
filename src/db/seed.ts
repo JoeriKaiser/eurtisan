@@ -1,5 +1,27 @@
-import { randomBytes, scryptSync } from 'node:crypto'
+import { randomBytes, scryptSync, createHash } from 'node:crypto'
 import { rm } from 'node:fs/promises'
+
+function hashEmail(email: string): string {
+  return createHash('sha256').update(email.toLowerCase().trim()).digest('hex')
+}
+
+function normalizeCountryCode(country: string): string | null {
+  const upper = country.trim().toUpperCase()
+  if (upper.length === 2 && /^[A-Z]{2}$/.test(upper)) {
+    return upper
+  }
+  const mapping: Record<string, string> = {
+    belgium: 'BE',
+    france: 'FR',
+    germany: 'DE',
+    italy: 'IT',
+    netherlands: 'NL',
+    spain: 'ES',
+    portugal: 'PT',
+    estonia: 'EE',
+  }
+  return mapping[country.trim().toLowerCase()] || 'FR'
+}
 import { join } from 'node:path'
 import {
   faker,
@@ -138,8 +160,7 @@ function chunk<T>(arr: T[], size: number): T[][] {
 function makeAddress(locale: ReturnType<typeof randomLocale>) {
   return {
     name: locale.person.fullName(),
-    line1: locale.location.streetAddress({ useFullAddress: true }),
-    line2: faker.helpers.maybe(() => locale.location.secondaryAddress(), { probability: 0.3 }),
+    street: locale.location.streetAddress({ useFullAddress: true }),
     city: locale.location.city(),
     postalCode: locale.location.zipCode(),
     country: locale.location.country(),
@@ -163,16 +184,38 @@ async function clearAll() {
     'platform_order',
     'cart',
     'product_image',
+    'product_variant_option',
+    'product_option_value',
+    'product_option',
+    'product_variant',
     'product',
     'notification',
     'payout',
+    'payout_reconciliation_log',
+    'shop_socials',
     'shop',
     'category',
     'session',
     'account',
     'verification',
+    'two_factor',
     'user',
     'rate_limit',
+    'invoices',
+    'invoice_number_sequence',
+    'audit_log',
+    'customer_note',
+    'customer_tag',
+    'owner_message',
+    'owner_message_thread',
+    'financial_total_audit',
+    'meilisearch_sync_queue',
+    'sendcloud_webhook_event',
+    'brevo_webhook_event',
+    'email_outbox',
+    'email_send_log',
+    'email_suppression',
+    'user_email_preference',
   ]
   for (const table of tables) {
     await db.execute(sql.raw(`TRUNCATE TABLE "${table}" CASCADE`))
@@ -199,9 +242,18 @@ async function seedUsers() {
   // Known test accounts
   const known = [
     { name: 'Admin User', email: 'admin@eurtisan.local', role: 'admin' as const },
+    { name: 'Admin User 2FA', email: 'admin.2fa@eurtisan.local', role: 'admin' as const, twoFactorEnabled: true },
     { name: 'Eurtisan Creator', email: 'creator@eurtisan.local', role: 'creator' as const },
+    {
+      name: 'Eurtisan Creator 2FA',
+      email: 'creator.2fa@eurtisan.local',
+      role: 'creator' as const,
+      twoFactorEnabled: true,
+    },
     { name: 'Customer User', email: 'customer@eurtisan.local', role: 'customer' as const },
   ]
+
+  const twoFactorEntries: (typeof schema.twoFactor.$inferInsert)[] = []
 
   for (const k of known) {
     if (existingEmails.has(k.email)) continue
@@ -213,7 +265,7 @@ async function seedUsers() {
       emailVerified: true,
       role: k.role,
       image: avatarUrl(k.email),
-      twoFactorEnabled: false,
+      twoFactorEnabled: k.twoFactorEnabled ?? false,
     })
     const password = k.email.split('@')[0]
     accounts.push({
@@ -223,6 +275,16 @@ async function seedUsers() {
       userId: id,
       password: hashPassword(password),
     })
+
+    if (k.twoFactorEnabled) {
+      twoFactorEntries.push({
+        id: crypto.randomUUID(),
+        userId: id,
+        secret: 'MJSXE62TPNUGK4Z2', // base32 secret
+        backupCodes: JSON.stringify(['1234-5678', '8765-4321', '1111-2222', '3333-4444']),
+        verified: true,
+      })
+    }
     console.log(`  Credentials: ${k.email} / ${password}`)
   }
 
@@ -297,6 +359,12 @@ async function seedUsers() {
   if (accounts.length > 0) {
     await db.insert(schema.account).values(accounts).onConflictDoNothing()
   }
+  if (twoFactorEntries.length > 0) {
+    await db.insert(schema.twoFactor).values(twoFactorEntries).onConflictDoNothing()
+    console.log('  Seeded 2FA configuration for creator.2fa@eurtisan.local:')
+    console.log('    Secret: MJSXE62TPNUGK4Z2')
+    console.log('    Backup Codes: 1234-5678, 8765-4321, 1111-2222, 3333-4444')
+  }
 
   console.log(`  ${users.length} new users, ${accounts.length} new accounts`)
 
@@ -360,6 +428,38 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
         .trim()
       const locale = randomLocale()
       const slug = uniqueSlug(name, shopSlugs)
+
+      const status = faker.helpers.arrayElement([
+        'active',
+        'active',
+        'active',
+        'draft',
+        'pending_review',
+        'paused',
+      ]) as (typeof schema.shopStatusEnum.enumValues)[number]
+      const paymentConnected = ['active', 'paused'].includes(status)
+      const isVatRegistered = paymentConnected && faker.datatype.boolean(0.5)
+      const vatId = isVatRegistered
+        ? `${normalizeCountryCode(locale.location.country()) || 'FR'}${faker.string.numeric(11)}`
+        : undefined
+
+      const businessAddress = paymentConnected
+        ? {
+            street: locale.location.streetAddress(),
+            city: locale.location.city(),
+            postalCode: locale.location.zipCode(),
+            country: locale.location.country(),
+          }
+        : undefined
+
+      const legalEntityType = paymentConnected
+        ? faker.helpers.arrayElement(['individual', 'business'])
+        : undefined
+      const dateOfBirth = paymentConnected ? '1980-01-01' : undefined
+      const taxId = paymentConnected ? faker.string.numeric(10) : undefined
+      const businessRegistrationNumber =
+        paymentConnected && legalEntityType === 'business' ? faker.string.numeric(14) : undefined
+
       shops.push({
         id: crypto.randomUUID(),
         ownerId: creator.id!,
@@ -368,10 +468,23 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
         description: faker.commerce.productDescription(),
         image: shopImageUrl(slug),
         shippingOrigin: {
+          street: locale.location.streetAddress(),
           city: locale.location.city(),
+          postalCode: locale.location.zipCode(),
           country: locale.location.country(),
         },
         isSuspended: faker.datatype.boolean(0.03),
+        status,
+        onboardingStep: status === 'draft' ? 3 : 8,
+        paymentConnected,
+        mollieAccountId: paymentConnected ? `acct_${faker.string.alphanumeric(8)}` : undefined,
+        isVatRegistered,
+        vatId,
+        businessAddress,
+        legalEntityType,
+        dateOfBirth,
+        taxId,
+        businessRegistrationNumber,
       })
     }
   }
@@ -389,10 +502,29 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
       slug,
       description: 'Handcrafted goods from the heart of Europe.',
       image: shopImageUrl('the-forge'),
-      shippingOrigin: { city: 'Brussels', country: 'Belgium' },
+      shippingOrigin: {
+        street: 'Rue Royale 1',
+        city: 'Brussels',
+        postalCode: '1000',
+        country: 'Belgium',
+      },
       isSuspended: false,
       status: 'active',
       onboardingStep: 8,
+      paymentConnected: true,
+      mollieAccountId: 'acct_forge123',
+      isVatRegistered: true,
+      vatId: 'BE0123456789',
+      legalEntityType: 'business',
+      dateOfBirth: '1980-01-01',
+      taxId: '1234567890',
+      businessRegistrationNumber: '0123456789',
+      businessAddress: {
+        street: 'Rue Royale 1',
+        city: 'Brussels',
+        postalCode: '1000',
+        country: 'Belgium',
+      },
     })
   }
 
@@ -510,6 +642,46 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
       isSuspended: false,
       resubmissionCount: 0,
       paymentConnected: false,
+    })
+
+    // 4. Aegean Crafts — Greek Shop for testing Greek VAT ID prefix ("EL" prefix)
+    const greekSlug = uniqueSlug('Aegean Crafts', shopSlugs)
+    shops.push({
+      id: crypto.randomUUID(),
+      ownerId: knownCreator.id,
+      name: 'Aegean Crafts',
+      slug: greekSlug,
+      tagline: 'Handmade olive wood and ceramic items from Greece',
+      description: 'Bringing the sunlight of the Aegean to your home with artisanal wood carvings.',
+      category: 'home_living',
+      productionType: 'handmade',
+      tags: ['greece', 'aegean', 'olivewood', 'ceramics'],
+      languages: ['en', 'el'],
+      image: shopImageUrl(greekSlug),
+      bannerImage: shopImageUrl(`${greekSlug}-banner`),
+      shippingOrigin: {
+        street: 'Mitropoleos 12',
+        city: 'Athens',
+        postalCode: '10557',
+        country: 'Greece',
+      },
+      currency: 'EUR',
+      status: 'active',
+      onboardingStep: 8,
+      paymentConnected: true,
+      mollieAccountId: 'acct_aegean123',
+      isVatRegistered: true,
+      vatId: 'EL999999999', // Greek VAT prefix is EL
+      legalEntityType: 'business',
+      dateOfBirth: '1985-06-15',
+      taxId: '123456789',
+      businessRegistrationNumber: '987654321',
+      businessAddress: {
+        street: 'Mitropoleos 12',
+        city: 'Athens',
+        postalCode: '10557',
+        country: 'Greece',
+      },
     })
   }
 
@@ -773,6 +945,10 @@ async function seedProducts(
       })
       const productId = crypto.randomUUID()
 
+      const isActive = stockCount > 0 && faker.datatype.boolean(0.88)
+      const status = isActive && faker.datatype.boolean(0.9) ? 'published' as const : 'draft' as const
+      const publishedAt = status === 'published' ? faker.date.past({ years: 1 }) : null
+
       products.push({
         id: productId,
         name,
@@ -780,7 +956,9 @@ async function seedProducts(
         description: faker.commerce.productDescription(),
         priceCents,
         stockCount,
-        isActive: stockCount > 0 && faker.datatype.boolean(0.88),
+        isActive,
+        status,
+        publishedAt,
         shopId: shop.id!,
         categoryId: category?.id,
       })
@@ -812,7 +990,7 @@ async function seedProducts(
       db
         .insert(schema.product)
         .values(c)
-        .onConflictDoNothing({ target: [schema.product.shopId, schema.product.slug] }),
+        .onConflictDoNothing(),
     ),
   )
   await Promise.all(
@@ -821,8 +999,89 @@ async function seedProducts(
     ),
   )
 
+  // Seed variants for a subset (e.g. 25%) of successfully inserted products
+  console.log('Seeding variants and options for 25% of products...')
+  const variantEligibleProducts = products.filter(() => Math.random() < 0.25)
+  for (const p of variantEligibleProducts) {
+    try {
+      await seedProductVariants(p.id!, p.slug!, p.name!)
+    } catch (err) {
+      console.error(`Failed to seed variants for product ${p.id}:`, err)
+    }
+  }
+
   console.log(`  ${products.length} products, ${productImages.length} images`)
   return products
+}
+
+async function seedProductVariants(productId: string, baseSlug: string, _productName: string) {
+  const sizeOptionId = crypto.randomUUID()
+  const colorOptionId = crypto.randomUUID()
+
+  await db.insert(schema.productOption).values([
+    {
+      id: sizeOptionId,
+      productId,
+      name: 'Size',
+      displayOrder: 0,
+    },
+    {
+      id: colorOptionId,
+      productId,
+      name: 'Color',
+      displayOrder: 1,
+    },
+  ])
+
+  const sizes = ['S', 'M', 'L']
+  const colors = ['Off-White', 'Indigo', 'Charcoal']
+
+  const sizeValues = sizes.map((val, idx) => ({
+    id: crypto.randomUUID(),
+    optionId: sizeOptionId,
+    value: val,
+    displayOrder: idx,
+  }))
+
+  const colorValues = colors.map((val, idx) => ({
+    id: crypto.randomUUID(),
+    optionId: colorOptionId,
+    value: val,
+    displayOrder: idx,
+  }))
+
+  await db.insert(schema.productOptionValue).values([...sizeValues, ...colorValues])
+
+  const variants: (typeof schema.productVariant.$inferInsert)[] = []
+  const variantOptions: (typeof schema.productVariantOption.$inferInsert)[] = []
+
+  for (const sVal of sizeValues) {
+    for (const cVal of colorValues) {
+      const variantId = crypto.randomUUID()
+      const variantName = `${sVal.value} / ${cVal.value}`
+      const variantSku = `${baseSlug}-${sVal.value.toLowerCase()}-${cVal.value.toLowerCase().replace(/\s+/g, '-')}`
+      const priceAdjustment = sVal.value === 'L' ? 500 : 0 // Large costs 5€ extra
+      const stockCount = faker.number.int({ min: 5, max: 40 })
+
+      variants.push({
+        id: variantId,
+        productId,
+        sku: variantSku,
+        name: variantName,
+        priceAdjustmentCents: priceAdjustment,
+        stockCount,
+        isActive: true,
+      })
+
+      variantOptions.push(
+        { variantId, optionValueId: sVal.id },
+        { variantId, optionValueId: cVal.id },
+      )
+    }
+  }
+
+  await db.insert(schema.productVariant).values(variants)
+  await db.insert(schema.productVariantOption).values(variantOptions)
 }
 
 // =============================================================================
@@ -1157,6 +1416,22 @@ async function seedOrders(
     ),
   )
 
+  console.log('Generating invoices for paid/completed orders...')
+  const invoiceEligibleOrders = platformOrders.filter((o) =>
+    o.status && ['paid', 'processing', 'shipped', 'delivered', 'completed', 'disputed', 'refunded'].includes(
+      o.status,
+    ),
+  )
+
+  const { createInvoicesForPlatformOrder } = await import('../lib/invoices.server.ts')
+  for (const order of invoiceEligibleOrders) {
+    try {
+      await createInvoicesForPlatformOrder(order.id!)
+    } catch (err) {
+      console.error(`Failed to generate invoices for order ${order.id}:`, err)
+    }
+  }
+
   console.log(`  ${platformOrders.length} platform orders`)
   console.log(`  ${shopOrders.length} shop orders`)
   console.log(`  ${orderItems.length} order items`)
@@ -1164,6 +1439,7 @@ async function seedOrders(
   console.log(`  ${shippingLabels.length} shipping labels`)
   console.log(`  ${reviews.length} reviews`)
   console.log(`  ${disputes.length} disputes, ${disputeMessages.length} messages`)
+  console.log(`  Generated invoices for ${invoiceEligibleOrders.length} platform orders`)
 
   return shopOrders
 }
@@ -1251,6 +1527,97 @@ async function seedNotifications(users: (typeof schema.user.$inferInsert)[]) {
   console.log(`  ${notifications.length} notifications`)
 }
 
+async function seedCustomerManagement(
+  shops: (typeof schema.shop.$inferInsert)[],
+  users: (typeof schema.user.$inferInsert)[],
+) {
+  console.log('Seeding customer notes, tags, and messages...')
+  const customers = users.filter((u) => u.role === 'customer')
+  const notes: (typeof schema.customerNote.$inferInsert)[] = []
+  const tags: (typeof schema.customerTag.$inferInsert)[] = []
+  const threads: (typeof schema.ownerMessageThread.$inferInsert)[] = []
+  const messages: (typeof schema.ownerMessage.$inferInsert)[] = []
+
+  for (const shop of shops) {
+    if (shop.status && !['active', 'approved'].includes(shop.status)) continue
+
+    const shopCustomers = faker.helpers.arrayElements(customers, { min: 2, max: 4 })
+    for (const customer of shopCustomers) {
+      const emailHash = hashEmail(customer.email!)
+
+      tags.push({
+        id: crypto.randomUUID(),
+        shopId: shop.id!,
+        customerEmailHash: emailHash,
+        tag: faker.helpers.arrayElement([
+          'VIP',
+          'Frequent Buyer',
+          'Custom Order',
+          'Friendly',
+          'Returned Item',
+        ]),
+      })
+
+      notes.push({
+        id: crypto.randomUUID(),
+        shopId: shop.id!,
+        customerEmailHash: emailHash,
+        content: faker.helpers.arrayElement([
+          'Prefers express shipping.',
+          'Requested custom engraving on the next order.',
+          'Very responsive and polite.',
+          'Inquired about international shipping rates to Switzerland.',
+          'Prefers eco-friendly packaging if possible.',
+        ]),
+        createdBy: shop.ownerId,
+      })
+
+      const threadId = crypto.randomUUID()
+      threads.push({
+        id: threadId,
+        shopId: shop.id!,
+        customerUserId: customer.id!,
+        customerEmailHash: emailHash,
+        subject: faker.helpers.arrayElement([
+          'Question about sizing',
+          'Custom order inquiry',
+          'Shipping time estimate',
+          'Wholesale request',
+          'Return request',
+        ]),
+      })
+
+      const msgCount = faker.number.int({ min: 2, max: 5 })
+      for (let m = 0; m < msgCount; m++) {
+        messages.push({
+          id: crypto.randomUUID(),
+          threadId,
+          senderRole: m % 2 === 0 ? 'buyer' : 'owner',
+          body: faker.lorem.sentences(faker.number.int({ min: 1, max: 3 })),
+          createdAt: faker.date.recent({ days: 10 }),
+        })
+      }
+    }
+  }
+
+  if (tags.length > 0) {
+    await db.insert(schema.customerTag).values(tags).onConflictDoNothing()
+  }
+  if (notes.length > 0) {
+    await db.insert(schema.customerNote).values(notes).onConflictDoNothing()
+  }
+  if (threads.length > 0) {
+    await db.insert(schema.ownerMessageThread).values(threads).onConflictDoNothing()
+  }
+  if (messages.length > 0) {
+    await db.insert(schema.ownerMessage).values(messages).onConflictDoNothing()
+  }
+
+  console.log(
+    `  Seeded ${tags.length} tags, ${notes.length} notes, ${threads.length} message threads`,
+  )
+}
+
 // =============================================================================
 // Main
 // =============================================================================
@@ -1281,6 +1648,7 @@ async function seed() {
   const shopOrders = await seedOrders(users, shops, products)
   await seedPayouts(shopOrders)
   await seedNotifications(users)
+  await seedCustomerManagement(shops, users)
 
   console.log('\nConfiguring Meilisearch index...')
   await configureProductsIndex()

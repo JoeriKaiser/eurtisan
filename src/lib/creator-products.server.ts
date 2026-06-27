@@ -38,6 +38,8 @@ export async function verifyProductOwnership(productId: string, userId: string) 
       priceCents: product.priceCents,
       stockCount: product.stockCount,
       isActive: product.isActive,
+      status: product.status,
+      publishedAt: product.publishedAt,
       vatRateCategory: product.vatRateCategory,
       shopId: product.shopId,
       categoryId: product.categoryId,
@@ -154,6 +156,7 @@ export async function createProductInternal(
     shopId: string
     categoryId?: string
     isActive?: boolean
+    status?: 'draft' | 'published'
     vatRateCategory?: 'standard' | 'reduced' | 'exempt'
     weightGrams?: number
     lengthCm?: number
@@ -170,6 +173,9 @@ export async function createProductInternal(
 
   let newProduct: typeof product.$inferSelect
   try {
+    const status = data.status ?? 'draft'
+    const isActive = data.isActive ?? true
+
     newProduct = await db.transaction(async (tx) => {
       const [inserted] = await tx
         .insert(product)
@@ -182,7 +188,9 @@ export async function createProductInternal(
           stockCount: data.stockCount,
           shopId: data.shopId,
           categoryId: data.categoryId ?? null,
-          isActive: data.isActive ?? true,
+          isActive,
+          status,
+          publishedAt: status === 'published' ? new Date() : null,
           vatRateCategory: data.vatRateCategory ?? 'standard',
           weightGrams: data.weightGrams ?? null,
           lengthCm: data.lengthCm ?? null,
@@ -193,38 +201,42 @@ export async function createProductInternal(
 
       await insertProductImages(tx, inserted.id, data.images ?? [])
 
-      await tx.insert(meilisearchSyncQueue).values({
-        productId: inserted.id,
-        action: 'index',
-      })
+      if (status === 'published' && isActive) {
+        await tx.insert(meilisearchSyncQueue).values({
+          productId: inserted.id,
+          action: 'index',
+        })
+      }
 
       return inserted
     })
   } catch (err) {
-    if (isPostgresUniqueViolation(err, 'product_shop_slug_unique')) {
+    if (isPostgresUniqueViolation(err, 'product_shop_slug_published_unique')) {
       throw new Error('DUPLICATE_SLUG')
     }
     throw err
   }
 
-  import('./meilisearch-products.server')
-    .then(async ({ syncProductToMeilisearch }) => {
-      try {
-        await syncProductToMeilisearch(newProduct)
-        await db
-          .update(meilisearchSyncQueue)
-          .set({ status: 'completed', updatedAt: new Date() })
-          .where(
-            and(
-              eq(meilisearchSyncQueue.productId, newProduct.id),
-              eq(meilisearchSyncQueue.action, 'index'),
-            ),
-          )
-      } catch {
-        // ignored, background poller will pick it up
-      }
-    })
-    .catch(() => {})
+  if (newProduct.status === 'published' && newProduct.isActive) {
+    import('./meilisearch-products.server')
+      .then(async ({ syncProductToMeilisearch }) => {
+        try {
+          await syncProductToMeilisearch(newProduct)
+          await db
+            .update(meilisearchSyncQueue)
+            .set({ status: 'completed', updatedAt: new Date() })
+            .where(
+              and(
+                eq(meilisearchSyncQueue.productId, newProduct.id),
+                eq(meilisearchSyncQueue.action, 'index'),
+              ),
+            )
+        } catch {
+          // ignored, background poller will pick it up
+        }
+      })
+      .catch(() => {})
+  }
 
   if (actor) {
     await writeAuditLog({
@@ -232,7 +244,7 @@ export async function createProductInternal(
       action: 'product_created',
       resourceType: 'product',
       resourceId: newProduct.id,
-      metadata: { shopId: newProduct.shopId, name: newProduct.name },
+      metadata: { shopId: newProduct.shopId, name: newProduct.name, status: newProduct.status },
     })
   }
 
@@ -251,6 +263,7 @@ export async function updateProductInternal(
     stockCount?: number
     categoryId?: string
     isActive?: boolean
+    status?: 'draft' | 'published' | 'archived'
     vatRateCategory?: 'standard' | 'reduced' | 'exempt'
     weightGrams?: number
     lengthCm?: number
@@ -283,6 +296,12 @@ export async function updateProductInternal(
   if (data.stockCount !== undefined) updateData.stockCount = data.stockCount
   if (data.categoryId !== undefined) updateData.categoryId = data.categoryId ?? null
   if (data.isActive !== undefined) updateData.isActive = data.isActive
+  if (data.status !== undefined) {
+    updateData.status = data.status
+    if (data.status === 'published' && productRecord.publishedAt == null) {
+      updateData.publishedAt = new Date()
+    }
+  }
   if (data.vatRateCategory !== undefined) updateData.vatRateCategory = data.vatRateCategory
   if (data.weightGrams !== undefined) updateData.weightGrams = data.weightGrams ?? null
   if (data.lengthCm !== undefined) updateData.lengthCm = data.lengthCm ?? null
@@ -299,6 +318,10 @@ export async function updateProductInternal(
     oldImageKeys = oldImages.map((i) => i.url).filter((url): url is string => !!url)
   }
 
+  const finalStatus = data.status ?? productRecord.status
+  const finalIsActive = data.isActive ?? productRecord.isActive
+  const willBePublished = finalStatus === 'published' && finalIsActive
+
   let updatedProduct: typeof product.$inferSelect
   try {
     updatedProduct = await db.transaction(async (tx) => {
@@ -314,13 +337,13 @@ export async function updateProductInternal(
 
       await tx.insert(meilisearchSyncQueue).values({
         productId: data.productId,
-        action: 'index',
+        action: willBePublished ? 'index' : 'delete',
       })
 
       return result
     })
   } catch (err) {
-    if (isPostgresUniqueViolation(err, 'product_shop_slug_unique')) {
+    if (isPostgresUniqueViolation(err, 'product_shop_slug_published_unique')) {
       throw new Error('DUPLICATE_SLUG')
     }
     throw err
@@ -344,6 +367,105 @@ export async function updateProductInternal(
   })
 
   import('./meilisearch-products.server')
+    .then(async ({ syncProductToMeilisearch, removeProductFromMeilisearch }) => {
+      try {
+        if (updatedProduct.status === 'published' && updatedProduct.isActive) {
+          await syncProductToMeilisearch(updatedProduct)
+          await db
+            .update(meilisearchSyncQueue)
+            .set({ status: 'completed', updatedAt: new Date() })
+            .where(
+              and(
+                eq(meilisearchSyncQueue.productId, updatedProduct.id),
+                eq(meilisearchSyncQueue.action, 'index'),
+              ),
+            )
+        } else {
+          await removeProductFromMeilisearch(updatedProduct.id)
+          await db
+            .update(meilisearchSyncQueue)
+            .set({ status: 'completed', updatedAt: new Date() })
+            .where(
+              and(
+                eq(meilisearchSyncQueue.productId, updatedProduct.id),
+                eq(meilisearchSyncQueue.action, 'delete'),
+              ),
+            )
+        }
+      } catch {
+        // ignored, background poller will pick it up
+      }
+    })
+    .catch(() => {})
+
+  if (actor) {
+    await writeAuditLog({
+      actor,
+      action: 'product_updated',
+      resourceType: 'product',
+      resourceId: updatedProduct.id,
+      metadata: {
+        shopId: updatedProduct.shopId,
+        name: updatedProduct.name,
+        status: updatedProduct.status,
+      },
+    })
+  }
+
+  if (data.stockCount !== undefined) {
+    await notifyLowStockIfNeeded(updatedProduct.id)
+  }
+
+  return updatedProduct
+}
+
+/* -------------------------------------------------------------------------- */
+/*                         Product Lifecycle Helpers                          */
+/* -------------------------------------------------------------------------- */
+
+export async function publishProductInternal(
+  data: {
+    productId: string
+    shopId: string
+    userId: string
+  },
+  actor?: AuditActor,
+) {
+  const productRecord = await verifyProductOwnership(data.productId, data.userId)
+
+  if (productRecord.shopId !== data.shopId) {
+    throw new Error('FORBIDDEN')
+  }
+
+  let updatedProduct: typeof product.$inferSelect
+  try {
+    updatedProduct = await db.transaction(async (tx) => {
+      const [result] = await tx
+        .update(product)
+        .set({
+          status: 'published',
+          isActive: true,
+          publishedAt: sql`coalesce(${product.publishedAt}, now())`,
+          updatedAt: new Date(),
+        })
+        .where(eq(product.id, data.productId))
+        .returning()
+
+      await tx.insert(meilisearchSyncQueue).values({
+        productId: data.productId,
+        action: 'index',
+      })
+
+      return result
+    })
+  } catch (err) {
+    if (isPostgresUniqueViolation(err, 'product_shop_slug_published_unique')) {
+      throw new Error('SLUG_IN_USE')
+    }
+    throw err
+  }
+
+  import('./meilisearch-products.server')
     .then(async ({ syncProductToMeilisearch }) => {
       try {
         await syncProductToMeilisearch(updatedProduct)
@@ -365,18 +487,136 @@ export async function updateProductInternal(
   if (actor) {
     await writeAuditLog({
       actor,
-      action: 'product_updated',
+      action: 'product_published',
       resourceType: 'product',
       resourceId: updatedProduct.id,
       metadata: { shopId: updatedProduct.shopId, name: updatedProduct.name },
     })
   }
 
-  if (data.stockCount !== undefined) {
-    await notifyLowStockIfNeeded(updatedProduct.id)
+  return updatedProduct
+}
+
+export async function unpublishProductInternal(
+  data: {
+    productId: string
+    shopId: string
+    userId: string
+  },
+  actor?: AuditActor,
+) {
+  const productRecord = await verifyProductOwnership(data.productId, data.userId)
+
+  if (productRecord.shopId !== data.shopId) {
+    throw new Error('FORBIDDEN')
   }
 
-  return updatedProduct
+  const updated = await db.transaction(async (tx) => {
+    const [result] = await tx
+      .update(product)
+      .set({ status: 'draft', updatedAt: new Date() })
+      .where(eq(product.id, data.productId))
+      .returning()
+
+    await tx.insert(meilisearchSyncQueue).values({
+      productId: data.productId,
+      action: 'delete',
+    })
+
+    return result
+  })
+
+  import('./meilisearch-products.server')
+    .then(async ({ removeProductFromMeilisearch }) => {
+      try {
+        await removeProductFromMeilisearch(updated.id)
+        await db
+          .update(meilisearchSyncQueue)
+          .set({ status: 'completed', updatedAt: new Date() })
+          .where(
+            and(
+              eq(meilisearchSyncQueue.productId, updated.id),
+              eq(meilisearchSyncQueue.action, 'delete'),
+            ),
+          )
+      } catch {
+        // ignored, background poller will pick it up
+      }
+    })
+    .catch(() => {})
+
+  if (actor) {
+    await writeAuditLog({
+      actor,
+      action: 'product_unpublished',
+      resourceType: 'product',
+      resourceId: updated.id,
+      metadata: { shopId: updated.shopId, name: updated.name },
+    })
+  }
+
+  return updated
+}
+
+export async function archiveProductInternal(
+  data: {
+    productId: string
+    shopId: string
+    userId: string
+  },
+  actor?: AuditActor,
+) {
+  const productRecord = await verifyProductOwnership(data.productId, data.userId)
+
+  if (productRecord.shopId !== data.shopId) {
+    throw new Error('FORBIDDEN')
+  }
+
+  const updated = await db.transaction(async (tx) => {
+    const [result] = await tx
+      .update(product)
+      .set({ status: 'archived', isActive: false, updatedAt: new Date() })
+      .where(eq(product.id, data.productId))
+      .returning()
+
+    await tx.insert(meilisearchSyncQueue).values({
+      productId: data.productId,
+      action: 'delete',
+    })
+
+    return result
+  })
+
+  import('./meilisearch-products.server')
+    .then(async ({ removeProductFromMeilisearch }) => {
+      try {
+        await removeProductFromMeilisearch(updated.id)
+        await db
+          .update(meilisearchSyncQueue)
+          .set({ status: 'completed', updatedAt: new Date() })
+          .where(
+            and(
+              eq(meilisearchSyncQueue.productId, updated.id),
+              eq(meilisearchSyncQueue.action, 'delete'),
+            ),
+          )
+      } catch {
+        // ignored, background poller will pick it up
+      }
+    })
+    .catch(() => {})
+
+  if (actor) {
+    await writeAuditLog({
+      actor,
+      action: 'product_archived',
+      resourceType: 'product',
+      resourceId: updated.id,
+      metadata: { shopId: updated.shopId, name: updated.name },
+    })
+  }
+
+  return updated
 }
 
 export async function deleteProductInternal(
@@ -458,29 +698,29 @@ export async function deleteProductInternal(
   const updated = await db.transaction(async (tx) => {
     const [res] = await tx
       .update(product)
-      .set({ isActive: false, updatedAt: new Date() })
+      .set({ status: 'archived', isActive: false, updatedAt: new Date() })
       .where(eq(product.id, data.productId))
       .returning()
 
     await tx.insert(meilisearchSyncQueue).values({
       productId: data.productId,
-      action: 'index',
+      action: 'delete',
     })
 
     return res
   })
 
   import('./meilisearch-products.server')
-    .then(async ({ syncProductToMeilisearch }) => {
+    .then(async ({ removeProductFromMeilisearch }) => {
       try {
-        await syncProductToMeilisearch(updated)
+        await removeProductFromMeilisearch(updated.id)
         await db
           .update(meilisearchSyncQueue)
           .set({ status: 'completed', updatedAt: new Date() })
           .where(
             and(
               eq(meilisearchSyncQueue.productId, updated.id),
-              eq(meilisearchSyncQueue.action, 'index'),
+              eq(meilisearchSyncQueue.action, 'delete'),
             ),
           )
       } catch {
@@ -495,7 +735,7 @@ export async function deleteProductInternal(
       action: 'product_deleted',
       resourceType: 'product',
       resourceId: data.productId,
-      metadata: { shopId: productRecord.shopId, name: productRecord.name, hard: false },
+      metadata: { shopId: productRecord.shopId, name: productRecord.name, hard: false, status: 'archived' },
     })
   }
 
@@ -507,6 +747,7 @@ export async function listCreatorProductsInternal(data: {
   page: number
   pageSize: number
   active: 'true' | 'false' | 'all'
+  status?: 'draft' | 'published' | 'archived' | 'all'
   categoryId?: string
   search?: string
 }) {
@@ -520,6 +761,10 @@ export async function listCreatorProductsInternal(data: {
     conditions.push(eq(product.isActive, true))
   } else if (data.active === 'false') {
     conditions.push(eq(product.isActive, false))
+  }
+
+  if (data.status && data.status !== 'all') {
+    conditions.push(eq(product.status, data.status))
   }
 
   if (data.categoryId) {
@@ -545,6 +790,8 @@ export async function listCreatorProductsInternal(data: {
       priceCents: product.priceCents,
       stockCount: product.stockCount,
       isActive: product.isActive,
+      status: product.status,
+      publishedAt: product.publishedAt,
       categoryId: product.categoryId,
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
@@ -624,6 +871,10 @@ export async function toggleProductActiveInternal(
     throw new Error('FORBIDDEN')
   }
 
+  if (productRecord.status !== 'published') {
+    throw new Error('NOT_PUBLISHED')
+  }
+
   const newActive = !productRecord.isActive
 
   const updated = await db.transaction(async (tx) => {
@@ -635,25 +886,38 @@ export async function toggleProductActiveInternal(
 
     await tx.insert(meilisearchSyncQueue).values({
       productId: data.productId,
-      action: 'index',
+      action: newActive ? 'index' : 'delete',
     })
 
     return res
   })
 
   import('./meilisearch-products.server')
-    .then(async ({ syncProductToMeilisearch }) => {
+    .then(async ({ syncProductToMeilisearch, removeProductFromMeilisearch }) => {
       try {
-        await syncProductToMeilisearch(updated)
-        await db
-          .update(meilisearchSyncQueue)
-          .set({ status: 'completed', updatedAt: new Date() })
-          .where(
-            and(
-              eq(meilisearchSyncQueue.productId, updated.id),
-              eq(meilisearchSyncQueue.action, 'index'),
-            ),
-          )
+        if (updated.isActive) {
+          await syncProductToMeilisearch(updated)
+          await db
+            .update(meilisearchSyncQueue)
+            .set({ status: 'completed', updatedAt: new Date() })
+            .where(
+              and(
+                eq(meilisearchSyncQueue.productId, updated.id),
+                eq(meilisearchSyncQueue.action, 'index'),
+              ),
+            )
+        } else {
+          await removeProductFromMeilisearch(updated.id)
+          await db
+            .update(meilisearchSyncQueue)
+            .set({ status: 'completed', updatedAt: new Date() })
+            .where(
+              and(
+                eq(meilisearchSyncQueue.productId, updated.id),
+                eq(meilisearchSyncQueue.action, 'delete'),
+              ),
+            )
+        }
       } catch {
         // ignored, background poller will pick it up
       }
@@ -695,6 +959,7 @@ export async function bulkToggleProductActiveInternal(
       priceCents: product.priceCents,
       stockCount: product.stockCount,
       isActive: product.isActive,
+      status: product.status,
       vatRateCategory: product.vatRateCategory,
       shopId: product.shopId,
       categoryId: product.categoryId,
@@ -711,6 +976,7 @@ export async function bulkToggleProductActiveInternal(
       and(
         eq(shop.ownerId, data.userId),
         eq(product.shopId, data.shopId),
+        eq(product.status, 'published'),
         inArray(product.id, data.productIds),
       ),
     )
@@ -730,16 +996,20 @@ export async function bulkToggleProductActiveInternal(
     await tx.insert(meilisearchSyncQueue).values(
       ownedIds.map((productId) => ({
         productId,
-        action: 'index' as const,
+        action: data.isActive ? ('index' as const) : ('delete' as const),
       })),
     )
   })
 
   import('./meilisearch-products.server')
-    .then(async ({ syncProductToMeilisearch }) => {
+    .then(async ({ syncProductToMeilisearch, removeProductFromMeilisearch }) => {
       for (const p of ownedProducts) {
         try {
-          await syncProductToMeilisearch({ ...p, isActive: data.isActive })
+          if (data.isActive) {
+            await syncProductToMeilisearch({ ...p, isActive: data.isActive })
+          } else {
+            await removeProductFromMeilisearch(p.id)
+          }
         } catch {
           // ignored, background poller will pick it up
         }

@@ -1,4 +1,3 @@
-import { argv } from "bun";
 
 const MAILPIT_URL = "http://mailpit:8025/api/v1";
 
@@ -34,7 +33,7 @@ function extractUrls(text: string): string[] {
   return Array.from(new Set(matches.map((url) => url.replace(/&amp;/g, "&"))));
 }
 
-const action = argv[2];
+const action = process.argv[2];
 
 try {
   if (action === "last") {
@@ -71,3 +70,5 @@ try {
   console.error("Error running mailpit-helper:", err.message);
   process.exit(1);
 }
+
+export {}
