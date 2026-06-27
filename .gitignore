@@ -28,7 +28,9 @@ e2e/screenshots
 BUSINESS.md
 infrastructure/ansible/.vault_pass
 docker-compose.override.yml
-.agents/
+!.agents/
 scratch/
 skills-lock.json
+.playwright-cli/
+
 

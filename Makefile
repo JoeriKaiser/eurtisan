@@ -104,6 +104,10 @@ e2e-report: up
 	@if [ ! -f e2e/report/index.html ]; then echo "No report found. Run 'make e2e' first."; exit 1; fi
 	docker compose run --rm -p 9323:9323 app bun run e2e/serve-report.ts
 
+# Playwright Agent CLI (for browser automation by AI coding agents)
+playwright-cli: up
+	docker compose exec app bunx playwright-cli $(if $(CMD),$(CMD),$(filter-out playwright-cli,$(MAKECMDGOALS)))
+
 # Auth
 auth-secret: up
 	docker compose exec app bunx @better-auth/cli secret

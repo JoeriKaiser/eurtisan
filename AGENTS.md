@@ -29,7 +29,7 @@
    - Deployment smoke tests and migration rollback plan.
    - Alertmanager / Grafana alerting for health, job, and disk issues.
 
-> **Status as of 2026-06-21:** All P0 and P1 phases of the owner-operations push are implemented and staged (settings, variants, order fulfillment, customers, 2FA, deletion/erasure, and logs). Remaining gaps are product draft workflow, tax/VAT improvements, and production-operability/alerting work.
+> **Status as of 2026-06-27:** All P0 and P1 phases of the owner-operations push are implemented and staged (settings, variants, order fulfillment, customers, 2FA, deletion/erasure, and logs). The full Playwright E2E suite now passes (16 passed, 2 skipped). Remaining gaps are product draft workflow, tax/VAT improvements, and production-operability/alerting work.
 
 ### North Star → audit / phase reconciliation
 
@@ -314,6 +314,37 @@ Every workflow is exposed through `make` targets.
 
 Do not run tooling directly on the host machine unless explicitly documented.
 
+# Playwright Agent CLI for Browser Automation
+
+To enable AI agents to perform browser automation tasks, the Playwright Agent CLI (`@playwright/cli`) is installed in the project devDependencies.
+
+Since the entire application environment is containerized, all browser automation commands must be run inside the `app` container.
+
+A dedicated `make` target is provided for running `playwright-cli` commands:
+
+```bash
+# Run a playwright-cli command via make
+make playwright-cli CMD="<command> [args]"
+
+# Examples:
+# Open browser and navigate to the application
+make playwright-cli CMD="open http://localhost:3000"
+
+# Take a snapshot of the current page to inspect the accessibility tree and element references (e.g. e1, e2)
+make playwright-cli CMD="snapshot"
+
+# Click an element (e15)
+make playwright-cli CMD="click e15"
+
+# Fill in a text input (e5)
+make playwright-cli CMD="fill e5 'test-user'"
+
+# Close all browser sessions
+make playwright-cli CMD="close-all"
+```
+
+The CLI saves snapshots, screenshots, and videos directly to the local directory (which is mapped to the host). Make sure to close all active browser sessions (`make playwright-cli CMD="close-all"`) when your tasks are complete to avoid orphaned browser processes inside the container.
+
 ---
 
 # Service Topology
@@ -352,6 +383,7 @@ db:5432
 | Toolchain | Bun | Runtime/package manager |
 | Lint / Format | Biome | Formatting + linting |
 | Testing | Vitest + Testing Library | Unit and component testing |
+| Browser Automation (Agents) | Playwright Agent CLI | `@playwright/cli` run inside the container for token-efficient agent interactions |
 
 ---
 

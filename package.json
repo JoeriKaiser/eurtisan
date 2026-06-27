@@ -89,6 +89,7 @@
     "typescript": "^6.0.3",
     "vite": "^8.0.11",
     "@playwright/test": "^1.52.0",
+    "@playwright/cli": "^0.1.14",
     "vitest": "^4.1.5",
     "vitest-axe": "^0.1.0",
     "dotenv-cli": "^11.0.0",
