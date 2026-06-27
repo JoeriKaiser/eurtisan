@@ -35,8 +35,8 @@ vi.mock('#/paraglide/messages', () => ({
     checkout_field_country: () => 'Country',
     checkout_field_country_placeholder: () => 'Select a country',
     checkout_shipping_method: () => 'Shipping method',
-    shipping_estimatedDays: (inputs: { count: number }) =>
-      `${inputs.count} business day${inputs.count > 1 ? 's' : ''}`,
+    shipping_estimatedDays_one: () => '1 business day',
+    shipping_estimatedDays_other: (inputs: { count: number }) => `${inputs.count} business days`,
     shipping_estimatedDays_range: (inputs: { min: number; max: number }) =>
       `${inputs.min}–${inputs.max} business days`,
     checkout_shipping_standard: () => 'Standard',
@@ -54,6 +54,25 @@ vi.mock('#/paraglide/messages', () => ({
     checkout_error_country_required: () => 'Country is required',
     checkout_error_submit: () => 'Could not complete checkout. Please try again.',
     checkout_shippingUnsupported: () => 'We cannot ship to this address for this shop.',
+    checkout_pickup_point_label: () => 'Pick-up Point',
+    checkout_pickup_point_id: (inputs: { id: string }) => `ID: ${inputs.id}`,
+    checkout_no_pickup_point: () => 'No Pick-up Point Selected',
+    checkout_pickup_point_hint: () =>
+      'Please choose a pick-up point location to complete your order.',
+    checkout_pickup_point_change: () => 'Change Pick-up Point',
+    checkout_pickup_point_select: () => 'Select Pick-up Point',
+    checkout_pickup_point_required: () =>
+      'Please select a pick-up point before placing your order.',
+    checkout_rate_error: () => 'Could not fetch shipping rates. Please try again.',
+    checkout_missing_url: () => 'Checkout URL is missing. Please try again.',
+    checkout_shipping_label: () => 'Shipping',
+    checkout_includes_vat: () => 'Includes VAT',
+    checkout_total_vat: () => 'Total VAT included',
+    checkout_vat_id_label: () => 'VAT ID (Optional)',
+    checkout_vat_id_description: () => 'For EU VAT-registered businesses',
+    checkout_vat_id_placeholder: () => 'e.g., DE123456789',
+    checkout_vat_id_helper: () =>
+      'Enter to enable zero-rated EU cross-border billing. Must match the billing country.',
     product_no_image: () => 'No image available',
     cart_shop_subtotal: () => 'Subtotal',
     error_cart_empty: () => 'Cart is empty',

@@ -114,7 +114,7 @@ vi.mock('#/paraglide/messages', () => ({
   },
 }))
 
-import { Route } from './disputes'
+import { Route } from './disputes.index'
 
 const AdminDisputesPage = Route.options.component
 if (!AdminDisputesPage) {

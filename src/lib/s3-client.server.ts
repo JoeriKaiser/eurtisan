@@ -52,4 +52,5 @@ export const s3Client = new S3Client({
     secretAccessKey: getS3SecretAccessKey(),
   },
   forcePathStyle: true,
+  requestChecksumCalculation: 'WHEN_REQUIRED',
 })

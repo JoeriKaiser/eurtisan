@@ -54,10 +54,22 @@ db-migrate-e2e: up
 
 db-seed-e2e: db-migrate-e2e
 	docker compose exec -e DATABASE_URL=$(E2E_DATABASE_URL) app bun run db:seed -- --clear --force
+	docker compose exec app bun run scripts/setup-garage-cors.ts
 	@rm -f e2e/.auth/*.json
 
+# Bun/JSC heap cap for the test runner. The full browser project needs a large
+# heap because Vitest keeps Vite transforms in memory across ~40 test files.
+BUN_JSC_FORCE_RAM_SIZE ?= 30000000000
+
 test: up
-	docker compose exec app bun run test $(filter-out test,$(MAKECMDGOALS))
+	@if [ -z "$(filter-out test,$(MAKECMDGOALS))" ]; then \
+		unit_exit=0; browser_exit=0; \
+		docker compose exec -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) app bun run test -- --project unit || unit_exit=$$?; \
+		docker compose exec -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) app bun run test -- --project browser || browser_exit=$$?; \
+		exit $$((unit_exit || browser_exit)); \
+	else \
+		docker compose exec -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) app bun run test $(filter-out test,$(MAKECMDGOALS)); \
+	fi
 
 test-related: up
 	docker compose exec app bunx vitest related $(filter-out test-related,$(MAKECMDGOALS)) --run

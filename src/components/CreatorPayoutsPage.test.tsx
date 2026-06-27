@@ -33,7 +33,11 @@ vi.mock('#/paraglide/messages', () => ({
     creator_payouts_status_in_transit: () => 'In Transit',
     creator_payouts_status_sent: () => 'Sent',
     creator_payouts_status_failed: () => 'Failed',
+    creator_payouts_status_returned: () => 'Returned',
     creator_payouts_status_reversed: () => 'Reversed',
+    creator_payouts_invoices_col: () => 'Invoices',
+    creator_payouts_invoice_customer: () => 'Customer',
+    creator_payouts_invoice_platform_fee: () => 'Platform Fee',
     creator_payouts_filter_all: () => 'All',
     creator_payouts_filter_pending: () => 'Pending',
     creator_payouts_filter_in_transit: () => 'In Transit',
@@ -51,6 +55,8 @@ vi.mock('#/paraglide/messages', () => ({
     creator_payouts_error_load: () => 'Failed to load payouts. Please try again.',
     creator_payouts_refund_label: () => 'Refund',
     creator_payouts_mollie_connect_title: () => 'Mollie Connect',
+    creator_payouts_mollie_subtitle: ({ currency }: { currency: string }) =>
+      `Receive secure payouts in ${currency} via Mollie Connect`,
     creator_payouts_mollie_connect_description_connected: ({
       merchantId,
     }: {

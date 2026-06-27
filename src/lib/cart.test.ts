@@ -85,6 +85,7 @@ async function seedProduct(overrides?: Partial<typeof product.$inferInsert>) {
       priceCents: 1000,
       stockCount: 10,
       shopId: 'shop-1',
+      status: 'published',
       ...overrides,
     })
     .returning()

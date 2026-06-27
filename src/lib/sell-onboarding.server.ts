@@ -223,7 +223,7 @@ export async function saveOnboardingStepInternal(
   if (d.bannerImage !== undefined)
     updateData.bannerImage = validateImageUrl(d.bannerImage, 'Shop banner image')
   if (d.shippingOrigin !== undefined) updateData.shippingOrigin = encryptJsonb(d.shippingOrigin)
-  if (d.currency !== undefined) updateData.currency = String(d.currency)
+  if (d.currency !== undefined) updateData.currency = SUPPORTED_CURRENCY
   if (d.isVatRegistered !== undefined) updateData.isVatRegistered = Boolean(d.isVatRegistered)
   if (d.vatId !== undefined) updateData.vatId = d.vatId ? String(d.vatId).trim() : null
   if (d.legalEntityType !== undefined)

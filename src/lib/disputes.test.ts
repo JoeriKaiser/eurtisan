@@ -856,7 +856,9 @@ describe('resolveDisputeQuery', () => {
     await seedUser()
     await seedShop()
 
-    const { order, shopOrder: so } = await seedDeliveredOrder()
+    const refundSpy = vi.spyOn(molliePaymentProvider, 'refundPayment').mockResolvedValue(undefined)
+
+    const { order, shopOrder: so } = await seedDeliveredOrder({ molliePaymentId: 'tr_mock_000001' })
     const d = await openDisputeQuery(
       { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
       'user-1',
@@ -872,18 +874,28 @@ describe('resolveDisputeQuery', () => {
     expect(result.resolution).toBe('full_refund')
     expect(result.refundCents).toBe(2500)
 
+    expect(refundSpy).toHaveBeenCalledTimes(1)
+    expect(refundSpy).toHaveBeenCalledWith('tr_mock_000001', 2500, {})
+
     const [updatedSo] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
     expect(updatedSo.status).toBe('refunded')
+    expect(updatedSo.refundedCents).toBe(2500)
+    expect(updatedSo.refundPendingCents).toBe(0)
 
     const [updatedPo] = await db.select().from(platformOrder).where(eq(platformOrder.id, order.id))
     expect(updatedPo.status).toBe('refunded')
+    expect(updatedPo.refundedCents).toBe(2500)
+
+    refundSpy.mockRestore()
   })
 
   it('resolves with partial_refund and transitions to refunded', async () => {
     await seedUser()
     await seedShop()
 
-    const { order, shopOrder: so } = await seedDeliveredOrder()
+    const refundSpy = vi.spyOn(molliePaymentProvider, 'refundPayment').mockResolvedValue(undefined)
+
+    const { order, shopOrder: so } = await seedDeliveredOrder({ molliePaymentId: 'tr_mock_000001' })
     const d = await openDisputeQuery(
       { shopOrderId: so.id, reason: 'Issue', description: 'Problem' },
       'user-1',
@@ -902,11 +914,19 @@ describe('resolveDisputeQuery', () => {
     expect(result.resolution).toBe('partial_refund')
     expect(result.refundCents).toBe(1000)
 
+    expect(refundSpy).toHaveBeenCalledTimes(1)
+    expect(refundSpy).toHaveBeenCalledWith('tr_mock_000001', 1000, {})
+
     const [updatedSo] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
     expect(updatedSo.status).toBe('refunded')
+    expect(updatedSo.refundedCents).toBe(1000)
+    expect(updatedSo.refundPendingCents).toBe(0)
 
     const [updatedPo] = await db.select().from(platformOrder).where(eq(platformOrder.id, order.id))
     expect(updatedPo.status).toBe('refunded')
+    expect(updatedPo.refundedCents).toBe(1000)
+
+    refundSpy.mockRestore()
   })
 
   it('sends dispute_resolved notification to buyer on close resolution', async () => {
@@ -1060,7 +1080,7 @@ describe('resolveDisputeQuery', () => {
     )
 
     expect(refundSpy).toHaveBeenCalledTimes(1)
-    expect(refundSpy).toHaveBeenCalledWith('tr_mock_000001', 2500)
+    expect(refundSpy).toHaveBeenCalledWith('tr_mock_000001', 2500, {})
 
     refundSpy.mockRestore()
   })
@@ -1084,12 +1104,12 @@ describe('resolveDisputeQuery', () => {
     )
 
     expect(refundSpy).toHaveBeenCalledTimes(1)
-    expect(refundSpy).toHaveBeenCalledWith('tr_mock_000001', 1000)
+    expect(refundSpy).toHaveBeenCalledWith('tr_mock_000001', 1000, {})
 
     refundSpy.mockRestore()
   })
 
-  it('throws 502 and leaves database unchanged when refundPayment fails', async () => {
+  it('throws 502 and records durable refund intent when refundPayment fails', async () => {
     await seedUser()
     await seedShop()
 
@@ -1115,20 +1135,28 @@ describe('resolveDisputeQuery', () => {
         ),
       ).rejects.toBeInstanceOf(Response)
 
-      // Assert database did NOT update because the transaction never started
+      // The refund intent is recorded durably before Mollie is contacted, so the
+      // dispute is resolved and the shop order has a pending refund even though
+      // the Mollie call failed.
       const [updatedDispute] = await db.select().from(dispute).where(eq(dispute.id, d.id))
-      expect(updatedDispute.status).toBe('open')
+      expect(updatedDispute.status).toBe('resolved')
+      expect(updatedDispute.resolution).toBe('full_refund')
+      expect(updatedDispute.refundCents).toBe(2500)
 
       const [updatedSo] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
       expect(updatedSo.status).toBe('disputed')
+      expect(updatedSo.refundedCents).toBe(0)
+      expect(updatedSo.refundPendingCents).toBe(2500)
 
       const [updatedPo] = await db
         .select()
         .from(platformOrder)
         .where(eq(platformOrder.id, order.id))
       expect(updatedPo.status).toBe('disputed')
+      expect(updatedPo.refundedCents).toBe(2500)
 
       expect(refundSpy).toHaveBeenCalledTimes(1)
+      expect(refundSpy).toHaveBeenCalledWith('tr_mock_000001', 2500, {})
       expect(consoleSpy).toHaveBeenCalledWith(
         expect.stringContaining('Mollie refund failed for payment tr_mock_000001'),
       )
@@ -1201,7 +1229,9 @@ describe('resolveDisputeQuery', () => {
       'user-1',
     )
 
-    // Fire two concurrent resolutions
+    // Fire two concurrent resolutions. Attach a no-op catch to the raw
+    // promises so the losing call does not trigger an unhandled rejection
+    // before allSettled sees it.
     const p1 = resolveDisputeQuery(
       d.id,
       { resolution: 'full_refund' },
@@ -1212,11 +1242,13 @@ describe('resolveDisputeQuery', () => {
       { resolution: 'full_refund' },
       { userId: 'admin-1', role: 'admin' },
     )
+    p1.catch(() => {})
+    p2.catch(() => {})
 
-    // Small delay to ensure both refund calls have started
+    // Small delay to ensure the first resolution has recorded its intent.
     await new Promise((r) => setTimeout(r, 100))
 
-    // Now let both refunds proceed
+    // Now let the refund proceed
     resolveFirstRefund?.()
 
     const [result1, result2] = await Promise.allSettled([p1, p2])
@@ -1232,8 +1264,9 @@ describe('resolveDisputeQuery', () => {
     expect(failure.reason instanceof Response).toBe(true)
     expect((failure.reason as Response).status).toBe(409)
 
-    expect(refundSpy).toHaveBeenCalledTimes(2)
-    expect(refundSpy).toHaveBeenCalledWith('tr_race_001', 2500)
+    // Only the winning resolution contacts Mollie.
+    expect(refundSpy).toHaveBeenCalledTimes(1)
+    expect(refundSpy).toHaveBeenCalledWith('tr_race_001', 2500, {})
 
     refundSpy.mockRestore()
   })
@@ -1268,7 +1301,7 @@ describe('resolveDisputeQuery', () => {
     refundSpy.mockRestore()
   })
 
-  it('releases inventory reservations on partial_refund resolution', async () => {
+  it('does not release inventory reservations on partial_refund resolution', async () => {
     await seedUser()
     await seedShop()
 
@@ -1293,7 +1326,7 @@ describe('resolveDisputeQuery', () => {
       .from(inventoryReservation)
       .where(eq(inventoryReservation.platformOrderId, order.id))
 
-    expect(reservations).toHaveLength(0)
+    expect(reservations).toHaveLength(1)
 
     refundSpy.mockRestore()
   })
@@ -1411,9 +1444,15 @@ describe('resolveDisputeQuery', () => {
     const [updatedDispute] = await db.select().from(dispute).where(eq(dispute.id, d.id))
     expect(updatedDispute.status).toBe('resolved')
 
+    const [updatedSo] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
+    expect(updatedSo.status).toBe('refunded')
+    expect(updatedSo.refundedCents).toBe(1000)
+
+    // Partial refunds do not mark the full routed payout as reversed; Mollie
+    // claws back only the refunded portion via routingReversals.
     const [updatedPayout] = await db.select().from(payout).where(eq(payout.shopOrderId, so.id))
-    expect(updatedPayout.status).toBe('reversed')
-    expect(updatedPayout.reversalReason).toBe('partial_refund')
+    expect(updatedPayout.status).toBe('sent')
+    expect(updatedPayout.reversalReason).toBeNull()
 
     refundSpy.mockRestore()
   })

@@ -4,6 +4,7 @@ import { authMiddleware } from './auth-middleware'
 import type { SafeUser } from './server-auth'
 import { requirePrivileged2FA } from './server-auth'
 import { validateVatId } from './vat'
+import { SUPPORTED_CURRENCY } from './currency'
 
 /* -------------------------------------------------------------------------- */
 /*                                 Constants                                  */
@@ -58,18 +59,7 @@ export const ALLOWED_COUNTRY_CODES = [
   'NO',
 ] as const
 
-export const ALLOWED_CURRENCIES = [
-  'EUR',
-  'PLN',
-  'SEK',
-  'DKK',
-  'CHF',
-  'NOK',
-  'GBP',
-  'USD',
-  'CAD',
-  'AUD',
-] as const
+export const ALLOWED_CURRENCIES = [SUPPORTED_CURRENCY] as const
 
 const processingTimeSchema = z
   .object({

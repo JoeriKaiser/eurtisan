@@ -33,6 +33,7 @@ import { logger } from './logger.server'
 import type { PaymentProvider } from './payment-provider'
 import { recalcPlatformOrderTree } from './financial-totals.server'
 import { formatPriceEUR } from './pricing'
+import { SUPPORTED_CURRENCY } from './currency'
 import { calculatePackageFromItems } from './shipping-estimate'
 import {
   buildShopLegalIdentity,
@@ -40,12 +41,8 @@ import {
   toSellerEmailPayload,
 } from './shop-legal-identity'
 import { EU_MEMBER_STATE_CODES } from './address-validation'
-import {
-  calculateVat,
-  isVatIdFormatValid,
-  normalizeCountryCode,
-  verifyVatIdVies,
-} from './vat.server'
+import { isVatIdFormatValid } from './vat-patterns'
+import { calculateVat, normalizeCountryCode, verifyVatIdVies } from './vat.server'
 
 /* -------------------------------------------------------------------------- */
 /*                                  Types                                     */
@@ -1181,7 +1178,17 @@ export async function createCheckoutWithProvider(
     await tx.delete(cartItem).where(eq(cartItem.cartId, input.cartId))
     await tx.delete(cart).where(eq(cart.id, input.cartId))
 
-    return { platformOrderId: platformOrderRecord.id, createdShopOrders, grandTotalCents }
+    const [updatedOrder] = await tx
+      .select({ totalCents: platformOrder.totalCents })
+      .from(platformOrder)
+      .where(eq(platformOrder.id, platformOrderRecord.id))
+    const finalGrandTotalCents = updatedOrder?.totalCents ?? grandTotalCents
+
+    return {
+      platformOrderId: platformOrderRecord.id,
+      createdShopOrders,
+      grandTotalCents: finalGrandTotalCents,
+    }
   })
 
   platformOrderId = result.platformOrderId
@@ -1197,7 +1204,7 @@ export async function createCheckoutWithProvider(
   try {
     const payment = await paymentProvider.createPayment(
       result.grandTotalCents,
-      'EUR',
+      SUPPORTED_CURRENCY,
       `Eurtisan order ${platformOrderId}`,
       redirectUrl,
       webhookUrl,
@@ -1447,7 +1454,7 @@ export async function retryPayment(
   try {
     const payment = await paymentProvider.createPayment(
       order.totalCents,
-      'EUR',
+      SUPPORTED_CURRENCY,
       `Eurtisan order ${platformOrderId}`,
       redirectUrl,
       webhookUrl,

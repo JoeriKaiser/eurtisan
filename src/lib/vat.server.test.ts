@@ -1,10 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import {
-  calculateVat,
-  normalizeCountryCode,
-  isVatIdFormatValid,
-  verifyVatIdVies,
-} from './vat.server'
+import { calculateVat, normalizeCountryCode, verifyVatIdVies } from './vat.server'
+import { isVatIdFormatValid } from './vat-patterns'
 import { validateVatId } from './vat'
 import { logger } from './logger.server'
 
@@ -217,6 +213,81 @@ describe('validateVatId', () => {
 
   it('ignores spaces and normalises case', () => {
     expect(validateVatId('de 123 456 789')).toEqual({ valid: true })
+  })
+
+  it('accepts a valid Belgian VAT ID starting with 0 or 1', () => {
+    expect(validateVatId('BE0123456789')).toEqual({ valid: true })
+    expect(validateVatId('BE1123456789')).toEqual({ valid: true })
+  })
+
+  it('rejects Belgian VAT IDs that do not start with 0 or 1', () => {
+    expect(validateVatId('BE2123456789')).toEqual({
+      valid: false,
+      message: 'Invalid format for BE VAT ID',
+    })
+  })
+
+  it('accepts a valid Irish VAT ID', () => {
+    expect(validateVatId('IE1234567A')).toEqual({ valid: true })
+    expect(validateVatId('IE1A23456A')).toEqual({ valid: true })
+  })
+
+  it('rejects Irish VAT IDs ending in X, Y or Z', () => {
+    expect(validateVatId('IE1234567X')).toEqual({
+      valid: false,
+      message: 'Invalid format for IE VAT ID',
+    })
+  })
+
+  it('accepts a valid Swedish VAT ID', () => {
+    expect(validateVatId('SE123456789012')).toEqual({ valid: true })
+  })
+
+  it('rejects a Swedish VAT ID that is too short', () => {
+    expect(validateVatId('SE1234567890')).toEqual({
+      valid: false,
+      message: 'Invalid format for SE VAT ID',
+    })
+  })
+
+  it('accepts a valid Spanish VAT ID', () => {
+    expect(validateVatId('ESA1234567B')).toEqual({ valid: true })
+    expect(validateVatId('ES12345678A')).toEqual({ valid: true })
+  })
+
+  it('rejects an invalid Spanish VAT ID', () => {
+    expect(validateVatId('ES1234567')).toEqual({
+      valid: false,
+      message: 'Invalid format for ES VAT ID',
+    })
+  })
+
+  it('accepts Greek VAT IDs with both EL and GR prefixes', () => {
+    expect(validateVatId('EL123456789')).toEqual({ valid: true })
+    expect(validateVatId('GR123456789')).toEqual({ valid: true })
+  })
+
+  it('agrees with isVatIdFormatValid for a representative sample', () => {
+    const samples = [
+      { vatId: 'DE123456789', country: 'DE', valid: true },
+      { vatId: 'FRXX123456789', country: 'FR', valid: true },
+      { vatId: 'NL123456789B01', country: 'NL', valid: true },
+      { vatId: 'BE0123456789', country: 'BE', valid: true },
+      { vatId: 'IE1234567A', country: 'IE', valid: true },
+      { vatId: 'SE123456789012', country: 'SE', valid: true },
+      { vatId: 'ESA1234567B', country: 'ES', valid: true },
+      { vatId: 'EL123456789', country: 'EL', valid: true },
+      { vatId: 'GR123456789', country: 'GR', valid: true },
+      { vatId: 'DE123', country: 'DE', valid: false },
+      { vatId: 'XX123456789', country: 'XX', valid: false },
+    ]
+
+    for (const sample of samples) {
+      const clientResult = validateVatId(sample.vatId)
+      const serverResult = isVatIdFormatValid(sample.vatId, sample.country)
+      expect(serverResult).toBe(sample.valid)
+      expect(clientResult.valid).toBe(sample.valid)
+    }
   })
 })
 

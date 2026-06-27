@@ -38,6 +38,8 @@ vi.mock('#/paraglide/messages', () => ({
     product_no_image: () => 'No image available',
     product_out_of_stock: () => 'Out of stock',
     product_unknown_shop: () => 'Unknown shop',
+    vat_included: () => 'VAT incl.',
+    vat_exempt_short: () => 'VAT exempt',
   },
 }))
 

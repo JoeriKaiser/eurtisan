@@ -6,6 +6,7 @@ import { Select } from '../ui/select'
 import { Switch } from '../ui/switch'
 import { useOnboarding } from './OnboardingProvider'
 import { useStepActions } from './useStepActions'
+import { m } from '#/paraglide/messages'
 
 const COUNTRIES = [
   { code: 'FR', name: 'France' },
@@ -28,28 +29,6 @@ const COUNTRIES = [
   { code: 'CH', name: 'Switzerland' },
   { code: 'NO', name: 'Norway' },
 ]
-
-const COUNTRY_CURRENCIES: Record<string, string> = {
-  FR: 'EUR',
-  DE: 'EUR',
-  IT: 'EUR',
-  ES: 'EUR',
-  NL: 'EUR',
-  BE: 'EUR',
-  AT: 'EUR',
-  PT: 'EUR',
-  IE: 'EUR',
-  FI: 'EUR',
-  PL: 'PLN',
-  SE: 'SEK',
-  DK: 'DKK',
-  CH: 'CHF',
-  NO: 'NOK',
-  GB: 'GBP',
-  US: 'USD',
-  CA: 'CAD',
-  AU: 'AUD',
-}
 
 const STATES_US = [
   'Alabama',
@@ -137,7 +116,6 @@ export function Step4Location() {
       processingTimeDays: { min: number; max: number }
       shipsInternational: boolean
     }
-    currency: string
     isVatRegistered?: boolean
     vatId?: string | null
     legalEntityType?: 'individual' | 'business'
@@ -154,7 +132,6 @@ export function Step4Location() {
     processingMin: data.shippingOrigin?.processingTimeDays?.min ?? 1,
     processingMax: data.shippingOrigin?.processingTimeDays?.max ?? 3,
     shipsInternational: data.shippingOrigin?.shipsInternational ?? false,
-    currency: data.currency ?? 'EUR',
     isVatRegistered: data.isVatRegistered ?? false,
     vatId: data.vatId ?? '',
     legalEntityType: data.legalEntityType ?? 'individual',
@@ -176,7 +153,6 @@ export function Step4Location() {
       ...prev,
       country: value,
       state: '',
-      currency: COUNTRY_CURRENCIES[value] ?? 'EUR',
     }))
   }
 
@@ -190,7 +166,7 @@ export function Step4Location() {
         processingTimeDays: { min: form.processingMin, max: form.processingMax },
         shipsInternational: form.shipsInternational,
       },
-      currency: form.currency,
+      currency: 'EUR',
       isVatRegistered: form.isVatRegistered,
       vatId: form.vatId,
       legalEntityType: form.legalEntityType,
@@ -221,7 +197,7 @@ export function Step4Location() {
         processingTimeDays: { min: form.processingMin, max: form.processingMax },
         shipsInternational: form.shipsInternational,
       },
-      currency: form.currency,
+      currency: 'EUR',
       isVatRegistered: form.isVatRegistered,
       vatId: form.vatId,
       legalEntityType: form.legalEntityType,
@@ -236,13 +212,13 @@ export function Step4Location() {
   return (
     <div className='space-y-6'>
       <div>
-        <h2 className='display-title text-2xl text-text-primary'>Location & Shipping</h2>
-        <p className='mt-1 text-text-secondary'>Where are your items coming from?</p>
+        <h2 className='display-title text-2xl text-text-primary'>{m.onboarding_step4_title()}</h2>
+        <p className='mt-1 text-text-secondary'>{m.onboarding_step4_description()}</p>
       </div>
 
       <div>
         <Label htmlFor='country' required>
-          Country
+          {m.onboarding_step4_country_label()}
         </Label>
         <Select
           id='country'
@@ -250,7 +226,7 @@ export function Step4Location() {
           onChange={(e) => handleCountryChange(e.target.value)}
           className='mt-1'
         >
-          <option value=''>Select a country</option>
+          <option value=''>{m.onboarding_step4_country_placeholder()}</option>
           {COUNTRIES.map((c) => (
             <option key={c.code} value={c.code}>
               {c.name}
@@ -264,14 +240,14 @@ export function Step4Location() {
 
       {stateOptions.length > 0 && (
         <div>
-          <Label htmlFor='state'>State / Province</Label>
+          <Label htmlFor='state'>{m.onboarding_step4_state_label()}</Label>
           <Select
             id='state'
             value={form.state}
             onChange={(e) => setForm((prev) => ({ ...prev, state: e.target.value }))}
             className='mt-1'
           >
-            <option value=''>Select…</option>
+            <option value=''>{m.onboarding_step4_state_placeholder()}</option>
             {stateOptions.map((s) => (
               <option key={s} value={s}>
                 {s}
@@ -283,31 +259,33 @@ export function Step4Location() {
 
       <div className='grid gap-4 sm:grid-cols-2'>
         <div>
-          <Label htmlFor='city'>City</Label>
+          <Label htmlFor='city'>{m.onboarding_step4_city_label()}</Label>
           <Input
             id='city'
             value={form.city}
             onChange={(e) => setForm((prev) => ({ ...prev, city: e.target.value }))}
-            placeholder='e.g. Paris'
+            placeholder={m.onboarding_step4_city_placeholder()}
             className='mt-1'
           />
         </div>
         <div>
-          <Label htmlFor='postal'>Postal code</Label>
+          <Label htmlFor='postal'>{m.onboarding_step4_postal_label()}</Label>
           <Input
             id='postal'
             value={form.postalCode}
             onChange={(e) => setForm((prev) => ({ ...prev, postalCode: e.target.value }))}
-            placeholder='e.g. 75001'
+            placeholder={m.onboarding_step4_postal_placeholder()}
             className='mt-1'
           />
         </div>
       </div>
 
       <div>
-        <Label required>Processing time</Label>
+        <Label required>{m.onboarding_step4_processing_time_label()}</Label>
         <div className='mt-1 flex items-center gap-2'>
-          <span className='text-sm text-text-secondary'>Ships within</span>
+          <span className='text-sm text-text-secondary'>
+            {m.onboarding_step4_processing_time_prefix()}
+          </span>
           <Input
             type='number'
             min={1}
@@ -329,7 +307,9 @@ export function Step4Location() {
             }
             className='w-20'
           />
-          <span className='text-sm text-text-secondary'>business days</span>
+          <span className='text-sm text-text-secondary'>
+            {m.onboarding_step4_processing_time_suffix()}
+          </span>
         </div>
         {errors['shippingOrigin.processingTimeDays'] && (
           <p className='mt-1 text-sm text-error'>{errors['shippingOrigin.processingTimeDays']}</p>
@@ -338,7 +318,9 @@ export function Step4Location() {
 
       <div className='rounded-xl border border-border-default p-4'>
         <div className='flex items-center justify-between'>
-          <Label htmlFor='ships-international'>Ships internationally</Label>
+          <Label htmlFor='ships-international'>
+            {m.onboarding_step4_ships_international_label()}
+          </Label>
           <Switch
             id='ships-international'
             checked={form.shipsInternational}
@@ -349,47 +331,23 @@ export function Step4Location() {
         </div>
       </div>
 
-      <div>
-        <Label htmlFor='currency' required>
-          Default currency
-        </Label>
-        <Select
-          id='currency'
-          value={form.currency}
-          onChange={(e) => setForm((prev) => ({ ...prev, currency: e.target.value }))}
-          className='mt-1'
-        >
-          <option value='EUR'>EUR: Euro</option>
-          <option value='USD'>USD: US Dollar</option>
-          <option value='GBP'>GBP: British Pound</option>
-          <option value='CAD'>CAD: Canadian Dollar</option>
-          <option value='AUD'>AUD: Australian Dollar</option>
-          <option value='CHF'>CHF: Swiss Franc</option>
-          <option value='SEK'>SEK: Swedish Krona</option>
-          <option value='NOK'>NOK: Norwegian Krone</option>
-          <option value='DKK'>DKK: Danish Krone</option>
-          <option value='PLN'>PLN: Polish Zloty</option>
-        </Select>
-      </div>
-
       <div className='border-t border-border-default pt-6 space-y-4'>
         <div>
           <h3 className='text-sm font-semibold text-text-primary uppercase tracking-wider mb-2'>
-            Tax Settings
+            {m.onboarding_step4_tax_settings_title()}
           </h3>
           <p className='text-xs text-text-secondary mb-4'>
-            If you are registered for VAT in the European Union, please enable this and enter your
-            VAT Identification Number.
+            {m.onboarding_step4_vat_registered_description()}
           </p>
         </div>
 
         <div className='flex items-center justify-between rounded-xl border border-border-default p-4'>
           <div>
             <Label htmlFor='is-vat-registered' className='font-semibold'>
-              Registered for VAT
+              {m.onboarding_step4_vat_registered_label()}
             </Label>
             <p className='text-xs text-text-secondary mt-0.5'>
-              I have a registered VAT number for my business.
+              {m.onboarding_step4_vat_registered_description()}
             </p>
           </div>
           <Switch
@@ -404,13 +362,13 @@ export function Step4Location() {
         {form.isVatRegistered && (
           <div className='space-y-1.5 transition-all duration-200'>
             <Label htmlFor='vat-id' required>
-              VAT ID / Identification Number
+              {m.onboarding_step4_vat_id_label()}
             </Label>
             <Input
               id='vat-id'
               value={form.vatId}
               onChange={(e) => setForm((prev) => ({ ...prev, vatId: e.target.value }))}
-              placeholder='e.g. FR12345678901'
+              placeholder={m.onboarding_step4_vat_id_placeholder()}
               className='mt-1'
             />
             {errors.vatId && <p className='mt-1 text-sm text-error'>{errors.vatId}</p>}
@@ -421,17 +379,16 @@ export function Step4Location() {
       <div className='border-t border-border-default pt-6 space-y-4'>
         <div>
           <h3 className='text-sm font-semibold text-text-primary uppercase tracking-wider mb-2'>
-            Tax Identity & DAC7 Compliance
+            {m.onboarding_step4_tax_identity_title()}
           </h3>
           <p className='text-xs text-text-secondary mb-4'>
-            In accordance with European Union DAC7 regulations, Eurtisan is required to collect and
-            verify tax identity information for all sellers.
+            {m.onboarding_step4_tax_identity_description()}
           </p>
         </div>
 
         <div>
           <Label htmlFor='legal-entity-type' required>
-            Legal Entity Type
+            {m.onboarding_step4_legal_entity_type_label()}
           </Label>
           <Select
             id='legal-entity-type'
@@ -444,8 +401,8 @@ export function Step4Location() {
             }
             className='mt-1'
           >
-            <option value='individual'>Individual / Sole Proprietor</option>
-            <option value='business'>Registered Business / Corporation</option>
+            <option value='individual'>{m.onboarding_step4_legal_entity_individual()}</option>
+            <option value='business'>{m.onboarding_step4_legal_entity_business()}</option>
           </Select>
           {errors.legalEntityType && (
             <p className='mt-1 text-sm text-error'>{errors.legalEntityType}</p>
@@ -454,13 +411,13 @@ export function Step4Location() {
 
         <div>
           <Label htmlFor='tax-id' required>
-            Tax Identification Number (TIN)
+            {m.onboarding_step4_tax_id_label()}
           </Label>
           <Input
             id='tax-id'
             value={form.taxId}
             onChange={(e) => setForm((prev) => ({ ...prev, taxId: e.target.value }))}
-            placeholder='TIN required for EU tax reporting'
+            placeholder={m.onboarding_step4_tax_id_placeholder()}
             className='mt-1'
           />
           {errors.taxId && <p className='mt-1 text-sm text-error'>{errors.taxId}</p>}
@@ -469,7 +426,7 @@ export function Step4Location() {
         {form.legalEntityType === 'individual' && (
           <div className='space-y-1.5'>
             <Label htmlFor='date-of-birth' required>
-              Date of Birth
+              {m.onboarding_step4_date_of_birth_label()}
             </Label>
             <Input
               id='date-of-birth'
@@ -485,7 +442,7 @@ export function Step4Location() {
         {form.legalEntityType === 'business' && (
           <div className='space-y-1.5'>
             <Label htmlFor='business-registration-number' required>
-              Business Registration Number
+              {m.onboarding_step4_business_registration_number_label()}
             </Label>
             <Input
               id='business-registration-number'
@@ -493,7 +450,7 @@ export function Step4Location() {
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, businessRegistrationNumber: e.target.value }))
               }
-              placeholder='e.g. SIRET or Trade Registry Number'
+              placeholder={m.onboarding_step4_business_registration_number_placeholder()}
               className='mt-1'
             />
             {errors.businessRegistrationNumber && (

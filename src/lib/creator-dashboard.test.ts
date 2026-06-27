@@ -524,7 +524,7 @@ describe('getShopDashboardStatsQuery', () => {
   it('returns correct stats for a single shop', async () => {
     await seedUser()
     await seedShop()
-    await seedProduct({ stockCount: 3, isActive: true })
+    await seedProduct({ stockCount: 3, isActive: true, status: 'published' })
     const buyer = await seedBuyer()
     const po = await seedPlatformOrder(buyer.id)
     await seedShopOrder({ platformOrderId: po.id, status: 'paid', subtotalCents: 5000 })
@@ -555,8 +555,18 @@ describe('getShopDashboardStatsQuery', () => {
   it('only counts active products', async () => {
     await seedUser()
     await seedShop()
-    await seedProduct({ id: 'prod-active', slug: 'prod-active', isActive: true })
-    await seedProduct({ id: 'prod-inactive', slug: 'prod-inactive', isActive: false })
+    await seedProduct({
+      id: 'prod-active',
+      slug: 'prod-active',
+      isActive: true,
+      status: 'published',
+    })
+    await seedProduct({
+      id: 'prod-inactive',
+      slug: 'prod-inactive',
+      isActive: false,
+      status: 'published',
+    })
 
     const result = await getShopDashboardStatsQuery('shop-1')
     expect(result.totalActiveProducts).toBe(1)

@@ -111,7 +111,9 @@ function findSelectionForShop(
 function formatEstimatedDays(days: ShippingOption['estimatedDays']): string | null {
   if (!days) return null
   if (days.min === days.max) {
-    return m.shipping_estimatedDays({ count: days.min })
+    return days.min === 1
+      ? m.shipping_estimatedDays_one({ count: days.min })
+      : m.shipping_estimatedDays_other({ count: days.min })
   }
   return m.shipping_estimatedDays_range({ min: days.min, max: days.max })
 }
@@ -179,7 +181,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
           if (!result?.checkoutUrl) {
             setStatus((prev) => ({
               ...prev,
-              submitError: 'Checkout URL is missing. Please try again.',
+              submitError: m.checkout_missing_url(),
             }))
             return
           }
@@ -286,7 +288,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
       } catch {
         setStatus((prev) => ({
           ...prev,
-          rateError: 'Could not fetch shipping rates. Please try again.',
+          rateError: m.checkout_rate_error(),
         }))
       } finally {
         setStatus((prev) => ({ ...prev, isFetchingRates: false }))
@@ -695,10 +697,10 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                               htmlFor={field.name}
                               className='text-sm font-medium text-text-primary'
                             >
-                              VAT ID (Optional)
+                              {m.checkout_vat_id_label()}
                             </label>
                             <span className='text-xs text-text-muted'>
-                              For EU VAT-registered businesses
+                              {m.checkout_vat_id_description()}
                             </span>
                           </div>
                           <Input
@@ -708,17 +710,14 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                             onChange={(e) => field.handleChange(e.target.value)}
                             onBlur={field.handleBlur}
                             error={getFieldError(field.state.meta.errors[0])}
-                            placeholder='e.g., DE123456789'
+                            placeholder={m.checkout_vat_id_placeholder()}
                           />
                           {field.state.meta.errors[0] ? (
                             <p id={`${field.name}-error`} className='text-xs text-error'>
                               {getFieldError(field.state.meta.errors[0])}
                             </p>
                           ) : (
-                            <p className='text-xs text-text-muted'>
-                              Enter to enable zero-rated EU cross-border billing. Must match the
-                              billing country.
-                            </p>
+                            <p className='text-xs text-text-muted'>{m.checkout_vat_id_helper()}</p>
                           )}
                         </div>
                       )}
@@ -848,7 +847,9 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
               <div className='absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-accent-primary to-accent-secondary' />
               <div className='mb-4 flex items-center gap-2'>
                 <Truck size={18} className='text-accent-primary' aria-hidden='true' />
-                <h2 className='text-lg font-semibold text-text-primary'>Pick-up Point</h2>
+                <h2 className='text-lg font-semibold text-text-primary'>
+                  {m.checkout_pickup_point_label()}
+                </h2>
               </div>
 
               {selectedPickupPoint ? (
@@ -864,25 +865,25 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                       {selectedPickupPoint.country}
                     </p>
                     <span className='inline-block text-[10px] font-mono bg-bg-inset text-text-secondary px-1.5 py-0.5 rounded mt-2'>
-                      ID: {selectedPickupPoint.id}
+                      {m.checkout_pickup_point_id({ id: selectedPickupPoint.id })}
                     </span>
                   </div>
                   <Button type='button' variant='secondary' onClick={openPickupPointPicker}>
-                    Change Pick-up Point
+                    {m.checkout_pickup_point_change()}
                   </Button>
                 </div>
               ) : (
                 <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between p-4 rounded-xl border border-warning/30 bg-warning/5'>
                   <div>
                     <h3 className='text-sm font-semibold text-warning-strong'>
-                      No Pick-up Point Selected
+                      {m.checkout_no_pickup_point()}
                     </h3>
                     <p className='text-xs text-text-secondary mt-1'>
-                      Please choose a pick-up point location to complete your order.
+                      {m.checkout_pickup_point_hint()}
                     </p>
                   </div>
                   <Button type='button' variant='primary' onClick={openPickupPointPicker}>
-                    Select Pick-up Point
+                    {m.checkout_pickup_point_select()}
                   </Button>
                 </div>
               )}
@@ -919,7 +920,9 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                     </div>
                     <div className='flex justify-between text-sm'>
                       <span className='text-text-secondary truncate'>
-                        {shippingOption?.serviceName ?? shippingOption?.label ?? 'Shipping'}
+                        {shippingOption?.serviceName ??
+                          shippingOption?.label ??
+                          m.checkout_shipping_label()}
                       </span>
                       <span className='font-medium text-text-primary'>
                         {shippingOption?.costCents === 0
@@ -929,7 +932,9 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                     </div>
                     {shop.vatEstimateCents > 0 && (
                       <div className='flex justify-between text-sm'>
-                        <span className='text-text-secondary truncate'>Includes VAT</span>
+                        <span className='text-text-secondary truncate'>
+                          {m.checkout_includes_vat()}
+                        </span>
                         <span className='font-medium text-text-primary'>
                           {formatPriceEUR(shop.vatEstimateCents)}
                         </span>
@@ -944,7 +949,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
 
             {currentSummary.shops.some((s) => s.vatEstimateCents > 0) && (
               <div className='flex justify-between text-sm mb-2'>
-                <span className='text-text-secondary'>Total VAT included</span>
+                <span className='text-text-secondary'>{m.checkout_total_vat()}</span>
                 <span className='font-medium text-text-primary'>
                   {formatPriceEUR(
                     currentSummary.shops.reduce((sum, s) => sum + s.vatEstimateCents, 0),
@@ -1008,7 +1013,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                     </Button>
                     {hasServicePointSelection && !selectedPickupPoint && (
                       <p className='mt-2.5 text-xs text-error text-center' role='alert'>
-                        Please select a pick-up point before placing your order.
+                        {m.checkout_pickup_point_required()}
                       </p>
                     )}
                   </>

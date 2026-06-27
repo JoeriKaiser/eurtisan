@@ -4,6 +4,8 @@ import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { resolveDispute } from '#/lib/disputes'
 import { formatPriceEUR } from '#/lib/pricing'
+import { m } from '#/paraglide/messages'
+import { SUPPORTED_CURRENCY } from '#/lib/currency'
 
 function centsToEuros(cents: number): string {
   return (cents / 100).toFixed(2)
@@ -40,13 +42,18 @@ export function ResolutionForm({
     setStatus((prev) => ({ ...prev, fieldError: null }))
     if (form.resolution === 'partial_refund') {
       if (refundCents === null || refundCents <= 0) {
-        setStatus((prev) => ({ ...prev, fieldError: 'Refund amount must be greater than 0' }))
+        setStatus((prev) => ({
+          ...prev,
+          fieldError: m.dispute_resolution_error_refund_min(),
+        }))
         return false
       }
       if (refundCents > orderTotalCents) {
         setStatus((prev) => ({
           ...prev,
-          fieldError: `Refund cannot exceed ${formatPriceEUR(orderTotalCents)}`,
+          fieldError: m.dispute_resolution_error_refund_max({
+            amount: formatPriceEUR(orderTotalCents),
+          }),
         }))
         return false
       }
@@ -76,15 +83,15 @@ export function ResolutionForm({
             const body = await err.json()
             setStatus((prev) => ({
               ...prev,
-              error: body.message || 'Failed to resolve dispute',
+              error: body.message || m.dispute_resolution_error_failed(),
             }))
           } catch {
-            setStatus((prev) => ({ ...prev, error: 'Failed to resolve dispute' }))
+            setStatus((prev) => ({ ...prev, error: m.dispute_resolution_error_failed() }))
           }
         } else if (err instanceof Error) {
           setStatus((prev) => ({ ...prev, error: err.message }))
         } else {
-          setStatus((prev) => ({ ...prev, error: 'An unexpected error occurred' }))
+          setStatus((prev) => ({ ...prev, error: m.dispute_resolution_error_unexpected() }))
         }
       } finally {
         setStatus((prev) => ({ ...prev, isSubmitting: false }))
@@ -98,7 +105,7 @@ export function ResolutionForm({
   return (
     <Card variant='default'>
       <CardHeader>
-        <CardTitle>Resolve Dispute</CardTitle>
+        <CardTitle>{m.dispute_resolution_title()}</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className='space-y-4'>
@@ -107,7 +114,7 @@ export function ResolutionForm({
               htmlFor='resolution-type'
               className='mb-1.5 block text-sm font-medium text-text-secondary'
             >
-              Resolution
+              {m.dispute_resolution_label()}
             </label>
             <select
               id='resolution-type'
@@ -122,10 +129,12 @@ export function ResolutionForm({
               disabled={status.isSubmitting}
               className='h-10 w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20 disabled:cursor-not-allowed disabled:opacity-50'
             >
-              <option value='close'>Close (no action)</option>
-              <option value='partial_refund'>Partial refund</option>
+              <option value='close'>{m.dispute_resolution_close()}</option>
+              <option value='partial_refund'>{m.dispute_resolution_partial_refund()}</option>
               <option value='full_refund' disabled={orderStatus === 'refunded'}>
-                Full refund{orderStatus === 'refunded' ? ' — already refunded' : ''}
+                {orderStatus === 'refunded'
+                  ? m.dispute_resolution_full_refund_disabled()
+                  : m.dispute_resolution_full_refund()}
               </option>
             </select>
           </div>
@@ -135,7 +144,7 @@ export function ResolutionForm({
               htmlFor='refund-amount'
               className='mb-1.5 block text-sm font-medium text-text-secondary'
             >
-              Refund amount (EUR)
+              {m.dispute_resolution_refund_amount_label({ currency: SUPPORTED_CURRENCY })}
             </label>
             <Input
               id='refund-amount'
@@ -148,7 +157,7 @@ export function ResolutionForm({
                 setForm((prev) => ({ ...prev, refundInput: e.target.value }))
                 if (status.fieldError) setStatus((prev) => ({ ...prev, fieldError: null }))
               }}
-              placeholder='0.00'
+              placeholder={m.dispute_resolution_refund_amount_placeholder()}
               disabled={status.isSubmitting || refundDisabled}
               error={status.fieldError ?? undefined}
             />
@@ -158,7 +167,7 @@ export function ResolutionForm({
               </p>
             )}
             <p className='mt-1 text-xs text-text-muted'>
-              Order total: {formatPriceEUR(orderTotalCents)}
+              {m.dispute_resolution_order_total({ amount: formatPriceEUR(orderTotalCents) })}
             </p>
           </div>
 
@@ -169,7 +178,7 @@ export function ResolutionForm({
           )}
 
           <Button type='submit' isLoading={status.isSubmitting} className='w-full sm:w-auto'>
-            Submit Resolution
+            {m.dispute_resolution_submit()}
           </Button>
         </form>
       </CardContent>

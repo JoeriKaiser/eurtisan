@@ -70,6 +70,7 @@ import { Route as CreatorProductsIndexRouteImport } from './routes/creator/produ
 import { Route as AdminOrdersIndexRouteImport } from './routes/admin/orders.index'
 import { Route as AdminDisputesIndexRouteImport } from './routes/admin/disputes.index'
 import { Route as AccountOrdersIndexRouteImport } from './routes/account/orders.index'
+import { Route as StudioShopIdSettingsRouteImport } from './routes/studio/$shopId.settings'
 import { Route as StudioShopIdOrdersRouteImport } from './routes/studio/$shopId.orders'
 import { Route as StudioShopIdCustomersRouteImport } from './routes/studio/$shopId.customers'
 import { Route as SellStatusShopIdRouteImport } from './routes/sell/status/$shopId'
@@ -91,6 +92,7 @@ import { Route as AccountOrdersOrderIdRouteImport } from './routes/account/order
 import { Route as StudioShopIdOrdersIndexRouteImport } from './routes/studio/$shopId.orders.index'
 import { Route as StudioShopIdCustomersIndexRouteImport } from './routes/studio/$shopId.customers.index'
 import { Route as SellOnboardingDraftIdIndexRouteImport } from './routes/sell/onboarding/$draftId/index'
+import { Route as StudioShopIdSettingsTaxRouteImport } from './routes/studio/$shopId.settings.tax'
 import { Route as StudioShopIdOrdersShopOrderIdRouteImport } from './routes/studio/$shopId.orders.$shopOrderId'
 import { Route as StudioShopIdCustomersCustomerHashRouteImport } from './routes/studio/$shopId.customers.$customerHash'
 import { Route as ShopsShopSlugProductsProductSlugRouteImport } from './routes/shops/$shopSlug.products.$productSlug'
@@ -418,6 +420,11 @@ const AccountOrdersIndexRoute = AccountOrdersIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AccountOrdersRoute,
 } as any)
+const StudioShopIdSettingsRoute = StudioShopIdSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => StudioShopIdRoute,
+} as any)
 const StudioShopIdOrdersRoute = StudioShopIdOrdersRouteImport.update({
   id: '/orders',
   path: '/orders',
@@ -528,6 +535,11 @@ const SellOnboardingDraftIdIndexRoute =
     path: '/',
     getParentRoute: () => SellOnboardingDraftIdRoute,
   } as any)
+const StudioShopIdSettingsTaxRoute = StudioShopIdSettingsTaxRouteImport.update({
+  id: '/tax',
+  path: '/tax',
+  getParentRoute: () => StudioShopIdSettingsRoute,
+} as any)
 const StudioShopIdOrdersShopOrderIdRoute =
   StudioShopIdOrdersShopOrderIdRouteImport.update({
     id: '/$shopOrderId',
@@ -716,6 +728,7 @@ export interface FileRoutesByFullPath {
   '/sell/status/$shopId': typeof SellStatusShopIdRoute
   '/studio/$shopId/customers': typeof StudioShopIdCustomersRouteWithChildren
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
+  '/studio/$shopId/settings': typeof StudioShopIdSettingsRouteWithChildren
   '/account/orders/': typeof AccountOrdersIndexRoute
   '/admin/disputes/': typeof AdminDisputesIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
@@ -741,6 +754,7 @@ export interface FileRoutesByFullPath {
   '/shops/$shopSlug/products/$productSlug': typeof ShopsShopSlugProductsProductSlugRoute
   '/studio/$shopId/customers/$customerHash': typeof StudioShopIdCustomersCustomerHashRoute
   '/studio/$shopId/orders/$shopOrderId': typeof StudioShopIdOrdersShopOrderIdRoute
+  '/studio/$shopId/settings/tax': typeof StudioShopIdSettingsTaxRoute
   '/sell/onboarding/$draftId/': typeof SellOnboardingDraftIdIndexRoute
   '/studio/$shopId/customers/': typeof StudioShopIdCustomersIndexRoute
   '/studio/$shopId/orders/': typeof StudioShopIdOrdersIndexRoute
@@ -806,6 +820,7 @@ export interface FileRoutesByTo {
   '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
   '/sell/status/$shopId': typeof SellStatusShopIdRoute
+  '/studio/$shopId/settings': typeof StudioShopIdSettingsRouteWithChildren
   '/account/orders': typeof AccountOrdersIndexRoute
   '/admin/disputes': typeof AdminDisputesIndexRoute
   '/admin/orders': typeof AdminOrdersIndexRoute
@@ -831,6 +846,7 @@ export interface FileRoutesByTo {
   '/shops/$shopSlug/products/$productSlug': typeof ShopsShopSlugProductsProductSlugRoute
   '/studio/$shopId/customers/$customerHash': typeof StudioShopIdCustomersCustomerHashRoute
   '/studio/$shopId/orders/$shopOrderId': typeof StudioShopIdOrdersShopOrderIdRoute
+  '/studio/$shopId/settings/tax': typeof StudioShopIdSettingsTaxRoute
   '/sell/onboarding/$draftId': typeof SellOnboardingDraftIdIndexRoute
   '/studio/$shopId/customers': typeof StudioShopIdCustomersIndexRoute
   '/studio/$shopId/orders': typeof StudioShopIdOrdersIndexRoute
@@ -911,6 +927,7 @@ export interface FileRoutesById {
   '/sell/status/$shopId': typeof SellStatusShopIdRoute
   '/studio/$shopId/customers': typeof StudioShopIdCustomersRouteWithChildren
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
+  '/studio/$shopId/settings': typeof StudioShopIdSettingsRouteWithChildren
   '/account/orders/': typeof AccountOrdersIndexRoute
   '/admin/disputes/': typeof AdminDisputesIndexRoute
   '/admin/orders/': typeof AdminOrdersIndexRoute
@@ -936,6 +953,7 @@ export interface FileRoutesById {
   '/shops/$shopSlug/products/$productSlug': typeof ShopsShopSlugProductsProductSlugRoute
   '/studio/$shopId/customers/$customerHash': typeof StudioShopIdCustomersCustomerHashRoute
   '/studio/$shopId/orders/$shopOrderId': typeof StudioShopIdOrdersShopOrderIdRoute
+  '/studio/$shopId/settings/tax': typeof StudioShopIdSettingsTaxRoute
   '/sell/onboarding/$draftId/': typeof SellOnboardingDraftIdIndexRoute
   '/studio/$shopId/customers/': typeof StudioShopIdCustomersIndexRoute
   '/studio/$shopId/orders/': typeof StudioShopIdOrdersIndexRoute
@@ -1017,6 +1035,7 @@ export interface FileRouteTypes {
     | '/sell/status/$shopId'
     | '/studio/$shopId/customers'
     | '/studio/$shopId/orders'
+    | '/studio/$shopId/settings'
     | '/account/orders/'
     | '/admin/disputes/'
     | '/admin/orders/'
@@ -1042,6 +1061,7 @@ export interface FileRouteTypes {
     | '/shops/$shopSlug/products/$productSlug'
     | '/studio/$shopId/customers/$customerHash'
     | '/studio/$shopId/orders/$shopOrderId'
+    | '/studio/$shopId/settings/tax'
     | '/sell/onboarding/$draftId/'
     | '/studio/$shopId/customers/'
     | '/studio/$shopId/orders/'
@@ -1107,6 +1127,7 @@ export interface FileRouteTypes {
     | '/creator/products/new'
     | '/orders/$platformOrderId/success'
     | '/sell/status/$shopId'
+    | '/studio/$shopId/settings'
     | '/account/orders'
     | '/admin/disputes'
     | '/admin/orders'
@@ -1132,6 +1153,7 @@ export interface FileRouteTypes {
     | '/shops/$shopSlug/products/$productSlug'
     | '/studio/$shopId/customers/$customerHash'
     | '/studio/$shopId/orders/$shopOrderId'
+    | '/studio/$shopId/settings/tax'
     | '/sell/onboarding/$draftId'
     | '/studio/$shopId/customers'
     | '/studio/$shopId/orders'
@@ -1211,6 +1233,7 @@ export interface FileRouteTypes {
     | '/sell/status/$shopId'
     | '/studio/$shopId/customers'
     | '/studio/$shopId/orders'
+    | '/studio/$shopId/settings'
     | '/account/orders/'
     | '/admin/disputes/'
     | '/admin/orders/'
@@ -1236,6 +1259,7 @@ export interface FileRouteTypes {
     | '/shops/$shopSlug/products/$productSlug'
     | '/studio/$shopId/customers/$customerHash'
     | '/studio/$shopId/orders/$shopOrderId'
+    | '/studio/$shopId/settings/tax'
     | '/sell/onboarding/$draftId/'
     | '/studio/$shopId/customers/'
     | '/studio/$shopId/orders/'
@@ -1725,6 +1749,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountOrdersIndexRouteImport
       parentRoute: typeof AccountOrdersRoute
     }
+    '/studio/$shopId/settings': {
+      id: '/studio/$shopId/settings'
+      path: '/settings'
+      fullPath: '/studio/$shopId/settings'
+      preLoaderRoute: typeof StudioShopIdSettingsRouteImport
+      parentRoute: typeof StudioShopIdRoute
+    }
     '/studio/$shopId/orders': {
       id: '/studio/$shopId/orders'
       path: '/orders'
@@ -1871,6 +1902,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/sell/onboarding/$draftId/'
       preLoaderRoute: typeof SellOnboardingDraftIdIndexRouteImport
       parentRoute: typeof SellOnboardingDraftIdRoute
+    }
+    '/studio/$shopId/settings/tax': {
+      id: '/studio/$shopId/settings/tax'
+      path: '/tax'
+      fullPath: '/studio/$shopId/settings/tax'
+      preLoaderRoute: typeof StudioShopIdSettingsTaxRouteImport
+      parentRoute: typeof StudioShopIdSettingsRoute
     }
     '/studio/$shopId/orders/$shopOrderId': {
       id: '/studio/$shopId/orders/$shopOrderId'
@@ -2102,15 +2140,28 @@ const StudioShopIdOrdersRouteChildren: StudioShopIdOrdersRouteChildren = {
 const StudioShopIdOrdersRouteWithChildren =
   StudioShopIdOrdersRoute._addFileChildren(StudioShopIdOrdersRouteChildren)
 
+interface StudioShopIdSettingsRouteChildren {
+  StudioShopIdSettingsTaxRoute: typeof StudioShopIdSettingsTaxRoute
+}
+
+const StudioShopIdSettingsRouteChildren: StudioShopIdSettingsRouteChildren = {
+  StudioShopIdSettingsTaxRoute: StudioShopIdSettingsTaxRoute,
+}
+
+const StudioShopIdSettingsRouteWithChildren =
+  StudioShopIdSettingsRoute._addFileChildren(StudioShopIdSettingsRouteChildren)
+
 interface StudioShopIdRouteChildren {
   StudioShopIdCustomersRoute: typeof StudioShopIdCustomersRouteWithChildren
   StudioShopIdOrdersRoute: typeof StudioShopIdOrdersRouteWithChildren
+  StudioShopIdSettingsRoute: typeof StudioShopIdSettingsRouteWithChildren
   StudioShopIdIndexRoute: typeof StudioShopIdIndexRoute
 }
 
 const StudioShopIdRouteChildren: StudioShopIdRouteChildren = {
   StudioShopIdCustomersRoute: StudioShopIdCustomersRouteWithChildren,
   StudioShopIdOrdersRoute: StudioShopIdOrdersRouteWithChildren,
+  StudioShopIdSettingsRoute: StudioShopIdSettingsRouteWithChildren,
   StudioShopIdIndexRoute: StudioShopIdIndexRoute,
 }
 

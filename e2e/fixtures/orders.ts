@@ -136,6 +136,13 @@ export async function getTestProduct(shopId: string) {
     .where(eq(schema.product.shopId, shopId))
     .limit(1)
   if (!product[0]) throw new Error('No product found for test shop')
+
+  await db
+    .update(schema.product)
+    .set({ stockCount: 999 })
+    .where(eq(schema.product.id, product[0].id))
+
+  product[0].stockCount = 999
   return product[0]
 }
 

@@ -70,7 +70,7 @@ fi
 
 # Grant key permissions on bucket
 echo "[garage-init] Granting key access to bucket..."
-garage_exec bucket allow "$BUCKET_NAME" --key "$KEY_NAME" --read --write >/dev/null
+garage_exec bucket allow "$BUCKET_NAME" --key "$KEY_NAME" --read --write --owner >/dev/null
 
 # Enable public website access on bucket
 echo "[garage-init] Enabling public website access on bucket..."

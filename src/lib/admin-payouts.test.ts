@@ -49,16 +49,20 @@ async function seedShop(overrides?: Parameters<typeof createShop>[1]) {
   })
 }
 
-async function seedPayout(overrides?: Omit<Parameters<typeof createPayout>[1], 'shopOrderId'>) {
+async function seedPayout(
+  overrides?: Omit<Parameters<typeof createPayout>[1], 'shopOrderId'> & { buyerId?: string },
+) {
   const shopId = overrides?.shopId ?? 'shop-1'
-  const po = await createPlatformOrder('user-1')
+  const buyerId = overrides?.buyerId ?? 'user-1'
+  const po = await createPlatformOrder(buyerId)
   const so = await createShopOrder(po, shopId, {
     subtotalCents: overrides?.amountCents ?? 5000,
   })
+  const { buyerId: _buyerId, ...payoutOverrides } = overrides ?? {}
   return createPayout(shopId, {
     amountCents: 5000,
     status: 'pending',
-    ...overrides,
+    ...payoutOverrides,
     shopOrderId: so.id,
   })
 }
@@ -92,7 +96,7 @@ describe('listPendingPayoutsQuery', () => {
   it('enriches payouts with creator and shop details', async () => {
     const creator = await seedUser({ id: 'user-c', name: 'Alice' })
     await seedShop({ id: 'shop-s', name: 'Alice Shop', slug: 'alice-shop', ownerId: creator.id })
-    await seedPayout({ shopId: 'shop-s', amountCents: 7500 })
+    await seedPayout({ shopId: 'shop-s', amountCents: 7500, buyerId: creator.id })
 
     const result = await listPendingPayoutsQuery()
     expect(result.payouts).toHaveLength(1)
@@ -127,8 +131,8 @@ describe('listPendingPayoutsQuery', () => {
     await seedUser({ id: 'user-b', name: 'Creator B', email: 'creator-b@example.com' })
     await seedShop({ id: 'shop-a', name: 'Shop A', slug: 'shop-a', ownerId: 'user-a' })
     await seedShop({ id: 'shop-b', name: 'Shop B', slug: 'shop-b', ownerId: 'user-b' })
-    await seedPayout({ shopId: 'shop-a', amountCents: 1000 })
-    await seedPayout({ shopId: 'shop-b', amountCents: 2000 })
+    await seedPayout({ shopId: 'shop-a', amountCents: 1000, buyerId: 'user-a' })
+    await seedPayout({ shopId: 'shop-b', amountCents: 2000, buyerId: 'user-b' })
 
     const result = await listPendingPayoutsQuery()
     expect(result.payouts).toHaveLength(2)
@@ -229,7 +233,7 @@ describe('listPayoutHistoryQuery', () => {
   it('enriches payouts with creator and shop info', async () => {
     await seedUser({ id: 'user-x', name: 'Xavier' })
     await seedShop({ id: 'shop-x', name: 'Xavier Fine Art', slug: 'xavier', ownerId: 'user-x' })
-    await seedPayout({ shopId: 'shop-x' })
+    await seedPayout({ shopId: 'shop-x', buyerId: 'user-x' })
 
     const result = await listPayoutHistoryQuery()
     expect(result.payouts).toHaveLength(1)

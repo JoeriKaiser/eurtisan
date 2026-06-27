@@ -95,6 +95,22 @@ vi.mock('#/lib/orders-ui', () => ({
     if (status === 'cancelled') return 'error'
     return 'default'
   },
+  getOrderStatusLabel: (status: string) => {
+    const labels: Record<string, string> = {
+      pending_payment: 'Pending payment',
+      paid: 'Paid',
+      processing: 'Processing',
+      shipped: 'Shipped',
+      delivered: 'Delivered',
+      completed: 'Completed',
+      cancelled: 'Cancelled',
+      refunded: 'Refunded',
+      disputed: 'Disputed',
+      manual_review: 'Manual review',
+      chargeback: 'Chargeback',
+    }
+    return labels[status] ?? status
+  },
 }))
 
 vi.mock('#/lib/disputes', () => ({
@@ -382,7 +398,7 @@ describe('Order detail page', () => {
       ],
     })
     render(<BuyerOrderDetailPage order={order} />)
-    expect(screen.getByText('Delivered')).toBeDefined()
+    expect(screen.getAllByText('Delivered').length).toBeGreaterThanOrEqual(1)
   })
 
   it('shows not yet shipped for orders without a shipping label', () => {
@@ -554,7 +570,7 @@ describe('Order detail page', () => {
       cancellationReason: 'Payment failed',
     })
     render(<BuyerOrderDetailPage order={order} />)
-    expect(screen.getByText('Cancelled')).toBeDefined()
+    expect(screen.getAllByText('Cancelled').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText(/Cancelled on/)).toBeDefined()
     expect(screen.getByText('Reason: Payment failed')).toBeDefined()
   })

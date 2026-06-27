@@ -137,4 +137,119 @@ describe('checkoutInputSchema', () => {
     })
     expect(result.success).toBe(false)
   })
+
+  it('accepts a valid Belgian VAT ID', () => {
+    const result = checkoutInputSchema.safeParse({
+      ...validInput,
+      billingAddress: {
+        ...validInput.billingAddress,
+        country: 'BE',
+        postalCode: '1000',
+        vatId: 'BE0123456789',
+      },
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects a Belgian VAT ID that does not start with 0 or 1', () => {
+    const result = checkoutInputSchema.safeParse({
+      ...validInput,
+      billingAddress: {
+        ...validInput.billingAddress,
+        country: 'BE',
+        postalCode: '1000',
+        vatId: 'BE2123456789',
+      },
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('accepts a valid Irish VAT ID', () => {
+    const result = checkoutInputSchema.safeParse({
+      ...validInput,
+      billingAddress: {
+        ...validInput.billingAddress,
+        country: 'IE',
+        postalCode: 'D01 F5P2',
+        vatId: 'IE1234567A',
+      },
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects an Irish VAT ID ending in X', () => {
+    const result = checkoutInputSchema.safeParse({
+      ...validInput,
+      billingAddress: {
+        ...validInput.billingAddress,
+        country: 'IE',
+        postalCode: 'D01 F5P2',
+        vatId: 'IE1234567X',
+      },
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('accepts a valid Swedish VAT ID', () => {
+    const result = checkoutInputSchema.safeParse({
+      ...validInput,
+      billingAddress: {
+        ...validInput.billingAddress,
+        country: 'SE',
+        postalCode: '111 22',
+        vatId: 'SE123456789012',
+      },
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects a Swedish VAT ID that is too short', () => {
+    const result = checkoutInputSchema.safeParse({
+      ...validInput,
+      billingAddress: {
+        ...validInput.billingAddress,
+        country: 'SE',
+        postalCode: '111 22',
+        vatId: 'SE1234567890',
+      },
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('accepts a valid Spanish VAT ID', () => {
+    const result = checkoutInputSchema.safeParse({
+      ...validInput,
+      billingAddress: {
+        ...validInput.billingAddress,
+        country: 'ES',
+        postalCode: '08001',
+        vatId: 'ESA1234567B',
+      },
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts a Greek EL VAT ID for a GR address', () => {
+    const result = checkoutInputSchema.safeParse({
+      ...validInput,
+      billingAddress: {
+        ...validInput.billingAddress,
+        country: 'GR',
+        vatId: 'EL123456789',
+      },
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts a Greek GR VAT ID for a GR address', () => {
+    const result = checkoutInputSchema.safeParse({
+      ...validInput,
+      billingAddress: {
+        ...validInput.billingAddress,
+        country: 'GR',
+        vatId: 'GR123456789',
+      },
+    })
+    expect(result.success).toBe(true)
+  })
 })

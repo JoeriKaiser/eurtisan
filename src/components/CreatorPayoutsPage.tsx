@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react'
 import { type CreatorPayoutLine, getMollieConnectUrl, disconnectMollie } from '#/lib/payouts'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
+import { SUPPORTED_CURRENCY } from '#/lib/currency'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
@@ -220,7 +221,7 @@ export function CreatorPayoutsPage({
                         {m.creator_payouts_mollie_connect_title()}
                       </CardTitle>
                       <p className='text-xs text-text-muted'>
-                        Receive secure payouts in EUR via Mollie Connect
+                        {m.creator_payouts_mollie_subtitle({ currency: SUPPORTED_CURRENCY })}
                       </p>
                     </div>
                   </div>
@@ -376,7 +377,9 @@ export function CreatorPayoutsPage({
                 <th className='pb-3 font-medium text-text-secondary'>
                   {m.creator_payouts_col_status()}
                 </th>
-                <th className='pb-3 text-right font-medium text-text-secondary'>Invoices</th>
+                <th className='pb-3 text-right font-medium text-text-secondary'>
+                  {m.creator_payouts_invoices_col()}
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -440,7 +443,7 @@ export function CreatorPayoutsPage({
                               params={{ invoiceId: payout.customerInvoiceNumber }}
                               className='inline-flex items-center gap-1 rounded-lg border border-border-default bg-surface-default px-2.5 py-1 text-xs font-medium text-text-secondary transition hover:text-text-primary hover:border-border-strong print:hidden'
                             >
-                              Customer
+                              {m.creator_payouts_invoice_customer()}
                             </Link>
                           ) : null}
                           {payout.platformFeeInvoiceNumber ? (
@@ -449,7 +452,7 @@ export function CreatorPayoutsPage({
                               params={{ invoiceId: payout.platformFeeInvoiceNumber }}
                               className='inline-flex items-center gap-1 rounded-lg border border-border-default bg-surface-default px-2.5 py-1 text-xs font-medium text-text-secondary transition hover:text-text-primary hover:border-border-strong print:hidden'
                             >
-                              Platform Fee
+                              {m.creator_payouts_invoice_platform_fee()}
                             </Link>
                           ) : null}
                         </>

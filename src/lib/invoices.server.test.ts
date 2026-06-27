@@ -87,13 +87,21 @@ describe('Invoicing VAT Engine', () => {
     })
   })
 
-  it('throws an error on unrecognized or unmappable country names if they are not empty', () => {
-    expect(() => calculatePlatformFeeVat('Deutschland', false, 1200)).toThrowError(
-      'Unrecognized country code or name: "Deutschland"',
-    )
-    expect(() => calculatePlatformFeeVat('RandomState', false, 1200)).toThrowError(
-      'Unrecognized country code or name: "RandomState"',
-    )
+  it('treats unrecognized or unmappable country names as non-EU exports (0% VAT)', () => {
+    expect(calculatePlatformFeeVat('Deutschland', false, 1200)).toEqual({
+      vatRateBasisPoints: 0,
+      vatAmountCents: 0,
+      subtotalCents: 1200,
+      totalCents: 1200,
+      reverseCharge: false,
+    })
+    expect(calculatePlatformFeeVat('RandomState', false, 1200)).toEqual({
+      vatRateBasisPoints: 0,
+      vatAmountCents: 0,
+      subtotalCents: 1200,
+      totalCents: 1200,
+      reverseCharge: false,
+    })
   })
 
   it('does not throw an error and returns 0% VAT if country name is empty or only whitespace', () => {

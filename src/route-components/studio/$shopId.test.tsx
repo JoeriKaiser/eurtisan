@@ -46,6 +46,8 @@ vi.mock('#/paraglide/messages', () => ({
     studio_nav_settings_desc: () => 'Shop profile, VAT, and shipping origin.',
     studio_nav_customers: () => 'Customers',
     studio_nav_customers_desc: () => 'View customers, notes, tags, and order history.',
+    studio_nav_tax: () => 'Tax & Reporting',
+    studio_nav_tax_desc: () => 'VAT reports, DAC7 status, and exports',
     studio_metric_pending_orders: () => 'Pending orders',
     studio_metric_low_stock: () => 'Low stock',
     studio_metric_net_revenue_this_month: () => 'Net revenue this month',
@@ -94,5 +96,9 @@ describe('ShopDashboard', () => {
     const settingsLink = screen.getByRole('link', { name: /settings/i })
     expect(settingsLink.getAttribute('href')).toBe('/creator/shop')
     expect(settingsLink.getAttribute('data-search')).toBe(JSON.stringify({ shopId: 'shop-1' }))
+
+    const taxLink = screen.getByRole('link', { name: /tax/i })
+    expect(taxLink.getAttribute('href')).toBe('/studio/$shopId/settings/tax')
+    expect(taxLink.getAttribute('data-params')).toBe(JSON.stringify({ shopId: 'shop-1' }))
   })
 })

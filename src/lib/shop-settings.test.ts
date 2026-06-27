@@ -338,18 +338,18 @@ describe('updateShopInternal', () => {
   })
 
   it('persists supported social platforms', async () => {
-      await seedUser()
-      const s = await seedShop()
+    await seedUser()
+    const s = await seedShop()
 
-      await updateShopInternal(s.id, {
-        socials: [
-          { platform: 'instagram', url: 'https://instagram.com/test' },
-          { platform: 'website', url: 'https://example.com' },
-        ],
-      })
-
-      const socials = await db.select().from(shopSocials).where(eq(shopSocials.shopId, s.id))
-      expect(socials).toHaveLength(2)
-      expect(socials.map((s) => s.platform).sort()).toEqual(['instagram', 'website'])
+    await updateShopInternal(s.id, {
+      socials: [
+        { platform: 'instagram', url: 'https://instagram.com/test' },
+        { platform: 'website', url: 'https://example.com' },
+      ],
     })
+
+    const socials = await db.select().from(shopSocials).where(eq(shopSocials.shopId, s.id))
+    expect(socials).toHaveLength(2)
+    expect(socials.map((s) => s.platform).sort()).toEqual(['instagram', 'website'])
+  })
 })
