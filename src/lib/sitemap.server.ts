@@ -133,7 +133,9 @@ export async function generateSitemapEntries(): Promise<SitemapEntry[]> {
     })
     .from(product)
     .innerJoin(shop, eq(product.shopId, shop.id))
-    .where(and(eq(product.isActive, true), eq(shop.isSuspended, false)))
+    .where(
+      and(eq(product.status, 'published'), eq(product.isActive, true), eq(shop.isSuspended, false)),
+    )
 
   for (const p of activeProducts) {
     entries.push({
@@ -154,7 +156,9 @@ export async function generateSitemapEntries(): Promise<SitemapEntry[]> {
     .from(categories)
     .innerJoin(product, eq(product.categoryId, categories.id))
     .innerJoin(shop, eq(product.shopId, shop.id))
-    .where(and(eq(product.isActive, true), eq(shop.isSuspended, false)))
+    .where(
+      and(eq(product.status, 'published'), eq(product.isActive, true), eq(shop.isSuspended, false)),
+    )
 
   for (const c of activeCategories) {
     entries.push({

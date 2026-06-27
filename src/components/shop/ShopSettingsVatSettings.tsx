@@ -1,5 +1,6 @@
 import { Input } from '#/components/ui/input'
 import { Switch } from '#/components/ui/switch'
+import { m } from '#/paraglide/messages'
 
 interface ShopSettingsVatSettingsProps {
   isVatRegistered: boolean
@@ -20,19 +21,18 @@ export function ShopSettingsVatSettings({
 }: ShopSettingsVatSettingsProps) {
   return (
     <div className='rounded-xl border border-border-subtle p-4'>
-      <h3 className='mb-3 text-sm font-semibold text-text-primary'>Tax Settings</h3>
-      <p className='mb-3 text-xs text-text-muted'>
-        If you are registered for VAT in the European Union, enable this and enter your VAT
-        Identification Number.
-      </p>
+      <h3 className='mb-3 text-sm font-semibold text-text-primary'>
+        {m.shop_settings_tax_settings_title()}
+      </h3>
+      <p className='mb-3 text-xs text-text-muted'>{m.shop_settings_vat_registered_description()}</p>
       <div className='space-y-4'>
         <div className='flex items-center justify-between rounded-lg border border-border-default p-3'>
           <div>
             <label htmlFor='is-vat-registered' className='text-sm font-medium text-text-primary'>
-              Registered for VAT
+              {m.shop_settings_vat_registered_label()}
             </label>
             <p className='text-xs text-text-secondary'>
-              I have a registered VAT number for my business.
+              {m.shop_settings_vat_registered_description()}
             </p>
           </div>
           <Switch
@@ -47,7 +47,7 @@ export function ShopSettingsVatSettings({
               htmlFor='vat-id'
               className='mb-1.5 block text-xs font-medium text-text-secondary'
             >
-              VAT ID / Identification Number
+              {m.shop_settings_vat_id_label()}
             </label>
             <Input
               id='vat-id'
@@ -57,7 +57,7 @@ export function ShopSettingsVatSettings({
                 onVatIdChange(e.target.value)
                 if (vatIdError) onVatIdErrorClear()
               }}
-              placeholder='e.g. FR12345678901'
+              placeholder={m.shop_settings_vat_id_placeholder()}
               error={vatIdError ?? undefined}
             />
             {vatIdError && (

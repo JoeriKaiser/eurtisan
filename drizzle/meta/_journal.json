@@ -512,6 +512,13 @@
       "when": 1782240379595,
       "tag": "0072_worthless_angel",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1782571562048,
+      "tag": "0073_great_crusher_hogan",
+      "breakpoints": true
     }
   ]
 }

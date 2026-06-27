@@ -201,7 +201,10 @@ vi.mock('#/lib/categories', () => ({
 
 import { Route } from './categories'
 
-const AdminCategoriesPage = Route.options.component!
+const AdminCategoriesPage = Route.options.component
+if (!AdminCategoriesPage) {
+  throw new Error('Route component is not defined')
+}
 
 describe('AdminCategoriesPage', () => {
   it('renders the page title', () => {

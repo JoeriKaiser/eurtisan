@@ -130,7 +130,10 @@ vi.mock('#/components/ui/primitives/dialog', () => ({
 
 import { Route } from './$shopId.orders.$shopOrderId'
 
-const ShopOrderDetailPage = Route.options.component!
+const ShopOrderDetailPage = Route.options.component
+if (!ShopOrderDetailPage) {
+  throw new Error('Route component is not defined')
+}
 
 describe('ShopOrderDetailPage', () => {
   beforeEach(() => {
@@ -173,7 +176,8 @@ describe('ShopOrderDetailPage', () => {
     const urlInput = screen.getByLabelText('Tracking URL')
     fireEvent.change(urlInput, { target: { value: 'https://track.example.com/123' } })
 
-    const form = screen.getByRole('dialog').querySelector('form')!
+    const form = screen.getByRole('dialog').querySelector('form')
+    if (!form) throw new Error('Form not found')
     fireEvent.submit(form)
 
     await waitFor(() => {
@@ -192,7 +196,8 @@ describe('ShopOrderDetailPage', () => {
     fireEvent.click(screen.getAllByRole('button', { name: /Mark as Shipped/i })[0])
 
     // Default mode is label generation
-    const form = screen.getByRole('dialog').querySelector('form')!
+    const form = screen.getByRole('dialog').querySelector('form')
+    if (!form) throw new Error('Form not found')
     fireEvent.submit(form)
 
     await waitFor(() => {
@@ -214,7 +219,8 @@ describe('ShopOrderDetailPage', () => {
     const urlInput = screen.getByLabelText('Tracking URL')
     fireEvent.change(urlInput, { target: { value: 'not-a-url' } })
 
-    const form2 = screen.getByRole('dialog').querySelector('form')!
+    const form2 = screen.getByRole('dialog').querySelector('form')
+    if (!form2) throw new Error('Form not found')
     fireEvent.submit(form2)
 
     await waitFor(() => {

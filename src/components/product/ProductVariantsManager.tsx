@@ -1,11 +1,10 @@
-import { useState } from 'react'
 import { Edit3, Plus, RefreshCw, Save, Trash2, X } from 'lucide-react'
-import { m } from '#/paraglide/messages'
+import { useState } from 'react'
 import { Button } from '#/components/ui/button'
+import { FeedbackBanner } from '#/components/ui/FeedbackBanner'
 import { Input } from '#/components/ui/input'
 import { Label } from '#/components/ui/label'
 import { Switch } from '#/components/ui/switch'
-import { FeedbackBanner } from '#/components/ui/FeedbackBanner'
 import {
   createProductOption,
   deleteProductOption,
@@ -16,6 +15,7 @@ import {
   updateProductOption,
   updateProductVariant,
 } from '#/lib/product-variants'
+import { m } from '#/paraglide/messages'
 import { DeleteConfirmationDialog } from './DeleteConfirmationDialog'
 
 interface VariantDraft {
@@ -84,6 +84,7 @@ export function ProductVariantsManager({ productId, initialMatrix }: ProductVari
   )
 
   const [deleteVariantId, setDeleteVariantId] = useState<string | null>(null)
+  const [deleteOptionId, setDeleteOptionId] = useState<string | null>(null)
 
   const refreshMatrix = async () => {
     const next = await getProductVariantMatrix({ data: { productId } })
@@ -174,12 +175,13 @@ export function ProductVariantsManager({ productId, initialMatrix }: ProductVari
     }
   }
 
-  const handleDeleteOption = async (optionId: string) => {
-    if (!window.confirm(m.creator_product_variants_delete_option_confirm())) return
+  const handleDeleteOption = async () => {
+    if (!deleteOptionId) return
     setLoading(true)
     try {
-      await deleteProductOption({ data: { optionId } })
+      await deleteProductOption({ data: { optionId: deleteOptionId } })
       await refreshMatrix()
+      setDeleteOptionId(null)
       showSuccess(m.creator_product_variants_success_option_saved())
     } catch {
       showError(m.creator_product_variants_error_option())
@@ -408,7 +410,7 @@ export function ProductVariantsManager({ productId, initialMatrix }: ProductVari
                       type='button'
                       variant='ghost'
                       size='sm'
-                      onClick={() => handleDeleteOption(option.id)}
+                      onClick={() => setDeleteOptionId(option.id)}
                       disabled={loading}
                     >
                       <Trash2 size={16} aria-hidden='true' />
@@ -626,6 +628,17 @@ export function ProductVariantsManager({ productId, initialMatrix }: ProductVari
         deleting={loading}
         onCancel={() => setDeleteVariantId(null)}
         onConfirm={handleDeleteVariant}
+      />
+
+      <DeleteConfirmationDialog
+        open={deleteOptionId !== null}
+        title={m.creator_product_variants_delete_option()}
+        description={m.creator_product_variants_delete_option_confirm()}
+        cancelLabel={m.creator_product_variants_cancel()}
+        confirmLabel={m.creator_product_variants_delete_option()}
+        deleting={loading}
+        onCancel={() => setDeleteOptionId(null)}
+        onConfirm={handleDeleteOption}
       />
     </section>
   )

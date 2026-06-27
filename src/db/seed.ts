@@ -1,3 +1,4 @@
+// biome-ignore-all lint/style/noNonNullAssertion: seed script guarantees database IDs and optional fields are generated before reference
 import { randomBytes, scryptSync, createHash } from 'node:crypto'
 import { rm } from 'node:fs/promises'
 
@@ -242,7 +243,12 @@ async function seedUsers() {
   // Known test accounts
   const known = [
     { name: 'Admin User', email: 'admin@eurtisan.local', role: 'admin' as const },
-    { name: 'Admin User 2FA', email: 'admin.2fa@eurtisan.local', role: 'admin' as const, twoFactorEnabled: true },
+    {
+      name: 'Admin User 2FA',
+      email: 'admin.2fa@eurtisan.local',
+      role: 'admin' as const,
+      twoFactorEnabled: true,
+    },
     { name: 'Eurtisan Creator', email: 'creator@eurtisan.local', role: 'creator' as const },
     {
       name: 'Eurtisan Creator 2FA',
@@ -946,7 +952,8 @@ async function seedProducts(
       const productId = crypto.randomUUID()
 
       const isActive = stockCount > 0 && faker.datatype.boolean(0.88)
-      const status = isActive && faker.datatype.boolean(0.9) ? 'published' as const : 'draft' as const
+      const status =
+        isActive && faker.datatype.boolean(0.9) ? ('published' as const) : ('draft' as const)
       const publishedAt = status === 'published' ? faker.date.past({ years: 1 }) : null
 
       products.push({
@@ -986,12 +993,7 @@ async function seedProducts(
   // })
 
   await Promise.all(
-    chunk(products, 100).map((c) =>
-      db
-        .insert(schema.product)
-        .values(c)
-        .onConflictDoNothing(),
-    ),
+    chunk(products, 100).map((c) => db.insert(schema.product).values(c).onConflictDoNothing()),
   )
   await Promise.all(
     chunk(productImages, 200).map((c) =>
@@ -1417,10 +1419,12 @@ async function seedOrders(
   )
 
   console.log('Generating invoices for paid/completed orders...')
-  const invoiceEligibleOrders = platformOrders.filter((o) =>
-    o.status && ['paid', 'processing', 'shipped', 'delivered', 'completed', 'disputed', 'refunded'].includes(
-      o.status,
-    ),
+  const invoiceEligibleOrders = platformOrders.filter(
+    (o) =>
+      o.status &&
+      ['paid', 'processing', 'shipped', 'delivered', 'completed', 'disputed', 'refunded'].includes(
+        o.status,
+      ),
   )
 
   const { createInvoicesForPlatformOrder } = await import('../lib/invoices.server.ts')

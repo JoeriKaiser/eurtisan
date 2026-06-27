@@ -17,6 +17,8 @@ import {
 
 export const userRoleEnum = pgEnum('user_role', ['customer', 'creator', 'admin'])
 
+export const productStatusEnum = pgEnum('product_status', ['draft', 'published', 'archived'])
+
 export const shopStatusEnum = pgEnum('shop_status', [
   'draft',
   'pending_review',
@@ -278,6 +280,8 @@ export const product = pgTable(
     priceCents: integer('price_cents').notNull().default(0),
     stockCount: integer('stock_count').notNull().default(0),
     isActive: boolean('is_active').notNull().default(true),
+    status: productStatusEnum().notNull().default('draft'),
+    publishedAt: timestamp('published_at'),
     vatRateCategory: text('vat_rate_category').notNull().default('standard'),
     shopId: text('shop_id')
       .notNull()
@@ -296,6 +300,9 @@ export const product = pgTable(
     index('product_category_id_idx').on(table.categoryId),
     index('product_slug_idx').on(table.slug),
     index('product_name_idx').on(table.name),
+    index('product_status_idx').on(table.status),
+    index('product_published_at_idx').on(table.publishedAt),
+    index('product_shop_status_idx').on(table.shopId, table.status),
     index('product_shop_active_idx').on(table.shopId, table.isActive),
     index('product_category_is_active_created_at_idx').on(
       table.categoryId,
@@ -303,7 +310,9 @@ export const product = pgTable(
       table.createdAt,
     ),
     index('product_created_at_idx').on(table.createdAt),
-    uniqueIndex('product_shop_slug_unique').on(table.shopId, table.slug),
+    uniqueIndex('product_shop_slug_published_unique')
+      .on(table.shopId, table.slug)
+      .where(sql`${table.status} = 'published'`),
     check('stock_count_non_negative', sql`${table.stockCount} >= 0`),
     check('price_cents_non_negative', sql`${table.priceCents} >= 0`),
     check(

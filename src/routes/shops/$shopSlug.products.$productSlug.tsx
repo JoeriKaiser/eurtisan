@@ -3,6 +3,7 @@ import { ProductDetailPage } from '#/route-components/shops/$shopSlug.products.$
 import { getProductBySlug } from '#/lib/products'
 import { createPageMeta } from '#/lib/seo'
 import { generateProductJsonLd } from '#/lib/seo-structured-data'
+import { SUPPORTED_CURRENCY } from '#/lib/currency'
 import { m } from '#/paraglide/messages'
 
 export const Route = createFileRoute('/shops/$shopSlug/products/$productSlug')({
@@ -60,7 +61,7 @@ export const Route = createFileRoute('/shops/$shopSlug/products/$productSlug')({
       canonicalPath,
       ogType: 'product',
       ogImageUrl: primaryImage,
-      productPrice: { amount: priceAmount, currency: 'EUR' },
+      productPrice: { amount: priceAmount, currency: SUPPORTED_CURRENCY },
       jsonLd,
     })
 

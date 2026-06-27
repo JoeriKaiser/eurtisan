@@ -219,9 +219,11 @@ export function ProductEditFormFields({
       {/* Shipping dimensions */}
       <div>
         <div className='mb-2 flex items-center justify-between'>
-          <span className='block text-sm font-medium text-text-primary'>Shipping dimensions</span>
+          <span className='block text-sm font-medium text-text-primary'>
+            {m.product_shipping_dimensions_label()}
+          </span>
           <span className='text-xs text-text-muted'>
-            Optional — used for accurate shipping rates
+            {m.product_shipping_dimensions_optional()}
           </span>
         </div>
         <div className='grid gap-4 sm:grid-cols-4'>
@@ -230,7 +232,7 @@ export function ProductEditFormFields({
               htmlFor='product-weight'
               className='mb-1 block text-xs font-medium text-text-secondary'
             >
-              Weight (g)
+              {m.product_weight_label()}
             </label>
             <Input
               id='product-weight'
@@ -248,7 +250,7 @@ export function ProductEditFormFields({
               htmlFor='product-length'
               className='mb-1 block text-xs font-medium text-text-secondary'
             >
-              Length (cm)
+              {m.product_length_label()}
             </label>
             <Input
               id='product-length'
@@ -266,7 +268,7 @@ export function ProductEditFormFields({
               htmlFor='product-width'
               className='mb-1 block text-xs font-medium text-text-secondary'
             >
-              Width (cm)
+              {m.product_width_label()}
             </label>
             <Input
               id='product-width'
@@ -284,7 +286,7 @@ export function ProductEditFormFields({
               htmlFor='product-height'
               className='mb-1 block text-xs font-medium text-text-secondary'
             >
-              Height (cm)
+              {m.product_height_label()}
             </label>
             <Input
               id='product-height'
@@ -298,9 +300,7 @@ export function ProductEditFormFields({
             />
           </div>
         </div>
-        <p className='mt-1.5 text-xs text-text-muted'>
-          Leave blank to use a default estimate at checkout and label generation.
-        </p>
+        <p className='mt-1.5 text-xs text-text-muted'>{m.product_shipping_dimensions_hint()}</p>
       </div>
 
       {/* Category selector */}
@@ -341,7 +341,7 @@ export function ProductEditFormFields({
           htmlFor='product-vat-category'
           className='mb-2 block text-sm font-medium text-text-primary'
         >
-          VAT Rate Category
+          {m.vat_category_label()}
         </label>
         <select
           id='product-vat-category'
@@ -351,13 +351,17 @@ export function ProductEditFormFields({
           }
           className='flex h-10 w-full rounded-lg border bg-surface-default px-3 py-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20 border-border-default hover:border-border-strong'
         >
-          <option value='standard'>Standard Rate</option>
-          <option value='reduced'>Reduced Rate</option>
-          <option value='exempt'>VAT Exempt</option>
+          {[
+            { value: 'standard', label: m.vat_category_standard() },
+            { value: 'reduced', label: m.vat_category_reduced() },
+            { value: 'exempt', label: m.vat_category_exempt() },
+          ].map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
         </select>
-        <p className='mt-1.5 text-xs text-text-muted'>
-          Determines the tax rate applied at checkout based on destination country rules.
-        </p>
+        <p className='mt-1.5 text-xs text-text-muted'>{m.vat_category_hint()}</p>
       </div>
 
       {/* Active toggle */}

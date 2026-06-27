@@ -162,7 +162,10 @@ async function buildCartDetail(cartRecord: typeof cart.$inferSelect): Promise<Ca
     const itemQuantity = row.item.quantity
 
     const isUnavailable =
-      !productRecord || productRecord.isActive === false || shopRecord?.isSuspended === true
+      !productRecord ||
+      productRecord.status !== 'published' ||
+      productRecord.isActive === false ||
+      shopRecord?.isSuspended === true
 
     const availableStock = productRecord ? (availableStockMap.get(productRecord.id) ?? 0) : 0
 

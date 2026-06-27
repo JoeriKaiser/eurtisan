@@ -155,7 +155,7 @@ export async function toggleProductActiveQuery(
 
     await tx.insert(meilisearchSyncQueue).values({
       productId: productId,
-      action: 'index',
+      action: record.status === 'published' && newActive ? 'index' : 'delete',
     })
 
     return res
@@ -163,18 +163,31 @@ export async function toggleProductActiveQuery(
 
   // Sync to Meilisearch
   import('./meilisearch-products.server')
-    .then(async ({ syncProductToMeilisearch }) => {
+    .then(async ({ syncProductToMeilisearch, removeProductFromMeilisearch }) => {
       try {
-        await syncProductToMeilisearch({ ...record, isActive: newActive })
-        await db
-          .update(meilisearchSyncQueue)
-          .set({ status: 'completed', updatedAt: new Date() })
-          .where(
-            and(
-              eq(meilisearchSyncQueue.productId, productId),
-              eq(meilisearchSyncQueue.action, 'index'),
-            ),
-          )
+        if (record.status === 'published' && newActive) {
+          await syncProductToMeilisearch({ ...record, isActive: newActive })
+          await db
+            .update(meilisearchSyncQueue)
+            .set({ status: 'completed', updatedAt: new Date() })
+            .where(
+              and(
+                eq(meilisearchSyncQueue.productId, productId),
+                eq(meilisearchSyncQueue.action, 'index'),
+              ),
+            )
+        } else {
+          await removeProductFromMeilisearch(productId)
+          await db
+            .update(meilisearchSyncQueue)
+            .set({ status: 'completed', updatedAt: new Date() })
+            .where(
+              and(
+                eq(meilisearchSyncQueue.productId, productId),
+                eq(meilisearchSyncQueue.action, 'delete'),
+              ),
+            )
+        }
       } catch {
         // Meilisearch sync failures must not break the admin toggle
       }

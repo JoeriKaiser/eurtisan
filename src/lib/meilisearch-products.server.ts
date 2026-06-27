@@ -80,6 +80,7 @@ export async function syncProductToMeilisearch(productData: {
   priceCents: number
   stockCount: number
   isActive: boolean
+  status: 'draft' | 'published' | 'archived'
   shopId: string
   categoryId: string | null
   createdAt: Date
@@ -93,7 +94,12 @@ export async function syncProductToMeilisearch(productData: {
       .where(eq(shop.id, productData.shopId))
       .limit(1)
 
-    if (!productData.isActive || shopRow?.isSuspended || shopRow?.status !== 'active') {
+    if (
+      productData.status !== 'published' ||
+      !productData.isActive ||
+      shopRow?.isSuspended ||
+      shopRow?.status !== 'active'
+    ) {
       await meilisearch.index(PRODUCTS_INDEX).deleteDocument(productData.id)
       return
     }
@@ -169,6 +175,7 @@ export async function populateProductsIndex(
 
   while (true) {
     const conditions = [
+      eq(product.status, 'published'),
       eq(product.isActive, true),
       eq(shop.isSuspended, false),
       eq(shop.status, 'active'),
@@ -328,6 +335,7 @@ export async function searchProductsMeilisearch(
         and(
           eq(shop.status, 'active'),
           eq(shop.isSuspended, false),
+          eq(product.status, 'published'),
           eq(product.isActive, true),
           inArray(product.id, ids),
         ),
@@ -386,9 +394,9 @@ export async function processMeilisearchSyncQueue(
         }
 
         await db.delete(meilisearchSyncQueue).where(eq(meilisearchSyncQueue.id, item.id))
-      } catch (err: any) {
+      } catch (err: unknown) {
         const attempts = item.attempts + 1
-        const lastError = err?.message || String(err)
+        const lastError = err instanceof Error ? err.message : String(err)
         const backoffSec = 2 ** attempts * 5
         const runAt = new Date(Date.now() + backoffSec * 1000)
 

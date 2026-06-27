@@ -135,7 +135,10 @@ vi.mock('#/lib/orders-ui', () => ({
 
 import { Route } from './$shopId.orders.index'
 
-const ShopOrdersPage = Route.options.component!
+const ShopOrdersPage = Route.options.component
+if (!ShopOrdersPage) {
+  throw new Error('Route component is not defined')
+}
 
 describe('ShopOrdersPage', () => {
   beforeEach(() => {

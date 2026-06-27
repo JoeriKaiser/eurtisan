@@ -344,6 +344,7 @@ describe('createProductInternal', () => {
       priceCents: 2999,
       stockCount: 10,
       shopId: s.id,
+      status: 'published',
     })
 
     await expect(
@@ -353,6 +354,7 @@ describe('createProductInternal', () => {
         priceCents: 3999,
         stockCount: 10,
         shopId: s.id,
+        status: 'published',
       }),
     ).rejects.toThrow('DUPLICATE_SLUG')
   })

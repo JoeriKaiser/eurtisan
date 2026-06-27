@@ -15,16 +15,18 @@ const productSearchSchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
   pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
   active: z.enum(['true', 'false', 'all']).optional().default('all'),
+  status: z.enum(['all', 'draft', 'published', 'archived']).optional().default('all'),
   search: z.string().max(200).optional(),
 })
 
 export const Route = createFileRoute('/creator/products/')({
   validateSearch: productSearchSchema,
-  loaderDeps: ({ search: { shopId, page, pageSize, active, search } }) => ({
+  loaderDeps: ({ search: { shopId, page, pageSize, active, status, search } }) => ({
     shopId,
     page,
     pageSize,
     active,
+    status,
     search,
   }),
   beforeLoad: async () => guardPrivilegedRole('creator'),
@@ -47,6 +49,7 @@ export const Route = createFileRoute('/creator/products/')({
           page: deps.page,
           pageSize: deps.pageSize,
           active: deps.active,
+          status: deps.status,
           search: deps.search,
         },
       })

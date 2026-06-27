@@ -64,7 +64,7 @@ export default function ProductCard({ product, imageUrl }: ProductCardProps) {
               {formatPriceEUR(product.priceCents)}
             </span>
             <span className='text-[10px] text-text-muted'>
-              {product.shopIsVatRegistered ? 'incl. VAT' : 'VAT exempt'}
+              {product.shopIsVatRegistered ? m.vat_included() : m.vat_exempt_short()}
             </span>
           </div>
 

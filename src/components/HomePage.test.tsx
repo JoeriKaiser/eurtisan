@@ -54,6 +54,8 @@ function makeProduct(id: string, overrides?: Partial<RecentProduct>): RecentProd
     priceCents: 1000,
     stockCount: 5,
     isActive: true,
+    status: 'published',
+    publishedAt: new Date(),
     createdAt: new Date(),
     updatedAt: new Date(),
     categoryName: 'Pottery',

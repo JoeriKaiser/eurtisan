@@ -3,7 +3,7 @@ import { formatPriceEUR } from './pricing'
 
 let mockLocale = 'en'
 vi.mock('#/paraglide/runtime', async (importOriginal) => {
-  const actual = await importOriginal<any>()
+  const actual = await importOriginal<Record<string, unknown>>()
   return {
     ...actual,
     getLocale: () => mockLocale,

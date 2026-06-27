@@ -146,7 +146,10 @@ vi.mock('#/lib/route-guards', () => ({
 
 import { Route } from './shops'
 
-const AdminShopsPage = Route.options.component!
+const AdminShopsPage = Route.options.component
+if (!AdminShopsPage) {
+  throw new Error('Route component is not defined')
+}
 
 /* -------------------------------------------------------------------------- */
 /*                               Initial Render                               */

@@ -31,6 +31,8 @@ function makeProduct(overrides?: Partial<PublicProduct>): PublicProduct {
     priceCents: 2999,
     stockCount: 5,
     isActive: true,
+    status: 'published',
+    publishedAt: new Date(),
     createdAt: new Date(),
     updatedAt: new Date(),
     categoryName: 'Pottery',

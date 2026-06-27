@@ -335,8 +335,9 @@ describe('updateShopInternal', () => {
         socials: [{ platform: 'myspace' as 'website', url: 'https://myspace.com/test' }],
       }),
     ).rejects.toBeTruthy()
-  }),
-    it('persists supported social platforms', async () => {
+  })
+
+  it('persists supported social platforms', async () => {
       await seedUser()
       const s = await seedShop()
 

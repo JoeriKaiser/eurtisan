@@ -644,12 +644,12 @@ export async function deleteProductInternal(
     const oldKeys = oldImages.map((i) => i.url).filter((url): url is string => !!url)
 
     await db.transaction(async (tx) => {
-      await tx.delete(product).where(eq(product.id, data.productId))
-
       await tx.insert(meilisearchSyncQueue).values({
         productId: data.productId,
         action: 'delete',
       })
+
+      await tx.delete(product).where(eq(product.id, data.productId))
     })
 
     // Delete from S3 after DB transaction succeeds
@@ -735,7 +735,12 @@ export async function deleteProductInternal(
       action: 'product_deleted',
       resourceType: 'product',
       resourceId: data.productId,
-      metadata: { shopId: productRecord.shopId, name: productRecord.name, hard: false, status: 'archived' },
+      metadata: {
+        shopId: productRecord.shopId,
+        name: productRecord.name,
+        hard: false,
+        status: 'archived',
+      },
     })
   }
 
@@ -1050,6 +1055,7 @@ export async function bulkDeleteProductsInternal(
       priceCents: product.priceCents,
       stockCount: product.stockCount,
       isActive: product.isActive,
+      status: product.status,
       vatRateCategory: product.vatRateCategory,
       shopId: product.shopId,
       categoryId: product.categoryId,
@@ -1125,29 +1131,29 @@ export async function bulkDeleteProductsInternal(
     await db.transaction(async (tx) => {
       await tx
         .update(product)
-        .set({ isActive: false, updatedAt: new Date() })
+        .set({ status: 'archived', isActive: false, updatedAt: new Date() })
         .where(inArray(product.id, ownedIds))
 
       await tx.insert(meilisearchSyncQueue).values(
         ownedIds.map((productId) => ({
           productId,
-          action: 'index' as const,
+          action: 'delete' as const,
         })),
       )
     })
 
     import('./meilisearch-products.server')
-      .then(async ({ syncProductToMeilisearch }) => {
+      .then(async ({ removeProductFromMeilisearch }) => {
         for (const p of ownedProducts) {
           try {
-            await syncProductToMeilisearch({ ...p, isActive: false })
+            await removeProductFromMeilisearch(p.id)
             await db
               .update(meilisearchSyncQueue)
               .set({ status: 'completed', updatedAt: new Date() })
               .where(
                 and(
                   eq(meilisearchSyncQueue.productId, p.id),
-                  eq(meilisearchSyncQueue.action, 'index'),
+                  eq(meilisearchSyncQueue.action, 'delete'),
                 ),
               )
           } catch {

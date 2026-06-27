@@ -65,8 +65,9 @@ describe('enqueueEmail', () => {
       where: eq(emailOutbox.idempotencyKey, 'no-plaintext'),
     })
     expect(row).toBeDefined()
-    expect('recipientEmail' in row!).toBe(false)
-    expect(row?.recipientHash).toBe(
+    if (!row) throw new Error('row not found')
+    expect('recipientEmail' in row).toBe(false)
+    expect(row.recipientHash).toBe(
       await import('./hash.server').then((m) => m.sha256Hex('plaintext@example.com')),
     )
   })

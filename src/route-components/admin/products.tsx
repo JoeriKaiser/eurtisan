@@ -22,6 +22,7 @@ import { downloadCSV, generateCSV } from '#/lib/csv-export'
 import { MAX_BULK_SELECTION } from '#/lib/admin-constants'
 import { m } from '#/paraglide/messages'
 import { getImageUrl } from '#/lib/image-url'
+import { SUPPORTED_CURRENCY } from '#/lib/currency'
 
 const PAGE_SIZES = [10, 20, 50] as const
 /* -------------------------------------------------------------------------- */
@@ -32,7 +33,7 @@ const PAGE_SIZES = [10, 20, 50] as const
 
 const PRICE_FORMATTER = new Intl.NumberFormat('de-DE', {
   style: 'currency',
-  currency: 'EUR',
+  currency: SUPPORTED_CURRENCY,
 })
 
 function formatPrice(cents: number): string {

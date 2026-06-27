@@ -97,7 +97,7 @@ vi.mock('#/paraglide/messages', () => ({
     creator_product_new_description_label: () => 'Description',
     creator_product_new_description_placeholder: () => 'Describe your product...',
     creator_product_new_description_too_long: () => 'Description must be 2000 characters or fewer.',
-    creator_product_new_price_label: () => 'Price (EUR)',
+    creator_product_new_price_label: () => 'Price',
     creator_product_new_price_placeholder: () => '0.00',
     creator_product_new_price_required: () => 'Price is required.',
     creator_product_new_price_positive: () => 'Price must be greater than zero.',
@@ -106,6 +106,30 @@ vi.mock('#/paraglide/messages', () => ({
     creator_product_new_stock_negative: () => 'Stock must be a non-negative number.',
     creator_product_new_category_label: () => 'Category',
     creator_product_new_category_none: () => 'No category',
+    vat_category_label: () => 'VAT rate category',
+    vat_category_standard: () => 'Standard rate',
+    vat_category_reduced: () => 'Reduced rate',
+    vat_category_exempt: () => 'VAT exempt',
+    vat_category_hint: () => 'Determines the tax rate applied at checkout.',
+    product_shipping_dimensions_label: () => 'Shipping dimensions',
+    product_shipping_dimensions_optional: () => 'Optional — used for accurate shipping rates',
+    product_weight_label: () => 'Weight (g)',
+    product_length_label: () => 'Length (cm)',
+    product_width_label: () => 'Width (cm)',
+    product_height_label: () => 'Height (cm)',
+    product_shipping_dimensions_hint: () => 'Leave blank to use a default estimate.',
+    product_status_draft: () => 'Draft',
+    product_status_published: () => 'Published',
+    product_status_archived: () => 'Archived',
+    product_action_save_draft: () => 'Save as draft',
+    product_action_publish: () => 'Publish',
+    product_action_unpublish: () => 'Unpublish',
+    product_action_archive: () => 'Archive',
+    product_error_slug_in_use: () =>
+      'This URL slug is already used by another published product. Please choose a different slug.',
+    currency_symbol: () => '€',
+    vat_included: () => 'incl. VAT',
+    vat_exempt_short: () => 'VAT exempt',
     creator_product_new_active_label: () => 'Active',
     creator_product_new_active_description: () => 'Product will be visible to buyers.',
     creator_product_new_inactive_label: () => 'Inactive',
@@ -140,6 +164,9 @@ vi.mock('#/paraglide/messages', () => ({
 vi.mock('#/lib/creator-products', () => ({
   updateProduct: vi.fn(),
   deleteProduct: vi.fn(),
+  publishProduct: vi.fn(),
+  unpublishProduct: vi.fn(),
+  archiveProduct: vi.fn(),
 }))
 
 import type { CreatorShop } from '#/lib/creator-dashboard'
@@ -169,6 +196,8 @@ interface ProductDetail {
   priceCents: number
   stockCount: number
   isActive: boolean
+  status: 'draft' | 'published' | 'archived'
+  publishedAt: Date | null
   vatRateCategory: string
   shopId: string
   categoryId: string | null
@@ -209,6 +238,8 @@ function makeProduct(overrides?: Partial<ProductDetail>): ProductDetail {
     priceCents: 2999,
     stockCount: 10,
     isActive: true,
+    status: 'published',
+    publishedAt: new Date(),
     vatRateCategory: 'standard',
     shopId: 'shop-1',
     categoryId: 'cat-1',
@@ -278,7 +309,7 @@ describe('CreatorProductEditPage', () => {
     const descriptionInput = screen.getByLabelText('Description') as HTMLTextAreaElement
     expect(descriptionInput.value).toBe('A beautiful handmade ceramic mug.')
 
-    const priceInput = screen.getByLabelText('Price (EUR)') as HTMLInputElement
+    const priceInput = screen.getByLabelText('Price') as HTMLInputElement
     expect(priceInput.value).toBe('29.99')
 
     const stockInput = screen.getByLabelText('Stock quantity') as HTMLInputElement
@@ -552,6 +583,8 @@ describe('CreatorProductEditPage', () => {
       priceCents: 3999,
       stockCount: 5,
       isActive: true,
+      status: 'published',
+      publishedAt: new Date(),
       vatRateCategory: 'standard',
       shopId: 'shop-1',
       categoryId: 'cat-1',
@@ -574,7 +607,7 @@ describe('CreatorProductEditPage', () => {
     )
 
     const nameInput = screen.getByLabelText('Product name')
-    const priceInput = screen.getByLabelText('Price (EUR)')
+    const priceInput = screen.getByLabelText('Price')
 
     fireEvent.change(nameInput, { target: { value: 'Updated Mug' } })
     fireEvent.change(priceInput, { target: { value: '39.99' } })
@@ -652,6 +685,8 @@ describe('CreatorProductEditPage', () => {
       priceCents: 2500,
       stockCount: 10,
       isActive: true,
+      status: 'published',
+      publishedAt: new Date(),
       shopId: 'shop-1',
       categoryId: null,
       vatRateCategory: 'standard',

@@ -1,4 +1,5 @@
 import { m } from '#/paraglide/messages'
+import { SUPPORTED_CURRENCY } from '#/lib/currency'
 
 interface AppListing {
   id: string
@@ -12,7 +13,7 @@ interface AppListing {
 
 const PRICE_FORMATTER = new Intl.NumberFormat('de-DE', {
   style: 'currency',
-  currency: 'EUR',
+  currency: SUPPORTED_CURRENCY,
 })
 
 function formatPrice(cents: number): string {

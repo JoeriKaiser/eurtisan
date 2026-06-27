@@ -35,6 +35,8 @@ const publicProductColumns = {
   priceCents: product.priceCents,
   stockCount: product.stockCount,
   isActive: product.isActive,
+  status: product.status,
+  publishedAt: product.publishedAt,
   createdAt: product.createdAt,
   updatedAt: product.updatedAt,
   categoryName: categories.name,
@@ -52,6 +54,8 @@ export type PublicProduct = {
   priceCents: number
   stockCount: number
   isActive: boolean
+  status: 'draft' | 'published' | 'archived'
+  publishedAt: Date | null
   createdAt: Date
   updatedAt: Date
   categoryName: string | null
@@ -119,6 +123,7 @@ function buildProductWhere(filters: ListProductsFilters) {
   const conditions = [
     eq(shop.status, 'active'),
     eq(shop.isSuspended, false),
+    eq(product.status, 'published'),
     eq(product.isActive, true),
   ]
 
@@ -211,6 +216,7 @@ export async function getProductBySlugQuery(
         eq(product.slug, productSlug),
         eq(shop.status, 'active'),
         eq(shop.isSuspended, false),
+        eq(product.status, 'published'),
         eq(product.isActive, true),
       ),
     )
@@ -305,6 +311,7 @@ export async function getShopProductsQuery(
 
   const conditions = [
     eq(shop.isSuspended, false),
+    eq(product.status, 'published'),
     eq(product.isActive, true),
     eq(shop.slug, shopSlug),
   ]
@@ -372,6 +379,7 @@ export async function listProductsByCategorySlugQuery(
     eq(product.categoryId, category[0].id),
     eq(shop.status, 'active'),
     eq(shop.isSuspended, false),
+    eq(product.status, 'published'),
     eq(product.isActive, true),
   )
 
@@ -445,7 +453,9 @@ export async function getFeaturedShopsQuery(limit: number): Promise<FeaturedShop
       name: shop.name,
       description: shop.description,
       slug: shop.slug,
-      productCount: count(sql`CASE WHEN ${product.isActive} THEN 1 END`),
+      productCount: count(
+        sql`CASE WHEN ${product.status} = 'published' AND ${product.isActive} THEN 1 END`,
+      ),
       tagline: shop.tagline,
       category: shop.category,
       image: shop.image,
@@ -477,7 +487,10 @@ export async function getMarketplaceStatsQuery(): Promise<{
         .select({ count: count() })
         .from(shop)
         .where(and(eq(shop.status, 'active'), eq(shop.isSuspended, false))),
-      db.select({ count: count() }).from(product).where(eq(product.isActive, true)),
+      db
+        .select({ count: count() })
+        .from(product)
+        .where(and(eq(product.status, 'published'), eq(product.isActive, true))),
       db
         .select({
           count: countDistinct(sql`lower(${shop.shippingOrigin}->>'country')`),
@@ -562,6 +575,7 @@ export async function searchProductsQuery(
   const conditions = [
     eq(shop.status, 'active'),
     eq(shop.isSuspended, false),
+    eq(product.status, 'published'),
     eq(product.isActive, true),
   ]
 
@@ -670,6 +684,7 @@ export async function searchSuggestionsFallbackQuery(query: string) {
       and(
         eq(shop.status, 'active'),
         eq(shop.isSuspended, false),
+        eq(product.status, 'published'),
         eq(product.isActive, true),
         ilike(product.name, `%${trimmedQuery}%`),
       ),
@@ -727,6 +742,9 @@ export async function createProductInternal(data: {
         priceCents: parsePriceToCents(data.price),
         shopId: data.shopId,
         categoryId: data.categoryId ?? null,
+        status: 'published',
+        isActive: true,
+        publishedAt: new Date(),
       })
       .returning(),
     import('./meilisearch-products.server'),

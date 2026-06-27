@@ -12,11 +12,7 @@
 
 **The P0 launch blockers are resolved.** The next North Star is closing the remaining owner-facing capability, compliance, and operability gaps. The single source of truth for launch blockers is `docs/PRODUCTION_READINESS_AUDIT.md`; the remediation plan index lives in `docs/plans/production-readiness/README.md`. Agents should orient every non-trivial change toward the remaining priorities below.
 
-1. **Product catalog maturity**
-   - Draft/versioning workflow.
-   - Replace hardcoded Euro symbol / English VAT labels with i18n-ready values.
-
-2. **Tax, VAT, and invoicing**
+1. **Tax, VAT, and invoicing**
    - Separate business address editing.
    - Editable DAC7 tax identity after onboarding.
    - Seller VAT reporting dashboard.
@@ -24,18 +20,18 @@
    - Fix VIES fall-open behavior, VAT regex inconsistencies, and Greek VAT-ID handling.
    - Remove `Promise.all` concurrency inside invoice transactions.
 
-3. **Production operability**
+2. **Production operability**
    - Backup strategy: consistent retention, offsite upload, WAL archiving, S3/Meilisearch backups.
    - Deployment smoke tests and migration rollback plan.
    - Alertmanager / Grafana alerting for health, job, and disk issues.
 
-> **Status as of 2026-06-27:** All P0 and P1 phases of the owner-operations push are implemented and staged (settings, variants, order fulfillment, customers, 2FA, deletion/erasure, and logs). The full Playwright E2E suite now passes (16 passed, 2 skipped). Remaining gaps are product draft workflow, tax/VAT improvements, and production-operability/alerting work.
+> **Status as of 2026-06-27:** All P0 and P1 phases of the owner-operations push are implemented and staged (settings, variants, order fulfillment, customers, 2FA, deletion/erasure, and logs). Phase 13 — Product Catalog Maturity (draft/publish/archive lifecycle, i18n-ready VAT/shipping labels, and `SUPPORTED_CURRENCY`) is complete and staged. Remaining gaps are tax/VAT improvements and production-operability/alerting work.
 
 ### North Star → audit / phase reconciliation
 
 | North Star theme | Relevant audit IDs | Phase plan(s) | Status |
 |---|---|---|---|
-| Product catalog maturity | P0-18 (hardcoded Euro/VAT labels), P0-20 (`InvoiceDetailComponent` uses `any`), P1-5 (hardcoded EUR + `Promise.all` in invoice tx), P1-40–P1-45 (i18n/accessibility/route completeness/checkout fragility) | [Phase 5 — Tax, VAT & i18n](./docs/plans/production-readiness/phase-05-tax-vat-and-i18n.md) (VAT/i18n); product draft/versioning is planned as a follow-up feature. | In progress |
+| Product catalog maturity | P0-18 (hardcoded Euro/VAT labels), P1-40–P1-45 (i18n/accessibility/route completeness) | [Phase 13 — Product Catalog Maturity](./docs/plans/production-readiness/phase-13-product-catalog-maturity.md) | Done |
 | Tax, VAT, and invoicing | P0-15 (VIES fall-open), P0-16 (Greek VAT-ID handling), P0-18 (hardcoded labels), P0-20 (`any` in invoices), P1-3 (editable DAC7), P1-4 (undocumented tax env vars), P1-5 (invoice tx), P1-40–P1-45 (i18n gaps) | [Phase 5 — Tax, VAT & i18n](./docs/plans/production-readiness/phase-05-tax-vat-and-i18n.md) | In progress |
 | Production operability | P0-10 (deploy smoke tests), P0-12 (imgproxy health check), P1-17–P1-19 (backup/WAL), P1-20–P1-24 (alerting/jobs), P1-30 (health external calls), P1-31 (Faro CORS), P1-32 (S3/Meilisearch backups), P1-49 (job compose blocks) | [Phase 6 — Deployment, observability & backups](./docs/plans/production-readiness/phase-06-deployment-observability-and-backups.md) | In progress |
 | CI, testing & documentation | P0-6 (missing North Star audit doc), P1-25 (CI gaps), P1-26 (Bun version), P1-27 (E2E coverage), P1-28 (`.env.example` gaps) | [Phase 7 — CI, testing & documentation](./docs/plans/production-readiness/phase-07-ci-testing-and-documentation.md) | In progress |

@@ -30,9 +30,11 @@ export const createProductSchema = z.object({
   widthCm: z.coerce.number().int().positive().optional(),
   heightCm: z.coerce.number().int().positive().optional(),
   images: z.array(productImageInputSchema).max(10).optional().default([]),
+  status: z.enum(['draft', 'published']).default('draft'),
 })
 
 export const updateProductSchema = createProductSchema.partial().extend({
+  status: z.enum(['draft', 'published', 'archived']).optional(),
   productId: z.string().min(1),
   shopId: z.string().min(1),
   images: z.array(productImageInputSchema).max(10).optional(),
@@ -49,6 +51,7 @@ export const listCreatorProductsSchema = z.object({
   page: z.coerce.number().int().min(1).optional().default(1),
   pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
   active: z.enum(['true', 'false', 'all']).optional().default('all'),
+  status: z.enum(['all', 'draft', 'published', 'archived']).optional().default('all'),
   categoryId: z.string().uuid().optional(),
   search: z.string().max(200).optional(),
 })
@@ -72,4 +75,9 @@ export const bulkDeleteProductsSchema = z.object({
 
 export const getCreatorProductDetailSchema = z.object({
   productId: z.string().min(1),
+})
+
+export const productLifecycleSchema = z.object({
+  productId: z.string().min(1),
+  shopId: z.string().min(1),
 })

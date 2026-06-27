@@ -77,6 +77,7 @@ export async function createProduct(
       stockCount: 10,
       shopId,
       isActive: true,
+      status: 'published',
       ...overrides,
     })
     .returning()

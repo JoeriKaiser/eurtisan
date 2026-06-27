@@ -204,7 +204,13 @@ export async function getShopDashboardStatsQuery(shopId: string): Promise<ShopDa
     db
       .select({ count: count() })
       .from(product)
-      .where(and(eq(product.shopId, shopId), eq(product.isActive, true))),
+      .where(
+        and(
+          eq(product.shopId, shopId),
+          eq(product.status, 'published'),
+          eq(product.isActive, true),
+        ),
+      ),
   ])
 
   const grossCents = Number(revenueResult?.total ?? 0)

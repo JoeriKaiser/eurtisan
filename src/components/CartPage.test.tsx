@@ -56,6 +56,8 @@ vi.mock('#/paraglide/messages', () => ({
     product_no_image: () => 'No image available',
     product_decrease_quantity: () => 'Decrease quantity',
     product_increase_quantity: () => 'Increase quantity',
+    vat_included: () => 'incl. VAT',
+    vat_exempt_short: () => 'VAT exempt',
   },
 }))
 
@@ -187,8 +189,11 @@ describe('CartPage', () => {
 
   it('disables increase quantity when at stock limit', () => {
     const cart = makeCart()
-    cart.shops[0].items[0].quantity = 10
-    cart.shops[0].items[0].product!.stockCount = 10
+    const item = cart.shops[0].items[0]
+    item.quantity = 10
+    if (item.product) {
+      item.product.stockCount = 10
+    }
     render(<CartPage cart={cart} />)
     expect(screen.getByLabelText('Increase quantity').hasAttribute('disabled')).toBe(true)
   })
@@ -251,8 +256,11 @@ describe('CartPage', () => {
 
   it('renders stock warning badge', () => {
     const cart = makeCart()
-    cart.shops[0].items[0].stockWarning = true
-    cart.shops[0].items[0].product!.stockCount = 1
+    const item = cart.shops[0].items[0]
+    item.stockWarning = true
+    if (item.product) {
+      item.product.stockCount = 1
+    }
     render(<CartPage cart={cart} />)
     expect(screen.getByText('Only 1 in stock')).toBeDefined()
   })
@@ -293,7 +301,10 @@ describe('CartPage', () => {
 
   it('renders fallback image when product has no image', () => {
     const cart = makeCart()
-    cart.shops[0].items[0].product!.imageUrl = null
+    const item = cart.shops[0].items[0]
+    if (item.product) {
+      item.product.imageUrl = null
+    }
     render(<CartPage cart={cart} />)
     expect(screen.getByText('No image available')).toBeDefined()
   })

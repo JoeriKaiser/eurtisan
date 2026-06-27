@@ -12,6 +12,7 @@ export interface CreatorProduct {
   priceCents: number
   stockCount: number
   isActive: boolean
+  status: 'draft' | 'published' | 'archived'
   createdAt: Date
   updatedAt: Date
   thumbnailUrl: string | null
@@ -102,16 +103,35 @@ export function ProductTableRow({
 
       {/* Status badge */}
       <td className='py-3 pr-4'>
-        <Badge variant={active ? 'success' : 'secondary'}>
-          {active ? m.creator_products_status_active() : m.creator_products_status_inactive()}
-        </Badge>
+        <div className='flex flex-wrap items-center gap-1.5'>
+          <Badge
+            variant={
+              product.status === 'published'
+                ? 'success'
+                : product.status === 'draft'
+                  ? 'secondary'
+                  : 'default'
+            }
+          >
+            {product.status === 'published'
+              ? m.product_status_published()
+              : product.status === 'draft'
+                ? m.product_status_draft()
+                : m.product_status_archived()}
+          </Badge>
+          {product.status === 'published' && (
+            <Badge variant={active ? 'success' : 'secondary'}>
+              {active ? m.creator_products_status_active() : m.creator_products_status_inactive()}
+            </Badge>
+          )}
+        </div>
       </td>
 
       {/* Actions */}
       <td className='py-3 text-right'>
         <div className='flex items-center justify-end gap-2'>
-          {/* Toggle button */}
-          {currentShopId && (
+          {/* Toggle button — only published products can be activated/deactivated */}
+          {currentShopId && product.status === 'published' && (
             <button
               type='button'
               onClick={() => onToggle(product.id, currentShopId, active)}

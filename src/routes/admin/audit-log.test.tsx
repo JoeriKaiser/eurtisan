@@ -84,7 +84,10 @@ vi.mock('#/paraglide/messages', () => ({
 
 import { Route } from './audit-log'
 
-const AdminAuditLogPage = Route.options.component!
+const AdminAuditLogPage = Route.options.component
+if (!AdminAuditLogPage) {
+  throw new Error('Route component is not defined')
+}
 
 describe('AdminAuditLogPage', () => {
   it('renders title and description', () => {

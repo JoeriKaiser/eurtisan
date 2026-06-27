@@ -62,6 +62,8 @@ vi.mock('#/paraglide/messages', () => ({
     cart_add_stock_limit: () => 'Updated to available stock limit',
     cart_add_error: () => 'Could not add to cart. Please try again.',
     cart_add_loading: () => 'Adding...',
+    vat_included: () => 'incl. VAT',
+    vat_exempt_short: () => 'VAT exempt',
   },
 }))
 
@@ -74,6 +76,8 @@ function makeProduct(overrides?: Partial<ProductDetailType>): ProductDetailType 
     priceCents: 2999,
     stockCount: 5,
     isActive: true,
+    status: 'published',
+    publishedAt: new Date(),
     createdAt: new Date(),
     updatedAt: new Date(),
     categoryName: 'Pottery',

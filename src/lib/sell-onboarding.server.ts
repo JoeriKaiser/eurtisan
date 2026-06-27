@@ -12,6 +12,7 @@ import {
 import type { PoliciesData, ShippingOriginData, ShopDraft } from './sell-onboarding'
 import { sanitizeRichText, validatePlainText } from './xss'
 import { encryptJsonb } from './encryption.server'
+import { SUPPORTED_CURRENCY } from './currency'
 
 const PROFANITY_LIST = new Set(['shit', 'fuck', 'damn', 'bitch', 'asshole', 'cunt', 'dick', 'piss'])
 
@@ -173,7 +174,7 @@ export async function createShopDraftInternal(user: { id: string; role: string }
     ownerId: user.id,
     status: 'draft',
     onboardingStep: 1,
-    currency: 'EUR',
+    currency: SUPPORTED_CURRENCY,
   })
 
   return { id }

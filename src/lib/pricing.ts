@@ -1,4 +1,5 @@
 import { getLocale } from '#/paraglide/runtime'
+import { SUPPORTED_CURRENCY } from './currency'
 
 const formatters = new Map<string, Intl.NumberFormat>()
 
@@ -16,7 +17,7 @@ export function formatPriceEUR(cents: number): string {
       locale,
       {
         style: 'currency',
-        currency: 'EUR',
+        currency: SUPPORTED_CURRENCY,
       },
     ]) as Intl.NumberFormat
     formatters.set(locale, formatter)

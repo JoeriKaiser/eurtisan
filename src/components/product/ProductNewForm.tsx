@@ -56,6 +56,7 @@ export interface FormValues {
   stockCount: string
   categoryId: string
   isActive: boolean
+  status: 'draft' | 'published'
   vatRateCategory: 'standard' | 'reduced' | 'exempt'
   weightGrams: string
   lengthCm: string
@@ -88,6 +89,7 @@ function createInitialFormState(initialShops: CreatorShop[]): FormState {
       stockCount: '0',
       categoryId: '',
       isActive: true,
+      status: 'published',
       vatRateCategory: 'standard',
       weightGrams: '',
       lengthCm: '',
@@ -142,6 +144,8 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
   const [submitting, setSubmitting] = useState(false)
   const [feedback, setFeedback] = useState<FeedbackState | null>(null)
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+
+  const submitStatusRef = useRef<'draft' | 'published'>('published')
 
   const { uploadMultiple, error: uploadError } = useImageUpload()
 
@@ -420,6 +424,7 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
           stockCount: Number.parseInt(formState.values.stockCount, 10) || 0,
           categoryId: formState.values.categoryId || undefined,
           isActive: formState.values.isActive,
+          status: submitStatusRef.current,
           vatRateCategory: formState.values.vatRateCategory,
           weightGrams: formState.values.weightGrams
             ? Number.parseInt(formState.values.weightGrams, 10)
@@ -537,9 +542,28 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
 
           {/* Submit */}
           <div className='mt-8 flex items-center gap-4 border-t border-border-subtle pt-6'>
-            <Button type='submit' variant='primary' isLoading={submitting} disabled={submitting}>
+            <Button
+              type='submit'
+              variant='primary'
+              isLoading={submitting && submitStatusRef.current === 'published'}
+              disabled={submitting}
+              onClick={() => {
+                submitStatusRef.current = 'published'
+              }}
+            >
               <Plus size={16} aria-hidden='true' />
-              {submitting ? m.creator_product_new_submitting() : m.creator_product_new_submit()}
+              {m.product_action_publish()}
+            </Button>
+            <Button
+              type='submit'
+              variant='secondary'
+              isLoading={submitting && submitStatusRef.current === 'draft'}
+              disabled={submitting}
+              onClick={() => {
+                submitStatusRef.current = 'draft'
+              }}
+            >
+              {m.product_action_save_draft()}
             </Button>
             <Button type='button' variant='ghost' onClick={handleCancel} disabled={submitting}>
               {m.creator_product_new_cancel()}

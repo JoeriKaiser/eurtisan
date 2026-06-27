@@ -14,9 +14,7 @@ import { PLATFORM_FEE_PERCENT } from './platform-constants'
 import { getPlatformVatLiable } from './env.server'
 import { decryptJsonb, encryptJsonb } from './encryption.server'
 import { logger } from './logger.server'
-
-/** Only supported currency. Used instead of hardcoded "EUR" strings. */
-export const SUPPORTED_CURRENCY = 'EUR' as const
+import { SUPPORTED_CURRENCY } from './currency'
 
 /**
  * Allocates the next sequential number for an invoice prefix.
@@ -426,7 +424,7 @@ export async function createInvoicesForPlatformOrder(
     const finalVatAmount = customerReverseCharge ? 0 : totalVat
     const finalSubtotal = customerReverseCharge ? totalGross : totalNet
 
-    const customerInvoiceLines: InvoiceLineItem[] = itemsList.map((item: any) => ({
+    const customerInvoiceLines: InvoiceLineItem[] = itemsList.map((item) => ({
       id: item.productId,
       name: item.productName,
       quantity: item.quantity,

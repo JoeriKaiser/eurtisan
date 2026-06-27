@@ -13,6 +13,7 @@ import {
   deleteProductSchema,
   getCreatorProductDetailSchema,
   listCreatorProductsSchema,
+  productLifecycleSchema,
   toggleProductActiveSchema,
   updateProductSchema,
 } from './creator-products.schema'
@@ -143,6 +144,67 @@ export const toggleProductActive = createServerFn({ method: 'POST' })
 
     const { toggleProductActiveInternal } = await import('./creator-products.server')
     return toggleProductActiveInternal(
+      { ...data, userId: context.user.id },
+      { id: context.user.id, name: context.user.name },
+    )
+  })
+
+/* -------------------------------------------------------------------------- */
+/*                            Lifecycle Actions                               */
+/* -------------------------------------------------------------------------- */
+
+export const publishProduct = createServerFn({ method: 'POST' })
+  .middleware([authMiddleware])
+  .inputValidator(productLifecycleSchema)
+  .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Error('UNAUTHENTICATED')
+    }
+
+    const { requireRoleForUser } = await import('./authz')
+    requireRoleForUser('creator', context.user)
+    requirePrivileged2FA(context.user as SafeUser)
+
+    const { publishProductInternal } = await import('./creator-products.server')
+    return publishProductInternal(
+      { ...data, userId: context.user.id },
+      { id: context.user.id, name: context.user.name },
+    )
+  })
+
+export const unpublishProduct = createServerFn({ method: 'POST' })
+  .middleware([authMiddleware])
+  .inputValidator(productLifecycleSchema)
+  .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Error('UNAUTHENTICATED')
+    }
+
+    const { requireRoleForUser } = await import('./authz')
+    requireRoleForUser('creator', context.user)
+    requirePrivileged2FA(context.user as SafeUser)
+
+    const { unpublishProductInternal } = await import('./creator-products.server')
+    return unpublishProductInternal(
+      { ...data, userId: context.user.id },
+      { id: context.user.id, name: context.user.name },
+    )
+  })
+
+export const archiveProduct = createServerFn({ method: 'POST' })
+  .middleware([authMiddleware])
+  .inputValidator(productLifecycleSchema)
+  .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Error('UNAUTHENTICATED')
+    }
+
+    const { requireRoleForUser } = await import('./authz')
+    requireRoleForUser('creator', context.user)
+    requirePrivileged2FA(context.user as SafeUser)
+
+    const { archiveProductInternal } = await import('./creator-products.server')
+    return archiveProductInternal(
       { ...data, userId: context.user.id },
       { id: context.user.id, name: context.user.name },
     )

@@ -1,4 +1,5 @@
 import { Input } from '#/components/ui/input'
+import { m } from '#/paraglide/messages'
 
 interface ShopSettingsTaxIdentityProps {
   legalEntityType: 'individual' | 'business' | ''
@@ -31,15 +32,14 @@ export function ShopSettingsTaxIdentity({
 }: ShopSettingsTaxIdentityProps) {
   return (
     <div className='rounded-xl border border-border-subtle p-4'>
-      <h3 className='mb-3 text-sm font-semibold text-text-primary'>Tax Identity</h3>
-      <p className='mb-3 text-xs text-text-muted'>
-        Your tax identity is required for EU tax reporting (DAC7). It is stored securely and only
-        used for legal disclosures and payouts.
-      </p>
+      <h3 className='mb-3 text-sm font-semibold text-text-primary'>
+        {m.shop_settings_tax_identity_title()}
+      </h3>
+      <p className='mb-3 text-xs text-text-muted'>{m.shop_settings_tax_identity_description()}</p>
       <div className='space-y-4'>
         <div>
           <span className='mb-1.5 block text-xs font-medium text-text-secondary'>
-            Legal Entity Type
+            {m.shop_settings_legal_entity_type_label()}
           </span>
           <div className='flex gap-4'>
             <label className='flex items-center gap-2 text-sm text-text-secondary'>
@@ -51,7 +51,7 @@ export function ShopSettingsTaxIdentity({
                 onChange={() => onLegalEntityTypeChange('individual')}
                 className='h-4 w-4 accent-accent-primary'
               />
-              Individual
+              {m.shop_settings_legal_entity_individual()}
             </label>
             <label className='flex items-center gap-2 text-sm text-text-secondary'>
               <input
@@ -62,14 +62,14 @@ export function ShopSettingsTaxIdentity({
                 onChange={() => onLegalEntityTypeChange('business')}
                 className='h-4 w-4 accent-accent-primary'
               />
-              Business
+              {m.shop_settings_legal_entity_business()}
             </label>
           </div>
         </div>
 
         <div>
           <label htmlFor='tax-id' className='mb-1.5 block text-xs font-medium text-text-secondary'>
-            Tax Identification Number (TIN)
+            {m.shop_settings_tax_id_label()}
           </label>
           <Input
             id='tax-id'
@@ -79,7 +79,7 @@ export function ShopSettingsTaxIdentity({
               onTaxIdChange(e.target.value)
               if (taxIdError) onFieldErrorClear('taxId')
             }}
-            placeholder='e.g. 1234567890'
+            placeholder={m.shop_settings_tax_id_placeholder()}
             error={taxIdError ?? undefined}
           />
           {taxIdError && (
@@ -95,7 +95,7 @@ export function ShopSettingsTaxIdentity({
               htmlFor='date-of-birth'
               className='mb-1.5 block text-xs font-medium text-text-secondary'
             >
-              Date of Birth
+              {m.shop_settings_date_of_birth_label()}
             </label>
             <Input
               id='date-of-birth'
@@ -121,7 +121,7 @@ export function ShopSettingsTaxIdentity({
               htmlFor='business-registration-number'
               className='mb-1.5 block text-xs font-medium text-text-secondary'
             >
-              Business Registration Number
+              {m.shop_settings_business_registration_number_label()}
             </label>
             <Input
               id='business-registration-number'
@@ -131,7 +131,7 @@ export function ShopSettingsTaxIdentity({
                 onBusinessRegistrationNumberChange(e.target.value)
                 if (businessRegistrationNumberError) onFieldErrorClear('businessRegistrationNumber')
               }}
-              placeholder='e.g. RCS Paris 123 456 789'
+              placeholder={m.shop_settings_business_registration_number_placeholder()}
               error={businessRegistrationNumberError ?? undefined}
             />
             {businessRegistrationNumberError && (

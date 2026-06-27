@@ -116,7 +116,10 @@ vi.mock('#/paraglide/messages', () => ({
 
 import { Route } from './disputes'
 
-const AdminDisputesPage = Route.options.component!
+const AdminDisputesPage = Route.options.component
+if (!AdminDisputesPage) {
+  throw new Error('Route component is not defined')
+}
 
 describe('AdminDisputesPage', () => {
   beforeEach(() => {

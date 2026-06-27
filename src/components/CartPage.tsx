@@ -11,8 +11,8 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { useCart } from '#/components/CartProvider'
-import { useRemoveCartItem, useUpdateCartItem } from '#/lib/cart-hooks'
 import type { CartDetail, CartItemDetail, CartShopGroup } from '#/lib/cart.server'
+import { useRemoveCartItem, useUpdateCartItem } from '#/lib/cart-hooks'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 import { Badge } from './ui/badge'
@@ -121,7 +121,7 @@ export default function CartPage({ cart: initialCart, showEmptyMessage }: CartPa
                   <span className='text-text-secondary truncate'>
                     {shop.shopName ?? m.cart_item_unavailable()}
                     <span className='ml-1 text-[10px] text-text-muted'>
-                      {shop.shopIsVatRegistered ? 'incl. VAT' : 'VAT exempt'}
+                      {shop.shopIsVatRegistered ? m.vat_included() : m.vat_exempt_short()}
                     </span>
                   </span>
                   <span className='font-medium text-text-primary'>

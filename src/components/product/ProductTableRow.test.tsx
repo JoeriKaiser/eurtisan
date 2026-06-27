@@ -27,7 +27,7 @@ vi.mock('#/lib/image-url', () => ({
   getImageUrl: (key: string, _options?: unknown) => `https://img.example.com/${key}`,
 }))
 
-function makeProduct(overrides?: Parameters<typeof ProductTableRow>[0]['product']) {
+function makeProduct(overrides?: Partial<Parameters<typeof ProductTableRow>[0]['product']>) {
   return {
     id: 'prod-1',
     name: 'Handmade Vase',
@@ -35,6 +35,7 @@ function makeProduct(overrides?: Parameters<typeof ProductTableRow>[0]['product'
     priceCents: 2999,
     stockCount: 5,
     isActive: true,
+    status: 'published' as const,
     createdAt: new Date(),
     updatedAt: new Date(),
     thumbnailUrl: 'uploads/prod-1-thumb.webp',
@@ -158,5 +159,24 @@ describe('ProductTableRow', () => {
 
     expect(screen.queryByRole('button')).toBeNull()
     expect(screen.queryByRole('link', { name: 'Edit Handmade Vase' })).toBeNull()
+  })
+
+  it('hides the active toggle for non-published products', () => {
+    render(
+      <table>
+        <tbody>
+          <ProductTableRow
+            product={makeProduct({ status: 'draft' })}
+            currentShopId='shop-1'
+            active={false}
+            toggling={false}
+            onToggle={() => {}}
+          />
+        </tbody>
+      </table>,
+    )
+
+    expect(screen.queryByRole('button')).toBeNull()
+    expect(screen.getByText('Draft')).toBeDefined()
   })
 })

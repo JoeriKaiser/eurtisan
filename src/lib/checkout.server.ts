@@ -303,12 +303,15 @@ async function validateBuyerVatId(
   isSellerVatRegistered: boolean,
   buyerVatId?: string | null,
 ): Promise<void> {
-  if (!isCrossBorderB2b(sellerCountryCode, buyerCountryCode, isSellerVatRegistered, buyerVatId)) {
+  if (
+    !isCrossBorderB2b(sellerCountryCode, buyerCountryCode, isSellerVatRegistered, buyerVatId) ||
+    !buyerVatId
+  ) {
     return
   }
 
   // 1. Offline format check
-  if (!isVatIdFormatValid(buyerVatId!, buyerCountryCode)) {
+  if (!isVatIdFormatValid(buyerVatId, buyerCountryCode)) {
     throw new Response(
       JSON.stringify({
         error: 'Bad Request',
@@ -320,7 +323,7 @@ async function validateBuyerVatId(
 
   // 2. VIES API check (if enabled)
   if (getEnableViesValidation()) {
-    const isValid = await verifyVatIdVies(buyerVatId!, buyerCountryCode)
+    const isValid = await verifyVatIdVies(buyerVatId, buyerCountryCode)
     if (!isValid) {
       throw new Response(
         JSON.stringify({
@@ -384,7 +387,12 @@ export async function getCheckoutSummaryQuery(
     const shopRecord = row.shop
     const quantity = row.item.quantity
 
-    if (!productRecord || !shopRecord) {
+    if (
+      !productRecord ||
+      !shopRecord ||
+      productRecord.status !== 'published' ||
+      productRecord.isActive === false
+    ) {
       // Skip unavailable items for checkout summary (they shouldn't be checked out)
       continue
     }
@@ -882,6 +890,7 @@ export async function createCheckoutWithProvider(
       if (
         !row.product ||
         !row.shopRecord ||
+        row.product.status !== 'published' ||
         !row.product.isActive ||
         row.shopRecord.status !== 'active' ||
         row.shopRecord.isSuspended

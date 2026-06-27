@@ -2,7 +2,13 @@ import { useRouter } from '@tanstack/react-router'
 import { Save, Trash2 } from 'lucide-react'
 import { useCallback, useReducer, useRef, useState } from 'react'
 import type { CreatorShop } from '#/lib/creator-dashboard'
-import { deleteProduct, updateProduct } from '#/lib/creator-products'
+import {
+  archiveProduct,
+  deleteProduct,
+  publishProduct,
+  unpublishProduct,
+  updateProduct,
+} from '#/lib/creator-products'
 import { useImageUpload } from '#/hooks/useImageUpload'
 import { getImageUrl } from '#/lib/image-url'
 import { m } from '#/paraglide/messages'
@@ -34,6 +40,7 @@ interface ProductDetail {
   priceCents: number
   stockCount: number
   isActive: boolean
+  status?: 'draft' | 'published' | 'archived'
   vatRateCategory: string
   shopId: string
   categoryId: string | null
@@ -190,6 +197,9 @@ export function ProductEditForm({
     deleting: false,
   })
   const [showCancelConfirm, setShowCancelConfirm] = useState(false)
+  const [lifecycleAction, setLifecycleAction] = useState<
+    'publish' | 'unpublish' | 'archive' | null
+  >(null)
 
   const { uploadMultiple, error: uploadError } = useImageUpload()
 
@@ -499,6 +509,83 @@ export function ProductEditForm({
     setShowCancelConfirm(false)
   }
 
+  /* -------------------------- Lifecycle handling -------------------------- */
+
+  const productStatus = product.status ?? 'draft'
+
+  const handlePublish = async () => {
+    setLifecycleAction('publish')
+    setSubmissionState({ submitting: false, feedback: null })
+    try {
+      await publishProduct({
+        data: { productId: product.id, shopId: product.shopId },
+      })
+      setSubmissionState({
+        submitting: false,
+        feedback: { type: 'success', message: m.creator_product_edit_save_success() },
+      })
+      router.invalidate()
+    } catch (err) {
+      if (err instanceof Error && err.message === 'SLUG_IN_USE') {
+        dispatchForm({
+          type: 'mergeFieldErrors',
+          errors: { slug: m.product_error_slug_in_use() },
+        })
+      } else {
+        setSubmissionState({
+          submitting: false,
+          feedback: { type: 'error', message: m.creator_product_edit_save_error() },
+        })
+      }
+    } finally {
+      setLifecycleAction(null)
+    }
+  }
+
+  const handleUnpublish = async () => {
+    setLifecycleAction('unpublish')
+    setSubmissionState({ submitting: false, feedback: null })
+    try {
+      await unpublishProduct({
+        data: { productId: product.id, shopId: product.shopId },
+      })
+      setSubmissionState({
+        submitting: false,
+        feedback: { type: 'success', message: m.creator_product_edit_save_success() },
+      })
+      router.invalidate()
+    } catch {
+      setSubmissionState({
+        submitting: false,
+        feedback: { type: 'error', message: m.creator_product_edit_save_error() },
+      })
+    } finally {
+      setLifecycleAction(null)
+    }
+  }
+
+  const handleArchive = async () => {
+    setLifecycleAction('archive')
+    setSubmissionState({ submitting: false, feedback: null })
+    try {
+      await archiveProduct({
+        data: { productId: product.id, shopId: product.shopId },
+      })
+      setSubmissionState({
+        submitting: false,
+        feedback: { type: 'success', message: m.creator_product_edit_save_success() },
+      })
+      router.invalidate()
+    } catch {
+      setSubmissionState({
+        submitting: false,
+        feedback: { type: 'error', message: m.creator_product_edit_save_error() },
+      })
+    } finally {
+      setLifecycleAction(null)
+    }
+  }
+
   /* --------------------------- Delete handling ---------------------------- */
 
   const handleDelete = async () => {
@@ -542,7 +629,9 @@ export function ProductEditForm({
             variant='danger'
             size='sm'
             onClick={() => setDeleteState({ showDialog: true, deleting: false })}
-            disabled={submissionState.submitting || deleteState.deleting}
+            disabled={
+              submissionState.submitting || deleteState.deleting || lifecycleAction !== null
+            }
           >
             <Trash2 size={16} aria-hidden='true' />
             <span className='hidden sm:inline'>{m.creator_product_edit_delete_button()}</span>
@@ -582,23 +671,71 @@ export function ProductEditForm({
           </div>
 
           {/* Submit */}
-          <div className='mt-8 flex items-center gap-4 border-t border-border-subtle pt-6'>
+          <div className='mt-8 flex flex-wrap items-center gap-4 border-t border-border-subtle pt-6'>
             <Button
               type='submit'
               variant='primary'
               isLoading={submissionState.submitting}
-              disabled={submissionState.submitting}
+              disabled={submissionState.submitting || lifecycleAction !== null}
             >
               <Save size={16} aria-hidden='true' />
               {submissionState.submitting
                 ? m.creator_product_edit_saving()
                 : m.creator_product_edit_save()}
             </Button>
+
+            {productStatus === 'draft' && (
+              <Button
+                type='button'
+                variant='secondary'
+                isLoading={lifecycleAction === 'publish'}
+                disabled={submissionState.submitting || lifecycleAction !== null}
+                onClick={handlePublish}
+              >
+                {m.product_action_publish()}
+              </Button>
+            )}
+
+            {productStatus === 'published' && (
+              <>
+                <Button
+                  type='button'
+                  variant='secondary'
+                  isLoading={lifecycleAction === 'unpublish'}
+                  disabled={submissionState.submitting || lifecycleAction !== null}
+                  onClick={handleUnpublish}
+                >
+                  {m.product_action_unpublish()}
+                </Button>
+                <Button
+                  type='button'
+                  variant='danger'
+                  isLoading={lifecycleAction === 'archive'}
+                  disabled={submissionState.submitting || lifecycleAction !== null}
+                  onClick={handleArchive}
+                >
+                  {m.product_action_archive()}
+                </Button>
+              </>
+            )}
+
+            {productStatus === 'archived' && (
+              <Button
+                type='button'
+                variant='secondary'
+                isLoading={lifecycleAction === 'publish'}
+                disabled={submissionState.submitting || lifecycleAction !== null}
+                onClick={handlePublish}
+              >
+                {m.product_action_publish()}
+              </Button>
+            )}
+
             <Button
               type='button'
               variant='ghost'
               onClick={handleCancel}
-              disabled={submissionState.submitting}
+              disabled={submissionState.submitting || lifecycleAction !== null}
             >
               {m.creator_product_new_cancel()}
             </Button>

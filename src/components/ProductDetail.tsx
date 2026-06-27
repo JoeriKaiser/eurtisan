@@ -90,7 +90,7 @@ export default function ProductDetail({ product }: ProductDetailProps) {
                 imgClassName='h-full w-full object-cover'
               />
             ) : (
-              <div className='flex h-full w-full flex-col items-center justify-center gap-2 text-[var(--sea-ink-soft)]'>
+              <div className='flex h-full w-full flex-col items-center justify-center gap-2 text-text-secondary'>
                 <ImageOff size={48} strokeWidth={1.5} aria-hidden='true' />
                 <span className='text-sm'>{m.product_no_image()}</span>
               </div>
@@ -98,7 +98,7 @@ export default function ProductDetail({ product }: ProductDetailProps) {
 
             {isOutOfStock && (
               <div className='absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[1px]'>
-                <span className='rounded-full bg-[var(--surface-strong)] px-4 py-2 text-sm font-semibold text-[var(--sea-ink)] shadow-sm'>
+                <span className='rounded-full bg-surface-default px-4 py-2 text-sm font-semibold text-text-primary shadow-sm'>
                   <PackageX
                     size={16}
                     className='inline align-text-bottom mr-1'
@@ -130,8 +130,8 @@ export default function ProductDetail({ product }: ProductDetailProps) {
                   onClick={() => setSelectedImageIndex(index)}
                   className={`relative size-16 flex-shrink-0 overflow-hidden rounded-lg border-2 transition ${
                     index === selectedImageIndex
-                      ? 'border-[var(--lagoon)]'
-                      : 'border-transparent hover:border-[var(--line)]'
+                      ? 'border-accent-secondary'
+                      : 'border-transparent hover:border-border-strong'
                   }`}
                 >
                   <ResponsiveImage
@@ -155,25 +155,25 @@ export default function ProductDetail({ product }: ProductDetailProps) {
             <p className='island-kicker mb-2'>
               {product.categoryName ?? m.product_uncategorized()}
             </p>
-            <h1 className='display-title mb-3 text-3xl font-semibold text-[var(--sea-ink)] sm:text-4xl'>
+            <h1 className='display-title mb-3 text-3xl font-semibold text-text-primary sm:text-4xl'>
               {product.name}
             </h1>
 
-            <p className='mb-1 text-2xl font-bold text-[var(--sea-ink)]'>
+            <p className='mb-1 text-2xl font-bold text-text-primary'>
               {formatPriceEUR(product.priceCents)}
             </p>
-            <p className='mb-2 text-xs text-[var(--sea-ink-soft)]'>
-              {product.shopIsVatRegistered ? 'incl. VAT' : 'VAT exempt'}
+            <p className='mb-2 text-xs text-text-muted'>
+              {product.shopIsVatRegistered ? m.vat_included() : m.vat_exempt_short()}
             </p>
 
-            <div className='mb-4 flex items-center gap-2 text-sm text-[var(--sea-ink-soft)]'>
+            <div className='mb-4 flex items-center gap-2 text-sm text-text-secondary'>
               {isOutOfStock ? (
                 <span className='inline-flex items-center gap-1 text-red-600 dark:text-red-400'>
                   <PackageX size={14} aria-hidden='true' />
                   {m.product_out_of_stock()}
                 </span>
               ) : (
-                <span className='inline-flex items-center gap-1 text-[var(--palm)]'>
+                <span className='inline-flex items-center gap-1 text-success'>
                   <PackageCheck size={14} aria-hidden='true' />
                   {m.product_in_stock({ count: product.stockCount })}
                 </span>
@@ -181,7 +181,7 @@ export default function ProductDetail({ product }: ProductDetailProps) {
             </div>
 
             {product.description && (
-              <p className='mb-6 whitespace-pre-wrap text-base text-[var(--sea-ink-soft)] leading-relaxed'>
+              <p className='mb-6 whitespace-pre-wrap text-base text-text-secondary leading-relaxed'>
                 {product.description}
               </p>
             )}
@@ -189,14 +189,14 @@ export default function ProductDetail({ product }: ProductDetailProps) {
             {/* Add to cart form */}
             <form className='space-y-4' onSubmit={handleAddToCart}>
               <div className='flex items-center gap-3'>
-                <label htmlFor='quantity' className='text-sm font-medium text-[var(--sea-ink)]'>
+                <label htmlFor='quantity' className='text-sm font-medium text-text-primary'>
                   {m.product_quantity()}
                 </label>
-                <div className='inline-flex items-center rounded-lg border border-[var(--chip-line)] bg-[var(--chip-bg)]'>
+                <div className='inline-flex items-center rounded-lg border border-border-default bg-surface-default'>
                   <button
                     type='button'
                     aria-label={m.product_decrease_quantity()}
-                    className='px-3 py-2 text-[var(--sea-ink)] transition hover:bg-[var(--link-bg-hover)] disabled:opacity-40'
+                    className='px-3 py-2 text-text-primary transition hover:bg-bg-inset disabled:opacity-40'
                     disabled={quantity <= 1 || isOutOfStock || isAdding}
                     onClick={() => setQuantity((q) => Math.max(1, q - 1))}
                   >
@@ -207,14 +207,14 @@ export default function ProductDetail({ product }: ProductDetailProps) {
                     id='quantity'
                     readOnly
                     value={quantity}
-                    className='w-10 border-0 bg-transparent p-0 text-center text-sm font-medium text-[var(--sea-ink)] focus:outline-none focus:ring-0'
+                    className='w-10 border-0 bg-transparent p-0 text-center text-sm font-medium text-text-primary focus:outline-none focus:ring-0'
                     aria-live='polite'
                     aria-label={m.product_quantity()}
                   />
                   <button
                     type='button'
                     aria-label={m.product_increase_quantity()}
-                    className='px-3 py-2 text-[var(--sea-ink)] transition hover:bg-[var(--link-bg-hover)] disabled:opacity-40'
+                    className='px-3 py-2 text-text-primary transition hover:bg-bg-inset disabled:opacity-40'
                     disabled={quantity >= product.stockCount || isOutOfStock || isAdding}
                     onClick={() => setQuantity((q) => Math.min(product.stockCount, q + 1))}
                   >
@@ -226,7 +226,7 @@ export default function ProductDetail({ product }: ProductDetailProps) {
               <button
                 type='submit'
                 disabled={isOutOfStock || isAdding}
-                className='inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--palm)] px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50'
+                className='inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent-primary px-5 py-3 text-sm font-semibold text-text-on-primary shadow-sm transition hover:bg-accent-primary-hover disabled:cursor-not-allowed disabled:opacity-50'
               >
                 {isAdding ? (
                   <>
@@ -242,10 +242,10 @@ export default function ProductDetail({ product }: ProductDetailProps) {
               </button>
 
               {addStatus === 'success' && (
-                <p className='text-sm font-medium text-[var(--palm)]'>{m.cart_add_success()}</p>
+                <p className='text-sm font-medium text-success'>{m.cart_add_success()}</p>
               )}
               {addStatus === 'capped' && (
-                <p className='text-sm font-medium text-[var(--palm)]'>{m.cart_add_stock_limit()}</p>
+                <p className='text-sm font-medium text-success'>{m.cart_add_stock_limit()}</p>
               )}
               {addStatus === 'error' && (
                 <p className='text-sm font-medium text-red-600 dark:text-red-400'>
@@ -257,19 +257,19 @@ export default function ProductDetail({ product }: ProductDetailProps) {
 
           {/* Shop card */}
           <section className='island-shell rounded-2xl p-6'>
-            <h2 className='mb-3 text-sm font-semibold uppercase tracking-wider text-[var(--sea-ink-soft)]'>
+            <h2 className='mb-3 text-sm font-semibold uppercase tracking-wider text-text-secondary'>
               {m.product_sold_by()}
             </h2>
             <div className='flex items-start gap-3'>
-              <div className='flex size-10 flex-shrink-0 items-center justify-center rounded-full bg-[var(--sand)]'>
-                <Store size={18} className='text-[var(--sea-ink-soft)]' aria-hidden='true' />
+              <div className='flex size-10 flex-shrink-0 items-center justify-center rounded-full bg-surface-inset'>
+                <Store size={18} className='text-text-secondary' aria-hidden='true' />
               </div>
               <div className='min-w-0'>
-                <p className='text-base font-semibold text-[var(--sea-ink)]'>
+                <p className='text-base font-semibold text-text-primary'>
                   {product.shopName ?? m.product_unknown_shop()}
                 </p>
                 {product.shopDescription && (
-                  <p className='mt-1 text-sm text-[var(--sea-ink-soft)] line-clamp-2'>
+                  <p className='mt-1 text-sm text-text-secondary line-clamp-2'>
                     {product.shopDescription}
                   </p>
                 )}
@@ -277,7 +277,7 @@ export default function ProductDetail({ product }: ProductDetailProps) {
                   <Link
                     to='/shops/$shopSlug'
                     params={{ shopSlug: product.shopSlug }}
-                    className='mt-2 inline-block text-sm font-medium text-[var(--sea-ink-soft)] no-underline hover:text-[var(--sea-ink)] hover:underline transition-colors'
+                    className='mt-2 inline-block text-sm font-medium text-text-secondary no-underline hover:text-text-primary hover:underline transition-colors'
                   >
                     {m.product_visit_shop()}
                   </Link>

@@ -45,6 +45,7 @@ export interface CreatorProductsPageProps {
     page: number
     pageSize: number
     active: 'true' | 'false' | 'all'
+    status: 'all' | 'draft' | 'published' | 'archived'
     search?: string
   }
 }
@@ -84,6 +85,7 @@ export function CreatorProductsPage({
         page: initialSearch.page,
         pageSize: initialSearch.pageSize,
         active: initialSearch.active,
+        status: initialSearch.status,
         ...overrides,
       }
 
@@ -107,7 +109,14 @@ export function CreatorProductsPage({
         replace: true,
       })
     },
-    [currentShopId, initialSearch.pageSize, initialSearch.active, initialSearch.page, router],
+    [
+      currentShopId,
+      initialSearch.pageSize,
+      initialSearch.active,
+      initialSearch.status,
+      initialSearch.page,
+      router,
+    ],
   )
 
   const handleSearchChange = useCallback(
@@ -124,6 +133,13 @@ export function CreatorProductsPage({
   const handleActiveFilter = useCallback(
     (active: 'true' | 'false' | 'all') => {
       navigateWithParams({ active, page: 1 })
+    },
+    [navigateWithParams],
+  )
+
+  const handleStatusFilter = useCallback(
+    (status: 'all' | 'draft' | 'published' | 'archived') => {
+      navigateWithParams({ status, page: 1 })
     },
     [navigateWithParams],
   )
@@ -149,7 +165,13 @@ export function CreatorProductsPage({
       setLocalSearch('')
       router.navigate({
         to: '/creator/products',
-        search: { shopId: newShopId, page: 1, pageSize: initialSearch.pageSize, active: 'all' },
+        search: {
+          shopId: newShopId,
+          page: 1,
+          pageSize: initialSearch.pageSize,
+          active: 'all',
+          status: 'all',
+        },
         replace: true,
       })
     },
@@ -309,6 +331,8 @@ export function CreatorProductsPage({
           onSearchChange={handleSearchChange}
           active={initialSearch.active}
           onActiveChange={handleActiveFilter}
+          status={initialSearch.status}
+          onStatusChange={handleStatusFilter}
         />
 
         {/* Bulk actions */}
@@ -409,12 +433,16 @@ export function CreatorProductsPage({
           <div className='py-12 text-center'>
             <Package size={48} className='mx-auto mb-4 text-text-muted' aria-hidden='true' />
             <h2 className='mb-2 text-lg font-semibold text-text-primary'>
-              {initialSearch.search || initialSearch.active !== 'all'
+              {initialSearch.search ||
+              initialSearch.active !== 'all' ||
+              initialSearch.status !== 'all'
                 ? m.creator_products_no_results()
                 : m.creator_products_empty_title()}
             </h2>
             <p className='text-text-secondary'>
-              {initialSearch.search || initialSearch.active !== 'all'
+              {initialSearch.search ||
+              initialSearch.active !== 'all' ||
+              initialSearch.status !== 'all'
                 ? m.creator_products_no_results_description()
                 : m.creator_products_empty_description()}
             </p>

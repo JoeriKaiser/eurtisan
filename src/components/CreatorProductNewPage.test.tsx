@@ -39,7 +39,7 @@ vi.mock('#/paraglide/messages', () => ({
     creator_product_new_description_label: () => 'Description',
     creator_product_new_description_placeholder: () => 'Describe your product...',
     creator_product_new_description_too_long: () => 'Description must be 2000 characters or fewer.',
-    creator_product_new_price_label: () => 'Price (EUR)',
+    creator_product_new_price_label: () => 'Price',
     creator_product_new_price_placeholder: () => '0.00',
     creator_product_new_price_required: () => 'Price is required.',
     creator_product_new_price_positive: () => 'Price must be greater than zero.',
@@ -49,6 +49,30 @@ vi.mock('#/paraglide/messages', () => ({
     creator_product_new_stock_negative: () => 'Stock must be a non-negative number.',
     creator_product_new_category_label: () => 'Category',
     creator_product_new_category_none: () => 'No category',
+    vat_category_label: () => 'VAT rate category',
+    vat_category_standard: () => 'Standard rate',
+    vat_category_reduced: () => 'Reduced rate',
+    vat_category_exempt: () => 'VAT exempt',
+    vat_category_hint: () => 'Determines the tax rate applied at checkout.',
+    product_shipping_dimensions_label: () => 'Shipping dimensions',
+    product_shipping_dimensions_optional: () => 'Optional — used for accurate shipping rates',
+    product_weight_label: () => 'Weight (g)',
+    product_length_label: () => 'Length (cm)',
+    product_width_label: () => 'Width (cm)',
+    product_height_label: () => 'Height (cm)',
+    product_shipping_dimensions_hint: () => 'Leave blank to use a default estimate.',
+    product_status_draft: () => 'Draft',
+    product_status_published: () => 'Published',
+    product_status_archived: () => 'Archived',
+    product_action_save_draft: () => 'Save as draft',
+    product_action_publish: () => 'Publish',
+    product_action_unpublish: () => 'Unpublish',
+    product_action_archive: () => 'Archive',
+    product_error_slug_in_use: () =>
+      'This URL slug is already used by another published product. Please choose a different slug.',
+    currency_symbol: () => '€',
+    vat_included: () => 'incl. VAT',
+    vat_exempt_short: () => 'VAT exempt',
     creator_product_new_active_label: () => 'Active',
     creator_product_new_active_description: () => 'Product will be visible to buyers.',
     creator_product_new_inactive_label: () => 'Inactive',
@@ -62,7 +86,7 @@ vi.mock('#/paraglide/messages', () => ({
     creator_product_new_images_error_size: () => 'Image must be 5MB or smaller.',
     creator_product_new_images_error_max: () => 'Maximum 10 images allowed.',
     creator_product_new_images_no_images: () => 'No images added yet.',
-    creator_product_new_submit: () => 'Publish product',
+    creator_product_new_submit: () => 'Publish',
     creator_product_new_submitting: () => 'Publishing...',
     creator_product_new_cancel: () => 'Cancel',
     creator_product_new_save_success: () => 'Product published successfully.',
@@ -149,12 +173,12 @@ describe('CreatorProductNewPage', () => {
     expect(screen.getByLabelText('Product name')).toBeTruthy()
     expect(screen.getByLabelText('URL slug')).toBeTruthy()
     expect(screen.getByLabelText('Description')).toBeTruthy()
-    expect(screen.getByLabelText('Price (EUR)')).toBeTruthy()
+    expect(screen.getByLabelText('Price')).toBeTruthy()
     expect(screen.getByLabelText('Stock quantity')).toBeTruthy()
     expect(screen.getByLabelText('Category')).toBeTruthy()
 
     // Buttons
-    expect(screen.getByRole('button', { name: 'Publish product' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Publish' })).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy()
   })
 
@@ -212,7 +236,7 @@ describe('CreatorProductNewPage', () => {
   it('shows validation errors on empty form submission', () => {
     render(<CreatorProductNewPage shops={makeShops()} categories={makeCategories()} />)
 
-    const form = screen.getByRole('button', { name: 'Publish product' }).closest('form')
+    const form = screen.getByRole('button', { name: 'Publish' }).closest('form')
     if (form) fireEvent.submit(form)
 
     expect(screen.getByText('Product name is required.')).toBeTruthy()
@@ -224,12 +248,12 @@ describe('CreatorProductNewPage', () => {
     render(<CreatorProductNewPage shops={makeShops()} categories={makeCategories()} />)
 
     const nameInput = screen.getByLabelText('Product name')
-    const priceInput = screen.getByLabelText('Price (EUR)')
+    const priceInput = screen.getByLabelText('Price')
 
     fireEvent.change(nameInput, { target: { value: 'Test Product' } })
     fireEvent.change(priceInput, { target: { value: '0' } })
 
-    const form = screen.getByRole('button', { name: 'Publish product' }).closest('form')
+    const form = screen.getByRole('button', { name: 'Publish' }).closest('form')
     if (form) fireEvent.submit(form)
 
     expect(screen.getByText('Price must be greater than zero.')).toBeTruthy()
@@ -239,14 +263,14 @@ describe('CreatorProductNewPage', () => {
     render(<CreatorProductNewPage shops={makeShops()} categories={makeCategories()} />)
 
     const nameInput = screen.getByLabelText('Product name')
-    const priceInput = screen.getByLabelText('Price (EUR)')
+    const priceInput = screen.getByLabelText('Price')
     const stockInput = screen.getByLabelText('Stock quantity')
 
     fireEvent.change(nameInput, { target: { value: 'Test Product' } })
     fireEvent.change(priceInput, { target: { value: '25.00' } })
     fireEvent.change(stockInput, { target: { value: '-5' } })
 
-    const form = screen.getByRole('button', { name: 'Publish product' }).closest('form')
+    const form = screen.getByRole('button', { name: 'Publish' }).closest('form')
     if (form) fireEvent.submit(form)
 
     expect(screen.getByText('Stock must be a non-negative number.')).toBeTruthy()
@@ -258,7 +282,7 @@ describe('CreatorProductNewPage', () => {
     const descriptionInput = screen.getByLabelText('Description')
     fireEvent.change(descriptionInput, { target: { value: 'a'.repeat(2001) } })
 
-    const form = screen.getByRole('button', { name: 'Publish product' }).closest('form')
+    const form = screen.getByRole('button', { name: 'Publish' }).closest('form')
     if (form) fireEvent.submit(form)
 
     expect(screen.getByText('Description must be 2000 characters or fewer.')).toBeTruthy()
@@ -424,6 +448,8 @@ describe('CreatorProductNewPage', () => {
       priceCents: 2999,
       stockCount: 10,
       isActive: true,
+      status: 'published',
+      publishedAt: new Date(),
       vatRateCategory: 'standard',
       shopId: 'shop-1',
       categoryId: null,
@@ -439,14 +465,14 @@ describe('CreatorProductNewPage', () => {
     render(<CreatorProductNewPage shops={makeShops()} categories={makeCategories()} />)
 
     const nameInput = screen.getByLabelText('Product name')
-    const priceInput = screen.getByLabelText('Price (EUR)')
+    const priceInput = screen.getByLabelText('Price')
     const stockInput = screen.getByLabelText('Stock quantity')
 
     fireEvent.change(nameInput, { target: { value: 'Handmade Mug' } })
     fireEvent.change(priceInput, { target: { value: '29.99' } })
     fireEvent.change(stockInput, { target: { value: '10' } })
 
-    const form = screen.getByRole('button', { name: 'Publish product' }).closest('form')
+    const form = screen.getByRole('button', { name: 'Publish' }).closest('form')
     if (form) fireEvent.submit(form)
 
     await waitFor(() => {
@@ -475,12 +501,12 @@ describe('CreatorProductNewPage', () => {
     render(<CreatorProductNewPage shops={makeShops()} categories={makeCategories()} />)
 
     const nameInput = screen.getByLabelText('Product name')
-    const priceInput = screen.getByLabelText('Price (EUR)')
+    const priceInput = screen.getByLabelText('Price')
 
     fireEvent.change(nameInput, { target: { value: 'Handmade Mug' } })
     fireEvent.change(priceInput, { target: { value: '29.99' } })
 
-    const submitButton = screen.getByRole('button', { name: 'Publish product' })
+    const submitButton = screen.getByRole('button', { name: 'Publish' })
     const form = submitButton.closest('form')
     if (form) fireEvent.submit(form)
 
@@ -497,6 +523,8 @@ describe('CreatorProductNewPage', () => {
       priceCents: 2999,
       stockCount: 10,
       isActive: true,
+      status: 'published',
+      publishedAt: new Date(),
       vatRateCategory: 'standard',
       shopId: 'shop-1',
       categoryId: null,
@@ -518,12 +546,12 @@ describe('CreatorProductNewPage', () => {
     render(<CreatorProductNewPage shops={makeShops()} categories={makeCategories()} />)
 
     const nameInput = screen.getByLabelText('Product name')
-    const priceInput = screen.getByLabelText('Price (EUR)')
+    const priceInput = screen.getByLabelText('Price')
 
     fireEvent.change(nameInput, { target: { value: 'Handmade Mug' } })
     fireEvent.change(priceInput, { target: { value: '29.99' } })
 
-    const form = screen.getByRole('button', { name: 'Publish product' }).closest('form')
+    const form = screen.getByRole('button', { name: 'Publish' }).closest('form')
     if (form) fireEvent.submit(form)
 
     await waitFor(() => {
@@ -541,12 +569,12 @@ describe('CreatorProductNewPage', () => {
     render(<CreatorProductNewPage shops={makeShops()} categories={makeCategories()} />)
 
     const nameInput = screen.getByLabelText('Product name')
-    const priceInput = screen.getByLabelText('Price (EUR)')
+    const priceInput = screen.getByLabelText('Price')
 
     fireEvent.change(nameInput, { target: { value: 'Handmade Mug' } })
     fireEvent.change(priceInput, { target: { value: '29.99' } })
 
-    const form = screen.getByRole('button', { name: 'Publish product' }).closest('form')
+    const form = screen.getByRole('button', { name: 'Publish' }).closest('form')
     if (form) fireEvent.submit(form)
 
     await waitFor(() => {
