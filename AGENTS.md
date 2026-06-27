@@ -761,6 +761,23 @@ Schema migrations must:
 
 Destructive operations require explicit confirmation.
 
+## Migration chain integrity
+
+As of the production-readiness remediation, the project uses an **incremental
+migration chain** rather than a single consolidated baseline. Re-baselining was
+deferred because multiple remediation phases generated migrations that contain
+required data fixes (e.g., payout reversion, encryption backfills). To keep the
+chain healthy, every PR must pass:
+
+- `drizzle-kit check`
+- `make db-migrate` on a fresh database
+- No deletion or renaming of migrations that have been applied to staging or
+  production
+
+If the chain ever becomes unrecoverable, the team should coordinate a planned
+maintenance window to generate a new baseline from the final schema and migrate
+all environments forward.
+
 ---
 
 # API & Server Function Design

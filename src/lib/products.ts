@@ -1,4 +1,5 @@
 import { createServerFn } from '@tanstack/react-start'
+import { notFound } from '@tanstack/react-router'
 import z from 'zod'
 import { createIpRateLimitMiddleware } from './rate-limit'
 
@@ -75,10 +76,7 @@ export const getProductBySlug = createServerFn({
     const result = await getProductBySlugQuery(data.shopSlug, data.productSlug)
 
     if (!result) {
-      throw new Response(
-        JSON.stringify({ error: 'Not Found', message: 'Product not found or unavailable' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } },
-      )
+      throw notFound()
     }
 
     return result
@@ -97,10 +95,7 @@ export const getShopBySlug = createServerFn({
     const result = await getShopBySlugQuery(data.slug)
 
     if (!result) {
-      throw new Response(
-        JSON.stringify({ error: 'Not Found', message: 'Shop not found or suspended' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } },
-      )
+      throw notFound()
     }
 
     return result

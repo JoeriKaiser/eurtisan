@@ -1,5 +1,6 @@
 import { existsSync, statSync } from 'node:fs'
 import { E2E_CREATOR } from './fixtures/auth'
+import { dismissAnalyticsConsentBanner } from './fixtures/consent'
 import { test as setup, expect } from '@playwright/test'
 
 const authFile = 'e2e/.auth/creator.json'
@@ -62,6 +63,9 @@ setup('authenticate as creator', async ({ page }) => {
   // Navigate to home page with the authenticated context
   await page.goto('/')
   await page.waitForSelector('html[data-hydrated="true"]')
+
+  // Dismiss the analytics consent banner so it does not block later tests.
+  await dismissAnalyticsConsentBanner(page)
 
   // Verify logged-in state by checking for the known creator name in the header
   await expect(page.getByText(E2E_CREATOR.displayName)).toBeVisible()

@@ -1,31 +1,22 @@
 import { createFileRoute, notFound, Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
-import { getInvoiceData, invoiceBillingDetailsSchema } from '#/lib/invoices'
+import { getInvoiceData } from '#/lib/invoices'
 import { guardAuth } from '#/lib/route-guards'
 import { InvoiceDetailComponent } from '#/route-components/invoices.$invoiceId'
 
 export const Route = createFileRoute('/invoices/$invoiceId')({
   beforeLoad: async () => guardAuth(),
   loader: async ({ params }) => {
-    try {
-      const invoice = await getInvoiceData({ data: { invoiceNumber: params.invoiceId } })
-      const parsed = invoiceBillingDetailsSchema.safeParse(invoice.billingDetails)
-      if (!parsed.success) {
-        throw new Response(
-          JSON.stringify({ error: 'Internal Error', message: 'Invoice details are corrupted.' }),
-          {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' },
-          },
-        )
-      }
-      return { invoice: { ...invoice, billingDetails: parsed.data } }
-    } catch (err) {
-      if (err instanceof Response && err.status === 404) {
+    const result = (await getInvoiceData({
+      data: { invoiceNumber: params.invoiceId },
+    })) as Awaited<ReturnType<typeof getInvoiceData>> | Response
+    if (result instanceof Response) {
+      if (result.status === 404) {
         throw notFound()
       }
-      throw err
+      throw result
     }
+    return { invoice: result }
   },
   head: ({ loaderData }) => ({
     meta: [{ title: `Invoice ${loaderData?.invoice?.invoiceNumber || ''} | Eurtisan` }],

@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
+import { decryptJsonb } from '#/lib/encryption.server'
 import {
   cart,
   cartItem,
@@ -9,7 +10,7 @@ import {
   orderItem,
   platformOrder,
   product,
-  type shop,
+  shop,
   shopOrder,
   type user,
 } from '#/db/schema'
@@ -31,6 +32,16 @@ import {
   retryPayment,
 } from './checkout.server'
 import type { PaymentProvider } from './payment-provider'
+
+// Mock VIES so cross-border B2B reverse-charge tests do not depend on the
+// live European Commission API (which is flaky and now fails closed).
+vi.mock('#/lib/vat.server', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('#/lib/vat.server')>()
+  return {
+    ...mod,
+    verifyVatIdVies: vi.fn().mockResolvedValue(true),
+  }
+})
 
 // Run all tests in this file sequentially because they mutate the shared
 // test database. Parallel execution causes race conditions between beforeEach
@@ -176,6 +187,96 @@ describe.sequential('checkout', () => {
       expect(standardOption?.rateId).toBeDefined()
       expect(standardOption?.costCents).toBeGreaterThan(0)
       expect(expressOption?.costCents).toBeGreaterThan(standardOption?.costCents ?? 0)
+    })
+
+    async function seedCrossBorderShop() {
+      await seedUser()
+      await seedShop({
+        isVatRegistered: true,
+        shippingOrigin: {
+          street: '1 Rue de Paris',
+          city: 'Paris',
+          postalCode: '75001',
+          country: 'FR',
+        },
+      })
+      const c = await createCart('user-1')
+      const p = await seedProduct({ priceCents: 1000 })
+      await createCartItem(c.id, p.id, { quantity: 1 })
+      return { cart: c, product: p }
+    }
+
+    function withZeroRateShipping<T>(fn: () => Promise<T>): Promise<T> {
+      const spy = vi.spyOn(getShippingProvider(), 'getRates').mockResolvedValue([
+        {
+          rateId: 'std',
+          carrier: 'sendcloud',
+          serviceName: 'Sendcloud Standard',
+          priceCents: 0,
+          estimatedDays: { min: 2, max: 4 },
+        },
+      ])
+      return fn().finally(() => spy.mockRestore())
+    }
+
+    it('applies reverse charge for cross-border EU B2B transactions', async () => {
+      const { cart } = await seedCrossBorderShop()
+
+      const shopRecord = await db.select().from(shop).where(eq(shop.id, 'shop-1')).limit(1)
+      expect(shopRecord[0]?.isVatRegistered).toBe(true)
+
+      const result = await withZeroRateShipping(() =>
+        getCheckoutSummaryQuery(cart.id, 'user-1', {
+          name: 'Test User',
+          street: '123 Main St',
+          city: 'Berlin',
+          postalCode: '10115',
+          country: 'DE',
+          vatId: 'DE123456789',
+        }),
+      )
+
+      expect(result).not.toBeNull()
+      const shopGroup = result?.shops[0]
+      expect(shopGroup?.vatEstimateCents).toBe(0) // reverse charge: buyer accounts for VAT locally
+    })
+
+    it('does not apply reverse charge for non-EU buyers like Switzerland', async () => {
+      const { cart } = await seedCrossBorderShop()
+
+      const result = await withZeroRateShipping(() =>
+        getCheckoutSummaryQuery(cart.id, 'user-1', {
+          name: 'Test User',
+          street: '123 Main St',
+          city: 'Zurich',
+          postalCode: '8001',
+          country: 'CH',
+          vatId: 'CHE123456789', // invalid format for EU, but CH is not in member-state list
+        }),
+      )
+
+      expect(result).not.toBeNull()
+      const shopGroup = result?.shops[0]
+      expect(shopGroup?.vatEstimateCents).toBe(0) // export outside EU
+    })
+
+    it('treats Greece as GR for cross-border B2B eligibility', async () => {
+      const { cart } = await seedCrossBorderShop()
+
+      const result = await withZeroRateShipping(() =>
+        getCheckoutSummaryQuery(cart.id, 'user-1', {
+          name: 'Test User',
+          street: '123 Main St',
+          city: 'Athens',
+          postalCode: '10552',
+          country: 'GR',
+          vatId: 'EL123456789',
+        }),
+      )
+
+      expect(result).not.toBeNull()
+      const shopGroup = result?.shops[0]
+      expect(shopGroup?.vatEstimateCents).toBe(0) // reverse charge: buyer accounts for VAT locally
     })
 
     it('uses the shop shipping origin instead of the hardcoded platform origin', async () => {
@@ -494,7 +595,7 @@ describe.sequential('checkout', () => {
       expect(platformOrders[0].userId).toBe('user-1')
       expect(platformOrders[0].totalCents).toBe(2580) // 2 * 1000 + 580 (provider standard)
       expect(platformOrders[0].status).toBe('pending_payment')
-      expect(platformOrders[0].shippingAddress).toEqual(
+      expect(decryptJsonb(platformOrders[0].shippingAddress)).toEqual(
         expect.objectContaining({
           name: 'Test User',
           street: '123 Main St',
@@ -503,7 +604,7 @@ describe.sequential('checkout', () => {
           country: 'DE',
         }),
       )
-      expect(platformOrders[0].billingAddress).toEqual({
+      expect(decryptJsonb(platformOrders[0].billingAddress)).toEqual({
         name: 'Test User',
         street: '123 Main St',
         city: 'Berlin',

@@ -12,6 +12,9 @@
  *   bun run src/jobs/email-outbox-worker.ts
  */
 
+import { eq } from 'drizzle-orm'
+import { db } from '#/db/index'
+import { user } from '#/db/schema'
 import { createEmailProvider } from '#/integrations/email'
 import {
   deletePendingOutboxRowsForUser,
@@ -48,7 +51,45 @@ let tickCount = 0
 async function sendOutboxRow(row: EmailOutboxRow): Promise<void> {
   const provider = createEmailProvider()
 
-  if (await isEmailSuppressed(row.recipientEmail)) {
+  if (!row.userId) {
+    await markOutboxMaxRetriesReached(row.id, 'missing recipient user id', row.maxRetries)
+    emailFailedTotal.inc({ template: row.template })
+    await logEmailEvent({
+      outboxId: row.id,
+      recipientHash: row.recipientHash,
+      template: row.template,
+      category: row.category,
+      provider: provider.name,
+      status: 'failed',
+      statusDetail: 'missing recipient user id',
+    })
+    return
+  }
+
+  const [recipientUser] = await db
+    .select({ email: user.email, deletedAt: user.deletedAt })
+    .from(user)
+    .where(eq(user.id, row.userId))
+    .limit(1)
+
+  if (!recipientUser || recipientUser.deletedAt) {
+    await markOutboxMaxRetriesReached(row.id, 'recipient user not found or deleted', row.maxRetries)
+    emailFailedTotal.inc({ template: row.template })
+    await logEmailEvent({
+      outboxId: row.id,
+      recipientHash: row.recipientHash,
+      template: row.template,
+      category: row.category,
+      provider: provider.name,
+      status: 'failed',
+      statusDetail: 'recipient user not found or deleted',
+    })
+    return
+  }
+
+  const recipientEmail = recipientUser.email
+
+  if (await isEmailSuppressed(recipientEmail)) {
     emailSuppressedSkipsTotal.inc()
     await markOutboxSuppressed(row.id, 'recipient suppressed')
     await logEmailEvent({
@@ -63,7 +104,7 @@ async function sendOutboxRow(row: EmailOutboxRow): Promise<void> {
     return
   }
 
-  const enabled = await isEmailEnabledForUser(row.userId ?? '', row.category)
+  const enabled = await isEmailEnabledForUser(row.userId, row.category)
   if (!enabled) {
     await markOutboxSuppressed(row.id, 'category disabled')
     await logEmailEvent({
@@ -78,13 +119,13 @@ async function sendOutboxRow(row: EmailOutboxRow): Promise<void> {
     return
   }
 
-  const headers = await getEmailHeaders(row.recipientEmail, row.template, row.category)
+  const headers = await getEmailHeaders(recipientEmail, row.template, row.category)
 
   await markOutboxSending(row.id)
 
   try {
     const result = await provider.sendTransactional(
-      row.recipientEmail,
+      recipientEmail,
       row.template,
       row.data as Record<string, unknown>,
       headers,

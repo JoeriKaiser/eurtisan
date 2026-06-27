@@ -3,9 +3,10 @@
  * database so specs can focus on UI assertions instead of seed data archaeology.
  */
 import { randomBytes, randomUUID, scryptSync } from 'node:crypto'
-import { eq } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { db } from '../db'
 import * as schema from '../../src/db/schema'
+import { E2E_CUSTOMER } from './auth'
 
 const e2eDatabaseUrl =
   process.env.E2E_DATABASE_URL ?? 'postgresql://eurtisan:eurtisan@db-test:5432/eurtisan_test'
@@ -35,9 +36,27 @@ export interface TestOrder {
   productId: string
   molliePaymentId: string
   totalCents: number
+  invoiceNumber?: string
 }
 
 export async function createTestCustomer(seed: string): Promise<TestCustomer> {
+  if (seed === 'customer') {
+    const existing = await db
+      .select()
+      .from(schema.user)
+      .where(eq(schema.user.email, E2E_CUSTOMER.email))
+      .limit(1)
+    if (!existing[0]) {
+      throw new Error(`Standard E2E customer ${E2E_CUSTOMER.email} not found; run seed.`)
+    }
+    return {
+      id: existing[0].id,
+      email: E2E_CUSTOMER.email,
+      password: E2E_CUSTOMER.password,
+      name: existing[0].name ?? E2E_CUSTOMER.displayName,
+    }
+  }
+
   const email = `e2e-${seed}@eurtisan.local`
   const password = 'test-password-123'
   const name = `E2E Customer ${seed}`
@@ -76,9 +95,37 @@ export async function getCreatorShop() {
   const shop = await db
     .select()
     .from(schema.shop)
-    .where(eq(schema.shop.ownerId, creator[0].id))
+    .where(
+      and(
+        eq(schema.shop.ownerId, creator[0].id),
+        inArray(schema.shop.status, ['active', 'approved']),
+        eq(schema.shop.isSuspended, false),
+      ),
+    )
     .limit(1)
   if (!shop[0]) throw new Error('Seed creator shop not found')
+
+  const origin = (shop[0].shippingOrigin ?? {}) as Record<string, unknown>
+  const completeOrigin = {
+    street: typeof origin.street === 'string' ? origin.street : '42 Rue de Rivoli',
+    city: typeof origin.city === 'string' ? origin.city : 'Paris',
+    postalCode: typeof origin.postalCode === 'string' ? origin.postalCode : '75001',
+    country: typeof origin.country === 'string' ? origin.country : 'France',
+  }
+
+  if (
+    origin.street !== completeOrigin.street ||
+    origin.city !== completeOrigin.city ||
+    origin.postalCode !== completeOrigin.postalCode ||
+    origin.country !== completeOrigin.country
+  ) {
+    await db
+      .update(schema.shop)
+      .set({ shippingOrigin: completeOrigin })
+      .where(eq(schema.shop.id, shop[0].id))
+    return { ...shop[0], shippingOrigin: completeOrigin }
+  }
+
   return shop[0]
 }
 
@@ -168,7 +215,7 @@ export async function createPendingOrder(buyerSeed: string): Promise<TestOrder> 
   }
 }
 
-export async function markOrderPaid(testOrder: TestOrder): Promise<void> {
+export async function markOrderPaid(testOrder: TestOrder): Promise<string> {
   process.env.DATABASE_URL = e2eDatabaseUrl
 
   await db
@@ -182,13 +229,18 @@ export async function markOrderPaid(testOrder: TestOrder): Promise<void> {
     .where(eq(schema.shopOrder.id, testOrder.shopOrderId))
 
   const { createInvoicesForPlatformOrder } = await import('../../src/lib/invoices.server')
-  await createInvoicesForPlatformOrder(testOrder.platformOrderId)
+  const created = await createInvoicesForPlatformOrder(testOrder.platformOrderId)
+  const numbers = created.get(testOrder.shopOrderId)
+  if (!numbers) {
+    throw new Error(`No invoice numbers created for shop order ${testOrder.shopOrderId}`)
+  }
+  return numbers.customerInvoiceNumber
 }
 
 export async function createPaidOrder(buyerSeed: string): Promise<TestOrder> {
   const order = await createPendingOrder(buyerSeed)
-  await markOrderPaid(order)
-  return order
+  const invoiceNumber = await markOrderPaid(order)
+  return { ...order, invoiceNumber }
 }
 
 export async function createDeliveredOrder(buyerSeed: string): Promise<TestOrder> {

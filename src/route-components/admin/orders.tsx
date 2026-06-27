@@ -14,9 +14,9 @@ import { OrdersTable } from './orders/OrdersTable'
 /* -------------------------------------------------------------------------- */
 
 export function AdminOrdersPage() {
-  const initialData = useLoaderData({ from: '/admin/orders' })
+  const initialData = useLoaderData({ from: '/admin/orders/' })
   const navigate = useNavigate()
-  const search = useSearch({ from: '/admin/orders' })
+  const search = useSearch({ from: '/admin/orders/' })
 
   const [orders, _setOrders] = useState<PaginatedAdminOrders>(initialData)
 

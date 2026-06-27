@@ -1,3 +1,5 @@
+import { getAlpha2Code, getSupportedLanguages } from 'i18n-iso-countries'
+
 const COUNTRY_NAME_TO_CODE: Record<string, string> = {
   germany: 'DE',
   france: 'FR',
@@ -34,13 +36,30 @@ const COUNTRY_NAME_TO_CODE: Record<string, string> = {
   liechtenstein: 'LI',
 }
 
+const SUPPORTED_LOCALES = getSupportedLanguages()
+
 export function normalizeCountryCode(country: string): string | null {
   const trimmed = country.trim()
   const upper = trimmed.toUpperCase()
   if (upper.length === 2 && /^[A-Z]{2}$/.test(upper)) {
     return upper
   }
-  return COUNTRY_NAME_TO_CODE[trimmed.toLowerCase()] ?? null
+
+  const lower = trimmed.toLowerCase()
+  const fromStatic = COUNTRY_NAME_TO_CODE[lower]
+  if (fromStatic) return fromStatic
+
+  // Try localized country names across all supported ISO-639-1 locales.
+  for (const locale of SUPPORTED_LOCALES) {
+    try {
+      const code = getAlpha2Code(trimmed, locale)
+      if (code) return code.toUpperCase()
+    } catch {
+      // getAlpha2Code throws for unknown names in a given locale.
+    }
+  }
+
+  return null
 }
 
 const EU_VAT_RATES: Record<string, { standard: number; reduced: number }> = {
@@ -129,6 +148,7 @@ export function calculateVat(input: VatCalculationInput): VatCalculationResult {
   return { vatAmountCents, vatRateBasisPoints }
 }
 
+import { getViesTimeoutMs } from '#/lib/env.server'
 import { logger } from './logger.server'
 
 /**
@@ -211,7 +231,7 @@ export async function verifyVatIdVies(vatId: string, countryCode: string): Promi
 
   try {
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 2000)
+    const timeoutId = setTimeout(() => controller.abort(), getViesTimeoutMs())
 
     const response = await fetch(url, { signal: controller.signal })
     clearTimeout(timeoutId)

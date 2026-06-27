@@ -19,6 +19,7 @@ import type {
 } from '#/integrations/shipping'
 import { getShippingProvider } from '#/integrations/shipping'
 import { scheduleBackgroundWork } from './background-work.server'
+import { decryptJsonb, encryptJsonb } from './encryption.server'
 import { getBaseUrl, getEnableViesValidation } from './env.server'
 import {
   getAvailableStockForProducts,
@@ -28,6 +29,7 @@ import {
 } from './inventory.server'
 import { ordersCreatedTotal } from './metrics.server'
 import { logOrderCreated } from './order-logger'
+import { logger } from './logger.server'
 import type { PaymentProvider } from './payment-provider'
 import { recalcPlatformOrderTree } from './financial-totals.server'
 import { formatPriceEUR } from './pricing'
@@ -37,6 +39,7 @@ import {
   type ShopLegalIdentity,
   toSellerEmailPayload,
 } from './shop-legal-identity'
+import { EU_MEMBER_STATE_CODES } from './address-validation'
 import {
   calculateVat,
   isVatIdFormatValid,
@@ -290,36 +293,7 @@ function isCrossBorderB2b(
   const buyer = normalizeCountryCode(buyerCountryCode)
   if (!seller || !buyer || seller === buyer) return false
 
-  const euCountries = [
-    'AT',
-    'BE',
-    'BG',
-    'CY',
-    'CZ',
-    'DE',
-    'DK',
-    'EE',
-    'EL',
-    'ES',
-    'FI',
-    'FR',
-    'GR',
-    'HR',
-    'HU',
-    'IE',
-    'IT',
-    'LT',
-    'LU',
-    'LV',
-    'MT',
-    'NL',
-    'PL',
-    'PT',
-    'RO',
-    'SE',
-    'SI',
-    'SK',
-  ]
+  const euCountries = EU_MEMBER_STATE_CODES as readonly string[]
   return euCountries.includes(seller) && euCountries.includes(buyer)
 }
 
@@ -445,8 +419,8 @@ export async function getCheckoutSummaryQuery(
           shopName: shopRecord.name,
           ownerEmail: '',
           vatId: shopRecord.vatId,
-          businessAddress: shopRecord.businessAddress,
-          shippingOrigin: shopRecord.shippingOrigin,
+          businessAddress: decryptJsonb(shopRecord.businessAddress),
+          shippingOrigin: decryptJsonb(shopRecord.shippingOrigin),
         }),
       })
     }
@@ -487,8 +461,8 @@ export async function getCheckoutSummaryQuery(
           shopName: shopRecord.name,
           ownerEmail,
           vatId: shopRecord.vatId,
-          businessAddress: shopRecord.businessAddress,
-          shippingOrigin: shopRecord.shippingOrigin,
+          businessAddress: decryptJsonb(shopRecord.businessAddress),
+          shippingOrigin: decryptJsonb(shopRecord.shippingOrigin),
         })
       : {
           tradeName: shopGroup.shopName,
@@ -1106,8 +1080,8 @@ export async function createCheckoutWithProvider(
       .insert(platformOrder)
       .values({
         userId,
-        shippingAddress: input.shippingAddress,
-        billingAddress: input.billingAddress,
+        shippingAddress: encryptJsonb(input.shippingAddress),
+        billingAddress: encryptJsonb(input.billingAddress),
         totalCents: grandTotalCents,
         status: 'pending_payment',
       })
@@ -1228,9 +1202,10 @@ export async function createCheckoutWithProvider(
       .where(eq(platformOrder.id, platformOrderId))
 
     checkoutUrl = payment.checkoutUrl
-  } catch (_err) {
+  } catch (err) {
     // Payment initiation failed — keep the order in pending_payment so the
     // buyer can retry via retryPayment().  Stock remains reserved.
+    logger.error('Payment initiation failed in createCheckout', err, { platformOrderId })
     throw new Response(
       JSON.stringify({
         error: 'Service Unavailable',
@@ -1297,8 +1272,8 @@ export async function createCheckoutWithProvider(
                 shopName: orderShops[0].name,
                 ownerEmail: ownerEmailById.get(orderShops[0].ownerId) ?? '',
                 vatId: orderShops[0].vatId,
-                businessAddress: orderShops[0].businessAddress,
-                shippingOrigin: orderShops[0].shippingOrigin,
+                businessAddress: decryptJsonb(orderShops[0].businessAddress),
+                shippingOrigin: decryptJsonb(orderShops[0].shippingOrigin),
               }),
             )
           : {}
@@ -1355,8 +1330,8 @@ export async function createCheckoutWithProvider(
               shopName: shopRecord.name,
               ownerEmail: sellerRecord?.email ?? '',
               vatId: shopRecord.vatId,
-              businessAddress: shopRecord.businessAddress,
-              shippingOrigin: shopRecord.shippingOrigin,
+              businessAddress: decryptJsonb(shopRecord.businessAddress),
+              shippingOrigin: decryptJsonb(shopRecord.shippingOrigin),
             }),
           )
 

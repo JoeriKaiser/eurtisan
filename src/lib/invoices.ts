@@ -2,15 +2,19 @@ import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
 
-const invoiceBillingAddressSchema = z.object({
-  name: z.string(),
+const invoiceAddressSchema = z.object({
   street: z.string().optional(),
   city: z.string().optional(),
   postalCode: z.string().optional(),
   country: z.string(),
-  vatId: z.string().optional().nullable(),
+})
+
+const invoiceBillingAddressSchema = z.object({
+  name: z.string(),
   email: z.string().optional(),
+  vatId: z.string().optional().nullable(),
   isVatRegistered: z.boolean().optional(),
+  address: invoiceAddressSchema,
 })
 
 const invoiceLineItemSchema = z.object({
@@ -60,9 +64,17 @@ export const getInvoiceData = createServerFn({ method: 'GET' })
     }
 
     const { getInvoiceByIdQuery } = await import('./invoices.server')
-    return getInvoiceByIdQuery(
+    const invoice = await getInvoiceByIdQuery(
       data.invoiceNumber,
       context.user.id,
-      context.user.role as 'customer' | 'creator' | 'admin',
+      context.user.role,
     )
+    const parsed = invoiceBillingDetailsSchema.safeParse(invoice.billingDetails)
+    if (!parsed.success) {
+      throw new Response(
+        JSON.stringify({ error: 'Internal Error', message: 'Invoice details are corrupted.' }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+    return { ...invoice, billingDetails: parsed.data }
   })

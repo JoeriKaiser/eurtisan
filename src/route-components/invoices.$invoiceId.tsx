@@ -2,7 +2,7 @@ import { useLoaderData } from '@tanstack/react-router'
 import { Printer, ArrowLeft, ShieldCheck } from 'lucide-react'
 import { formatPriceEUR } from '#/lib/pricing'
 import { formatDateLong } from '#/lib/format-date'
-import type { InvoiceBillingDetails } from '#/lib/invoices'
+
 import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
 import { Badge } from '#/components/ui/badge'
@@ -14,7 +14,7 @@ function handlePrint() {
 
 export function InvoiceDetailComponent() {
   const { invoice } = useLoaderData({ from: '/invoices/$invoiceId' })
-  const details = invoice.billingDetails as InvoiceBillingDetails
+  const details = invoice.billingDetails
 
   const isPlatformFee = invoice.type === 'platform_fee'
 
@@ -117,11 +117,11 @@ export function InvoiceDetailComponent() {
                     {details.from.name}
                   </p>
                   {details.from.email && <p>{details.from.email}</p>}
-                  {details.from.street && <p>{details.from.street}</p>}
+                  {details.from.address.street && <p>{details.from.address.street}</p>}
                   <p>
-                    {details.from.postalCode} {details.from.city}
+                    {details.from.address.postalCode} {details.from.address.city}
                   </p>
-                  <p className='font-medium'>{details.from.country}</p>
+                  <p className='font-medium'>{details.from.address.country}</p>
                   {details.from.vatId && (
                     <p className='mt-2 text-xs font-mono text-text-muted print:text-gray-600'>
                       {m.invoice_vat_id()} {details.from.vatId}
@@ -137,11 +137,11 @@ export function InvoiceDetailComponent() {
                 <div className='text-sm text-text-secondary print:text-black space-y-1'>
                   <p className='font-bold text-text-primary print:text-black'>{details.to.name}</p>
                   {details.to.email && <p>{details.to.email}</p>}
-                  {details.to.street && <p>{details.to.street}</p>}
+                  {details.to.address.street && <p>{details.to.address.street}</p>}
                   <p>
-                    {details.to.postalCode} {details.to.city}
+                    {details.to.address.postalCode} {details.to.address.city}
                   </p>
-                  <p className='font-medium'>{details.to.country}</p>
+                  <p className='font-medium'>{details.to.address.country}</p>
                   {details.to.vatId && (
                     <p className='mt-2 text-xs font-mono text-text-muted print:text-gray-600'>
                       {m.invoice_vat_id()} {details.to.vatId}
@@ -252,7 +252,7 @@ export function InvoiceDetailComponent() {
                     {!details.from.isVatRegistered ? (
                       <div className='space-y-1'>
                         <p className='font-semibold'>{m.invoice_disclosure_customer_exempt()}</p>
-                        {details.from.country?.toUpperCase() === 'FR' && (
+                        {details.from.address.country?.toUpperCase() === 'FR' && (
                           <p className='font-semibold text-text-primary print:text-black mt-1'>
                             {m.invoice_disclosure_platform_fee_exempt()}
                           </p>

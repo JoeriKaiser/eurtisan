@@ -21,7 +21,9 @@ test.describe('Seller fulfillment flow', () => {
     await expect(shipDialog).toBeVisible()
     await shipDialog.getByRole('button', { name: /mark as shipped/i }).click()
 
-    await expect(page.getByText(/shipped/i).first()).toBeVisible({ timeout: 15000 })
+    await expect(page.locator('[role="status"]').filter({ hasText: 'Shipped' })).toBeVisible({
+      timeout: 15000,
+    })
 
     // Edit tracking information.
     await page.getByRole('button', { name: /edit tracking/i }).click()
@@ -33,6 +35,8 @@ test.describe('Seller fulfillment flow', () => {
 
     // Mark the order as delivered.
     await page.getByRole('button', { name: /mark as delivered/i }).click()
-    await expect(page.getByText(/delivered/i).first()).toBeVisible({ timeout: 15000 })
+    await expect(page.locator('[role="status"]').filter({ hasText: 'Delivered' })).toBeVisible({
+      timeout: 15000,
+    })
   })
 })

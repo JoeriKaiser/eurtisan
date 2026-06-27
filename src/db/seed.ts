@@ -380,7 +380,7 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
   const knownCreator = creators.find((u) => u.email === 'creator@eurtisan.local')
   const knownAdmin = users.find((u) => u.email === 'admin@eurtisan.local')
 
-  if (knownCreator && !shops.some((s) => s.ownerId === knownCreator.id)) {
+  if (knownCreator && !shops.some((s) => s.ownerId === knownCreator.id && s.status === 'active')) {
     const slug = uniqueSlug('The Forge', shopSlugs)
     shops.push({
       id: crypto.randomUUID(),
@@ -391,6 +391,8 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
       image: shopImageUrl('the-forge'),
       shippingOrigin: { city: 'Brussels', country: 'Belgium' },
       isSuspended: false,
+      status: 'active',
+      onboardingStep: 8,
     })
   }
 
@@ -746,8 +748,8 @@ async function seedProducts(
   ]
 
   for (const shop of shops) {
-    // Skip non-active shops (draft / pending_review / approved demo shops)
-    if (shop.status && shop.status !== 'active') continue
+    // Skip non-active/non-approved shops (draft / pending_review demo shops)
+    if (shop.status && !['active', 'approved'].includes(shop.status)) continue
 
     const count = faker.number.int(CONFIG.productsPerShop)
     if (!productSlugsByShop.has(shop.id!)) {
@@ -831,7 +833,12 @@ async function seedCarts(
   products: (typeof schema.product.$inferInsert)[],
 ) {
   console.log('Seeding carts...')
-  const customers = users.filter((u) => u.role === 'customer')
+  const testEmails = new Set([
+    'admin@eurtisan.local',
+    'creator@eurtisan.local',
+    'customer@eurtisan.local',
+  ])
+  const customers = users.filter((u) => u.role === 'customer' && !testEmails.has(u.email))
   const carts: (typeof schema.cart.$inferInsert)[] = []
   const cartItems: (typeof schema.cartItem.$inferInsert)[] = []
 

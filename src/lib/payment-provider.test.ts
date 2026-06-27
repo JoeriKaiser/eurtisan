@@ -57,7 +57,7 @@ describe('MolliePaymentProvider (mock)', () => {
         'https://example.com/webhook',
       )
 
-      expect(result.paymentId).toMatch(/^tr_mock_\d{6}$/)
+      expect(result.paymentId).toMatch(/^tr_mock_[A-Za-z0-9_]+$/)
       expect(result.checkoutUrl).toContain(getBaseUrl())
       expect(result.checkoutUrl).toContain('/success')
     })

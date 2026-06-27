@@ -1,8 +1,9 @@
 #!/bin/bash
 # Eurtisan deploy script
 # Run on the VPS to pull latest code, build, migrate, and restart.
-# Usage: ./deploy.sh [--skip-smoke-test] [git-ref]
+# Usage: ./deploy.sh [--skip-smoke-test] [--canary] [git-ref]
 #   --skip-smoke-test — bypass post-deploy smoke tests (emergency manual use only)
+#   --canary — run a single canary container before full rollout
 #   git-ref — branch or tag to deploy (default: main)
 #
 # Set COMPOSE_FILE env var to override (default: docker-compose.prod.yml)
@@ -84,6 +85,55 @@ run_smoke_tests() {
   return 0
 }
 
+poll_canary_health() {
+  local max_attempts=30
+  local delay=2
+  for i in $(seq 1 "$max_attempts"); do
+    if curl -fsS "http://127.0.0.1:${CANARY_PORT}/api/health/ready" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep "$delay"
+  done
+  return 1
+}
+
+run_canary() {
+  echo "==> Starting canary container on port ${CANARY_PORT}..."
+  docker run -d --rm \
+    --name eurtisan-app-canary \
+    --network eurtisan \
+    --network db-internal \
+    --env-file "$APP_DIR/.env" \
+    -e NODE_ENV=production \
+    -e PORT="$CANARY_PORT" \
+    -p "127.0.0.1:${CANARY_PORT}:${CANARY_PORT}" \
+    "eurtisan-app:${IMAGE_TAG}" \
+    bun --import ./dist/server/instrument.server.mjs ./dist/server/server-entry.mjs
+
+  echo "==> Waiting for canary health..."
+  if ! poll_canary_health; then
+    echo "==> CANARY HEALTH CHECK FAILED"
+    docker stop eurtisan-app-canary >/dev/null 2>&1 || true
+    return 1
+  fi
+
+  echo "==> Canary healthy; observing for ${CANARY_STABILIZE_SECONDS}s..."
+  local elapsed=0
+  while [ "$elapsed" -lt "$CANARY_STABILIZE_SECONDS" ]; do
+    sleep 30
+    elapsed=$((elapsed + 30))
+    if ! poll_canary_health; then
+      echo "==> CANARY FAILED during stabilization at ${elapsed}s"
+      docker stop eurtisan-app-canary >/dev/null 2>&1 || true
+      return 1
+    fi
+  done
+
+  echo "==> Canary stable; removing canary container before full rollout..."
+  docker stop eurtisan-app-canary >/dev/null 2>&1 || true
+  return 0
+}
+
 echo "==> Tagging current app image for rollback..."
 CURRENT_CONTAINER=$(docker compose -f "$COMPOSE_FILE" ps -q app 2>/dev/null || true)
 if [ -n "$CURRENT_CONTAINER" ]; then
@@ -106,7 +156,16 @@ docker compose -f "$COMPOSE_FILE" build app
 
 echo "==> Running database migrations..."
 if docker compose -f "$COMPOSE_FILE" run --rm app bun run db:migrate; then
-  echo "==> Migration succeeded — restarting services..."
+  echo "==> Migration succeeded"
+
+  if [ "$CANARY" = true ]; then
+    if ! run_canary; then
+      send_alert "🚨 Eurtisan canary FAILED on $(hostname) for ${GIT_REF}. Full rollout aborted."
+      exit 1
+    fi
+  fi
+
+  echo "==> Restarting services..."
   docker compose -f "$COMPOSE_FILE" up -d
 
   if [ "$SKIP_SMOKE_TEST" = false ]; then

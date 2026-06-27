@@ -66,7 +66,7 @@ export async function emitAuditEvent(
 
 export interface AuditLogListItem {
   id: string
-  actorId: string
+  actorId: string | null
   actorName: string
   action: string
   resourceType: string

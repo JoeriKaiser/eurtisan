@@ -1,5 +1,6 @@
 import { existsSync, statSync } from 'node:fs'
 import { E2E_ADMIN } from './fixtures/auth'
+import { dismissAnalyticsConsentBanner } from './fixtures/consent'
 import { test as setup, expect } from '@playwright/test'
 
 const authFile = 'e2e/.auth/admin.json'
@@ -65,6 +66,8 @@ setup('authenticate as admin', async ({ page }) => {
   console.log('Navigated to /admin. Current URL:', page.url())
   await page.waitForSelector('html[data-hydrated="true"]')
   console.log('Page hydrated. Current URL:', page.url())
+
+  await dismissAnalyticsConsentBanner(page)
 
   await expect(page.getByRole('heading', { name: 'Admin Dashboard' })).toBeVisible({
     timeout: 10000,

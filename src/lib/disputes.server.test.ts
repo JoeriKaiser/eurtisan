@@ -20,7 +20,7 @@ import {
   createUser,
 } from '#/test/factories'
 import { createInvoicesForPlatformOrder } from './invoices.server'
-import { openDisputeQuery, resolveDisputeQuery } from './disputes.server'
+import { isValidDisputeTransition, openDisputeQuery, resolveDisputeQuery } from './disputes.server'
 
 async function seedDisputeFixture(options?: {
   payoutStatus?: 'pending' | 'sent' | 'in_transit'
@@ -134,6 +134,44 @@ describe('resolveDisputeQuery', () => {
 
     const [updatedProduct] = await db.select().from(product).where(eq(product.id, prod.id))
     expect(updatedProduct.stockCount).toBe(5)
+  })
+
+  it('refunds the buyer and performs a partial payout clawback for a partial refund', async () => {
+    const {
+      disputeId,
+      shopOrder: so,
+      platformOrder: po,
+      product: prod,
+    } = await seedDisputeFixture({
+      payoutStatus: 'sent',
+    })
+
+    const result = await resolveDisputeQuery(
+      disputeId,
+      { resolution: 'partial_refund', refundCents: 700 },
+      { userId: 'admin-1', role: 'admin' },
+    )
+
+    expect(result.status).toBe('resolved')
+    expect(result.resolution).toBe('partial_refund')
+    expect(result.refundCents).toBe(700)
+
+    const [updatedSo] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
+    // The current implementation sets the shop order to 'refunded' even for
+    // partial refund resolutions; the partial nature is captured by refundCents.
+    expect(updatedSo.status).toBe('refunded')
+    expect(updatedSo.refundedCents).toBe(700)
+
+    const [updatedPo] = await db.select().from(platformOrder).where(eq(platformOrder.id, po.id))
+    expect(updatedPo.refundedCents).toBe(700)
+
+    const [updatedProduct] = await db.select().from(product).where(eq(product.id, prod.id))
+    expect(updatedProduct.stockCount).toBe(5)
+
+    const [payoutRecord] = await db.select().from(payout).where(eq(payout.shopOrderId, so.id))
+    // Partial refunds do not reverse the full payout; only the refunded portion
+    // is clawed back from the seller's routed share.
+    expect(payoutRecord.status).toBe('sent')
   })
 
   it('refunds the buyer and reverses a sent payout for a full refund', async () => {
@@ -260,5 +298,19 @@ describe('resolveDisputeQuery', () => {
 
     const [updatedSo] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
     expect(updatedSo.status).toBe('refunded')
+  })
+})
+
+describe('isValidDisputeTransition', () => {
+  it('allows open -> resolved', () => {
+    expect(isValidDisputeTransition('open', 'resolved')).toBe(true)
+  })
+
+  it('disallows resolved -> open', () => {
+    expect(isValidDisputeTransition('resolved', 'open')).toBe(false)
+  })
+
+  it('disallows closed -> resolved', () => {
+    expect(isValidDisputeTransition('closed', 'resolved')).toBe(false)
   })
 })

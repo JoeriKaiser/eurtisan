@@ -1,5 +1,6 @@
 import { existsSync, statSync } from 'node:fs'
 import { E2E_CUSTOMER } from './fixtures/auth'
+import { dismissAnalyticsConsentBanner } from './fixtures/consent'
 import { test as setup, expect } from '@playwright/test'
 
 const authFile = 'e2e/.auth/customer.json'
@@ -56,6 +57,7 @@ setup('authenticate as customer', async ({ page }) => {
 
   await page.goto('/')
   await page.waitForSelector('html[data-hydrated="true"]')
+  await dismissAnalyticsConsentBanner(page)
   await expect(page.getByText(E2E_CUSTOMER.displayName)).toBeVisible()
 
   await page.context().storageState({ path: authFile })

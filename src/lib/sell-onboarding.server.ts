@@ -1,9 +1,17 @@
 import { and, count, eq, ilike, ne, sql } from 'drizzle-orm'
 import z from 'zod'
 import { db } from '#/db/index'
-import { product, shop, shopSocials, type shopStatusEnum, user } from '#/db/schema'
+import {
+  product,
+  shop,
+  shopSocials,
+  type shopSocialPlatformEnum,
+  type shopStatusEnum,
+  user,
+} from '#/db/schema'
 import type { PoliciesData, ShippingOriginData, ShopDraft } from './sell-onboarding'
 import { sanitizeRichText, validatePlainText } from './xss'
+import { encryptJsonb } from './encryption.server'
 
 const PROFANITY_LIST = new Set(['shit', 'fuck', 'damn', 'bitch', 'asshole', 'cunt', 'dick', 'piss'])
 
@@ -182,6 +190,10 @@ export async function saveOnboardingStepInternal(
     throw new Error('FORBIDDEN')
   }
 
+  if (payload.step < 1 || payload.step > 8) {
+    throw new Error('INVALID_ONBOARDING_STEP')
+  }
+
   const updateData: Record<string, unknown> = {
     updatedAt: new Date(),
     onboardingStep: Math.max(record.onboardingStep, payload.step),
@@ -209,7 +221,7 @@ export async function saveOnboardingStepInternal(
   if (d.image !== undefined) updateData.image = validateImageUrl(d.image, 'Shop image')
   if (d.bannerImage !== undefined)
     updateData.bannerImage = validateImageUrl(d.bannerImage, 'Shop banner image')
-  if (d.shippingOrigin !== undefined) updateData.shippingOrigin = d.shippingOrigin
+  if (d.shippingOrigin !== undefined) updateData.shippingOrigin = encryptJsonb(d.shippingOrigin)
   if (d.currency !== undefined) updateData.currency = String(d.currency)
   if (d.isVatRegistered !== undefined) updateData.isVatRegistered = Boolean(d.isVatRegistered)
   if (d.vatId !== undefined) updateData.vatId = d.vatId ? String(d.vatId).trim() : null
@@ -235,7 +247,7 @@ export async function saveOnboardingStepInternal(
       const validatedSocials = socialRows.map((s, index) => ({
         id: crypto.randomUUID(),
         shopId: payload.draftId,
-        platform: String(s.platform),
+        platform: String(s.platform) as (typeof shopSocialPlatformEnum.enumValues)[number],
         url: validateSocialUrl(s.url, `Social URL #${index + 1}`),
       }))
       await db.insert(shopSocials).values(validatedSocials)

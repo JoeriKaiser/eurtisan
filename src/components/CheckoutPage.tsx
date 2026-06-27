@@ -98,6 +98,13 @@ function getDefaultShippingSelection(
   }
 }
 
+function findSelectionForShop(
+  selections: CheckoutFormValues['shippingSelections'],
+  shopId: string,
+) {
+  return selections.find((s) => s.shopId === shopId)
+}
+
 /**
  * Format estimated delivery days as a localized human-readable string.
  */
@@ -160,6 +167,22 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
               shippingSelections: value.shippingSelections,
             },
           })
+          if (result instanceof Response) {
+            const body = await result.json().catch(() => ({}))
+            setStatus((prev) => ({
+              ...prev,
+              submitError:
+                getLocalizedErrorMessage(body.code || body.message) || m.checkout_error_submit(),
+            }))
+            return
+          }
+          if (!result?.checkoutUrl) {
+            setStatus((prev) => ({
+              ...prev,
+              submitError: 'Checkout URL is missing. Please try again.',
+            }))
+            return
+          }
           window.location.href = result.checkoutUrl
         } catch (err) {
           if (err instanceof Response) {
@@ -181,8 +204,8 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
   const [dialog, setDialog] = useState({ open: false, key: 0 })
 
   const shippingSelections = form.state.values.shippingSelections
-  const hasServicePointSelection = shippingSelections.some((sel, idx) => {
-    const shopGroup = currentSummary.shops[idx]
+  const hasServicePointSelection = shippingSelections.some((sel) => {
+    const shopGroup = currentSummary.shops.find((s) => s.shopId === sel.shopId)
     if (!shopGroup) return false
     const selectedOption = shopGroup.shippingOptions.find(
       (opt) => opt.rateId === sel.rateId && opt.method === sel.method,
@@ -229,15 +252,21 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
         })
         setCurrentSummary(updatedSummary)
 
-        // Update shipping selections to match the new options
-        for (let i = 0; i < updatedSummary.shops.length; i++) {
-          const shop = updatedSummary.shops[i]
-          const defaultSel = getDefaultShippingSelection(shop)
-          form.setFieldValue(`shippingSelections[${i}].shopId`, defaultSel.shopId)
-          form.setFieldValue(`shippingSelections[${i}].method`, defaultSel.method)
-          form.setFieldValue(`shippingSelections[${i}].rateId`, defaultSel.rateId)
-          form.setFieldValue(`shippingSelections[${i}].costCents`, defaultSel.costCents)
-        }
+        // Rebuild shipping selections by shopId so a re-ordered summary never
+        // shifts a buyer's chosen method to the wrong shop.
+        const nextSelections = updatedSummary.shops.map((shop) => {
+          const existing = findSelectionForShop(
+            form.store.state.values.shippingSelections,
+            shop.shopId,
+          )
+          const stillValid =
+            existing &&
+            shop.shippingOptions.some(
+              (o) => o.rateId === existing.rateId && o.method === existing.method,
+            )
+          return stillValid ? existing : getDefaultShippingSelection(shop)
+        })
+        form.setFieldValue('shippingSelections', nextSelections)
         clearPickupPointIfNoServicePointMethod()
 
         // Check if any shop has only unsupported fallbacks
@@ -719,90 +748,98 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
             )}
 
             <div className='space-y-6'>
-              {currentSummary.shops.map((shop, shopIndex) => (
-                <fieldset key={shop.shopId} className='border-0 p-0 m-0 min-w-0'>
-                  <legend className='mb-3 text-sm font-medium text-text-secondary'>
-                    {shop.shopName}
-                  </legend>
-                  {shop.shippingOptions.length === 0 ? (
-                    <p className='text-sm text-text-muted italic'>
-                      Enter your shipping address to see available rates.
-                    </p>
-                  ) : (
-                    <div className='space-y-2'>
-                      {shop.shippingOptions.map((option) => {
-                        const isManualFallback = option.fallback && option.method === 'manual'
-                        const estimatedDaysStr = formatEstimatedDays(option.estimatedDays)
+              {currentSummary.shops.map((shop, shopIndex) => {
+                const selectionIndex = shippingSelections.findIndex((s) => s.shopId === shop.shopId)
+                // Defensive fallback: selections are always rebuilt from currentSummary.shops,
+                // so a matching shopId should exist. Falling back to the array index preserves
+                // the old behavior only in an inconsistent edge case.
+                const fieldIndex = selectionIndex === -1 ? shopIndex : selectionIndex
 
-                        return (
-                          <form.Field
-                            key={`${shop.shopId}-${option.rateId ?? option.method}`}
-                            name={`shippingSelections[${shopIndex}]`}
-                          >
-                            {(field) => {
-                              const isSelected =
-                                field.state.value?.rateId === option.rateId &&
-                                field.state.value?.method === option.method
+                return (
+                  <fieldset key={shop.shopId} className='border-0 p-0 m-0 min-w-0'>
+                    <legend className='mb-3 text-sm font-medium text-text-secondary'>
+                      {shop.shopName}
+                    </legend>
+                    {shop.shippingOptions.length === 0 ? (
+                      <p className='text-sm text-text-muted italic'>
+                        Enter your shipping address to see available rates.
+                      </p>
+                    ) : (
+                      <div className='space-y-2'>
+                        {shop.shippingOptions.map((option) => {
+                          const isManualFallback = option.fallback && option.method === 'manual'
+                          const estimatedDaysStr = formatEstimatedDays(option.estimatedDays)
 
-                              return (
-                                <label
-                                  className={`flex cursor-pointer flex-col rounded-xl border p-4 transition-colors ${
-                                    isSelected
-                                      ? 'border-accent-primary bg-accent-primary/5'
-                                      : isManualFallback
-                                        ? 'border-border-default bg-surface-inset'
-                                        : 'border-border-default hover:border-border-strong'
-                                  }`}
-                                >
-                                  <div className='flex items-center justify-between'>
-                                    <div className='flex items-center gap-3'>
-                                      <input
-                                        type='radio'
-                                        name={`shipping-shop-${shop.shopId}`}
-                                        checked={isSelected}
-                                        onChange={() => {
-                                          field.handleChange({
-                                            shopId: shop.shopId,
-                                            rateId: option.rateId,
-                                            method: option.method,
-                                            costCents: option.costCents,
-                                          })
-                                          clearPickupPointIfNoServicePointMethod()
-                                        }}
-                                        className='size-4 accent-accent-primary'
-                                      />
-                                      <div>
-                                        <span className='text-sm font-medium text-text-primary'>
-                                          {option.serviceName ?? option.label}
-                                        </span>
-                                        {option.carrier && (
-                                          <span className='ml-2 text-xs text-text-muted capitalize'>
-                                            {option.carrier.replace(/_/g, ' ')}
+                          return (
+                            <form.Field
+                              key={`${shop.shopId}-${option.rateId ?? option.method}`}
+                              name={`shippingSelections[${fieldIndex}]`}
+                            >
+                              {(field) => {
+                                const isSelected =
+                                  field.state.value?.rateId === option.rateId &&
+                                  field.state.value?.method === option.method
+
+                                return (
+                                  <label
+                                    className={`flex cursor-pointer flex-col rounded-xl border p-4 transition-colors ${
+                                      isSelected
+                                        ? 'border-accent-primary bg-accent-primary/5'
+                                        : isManualFallback
+                                          ? 'border-border-default bg-surface-inset'
+                                          : 'border-border-default hover:border-border-strong'
+                                    }`}
+                                  >
+                                    <div className='flex items-center justify-between'>
+                                      <div className='flex items-center gap-3'>
+                                        <input
+                                          type='radio'
+                                          name={`shipping-shop-${shop.shopId}`}
+                                          checked={isSelected}
+                                          onChange={() => {
+                                            field.handleChange({
+                                              shopId: shop.shopId,
+                                              rateId: option.rateId,
+                                              method: option.method,
+                                              costCents: option.costCents,
+                                            })
+                                            clearPickupPointIfNoServicePointMethod()
+                                          }}
+                                          className='size-4 accent-accent-primary'
+                                        />
+                                        <div>
+                                          <span className='text-sm font-medium text-text-primary'>
+                                            {option.serviceName ?? option.label}
                                           </span>
-                                        )}
-                                        {estimatedDaysStr && (
-                                          <span className='ml-1 block text-xs text-text-secondary'>
-                                            {estimatedDaysStr}
-                                          </span>
-                                        )}
+                                          {option.carrier && (
+                                            <span className='ml-2 text-xs text-text-muted capitalize'>
+                                              {option.carrier.replace(/_/g, ' ')}
+                                            </span>
+                                          )}
+                                          {estimatedDaysStr && (
+                                            <span className='ml-1 block text-xs text-text-secondary'>
+                                              {estimatedDaysStr}
+                                            </span>
+                                          )}
+                                        </div>
                                       </div>
+                                      <span className='text-sm font-semibold text-text-primary'>
+                                        {option.costCents === 0
+                                          ? '—'
+                                          : formatPriceEUR(option.costCents)}
+                                      </span>
                                     </div>
-                                    <span className='text-sm font-semibold text-text-primary'>
-                                      {option.costCents === 0
-                                        ? '—'
-                                        : formatPriceEUR(option.costCents)}
-                                    </span>
-                                  </div>
-                                </label>
-                              )
-                            }}
-                          </form.Field>
-                        )
-                      })}
-                    </div>
-                  )}
-                </fieldset>
-              ))}
+                                  </label>
+                                )
+                              }}
+                            </form.Field>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </fieldset>
+                )
+              })}
             </div>
           </section>
 
@@ -989,8 +1026,8 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
         postalCode={form.state.values.shippingAddress.postalCode || ''}
         country={form.state.values.shippingAddress.country || 'FR'}
         carrier={(() => {
-          const firstServicePointSelection = shippingSelections.find((sel, idx) => {
-            const shopGroup = currentSummary.shops[idx]
+          const firstServicePointSelection = shippingSelections.find((sel) => {
+            const shopGroup = currentSummary.shops.find((s) => s.shopId === sel.shopId)
             if (!shopGroup) return false
             const selectedOption = shopGroup.shippingOptions.find(
               (opt) => opt.rateId === sel.rateId && opt.method === sel.method,

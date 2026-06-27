@@ -17,12 +17,24 @@ import { DISPUTE_WINDOW_DAYS } from './constants'
 import { getBaseUrl } from './env.server'
 import { logger } from './logger.server'
 import { logOrderDisputed, logOrderResolved } from './order-logger'
-import type { OrderStatus } from './orders.server'
+import type { OrderStatus } from './order-status'
 import { recalcPlatformOrderStatus } from './shop-orders.server'
 import { restoreShopOrderStockInTx } from './inventory.server'
 import { createCreditNoteForShopOrder } from './invoices.server'
 import { reversePayoutForRefund } from './payouts.server'
 import { sanitizeRichText, validatePlainText } from './xss'
+
+export type DisputeStatus = 'open' | 'resolved' | 'closed'
+
+const VALID_DISPUTE_TRANSITIONS: Record<DisputeStatus, DisputeStatus[]> = {
+  open: ['resolved'],
+  resolved: [],
+  closed: [],
+}
+
+export function isValidDisputeTransition(from: DisputeStatus, to: DisputeStatus): boolean {
+  return VALID_DISPUTE_TRANSITIONS[from]?.includes(to) ?? false
+}
 
 const creatorUser = alias(user, 'creator')
 
@@ -731,6 +743,16 @@ export async function resolveDisputeQuery(
       )
     }
 
+    if (!isValidDisputeTransition(lockedDispute.status as DisputeStatus, 'resolved')) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Bad Request',
+          message: `Invalid dispute transition from '${lockedDispute.status}' to 'resolved'`,
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
     const [lockedShopOrder] = await tx
       .select()
       .from(shopOrder)
@@ -933,15 +955,14 @@ export async function resolveDisputeQuery(
         })
         .where(eq(shopOrder.id, lockedShopOrder.id))
 
-      await restoreShopOrderStockInTx(tx, lockedShopOrder.platformOrderId, lockedShopOrder.id)
+      // Inventory is only restored for full refunds; partial refunds leave the
+      // sale in place and close leaves the sale final.
+      if (input.resolution === 'full_refund') {
+        await restoreShopOrderStockInTx(tx, lockedShopOrder.platformOrderId, lockedShopOrder.id)
+      }
 
       await recalcPlatformOrderStatus(tx, lockedShopOrder.platformOrderId)
     })
-  }
-
-  // Inventory is only restored for refunded outcomes; close leaves the sale final.
-  if (input.resolution !== 'close') {
-    // Stock was restored in the finalization transaction above.
   }
 
   const {

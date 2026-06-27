@@ -87,6 +87,8 @@ function makePayoutLine(overrides?: Partial<CreatorPayoutLine>): CreatorPayoutLi
     status: 'pending',
     orderStatus: 'delivered',
     isRefund: false,
+    customerInvoiceNumber: 'INV-2026-00001',
+    platformFeeInvoiceNumber: 'INV-FEE-2026-00001',
     ...overrides,
   }
 }

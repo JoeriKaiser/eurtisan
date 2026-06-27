@@ -1,27 +1,33 @@
 import { eq } from 'drizzle-orm'
 
 import { db } from '#/db/index'
-import { shop, type user, type userRoleEnum } from '#/db/schema'
+import { shop, type userRoleEnum } from '#/db/schema'
 import { auth } from './auth'
 import { CsrfError, validateCsrf } from './csrf'
-import type { SafeUser } from './user-types'
+import { type SafeUser, toSafeUser } from './user-types'
 
 const PRIVILEGED_ROLES = new Set<UserRole>(['creator', 'admin'])
 
 export type UserRole = (typeof userRoleEnum.enumValues)[number]
 
+export interface AuthSession {
+  id: string
+  token: string
+  expiresAt: Date
+  userId: string
+  ipAddress?: string | null
+  userAgent?: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+
 export interface AuthContext {
-  user: typeof user.$inferSelect
-  session: {
-    id: string
-    token: string
-    expiresAt: Date
-    userId: string
-    ipAddress?: string | null
-    userAgent?: string | null
-    createdAt: Date
-    updatedAt: Date
-  }
+  user: SafeUser
+  session: AuthSession
+}
+
+function toAuthSession(raw: AuthSession): AuthSession {
+  return raw
 }
 
 export interface SafeAuthContext {
@@ -82,19 +88,23 @@ export async function requireAuth(request: Request): Promise<AuthContext> {
       message: 'Authentication required. Please sign in.',
     })
   }
-  if ((result.user as unknown as { bannedAt?: string | null }).bannedAt) {
+  const user = toSafeUser(result.user)
+  if (user.bannedAt) {
     throw new AuthError(403, {
       error: 'Forbidden',
       message: 'Account suspended.',
     })
   }
-  if ((result.user as unknown as { deletedAt?: string | null }).deletedAt) {
+  if (user.deletedAt) {
     throw new AuthError(403, {
       error: 'Forbidden',
       message: 'Account deleted.',
     })
   }
-  return result as AuthContext
+  return {
+    user,
+    session: toAuthSession(result.session as AuthSession),
+  }
 }
 
 /**
@@ -103,7 +113,7 @@ export async function requireAuth(request: Request): Promise<AuthContext> {
  */
 export function requireRole(minRole: UserRole) {
   return (ctx: AuthContext): AuthContext => {
-    const userLevel = ROLE_HIERARCHY[ctx.user.role as UserRole] ?? -1
+    const userLevel = ROLE_HIERARCHY[ctx.user.role] ?? -1
     const requiredLevel = ROLE_HIERARCHY[minRole]
 
     if (userLevel < requiredLevel) {
@@ -217,8 +227,7 @@ function requirePrivileged2FAForContext(ctx: AuthContext): AuthContext {
     return ctx
   }
 
-  const user = ctx.user as SafeUser
-  if (PRIVILEGED_ROLES.has(user.role) && !user.twoFactorEnabled) {
+  if (PRIVILEGED_ROLES.has(ctx.user.role) && !ctx.user.twoFactorEnabled) {
     throw new AuthError(403, {
       error: 'TWO_FACTOR_REQUIRED',
       message: 'Two-factor authentication is required for this action.',

@@ -29,7 +29,7 @@ import {
   resolveManualReviewQuery,
 } from './shop-orders.server'
 
-describe('refundShopOrderQuery', () => {
+describe.sequential('refundShopOrderQuery', () => {
   beforeEach(async () => {
     await clearTestTables()
   })
@@ -188,6 +188,56 @@ describe('refundShopOrderQuery', () => {
     await expect(refundShopOrderQuery(owner.id, so.id)).rejects.toThrow()
   })
 
+  it('refunds the remaining balance when the order was already partially refunded', async () => {
+    const {
+      owner,
+      product: prod,
+      shopOrder: so,
+      platformOrder: po,
+    } = await seedRefundFixture({
+      productStockCount: 3,
+      reservedQuantity: 2,
+    })
+
+    // Simulate an earlier partial refund (e.g. from a dispute partial_refund).
+    await db.update(shopOrder).set({ refundedCents: 500 }).where(eq(shopOrder.id, so.id))
+
+    const result = await refundShopOrderQuery(owner.id, so.id)
+
+    expect(result.success).toBe(true)
+
+    const [updatedSo] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
+    expect(updatedSo.status).toBe('refunded')
+    expect(updatedSo.refundedCents).toBe(1200)
+
+    const [updatedPo] = await db.select().from(platformOrder).where(eq(platformOrder.id, po.id))
+    expect(updatedPo.refundedCents).toBe(700)
+
+    const [updatedProduct] = await db.select().from(product).where(eq(product.id, prod.id))
+    expect(updatedProduct.stockCount).toBe(5)
+
+    const creditNote = await db
+      .select()
+      .from(invoices)
+      .where(eq(invoices.invoiceNumber, result.creditNoteNumber ?? ''))
+    expect(creditNote).toHaveLength(1)
+    expect(creditNote[0].type).toBe('credit_note')
+    expect(creditNote[0].totalCents).toBe(-700)
+  })
+
+  it('includes shipping costs in the refunded amount', async () => {
+    const { owner, shopOrder: so, platformOrder: po } = await seedRefundFixture()
+
+    await refundShopOrderQuery(owner.id, so.id)
+
+    const [updatedSo] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
+    expect(updatedSo.refundedCents).toBe(1200)
+    expect(updatedSo.shippingCostCents).toBe(200)
+
+    const [updatedPo] = await db.select().from(platformOrder).where(eq(platformOrder.id, po.id))
+    expect(updatedPo.refundedCents).toBe(1200)
+  })
+
   it('records a refund intent and leaves the order in refund_pending when Mollie fails', async () => {
     const {
       owner,
@@ -218,7 +268,7 @@ describe('refundShopOrderQuery', () => {
   })
 })
 
-describe('cancelShopOrderQuery', () => {
+describe.sequential('cancelShopOrderQuery', () => {
   beforeEach(async () => {
     await clearTestTables()
     resetMockPaymentStatuses()
@@ -318,6 +368,22 @@ describe('cancelShopOrderQuery', () => {
     expect(reservations).toHaveLength(0)
   })
 
+  it('returns the existing state when cancelling an already cancelled order', async () => {
+    setMockPaymentStatus('tr_mock_000001', 'pending')
+    const { platformOrder: po, shopOrder: so } = await seedPendingPaymentFixture()
+
+    await cancelShopOrderQuery(so.id, { reason: 'Buyer requested cancellation' })
+
+    const firstCancellation = await cancelShopOrderQuery(so.id)
+    expect(firstCancellation.status).toBe('cancelled')
+
+    const [updatedSo] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
+    expect(updatedSo.status).toBe('cancelled')
+
+    const [updatedPo] = await db.select().from(platformOrder).where(eq(platformOrder.id, po.id))
+    expect(updatedPo.status).toBe('cancelled')
+  })
+
   it('refunds the buyer when a pending_payment order was already captured', async () => {
     // Default mock status is 'paid', so cancelPayment will throw "already captured".
     const {
@@ -352,7 +418,7 @@ describe('cancelShopOrderQuery', () => {
   })
 })
 
-describe('resolveManualReviewQuery', () => {
+describe.sequential('resolveManualReviewQuery', () => {
   beforeEach(async () => {
     await clearTestTables()
     resetMockPaymentStatuses()
@@ -438,6 +504,51 @@ describe('resolveManualReviewQuery', () => {
       .where(and(eq(invoices.shopOrderId, so.id), eq(invoices.type, 'credit_note')))
     expect(creditNotes).toHaveLength(1)
     expect(creditNotes[0].totalCents).toBeLessThan(0)
+  })
+
+  it('resolves manual review to paid when stock is sufficient', async () => {
+    const { product: prod, platformOrder: po, shopOrder: so } = await seedManualReviewFixture()
+    await db.update(platformOrder).set({ status: 'paid' }).where(eq(platformOrder.id, po.id))
+    await createInventoryReservation(prod, {
+      platformOrderId: po.id,
+      quantity: 1,
+      expiresAt: new Date(Date.now() + 60_000),
+    })
+
+    await resolveManualReviewQuery(so.id, { resolution: 'paid' })
+
+    const [updatedSo] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
+    expect(updatedSo.status).toBe('paid')
+
+    const [updatedPo] = await db.select().from(platformOrder).where(eq(platformOrder.id, po.id))
+    expect(updatedPo.status).toBe('paid')
+
+    const [updatedProduct] = await db.select().from(product).where(eq(product.id, prod.id))
+    expect(updatedProduct.stockCount).toBe(2)
+
+    const reservations = await db
+      .select()
+      .from(inventoryReservation)
+      .where(eq(inventoryReservation.platformOrderId, po.id))
+    expect(reservations).toHaveLength(0)
+  })
+
+  it('rejects paid resolution when stock dropped below ordered quantity', async () => {
+    const { product: prod, platformOrder: po, shopOrder: so } = await seedManualReviewFixture()
+    await db.update(product).set({ stockCount: 0 }).where(eq(product.id, prod.id))
+
+    await expect(resolveManualReviewQuery(so.id, { resolution: 'paid' })).rejects.toMatchObject({
+      status: 409,
+    })
+
+    const [updatedSo] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
+    expect(updatedSo.status).toBe('manual_review')
+
+    const [updatedPo] = await db.select().from(platformOrder).where(eq(platformOrder.id, po.id))
+    expect(updatedPo.status).toBe('manual_review')
+
+    const [updatedProduct] = await db.select().from(product).where(eq(product.id, prod.id))
+    expect(updatedProduct.stockCount).toBe(0)
   })
 
   it('aborts cancellation when the Mollie refund fails', async () => {

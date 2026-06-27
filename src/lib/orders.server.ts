@@ -1,9 +1,10 @@
-import { count, desc, eq, inArray } from 'drizzle-orm'
+import { and, count, desc, eq, inArray } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { orderItem, platformOrder, shippingLabel, shop, shopOrder } from '#/db/schema'
+import { invoices, orderItem, platformOrder, shippingLabel, shop, shopOrder } from '#/db/schema'
 import { getShippingProvider } from '#/integrations/shipping'
 import type { ShippingAddress } from './checkout.server'
 import { releaseStockInTx } from './inventory.server'
+import { decryptJsonb } from './encryption.server'
 
 export type OrderStatus =
   | 'pending_payment'
@@ -54,6 +55,7 @@ export interface OrderShopGroup {
   shippingLabels: ShippingLabelInfo[]
   trackingStatus: string | null
   items: OrderItemDetail[]
+  invoiceNumber: string | null
 }
 
 export interface OrderDetail {
@@ -145,6 +147,21 @@ export async function getBuyerOrderDetailQuery(
     labelsByShopOrderId.set(label.shopOrderId, list)
   }
 
+  const invoicesResult =
+    shopOrderIds.length > 0
+      ? await db
+          .select({
+            shopOrderId: invoices.shopOrderId,
+            invoiceNumber: invoices.invoiceNumber,
+          })
+          .from(invoices)
+          .where(and(inArray(invoices.shopOrderId, shopOrderIds), eq(invoices.type, 'customer')))
+      : []
+
+  const invoiceNumberByShopOrderId = new Map(
+    invoicesResult.map((record) => [record.shopOrderId, record.invoiceNumber]),
+  )
+
   const trackingStatuses = await Promise.all(
     shopOrdersResult.map(async (so) => {
       const labels = labelsByShopOrderId.get(so.shopOrder.id) ?? []
@@ -226,6 +243,7 @@ export async function getBuyerOrderDetailQuery(
         createdAt: label.createdAt,
       })),
       trackingStatus: trackingStatusMap.get(so.shopOrder.id) ?? null,
+      invoiceNumber: invoiceNumberByShopOrderId.get(so.shopOrder.id) ?? null,
       items: (itemsByShopOrderId.get(so.shopOrder.id) ?? []).map((item) => ({
         id: item.id,
         productId: item.productId,
@@ -246,7 +264,7 @@ export async function getBuyerOrderDetailQuery(
     createdAt: order.createdAt,
     cancelledAt: order.cancelledAt,
     cancellationReason: order.cancellationReason,
-    shippingAddress: order.shippingAddress as ShippingAddress,
+    shippingAddress: decryptJsonb<ShippingAddress>(order.shippingAddress),
     shops,
   }
 }

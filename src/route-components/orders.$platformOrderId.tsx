@@ -2,6 +2,6 @@ import BuyerOrderDetailPage from '#/components/BuyerOrderDetailPage'
 import { useLoaderData } from '@tanstack/react-router'
 
 export function OrderDetailRouteComponent() {
-  const { order, reviewableItems } = useLoaderData({ from: '/orders/$platformOrderId' })
+  const { order, reviewableItems } = useLoaderData({ from: '/orders/$platformOrderId/' })
   return <BuyerOrderDetailPage order={order} reviewableItems={reviewableItems} />
 }

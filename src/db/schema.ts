@@ -216,8 +216,19 @@ export const shop = pgTable(
     index('shop_status_idx').on(table.status),
     index('shop_created_at_idx').on(table.createdAt),
     uniqueIndex('shop_slug_unique').on(table.slug),
+    check('shop_onboarding_step_bounds', sql`${table.onboardingStep} BETWEEN 1 AND 8`),
   ],
 )
+
+export const shopSocialPlatformEnum = pgEnum('shop_social_platform', [
+  'instagram',
+  'facebook',
+  'twitter',
+  'tiktok',
+  'pinterest',
+  'youtube',
+  'website',
+])
 
 export const shopSocials = pgTable(
   'shop_socials',
@@ -226,7 +237,7 @@ export const shopSocials = pgTable(
     shopId: text('shop_id')
       .notNull()
       .references(() => shop.id, { onDelete: 'cascade' }),
-    platform: text().notNull(),
+    platform: shopSocialPlatformEnum('platform').notNull(),
     url: text().notNull(),
   },
   (table) => [
@@ -471,6 +482,12 @@ export const platformOrder = pgTable(
     index('platform_order_user_id_idx').on(table.userId),
     index('platform_order_status_idx').on(table.status),
     index('platform_order_created_at_idx').on(table.createdAt),
+    index('platform_order_user_id_status_created_at_idx').on(
+      table.userId,
+      table.status,
+      table.createdAt,
+    ),
+    index('platform_order_status_created_at_idx').on(table.status, table.createdAt),
     index('platform_order_mollie_payment_id_idx').on(table.molliePaymentId),
     // Mollie guarantees payment ID uniqueness per environment. Cross-environment
     // data migrations (e.g. staging → production) may collide; remove or adjust
@@ -517,6 +534,12 @@ export const shopOrder = pgTable(
     index('shop_order_shop_id_idx').on(table.shopId),
     index('shop_order_status_idx').on(table.status),
     index('shop_order_created_at_idx').on(table.createdAt),
+    index('shop_order_shop_id_status_created_at_idx').on(
+      table.shopId,
+      table.status,
+      table.createdAt,
+    ),
+    index('shop_order_status_created_at_idx').on(table.status, table.createdAt),
     check(
       'shop_order_refunded_cents_not_over_total',
       sql`${table.refundedCents} <= ${table.subtotalCents} + ${table.shippingCostCents}`,
@@ -553,6 +576,7 @@ export const orderItem = pgTable(
   (table) => [
     index('order_item_shop_order_id_idx').on(table.shopOrderId),
     index('order_item_product_id_idx').on(table.productId),
+    index('order_item_shop_order_id_product_id_idx').on(table.shopOrderId, table.productId),
     check('order_item_quantity_positive', sql`${table.quantity} > 0`),
   ],
 )
@@ -850,9 +874,7 @@ export const auditLog = pgTable(
   'audit_log',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    actorId: text('actor_id')
-      .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
+    actorId: text('actor_id').references(() => user.id, { onDelete: 'set null' }),
     actorName: text('actor_name').notNull(),
     action: text().notNull(),
     resourceType: text('resource_type').notNull(),
@@ -879,7 +901,6 @@ export const rateLimit = pgTable(
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
   (table) => [
-    index('rate_limit_key_idx').on(table.key),
     index('idx_rate_limit_updated_at').on(table.updatedAt),
     index('rate_limit_window_start_idx').on(table.windowStart),
   ],
@@ -910,7 +931,6 @@ export const emailOutbox = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
     idempotencyKey: text('idempotency_key').notNull().unique(),
-    recipientEmail: text('recipient_email').notNull(),
     recipientHash: text('recipient_hash').notNull(),
     template: text().notNull(),
     locale: text().notNull().default('en'),
@@ -1046,6 +1066,13 @@ export const invoices = pgTable(
   (table) => [
     index('invoices_shop_order_id_idx').on(table.shopOrderId),
     index('invoices_type_idx').on(table.type),
+    foreignKey({
+      columns: [table.originalInvoiceNumber],
+      foreignColumns: [table.invoiceNumber],
+      name: 'invoices_original_invoice_number_invoices_invoice_number_fk',
+    })
+      .onDelete('restrict')
+      .onUpdate('no action'),
   ],
 )
 
@@ -1068,6 +1095,13 @@ export const financialTotalAudit = pgTable(
   ],
 )
 
+export const meilisearchSyncActionEnum = pgEnum('meilisearch_sync_action', ['index', 'delete'])
+export const meilisearchSyncQueueStatusEnum = pgEnum('meilisearch_sync_queue_status', [
+  'pending',
+  'completed',
+  'failed',
+])
+
 export const meilisearchSyncQueue = pgTable(
   'meilisearch_sync_queue',
   {
@@ -1075,21 +1109,15 @@ export const meilisearchSyncQueue = pgTable(
     productId: text('product_id')
       .notNull()
       .references(() => product.id, { onDelete: 'cascade' }),
-    action: text('action').notNull(), // 'index' | 'delete'
-    status: text('status').notNull().default('pending'), // 'pending' | 'failed' | 'completed'
+    action: meilisearchSyncActionEnum('action').notNull(),
+    status: meilisearchSyncQueueStatusEnum('status').notNull().default('pending'),
     attempts: integer('attempts').notNull().default(0),
     lastError: text('last_error'),
     runAt: timestamp('run_at').notNull().defaultNow(),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
-  (table) => [
-    index('meilisearch_sync_queue_status_run_at_idx').on(table.status, table.runAt),
-    check(
-      'meilisearch_sync_queue_status_check',
-      sql`${table.status} IN ('pending', 'completed', 'failed')`,
-    ),
-  ],
+  (table) => [index('meilisearch_sync_queue_status_run_at_idx').on(table.status, table.runAt)],
 )
 
 export const payoutReconciliationLog = pgTable(

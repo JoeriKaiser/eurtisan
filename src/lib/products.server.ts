@@ -370,6 +370,7 @@ export async function listProductsByCategorySlugQuery(
 
   const where = and(
     eq(product.categoryId, category[0].id),
+    eq(shop.status, 'active'),
     eq(shop.isSuspended, false),
     eq(product.isActive, true),
   )

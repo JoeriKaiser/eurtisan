@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import z from 'zod'
 import HomePage from '#/components/HomePage'
 import { listCategories } from '#/lib/categories'
 import { getFeaturedShops, getMarketplaceStats, listRecentProducts } from '#/lib/products'
@@ -34,7 +35,12 @@ function HomeError({ error }: { error: Error }) {
   )
 }
 
+const homeSearchSchema = z.object({
+  accountDeleted: z.union([z.string(), z.number()]).optional(),
+})
+
 export const Route = createFileRoute('/')({
+  validateSearch: homeSearchSchema,
   loader: async ({ context }) => {
     const [user, categories, products, shops, stats] = await Promise.all([
       getCurrentUser().catch(() => null),
@@ -66,6 +72,7 @@ export const Route = createFileRoute('/')({
 
 function Home() {
   const { categories, products, shops, user, sellerShops, stats } = Route.useLoaderData()
+  const { accountDeleted } = Route.useSearch()
   return (
     <HomePage
       categories={categories}
@@ -74,6 +81,7 @@ function Home() {
       user={user}
       sellerShops={sellerShops}
       stats={stats}
+      accountDeleted={String(accountDeleted) === '1'}
     />
   )
 }

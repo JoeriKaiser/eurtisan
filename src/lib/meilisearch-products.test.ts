@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
-import { meilisearchSyncQueue, shop } from '#/db/schema'
+import { meilisearchSyncQueue, product, shop } from '#/db/schema'
 
 import { clearTestTables } from '#/test/cleanup'
 import { createCategory, createProduct, createShop, createUser } from '#/test/factories'
@@ -629,24 +629,26 @@ describe('processMeilisearchSyncQueue', () => {
     expect(mockAddDocuments).toHaveBeenCalledTimes(1)
   })
 
-  it('processes index operations for deleted products by calling removeProductFromMeilisearch', async () => {
+  it('cascades queue rows when the referenced product is deleted', async () => {
+    const { product: p } = await seedShopAndProduct()
+
     await db.insert(meilisearchSyncQueue).values({
-      productId: 'nonexistent-prod',
+      productId: p.id,
       action: 'index',
       status: 'pending',
     })
 
-    const result = await processMeilisearchSyncQueue()
-    expect(result.processedCount).toBe(1)
+    await db.delete(product).where(eq(product.id, p.id))
 
     const items = await db.select().from(meilisearchSyncQueue)
     expect(items).toHaveLength(0)
-    expect(mockDeleteDocument).toHaveBeenCalledTimes(1)
   })
 
   it('processes delete operations', async () => {
+    const { product: p } = await seedShopAndProduct()
+
     await db.insert(meilisearchSyncQueue).values({
-      productId: 'deleted-prod',
+      productId: p.id,
       action: 'delete',
       status: 'pending',
     })
@@ -660,10 +662,11 @@ describe('processMeilisearchSyncQueue', () => {
   })
 
   it('handles errors by incrementing attempts and calculating backoff', async () => {
+    const { product: p } = await seedShopAndProduct()
     mockDeleteDocument.mockRejectedValueOnce(new Error('Meili down'))
 
     await db.insert(meilisearchSyncQueue).values({
-      productId: 'error-prod',
+      productId: p.id,
       action: 'delete',
       status: 'pending',
     })
@@ -679,12 +682,13 @@ describe('processMeilisearchSyncQueue', () => {
   })
 
   it('marks item as failed after 5 attempts', async () => {
+    const { product: p } = await seedShopAndProduct()
     mockDeleteDocument.mockRejectedValue(new Error('Meili down'))
 
     const [inserted] = await db
       .insert(meilisearchSyncQueue)
       .values({
-        productId: 'failed-prod',
+        productId: p.id,
         action: 'delete',
         status: 'pending',
         attempts: 4,
@@ -700,5 +704,27 @@ describe('processMeilisearchSyncQueue', () => {
       .where(eq(meilisearchSyncQueue.id, inserted.id))
     expect(item.status).toBe('failed')
     expect(item.attempts).toBe(5)
+  })
+})
+
+describe('meilisearchSyncQueue enum constraints', () => {
+  it('rejects an invalid action value', async () => {
+    await expect(
+      db.insert(meilisearchSyncQueue).values({
+        productId: 'prod-test',
+        action: 'invalid_action' as unknown as 'index',
+        status: 'pending',
+      }),
+    ).rejects.toBeTruthy()
+  })
+
+  it('rejects an invalid status value', async () => {
+    await expect(
+      db.insert(meilisearchSyncQueue).values({
+        productId: 'prod-test',
+        action: 'index',
+        status: 'invalid_status' as unknown as 'pending',
+      }),
+    ).rejects.toBeTruthy()
   })
 })

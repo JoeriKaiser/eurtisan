@@ -1,11 +1,12 @@
 import { and, eq, ne } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { shop, shopSocials } from '#/db/schema'
+import { shop, type shopSocialPlatformEnum, shopSocials } from '#/db/schema'
 import { logger } from './logger.server'
 import { sanitizeRichText, validatePlainText } from './xss'
 import { isPostgresUniqueViolation } from './db-errors'
 import { validateVatId } from './vat'
 import { validateSocialUrl } from './sell-onboarding.server'
+import { encryptJsonb } from './encryption.server'
 
 export { ImageValidationError } from './image-utils'
 
@@ -176,11 +177,11 @@ export async function updateShopInternal(
   }
 
   if (input.shippingOrigin !== undefined) {
-    updateData.shippingOrigin = input.shippingOrigin
+    updateData.shippingOrigin = encryptJsonb(input.shippingOrigin)
   }
 
   if (input.businessAddress !== undefined) {
-    updateData.businessAddress = input.businessAddress
+    updateData.businessAddress = encryptJsonb(input.businessAddress)
   }
 
   if (input.isVatRegistered !== undefined) {
@@ -232,7 +233,7 @@ export async function updateShopInternal(
       const validatedSocials = input.socials.map((s, index) => ({
         id: crypto.randomUUID(),
         shopId,
-        platform: String(s.platform),
+        platform: String(s.platform) as (typeof shopSocialPlatformEnum.enumValues)[number],
         url: validateSocialUrl(s.url, `Social URL #${index + 1}`),
       }))
       await db.insert(shopSocials).values(validatedSocials)

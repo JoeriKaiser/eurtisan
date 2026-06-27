@@ -13,6 +13,7 @@ Summary for GDPR and operations. Align `/privacy` if customer-facing text must m
 | Email send log | 90 days (configurable) | `job:email-retention-cleanup`; set `EMAIL_SEND_LOG_RETENTION_DAYS` |
 | Brevo webhook events | 30 days | `job:email-retention-cleanup` |
 | Sendcloud webhook events | 30 days | `job:sendcloud-retention-cleanup` |
+| Payout reconciliation logs | 365 days (configurable) | `job:payout-reconciliation-log-cleanup`; set `PAYOUT_RECONCILIATION_LOG_RETENTION_DAYS` |
 | S3 uploads | Until entity deleted | Optional bucket lifecycle rules |
 | DB backups | 30 days local, 90 days off-site | `infrastructure/README.md`; configure `BACKUP_RETENTION_DAYS` and `BACKUP_OFFSITE_RETENTION_DAYS` |
 
@@ -35,6 +36,11 @@ Self-service deletion is implemented in `src/lib/account-data.server.ts` (`delet
 | `review` | Rating, product link | `comment` set to `null` |
 | `dispute` | Reason, status, resolution | `description` redacted |
 | `dispute_message` (sent by user) | Thread context | `message` replaced with `'[message removed — account deleted]'` |
+| `owner_message_thread` | Thread metadata | `subject` set to `'[REDACTED]'` |
+| `owner_message` | Message thread context | `body` set to `'[REDACTED]'` |
+| `customer_note` | Shop owner notes | `content` set to `'[REDACTED]'` |
+| `customer_tag` | Shop owner tags | Rows for the deleted user removed |
+| `shipping_label` | Carrier/tracking record for the buyer's orders | `label_url` cleared; `carrier`, `tracking_number`, `external_parcel_id`, and `created_at` retained |
 
 Deleted rows in `session`, `account`, `twoFactor`, `notification`, `cart`, and `cart_item` are removed. `product` rows belonging to owned shops are deactivated (`isActive = false`).
 

@@ -18,8 +18,8 @@ function MetricCard({ label, value }: MetricCardProps) {
 }
 
 export function ShopDashboard() {
-  const { shopId } = useParams({ from: '/studio/$shopId' })
-  const { stats } = useLoaderData({ from: '/studio/$shopId' })
+  const { shopId } = useParams({ from: '/studio/$shopId/' })
+  const { stats } = useLoaderData({ from: '/studio/$shopId/' })
 
   const NAV_ITEMS = [
     {

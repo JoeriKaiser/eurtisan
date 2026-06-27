@@ -505,6 +505,13 @@
       "when": 1782067988717,
       "tag": "0072_revert_premature_payout_releases",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1782240379595,
+      "tag": "0072_worthless_angel",
+      "breakpoints": true
     }
   ]
 }

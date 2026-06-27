@@ -5,7 +5,7 @@ test.use({ storageState: 'e2e/.auth/customer.json' })
 
 test.describe('Guest buyer checkout', () => {
   test('adds a product to cart, checks out, and completes a mock payment', async ({ page }) => {
-    await page.goto('/category/all')
+    await page.goto('/search')
     await page.waitForSelector('html[data-hydrated="true"]')
 
     // Click the first product card.
@@ -37,10 +37,20 @@ test.describe('Guest buyer checkout', () => {
     await page.getByLabel(/street address/i).fill('42 Avenue des Champs-Élysées')
     await page.getByLabel(/city/i).fill('Paris')
     await page.getByLabel(/postal code/i).fill('75008')
-    await page.getByLabel(/country/i).fill('France')
+    await page.getByLabel(/country/i).selectOption('FR')
 
-    // Wait for shipping rates to load and a shipping option to be selectable.
-    await expect(page.getByText(/sendcloud standard/i)).toBeVisible({ timeout: 10000 })
+    // Wait for shipping rates to load. Standard supports service points; select
+    // one so the Confirm purchase button becomes enabled.
+    const shippingOption = page.getByText(/sendcloud standard/i).first()
+    await expect(shippingOption).toBeVisible({ timeout: 10000 })
+    await shippingOption.click()
+
+    await page.getByRole('button', { name: /select pick-up point/i }).click()
+    await expect(page.getByRole('dialog', { name: /select pick-up point/i })).toBeVisible()
+    await page.getByRole('button', { name: /search/i }).click()
+    const firstSelect = page.getByRole('button', { name: /^select$/i }).first()
+    await expect(firstSelect).toBeVisible({ timeout: 10000 })
+    await firstSelect.click()
 
     // Submit the checkout.
     await page.getByRole('button', { name: /confirm purchase/i }).click()

@@ -177,4 +177,44 @@ describe('sell-onboarding.server', () => {
       expect(record.submittedAt).toBeInstanceOf(Date)
     })
   })
+
+  describe('saveOnboardingStepInternal step bounds', () => {
+    it('rejects a step below 1', async () => {
+      await seedUser()
+      await seedShop()
+
+      await expect(
+        saveOnboardingStepInternal('user-1', 'creator', {
+          draftId: 'shop-1',
+          step: 0,
+          data: {},
+        }),
+      ).rejects.toThrow('INVALID_ONBOARDING_STEP')
+    })
+
+    it('rejects a step above 8', async () => {
+      await seedUser()
+      await seedShop()
+
+      await expect(
+        saveOnboardingStepInternal('user-1', 'creator', {
+          draftId: 'shop-1',
+          step: 9,
+          data: {},
+        }),
+      ).rejects.toThrow('INVALID_ONBOARDING_STEP')
+    })
+
+    it('accepts a step at the upper bound', async () => {
+      await seedUser()
+      await seedShop()
+
+      const result = await saveOnboardingStepInternal('user-1', 'creator', {
+        draftId: 'shop-1',
+        step: 8,
+        data: {},
+      })
+      expect(result.success).toBe(true)
+    })
+  })
 })

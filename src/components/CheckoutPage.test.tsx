@@ -494,6 +494,143 @@ describe('CheckoutPage', () => {
     expect(screen.getAllByText('Manual shipping — contact seller').length).toBeGreaterThanOrEqual(1)
   })
 
+  it('keeps the selected shipping method attached to the correct shop after a re-fetch reverses shop order', async () => {
+    const summaryAFirst = makeSummary({
+      shops: [
+        {
+          shopId: 'shop-a',
+          shopName: 'Shop A',
+          shopSlug: 'shop-a',
+          items: [
+            {
+              productId: 'prod-1',
+              name: 'Vase',
+              slug: 'vase',
+              priceCents: 1000,
+              quantity: 1,
+              imageUrl: null,
+              weightGrams: null,
+              lengthCm: null,
+              widthCm: null,
+              heightCm: null,
+            },
+          ],
+          subtotalCents: 1000,
+          vatEstimateCents: 0,
+          sellerLegal: { ...defaultSellerLegal, tradeName: 'Shop A' },
+          shippingOptions: [
+            {
+              method: 'standard' as const,
+              costCents: 500,
+              label: 'Standard',
+              rateId: 'rate-a-std',
+              carrier: 'dhl',
+              serviceName: 'DHL Standard',
+              estimatedDays: { min: 2, max: 4 },
+              fallback: false,
+            },
+            {
+              method: 'express' as const,
+              costCents: 1000,
+              label: 'Express',
+              rateId: 'rate-a-xpr',
+              carrier: 'dhl',
+              serviceName: 'DHL Express',
+              estimatedDays: { min: 1, max: 1 },
+              fallback: false,
+            },
+          ],
+        },
+        {
+          shopId: 'shop-b',
+          shopName: 'Shop B',
+          shopSlug: 'shop-b',
+          items: [
+            {
+              productId: 'prod-2',
+              name: 'Bowl',
+              slug: 'bowl',
+              priceCents: 2000,
+              quantity: 1,
+              imageUrl: null,
+              weightGrams: null,
+              lengthCm: null,
+              widthCm: null,
+              heightCm: null,
+            },
+          ],
+          subtotalCents: 2000,
+          vatEstimateCents: 0,
+          sellerLegal: { ...defaultSellerLegal, tradeName: 'Shop B' },
+          shippingOptions: [
+            {
+              method: 'standard' as const,
+              costCents: 500,
+              label: 'Standard',
+              rateId: 'rate-b-std',
+              carrier: 'dhl',
+              serviceName: 'DHL Standard',
+              estimatedDays: { min: 2, max: 4 },
+              fallback: false,
+            },
+          ],
+        },
+      ],
+    })
+
+    const summaryBFirst = {
+      ...summaryAFirst,
+      shops: [summaryAFirst.shops[1], summaryAFirst.shops[0]],
+    }
+
+    mockGetCheckoutSummary.mockResolvedValueOnce(summaryAFirst).mockResolvedValueOnce(summaryBFirst)
+
+    render(<CheckoutPage summary={summaryAFirst} cartId='cart-1' />)
+
+    // Fill the shipping address to trigger the first rate fetch
+    fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Test User' } })
+    fireEvent.change(screen.getByLabelText('Street address'), { target: { value: '123 Main St' } })
+    fireEvent.change(screen.getByLabelText('City'), { target: { value: 'Berlin' } })
+    fireEvent.change(screen.getByLabelText('Postal code'), { target: { value: '10115' } })
+    fireEvent.change(screen.getByLabelText('Country'), { target: { value: 'DE' } })
+
+    await waitFor(
+      () => {
+        expect(mockGetCheckoutSummary).toHaveBeenCalledTimes(1)
+      },
+      { timeout: 1500 },
+    )
+
+    // Select express for Shop A (first in the initial order)
+    const shopAExpress = screen.getByLabelText(/DHL Express/i)
+    fireEvent.click(shopAExpress)
+    expect(shopAExpress).toHaveProperty('checked', true)
+
+    // Change the city to trigger a second rate fetch that returns shops reversed
+    fireEvent.change(screen.getByLabelText('City'), { target: { value: 'Munich' } })
+
+    await waitFor(
+      () => {
+        expect(mockGetCheckoutSummary).toHaveBeenCalledTimes(2)
+      },
+      { timeout: 1500 },
+    )
+
+    // After reversal, Shop B is first and Shop A is second. The express option
+    // must still belong to Shop A, not Shop B.
+    const shopFieldsets = screen.getAllByRole('group')
+    expect(shopFieldsets[0].textContent).toContain('Shop B')
+    expect(shopFieldsets[1].textContent).toContain('Shop A')
+
+    const allExpressRadios = screen.getAllByLabelText(/DHL Express/i)
+    expect(allExpressRadios.length).toBe(1)
+    expect(allExpressRadios[0]).toHaveProperty('checked', true)
+
+    // The single express radio should be inside Shop A's fieldset
+    const shopAFieldset = shopFieldsets[1]
+    expect(shopAFieldset?.contains(allExpressRadios[0])).toBe(true)
+  })
+
   describe('Service Point Selection', () => {
     it('renders pick-up point selection section and warning banner when a service-point option is selected', () => {
       render(<CheckoutPage summary={makeServicePointSummary()} cartId='cart-1' />)

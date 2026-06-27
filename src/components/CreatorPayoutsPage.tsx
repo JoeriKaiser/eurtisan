@@ -434,20 +434,24 @@ export function CreatorPayoutsPage({
                     <td className='py-3 text-right space-x-2'>
                       {!payout.isRefund ? (
                         <>
-                          <Link
-                            to='/invoices/$invoiceId'
-                            params={{ invoiceId: `INV-${payout.orderId.toUpperCase()}` }}
-                            className='inline-flex items-center gap-1 rounded-lg border border-border-default bg-surface-default px-2.5 py-1 text-xs font-medium text-text-secondary transition hover:text-text-primary hover:border-border-strong print:hidden'
-                          >
-                            Customer
-                          </Link>
-                          <Link
-                            to='/invoices/$invoiceId'
-                            params={{ invoiceId: `INV-FEE-${payout.orderId.toUpperCase()}` }}
-                            className='inline-flex items-center gap-1 rounded-lg border border-border-default bg-surface-default px-2.5 py-1 text-xs font-medium text-text-secondary transition hover:text-text-primary hover:border-border-strong print:hidden'
-                          >
-                            Platform Fee
-                          </Link>
+                          {payout.customerInvoiceNumber ? (
+                            <Link
+                              to='/invoices/$invoiceId'
+                              params={{ invoiceId: payout.customerInvoiceNumber }}
+                              className='inline-flex items-center gap-1 rounded-lg border border-border-default bg-surface-default px-2.5 py-1 text-xs font-medium text-text-secondary transition hover:text-text-primary hover:border-border-strong print:hidden'
+                            >
+                              Customer
+                            </Link>
+                          ) : null}
+                          {payout.platformFeeInvoiceNumber ? (
+                            <Link
+                              to='/invoices/$invoiceId'
+                              params={{ invoiceId: payout.platformFeeInvoiceNumber }}
+                              className='inline-flex items-center gap-1 rounded-lg border border-border-default bg-surface-default px-2.5 py-1 text-xs font-medium text-text-secondary transition hover:text-text-primary hover:border-border-strong print:hidden'
+                            >
+                              Platform Fee
+                            </Link>
+                          ) : null}
                         </>
                       ) : (
                         <span className='text-xs text-text-muted font-medium'>-</span>

@@ -1,4 +1,4 @@
-import { eq, inArray, or } from 'drizzle-orm'
+import { eq, inArray, or, sql } from 'drizzle-orm'
 
 import { db } from '#/db/index'
 import {
@@ -28,6 +28,7 @@ import {
 } from '#/db/schema'
 import { hashEmail } from '#/lib/customers.server'
 import { deletePendingOutboxRowsForUser } from '#/lib/email-outbox.server'
+import { decryptJsonb, encryptJsonb } from '#/lib/encryption.server'
 import type { SerializableValue } from './notifications.server'
 
 const ANONYMIZED_EMAIL_DOMAIN = 'anonymized.eurtisan.invalid'
@@ -420,8 +421,8 @@ export async function exportUserData(userId: string): Promise<UserDataExport> {
       status: o.status,
       totalCents: o.totalCents,
       createdAt: o.createdAt.toISOString(),
-      shippingAddress: o.shippingAddress as SerializableValue,
-      billingAddress: o.billingAddress as SerializableValue,
+      shippingAddress: decryptJsonb(o.shippingAddress) as SerializableValue,
+      billingAddress: decryptJsonb(o.billingAddress) as SerializableValue,
     })),
     shopOrders: allShopOrders.map((o) => ({
       id: o.id,
@@ -442,7 +443,10 @@ export async function exportUserData(userId: string): Promise<UserDataExport> {
         subtotalCents: invoice.invoiceSubtotalCents,
         vatAmountCents: invoice.invoiceVatAmountCents,
         totalCents: invoice.invoiceTotalCents,
-        billingDetails: redactCounterpartyBillingDetails(invoice.invoiceBillingDetails, 'to'),
+        billingDetails: redactCounterpartyBillingDetails(
+          decryptJsonb(invoice.invoiceBillingDetails),
+          'to',
+        ),
         createdAt: invoice.invoiceCreatedAt.toISOString(),
       })),
       asSeller: deduplicatedSellerInvoices.map((invoice) => ({
@@ -453,7 +457,10 @@ export async function exportUserData(userId: string): Promise<UserDataExport> {
         subtotalCents: invoice.invoiceSubtotalCents,
         vatAmountCents: invoice.invoiceVatAmountCents,
         totalCents: invoice.invoiceTotalCents,
-        billingDetails: redactCounterpartyBillingDetails(invoice.invoiceBillingDetails, 'from'),
+        billingDetails: redactCounterpartyBillingDetails(
+          decryptJsonb(invoice.invoiceBillingDetails),
+          'from',
+        ),
         createdAt: invoice.invoiceCreatedAt.toISOString(),
       })),
     },
@@ -553,14 +560,18 @@ export async function deleteUserAccount(userId: string): Promise<void> {
 
   await db.transaction(async (tx) => {
     if (ownedShopIds.length > 0) {
+      // Forced system transition: account deletion archives all owned shops
+      // regardless of their current lifecycle status. This bypasses the normal
+      // isValidShopStatusTransition helper because deletion is a compliance
+      // operation and must always succeed.
       await tx
         .update(shop)
         .set({
           status: 'archived',
           archivedAt: new Date(),
           scheduledDeleteAt: null,
-          businessAddress: redacted,
-          shippingOrigin: redacted,
+          businessAddress: encryptJsonb(redacted),
+          shippingOrigin: encryptJsonb(redacted),
           updatedAt: new Date(),
         })
         .where(inArray(shop.id, ownedShopIds))
@@ -580,8 +591,8 @@ export async function deleteUserAccount(userId: string): Promise<void> {
       await tx
         .update(platformOrder)
         .set({
-          shippingAddress: redacted,
-          billingAddress: redacted,
+          shippingAddress: encryptJsonb(redacted),
+          billingAddress: encryptJsonb(redacted),
           updatedAt: new Date(),
         })
         .where(eq(platformOrder.id, order.id))
@@ -622,7 +633,10 @@ export async function deleteUserAccount(userId: string): Promise<void> {
       .where(inArray(shopOrder.shopId, ownedShopIds))
 
     for (const invoice of ownedShopInvoiceIds) {
-      await tx.update(invoices).set({ billingDetails: redacted }).where(eq(invoices.id, invoice.id))
+      await tx
+        .update(invoices)
+        .set({ billingDetails: encryptJsonb(redacted) })
+        .where(eq(invoices.id, invoice.id))
     }
 
     const buyerInvoiceIds = await tx
@@ -633,7 +647,10 @@ export async function deleteUserAccount(userId: string): Promise<void> {
       .where(eq(platformOrder.userId, userId))
 
     for (const invoice of buyerInvoiceIds) {
-      await tx.update(invoices).set({ billingDetails: redacted }).where(eq(invoices.id, invoice.id))
+      await tx
+        .update(invoices)
+        .set({ billingDetails: encryptJsonb(redacted) })
+        .where(eq(invoices.id, invoice.id))
     }
 
     const ownedPayoutLogRows = await tx
@@ -649,7 +666,10 @@ export async function deleteUserAccount(userId: string): Promise<void> {
         .where(eq(payoutReconciliationLog.id, logRow.id))
     }
 
-    await tx.update(auditLog).set({ actorName: 'Deleted User' }).where(eq(auditLog.actorId, userId))
+    await tx
+      .update(auditLog)
+      .set({ actorName: 'Deleted User', actorId: sql`NULL` })
+      .where(eq(auditLog.actorId, userId))
 
     await tx.delete(session).where(eq(session.userId, userId))
     await tx.delete(account).where(eq(account.userId, userId))

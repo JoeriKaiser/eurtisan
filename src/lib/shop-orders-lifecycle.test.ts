@@ -18,6 +18,7 @@ import {
   resolveManualReviewQuery,
   updateShopOrderTrackingQuery,
 } from './shop-orders.server'
+import { isValidStatusTransition } from './order-status'
 
 beforeEach(async () => {
   await clearTestTables()
@@ -125,7 +126,11 @@ describe('resolveManualReviewQuery', () => {
   })
 
   it('resolves manual_review to cancelled and restocks', async () => {
-    const { shopOrder: so } = await seedPaidOrder('manual_review')
+    const { shopOrder: so, platformOrder: po } = await seedPaidOrder('manual_review')
+    await db
+      .update(platformOrder)
+      .set({ molliePaymentId: 'tr_mock_000001' })
+      .where(eq(platformOrder.id, po.id))
 
     const owner = await createUser({ role: 'creator' })
     const shop = await createShop(owner)
@@ -179,5 +184,27 @@ describe('markShopOrderDeliveredQuery dispute window', () => {
 
     const [payoutRecord] = await db.select().from(payout).where(eq(payout.shopOrderId, so.id))
     expect(payoutRecord?.status).toBe('pending')
+  })
+})
+
+describe('isValidStatusTransition', () => {
+  it('allows pending_payment -> paid', () => {
+    expect(isValidStatusTransition('pending_payment', 'paid')).toBe(true)
+  })
+
+  it('allows paid -> shipped', () => {
+    expect(isValidStatusTransition('paid', 'shipped')).toBe(true)
+  })
+
+  it('allows shipped -> delivered', () => {
+    expect(isValidStatusTransition('shipped', 'delivered')).toBe(true)
+  })
+
+  it('disallows shipped -> pending_payment', () => {
+    expect(isValidStatusTransition('shipped', 'pending_payment')).toBe(false)
+  })
+
+  it('disallows cancelled -> paid', () => {
+    expect(isValidStatusTransition('cancelled', 'paid')).toBe(false)
   })
 })

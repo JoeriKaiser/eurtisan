@@ -335,12 +335,10 @@ export default function BuyerOrderDetailPage({
                     <Truck size={14} aria-hidden='true' />
                     {shop.shippingMethod}: {formatPriceEUR(shop.shippingCostCents)}
                   </span>
-                  {['paid', 'processing', 'shipped', 'delivered', 'completed'].includes(
-                    shop.status,
-                  ) && (
+                  {shop.invoiceNumber && (
                     <Link
                       to='/invoices/$invoiceId'
-                      params={{ invoiceId: `INV-${shop.shopOrderId.toUpperCase()}` }}
+                      params={{ invoiceId: shop.invoiceNumber }}
                       className='inline-flex items-center gap-1 text-accent-primary font-semibold hover:underline print:hidden'
                     >
                       <Download size={12} aria-hidden='true' />

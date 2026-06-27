@@ -44,11 +44,31 @@ describe('enqueueEmail', () => {
     })
     expect(row).toBeDefined()
     expect(row?.status).toBe('pending')
-    expect(row?.recipientEmail).toBe('alice@example.com')
     expect(row?.recipientHash).toMatch(/^[a-f0-9]{64}$/)
     expect(row?.template).toBe('order_confirmation')
     expect(row?.category).toBe('transactional')
     expect(row?.idempotencyKey).toBe('order:42:confirmation')
+  })
+
+  it('does not store a plaintext email address', async () => {
+    const user = await createUser({ email: ' plaintext@example.com ' })
+    await enqueueEmail({
+      to: 'PlainText@Example.com',
+      userId: user.id,
+      template: 'order_confirmation',
+      data: {},
+      category: 'transactional',
+      idempotencyKey: 'no-plaintext',
+    })
+
+    const row = await db.query.emailOutbox.findFirst({
+      where: eq(emailOutbox.idempotencyKey, 'no-plaintext'),
+    })
+    expect(row).toBeDefined()
+    expect('recipientEmail' in row!).toBe(false)
+    expect(row?.recipientHash).toBe(
+      await import('./hash.server').then((m) => m.sha256Hex('plaintext@example.com')),
+    )
   })
 
   it('normalizes email before hashing', async () => {
@@ -65,7 +85,6 @@ describe('enqueueEmail', () => {
     const row = await db.query.emailOutbox.findFirst({
       where: eq(emailOutbox.idempotencyKey, 'key-1'),
     })
-    expect(row?.recipientEmail).toBe('alice@example.com')
     expect(row?.recipientHash).toBe(
       await import('./hash.server').then((m) => m.sha256Hex('alice@example.com')),
     )

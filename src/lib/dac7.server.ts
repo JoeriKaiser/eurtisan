@@ -17,11 +17,12 @@ export async function getDac7ComplianceStatus(shopId: string, year: number): Pro
   const startDate = new Date(`${year}-01-01T00:00:00.000Z`)
   const endDate = new Date(`${year}-12-31T23:59:59.999Z`)
 
-  // Aggregate transaction counts and gross sales (subtotal + shipping) for completed/delivered orders
+  // Aggregate transaction counts and gross sales for completed/delivered orders.
+  // Refunded amounts are subtracted so DAC7 reporting reflects net seller revenue.
   const [totals] = await db
     .select({
-      count: sql<number>`count(*)`,
-      revenue: sql<number>`sum(${shopOrder.subtotalCents} + ${shopOrder.shippingCostCents})`,
+      count: sql<number>`count(*) FILTER (WHERE ${shopOrder.subtotalCents} + ${shopOrder.shippingCostCents} > ${shopOrder.refundedCents})`,
+      revenue: sql<number>`sum(greatest((${shopOrder.subtotalCents} + ${shopOrder.shippingCostCents}) - ${shopOrder.refundedCents}, 0))`,
     })
     .from(shopOrder)
     .where(

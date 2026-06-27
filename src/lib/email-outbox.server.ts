@@ -32,7 +32,6 @@ export interface EmailOutboxRow {
   id: string
   userId: string | null
   idempotencyKey: string
-  recipientEmail: string
   recipientHash: string
   template: EmailTemplate
   locale: string
@@ -72,7 +71,6 @@ export async function enqueueEmail(
   const values: typeof emailOutbox.$inferInsert = {
     userId: options.userId,
     idempotencyKey,
-    recipientEmail: normalizedEmail,
     recipientHash,
     template: options.template,
     locale: options.locale ?? 'en',

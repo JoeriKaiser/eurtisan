@@ -14,7 +14,7 @@ function formatDate(date: Date): string {
 }
 
 export function AccountOrders() {
-  const { orders, total, page } = useLoaderData({ from: '/account/orders' })
+  const { orders, total, page } = useLoaderData({ from: '/account/orders/' })
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const routerNavigate = useNavigate()
   const [isNavigating, setIsNavigating] = useState(false)

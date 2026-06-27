@@ -5,7 +5,7 @@ import { E2E_CUSTOMER } from './fixtures/auth'
 let order: Awaited<ReturnType<typeof createDeliveredOrder>>
 
 test.beforeAll(async () => {
-  order = await createDeliveredOrder('dispute')
+  order = await createDeliveredOrder('customer')
 })
 
 test.describe('Buyer opens a dispute', () => {
@@ -19,7 +19,7 @@ test.describe('Buyer opens a dispute', () => {
     await expect(openDisputeButton).toBeVisible()
     await openDisputeButton.click()
 
-    const dialog = page.getByRole('dialog', { name: /open dispute/i })
+    const dialog = page.getByRole('dialog').filter({ hasText: /Open a dispute/i })
     await expect(dialog).toBeVisible()
 
     await dialog.getByLabel(/description/i).fill('The item never arrived.')

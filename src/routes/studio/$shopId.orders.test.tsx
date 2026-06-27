@@ -133,7 +133,7 @@ vi.mock('#/lib/orders-ui', () => ({
   isSupportedShippingCountry: () => true,
 }))
 
-import { Route } from './$shopId.orders'
+import { Route } from './$shopId.orders.index'
 
 const ShopOrdersPage = Route.options.component!
 

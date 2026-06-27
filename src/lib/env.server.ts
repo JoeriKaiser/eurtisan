@@ -135,6 +135,23 @@ export function getPayoutReconciliationIntervalMs(): number {
 }
 
 /**
+ * Retention period for payout reconciliation log entries (days).
+ * Defaults to 365 days. Minimum 1 day.
+ */
+export function getPayoutReconciliationLogRetentionDays(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.PAYOUT_RECONCILIATION_LOG_RETENTION_DAYS
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed >= 1) {
+        return parsed
+      }
+    }
+  }
+  return 365
+}
+
+/**
  * Interval between Sendcloud shipment reconciliation job runs (milliseconds).
  * Defaults to 6 hours.
  */
@@ -324,6 +341,23 @@ export function getEmailSmtpPort(): number {
   return 1025
 }
 
+/**
+ * Minimum free bytes on HEALTH_DISK_PATH for the /api/health/ready probe to
+ * report healthy. Defaults to 500 MB.
+ */
+export function getHealthDiskThresholdBytes(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.HEALTH_DISK_THRESHOLD_BYTES
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed
+      }
+    }
+  }
+  return 500 * 1024 * 1024
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Tax / VAT                                                                 */
 /* -------------------------------------------------------------------------- */
@@ -338,6 +372,23 @@ export function getEnableViesValidation(): boolean {
     return process.env.ENABLE_VIES_VALIDATION === 'true'
   }
   return false
+}
+
+/**
+ * VIES API request timeout (milliseconds).
+ * Defaults to 10 seconds.
+ */
+export function getViesTimeoutMs(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.VIES_TIMEOUT_MS
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed
+      }
+    }
+  }
+  return 10_000
 }
 
 /**

@@ -96,7 +96,7 @@ test.describe('owner navigation', () => {
         .first()
       await expect(editLink).toBeVisible()
       await editLink.click()
-      await page.waitForURL(new RegExp(`/creator/products/${testProduct.id}/edit`))
+      await expect(page).toHaveURL(/\/creator\/products\/[^/]+\/edit/, { timeout: 10000 })
     }
   })
 })

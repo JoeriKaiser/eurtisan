@@ -163,6 +163,36 @@ Set in `infrastructure/ansible/secrets.yml`:
 deploy_alert_webhook: "https://hooks.slack.com/services/..."
 ```
 
+### Canary deployments
+
+For a cautious rollout, deploy a single canary container before switching all traffic:
+
+```bash
+# Deploy latest main to production with canary validation
+ssh -i ~/.ssh/server_id_rsa_1 ubuntu@PROD_IP '/opt/eurtisan/deploy.sh --canary main'
+```
+
+What it does:
+
+1. Builds the new image and runs database migrations as usual.
+2. Starts one temporary `eurtisan-app-canary` container on `127.0.0.1:3001`.
+3. Polls `/api/health/ready` until the canary reports healthy.
+4. Observes the canary for `CANARY_STABILIZE_SECONDS` (default: 300).
+5. If the canary stays healthy, removes it and proceeds with the normal full rollout (`docker compose up -d`) and smoke tests.
+
+Failure behavior:
+
+- If the canary never becomes healthy or fails during stabilization, the script stops and removes the canary container and exits non-zero.
+- Production remains on the previous image; no traffic is switched.
+- An alert is sent to `DEPLOY_ALERT_WEBHOOK`.
+
+Environment variables:
+
+- `CANARY_PORT` — port the canary binds to (default: `3001`). On staging, set this to `3002` because `docker-compose.staging.yml` already maps `127.0.0.1:3001:3000`.
+- `CANARY_STABILIZE_SECONDS` — observation period after initial health (default: `300`).
+
+This is a single-host manual canary; it validates the new image in isolation but does not route live production traffic to the canary. True blue/green load-balanced canaries are future work.
+
 ### Accessing Staging
 
 **Option A — SSH Tunnel (most secure):**

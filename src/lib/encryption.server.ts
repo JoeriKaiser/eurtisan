@@ -77,6 +77,30 @@ export function decrypt(ciphertext: string): string {
 }
 
 /**
+ * Encrypts a JSON-serializable value for storage in a jsonb column.
+ *
+ * The ciphertext is stored as a JSON string inside the jsonb column so the
+ * column type does not need to change. Use {@link decryptJsonb} on read.
+ */
+export function encryptJsonb(value: unknown): string {
+  return encrypt(JSON.stringify(value))
+}
+
+/**
+ * Decrypts a value stored by {@link encryptJsonb}. If the value is not a
+ * ciphertext string (e.g. a plaintext legacy object or a redacted object),
+ * it is returned as-is so migrations and redaction remain compatible.
+ */
+export function decryptJsonb<T>(value: unknown): T {
+  if (typeof value !== 'string') return value as T
+  const looksEncrypted =
+    /^[A-Za-z0-9+/]+={0,2}$/.test(value) &&
+    Buffer.from(value, 'base64').length >= IV_LENGTH + AUTH_TAG_LENGTH
+  if (!looksEncrypted) return value as T
+  return JSON.parse(decrypt(value)) as T
+}
+
+/**
  * Re-decrypts a value only if it looks like one of our ciphertexts. Plaintext
  * values are returned as-is so backfill migrations can be idempotent.
  */

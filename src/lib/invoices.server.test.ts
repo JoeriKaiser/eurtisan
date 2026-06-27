@@ -1,9 +1,10 @@
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { db } from '#/db/index'
 import { invoices } from '#/db/schema'
 import { clearTestTables } from '#/test/cleanup'
 import {
+  createInvoice,
   createOrderItem,
   createPlatformOrder,
   createProduct,
@@ -877,5 +878,72 @@ describe('Sequential invoice numbering', () => {
     expect(note.type).toBe('credit_note')
     expect(note.originalInvoiceNumber).toBeDefined()
     expect(note.totalCents).toBeLessThan(0)
+  })
+
+  it('creates a partial credit note for staged refund amounts', async () => {
+    const { shopOrder: so } = await seedNumberingFixture()
+    await createInvoicesForPlatformOrder(so.platformOrderId)
+
+    const firstNumber = await createCreditNoteForShopOrder(so.id, undefined, 500)
+    expect(firstNumber).toBeDefined()
+    if (!firstNumber) throw new Error('Expected credit note number')
+
+    const secondNumber = await createCreditNoteForShopOrder(so.id, undefined, 700)
+    expect(secondNumber).toBeDefined()
+    expect(secondNumber).not.toBe(firstNumber)
+
+    const notes = await db
+      .select()
+      .from(invoices)
+      .where(and(eq(invoices.shopOrderId, so.id), eq(invoices.type, 'credit_note')))
+      .orderBy(invoices.createdAt)
+
+    expect(notes).toHaveLength(2)
+    expect(notes[0].totalCents).toBe(-500)
+    expect(notes[1].totalCents).toBe(-700)
+  })
+})
+
+describe('invoices originalInvoiceNumber FK', () => {
+  beforeEach(async () => {
+    await clearTestTables()
+  })
+
+  async function seedInvoiceWithShopOrder() {
+    const owner = await createUser({ role: 'creator' })
+    const shopRecord = await createShop(owner)
+    const buyer = await createUser()
+    const po = await createPlatformOrder(buyer)
+    const so = await createShopOrder(po, shopRecord)
+    const invoice = await createInvoice(so, { invoiceNumber: 'INV-ORIGINAL-001' })
+    return { owner, shop: shopRecord, buyer, platformOrder: po, shopOrder: so, invoice }
+  }
+
+  it('rejects a credit note referencing a non-existent invoice', async () => {
+    const { shopOrder: so } = await seedInvoiceWithShopOrder()
+
+    await expect(
+      db.insert(invoices).values({
+        shopOrderId: so.id,
+        invoiceNumber: 'CN-BAD-001',
+        type: 'credit_note',
+        originalInvoiceNumber: 'INV-NOT-EXIST',
+        billingDetails: {},
+      }),
+    ).rejects.toBeTruthy()
+  })
+
+  it('rejects deleting an invoice referenced by a credit note', async () => {
+    const { shopOrder: so, invoice } = await seedInvoiceWithShopOrder()
+
+    await db.insert(invoices).values({
+      shopOrderId: so.id,
+      invoiceNumber: 'CN-001',
+      type: 'credit_note',
+      originalInvoiceNumber: invoice.invoiceNumber,
+      billingDetails: {},
+    })
+
+    await expect(db.delete(invoices).where(eq(invoices.id, invoice.id))).rejects.toBeTruthy()
   })
 })

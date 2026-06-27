@@ -25,6 +25,7 @@ const LOCK_IDS: Record<string, number> = {
   'email-suppression-cleanup': 1010,
   'email-retention-cleanup': 1011,
   'sendcloud-retention-cleanup': 1012,
+  'payout-reconciliation-log-cleanup': 1013,
 }
 
 export type JobName = keyof typeof LOCK_IDS

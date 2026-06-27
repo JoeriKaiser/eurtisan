@@ -2,7 +2,12 @@ import { createFileRoute } from '@tanstack/react-router'
 import { statfs } from 'node:fs/promises'
 
 import { getPoolStats, pool } from '#/db.ts'
-import { getBrevoApiKey, getMockPaymentsEnabled, getMollieApiKey } from '#/lib/env.server.ts'
+import {
+  getBrevoApiKey,
+  getHealthDiskThresholdBytes,
+  getMockPaymentsEnabled,
+  getMollieApiKey,
+} from '#/lib/env.server.ts'
 import { isMeilisearchHealthy } from '#/lib/meilisearch-products.server.ts'
 import {
   diskAvailableBytes,
@@ -25,17 +30,6 @@ export interface HealthCheckResult {
     idle: number
     waiting: number
   }
-}
-
-function getDiskThresholdBytes(): number {
-  const raw = process.env.HEALTH_DISK_THRESHOLD_BYTES
-  if (raw) {
-    const parsed = Number.parseInt(raw, 10)
-    if (!Number.isNaN(parsed) && parsed > 0) {
-      return parsed
-    }
-  }
-  return 500 * 1024 * 1024 // 500 MB
 }
 
 async function checkDatabase(): Promise<boolean> {
@@ -117,7 +111,7 @@ async function checkDisk(): Promise<{
     const availableBytes = stats.bavail * stats.bsize
     const totalBytes = stats.blocks * stats.bsize
     return {
-      healthy: availableBytes > getDiskThresholdBytes(),
+      healthy: availableBytes > getHealthDiskThresholdBytes(),
       availableBytes,
       totalBytes,
     }

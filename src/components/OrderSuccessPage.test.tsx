@@ -66,6 +66,7 @@ function makeOrder(status: OrderDetail['status'] = 'paid'): OrderDetail {
         deliveredAt: null,
         shippingLabels: [],
         trackingStatus: null,
+        invoiceNumber: null,
         items: [
           {
             id: 'item-1',
@@ -137,6 +138,7 @@ describe('OrderSuccessPage', () => {
       deliveredAt: null,
       shippingLabels: [],
       trackingStatus: null,
+      invoiceNumber: null,
       items: [
         {
           id: 'item-2',

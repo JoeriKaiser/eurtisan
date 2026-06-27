@@ -26,8 +26,6 @@ import type {
 
 const TRACKING_PREFIX = 'SC'
 
-let _mockCounter = 0
-
 function deterministicHash(seed: string): string {
   let hash = 0
   for (let i = 0; i < seed.length; i++) {
@@ -43,7 +41,7 @@ function deterministicTrackingNumber(
   postalCode: string,
   weightGrams: number,
 ): string {
-  const seed = `${country}:${postalCode}:${weightGrams}:${_mockCounter}`
+  const seed = `${country}:${postalCode}:${weightGrams}`
   return `${TRACKING_PREFIX}${deterministicHash(seed)}`
 }
 
@@ -64,10 +62,7 @@ function calculateRates(
   destination: ShippingAddress,
   pkg: Package,
 ): Rate[] {
-  _mockCounter += 1
-
   const weightKg = pkg.weightGrams / 1000
-  const volumeCm3 = pkg.lengthCm * pkg.widthCm * pkg.heightCm
 
   const standardBase = 495
   const standardWeightCharge = Math.round(weightKg * 85)
@@ -78,15 +73,11 @@ function calculateRates(
   const standardDays = isIntraCountry ? { min: 2, max: 4 } : { min: 3, max: 7 }
   const expressDays = isIntraCountry ? { min: 1, max: 1 } : { min: 1, max: 3 }
 
-  const rateId = deterministicTrackingNumber(
-    destination.country,
-    destination.postalCode,
-    Math.round(weightKg * 1000) + volumeCm3,
-  )
-
   return [
     {
-      rateId: `sendcloud_std_${rateId}`,
+      // Use stable method identifiers so checkout selections remain valid across
+      // multiple provider calls (summary fetch, service-point validation, etc.).
+      rateId: 'sendcloud_std',
       carrier: 'sendcloud',
       serviceName: 'Sendcloud Standard',
       priceCents: standardPrice,
@@ -94,7 +85,7 @@ function calculateRates(
       supportsServicePoint: true,
     },
     {
-      rateId: `sendcloud_xpr_${rateId}`,
+      rateId: 'sendcloud_xpr',
       carrier: 'sendcloud',
       serviceName: 'Sendcloud Express',
       priceCents: expressPrice,
@@ -312,22 +303,18 @@ export class MockShippingProvider implements ShippingProvider {
 
   async getServicePointMethods(_servicePointId: string): Promise<Rate[]> {
     await delay(40)
-    // In the mock, only the standard rate supports service points.
-    const origin: ShippingAddress = {
-      street: 'Mock Origin',
-      city: 'Berlin',
-      postalCode: '10115',
-      country: 'DE',
-    }
-    const destination: ShippingAddress = {
-      street: 'Mock Destination',
-      city: 'Paris',
-      postalCode: '75001',
-      country: 'FR',
-    }
-    const pkg: Package = { weightGrams: 500, lengthCm: 20, widthCm: 15, heightCm: 5 }
-    const rates = await this.getRates(origin, destination, pkg)
-    return rates.filter((r) => r.supportsServicePoint)
+    // Return the same stable method identifiers as getRates so checkout
+    // validation can match the buyer's selected shipping method.
+    return [
+      {
+        rateId: 'sendcloud_std',
+        carrier: 'sendcloud',
+        serviceName: 'Sendcloud Standard',
+        priceCents: 0,
+        estimatedDays: { min: 2, max: 7 },
+        supportsServicePoint: true,
+      },
+    ]
   }
 }
 
@@ -335,10 +322,11 @@ export class MockShippingProvider implements ShippingProvider {
 export const mockShippingProvider = new MockShippingProvider()
 
 /**
- * Resets the mock counter so tests are deterministic.
+ * No-op: mock rates are now deterministic per input, so no counter needs resetting.
+ * Kept for backward compatibility with existing tests.
  */
 export function resetMockShippingCounter(): void {
-  _mockCounter = 0
+  // intentionally empty
 }
 
 // ---------------------------------------------------------------------------

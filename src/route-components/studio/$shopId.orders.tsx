@@ -41,8 +41,8 @@ function getStatusBadgeVariant(orderStatus: string): React.ComponentProps<typeof
 }
 
 export function ShopOrdersPage() {
-  const { shopId } = useParams({ from: '/studio/$shopId/orders' })
-  const { result, status, searchQuery } = useLoaderData({ from: '/studio/$shopId/orders' })
+  const { shopId } = useParams({ from: '/studio/$shopId/orders/' })
+  const { result, status, searchQuery } = useLoaderData({ from: '/studio/$shopId/orders/' })
   const navigate = useNavigate()
 
   const [localSearch, setLocalSearch] = useState(searchQuery ?? '')

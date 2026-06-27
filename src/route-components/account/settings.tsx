@@ -40,7 +40,7 @@ export function AccountSettings() {
     setDeleteError(null)
     try {
       await deleteMyAccount({ data: { confirmEmail } })
-      window.location.href = '/'
+      window.location.href = '/?accountDeleted=1'
     } catch (err) {
       setDeleteStatus('error')
       const message = err instanceof Error ? err.message : ''

@@ -29,7 +29,10 @@ let mockCounter = 0
 
 function nextMockPaymentId(): string {
   mockCounter += 1
-  return `${MOCK_ID_PREFIX}${String(mockCounter).padStart(6, '0')}`
+  // Include a short process-unique suffix so repeated app restarts against the
+  // same test database do not collide on the singleton counter.
+  const suffix = process.hrtime.bigint().toString(36).slice(-6)
+  return `${MOCK_ID_PREFIX}${suffix}_${String(mockCounter).padStart(4, '0')}`
 }
 
 /**
@@ -193,6 +196,10 @@ export class MolliePaymentProvider implements PaymentProvider {
     await delay(50)
 
     const paymentId = nextMockPaymentId()
+
+    // Remember the requested amount so webhook amount checks match for
+    // payments created through the mock checkout flow.
+    mockPaymentAmounts.set(paymentId, _amountCents)
 
     // Build a mock checkout URL that mimics Mollie's hosted checkout. In
     // development the buyer clicks this link and the webhook fires

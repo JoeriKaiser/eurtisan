@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import type { shop } from '../src/db/schema'
 import { E2E_CREATOR } from './fixtures/auth'
 
@@ -8,7 +8,7 @@ const e2eDatabaseUrl =
 
 type ShopRow = typeof shop.$inferSelect
 
-type ShopVatSnapshot = Pick<ShopRow, 'isVatRegistered' | 'vatId' | 'shippingOrigin'>
+type ShopVatSnapshot = Pick<ShopRow, 'isVatRegistered' | 'vatId' | 'shippingOrigin' | 'businessAddress'>
 
 test.describe('Invoices E2E flow', () => {
   let testShopOrder: { id: string; shopId: string; platformOrderId: string } | null = null
@@ -49,6 +49,7 @@ test.describe('Invoices E2E flow', () => {
       isVatRegistered: creatorShop.isVatRegistered,
       vatId: creatorShop.vatId,
       shippingOrigin: creatorShop.shippingOrigin,
+      businessAddress: creatorShop.businessAddress,
     }
 
     await db
@@ -61,6 +62,12 @@ test.describe('Invoices E2E flow', () => {
           city: 'Freiburg',
           postalCode: '79098',
           country: 'Germany',
+        },
+        businessAddress: {
+          street: 'Schwarzwaldstraße 12',
+          city: 'Freiburg',
+          postalCode: '79098',
+          country: 'DE',
         },
       })
       .where(eq(shop.id, creatorShop.id))
@@ -119,11 +126,27 @@ test.describe('Invoices E2E flow', () => {
     }
 
     testShopOrder = targetShopOrder
-    customerInvNumber = `INV-${testShopOrder.id.toUpperCase()}`
-    feeInvNumber = `INV-FEE-${testShopOrder.id.toUpperCase()}`
 
     await db.delete(invoices).where(eq(invoices.shopOrderId, testShopOrder.id))
     await createInvoicesForPlatformOrder(testShopOrder.platformOrderId)
+
+    const [customerInvRow] = await db
+      .select({ invoiceNumber: invoices.invoiceNumber })
+      .from(invoices)
+      .where(and(eq(invoices.shopOrderId, testShopOrder.id), eq(invoices.type, 'customer')))
+      .limit(1)
+    const [feeInvRow] = await db
+      .select({ invoiceNumber: invoices.invoiceNumber })
+      .from(invoices)
+      .where(and(eq(invoices.shopOrderId, testShopOrder.id), eq(invoices.type, 'platform_fee')))
+      .limit(1)
+
+    if (!customerInvRow || !feeInvRow) {
+      throw new Error('Expected customer and platform_fee invoices to be created')
+    }
+
+    customerInvNumber = customerInvRow.invoiceNumber
+    feeInvNumber = feeInvRow.invoiceNumber
   })
 
   test.afterAll(async () => {
@@ -139,6 +162,7 @@ test.describe('Invoices E2E flow', () => {
         isVatRegistered: shopSnapshot.isVatRegistered,
         vatId: shopSnapshot.vatId,
         shippingOrigin: shopSnapshot.shippingOrigin,
+        businessAddress: shopSnapshot.businessAddress,
       })
       .where(eq(shop.id, shopId))
   })

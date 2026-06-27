@@ -29,6 +29,11 @@ services:
         condition: service_healthy
       imgproxy:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
 
   app:
     image: eurtisan-app:${IMAGE_TAG:-latest}
@@ -56,6 +61,11 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2g
 
   db:
     # Pinned digest for postgres:16-alpine
@@ -75,6 +85,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4g
 
   meilisearch:
     # Pinned digest for getmeili/meilisearch:v1.43.0
@@ -93,6 +108,11 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 2g
 
   imgproxy:
     # Pinned digest for darthsim/imgproxy:v3
@@ -120,6 +140,11 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1g
 
   inventory-cleanup:
     image: eurtisan-app:${IMAGE_TAG:-latest}
@@ -141,8 +166,12 @@ services:
         delay: 10s
         max_attempts: 5
         window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
     command: >
-      sh -c "bun run src/jobs/inventory-cleanup.ts"
+      sh -c "bun run job:inventory-cleanup"
 
   meilisearch-sync:
     image: eurtisan-app:${IMAGE_TAG:-latest}
@@ -166,8 +195,12 @@ services:
         delay: 10s
         max_attempts: 5
         window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
     command: >
-      sh -c "bun run src/jobs/meilisearch-sync.ts"
+      sh -c "bun run job:meilisearch-sync"
 
   payout-reconciliation:
     image: eurtisan-app:${IMAGE_TAG:-latest}
@@ -189,6 +222,10 @@ services:
         delay: 10s
         max_attempts: 5
         window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
     command: >
       sh -c "bun run job:payout-reconciliation"
 
@@ -212,6 +249,10 @@ services:
         delay: 10s
         max_attempts: 5
         window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
     command: >
       sh -c "bun run job:sendcloud-reconciliation"
 
@@ -235,6 +276,10 @@ services:
         delay: 10s
         max_attempts: 5
         window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
     command: >
       sh -c "bun run job:session-cleanup"
 
@@ -258,6 +303,10 @@ services:
         delay: 10s
         max_attempts: 5
         window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
     command: >
       sh -c "bun run job:cart-cleanup"
 
@@ -281,8 +330,39 @@ services:
         delay: 10s
         max_attempts: 5
         window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
     command: >
       sh -c "bun run job:audit-log-cleanup"
+
+  payout-reconciliation-log-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-payout-reconciliation-log-cleanup
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: unless-stopped
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:payout-reconciliation-log-cleanup"
 
   verification-cleanup:
     image: eurtisan-app:${IMAGE_TAG:-latest}
@@ -304,6 +384,10 @@ services:
         delay: 10s
         max_attempts: 5
         window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
     command: >
       sh -c "bun run job:verification-cleanup"
 
@@ -327,6 +411,10 @@ services:
         delay: 10s
         max_attempts: 5
         window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
     command: >
       sh -c "bun run job:email-outbox-worker"
 
@@ -350,6 +438,10 @@ services:
         delay: 10s
         max_attempts: 5
         window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
     command: >
       sh -c "bun run job:email-suppression-cleanup"
 
@@ -373,6 +465,10 @@ services:
         delay: 10s
         max_attempts: 5
         window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
     command: >
       sh -c "bun run job:email-retention-cleanup"
 
@@ -396,6 +492,10 @@ services:
         delay: 10s
         max_attempts: 5
         window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
     command: >
       sh -c "bun run job:sendcloud-retention-cleanup"
 

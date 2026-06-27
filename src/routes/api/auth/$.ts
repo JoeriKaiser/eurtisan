@@ -6,12 +6,37 @@ import {
   recordFailedSignIn,
   recordSuccessfulSignIn,
 } from '#/lib/auth-lockout.server'
-import { assertAuthRateLimit, isAuthRateLimitedAction } from '#/lib/rate-limit'
+import {
+  assertAuthRateLimit,
+  checkRateLimit,
+  extractClientIp,
+  isAuthRateLimitedAction,
+} from '#/lib/rate-limit'
+
+async function assertAuthGetRateLimit(request: Request): Promise<void> {
+  const ip = extractClientIp(request)
+  const result = await checkRateLimit(`auth:get:${ip}`, 100, 60_000)
+  if (!result.allowed) {
+    throw new Response(
+      JSON.stringify({ error: 'Too Many Requests', message: 'Rate limit exceeded.' }),
+      {
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json',
+          'Retry-After': String(result.retryAfterSeconds),
+        },
+      },
+    )
+  }
+}
 
 export const Route = createFileRoute('/api/auth/$')({
   server: {
     handlers: {
-      GET: ({ request }) => auth.handler(request),
+      GET: async ({ request }) => {
+        await assertAuthGetRateLimit(request)
+        return auth.handler(request)
+      },
       POST: async ({ request }) => {
         const url = new URL(request.url)
         const isAuthAction = isAuthRateLimitedAction(request)

@@ -10,8 +10,18 @@
  * inject; traffic between Prometheus and the app travels over the internal
  * Docker network only.
  */
+import crypto from 'node:crypto'
+
 import { createFileRoute } from '@tanstack/react-router'
 import { getMetricsBody, metricsContentType } from '#/lib/metrics.server'
+
+function timingSafeTokenCompare(provided: string | null, expected: string): boolean {
+  if (!provided) return false
+  const providedBuf = Buffer.from(provided, 'utf8')
+  const expectedBuf = Buffer.from(expected, 'utf8')
+  if (providedBuf.length !== expectedBuf.length) return false
+  return crypto.timingSafeEqual(providedBuf, expectedBuf)
+}
 
 function isAuthorized(request: Request): boolean {
   const token = process.env.METRICS_TOKEN
@@ -19,11 +29,11 @@ function isAuthorized(request: Request): boolean {
     return true
   }
   const auth = request.headers.get('authorization')
-  if (auth === `Bearer ${token}`) {
+  if (auth && timingSafeTokenCompare(auth, `Bearer ${token}`)) {
     return true
   }
   const url = new URL(request.url)
-  return url.searchParams.get('token') === token
+  return timingSafeTokenCompare(url.searchParams.get('token'), token)
 }
 
 export async function getMetricsResponse(request: Request): Promise<Response> {

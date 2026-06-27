@@ -5,7 +5,7 @@ import { clearTestTables } from '#/test/cleanup'
 import { createPlatformOrder, createShop, createShopOrder, createUser } from '#/test/factories'
 import { getDac7ComplianceStatus } from './dac7.server'
 
-describe('DAC7 Threshold Engine', () => {
+describe.sequential('DAC7 Threshold Engine', () => {
   const currentYear = new Date().getFullYear()
 
   beforeEach(async () => {
@@ -140,6 +140,38 @@ describe('DAC7 Threshold Engine', () => {
     expect(status.grossSalesCents).toBe(160000)
     expect(status.approachingLimit).toBe(true)
     expect(status.exceededLimit).toBe(false)
+  })
+
+  it('subtracts refunded amounts from gross sales and excludes fully refunded orders from the transaction count', async () => {
+    const platformOrder = await createPlatformOrder('buyer-user', {
+      id: 'a1111111-1111-1111-1111-111111111111',
+      totalCents: 3000,
+      status: 'paid',
+    })
+
+    // Partially refunded order: 2500 gross - 1000 refund = 1500 net
+    await createShopOrder(platformOrder, 'shop-1', {
+      id: 'b5000000-0000-0000-0000-000000000001',
+      status: 'completed',
+      subtotalCents: 2000,
+      shippingCostCents: 500,
+      refundedCents: 1000,
+      createdAt: new Date(`${currentYear}-06-15T12:00:00Z`),
+    })
+
+    // Fully refunded order: contributes 0 net and 0 transactions
+    await createShopOrder(platformOrder, 'shop-1', {
+      id: 'b5000000-0000-0000-0000-000000000002',
+      status: 'delivered',
+      subtotalCents: 1000,
+      shippingCostCents: 200,
+      refundedCents: 1200,
+      createdAt: new Date(`${currentYear}-07-15T12:00:00Z`),
+    })
+
+    const status = await getDac7ComplianceStatus('shop-1', currentYear)
+    expect(status.transactionCount).toBe(1)
+    expect(status.grossSalesCents).toBe(1500)
   })
 
   it('correctly flags exceeded limit (30 transactions or €2,000 revenue)', async () => {

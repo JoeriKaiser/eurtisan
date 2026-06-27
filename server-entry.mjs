@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url'
 import { logger, requestIdStore } from '../../src/lib/logger.server.ts'
 import { runWithCspNonce } from '../../src/lib/csp-nonce.server.ts'
 import { assertMockPayoutsNotProduction } from '../../src/lib/env.server.ts'
+import { getSafeRequestPath } from '../../src/lib/request-path.server.ts'
 
 const DIRNAME = fileURLToPath(new URL('.', import.meta.url))
 const CLIENT_DIR = join(DIRNAME, '../client')
@@ -304,7 +305,9 @@ const server = createServer(async (req, res) => {
       res.end()
     }
     } catch (error) {
-      logger.error('Unhandled error in HTTP server', error)
+      logger.error('Unhandled error in HTTP server', error, {
+        path: getSafeRequestPath(req.url),
+      })
       if (!res.headersSent) {
         res.writeHead(500, { 'Content-Type': 'text/plain' })
         res.end('Internal Server Error')

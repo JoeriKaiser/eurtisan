@@ -41,7 +41,7 @@ test.describe('Account deletion and erasure', () => {
     await page.getByLabel(/type your email to confirm/i).fill(customer.email)
     await page.getByRole('button', { name: /delete account permanently/i }).click()
 
-    await page.waitForURL('/')
+    await page.waitForURL((url) => url.pathname === '/')
     await expect(page.getByText(/your account has been deleted/i)).toBeVisible()
 
     // Verify the user row has been anonymized.

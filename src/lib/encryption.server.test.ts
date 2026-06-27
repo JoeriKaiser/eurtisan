@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest'
 import {
   decrypt,
   decryptAccountTokens,
+  decryptJsonb,
   decryptShopMollieTokens,
+  encryptJsonb,
   encrypt,
 } from './encryption.server'
 
@@ -56,6 +58,24 @@ describe('encryption.server', () => {
     expect(decrypted.refreshToken).toBe('refresh-token')
     expect(decrypted.idToken).toBe('id-token')
     expect(decrypted.password).toBeNull()
+  })
+
+  it('encryptJsonb round-trips objects and decryptJsonb returns plaintext', () => {
+    const value = { name: 'Alice', address: { street: 'Secret St' } }
+    const ciphertext = encryptJsonb(value)
+    expect(typeof ciphertext).toBe('string')
+    expect(ciphertext).not.toContain('Alice')
+    expect(decryptJsonb(ciphertext)).toEqual(value)
+  })
+
+  it('decryptJsonb passes through plaintext legacy objects', () => {
+    const plaintext = { name: 'Bob', city: 'Paris' }
+    expect(decryptJsonb(plaintext)).toBe(plaintext)
+  })
+
+  it('decryptJsonb passes through redacted objects', () => {
+    const redacted = { name: 'Deleted User', street: '[redacted]', country: 'XX' }
+    expect(decryptJsonb(redacted)).toEqual(redacted)
   })
 
   it('decryptShopMollieTokens decrypts mollie tokens', () => {

@@ -1,4 +1,5 @@
 import type { ShippingProvider } from '#/lib/shipping-provider'
+import { getSendcloudPublicKey, getSendcloudSecretKey } from '#/lib/env.server'
 
 export type * from '#/lib/shipping-provider'
 
@@ -27,9 +28,6 @@ export { SendcloudError, SendcloudProvider, sendcloudProvider }
  * This must only be called from server-side code.
  */
 export function getShippingProvider(): ShippingProvider {
-  const { getSendcloudPublicKey, getSendcloudSecretKey } =
-    require('#/lib/env.server') as typeof import('#/lib/env.server')
-
   const publicKey = getSendcloudPublicKey()
   const secretKey = getSendcloudSecretKey()
 

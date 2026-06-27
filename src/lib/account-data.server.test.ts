@@ -48,6 +48,8 @@ import {
   createUser,
 } from '#/test/factories'
 
+import { decryptJsonb } from '#/lib/encryption.server'
+
 import { deleteUserAccount, exportUserData } from './account-data.server'
 
 beforeEach(async () => {
@@ -302,7 +304,7 @@ describe('deleteUserAccount', () => {
     }
   })
 
-  it('redacts platform order addresses', async () => {
+  it('redacts platform order addresses and stores them encrypted', async () => {
     const u = await createUser()
     const order = await createPlatformOrder(u.id)
 
@@ -311,17 +313,19 @@ describe('deleteUserAccount', () => {
     const updated = await db.query.platformOrder.findFirst({
       where: eq(platformOrder.id, order.id),
     })
-    expect(updated?.shippingAddress).toEqual({
+    expect(typeof updated?.shippingAddress).toBe('string')
+    expect(typeof updated?.billingAddress).toBe('string')
+    expect(decryptJsonb(updated?.shippingAddress)).toEqual({
       name: 'Deleted User',
       street: '[redacted]',
       city: '[redacted]',
       postalCode: '[redacted]',
       country: 'XX',
     })
-    expect(updated?.billingAddress).toEqual(updated?.shippingAddress)
+    expect(decryptJsonb(updated?.billingAddress)).toEqual(decryptJsonb(updated?.shippingAddress))
   })
 
-  it('redacts invoice billing details for owned shops', async () => {
+  it('redacts invoice billing details for owned shops and stores them encrypted', async () => {
     const owner = await createUser({ role: 'creator' })
     const buyer = await createUser({ email: 'buyer@example.com' })
     const s = await seedShop(owner.id)
@@ -332,7 +336,8 @@ describe('deleteUserAccount', () => {
     await deleteUserAccount(owner.id)
 
     const updated = await db.query.invoices.findFirst({ where: eq(invoices.id, invoice.id) })
-    expect(updated?.billingDetails).toEqual({
+    expect(typeof updated?.billingDetails).toBe('string')
+    expect(decryptJsonb(updated?.billingDetails)).toEqual({
       name: 'Deleted User',
       street: '[redacted]',
       city: '[redacted]',
@@ -341,7 +346,7 @@ describe('deleteUserAccount', () => {
     })
   })
 
-  it('redacts invoice billing details for buyer invoices', async () => {
+  it('redacts invoice billing details for buyer invoices and stores them encrypted', async () => {
     const owner = await createUser({ role: 'creator', email: 'owner@example.com' })
     const buyer = await createUser({ email: 'buyer@example.com' })
     const s = await seedShop(owner.id)
@@ -357,7 +362,8 @@ describe('deleteUserAccount', () => {
     await deleteUserAccount(buyer.id)
 
     const updated = await db.query.invoices.findFirst({ where: eq(invoices.id, invoice.id) })
-    expect(updated?.billingDetails).toEqual({
+    expect(typeof updated?.billingDetails).toBe('string')
+    expect(decryptJsonb(updated?.billingDetails)).toEqual({
       name: 'Deleted User',
       street: '[redacted]',
       city: '[redacted]',
@@ -417,24 +423,26 @@ describe('deleteUserAccount', () => {
     })
   })
 
-  it('redacts shop business and shipping addresses', async () => {
+  it('redacts shop business and shipping addresses and stores them encrypted', async () => {
     const u = await createUser({ role: 'creator' })
     const s = await seedShop(u.id)
 
     await deleteUserAccount(u.id)
 
     const updated = await db.query.shop.findFirst({ where: eq(shop.id, s.id) })
-    expect(updated?.businessAddress).toEqual({
+    expect(typeof updated?.businessAddress).toBe('string')
+    expect(typeof updated?.shippingOrigin).toBe('string')
+    expect(decryptJsonb(updated?.businessAddress)).toEqual({
       name: 'Deleted User',
       street: '[redacted]',
       city: '[redacted]',
       postalCode: '[redacted]',
       country: 'XX',
     })
-    expect(updated?.shippingOrigin).toEqual(updated?.businessAddress)
+    expect(decryptJsonb(updated?.shippingOrigin)).toEqual(decryptJsonb(updated?.businessAddress))
   })
 
-  it('sets audit log actor name to Deleted User while keeping actor id', async () => {
+  it('sets audit log actor name to Deleted User and nulls actor id', async () => {
     const u = await createUser()
     await createAuditLog(u, {
       actorName: u.name,
@@ -446,10 +454,10 @@ describe('deleteUserAccount', () => {
 
     await deleteUserAccount(u.id)
 
-    const rows = await db.select().from(auditLog).where(eq(auditLog.actorId, u.id))
+    const rows = await db.select().from(auditLog).where(eq(auditLog.actorName, 'Deleted User'))
     expect(rows).toHaveLength(1)
     expect(rows[0]?.actorName).toBe('Deleted User')
-    expect(rows[0]?.actorId).toBe(u.id)
+    expect(rows[0]?.actorId).toBeNull()
   })
 
   it('removes sessions, accounts, two factor, notifications, carts, and redacts reviews/disputes', async () => {

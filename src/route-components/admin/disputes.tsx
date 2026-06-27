@@ -28,9 +28,9 @@ function formatDate(date: Date | string): string {
 /* -------------------------------------------------------------------------- */
 
 export function AdminDisputesPage() {
-  const result = useLoaderData({ from: '/admin/disputes' })
+  const result = useLoaderData({ from: '/admin/disputes/' })
   const navigate = useNavigate()
-  const search = useSearch({ from: '/admin/disputes' })
+  const search = useSearch({ from: '/admin/disputes/' })
   const { disputes, total, page, pageSize } = result
   const totalPages = Math.ceil(total / pageSize)
 

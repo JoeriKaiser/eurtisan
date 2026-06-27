@@ -196,7 +196,12 @@ export function ShopOrderDetailPage() {
             <h1 className='display-title text-2xl font-semibold text-text-primary'>Order Detail</h1>
             <p className='font-mono text-sm text-text-secondary'>{shopOrderId.slice(0, 8)}…</p>
           </div>
-          <Badge variant={getStatusBadgeVariant(currentStatus)} className='text-sm'>
+          <Badge
+            variant={getStatusBadgeVariant(currentStatus)}
+            className='text-sm'
+            role='status'
+            aria-live='polite'
+          >
             {getOrderStatusLabel(currentStatus)}
           </Badge>
         </div>

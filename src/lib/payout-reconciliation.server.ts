@@ -4,7 +4,12 @@ import { payout, payoutReconciliationLog, shopOrder } from '#/db/schema'
 import { getMollieRoute } from '#/integrations/mollie'
 import { getMollieApiKey, getMollieTestMode } from '#/lib/env.server'
 import { logger } from '#/lib/logger.server'
-import { executePayoutQuery } from './payouts.server'
+import {
+  executePayoutQuery,
+  isValidPayoutTransition,
+  PayoutError,
+  type PayoutStatus,
+} from './payouts.server'
 
 /* -------------------------------------------------------------------------- */
 /*                                  Types                                     */
@@ -152,6 +157,12 @@ export async function reconcilePayouts(): Promise<ReconciliationResult> {
       const routeMissing = route === null
 
       if (routeReturned) {
+        if (!isValidPayoutTransition(record.status as PayoutStatus, 'returned')) {
+          throw new PayoutError(
+            'INVALID_STATUS_TRANSITION',
+            `Cannot transition payout ${record.id} from '${record.status}' to 'returned'`,
+          )
+        }
         await db.transaction(async (tx) => {
           await tx
             .update(payout)
@@ -190,6 +201,13 @@ export async function reconcilePayouts(): Promise<ReconciliationResult> {
 
       if (routeMissing || refundCoversPayout) {
         const reason = routeMissing ? 'route_missing' : 'refund_detected'
+
+        if (!isValidPayoutTransition(record.status as PayoutStatus, 'reversed')) {
+          throw new PayoutError(
+            'INVALID_STATUS_TRANSITION',
+            `Cannot transition payout ${record.id} from '${record.status}' to 'reversed'`,
+          )
+        }
 
         await db.transaction(async (tx) => {
           await tx

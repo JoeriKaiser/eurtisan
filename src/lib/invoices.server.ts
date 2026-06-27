@@ -12,6 +12,8 @@ import {
 import { normalizeCountryCode, getStandardVatRate } from './vat.server'
 import { PLATFORM_FEE_PERCENT } from './platform-constants'
 import { getPlatformVatLiable } from './env.server'
+import { decryptJsonb, encryptJsonb } from './encryption.server'
+import { logger } from './logger.server'
 
 /** Only supported currency. Used instead of hardcoded "EUR" strings. */
 export const SUPPORTED_CURRENCY = 'EUR' as const
@@ -21,11 +23,11 @@ export const SUPPORTED_CURRENCY = 'EUR' as const
  * The format is `{PREFIX}-{YYYY}-{00001}`.
  */
 async function allocateNextInvoiceNumber(
-  activeDb: Omit<typeof db, '$client'>,
+  tx: Omit<typeof db, '$client'>,
   prefix: string,
 ): Promise<string> {
   const year = new Date().getFullYear()
-  const [row] = await activeDb
+  const [row] = await tx
     .insert(invoiceNumberSequence)
     .values({ prefix, lastNumber: 1 })
     .onConflictDoUpdate({
@@ -162,7 +164,11 @@ export function calculatePlatformFeeVat(
 } {
   const buyerCode = normalizeCountryCode(buyerCountry)
   if (!buyerCode && buyerCountry.trim() !== '') {
-    throw new Error(`Unrecognized country code or name: "${buyerCountry}"`)
+    // Fall open for unrecognized seller/buyer country names instead of blocking invoice
+    // generation. This protects against malformed legacy or seed address data.
+    logger.warn('Unrecognized country in platform fee VAT calculation; treating as non-EU export', {
+      country: buyerCountry,
+    })
   }
   const isEU =
     buyerCode &&
@@ -264,12 +270,10 @@ export interface CreatedInvoiceNumbers {
 
 export async function createInvoicesForPlatformOrder(
   platformOrderId: string,
-  tx?: any,
+  tx: Omit<typeof db, '$client'> = db,
 ): Promise<Map<string, CreatedInvoiceNumbers>> {
-  const activeDb = tx ?? db
-
   // 1. Fetch platform order with buyer user details
-  const [orderRecord] = await activeDb
+  const [orderRecord] = await tx
     .select({
       id: platformOrder.id,
       userId: platformOrder.userId,
@@ -283,7 +287,7 @@ export async function createInvoicesForPlatformOrder(
     throw new Error(`Platform order ${platformOrderId} not found`)
   }
 
-  const [buyerUser] = await activeDb
+  const [buyerUser] = await tx
     .select({
       name: user.name,
       email: user.email,
@@ -307,7 +311,7 @@ export async function createInvoicesForPlatformOrder(
   }
 
   // 2. Fetch all shop orders under this platform order
-  const shopOrdersList = (await activeDb
+  const shopOrdersList = (await tx
     .select()
     .from(shopOrder)
     .where(eq(shopOrder.platformOrderId, platformOrderId))) as (typeof shopOrder.$inferSelect)[]
@@ -322,7 +326,7 @@ export async function createInvoicesForPlatformOrder(
 
   const shopsList =
     shopIds.length > 0
-      ? ((await activeDb
+      ? ((await tx
           .select()
           .from(shop)
           .where(inArray(shop.id, shopIds))) as (typeof shop.$inferSelect)[])
@@ -332,7 +336,7 @@ export async function createInvoicesForPlatformOrder(
   const ownerIds = Array.from(new Set(shopsList.map((s) => s.ownerId)))
   const ownersList =
     ownerIds.length > 0
-      ? await activeDb
+      ? await tx
           .select({
             id: user.id,
             name: user.name,
@@ -347,7 +351,7 @@ export async function createInvoicesForPlatformOrder(
 
   const allItemsList =
     shopOrderIds.length > 0
-      ? await activeDb.select().from(orderItem).where(inArray(orderItem.shopOrderId, shopOrderIds))
+      ? await tx.select().from(orderItem).where(inArray(orderItem.shopOrderId, shopOrderIds))
       : []
   const itemsByShopOrderId = new Map<string, typeof allItemsList>()
   for (const item of allItemsList) {
@@ -405,7 +409,7 @@ export async function createInvoicesForPlatformOrder(
     const itemsList = itemsByShopOrderId.get(so.id) ?? []
 
     // ─── A. GENERATE CUSTOMER INVOICE ───
-    const customerInvoiceNumber = await allocateNextInvoiceNumber(activeDb, 'INV')
+    const customerInvoiceNumber = await allocateNextInvoiceNumber(tx, 'INV')
 
     // Calculate total net from items and shipping
     const totalGross = so.subtotalCents + so.shippingCostCents
@@ -445,7 +449,7 @@ export async function createInvoicesForPlatformOrder(
       reverseCharge: customerReverseCharge,
     }
 
-    await activeDb
+    await tx
       .insert(invoices)
       .values({
         invoiceNumber: customerInvoiceNumber,
@@ -462,7 +466,7 @@ export async function createInvoicesForPlatformOrder(
     created.set(so.id, { customerInvoiceNumber, platformFeeInvoiceNumber: '' })
 
     // ─── B. GENERATE PLATFORM FEE INVOICE ───
-    const platformFeeInvoiceNumber = await allocateNextInvoiceNumber(activeDb, 'INV-FEE')
+    const platformFeeInvoiceNumber = await allocateNextInvoiceNumber(tx, 'INV-FEE')
     const netSubtotalCents = so.subtotalCents - so.vatAmountCents
     const rawFeeCents = Math.round(netSubtotalCents * (PLATFORM_FEE_PERCENT / 100))
 
@@ -492,7 +496,7 @@ export async function createInvoicesForPlatformOrder(
       reverseCharge: feeVatDetails.reverseCharge,
     }
 
-    await activeDb
+    await tx
       .insert(invoices)
       .values({
         invoiceNumber: platformFeeInvoiceNumber,
@@ -519,21 +523,24 @@ export async function createInvoicesForPlatformOrder(
  */
 export async function createCreditNoteForShopOrder(
   shopOrderId: string,
-  tx?: any,
+  tx: Omit<typeof db, '$client'> = db,
+  amountCents?: number,
 ): Promise<string | null> {
-  const activeDb = tx ?? db
+  // Full credit notes are idempotent; partial credit notes may be created
+  // multiple times for the same shop order (e.g. staged refunds).
+  if (!amountCents) {
+    const [existingCreditNote] = await tx
+      .select({ invoiceNumber: invoices.invoiceNumber })
+      .from(invoices)
+      .where(and(eq(invoices.shopOrderId, shopOrderId), eq(invoices.type, 'credit_note')))
+      .limit(1)
 
-  const [existingCreditNote] = await activeDb
-    .select({ invoiceNumber: invoices.invoiceNumber })
-    .from(invoices)
-    .where(and(eq(invoices.shopOrderId, shopOrderId), eq(invoices.type, 'credit_note')))
-    .limit(1)
-
-  if (existingCreditNote) {
-    return existingCreditNote.invoiceNumber
+    if (existingCreditNote) {
+      return existingCreditNote.invoiceNumber
+    }
   }
 
-  const [original] = await activeDb
+  const [original] = await tx
     .select({
       invoiceNumber: invoices.invoiceNumber,
       billingDetails: invoices.billingDetails,
@@ -550,18 +557,29 @@ export async function createCreditNoteForShopOrder(
     return null
   }
 
-  const creditNoteNumber = await allocateNextInvoiceNumber(activeDb, 'CN')
+  const creditNoteNumber = await allocateNextInvoiceNumber(tx, 'CN')
+  const originalBillingDetails = decryptJsonb<BillingDetails>(original.billingDetails)
 
-  await activeDb.insert(invoices).values({
+  const refundTotalCents = amountCents ?? original.totalCents
+  let subtotalCents = original.subtotalCents
+  let vatAmountCents = original.vatAmountCents
+
+  if (amountCents && original.totalCents > 0) {
+    const ratio = amountCents / original.totalCents
+    subtotalCents = Math.round(original.subtotalCents * ratio)
+    vatAmountCents = Math.round(original.vatAmountCents * ratio)
+  }
+
+  await tx.insert(invoices).values({
     invoiceNumber: creditNoteNumber,
     type: 'credit_note',
     shopOrderId,
     originalInvoiceNumber: original.invoiceNumber,
-    subtotalCents: -original.subtotalCents,
-    vatAmountCents: -original.vatAmountCents,
-    totalCents: -original.totalCents,
+    subtotalCents: -subtotalCents,
+    vatAmountCents: -vatAmountCents,
+    totalCents: -refundTotalCents,
     vatRateBasisPoints: original.vatRateBasisPoints,
-    billingDetails: original.billingDetails,
+    billingDetails: encryptJsonb(originalBillingDetails),
   })
 
   return creditNoteNumber
@@ -570,11 +588,24 @@ export async function createCreditNoteForShopOrder(
 /**
  * Retrieves an invoice and validates user permissions.
  */
+export interface InvoiceRecord {
+  id: string
+  invoiceNumber: string
+  type: 'platform_fee' | 'customer' | 'credit_note'
+  shopOrderId: string
+  createdAt: Date
+  subtotalCents: number
+  vatAmountCents: number
+  totalCents: number
+  vatRateBasisPoints: number
+  billingDetails: unknown
+}
+
 export async function getInvoiceByIdQuery(
   invoiceNumber: string,
   userId: string,
   userRole: 'customer' | 'creator' | 'admin',
-): Promise<any> {
+): Promise<InvoiceRecord> {
   const [invoiceRecord] = await db
     .select({
       id: invoices.id,

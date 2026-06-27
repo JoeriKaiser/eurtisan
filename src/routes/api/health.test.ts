@@ -19,11 +19,15 @@ vi.mock('#/lib/meilisearch-products.server.ts', () => ({
   isMeilisearchHealthy: () => mockIsMeilisearchHealthy(),
 }))
 
-vi.mock('#/lib/env.server.ts', () => ({
-  getMollieApiKey: () => undefined,
-  getMockPaymentsEnabled: () => true,
-  getBrevoApiKey: () => undefined,
-}))
+vi.mock('#/lib/env.server.ts', async () => {
+  const actual = await vi.importActual<typeof import('#/lib/env.server.ts')>('#/lib/env.server.ts')
+  return {
+    getMollieApiKey: () => undefined,
+    getMockPaymentsEnabled: () => true,
+    getBrevoApiKey: () => undefined,
+    getHealthDiskThresholdBytes: actual.getHealthDiskThresholdBytes,
+  }
+})
 
 describe('GET /api/health', () => {
   beforeEach(() => {

@@ -54,6 +54,7 @@ db-migrate-e2e: up
 
 db-seed-e2e: db-migrate-e2e
 	docker compose exec -e DATABASE_URL=$(E2E_DATABASE_URL) app bun run db:seed -- --clear --force
+	@rm -f e2e/.auth/*.json
 
 test: up
 	docker compose exec app bun run test $(filter-out test,$(MAKECMDGOALS))
@@ -64,9 +65,25 @@ test-related: up
 e2e-install: up
 	docker compose exec app bunx playwright install --with-deps chromium
 
+E2E_READY_TIMEOUT_SECONDS ?= 120
+
 e2e: up db-seed-e2e
-	docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d app --force-recreate
-	docker compose exec app bun -e "const start = Date.now(); while (Date.now() - start < 30000) { try { if ((await fetch('http://localhost:3000/signin')).ok) { console.log('Server is ready!'); process.exit(0); } } catch {} await new Promise(r => setTimeout(r, 500)); } console.error('Server not ready!'); process.exit(1);"
+	@docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d app --force-recreate
+	@echo "Waiting for app to be ready (max $(E2E_READY_TIMEOUT_SECONDS)s)..."
+	@i=0; \
+	while [ $$i -lt $(E2E_READY_TIMEOUT_SECONDS) ]; do \
+		if docker compose -f docker-compose.yml -f docker-compose.e2e.yml exec -T app bun -e "fetch('http://localhost:3000/api/health/ready').then(r => { if (!r.ok) process.exit(1); process.exit(0); }).catch(() => process.exit(1))" >/dev/null 2>&1; then \
+			echo "App is ready"; \
+			break; \
+		fi; \
+		i=$$((i + 1)); \
+		sleep 1; \
+	done; \
+	if [ $$i -eq $(E2E_READY_TIMEOUT_SECONDS) ]; then \
+		echo "App did not become ready within $(E2E_READY_TIMEOUT_SECONDS)s"; \
+		docker compose up -d app --force-recreate; \
+		exit 1; \
+	fi
 	docker compose -f docker-compose.yml -f docker-compose.e2e.yml exec -e E2E_DATABASE_URL=$(E2E_DATABASE_URL) app bunx playwright test; \
 		e2e_exit=$$?; \
 		docker compose up -d app --force-recreate; \

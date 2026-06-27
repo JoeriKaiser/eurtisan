@@ -1,6 +1,15 @@
 import { and, count, desc, eq, gte, ilike, inArray, lte, or } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { payout, payoutReconciliationLog, platformOrder, shop, shopOrder, user } from '#/db/schema'
+import {
+  invoices,
+  payout,
+  payoutReconciliationLog,
+  type payoutStatusEnum,
+  platformOrder,
+  shop,
+  shopOrder,
+  user,
+} from '#/db/schema'
 import { createMollieRoute } from '#/integrations/mollie'
 import { signMollieState } from './auth-utils'
 import { disconnectMollieConnect } from './mollie-connect.server'
@@ -21,11 +30,40 @@ export interface CreatorPayoutLine {
   date: Date
   amountCents: number
   /** Payout lifecycle status as tracked in the database. */
-  status: 'pending' | 'in_transit' | 'sent' | 'failed' | 'reversed' | 'returned'
+  status: PayoutStatus
   /** Original shop_order status, exposed so the UI can differentiate refunds. */
   orderStatus: string
   /** True when this line represents a refund deduction. */
   isRefund: boolean
+  /** Customer invoice number for this shop order, if invoices have been generated. */
+  customerInvoiceNumber: string | null
+  /** Platform fee invoice number for this shop order, if invoices have been generated. */
+  platformFeeInvoiceNumber: string | null
+}
+
+export type PayoutStatus = (typeof payoutStatusEnum.enumValues)[number]
+
+const VALID_PAYOUT_TRANSITIONS: Record<PayoutStatus, PayoutStatus[]> = {
+  pending: ['in_transit', 'failed'],
+  failed: ['in_transit', 'failed'],
+  in_transit: ['sent', 'failed', 'reversed', 'returned'],
+  sent: ['reversed', 'returned'],
+  reversed: [],
+  returned: [],
+}
+
+export function isValidPayoutTransition(from: PayoutStatus, to: PayoutStatus): boolean {
+  return VALID_PAYOUT_TRANSITIONS[from]?.includes(to) ?? false
+}
+
+export class PayoutError extends Error {
+  constructor(
+    public code: string,
+    message: string,
+  ) {
+    super(message)
+    this.name = 'PayoutError'
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -132,6 +170,12 @@ export async function reversePayoutForRefund(
   }
 
   if (refundCents >= payoutRecord.amountCents) {
+    if (!isValidPayoutTransition(payoutRecord.status as PayoutStatus, 'reversed')) {
+      throw new PayoutError(
+        'INVALID_STATUS_TRANSITION',
+        `Cannot transition payout ${payoutRecord.id} from '${payoutRecord.status}' to 'reversed'`,
+      )
+    }
     await tx
       .update(payout)
       .set({
@@ -350,6 +394,12 @@ export async function executePayoutQuery(payoutId: string): Promise<ExecutePayou
       })
     } catch (err) {
       const reason = err instanceof Error ? err.message : 'Mollie route creation failed'
+      if (!isValidPayoutTransition('in_transit', 'failed')) {
+        throw new PayoutError(
+          'INVALID_STATUS_TRANSITION',
+          `Cannot transition payout ${payoutId} from 'in_transit' to 'failed'`,
+        )
+      }
       await tx
         .update(payout)
         .set({ status: 'failed', failedAt: new Date(), failureReason: reason })
@@ -364,6 +414,12 @@ export async function executePayoutQuery(payoutId: string): Promise<ExecutePayou
       return { kind: 'error' as const, status: 502, message: reason }
     }
 
+    if (!isValidPayoutTransition('in_transit', 'sent')) {
+      throw new PayoutError(
+        'INVALID_STATUS_TRANSITION',
+        `Cannot transition payout ${payoutId} from 'in_transit' to 'sent'`,
+      )
+    }
     await tx
       .update(payout)
       .set({
@@ -460,7 +516,8 @@ function derivePayoutLine(
     createdAt: Date
   },
   payoutStatus: CreatorPayoutLine['status'] | null,
-  payoutAmountCents?: number | null,
+  payoutAmountCents: number | null | undefined,
+  invoiceNumbers: { customerInvoiceNumber: string | null; platformFeeInvoiceNumber: string | null },
 ): CreatorPayoutLine {
   const isRefund = order.status === 'refunded'
 
@@ -491,6 +548,8 @@ function derivePayoutLine(
     status,
     orderStatus: order.status,
     isRefund,
+    customerInvoiceNumber: invoiceNumbers.customerInvoiceNumber,
+    platformFeeInvoiceNumber: invoiceNumbers.platformFeeInvoiceNumber,
   }
 }
 
@@ -723,9 +782,36 @@ export async function listCreatorPayoutsQuery(
     }
   }
 
+  // Fetch invoice numbers for all relevant shop orders in one query.
+  const orderIds = allOrders.map((order) => order.id)
+  const invoiceRows =
+    orderIds.length > 0
+      ? await db
+          .select({
+            shopOrderId: invoices.shopOrderId,
+            type: invoices.type,
+            invoiceNumber: invoices.invoiceNumber,
+          })
+          .from(invoices)
+          .where(inArray(invoices.shopOrderId, orderIds))
+      : []
+
+  const customerInvoiceByOrderId = new Map<string, string>()
+  const platformFeeInvoiceByOrderId = new Map<string, string>()
+  for (const row of invoiceRows) {
+    if (row.type === 'customer') {
+      customerInvoiceByOrderId.set(row.shopOrderId, row.invoiceNumber)
+    } else if (row.type === 'platform_fee') {
+      platformFeeInvoiceByOrderId.set(row.shopOrderId, row.invoiceNumber)
+    }
+  }
+
   // Derive payout lines for all orders and filter by status if requested
   let payouts: CreatorPayoutLine[] = allOrders.map((order) =>
-    derivePayoutLine(order, order.payoutStatus, order.payoutAmountCents),
+    derivePayoutLine(order, order.payoutStatus, order.payoutAmountCents, {
+      customerInvoiceNumber: customerInvoiceByOrderId.get(order.id) ?? null,
+      platformFeeInvoiceNumber: platformFeeInvoiceByOrderId.get(order.id) ?? null,
+    }),
   )
 
   if (statusFilter) {

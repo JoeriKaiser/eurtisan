@@ -10,7 +10,13 @@ import {
 } from '#/integrations/mollie'
 import { clearTestTables } from '#/test/cleanup'
 import { createPlatformOrder, createShop, createShopOrder, createUser } from '#/test/factories'
-import { executePayoutQuery, listCreatorPayoutsQuery, markPayoutSentQuery } from './payouts.server'
+import {
+  executePayoutQuery,
+  isValidPayoutTransition,
+  listCreatorPayoutsQuery,
+  markPayoutSentQuery,
+  PayoutError,
+} from './payouts.server'
 import { PLATFORM_FEE_PERCENT } from './platform-constants'
 import { markShopOrderDeliveredQuery, updateShopOrderStatusQuery } from './shop-orders.server'
 
@@ -537,5 +543,35 @@ describe('listCreatorPayoutsQuery', () => {
     const expectedFee = Math.round((subtotalCents - vatAmountCents) * (PLATFORM_FEE_PERCENT / 100))
     const expectedAmount = subtotalCents - expectedFee + shippingCostCents
     expect(line.amountCents).toBe(expectedAmount)
+  })
+})
+
+describe('isValidPayoutTransition', () => {
+  it('allows pending -> in_transit', () => {
+    expect(isValidPayoutTransition('pending', 'in_transit')).toBe(true)
+  })
+
+  it('allows in_transit -> sent', () => {
+    expect(isValidPayoutTransition('in_transit', 'sent')).toBe(true)
+  })
+
+  it('allows sent -> reversed', () => {
+    expect(isValidPayoutTransition('sent', 'reversed')).toBe(true)
+  })
+
+  it('disallows sent -> pending', () => {
+    expect(isValidPayoutTransition('sent', 'pending')).toBe(false)
+  })
+
+  it('disallows reversed -> sent', () => {
+    expect(isValidPayoutTransition('reversed', 'sent')).toBe(false)
+  })
+})
+
+describe('PayoutError', () => {
+  it('carries a code', () => {
+    const err = new PayoutError('INVALID_STATUS_TRANSITION', 'bad transition')
+    expect(err.code).toBe('INVALID_STATUS_TRANSITION')
+    expect(err.message).toBe('bad transition')
   })
 })

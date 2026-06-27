@@ -1,6 +1,40 @@
 import z from 'zod'
 
 /**
+ * ISO-3166-1 alpha-2 codes for the 27 EU member states.
+ * Used for cross-border B2B reverse-charge checks.
+ */
+export const EU_MEMBER_STATE_CODES = [
+  'AT',
+  'BE',
+  'BG',
+  'HR',
+  'CY',
+  'CZ',
+  'DK',
+  'EE',
+  'FI',
+  'FR',
+  'DE',
+  'GR',
+  'HU',
+  'IE',
+  'IT',
+  'LV',
+  'LT',
+  'LU',
+  'MT',
+  'NL',
+  'PL',
+  'PT',
+  'RO',
+  'SK',
+  'SI',
+  'ES',
+  'SE',
+] as const
+
+/**
  * ISO-3166-1 alpha-2 country codes for European countries (primary marketplace
  * coverage) plus a handful of neighbouring states.
  */

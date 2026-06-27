@@ -176,7 +176,6 @@ describe('processOutboxBatch', () => {
     const user = await createUser({ email: 'dave@example.com' })
     await db.insert(emailOutbox).values({
       idempotencyKey: 'worker-4',
-      recipientEmail: 'dave@example.com',
       recipientHash: await sha256Hex('dave@example.com'),
       template: 'seller_news',
       data: {},

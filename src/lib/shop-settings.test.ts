@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { eq } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { orderItem, platformOrder, product, shop, shopOrder, user } from '#/db/schema'
+import { orderItem, platformOrder, product, shop, shopOrder, shopSocials, user } from '#/db/schema'
 
 import {
   checkSlugUniquePlatformWide,
@@ -324,4 +325,30 @@ describe('updateShopInternal', () => {
       'Tax ID must be 3–30 alphanumeric characters',
     )
   })
+
+  it('rejects an unsupported social platform', async () => {
+    await seedUser()
+    const s = await seedShop()
+
+    await expect(
+      updateShopInternal(s.id, {
+        socials: [{ platform: 'myspace' as 'website', url: 'https://myspace.com/test' }],
+      }),
+    ).rejects.toBeTruthy()
+  }),
+    it('persists supported social platforms', async () => {
+      await seedUser()
+      const s = await seedShop()
+
+      await updateShopInternal(s.id, {
+        socials: [
+          { platform: 'instagram', url: 'https://instagram.com/test' },
+          { platform: 'website', url: 'https://example.com' },
+        ],
+      })
+
+      const socials = await db.select().from(shopSocials).where(eq(shopSocials.shopId, s.id))
+      expect(socials).toHaveLength(2)
+      expect(socials.map((s) => s.platform).sort()).toEqual(['instagram', 'website'])
+    })
 })

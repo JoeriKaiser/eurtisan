@@ -4,9 +4,8 @@ import { db } from '#/db/index'
 import { user as userTable } from '#/db/schema'
 import { eq } from 'drizzle-orm'
 
-import type { UserRole } from './authz'
 import { CsrfError, validateCsrf } from './csrf'
-import type { SafeUser } from './user-types'
+import { toSafeUser, type SafeUser } from './user-types'
 
 export interface AuthMiddlewareContext {
   user: SafeUser | null
@@ -39,21 +38,7 @@ export const authMiddleware = createMiddleware({ type: 'request' }).server(
         .then((rows) => rows[0]?.deletedAt ?? null)
 
       if (!deletedAt) {
-        user = {
-          id: result.user.id,
-          name: result.user.name,
-          email: result.user.email,
-          emailVerified: result.user.emailVerified,
-          image: result.user.image ?? null,
-          role: (result.user as unknown as { role: string }).role as UserRole,
-          bannedAt: (result.user as unknown as { bannedAt: string | null }).bannedAt
-            ? new Date((result.user as unknown as { bannedAt: string | null }).bannedAt as string)
-            : null,
-          deletedAt: null,
-          twoFactorEnabled: Boolean(
-            (result.user as unknown as { twoFactorEnabled?: boolean }).twoFactorEnabled,
-          ),
-        }
+        user = toSafeUser(result.user)
       }
     }
 

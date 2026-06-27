@@ -26,7 +26,6 @@ async function insertOutbox(
     .insert(emailOutbox)
     .values({
       idempotencyKey: `retention-${crypto.randomUUID()}`,
-      recipientEmail: 'test@example.com',
       recipientHash: 'hash',
       template: 'order_confirmation',
       data: {},

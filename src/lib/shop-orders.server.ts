@@ -1,10 +1,13 @@
-import { and, count, desc, eq, ilike, or, sql } from 'drizzle-orm'
+import { and, count, desc, eq, gte, ilike, isNull, ne, or, sql, sum } from 'drizzle-orm'
 import { db } from '#/db/index'
 import {
   dispute,
+  inventoryReservation,
   orderItem,
   payout,
   platformOrder,
+  product,
+  productVariant,
   shippingLabel,
   shop,
   shopOrder,
@@ -18,6 +21,7 @@ import { scheduleBackgroundWork } from './background-work.server'
 import { restoreShopOrderStockInTx } from './inventory.server'
 import { createCreditNoteForShopOrder, createInvoicesForPlatformOrder } from './invoices.server'
 import type { ShippingAddress } from './checkout.server'
+import { decryptJsonb } from './encryption.server'
 import { getBaseUrl } from './env.server'
 import { logger } from './logger.server'
 import {
@@ -287,7 +291,7 @@ export async function getShopOrderQuery(
       name: header.buyerName ?? 'Unknown',
       email: header.buyerEmail ?? '',
     },
-    shippingAddress: header.shippingAddress as ShippingAddress,
+    shippingAddress: decryptJsonb<ShippingAddress>(header.shippingAddress),
     items,
     labels: labelRecords,
   }
@@ -727,34 +731,6 @@ export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<
       record.shippingMethod as 'standard' | 'express' | 'manual',
     )
 
-    // Trigger DAC7 threshold warnings if the creator lacks a Tax ID
-    try {
-      const { getDac7ComplianceStatus } = await import('./dac7.server')
-      const currentYear = new Date().getFullYear()
-      const dac7Status = await getDac7ComplianceStatus(record.shopId, currentYear)
-
-      if (dac7Status.approachingLimit || dac7Status.exceededLimit) {
-        const [shopRecord] = await tx
-          .select({ ownerId: shop.ownerId, taxId: shop.taxId, name: shop.name })
-          .from(shop)
-          .where(eq(shop.id, record.shopId))
-          .limit(1)
-
-        if (shopRecord && !shopRecord.taxId) {
-          const { createNotification } = await import('./notifications.server')
-          await createNotification(shopRecord.ownerId, 'dac7_warning_limit', {
-            shopId: record.shopId,
-            shopName: shopRecord.name,
-            transactionCount: dac7Status.transactionCount,
-            grossSalesCents: dac7Status.grossSalesCents,
-            limitType: dac7Status.exceededLimit ? 'exceeded' : 'approaching',
-          })
-        }
-      }
-    } catch (err) {
-      console.error('Failed to trigger DAC7 compliance warning:', err)
-    }
-
     const updated = await getShopOrderQuery(shopOrderId, tx)
     if (!updated) {
       throw new Response(
@@ -779,6 +755,40 @@ export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<
     logOrderDelivered({
       shopOrderId,
       platformOrderId: updatedShopOrder.platformOrderId,
+    })
+
+    // Trigger DAC7 threshold warnings after the transaction commits so the
+    // external/notification work does not extend the DB lock hold time.
+    scheduleBackgroundWork(`dac7-warning-${shopOrderId}`, async () => {
+      try {
+        const { getDac7ComplianceStatus } = await import('./dac7.server')
+        const currentYear = new Date().getFullYear()
+        const dac7Status = await getDac7ComplianceStatus(updatedShopOrder.shopId, currentYear)
+
+        if (dac7Status.approachingLimit || dac7Status.exceededLimit) {
+          const [shopRecord] = await db
+            .select({ ownerId: shop.ownerId, taxId: shop.taxId, name: shop.name })
+            .from(shop)
+            .where(eq(shop.id, updatedShopOrder.shopId))
+            .limit(1)
+
+          if (shopRecord && !shopRecord.taxId) {
+            const { createNotification } = await import('./notifications.server')
+            await createNotification(shopRecord.ownerId, 'dac7_warning_limit', {
+              shopId: updatedShopOrder.shopId,
+              shopName: shopRecord.name,
+              transactionCount: dac7Status.transactionCount,
+              grossSalesCents: dac7Status.grossSalesCents,
+              limitType: dac7Status.exceededLimit ? 'exceeded' : 'approaching',
+            })
+          }
+        }
+      } catch (err) {
+        logger.error('Failed to trigger DAC7 compliance warning', err, {
+          shopOrderId,
+          shopId: updatedShopOrder.shopId,
+        })
+      }
     })
 
     // Payout execution is intentionally deferred until the dispute window closes
@@ -1083,7 +1093,7 @@ export async function refundShopOrderQuery(
       })
       .where(eq(shopOrder.id, shopOrderId))
 
-    const noteNumber = await createCreditNoteForShopOrder(shopOrderId, tx)
+    const noteNumber = await createCreditNoteForShopOrder(shopOrderId, tx, refundCents)
 
     return { noteNumber, reversalOptions }
   })
@@ -1488,6 +1498,102 @@ export async function resolveManualReviewQuery(
     }
 
     if (input.resolution === 'paid') {
+      // Verify stock availability before resolving to paid. Manual-review orders
+      // may have been held for minutes or hours; inventory could have changed.
+      const items = await tx
+        .select({
+          productId: orderItem.productId,
+          variantId: orderItem.variantId,
+          quantity: orderItem.quantity,
+        })
+        .from(orderItem)
+        .where(eq(orderItem.shopOrderId, shopOrderId))
+
+      const aggregates = new Map<
+        string,
+        { productId: string; variantId: string | null; quantity: number }
+      >()
+      for (const item of items) {
+        const key = `${item.productId}:${item.variantId ?? ''}`
+        const existing = aggregates.get(key)
+        if (existing) {
+          existing.quantity += item.quantity
+        } else {
+          aggregates.set(key, {
+            productId: item.productId,
+            variantId: item.variantId,
+            quantity: item.quantity,
+          })
+        }
+      }
+
+      for (const entry of aggregates.values()) {
+        if (entry.variantId) {
+          const [variantRow] = await tx
+            .select()
+            .from(productVariant)
+            .where(eq(productVariant.id, entry.variantId))
+            .for('update')
+
+          if (!variantRow || entry.quantity > variantRow.stockCount) {
+            throw new Response(
+              JSON.stringify({
+                error: 'Conflict',
+                code: 'OUT_OF_STOCK',
+                message: 'One or more items are no longer available.',
+              }),
+              { status: 409, headers: { 'Content-Type': 'application/json' } },
+            )
+          }
+        } else {
+          const [productRow] = await tx
+            .select()
+            .from(product)
+            .where(eq(product.id, entry.productId))
+            .for('update')
+
+          if (!productRow) {
+            throw new Response(
+              JSON.stringify({
+                error: 'Conflict',
+                code: 'OUT_OF_STOCK',
+                message: 'One or more items are no longer available.',
+              }),
+              { status: 409, headers: { 'Content-Type': 'application/json' } },
+            )
+          }
+
+          const [reservationResult] = await tx
+            .select({ totalReserved: sum(inventoryReservation.quantity) })
+            .from(inventoryReservation)
+            .where(
+              and(
+                eq(inventoryReservation.productId, entry.productId),
+                gte(inventoryReservation.expiresAt, sql`now()`),
+                // Exclude this order's own reservation so an order for the last
+                // unit does not appear unavailable to itself.
+                or(
+                  isNull(inventoryReservation.platformOrderId),
+                  ne(inventoryReservation.platformOrderId, record.platformOrderId),
+                ),
+              ),
+            )
+
+          const totalReserved = Number(reservationResult?.totalReserved ?? 0)
+          const availableQuantity = productRow.stockCount - totalReserved
+          if (entry.quantity > availableQuantity) {
+            throw new Response(
+              JSON.stringify({
+                error: 'Conflict',
+                code: 'OUT_OF_STOCK',
+                message: 'One or more items are no longer available.',
+              }),
+              { status: 409, headers: { 'Content-Type': 'application/json' } },
+            )
+          }
+        }
+      }
+
       await tx
         .update(shopOrder)
         .set({ status: 'paid', updatedAt: new Date() })

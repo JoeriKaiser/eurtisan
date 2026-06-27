@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   calculateVat,
   normalizeCountryCode,
@@ -140,17 +140,18 @@ describe('VAT Calculation Engine', () => {
     expect(result).toEqual({ vatAmountCents: 190, vatRateBasisPoints: 1900 })
   })
 
-  it('throws an error on unrecognized or unmappable country names if they are not empty', () => {
-    expect(() =>
-      calculateVat({
-        sellerCountry: 'FR',
-        buyerCountry: 'Deutschland',
-        isVatRegistered: true,
-        vatRateCategory: 'standard',
-        inclusiveAmountCents: 1190,
-      }),
-    ).toThrowError('Unrecognized country code or name: "Deutschland"')
+  it('resolves localized country names to ISO codes', () => {
+    const result = calculateVat({
+      sellerCountry: 'FR',
+      buyerCountry: 'Deutschland',
+      isVatRegistered: true,
+      vatRateCategory: 'standard',
+      inclusiveAmountCents: 1190,
+    })
+    expect(result).toEqual({ vatAmountCents: 190, vatRateBasisPoints: 1900 })
+  })
 
+  it('throws an error on unrecognized or unmappable country names if they are not empty', () => {
     expect(() =>
       calculateVat({
         sellerCountry: 'FR',
@@ -241,6 +242,64 @@ describe('isVatIdFormatValid (Offline Check)', () => {
 })
 
 describe('verifyVatIdVies (Online Check)', () => {
+  const originalViesTimeout = process.env.VIES_TIMEOUT_MS
+
+  afterEach(() => {
+    if (originalViesTimeout === undefined) {
+      delete process.env.VIES_TIMEOUT_MS
+    } else {
+      process.env.VIES_TIMEOUT_MS = originalViesTimeout
+    }
+  })
+
+  it('uses the configured VIES_TIMEOUT_MS', async () => {
+    process.env.VIES_TIMEOUT_MS = '50'
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (_input, init) =>
+      new Promise((_resolve, reject) => {
+        const signal = init?.signal
+        if (signal?.aborted) {
+          reject(new Error('AbortError'))
+          return
+        }
+        signal?.addEventListener('abort', () => {
+          reject(new Error('AbortError'))
+        })
+      })
+    const errorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {})
+
+    try {
+      const start = Date.now()
+      const result = await verifyVatIdVies('DE123456789', 'DE')
+      const elapsed = Date.now() - start
+
+      expect(result).toBe(false)
+      expect(elapsed).toBeLessThan(200)
+      expect(errorSpy).toHaveBeenCalled()
+    } finally {
+      globalThis.fetch = originalFetch
+      errorSpy.mockRestore()
+    }
+  })
+
+  it('defaults to 5000 ms when VIES_TIMEOUT_MS is unset', async () => {
+    delete process.env.VIES_TIMEOUT_MS
+    const originalFetch = globalThis.fetch
+    let requestedUrl = ''
+    globalThis.fetch = (input) => {
+      requestedUrl = input.toString()
+      return Promise.resolve(new Response(JSON.stringify({ isValid: true }), { status: 200 }))
+    }
+
+    try {
+      const result = await verifyVatIdVies('DE123456789', 'DE')
+      expect(result).toBe(true)
+      expect(requestedUrl).toContain('/ms/DE/vat/')
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
   it('returns false when the VIES endpoint is unreachable or fails (fail closed)', async () => {
     const originalFetch = globalThis.fetch
     globalThis.fetch = () => Promise.reject(new Error('Network error'))

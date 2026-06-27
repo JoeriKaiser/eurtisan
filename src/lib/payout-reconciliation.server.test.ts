@@ -205,6 +205,36 @@ describe('reconcilePayouts', () => {
     expect(updated[0]?.reversalReason).toBe('refund_detected')
   })
 
+  it('skips payouts that are already reversed', async () => {
+    mockFetchRefunds([{ id: 'refund_full', amount: { value: '25.00' }, status: 'refunded' }])
+    await seedUser()
+    await seedShop()
+    const po = await createPlatformOrder('user-1')
+    const so = await createShopOrder(po, 'shop-1', { status: 'delivered' })
+
+    const [payoutRecord] = await db
+      .insert(payout)
+      .values({
+        shopOrderId: so.id,
+        shopId: 'shop-1',
+        amountCents: 2000,
+        status: 'reversed',
+        molliePaymentId: 'tr_test',
+        mollieRouteId: 'crt_mock_1',
+        sentAt: new Date(),
+      })
+      .returning()
+
+    const result = await reconcilePayouts()
+
+    expect(result.checked).toBe(0)
+    expect(result.reversed).toBe(0)
+    expect(result.errors).toBe(0)
+
+    const updated = await db.select().from(payout).where(eq(payout.id, payoutRecord.id)).limit(1)
+    expect(updated[0]?.status).toBe('reversed')
+  })
+
   it('counts a refund-list API error as a reconciliation error', async () => {
     vi.spyOn(global, 'fetch').mockImplementation(async () => {
       return new Response(JSON.stringify({ error: 'service unavailable' }), { status: 503 })

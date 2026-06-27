@@ -146,6 +146,7 @@ function makeOrderDetail(overrides?: Partial<OrderDetail>): OrderDetail {
         deliveredAt: null,
         shippingLabels: [],
         trackingStatus: null,
+        invoiceNumber: null,
         items: [
           {
             id: 'item-1',
@@ -265,6 +266,7 @@ describe('Order detail page', () => {
             },
           ],
           trackingStatus: 'in_transit',
+          invoiceNumber: null,
           items: [
             {
               id: 'item-1',
@@ -314,6 +316,7 @@ describe('Order detail page', () => {
             },
           ],
           trackingStatus: 'in_transit',
+          invoiceNumber: null,
           items: [
             {
               id: 'item-1',
@@ -362,6 +365,7 @@ describe('Order detail page', () => {
             },
           ],
           trackingStatus: 'delivered',
+          invoiceNumber: null,
           items: [
             {
               id: 'item-1',
@@ -401,6 +405,7 @@ describe('Order detail page', () => {
           deliveredAt: null,
           shippingLabels: [],
           trackingStatus: null,
+          invoiceNumber: null,
           items: [
             {
               id: 'item-1',
@@ -440,6 +445,7 @@ describe('Order detail page', () => {
           deliveredAt: null,
           shippingLabels: [],
           trackingStatus: null,
+          invoiceNumber: null,
           items: [
             {
               id: 'item-1',
@@ -486,6 +492,7 @@ describe('Order detail page', () => {
             },
           ],
           trackingStatus: 'in_transit',
+          invoiceNumber: null,
           items: [
             {
               id: 'item-1',
@@ -516,6 +523,7 @@ describe('Order detail page', () => {
           deliveredAt: null,
           shippingLabels: [],
           trackingStatus: null,
+          invoiceNumber: null,
           items: [
             {
               id: 'item-2',
@@ -573,6 +581,7 @@ describe('Order detail page', () => {
           deliveredAt: fifteenDaysAgo,
           shippingLabels: [],
           trackingStatus: null,
+          invoiceNumber: null,
           items: [
             {
               id: 'item-1',
@@ -627,6 +636,7 @@ describe('Order detail page', () => {
           deliveredAt: fiveDaysAgo,
           shippingLabels: [],
           trackingStatus: null,
+          invoiceNumber: null,
           items: [
             {
               id: 'item-1',
@@ -677,6 +687,7 @@ describe('Order detail page', () => {
           deliveredAt: null,
           shippingLabels: [],
           trackingStatus: null,
+          invoiceNumber: null,
           items: [
             {
               id: 'item-1',
@@ -718,6 +729,7 @@ describe('Order detail page', () => {
           deliveredAt: fiveDaysAgo,
           shippingLabels: [],
           trackingStatus: null,
+          invoiceNumber: null,
           items: [
             {
               id: 'item-1',
@@ -760,6 +772,7 @@ describe('Order detail page', () => {
           deliveredAt: null,
           shippingLabels: [],
           trackingStatus: null,
+          invoiceNumber: null,
           items: [
             {
               id: 'item-1',
@@ -801,6 +814,7 @@ describe('Order detail page', () => {
           deliveredAt: fortyDaysAgo,
           shippingLabels: [],
           trackingStatus: null,
+          invoiceNumber: null,
           items: [
             {
               id: 'item-1',
