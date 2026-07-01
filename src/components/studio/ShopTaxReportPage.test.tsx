@@ -72,6 +72,16 @@ vi.mock('#/paraglide/messages', () => ({
     tax_report_invoices_type_platform_fee: () => 'Platform Fee',
     tax_report_export_json: () => 'Export JSON',
     tax_report_export_csv: () => 'Export CSV',
+    tax_report_csv_col_section: () => 'Section',
+    tax_report_csv_col_buyer_country: () => 'Buyer country',
+    tax_report_csv_col_vat_rate_basis_points: () => 'VAT rate basis points',
+    tax_report_csv_col_net_subtotal_cents: () => 'Net subtotal (cents)',
+    tax_report_csv_col_vat_amount_cents: () => 'VAT amount (cents)',
+    tax_report_csv_col_transaction_count: () => 'Transaction count / invoice number',
+    tax_report_csv_section_vat_collected: () => 'VAT_COLLECTED',
+    tax_report_csv_section_reverse_charge: () => 'REVERSE_CHARGE',
+    tax_report_csv_section_platform_fee: () => 'PLATFORM_FEE',
+    tax_report_csv_section_recent_invoice: () => 'RECENT_INVOICE',
   },
 }))
 

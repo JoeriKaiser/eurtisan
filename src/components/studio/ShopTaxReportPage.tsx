@@ -52,7 +52,7 @@ function exportJSON(report: ShopTaxReport): void {
 
 function exportCSV(report: ShopTaxReport): void {
   const vatRows = report.vatByCountryRate.map((row) => ({
-    section: 'VAT_COLLECTED',
+    section: m.tax_report_csv_section_vat_collected(),
     buyerCountry: row.buyerCountry,
     vatRateBasisPoints: row.vatRateBasisPoints,
     netSubtotalCents: row.netSubtotalCents,
@@ -63,7 +63,7 @@ function exportCSV(report: ShopTaxReport): void {
   const reverseChargeRows = report.reverseCharge.transactionCount
     ? [
         {
-          section: 'REVERSE_CHARGE',
+          section: m.tax_report_csv_section_reverse_charge(),
           buyerCountry: '',
           vatRateBasisPoints: '',
           netSubtotalCents: report.reverseCharge.netSubtotalCents,
@@ -76,7 +76,7 @@ function exportCSV(report: ShopTaxReport): void {
   const platformFeeRows = report.platformFee.feeTotalCents
     ? [
         {
-          section: 'PLATFORM_FEE',
+          section: m.tax_report_csv_section_platform_fee(),
           buyerCountry: '',
           vatRateBasisPoints: '',
           netSubtotalCents: report.platformFee.feeSubtotalCents,
@@ -87,7 +87,7 @@ function exportCSV(report: ShopTaxReport): void {
     : []
 
   const invoiceRows = report.recentInvoices.map((invoice) => ({
-    section: 'RECENT_INVOICE',
+    section: m.tax_report_csv_section_recent_invoice(),
     buyerCountry: '',
     vatRateBasisPoints: '',
     netSubtotalCents: invoice.subtotalCents,
@@ -97,12 +97,12 @@ function exportCSV(report: ShopTaxReport): void {
 
   const rows = [...vatRows, ...reverseChargeRows, ...platformFeeRows, ...invoiceRows]
   const csv = generateCSV(rows, [
-    { key: 'section', label: 'Section' },
-    { key: 'buyerCountry', label: 'Buyer country' },
-    { key: 'vatRateBasisPoints', label: 'VAT rate basis points' },
-    { key: 'netSubtotalCents', label: 'Net subtotal (cents)' },
-    { key: 'vatAmountCents', label: 'VAT amount (cents)' },
-    { key: 'transactionCount', label: 'Transaction count / invoice number' },
+    { key: 'section', label: m.tax_report_csv_col_section() },
+    { key: 'buyerCountry', label: m.tax_report_csv_col_buyer_country() },
+    { key: 'vatRateBasisPoints', label: m.tax_report_csv_col_vat_rate_basis_points() },
+    { key: 'netSubtotalCents', label: m.tax_report_csv_col_net_subtotal_cents() },
+    { key: 'vatAmountCents', label: m.tax_report_csv_col_vat_amount_cents() },
+    { key: 'transactionCount', label: m.tax_report_csv_col_transaction_count() },
   ])
   downloadCSV(csv, buildExportFilename(report.period))
 }
