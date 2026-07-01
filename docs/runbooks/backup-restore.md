@@ -67,11 +67,21 @@ docker run --rm -it \
 
 For exact object-storage commands, see your provider's `wal-g`/`pgbackrest` runbook. Test this procedure quarterly on a staging clone.
 
+## Backup metrics
+
+The backup script reports success/failure to `POST /api/backup-report`. The endpoint is protected by `BACKUP_REPORT_TOKEN` (falls back to `METRICS_TOKEN`). Prometheus exposes:
+
+- `eurtisan_backup_success_total` — successful backup reports
+- `eurtisan_backup_failures_total` — failed backup reports
+
+If the backup script cannot reach `/api/backup-report`, the failure is still logged and alerted via `BACKUP_ALERT_WEBHOOK`/`DEPLOY_ALERT_WEBHOOK`, but the Prometheus counters will not update.
+
 ## Verification
 
 - Row counts for `user`, `platform_order`, `shop`
 - Disk free space after restore
 - Smoke test checkout on staging clone before production cutover
+- `eurtisan_backup_success_total` increments after a successful nightly run
 
 ## Meilisearch & S3 uploads recovery
 

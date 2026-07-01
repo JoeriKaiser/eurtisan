@@ -2,7 +2,7 @@
 
 A European-centered online marketplace for creatives, artisans, and makers.
 
-**Status:** Early-stage, under active development.  
+**Status:** Hardened, Nearing Production Launch (P0/P1 production-readiness blockers resolved, final staging & operability verification in progress).  
 **Contributions:** Not currently accepted — issues are reviewed and welcome.
 
 ---
@@ -38,6 +38,8 @@ Eurtisan connects European makers with European buyers. It is built as a product
 | Lint / Format | Biome |
 | Testing | Vitest + Testing Library + Playwright (E2E) |
 | i18n | Paraglide JS (URL + cookie strategy) |
+| Telemetry / Observability | Grafana Stack (Loki, Tempo, Prometheus, Faro) |
+| Shipping / Fulfillment | Sendcloud API v2 (rates, labels, tracking, service points) |
 | Infrastructure | Docker Compose, Ansible, Caddy |
 
 ---
@@ -54,7 +56,7 @@ Eurtisan connects European makers with European buyers. It is built as a product
 - Eight-step onboarding wizard with draft persistence and admin review workflow.
 - Shop management: settings, policies, visuals, social links.
 - Product catalog: create, edit, activate/deactivate, image uploads.
-- Order fulfillment: status updates, tracking registration, shipping label integration hooks.
+- Order fulfillment: status updates, tracking registration, Sendcloud shipping label integration.
 - Payout tracking and Mollie Connect onboarding.
 
 ### Admins
@@ -128,7 +130,13 @@ make db-generate   # Generate migration after schema changes
 make db-migrate    # Run pending migrations
 make db-push       # Push schema (local prototyping only)
 make db-studio     # Open Drizzle Studio on port 4983
-make db-seed       # Seed local dev data
+make db-seed       # Seed local dev data (destructive, random)
+```
+
+For staging environments, seed the database with the idempotent, curated staging seed:
+```bash
+# Open a shell in the app container and run
+bun run db:staging-seed
 ```
 
 ### Auth secret
@@ -147,12 +155,16 @@ Copy `.env.example` to `.env.local` and fill in the values. Key variables:
 | Variable | Purpose |
 |---|---|
 | `DATABASE_URL` | PostgreSQL connection string |
+| `DATABASE_ENCRYPTION_KEY` | 256-bit base64 key for encrypting sensitive fields at rest |
 | `BETTER_AUTH_SECRET` | Session signing secret |
 | `BETTER_AUTH_URL` | Public auth endpoint base URL |
 | `MEILISEARCH_HOST` / `MEILISEARCH_API_KEY` | Search index |
 | `MOLLIE_API_KEY` | Payment provider |
+| `SENDCLOUD_PUBLIC_KEY` / `SENDCLOUD_SECRET_KEY` | Sendcloud shipping integration credentials |
 | `BREVO_API_KEY` | Transactional email |
 | `MOCK_PAYMENTS_ENABLED` | Enable mock payment flow for local dev |
+| `ENABLE_VIES_VALIDATION` | Enable live validation with EU VIES service |
+| `PLATFORM_VAT_LIABLE` | Charge VAT on platform fees (French regime when false) |
 
 ---
 
@@ -188,6 +200,19 @@ make infra-setup-production
 ```
 
 See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for full details on DNS, SSH tunnels, IP whitelisting, backups, and restore procedures.
+
+---
+
+## Documentation Index
+
+For deeper architectural, compliance, and operational details, refer to:
+
+- **Developer Experience & Tooling:** [`docs/DEVELOPER_TOOLING.md`](docs/DEVELOPER_TOOLING.md) (SMTP/Mailpit email verification, Meilisearch checks, Drizzle Studio, and Playwright Agent CLI commands).
+- **Deployment & Backups:** [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) (Ansible setups, rollback procedures, database and WAL/offsite backup policies).
+- **GDPR & Privacy:** [`docs/DATA_RETENTION.md`](docs/DATA_RETENTION.md) (Data portability exports, deletion/erasure rules, and anonymization pipelines).
+- **Security Audit Logs:** [`docs/AUDIT_LOG_POLICY.md`](docs/AUDIT_LOG_POLICY.md) (Standard fields, events, and persistence rules).
+- **User Flows:** [`docs/user_flow.md`](docs/user_flow.md) (Detailed product workflows for shopper, seller, and administrator personas).
+- **Production Readiness:** [`docs/PRODUCTION_READINESS_AUDIT.md`](docs/PRODUCTION_READINESS_AUDIT.md) & [`docs/plans/production-readiness/README.md`](docs/plans/production-readiness/README.md) (Security audit, gaps mapping, and resolution tracking).
 
 ---
 

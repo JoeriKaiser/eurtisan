@@ -14,7 +14,9 @@
  */
 import { getSendcloudWebhookRetentionDays } from '#/lib/env.server'
 import { withJobLock } from '#/lib/job-lock.server'
+import { logger } from '#/lib/logger.server'
 import { cleanupSendcloudWebhookEvents } from '#/lib/sendcloud-retention-cleanup.server'
+import { withJobMetrics } from '#/lib/with-job-metrics.server'
 
 const INTERVAL_MS = Number.parseInt(
   process.env.SENDCLOUD_WEBHOOK_CLEANUP_INTERVAL_MS ?? '86400000',
@@ -22,50 +24,42 @@ const INTERVAL_MS = Number.parseInt(
 )
 const BATCH_SIZE = Number.parseInt(process.env.SENDCLOUD_WEBHOOK_CLEANUP_BATCH_SIZE ?? '1000', 10)
 
+const JOB_NAME = 'sendcloud-retention-cleanup'
+
 let isRunning = true
 
 async function tick(): Promise<void> {
-  const start = Date.now()
-  try {
-    const result = await cleanupSendcloudWebhookEvents(BATCH_SIZE)
-    const durationMs = Date.now() - start
-    console.log(
-      JSON.stringify({
-        job: 'sendcloud-retention-cleanup',
-        deleted: result.deleted,
-        retentionDays: getSendcloudWebhookRetentionDays(),
-        durationMs,
-        error: null,
-      }),
-    )
-  } catch (err) {
-    const durationMs = Date.now() - start
-    console.error(
-      JSON.stringify({
-        job: 'sendcloud-retention-cleanup',
-        deleted: 0,
-        retentionDays: getSendcloudWebhookRetentionDays(),
-        durationMs,
-        error: err instanceof Error ? err.message : 'Unknown error',
-      }),
-    )
+  const result = await cleanupSendcloudWebhookEvents(BATCH_SIZE)
+  if (result.deleted > 0) {
+    logger.info(`[sendcloud-retention-cleanup] Deleted ${result.deleted} webhook event(s)`, {
+      job: JOB_NAME,
+      deleted: result.deleted,
+      retentionDays: getSendcloudWebhookRetentionDays(),
+    })
   }
 }
 
 async function run(): Promise<void> {
-  console.log(
+  logger.info(
     `[sendcloud-retention-cleanup] Started (interval=${INTERVAL_MS}ms, batchSize=${BATCH_SIZE}, retentionDays=${getSendcloudWebhookRetentionDays()})`,
+    {
+      job: JOB_NAME,
+      intervalMs: INTERVAL_MS,
+      batchSize: BATCH_SIZE,
+      retentionDays: getSendcloudWebhookRetentionDays(),
+    },
   )
 
-  await tick()
+  // Run immediately on start, then on every interval.
+  await withJobMetrics(JOB_NAME, tick)
 
   while (true) {
     if (!isRunning) break
     await new Promise((resolve) => setTimeout(resolve, INTERVAL_MS))
-    await tick()
+    await withJobMetrics(JOB_NAME, tick)
   }
 
-  console.log('[sendcloud-retention-cleanup] Shutting down gracefully')
+  logger.info('[sendcloud-retention-cleanup] Shutting down gracefully', { job: JOB_NAME })
 }
 
 function shutdown(): void {
@@ -76,15 +70,18 @@ process.on('SIGINT', shutdown)
 process.on('SIGTERM', shutdown)
 
 async function main(): Promise<void> {
-  const result = await withJobLock('sendcloud-retention-cleanup', run)
+  const result = await withJobLock(JOB_NAME, run)
   if (result === undefined) {
-    console.log(
+    logger.info(
       '[sendcloud-retention-cleanup] Another instance is already running; exiting cleanly.',
+      {
+        job: JOB_NAME,
+      },
     )
   }
 }
 
 main().catch((err) => {
-  console.error('[sendcloud-retention-cleanup] Fatal error:', err)
+  logger.error('[sendcloud-retention-cleanup] Fatal error:', err, { job: JOB_NAME })
   process.exit(1)
 })

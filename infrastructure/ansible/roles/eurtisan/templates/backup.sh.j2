@@ -9,10 +9,12 @@ OFFSITE_REMOTE="{{ backup_offsite_rclone_remote | default('') }}"
 POSTGRES_USER="{{ postgres_user }}"
 POSTGRES_DB="{{ postgres_db }}"
 WEBHOOK_URL="{{ backup_alert_webhook | default('') }}"
+BACKUP_REPORT_TOKEN="{{ backup_report_token | default('') }}"
 MEILISEARCH_HOST="{{ meilisearch_host | default('http://meilisearch:7700') }}"
 MEILISEARCH_API_KEY="{{ meilisearch_api_key | default('') }}"
 S3_UPLOADS_BUCKET="{{ s3_uploads_bucket | default('') }}"
 S3_UPLOADS_REMOTE="{{ backup_s3_uploads_rclone_remote | default('') }}"
+WAL_ARCHIVE_PATH="{{ postgres_wal_archive_path | default('/opt/eurtisan/backups/wal') }}"
 
 json_log() {
   local level="$1"
@@ -30,11 +32,32 @@ send_alert() {
   fi
 }
 
+BACKUP_FAILED=false
+BACKUP_ERROR=""
+
+report_backup() {
+  if [[ -z "$BACKUP_REPORT_TOKEN" ]]; then
+    return 0
+  fi
+
+  local status="success"
+  if [[ "$BACKUP_FAILED" == "true" ]]; then
+    status="failure"
+  fi
+
+  curl -fsS -X POST \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $BACKUP_REPORT_TOKEN" \
+    -d "{\"status\":\"$status\",\"file\":\"$BACKUP_FILE\",\"error\":\"$BACKUP_ERROR\"}" \
+    "http://app:3000/api/backup-report" >/dev/null 2>&1 || true
+}
+
 cleanup() {
   docker rm -f eurtisan-backup-verify 2>/dev/null || true
   docker network rm eurtisan-backup-verify-net 2>/dev/null || true
 }
 trap cleanup EXIT
+trap report_backup EXIT
 
 mkdir -p "$BACKUP_DIR"
 BACKUP_FILE="$BACKUP_DIR/eurtisan-$(date +%Y%m%d-%H%M%S).sql.gz"
@@ -44,8 +67,10 @@ json_log "info" "Backup job started" "{\"file\":\"$BACKUP_FILE\"}"
 
 # 1. Create backup
 if ! docker compose -f "/opt/eurtisan/$COMPOSE_FILE" exec -T db pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip > "$BACKUP_FILE"; then
-  json_log "error" "Backup creation failed" "{\"file\":\"$BACKUP_FILE\"}"
-  send_alert "🚨 Eurtisan backup FAILED on $(hostname): backup creation failed"
+  BACKUP_FAILED=true
+  BACKUP_ERROR="Backup creation failed"
+  json_log "error" "$BACKUP_ERROR" "{\"file\":\"$BACKUP_FILE\"}"
+  send_alert "🚨 Eurtisan backup FAILED on $(hostname): $BACKUP_ERROR"
   exit 1
 fi
 
@@ -69,8 +94,10 @@ if ! docker run -d --name "$VERIFY_CONTAINER" \
   --health-timeout=5s \
   --health-retries=15 \
   postgres:16-alpine >/dev/null; then
-  json_log "error" "Failed to start verification container" "{\"file\":\"$BACKUP_FILE\"}"
-  send_alert "🚨 Eurtisan backup FAILED on $(hostname): could not start verification container"
+  BACKUP_FAILED=true
+  BACKUP_ERROR="Could not start verification container"
+  json_log "error" "$BACKUP_ERROR" "{\"file\":\"$BACKUP_FILE\"}"
+  send_alert "🚨 Eurtisan backup FAILED on $(hostname): $BACKUP_ERROR"
   exit 1
 fi
 
@@ -85,15 +112,19 @@ for i in $(seq 1 30); do
 done
 
 if [[ "$READY" -ne 1 ]]; then
-  json_log "error" "Verification container did not become ready in time" "{\"file\":\"$BACKUP_FILE\"}"
-  send_alert "🚨 Eurtisan backup FAILED on $(hostname): verification container timeout"
+  BACKUP_FAILED=true
+  BACKUP_ERROR="Verification container timeout"
+  json_log "error" "$BACKUP_ERROR" "{\"file\":\"$BACKUP_FILE\"}"
+  send_alert "🚨 Eurtisan backup FAILED on $(hostname): $BACKUP_ERROR"
   exit 1
 fi
 
 # Restore the backup
 if ! gunzip -c "$BACKUP_FILE" | docker exec -i "$VERIFY_CONTAINER" psql -U verify -d "$VERIFY_DB" >/dev/null 2>&1; then
-  json_log "error" "Test restore failed" "{\"file\":\"$BACKUP_FILE\"}"
-  send_alert "🚨 Eurtisan backup FAILED on $(hostname): test restore failed"
+  BACKUP_FAILED=true
+  BACKUP_ERROR="Test restore failed"
+  json_log "error" "$BACKUP_ERROR" "{\"file\":\"$BACKUP_FILE\"}"
+  send_alert "🚨 Eurtisan backup FAILED on $(hostname): $BACKUP_ERROR"
   exit 1
 fi
 
@@ -116,14 +147,18 @@ TOTAL_TABLES=$(docker exec "$VERIFY_CONTAINER" psql -U verify -d "$VERIFY_DB" -t
 if [[ {{ '${#' }}MISSING[@]} -gt 0 ]]; then
   MISSING_STR=$(printf '%s,' "${MISSING[@]}")
   MISSING_STR="${MISSING_STR%,}"
+  BACKUP_FAILED=true
+  BACKUP_ERROR="Missing expected tables: $MISSING_STR"
   json_log "error" "Backup verification failed: missing expected tables" "{\"missing_tables\":\"$MISSING_STR\",\"total_tables\":$TOTAL_TABLES,\"file\":\"$BACKUP_FILE\"}"
-  send_alert "🚨 Eurtisan backup FAILED on $(hostname): missing tables ($MISSING_STR)"
+  send_alert "🚨 Eurtisan backup FAILED on $(hostname): $BACKUP_ERROR"
   exit 1
 fi
 
 if [[ "$TOTAL_TABLES" -eq 0 ]]; then
+  BACKUP_FAILED=true
+  BACKUP_ERROR="Restored database is empty"
   json_log "error" "Backup verification failed: no tables in restored database" "{\"file\":\"$BACKUP_FILE\"}"
-  send_alert "🚨 Eurtisan backup FAILED on $(hostname): restored database is empty"
+  send_alert "🚨 Eurtisan backup FAILED on $(hostname): $BACKUP_ERROR"
   exit 1
 fi
 
@@ -137,8 +172,9 @@ if [[ -n "$MEILISEARCH_API_KEY" ]]; then
   json_log "info" "Starting Meilisearch dump" "{\"host\":\"$MEILISEARCH_HOST\"}"
 
   # Trigger a dump; Meilisearch returns a task UID we could poll, but the dump
-  # endpoint is synchronous enough for our needs. Fall back to no-op on failure
-  # so a transient Meilisearch issue does not fail the whole backup.
+  # endpoint is synchronous enough for our needs. A Meilisearch dump failure is
+  # now considered a backup failure because search indexes are part of the
+  # recoverable dataset.
   if curl -fsS -X POST "$MEILISEARCH_HOST/dumps" \
     -H "Authorization: Bearer $MEILISEARCH_API_KEY" \
     -o "$MEILI_DUMP_DIR/dump-response.json" 2>/dev/null; then
@@ -151,8 +187,11 @@ if [[ -n "$MEILISEARCH_API_KEY" ]]; then
       json_log "info" "Meilisearch dump response saved" "{}"
     fi
   else
-    json_log "warn" "Meilisearch dump failed or endpoint unavailable" "{}"
-    send_alert "⚠️ Eurtisan backup warning on $(hostname): Meilisearch dump could not be created"
+    BACKUP_FAILED=true
+    BACKUP_ERROR="Meilisearch dump failed"
+    json_log "error" "$BACKUP_ERROR" "{}"
+    send_alert "🚨 Eurtisan backup FAILED on $(hostname): $BACKUP_ERROR"
+    exit 1
   fi
 fi
 
@@ -161,8 +200,10 @@ if [[ -n "$OFFSITE_REMOTE" ]]; then
   json_log "info" "Uploading database backup off-site" "{\"remote\":\"$OFFSITE_REMOTE\",\"file\":\"$BACKUP_FILE\"}"
 
   if ! rclone copyto "$BACKUP_FILE" "${OFFSITE_REMOTE}/$(basename "$BACKUP_FILE")"; then
-    json_log "error" "Off-site backup upload failed" "{\"file\":\"$BACKUP_FILE\",\"remote\":\"$OFFSITE_REMOTE\"}"
-    send_alert "🚨 Eurtisan backup WARNING on $(hostname): local backup OK, but off-site upload failed"
+    BACKUP_FAILED=true
+    BACKUP_ERROR="Off-site backup upload failed"
+    json_log "error" "$BACKUP_ERROR" "{\"file\":\"$BACKUP_FILE\",\"remote\":\"$OFFSITE_REMOTE\"}"
+    send_alert "🚨 Eurtisan backup WARNING on $(hostname): local backup OK, but $BACKUP_ERROR"
     exit 1
   fi
 
@@ -196,5 +237,11 @@ json_log "info" "Pruned old backups" "{\"deleted\":$DELETED,\"retention_days\":$
 # Cleanup old local Meilisearch dumps
 MEILI_DELETED=$(find "$BACKUP_DIR" -maxdepth 1 -type d -name "meilisearch-*" -mtime +"$BACKUP_RETENTION_DAYS" -print -delete 2>/dev/null | wc -l)
 json_log "info" "Pruned old Meilisearch dumps" "{\"deleted\":$MEILI_DELETED,\"retention_days\":$BACKUP_RETENTION_DAYS}"
+
+# Cleanup old local WAL segments
+if [[ -d "$WAL_ARCHIVE_PATH" ]]; then
+  WAL_DELETED=$(find "$WAL_ARCHIVE_PATH" -type f -mtime +"$BACKUP_RETENTION_DAYS" -print -delete 2>/dev/null | wc -l)
+  json_log "info" "Pruned old WAL segments" "{\"deleted\":$WAL_DELETED,\"retention_days\":$BACKUP_RETENTION_DAYS,\"path\":\"$WAL_ARCHIVE_PATH\"}"
+fi
 
 json_log "info" "Backup job completed successfully" "{\"file\":\"$BACKUP_FILE\"}"

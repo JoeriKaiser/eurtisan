@@ -3,6 +3,7 @@ import { checkDependencies, checkHealth, checkLive, checkReady } from './health'
 
 const mockQuery = vi.fn()
 const mockIsMeilisearchHealthy = vi.fn()
+const mockDbSelect = vi.fn()
 
 vi.mock('#/db.ts', () => ({
   pool: {
@@ -12,6 +13,12 @@ vi.mock('#/db.ts', () => ({
   },
   getPoolStats() {
     return { total: 5, idle: 2, waiting: 0 }
+  },
+}))
+
+vi.mock('#/db/index', () => ({
+  db: {
+    select: () => mockDbSelect(),
   },
 }))
 
@@ -187,11 +194,23 @@ describe('GET /api/health/deps', () => {
   beforeEach(() => {
     mockQuery.mockReset()
     mockIsMeilisearchHealthy.mockReset()
+    mockDbSelect.mockReset()
+    vi.stubEnv('IMGPROXY_HEALTH_URL', '')
+    vi.stubEnv('S3_ENDPOINT', '')
+    vi.stubEnv('S3_BUCKET', '')
+    vi.stubEnv('S3_REGION', '')
+    vi.stubEnv('S3_ACCESS_KEY_ID', '')
+    vi.stubEnv('S3_SECRET_ACCESS_KEY', '')
   })
 
   it('returns 200 and includes external provider status when critical deps are healthy', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ '?column?': 1 }] } as never)
     mockIsMeilisearchHealthy.mockResolvedValueOnce(true)
+    mockDbSelect.mockReturnValue({
+      from: () => ({
+        where: () => Promise.resolve([{ count: 0 }]),
+      }),
+    })
 
     const result = await checkDependencies()
 
@@ -202,7 +221,44 @@ describe('GET /api/health/deps', () => {
       meilisearch: 'connected',
       mollie: 'skipped',
       brevo: 'skipped',
+      imgproxy: 'skipped',
+      s3: 'skipped',
+      emailOutboxBacklog: 0,
       disk: { healthy: true },
     })
+  })
+
+  it('returns 503 when imgproxy is disconnected', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ '?column?': 1 }] } as never)
+    mockIsMeilisearchHealthy.mockResolvedValueOnce(true)
+    vi.stubEnv('IMGPROXY_HEALTH_URL', 'http://imgproxy:8080/health')
+    vi.stubGlobal('fetch', () => Promise.reject(new Error('connection refused')))
+    mockDbSelect.mockReturnValue({
+      from: () => ({
+        where: () => Promise.resolve([{ count: 0 }]),
+      }),
+    })
+
+    const result = await checkDependencies()
+
+    expect(result.status).toBe(503)
+    expect(result.body.imgproxy).toBe('disconnected')
+
+    vi.unstubAllGlobals()
+  })
+
+  it('reports email outbox backlog count', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ '?column?': 1 }] } as never)
+    mockIsMeilisearchHealthy.mockResolvedValueOnce(true)
+    mockDbSelect.mockReturnValue({
+      from: () => ({
+        where: () => Promise.resolve([{ count: 42 }]),
+      }),
+    })
+
+    const result = await checkDependencies()
+
+    expect(result.status).toBe(200)
+    expect(result.body.emailOutboxBacklog).toBe(42)
   })
 })

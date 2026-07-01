@@ -412,14 +412,27 @@ postgres_wal_archive_enabled: true
 postgres_wal_archive_path: "/opt/eurtisan/backups/wal"
 ```
 
-This path is mounted into the `db` service via `docker-compose.wal-archive.yml` and `archive_command` copies each completed WAL segment there. For S3-compatible object storage, replace the local path with a tool such as `wal-g` or `pgbackrest` and configure its credentials separately. Do **not** enable `archive_mode` without a working archive path, or PostgreSQL will stall.
+This path is mounted into the `db` service via `docker-compose.wal-archive.yml` and `archive_command` copies each completed WAL segment there.
+
+For S3-compatible object storage, set the S3 variables in `secrets.yml` or `group_vars/all.yml`:
+
+```yaml
+postgres_wal_archive_s3_bucket: "eurtisan-backups"
+postgres_wal_archive_s3_endpoint: "https://s3.fr-par.scw.cloud"
+postgres_wal_archive_s3_region: "fr-par"
+postgres_wal_archive_s3_access_key: "your-access-key"
+postgres_wal_archive_s3_secret_key: "your-secret-key"
+```
+
+When the S3 bucket is configured, Ansible installs the AWS CLI in the DB container and uses `aws s3 cp` as the `archive_command`. Do **not** enable `archive_mode` without a working archive path, or PostgreSQL will stall.
 
 Quarterly restore tests (including PITR) are required — see [docs/runbooks/backup-restore.md](./runbooks/backup-restore.md).
 
 Ansible variables (see `infrastructure/ansible/group_vars/all.yml`):
 
 - `postgres_wal_archive_enabled: true`
-- `postgres_wal_archive_path` — local path or object-storage prefix for WAL files
+- `postgres_wal_archive_path` — local path for WAL files
+- `postgres_wal_archive_s3_*` — optional S3 destination for WAL segments
 
 ## Transactional email DNS
 
@@ -438,7 +451,57 @@ Grafana Alloy/Prometheus should scrape `eurtisan-app:3000` with `metrics_path: /
 Alert rules live in `infra/observability/prometheus/rules/` and cover app health, database connectivity, Meilisearch health, disk space, job alert logs, payment-webhook errors, and checkout failures. Validate them with:
 
 ```bash
-docker run --rm --entrypoint sh -v $(pwd)/infra/observability/prometheus/rules:/rules prom/prometheus:latest -c 'promtool check rules /rules/*.yml'
+make promtool-check
+```
+
+### Backup metrics
+
+The backup script reports the outcome of every nightly run to `POST /api/backup-report` using `BACKUP_REPORT_TOKEN` (falls back to `METRICS_TOKEN`). This exposes two Prometheus counters:
+
+- `eurtisan_backup_success_total`
+- `eurtisan_backup_failures_total`
+
+The alert rule `EurtisanBackupFailed` fires when `eurtisan_backup_failures_total` increases. See [docs/runbooks/backup-restore.md](./runbooks/backup-restore.md) for restore procedures.
+
+## Local observability stack
+
+A self-contained Grafana stack (Prometheus, Loki, Tempo, Alertmanager, Alloy) is available for local development. It tails logs from all `eurtisan-*` Docker containers, receives Faro RUM beacons, and scrapes app metrics.
+
+Start it after the main dev stack is up:
+
+```bash
+cp .env.observability.example .env.local   # adjust if needed
+make obs-up
+```
+
+Check status:
+
+```bash
+make obs-status
+```
+
+Default local endpoints:
+
+| Service | URL |
+|---------|-----|
+| Grafana | http://localhost:3001 |
+| Prometheus | http://localhost:9090 |
+| Alertmanager | http://localhost:9093 |
+| Loki | http://localhost:3100 |
+| Tempo | http://localhost:3200 |
+
+> **Note:** Grafana defaults to port `3001` in the observability compose file to avoid conflicting with the app on port `3000`.
+
+Stop the stack:
+
+```bash
+make obs-down
+```
+
+View logs:
+
+```bash
+make obs-logs
 ```
 
 ## Alertmanager configuration

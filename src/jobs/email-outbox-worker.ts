@@ -39,11 +39,14 @@ import {
 import { withJobLock } from '#/lib/job-lock.server'
 import { logger } from '#/lib/logger.server'
 import { emailFailedTotal, emailSentTotal, emailSuppressedSkipsTotal } from '#/lib/metrics.server'
+import { withJobMetrics } from '#/lib/with-job-metrics.server'
 
 const INTERVAL_MS = getEmailOutboxWorkerIntervalMs()
 const BATCH_SIZE = getEmailOutboxWorkerBatchSize()
 const MAX_RETRIES = getEmailMaxRetries()
 const STUCK_RESET_TICKS = 6 // Reset stuck rows every ~INTERVAL_MS * 6
+
+const JOB_NAME = 'email-outbox-worker'
 
 let isRunning = true
 let tickCount = 0
@@ -214,38 +217,36 @@ async function tick(): Promise<void> {
   tickCount += 1
 
   if (tickCount % STUCK_RESET_TICKS === 1) {
-    try {
-      const result = await resetStuckSendingRows(5)
-      if (result.reset > 0) {
-        logger.info('outbox.worker.reset_stuck', { count: result.reset })
-      }
-    } catch (err) {
-      logger.error('outbox.worker.reset_stuck error', err)
+    const result = await resetStuckSendingRows(5)
+    if (result.reset > 0) {
+      logger.info('outbox.worker.reset_stuck', { count: result.reset, job: JOB_NAME })
     }
   }
 
-  try {
-    await processOutboxBatch(BATCH_SIZE)
-  } catch (err) {
-    logger.error('outbox.worker.tick error', err)
-  }
+  await processOutboxBatch(BATCH_SIZE)
 }
 
 async function run(): Promise<void> {
-  console.log(
+  logger.info(
     `[email-outbox-worker] Started (interval=${INTERVAL_MS}ms, batchSize=${BATCH_SIZE}, maxRetries=${MAX_RETRIES})`,
+    {
+      job: JOB_NAME,
+      intervalMs: INTERVAL_MS,
+      batchSize: BATCH_SIZE,
+      maxRetries: MAX_RETRIES,
+    },
   )
 
   // Run immediately on start, then on every interval.
-  await tick()
+  await withJobMetrics(JOB_NAME, tick)
 
   while (true) {
     if (!isRunning) break
     await new Promise((resolve) => setTimeout(resolve, INTERVAL_MS))
-    await tick()
+    await withJobMetrics(JOB_NAME, tick)
   }
 
-  console.log('[email-outbox-worker] Shutting down gracefully')
+  logger.info('[email-outbox-worker] Shutting down gracefully', { job: JOB_NAME })
 }
 
 function shutdown(): void {
@@ -256,15 +257,17 @@ process.on('SIGINT', shutdown)
 process.on('SIGTERM', shutdown)
 
 async function main(): Promise<void> {
-  const result = await withJobLock('email-outbox-worker', run)
+  const result = await withJobLock(JOB_NAME, run)
   if (result === undefined) {
-    console.log('[email-outbox-worker] Another instance is already running; exiting cleanly.')
+    logger.info('[email-outbox-worker] Another instance is already running; exiting cleanly.', {
+      job: JOB_NAME,
+    })
   }
 }
 
 if (!process.env.VITEST) {
   main().catch((err) => {
-    console.error('[email-outbox-worker] Fatal error:', err)
+    logger.error('[email-outbox-worker] Fatal error:', err, { job: JOB_NAME })
     process.exit(1)
   })
 }

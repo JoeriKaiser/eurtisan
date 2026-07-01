@@ -7,19 +7,33 @@ discovery.docker "eurtisan" {
   host = "unix:///var/run/docker.sock"
 }
 
-// --- Relabel: Keep only the app container; tag logs with job="eurtisan" ---
+// --- Relabel: Keep all Eurtisan containers; tag logs with container_name ---
 discovery.relabel "eurtisan" {
   targets = discovery.docker.eurtisan.targets
 
   rule {
     source_labels = ["__meta_docker_container_name"]
-    regex         = "/" + env("APP_CONTAINER_NAME")
+    regex         = "/eurtisan-.*"
     action        = "keep"
   }
 
   rule {
     source_labels = ["__meta_docker_container_name"]
-    regex         = "/" + env("APP_CONTAINER_NAME")
+    regex         = "/(eurtisan-[^/]+)"
+    target_label  = "container_name"
+    replacement   = "${1}"
+  }
+
+  rule {
+    source_labels = ["container_name"]
+    regex         = "eurtisan-(.+)"
+    target_label  = "service_name"
+    replacement   = "${1}"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/eurtisan-.*"
     target_label  = "job"
     replacement   = "eurtisan"
   }
@@ -31,8 +45,8 @@ faro.receiver "eurtisan" {
   server {
     listen_address = "0.0.0.0"
     listen_port    = 8027
-    # Comma-separated list of origins allowed to send Faro beacons.
-    # Configure via ALLOY_FARO_CORS_ORIGINS (default: production + staging).
+    // Comma-separated list of origins allowed to send Faro beacons.
+    // Configure via ALLOY_FARO_CORS_ORIGINS (default: production + staging).
     cors_allowed_origins = split(env("ALLOY_FARO_CORS_ORIGINS"), ",")
   }
 

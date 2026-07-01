@@ -10,3 +10,4 @@ Operational procedures for on-call engineers. Pair with Grafana (Loki logs, Prom
 | [disk-full.md](./disk-full.md) | Health disk check failing, backup job errors |
 | [backup-restore.md](./backup-restore.md) | Data loss, need point-in-time or nightly restore |
 | [chargeback-received.md](./chargeback-received.md) | `Mollie chargeback received` alert, order status `chargeback` |
+| [job-failure.md](./job-failure.md) | Background job alerts (`EurtisanJobTickFailure`, `EurtisanJobStale`, `EurtisanJobAlertLog`) |

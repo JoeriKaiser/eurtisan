@@ -27,6 +27,12 @@ if [ "${1:-}" = "--skip-smoke-test" ]; then
   shift
 fi
 
+CANARY=false
+if [ "${1:-}" = "--canary" ]; then
+  CANARY=true
+  shift
+fi
+
 GIT_REF="${1:-main}"
 # Docker image tags cannot contain '/' (e.g. feature/foo).
 IMAGE_TAG="$(echo "$GIT_REF" | tr '/' '-')"
@@ -35,6 +41,8 @@ export IMAGE_TAG
 PUBLIC_URL="${PUBLIC_URL:-http://localhost:3000}"
 SMOKE_TEST_BASE="${SMOKE_TEST_BASE:-http://app:3000}"
 DEPLOY_ALERT_WEBHOOK="${DEPLOY_ALERT_WEBHOOK:-${BACKUP_ALERT_WEBHOOK:-}}"
+CANARY_PORT="${CANARY_PORT:-3001}"
+CANARY_STABILIZE_SECONDS="${CANARY_STABILIZE_SECONDS:-300}"
 
 cd "$APP_DIR"
 
@@ -81,6 +89,12 @@ run_smoke_tests() {
     return 1
   fi
   echo "    /api/health OK"
+
+  if ! poll_endpoint "/api/health/deps"; then
+    echo "==> SMOKE TEST FAILED: /api/health/deps did not return 200 within timeout"
+    return 1
+  fi
+  echo "    /api/health/deps OK"
 
   return 0
 }

@@ -16,38 +16,45 @@
  */
 import { clearExpiredCarts } from '#/lib/cart.server'
 import { withJobLock } from '#/lib/job-lock.server'
+import { logger } from '#/lib/logger.server'
+import { withJobMetrics } from '#/lib/with-job-metrics.server'
 
 const INTERVAL_MS = Number.parseInt(process.env.CART_CLEANUP_INTERVAL_MS ?? '60000', 10)
 
 const BATCH_SIZE = Number.parseInt(process.env.CART_CLEANUP_BATCH_SIZE ?? '100', 10)
 
+const JOB_NAME = 'cart-cleanup'
+
 let isRunning = true
 
 async function tick(): Promise<void> {
-  try {
-    const result = await clearExpiredCarts(BATCH_SIZE)
-    if (result.deletedCount > 0) {
-      console.log(`[cart-cleanup] Deleted ${result.deletedCount} expired cart(s)`)
-    }
-  } catch (err) {
-    console.error('[cart-cleanup] Error deleting expired carts:', err)
+  const result = await clearExpiredCarts(BATCH_SIZE)
+  if (result.deletedCount > 0) {
+    logger.info(`[cart-cleanup] Deleted ${result.deletedCount} expired cart(s)`, {
+      job: JOB_NAME,
+      deletedCount: result.deletedCount,
+    })
   }
 }
 
 async function run(): Promise<void> {
-  console.log(`[cart-cleanup] Started (interval=${INTERVAL_MS}ms, batchSize=${BATCH_SIZE})`)
+  logger.info(`[cart-cleanup] Started (interval=${INTERVAL_MS}ms, batchSize=${BATCH_SIZE})`, {
+    job: JOB_NAME,
+    intervalMs: INTERVAL_MS,
+    batchSize: BATCH_SIZE,
+  })
 
-  // Run immediately on start, then on every interval
-  await tick()
+  // Run immediately on start, then on every interval.
+  await withJobMetrics(JOB_NAME, tick)
 
   while (true) {
     if (!isRunning) break
     // Intentionally sequential: sleep then tick to maintain a fixed interval.
     await new Promise((resolve) => setTimeout(resolve, INTERVAL_MS))
-    await tick()
+    await withJobMetrics(JOB_NAME, tick)
   }
 
-  console.log('[cart-cleanup] Shutting down gracefully')
+  logger.info('[cart-cleanup] Shutting down gracefully', { job: JOB_NAME })
 }
 
 function shutdown(): void {
@@ -58,13 +65,15 @@ process.on('SIGINT', shutdown)
 process.on('SIGTERM', shutdown)
 
 async function main(): Promise<void> {
-  const result = await withJobLock('cart-cleanup', run)
+  const result = await withJobLock(JOB_NAME, run)
   if (result === undefined) {
-    console.log('[cart-cleanup] Another instance is already running; exiting cleanly.')
+    logger.info('[cart-cleanup] Another instance is already running; exiting cleanly.', {
+      job: JOB_NAME,
+    })
   }
 }
 
 main().catch((err) => {
-  console.error('[cart-cleanup] Fatal error:', err)
+  logger.error('[cart-cleanup] Fatal error:', err, { job: JOB_NAME })
   process.exit(1)
 })

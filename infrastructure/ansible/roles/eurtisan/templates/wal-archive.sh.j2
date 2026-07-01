@@ -1,0 +1,23 @@
+#!/bin/bash
+# WAL archive command wrapper for PostgreSQL.
+# Ships WAL segments to either a local path or an S3-compatible bucket.
+set -euo pipefail
+
+LOCAL_PATH="{{ postgres_wal_archive_path }}"
+S3_BUCKET="{{ postgres_wal_archive_s3_bucket | default('') }}"
+S3_ENDPOINT="{{ postgres_wal_archive_s3_endpoint | default('') }}"
+S3_REGION="{{ postgres_wal_archive_s3_region | default('') }}"
+S3_ACCESS_KEY_ID="{{ postgres_wal_archive_s3_access_key | default('') }}"
+S3_SECRET_ACCESS_KEY="{{ postgres_wal_archive_s3_secret_key | default('') }}"
+
+PG_FILE="$1"
+PG_PATH="$2"
+
+if [[ -n "$S3_BUCKET" && -n "$S3_ENDPOINT" && -n "$S3_REGION" && -n "$S3_ACCESS_KEY_ID" && -n "$S3_SECRET_ACCESS_KEY" ]]; then
+  export AWS_ACCESS_KEY_ID="$S3_ACCESS_KEY_ID"
+  export AWS_SECRET_ACCESS_KEY="$S3_SECRET_ACCESS_KEY"
+  export AWS_DEFAULT_REGION="$S3_REGION"
+  aws s3 cp "$PG_PATH" "s3://$S3_BUCKET/$PG_FILE" --endpoint-url="$S3_ENDPOINT" --cli-connect-timeout=30
+else
+  test ! -f "$LOCAL_PATH/$PG_FILE" && cp "$PG_PATH" "$LOCAL_PATH/$PG_FILE"
+fi

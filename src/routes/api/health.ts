@@ -1,7 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { statfs } from 'node:fs/promises'
 
+import { and, inArray, lt, sql } from 'drizzle-orm'
 import { getPoolStats, pool } from '#/db.ts'
+import { db } from '#/db/index'
+import { emailOutbox } from '#/db/schema'
 import {
   getBrevoApiKey,
   getHealthDiskThresholdBytes,
@@ -11,11 +14,14 @@ import {
 import { isMeilisearchHealthy } from '#/lib/meilisearch-products.server.ts'
 import {
   diskAvailableBytes,
+  emailOutboxBacklog,
   healthBrevoConnected,
   healthDbConnected,
   healthDiskHealthy,
+  healthImgproxyConnected,
   healthMeilisearchConnected,
   healthMollieConnected,
+  healthS3Connected,
 } from '#/lib/metrics.server.ts'
 
 export interface HealthCheckResult {
@@ -24,6 +30,9 @@ export interface HealthCheckResult {
   meilisearch: 'connected' | 'disconnected'
   mollie?: 'connected' | 'disconnected' | 'skipped'
   brevo?: 'connected' | 'disconnected' | 'skipped'
+  imgproxy?: 'connected' | 'disconnected' | 'skipped'
+  s3?: 'connected' | 'disconnected' | 'skipped'
+  emailOutboxBacklog?: number
   disk?: { healthy: boolean; availableBytes: number; totalBytes: number }
   pool?: {
     total: number
@@ -89,6 +98,68 @@ async function checkBrevo(): Promise<'connected' | 'disconnected' | 'skipped'> {
   }
 }
 
+async function checkImgproxy(): Promise<'connected' | 'disconnected' | 'skipped'> {
+  const url = process.env.IMGPROXY_HEALTH_URL
+  if (url === '') {
+    return 'skipped'
+  }
+  const healthUrl = url || 'http://imgproxy:8080/health'
+  try {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 3000)
+    const response = await fetch(healthUrl, { signal: controller.signal })
+    clearTimeout(timeout)
+    return response.ok ? 'connected' : 'disconnected'
+  } catch {
+    return 'disconnected'
+  }
+}
+
+async function checkS3(): Promise<'connected' | 'disconnected' | 'skipped'> {
+  const endpoint = process.env.S3_ENDPOINT
+  const bucket = process.env.S3_BUCKET
+  const region = process.env.S3_REGION
+  const accessKeyId = process.env.S3_ACCESS_KEY_ID
+  const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY
+
+  if (!endpoint || !bucket || !region || !accessKeyId || !secretAccessKey) {
+    return 'skipped'
+  }
+
+  try {
+    const { S3Client, ListObjectsV2Command } = await import('@aws-sdk/client-s3')
+    const client = new S3Client({
+      endpoint,
+      region,
+      credentials: { accessKeyId, secretAccessKey },
+      forcePathStyle: true,
+      requestChecksumCalculation: 'WHEN_REQUIRED',
+    })
+    await client.send(new ListObjectsV2Command({ Bucket: bucket, MaxKeys: 1 }))
+    return 'connected'
+  } catch {
+    return 'disconnected'
+  }
+}
+
+async function checkEmailOutboxBacklog(): Promise<number> {
+  try {
+    const fiveMinutesAgo = sql`now() - interval '5 minutes'`
+    const [row] = await db
+      .select({ count: sql`count(*)` })
+      .from(emailOutbox)
+      .where(
+        and(
+          inArray(emailOutbox.status, ['pending', 'sending']),
+          lt(emailOutbox.createdAt, fiveMinutesAgo),
+        ),
+      )
+    return Number(row?.count ?? 0)
+  } catch {
+    return 0
+  }
+}
+
 /**
  * Disk-space check for the health endpoint.
  *
@@ -142,13 +213,27 @@ async function runCriticalChecks(): Promise<{
 async function runDependencyChecks(): Promise<{
   mollieStatus: 'connected' | 'disconnected' | 'skipped'
   brevoStatus: 'connected' | 'disconnected' | 'skipped'
+  imgproxyStatus: 'connected' | 'disconnected' | 'skipped'
+  s3Status: 'connected' | 'disconnected' | 'skipped'
+  outboxBacklog: number
 }> {
-  const [mollieStatus, brevoStatus] = await Promise.all([checkMollie(), checkBrevo()])
+  const [mollieStatus, brevoStatus, imgproxyStatus, s3Status, outboxBacklog] = await Promise.all([
+    checkMollie(),
+    checkBrevo(),
+    checkImgproxy(),
+    checkS3(),
+    checkEmailOutboxBacklog(),
+  ])
 
   healthMollieConnected.set(mollieStatus === 'connected' || mollieStatus === 'skipped' ? 1 : 0)
   healthBrevoConnected.set(brevoStatus === 'connected' || brevoStatus === 'skipped' ? 1 : 0)
+  healthImgproxyConnected.set(
+    imgproxyStatus === 'connected' || imgproxyStatus === 'skipped' ? 1 : 0,
+  )
+  healthS3Connected.set(s3Status === 'connected' || s3Status === 'skipped' ? 1 : 0)
+  emailOutboxBacklog.set(outboxBacklog)
 
-  return { mollieStatus, brevoStatus }
+  return { mollieStatus, brevoStatus, imgproxyStatus, s3Status, outboxBacklog }
 }
 
 function buildResult(
@@ -156,6 +241,9 @@ function buildResult(
   meilisearchHealthy: boolean,
   mollieStatus: 'connected' | 'disconnected' | 'skipped' | undefined,
   brevoStatus: 'connected' | 'disconnected' | 'skipped' | undefined,
+  imgproxyStatus: 'connected' | 'disconnected' | 'skipped' | undefined,
+  s3Status: 'connected' | 'disconnected' | 'skipped' | undefined,
+  outboxBacklog: number | undefined,
   diskStatus: { healthy: boolean; availableBytes: number; totalBytes: number },
 ): HealthCheckResult {
   const criticalHealthy = dbHealthy && meilisearchHealthy && diskStatus.healthy
@@ -170,6 +258,15 @@ function buildResult(
   }
   if (brevoStatus !== undefined) {
     result.brevo = brevoStatus
+  }
+  if (imgproxyStatus !== undefined) {
+    result.imgproxy = imgproxyStatus
+  }
+  if (s3Status !== undefined) {
+    result.s3 = s3Status
+  }
+  if (outboxBacklog !== undefined) {
+    result.emailOutboxBacklog = outboxBacklog
   }
   if (criticalHealthy) {
     result.pool = getPoolStats()
@@ -190,7 +287,16 @@ export async function checkHealth(): Promise<{
 }> {
   const { dbHealthy, meilisearchHealthy, diskStatus } = await runCriticalChecks()
   const criticalHealthy = dbHealthy && meilisearchHealthy && diskStatus.healthy
-  const body = buildResult(dbHealthy, meilisearchHealthy, undefined, undefined, diskStatus)
+  const body = buildResult(
+    dbHealthy,
+    meilisearchHealthy,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    diskStatus,
+  )
   return { body, status: criticalHealthy ? 200 : 503 }
 }
 
@@ -203,24 +309,45 @@ export async function checkReady(): Promise<{
 }> {
   const { dbHealthy, meilisearchHealthy, diskStatus } = await runCriticalChecks()
   const criticalHealthy = dbHealthy && meilisearchHealthy && diskStatus.healthy
-  const body = buildResult(dbHealthy, meilisearchHealthy, undefined, undefined, diskStatus)
+  const body = buildResult(
+    dbHealthy,
+    meilisearchHealthy,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    diskStatus,
+  )
   return { body, status: criticalHealthy ? 200 : 503 }
 }
 
 /**
- * Dependency probe — reports external provider status (Mollie, Brevo) without
- * impacting readiness decisions.
+ * Dependency probe — reports external provider status (Mollie, Brevo, imgproxy,
+ * S3) and email outbox backlog without impacting readiness decisions.
  */
 export async function checkDependencies(): Promise<{
   body: HealthCheckResult
   status: number
 }> {
   const { dbHealthy, meilisearchHealthy, diskStatus } = await runCriticalChecks()
-  const { mollieStatus, brevoStatus } = await runDependencyChecks()
+  const { mollieStatus, brevoStatus, imgproxyStatus, s3Status, outboxBacklog } =
+    await runDependencyChecks()
   const depsHealthy =
     (mollieStatus === 'connected' || mollieStatus === 'skipped') &&
-    (brevoStatus === 'connected' || brevoStatus === 'skipped')
-  const body = buildResult(dbHealthy, meilisearchHealthy, mollieStatus, brevoStatus, diskStatus)
+    (brevoStatus === 'connected' || brevoStatus === 'skipped') &&
+    (imgproxyStatus === 'connected' || imgproxyStatus === 'skipped') &&
+    (s3Status === 'connected' || s3Status === 'skipped')
+  const body = buildResult(
+    dbHealthy,
+    meilisearchHealthy,
+    mollieStatus,
+    brevoStatus,
+    imgproxyStatus,
+    s3Status,
+    outboxBacklog,
+    diskStatus,
+  )
   return { body, status: depsHealthy ? 200 : 503 }
 }
 

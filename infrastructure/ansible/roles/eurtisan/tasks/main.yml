@@ -110,6 +110,24 @@
     mode: "0755"
   tags: [backup, wal]
 
+- name: Render WAL archive command wrapper
+  when: postgres_wal_archive_enabled | default(false)
+  template:
+    src: wal-archive.sh.j2
+    dest: /opt/eurtisan/wal-archive.sh
+    mode: "0755"
+  tags: [backup, wal]
+
+- name: Install AWS CLI when WAL S3 archiving is configured
+  when:
+    - postgres_wal_archive_enabled | default(false)
+    - postgres_wal_archive_s3_bucket | default('') | length > 0
+  apt:
+    name: awscli
+    state: present
+    update_cache: true
+  tags: [backup, wal]
+
 - name: Write WAL archiving Compose override
   when: postgres_wal_archive_enabled | default(false)
   copy:
@@ -121,9 +139,10 @@
             postgres
             -c wal_level=replica
             -c archive_mode=on
-            -c archive_command='test ! -f {{ postgres_wal_archive_path }}/%f && cp %p {{ postgres_wal_archive_path }}/%f'
+            -c archive_command='/opt/eurtisan/wal-archive.sh %f %p'
             -c max_wal_senders=3
           volumes:
+            - "/opt/eurtisan/wal-archive.sh:/opt/eurtisan/wal-archive.sh:ro"
             - "{{ postgres_wal_archive_path }}:{{ postgres_wal_archive_path }}"
   tags: [backup, wal]
 

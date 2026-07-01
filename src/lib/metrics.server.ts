@@ -4,7 +4,7 @@
  * Exposed at GET /api/metrics (scraped by Grafana Prometheus in production).
  */
 
-import { Counter, Gauge, collectDefaultMetrics, Registry } from 'prom-client'
+import { Counter, Gauge, Histogram, collectDefaultMetrics, Registry } from 'prom-client'
 
 export const metricsRegistry = new Registry()
 
@@ -50,6 +50,28 @@ export const alertLogTotal = new Counter({
   name: 'eurtisan_alert_log_total',
   help: 'Number of log lines explicitly marked for alerting',
   labelNames: ['level'] as const,
+  registers: [metricsRegistry],
+})
+
+export const jobRunsTotal = new Counter({
+  name: 'eurtisan_job_runs_total',
+  help: 'Total number of job tick executions',
+  labelNames: ['job', 'status'] as const,
+  registers: [metricsRegistry],
+})
+
+export const jobRunDurationSeconds = new Histogram({
+  name: 'eurtisan_job_run_duration_seconds',
+  help: 'Job tick duration in seconds',
+  labelNames: ['job'] as const,
+  buckets: [0.1, 0.5, 1, 2, 5, 10, 30, 60],
+  registers: [metricsRegistry],
+})
+
+export const jobLastSuccessTimestamp = new Gauge({
+  name: 'eurtisan_job_last_success_timestamp',
+  help: 'Unix timestamp of the last successful job tick',
+  labelNames: ['job'] as const,
   registers: [metricsRegistry],
 })
 
@@ -155,6 +177,42 @@ export const emailSuppressedSkipsTotal = new Counter({
 export const meilisearchSyncQueueFailedTotal = new Counter({
   name: 'eurtisan_meilisearch_sync_queue_failed_total',
   help: 'Meilisearch sync queue items that reached failed status',
+  registers: [metricsRegistry],
+})
+
+export const payoutStalePendingTotal = new Counter({
+  name: 'eurtisan_payout_stale_pending_total',
+  help: 'Payouts pending and approaching the 90-day routing window',
+  registers: [metricsRegistry],
+})
+
+export const healthImgproxyConnected = new Gauge({
+  name: 'eurtisan_health_imgproxy_connected',
+  help: 'Whether imgproxy health endpoint is reachable (1 = connected, 0 = disconnected)',
+  registers: [metricsRegistry],
+})
+
+export const healthS3Connected = new Gauge({
+  name: 'eurtisan_health_s3_connected',
+  help: 'Whether S3-compatible object storage is reachable (1 = connected, 0 = disconnected)',
+  registers: [metricsRegistry],
+})
+
+export const emailOutboxBacklog = new Gauge({
+  name: 'eurtisan_email_outbox_backlog',
+  help: 'Number of email_outbox rows in pending/sending status older than 5 minutes',
+  registers: [metricsRegistry],
+})
+
+export const backupSuccessTotal = new Counter({
+  name: 'eurtisan_backup_success_total',
+  help: 'Number of successful nightly backups',
+  registers: [metricsRegistry],
+})
+
+export const backupFailuresTotal = new Counter({
+  name: 'eurtisan_backup_failures_total',
+  help: 'Number of failed nightly backups',
   registers: [metricsRegistry],
 })
 

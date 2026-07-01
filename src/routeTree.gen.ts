@@ -51,6 +51,7 @@ import { Route as ApiUnsubscribeRouteImport } from './routes/api/unsubscribe'
 import { Route as ApiProductsRouteImport } from './routes/api/products'
 import { Route as ApiMetricsRouteImport } from './routes/api/metrics'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiBackupReportRouteImport } from './routes/api/backup-report'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminShopsRouteImport } from './routes/admin/shops'
 import { Route as AdminReviewsRouteImport } from './routes/admin/reviews'
@@ -322,6 +323,11 @@ const ApiMetricsRoute = ApiMetricsRouteImport.update({
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBackupReportRoute = ApiBackupReportRouteImport.update({
+  id: '/api/backup-report',
+  path: '/api/backup-report',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
@@ -688,6 +694,7 @@ export interface FileRoutesByFullPath {
   '/admin/reviews': typeof AdminReviewsRoute
   '/admin/shops': typeof AdminShopsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/api/backup-report': typeof ApiBackupReportRoute
   '/api/health': typeof ApiHealthRouteWithChildren
   '/api/metrics': typeof ApiMetricsRoute
   '/api/products': typeof ApiProductsRoute
@@ -787,6 +794,7 @@ export interface FileRoutesByTo {
   '/admin/reviews': typeof AdminReviewsRoute
   '/admin/shops': typeof AdminShopsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/api/backup-report': typeof ApiBackupReportRoute
   '/api/health': typeof ApiHealthRouteWithChildren
   '/api/metrics': typeof ApiMetricsRoute
   '/api/products': typeof ApiProductsRoute
@@ -887,6 +895,7 @@ export interface FileRoutesById {
   '/admin/reviews': typeof AdminReviewsRoute
   '/admin/shops': typeof AdminShopsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/api/backup-report': typeof ApiBackupReportRoute
   '/api/health': typeof ApiHealthRouteWithChildren
   '/api/metrics': typeof ApiMetricsRoute
   '/api/products': typeof ApiProductsRoute
@@ -995,6 +1004,7 @@ export interface FileRouteTypes {
     | '/admin/reviews'
     | '/admin/shops'
     | '/admin/users'
+    | '/api/backup-report'
     | '/api/health'
     | '/api/metrics'
     | '/api/products'
@@ -1094,6 +1104,7 @@ export interface FileRouteTypes {
     | '/admin/reviews'
     | '/admin/shops'
     | '/admin/users'
+    | '/api/backup-report'
     | '/api/health'
     | '/api/metrics'
     | '/api/products'
@@ -1193,6 +1204,7 @@ export interface FileRouteTypes {
     | '/admin/reviews'
     | '/admin/shops'
     | '/admin/users'
+    | '/api/backup-report'
     | '/api/health'
     | '/api/metrics'
     | '/api/products'
@@ -1291,6 +1303,7 @@ export interface RootRouteChildren {
   AccountOrdersRoute: typeof AccountOrdersRouteWithChildren
   AccountSecurityRoute: typeof AccountSecurityRoute
   AccountSettingsRoute: typeof AccountSettingsRoute
+  ApiBackupReportRoute: typeof ApiBackupReportRoute
   ApiHealthRoute: typeof ApiHealthRouteWithChildren
   ApiMetricsRoute: typeof ApiMetricsRoute
   ApiProductsRoute: typeof ApiProductsRoute
@@ -1614,6 +1627,13 @@ declare module '@tanstack/react-router' {
       path: '/api/health'
       fullPath: '/api/health'
       preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/backup-report': {
+      id: '/api/backup-report'
+      path: '/api/backup-report'
+      fullPath: '/api/backup-report'
+      preLoaderRoute: typeof ApiBackupReportRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/users': {
@@ -2366,6 +2386,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccountOrdersRoute: AccountOrdersRouteWithChildren,
   AccountSecurityRoute: AccountSecurityRoute,
   AccountSettingsRoute: AccountSettingsRoute,
+  ApiBackupReportRoute: ApiBackupReportRoute,
   ApiHealthRoute: ApiHealthRouteWithChildren,
   ApiMetricsRoute: ApiMetricsRoute,
   ApiProductsRoute: ApiProductsRoute,

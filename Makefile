@@ -45,6 +45,65 @@ format: up
 check: up
 	docker compose exec app bun run check
 
+# Observability & alerting validation
+PROMETHEUS_VERSION ?= v2.55.0
+
+promtool-check:
+	docker run --rm -v "$(PWD)/infra/observability/prometheus/rules:/rules:ro" \
+	  --entrypoint promtool \
+	  prom/prometheus:$(PROMETHEUS_VERSION) \
+	  check rules \
+	  /rules/app-health.yml \
+	  /rules/backup-failure.yml \
+	  /rules/checkout-failures.yml \
+	  /rules/database-connectivity.yml \
+	  /rules/dependency-health.yml \
+	  /rules/disk-space.yml \
+	  /rules/email-alerts.yml \
+	  /rules/job-errors.yml \
+	  /rules/meilisearch-health.yml \
+	  /rules/payment-webhook-errors.yml \
+	  /rules/payout-stale-pending.yml
+
+# Backup validation (rendered templates; requires ansible to render Jinja)
+backup-dry-run:
+	@echo "Backup script is an Ansible Jinja template. Render it with:"
+	@echo "  ansible-playbook -i infrastructure/ansible/inventory/staging.example.yml infrastructure/ansible/playbook.yml --syntax-check"
+
+SMOKE_TEST_BASE ?= http://localhost:3000
+SMOKE_TEST_TIMEOUT_SECONDS ?= 120
+
+deploy-smoke-test: up
+	@echo "Running deploy-style smoke tests against $(SMOKE_TEST_BASE)..."
+	@i=0; \
+	while [ $$i -lt $(SMOKE_TEST_TIMEOUT_SECONDS) ]; do \
+	  if curl -fsS "$(SMOKE_TEST_BASE)/api/health/ready" >/dev/null 2>&1; then \
+	    echo "ready OK"; break; \
+	  fi; \
+	  i=$$((i + 1)); sleep 1; \
+	done; \
+	if [ $$i -eq $(SMOKE_TEST_TIMEOUT_SECONDS) ]; then echo "ready FAILED"; exit 1; fi
+	curl -fsS "$(SMOKE_TEST_BASE)/api/health/live" >/dev/null && echo "live OK" || (echo "live FAILED"; exit 1)
+	curl -fsS "$(SMOKE_TEST_BASE)/api/health" >/dev/null && echo "health OK" || (echo "health FAILED"; exit 1)
+	curl -fsS "$(SMOKE_TEST_BASE)/api/health/deps" >/dev/null && echo "deps OK" || (echo "deps FAILED"; exit 1)
+
+# Local observability stack
+obs-up:
+	docker compose -f infra/observability/docker-compose.observability.yml --env-file .env.local up -d
+
+obs-down:
+	docker compose -f infra/observability/docker-compose.observability.yml --env-file .env.local down
+
+obs-logs:
+	docker compose -f infra/observability/docker-compose.observability.yml --env-file .env.local logs -f
+
+obs-status:
+	@echo "Grafana:      http://127.0.0.1:3001"
+	@echo "Prometheus:   http://127.0.0.1:9090"
+	@echo "Alertmanager: http://127.0.0.1:9093"
+	@echo "Loki:         http://127.0.0.1:3100"
+	@echo "Tempo:        http://127.0.0.1:3200"
+
 # Testing
 
 E2E_DATABASE_URL ?= postgresql://eurtisan:eurtisan@db-test:5432/eurtisan_test

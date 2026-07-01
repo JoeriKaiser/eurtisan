@@ -12,28 +12,18 @@
 
 **The P0 launch blockers are resolved.** The next North Star is closing the remaining owner-facing capability, compliance, and operability gaps. The single source of truth for launch blockers is `docs/PRODUCTION_READINESS_AUDIT.md`; the remediation plan index lives in `docs/plans/production-readiness/README.md`. Agents should orient every non-trivial change toward the remaining priorities below.
 
-1. **Tax, VAT, and invoicing**
-   - Separate business address editing.
-   - Editable DAC7 tax identity after onboarding.
-   - Seller VAT reporting dashboard.
-   - Document tax env vars (`PLATFORM_VAT_LIABLE`, `ENABLE_VIES_VALIDATION`).
-   - Fix VIES fall-open behavior, VAT regex inconsistencies, and Greek VAT-ID handling.
-   - Remove `Promise.all` concurrency inside invoice transactions.
+1. **CI, testing & documentation**
+   - Missing North Star audit doc and `.env.example` gaps.
+   - CI workflow holes (Bun version, E2E coverage).
 
-2. **Production operability**
-   - Backup strategy: consistent retention, offsite upload, WAL archiving, S3/Meilisearch backups.
-   - Deployment smoke tests and migration rollback plan.
-   - Alertmanager / Grafana alerting for health, job, and disk issues.
-
-> **Status as of 2026-06-27:** All P0 and P1 phases of the owner-operations push are implemented and staged (settings, variants, order fulfillment, customers, 2FA, deletion/erasure, and logs). Phase 13 — Product Catalog Maturity (draft/publish/archive lifecycle, i18n-ready VAT/shipping labels, and `SUPPORTED_CURRENCY`) is complete and staged. Remaining gaps are tax/VAT improvements and production-operability/alerting work.
+> **Status as of 2026-07-01:** The P0/P1 owner-operations push, Phase 13 — Product Catalog Maturity, the Tax, VAT, and invoicing North Star objective, and Phase 6 — Production operability (deployment, observability & backups) are complete and staged. Remaining work is CI, testing & documentation.
 
 ### North Star → audit / phase reconciliation
 
 | North Star theme | Relevant audit IDs | Phase plan(s) | Status |
 |---|---|---|---|
-| Product catalog maturity | P0-18 (hardcoded Euro/VAT labels), P1-40–P1-45 (i18n/accessibility/route completeness) | [Phase 13 — Product Catalog Maturity](./docs/plans/production-readiness/phase-13-product-catalog-maturity.md) | Done |
-| Tax, VAT, and invoicing | P0-15 (VIES fall-open), P0-16 (Greek VAT-ID handling), P0-18 (hardcoded labels), P0-20 (`any` in invoices), P1-3 (editable DAC7), P1-4 (undocumented tax env vars), P1-5 (invoice tx), P1-40–P1-45 (i18n gaps) | [Phase 5 — Tax, VAT & i18n](./docs/plans/production-readiness/phase-05-tax-vat-and-i18n.md) | In progress |
-| Production operability | P0-10 (deploy smoke tests), P0-12 (imgproxy health check), P1-17–P1-19 (backup/WAL), P1-20–P1-24 (alerting/jobs), P1-30 (health external calls), P1-31 (Faro CORS), P1-32 (S3/Meilisearch backups), P1-49 (job compose blocks) | [Phase 6 — Deployment, observability & backups](./docs/plans/production-readiness/phase-06-deployment-observability-and-backups.md) | In progress |
+| Tax, VAT, and invoicing | P0-15 (VIES fall-open), P0-16 (Greek VAT-ID handling), P0-18 (hardcoded labels), P0-20 (`any` in invoices), P1-3 (editable DAC7), P1-4 (undocumented tax env vars), P1-5 (invoice tx), P1-40–P1-45 (i18n gaps) | [Phase 5 — Tax, VAT & i18n](./docs/plans/production-readiness/phase-05-tax-vat-and-i18n.md) | Done |
+| Production operability | P0-10 (deploy smoke tests), P0-12 (imgproxy health check), P1-17–P1-19 (backup/WAL), P1-20–P1-24 (alerting/jobs), P1-30 (health external calls), P1-31 (Faro CORS), P1-32 (S3/Meilisearch backups), P1-49 (job compose blocks) | [Phase 6 — Deployment, observability & backups](./docs/plans/production-readiness/phase-06-deployment-observability-and-backups.md) | Done |
 | CI, testing & documentation | P0-6 (missing North Star audit doc), P1-25 (CI gaps), P1-26 (Bun version), P1-27 (E2E coverage), P1-28 (`.env.example` gaps) | [Phase 7 — CI, testing & documentation](./docs/plans/production-readiness/phase-07-ci-testing-and-documentation.md) | In progress |
 
 When requirements conflict, prefer the audit priorities and the Decision Hierarchy below. Do not treat missing owner capabilities, placeholder UIs, or incomplete compliance workflows as "good enough" for production.
@@ -310,66 +300,11 @@ Every workflow is exposed through `make` targets.
 
 Do not run tooling directly on the host machine unless explicitly documented.
 
-# Playwright Agent CLI for Browser Automation
-
-To enable AI agents to perform browser automation tasks, the Playwright Agent CLI (`@playwright/cli`) is installed in the project devDependencies.
-
-Since the entire application environment is containerized, all browser automation commands must be run inside the `app` container.
-
-A dedicated `make` target is provided for running `playwright-cli` commands:
-
-```bash
-# Run a playwright-cli command via make
-make playwright-cli CMD="<command> [args]"
-
-# Examples:
-# Open browser and navigate to the application
-make playwright-cli CMD="open http://localhost:3000"
-
-# Take a snapshot of the current page to inspect the accessibility tree and element references (e.g. e1, e2)
-make playwright-cli CMD="snapshot"
-
-# Click an element (e15)
-make playwright-cli CMD="click e15"
-
-# Fill in a text input (e5)
-make playwright-cli CMD="fill e5 'test-user'"
-
-# Close all browser sessions
-make playwright-cli CMD="close-all"
-```
-
-The CLI saves snapshots, screenshots, and videos directly to the local directory (which is mapped to the host). Make sure to close all active browser sessions (`make playwright-cli CMD="close-all"`) when your tasks are complete to avoid orphaned browser processes inside the container.
-
 # Additional Developer Experience (DX) & Agent Tooling
 
-To accelerate test validation and integration debugging, several additional helper targets are exposed:
+For helper targets to accelerate test validation and integration debugging (such as programmatic email testing, local search engine inspection, and database schema visualization), see [DEVELOPER_TOOLING.md](file:///home/joeri/Projects/Eurtisan/docs/DEVELOPER_TOOLING.md).
 
-### 1. Programmatic Email Testing (Mailpit Helper)
-Exposes targets to query the local `mailpit` API inside the container network to verify email flows (e.g. 2FA tokens, sign-up links, invoices) programmatically without manual scraping:
-```bash
-# Get the full JSON payload of the last sent email
-make email-last
 
-# Get all links/URLs extracted from the last sent email (useful to pass to playwright-cli goto)
-make email-links
-```
-
-### 2. Local Search Engine Inspector (Meilisearch)
-Meilisearch is accessible inside the container bridge network. Exposes a target to check index statistics:
-```bash
-# Retrieve Meilisearch index status, document counts, and sync state
-make meili-status
-```
-*Note:* The Meilisearch interactive dashboard is also accessible to human developers on the host machine at `http://localhost:7700` using the API Key `meilisearch-api-key`.
-
-### 3. Database Schema Visualizer (Drizzle Studio)
-To easily view local DB records or run visual queries:
-```bash
-# Starts Drizzle Kit Studio
-make db-studio
-```
-*Note:* Drizzle Studio runs inside a temporary container exposing port `4983` on the host (`http://localhost:4983`).
 
 ---
 

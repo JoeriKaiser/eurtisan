@@ -4,6 +4,7 @@ import { payout, payoutReconciliationLog, shopOrder } from '#/db/schema'
 import { getMollieRoute } from '#/integrations/mollie'
 import { getMollieApiKey, getMollieTestMode } from '#/lib/env.server'
 import { logger } from '#/lib/logger.server'
+import { payoutStalePendingTotal } from '#/lib/metrics.server'
 import {
   executePayoutQuery,
   isValidPayoutTransition,
@@ -281,6 +282,7 @@ export async function alertOnStalePendingPayouts(): Promise<number> {
     )
 
   for (const record of stalePayouts) {
+    payoutStalePendingTotal.inc()
     logger.error(`Payout ${record.id} is pending and approaching the 90-day routing window`, {
       alert: true,
       payoutId: record.id,

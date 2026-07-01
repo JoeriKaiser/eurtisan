@@ -30,7 +30,10 @@ services:
       - GF_AUTH_ANONYMOUS_ENABLED=false
       - GF_SECURITY_DISABLE_GRAVATAR=true
       - GF_SECURITY_ANGULAR_SUPPORT_ENABLED=false
-    # No host ports exposed. Caddy reaches Grafana via the eurtisan Docker network.
+    # Localhost-only for development access. Caddy reaches Grafana via the eurtisan
+    # Docker network in production/staging.
+    ports:
+      - "127.0.0.1:3001:3000"
     networks:
       - eurtisan
     restart: unless-stopped

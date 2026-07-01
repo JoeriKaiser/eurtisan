@@ -9,3 +9,21 @@ groups:
         annotations:
           summary: A background job or service emitted an alert log line
           description: "Logs containing `alert: true` were observed in the last 5 minutes."
+
+      - alert: EurtisanJobTickFailure
+        expr: increase(eurtisan_job_runs_total{status="failure"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Background job {{ $labels.job }} failed a tick"
+          description: "Job {{ $labels.job }} reported at least one failed tick in the last 5 minutes."
+
+      - alert: EurtisanJobStale
+        expr: time() - eurtisan_job_last_success_timestamp > 600
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Background job {{ $labels.job }} has not succeeded recently"
+          description: "No successful tick for {{ $labels.job }} in the last 10 minutes."

@@ -18,41 +18,50 @@ import {
   getSendcloudReconciliationIntervalMs,
 } from '#/lib/env.server'
 import { withJobLock } from '#/lib/job-lock.server'
+import { logger } from '#/lib/logger.server'
 import { reconcileSendcloudShipments } from '#/lib/sendcloud-reconciliation.server'
+import { withJobMetrics } from '#/lib/with-job-metrics.server'
 
 assertMockPayoutsNotProduction()
 
 const INTERVAL_MS = getSendcloudReconciliationIntervalMs()
 
+const JOB_NAME = 'sendcloud-reconciliation'
+
 let isRunning = true
 
 async function tick(): Promise<void> {
-  try {
-    const result = await reconcileSendcloudShipments()
-    if (result.checked > 0) {
-      console.log(
-        `[sendcloud-reconciliation] Checked ${result.checked} shipment(s), updated ${result.updated}, errors ${result.errors}`,
-      )
-    }
-  } catch (err) {
-    console.error('[sendcloud-reconciliation] Error reconciling shipments:', err)
+  const result = await reconcileSendcloudShipments()
+  if (result.checked > 0) {
+    logger.info(
+      `[sendcloud-reconciliation] Checked ${result.checked} shipment(s), updated ${result.updated}, errors ${result.errors}`,
+      {
+        job: JOB_NAME,
+        checked: result.checked,
+        updated: result.updated,
+        errors: result.errors,
+      },
+    )
   }
 }
 
 async function run(): Promise<void> {
-  console.log(`[sendcloud-reconciliation] Started (interval=${INTERVAL_MS}ms)`)
+  logger.info(`[sendcloud-reconciliation] Started (interval=${INTERVAL_MS}ms)`, {
+    job: JOB_NAME,
+    intervalMs: INTERVAL_MS,
+  })
 
-  // Run immediately on start, then on every interval
-  await tick()
+  // Run immediately on start, then on every interval.
+  await withJobMetrics(JOB_NAME, tick)
 
   while (true) {
     if (!isRunning) break
     // Intentionally sequential: sleep then tick to maintain a fixed interval.
     await new Promise((resolve) => setTimeout(resolve, INTERVAL_MS))
-    await tick()
+    await withJobMetrics(JOB_NAME, tick)
   }
 
-  console.log('[sendcloud-reconciliation] Shutting down gracefully')
+  logger.info('[sendcloud-reconciliation] Shutting down gracefully', { job: JOB_NAME })
 }
 
 function shutdown(): void {
@@ -63,13 +72,18 @@ process.on('SIGINT', shutdown)
 process.on('SIGTERM', shutdown)
 
 async function main(): Promise<void> {
-  const result = await withJobLock('sendcloud-reconciliation', run)
+  const result = await withJobLock(JOB_NAME, run)
   if (result === undefined) {
-    console.log('[sendcloud-reconciliation] Another instance is already running; exiting cleanly.')
+    logger.info(
+      '[sendcloud-reconciliation] Another instance is already running; exiting cleanly.',
+      {
+        job: JOB_NAME,
+      },
+    )
   }
 }
 
 main().catch((err) => {
-  console.error('[sendcloud-reconciliation] Fatal error:', err)
+  logger.error('[sendcloud-reconciliation] Fatal error:', err, { job: JOB_NAME })
   process.exit(1)
 })

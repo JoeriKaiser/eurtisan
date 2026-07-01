@@ -1,0 +1,10 @@
+groups:
+  - name: backup_failure
+    rules:
+      - alert: EurtisanBackupFailed
+        expr: increase(eurtisan_backup_failures_total[1d]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Eurtisan database backup failed"
+          description: "The nightly backup script reported a failure in the last 24 hours."

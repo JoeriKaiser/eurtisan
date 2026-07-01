@@ -52,9 +52,21 @@ backup_offsite_rclone_remote: ""
 # rclone remote/path for S3 uploads secondary sync, e.g. "eurtisan-backups:uploads"
 backup_s3_uploads_rclone_remote: ""
 
+# Token used by the backup script to report success/failure to /api/backup-report.
+# Override in secrets.yml.
+backup_report_token: ""
+
 # PostgreSQL WAL archiving (enable for production PITR — see docs/DEPLOYMENT.md)
 postgres_wal_archive_enabled: false
 
 # Local or object-storage path for WAL segments. For object storage, use
 # rclone/wal-g/pgbackrest; the default local path is only suitable for testing.
 postgres_wal_archive_path: "/opt/eurtisan/backups/wal"
+
+# Optional S3-compatible destination for WAL archives. When these are set,
+# Ansible configures PostgreSQL to ship WAL segments to the bucket via aws s3 cp.
+postgres_wal_archive_s3_bucket: ""
+postgres_wal_archive_s3_endpoint: ""
+postgres_wal_archive_s3_region: ""
+postgres_wal_archive_s3_access_key: ""
+postgres_wal_archive_s3_secret_key: ""
