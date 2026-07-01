@@ -8,28 +8,6 @@
 
 ---
 
-# Current North Star Objective
-
-**The P0 launch blockers are resolved.** The next North Star is closing the remaining owner-facing capability, compliance, and operability gaps. The single source of truth for launch blockers is `docs/PRODUCTION_READINESS_AUDIT.md`; the remediation plan index lives in `docs/plans/production-readiness/README.md`. Agents should orient every non-trivial change toward the remaining priorities below.
-
-1. **CI, testing & documentation**
-   - Missing North Star audit doc and `.env.example` gaps.
-   - CI workflow holes (Bun version, E2E coverage).
-
-> **Status as of 2026-07-01:** The P0/P1 owner-operations push, Phase 13 — Product Catalog Maturity, the Tax, VAT, and invoicing North Star objective, and Phase 6 — Production operability (deployment, observability & backups) are complete and staged. Remaining work is CI, testing & documentation.
-
-### North Star → audit / phase reconciliation
-
-| North Star theme | Relevant audit IDs | Phase plan(s) | Status |
-|---|---|---|---|
-| Tax, VAT, and invoicing | P0-15 (VIES fall-open), P0-16 (Greek VAT-ID handling), P0-18 (hardcoded labels), P0-20 (`any` in invoices), P1-3 (editable DAC7), P1-4 (undocumented tax env vars), P1-5 (invoice tx), P1-40–P1-45 (i18n gaps) | [Phase 5 — Tax, VAT & i18n](./docs/plans/production-readiness/phase-05-tax-vat-and-i18n.md) | Done |
-| Production operability | P0-10 (deploy smoke tests), P0-12 (imgproxy health check), P1-17–P1-19 (backup/WAL), P1-20–P1-24 (alerting/jobs), P1-30 (health external calls), P1-31 (Faro CORS), P1-32 (S3/Meilisearch backups), P1-49 (job compose blocks) | [Phase 6 — Deployment, observability & backups](./docs/plans/production-readiness/phase-06-deployment-observability-and-backups.md) | Done |
-| CI, testing & documentation | P0-6 (missing North Star audit doc), P1-25 (CI gaps), P1-26 (Bun version), P1-27 (E2E coverage), P1-28 (`.env.example` gaps) | [Phase 7 — CI, testing & documentation](./docs/plans/production-readiness/phase-07-ci-testing-and-documentation.md) | In progress |
-
-When requirements conflict, prefer the audit priorities and the Decision Hierarchy below. Do not treat missing owner capabilities, placeholder UIs, or incomplete compliance workflows as "good enough" for production.
-
----
-
 <!-- intent-skills:start -->
 ## Skill Loading
 
