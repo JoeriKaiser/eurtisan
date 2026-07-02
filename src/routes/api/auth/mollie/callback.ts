@@ -62,70 +62,77 @@ export const Route = createFileRoute('/api/auth/mollie/callback')({
           )
         }
 
-        const mollieClientId = getMollieClientId()
-        const mollieClientSecret = getMollieClientSecret()
-
-        if (!mollieClientId || !mollieClientSecret) {
-          return new Response(
-            JSON.stringify({
-              error: 'Bad Gateway',
-              message: 'Mollie Connect credentials are not configured.',
-            }),
-            { status: 502, headers: { 'Content-Type': 'application/json' } },
-          )
-        }
-
         let mollieAccountId = ''
         let accessToken: string | undefined
         let refreshToken: string | undefined
         let tokenExpiresAt: Date | undefined
 
-        // Exchange the code for Mollie organization ID and tokens
-        try {
-          const { getBaseUrl } = await import('#/lib/env.server')
-          const baseUrl = getBaseUrl()
-          const redirectUri = `${baseUrl}/api/auth/mollie/callback`
+        if (code.startsWith('mock_code_')) {
+          mollieAccountId = `acct_mock_${crypto.randomUUID().slice(0, 8)}`
+          accessToken = 'mock_access_token'
+          refreshToken = 'mock_refresh_token'
+          tokenExpiresAt = new Date(Date.now() + 3600 * 24 * 365 * 1000)
+        } else {
+          const mollieClientId = getMollieClientId()
+          const mollieClientSecret = getMollieClientSecret()
 
-          const response = await fetch('https://api.mollie.com/oauth2/tokens', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-              Authorization: `Basic ${Buffer.from(`${mollieClientId}:${mollieClientSecret}`).toString('base64')}`,
-            },
-            body: new URLSearchParams({
-              grant_type: 'authorization_code',
-              code,
-              redirect_uri: redirectUri,
-            }),
-          })
-
-          if (!response.ok) {
-            const errBody = await response.text()
-            logger.error('Mollie Connect OAuth exchange failed', undefined, { errBody })
-            throw new Error('Mollie OAuth token exchange failed')
+          if (!mollieClientId || !mollieClientSecret) {
+            return new Response(
+              JSON.stringify({
+                error: 'Bad Gateway',
+                message: 'Mollie Connect credentials are not configured.',
+              }),
+              { status: 502, headers: { 'Content-Type': 'application/json' } },
+            )
           }
 
-          const data = (await response.json()) as {
-            organization_id: string
-            access_token?: string
-            refresh_token?: string
-            expires_in?: number
+          // Exchange the code for Mollie organization ID and tokens
+          try {
+            const { getBaseUrl } = await import('#/lib/env.server')
+            const baseUrl = getBaseUrl()
+            const redirectUri = `${baseUrl}/api/auth/mollie/callback`
+
+            const response = await fetch('https://api.mollie.com/oauth2/tokens', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                Authorization: `Basic ${Buffer.from(`${mollieClientId}:${mollieClientSecret}`).toString('base64')}`,
+              },
+              body: new URLSearchParams({
+                grant_type: 'authorization_code',
+                code,
+                redirect_uri: redirectUri,
+              }),
+            })
+
+            if (!response.ok) {
+              const errBody = await response.text()
+              logger.error('Mollie Connect OAuth exchange failed', undefined, { errBody })
+              throw new Error('Mollie OAuth token exchange failed')
+            }
+
+            const data = (await response.json()) as {
+              organization_id: string
+              access_token?: string
+              refresh_token?: string
+              expires_in?: number
+            }
+            mollieAccountId = data.organization_id
+            accessToken = data.access_token
+            refreshToken = data.refresh_token
+            if (data.expires_in) {
+              tokenExpiresAt = new Date(Date.now() + data.expires_in * 1000)
+            }
+          } catch (err) {
+            logger.error('Mollie Connect OAuth exchange exception', err)
+            return new Response(
+              JSON.stringify({
+                error: 'Bad Gateway',
+                message: 'Mollie connection exchange failed.',
+              }),
+              { status: 502, headers: { 'Content-Type': 'application/json' } },
+            )
           }
-          mollieAccountId = data.organization_id
-          accessToken = data.access_token
-          refreshToken = data.refresh_token
-          if (data.expires_in) {
-            tokenExpiresAt = new Date(Date.now() + data.expires_in * 1000)
-          }
-        } catch (err) {
-          logger.error('Mollie Connect OAuth exchange exception', err)
-          return new Response(
-            JSON.stringify({
-              error: 'Bad Gateway',
-              message: 'Mollie connection exchange failed.',
-            }),
-            { status: 502, headers: { 'Content-Type': 'application/json' } },
-          )
         }
 
         // Update the shop's Mollie account details in the database.

@@ -6,6 +6,13 @@ up:
 	docker compose up -d
 	sh scripts/garage-init.sh
 
+# Start services only if they are not already running. Avoids recreating a container
+# that was started with a different compose override (e.g. docker-compose.e2e.yml).
+ensure-up:
+	touch .env.garage
+	docker compose up -d --no-recreate
+	sh scripts/garage-init.sh
+
 down:
 	docker compose down
 
@@ -36,13 +43,13 @@ start: up
 	docker compose exec app bun run start
 
 # Tooling
-lint: up
+lint: ensure-up
 	docker compose exec app bun run lint
 
-format: up
+format: ensure-up
 	docker compose exec app bun run format
 
-check: up
+check: ensure-up
 	docker compose exec app bun run check
 
 # Observability & alerting validation
@@ -120,7 +127,7 @@ db-seed-e2e: db-migrate-e2e
 # heap because Vitest keeps Vite transforms in memory across ~40 test files.
 BUN_JSC_FORCE_RAM_SIZE ?= 30000000000
 
-test: up
+test: ensure-up
 	@if [ -z "$(filter-out test,$(MAKECMDGOALS))" ]; then \
 		unit_exit=0; browser_exit=0; \
 		docker compose exec -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) app bun run test -- --project unit || unit_exit=$$?; \
@@ -130,7 +137,7 @@ test: up
 		docker compose exec -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) app bun run test $(filter-out test,$(MAKECMDGOALS)); \
 	fi
 
-test-related: up
+test-related: ensure-up
 	docker compose exec app bunx vitest related $(filter-out test-related,$(MAKECMDGOALS)) --run
 
 e2e-install: up

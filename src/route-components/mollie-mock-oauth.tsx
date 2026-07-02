@@ -13,9 +13,8 @@ export function MollieMockOauth({ shopId, state, redirect_uri }: MollieMockOauth
 
   const handleAuthorize = () => {
     setConnecting(true)
-    // Simulate a brief API exchange time
     setTimeout(() => {
-      const mockCode = `mock_code_${crypto.randomUUID().slice(0, 8)}`
+      const mockCode = `mock_code_${Math.random().toString(36).slice(2, 10)}`
       const target = `${redirect_uri}?code=${mockCode}&state=${encodeURIComponent(state || shopId)}`
       window.location.href = target
     }, 800)

@@ -131,6 +131,13 @@ export function NotificationsPage({
   const markRead = useMarkNotificationRead()
   const markAllRead = useMarkAllNotificationsRead()
 
+  const handleMarkAllRead = async () => {
+    await markAllRead.mutateAsync()
+    // Loader-backed route data is not subscribed to the notifications query key,
+    // so reload the route loader to reflect the updated read state.
+    await router.invalidate()
+  }
+
   const handleItemClick = (item: NotificationItem) => {
     if (!item.readAt) {
       void markRead.mutateAsync(item.id)
@@ -157,7 +164,7 @@ export function NotificationsPage({
             <Button
               variant='secondary'
               size='sm'
-              onClick={() => void markAllRead.mutate()}
+              onClick={() => void handleMarkAllRead()}
               disabled={markAllRead.isPending}
             >
               {m.notifications_mark_all_read()}

@@ -8,14 +8,16 @@ import { twoFactor } from 'better-auth/plugins'
 import { tanstackStartCookies } from 'better-auth/tanstack-start'
 
 import { db } from '#/db/index'
+import { user } from '#/db/schema'
+import { eq } from 'drizzle-orm'
 import { createEmailProvider } from '#/integrations/email'
-import { checkAuthEmailRateLimit } from './email-rate-limit.server'
-import { ANONYMOUS_SESSION_COOKIE } from './cart-constants'
-import { getBaseUrl } from './env.server'
 import { safeRedirect } from './auth-utils'
+import { ANONYMOUS_SESSION_COOKIE } from './cart-constants'
+import { checkAuthEmailRateLimit } from './email-rate-limit.server'
 import { logEmailEvent } from './email-send-log.server'
-import { sha256Hex } from './hash.server'
 import { decryptAccountTokens, decryptTwoFactorSecrets, encrypt } from './encryption.server'
+import { getBaseUrl } from './env.server'
+import { sha256Hex } from './hash.server'
 
 export function hashSessionToken(token: string): string {
   return createHash('sha256').update(token).digest('hex')
@@ -313,6 +315,21 @@ export const betterAuthOptions = {
   databaseHooks: {
     session: {
       create: {
+        before: async (session) => {
+          // Reject sessions for deleted accounts at login time.
+          if (!session?.userId) {
+            throw new Error('Invalid session data.')
+          }
+          const rows = await db
+            .select({ deletedAt: user.deletedAt })
+            .from(user)
+            .where(eq(user.id, session.userId))
+            .limit(1)
+          if (rows[0]?.deletedAt) {
+            throw new Error('Account has been deleted.')
+          }
+          return true
+        },
         after: async (session, context) => {
           if (!context) return
           const sessionId = context.getCookie(ANONYMOUS_SESSION_COOKIE) ?? undefined

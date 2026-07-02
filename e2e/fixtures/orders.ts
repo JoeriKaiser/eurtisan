@@ -3,9 +3,9 @@
  * database so specs can focus on UI assertions instead of seed data archaeology.
  */
 import { randomBytes, randomUUID, scryptSync } from 'node:crypto'
-import { and, eq, inArray } from 'drizzle-orm'
-import { db } from '../db'
+import { and, eq, inArray, isNotNull } from 'drizzle-orm'
 import * as schema from '../../src/db/schema'
+import { db } from '../db'
 import { E2E_CUSTOMER } from './auth'
 
 const e2eDatabaseUrl =
@@ -129,21 +129,57 @@ export async function getCreatorShop() {
   return shop[0]
 }
 
-export async function getTestProduct(shopId: string) {
+export async function getTestProduct(shopId: string, stockCount = 999) {
   const product = await db
     .select()
     .from(schema.product)
-    .where(eq(schema.product.shopId, shopId))
+    .where(
+      and(
+        eq(schema.product.shopId, shopId),
+        eq(schema.product.status, 'published'),
+        eq(schema.product.isActive, true),
+        isNotNull(schema.product.slug),
+      ),
+    )
     .limit(1)
-  if (!product[0]) throw new Error('No product found for test shop')
+  if (!product[0]) throw new Error('No published active product found for test shop')
 
-  await db
-    .update(schema.product)
-    .set({ stockCount: 999 })
-    .where(eq(schema.product.id, product[0].id))
+  await db.update(schema.product).set({ stockCount }).where(eq(schema.product.id, product[0].id))
 
-  product[0].stockCount = 999
+  product[0].stockCount = stockCount
   return product[0]
+}
+
+export async function getShopProductWithReviews(shopId: string) {
+  const reviewed = await db
+    .select({ productId: schema.review.productId })
+    .from(schema.review)
+    .innerJoin(schema.product, eq(schema.review.productId, schema.product.id))
+    .where(
+      and(
+        eq(schema.product.shopId, shopId),
+        eq(schema.product.status, 'published'),
+        eq(schema.product.isActive, true),
+        eq(schema.review.moderationStatus, 'approved'),
+      ),
+    )
+    .groupBy(schema.review.productId)
+    .limit(1)
+  if (!reviewed[0]) throw new Error('No reviewed product found for test shop')
+
+  const product = await db
+    .select()
+    .from(schema.product)
+    .where(eq(schema.product.id, reviewed[0].productId))
+    .limit(1)
+  if (!product[0]) throw new Error('Reviewed product not found')
+
+  return product[0]
+}
+
+export async function setProductStock(productId: string, stockCount: number): Promise<void> {
+  process.env.DATABASE_URL = e2eDatabaseUrl
+  await db.update(schema.product).set({ stockCount }).where(eq(schema.product.id, productId))
 }
 
 function makeAddress() {
@@ -250,20 +286,215 @@ export async function createPaidOrder(buyerSeed: string): Promise<TestOrder> {
   return { ...order, invoiceNumber }
 }
 
+/**
+ * Create many paid orders for the same buyer without generating invoices.
+ * Useful for pagination/order-list specs where only the count matters.
+ */
+export async function seedPaidOrders(
+  buyerSeed: string,
+  count: number,
+): Promise<Awaited<ReturnType<typeof createPaidOrder>>[]> {
+  process.env.DATABASE_URL = e2eDatabaseUrl
+
+  const customer = await createTestCustomer(buyerSeed)
+  const shop = await getCreatorShop()
+  const product = await getTestProduct(shop.id)
+
+  const shippingCostCents = 500
+  const unitPriceCents = product.priceCents
+  const subtotalCents = unitPriceCents
+  const totalCents = subtotalCents + shippingCostCents
+
+  const baseAddress = makeAddress()
+  const now = Date.now()
+  const orders: Awaited<ReturnType<typeof createPaidOrder>>[] = []
+
+  for (let i = 0; i < count; i++) {
+    const createdAt = new Date(now - (count - i) * 1000)
+    const molliePaymentId = `tr_e2e_${now}_${i}_${Math.random().toString(36).slice(2, 8)}`
+
+    const [platformOrder] = await db
+      .insert(schema.platformOrder)
+      .values({
+        userId: customer.id,
+        shippingAddress: baseAddress,
+        billingAddress: baseAddress,
+        totalCents,
+        status: 'paid',
+        molliePaymentId,
+        createdAt,
+      })
+      .returning({ id: schema.platformOrder.id })
+
+    const [shopOrder] = await db
+      .insert(schema.shopOrder)
+      .values({
+        platformOrderId: platformOrder.id,
+        shopId: shop.id,
+        shippingMethod: 'standard',
+        shippingCostCents,
+        subtotalCents,
+        vatAmountCents: 0,
+        status: 'paid',
+        createdAt,
+      })
+      .returning({ id: schema.shopOrder.id })
+
+    await db.insert(schema.orderItem).values({
+      shopOrderId: shopOrder.id,
+      productId: product.id,
+      productName: product.name,
+      unitPriceCents,
+      quantity: 1,
+      totalCents: subtotalCents,
+      vatRateBasisPoints: 0,
+      vatAmountCents: 0,
+      weightGrams: product.weightGrams ?? 100,
+      lengthCm: product.lengthCm ?? 10,
+      widthCm: product.widthCm ?? 10,
+      heightCm: product.heightCm ?? 10,
+      createdAt,
+    })
+
+    orders.push({
+      platformOrderId: platformOrder.id,
+      shopOrderId: shopOrder.id,
+      shopId: shop.id,
+      productId: product.id,
+      molliePaymentId,
+      totalCents,
+    })
+  }
+
+  return orders
+}
+
 export async function createDeliveredOrder(buyerSeed: string): Promise<TestOrder> {
   const order = await createPaidOrder(buyerSeed)
+
+  // Set deliveredAt far enough in the past that items are eligible for review.
+  const deliveredAt = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000)
 
   await db
     .update(schema.shopOrder)
     .set({
       status: 'delivered',
-      deliveredAt: new Date(),
+      deliveredAt,
       updatedAt: new Date(),
       disputeWindowExpiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     })
     .where(eq(schema.shopOrder.id, order.shopOrderId))
 
   return order
+}
+
+export async function createShippedOrder(buyerSeed: string): Promise<TestOrder> {
+  const order = await createPaidOrder(buyerSeed)
+
+  await db
+    .update(schema.shopOrder)
+    .set({
+      status: 'shipped',
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.shopOrder.id, order.shopOrderId))
+
+  return order
+}
+
+export async function createDeliveredOrderWithTracking(
+  buyerSeed: string,
+  trackingNumber = 'TRACK-E2E-123456',
+  trackingUrl = 'https://carrier.example/track/TRACK-E2E-123456',
+): Promise<TestOrder> {
+  const order = await createDeliveredOrder(buyerSeed)
+
+  await db
+    .update(schema.shopOrder)
+    .set({
+      trackingNumber,
+      trackingUrl,
+      trackingHistory: [
+        {
+          status: 'label_created',
+          timestamp: new Date().toISOString(),
+        },
+        {
+          status: 'in_transit',
+          timestamp: new Date().toISOString(),
+        },
+      ],
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.shopOrder.id, order.shopOrderId))
+
+  await db.insert(schema.shippingLabel).values({
+    id: randomUUID(),
+    shopOrderId: order.shopOrderId,
+    carrier: 'sendcloud',
+    trackingNumber,
+    labelUrl: 'https://example.com/label.pdf',
+    externalParcelId: `parcel-${Date.now()}`,
+  })
+
+  return order
+}
+
+export async function createReviewableOrder(buyerSeed: string): Promise<TestOrder> {
+  return createDeliveredOrder(buyerSeed)
+}
+
+export async function getProductById(productId: string) {
+  process.env.DATABASE_URL = e2eDatabaseUrl
+
+  const [product] = await db.select().from(schema.product).where(eq(schema.product.id, productId)).limit(1)
+  if (!product) throw new Error(`Product ${productId} not found`)
+  return product
+}
+
+export async function getDisputeIdForShopOrder(shopOrderId: string): Promise<string | null> {
+  process.env.DATABASE_URL = e2eDatabaseUrl
+
+  const [row] = await db
+    .select({ id: schema.dispute.id })
+    .from(schema.dispute)
+    .where(eq(schema.dispute.shopOrderId, shopOrderId))
+    .limit(1)
+  return row?.id ?? null
+}
+
+export async function createDisputeForOrder(
+  order: TestOrder,
+  reason = 'item_not_received',
+  description = 'The item never arrived.',
+): Promise<string> {
+  process.env.DATABASE_URL = e2eDatabaseUrl
+
+  const existing = await db
+    .select({ id: schema.dispute.id })
+    .from(schema.dispute)
+    .where(eq(schema.dispute.shopOrderId, order.shopOrderId))
+    .limit(1)
+  if (existing[0]) return existing[0].id
+
+  const customer = await createTestCustomer('customer')
+  const [disputeRow] = await db
+    .insert(schema.dispute)
+    .values({
+      shopOrderId: order.shopOrderId,
+      buyerUserId: customer.id,
+      reason,
+      description,
+      status: 'open',
+    })
+    .returning({ id: schema.dispute.id })
+
+  await db
+    .update(schema.shopOrder)
+    .set({ status: 'disputed', updatedAt: new Date() })
+    .where(eq(schema.shopOrder.id, order.shopOrderId))
+
+  return disputeRow.id
 }
 
 export async function sendMollieWebhook(

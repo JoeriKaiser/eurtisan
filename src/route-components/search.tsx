@@ -106,6 +106,7 @@ export function SearchPage() {
   const handleClearFilters = useCallback(() => {
     setFilters((prev) => ({
       ...prev,
+      query: '',
       category: '',
       shop: '',
       minPrice: '',
@@ -114,10 +115,10 @@ export function SearchPage() {
     }))
     router.navigate({
       to: '/search',
-      search: filters.query.trim() ? { q: filters.query.trim() } : {},
+      search: {},
       replace: true,
     })
-  }, [router, filters.query])
+  }, [router])
 
   const hasActiveFilters = Boolean(
     filters.category ||

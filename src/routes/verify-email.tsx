@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import z from 'zod'
 import { VerifyEmail } from '#/route-components/verify-email'
-import { guardGuest } from '#/lib/route-guards'
+import { guardOptionalAuth } from '#/lib/route-guards'
 
 const verifyEmailSearchSchema = z.object({
   email: z.string().optional().catch(''),
@@ -11,7 +11,7 @@ const verifyEmailSearchSchema = z.object({
 
 export const Route = createFileRoute('/verify-email')({
   validateSearch: verifyEmailSearchSchema,
-  beforeLoad: async () => guardGuest(),
+  beforeLoad: async () => guardOptionalAuth(),
   head: () => ({
     meta: [{ name: 'referrer', content: 'strict-origin-when-cross-origin' }],
   }),
