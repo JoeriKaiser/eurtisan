@@ -88,14 +88,23 @@
   --ds-text-primary: var(--palette-walnut-900);
   --ds-text-secondary: var(--palette-walnut-500);
   --ds-text-muted: var(--palette-walnut-400);
+  --ds-text-placeholder: var(--palette-walnut-400);
+  --ds-text-brand: var(--ds-accent-primary);
   --ds-text-on-accent: var(--palette-walnut-50);
   --ds-text-on-primary: var(--palette-walnut-50);
 
   /* Background */
   --ds-bg-base: var(--palette-walnut-50);
   --ds-bg-elevated: #ffffff;
-  --ds-bg-overlay: oklch(0% 0 0 / 0.4);
+  --ds-bg-overlay: color-mix(in oklch, var(--palette-walnut-950) 40%, transparent);
   --ds-bg-inset: var(--palette-walnut-100);
+
+  /* Scrims — tinted overlays for surfaces, images, and backdrops */
+  --ds-scrim-subtle: color-mix(in oklch, var(--palette-walnut-950) 8%, transparent);
+  --ds-scrim: color-mix(in oklch, var(--palette-walnut-950) 16%, transparent);
+  --ds-scrim-strong: color-mix(in oklch, var(--palette-walnut-950) 32%, transparent);
+  --ds-scrim-image: color-mix(in oklch, var(--palette-walnut-950) 50%, transparent);
+  --ds-scrim-image-subtle: color-mix(in oklch, var(--palette-walnut-950) 20%, transparent);
 
   /* Surface (for cards, panels, modals) */
   --ds-surface-default: #ffffff;
@@ -136,7 +145,7 @@
   --ds-ring-offset: 2px;
   --ds-ring-color: var(--palette-sage-400);
 
-  /* Spacing (4pt base) */
+  /* Spacing (4pt base) — layout tokens for explicit use, NOT mapped to the Tailwind utility spacing scale. Tailwind utilities like p-8, gap-8, h-8, size-9 must remain on the standard Tailwind scale so component sizing is predictable. */
   --ds-space-1: 4px;
   --ds-space-2: 8px;
   --ds-space-3: 12px;
@@ -191,15 +200,24 @@
 /* ─── Layer 2: Semantic Tokens — Dark Mode ─── */
 :root[data-theme="dark"] {
   --ds-text-primary: var(--palette-walnut-100);
-  --ds-text-secondary: var(--palette-walnut-400);
-  --ds-text-muted: var(--palette-walnut-500);
+  --ds-text-secondary: var(--palette-walnut-300);
+  --ds-text-muted: var(--palette-walnut-400);
+  --ds-text-placeholder: var(--palette-walnut-300);
+  --ds-text-brand: var(--palette-moss-300);
   --ds-text-on-accent: var(--palette-walnut-950);
   --ds-text-on-primary: var(--palette-walnut-950);
 
   --ds-bg-base: var(--palette-walnut-950);
   --ds-bg-elevated: var(--palette-walnut-900);
-  --ds-bg-overlay: oklch(0% 0 0 / 0.6);
+  --ds-bg-overlay: color-mix(in oklch, var(--palette-walnut-950) 60%, transparent);
   --ds-bg-inset: var(--palette-walnut-900);
+
+  /* Scrims — warm-tinted overlays that avoid pure black in dark mode */
+  --ds-scrim-subtle: color-mix(in oklch, var(--palette-walnut-50) 8%, transparent);
+  --ds-scrim: color-mix(in oklch, var(--palette-walnut-50) 16%, transparent);
+  --ds-scrim-strong: color-mix(in oklch, var(--palette-walnut-50) 32%, transparent);
+  --ds-scrim-image: color-mix(in oklch, var(--palette-walnut-950) 55%, transparent);
+  --ds-scrim-image-subtle: color-mix(in oklch, var(--palette-walnut-950) 24%, transparent);
 
   --ds-surface-default: var(--palette-walnut-900);
   --ds-surface-elevated: var(--palette-walnut-800);
@@ -254,15 +272,24 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --ds-text-primary: var(--palette-walnut-100);
-    --ds-text-secondary: var(--palette-walnut-400);
-    --ds-text-muted: var(--palette-walnut-500);
+    --ds-text-secondary: var(--palette-walnut-300);
+    --ds-text-muted: var(--palette-walnut-400);
+    --ds-text-placeholder: var(--palette-walnut-300);
+    --ds-text-brand: var(--palette-moss-300);
     --ds-text-on-accent: var(--palette-walnut-950);
     --ds-text-on-primary: var(--palette-walnut-950);
 
     --ds-bg-base: var(--palette-walnut-950);
     --ds-bg-elevated: var(--palette-walnut-900);
-    --ds-bg-overlay: oklch(0% 0 0 / 0.6);
+    --ds-bg-overlay: color-mix(in oklch, var(--palette-walnut-950) 60%, transparent);
     --ds-bg-inset: var(--palette-walnut-900);
+
+    /* Scrims — warm-tinted overlays that avoid pure black in dark mode */
+    --ds-scrim-subtle: color-mix(in oklch, var(--palette-walnut-50) 8%, transparent);
+    --ds-scrim: color-mix(in oklch, var(--palette-walnut-50) 16%, transparent);
+    --ds-scrim-strong: color-mix(in oklch, var(--palette-walnut-50) 32%, transparent);
+    --ds-scrim-image: color-mix(in oklch, var(--palette-walnut-950) 55%, transparent);
+    --ds-scrim-image-subtle: color-mix(in oklch, var(--palette-walnut-950) 24%, transparent);
 
     --ds-surface-default: var(--palette-walnut-900);
     --ds-surface-elevated: var(--palette-walnut-800);
@@ -334,6 +361,8 @@
   --color-text-primary: var(--ds-text-primary);
   --color-text-secondary: var(--ds-text-secondary);
   --color-text-muted: var(--ds-text-muted);
+  --color-text-placeholder: var(--ds-text-placeholder);
+  --color-text-brand: var(--ds-text-brand);
   --color-text-on-accent: var(--ds-text-on-accent);
   --color-text-on-primary: var(--ds-text-on-primary);
 
@@ -341,6 +370,12 @@
   --color-bg-elevated: var(--ds-bg-elevated);
   --color-bg-overlay: var(--ds-bg-overlay);
   --color-bg-inset: var(--ds-bg-inset);
+
+  --color-scrim-subtle: var(--ds-scrim-subtle);
+  --color-scrim: var(--ds-scrim);
+  --color-scrim-strong: var(--ds-scrim-strong);
+  --color-scrim-image: var(--ds-scrim-image);
+  --color-scrim-image-subtle: var(--ds-scrim-image-subtle);
 
   --color-surface-default: var(--ds-surface-default);
   --color-surface-elevated: var(--ds-surface-elevated);
@@ -366,16 +401,34 @@
   --color-success: var(--ds-success);
   --color-success-subtle: var(--ds-success-subtle);
 
-  /* Spacing */
-  --spacing-1: var(--ds-space-1);
-  --spacing-2: var(--ds-space-2);
-  --spacing-3: var(--ds-space-3);
-  --spacing-4: var(--ds-space-4);
-  --spacing-5: var(--ds-space-5);
-  --spacing-6: var(--ds-space-6);
-  --spacing-7: var(--ds-space-7);
-  --spacing-8: var(--ds-space-8);
-  --spacing-9: var(--ds-space-9);
+  /* Spacing — standard Tailwind scale so utilities like h-8, p-8, gap-8 are predictable and consistent with component sizing (e.g., h-10 = 40px). Layout tokens above are for explicit CSS use only. */
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-5: 1.25rem;
+  --spacing-6: 1.5rem;
+  --spacing-7: 1.75rem;
+  --spacing-8: 2rem;
+  --spacing-9: 2.25rem;
+  --spacing-10: 2.5rem;
+  --spacing-11: 2.75rem;
+  --spacing-12: 3rem;
+  --spacing-14: 3.5rem;
+  --spacing-16: 4rem;
+  --spacing-20: 5rem;
+  --spacing-24: 6rem;
+  --spacing-28: 7rem;
+  --spacing-32: 8rem;
+  --spacing-36: 9rem;
+  --spacing-40: 10rem;
+  --spacing-44: 11rem;
+  --spacing-48: 12rem;
+  --spacing-56: 14rem;
+  --spacing-64: 16rem;
+  --spacing-72: 18rem;
+  --spacing-80: 20rem;
+  --spacing-96: 24rem;
 
   /* Radii */
   --radius-sm: var(--ds-radius-sm);
@@ -425,6 +478,9 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+    transition:
+      color var(--ds-transition-base) var(--ds-ease-out),
+      background-color var(--ds-transition-base) var(--ds-ease-out);
   }
 
   /* Subtle atmospheric radial glow — restrained, one layer only */

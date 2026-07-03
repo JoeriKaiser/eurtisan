@@ -92,6 +92,7 @@ function getStatusProgress(status: OrderStatus): number {
 export interface BuyerOrderDetailPageProps {
   order: OrderDetail
   reviewableItems?: ReviewableItem[]
+  backTo?: string
 }
 
 const EMPTY_ITEMS: ReviewableItem[] = []
@@ -100,6 +101,7 @@ const EMPTY_ITEMS: ReviewableItem[] = []
 export default function BuyerOrderDetailPage({
   order,
   reviewableItems = EMPTY_ITEMS,
+  backTo = '/orders',
   // eslint-disable-next-line
 }: BuyerOrderDetailPageProps) {
   const isCancelled = order.status === 'cancelled'
@@ -216,7 +218,7 @@ export default function BuyerOrderDetailPage({
       <div className='mx-auto max-w-3xl'>
         <div className='mb-6'>
           <Link
-            to='/orders'
+            to={backTo as never}
             className='inline-flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary no-underline'
           >
             <ArrowLeft size={16} aria-hidden='true' />
@@ -229,7 +231,9 @@ export default function BuyerOrderDetailPage({
             <h1 className='display-title text-2xl font-semibold text-text-primary sm:text-3xl'>
               {m.order_detail_title()}
             </h1>
-            <p className='mt-1 font-mono text-sm text-text-secondary'>{order.id}</p>
+            <p className='mt-1 font-mono text-sm text-text-secondary'>
+              {m.orders_order_number()}: {order.orderNumber}
+            </p>
           </div>
           <Badge variant={statusBadgeVariant(order.status)}>
             {getOrderStatusLabel(order.status)}

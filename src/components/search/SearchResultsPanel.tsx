@@ -83,7 +83,11 @@ export default function SearchResultsPanel({
       </div>
       <div className='grid gap-2 sm:grid-cols-2'>
         {products.map((product) => (
-          <SearchResultCard key={product.id} product={product} />
+          <SearchResultCard
+            key={product.id}
+            product={product}
+            imageUrl={product.imageUrl ?? null}
+          />
         ))}
       </div>
     </div>

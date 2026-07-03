@@ -89,7 +89,7 @@ import { Route as ApiE2eMockPaymentStatusRouteImport } from './routes/api/e2e/mo
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as AdminOrdersPlatformOrderIdRouteImport } from './routes/admin/orders.$platformOrderId'
 import { Route as AdminDisputesDisputeIdRouteImport } from './routes/admin/disputes/$disputeId'
-import { Route as AccountOrdersOrderIdRouteImport } from './routes/account/orders.$orderId'
+import { Route as AccountOrdersOrderNumberRouteImport } from './routes/account/orders.$orderNumber'
 import { Route as StudioShopIdOrdersIndexRouteImport } from './routes/studio/$shopId.orders.index'
 import { Route as StudioShopIdCustomersIndexRouteImport } from './routes/studio/$shopId.customers.index'
 import { Route as SellOnboardingDraftIdIndexRouteImport } from './routes/sell/onboarding/$draftId/index'
@@ -519,11 +519,12 @@ const AdminDisputesDisputeIdRoute = AdminDisputesDisputeIdRouteImport.update({
   path: '/$disputeId',
   getParentRoute: () => AdminDisputesRoute,
 } as any)
-const AccountOrdersOrderIdRoute = AccountOrdersOrderIdRouteImport.update({
-  id: '/$orderId',
-  path: '/$orderId',
-  getParentRoute: () => AccountOrdersRoute,
-} as any)
+const AccountOrdersOrderNumberRoute =
+  AccountOrdersOrderNumberRouteImport.update({
+    id: '/$orderNumber',
+    path: '/$orderNumber',
+    getParentRoute: () => AccountOrdersRoute,
+  } as any)
 const StudioShopIdOrdersIndexRoute = StudioShopIdOrdersIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -717,7 +718,7 @@ export interface FileRoutesByFullPath {
   '/orders/': typeof OrdersIndexRoute
   '/sell/': typeof SellIndexRoute
   '/studio/': typeof StudioIndexRoute
-  '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
+  '/account/orders/$orderNumber': typeof AccountOrdersOrderNumberRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/orders/$platformOrderId': typeof AdminOrdersPlatformOrderIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -813,7 +814,7 @@ export interface FileRoutesByTo {
   '/orders': typeof OrdersIndexRoute
   '/sell': typeof SellIndexRoute
   '/studio': typeof StudioIndexRoute
-  '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
+  '/account/orders/$orderNumber': typeof AccountOrdersOrderNumberRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/orders/$platformOrderId': typeof AdminOrdersPlatformOrderIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -918,7 +919,7 @@ export interface FileRoutesById {
   '/orders/': typeof OrdersIndexRoute
   '/sell/': typeof SellIndexRoute
   '/studio/': typeof StudioIndexRoute
-  '/account/orders/$orderId': typeof AccountOrdersOrderIdRoute
+  '/account/orders/$orderNumber': typeof AccountOrdersOrderNumberRoute
   '/admin/disputes/$disputeId': typeof AdminDisputesDisputeIdRoute
   '/admin/orders/$platformOrderId': typeof AdminOrdersPlatformOrderIdRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -1027,7 +1028,7 @@ export interface FileRouteTypes {
     | '/orders/'
     | '/sell/'
     | '/studio/'
-    | '/account/orders/$orderId'
+    | '/account/orders/$orderNumber'
     | '/admin/disputes/$disputeId'
     | '/admin/orders/$platformOrderId'
     | '/api/auth/$'
@@ -1123,7 +1124,7 @@ export interface FileRouteTypes {
     | '/orders'
     | '/sell'
     | '/studio'
-    | '/account/orders/$orderId'
+    | '/account/orders/$orderNumber'
     | '/admin/disputes/$disputeId'
     | '/admin/orders/$platformOrderId'
     | '/api/auth/$'
@@ -1227,7 +1228,7 @@ export interface FileRouteTypes {
     | '/orders/'
     | '/sell/'
     | '/studio/'
-    | '/account/orders/$orderId'
+    | '/account/orders/$orderNumber'
     | '/admin/disputes/$disputeId'
     | '/admin/orders/$platformOrderId'
     | '/api/auth/$'
@@ -1895,11 +1896,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDisputesDisputeIdRouteImport
       parentRoute: typeof AdminDisputesRoute
     }
-    '/account/orders/$orderId': {
-      id: '/account/orders/$orderId'
-      path: '/$orderId'
-      fullPath: '/account/orders/$orderId'
-      preLoaderRoute: typeof AccountOrdersOrderIdRouteImport
+    '/account/orders/$orderNumber': {
+      id: '/account/orders/$orderNumber'
+      path: '/$orderNumber'
+      fullPath: '/account/orders/$orderNumber'
+      preLoaderRoute: typeof AccountOrdersOrderNumberRouteImport
       parentRoute: typeof AccountOrdersRoute
     }
     '/studio/$shopId/orders/': {
@@ -2265,12 +2266,12 @@ const OrdersRouteWithChildren =
   OrdersRoute._addFileChildren(OrdersRouteChildren)
 
 interface AccountOrdersRouteChildren {
-  AccountOrdersOrderIdRoute: typeof AccountOrdersOrderIdRoute
+  AccountOrdersOrderNumberRoute: typeof AccountOrdersOrderNumberRoute
   AccountOrdersIndexRoute: typeof AccountOrdersIndexRoute
 }
 
 const AccountOrdersRouteChildren: AccountOrdersRouteChildren = {
-  AccountOrdersOrderIdRoute: AccountOrdersOrderIdRoute,
+  AccountOrdersOrderNumberRoute: AccountOrdersOrderNumberRoute,
   AccountOrdersIndexRoute: AccountOrdersIndexRoute,
 }
 

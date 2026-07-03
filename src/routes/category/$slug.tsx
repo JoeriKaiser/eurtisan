@@ -1,5 +1,6 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import z from 'zod'
+import { NotFoundPage } from '#/components/NotFoundPage'
 import { CategoryPage } from '#/route-components/category/$slug'
 import { getCategoryBySlug } from '#/lib/categories'
 import { listProductsByCategorySlug } from '#/lib/products'
@@ -29,5 +30,6 @@ export const Route = createFileRoute('/category/$slug')({
 
     return { category, products, page: deps.page }
   },
+  notFoundComponent: NotFoundPage,
   component: CategoryPage,
 })

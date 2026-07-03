@@ -29,8 +29,8 @@ test.describe('Account orders list', () => {
     await expect(pagination().getByText(/page 1 of \d+/i)).toBeVisible()
 
     // Page 1 should list the newest order we just created.
-    const newestOrderId = orders[orders.length - 1].platformOrderId.slice(0, 8)
-    await expect(page.getByText(newestOrderId)).toBeVisible()
+    const newestOrderNumber = orders[orders.length - 1].orderNumber
+    await expect(page.getByText(newestOrderNumber)).toBeVisible()
 
     // Navigate to page 2 and assert it shows a different page of results.
     const nextButton = pagination().getByRole('button', { name: /next/i })
@@ -38,7 +38,7 @@ test.describe('Account orders list', () => {
     await nextButton.click()
     await page.waitForURL(/[?&]page=2/)
     await expect(pagination().getByText(/page 2 of \d+/i)).toBeVisible()
-    await expect(page.getByText(newestOrderId)).not.toBeVisible()
+    await expect(page.getByText(newestOrderNumber)).not.toBeVisible()
 
     // Return to the first page.
     await pagination()
@@ -49,6 +49,6 @@ test.describe('Account orders list', () => {
       return pageParam === null || pageParam === '1'
     })
     await expect(pagination().getByText(/page 1 of \d+/i)).toBeVisible()
-    await expect(page.getByText(newestOrderId)).toBeVisible()
+    await expect(page.getByText(newestOrderNumber)).toBeVisible()
   })
 })

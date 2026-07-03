@@ -47,13 +47,13 @@ export function AccountOrders() {
               {orders.map((order) => (
                 <Link
                   key={order.id}
-                  to='/account/orders/$orderId'
-                  params={{ orderId: order.id }}
+                  to='/account/orders/$orderNumber'
+                  params={{ orderNumber: order.orderNumber }}
                   className='flex flex-col gap-2 rounded-xl border border-border-default bg-surface-default p-4 transition hover:border-border-strong hover:bg-bg-inset sm:flex-row sm:items-center sm:justify-between no-underline'
                 >
                   <div className='space-y-1'>
                     <p className='font-mono text-sm font-medium text-text-primary'>
-                      {m.orders_order_id()}: {order.id}
+                      {m.orders_order_number()}: {order.orderNumber}
                     </p>
                     <p className='text-sm text-text-secondary'>
                       {formatDate(order.createdAt)} ·{' '}

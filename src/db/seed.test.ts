@@ -1,5 +1,10 @@
 import { execSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
+import {
+  CATEGORY_DESCRIPTIONS,
+  SHOP_DESCRIPTIONS,
+  SUBCATEGORY_DESCRIPTIONS,
+} from './seed-descriptions.ts'
 
 function runSeed(args: string[] = [], env: Record<string, string> = {}): string {
   try {
@@ -29,5 +34,33 @@ describe('seed.ts production guards', () => {
   it('requires --force alongside --clear in non-production', () => {
     const output = runSeed(['--clear'], { NODE_ENV: 'development' })
     expect(output).toContain('Use --force to confirm clearing data')
+  })
+})
+
+describe('seed descriptions', () => {
+  const forbidden = ['Pizza', 'Pants', 'elephant', 'LED lighting']
+
+  function assertNoForbidden(description: string) {
+    for (const word of forbidden) {
+      expect(description.toLowerCase()).not.toContain(word.toLowerCase())
+    }
+  }
+
+  it('does not use Faker placeholder words in category descriptions', () => {
+    for (const [, description] of Object.entries(CATEGORY_DESCRIPTIONS)) {
+      assertNoForbidden(description)
+    }
+  })
+
+  it('does not use Faker placeholder words in subcategory descriptions', () => {
+    for (const [, description] of Object.entries(SUBCATEGORY_DESCRIPTIONS)) {
+      assertNoForbidden(description)
+    }
+  })
+
+  it('does not use Faker placeholder words in random shop descriptions', () => {
+    for (const description of SHOP_DESCRIPTIONS) {
+      assertNoForbidden(description)
+    }
   })
 })

@@ -8,7 +8,7 @@ test.describe('Buyer invoice download', () => {
     const order = await createPaidOrder('customer')
     if (!order.invoiceNumber) throw new Error('Invoice number missing from test order')
 
-    await page.goto(`/account/orders/${order.platformOrderId}`)
+    await page.goto(`/account/orders/${order.orderNumber}`)
     await page.waitForSelector('html[data-hydrated="true"]')
 
     await expect(page.getByRole('heading', { name: /order details/i })).toBeVisible()

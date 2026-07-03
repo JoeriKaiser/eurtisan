@@ -1,8 +1,9 @@
 import { useRouter, Link, useSearch } from '@tanstack/react-router'
 import { useState } from 'react'
-import { Eye, EyeOff, Apple, AlertTriangle } from 'lucide-react'
+import { Eye, EyeOff, Apple } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
+import { FeedbackBanner } from '#/components/ui/FeedbackBanner'
 import { authClient } from '#/lib/auth-client'
 import { isLocalRedirect } from '#/lib/auth-utils'
 import { m } from '#/paraglide/messages'
@@ -10,15 +11,7 @@ import { AuthShell } from '#/components/auth/AuthShell'
 import { PasswordStrengthIndicator } from '#/components/auth/PasswordStrengthIndicator'
 
 const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg
-    viewBox='0 0 24 24'
-    width='16'
-    height='16'
-    fill='currentColor'
-    role='img'
-    aria-label='Google'
-    {...props}
-  >
+  <svg viewBox='0 0 24 24' width='16' height='16' fill='currentColor' aria-hidden='true' {...props}>
     <path
       d='M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z'
       fill='#4285F4'
@@ -39,15 +32,7 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 )
 
 const GithubIcon = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg
-    viewBox='0 0 16 16'
-    width='16'
-    height='16'
-    fill='currentColor'
-    role='img'
-    aria-label='GitHub'
-    {...props}
-  >
+  <svg viewBox='0 0 16 16' width='16' height='16' fill='currentColor' aria-hidden='true' {...props}>
     <path d='M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z' />
   </svg>
 )
@@ -143,7 +128,7 @@ export function SignIn() {
           setNeedsTwoFactor(true)
           setStatus({
             error: '',
-            info: 'Enter the 6-digit code from your authenticator app.',
+            info: m.two_factor_info(),
             loading: false,
           })
         } else {
@@ -202,7 +187,7 @@ export function SignIn() {
         <form onSubmit={handleVerifyTwoFactor} className='grid gap-3'>
           <div className='grid gap-1'>
             <label htmlFor='two-factor-code' className='text-sm font-medium text-text-primary'>
-              Authenticator code
+              {m.two_factor_code_label()}
             </label>
             <Input
               id='two-factor-code'
@@ -215,8 +200,14 @@ export function SignIn() {
               className='w-full'
             />
           </div>
+
+          <div className='min-h-12'>
+            {status.error && <FeedbackBanner type='error' message={status.error} size='sm' />}
+            {status.info && <FeedbackBanner type='info' message={status.info} size='sm' />}
+          </div>
+
           <Button type='submit' isLoading={status.loading} className='w-full mt-1'>
-            Verify and sign in
+            {m.two_factor_button_verify()}
           </Button>
           <button
             type='button'
@@ -227,14 +218,8 @@ export function SignIn() {
               setStatus({ error: '', info: '', loading: false })
             }}
           >
-            Back to sign in
+            {m.two_factor_back_to_sign_in()}
           </button>
-          {status.error && (
-            <div className='rounded-lg border border-error bg-error-subtle p-3' role='alert'>
-              <p className='text-xs text-error font-medium'>{status.error}</p>
-            </div>
-          )}
-          {status.info && <p className='text-xs text-text-secondary'>{status.info}</p>}
         </form>
       ) : (
         <form onSubmit={handleSubmit} className='grid gap-3'>
@@ -280,7 +265,7 @@ export function SignIn() {
               {!isSignUp && (
                 <Link
                   to='/forgot-password'
-                  className='text-xs font-medium text-accent-primary hover:underline'
+                  className='text-xs font-medium text-accent-primary hover:text-accent-primary-hover hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2 rounded transition-colors'
                 >
                   {m.forgot_password_title()}
                 </Link>
@@ -346,29 +331,14 @@ export function SignIn() {
             </div>
           )}
 
+          <div className='min-h-12'>
+            {status.error && <FeedbackBanner type='error' message={status.error} size='sm' />}
+            {status.info && <FeedbackBanner type='info' message={status.info} size='sm' />}
+          </div>
+
           <Button type='submit' isLoading={status.loading} className='w-full mt-1'>
             {isSignUp ? m.button_create_account() : m.button_sign_in()}
           </Button>
-
-          {status.error && (
-            <div
-              className='rounded-lg border border-error bg-error-subtle p-3 flex items-start gap-2'
-              role='alert'
-              aria-live='assertive'
-            >
-              <AlertTriangle className='text-error shrink-0 mt-0.5' size={16} />
-              <p className='text-xs text-error font-medium'>{status.error}</p>
-            </div>
-          )}
-
-          {status.info && (
-            <div
-              className='rounded-lg border border-border-default bg-surface-inset p-3 flex items-start gap-2'
-              aria-live='polite'
-            >
-              <p className='text-xs text-text-secondary font-medium'>{status.info}</p>
-            </div>
-          )}
         </form>
       )}
 
@@ -400,33 +370,33 @@ export function SignIn() {
             </div>
           </div>
 
-          <div className='grid grid-cols-3 gap-3'>
+          <div className='grid gap-3'>
             <Button
               type='button'
               variant='secondary'
               onClick={() => handleOAuthClick('google')}
-              className='w-full flex items-center justify-center py-2'
-              aria-label='Continue with Google'
+              className='w-full flex items-center justify-center gap-2 py-2'
             >
               <GoogleIcon />
+              <span>{m.oauth_provider_google()}</span>
             </Button>
             <Button
               type='button'
               variant='secondary'
               onClick={() => handleOAuthClick('github')}
-              className='w-full flex items-center justify-center py-2'
-              aria-label='Continue with GitHub'
+              className='w-full flex items-center justify-center gap-2 py-2'
             >
               <GithubIcon />
+              <span>{m.oauth_provider_github()}</span>
             </Button>
             <Button
               type='button'
               variant='secondary'
               onClick={() => handleOAuthClick('apple')}
-              className='w-full flex items-center justify-center py-2'
-              aria-label='Continue with Apple'
+              className='w-full flex items-center justify-center gap-2 py-2'
             >
-              <Apple size={16} />
+              <Apple size={16} aria-hidden='true' />
+              <span>{m.oauth_provider_apple()}</span>
             </Button>
           </div>
         </>

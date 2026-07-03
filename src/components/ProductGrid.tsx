@@ -56,7 +56,7 @@ export default function ProductGrid({
     <div className='space-y-6'>
       <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
         {products.map((product) => (
-          <ProductCard key={product.id} product={product} />
+          <ProductCard key={product.id} product={product} imageUrl={product.imageUrl ?? null} />
         ))}
       </div>
 

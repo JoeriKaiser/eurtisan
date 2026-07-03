@@ -3,7 +3,7 @@
  * database so specs can focus on UI assertions instead of seed data archaeology.
  */
 import { randomBytes, randomUUID, scryptSync } from 'node:crypto'
-import { and, eq, inArray, isNotNull } from 'drizzle-orm'
+import { and, eq, isNotNull } from 'drizzle-orm'
 import * as schema from '../../src/db/schema'
 import { db } from '../db'
 import { E2E_CUSTOMER } from './auth'
@@ -31,6 +31,7 @@ export interface TestCustomer {
 
 export interface TestOrder {
   platformOrderId: string
+  orderNumber: string
   shopOrderId: string
   shopId: string
   productId: string
@@ -98,7 +99,7 @@ export async function getCreatorShop() {
     .where(
       and(
         eq(schema.shop.ownerId, creator[0].id),
-        inArray(schema.shop.status, ['active', 'approved']),
+        eq(schema.shop.status, 'active'),
         eq(schema.shop.isSuspended, false),
       ),
     )
@@ -218,7 +219,7 @@ export async function createPendingOrder(buyerSeed: string): Promise<TestOrder> 
       status: 'pending_payment',
       molliePaymentId,
     })
-    .returning()
+    .returning({ id: schema.platformOrder.id, orderNumber: schema.platformOrder.orderNumber })
 
   const [shopOrder] = await db
     .insert(schema.shopOrder)
@@ -250,6 +251,7 @@ export async function createPendingOrder(buyerSeed: string): Promise<TestOrder> 
 
   return {
     platformOrderId: platformOrder.id,
+    orderNumber: platformOrder.orderNumber,
     shopOrderId: shopOrder.id,
     shopId: shop.id,
     productId: product.id,
@@ -324,7 +326,7 @@ export async function seedPaidOrders(
         molliePaymentId,
         createdAt,
       })
-      .returning({ id: schema.platformOrder.id })
+      .returning({ id: schema.platformOrder.id, orderNumber: schema.platformOrder.orderNumber })
 
     const [shopOrder] = await db
       .insert(schema.shopOrder)
@@ -358,6 +360,7 @@ export async function seedPaidOrders(
 
     orders.push({
       platformOrderId: platformOrder.id,
+      orderNumber: platformOrder.orderNumber,
       shopOrderId: shopOrder.id,
       shopId: shop.id,
       productId: product.id,

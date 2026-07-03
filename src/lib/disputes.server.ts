@@ -66,6 +66,7 @@ export interface DisputeOrderItem {
 export interface DisputeOrderInfo {
   id: string
   platformOrderId: string
+  platformOrderNumber: string
   shopId: string
   shopName: string
   status: string
@@ -163,7 +164,11 @@ export async function openDisputeQuery(
   }
 
   const [platformOrderRecord] = await db
-    .select()
+    .select({
+      id: platformOrder.id,
+      orderNumber: platformOrder.orderNumber,
+      userId: platformOrder.userId,
+    })
     .from(platformOrder)
     .where(eq(platformOrder.id, shopOrderRecord.platformOrderId))
     .limit(1)
@@ -252,6 +257,7 @@ export async function openDisputeQuery(
       const { createNotification } = await import('./notifications.server')
       await createNotification(buyerUserId, 'dispute_opened', {
         platformOrderId: shopOrderRecord.platformOrderId,
+        orderNumber: platformOrderRecord.orderNumber,
         shopOrderId: input.shopOrderId,
       })
     } catch {
@@ -288,7 +294,7 @@ export async function openDisputeQuery(
       userId: buyerUserId,
       template: 'dispute_update',
       data: {
-        orderNumber: input.shopOrderId.slice(0, 8),
+        orderNumber: platformOrderRecord.orderNumber,
         buyerName: buyerRecord?.name,
         shopName: shopRecord?.name ?? 'Eurtisan',
         status: 'opened',
@@ -477,8 +483,12 @@ export async function getDisputeDetailQuery(
   }
 
   const [shopOrderRecord] = await db
-    .select()
+    .select({
+      shopOrder,
+      platformOrderNumber: platformOrder.orderNumber,
+    })
     .from(shopOrder)
+    .innerJoin(platformOrder, eq(shopOrder.platformOrderId, platformOrder.id))
     .where(eq(shopOrder.id, disputeRecord.shopOrderId))
     .limit(1)
 
@@ -492,7 +502,7 @@ export async function getDisputeDetailQuery(
   const [shopRecord] = await db
     .select()
     .from(shop)
-    .where(eq(shop.id, shopOrderRecord.shopId))
+    .where(eq(shop.id, shopOrderRecord.shopOrder.shopId))
     .limit(1)
 
   let isOwner = false
@@ -561,15 +571,17 @@ export async function getDisputeDetailQuery(
     buyer: buyerRecord[0] ?? { id: disputeRecord.buyerUserId, name: 'Unknown', email: '' },
     shop: ownerRecord[0] ?? { id: shopRecord?.ownerId ?? '', name: 'Unknown', email: '' },
     order: {
-      id: shopOrderRecord.id,
-      platformOrderId: shopOrderRecord.platformOrderId,
-      shopId: shopOrderRecord.shopId,
+      id: shopOrderRecord.shopOrder.id,
+      platformOrderId: shopOrderRecord.shopOrder.platformOrderId,
+      platformOrderNumber: shopOrderRecord.platformOrderNumber,
+      shopId: shopOrderRecord.shopOrder.shopId,
       shopName: shopRecord?.name ?? 'Unknown shop',
-      status: shopOrderRecord.status,
-      subtotalCents: shopOrderRecord.subtotalCents,
-      shippingCostCents: shopOrderRecord.shippingCostCents,
-      totalCents: shopOrderRecord.subtotalCents + shopOrderRecord.shippingCostCents,
-      createdAt: shopOrderRecord.createdAt,
+      status: shopOrderRecord.shopOrder.status,
+      subtotalCents: shopOrderRecord.shopOrder.subtotalCents,
+      shippingCostCents: shopOrderRecord.shopOrder.shippingCostCents,
+      totalCents:
+        shopOrderRecord.shopOrder.subtotalCents + shopOrderRecord.shopOrder.shippingCostCents,
+      createdAt: shopOrderRecord.shopOrder.createdAt,
       items: orderItems.map((item) => ({
         id: item.id,
         productId: item.productId,
@@ -633,6 +645,8 @@ export async function resolveDisputeQuery(
 
   const [platformOrderRecord] = await db
     .select({
+      id: platformOrder.id,
+      orderNumber: platformOrder.orderNumber,
       molliePaymentId: platformOrder.molliePaymentId,
       totalCents: platformOrder.totalCents,
       refundedCents: platformOrder.refundedCents,
@@ -840,6 +854,7 @@ export async function resolveDisputeQuery(
       disputeId,
       shopOrderId: lockedDispute.shopOrderId,
       platformOrderId: lockedShopOrder.platformOrderId,
+      orderNumber: platformOrderRecord?.orderNumber ?? '',
       resolution: input.resolution,
       refundCents,
     }
@@ -1008,11 +1023,14 @@ export async function resolveDisputeQuery(
             ? `A partial refund has been issued.`
             : 'The dispute has been resolved.'
 
+    const resolvedOrderNumber =
+      platformOrderRecord?.orderNumber ?? finalDisputeRecord.shopOrderId.slice(0, 8)
+
     await sendNotificationEmail({
       userId: finalDisputeRecord.buyerUserId,
       template: 'dispute_update',
       data: {
-        orderNumber: finalDisputeRecord.shopOrderId.slice(0, 8),
+        orderNumber: resolvedOrderNumber,
         buyerName: buyerRecord?.name,
         shopName: shopRecord2?.name ?? 'Eurtisan',
         status: input.resolution,
@@ -1028,7 +1046,7 @@ export async function resolveDisputeQuery(
         userId: finalCreatorUserId,
         template: 'dispute_update',
         data: {
-          orderNumber: finalDisputeRecord.shopOrderId.slice(0, 8),
+          orderNumber: resolvedOrderNumber,
           buyerName: sellerRecord?.name,
           shopName: shopRecord2?.name ?? 'Eurtisan',
           status: input.resolution,

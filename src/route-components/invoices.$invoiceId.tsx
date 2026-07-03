@@ -24,14 +24,15 @@ export function InvoiceDetailComponent() {
       <div className='sticky top-0 z-40 border-b border-border-default bg-surface-default/80 backdrop-blur-md p-4 print:hidden'>
         <div className='mx-auto flex max-w-4xl items-center justify-between gap-4'>
           <div className='flex items-center gap-2'>
-            <button
+            <Button
               type='button'
+              variant='secondary'
+              size='sm'
               onClick={() => window.history.back()}
-              className='inline-flex size-9 items-center justify-center rounded-lg border border-border-default bg-surface-default text-text-secondary transition hover:text-text-primary hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
               aria-label='Go back'
             >
               <ArrowLeft size={16} />
-            </button>
+            </Button>
             <div className='hidden sm:block'>
               <h1 className='text-sm font-semibold text-text-primary'>
                 {isPlatformFee ? m.invoice_platform_fee_title() : m.invoice_customer_title()}
@@ -71,7 +72,7 @@ export function InvoiceDetailComponent() {
               <div>
                 {/* Visual Identity Logo */}
                 <div className='flex items-center gap-2.5 mb-3'>
-                  <div className='flex size-9 items-center justify-center rounded-xl bg-gradient-to-tr from-accent-primary to-accent-secondary text-white font-bold text-lg shadow-md print:shadow-none'>
+                  <div className='flex size-16 items-center justify-center rounded-xl bg-gradient-to-tr from-accent-primary to-accent-secondary text-white font-bold text-lg shadow-md print:shadow-none'>
                     E
                   </div>
                   <span className='text-xl font-bold tracking-tight text-text-primary print:text-black'>

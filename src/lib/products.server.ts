@@ -14,6 +14,7 @@ import {
 } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { categories, product, productImage, shop } from '#/db/schema'
+import { getDescendantCategoryIds } from './categories.server'
 import { logger } from './logger.server'
 import { searchQueriesTotal } from './metrics.server'
 import { sanitizeRichText, validatePlainText } from './xss'
@@ -63,6 +64,7 @@ export type PublicProduct = {
   shopName: string | null
   shopSlug: string | null
   shopIsVatRegistered: boolean
+  imageUrl: string | null
 }
 
 export type RecentProduct = PublicProduct & {
@@ -117,6 +119,20 @@ export type PaginatedProducts = {
   page: number
   pageSize: number
   totalPages: number
+}
+
+export async function fetchFirstImageUrls(productIds: string[]): Promise<Map<string, string>> {
+  if (productIds.length === 0) return new Map()
+
+  const images = await db
+    .select({
+      productId: productImage.productId,
+      url: productImage.url,
+    })
+    .from(productImage)
+    .where(and(inArray(productImage.productId, productIds), eq(productImage.sortOrder, 0)))
+
+  return new Map(images.map((img) => [img.productId, img.url]))
 }
 
 function buildProductWhere(filters: ListProductsFilters) {
@@ -187,8 +203,13 @@ export async function listProductsQuery(
     .limit(pageSize)
     .offset(offset)
 
+  const imageUrls = await fetchFirstImageUrls(products.map((p) => p.id))
+
   return {
-    products: products as PublicProduct[],
+    products: products.map((p) => ({
+      ...p,
+      imageUrl: imageUrls.get(p.id) ?? null,
+    })) as PublicProduct[],
     total,
     page,
     pageSize,
@@ -235,8 +256,11 @@ export async function getProductBySlugQuery(
     .where(eq(productImage.productId, result.id))
     .orderBy(asc(productImage.sortOrder))
 
+  const primaryImage = images.find((img) => img.sortOrder === 0) ?? images[0] ?? null
+
   return {
     ...(result as unknown as PublicProduct),
+    imageUrl: primaryImage?.url ?? null,
     images,
     shopDescription: result.shopDescription,
     categoryId: result.categoryId,
@@ -341,8 +365,13 @@ export async function getShopProductsQuery(
     .limit(pageSize)
     .offset(offset)
 
+  const imageUrls = await fetchFirstImageUrls(products.map((p) => p.id))
+
   return {
-    products: products as PublicProduct[],
+    products: products.map((p) => ({
+      ...p,
+      imageUrl: imageUrls.get(p.id) ?? null,
+    })) as PublicProduct[],
     total,
     page,
     pageSize,
@@ -375,8 +404,10 @@ export async function listProductsByCategorySlugQuery(
   const pageSize = Math.min(100, Math.max(1, pagination.pageSize))
   const offset = (page - 1) * pageSize
 
+  const descendantIds = await getDescendantCategoryIds(category[0].id)
+
   const where = and(
-    eq(product.categoryId, category[0].id),
+    inArray(product.categoryId, descendantIds),
     eq(shop.status, 'active'),
     eq(shop.isSuspended, false),
     eq(product.status, 'published'),
@@ -401,8 +432,13 @@ export async function listProductsByCategorySlugQuery(
     .limit(pageSize)
     .offset(offset)
 
+  const imageUrls = await fetchFirstImageUrls(products.map((p) => p.id))
+
   return {
-    products: products as PublicProduct[],
+    products: products.map((p) => ({
+      ...p,
+      imageUrl: imageUrls.get(p.id) ?? null,
+    })) as PublicProduct[],
     total,
     page,
     pageSize,
@@ -658,8 +694,13 @@ export async function searchProductsQuery(
     })
   }
 
+  const imageUrls = await fetchFirstImageUrls(products.map((p) => p.id))
+
   return {
-    products: products as PublicProduct[],
+    products: products.map((p) => ({
+      ...p,
+      imageUrl: imageUrls.get(p.id) ?? null,
+    })) as PublicProduct[],
     total,
     page,
     pageSize,

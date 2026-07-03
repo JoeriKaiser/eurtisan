@@ -10,7 +10,8 @@ test.describe('Notifications', () => {
     await expect(page.getByRole('heading', { name: /notifications/i })).toBeVisible()
 
     // Either notifications exist or empty state is shown.
-    const firstItem = page.getByRole('listitem').first()
+    const notificationList = page.getByRole('list', { name: /notifications/i })
+    const firstItem = notificationList.getByRole('listitem').first()
     const emptyState = page.getByText(/no notifications/i)
     await expect(firstItem.or(emptyState)).toBeVisible()
 
@@ -33,7 +34,8 @@ test.describe('Notifications', () => {
     await page.goto('/notifications')
     await page.waitForSelector('html[data-hydrated="true"]')
 
-    const firstItem = page.getByRole('listitem').first()
+    const notificationList = page.getByRole('list', { name: /notifications/i })
+    const firstItem = notificationList.getByRole('listitem').first()
     if (await firstItem.isVisible().catch(() => false)) {
       const firstButton = firstItem.getByRole('button').first()
       const previewText = await firstButton.locator('p').first().textContent()

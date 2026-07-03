@@ -1,4 +1,5 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
+import { NotFoundPage } from '#/components/NotFoundPage'
 import { ProductDetailPage } from '#/route-components/shops/$shopSlug.products.$productSlug'
 import { getProductBySlug } from '#/lib/products'
 import { createPageMeta } from '#/lib/seo'
@@ -67,5 +68,6 @@ export const Route = createFileRoute('/shops/$shopSlug/products/$productSlug')({
 
     return { meta, links, script }
   },
+  notFoundComponent: NotFoundPage,
   component: ProductDetailPage,
 })

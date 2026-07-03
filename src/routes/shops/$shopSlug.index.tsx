@@ -1,5 +1,6 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import z from 'zod'
+import { NotFoundPage } from '#/components/NotFoundPage'
 import { ShopRouteComponent } from '#/route-components/shops/$shopSlug'
 import { ShopError } from '#/route-components/shops/$shopSlug.error'
 import { ShopPending } from '#/route-components/shops/$shopSlug.pending'
@@ -73,6 +74,7 @@ export const Route = createFileRoute('/shops/$shopSlug/')({
 
     return { meta, links, script }
   },
+  notFoundComponent: NotFoundPage,
   component: ShopRouteComponent,
   errorComponent: ShopError,
   pendingComponent: ShopPending,

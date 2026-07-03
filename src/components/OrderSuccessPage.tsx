@@ -70,8 +70,8 @@ export default function OrderSuccessPage({ order }: OrderSuccessPageProps) {
         <div className='island-shell rounded-2xl p-6'>
           <div className='mb-6 flex flex-wrap items-center justify-between gap-2 border-b border-border-default pb-4'>
             <div>
-              <p className='text-sm text-text-secondary'>{m.order_success_order_id()}</p>
-              <p className='font-mono text-sm font-medium text-text-primary'>{order.id}</p>
+              <p className='text-sm text-text-secondary'>{m.order_success_order_number()}</p>
+              <p className='font-mono text-sm font-medium text-text-primary'>{order.orderNumber}</p>
             </div>
             <div className='text-right'>
               <p className='text-sm text-text-secondary'>{m.order_success_total()}</p>

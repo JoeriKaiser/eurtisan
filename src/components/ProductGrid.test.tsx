@@ -40,6 +40,7 @@ function makeProduct(id: string, overrides?: Partial<PublicProduct>): PublicProd
     shopName: 'Test Shop',
     shopSlug: 'test-shop',
     shopIsVatRegistered: false,
+    imageUrl: `https://example.com/${id}.jpg`,
     ...overrides,
   }
 }
@@ -125,5 +126,12 @@ describe('ProductGrid', () => {
     const { container } = render(<ProductGrid products={products} />)
     const grid = container.querySelector('.grid.sm\\:grid-cols-2.lg\\:grid-cols-3')
     expect(grid).not.toBeNull()
+  })
+
+  it('forwards imageUrl to ProductCard', () => {
+    const products = [makeProduct('1', { imageUrl: 'https://example.com/card.jpg' })]
+    render(<ProductGrid products={products} />)
+    const img = screen.getByAltText('Product 1')
+    expect(img.getAttribute('src')).toContain('https://example.com/card.jpg')
   })
 })

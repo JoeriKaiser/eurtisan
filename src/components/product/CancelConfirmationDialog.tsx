@@ -33,7 +33,7 @@ export function CancelConfirmationDialog({
   return (
     <dialog
       ref={dialogRef}
-      className='z-50 w-full max-w-sm rounded-xl bg-surface-default p-6 shadow-lg backdrop:bg-black/50 border-0'
+      className='z-50 w-full max-w-sm rounded-xl bg-surface-default p-6 shadow-lg backdrop:bg-bg-overlay border-0'
       aria-labelledby='cancel-dialog-title'
       aria-describedby='cancel-dialog-description'
       onCancel={(e) => {

@@ -50,8 +50,8 @@ function resolveDeepLink(item: NotificationItem): string | null {
     case 'order_placed':
     case 'order_shipped':
     case 'order_refunded': {
-      const orderId = data.orderId ?? data.platformOrderId
-      if (orderId) return `/orders/${orderId}`
+      const orderNumber = data.orderNumber ?? data.orderId ?? data.platformOrderId
+      if (orderNumber) return `/orders/${orderNumber}`
       break
     }
     case 'review_received': {
@@ -59,9 +59,10 @@ function resolveDeepLink(item: NotificationItem): string | null {
       if (productSlug) return `/shops/${data.shopSlug ?? 'unknown'}/products/${productSlug}`
       break
     }
-    case 'dispute_opened': {
-      const orderId = data.orderId ?? data.platformOrderId
-      if (orderId) return `/account/orders/${orderId}`
+    case 'dispute_opened':
+    case 'dispute_resolved': {
+      const orderNumber = data.orderNumber ?? data.orderId ?? data.platformOrderId
+      if (orderNumber) return `/account/orders/${orderNumber}`
       break
     }
     case 'payout_sent': {
@@ -88,15 +89,27 @@ function notificationPreview(item: NotificationItem): string {
 
   switch (item.type) {
     case 'order_placed':
-      return m.notification_order_placed({ orderId: data.orderId ?? data.platformOrderId ?? '' })
+      return m.notification_order_placed({
+        orderNumber: data.orderNumber ?? data.orderId ?? data.platformOrderId ?? '',
+      })
     case 'order_shipped':
-      return m.notification_order_shipped({ orderId: data.orderId ?? data.platformOrderId ?? '' })
+      return m.notification_order_shipped({
+        orderNumber: data.orderNumber ?? data.orderId ?? data.platformOrderId ?? '',
+      })
     case 'order_refunded':
-      return m.notification_order_refunded({ orderId: data.orderId ?? data.platformOrderId ?? '' })
+      return m.notification_order_refunded({
+        orderNumber: data.orderNumber ?? data.orderId ?? data.platformOrderId ?? '',
+      })
     case 'review_received':
       return m.notification_review_received({ productName: data.productName ?? '' })
     case 'dispute_opened':
-      return m.notification_dispute_opened({ orderId: data.orderId ?? '' })
+      return m.notification_dispute_opened({
+        orderNumber: data.orderNumber ?? data.orderId ?? data.platformOrderId ?? '',
+      })
+    case 'dispute_resolved':
+      return m.notification_dispute_resolved({
+        orderNumber: data.orderNumber ?? data.orderId ?? data.platformOrderId ?? '',
+      })
     case 'payout_sent':
       return m.notification_payout_sent({ amount: data.amount ?? '' })
     case 'dac7_warning_limit':

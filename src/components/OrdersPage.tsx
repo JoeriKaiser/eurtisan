@@ -61,7 +61,7 @@ export function OrdersPage({
                   >
                     <div className='space-y-1'>
                       <p className='font-mono text-sm font-medium text-text-primary'>
-                        {m.orders_order_id()}: {order.id}
+                        {m.orders_order_number()}: {order.orderNumber}
                       </p>
                       <p className='text-sm text-text-secondary'>
                         {formatDate(order.createdAt)} ·{' '}

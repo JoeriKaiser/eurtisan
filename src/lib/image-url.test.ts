@@ -10,6 +10,10 @@ describe('getImageUrl', () => {
     expect(getImageUrl('http://example.com/image.jpg')).toBe('http://example.com/image.jpg')
   })
 
+  it('returns legacy /uploads/ paths as-is', () => {
+    expect(getImageUrl('/uploads/legacy/image.jpg')).toBe('/uploads/legacy/image.jpg')
+  })
+
   it('builds imgproxy URL with width', () => {
     const url = getImageUrl('products/abc.jpg', { width: 400 })
     expect(url).toContain('w:400')

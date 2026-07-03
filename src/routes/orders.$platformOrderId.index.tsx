@@ -1,4 +1,5 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
+import { NotFoundPage } from '#/components/NotFoundPage'
 import { BuyerOrderDetailLoading } from '#/components/BuyerOrderDetailLoading'
 import { BuyerOrderDetailError } from '#/components/BuyerOrderDetailError'
 import { OrderDetailRouteComponent } from '#/route-components/orders.$platformOrderId'
@@ -29,16 +30,7 @@ export const Route = createFileRoute('/orders/$platformOrderId/')({
       { name: 'description', content: m.order_detail_title() },
     ],
   }),
-  notFoundComponent: () => (
-    <main className='page-wrap px-4 py-20 text-center'>
-      <div className='mx-auto max-w-md'>
-        <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary'>
-          {m.error_not_found()}
-        </h1>
-        <p className='mb-8 text-text-secondary'>{m.error_not_found_description()}</p>
-      </div>
-    </main>
-  ),
+  notFoundComponent: NotFoundPage,
   component: OrderDetailRouteComponent,
   pendingComponent: BuyerOrderDetailLoading,
   errorComponent: BuyerOrderDetailError,

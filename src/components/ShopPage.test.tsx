@@ -72,6 +72,7 @@ function makeProduct(id: string, overrides?: Partial<PublicProduct>): PublicProd
     shopName: 'Test Shop',
     shopSlug: 'test-shop',
     shopIsVatRegistered: false,
+    imageUrl: null,
     ...overrides,
   }
 }

@@ -4,11 +4,12 @@ import { categories, meilisearchSyncQueue, product, shop } from '#/db/schema'
 import { logger } from './logger.server'
 import { meilisearchSyncQueueFailedTotal } from './metrics.server'
 import { isMeilisearchConfigured, meilisearch } from './meilisearch.server'
-import type {
-  PaginatedProducts,
-  PublicProduct,
-  SearchFilters,
-  SearchSortOption,
+import {
+  fetchFirstImageUrls,
+  type PaginatedProducts,
+  type PublicProduct,
+  type SearchFilters,
+  type SearchSortOption,
 } from './products.server'
 
 export const PRODUCTS_INDEX = 'products'
@@ -342,9 +343,22 @@ export async function searchProductsMeilisearch(
       )
 
     const rowMap = new Map(rows.map((r) => [r.id, r]))
-    const orderedProducts = ids
-      .map((id) => rowMap.get(id))
-      .filter((p) => p !== undefined) as PublicProduct[]
+    const orderedRows = ids.map((id) => rowMap.get(id)).filter((p) => p !== undefined)
+
+    if (orderedRows.length !== hits.length) {
+      logger.info('Meilisearch returned stale hits; falling back to PostgreSQL', {
+        query,
+        expectedHits: hits.length,
+        hydratedHits: orderedRows.length,
+      })
+      return null
+    }
+
+    const imageUrls = await fetchFirstImageUrls(orderedRows.map((p) => p.id))
+    const orderedProducts = orderedRows.map((p) => ({
+      ...p,
+      imageUrl: imageUrls.get(p.id) ?? null,
+    })) as PublicProduct[]
 
     return {
       products: orderedProducts,

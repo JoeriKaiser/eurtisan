@@ -255,7 +255,7 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
             <Button
               type='button'
               variant='primary'
-              size='sm'
+              size='md'
               onClick={handleAddTag}
               isLoading={loading}
               disabled={loading || !newTag.trim()}
@@ -284,7 +284,7 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
                 <Button
                   type='button'
                   variant='primary'
-                  size='sm'
+                  size='md'
                   onClick={handleAddNote}
                   isLoading={loading}
                   disabled={loading || !newNote.trim()}

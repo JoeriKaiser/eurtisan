@@ -21,14 +21,14 @@ export default function Logo({
   // Determine fill color based on variant
   const fillColor =
     variant === 'default'
-      ? 'var(--ds-accent-primary)'
+      ? 'var(--ds-text-brand)'
       : variant === 'minimal'
         ? 'var(--ds-text-primary)'
         : 'currentColor'
 
   const textColor =
     variant === 'default'
-      ? 'text-accent-primary'
+      ? 'text-brand'
       : variant === 'minimal'
         ? 'text-text-primary'
         : 'text-current'

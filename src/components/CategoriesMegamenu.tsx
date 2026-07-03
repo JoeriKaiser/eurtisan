@@ -112,7 +112,7 @@ export default function CategoriesMegamenu({ categories }: CategoriesMegamenuPro
         <button
           type='button'
           tabIndex={-1}
-          className='fixed inset-0 top-[57px] z-overlay bg-black/15 backdrop-blur-xs transition-opacity duration-fast cursor-default border-none outline-none'
+          className='fixed inset-0 top-[57px] z-overlay bg-bg-overlay backdrop-blur-xs transition-opacity duration-fast cursor-default border-none outline-none'
           onClick={() => handleOpenChange(false)}
           aria-hidden='true'
         />

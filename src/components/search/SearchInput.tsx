@@ -42,7 +42,7 @@ export default function SearchInput({
       <Search
         className={cn(
           'absolute left-3 top-1/2 size-4 -translate-y-1/2 transition-colors',
-          isFocused ? 'text-accent-primary' : 'text-text-muted',
+          isFocused ? 'text-accent-primary' : 'text-text-placeholder',
         )}
         aria-hidden='true'
       />

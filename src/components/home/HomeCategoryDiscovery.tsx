@@ -35,7 +35,7 @@ export function HomeCategoryDiscovery({ categories }: HomeCategoryDiscoveryProps
           <Link
             to='/category/$slug'
             params={{ slug: firstCategory.slug }}
-            className='group relative p-2 rounded-[2.5rem] bg-black/5 dark:bg-white/5 border border-border-subtle shadow-md hover:border-border-strong hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 flex flex-col no-underline'
+            className='group relative p-2 rounded-[2.5rem] bg-scrim-subtle border border-border-subtle shadow-md hover:border-border-strong hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 flex flex-col no-underline'
           >
             <div className='w-full h-full bg-bg-elevated rounded-[calc(2.5rem-0.5rem)] shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] overflow-hidden flex flex-col md:flex-row min-h-[260px]'>
               {/* Left Panel */}

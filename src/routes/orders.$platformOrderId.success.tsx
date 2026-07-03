@@ -1,4 +1,5 @@
 import { createFileRoute, notFound, redirect } from '@tanstack/react-router'
+import { NotFoundPage } from '#/components/NotFoundPage'
 import { getBuyerOrderDetail, type OrderDetail } from '#/lib/orders'
 import { guardAuth } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
@@ -46,15 +47,6 @@ export const Route = createFileRoute('/orders/$platformOrderId/success')({
       { name: 'description', content: m.order_success_title() },
     ],
   }),
-  notFoundComponent: () => (
-    <main className='page-wrap px-4 py-20 text-center'>
-      <div className='mx-auto max-w-md'>
-        <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary'>
-          {m.error_not_found()}
-        </h1>
-        <p className='mb-8 text-text-secondary'>{m.error_not_found_description()}</p>
-      </div>
-    </main>
-  ),
+  notFoundComponent: NotFoundPage,
   component: OrderSuccessRouteComponent,
 })

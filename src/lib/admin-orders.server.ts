@@ -10,6 +10,7 @@ import type { OrderShopGroup, OrderStatus } from './orders.server'
 
 export interface AdminOrderListItem {
   id: string
+  orderNumber: string
   buyerName: string
   buyerEmail: string
   totalCents: number
@@ -20,6 +21,7 @@ export interface AdminOrderListItem {
 
 export interface AdminOrderDetail {
   id: string
+  orderNumber: string
   buyerName: string
   buyerEmail: string
   totalCents: number
@@ -63,6 +65,7 @@ export async function listAllPlatformOrdersQuery(
   if (query) {
     conditions.push(
       or(
+        ilike(platformOrder.orderNumber, `%${query}%`),
         ilike(sql`${platformOrder.id}::text`, `%${query}%`),
         ilike(user.name, `%${query}%`),
         ilike(user.email, `%${query}%`),
@@ -100,6 +103,7 @@ export async function listAllPlatformOrdersQuery(
   const baseQuery = db
     .select({
       id: platformOrder.id,
+      orderNumber: platformOrder.orderNumber,
       buyerName: user.name,
       buyerEmail: user.email,
       totalCents: platformOrder.totalCents,
@@ -146,6 +150,7 @@ export async function listAllPlatformOrdersQuery(
 
   const orders: AdminOrderListItem[] = ordersResult.map((o) => ({
     id: o.id,
+    orderNumber: o.orderNumber,
     buyerName: o.buyerName ?? 'Unknown',
     buyerEmail: o.buyerEmail ?? 'Unknown',
     totalCents: o.totalCents,
@@ -171,6 +176,7 @@ export async function getPlatformOrderDetailQuery(
   const [order] = await db
     .select({
       id: platformOrder.id,
+      orderNumber: platformOrder.orderNumber,
       buyerName: user.name,
       buyerEmail: user.email,
       totalCents: platformOrder.totalCents,
@@ -269,6 +275,7 @@ export async function getPlatformOrderDetailQuery(
 
   return {
     id: order.id,
+    orderNumber: order.orderNumber,
     buyerName: order.buyerName ?? 'Unknown',
     buyerEmail: order.buyerEmail ?? 'Unknown',
     totalCents: order.totalCents,

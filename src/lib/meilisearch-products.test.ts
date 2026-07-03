@@ -576,7 +576,7 @@ describe('searchProductsMeilisearch', () => {
     )
   })
 
-  it('excludes products from suspended shops when hydrating', async () => {
+  it('falls back to null when meilisearch hits are filtered by hydration', async () => {
     const { s1 } = await seedSearchData()
 
     // Suspend shop-1 after seeding
@@ -592,7 +592,7 @@ describe('searchProductsMeilisearch', () => {
       pageSize: 10,
     })
 
-    expect(result?.products).toHaveLength(0)
+    expect(result).toBeNull()
   })
 
   it('falls back to null on search error', async () => {

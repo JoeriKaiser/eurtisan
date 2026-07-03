@@ -11,7 +11,7 @@ export function HomeFeaturedShops({ shops }: HomeFeaturedShopsProps) {
   if (shops.length === 0) {
     return (
       <section
-        className='p-2 rounded-[2rem] bg-black/5 dark:bg-white/5 border border-border-subtle shadow-md text-center'
+        className='p-2 rounded-[2rem] bg-scrim-subtle border border-border-subtle shadow-md text-center'
         aria-labelledby='shops-empty-heading'
       >
         <div className='bg-bg-elevated rounded-[calc(2rem-0.5rem)] p-8 sm:p-12 text-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] flex flex-col items-center justify-center'>
@@ -32,7 +32,7 @@ export function HomeFeaturedShops({ shops }: HomeFeaturedShopsProps) {
             className='group inline-flex items-center justify-between gap-3 h-12 pl-6 pr-2 bg-accent-primary text-text-on-primary rounded-full font-semibold shadow-md active:scale-[0.98] transition-all no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
           >
             <span>{m.home_open_shop()}</span>
-            <span className='flex size-6 rounded-full bg-black/10 dark:bg-white/10 items-center justify-center transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-[1px]'>
+            <span className='flex size-6 rounded-full bg-scrim-subtle group-hover:bg-scrim items-center justify-center transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-[1px]'>
               <ArrowUpRight size={14} />
             </span>
           </Link>
@@ -62,7 +62,7 @@ export function HomeFeaturedShops({ shops }: HomeFeaturedShopsProps) {
             key={shop.id}
             to='/shops/$shopSlug'
             params={{ shopSlug: shop.slug }}
-            className='group relative p-1.5 rounded-[20px] bg-black/5 dark:bg-white/5 border border-border-subtle transition-all duration-300 hover:shadow-md hover:border-border-strong hover:-translate-y-0.5 flex no-underline'
+            className='group relative p-1.5 rounded-[20px] bg-scrim-subtle border border-border-subtle transition-all duration-300 hover:shadow-md hover:border-border-strong hover:-translate-y-0.5 flex no-underline'
           >
             <div className='w-full h-full bg-bg-elevated rounded-[calc(20px-6px)] p-5 flex items-start gap-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]'>
               <div className='flex size-14 shrink-0 items-center justify-center rounded-xl bg-accent-primary-subtle text-accent-primary overflow-hidden border border-accent-primary/10 transition-transform duration-500 group-hover:scale-105'>

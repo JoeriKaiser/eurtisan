@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
+import { isValidOrderNumber } from './order-numbers'
 
 export type {
   BuyerOrderListItem,
@@ -33,6 +34,37 @@ export const getBuyerOrderDetail = createServerFn({ method: 'GET' })
           headers: { 'Content-Type': 'application/json' },
         })
       }
+      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Order not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    return result
+  })
+
+export const getBuyerOrderDetailByOrderNumber = createServerFn({ method: 'GET' })
+  .middleware([authMiddleware])
+  .inputValidator(
+    z.object({
+      orderNumber: z
+        .string()
+        .min(1)
+        .refine(isValidOrderNumber, { message: 'Invalid order number' }),
+    }),
+  )
+  .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Response(
+        JSON.stringify({ error: 'Unauthorized', message: 'Authentication required' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
+    const { getBuyerOrderDetailByOrderNumberQuery } = await import('./orders.server')
+    const result = await getBuyerOrderDetailByOrderNumberQuery(data.orderNumber, context.user.id)
+
+    if (!result) {
       throw new Response(JSON.stringify({ error: 'Not Found', message: 'Order not found' }), {
         status: 404,
         headers: { 'Content-Type': 'application/json' },

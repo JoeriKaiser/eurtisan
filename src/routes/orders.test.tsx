@@ -27,6 +27,7 @@ vi.mock('#/paraglide/messages', () => ({
     orders_empty_cta: () => 'Browse the marketplace',
     orders_error: () => 'Failed to load orders. Please try again.',
     orders_order_id: () => 'Order',
+    orders_order_number: () => 'Order number',
     orders_shop_count: ({ count }: { count: string }) => `${count} shops`,
     pagination_page_of: ({ page, totalPages }: { page: string; totalPages: string }) =>
       `Page ${page} of ${totalPages}`,
@@ -120,6 +121,7 @@ vi.mock('#/lib/disputes', () => ({
 function makeOrderListItem(overrides?: Partial<BuyerOrderListItem>): BuyerOrderListItem {
   return {
     id: 'order-123',
+    orderNumber: 'EUR-123456',
     totalCents: 2500,
     status: 'paid',
     createdAt: new Date('2026-05-10T12:00:00Z'),
@@ -132,6 +134,7 @@ function makeOrderListItem(overrides?: Partial<BuyerOrderListItem>): BuyerOrderL
 function makeOrderDetail(overrides?: Partial<OrderDetail>): OrderDetail {
   return {
     id: 'order-123',
+    orderNumber: 'EUR-123456',
     totalCents: 2500,
     status: 'paid',
     createdAt: new Date('2026-05-10T12:00:00Z'),
@@ -195,7 +198,7 @@ describe('Orders list page', () => {
       />,
     )
     expect(screen.getByRole('heading', { name: 'My orders' })).toBeDefined()
-    expect(screen.getByText(/order-123/)).toBeDefined()
+    expect(screen.getByText(/EUR-123456/)).toBeDefined()
     expect(screen.getByText('€25.00')).toBeDefined()
   })
 
@@ -243,7 +246,7 @@ describe('Order detail page', () => {
   it('renders order details', () => {
     render(<BuyerOrderDetailPage order={makeOrderDetail()} />)
     expect(screen.getByRole('heading', { name: 'Order details' })).toBeDefined()
-    expect(screen.getByText('order-123')).toBeDefined()
+    expect(screen.getByText(/EUR-123456/)).toBeDefined()
     expect(screen.getByText('€25.00')).toBeDefined()
     expect(screen.getByText('Test Shop')).toBeDefined()
     expect(screen.getAllByText('Vase').length).toBeGreaterThanOrEqual(1)

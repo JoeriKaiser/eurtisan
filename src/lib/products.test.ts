@@ -234,6 +234,39 @@ describe('listProductsByCategorySlugQuery', () => {
     expect(result.products).toHaveLength(5)
     expect(result.pageSize).toBe(100)
   })
+
+  it('includes products in descendant categories', async () => {
+    const u = await createUser({ id: 'user-cat-desc' })
+    const s = await createShop(u, {
+      id: 'shop-cat-desc',
+      name: 'Test Shop',
+      slug: 'test-shop-cat-desc',
+    })
+    const parent = await createCategory({ name: 'Pottery', slug: 'parent-slug' })
+    const child = await createCategory({
+      name: 'Ceramics',
+      slug: 'child-slug',
+      parentId: parent.id,
+    })
+    const p = await createProduct(s, {
+      id: 'prod-cat-desc',
+      name: 'Descendant Vase',
+      slug: 'descendant-vase',
+      priceCents: 2999,
+      categoryId: child.id,
+    })
+    await createProductImage(p, {
+      id: 'img-cat',
+      url: 'https://example.com/category.jpg',
+      sortOrder: 0,
+    })
+
+    const result = await listProductsByCategorySlugQuery('parent-slug')
+    expect(result.products).toHaveLength(1)
+    expect(result.products[0].name).toBe('Descendant Vase')
+    expect(result.products[0].imageUrl).toBe('https://example.com/category.jpg')
+    expect(result.total).toBe(1)
+  })
 })
 
 describe('getProductBySlugQuery', () => {
@@ -272,11 +305,28 @@ describe('getProductBySlugQuery', () => {
     expect(result?.images).toHaveLength(2)
     expect(result?.images[0].sortOrder).toBe(0)
     expect(result?.images[1].sortOrder).toBe(1)
+    expect(result?.imageUrl).toBe('http://example.com/2.jpg')
   })
 
   it('returns null for nonexistent product', async () => {
     const result = await getProductBySlugQuery('test-shop', 'nonexistent-slug')
     expect(result).toBeNull()
+  })
+
+  it('returns null imageUrl when product has no images', async () => {
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, { id: 'shop-1', name: 'Test Shop', slug: 'test-shop' })
+    await createProduct(s, {
+      id: 'prod-no-img',
+      name: 'Plain Vase',
+      slug: 'plain-vase',
+      priceCents: 2999,
+    })
+
+    const result = await getProductBySlugQuery('test-shop', 'plain-vase')
+    expect(result).not.toBeNull()
+    expect(result?.imageUrl).toBeNull()
+    expect(result?.images).toEqual([])
   })
 
   it('returns null when shop is suspended', async () => {
@@ -436,6 +486,47 @@ describe('listProductsQuery', () => {
     expect(p.categorySlug).toBeDefined()
     expect(p.shopName).toBeDefined()
     expect(p.categoryName).toBeDefined()
+  })
+
+  it('returns imageUrl for products with a primary image', async () => {
+    const u = await createUser({ id: 'user-img' })
+    const s = await createShop(u, { id: 'shop-img', name: 'Image Shop', slug: 'image-shop' })
+    const p = await createProduct(s, {
+      id: 'prod-img',
+      name: 'Pictured Vase',
+      slug: 'pictured-vase',
+      priceCents: 2999,
+    })
+    await createProductImage(p, {
+      id: 'img-primary',
+      url: 'https://example.com/primary.jpg',
+      sortOrder: 0,
+    })
+
+    const result = await listProductsQuery()
+    const product = result.products.find((p) => p.id === 'prod-img')
+    expect(product).toBeDefined()
+    expect(product?.imageUrl).toBe('https://example.com/primary.jpg')
+  })
+
+  it('returns null imageUrl when product has no images', async () => {
+    const u = await createUser({ id: 'user-no-img' })
+    const s = await createShop(u, {
+      id: 'shop-no-img',
+      name: 'No Image Shop',
+      slug: 'no-image-shop',
+    })
+    await createProduct(s, {
+      id: 'prod-no-img',
+      name: 'Plain Vase',
+      slug: 'plain-vase',
+      priceCents: 2999,
+    })
+
+    const result = await listProductsQuery()
+    const product = result.products.find((p) => p.id === 'prod-no-img')
+    expect(product).toBeDefined()
+    expect(product?.imageUrl).toBeNull()
   })
 })
 
@@ -724,6 +815,27 @@ describe('getShopProductsQuery', () => {
     expect(result.total).toBe(2)
     expect(result.totalPages).toBe(2)
   })
+
+  it('returns imageUrl for products with a primary image', async () => {
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, { id: 'shop-1', name: 'Test Shop', slug: 'test-shop' })
+    const p = await createProduct(s, {
+      id: 'prod-img',
+      name: 'Pictured Vase',
+      slug: 'pictured-vase',
+      priceCents: 2999,
+    })
+    await createProductImage(p, {
+      id: 'img-shop',
+      url: 'https://example.com/shop-image.jpg',
+      sortOrder: 0,
+    })
+
+    const result = await getShopProductsQuery('test-shop', undefined, { page: 1, pageSize: 10 })
+    const product = result.products.find((p) => p.id === 'prod-img')
+    expect(product).toBeDefined()
+    expect(product?.imageUrl).toBe('https://example.com/shop-image.jpg')
+  })
 })
 
 describe('listRecentProductsQuery', () => {
@@ -757,6 +869,7 @@ describe('listRecentProductsQuery', () => {
     expect(result[0].image?.id).toBe('img-2')
     expect(result[0].image?.url).toBe('http://example.com/2.jpg')
     expect(result[0].image?.sortOrder).toBe(0)
+    expect(result[0].imageUrl).toBe('http://example.com/2.jpg')
   })
 
   it('returns null image when product has no images', async () => {
@@ -772,6 +885,7 @@ describe('listRecentProductsQuery', () => {
     const result = await listRecentProductsQuery(8)
     expect(result).toHaveLength(1)
     expect(result[0].image).toBeNull()
+    expect(result[0].imageUrl).toBeNull()
   })
 
   it('excludes products from suspended shops', async () => {
@@ -985,6 +1099,35 @@ describe('searchProductsQuery', () => {
     expect(result.products).toHaveLength(2)
     expect(result.products.map((p) => p.name)).toContain('Ceramic Vase')
     expect(result.products.map((p) => p.name)).toContain('vase-like')
+  })
+
+  it('returns imageUrl for products with a primary image', async () => {
+    const u = await createUser({ id: 'user-search-img' })
+    const s = await createShop(u, {
+      id: 'shop-search-img',
+      name: 'Search Image Shop',
+      slug: 'search-image-shop',
+    })
+    const cat = await createCategory({ name: 'Searchables', slug: 'searchables' })
+    const p = await createProduct(s, {
+      id: 'prod-search-img',
+      name: 'Searchable Vase',
+      slug: 'searchable-vase',
+      priceCents: 2999,
+      categoryId: cat.id,
+    })
+    await createProductImage(p, {
+      id: 'img-search',
+      url: 'https://example.com/search.jpg',
+      sortOrder: 0,
+    })
+
+    const result = await searchProductsQuery('Searchable Vase', {}, 'relevance', {
+      page: 1,
+      pageSize: 10,
+    })
+    expect(result.products).toHaveLength(1)
+    expect(result.products[0].imageUrl).toBe('https://example.com/search.jpg')
   })
 
   it('is case-insensitive', async () => {

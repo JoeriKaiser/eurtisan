@@ -14,6 +14,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
+import { generateOrderNumber } from '#/lib/order-numbers'
 
 export const userRoleEnum = pgEnum('user_role', ['customer', 'creator', 'admin'])
 
@@ -476,6 +477,7 @@ export const platformOrder = pgTable(
     userId: text('user_id')
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
+    orderNumber: text('order_number').notNull().$defaultFn(generateOrderNumber),
     shippingAddress: jsonb('shipping_address').notNull(),
     billingAddress: jsonb('billing_address').notNull(),
     totalCents: integer('total_cents').notNull().default(0),
@@ -498,6 +500,7 @@ export const platformOrder = pgTable(
     ),
     index('platform_order_status_created_at_idx').on(table.status, table.createdAt),
     index('platform_order_mollie_payment_id_idx').on(table.molliePaymentId),
+    uniqueIndex('platform_order_order_number_unique').on(table.orderNumber),
     // Mollie guarantees payment ID uniqueness per environment. Cross-environment
     // data migrations (e.g. staging → production) may collide; remove or adjust
     // this constraint if such migrations are performed.

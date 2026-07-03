@@ -43,7 +43,7 @@ export function HomePreFooterCTA({
 
   return (
     <section
-      className='p-2 rounded-[3rem] bg-black/5 dark:bg-white/5 border border-border-subtle shadow-xl w-full relative overflow-hidden animate-fade-in-up'
+      className='p-2 rounded-[3rem] bg-scrim-subtle border border-border-subtle shadow-xl w-full relative overflow-hidden animate-fade-in-up'
       aria-labelledby='pre-footer-heading'
     >
       {/* Inner core */}
@@ -68,7 +68,7 @@ export function HomePreFooterCTA({
               className='group relative flex items-center justify-between gap-3 h-12 pl-6 pr-2 bg-accent-primary text-text-on-primary hover:bg-accent-primary-hover active:bg-accent-primary-active rounded-full font-semibold shadow-md active:scale-[0.98] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
             >
               <span>{preFooterCtaText}</span>
-              <span className='flex size-6 rounded-full bg-black/10 dark:bg-white/10 items-center justify-center transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-[1px]'>
+              <span className='flex size-6 rounded-full bg-scrim-subtle group-hover:bg-scrim items-center justify-center transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-[1px]'>
                 <ArrowRight size={14} />
               </span>
             </button>

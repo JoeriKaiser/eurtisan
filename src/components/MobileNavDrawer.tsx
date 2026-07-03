@@ -1,6 +1,17 @@
 import { Dialog as BaseDialog } from '@base-ui-components/react/dialog'
 import { Link } from '@tanstack/react-router'
-import { ChevronDown, X, Search, User, Store, Sparkles, Settings, LogOut } from 'lucide-react'
+import {
+  Bell,
+  ChevronDown,
+  LogOut,
+  Package,
+  Search,
+  Settings,
+  Sparkles,
+  Store,
+  User,
+  X,
+} from 'lucide-react'
 import { useState } from 'react'
 import { getLocale, locales, setLocale } from '#/paraglide/runtime'
 import { m } from '#/paraglide/messages'
@@ -60,10 +71,10 @@ export default function MobileNavDrawer({
                 onClose()
                 onOpenSearch()
               }}
-              className='w-full h-10 pl-9 pr-3 relative rounded-lg border border-border-default bg-surface-inset text-sm text-text-muted text-left transition-all duration-fast outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2 cursor-pointer flex items-center min-w-0'
+              className='w-full h-10 pl-9 pr-3 relative rounded-lg border border-border-default bg-surface-inset text-sm text-text-placeholder text-left transition-all duration-fast outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2 cursor-pointer flex items-center min-w-0'
               aria-label={m.search_header_placeholder()}
             >
-              <span className='absolute left-3 top-1/2 -translate-y-1/2 text-text-muted'>
+              <span className='absolute left-3 top-1/2 -translate-y-1/2 text-text-placeholder'>
                 <Search size={16} aria-hidden='true' />
               </span>
               <span
@@ -164,6 +175,26 @@ export default function MobileNavDrawer({
                     >
                       <User size={16} aria-hidden='true' />
                       {m.nav_profile()}
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      to='/account/orders'
+                      onClick={onClose}
+                      className='flex items-center gap-3 py-2 text-sm font-medium text-text-secondary hover:text-accent-primary transition-colors'
+                    >
+                      <Package size={16} aria-hidden='true' />
+                      {m.account_orders()}
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      to='/notifications'
+                      onClick={onClose}
+                      className='flex items-center gap-3 py-2 text-sm font-medium text-text-secondary hover:text-accent-primary transition-colors'
+                    >
+                      <Bell size={16} aria-hidden='true' />
+                      {m.notifications_title()}
                     </Link>
                   </li>
                   {user.role === 'customer' && (

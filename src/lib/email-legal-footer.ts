@@ -23,7 +23,7 @@ async function buildUnsubscribeUrl(to?: string): Promise<string | null> {
   if (!row[0]) return null
 
   const token = await getOrCreateUnsubscribeToken(row[0].id)
-  return `${getBaseUrl()}/api/unsubscribe?token=${encodeURIComponent(token)}`
+  return `${getBaseUrl()}/unsubscribe?token=${encodeURIComponent(token)}`
 }
 
 /** EU-required business sender block + notification preferences link for all transactional emails. */

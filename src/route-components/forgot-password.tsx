@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { AlertTriangle, Mail } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
+import { FeedbackBanner } from '#/components/ui/FeedbackBanner'
 import { authClient } from '#/lib/auth-client'
 import { m } from '#/paraglide/messages'
 import { AuthShell } from '#/components/auth/AuthShell'
@@ -98,20 +99,13 @@ export function ForgotPassword() {
             />
           </div>
 
+          <div className='min-h-12'>
+            {status.error && <FeedbackBanner type='error' message={status.error} size='sm' />}
+          </div>
+
           <Button type='submit' isLoading={status.loading} className='w-full mt-1'>
             {m.button_send_reset_link()}
           </Button>
-
-          {status.error && (
-            <div
-              className='rounded-lg border border-error bg-error-subtle p-3 flex items-start gap-2'
-              role='alert'
-              aria-live='assertive'
-            >
-              <AlertTriangle className='text-error shrink-0 mt-0.5' size={16} />
-              <p className='text-xs text-error font-medium'>{status.error}</p>
-            </div>
-          )}
         </form>
       ) : (
         <div className='space-y-4 text-center' aria-live='polite'>

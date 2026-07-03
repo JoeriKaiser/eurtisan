@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Package, Settings } from 'lucide-react'
+import { AccountShell } from '#/components/AccountShell'
 import { guardAuth } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
 
@@ -16,7 +17,7 @@ export const Route = createFileRoute('/account/')({
 
 function Account() {
   return (
-    <main className='page-wrap px-4 py-12'>
+    <AccountShell breadcrumbs={[{ label: m.nav_home(), to: '/' }, { label: m.account_title() }]}>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
         <h1 className='display-title mb-6 text-3xl font-semibold text-text-primary'>
           {m.account_title()}
@@ -48,6 +49,6 @@ function Account() {
           </Link>
         </div>
       </section>
-    </main>
+    </AccountShell>
   )
 }

@@ -130,6 +130,7 @@ export function SearchPage() {
 
   const isEmptyQuery = query.length === 0
   const hasNoResults = products.products.length === 0
+  const showSearchPrompt = isEmptyQuery && hasNoResults && products.total === 0 && !hasActiveFilters
 
   return (
     <main className='page-wrap px-4 pb-16 pt-14'>
@@ -181,9 +182,11 @@ export function SearchPage() {
         <div>
           {/* Sort bar */}
           <div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
-            <p className='text-sm text-text-secondary'>
-              {m.search_results_count({ count: products.total })}
-            </p>
+            {!showSearchPrompt && (
+              <p className='text-sm text-text-secondary'>
+                {m.search_results_count({ count: products.total })}
+              </p>
+            )}
             <div className='flex items-center gap-2'>
               <label htmlFor='search-sort' className='text-sm text-text-secondary'>
                 {m.search_sort_label()}
@@ -206,7 +209,7 @@ export function SearchPage() {
           </div>
 
           {/* Empty states and results */}
-          {isEmptyQuery && hasNoResults && !hasActiveFilters ? (
+          {showSearchPrompt ? (
             <div className='island-shell rounded-2xl p-8 text-center sm:p-12'>
               <Search size={48} className='mx-auto mb-4 text-text-muted' aria-hidden='true' />
               <h2 className='mb-2 text-xl font-semibold text-text-primary'>

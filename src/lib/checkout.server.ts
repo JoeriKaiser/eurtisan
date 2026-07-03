@@ -20,6 +20,7 @@ import type {
 import { getShippingProvider } from '#/integrations/shipping'
 import { scheduleBackgroundWork } from './background-work.server'
 import { decryptJsonb, encryptJsonb } from './encryption.server'
+import { generateUniqueOrderNumber } from './order-numbers.server'
 import { getBaseUrl, getEnableViesValidation } from './env.server'
 import {
   getAvailableStockForProducts,
@@ -1081,11 +1082,13 @@ export async function createCheckoutWithProvider(
       grandTotalCents += group.subtotalCents + shipCost
     }
 
-    // 6. Create platform order
+    // 6. Create platform order with a human-friendly order number
+    const orderNumber = await generateUniqueOrderNumber()
     const [platformOrderRecord] = await tx
       .insert(platformOrder)
       .values({
         userId,
+        orderNumber,
         shippingAddress: encryptJsonb(input.shippingAddress),
         billingAddress: encryptJsonb(input.billingAddress),
         totalCents: grandTotalCents,
@@ -1186,12 +1189,14 @@ export async function createCheckoutWithProvider(
 
     return {
       platformOrderId: platformOrderRecord.id,
+      orderNumber: platformOrderRecord.orderNumber,
       createdShopOrders,
       grandTotalCents: finalGrandTotalCents,
     }
   })
 
   platformOrderId = result.platformOrderId
+  const orderNumber = result.orderNumber
 
   // 2. Initiate payment with Mollie (OUTSIDE the transaction — this is an
   //    external API call that must not hold a database lock).
@@ -1297,12 +1302,13 @@ export async function createCheckoutWithProvider(
       // Notify buyer
       await createNotification(userId, 'order_placed', {
         platformOrderId,
+        orderNumber,
       })
       await sendNotificationEmail({
         userId,
         template: 'order_confirmation',
         data: {
-          orderNumber: platformOrderId.slice(0, 8),
+          orderNumber,
           buyerName: buyerRecord?.name,
           shopName: 'Eurtisan',
           items: buyerItems,
@@ -1354,13 +1360,14 @@ export async function createCheckoutWithProvider(
           await Promise.all([
             createNotification(shopRecord.ownerId, 'order_placed', {
               platformOrderId,
+              orderNumber,
               shopOrderId: so.shopOrderId,
             }),
             sendNotificationEmail({
               userId: shopRecord.ownerId,
               template: 'order_confirmation',
               data: {
-                orderNumber: so.shopOrderId.slice(0, 8),
+                orderNumber,
                 buyerName: sellerRecord?.name ?? null,
                 shopName: shopRecord.name,
                 items: sellerItems,

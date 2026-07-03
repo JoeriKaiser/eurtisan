@@ -1,5 +1,5 @@
 import { Link, useRouter } from '@tanstack/react-router'
-import { LogOut, Settings, Shield, Sparkles, Store, User } from 'lucide-react'
+import { Bell, LogOut, Package, Settings, Shield, Sparkles, Store, User } from 'lucide-react'
 
 import { authClient } from '#/lib/auth-client'
 import { useAuth } from '#/lib/auth-hooks'
@@ -63,6 +63,16 @@ export default function UserMenu() {
           <DropdownMenuItem onClick={() => router.navigate({ to: '/account' })}>
             <User size={16} />
             {m.nav_account()}
+          </DropdownMenuItem>
+
+          <DropdownMenuItem onClick={() => router.navigate({ to: '/account/orders' })}>
+            <Package size={16} />
+            {m.account_orders()}
+          </DropdownMenuItem>
+
+          <DropdownMenuItem onClick={() => router.navigate({ to: '/notifications' })}>
+            <Bell size={16} />
+            {m.notifications_title()}
           </DropdownMenuItem>
 
           {user.role === 'customer' && (

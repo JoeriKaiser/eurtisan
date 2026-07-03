@@ -87,6 +87,7 @@ function makeProduct(overrides?: Partial<ProductDetailType>): ProductDetailType 
     shopIsVatRegistered: false,
     shopDescription: 'Handcrafted goods from local artisans.',
     categoryId: 'cat-1',
+    imageUrl: null,
     images: [
       { id: 'img-1', url: 'http://example.com/1.jpg', altText: 'Front view', sortOrder: 0 },
       { id: 'img-2', url: 'http://example.com/2.jpg', altText: 'Side view', sortOrder: 1 },

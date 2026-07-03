@@ -81,6 +81,7 @@ export interface ShippingLabelDetail {
 export interface ShopOrderDetail {
   id: string
   platformOrderId: string
+  platformOrderNumber: string
   shopId: string
   status: string
   shippingMethod: 'standard' | 'express' | 'manual'
@@ -103,6 +104,7 @@ export interface ShopOrderDetail {
 export interface ShopOrderListItem {
   id: string
   platformOrderId: string
+  platformOrderNumber: string
   status: string
   shippingMethod: 'standard' | 'express' | 'manual'
   shippingCostCents: number
@@ -223,6 +225,7 @@ export async function getShopOrderQuery(
   const [header] = await tx
     .select({
       shopOrder,
+      platformOrderNumber: platformOrder.orderNumber,
       shippingAddress: platformOrder.shippingAddress,
       buyerId: user.id,
       buyerName: user.name,
@@ -273,6 +276,7 @@ export async function getShopOrderQuery(
   return {
     id: shopOrderRecord.id,
     platformOrderId: shopOrderRecord.platformOrderId,
+    platformOrderNumber: header.platformOrderNumber,
     shopId: shopOrderRecord.shopId,
     status: shopOrderRecord.status,
     shippingMethod: shopOrderRecord.shippingMethod,
@@ -342,6 +346,7 @@ export async function listShopOrdersQuery(
     const searchTerm = `%${options.search.trim()}%`
     const searchCondition = or(
       ilike(user.name, searchTerm),
+      ilike(platformOrder.orderNumber, searchTerm),
       ilike(sql<string>`CAST(${shopOrder.id} AS TEXT)`, searchTerm),
     )
     if (searchCondition) conditions.push(searchCondition)
@@ -361,6 +366,7 @@ export async function listShopOrdersQuery(
     .select({
       id: shopOrder.id,
       platformOrderId: shopOrder.platformOrderId,
+      platformOrderNumber: platformOrder.orderNumber,
       status: shopOrder.status,
       shippingMethod: shopOrder.shippingMethod,
       shippingCostCents: shopOrder.shippingCostCents,
@@ -376,7 +382,7 @@ export async function listShopOrdersQuery(
     .innerJoin(user, eq(platformOrder.userId, user.id))
     .leftJoin(orderItem, eq(orderItem.shopOrderId, shopOrder.id))
     .where(where)
-    .groupBy(shopOrder.id, user.name, user.email)
+    .groupBy(shopOrder.id, platformOrder.orderNumber, user.name, user.email)
     .orderBy(desc(shopOrder.createdAt))
     .limit(pageSize)
     .offset(offset)
@@ -512,6 +518,7 @@ export async function markShopOrderShippedQuery(
           const [, [shopRecord], [latestLabel]] = await Promise.all([
             createNotification(order.buyer.id, 'order_shipped', {
               platformOrderId: order.platformOrderId,
+              orderNumber: order.platformOrderNumber,
               shopOrderId,
             }),
             db.select().from(shop).where(eq(shop.id, order.shopId)).limit(1),
@@ -526,7 +533,7 @@ export async function markShopOrderShippedQuery(
             userId: order.buyer.id,
             template: 'shipping_notification',
             data: {
-              orderNumber: shopOrderId.slice(0, 8),
+              orderNumber: order.platformOrderNumber,
               buyerName: order.buyer.name,
               shopName: shopRecord?.name ?? 'Eurtisan',
               trackingNumber: order.trackingNumber ?? null,
@@ -909,6 +916,7 @@ export async function updateShopOrderStatusQuery(
           const [, [disputeRecord], [shopRecord]] = await Promise.all([
             createNotification(order.buyer.id, 'dispute_opened', {
               platformOrderId: order.platformOrderId,
+              orderNumber: order.platformOrderNumber,
               shopOrderId,
             }),
             db.select().from(dispute).where(eq(dispute.shopOrderId, shopOrderId)).limit(1),
@@ -920,7 +928,7 @@ export async function updateShopOrderStatusQuery(
             userId: order.buyer.id,
             template: 'dispute_update',
             data: {
-              orderNumber: shopOrderId.slice(0, 8),
+              orderNumber: order.platformOrderNumber,
               buyerName: order.buyer.name,
               shopName: shopRecord?.name ?? 'Eurtisan',
               status: 'opened',

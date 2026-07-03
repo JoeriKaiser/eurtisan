@@ -22,6 +22,13 @@ import {
   populateProductsIndex,
 } from '../lib/meilisearch-products.server.ts'
 import * as schema from './schema.ts'
+import { CATEGORY_DESCRIPTIONS, SUBCATEGORY_DESCRIPTIONS } from './seed-descriptions.ts'
+
+let orderNumberCounter = 0
+function nextStagingOrderNumber(): string {
+  orderNumberCounter += 1
+  return `EUR-${String(orderNumberCounter).padStart(6, '0')}`
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // 1. Configuration
@@ -232,7 +239,7 @@ async function seedCategories(): Promise<(typeof schema.categories.$inferSelect)
     } else {
       const id = crypto.randomUUID()
       categoryIds.set(def.name, id)
-      cats.push({ id, name: def.name, slug, description: faker.commerce.productDescription() })
+      cats.push({ id, name: def.name, slug, description: CATEGORY_DESCRIPTIONS[def.name] })
       newCats++
     }
   }
@@ -264,7 +271,7 @@ async function seedCategories(): Promise<(typeof schema.categories.$inferSelect)
         id,
         name: sub,
         slug: subSlug,
-        description: faker.commerce.productDescription(),
+        description: SUBCATEGORY_DESCRIPTIONS[`${def.name}-${sub}`],
         parentId,
       })
       newSubs++
@@ -873,6 +880,7 @@ async function seedOrders(
 
     platformOrders.push({
       id: platformOrderId,
+      orderNumber: nextStagingOrderNumber(),
       userId: customer.id,
       shippingAddress: makeAddress(),
       billingAddress: makeAddress(),

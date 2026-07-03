@@ -40,6 +40,7 @@ function makeProduct(overrides?: Partial<PublicProduct>): PublicProduct {
     shopName: 'Test Shop',
     shopSlug: 'test-shop',
     shopIsVatRegistered: false,
+    imageUrl: null,
     ...overrides,
   }
 }
@@ -75,6 +76,7 @@ describe('ProductCard', () => {
     const { container } = render(<ProductCard product={makeProduct()} />)
     expect(container.querySelector('img')).toBeNull()
     expect(screen.getByText('No image available')).toBeDefined()
+    expect(container.querySelector('.bg-gradient-to-br')).not.toBeNull()
   })
 
   it('displays out-of-stock badge when stock is zero', () => {

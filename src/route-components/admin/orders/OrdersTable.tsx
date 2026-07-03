@@ -77,7 +77,7 @@ export function OrdersTable({ orders, sortBy, sortDir, onSort }: OrdersTableProp
                   params={{ platformOrderId: order.id }}
                   className='font-mono text-sm font-medium text-accent-primary hover:underline no-underline'
                 >
-                  {order.id.slice(0, 8)}…
+                  {order.orderNumber}
                 </Link>
               </td>
               <td className='py-3 pr-4 hidden sm:table-cell'>

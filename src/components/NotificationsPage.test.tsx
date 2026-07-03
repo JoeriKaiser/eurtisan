@@ -43,12 +43,14 @@ vi.mock('#/paraglide/messages', () => ({
     pagination_next: () => 'Next',
     pagination_page_of: ({ page, totalPages }: { page: string; totalPages: string }) =>
       `Page ${page} of ${totalPages}`,
-    notification_order_placed: ({ orderId }: { orderId: string }) => `Order placed: ${orderId}`,
-    notification_order_shipped: ({ orderId }: { orderId: string }) => `Order shipped: ${orderId}`,
+    notification_order_placed: ({ orderNumber }: { orderNumber: string }) =>
+      `Order placed: ${orderNumber}`,
+    notification_order_shipped: ({ orderNumber }: { orderNumber: string }) =>
+      `Order shipped: ${orderNumber}`,
     notification_review_received: ({ productName }: { productName: string }) =>
       `New review on ${productName}`,
-    notification_dispute_opened: ({ orderId }: { orderId: string }) =>
-      `Dispute opened for order ${orderId}`,
+    notification_dispute_opened: ({ orderNumber }: { orderNumber: string }) =>
+      `Dispute opened for order ${orderNumber}`,
     notification_payout_sent: ({ amount }: { amount: string }) => `Payout sent: ${amount}`,
     time_just_now: () => 'Just now',
     time_minutes_ago: ({ count }: { count: string }) => `${count} min ago`,

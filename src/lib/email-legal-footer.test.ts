@@ -21,7 +21,7 @@ describe('renderEmailLegalFooterHtml', () => {
     const html = await renderEmailLegalFooterHtml(u.email)
 
     expect(html).toContain('Unsubscribe with one click')
-    expect(html).toContain('/api/unsubscribe?token=')
+    expect(html).toContain('/unsubscribe?token=')
   })
 
   it('omits the one-click unsubscribe link when no email is provided', async () => {
@@ -41,7 +41,7 @@ describe('renderEmailLegalFooterText', () => {
     const text = await renderEmailLegalFooterText(u.email)
 
     expect(text).toContain('Unsubscribe with one click')
-    expect(text).toContain('/api/unsubscribe?token=')
+    expect(text).toContain('/unsubscribe?token=')
   })
 
   it('omits the one-click unsubscribe link when no email is provided', async () => {

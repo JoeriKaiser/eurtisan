@@ -14,6 +14,9 @@
  */
 
 import type { Page } from '@playwright/test'
+import { eq } from 'drizzle-orm'
+import * as schema from '../../src/db/schema'
+import { db } from '../db'
 
 export interface CheckoutOptions {
   shippingAddress?: {
@@ -37,6 +40,7 @@ export interface CheckoutOptions {
 
 export interface CheckoutResult {
   platformOrderId: string
+  orderNumber: string
   mockPaymentId: string
 }
 
@@ -136,7 +140,17 @@ export async function completeCheckout(
     throw new Error('mock_payment query param missing from success URL')
   }
 
-  return { platformOrderId, mockPaymentId }
+  const [platformOrder] = await db
+    .select({ orderNumber: schema.platformOrder.orderNumber })
+    .from(schema.platformOrder)
+    .where(eq(schema.platformOrder.id, platformOrderId))
+    .limit(1)
+
+  if (!platformOrder) {
+    throw new Error(`Platform order not found: ${platformOrderId}`)
+  }
+
+  return { platformOrderId, orderNumber: platformOrder.orderNumber, mockPaymentId }
 }
 
 /**

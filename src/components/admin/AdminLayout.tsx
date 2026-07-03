@@ -432,7 +432,7 @@ export function AdminLayout() {
       {/* Mobile drawer overlay */}
       {mobileOpen && (
         <div
-          className='fixed inset-0 z-40 bg-black/45 backdrop-blur-sm md:hidden'
+          className='fixed inset-0 z-40 bg-bg-overlay backdrop-blur-sm md:hidden'
           onClick={() => setMobileOpen(false)}
           aria-hidden='true'
         />

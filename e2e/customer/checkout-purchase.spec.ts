@@ -23,7 +23,7 @@ test.describe('Checkout purchase journey', () => {
     await emptyCart(page)
     await addFirstProductToCart(page)
 
-    const { platformOrderId, mockPaymentId } = await completeCheckout(page)
+    const { platformOrderId, orderNumber, mockPaymentId } = await completeCheckout(page)
 
     // Simulate Mollie paying the checkout.
     const webhookResponse = await sendMollieWebhook(baseURL, mockPaymentId, 'paid')
@@ -33,7 +33,7 @@ test.describe('Checkout purchase journey', () => {
     await expect(page.getByRole('heading', { name: /order placed successfully/i })).toBeVisible({
       timeout: 15000,
     })
-    await expect(page.getByText(new RegExp(platformOrderId.slice(0, 8)))).toBeVisible()
+    await expect(page.getByText(new RegExp(orderNumber))).toBeVisible()
 
     // Order detail should show the order as paid/processing and expose an invoice link.
     await page.goto(`/orders/${platformOrderId}`)

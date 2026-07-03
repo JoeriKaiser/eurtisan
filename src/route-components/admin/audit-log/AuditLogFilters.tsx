@@ -117,7 +117,7 @@ export function AuditLogFilters({
             onChange={(e) => onFilterChange({ ...filters, actor: e.target.value })}
             placeholder={m.admin_audit_log_filter_actor_placeholder()}
             aria-label={m.admin_audit_log_filter_actor()}
-            className='size-9 rounded-md border border-border-default bg-surface-default pl-8 pr-3 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none'
+            className='h-9 w-48 rounded-md border border-border-default bg-surface-default pl-8 pr-3 text-sm text-text-primary placeholder:text-text-muted focus-visible:outline-none'
           />
         </div>
       </div>

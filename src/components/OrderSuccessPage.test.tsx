@@ -21,6 +21,7 @@ vi.mock('#/paraglide/messages', () => ({
     order_failed_title: () => 'Payment failed',
     order_failed_description: () => 'Your payment could not be processed.',
     order_success_order_id: () => 'Order ID',
+    order_success_order_number: () => 'Order number',
     order_success_items: () => 'Ordered items',
     order_success_continue_shopping: () => 'Continue shopping',
     order_success_total: () => 'Total',
@@ -36,6 +37,7 @@ import type { OrderDetail } from '#/lib/orders.server'
 function makeOrder(status: OrderDetail['status'] = 'paid'): OrderDetail {
   return {
     id: 'order-123',
+    orderNumber: 'EUR-123456',
     totalCents: 2500,
     status,
     createdAt: new Date('2026-05-10T12:00:00Z'),
@@ -91,9 +93,9 @@ describe('OrderSuccessPage', () => {
     expect(screen.getByText('Thank you for your purchase!')).toBeDefined()
   })
 
-  it('renders order id', () => {
+  it('renders order number', () => {
     render(<OrderSuccessPage order={makeOrder('paid')} />)
-    expect(screen.getByText('order-123')).toBeDefined()
+    expect(screen.getByText(/EUR-123456/)).toBeDefined()
   })
 
   it('renders total', () => {
@@ -169,7 +171,7 @@ describe('OrderSuccessPage', () => {
 
     it('still renders order details while pending', () => {
       render(<OrderSuccessPage order={makeOrder('pending_payment')} />)
-      expect(screen.getByText('order-123')).toBeDefined()
+      expect(screen.getByText(/EUR-123456/)).toBeDefined()
       expect(screen.getByText('€25.00')).toBeDefined()
       expect(screen.getByText('Test Shop')).toBeDefined()
     })
@@ -189,7 +191,7 @@ describe('OrderSuccessPage', () => {
 
     it('still renders order details when cancelled', () => {
       render(<OrderSuccessPage order={makeOrder('cancelled')} />)
-      expect(screen.getByText('order-123')).toBeDefined()
+      expect(screen.getByText(/EUR-123456/)).toBeDefined()
       expect(screen.getByText('€25.00')).toBeDefined()
       expect(screen.getByText('Test Shop')).toBeDefined()
     })

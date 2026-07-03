@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import z from 'zod'
 import { AccountOrders } from '#/route-components/account/orders'
+import { AccountShell } from '#/components/AccountShell'
 import { listBuyerOrders } from '#/lib/orders'
 import { m } from '#/paraglide/messages'
 
@@ -25,5 +26,19 @@ export const Route = createFileRoute('/account/orders/')({
       { name: 'description', content: m.account_orders() },
     ],
   }),
-  component: AccountOrders,
+  component: AccountOrdersRoute,
 })
+
+function AccountOrdersRoute() {
+  return (
+    <AccountShell
+      breadcrumbs={[
+        { label: m.nav_home(), to: '/' },
+        { label: m.account_title(), to: '/account' },
+        { label: m.account_orders() },
+      ]}
+    >
+      <AccountOrders />
+    </AccountShell>
+  )
+}

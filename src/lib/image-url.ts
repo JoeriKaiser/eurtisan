@@ -16,8 +16,8 @@ export interface ImageUrlOptions {
 export function getImageUrl(key: string, options?: ImageUrlOptions): string {
   if (!key) return ''
 
-  // If already a full URL (legacy or pre-generated), return as-is
-  if (key.startsWith('http')) {
+  // If already a full URL or legacy local path (legacy or pre-generated), return as-is
+  if (key.startsWith('http') || key.startsWith('/uploads/')) {
     return key
   }
 

@@ -51,6 +51,12 @@ import {
 } from '../lib/meilisearch-products.server.ts'
 import { db } from './index.ts'
 import * as schema from './schema.ts'
+import {
+  CATEGORY_DESCRIPTIONS,
+  SHOP_DESCRIPTIONS,
+  SUBCATEGORY_DESCRIPTIONS,
+} from './seed-descriptions.ts'
+import { generateOrderNumber } from '../lib/order-numbers.ts'
 
 // =============================================================================
 // Configuration
@@ -471,7 +477,7 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
         ownerId: creator.id!,
         name,
         slug,
-        description: faker.commerce.productDescription(),
+        description: faker.helpers.arrayElement(SHOP_DESCRIPTIONS),
         image: shopImageUrl(slug),
         shippingOrigin: {
           street: locale.location.streetAddress(),
@@ -746,7 +752,7 @@ async function seedCategories() {
       id,
       name: def.name,
       slug,
-      description: faker.commerce.productDescription(),
+      description: CATEGORY_DESCRIPTIONS[def.name],
     })
   }
 
@@ -769,7 +775,7 @@ async function seedCategories() {
         id,
         name: sub,
         slug,
-        description: faker.commerce.productDescription(),
+        description: SUBCATEGORY_DESCRIPTIONS[`${def.name}-${sub}`],
         parentId,
       })
     }
@@ -1193,6 +1199,7 @@ async function seedOrders(
 
     platformOrders.push({
       id: platformOrderId,
+      orderNumber: generateOrderNumber(),
       userId: customer.id!,
       shippingAddress,
       billingAddress,

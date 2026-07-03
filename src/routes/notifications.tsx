@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import z from 'zod'
+import { AccountShell } from '#/components/AccountShell'
 import { NotificationsLoading } from '#/components/NotificationsLoading'
 import { NotificationsError } from '#/components/NotificationsError'
 import { NotificationsRouteComponent } from '#/route-components/notifications'
@@ -35,7 +36,21 @@ export const Route = createFileRoute('/notifications')({
       { name: 'description', content: m.notifications_title() },
     ],
   }),
-  component: NotificationsRouteComponent,
+  component: NotificationsRouteWrapper,
   pendingComponent: NotificationsLoading,
   errorComponent: NotificationsError,
 })
+
+function NotificationsRouteWrapper() {
+  return (
+    <AccountShell
+      breadcrumbs={[
+        { label: m.nav_home(), to: '/' },
+        { label: m.account_title(), to: '/account' },
+        { label: m.notifications_title() },
+      ]}
+    >
+      <NotificationsRouteComponent />
+    </AccountShell>
+  )
+}

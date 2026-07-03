@@ -1,4 +1,5 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
+import { NotFoundPage } from '#/components/NotFoundPage'
 import { DisputeThreadError, DisputeThreadLoading } from '#/components/DisputeThreadPage'
 import { DisputeRouteComponent } from '#/route-components/disputes.$disputeId'
 import { getDisputeDetail } from '#/lib/disputes'
@@ -27,16 +28,7 @@ export const Route = createFileRoute('/disputes/$disputeId')({
       { name: 'description', content: m.dispute_title() },
     ],
   }),
-  notFoundComponent: () => (
-    <main className='page-wrap px-4 py-20 text-center'>
-      <div className='mx-auto max-w-md'>
-        <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary'>
-          {m.dispute_not_found()}
-        </h1>
-        <p className='mb-8 text-text-secondary'>{m.error_not_found_description()}</p>
-      </div>
-    </main>
-  ),
+  notFoundComponent: NotFoundPage,
   component: DisputeRouteComponent,
   pendingComponent: DisputeThreadLoading,
   errorComponent: DisputeThreadError,

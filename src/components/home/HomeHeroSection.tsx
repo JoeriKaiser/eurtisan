@@ -105,11 +105,11 @@ export function HomeHeroSection({
               <form onSubmit={handleSearch}>
                 <div className='relative flex gap-2 items-center'>
                   <div className='relative flex-1'>
-                    <Search className='absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-text-muted' />
+                    <Search className='absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-text-placeholder' />
                     <input
                       type='search'
                       placeholder={m.home_search_placeholder()}
-                      className={`flex h-12 w-full rounded-full border bg-bg-elevated/85 backdrop-blur-sm px-4 pl-10 text-sm text-text-primary placeholder:text-text-muted transition-colors duration-fast ease-out focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20 disabled:cursor-not-allowed disabled:opacity-50 ${
+                      className={`flex h-12 w-full rounded-full border bg-bg-elevated/85 backdrop-blur-sm px-4 pl-10 text-sm text-text-primary placeholder:text-text-placeholder transition-colors duration-fast ease-out focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20 disabled:cursor-not-allowed disabled:opacity-50 ${
                         searchError
                           ? 'border-error focus-visible:border-error focus-visible:ring-error/20'
                           : 'border-border-default hover:border-border-strong'
@@ -129,7 +129,7 @@ export function HomeHeroSection({
                     className='group relative flex items-center justify-between gap-3 h-12 pl-6 pr-2 bg-accent-primary text-text-on-primary hover:bg-accent-primary-hover active:bg-accent-primary-active rounded-full font-semibold shadow-md active:scale-[0.98] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
                   >
                     <span>{m.home_search_button()}</span>
-                    <span className='flex size-6 rounded-full bg-black/10 dark:bg-white/10 items-center justify-center transition-transform duration-300 group-hover:scale-105 group-hover:bg-black/15 dark:group-hover:bg-white/15'>
+                    <span className='flex size-6 rounded-full bg-scrim-subtle group-hover:bg-scrim items-center justify-center transition-transform duration-300 group-hover:scale-105'>
                       <Search className='size-3.5 text-current' />
                     </span>
                   </button>
@@ -157,7 +157,7 @@ export function HomeHeroSection({
                   className='group relative flex items-center justify-between gap-3 h-12 pl-6 pr-2 bg-accent-primary text-text-on-primary hover:bg-accent-primary-hover active:bg-accent-primary-active rounded-full font-semibold shadow-md active:scale-[0.98] transition-all duration-300 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
                 >
                   <span>{primaryText}</span>
-                  <span className='flex size-6 rounded-full bg-black/10 dark:bg-white/10 items-center justify-center transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-[1px] group-hover:bg-black/15'>
+                  <span className='flex size-6 rounded-full bg-scrim-subtle group-hover:bg-scrim items-center justify-center transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-[1px]'>
                     <ArrowRight size={14} />
                   </span>
                 </button>
@@ -175,7 +175,7 @@ export function HomeHeroSection({
 
           {/* Right Visual Column (Double-Bezel nested architecture) */}
           <div className='hidden lg:flex items-center justify-center lg:w-[42%]'>
-            <div className='relative p-2 rounded-[2.5rem] bg-black/5 dark:bg-white/5 border border-border-subtle shadow-xl w-full aspect-[4/3] overflow-hidden'>
+            <div className='relative p-2 rounded-[2.5rem] bg-scrim-subtle border border-border-subtle shadow-xl w-full aspect-[4/3] overflow-hidden'>
               <div className='relative w-full h-full overflow-hidden rounded-[calc(2.5rem-0.5rem)] bg-bg-elevated shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] group'>
                 <img
                   src='/images/hero_artisan_goods.png'
@@ -183,7 +183,7 @@ export function HomeHeroSection({
                   className='w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]'
                 />
                 {/* Visual glassmorphic scrim overlay */}
-                <div className='absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/50 via-black/20 to-transparent p-6 flex items-end justify-between pointer-events-none'>
+                <div className='absolute inset-x-0 bottom-0 bg-gradient-to-t from-scrim-image via-scrim-image-subtle to-transparent p-6 flex items-end justify-between pointer-events-none'>
                   <div className='text-white'>
                     <p className='text-[9px] uppercase tracking-widest font-bold opacity-80'>
                       Featured Maker

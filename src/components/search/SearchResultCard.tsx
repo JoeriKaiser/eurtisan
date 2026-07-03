@@ -1,8 +1,10 @@
 import { Link } from '@tanstack/react-router'
-import { ImageOff, Store } from 'lucide-react'
+import { Store } from 'lucide-react'
 import { cn } from '#/lib/cn'
 import { formatPriceEUR } from '#/lib/pricing'
+import { getImageUrl } from '#/lib/image-url'
 import type { PublicProduct } from '#/lib/products'
+import ProductImagePlaceholder from '#/components/ProductImagePlaceholder'
 
 interface SearchResultCardProps {
   product: PublicProduct
@@ -26,15 +28,13 @@ export default function SearchResultCard({ product, imageUrl }: SearchResultCard
       <div className='relative size-16 shrink-0 overflow-hidden rounded-lg bg-surface-inset'>
         {imageUrl ? (
           <img
-            src={imageUrl}
+            src={getImageUrl(imageUrl, { width: 128, format: 'webp' })}
             alt={product.name}
             loading='lazy'
             className='h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.05]'
           />
         ) : (
-          <div className='flex h-full w-full items-center justify-center text-text-muted'>
-            <ImageOff size={20} strokeWidth={1.5} aria-hidden='true' />
-          </div>
+          <ProductImagePlaceholder iconSize={20} />
         )}
       </div>
 

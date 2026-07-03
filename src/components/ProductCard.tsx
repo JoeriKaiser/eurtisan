@@ -1,9 +1,10 @@
 import { Link } from '@tanstack/react-router'
-import { ImageOff, PackageX, Store } from 'lucide-react'
+import { PackageX, Store } from 'lucide-react'
 import { formatPriceEUR } from '#/lib/pricing'
 import type { PublicProduct } from '#/lib/products'
 import { ResponsiveImage } from '#/lib/responsive-image'
 import { m } from '#/paraglide/messages'
+import ProductImagePlaceholder from './ProductImagePlaceholder'
 
 export interface ProductCardProps {
   product: PublicProduct
@@ -32,14 +33,11 @@ export default function ProductCard({ product, imageUrl }: ProductCardProps) {
             imgClassName='h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]'
           />
         ) : (
-          <div className='flex h-full w-full items-center justify-center text-text-muted'>
-            <ImageOff size={40} strokeWidth={1.5} aria-hidden='true' />
-            <span className='sr-only'>{m.product_no_image()}</span>
-          </div>
+          <ProductImagePlaceholder />
         )}
 
         {isOutOfStock && (
-          <div className='absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[1px]'>
+          <div className='absolute inset-0 flex items-center justify-center bg-scrim-image-subtle backdrop-blur-[1px]'>
             <span className='rounded-full bg-surface-default px-3 py-1 text-xs font-semibold text-text-primary shadow-sm'>
               <PackageX size={14} className='inline align-text-bottom mr-1' aria-hidden='true' />
               {m.product_out_of_stock()}

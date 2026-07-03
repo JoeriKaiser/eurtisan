@@ -97,7 +97,7 @@ export default function ProductDetail({ product }: ProductDetailProps) {
             )}
 
             {isOutOfStock && (
-              <div className='absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[1px]'>
+              <div className='absolute inset-0 flex items-center justify-center bg-scrim-image-subtle backdrop-blur-[1px]'>
                 <span className='rounded-full bg-surface-default px-4 py-2 text-sm font-semibold text-text-primary shadow-sm'>
                   <PackageX
                     size={16}

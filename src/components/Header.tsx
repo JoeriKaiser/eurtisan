@@ -106,10 +106,10 @@ export default function Header() {
               setSearchKey((k) => k + 1)
               setSearchOverlayOpen(true)
             }}
-            className='w-full h-10 pl-9 pr-9 relative rounded-lg border border-border-default hover:border-border-strong bg-surface-default text-sm text-text-muted text-left transition-all duration-fast outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2 cursor-pointer flex items-center'
+            className='w-full h-10 pl-9 pr-9 relative rounded-lg border border-border-default hover:border-border-strong bg-surface-default text-sm text-text-placeholder text-left transition-all duration-fast outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2 cursor-pointer flex items-center'
             aria-label={m.search_header_placeholder()}
           >
-            <span className='absolute left-3 top-1/2 -translate-y-1/2 text-text-muted'>
+            <span className='absolute left-3 top-1/2 -translate-y-1/2 text-text-placeholder'>
               <Search size={16} aria-hidden='true' />
             </span>
             <span className='flex-1 text-left whitespace-nowrap truncate'>

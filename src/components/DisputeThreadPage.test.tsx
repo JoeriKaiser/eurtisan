@@ -67,6 +67,7 @@ function makeDisputeDetail(overrides?: Partial<DisputeDetail>): DisputeDetail {
     order: {
       id: 'so-1',
       platformOrderId: 'order-123',
+      platformOrderNumber: 'EUR-123456',
       shopId: 'shop-1',
       shopName: 'Test Shop',
       status: 'disputed',

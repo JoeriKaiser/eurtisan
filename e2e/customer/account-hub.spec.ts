@@ -8,7 +8,7 @@ test.describe('Account hub', () => {
     await page.waitForSelector('html[data-hydrated="true"]')
 
     await expect(page.getByRole('heading', { name: /account/i })).toBeVisible()
-    await expect(page.getByRole('link', { name: /orders/i })).toBeVisible()
-    await expect(page.getByRole('link', { name: /settings/i })).toBeVisible()
+    await expect(page.getByRole('link', { name: /orders/i }).first()).toBeVisible()
+    await expect(page.getByRole('link', { name: /settings/i }).first()).toBeVisible()
   })
 })

@@ -10,9 +10,9 @@ export default defineConfig({
   reporter: [['list'], ['html', { outputFolder: './e2e/report', open: 'never' }]],
   use: {
     baseURL: process.env.BASE_URL || 'http://localhost:3000',
-    trace: 'on-first-retry',
-    screenshot: 'only-on-failure',
-    video: 'on-first-retry',
+    trace: 'on',
+    screenshot: 'on',
+    video: 'on',
   },
   projects: [
     {

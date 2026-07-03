@@ -354,7 +354,7 @@ export function AdminProductsPage() {
               })
             }
             aria-label={m.admin_products_filter_price_min()}
-            className='size-9 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
+            className='h-9 w-24 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
           />
         </div>
 
@@ -373,7 +373,7 @@ export function AdminProductsPage() {
               })
             }
             aria-label={m.admin_products_filter_price_max()}
-            className='size-9 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
+            className='h-9 w-24 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
           />
         </div>
       </div>

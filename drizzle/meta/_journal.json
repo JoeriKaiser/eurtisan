@@ -519,6 +519,13 @@
       "when": 1782571562048,
       "tag": "0073_great_crusher_hogan",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1783105544212,
+      "tag": "0074_shocking_iron_fist",
+      "breakpoints": true
     }
   ]
 }

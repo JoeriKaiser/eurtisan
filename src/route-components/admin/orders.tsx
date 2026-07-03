@@ -106,7 +106,7 @@ export function AdminOrdersPage() {
 
   const handleExportCSV = useCallback(() => {
     const csv = generateCSV(orders.orders, [
-      { key: 'id', label: 'Order ID' },
+      { key: 'orderNumber', label: 'Order Number' },
       { key: 'buyerName', label: 'Buyer' },
       { key: 'buyerEmail', label: 'Buyer Email' },
       { key: 'status', label: 'Status' },

@@ -17,7 +17,7 @@ export function HomeStatsStrip({ stats }: HomeStatsStripProps) {
         style={{ animationDelay: '100ms' }}
       >
         {/* Double-Bezel outer shell */}
-        <div className='p-2 rounded-[2.5rem] bg-black/5 dark:bg-white/5 border border-border-subtle shadow-xl'>
+        <div className='p-2 rounded-[2.5rem] bg-scrim-subtle border border-border-subtle shadow-xl'>
           {/* Inner core */}
           <div className='bg-bg-elevated rounded-[calc(2.5rem-0.5rem)] p-8 sm:p-10 text-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]'>
             <div className='mb-8 max-w-md mx-auto'>
