@@ -389,6 +389,52 @@ describe.sequential('checkout', () => {
       expect(resExpress?.grandTotalCents).toBe(1000 + (expressOption?.costCents ?? 0))
     })
 
+    it('returns a grand total equal to the sum of subtotals and selected shipping', async () => {
+      await seedUser()
+      await seedShop()
+      const c = await createCart('user-1')
+      const p1 = await seedProduct({ id: 'prod-1', priceCents: 1000 })
+      const p2 = await seedProduct({ id: 'prod-2', name: 'Bowl', slug: 'bowl', priceCents: 2000 })
+
+      await createCartItem(c.id, p1.id, { quantity: 2 })
+      await createCartItem(c.id, p2.id, { quantity: 1 })
+
+      const shippingSelections = [
+        {
+          shopId: 'shop-1',
+          method: 'standard' as const,
+          costCents: 0,
+          rateId: undefined,
+        },
+      ]
+
+      const summary = await getCheckoutSummaryQuery(
+        c.id,
+        'user-1',
+        {
+          name: 'Test',
+          street: 'St',
+          city: 'Paris',
+          postalCode: '75001',
+          country: 'FR',
+        },
+        shippingSelections,
+      )
+
+      expect(summary).not.toBeNull()
+      const expectedTotal = summary?.shops.reduce((sum, shop) => {
+        const selection = shippingSelections.find((s) => s.shopId === shop.shopId)
+        const selectedOption = selection
+          ? (shop.shippingOptions.find((o) => o.rateId === selection.rateId) ??
+            shop.shippingOptions.find((o) => o.method === selection.method) ??
+            shop.shippingOptions.find((o) => !o.fallback) ??
+            shop.shippingOptions[0])
+          : (shop.shippingOptions.find((o) => !o.fallback) ?? shop.shippingOptions[0])
+        return sum + shop.subtotalCents + (selectedOption?.costCents ?? 0)
+      }, 0)
+      expect(summary?.grandTotalCents).toBe(expectedTotal)
+    })
+
     it('groups items from multiple shops separately', async () => {
       await seedUser()
       await seedShop()

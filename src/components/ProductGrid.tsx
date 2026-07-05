@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ImageOff } from 'lucide-react'
 import type { PublicProduct } from '#/lib/products'
 import { m } from '#/paraglide/messages'
 import ProductCard from './ProductCard'
@@ -28,11 +28,17 @@ export default function ProductGrid({
             key={`skeleton-${n}`}
             className='island-shell flex flex-col overflow-hidden rounded-2xl'
           >
-            <div className='aspect-[4/3] w-full animate-pulse bg-[var(--sand)]' />
+            <div className='relative aspect-[4/3] w-full animate-pulse bg-gradient-to-br from-surface-inset to-surface-elevated'>
+              <ImageOff
+                size={32}
+                className='absolute inset-0 m-auto text-text-muted/30'
+                aria-hidden='true'
+              />
+            </div>
             <div className='flex flex-1 flex-col gap-2 p-4'>
-              <div className='h-5 w-1/3 animate-pulse rounded bg-[var(--sand)]' />
-              <div className='h-4 w-full animate-pulse rounded bg-[var(--sand)]' />
-              <div className='mt-auto h-6 w-1/3 animate-pulse rounded bg-[var(--sand)]' />
+              <div className='h-5 w-1/3 animate-pulse rounded bg-surface-inset' />
+              <div className='h-4 w-full animate-pulse rounded bg-surface-inset' />
+              <div className='mt-auto h-6 w-1/3 animate-pulse rounded bg-surface-inset' />
             </div>
           </div>
         ))}

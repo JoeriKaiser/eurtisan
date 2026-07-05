@@ -28,7 +28,14 @@ interface ShopCustomerDetailPageProps {
 export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailPageProps) {
   const router = useRouter()
   const [localCustomer, setLocalCustomer] = useState(customer)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState({
+    addNote: false,
+    updateNote: false,
+    deleteNote: false,
+    addTag: false,
+    removeTag: false,
+    exportData: false,
+  })
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
   )
@@ -60,7 +67,7 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
   const handleAddNote = async () => {
     const content = newNote.trim()
     if (!content) return
-    setLoading(true)
+    setLoading((prev) => ({ ...prev, addNote: true }))
     try {
       const note = await addCustomerNote({
         data: { shopId, customerEmailHash: localCustomer.emailHash, content },
@@ -72,7 +79,7 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
     } catch {
       showFeedback('error', m.studio_customer_note_error())
     } finally {
-      setLoading(false)
+      setLoading((prev) => ({ ...prev, addNote: false }))
     }
   }
 
@@ -85,7 +92,7 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
     if (!editingNoteId) return
     const content = editNoteContent.trim()
     if (!content) return
-    setLoading(true)
+    setLoading((prev) => ({ ...prev, updateNote: true }))
     try {
       const updated = await updateCustomerNote({ data: { noteId: editingNoteId, content } })
       setLocalCustomer((prev) => ({
@@ -99,13 +106,13 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
     } catch {
       showFeedback('error', m.studio_customer_note_error())
     } finally {
-      setLoading(false)
+      setLoading((prev) => ({ ...prev, updateNote: false }))
     }
   }
 
   const handleDeleteNote = async (noteId: string) => {
     if (!window.confirm(m.studio_customer_note_delete_confirm())) return
-    setLoading(true)
+    setLoading((prev) => ({ ...prev, deleteNote: true }))
     try {
       await deleteCustomerNote({ data: { noteId } })
       setLocalCustomer((prev) => ({
@@ -117,14 +124,14 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
     } catch {
       showFeedback('error', m.studio_customer_note_error())
     } finally {
-      setLoading(false)
+      setLoading((prev) => ({ ...prev, deleteNote: false }))
     }
   }
 
   const handleAddTag = async () => {
     const tag = newTag.trim()
     if (!tag) return
-    setLoading(true)
+    setLoading((prev) => ({ ...prev, addTag: true }))
     try {
       const addedTag = await addCustomerTag({
         data: { shopId, customerEmailHash: localCustomer.emailHash, tag },
@@ -139,12 +146,12 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
     } catch {
       showFeedback('error', m.studio_customer_tag_error())
     } finally {
-      setLoading(false)
+      setLoading((prev) => ({ ...prev, addTag: false }))
     }
   }
 
   const handleRemoveTag = async (tag: string) => {
-    setLoading(true)
+    setLoading((prev) => ({ ...prev, removeTag: true }))
     try {
       await removeCustomerTag({ data: { shopId, customerEmailHash: localCustomer.emailHash, tag } })
       setLocalCustomer((prev) => ({
@@ -156,12 +163,12 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
     } catch {
       showFeedback('error', m.studio_customer_tag_error())
     } finally {
-      setLoading(false)
+      setLoading((prev) => ({ ...prev, removeTag: false }))
     }
   }
 
   const handleExportData = async () => {
-    setLoading(true)
+    setLoading((prev) => ({ ...prev, exportData: true }))
     try {
       const data = await exportCustomerData({
         data: { shopId, customerEmailHash: localCustomer.emailHash },
@@ -179,7 +186,7 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
     } catch {
       showFeedback('error', m.studio_customer_export_error())
     } finally {
-      setLoading(false)
+      setLoading((prev) => ({ ...prev, exportData: false }))
     }
   }
 
@@ -212,8 +219,8 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
               variant='secondary'
               size='sm'
               onClick={handleExportData}
-              isLoading={loading}
-              disabled={loading}
+              isLoading={loading.exportData}
+              disabled={loading.exportData}
             >
               <Download size={16} aria-hidden='true' />
               {m.studio_customer_export_data()}
@@ -258,7 +265,7 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
                 <button
                   type='button'
                   onClick={() => handleRemoveTag(tag)}
-                  disabled={loading}
+                  disabled={loading.removeTag}
                   className='rounded-full p-0.5 hover:bg-surface-inset'
                   aria-label={m.studio_customer_tag_remove({ tag })}
                 >
@@ -285,8 +292,8 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
               variant='primary'
               size='md'
               onClick={handleAddTag}
-              isLoading={loading}
-              disabled={loading || !newTag.trim()}
+              isLoading={loading.addTag}
+              disabled={loading.addTag || !newTag.trim()}
             >
               <Plus size={16} aria-hidden='true' />
               {m.studio_customer_tag_add()}
@@ -314,8 +321,8 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
                   variant='primary'
                   size='md'
                   onClick={handleAddNote}
-                  isLoading={loading}
-                  disabled={loading || !newNote.trim()}
+                  isLoading={loading.addNote}
+                  disabled={loading.addNote || !newNote.trim()}
                 >
                   {m.studio_customer_note_add()}
                 </Button>
@@ -355,8 +362,8 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
                             variant='primary'
                             size='sm'
                             onClick={handleUpdateNote}
-                            isLoading={loading}
-                            disabled={loading || !editNoteContent.trim()}
+                            isLoading={loading.updateNote}
+                            disabled={loading.updateNote || !editNoteContent.trim()}
                           >
                             {m.studio_customer_note_save()}
                           </Button>

@@ -127,6 +127,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
       className='fixed inset-0 z-modal m-0 flex h-full w-full max-h-none max-w-none flex-col items-start justify-start bg-transparent p-0 sm:items-center sm:justify-start sm:pt-[10vh] open:flex'
       aria-label={m.search_overlay_title()}
       open
+      onKeyDown={handleContainerKeyDown}
     >
       {/* Backdrop */}
       <div
@@ -142,12 +143,9 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
         tabIndex={-1}
       />
 
-      {/* Panel — keyboard navigation is handled here because this is the
-          interactive container; the <dialog> wrapper is structural only. */}
+      {/* Panel — keyboard navigation is handled on the dialog element above. */}
       <div
         ref={containerRef}
-        role='application'
-        onKeyDown={handleContainerKeyDown}
         className={cn(
           'relative z-modal w-full sm:w-[640px] sm:max-w-[90vw]',
           'flex flex-col overflow-hidden rounded-b-2xl border border-border-default bg-surface-default shadow-xl',

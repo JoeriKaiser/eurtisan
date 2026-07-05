@@ -49,6 +49,7 @@ vi.mock('#/paraglide/messages', () => ({
     two_factor_title: () => 'Two-factor authentication',
     two_factor_description: () => 'Enter the 6-digit code from your authenticator app.',
     two_factor_code_label: () => 'Authenticator code',
+    two_factor_code_format_hint: () => 'Enter the 6-digit code from your authenticator app.',
     two_factor_button_verify: () => 'Verify and sign in',
     two_factor_back_to_sign_in: () => 'Back to sign in',
     two_factor_info: () => 'Enter the 6-digit code from your authenticator app.',
@@ -133,7 +134,7 @@ describe('SignIn', () => {
     expect(mockSignUpEmail).not.toHaveBeenCalled()
   })
 
-  it('renders the error banner below the submit button to avoid layout shift', async () => {
+  it('renders the error banner above the submit button with reserved space to avoid layout shift', async () => {
     mockSignInEmail.mockResolvedValue({ error: { message: 'Invalid credentials' }, data: null })
 
     render(<SignIn />)
@@ -148,13 +149,15 @@ describe('SignIn', () => {
 
     const form = screen.getByRole('button', { name: 'Sign in' }).closest('form')
     const children = Array.from(form?.children ?? [])
-    const bannerContainerIndex = children.findIndex((child) => child.className.includes('mt-3'))
+    const bannerContainerIndex = children.findIndex((child) =>
+      child.className.includes('min-h-[3.5rem]'),
+    )
     const submitIndex = children.findIndex(
       (child) => child.tagName === 'BUTTON' && child.getAttribute('type') === 'submit',
     )
     expect(bannerContainerIndex).toBeGreaterThan(-1)
     expect(submitIndex).toBeGreaterThan(-1)
-    expect(bannerContainerIndex).toBeGreaterThan(submitIndex)
+    expect(bannerContainerIndex).toBeLessThan(submitIndex)
   })
 
   it('shows a helpful message when signing in to a deactivated account', async () => {
@@ -251,6 +254,22 @@ describe('SignIn', () => {
     expect(link.className).toContain('hover:text-accent-primary-hover')
   })
 
+  it('adds focus-visible ring classes to the back-to-sign-in button', () => {
+    mockSignInEmail.mockResolvedValue({ error: null, data: { twoFactorRedirect: true } })
+
+    render(<SignIn />)
+
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'test@example.com' } })
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    return waitFor(() => {
+      const button = screen.getByRole('button', { name: 'Back to sign in' })
+      expect(button.className).toContain('focus-visible:ring-2')
+      expect(button.className).toContain('focus-visible:ring-accent-secondary')
+    })
+  })
+
   it('submits the two-factor code and navigates on success', async () => {
     mockSignInEmail.mockResolvedValue({ error: null, data: { twoFactorRedirect: true } })
     mockVerifyTotp.mockResolvedValue({ error: null, data: {} })
@@ -272,5 +291,42 @@ describe('SignIn', () => {
       expect(mockVerifyTotp).toHaveBeenCalledWith({ code: '123456' })
       expect(mockNavigate).toHaveBeenCalledWith({ to: '/' })
     })
+  })
+
+  it('enforces numeric 6-digit constraints on the two-factor code input', async () => {
+    mockSignInEmail.mockResolvedValue({ error: null, data: { twoFactorRedirect: true } })
+
+    render(<SignIn />)
+
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'test@example.com' } })
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    await waitFor(() => {
+      const input = screen.getByLabelText('Authenticator code') as HTMLInputElement
+      expect(input.getAttribute('inputMode')).toBe('numeric')
+      expect(input.getAttribute('autoComplete')).toBe('one-time-code')
+      expect(input.getAttribute('minLength')).toBe('6')
+      expect(input.getAttribute('maxLength')).toBe('6')
+      expect(input.getAttribute('pattern')).toBe('[0-9]{6}')
+    })
+  })
+
+  it('shows the mismatched-password error on sign-up without calling the auth client', async () => {
+    render(<SignIn />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Need an account? Sign up' }))
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Test User' } })
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'test@example.com' } })
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
+    fireEvent.change(screen.getByLabelText('Confirm password'), {
+      target: { value: 'different123' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('Passwords do not match')
+    })
+    expect(mockSignUpEmail).not.toHaveBeenCalled()
   })
 })

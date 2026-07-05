@@ -69,6 +69,11 @@ vi.mock('#/paraglide/messages', () => ({
     creator_payouts_mollie_disconnect_btn: () => 'Disconnect account',
     creator_payouts_mollie_status_connected: () => 'Connected',
     creator_payouts_mollie_status_disconnected: () => 'Not Connected',
+    creator_payouts_disconnect_confirm_title: () => 'Disconnect Mollie account?',
+    creator_payouts_disconnect_confirm_description: ({ shopName }: { shopName: string }) =>
+      `Payouts for ${shopName} will be paused until you reconnect a payment account.`,
+    creator_payouts_disconnect_cancel: () => 'Cancel',
+    creator_payouts_disconnect_confirm: () => 'Disconnect',
     creator_shop_select_label: () => 'Select shop',
     creator_no_shops_title: () => 'Welcome, creator!',
     creator_no_shops_description: () => "You don't have any shops yet.",

@@ -21,6 +21,16 @@ function formatRate(basisPoints: number): string {
   return `${(basisPoints / 100).toFixed(2)}%`
 }
 
+function formatCountryName(countryCode: string): string {
+  if (!countryCode) return countryCode
+  try {
+    const locale = getLocale()
+    return new Intl.DisplayNames(locale, { type: 'region' }).of(countryCode) ?? countryCode
+  } catch {
+    return countryCode
+  }
+}
+
 function monthLabel(month: number): string {
   try {
     const locale = getLocale()
@@ -246,9 +256,11 @@ export function ShopTaxReportPage({ initialReport }: ShopTaxReportPageProps) {
                 <div className='grid gap-4 sm:grid-cols-2'>
                   <div>
                     <p className='text-sm text-text-secondary'>
-                      {m.tax_report_dac7_transactions({
-                        count: report.dac7Status.transactionCount,
-                      })}
+                      {report.dac7Status.transactionCount === 1
+                        ? m.tax_report_dac7_transactions_single()
+                        : m.tax_report_dac7_transactions({
+                            count: report.dac7Status.transactionCount,
+                          })}
                     </p>
                     <p className='text-sm text-text-secondary'>
                       {m.tax_report_dac7_gross_sales({
@@ -311,7 +323,9 @@ export function ShopTaxReportPage({ initialReport }: ShopTaxReportPageProps) {
                             key={`${row.buyerCountry}-${row.vatRateBasisPoints}`}
                             className='border-b border-border-subtle last:border-b-0'
                           >
-                            <td className='py-3 pr-4 text-text-primary'>{row.buyerCountry}</td>
+                            <td className='py-3 pr-4 text-text-primary'>
+                              {formatCountryName(row.buyerCountry)}
+                            </td>
                             <td className='py-3 pr-4 text-text-primary'>
                               {formatRate(row.vatRateBasisPoints)}
                             </td>
@@ -339,9 +353,11 @@ export function ShopTaxReportPage({ initialReport }: ShopTaxReportPageProps) {
                 </CardHeader>
                 <CardContent>
                   <p className='text-text-secondary'>
-                    {m.tax_report_reverse_charge_count({
-                      count: report.reverseCharge.transactionCount,
-                    })}
+                    {report.reverseCharge.transactionCount === 1
+                      ? m.tax_report_reverse_charge_count_one()
+                      : m.tax_report_reverse_charge_count_other({
+                          count: report.reverseCharge.transactionCount,
+                        })}
                   </p>
                   <p className='text-lg font-semibold text-text-primary'>
                     {m.tax_report_reverse_charge_net({

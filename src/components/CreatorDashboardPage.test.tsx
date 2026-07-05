@@ -197,11 +197,15 @@ describe('CreatorDashboardPage', () => {
       />,
     )
 
-    expect(screen.getByText('Products').closest('a')?.getAttribute('href')).toBe('/studio/shop-1')
+    expect(screen.getByText('Products').closest('a')?.getAttribute('href')).toBe(
+      '/creator/products?shopId=shop-1',
+    )
     expect(screen.getByText('Orders').closest('a')?.getAttribute('href')).toBe(
       '/studio/shop-1/orders',
     )
-    expect(screen.getByText('Settings').closest('a')?.getAttribute('href')).toBe('/studio/shop-1')
+    expect(screen.getByText('Settings').closest('a')?.getAttribute('href')).toBe(
+      '/creator/shop?shopId=shop-1',
+    )
   })
 })
 

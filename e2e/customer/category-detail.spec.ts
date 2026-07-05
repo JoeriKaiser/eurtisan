@@ -7,10 +7,14 @@ test.describe('Category detail', () => {
 
     const firstCategory = page.locator('main ul a').first()
     await expect(firstCategory).toBeVisible()
+    const categoryName = await firstCategory.textContent()
     await firstCategory.click()
 
-    await page.waitForURL(/\/category\//)
-    await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    // Wait for navigation to an actual category slug, not the /category/all listing.
+    await page.waitForURL(
+      (url) => /\/category\//.test(url.pathname) && url.pathname !== '/category/all',
+    )
+    await expect(page.getByRole('heading', { level: 1, name: categoryName ?? '' })).toBeVisible()
   })
 
   test('returns 404 for a non-existent category', async ({ page }) => {

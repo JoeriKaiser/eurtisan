@@ -1,6 +1,6 @@
 import { Link, useRouter } from '@tanstack/react-router'
 import { ArrowLeft, MessageSquare, Send } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { addDisputeMessage } from '#/lib/disputes'
@@ -38,7 +38,14 @@ export default function DisputeThreadPage({ dispute }: DisputeThreadPageProps) {
     setLocalDispute(dispute)
   }, [dispute])
 
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const canPostMessage = localDispute.status === 'open'
+
+  useEffect(() => {
+    if (canPostMessage && textareaRef.current) {
+      textareaRef.current.scrollIntoView?.({ behavior: 'auto', block: 'end' })
+    }
+  }, [canPostMessage])
 
   const handleSubmit = async () => {
     const trimmed = message.trim()
@@ -76,8 +83,8 @@ export default function DisputeThreadPage({ dispute }: DisputeThreadPageProps) {
   }
 
   return (
-    <main className='page-wrap px-4 pb-16 pt-14'>
-      <div className='mx-auto max-w-3xl'>
+    <main className='page-wrap px-4 pb-24 pt-14'>
+      <div className='mx-auto max-w-3xl lg:max-w-5xl'>
         <div className='mb-6'>
           <Link
             to='/orders/$platformOrderId'
@@ -106,10 +113,10 @@ export default function DisputeThreadPage({ dispute }: DisputeThreadPageProps) {
           </Badge>
         </div>
 
-        <div className='space-y-6'>
+        <div className='space-y-6 lg:grid lg:grid-cols-[320px_1fr] lg:gap-6 lg:space-y-0'>
           {/* Summary Card */}
-          <div className='island-shell rounded-2xl p-6'>
-            <div className='grid gap-4 sm:grid-cols-2'>
+          <div className='h-fit island-shell rounded-2xl p-6 sticky top-4 lg:top-24 lg:self-start'>
+            <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-1'>
               <div>
                 <p className='text-sm text-text-secondary'>{m.dispute_reason()}</p>
                 <p className='font-medium text-text-primary'>
@@ -187,6 +194,7 @@ export default function DisputeThreadPage({ dispute }: DisputeThreadPageProps) {
                 )}
                 <div className='flex items-end gap-2'>
                   <textarea
+                    ref={textareaRef}
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     onKeyDown={handleKeyDown}

@@ -1,6 +1,7 @@
 import { Link, useRouter } from '@tanstack/react-router'
 import {
   AlertTriangle,
+  MessageSquare,
   ArrowLeft,
   Download,
   ExternalLink,
@@ -122,6 +123,10 @@ export default function BuyerOrderDetailPage({
   const [disputeDescription, setDisputeDescription] = useState('')
   const [isDisputeSubmitting, setIsDisputeSubmitting] = useState(false)
   const [disputeError, setDisputeError] = useState<string | null>(null)
+  const [openedDispute, setOpenedDispute] = useState<{
+    disputeId: string
+    shopOrderId: string
+  } | null>(null)
 
   const handleOpenReview = (item: ReviewableItem) => {
     if (!item.isEligible || item.hasReview) return
@@ -152,13 +157,14 @@ export default function BuyerOrderDetailPage({
     setIsDisputeSubmitting(true)
     setDisputeError(null)
     try {
-      await openDispute({
+      const result = await openDispute({
         data: {
           shopOrderId: activeDisputeShop.shopOrderId,
           reason: disputeReason,
           description: disputeDescription.trim(),
         },
       })
+      setOpenedDispute({ disputeId: result.id, shopOrderId: activeDisputeShop.shopOrderId })
       router.invalidate()
       handleCloseDispute()
     } catch (err) {
@@ -315,7 +321,7 @@ export default function BuyerOrderDetailPage({
 
           <h2 className='mb-4 text-lg font-semibold text-text-primary'>{m.order_detail_items()}</h2>
 
-          <div className='space-y-8'>
+          <div className='space-y-6'>
             {order.shops.map((shop) => (
               <section key={shop.shopOrderId} className='space-y-3'>
                 <div className='flex flex-wrap items-center justify-between gap-2'>
@@ -323,6 +329,55 @@ export default function BuyerOrderDetailPage({
                   <Badge variant={statusBadgeVariant(shop.status)}>
                     {getOrderStatusLabel(shop.status)}
                   </Badge>
+                </div>
+
+                {/* Items list first so buyers see what they paid for above the fold */}
+                <ul className='divide-y divide-border-subtle'>
+                  {shop.items.map((item) => (
+                    <li key={item.id} className='flex items-center gap-3 py-3 first:pt-0 last:pb-0'>
+                      <div className='flex size-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-inset'>
+                        {item.imageUrl ? (
+                          <img
+                            src={item.imageUrl}
+                            alt={item.productName}
+                            className='h-full w-full object-cover'
+                            loading='lazy'
+                          />
+                        ) : (
+                          <>
+                            <span className='sr-only'>{item.productName}</span>
+                            <ImageOff size={16} className='text-text-muted' aria-hidden='true' />
+                          </>
+                        )}
+                      </div>
+                      <div className='flex-1'>
+                        <p className='text-sm font-medium text-text-primary'>{item.productName}</p>
+                        <p className='text-xs text-text-secondary'>
+                          {formatPriceEUR(item.unitPriceCents)} × {item.quantity}
+                        </p>
+                      </div>
+                      <span className='text-sm font-medium text-text-primary'>
+                        {formatPriceEUR(item.totalCents)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className='flex flex-wrap items-center gap-4 text-xs text-text-secondary'>
+                  <span className='inline-flex items-center gap-1'>
+                    <Truck size={14} aria-hidden='true' />
+                    {shop.shippingMethod}: {formatPriceEUR(shop.shippingCostCents)}
+                  </span>
+                  {shop.invoiceNumber && (
+                    <Link
+                      to='/invoices/$invoiceId'
+                      params={{ invoiceId: shop.invoiceNumber }}
+                      className='inline-flex items-center gap-1 text-accent-primary font-semibold hover:underline print:hidden'
+                    >
+                      <Download size={12} aria-hidden='true' />
+                      Invoice
+                    </Link>
+                  )}
                 </div>
 
                 {/* Progress indicator for non-terminal statuses */}
@@ -341,23 +396,6 @@ export default function BuyerOrderDetailPage({
                     </p>
                   </div>
                 )}
-
-                <div className='flex flex-wrap items-center gap-4 text-xs text-text-secondary'>
-                  <span className='inline-flex items-center gap-1'>
-                    <Truck size={14} aria-hidden='true' />
-                    {shop.shippingMethod}: {formatPriceEUR(shop.shippingCostCents)}
-                  </span>
-                  {shop.invoiceNumber && (
-                    <Link
-                      to='/invoices/$invoiceId'
-                      params={{ invoiceId: shop.invoiceNumber }}
-                      className='inline-flex items-center gap-1 text-accent-primary font-semibold hover:underline print:hidden'
-                    >
-                      <Download size={12} aria-hidden='true' />
-                      Invoice
-                    </Link>
-                  )}
-                </div>
 
                 {/* Tracking Information */}
                 {shop.shippingLabels.length > 0 ? (
@@ -454,26 +492,6 @@ export default function BuyerOrderDetailPage({
                   )
                 )}
 
-                <ul className='divide-y divide-border-subtle'>
-                  {shop.items.map((item) => (
-                    <li key={item.id} className='flex items-center gap-3 py-3 first:pt-0 last:pb-0'>
-                      <div className='flex size-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-inset'>
-                        <span className='sr-only'>{item.productName}</span>
-                        <ImageOff size={16} className='text-text-muted' aria-hidden='true' />
-                      </div>
-                      <div className='flex-1'>
-                        <p className='text-sm font-medium text-text-primary'>{item.productName}</p>
-                        <p className='text-xs text-text-secondary'>
-                          {formatPriceEUR(item.unitPriceCents)} × {item.quantity}
-                        </p>
-                      </div>
-                      <span className='text-sm font-medium text-text-primary'>
-                        {formatPriceEUR(item.totalCents)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-
                 <div className='flex justify-between text-sm'>
                   <span className='text-text-secondary'>{m.cart_shop_subtotal()}</span>
                   <span className='font-medium text-text-primary'>
@@ -544,9 +562,29 @@ export default function BuyerOrderDetailPage({
                 )}
 
                 {/* Dispute CTA for delivered items */}
-                {shop.status === 'delivered' && (
+                {(shop.status === 'delivered' ||
+                  shop.disputeId ||
+                  openedDispute?.shopOrderId === shop.shopOrderId) && (
                   <div className='flex justify-end'>
-                    {isDisputeEligible(shop.deliveredAt) ? (
+                    {shop.disputeId ? (
+                      <Link
+                        to='/disputes/$disputeId'
+                        params={{ disputeId: shop.disputeId }}
+                        className='inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm font-medium text-accent-secondary transition-colors hover:bg-accent-secondary-subtle hover:text-accent-secondary-hover no-underline'
+                      >
+                        <MessageSquare size={14} aria-hidden='true' />
+                        {m.order_detail_view_dispute()}
+                      </Link>
+                    ) : openedDispute?.shopOrderId === shop.shopOrderId ? (
+                      <Link
+                        to='/disputes/$disputeId'
+                        params={{ disputeId: openedDispute.disputeId }}
+                        className='inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-sm font-medium text-accent-secondary transition-colors hover:bg-accent-secondary-subtle hover:text-accent-secondary-hover no-underline'
+                      >
+                        <MessageSquare size={14} aria-hidden='true' />
+                        {m.order_detail_view_dispute()}
+                      </Link>
+                    ) : isDisputeEligible(shop.deliveredAt) ? (
                       <Button
                         variant='ghost'
                         size='sm'

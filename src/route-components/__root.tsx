@@ -27,6 +27,7 @@ export function RootComponent() {
   const pathname = router.state.location.pathname
   const isOnboarding = pathname.includes('/sell/onboarding/')
   const isAuthRoute = AUTH_ROUTES.has(normalizeAuthRoute(pathname))
+  const isAdminRoute = pathname.startsWith('/admin')
 
   const { consent } = useAnalyticsConsent()
 
@@ -72,23 +73,25 @@ export function RootComponent() {
   return (
     <FaroErrorBoundary>
       <CartProvider>
-        <a
-          href='#main-content'
-          className='sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-toast focus:px-4 focus:py-2 focus:bg-surface-default focus:text-text-primary focus:border focus:border-border-default focus:rounded-lg focus:shadow-md outline-none'
-        >
-          {m.nav_skip_to_content()}
-        </a>
-        <Header />
-        <main id='main-content' className='flex-1 outline-none' tabIndex={-1}>
-          <Outlet />
-        </main>
-        {!isOnboarding && <Footer />}
-        {!isAuthRoute && <AnalyticsConsentBanner />}
-        {Devtools && (
-          <Suspense fallback={null}>
-            <Devtools />
-          </Suspense>
-        )}
+        <div className='flex min-h-[100dvh] flex-col'>
+          <a
+            href='#main-content'
+            className='sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-toast focus:px-4 focus:py-2 focus:bg-surface-default focus:text-text-primary focus:border focus:border-border-default focus:rounded-lg focus:shadow-md outline-none'
+          >
+            {m.nav_skip_to_content()}
+          </a>
+          {!isAdminRoute && <Header />}
+          <main id='main-content' className='flex-1 outline-none' tabIndex={-1}>
+            <Outlet />
+          </main>
+          {!isOnboarding && !isAdminRoute && <Footer />}
+          {!isAuthRoute && <AnalyticsConsentBanner />}
+          {Devtools && (
+            <Suspense fallback={null}>
+              <Devtools />
+            </Suspense>
+          )}
+        </div>
       </CartProvider>
     </FaroErrorBoundary>
   )

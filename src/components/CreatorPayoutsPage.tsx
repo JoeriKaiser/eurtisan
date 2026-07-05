@@ -9,6 +9,14 @@ import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { formatDateShort } from '#/lib/format-date'
+import {
+  Dialog,
+  DialogBackdrop,
+  DialogDescription,
+  DialogPopup,
+  DialogPortal,
+  DialogTitle,
+} from './ui/primitives/dialog'
 
 /* -------------------------------------------------------------------------- */
 /*                                    Types                                   */
@@ -55,6 +63,7 @@ export function CreatorPayoutsPage({
   const [connectLoading, setConnectLoading] = useState(false)
   const [disconnectLoading, setDisconnectLoading] = useState(false)
   const [mollieError, setMollieError] = useState<string | null>(null)
+  const [showDisconnectDialog, setShowDisconnectDialog] = useState(false)
 
   const handleConnectMollie = useCallback(async () => {
     if (!activeShop) return
@@ -258,10 +267,9 @@ export function CreatorPayoutsPage({
                   <div className='flex shrink-0 items-center gap-3'>
                     {activeShop.paymentConnected ? (
                       <Button
-                        variant='danger'
-                        onClick={handleDisconnectMollie}
-                        isLoading={disconnectLoading}
-                        disabled={connectLoading}
+                        variant='secondary'
+                        onClick={() => setShowDisconnectDialog(true)}
+                        disabled={connectLoading || disconnectLoading}
                       >
                         {m.creator_payouts_mollie_disconnect_btn()}
                       </Button>
@@ -528,6 +536,49 @@ export function CreatorPayoutsPage({
           </div>
         )}
       </section>
+
+      <Dialog open={showDisconnectDialog} onOpenChange={setShowDisconnectDialog}>
+        <DialogPortal>
+          <DialogBackdrop />
+          <DialogPopup>
+            <div className='flex items-start gap-3'>
+              <div className='flex size-9 shrink-0 items-center justify-center rounded-full bg-error-subtle text-error'>
+                <AlertTriangle size={18} aria-hidden='true' />
+              </div>
+              <div>
+                <DialogTitle>{m.creator_payouts_disconnect_confirm_title()}</DialogTitle>
+                <DialogDescription className='mt-1'>
+                  {m.creator_payouts_disconnect_confirm_description({
+                    shopName: activeShop?.name ?? '',
+                  })}
+                </DialogDescription>
+              </div>
+            </div>
+            <div className='mt-6 flex justify-end gap-3'>
+              <Button
+                type='button'
+                variant='secondary'
+                onClick={() => setShowDisconnectDialog(false)}
+                disabled={disconnectLoading}
+              >
+                {m.creator_payouts_disconnect_cancel()}
+              </Button>
+              <Button
+                type='button'
+                variant='danger'
+                onClick={() => {
+                  setShowDisconnectDialog(false)
+                  void handleDisconnectMollie()
+                }}
+                isLoading={disconnectLoading}
+                disabled={disconnectLoading}
+              >
+                {m.creator_payouts_disconnect_confirm()}
+              </Button>
+            </div>
+          </DialogPopup>
+        </DialogPortal>
+      </Dialog>
     </main>
   )
 }

@@ -463,7 +463,7 @@ export function AdminLayout() {
       </div>
 
       {/* Desktop sidebar */}
-      <aside className='hidden md:flex w-64 shrink-0 flex-col border-r border-border-default bg-surface-default'>
+      <aside className='hidden md:sticky md:top-0 md:h-screen md:overflow-y-auto md:flex w-64 shrink-0 flex-col border-r border-border-default bg-surface-default'>
         {sidebarContent}
       </aside>
 

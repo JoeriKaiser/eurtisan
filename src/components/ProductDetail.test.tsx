@@ -183,11 +183,32 @@ describe('ProductDetail', () => {
     expect(decrease.hasAttribute('disabled')).toBe(true)
   })
 
-  it('renders a read-only quantity input for accessibility', () => {
+  it('renders a number quantity input for accessibility', () => {
     render(<ProductDetail product={makeProduct({ stockCount: 5 })} />)
     const input = screen.getByLabelText('Quantity') as HTMLInputElement
     expect(input.tagName.toLowerCase()).toBe('input')
-    expect(input.readOnly).toBe(true)
+    expect(input.type).toBe('number')
+  })
+
+  it('updates quantity when typing a valid number', () => {
+    render(<ProductDetail product={makeProduct({ stockCount: 10 })} />)
+    const input = screen.getByLabelText('Quantity') as HTMLInputElement
+    fireEvent.change(input, { target: { value: '4' } })
+    expect(input.value).toBe('4')
+  })
+
+  it('clamps quantity to stock count when typing a larger number', () => {
+    render(<ProductDetail product={makeProduct({ stockCount: 5 })} />)
+    const input = screen.getByLabelText('Quantity') as HTMLInputElement
+    fireEvent.change(input, { target: { value: '12' } })
+    expect(input.value).toBe('5')
+  })
+
+  it('resets quantity to one when input is cleared', () => {
+    render(<ProductDetail product={makeProduct({ stockCount: 5 })} />)
+    const input = screen.getByLabelText('Quantity') as HTMLInputElement
+    fireEvent.change(input, { target: { value: '' } })
+    expect(input.value).toBe('1')
   })
 
   it('renders shop name and description', () => {

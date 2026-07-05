@@ -273,6 +273,33 @@ describe('Header', () => {
     expect(screen.queryByText('0')).toBeNull()
   })
 
+  it('hides badge when shops exist but contain no items', () => {
+    mockUseCart.mockReturnValue({
+      cart: {
+        id: 'cart-1',
+        userId: null,
+        sessionId: 'sess-1',
+        expiresAt: null,
+        shops: [
+          {
+            shopId: 'shop-1',
+            shopName: 'Test Shop',
+            shopSlug: 'test-shop',
+            items: [],
+            subtotalCents: 0,
+          },
+        ],
+        totalCents: 0,
+        totalItems: 0,
+      },
+      isLoading: false,
+      refreshCart: vi.fn(),
+    })
+
+    renderWithProviders(<Header />)
+    expect(screen.queryByText('0')).toBeNull()
+  })
+
   it('does not show notification bell when unauthenticated', () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,

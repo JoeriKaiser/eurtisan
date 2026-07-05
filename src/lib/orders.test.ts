@@ -10,6 +10,7 @@ import {
   createOrderItem,
   createPlatformOrder,
   createProduct,
+  createProductImage,
   createShippingLabel,
   createShop,
   createShopOrder,
@@ -72,6 +73,41 @@ describe('getBuyerOrderDetailQuery', () => {
     expect(result?.shops[0].items).toHaveLength(1)
     expect(result?.shops[0].items[0].productName).toBe('Vase')
     expect(result?.shops[0].items[0].quantity).toBe(2)
+  })
+
+  it('includes product image URL when the product has a primary image', async () => {
+    const user = await createUser()
+    const shop = await createShop(user, { name: 'Test Shop', slug: 'test-shop' })
+    const product = await createProduct(shop, { name: 'Vase', slug: 'vase' })
+    const image = await createProductImage(product)
+
+    const order = await createPlatformOrder(user, { totalCents: 2500 })
+    const shopOrder = await createShopOrder(order, shop, {
+      shippingMethod: 'standard',
+      shippingCostCents: 500,
+      subtotalCents: 2000,
+    })
+    await createOrderItem(shopOrder, product, { quantity: 2 })
+
+    const result = await getBuyerOrderDetailQuery(order.id, user.id)
+    expect(result?.shops[0].items[0].imageUrl).toBe(image.url)
+  })
+
+  it('returns null image URL when the product has no primary image', async () => {
+    const user = await createUser()
+    const shop = await createShop(user, { name: 'Test Shop', slug: 'test-shop' })
+    const product = await createProduct(shop, { name: 'Vase', slug: 'vase' })
+
+    const order = await createPlatformOrder(user, { totalCents: 2500 })
+    const shopOrder = await createShopOrder(order, shop, {
+      shippingMethod: 'standard',
+      shippingCostCents: 500,
+      subtotalCents: 2000,
+    })
+    await createOrderItem(shopOrder, product, { quantity: 2 })
+
+    const result = await getBuyerOrderDetailQuery(order.id, user.id)
+    expect(result?.shops[0].items[0].imageUrl).toBeNull()
   })
 
   it('returns multiple shop groups', async () => {

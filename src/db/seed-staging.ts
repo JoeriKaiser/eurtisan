@@ -87,6 +87,59 @@ function pick<T>(arr: T[]): T {
   return faker.helpers.arrayElement(arr)
 }
 
+const COUNTRY_CODES = [
+  'AT',
+  'BE',
+  'BG',
+  'HR',
+  'CY',
+  'CZ',
+  'DK',
+  'EE',
+  'FI',
+  'FR',
+  'DE',
+  'GR',
+  'HU',
+  'IE',
+  'IT',
+  'LV',
+  'LT',
+  'LU',
+  'MT',
+  'NL',
+  'PL',
+  'PT',
+  'RO',
+  'SK',
+  'SI',
+  'ES',
+  'SE',
+  'CH',
+  'NO',
+  'IS',
+  'LI',
+  'GB',
+]
+
+const REVIEW_COMMENTS = [
+  'Beautiful craftsmanship and fast shipping.',
+  'Even better than the photos. Highly recommend this maker.',
+  'Lovely quality, exactly as described.',
+  'A thoughtful purchase — the seller was very helpful.',
+  'Well made and arrived in perfect condition.',
+  'Unique piece, great attention to detail.',
+  'So happy with this order. Will buy again.',
+  'Gorgeous handmade work, worth every cent.',
+  'The packaging was lovely and the item is stunning.',
+  'Exactly what I was looking for. Five stars.',
+  'Exceeds expectations. Real artisan quality.',
+  'Prompt delivery and a beautiful product.',
+  'You can feel the care that went into making this.',
+  'Wonderful addition to my home. Thank you.',
+  'Fantastic service and an exceptional product.',
+]
+
 function makeAddress(): Record<string, unknown> {
   return {
     name: faker.person.fullName(),
@@ -96,7 +149,7 @@ function makeAddress(): Record<string, unknown> {
       undefined,
     city: faker.location.city(),
     postalCode: faker.location.zipCode(),
-    country: faker.location.country(),
+    country: pick(COUNTRY_CODES),
   }
 }
 
@@ -934,7 +987,7 @@ async function seedOrders(
           productId: it.product.id,
           buyerUserId: customer.id,
           rating: faker.number.int({ min: 3, max: 5 }),
-          comment: faker.lorem.sentences(faker.number.int({ min: 1, max: 3 })),
+          comment: pick(REVIEW_COMMENTS),
           createdAt: orderDate,
         })
       }

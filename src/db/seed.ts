@@ -6,23 +6,6 @@ function hashEmail(email: string): string {
   return createHash('sha256').update(email.toLowerCase().trim()).digest('hex')
 }
 
-function normalizeCountryCode(country: string): string | null {
-  const upper = country.trim().toUpperCase()
-  if (upper.length === 2 && /^[A-Z]{2}$/.test(upper)) {
-    return upper
-  }
-  const mapping: Record<string, string> = {
-    belgium: 'BE',
-    france: 'FR',
-    germany: 'DE',
-    italy: 'IT',
-    netherlands: 'NL',
-    spain: 'ES',
-    portugal: 'PT',
-    estonia: 'EE',
-  }
-  return mapping[country.trim().toLowerCase()] || 'FR'
-}
 import { join } from 'node:path'
 import {
   faker,
@@ -99,29 +82,47 @@ const SHIPPED_STATUSES = new Set(['shipped', 'delivered', 'completed', 'disputed
 const DELIVERED_STATUSES = new Set(['delivered', 'completed'])
 const LABEL_STATUSES = new Set(['shipped', 'delivered', 'completed'])
 
-const LOCALES = [
-  fakerDE,
-  fakerFR,
-  fakerIT,
-  fakerNL,
-  fakerES,
-  fakerPT_PT,
-  fakerPL,
-  fakerEL,
-  fakerSV,
-  fakerDA,
-  fakerHU,
-  fakerDE_AT,
-  fakerFR_BE,
-  fakerNL_BE,
-  fakerDE_CH,
+const REVIEW_COMMENTS = [
+  'Beautiful craftsmanship and fast shipping.',
+  'Even better than the photos. Highly recommend this maker.',
+  'Lovely quality, exactly as described.',
+  'A thoughtful purchase — the seller was very helpful.',
+  'Well made and arrived in perfect condition.',
+  'Unique piece, great attention to detail.',
+  'So happy with this order. Will buy again.',
+  'Gorgeous handmade work, worth every cent.',
+  'The packaging was lovely and the item is stunning.',
+  'Exactly what I was looking for. Five stars.',
+  'Exceeds expectations. Real artisan quality.',
+  'Prompt delivery and a beautiful product.',
+  'You can feel the care that went into making this.',
+  'Wonderful addition to my home. Thank you.',
+  'Fantastic service and an exceptional product.',
 ]
+
+const LOCALE_DATA = [
+  { locale: fakerDE, country: 'DE' },
+  { locale: fakerFR, country: 'FR' },
+  { locale: fakerIT, country: 'IT' },
+  { locale: fakerNL, country: 'NL' },
+  { locale: fakerES, country: 'ES' },
+  { locale: fakerPT_PT, country: 'PT' },
+  { locale: fakerPL, country: 'PL' },
+  { locale: fakerEL, country: 'GR' },
+  { locale: fakerSV, country: 'SE' },
+  { locale: fakerDA, country: 'DK' },
+  { locale: fakerHU, country: 'HU' },
+  { locale: fakerDE_AT, country: 'AT' },
+  { locale: fakerFR_BE, country: 'BE' },
+  { locale: fakerNL_BE, country: 'BE' },
+  { locale: fakerDE_CH, country: 'CH' },
+] as const
 
 // =============================================================================
 // Utilities
 // =============================================================================
 function randomLocale() {
-  return faker.helpers.arrayElement(LOCALES)
+  return faker.helpers.arrayElement(LOCALE_DATA)
 }
 
 function slugify(str: string): string {
@@ -166,11 +167,11 @@ function chunk<T>(arr: T[], size: number): T[][] {
 
 function makeAddress(locale: ReturnType<typeof randomLocale>) {
   return {
-    name: locale.person.fullName(),
-    street: locale.location.streetAddress({ useFullAddress: true }),
-    city: locale.location.city(),
-    postalCode: locale.location.zipCode(),
-    country: locale.location.country(),
+    name: locale.locale.person.fullName(),
+    street: locale.locale.location.streetAddress({ useFullAddress: true }),
+    city: locale.locale.location.city(),
+    postalCode: locale.locale.location.zipCode(),
+    country: locale.country,
   }
 }
 
@@ -307,7 +308,7 @@ async function seedUsers() {
     if (existingEmails.has(email)) continue
     users.push({
       id: crypto.randomUUID(),
-      name: `${locale.person.firstName()} ${locale.person.lastName()}`,
+      name: `${locale.locale.person.firstName()} ${locale.locale.person.lastName()}`,
       email,
       emailVerified: true,
       role: 'admin',
@@ -324,7 +325,7 @@ async function seedUsers() {
     const id = crypto.randomUUID()
     users.push({
       id,
-      name: `${locale.person.firstName()} ${locale.person.lastName()}`,
+      name: `${locale.locale.person.firstName()} ${locale.locale.person.lastName()}`,
       email,
       emailVerified: true,
       role: 'creator',
@@ -348,7 +349,7 @@ async function seedUsers() {
     const id = crypto.randomUUID()
     users.push({
       id,
-      name: `${locale.person.firstName()} ${locale.person.lastName()}`,
+      name: `${locale.locale.person.firstName()} ${locale.locale.person.lastName()}`,
       email,
       emailVerified: faker.datatype.boolean(0.9),
       role: 'customer',
@@ -451,16 +452,14 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
       ]) as (typeof schema.shopStatusEnum.enumValues)[number]
       const paymentConnected = ['active', 'paused'].includes(status)
       const isVatRegistered = paymentConnected && faker.datatype.boolean(0.5)
-      const vatId = isVatRegistered
-        ? `${normalizeCountryCode(locale.location.country()) || 'FR'}${faker.string.numeric(11)}`
-        : undefined
+      const vatId = isVatRegistered ? `${locale.country}${faker.string.numeric(11)}` : undefined
 
       const businessAddress = paymentConnected
         ? {
-            street: locale.location.streetAddress(),
-            city: locale.location.city(),
-            postalCode: locale.location.zipCode(),
-            country: locale.location.country(),
+            street: locale.locale.location.streetAddress(),
+            city: locale.locale.location.city(),
+            postalCode: locale.locale.location.zipCode(),
+            country: locale.country,
           }
         : undefined
 
@@ -480,10 +479,10 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
         description: faker.helpers.arrayElement(SHOP_DESCRIPTIONS),
         image: shopImageUrl(slug),
         shippingOrigin: {
-          street: locale.location.streetAddress(),
-          city: locale.location.city(),
-          postalCode: locale.location.zipCode(),
-          country: locale.location.country(),
+          street: locale.locale.location.streetAddress(),
+          city: locale.locale.location.city(),
+          postalCode: locale.locale.location.zipCode(),
+          country: locale.country,
         },
         isSuspended: faker.datatype.boolean(0.03),
         status,
@@ -804,6 +803,22 @@ async function seedProducts(
   const productImages: (typeof schema.productImage.$inferInsert)[] = []
   const productSlugsByShop = new Map<string, Set<string>>()
 
+  const categoryNameById = new Map(categories.map((c) => [c.id!, c.name]))
+  const subcategoryKeyById = new Map(
+    categories
+      .filter((c) => c.parentId)
+      .map((c) => [c.id!, `${categoryNameById.get(c.parentId!)}-${c.name}`]),
+  )
+
+  function productDescription(category?: (typeof categories)[number]): string {
+    if (!category) return faker.helpers.arrayElement(SHOP_DESCRIPTIONS)
+    if (category.parentId) {
+      const key = subcategoryKeyById.get(category.id!)
+      if (key && SUBCATEGORY_DESCRIPTIONS[key]) return SUBCATEGORY_DESCRIPTIONS[key]
+    }
+    return CATEGORY_DESCRIPTIONS[category.name] ?? faker.helpers.arrayElement(SHOP_DESCRIPTIONS)
+  }
+
   const templates = [
     'Hand-thrown {adjective} {noun}',
     'Artisan {material} {noun}',
@@ -966,7 +981,7 @@ async function seedProducts(
         id: productId,
         name,
         slug,
-        description: faker.commerce.productDescription(),
+        description: productDescription(category),
         priceCents,
         stockCount,
         isActive,
@@ -1317,10 +1332,9 @@ async function seedOrders(
             productId: item.productId!,
             buyerUserId: customer.id!,
             rating: faker.number.int({ min: 1, max: 5 }),
-            comment: faker.helpers.maybe(
-              () => faker.lorem.sentences(faker.number.int({ min: 1, max: 3 })),
-              { probability: 0.75 },
-            ),
+            comment: faker.helpers.maybe(() => faker.helpers.arrayElement(REVIEW_COMMENTS), {
+              probability: 0.75,
+            }),
             createdAt: faker.date.soon({
               days: 14,
               refDate: shopOrders[shopOrders.length - 1].deliveredAt ?? orderDate,
@@ -1345,7 +1359,14 @@ async function seedOrders(
             'Counterfeit',
             'Missing parts',
           ]),
-          description: faker.lorem.paragraphs(2),
+          description: faker.helpers.arrayElement([
+            'The item I received looks different from the listing photos and description.',
+            'The package arrived damaged and the product inside was broken.',
+            'I ordered one item but received something completely different.',
+            'The quality is much lower than I expected based on the description.',
+            'I have concerns about whether this product is genuinely handmade.',
+            'Some parts described in the listing were missing from the package.',
+          ]),
           status: faker.helpers.arrayElement(['open', 'resolved', 'closed']),
           resolution: faker.helpers.maybe(
             () =>
@@ -1371,7 +1392,18 @@ async function seedOrders(
             id: crypto.randomUUID(),
             disputeId,
             senderUserId: m % 2 === 0 ? customer.id! : ownerId,
-            message: faker.lorem.sentences(faker.number.int({ min: 1, max: 5 })),
+            message: faker.helpers.arrayElement([
+              'Could you please look into this and let me know how we can resolve it?',
+              'Thank you for raising this — I would like to understand what happened.',
+              'I have sent photos of the issue for your review.',
+              'I apologise for the inconvenience. I am happy to arrange a replacement or refund.',
+              'Let me check the original listing and shipping details.',
+              'I appreciate your patience while I look into this.',
+              'Would a partial refund or replacement work for you?',
+              'I have processed a refund for the affected item.',
+              'The replacement has been shipped and should arrive shortly.',
+              'Thank you for your understanding.',
+            ]),
             createdAt: faker.date.soon({ days: m * 2 + 1, refDate: orderDate }),
           })
         }
@@ -1515,8 +1547,30 @@ async function seedNotifications(users: (typeof schema.user.$inferInsert)[]) {
         userId: user.id!,
         type: faker.helpers.arrayElement(types),
         data: {
-          title: faker.lorem.sentence(4),
-          body: faker.lorem.sentence(10),
+          title: faker.helpers.arrayElement([
+            'Order placed',
+            'Order shipped',
+            'Order delivered',
+            'New review received',
+            'Payout sent',
+            'Low stock alert',
+            'Dispute opened',
+            'Shop suspended',
+            'Welcome to Eurtisan',
+            'New message received',
+          ]),
+          body: faker.helpers.arrayElement([
+            'Your order has been confirmed and is being prepared.',
+            'Your order is on its way. Track it from your account.',
+            'Your order has been delivered. We hope you love it.',
+            'A buyer left a review on one of your products.',
+            'Your payout has been processed and sent.',
+            'One of your products is running low on stock.',
+            'A dispute has been opened for one of your orders.',
+            'Your shop has been suspended. Please review our policies.',
+            'Welcome to the marketplace. Set up your shop to start selling.',
+            'You have a new message from a buyer.',
+          ]),
           actionUrl: faker.helpers.maybe(() => `/orders/${faker.string.alphanumeric(8)}`, {
             probability: 0.3,
           }),
@@ -1604,7 +1658,18 @@ async function seedCustomerManagement(
           id: crypto.randomUUID(),
           threadId,
           senderRole: m % 2 === 0 ? 'buyer' : 'owner',
-          body: faker.lorem.sentences(faker.number.int({ min: 1, max: 3 })),
+          body: faker.helpers.arrayElement([
+            'Hi, I have a question about this order before it ships.',
+            'Thanks for your message. I will prepare the order this week.',
+            'Could you let me know the estimated delivery date?',
+            'The item has been packed and will be handed to the courier tomorrow.',
+            'I would like to request a small customisation if possible.',
+            'Of course, I can accommodate that. I will update the listing for you.',
+            'Thank you for the quick response.',
+            'You are welcome. Please reach out if you need anything else.',
+            'I noticed the colour in the photo looks slightly different.',
+            'The photos are taken in natural light; the actual shade may vary slightly.',
+          ]),
           createdAt: faker.date.recent({ days: 10 }),
         })
       }

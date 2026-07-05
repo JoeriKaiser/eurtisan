@@ -25,6 +25,12 @@ vi.mock('#/paraglide/messages', () => ({
     order_pending_description: () => "We're waiting for your payment to be confirmed.",
     order_failed_title: () => 'Payment failed',
     order_failed_description: () => 'Your payment could not be processed.',
+    order_failed_expired_title: () => 'Payment expired',
+    order_failed_expired_description: () => 'Your payment session expired.',
+    order_failed_failed_title: () => 'Payment failed',
+    order_failed_failed_description: () => 'Your payment could not be processed.',
+    order_failed_cancelled_title: () => 'Payment cancelled',
+    order_failed_cancelled_description: () => 'You cancelled the payment.',
     order_failed_retry_payment: () => 'Retry payment',
     order_failed_contact_support: () => 'Contact support',
     order_failed_view_order: () => 'View order details',
@@ -80,6 +86,7 @@ function makeOrder(status: OrderDetail['status'] = 'paid'): OrderDetail {
         shippingLabels: [],
         trackingStatus: null,
         invoiceNumber: null,
+        disputeId: null,
         items: [
           {
             id: 'item-1',
@@ -152,6 +159,7 @@ describe('OrderSuccessPage', () => {
       shippingLabels: [],
       trackingStatus: null,
       invoiceNumber: null,
+      disputeId: null,
       items: [
         {
           id: 'item-2',
@@ -245,8 +253,24 @@ describe('OrderSuccessPage', () => {
   })
 
   describe('cancelled state', () => {
-    it('renders failed title and description', () => {
+    it('renders cancelled title and description by default', () => {
       render(<OrderSuccessPage order={makeOrder('cancelled')} />)
+      expect(screen.getByRole('heading', { name: 'Payment cancelled' })).toBeDefined()
+      expect(screen.getByText('You cancelled the payment.')).toBeDefined()
+    })
+
+    it('renders expired title and description when cancellation reason mentions expiry', () => {
+      const order = makeOrder('cancelled')
+      order.cancellationReason = 'payment_expired'
+      render(<OrderSuccessPage order={order} />)
+      expect(screen.getByRole('heading', { name: 'Payment expired' })).toBeDefined()
+      expect(screen.getByText('Your payment session expired.')).toBeDefined()
+    })
+
+    it('renders failed title and description when cancellation reason mentions failure', () => {
+      const order = makeOrder('cancelled')
+      order.cancellationReason = 'payment_failed'
+      render(<OrderSuccessPage order={order} />)
       expect(screen.getByRole('heading', { name: 'Payment failed' })).toBeDefined()
       expect(screen.getByText('Your payment could not be processed.')).toBeDefined()
     })
@@ -258,15 +282,45 @@ describe('OrderSuccessPage', () => {
       expect(screen.getByText('Test Shop')).toBeDefined()
     })
 
-    it('renders continue shopping button when cancelled', () => {
+    it('renders continue shopping button as secondary when cancelled', () => {
       render(<OrderSuccessPage order={makeOrder('cancelled')} />)
-      expect(screen.getByRole('link', { name: 'Continue shopping' })).toBeDefined()
+      const link = screen.getByRole('link', { name: 'Continue shopping' })
+      expect(link).toBeDefined()
+      const button = link.querySelector('button')
+      expect(button).not.toBeNull()
+      expect(button?.className.includes('bg-surface-default')).toBe(true)
     })
 
-    it('renders contact support and view order buttons when cancelled', () => {
-      render(<OrderSuccessPage order={makeOrder('cancelled')} />)
+    it('renders retry payment, contact support and view order buttons when cancelled', () => {
+      render(
+        <OrderSuccessPage
+          order={makeOrder('cancelled')}
+          onRetryPayment={vi.fn().mockResolvedValue({ checkoutUrl: 'https://checkout.test' })}
+        />,
+      )
+      expect(screen.getByRole('button', { name: 'Retry payment' })).toBeDefined()
       expect(screen.getByRole('link', { name: 'Contact support' })).toBeDefined()
       expect(screen.getByRole('link', { name: 'View order details' })).toBeDefined()
+    })
+
+    it('redirects to checkout URL when retry payment succeeds from cancelled state', async () => {
+      const savedLocation = window.location
+      delete (window as { location?: unknown }).location
+      window.location = { ...savedLocation, href: '' } as Location & string
+
+      const checkoutUrl = 'https://checkout.mollie.com/pay/retry_001'
+      const onRetryPayment = vi.fn().mockResolvedValue({ checkoutUrl })
+
+      render(<OrderSuccessPage order={makeOrder('cancelled')} onRetryPayment={onRetryPayment} />)
+
+      fireEvent.click(screen.getByRole('button', { name: 'Retry payment' }))
+
+      await waitFor(() => {
+        expect(onRetryPayment).toHaveBeenCalledTimes(1)
+        expect(window.location.href).toBe(checkoutUrl)
+      })
+
+      window.location = savedLocation as Location & string
     })
   })
 })

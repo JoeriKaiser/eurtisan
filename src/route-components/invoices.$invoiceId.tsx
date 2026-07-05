@@ -7,9 +7,17 @@ import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
 import { Badge } from '#/components/ui/badge'
 import { m } from '#/paraglide/messages'
+import type { InvoiceBillingDetails } from '#/lib/invoices'
 
 function handlePrint() {
   window.print()
+}
+
+function hasZeroVatLine(details: InvoiceBillingDetails): boolean {
+  return (
+    details.items.some((item) => item.vatRateBasisPoints === 0) ||
+    (details.shipping?.vatRateBasisPoints ?? 0) === 0
+  )
 }
 
 export function InvoiceDetailComponent() {
@@ -87,17 +95,18 @@ export function InvoiceDetailComponent() {
                   {m.invoice_heading()}
                 </h2>
                 <div className='text-sm font-mono text-text-secondary print:text-gray-700'>
-                  {m.invoice_number_prefix()}{' '}
+                  {m.invoice_number_prefix()}
                   <span className='font-bold text-text-primary print:text-black'>
                     {invoice.invoiceNumber}
                   </span>
                 </div>
                 <div className='text-xs text-text-muted print:text-gray-500'>
-                  {m.invoice_date_prefix()} {formatDateLong(invoice.createdAt)}
+                  {m.invoice_date_prefix()}
+                  {formatDateLong(invoice.createdAt)}
                 </div>
                 {details.reverseCharge && (
                   <Badge
-                    variant='warning'
+                    variant='secondary'
                     className='mt-2 font-medium inline-flex items-center gap-1.5 print:border print:border-gray-400 print:text-black'
                   >
                     <ShieldCheck size={12} />
@@ -125,7 +134,8 @@ export function InvoiceDetailComponent() {
                   <p className='font-medium'>{details.from.address.country}</p>
                   {details.from.vatId && (
                     <p className='mt-2 text-xs font-mono text-text-muted print:text-gray-600'>
-                      {m.invoice_vat_id()} {details.from.vatId}
+                      {m.invoice_vat_id()}
+                      {details.from.vatId}
                     </p>
                   )}
                 </div>
@@ -145,7 +155,8 @@ export function InvoiceDetailComponent() {
                   <p className='font-medium'>{details.to.address.country}</p>
                   {details.to.vatId && (
                     <p className='mt-2 text-xs font-mono text-text-muted print:text-gray-600'>
-                      {m.invoice_vat_id()} {details.to.vatId}
+                      {m.invoice_vat_id()}
+                      {details.to.vatId}
                     </p>
                   )}
                 </div>
@@ -155,25 +166,25 @@ export function InvoiceDetailComponent() {
             {/* Line Items Table */}
             <div className='py-8'>
               <div className='overflow-x-auto'>
-                <table className='w-full text-left text-sm print:text-black'>
+                <table className='w-full table-fixed text-left text-sm print:text-black'>
                   <thead>
                     <tr className='border-b border-border-default pb-2 text-xs font-semibold uppercase tracking-wider text-text-muted print:text-gray-500'>
-                      <th className='whitespace-nowrap pb-3 font-medium print:whitespace-normal'>
+                      <th className='w-[32%] whitespace-nowrap px-2 pb-3 text-left font-medium print:whitespace-normal'>
                         {m.invoice_th_description()}
                       </th>
-                      <th className='whitespace-nowrap pb-3 text-right font-medium print:whitespace-normal'>
+                      <th className='w-[10%] whitespace-nowrap px-2 pb-3 text-right font-medium print:whitespace-normal'>
                         {m.invoice_th_qty()}
                       </th>
-                      <th className='whitespace-nowrap pb-3 text-right font-medium print:whitespace-normal'>
+                      <th className='w-[18%] whitespace-nowrap px-2 pb-3 text-right font-medium print:whitespace-normal'>
                         {m.invoice_th_unit_price()}
                       </th>
-                      <th className='whitespace-nowrap pb-3 text-right font-medium print:whitespace-normal'>
+                      <th className='w-[12%] whitespace-nowrap px-2 pb-3 text-right font-medium print:whitespace-normal'>
                         {m.invoice_th_vat_rate()}
                       </th>
-                      <th className='whitespace-nowrap pb-3 text-right font-medium print:whitespace-normal'>
+                      <th className='w-[14%] whitespace-nowrap px-2 pb-3 text-right font-medium print:whitespace-normal'>
                         {m.invoice_th_vat_amount()}
                       </th>
-                      <th className='whitespace-nowrap pb-3 text-right font-medium print:whitespace-normal'>
+                      <th className='w-[14%] whitespace-nowrap px-2 pb-3 text-right font-medium print:whitespace-normal'>
                         {m.invoice_th_total()}
                       </th>
                     </tr>
@@ -188,22 +199,22 @@ export function InvoiceDetailComponent() {
                           key={item.id}
                           className='border-b border-border-subtle hover:bg-bg-inset/50 print:border-gray-200'
                         >
-                          <td className='py-4 font-medium text-text-primary print:text-black'>
+                          <td className='px-2 py-4 font-medium text-text-primary print:text-black'>
                             {item.name}
                           </td>
-                          <td className='py-4 text-right tabular-nums text-text-secondary print:text-black'>
+                          <td className='px-2 py-4 text-right tabular-nums text-text-secondary print:text-black'>
                             {item.quantity}
                           </td>
-                          <td className='py-4 text-right tabular-nums text-text-secondary print:text-black'>
+                          <td className='px-2 py-4 text-right tabular-nums text-text-secondary print:text-black'>
                             {formatPriceEUR(unitPriceExcl / item.quantity)}
                           </td>
-                          <td className='py-4 text-right tabular-nums text-text-secondary print:text-black'>
+                          <td className='px-2 py-4 text-right tabular-nums text-text-secondary print:text-black'>
                             {vatRatePercent}%
                           </td>
-                          <td className='py-4 text-right tabular-nums text-text-secondary print:text-black'>
+                          <td className='px-2 py-4 text-right tabular-nums text-text-secondary print:text-black'>
                             {formatPriceEUR(item.vatAmountCents)}
                           </td>
-                          <td className='py-4 text-right font-semibold tabular-nums text-text-primary print:text-black'>
+                          <td className='px-2 py-4 text-right font-semibold tabular-nums text-text-primary print:text-black'>
                             {formatPriceEUR(item.totalCents)}
                           </td>
                         </tr>
@@ -213,24 +224,24 @@ export function InvoiceDetailComponent() {
                     {/* Shipping Row for Customer Invoice */}
                     {!isPlatformFee && details.shipping && details.shipping.costCents > 0 && (
                       <tr className='border-b border-border-subtle print:border-gray-200'>
-                        <td className='py-4 font-medium text-text-primary print:text-black'>
+                        <td className='px-2 py-4 font-medium text-text-primary print:text-black'>
                           {m.invoice_shipping_delivery({ method: details.shipping.method })}
                         </td>
-                        <td className='py-4 text-right tabular-nums text-text-secondary print:text-black'>
+                        <td className='px-2 py-4 text-right tabular-nums text-text-secondary print:text-black'>
                           1
                         </td>
-                        <td className='py-4 text-right tabular-nums text-text-secondary print:text-black'>
+                        <td className='px-2 py-4 text-right tabular-nums text-text-secondary print:text-black'>
                           {formatPriceEUR(
                             details.shipping.costCents - details.shipping.vatAmountCents,
                           )}
                         </td>
-                        <td className='py-4 text-right tabular-nums text-text-secondary print:text-black'>
+                        <td className='px-2 py-4 text-right tabular-nums text-text-secondary print:text-black'>
                           {(details.shipping.vatRateBasisPoints / 100).toFixed(1)}%
                         </td>
-                        <td className='py-4 text-right tabular-nums text-text-secondary print:text-black'>
+                        <td className='px-2 py-4 text-right tabular-nums text-text-secondary print:text-black'>
                           {formatPriceEUR(details.shipping.vatAmountCents)}
                         </td>
-                        <td className='py-4 text-right font-semibold tabular-nums text-text-primary print:text-black'>
+                        <td className='px-2 py-4 text-right font-semibold tabular-nums text-text-primary print:text-black'>
                           {formatPriceEUR(details.shipping.costCents)}
                         </td>
                       </tr>
@@ -238,6 +249,26 @@ export function InvoiceDetailComponent() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Inline VAT disclosure when any line shows 0% VAT */}
+              {(details.reverseCharge ||
+                !details.from.isVatRegistered ||
+                hasZeroVatLine(details)) && (
+                <div className='mt-4 rounded-lg border border-border-subtle bg-surface-inset p-3 text-xs text-text-secondary print:border-gray-200 print:bg-white'>
+                  <p className='flex items-start gap-2'>
+                    <ShieldCheck
+                      size={14}
+                      className='mt-0.5 shrink-0 text-accent-secondary'
+                      aria-hidden='true'
+                    />
+                    {details.reverseCharge
+                      ? m.invoice_reverse_charge_notice()
+                      : !details.from.isVatRegistered
+                        ? m.invoice_disclosure_customer_exempt()
+                        : m.invoice_vat_zero_notice()}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Calculations Breakdown Summary & Disclosures */}

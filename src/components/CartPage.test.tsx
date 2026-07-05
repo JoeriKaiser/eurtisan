@@ -145,15 +145,37 @@ describe('CartPage', () => {
     expect(screen.getByText('Your cart is empty')).toBeDefined()
   })
 
-  it('renders cart title with item count', () => {
+  it('renders cart title with distinct item count', () => {
     render(<CartPage cart={makeCart()} />)
     expect(screen.getByText('Your cart')).toBeDefined()
-    expect(screen.getByText('2 items')).toBeDefined()
+    expect(screen.getByText('1 item')).toBeDefined()
   })
 
   it('renders single item count', () => {
     render(<CartPage cart={makeCart({ totalItems: 1 })} />)
     expect(screen.getByText('1 item')).toBeDefined()
+  })
+
+  it('renders empty cart when all shops have no items', () => {
+    render(
+      <CartPage
+        cart={makeCart({
+          shops: [
+            {
+              shopId: 'shop-1',
+              shopName: 'Test Shop',
+              shopSlug: 'test-shop',
+              shopIsVatRegistered: false,
+              items: [],
+              subtotalCents: 0,
+            },
+          ],
+          totalCents: 0,
+          totalItems: 0,
+        })}
+      />,
+    )
+    expect(screen.getByText('Your cart is empty')).toBeDefined()
   })
 
   it('renders shop name and subtotal', () => {

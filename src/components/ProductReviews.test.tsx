@@ -21,6 +21,7 @@ vi.mock('#/paraglide/messages', () => ({
     reviews_empty_title: () => 'No reviews yet',
     reviews_empty_description: () => 'Be the first to share your experience.',
     reviews_count: ({ count }: { count: string }) => `${count} reviews`,
+    reviews_count_single: () => '1 review',
     reviews_load_error: () => 'Failed to load reviews.',
     pagination_previous: () => 'Previous',
     pagination_next: () => 'Next',
@@ -114,6 +115,29 @@ describe('ProductReviews', () => {
       expect(screen.getByText('4.3')).toBeDefined()
     })
     expect(screen.getByText('3 reviews')).toBeDefined()
+  })
+
+  it('uses singular review count label for exactly one review', async () => {
+    mockGetProductReviews.mockResolvedValue(
+      makeReviewsResult({
+        total: 1,
+        averageRating: 5,
+        reviews: [
+          {
+            id: 'r1',
+            buyerName: 'Alice',
+            rating: 5,
+            comment: 'Great!',
+            createdAt: new Date('2024-01-01'),
+          },
+        ],
+      }),
+    )
+    renderWithProviders(<ProductReviews productId='prod-1' />)
+
+    await waitFor(() => {
+      expect(screen.getByText('1 review')).toBeDefined()
+    })
   })
 
   it('renders review cards with buyer name, rating, comment, and date', async () => {

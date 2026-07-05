@@ -13,10 +13,21 @@ export interface OrderSuccessPageProps {
   onRetryPayment?: () => Promise<{ checkoutUrl: string }>
 }
 
+type FailureKind = 'expired' | 'failed' | 'cancelled'
+
+function getFailureKind(order: OrderDetail): FailureKind {
+  if (order.status !== 'cancelled') return 'failed'
+  const reason = (order.cancellationReason ?? '').toLowerCase()
+  if (reason.includes('expired')) return 'expired'
+  if (reason.includes('failed')) return 'failed'
+  return 'cancelled'
+}
+
 export default function OrderSuccessPage({ order, onRetryPayment }: OrderSuccessPageProps) {
   const isPending = order.status === 'pending_payment'
   const isCancelled = order.status === 'cancelled'
   const isPaid = order.status === 'paid'
+  const failureKind = getFailureKind(order)
 
   const [retryState, setRetryState] = useState<{
     isLoading: boolean
@@ -80,9 +91,19 @@ export default function OrderSuccessPage({ order, onRetryPayment }: OrderSuccess
                 <XCircle size={32} aria-hidden='true' />
               </div>
               <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary sm:text-3xl'>
-                {m.order_failed_title()}
+                {failureKind === 'expired'
+                  ? m.order_failed_expired_title()
+                  : failureKind === 'cancelled'
+                    ? m.order_failed_cancelled_title()
+                    : m.order_failed_failed_title()}
               </h1>
-              <p className='text-text-secondary'>{m.order_failed_description()}</p>
+              <p className='text-text-secondary'>
+                {failureKind === 'expired'
+                  ? m.order_failed_expired_description()
+                  : failureKind === 'cancelled'
+                    ? m.order_failed_cancelled_description()
+                    : m.order_failed_failed_description()}
+              </p>
             </>
           )}
 
@@ -130,8 +151,19 @@ export default function OrderSuccessPage({ order, onRetryPayment }: OrderSuccess
                   {shop.items.map((item) => (
                     <li key={item.id} className='flex items-center gap-3 py-3 first:pt-0 last:pb-0'>
                       <div className='flex size-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-surface-inset'>
-                        <span className='sr-only'>{item.productName}</span>
-                        <ImageOff size={16} className='text-text-muted' aria-hidden='true' />
+                        {item.imageUrl ? (
+                          <img
+                            src={item.imageUrl}
+                            alt={item.productName}
+                            className='h-full w-full object-cover'
+                            loading='lazy'
+                          />
+                        ) : (
+                          <>
+                            <span className='sr-only'>{item.productName}</span>
+                            <ImageOff size={16} className='text-text-muted' aria-hidden='true' />
+                          </>
+                        )}
                       </div>
                       <div className='flex-1'>
                         <p className='text-sm font-medium text-text-primary'>{item.productName}</p>
@@ -190,6 +222,18 @@ export default function OrderSuccessPage({ order, onRetryPayment }: OrderSuccess
 
               {isCancelled && (
                 <>
+                  {onRetryPayment && (
+                    <Button
+                      size='lg'
+                      onClick={() => {
+                        void handleRetryPayment()
+                      }}
+                      isLoading={retryState.isLoading}
+                      disabled={retryState.isLoading}
+                    >
+                      {m.order_failed_retry_payment()}
+                    </Button>
+                  )}
                   <Link to='/orders/$platformOrderId' params={{ platformOrderId: order.id }}>
                     <Button variant='secondary' size='lg'>
                       {m.order_failed_view_order()}
@@ -207,7 +251,7 @@ export default function OrderSuccessPage({ order, onRetryPayment }: OrderSuccess
               )}
 
               <Link to='/category/all' className='no-underline'>
-                <Button size='lg' variant={isPending ? 'secondary' : undefined}>
+                <Button size='lg' variant={isPending || isCancelled ? 'secondary' : undefined}>
                   {m.order_success_continue_shopping()}
                 </Button>
               </Link>

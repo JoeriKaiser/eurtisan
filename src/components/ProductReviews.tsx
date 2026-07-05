@@ -27,9 +27,7 @@ function StarRating({ rating }: { rating: number }) {
           key={star}
           size={14}
           className={
-            star <= rating
-              ? 'fill-[--palette-ochre-400] text-[--palette-ochre-400]'
-              : 'text-[var(--ds-border-strong)]'
+            star <= rating ? 'fill-warning text-warning' : 'text-[var(--ds-border-strong)]'
           }
           aria-hidden='true'
         />
@@ -51,7 +49,7 @@ function DistributionBar({
   return (
     <div className='flex items-center gap-2 text-sm'>
       <span className='w-3 text-right tabular-nums text-[var(--ds-text-muted)]'>{rating}</span>
-      <Star size={12} className='text-[--palette-ochre-400]' aria-hidden='true' />
+      <Star size={12} className='fill-warning text-warning' aria-hidden='true' />
       <div className='flex-1 h-2 rounded-full bg-[var(--ds-border-subtle)] overflow-hidden'>
         <svg
           className='h-full w-full'
@@ -59,7 +57,7 @@ function DistributionBar({
           viewBox='0 0 100 1'
           aria-hidden='true'
         >
-          <rect width={percentage} height='1' className='fill-[--palette-ochre-400]' />
+          <rect width={percentage} height='1' className='fill-warning' />
         </svg>
       </div>
       <span className='w-6 text-right tabular-nums text-[var(--ds-text-muted)] text-xs'>
@@ -154,7 +152,9 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
             <StarRating rating={Math.round(data.averageRating ?? 0)} />
           </div>
           <span className='mt-1.5 text-sm text-[var(--ds-text-muted)]'>
-            {m.reviews_count({ count: String(data.total) })}
+            {data.total === 1
+              ? m.reviews_count_single()
+              : m.reviews_count({ count: String(data.total) })}
           </span>
         </div>
 

@@ -116,8 +116,8 @@ interface AccountShellProps {
 
 export function AccountShell({ children, breadcrumbs }: AccountShellProps) {
   return (
-    <div className='page-wrap px-4 py-8 sm:py-10'>
-      <div className='mx-auto max-w-5xl space-y-6'>
+    <div className='page-wrap px-4 py-3 sm:py-4'>
+      <div className='mx-auto max-w-5xl space-y-2'>
         <AccountBreadcrumbs items={breadcrumbs} />
         <AccountSubNav />
         <div>{children}</div>

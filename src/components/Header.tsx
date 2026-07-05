@@ -6,6 +6,7 @@ import { useAuth } from '#/lib/auth-hooks'
 import type { CategoryTreeNode } from '#/lib/categories'
 import { cn } from '#/lib/cn'
 import { useUnreadNotificationCount } from '#/lib/notifications-hooks'
+import { getCartDistinctItemCount } from '#/lib/cart-ui'
 import { m } from '#/paraglide/messages'
 import CategoriesMegamenu from './CategoriesMegamenu'
 import LocaleDropdown from './LocaleDropdown'
@@ -21,7 +22,7 @@ export default function Header() {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
   const [searchOverlayOpen, setSearchOverlayOpen] = useState(false)
   const [searchKey, setSearchKey] = useState(0)
-  const { cart } = useCart()
+  const { cart, isLoading: cartLoading } = useCart()
   const { isAuthenticated } = useAuth()
   const { data: unreadData } = useUnreadNotificationCount(isAuthenticated)
   const unreadCount = unreadData?.count ?? 0
@@ -59,7 +60,7 @@ export default function Header() {
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  const distinctItems = cart?.shops.reduce((sum, shop) => sum + shop.items.length, 0) ?? 0
+  const distinctItems = getCartDistinctItemCount(cart)
 
   return (
     <header
@@ -165,7 +166,7 @@ export default function Header() {
             >
               <ShoppingCart size={18} aria-hidden='true' />
               <span className='sr-only'>{m.cart_badge_label()}</span>
-              {distinctItems > 0 && (
+              {!cartLoading && distinctItems > 0 && (
                 <output
                   className='absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent-primary px-1 text-[10px] font-bold text-text-on-primary'
                   aria-label={m.cart_badge_items({ count: String(distinctItems) })}

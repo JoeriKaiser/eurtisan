@@ -260,6 +260,7 @@ export async function getPlatformOrderDetailQuery(
       })),
       trackingStatus: null,
       invoiceNumber: null,
+      disputeId: null,
       items: (itemsByShopOrderId.get(so.shopOrder.id) ?? []).map((item) => ({
         id: item.id,
         productId: item.productId,

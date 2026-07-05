@@ -54,7 +54,7 @@ export function ProductTableRow({
       </td>
 
       {/* Product cell with thumbnail */}
-      <td className='py-3 pr-4'>
+      <td className='py-3 pr-4 min-w-[12rem]'>
         <div className='flex items-center gap-3'>
           <div className='size-10 flex-shrink-0 overflow-hidden rounded-lg bg-surface-inset'>
             {product.thumbnailUrl ? (
@@ -82,12 +82,12 @@ export function ProductTableRow({
       </td>
 
       {/* Price */}
-      <td className='py-3 pr-4 hidden sm:table-cell'>
+      <td className='py-3 pr-4 hidden sm:table-cell whitespace-nowrap'>
         <span className='text-text-primary'>{formatPriceEUR(product.priceCents)}</span>
       </td>
 
       {/* Stock */}
-      <td className='py-3 pr-4 hidden md:table-cell'>
+      <td className='py-3 pr-4 hidden md:table-cell whitespace-nowrap min-w-[4rem]'>
         <span
           className={
             product.stockCount === 0
@@ -102,7 +102,7 @@ export function ProductTableRow({
       </td>
 
       {/* Status badge */}
-      <td className='py-3 pr-4'>
+      <td className='py-3 pr-4 whitespace-nowrap min-w-[5rem]'>
         <Badge
           variant={
             product.status === 'published'
@@ -121,7 +121,7 @@ export function ProductTableRow({
       </td>
 
       {/* Actions */}
-      <td className='py-3 text-right'>
+      <td className='py-3 text-right min-w-[8rem]'>
         <div className='flex items-center justify-end gap-2'>
           {/* Toggle button — only published products can be activated/deactivated */}
           {currentShopId && product.status === 'published' && (
@@ -167,9 +167,11 @@ export function ProductTableRow({
               ) : (
                 <ToggleLeft size={16} aria-hidden='true' />
               )}
-              {active
-                ? m.creator_products_deactivate({ name: product.name })
-                : m.creator_products_activate({ name: product.name })}
+              <span className='max-w-[120px] truncate'>
+                {active
+                  ? m.creator_products_deactivate({ name: product.name })
+                  : m.creator_products_activate({ name: product.name })}
+              </span>
             </button>
           )}
 
@@ -182,7 +184,9 @@ export function ProductTableRow({
               aria-label={m.creator_products_edit({ name: product.name })}
             >
               <Edit size={16} aria-hidden='true' />
-              {m.creator_products_edit({ name: product.name })}
+              <span className='max-w-[120px] truncate'>
+                {m.creator_products_edit({ name: product.name })}
+              </span>
             </Link>
           )}
         </div>

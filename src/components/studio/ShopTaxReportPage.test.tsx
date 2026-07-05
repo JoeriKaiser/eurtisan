@@ -52,7 +52,8 @@ vi.mock('#/paraglide/messages', () => ({
     tax_report_vat_col_vat: () => 'VAT',
     tax_report_vat_col_transactions: () => 'Transactions',
     tax_report_reverse_charge_title: () => 'Reverse Charge',
-    tax_report_reverse_charge_count: ({ count }: { count: number }) =>
+    tax_report_reverse_charge_count_one: () => '1 reverse-charge transaction',
+    tax_report_reverse_charge_count_other: ({ count }: { count: number }) =>
       `${count} reverse-charge transactions`,
     tax_report_reverse_charge_net: ({ amount }: { amount: string }) =>
       `${amount} net under reverse charge`,
@@ -185,10 +186,28 @@ describe('ShopTaxReportPage', () => {
       'Transactions',
     ])
 
-    expect(screen.getByText('DE')).toBeDefined()
+    expect(screen.getByText('Germany')).toBeDefined()
     expect(screen.getByText('20.00%')).toBeDefined()
     expect(screen.getByText('€100.00')).toBeDefined()
     expect(screen.getByText('€20.00')).toBeDefined()
+  })
+
+  it('renders singular reverse-charge count when there is one transaction', () => {
+    render(<ShopTaxReportPage initialReport={makeReport()} />)
+
+    expect(screen.getByText('1 reverse-charge transaction')).toBeDefined()
+  })
+
+  it('renders plural reverse-charge count for multiple transactions', () => {
+    render(
+      <ShopTaxReportPage
+        initialReport={makeReport({
+          reverseCharge: { transactionCount: 3, netSubtotalCents: 15000 },
+        })}
+      />,
+    )
+
+    expect(screen.getByText('3 reverse-charge transactions')).toBeDefined()
   })
 
   it('shows empty states when report has no data', () => {

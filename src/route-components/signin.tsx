@@ -212,10 +212,16 @@ export function SignIn() {
             <Input
               id='two-factor-code'
               name='twoFactorCode'
+              type='text'
               inputMode='numeric'
               autoComplete='one-time-code'
+              autoFocus
+              minLength={6}
+              maxLength={6}
+              pattern='[0-9]{6}'
+              title={m.two_factor_code_format_hint()}
               value={twoFactorCode}
-              onChange={(e) => setTwoFactorCode(e.target.value)}
+              onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
               required
               className='w-full'
             />
@@ -231,7 +237,7 @@ export function SignIn() {
           </Button>
           <button
             type='button'
-            className='text-sm text-text-muted hover:text-text-primary'
+            className='text-sm text-text-muted hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2 rounded transition-colors'
             onClick={() => {
               setNeedsTwoFactor(false)
               setTwoFactorCode('')
@@ -351,16 +357,14 @@ export function SignIn() {
             </div>
           )}
 
+          <div className='min-h-[3.5rem]'>
+            {status.error && <FeedbackBanner type='error' message={status.error} size='sm' />}
+            {status.info && <FeedbackBanner type='info' message={status.info} size='sm' />}
+          </div>
+
           <Button type='submit' isLoading={status.loading} className='w-full mt-1'>
             {isSignUp ? m.button_create_account() : m.button_sign_in()}
           </Button>
-
-          {(status.error || status.info) && (
-            <div className='mt-3'>
-              {status.error && <FeedbackBanner type='error' message={status.error} size='sm' />}
-              {status.info && <FeedbackBanner type='info' message={status.info} size='sm' />}
-            </div>
-          )}
         </form>
       )}
 

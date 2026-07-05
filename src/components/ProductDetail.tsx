@@ -203,11 +203,21 @@ export default function ProductDetail({ product }: ProductDetailProps) {
                     <Minus size={14} aria-hidden='true' />
                   </button>
                   <input
-                    type='text'
+                    type='number'
                     id='quantity'
-                    readOnly
+                    min={1}
+                    max={product.stockCount}
                     value={quantity}
-                    className='w-10 border-0 bg-transparent p-0 text-center text-sm font-medium text-text-primary focus:outline-none focus:ring-0'
+                    disabled={isOutOfStock || isAdding}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value, 10)
+                      if (Number.isNaN(value)) {
+                        setQuantity(1)
+                        return
+                      }
+                      setQuantity(Math.max(1, Math.min(product.stockCount, value)))
+                    }}
+                    className='w-10 border-0 bg-transparent p-0 text-center text-sm font-medium text-text-primary focus:outline-none focus:ring-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none'
                     aria-live='polite'
                     aria-label={m.product_quantity()}
                   />
@@ -241,17 +251,19 @@ export default function ProductDetail({ product }: ProductDetailProps) {
                 )}
               </button>
 
-              {addStatus === 'success' && (
-                <p className='text-sm font-medium text-success'>{m.cart_add_success()}</p>
-              )}
-              {addStatus === 'capped' && (
-                <p className='text-sm font-medium text-success'>{m.cart_add_stock_limit()}</p>
-              )}
-              {addStatus === 'error' && (
-                <p className='text-sm font-medium text-red-600 dark:text-red-400'>
-                  {m.cart_add_error()}
-                </p>
-              )}
+              <div className='min-h-5' aria-live='polite' aria-atomic='true'>
+                {addStatus === 'success' && (
+                  <p className='text-sm font-medium text-success'>{m.cart_add_success()}</p>
+                )}
+                {addStatus === 'capped' && (
+                  <p className='text-sm font-medium text-success'>{m.cart_add_stock_limit()}</p>
+                )}
+                {addStatus === 'error' && (
+                  <p className='text-sm font-medium text-red-600 dark:text-red-400'>
+                    {m.cart_add_error()}
+                  </p>
+                )}
+              </div>
             </form>
           </section>
 

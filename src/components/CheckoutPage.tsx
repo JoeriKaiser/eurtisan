@@ -869,13 +869,42 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                                           name={`shipping-shop-${shop.shopId}`}
                                           checked={isSelected}
                                           onChange={() => {
-                                            field.handleChange({
+                                            const nextSelection = {
                                               shopId: shop.shopId,
                                               rateId: option.rateId,
                                               method: option.method,
                                               costCents: option.costCents,
-                                            })
+                                            }
+                                            const nextSelections =
+                                              form.state.values.shippingSelections.map((s, idx) =>
+                                                idx === fieldIndex ? nextSelection : s,
+                                              )
+                                            field.handleChange(nextSelection)
                                             clearPickupPointIfNoServicePointMethod()
+
+                                            // Keep the authoritative server summary in sync with
+                                            // the buyer's shipping choice so grand totals and VAT
+                                            // estimates never drift from what will be charged.
+                                            const address = form.state.values.shippingAddress
+                                            if (
+                                              address.country &&
+                                              address.postalCode &&
+                                              address.city &&
+                                              addressSchema.safeParse(address).success
+                                            ) {
+                                              getCheckoutSummary({
+                                                data: {
+                                                  cartId,
+                                                  shippingAddress: address,
+                                                  shippingSelections: nextSelections,
+                                                },
+                                              })
+                                                .then(setCurrentSummary)
+                                                .catch(() => {
+                                                  // Address-rate fetching already surfaces errors;
+                                                  // silently ignore refetch failures here.
+                                                })
+                                            }
                                           }}
                                           className='size-4 accent-accent-primary'
                                         />
@@ -1034,20 +1063,11 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
               <span className='text-base font-semibold text-text-primary'>
                 {m.checkout_grand_total()}
               </span>
-              <form.Subscribe selector={(state) => state.values.shippingSelections}>
-                {(shippingSelections) => {
-                  const total = currentSummary.shops.reduce((acc, shop) => {
-                    const selection = shippingSelections.find((s) => s.shopId === shop.shopId)
-                    const shippingOption = getSelectedShippingOption(shop, selection)
-                    return acc + shop.subtotalCents + (shippingOption?.costCents ?? 0)
-                  }, 0)
-                  return (
-                    <span className='text-xl font-bold text-text-primary'>
-                      {formatPriceEUR(total)}
-                    </span>
-                  )
-                }}
-              </form.Subscribe>
+              {/* Use the server-computed grand total so the displayed amount always matches the
+                  authoritative checkout summary and the charge that will be created. */}
+              <span className='text-xl font-bold text-text-primary'>
+                {formatPriceEUR(currentSummary.grandTotalCents)}
+              </span>
             </div>
 
             <CheckoutLegalDisclosures shops={currentSummary.shops} />

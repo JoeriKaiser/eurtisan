@@ -28,6 +28,7 @@ vi.mock('#/lib/notifications-hooks', () => ({
     isPending: false,
   }),
   useMarkAllNotificationsRead: () => ({
+    mutateAsync: mockMutate,
     mutate: mockMutate,
     isPending: false,
   }),
@@ -108,7 +109,7 @@ describe('NotificationsPage', () => {
     expect(screen.getByText('You have no notifications yet.')).toBeDefined()
   })
 
-  it('renders notification items', () => {
+  it('renders notification items with descriptive accessible names', () => {
     const notifications = [
       makeNotification({ type: 'order_placed', data: { orderId: 'order-123' } }),
       makeNotification({
@@ -132,6 +133,12 @@ describe('NotificationsPage', () => {
 
     expect(screen.getByText('Order placed: order-123')).toBeDefined()
     expect(screen.getByText('New review on Vase')).toBeDefined()
+
+    const buttons = screen.getAllByRole('button')
+    const orderButton = buttons.find((b) => b.textContent?.includes('Order placed: order-123'))
+    expect(orderButton).toBeDefined()
+    expect(orderButton?.getAttribute('aria-labelledby')).toMatch(/notif-preview-notif-1/)
+    expect(orderButton?.getAttribute('aria-labelledby')).toMatch(/notif-time-notif-1/)
   })
 
   it('shows unread indicator for unread items', () => {
@@ -222,6 +229,23 @@ describe('NotificationsPage', () => {
       <NotificationsPage
         notifications={[]}
         total={0}
+        page={1}
+        totalPages={1}
+        onPageChange={() => {}}
+        isNavigating={false}
+      />,
+    )
+
+    expect(screen.queryByRole('button', { name: 'Mark all as read' })).toBeNull()
+  })
+
+  it('hides mark all read button when all notifications are already read', () => {
+    const notifications = [makeNotification({ readAt: new Date() })]
+
+    render(
+      <NotificationsPage
+        notifications={notifications}
+        total={1}
         page={1}
         totalPages={1}
         onPageChange={() => {}}

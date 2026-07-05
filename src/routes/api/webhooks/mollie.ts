@@ -391,9 +391,21 @@ export async function processMollieWebhook(
       // Sequential within transaction: the PostgreSQL driver does not support concurrent
       // queries on the same transaction connection, and shopOrder update / stock release
       // must run after the platformOrder update.
+      const cancellationReason =
+        paymentStatus === 'expired'
+          ? 'Payment expired'
+          : paymentStatus === 'failed'
+            ? 'Payment failed'
+            : 'Payment cancelled by buyer'
+
       await tx
         .update(platformOrder)
-        .set({ status: 'cancelled', cancelledAt: new Date(), updatedAt: new Date() })
+        .set({
+          status: 'cancelled',
+          cancelledAt: new Date(),
+          updatedAt: new Date(),
+          cancellationReason,
+        })
         .where(eq(platformOrder.id, order.id))
 
       await tx

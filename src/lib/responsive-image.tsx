@@ -58,8 +58,14 @@ export function ResponsiveImage({
   fallback,
 }: ResponsiveImageProps) {
   const [isLoaded, setIsLoaded] = useState(false)
+  const [hasError, setHasError] = useState(false)
 
   const handleLoad = useCallback(() => {
+    setIsLoaded(true)
+  }, [])
+
+  const handleError = useCallback(() => {
+    setHasError(true)
     setIsLoaded(true)
   }, [])
 
@@ -74,26 +80,33 @@ export function ResponsiveImage({
   return (
     <div className={`relative overflow-hidden ${className ?? ''}`}>
       {/* Blur placeholder */}
-      {placeholder === 'blur' && !isLoaded && (
+      {placeholder === 'blur' && !isLoaded && !hasError && (
         <img
           src={blurUrl}
           alt=''
-          className='absolute inset-0 h-full w-full scale-110 object-cover blur-[20px]'
+          className='absolute inset-0 h-full w-full scale-105 object-cover blur-[10px]'
           aria-hidden='true'
         />
       )}
 
-      <img
-        src={defaultUrl}
-        srcSet={srcset}
-        sizes={sizes}
-        alt={alt}
-        loading={loading}
-        onLoad={handleLoad}
-        className={`transition-opacity duration-500 ${
-          isLoaded ? 'opacity-100' : 'opacity-0'
-        } ${imgClassName ?? 'h-full w-full object-cover'}`}
-      />
+      {hasError ? (
+        <div className='flex h-full w-full items-center justify-center bg-surface-inset'>
+          {fallback ?? <span className='sr-only'>{alt}</span>}
+        </div>
+      ) : (
+        <img
+          src={defaultUrl}
+          srcSet={srcset}
+          sizes={sizes}
+          alt={alt}
+          loading={loading}
+          onLoad={handleLoad}
+          onError={handleError}
+          className={`transition-opacity duration-500 ${
+            isLoaded ? 'opacity-100' : 'opacity-0'
+          } ${imgClassName ?? 'h-full w-full object-cover'}`}
+        />
+      )}
     </div>
   )
 }

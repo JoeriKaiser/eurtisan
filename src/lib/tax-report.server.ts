@@ -5,6 +5,7 @@ import { invoices, shop, shopOrder } from '#/db/schema'
 import { decryptJsonb } from './encryption.server'
 import { getDac7ComplianceStatus, type Dac7Status } from './dac7.server'
 import type { BillingDetails } from './invoices.server'
+import { normalizeCountryCode } from './vat.server'
 
 export interface TaxReportPeriod {
   year: number
@@ -164,26 +165,59 @@ export async function getShopTaxReportQuery(
 
   for (const row of customerInvoiceRows) {
     const details = decryptJsonb<BillingDetails>(row.billingDetails)
-    const buyerCountry = (details.to.address.country ?? '').toUpperCase()
-    const key = `${buyerCountry}:${row.vatRateBasisPoints}`
-    const existing = vatMap.get(key)
-    if (existing) {
-      existing.netSubtotalCents += row.subtotalCents
-      existing.vatAmountCents += row.vatAmountCents
-      existing.transactionCount += 1
-    } else {
-      vatMap.set(key, {
-        buyerCountry,
+    const rawBuyerCountry = details.to.address.country ?? ''
+    const buyerCountry = normalizeCountryCode(rawBuyerCountry) ?? rawBuyerCountry.toUpperCase()
+
+    // Customer invoices store vatRateBasisPoints at 0 because items may have mixed
+    // rates. Aggregate by the actual line-item rates so the report reflects the
+    // correct VAT collected per country/rate combination.
+    const lines = details.items.map((item) => ({
+      vatRateBasisPoints: item.vatRateBasisPoints,
+      netSubtotalCents: item.totalCents - item.vatAmountCents,
+      vatAmountCents: item.vatAmountCents,
+    }))
+
+    if (details.shipping) {
+      lines.push({
+        vatRateBasisPoints: details.shipping.vatRateBasisPoints,
+        netSubtotalCents: details.shipping.costCents - details.shipping.vatAmountCents,
+        vatAmountCents: details.shipping.vatAmountCents,
+      })
+    }
+
+    // Backward-compatible fallback for invoices created before line-item VAT
+    // breakdowns were stored, or for tests that only set invoice-level totals.
+    if (lines.length === 0) {
+      lines.push({
         vatRateBasisPoints: row.vatRateBasisPoints,
         netSubtotalCents: row.subtotalCents,
         vatAmountCents: row.vatAmountCents,
-        transactionCount: 1,
       })
+    }
+
+    let invoiceNetSubtotalCents = 0
+    for (const line of lines) {
+      invoiceNetSubtotalCents += line.netSubtotalCents
+      const key = `${buyerCountry}:${line.vatRateBasisPoints}`
+      const existing = vatMap.get(key)
+      if (existing) {
+        existing.netSubtotalCents += line.netSubtotalCents
+        existing.vatAmountCents += line.vatAmountCents
+        existing.transactionCount += 1
+      } else {
+        vatMap.set(key, {
+          buyerCountry,
+          vatRateBasisPoints: line.vatRateBasisPoints,
+          netSubtotalCents: line.netSubtotalCents,
+          vatAmountCents: line.vatAmountCents,
+          transactionCount: 1,
+        })
+      }
     }
 
     if (details.reverseCharge) {
       reverseCharge.transactionCount += 1
-      reverseCharge.netSubtotalCents += row.subtotalCents
+      reverseCharge.netSubtotalCents += invoiceNetSubtotalCents
     }
   }
 

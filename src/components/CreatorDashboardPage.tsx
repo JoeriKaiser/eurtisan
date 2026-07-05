@@ -93,7 +93,7 @@ export function CreatorDashboardPage({ stats, activity, shops }: CreatorDashboar
             <QuickActionButton
               label={m.creator_quick_products()}
               icon={<Package size={18} aria-hidden='true' />}
-              to={firstShop ? `/studio/${firstShop.id}` : '/studio'}
+              to={firstShop ? `/creator/products?shopId=${firstShop.id}` : '/creator/products'}
             />
             <QuickActionButton
               label={m.creator_quick_orders()}
@@ -103,7 +103,7 @@ export function CreatorDashboardPage({ stats, activity, shops }: CreatorDashboar
             <QuickActionButton
               label={m.creator_quick_settings()}
               icon={<Settings size={18} aria-hidden='true' />}
-              to={firstShop ? `/studio/${firstShop.id}` : '/studio'}
+              to={firstShop ? `/creator/shop?shopId=${firstShop.id}` : '/creator/shop'}
             />
           </div>
         </div>

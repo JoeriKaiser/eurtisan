@@ -137,8 +137,9 @@
   --ds-error-hover: var(--palette-brick-600);
   --ds-warning: var(--palette-ochre-500);
   --ds-warning-subtle: var(--palette-ochre-100);
-  --ds-success: var(--palette-moss-500);
-  --ds-success-subtle: var(--palette-moss-100);
+  --ds-warning-strong: var(--palette-ochre-800);
+  --ds-success: oklch(58% 0.14 130);
+  --ds-success-subtle: oklch(94% 0.04 130);
 
   /* Focus ring */
   --ds-ring-width: 2px;
@@ -245,8 +246,9 @@
   --ds-error-hover: var(--palette-brick-300);
   --ds-warning: var(--palette-ochre-400);
   --ds-warning-subtle: var(--palette-ochre-950);
-  --ds-success: var(--palette-moss-400);
-  --ds-success-subtle: var(--palette-moss-950);
+  --ds-warning-strong: var(--palette-ochre-200);
+  --ds-success: oklch(72% 0.14 130);
+  --ds-success-subtle: oklch(18% 0.04 130);
 
   --ds-ring-color: var(--palette-sage-500);
 
@@ -317,8 +319,9 @@
     --ds-error-hover: var(--palette-brick-300);
     --ds-warning: var(--palette-ochre-400);
     --ds-warning-subtle: var(--palette-ochre-950);
-    --ds-success: var(--palette-moss-400);
-    --ds-success-subtle: var(--palette-moss-950);
+    --ds-warning-strong: var(--palette-ochre-200);
+    --ds-success: oklch(72% 0.14 130);
+    --ds-success-subtle: oklch(18% 0.04 130);
 
     --ds-ring-color: var(--palette-sage-500);
 
@@ -398,6 +401,7 @@
   --color-error-hover: var(--ds-error-hover);
   --color-warning: var(--ds-warning);
   --color-warning-subtle: var(--ds-warning-subtle);
+  --color-warning-strong: var(--ds-warning-strong);
   --color-success: var(--ds-success);
   --color-success-subtle: var(--ds-success-subtle);
 

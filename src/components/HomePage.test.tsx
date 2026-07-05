@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { FeaturedShop, RecentProduct } from '#/lib/products'
 import HomePage from './HomePage'
@@ -114,16 +114,22 @@ describe('HomePage', () => {
   it('renders featured shops section', () => {
     const shops = [makeShop('shop-1'), makeShop('shop-2')]
     render(<HomePage categories={[]} products={[]} shops={shops} />)
-    expect(screen.getByText('Featured shops')).toBeDefined()
-    expect(screen.getByText('Shop shop-1')).toBeDefined()
-    expect(screen.getByText('Shop shop-2')).toBeDefined()
-    expect(screen.getAllByText('3 products').length).toBe(2)
+    const featuredShopsSection = screen
+      .getByRole('heading', { name: 'Featured shops' })
+      .closest('section') as HTMLElement
+    expect(featuredShopsSection).toBeDefined()
+    expect(within(featuredShopsSection).getByText('Shop shop-1')).toBeDefined()
+    expect(within(featuredShopsSection).getByText('Shop shop-2')).toBeDefined()
+    expect(within(featuredShopsSection).getAllByText('3 products').length).toBe(2)
   })
 
   it('shows singular product count for one product', () => {
     const shops = [makeShop('shop-1', { productCount: 1 })]
     render(<HomePage categories={[]} products={[]} shops={shops} />)
-    expect(screen.getByText('1 product')).toBeDefined()
+    const featuredShopsSection = screen
+      .getByRole('heading', { name: 'Featured shops' })
+      .closest('section') as HTMLElement
+    expect(within(featuredShopsSection).getByText('1 product')).toBeDefined()
   })
 
   it('shows be the first creator CTA when no shops exist', () => {
@@ -210,7 +216,10 @@ describe('HomePage', () => {
   it('renders shop cards linking to shop detail pages', () => {
     const shops = [makeShop('shop-1', { slug: 'artisan-studio' })]
     render(<HomePage categories={[]} products={[]} shops={shops} />)
-    const link = screen.getByText('Shop shop-1').closest('a')
+    const featuredShopsSection = screen
+      .getByRole('heading', { name: 'Featured shops' })
+      .closest('section') as HTMLElement
+    const link = within(featuredShopsSection).getByText('Shop shop-1').closest('a')
     expect(link?.getAttribute('href')).toBe('/shops/$shopSlug')
   })
 

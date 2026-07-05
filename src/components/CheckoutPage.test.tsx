@@ -149,7 +149,7 @@ function makeSummary(overrides?: Partial<Parameters<typeof CheckoutPage>[0]['sum
         ],
       },
     ],
-    grandTotalCents: 2000,
+    grandTotalCents: 2500,
     ...overrides,
   }
 }
@@ -386,12 +386,40 @@ describe('CheckoutPage', () => {
     })
   })
 
-  it('updates grand total when shipping method changes', () => {
+  it('updates grand total when shipping method changes', async () => {
+    // The component now treats the server-returned summary as the single source
+    // of truth for grand totals. Provide a valid address so changing the
+    // shipping method triggers a refetch, then mock the express response.
+    mockGetCheckoutSummary.mockResolvedValueOnce(makeSummary())
+    mockGetCheckoutSummary.mockResolvedValueOnce(
+      makeSummary({
+        shops: [
+          {
+            ...makeSummary().shops[0],
+            shippingOptions: makeSummary().shops[0].shippingOptions,
+          },
+        ],
+        grandTotalCents: 3000,
+      }),
+    )
+
     render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
+
+    fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Test User' } })
+    fireEvent.change(screen.getByLabelText('Street address'), { target: { value: '123 Main St' } })
+    fireEvent.change(screen.getByLabelText('City'), { target: { value: 'Berlin' } })
+    fireEvent.change(screen.getByLabelText('Postal code'), { target: { value: '10115' } })
+    fireEvent.change(screen.getByLabelText('Country'), { target: { value: 'DE' } })
+
+    await waitFor(() => expect(mockGetCheckoutSummary).toHaveBeenCalled(), { timeout: 1500 })
+
     // Standard shipping: 2000 + 500 = 2500
     expect(screen.getAllByText('€25.00').length).toBeGreaterThanOrEqual(1)
 
     fireEvent.click(screen.getByLabelText(/DHL Express/i))
+
+    await waitFor(() => expect(mockGetCheckoutSummary).toHaveBeenCalledTimes(2), { timeout: 1500 })
+
     // Express shipping: 2000 + 1000 = 3000
     expect(screen.getAllByText('€30.00').length).toBeGreaterThanOrEqual(1)
   })

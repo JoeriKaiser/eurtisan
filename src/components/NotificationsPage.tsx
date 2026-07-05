@@ -161,6 +161,8 @@ export function NotificationsPage({
     }
   }
 
+  const hasUnread = notifications.some((item) => !item.readAt)
+
   const goToPage = (newPage: number) => {
     if (newPage < 1 || newPage > totalPages || newPage === page) return
     onPageChange(newPage)
@@ -173,7 +175,7 @@ export function NotificationsPage({
           <h1 className='display-title text-3xl font-semibold text-text-primary'>
             {m.notifications_title()}
           </h1>
-          {notifications.length > 0 && (
+          {notifications.length > 0 && hasUnread && (
             <Button
               variant='secondary'
               size='sm'
@@ -201,9 +203,8 @@ export function NotificationsPage({
                     <button
                       type='button'
                       onClick={() => handleItemClick(item)}
-                      aria-label={
-                        isUnread ? m.notifications_status_unread() : m.notifications_status_read()
-                      }
+                      aria-labelledby={`notif-preview-${item.id} notif-time-${item.id}`}
+                      aria-describedby={isUnread ? `notif-status-${item.id}` : undefined}
                       className={`flex w-full items-start gap-3 rounded-xl border p-4 text-left transition no-underline ${
                         isUnread
                           ? 'border-border-strong border-l-4 border-l-accent-primary bg-surface-default shadow-sm hover:bg-bg-inset hover:shadow-md'
@@ -221,21 +222,27 @@ export function NotificationsPage({
                       </div>
                       <div className='min-w-0 flex-1'>
                         <p
+                          id={`notif-preview-${item.id}`}
                           className={`text-sm font-medium ${
                             isUnread ? 'text-text-primary' : 'text-text-secondary'
                           }`}
                         >
                           {notificationPreview(item)}
                         </p>
-                        <p className='mt-0.5 text-xs text-text-muted'>
+                        <p id={`notif-time-${item.id}`} className='mt-0.5 text-xs text-text-muted'>
                           {formatRelativeTime(item.createdAt)}
                         </p>
                       </div>
                       {isUnread && (
-                        <span
-                          className='mt-2 size-2 flex-shrink-0 rounded-full bg-accent-primary'
-                          aria-hidden='true'
-                        />
+                        <>
+                          <span id={`notif-status-${item.id}`} className='sr-only'>
+                            {m.notifications_status_unread()}
+                          </span>
+                          <span
+                            className='mt-2 size-2 flex-shrink-0 rounded-full bg-accent-primary'
+                            aria-hidden='true'
+                          />
+                        </>
                       )}
                     </button>
                   </li>

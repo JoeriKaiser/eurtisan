@@ -692,7 +692,11 @@ describe('getDisputeDetailQuery', () => {
 
 describe('resolveDisputeQuery', () => {
   afterEach(() => {
-    vi.restoreAllMocks()
+    // Clear call history without restoring original implementations. This
+    // prevents cross-test-file interference with module mocks (e.g. the
+    // createServerFn wrappers used by React component tests) while still
+    // resetting the spies created by individual tests in this suite.
+    vi.clearAllMocks()
   })
 
   it('throws 404 for nonexistent dispute', async () => {

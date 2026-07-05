@@ -357,6 +357,51 @@ describe.sequential('Shop Tax Report', () => {
     expect(report.vatByCountryRate).toHaveLength(2)
   })
 
+  it('preserves non-zero EU VAT rates such as Finland', async () => {
+    const platformOrder = await createPlatformOrder('buyer-user', {
+      id: 'a1111111-1111-1111-1111-111111111111',
+      totalCents: 10000,
+      status: 'paid',
+    })
+
+    const fiOrder = await createShopOrder(platformOrder, 'shop-1', {
+      id: 'b1111111-1111-1111-1111-111111111111',
+      status: 'completed',
+      subtotalCents: 1000,
+      createdAt: new Date(`${currentYear}-08-15T12:00:00Z`),
+    })
+
+    await createInvoice(fiOrder, {
+      invoiceNumber: 'INV-2026-FI-0001',
+      type: 'customer',
+      subtotalCents: 806,
+      vatAmountCents: 194,
+      totalCents: 1000,
+      vatRateBasisPoints: 2400,
+      billingDetails: {
+        ...makeCustomerBillingDetails('FI'),
+        items: [
+          {
+            id: 'prod-fi',
+            name: 'Finnish Ceramic Vase',
+            quantity: 1,
+            unitPriceCents: 1000,
+            totalCents: 1000,
+            vatRateBasisPoints: 2400,
+            vatAmountCents: 194,
+          },
+        ],
+      },
+      createdAt: new Date(`${currentYear}-08-15T12:00:00Z`),
+    })
+
+    const report = await getShopTaxReportQuery('shop-1', { year: currentYear })
+    const fiRow = report.vatByCountryRate.find((r) => r.buyerCountry === 'FI')
+    expect(fiRow).toBeDefined()
+    expect(fiRow?.vatRateBasisPoints).toBe(2400)
+    expect(fiRow?.vatAmountCents).toBe(194)
+  })
+
   it('summarises platform fee invoices', async () => {
     const platformOrder = await createPlatformOrder('buyer-user', {
       id: 'a1111111-1111-1111-1111-111111111111',

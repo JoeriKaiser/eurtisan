@@ -253,6 +253,32 @@ describe('listCreatorPayoutsQuery', () => {
     expect(completed?.status).toBe('in_transit')
   })
 
+  it('returns all statuses when status filter is "all"', async () => {
+    await seedUser()
+    await seedShop()
+    const platformOrd = await seedPlatformOrder()
+
+    await seedShopOrder({
+      platformOrderId: platformOrd.id,
+      shopId: 'shop-1',
+      subtotalCents: 5000,
+      status: 'delivered',
+    })
+    await seedShopOrder({
+      platformOrderId: platformOrd.id,
+      shopId: 'shop-1',
+      subtotalCents: 3000,
+      status: 'completed',
+    })
+
+    const allResult = await listCreatorPayoutsQuery('shop-1', { status: 'all' })
+    expect(allResult.payouts).toHaveLength(2)
+
+    const pendingResult = await listCreatorPayoutsQuery('shop-1', { status: 'pending' })
+    expect(pendingResult.payouts).toHaveLength(1)
+    expect(pendingResult.payouts[0]?.status).toBe('pending')
+  })
+
   it('marks completed orders as sent when a sent payout record exists', async () => {
     await seedUser()
     await seedShop()

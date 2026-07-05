@@ -1,6 +1,15 @@
 import { and, count, desc, eq, inArray } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { invoices, orderItem, platformOrder, shippingLabel, shop, shopOrder } from '#/db/schema'
+import {
+  dispute,
+  invoices,
+  orderItem,
+  platformOrder,
+  productImage,
+  shippingLabel,
+  shop,
+  shopOrder,
+} from '#/db/schema'
 import { getShippingProvider } from '#/integrations/shipping'
 import type { ShippingAddress } from './checkout.server'
 import { releaseStockInTx } from './inventory.server'
@@ -28,6 +37,7 @@ export interface OrderItemDetail {
   totalCents: number
   vatRateBasisPoints: number
   vatAmountCents: number
+  imageUrl?: string | null
 }
 
 export interface ShippingLabelInfo {
@@ -56,6 +66,7 @@ export interface OrderShopGroup {
   trackingStatus: string | null
   items: OrderItemDetail[]
   invoiceNumber: string | null
+  disputeId: string | null
 }
 
 export interface OrderDetail {
@@ -144,6 +155,25 @@ export async function getBuyerOrderDetailQuery(
       ? await db.select().from(orderItem).where(inArray(orderItem.shopOrderId, shopOrderIds))
       : []
 
+  const itemProductIds = itemsResult
+    .map((item) => item.productId)
+    .filter((id): id is string => !!id)
+  const productImagesResult =
+    itemProductIds.length > 0
+      ? await db
+          .select()
+          .from(productImage)
+          .where(
+            and(inArray(productImage.productId, itemProductIds), eq(productImage.sortOrder, 0)),
+          )
+      : []
+  const imageUrlByProductId = new Map<string, string>()
+  for (const image of productImagesResult) {
+    if (!imageUrlByProductId.has(image.productId)) {
+      imageUrlByProductId.set(image.productId, image.url)
+    }
+  }
+
   const labelsResult =
     shopOrderIds.length > 0
       ? await db
@@ -172,6 +202,21 @@ export async function getBuyerOrderDetailQuery(
 
   const invoiceNumberByShopOrderId = new Map(
     invoicesResult.map((record) => [record.shopOrderId, record.invoiceNumber]),
+  )
+
+  const disputesResult =
+    shopOrderIds.length > 0
+      ? await db
+          .select({
+            shopOrderId: dispute.shopOrderId,
+            disputeId: dispute.id,
+          })
+          .from(dispute)
+          .where(inArray(dispute.shopOrderId, shopOrderIds))
+      : []
+
+  const disputeIdByShopOrderId = new Map(
+    disputesResult.map((record) => [record.shopOrderId, record.disputeId]),
   )
 
   const trackingStatuses = await Promise.all(
@@ -256,6 +301,7 @@ export async function getBuyerOrderDetailQuery(
       })),
       trackingStatus: trackingStatusMap.get(so.shopOrder.id) ?? null,
       invoiceNumber: invoiceNumberByShopOrderId.get(so.shopOrder.id) ?? null,
+      disputeId: disputeIdByShopOrderId.get(so.shopOrder.id) ?? null,
       items: (itemsByShopOrderId.get(so.shopOrder.id) ?? []).map((item) => ({
         id: item.id,
         productId: item.productId,
@@ -265,6 +311,7 @@ export async function getBuyerOrderDetailQuery(
         totalCents: item.totalCents,
         vatRateBasisPoints: item.vatRateBasisPoints,
         vatAmountCents: item.vatAmountCents,
+        imageUrl: imageUrlByProductId.get(item.productId) ?? null,
       })),
     }
   })
@@ -323,6 +370,25 @@ export async function getBuyerOrderDetailByOrderNumberQuery(
       ? await db.select().from(orderItem).where(inArray(orderItem.shopOrderId, shopOrderIds))
       : []
 
+  const itemProductIds = itemsResult
+    .map((item) => item.productId)
+    .filter((id): id is string => !!id)
+  const productImagesResult =
+    itemProductIds.length > 0
+      ? await db
+          .select()
+          .from(productImage)
+          .where(
+            and(inArray(productImage.productId, itemProductIds), eq(productImage.sortOrder, 0)),
+          )
+      : []
+  const imageUrlByProductId = new Map<string, string>()
+  for (const image of productImagesResult) {
+    if (!imageUrlByProductId.has(image.productId)) {
+      imageUrlByProductId.set(image.productId, image.url)
+    }
+  }
+
   const labelsResult =
     shopOrderIds.length > 0
       ? await db
@@ -351,6 +417,21 @@ export async function getBuyerOrderDetailByOrderNumberQuery(
 
   const invoiceNumberByShopOrderId = new Map(
     invoicesResult.map((record) => [record.shopOrderId, record.invoiceNumber]),
+  )
+
+  const disputesResult =
+    shopOrderIds.length > 0
+      ? await db
+          .select({
+            shopOrderId: dispute.shopOrderId,
+            disputeId: dispute.id,
+          })
+          .from(dispute)
+          .where(inArray(dispute.shopOrderId, shopOrderIds))
+      : []
+
+  const disputeIdByShopOrderId = new Map(
+    disputesResult.map((record) => [record.shopOrderId, record.disputeId]),
   )
 
   const trackingStatuses = await Promise.all(
@@ -431,6 +512,7 @@ export async function getBuyerOrderDetailByOrderNumberQuery(
       })),
       trackingStatus: trackingStatusMap.get(so.shopOrder.id) ?? null,
       invoiceNumber: invoiceNumberByShopOrderId.get(so.shopOrder.id) ?? null,
+      disputeId: disputeIdByShopOrderId.get(so.shopOrder.id) ?? null,
       items: (itemsByShopOrderId.get(so.shopOrder.id) ?? []).map((item) => ({
         id: item.id,
         productId: item.productId,
@@ -440,6 +522,7 @@ export async function getBuyerOrderDetailByOrderNumberQuery(
         totalCents: item.totalCents,
         vatRateBasisPoints: item.vatRateBasisPoints,
         vatAmountCents: item.vatAmountCents,
+        imageUrl: imageUrlByProductId.get(item.productId) ?? null,
       })),
     }
   })

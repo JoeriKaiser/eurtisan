@@ -90,7 +90,7 @@ export default function HomePage({
         }
       `}</style>
 
-      <HomeHeroSection user={user} sellerShops={sellerShops} />
+      <HomeHeroSection user={user} sellerShops={sellerShops} shops={shops} />
       <HomeStatsStrip stats={stats} />
       <HomeValuePropositionStrip />
 

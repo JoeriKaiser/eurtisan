@@ -1,5 +1,5 @@
-import { useRouter } from '@tanstack/react-router'
-import { Package, Trash2 } from 'lucide-react'
+import { useRouter, Link } from '@tanstack/react-router'
+import { Package, Plus, Trash2 } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
 import {
   bulkDeleteProducts,
@@ -299,10 +299,22 @@ export function CreatorProductsPage({
     <main className='page-wrap px-4 py-12'>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
         {/* Header */}
-        <h1 className='display-title mb-2 text-3xl font-semibold text-text-primary'>
-          {m.creator_products_title()}
-        </h1>
-        <p className='mb-6 text-text-secondary'>{m.creator_products_description()}</p>
+        <div className='mb-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
+          <div>
+            <h1 className='display-title text-3xl font-semibold text-text-primary'>
+              {m.creator_products_title()}
+            </h1>
+            <p className='mt-1 text-text-secondary'>{m.creator_products_description()}</p>
+          </div>
+          <Link
+            to='/creator/products/new'
+            search={currentShopId ? { shopId: currentShopId } : undefined}
+            className='inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-accent-primary px-4 py-2.5 text-sm font-medium text-text-on-primary no-underline shadow-sm transition hover:bg-accent-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
+          >
+            <Plus size={16} aria-hidden='true' />
+            {m.creator_products_add_product()}
+          </Link>
+        </div>
 
         {/* Shop selector */}
         <div className='mb-6'>
@@ -381,7 +393,7 @@ export function CreatorProductsPage({
 
         {/* Table */}
         <div className='overflow-x-auto'>
-          <table className='w-full text-left text-sm'>
+          <table className='w-full min-w-[640px] text-left text-sm'>
             <caption className='sr-only'>{m.creator_products_title()}</caption>
             <thead>
               <tr className='border-b border-border-default'>

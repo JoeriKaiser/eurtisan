@@ -14,6 +14,7 @@ import { useState } from 'react'
 import { useCart } from '#/components/CartProvider'
 import type { CartDetail, CartItemDetail, CartShopGroup } from '#/lib/cart.server'
 import { useRemoveCartItem, useUpdateCartItem } from '#/lib/cart-hooks'
+import { getCartDistinctItemCount, isCartEmpty } from '#/lib/cart-ui'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 import { Badge } from './ui/badge'
@@ -72,14 +73,16 @@ export default function CartPage({ cart: initialCart, showEmptyMessage }: CartPa
     }
   }
 
-  if (!cart || cart.shops.length === 0) {
+  if (!cart || isCartEmpty(cart)) {
     return <EmptyCart showEmptyMessage={showEmptyMessage} />
   }
+
+  const distinctItems = getCartDistinctItemCount(cart)
 
   return (
     <main className='page-wrap px-4 pb-16 pt-14'>
       {showEmptyMessage && (
-        <div className='mb-4 rounded-lg border border-warning bg-warning-subtle px-4 py-3 text-sm text-warning'>
+        <div className='mb-4 rounded-lg border border-warning bg-warning-subtle px-4 py-3 text-sm text-warning-strong'>
           {m.cart_empty_checkout_message()}
         </div>
       )}
@@ -88,9 +91,9 @@ export default function CartPage({ cart: initialCart, showEmptyMessage }: CartPa
           {m.cart_title()}
         </h1>
         <p className='mt-1 text-sm text-text-secondary'>
-          {cart.totalItems === 1
+          {distinctItems === 1
             ? m.cart_item_single()
-            : m.cart_items_count({ count: String(cart.totalItems) })}
+            : m.cart_items_count({ count: String(distinctItems) })}
         </p>
       </div>
 
@@ -213,7 +216,7 @@ function EmptyCart({ showEmptyMessage }: { showEmptyMessage?: boolean }) {
     <main className='page-wrap px-4 py-20 text-center'>
       <div className='mx-auto max-w-md'>
         {showEmptyMessage && (
-          <div className='mb-6 rounded-lg border border-warning bg-warning-subtle px-4 py-3 text-sm text-warning'>
+          <div className='mb-6 rounded-lg border border-warning bg-warning-subtle px-4 py-3 text-sm text-warning-strong'>
             {m.cart_empty_checkout_message()}
           </div>
         )}

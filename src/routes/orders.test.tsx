@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import * as React from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import BuyerOrderDetailPage from '#/components/BuyerOrderDetailPage'
 import { OrdersPage } from '#/components/OrdersPage'
@@ -12,11 +13,19 @@ vi.mock('@tanstack/react-router', () => ({
     to: string
     className?: string
     params?: Record<string, string>
-  }) => (
-    <a href={props.to} className={props.className}>
-      {props.children}
-    </a>
-  ),
+  }) => {
+    let href = props.to
+    if (props.params) {
+      for (const [key, value] of Object.entries(props.params)) {
+        href = href.replaceAll(`$${key}`, value)
+      }
+    }
+    return (
+      <a href={href} className={props.className}>
+        {props.children}
+      </a>
+    )
+  },
   useRouter: () => ({ invalidate: vi.fn() }),
 }))
 
@@ -68,6 +77,7 @@ vi.mock('#/paraglide/messages', () => ({
     error_not_found: () => 'Page not found',
     error_not_found_description: () => 'The page you are looking for does not exist.',
     order_detail_open_dispute: () => 'Open dispute',
+    order_detail_view_dispute: () => 'View dispute',
     order_detail_dispute_disabled_tooltip: () => 'Dispute window has expired (30 days)',
     dispute_modal_title: () => 'Open a dispute',
     dispute_modal_description: () => 'Describe the issue with your order.',
@@ -120,6 +130,20 @@ vi.mock('#/lib/disputes', () => ({
   openDispute: vi.fn(),
 }))
 
+vi.mock('#/components/ui/primitives/dialog', () => ({
+  Dialog: ({ open, children }: { open?: boolean; children: React.ReactNode }) =>
+    open ? React.createElement(React.Fragment, {}, children) : null,
+  DialogBackdrop: () => null,
+  DialogDescription: ({ children }: { children: React.ReactNode }) =>
+    React.createElement('p', {}, children),
+  DialogPopup: ({ children }: { children: React.ReactNode }) =>
+    React.createElement('div', {}, children),
+  DialogPortal: ({ children }: { children: React.ReactNode }) =>
+    React.createElement(React.Fragment, {}, children),
+  DialogTitle: ({ children }: { children: React.ReactNode }) =>
+    React.createElement('h2', {}, children),
+}))
+
 function makeOrderListItem(overrides?: Partial<BuyerOrderListItem>): BuyerOrderListItem {
   return {
     id: 'order-123',
@@ -168,6 +192,7 @@ function makeOrderDetail(overrides?: Partial<OrderDetail>): OrderDetail {
         shippingLabels: [],
         trackingStatus: null,
         invoiceNumber: null,
+        disputeId: null,
         items: [
           {
             id: 'item-1',
@@ -315,6 +340,7 @@ describe('Order detail page', () => {
           ],
           trackingStatus: 'in_transit',
           invoiceNumber: null,
+          disputeId: null,
           items: [
             {
               id: 'item-1',
@@ -365,6 +391,7 @@ describe('Order detail page', () => {
           ],
           trackingStatus: 'in_transit',
           invoiceNumber: null,
+          disputeId: null,
           items: [
             {
               id: 'item-1',
@@ -414,6 +441,7 @@ describe('Order detail page', () => {
           ],
           trackingStatus: 'delivered',
           invoiceNumber: null,
+          disputeId: null,
           items: [
             {
               id: 'item-1',
@@ -455,6 +483,7 @@ describe('Order detail page', () => {
           shippingLabels: [],
           trackingStatus: null,
           invoiceNumber: null,
+          disputeId: null,
           items: [
             {
               id: 'item-1',
@@ -497,6 +526,7 @@ describe('Order detail page', () => {
           shippingLabels: [],
           trackingStatus: null,
           invoiceNumber: null,
+          disputeId: null,
           items: [
             {
               id: 'item-1',
@@ -537,6 +567,7 @@ describe('Order detail page', () => {
           shippingLabels: [],
           trackingStatus: null,
           invoiceNumber: null,
+          disputeId: null,
           items: [
             {
               id: 'item-1',
@@ -584,6 +615,7 @@ describe('Order detail page', () => {
           ],
           trackingStatus: 'in_transit',
           invoiceNumber: null,
+          disputeId: null,
           items: [
             {
               id: 'item-1',
@@ -615,6 +647,7 @@ describe('Order detail page', () => {
           shippingLabels: [],
           trackingStatus: null,
           invoiceNumber: null,
+          disputeId: null,
           items: [
             {
               id: 'item-2',
@@ -673,6 +706,7 @@ describe('Order detail page', () => {
           shippingLabels: [],
           trackingStatus: null,
           invoiceNumber: null,
+          disputeId: null,
           items: [
             {
               id: 'item-1',
@@ -728,6 +762,7 @@ describe('Order detail page', () => {
           shippingLabels: [],
           trackingStatus: null,
           invoiceNumber: null,
+          disputeId: null,
           items: [
             {
               id: 'item-1',
@@ -779,6 +814,7 @@ describe('Order detail page', () => {
           shippingLabels: [],
           trackingStatus: null,
           invoiceNumber: null,
+          disputeId: null,
           items: [
             {
               id: 'item-1',
@@ -821,6 +857,7 @@ describe('Order detail page', () => {
           shippingLabels: [],
           trackingStatus: null,
           invoiceNumber: null,
+          disputeId: null,
           items: [
             {
               id: 'item-1',
@@ -864,6 +901,7 @@ describe('Order detail page', () => {
           shippingLabels: [],
           trackingStatus: null,
           invoiceNumber: null,
+          disputeId: null,
           items: [
             {
               id: 'item-1',
@@ -906,6 +944,7 @@ describe('Order detail page', () => {
           shippingLabels: [],
           trackingStatus: null,
           invoiceNumber: null,
+          disputeId: null,
           items: [
             {
               id: 'item-1',
@@ -925,5 +964,65 @@ describe('Order detail page', () => {
     const disputeButton = screen.getByRole('button', { name: 'Open dispute' })
     expect(disputeButton).toBeDefined()
     expect(disputeButton.hasAttribute('disabled')).toBe(true)
+  })
+
+  it('shows View dispute link immediately after opening a dispute', async () => {
+    const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
+    const order = makeOrderDetail({
+      status: 'delivered',
+      shops: [
+        {
+          shopOrderId: 'so-1',
+          shopId: 'shop-1',
+          shopName: 'Test Shop',
+          shippingMethod: 'standard',
+          shippingRateId: null,
+          shippingCostCents: 500,
+          subtotalCents: 2000,
+          vatAmountCents: 0,
+          shippingVatRateBasisPoints: 0,
+          shippingVatAmountCents: 0,
+          status: 'delivered',
+          trackingNumber: null,
+          trackingUrl: null,
+          deliveredAt: fiveDaysAgo,
+          shippingLabels: [],
+          trackingStatus: null,
+          invoiceNumber: null,
+          disputeId: null,
+          items: [
+            {
+              id: 'item-1',
+              productId: 'prod-1',
+              productName: 'Vase',
+              unitPriceCents: 1000,
+              quantity: 2,
+              totalCents: 2000,
+              vatRateBasisPoints: 0,
+              vatAmountCents: 0,
+            },
+          ],
+        },
+      ],
+    })
+    const { openDispute } = await import('#/lib/disputes')
+    vi.mocked(openDispute).mockResolvedValueOnce({ id: 'disp-new' } as Awaited<
+      ReturnType<typeof openDispute>
+    >)
+
+    render(<BuyerOrderDetailPage order={order} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Open dispute' }))
+
+    fireEvent.change(screen.getByLabelText('Description'), {
+      target: { value: 'The item arrived damaged.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Submit dispute' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('link', { name: 'View dispute' })).toBeDefined()
+    })
+    expect(screen.getByRole('link', { name: 'View dispute' }).getAttribute('href')).toContain(
+      'disp-new',
+    )
   })
 })
