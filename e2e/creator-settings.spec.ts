@@ -14,11 +14,14 @@ test.describe('creator shop settings', () => {
       fs.mkdirSync(dummyDir, { recursive: true })
     }
     dummyPngPath = path.join(dummyDir, 'dummy.png')
-    const base64Png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
+    const base64Png =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
     fs.writeFileSync(dummyPngPath, Buffer.from(base64Png, 'base64'))
   })
 
-  test('creator can update brand settings, upload image/banner, custom policies, and configure tax/VAT settings', async ({ page }) => {
+  test('creator can update brand settings, upload image/banner, custom policies, and configure tax/VAT settings', async ({
+    page,
+  }) => {
     const shop = await getCreatorShop()
     const uniqueSuffix = Date.now().toString()
     const testName = `Settings Name ${uniqueSuffix}`
@@ -33,11 +36,15 @@ test.describe('creator shop settings', () => {
 
     // 2. Upload brand image
     await page.setInputFiles('input[id="shop-image-upload"]', dummyPngPath)
-    await expect(page.getByRole('button', { name: /Remove image/i }).first()).toBeVisible({ timeout: 15000 })
+    await expect(page.getByRole('button', { name: /Remove image/i }).first()).toBeVisible({
+      timeout: 15000,
+    })
 
     // 3. Upload banner image
     await page.setInputFiles('input[id="shop-banner-image-upload"]', dummyPngPath)
-    await expect(page.getByRole('button', { name: /Remove image/i }).last()).toBeVisible({ timeout: 15000 })
+    await expect(page.getByRole('button', { name: /Remove image/i }).last()).toBeVisible({
+      timeout: 15000,
+    })
 
     // 4. Update returns policy to Accepted within 30 days
     await page.getByRole('button', { name: 'Accepted within 30 days' }).first().click()
@@ -52,7 +59,9 @@ test.describe('creator shop settings', () => {
 
     // 6. Save changes
     await page.getByRole('button', { name: 'Save changes' }).click()
-    await expect(page.getByText('Shop settings saved successfully.')).toBeVisible({ timeout: 15000 })
+    await expect(page.getByText('Shop settings saved successfully.')).toBeVisible({
+      timeout: 15000,
+    })
 
     // Verify on public shop page that it updated
     await page.goto(`/shops/${shop.slug}`)

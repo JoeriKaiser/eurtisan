@@ -103,28 +103,21 @@ export function ProductTableRow({
 
       {/* Status badge */}
       <td className='py-3 pr-4'>
-        <div className='flex flex-wrap items-center gap-1.5'>
-          <Badge
-            variant={
-              product.status === 'published'
-                ? 'success'
-                : product.status === 'draft'
-                  ? 'secondary'
-                  : 'default'
-            }
-          >
-            {product.status === 'published'
-              ? m.product_status_published()
+        <Badge
+          variant={
+            product.status === 'published'
+              ? 'success'
               : product.status === 'draft'
-                ? m.product_status_draft()
-                : m.product_status_archived()}
-          </Badge>
-          {product.status === 'published' && (
-            <Badge variant={active ? 'success' : 'secondary'}>
-              {active ? m.creator_products_status_active() : m.creator_products_status_inactive()}
-            </Badge>
-          )}
-        </div>
+                ? 'secondary'
+                : 'default'
+          }
+        >
+          {product.status === 'published'
+            ? m.product_status_published()
+            : product.status === 'draft'
+              ? m.product_status_draft()
+              : m.product_status_archived()}
+        </Badge>
       </td>
 
       {/* Actions */}
@@ -174,7 +167,9 @@ export function ProductTableRow({
               ) : (
                 <ToggleLeft size={16} aria-hidden='true' />
               )}
-              {active ? m.creator_products_active() : m.creator_products_inactive()}
+              {active
+                ? m.creator_products_deactivate({ name: product.name })
+                : m.creator_products_activate({ name: product.name })}
             </button>
           )}
 
@@ -183,10 +178,11 @@ export function ProductTableRow({
             <Link
               to='/creator/products/$productId/edit'
               params={{ productId: product.id }}
-              className='inline-flex items-center justify-center rounded-lg p-1.5 text-text-muted transition-colors hover:bg-surface-inset hover:text-text-primary'
+              className='inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-inset hover:text-text-primary'
               aria-label={m.creator_products_edit({ name: product.name })}
             >
               <Edit size={16} aria-hidden='true' />
+              {m.creator_products_edit({ name: product.name })}
             </Link>
           )}
         </div>

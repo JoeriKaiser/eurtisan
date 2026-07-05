@@ -1,7 +1,12 @@
 import { test, expect } from '@playwright/test'
 import { deleteCustomerByEmail } from '../fixtures/customers'
 import { dismissAnalyticsConsentBanner } from '../fixtures/consent'
-import { clearInboxFor, extractVerificationToken, getLatestEmail, isMailpitAvailable } from '../fixtures/email'
+import {
+  clearInboxFor,
+  extractVerificationToken,
+  getLatestEmail,
+  isMailpitAvailable,
+} from '../fixtures/email'
 
 test.use({ storageState: { cookies: [], origins: [] } })
 
@@ -57,6 +62,8 @@ test.describe('Customer verify email', () => {
     await page.waitForSelector('html[data-hydrated="true"]')
 
     await page.getByRole('button', { name: /resend/i }).click()
-    await expect(page.getByText(/verification email resent successfully/i)).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText(/verification email resent successfully/i)).toBeVisible({
+      timeout: 10000,
+    })
   })
 })

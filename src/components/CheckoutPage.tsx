@@ -6,9 +6,11 @@ import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { createCheckout, getCheckoutSummary } from '#/lib/checkout'
 import type { CheckoutShopGroup, CheckoutSummary, ShippingOption } from '#/lib/checkout.server'
+import { cn } from '#/lib/cn'
 import { getLocalizedErrorMessage } from '#/lib/error-mapping'
 import { SUPPORTED_COUNTRY_CODES } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
+import { validateVatId } from '#/lib/vat'
 import { m } from '#/paraglide/messages'
 import { CheckoutLegalDisclosures } from './checkout/CheckoutLegalDisclosures'
 import { CheckoutOrderItems } from './checkout/CheckoutOrderItems'
@@ -34,28 +36,55 @@ const pickupPointSchema = z.object({
   country: z.string().min(1),
 })
 
-const shippingAddressSchema = z.object({
-  name: z.string().min(1, m.checkout_error_name_required()).max(255),
-  street: z.string().min(1, m.checkout_error_street_required()).max(255),
-  city: z.string().min(1, m.checkout_error_city_required()).max(255),
-  postalCode: z.string().min(1, m.checkout_error_postal_required()).max(50),
-  country: z.string().min(1, m.checkout_error_country_required()).max(100),
+const addressSchema = z
+  .object({
+    name: z.string().min(1, m.checkout_error_name_required()).max(255),
+    street: z.string().min(1, m.checkout_error_street_required()).max(255),
+    city: z.string().min(1, m.checkout_error_city_required()).max(255),
+    postalCode: z.string().min(1, m.checkout_error_postal_required()).max(50),
+    country: z.string().min(1, m.checkout_error_country_required()).max(100),
+    vatId: z.string().optional().nullable(),
+    pickupPoint: pickupPointSchema.optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (!data.vatId) return
+    const cleaned = data.vatId.replace(/\s/g, '').toUpperCase()
+    const prefix = cleaned.slice(0, 2)
+    if (
+      data.country &&
+      prefix !== data.country &&
+      !(data.country === 'GR' && (prefix === 'EL' || prefix === 'GR'))
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: m.checkout_vat_id_invalid_prefix(),
+        path: ['vatId'],
+      })
+    }
+    const { valid } = validateVatId(data.vatId)
+    if (!valid) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: m.checkout_vat_id_invalid_format(),
+        path: ['vatId'],
+      })
+    }
+  })
+
+const billingAddressBaseSchema = z.object({
+  name: z.string().max(255),
+  street: z.string().max(255),
+  city: z.string().max(255),
+  postalCode: z.string().max(50),
+  country: z.string().max(100),
   vatId: z.string().optional().nullable(),
-  pickupPoint: pickupPointSchema.optional(),
 })
 
 const checkoutFormSchema = z
   .object({
-    shippingAddress: shippingAddressSchema,
+    shippingAddress: addressSchema,
     sameAsShipping: z.boolean(),
-    billingAddress: z.object({
-      name: z.string().max(255),
-      street: z.string().max(255),
-      city: z.string().max(255),
-      postalCode: z.string().max(50),
-      country: z.string().max(100),
-      vatId: z.string().optional().nullable(),
-    }),
+    billingAddress: billingAddressBaseSchema,
     shippingSelections: z.array(
       z.object({
         shopId: z.string().min(1),
@@ -67,7 +96,7 @@ const checkoutFormSchema = z
   })
   .superRefine((data, ctx) => {
     if (!data.sameAsShipping) {
-      const result = shippingAddressSchema.safeParse(data.billingAddress)
+      const result = addressSchema.safeParse(data.billingAddress)
       if (!result.success) {
         for (const issue of result.error.issues) {
           ctx.addIssue({
@@ -103,6 +132,37 @@ function findSelectionForShop(
   shopId: string,
 ) {
   return selections.find((s) => s.shopId === shopId)
+}
+
+function getSelectedShippingOption(
+  shop: CheckoutShopGroup,
+  selection?: CheckoutFormValues['shippingSelections'][number],
+): ShippingOption | undefined {
+  return (
+    shop.shippingOptions.find((o) => o.rateId === selection?.rateId) ??
+    shop.shippingOptions.find((o) => o.method === selection?.method) ??
+    shop.shippingOptions[0]
+  )
+}
+
+/**
+ * Scroll the first invalid field into view and focus it after a failed submit.
+ * This keeps field-level errors visually tied to their inputs and prevents the
+ * page from appearing cropped at the top when the first error is above the fold.
+ */
+function scrollToFirstInvalidField() {
+  const firstInvalid = document.querySelector<HTMLElement>('[aria-invalid="true"]')
+  if (!firstInvalid) return
+  if (typeof firstInvalid.scrollIntoView === 'function') {
+    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }
+  if (typeof firstInvalid.focus === 'function') {
+    try {
+      firstInvalid.focus({ preventScroll: true })
+    } catch {
+      firstInvalid.focus()
+    }
+  }
 }
 
 /**
@@ -307,7 +367,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
       if (!addr.country || !addr.postalCode || !addr.city) return
 
       // Validate the partial address before fetching
-      const result = shippingAddressSchema.safeParse(addr)
+      const result = addressSchema.safeParse(addr)
       if (!result.success) return
 
       // Debounce: wait 600ms after the last keystroke
@@ -361,10 +421,13 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
           finally redirects to an external payment provider URL. A native
           <form action> would forfeit all of this client-side orchestration. */}
       <form
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault()
           e.stopPropagation()
-          void form.handleSubmit()
+          await form.handleSubmit()
+          if (!form.store.state.isValid) {
+            scrollToFirstInvalidField()
+          }
         }}
         className='grid gap-8 lg:grid-cols-[1fr_360px]'
         noValidate
@@ -494,7 +557,12 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                         field.state.meta.errors[0] ? `${field.name}-error` : undefined
                       }
                       autoComplete='country-name'
-                      className='h-10 rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
+                      className={cn(
+                        'h-10 w-full rounded-lg border bg-surface-default px-3 py-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2',
+                        field.state.meta.errors[0]
+                          ? 'border-error focus-visible:border-error focus-visible:ring-error/20'
+                          : 'border-border-default hover:border-border-strong focus-visible:border-accent-secondary focus-visible:ring-accent-secondary/20',
+                      )}
                     >
                       <option value='' disabled>
                         {m.checkout_field_country_placeholder()}
@@ -670,7 +738,12 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                               field.state.meta.errors[0] ? `${field.name}-error` : undefined
                             }
                             autoComplete='country-name'
-                            className='h-10 rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
+                            className={cn(
+                              'h-10 w-full rounded-lg border bg-surface-default px-3 py-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2',
+                              field.state.meta.errors[0]
+                                ? 'border-error focus-visible:border-error focus-visible:ring-error/20'
+                                : 'border-border-default hover:border-border-strong focus-visible:border-accent-secondary focus-visible:ring-accent-secondary/20',
+                            )}
                           >
                             <option value='' disabled>
                               {m.checkout_field_country_placeholder()}
@@ -900,50 +973,49 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
               {m.checkout_order_summary()}
             </h2>
 
-            <div className='space-y-2'>
-              {currentSummary.shops.map((shop) => {
-                const selection = form
-                  .getFieldValue('shippingSelections')
-                  .find((s) => s.shopId === shop.shopId)
-                const shippingOption =
-                  shop.shippingOptions.find((o) => o.rateId === selection?.rateId) ??
-                  shop.shippingOptions.find((o) => o.method === selection?.method) ??
-                  shop.shippingOptions[0]
+            <form.Subscribe selector={(state) => state.values.shippingSelections}>
+              {(shippingSelections) => (
+                <div className='space-y-2'>
+                  {currentSummary.shops.map((shop) => {
+                    const selection = shippingSelections.find((s) => s.shopId === shop.shopId)
+                    const shippingOption = getSelectedShippingOption(shop, selection)
 
-                return (
-                  <div key={shop.shopId} className='space-y-1'>
-                    <div className='flex justify-between text-sm'>
-                      <span className='text-text-secondary truncate'>{shop.shopName}</span>
-                      <span className='font-medium text-text-primary'>
-                        {formatPriceEUR(shop.subtotalCents)}
-                      </span>
-                    </div>
-                    <div className='flex justify-between text-sm'>
-                      <span className='text-text-secondary truncate'>
-                        {shippingOption?.serviceName ??
-                          shippingOption?.label ??
-                          m.checkout_shipping_label()}
-                      </span>
-                      <span className='font-medium text-text-primary'>
-                        {shippingOption?.costCents === 0
-                          ? '—'
-                          : formatPriceEUR(shippingOption?.costCents ?? 0)}
-                      </span>
-                    </div>
-                    {shop.vatEstimateCents > 0 && (
-                      <div className='flex justify-between text-sm'>
-                        <span className='text-text-secondary truncate'>
-                          {m.checkout_includes_vat()}
-                        </span>
-                        <span className='font-medium text-text-primary'>
-                          {formatPriceEUR(shop.vatEstimateCents)}
-                        </span>
+                    return (
+                      <div key={shop.shopId} className='space-y-1'>
+                        <div className='flex justify-between text-sm'>
+                          <span className='text-text-secondary truncate'>{shop.shopName}</span>
+                          <span className='font-medium text-text-primary'>
+                            {formatPriceEUR(shop.subtotalCents)}
+                          </span>
+                        </div>
+                        <div className='flex justify-between text-sm'>
+                          <span className='text-text-secondary truncate'>
+                            {shippingOption?.serviceName ??
+                              shippingOption?.label ??
+                              m.checkout_shipping_label()}
+                          </span>
+                          <span className='font-medium text-text-primary'>
+                            {shippingOption?.costCents === 0
+                              ? '—'
+                              : formatPriceEUR(shippingOption?.costCents ?? 0)}
+                          </span>
+                        </div>
+                        {shop.vatEstimateCents > 0 && (
+                          <div className='flex justify-between text-sm'>
+                            <span className='text-text-secondary truncate'>
+                              {m.checkout_includes_vat()}
+                            </span>
+                            <span className='font-medium text-text-primary'>
+                              {formatPriceEUR(shop.vatEstimateCents)}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+                    )
+                  })}
+                </div>
+              )}
+            </form.Subscribe>
 
             <div className='my-4 border-t border-border-default' />
 
@@ -966,10 +1038,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                 {(shippingSelections) => {
                   const total = currentSummary.shops.reduce((acc, shop) => {
                     const selection = shippingSelections.find((s) => s.shopId === shop.shopId)
-                    const shippingOption =
-                      shop.shippingOptions.find((o) => o.rateId === selection?.rateId) ??
-                      shop.shippingOptions.find((o) => o.method === selection?.method) ??
-                      shop.shippingOptions[0]
+                    const shippingOption = getSelectedShippingOption(shop, selection)
                     return acc + shop.subtotalCents + (shippingOption?.costCents ?? 0)
                   }, 0)
                   return (

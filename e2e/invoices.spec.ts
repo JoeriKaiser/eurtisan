@@ -8,7 +8,10 @@ const e2eDatabaseUrl =
 
 type ShopRow = typeof shop.$inferSelect
 
-type ShopVatSnapshot = Pick<ShopRow, 'isVatRegistered' | 'vatId' | 'shippingOrigin' | 'businessAddress'>
+type ShopVatSnapshot = Pick<
+  ShopRow,
+  'isVatRegistered' | 'vatId' | 'shippingOrigin' | 'businessAddress'
+>
 
 test.describe('Invoices E2E flow', () => {
   let testShopOrder: { id: string; shopId: string; platformOrderId: string } | null = null

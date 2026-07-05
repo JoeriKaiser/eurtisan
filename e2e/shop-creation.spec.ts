@@ -14,7 +14,8 @@ test.describe('shop creation onboarding', () => {
       fs.mkdirSync(dummyDir, { recursive: true })
     }
     dummyPngPath = path.join(dummyDir, 'dummy.png')
-    const base64Png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
+    const base64Png =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
     fs.writeFileSync(dummyPngPath, Buffer.from(base64Png, 'base64'))
   })
 
@@ -30,7 +31,10 @@ test.describe('shop creation onboarding', () => {
     await db.delete(shop).where(eq(shop.name, E2E_SHOP_NAME))
   })
 
-  test('creator can complete full onboarding, submit, and admin can approve', async ({ page, browser }) => {
+  test('creator can complete full onboarding, submit, and admin can approve', async ({
+    page,
+    browser,
+  }) => {
     page.on('console', (msg) => console.log('SHOP CREATION PAGE LOG:', msg.text()))
     page.on('pageerror', (err) => console.error('SHOP CREATION PAGE ERROR:', err.message))
 
@@ -113,9 +117,14 @@ test.describe('shop creation onboarding', () => {
 
     // 14. Upload product image & fill out fields
     await page.setInputFiles('input[type="file"]', dummyPngPath)
-    await expect(page.getByRole('button', { name: /remove image/i })).toBeVisible({ timeout: 15000 })
+    await expect(page.getByRole('button', { name: /remove image/i })).toBeVisible({
+      timeout: 15000,
+    })
     await page.fill('#listing-name', 'E2E Creator Onboarding Item')
-    await page.fill('#listing-desc', 'Beautiful handcrafted ceramics using traditional European techniques.')
+    await page.fill(
+      '#listing-desc',
+      'Beautiful handcrafted ceramics using traditional European techniques.',
+    )
     await page.fill('#listing-price', '49.99')
     await page.fill('#listing-stock', '10')
 
@@ -144,7 +153,10 @@ test.describe('shop creation onboarding', () => {
     await adminPage.waitForSelector('html[data-hydrated="true"]')
 
     // 19. Locate the submitted application in the table and click Review Application
-    const reviewBtn = adminPage.locator('tr').filter({ hasText: E2E_SHOP_NAME }).getByRole('button', { name: 'Review Application' })
+    const reviewBtn = adminPage
+      .locator('tr')
+      .filter({ hasText: E2E_SHOP_NAME })
+      .getByRole('button', { name: 'Review Application' })
     await expect(reviewBtn).toBeVisible()
     await reviewBtn.click()
 
@@ -154,7 +166,9 @@ test.describe('shop creation onboarding', () => {
     await approveBtn.click()
 
     // 21. Verify the dialog closes successfully
-    await expect(adminPage.getByRole('heading', { name: /application review details/i })).not.toBeVisible()
+    await expect(
+      adminPage.getByRole('heading', { name: /application review details/i }),
+    ).not.toBeVisible()
     await adminContext.close()
 
     // 22. Reload the Creator status page and verify it changes to Approved

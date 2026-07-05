@@ -1,11 +1,14 @@
 import { NotificationsPage } from '#/components/NotificationsPage'
+import { useNotifications } from '#/lib/notifications-hooks'
 import { useState } from 'react'
 import { useLoaderData, useNavigate } from '@tanstack/react-router'
 
 const PAGE_SIZE = 20
 
 export function NotificationsRouteComponent() {
-  const { notifications, total, page } = useLoaderData({ from: '/notifications' })
+  const loaderData = useLoaderData({ from: '/notifications' })
+  const query = useNotifications(loaderData.page, PAGE_SIZE)
+  const { notifications, total, page } = query.data ?? loaderData
   const routerNavigate = useNavigate()
   const [isNavigating, setIsNavigating] = useState(false)
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))

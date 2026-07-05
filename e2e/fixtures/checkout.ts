@@ -118,7 +118,9 @@ export async function completeCheckout(
     await page.locator('input[name="billingAddress.street"]').fill(billing.street ?? '')
     await page.locator('input[name="billingAddress.city"]').fill(billing.city ?? '')
     await page.locator('input[name="billingAddress.postalCode"]').fill(billing.postalCode ?? '')
-    await page.locator('select[name="billingAddress.country"]').selectOption(billing.country ?? 'FR')
+    await page
+      .locator('select[name="billingAddress.country"]')
+      .selectOption(billing.country ?? 'FR')
 
     if (billing.vatId) {
       await page.locator('input[name="billingAddress.vatId"]').fill(billing.vatId)

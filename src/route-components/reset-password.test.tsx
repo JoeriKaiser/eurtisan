@@ -6,6 +6,10 @@ import { ResetPassword } from './reset-password'
 
 const mockNavigate = vi.fn()
 const mockResetPassword = vi.fn()
+let mockSearch = {
+  token: 'valid-token' as string | undefined,
+  redirect: undefined as string | undefined,
+}
 
 vi.mock('@tanstack/react-router', () => ({
   Link: (props: {
@@ -19,8 +23,12 @@ vi.mock('@tanstack/react-router', () => ({
       {props.children}
     </a>
   ),
-  useSearch: () => ({ token: 'valid-token', redirect: undefined }),
+  useSearch: () => mockSearch,
   useRouter: () => ({ navigate: mockNavigate }),
+}))
+
+vi.mock('#/components/AnalyticsConsentBanner', () => ({
+  AnalyticsConsentBanner: () => null,
 }))
 
 vi.mock('#/paraglide/messages', () => ({
@@ -41,6 +49,7 @@ vi.mock('#/paraglide/messages', () => ({
     button_hide_password: () => 'Hide password',
     button_show_password: () => 'Show password',
     button_back_to_home: () => 'Back to homepage',
+    button_request_new_reset_link: () => 'Request new link',
     nav_logo: () => 'Eurtisan',
   },
 }))
@@ -59,6 +68,16 @@ describe('ResetPassword', () => {
   beforeEach(() => {
     mockResetPassword.mockReset()
     mockNavigate.mockReset()
+    mockSearch = { token: 'valid-token', redirect: undefined }
+  })
+
+  it('renders the missing-token error with a request-new-link CTA', () => {
+    mockSearch = { token: undefined, redirect: undefined }
+
+    render(<ResetPassword />)
+
+    expect(screen.getByRole('alert').textContent).toContain('Invalid or expired reset token')
+    expect(screen.getByRole('link', { name: 'Request new link' })).toBeDefined()
   })
 
   it('renders the reset-password form when a token is present', () => {

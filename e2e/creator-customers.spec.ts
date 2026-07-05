@@ -9,7 +9,9 @@ function hashEmail(email: string): string {
 test.describe('creator customers CRM', () => {
   test.use({ storageState: 'e2e/.auth/creator.json' })
 
-  test('creator can view customers directory, inspect customer detail, add tag, and add note', async ({ page }) => {
+  test('creator can view customers directory, inspect customer detail, add tag, and add note', async ({
+    page,
+  }) => {
     const shop = await getCreatorShop()
     const customerSeed = `crm-${Date.now()}`
     await createPaidOrder(customerSeed)

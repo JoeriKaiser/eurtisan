@@ -2,10 +2,10 @@ import { Link, useLoaderData, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
+import { formatDateLong } from '#/lib/format-date'
 import { statusBadgeVariant } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
-import { formatDateLong } from '#/lib/format-date'
 
 const PAGE_SIZE = 10
 
@@ -57,7 +57,7 @@ export function AccountOrders() {
                     </p>
                     <p className='text-sm text-text-secondary'>
                       {formatDate(order.createdAt)} ·{' '}
-                      {m.orders_shop_count({ count: String(order.shopCount) })}
+                      {m.orders_shop_count({ count: order.shopCount })}
                     </p>
                   </div>
                   <div className='flex items-center gap-3 sm:text-right'>

@@ -10,7 +10,9 @@ test.beforeAll(async () => {
 test.use({ storageState: 'e2e/.auth/customer.json' })
 
 test.describe('Customer-initiated dispute', () => {
-  test('opens a dispute from the order detail and lands on the dispute thread', async ({ page }) => {
+  test('opens a dispute from the order detail and lands on the dispute thread', async ({
+    page,
+  }) => {
     await page.goto(`/orders/${order.platformOrderId}`)
     await page.waitForSelector('html[data-hydrated="true"]')
 

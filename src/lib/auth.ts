@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { drizzleAdapter } from '@better-auth/drizzle-adapter'
 import { getRequestProtocol } from '@tanstack/react-start/server'
 import type { BetterAuthOptions, DBAdapter, Where } from 'better-auth'
-import { betterAuth } from 'better-auth'
+import { APIError, betterAuth } from 'better-auth'
 import { twoFactor } from 'better-auth/plugins'
 import { tanstackStartCookies } from 'better-auth/tanstack-start'
 
@@ -326,7 +326,10 @@ export const betterAuthOptions = {
             .where(eq(user.id, session.userId))
             .limit(1)
           if (rows[0]?.deletedAt) {
-            throw new Error('Account has been deleted.')
+            throw APIError.from('UNAUTHORIZED', {
+              code: 'ACCOUNT_DELETED',
+              message: 'This account has been deactivated.',
+            })
           }
           return true
         },

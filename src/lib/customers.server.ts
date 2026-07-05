@@ -301,7 +301,7 @@ export async function addCustomerNote(
   customerEmailHash: string,
   content: string,
   actor: AuditActor,
-) {
+): Promise<CustomerNoteDetail> {
   const detail = await getShopCustomerDetail(shopId, customerEmailHash)
   if (!detail) {
     throw new Error('NOT_FOUND')
@@ -326,10 +326,20 @@ export async function addCustomerNote(
     metadata: { shopId, customerEmailHash },
   })
 
-  return note
+  return {
+    id: note.id,
+    content: note.content,
+    createdByName: actor.name ?? 'Unknown',
+    createdAt: note.createdAt,
+    updatedAt: note.updatedAt,
+  }
 }
 
-export async function updateCustomerNote(noteId: string, content: string, actor: AuditActor) {
+export async function updateCustomerNote(
+  noteId: string,
+  content: string,
+  actor: AuditActor,
+): Promise<CustomerNoteDetail> {
   const existing = await db
     .select({
       id: customerNote.id,
@@ -344,11 +354,18 @@ export async function updateCustomerNote(noteId: string, content: string, actor:
     throw new Error('NOT_FOUND')
   }
 
-  const [note] = await db
+  const [updated] = await db
     .update(customerNote)
     .set({ content: content.trim(), updatedAt: new Date() })
     .where(eq(customerNote.id, noteId))
     .returning()
+
+  const [row] = await db
+    .select({ name: user.name })
+    .from(customerNote)
+    .innerJoin(user, eq(customerNote.createdBy, user.id))
+    .where(eq(customerNote.id, noteId))
+    .limit(1)
 
   await writeAuditLog({
     actor,
@@ -358,7 +375,13 @@ export async function updateCustomerNote(noteId: string, content: string, actor:
     metadata: { shopId: existing[0].shopId, customerEmailHash: existing[0].customerEmailHash },
   })
 
-  return note
+  return {
+    id: updated.id,
+    content: updated.content,
+    createdByName: row?.name ?? 'Unknown',
+    createdAt: updated.createdAt,
+    updatedAt: updated.updatedAt,
+  }
 }
 
 export async function deleteCustomerNote(noteId: string, actor: AuditActor) {

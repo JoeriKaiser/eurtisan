@@ -23,6 +23,8 @@ import {
   DialogTitle,
 } from '#/components/ui/primitives/dialog'
 import { openDispute } from '#/lib/disputes'
+import { getLocalizedErrorMessage } from '#/lib/error-mapping'
+import { formatDateLong } from '#/lib/format-date'
 import type { OrderDetail, OrderShopGroup, OrderStatus } from '#/lib/orders.server'
 import { getOrderStatusLabel, statusBadgeVariant } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
@@ -30,8 +32,6 @@ import { createReview } from '#/lib/reviews'
 import type { ReviewableItem } from '#/lib/reviews.server'
 import { getCarrierTrackingUrl } from '#/lib/shipping'
 import { m } from '#/paraglide/messages'
-import { getLocalizedErrorMessage } from '#/lib/error-mapping'
-import { formatDateLong } from '#/lib/format-date'
 
 function formatDate(date: Date): string {
   return formatDateLong(new Date(date))
@@ -267,6 +267,12 @@ export default function BuyerOrderDetailPage({
                   {m.order_detail_cancellation_reason({ reason: order.cancellationReason })}
                 </p>
               )}
+              <a
+                href={`mailto:support@eurtisan.eu?subject=Payment issue for order ${order.orderNumber}`}
+                className='mt-3 inline-flex items-center gap-1 text-sm font-medium text-error underline-offset-2 hover:underline'
+              >
+                {m.order_detail_contact_support()}
+              </a>
             </div>
           )}
 
@@ -320,7 +326,9 @@ export default function BuyerOrderDetailPage({
                 </div>
 
                 {/* Progress indicator for non-terminal statuses */}
-                {!['cancelled', 'refunded', 'disputed'].includes(shop.status) && (
+                {!['cancelled', 'refunded', 'disputed', 'delivered', 'completed'].includes(
+                  shop.status,
+                ) && (
                   <div className='space-y-1'>
                     <progress
                       className='block h-2 w-full overflow-hidden rounded-full bg-surface-inset accent-accent-primary [&::-webkit-progress-bar]:bg-surface-inset [&::-webkit-progress-value]:bg-accent-primary [&::-moz-progress-bar]:bg-accent-primary'
@@ -432,7 +440,14 @@ export default function BuyerOrderDetailPage({
                     </div>
                   </div>
                 ) : (
-                  !['cancelled', 'refunded', 'pending_payment', 'paid'].includes(shop.status) && (
+                  ![
+                    'cancelled',
+                    'refunded',
+                    'pending_payment',
+                    'paid',
+                    'delivered',
+                    'completed',
+                  ].includes(shop.status) && (
                     <div className='rounded-lg border border-border-default bg-surface-inset p-3'>
                       <p className='text-xs text-text-muted'>{m.order_detail_not_yet_shipped()}</p>
                     </div>

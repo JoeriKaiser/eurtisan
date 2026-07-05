@@ -8,7 +8,9 @@ test.describe('Homepage', () => {
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
     // Categories, products, and shops sections should be present.
-    await expect(page.locator('section[aria-labelledby="categories-heading"] a').first()).toBeVisible()
+    await expect(
+      page.locator('section[aria-labelledby="categories-heading"] a').first(),
+    ).toBeVisible()
     await expect(page.getByLabel(/^Product:/).first()).toBeVisible()
     await expect(page.locator('section[aria-labelledby="shops-heading"] a').first()).toBeVisible()
 

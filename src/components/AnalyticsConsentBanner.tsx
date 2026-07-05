@@ -2,9 +2,19 @@ import { useAnalyticsConsent } from '#/hooks/use-analytics-consent'
 import { Button } from '#/components/ui/button'
 import { Link } from '@tanstack/react-router'
 import { m } from '#/paraglide/messages'
+import { cn } from '#/lib/cn'
 import { useEffect, useState } from 'react'
 
-export function AnalyticsConsentBanner() {
+interface AnalyticsConsentBannerProps {
+  /**
+   * Layout mode. `fixed` keeps the banner anchored to the viewport bottom-right
+   * for non-auth pages. `relative` renders it as a block so auth shells can place
+   * it inside their card layout without overlapping CTAs.
+   */
+  position?: 'fixed' | 'relative'
+}
+
+export function AnalyticsConsentBanner({ position = 'fixed' }: AnalyticsConsentBannerProps) {
   const { consent, setConsent, isRequired } = useAnalyticsConsent()
   const [mounted, setMounted] = useState(false)
 
@@ -23,7 +33,12 @@ export function AnalyticsConsentBanner() {
       role='dialog'
       aria-live='polite'
       aria-label={m.analytics_consent_title()}
-      className='fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-md z-toast border border-border-subtle bg-bg-elevated p-5 rounded-xl shadow-xl'
+      className={cn(
+        'z-toast border border-border-subtle bg-bg-elevated p-5 rounded-xl shadow-xl',
+        position === 'fixed'
+          ? 'fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:max-w-md'
+          : 'relative w-full mt-6',
+      )}
     >
       <div className='flex flex-col gap-4'>
         <p className='text-sm text-text-secondary leading-relaxed'>

@@ -21,12 +21,6 @@ async function fillShippingAddress(page: Page) {
   await page.getByLabel(/country/i).selectOption('FR')
 }
 
-/**
- * Caveat: the checkout order-summary shipping line does not react to shipping-method
- * selection in the UI. This spec therefore asserts the selection controls only, not the
- * summary line. See the coverage plan for the open product bug.
- */
-
 test.use({ storageState: 'e2e/.auth/customer.json' })
 
 test.describe('Checkout shipping method selection', () => {
@@ -49,10 +43,17 @@ test.describe('Checkout shipping method selection', () => {
     // Default selection is Standard.
     await expect(standardRadio).toBeChecked()
 
+    // The order summary should initially reflect the Standard selection.
+    const summary = page.locator('section:has(h2:has-text("Order summary"))')
+    await expect(summary).toContainText(/sendcloud standard/i)
+
     // Select Express and assert it becomes the active selection.
     await expressRadio.check()
     await expect(expressRadio).toBeChecked()
     await expect(standardRadio).not.toBeChecked()
     await expect(page.getByRole('radio', { name: /sendcloud express/i })).toBeChecked()
+
+    // The order summary should update to reflect the Express selection and price.
+    await expect(summary).toContainText(/sendcloud express/i)
   })
 })

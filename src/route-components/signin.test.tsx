@@ -44,6 +44,10 @@ vi.mock('#/paraglide/messages', () => ({
     error_passwords_do_not_match: () => 'Passwords do not match',
     error_sign_up_failed: () => 'Sign up failed',
     error_sign_in_failed: () => 'Sign in failed',
+    error_sign_in_account_deleted: () =>
+      'This account has been deactivated. Contact support@eurtisan.eu to recover your account.',
+    two_factor_title: () => 'Two-factor authentication',
+    two_factor_description: () => 'Enter the 6-digit code from your authenticator app.',
     two_factor_code_label: () => 'Authenticator code',
     two_factor_button_verify: () => 'Verify and sign in',
     two_factor_back_to_sign_in: () => 'Back to sign in',
@@ -64,6 +68,10 @@ vi.mock('#/paraglide/messages', () => ({
 
 vi.mock('#/components/auth/PasswordStrengthIndicator', () => ({
   PasswordStrengthIndicator: () => <div data-testid='password-strength' />,
+}))
+
+vi.mock('#/components/AnalyticsConsentBanner', () => ({
+  AnalyticsConsentBanner: () => null,
 }))
 
 const mockSignInEmail = vi.fn()
@@ -125,7 +133,7 @@ describe('SignIn', () => {
     expect(mockSignUpEmail).not.toHaveBeenCalled()
   })
 
-  it('renders the error banner above the submit button to avoid layout shift', async () => {
+  it('renders the error banner below the submit button to avoid layout shift', async () => {
     mockSignInEmail.mockResolvedValue({ error: { message: 'Invalid credentials' }, data: null })
 
     render(<SignIn />)
@@ -140,13 +148,30 @@ describe('SignIn', () => {
 
     const form = screen.getByRole('button', { name: 'Sign in' }).closest('form')
     const children = Array.from(form?.children ?? [])
-    const bannerContainerIndex = children.findIndex((child) => child.className.includes('min-h-12'))
+    const bannerContainerIndex = children.findIndex((child) => child.className.includes('mt-3'))
     const submitIndex = children.findIndex(
       (child) => child.tagName === 'BUTTON' && child.getAttribute('type') === 'submit',
     )
     expect(bannerContainerIndex).toBeGreaterThan(-1)
     expect(submitIndex).toBeGreaterThan(-1)
-    expect(bannerContainerIndex).toBeLessThan(submitIndex)
+    expect(bannerContainerIndex).toBeGreaterThan(submitIndex)
+  })
+
+  it('shows a helpful message when signing in to a deactivated account', async () => {
+    mockSignInEmail.mockResolvedValue({
+      error: { code: 'ACCOUNT_DELETED', message: 'This account has been deactivated.' },
+      data: null,
+    })
+
+    render(<SignIn />)
+
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'test@example.com' } })
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('This account has been deactivated')
+    })
   })
 
   it('navigates home after a successful sign-in', async () => {
@@ -176,6 +201,7 @@ describe('SignIn', () => {
       expect(screen.getByLabelText('Authenticator code')).toBeDefined()
     })
 
+    expect(screen.getByRole('heading', { name: 'Two-factor authentication' })).toBeDefined()
     expect(screen.getByRole('status').textContent).toContain(
       'Enter the 6-digit code from your authenticator app.',
     )

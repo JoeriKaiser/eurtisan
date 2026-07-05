@@ -1,7 +1,12 @@
 import { test, expect } from '@playwright/test'
 import { deleteCustomerByEmail } from '../fixtures/customers'
 import { dismissAnalyticsConsentBanner } from '../fixtures/consent'
-import { clearInboxFor, extractVerificationToken, getLatestEmail, isMailpitAvailable } from '../fixtures/email'
+import {
+  clearInboxFor,
+  extractVerificationToken,
+  getLatestEmail,
+  isMailpitAvailable,
+} from '../fixtures/email'
 
 test.use({ storageState: { cookies: [], origins: [] } })
 

@@ -28,7 +28,8 @@ vi.mock('#/paraglide/messages', () => ({
     orders_error: () => 'Failed to load orders. Please try again.',
     orders_order_id: () => 'Order',
     orders_order_number: () => 'Order number',
-    orders_shop_count: ({ count }: { count: string }) => `${count} shops`,
+    orders_shop_count: ({ count }: { count: number }) =>
+      `${count} ${count === 1 ? 'shop' : 'shops'}`,
     pagination_page_of: ({ page, totalPages }: { page: string; totalPages: string }) =>
       `Page ${page} of ${totalPages}`,
     pagination_previous: () => 'Previous',
@@ -44,6 +45,7 @@ vi.mock('#/paraglide/messages', () => ({
     order_detail_cancelled: () => 'Cancelled',
     order_detail_cancelled_at: ({ date }: { date: string }) => `Cancelled on ${date}`,
     order_detail_cancellation_reason: ({ reason }: { reason: string }) => `Reason: ${reason}`,
+    order_detail_contact_support: () => 'Contact support',
     order_detail_review: () => 'Write a review',
     order_detail_review_disabled: ({ date }: { date: string }) => `Review available from ${date}`,
     order_detail_review_disabled_tooltip: ({ days }: { days: string }) => `${days} days remaining`,
@@ -240,6 +242,33 @@ describe('Orders list page', () => {
     expect(screen.getByText('Shop A: paid')).toBeDefined()
     expect(screen.getByText('Shop B: shipped')).toBeDefined()
   })
+
+  it('pluralizes the shop count label', () => {
+    render(
+      <OrdersPage
+        orders={[makeOrderListItem({ shopCount: 1 })]}
+        total={1}
+        page={1}
+        totalPages={1}
+        onPageChange={() => {}}
+        isNavigating={false}
+      />,
+    )
+    expect(screen.getByText(/1 shop/)).toBeDefined()
+    expect(screen.queryByText(/1 shops/)).toBeNull()
+
+    render(
+      <OrdersPage
+        orders={[makeOrderListItem({ shopCount: 2 })]}
+        total={1}
+        page={1}
+        totalPages={1}
+        onPageChange={() => {}}
+        isNavigating={false}
+      />,
+    )
+    expect(screen.getByText(/2 shops/)).toBeDefined()
+  })
 })
 
 describe('Order detail page', () => {
@@ -401,6 +430,49 @@ describe('Order detail page', () => {
       ],
     })
     render(<BuyerOrderDetailPage order={order} />)
+    expect(screen.getAllByText('Delivered').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('does not show progress or not-yet-shipped for delivered orders without labels', () => {
+    const order = makeOrderDetail({
+      status: 'delivered',
+      shops: [
+        {
+          shopOrderId: 'so-1',
+          shopId: 'shop-1',
+          shopName: 'Test Shop',
+          shippingMethod: 'standard',
+          shippingRateId: null,
+          shippingCostCents: 500,
+          subtotalCents: 2000,
+          vatAmountCents: 0,
+          shippingVatRateBasisPoints: 0,
+          shippingVatAmountCents: 0,
+          status: 'delivered',
+          trackingNumber: null,
+          trackingUrl: null,
+          deliveredAt: new Date('2026-05-10T12:00:00Z'),
+          shippingLabels: [],
+          trackingStatus: null,
+          invoiceNumber: null,
+          items: [
+            {
+              id: 'item-1',
+              productId: 'prod-1',
+              productName: 'Vase',
+              unitPriceCents: 1000,
+              quantity: 2,
+              totalCents: 2000,
+              vatRateBasisPoints: 0,
+              vatAmountCents: 0,
+            },
+          ],
+        },
+      ],
+    })
+    render(<BuyerOrderDetailPage order={order} />)
+    expect(screen.queryByRole('progressbar')).toBeNull()
+    expect(screen.queryByText('Not yet shipped')).toBeNull()
     expect(screen.getAllByText('Delivered').length).toBeGreaterThanOrEqual(1)
   })
 

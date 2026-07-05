@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { addFirstProductToCart, emptyCart } from '../fixtures/cart'
 import { getCreatorShop, getTestProduct, setProductStock } from '../fixtures/orders'
 
@@ -20,7 +20,10 @@ test.describe('Cart', () => {
 
     // Remove item.
     await page.getByRole('button', { name: /^remove$/i }).click()
-    await page.getByRole('button', { name: /^remove$/i }).last().click()
+    await page
+      .getByRole('button', { name: /^remove$/i })
+      .last()
+      .click()
 
     await expect(page.getByText(/your cart is empty/i)).toBeVisible()
     await expect(page.getByRole('link', { name: /browse products/i })).toBeVisible()
@@ -50,6 +53,7 @@ test.describe('Cart', () => {
     await increaseButton.click()
 
     await expect(increaseButton).toBeDisabled()
+    await expect(page.getByText('Maximum available stock reached')).toBeVisible()
 
     // Restore generous stock for other specs.
     await setProductStock(product.id, 999)

@@ -54,18 +54,27 @@ function getDisputeAge(createdAt: Date | string): string {
 export function AdminDisputeDetailPage() {
   const { dispute } = useLoaderData({ from: '/admin/disputes/$disputeId' })
   const router = useRouter()
-  const [justResolved, setJustResolved] = useState(false)
+  const [resolvedData, setResolvedData] = useState<{
+    resolution: string
+    refundCents: number | null
+  } | null>(null)
 
-  const isResolved = dispute.status === 'resolved' || justResolved
+  const isResolved = dispute.status === 'resolved' || resolvedData !== null
 
-  const handleResolved = useCallback(() => {
-    setJustResolved(true)
-    router.invalidate()
-  }, [router])
+  const handleResolved = useCallback(
+    (resolution: 'close' | 'partial_refund' | 'full_refund', refundCents: number | null) => {
+      setResolvedData({ resolution, refundCents })
+      router.invalidate()
+    },
+    [router],
+  )
 
   const handleMessageSent = useCallback(() => {
     router.invalidate()
   }, [router])
+
+  const decision = resolvedData?.resolution ?? dispute.resolution ?? ''
+  const displayRefundCents = resolvedData?.refundCents ?? dispute.refundCents
 
   return (
     <div className='py-8'>
@@ -241,13 +250,12 @@ export function AdminDisputeDetailPage() {
               <CardContent>
                 <div className='space-y-2'>
                   <p className='text-sm text-text-primary'>
-                    <span className='font-medium'>Decision:</span>{' '}
-                    {getResolutionLabel(dispute.resolution ?? '')}
+                    <span className='font-medium'>Decision:</span> {getResolutionLabel(decision)}
                   </p>
-                  {dispute.refundCents != null && dispute.refundCents > 0 && (
+                  {displayRefundCents != null && displayRefundCents > 0 && (
                     <p className='text-sm text-text-primary'>
                       <span className='font-medium'>Refund:</span>{' '}
-                      {formatPriceEUR(dispute.refundCents)}
+                      {formatPriceEUR(displayRefundCents)}
                     </p>
                   )}
                 </div>

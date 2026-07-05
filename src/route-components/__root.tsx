@@ -13,9 +13,20 @@ const Devtools = import.meta.env.DEV
   ? lazy(() => import('../components/Devtools').then((m) => ({ default: m.Devtools })))
   : null
 
+const AUTH_ROUTES = new Set(['/signin', '/forgot-password', '/reset-password', '/verify-email'])
+
+function normalizeAuthRoute(pathname: string): string {
+  // Strip an optional locale prefix (e.g. /nl/signin) so the fixed banner is
+  // also suppressed on localized auth pages.
+  const withoutLocale = pathname.replace(/^\/(en|nl)(?=\/|$)/, '')
+  return withoutLocale === '' ? '/' : withoutLocale
+}
+
 export function RootComponent() {
   const router = useRouter()
-  const isOnboarding = router.state.location.pathname.includes('/sell/onboarding/')
+  const pathname = router.state.location.pathname
+  const isOnboarding = pathname.includes('/sell/onboarding/')
+  const isAuthRoute = AUTH_ROUTES.has(normalizeAuthRoute(pathname))
 
   const { consent } = useAnalyticsConsent()
 
@@ -72,7 +83,7 @@ export function RootComponent() {
           <Outlet />
         </main>
         {!isOnboarding && <Footer />}
-        <AnalyticsConsentBanner />
+        {!isAuthRoute && <AnalyticsConsentBanner />}
         {Devtools && (
           <Suspense fallback={null}>
             <Devtools />

@@ -16,7 +16,10 @@ test.describe('Unsubscribe', () => {
 
     process.env.DATABASE_URL =
       process.env.E2E_DATABASE_URL ?? 'postgresql://eurtisan:eurtisan@db-test:5432/eurtisan_test'
-    await db.update(schema.user).set({ unsubscribeToken: token }).where(eq(schema.user.id, customer.id))
+    await db
+      .update(schema.user)
+      .set({ unsubscribeToken: token })
+      .where(eq(schema.user.id, customer.id))
   })
 
   test.afterAll(async () => {

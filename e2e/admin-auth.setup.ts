@@ -1,5 +1,5 @@
 import { existsSync, statSync } from 'node:fs'
-import { E2E_ADMIN } from './fixtures/auth'
+import { E2E_ADMIN, loadAuthCookies } from './fixtures/auth'
 import { dismissAnalyticsConsentBanner } from './fixtures/consent'
 import { test as setup, expect } from '@playwright/test'
 
@@ -16,51 +16,55 @@ function isAuthFileFresh(path: string, maxAgeMs = 60 * 60 * 1000): boolean {
 }
 
 setup('authenticate as admin', async ({ page }) => {
-  if (isAuthFileFresh(authFile)) {
-    setup.skip()
-    return
-  }
-
   // Listen for console logs and errors from the browser page
   page.on('console', (msg) => console.log('PAGE LOG:', msg.text()))
   page.on('pageerror', (err) => console.log('PAGE ERROR:', err.message))
 
-  const signInUrl = `${baseURL}/api/auth/sign-in/email`
-  console.log('Sending sign-in request to:', signInUrl)
-  const response = await fetch(signInUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      email: E2E_ADMIN.email,
-      password: E2E_ADMIN.password,
-    }),
-  })
+  let cookies = isAuthFileFresh(authFile) ? loadAuthCookies(authFile) : []
 
-  console.log('Sign-in Response status:', response.status)
-  const responseBodyText = await response.text()
-  console.log('Sign-in Response body:', responseBodyText)
+  // Re-authenticate through the API only when there is no fresh stored session.
+  // When fresh state exists we reuse it so the post-auth landing page is still
+  // rendered and the test-finished screenshot is not a blank page.
+  if (cookies.length === 0) {
+    const signInUrl = `${baseURL}/api/auth/sign-in/email`
+    console.log('Sending sign-in request to:', signInUrl)
+    const response = await fetch(signInUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: E2E_ADMIN.email,
+        password: E2E_ADMIN.password,
+      }),
+    })
 
-  expect(response.ok).toBeTruthy()
+    console.log('Sign-in Response status:', response.status)
+    const responseBodyText = await response.text()
+    console.log('Sign-in Response body:', responseBodyText)
 
-  const setCookie = response.headers.get('set-cookie')
-  console.log('Sign-in Set-Cookie header:', setCookie)
-  if (!setCookie) throw new Error('No set-cookie header returned from admin sign-in')
+    expect(response.ok).toBeTruthy()
 
-  const sessionCookie = setCookie.split(';')[0]
-  const [cookieName, cookieValue] = sessionCookie.split('=')
-  console.log(`Setting cookie: ${cookieName} = ${cookieValue}`)
+    const setCookie = response.headers.get('set-cookie')
+    console.log('Sign-in Set-Cookie header:', setCookie)
+    if (!setCookie) throw new Error('No set-cookie header returned from admin sign-in')
 
-  await page.context().addCookies([
-    {
-      name: cookieName,
-      value: cookieValue,
-      domain: 'localhost',
-      path: '/',
-      httpOnly: true,
-      sameSite: 'Lax',
-      expires: Math.floor(Date.now() / 1000) + 3600 * 24 * 365,
-    },
-  ])
+    const sessionCookie = setCookie.split(';')[0]
+    const [cookieName, cookieValue] = sessionCookie.split('=')
+    console.log(`Setting cookie: ${cookieName} = ${cookieValue}`)
+
+    cookies = [
+      {
+        name: cookieName,
+        value: cookieValue,
+        domain: 'localhost',
+        path: '/',
+        httpOnly: true,
+        sameSite: 'Lax',
+        expires: Math.floor(Date.now() / 1000) + 3600 * 24 * 365,
+      },
+    ]
+  }
+
+  await page.context().addCookies(cookies)
 
   await page.goto('/admin')
   console.log('Navigated to /admin. Current URL:', page.url())

@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
+import { AnalyticsConsentBanner } from '#/components/AnalyticsConsentBanner'
 import { m } from '#/paraglide/messages'
 import Logo from '../Logo'
 
@@ -38,6 +39,10 @@ export function AuthShell({ title, description, children }: Props) {
 
           {children}
         </div>
+
+        {/* Analytics consent rendered inline on auth pages so it never obscures
+            social-login or form CTAs. */}
+        <AnalyticsConsentBanner position='relative' />
       </div>
     </main>
   )

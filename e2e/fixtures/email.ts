@@ -52,9 +52,15 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase()
 }
 
-function messageMatches(message: MailpitMessageSummary, to: string, subjectContains: string | RegExp): boolean {
+function messageMatches(
+  message: MailpitMessageSummary,
+  to: string,
+  subjectContains: string | RegExp,
+): boolean {
   const normalizedTo = normalizeEmail(to)
-  const recipientMatch = message.To.some((recipient) => normalizeEmail(recipient.Address) === normalizedTo)
+  const recipientMatch = message.To.some(
+    (recipient) => normalizeEmail(recipient.Address) === normalizedTo,
+  )
   const subjectMatch =
     typeof subjectContains === 'string'
       ? message.Subject.toLowerCase().includes(subjectContains.toLowerCase())
@@ -66,7 +72,10 @@ function messageMatches(message: MailpitMessageSummary, to: string, subjectConta
  * Fetch the most recent email sent to `to` whose subject contains `subjectContains`.
  * Throws if no matching message is found.
  */
-export async function getLatestEmail(to: string, subjectContains: string | RegExp): Promise<MailpitMessage> {
+export async function getLatestEmail(
+  to: string,
+  subjectContains: string | RegExp,
+): Promise<MailpitMessage> {
   const messages = await listMessages()
   const match = messages.find((message) => messageMatches(message, to, subjectContains))
   if (!match) {
@@ -103,7 +112,9 @@ export async function clearInboxFor(to: string): Promise<void> {
   const messages = await listMessages()
   const normalizedTo = normalizeEmail(to)
   const ids = messages
-    .filter((message) => message.To.some((recipient) => normalizeEmail(recipient.Address) === normalizedTo))
+    .filter((message) =>
+      message.To.some((recipient) => normalizeEmail(recipient.Address) === normalizedTo),
+    )
     .map((message) => message.ID)
 
   if (ids.length === 0) return

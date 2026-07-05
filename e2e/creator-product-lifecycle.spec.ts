@@ -29,7 +29,9 @@ test.describe('creator product lifecycle', () => {
     await expect(page.getByRole('heading', { name: 'New Product' })).toBeVisible()
 
     await page.fill('#product-name', productName)
-    await expect(page.locator('#product-slug')).toHaveValue(productName.toLowerCase().replace(/[^a-z0-9]+/g, '-'))
+    await expect(page.locator('#product-slug')).toHaveValue(
+      productName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    )
 
     await page.fill('#product-price', '29.99')
     await page.fill('#product-stock', '12')

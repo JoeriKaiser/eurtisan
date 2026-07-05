@@ -1,11 +1,16 @@
 // @vitest-environment jsdom
 
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import OrderSuccessPage from './OrderSuccessPage'
 
 vi.mock('@tanstack/react-router', () => ({
-  Link: (props: { children: React.ReactNode; to: string; className?: string }) => (
+  Link: (props: {
+    children: React.ReactNode
+    to: string
+    className?: string
+    params?: Record<string, string>
+  }) => (
     <a href={props.to} className={props.className}>
       {props.children}
     </a>
@@ -20,6 +25,12 @@ vi.mock('#/paraglide/messages', () => ({
     order_pending_description: () => "We're waiting for your payment to be confirmed.",
     order_failed_title: () => 'Payment failed',
     order_failed_description: () => 'Your payment could not be processed.',
+    order_failed_retry_payment: () => 'Retry payment',
+    order_failed_contact_support: () => 'Contact support',
+    order_failed_view_order: () => 'View order details',
+    order_pending_retry_payment: () => 'Retry payment',
+    checkout_missing_url: () => 'Checkout URL is missing. Please try again.',
+    checkout_error_submit: () => 'Could not complete checkout. Please try again.',
     order_success_order_id: () => 'Order ID',
     order_success_order_number: () => 'Order number',
     order_success_items: () => 'Ordered items',
@@ -180,6 +191,57 @@ describe('OrderSuccessPage', () => {
       render(<OrderSuccessPage order={makeOrder('pending_payment')} />)
       expect(screen.getByRole('link', { name: 'Continue shopping' })).toBeDefined()
     })
+
+    it('renders retry payment button when handler is provided', () => {
+      render(
+        <OrderSuccessPage
+          order={makeOrder('pending_payment')}
+          onRetryPayment={vi.fn().mockResolvedValue({ checkoutUrl: 'https://checkout.test' })}
+        />,
+      )
+      expect(screen.getByRole('button', { name: 'Retry payment' })).toBeDefined()
+    })
+
+    it('redirects to checkout URL when retry payment succeeds', async () => {
+      const savedLocation = window.location
+      delete (window as { location?: unknown }).location
+      window.location = { ...savedLocation, href: '' } as Location & string
+
+      const checkoutUrl = 'https://checkout.mollie.com/pay/retry_001'
+      const onRetryPayment = vi.fn().mockResolvedValue({ checkoutUrl })
+
+      render(
+        <OrderSuccessPage order={makeOrder('pending_payment')} onRetryPayment={onRetryPayment} />,
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: 'Retry payment' }))
+
+      await waitFor(() => {
+        expect(onRetryPayment).toHaveBeenCalledTimes(1)
+        expect(window.location.href).toBe(checkoutUrl)
+      })
+
+      window.location = savedLocation as Location & string
+    })
+
+    it('displays error when retry payment fails', async () => {
+      const onRetryPayment = vi
+        .fn()
+        .mockRejectedValue(
+          new Response(JSON.stringify({ message: 'Payment provider error' }), { status: 503 }),
+        )
+
+      render(
+        <OrderSuccessPage order={makeOrder('pending_payment')} onRetryPayment={onRetryPayment} />,
+      )
+
+      fireEvent.click(screen.getByRole('button', { name: 'Retry payment' }))
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeDefined()
+        expect(screen.getByText('Payment provider error')).toBeDefined()
+      })
+    })
   })
 
   describe('cancelled state', () => {
@@ -199,6 +261,12 @@ describe('OrderSuccessPage', () => {
     it('renders continue shopping button when cancelled', () => {
       render(<OrderSuccessPage order={makeOrder('cancelled')} />)
       expect(screen.getByRole('link', { name: 'Continue shopping' })).toBeDefined()
+    })
+
+    it('renders contact support and view order buttons when cancelled', () => {
+      render(<OrderSuccessPage order={makeOrder('cancelled')} />)
+      expect(screen.getByRole('link', { name: 'Contact support' })).toBeDefined()
+      expect(screen.getByRole('link', { name: 'View order details' })).toBeDefined()
     })
   })
 })

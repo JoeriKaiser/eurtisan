@@ -14,6 +14,8 @@ const productsSearchSchema = z.object({
   status: z.enum(['active', 'inactive']).optional(),
   minPrice: z.coerce.number().int().min(0).optional(),
   maxPrice: z.coerce.number().int().min(0).optional(),
+  sortBy: z.enum(['name', 'price', 'stock', 'status']).optional(),
+  sortDirection: z.enum(['asc', 'desc']).optional().default('desc'),
   page: z.coerce.number().int().min(1).optional().default(1),
   pageSize: z.coerce.number().int().min(1).optional().default(20),
 })
@@ -21,7 +23,18 @@ const productsSearchSchema = z.object({
 export const Route = createFileRoute('/admin/products')({
   validateSearch: productsSearchSchema,
   loaderDeps: ({
-    search: { query, shopId, categoryId, status, minPrice, maxPrice, page, pageSize },
+    search: {
+      query,
+      shopId,
+      categoryId,
+      status,
+      minPrice,
+      maxPrice,
+      sortBy,
+      sortDirection,
+      page,
+      pageSize,
+    },
   }) => ({
     query,
     shopId,
@@ -29,6 +42,8 @@ export const Route = createFileRoute('/admin/products')({
     status,
     minPrice,
     maxPrice,
+    sortBy,
+    sortDirection,
     page,
     pageSize,
   }),
@@ -42,6 +57,8 @@ export const Route = createFileRoute('/admin/products')({
           status: deps.status,
           minPriceCents: deps.minPrice ? deps.minPrice * 100 : undefined,
           maxPriceCents: deps.maxPrice ? deps.maxPrice * 100 : undefined,
+          sortBy: deps.sortBy,
+          sortDirection: deps.sortDirection,
           page: deps.page,
           pageSize: deps.pageSize,
         },

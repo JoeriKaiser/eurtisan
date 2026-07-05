@@ -27,7 +27,12 @@ function base32Decode(input: string): Buffer {
   return Buffer.from(bytes)
 }
 
-function parseOtpauthUri(uri: string): { secret: string; algorithm: string; digits: number; period: number } {
+function parseOtpauthUri(uri: string): {
+  secret: string
+  algorithm: string
+  digits: number
+  period: number
+} {
   const url = new URL(uri)
   if (url.protocol !== 'otpauth:') {
     throw new Error(`Unsupported OTP URI protocol: ${url.protocol}`)

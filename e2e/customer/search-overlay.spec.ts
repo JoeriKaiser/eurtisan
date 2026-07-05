@@ -50,6 +50,8 @@ test.describe('Search overlay', () => {
     await page.goto('/')
     await page.waitForSelector('html[data-hydrated="true"]')
     await page.getByRole('button', { name: /search products/i }).click()
-    await expect(page.getByRole('dialog', { name: 'Search' }).getByText(/eurtisan-recent/i)).toBeVisible()
+    await expect(
+      page.getByRole('dialog', { name: 'Search' }).getByText(/eurtisan-recent/i),
+    ).toBeVisible()
   })
 })

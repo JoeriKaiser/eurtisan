@@ -129,6 +129,7 @@ export interface CreatedDisputeMessage {
   id: string
   disputeId: string
   senderUserId: string
+  senderName: string
   message: string
   createdAt: Date
 }
@@ -376,10 +377,17 @@ export async function addDisputeMessageQuery(
     })
     .returning()
 
+  const [sender] = await db
+    .select({ name: user.name })
+    .from(user)
+    .where(eq(user.id, created.senderUserId))
+    .limit(1)
+
   return {
     id: created.id,
     disputeId: created.disputeId,
     senderUserId: created.senderUserId,
+    senderName: sender?.name ?? 'Unknown',
     message: created.message,
     createdAt: created.createdAt,
   }

@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, ilike, inArray, lte, or } from 'drizzle-orm'
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { categories, meilisearchSyncQueue, product, productImage, shop } from '#/db/schema'
 
@@ -40,10 +40,23 @@ export async function listAllProductsQuery(params: {
   status?: 'active' | 'inactive'
   minPriceCents?: number
   maxPriceCents?: number
+  sortBy?: 'name' | 'price' | 'stock' | 'status'
+  sortDirection?: 'asc' | 'desc'
   page: number
   pageSize: number
 }): Promise<PaginatedProducts> {
-  const { query, shopId, categoryId, status, minPriceCents, maxPriceCents, page, pageSize } = params
+  const {
+    query,
+    shopId,
+    categoryId,
+    status,
+    minPriceCents,
+    maxPriceCents,
+    sortBy,
+    sortDirection,
+    page,
+    pageSize,
+  } = params
   const offset = (page - 1) * pageSize
 
   const conditions = []
@@ -76,6 +89,18 @@ export async function listAllProductsQuery(params: {
 
   const where = conditions.length > 0 ? and(...conditions) : undefined
 
+  const sortColumn =
+    sortBy === 'name'
+      ? product.name
+      : sortBy === 'price'
+        ? product.priceCents
+        : sortBy === 'stock'
+          ? product.stockCount
+          : sortBy === 'status'
+            ? product.isActive
+            : product.createdAt
+  const orderByClause = sortDirection === 'asc' ? asc(sortColumn) : desc(sortColumn)
+
   const [rows, totalResult] = await Promise.all([
     db
       .select({
@@ -96,7 +121,7 @@ export async function listAllProductsQuery(params: {
       .innerJoin(shop, eq(product.shopId, shop.id))
       .leftJoin(categories, eq(product.categoryId, categories.id))
       .where(where)
-      .orderBy(desc(product.createdAt))
+      .orderBy(orderByClause)
       .limit(pageSize)
       .offset(offset),
     db

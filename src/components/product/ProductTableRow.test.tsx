@@ -138,8 +138,7 @@ describe('ProductTableRow', () => {
       </table>,
     )
 
-    const inactiveElements = screen.getAllByText('Inactive')
-    expect(inactiveElements.length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByRole('button', { name: 'Activate Handmade Vase' })).toBeDefined()
   })
 
   it('hides actions when currentShopId is null', () => {

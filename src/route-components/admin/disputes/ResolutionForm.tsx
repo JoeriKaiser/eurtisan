@@ -20,7 +20,10 @@ export function ResolutionForm({
   disputeId: string
   orderTotalCents: number
   orderStatus: string
-  onResolved: () => void
+  onResolved: (
+    resolution: 'close' | 'partial_refund' | 'full_refund',
+    refundCents: number | null,
+  ) => void
 }) {
   const [form, setForm] = useState({
     resolution: 'close' as 'close' | 'partial_refund' | 'full_refund',
@@ -69,14 +72,15 @@ export function ResolutionForm({
       setStatus((prev) => ({ ...prev, isSubmitting: true, error: null }))
 
       try {
+        const refundCentsToSubmit = form.resolution === 'partial_refund' ? refundCents : null
         await resolveDispute({
           data: {
             disputeId,
             resolution: form.resolution,
-            refundCents: form.resolution === 'partial_refund' ? refundCents : null,
+            refundCents: refundCentsToSubmit,
           },
         })
-        onResolved()
+        onResolved(form.resolution, refundCentsToSubmit)
       } catch (err) {
         if (err instanceof Response) {
           try {

@@ -14,6 +14,7 @@ import {
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
+import { Select } from '#/components/ui/select'
 import type { PaginatedProducts } from '#/lib/admin-products'
 import { toggleProductActive } from '#/lib/admin-products'
 import type { CategoryTreeNode } from '#/lib/categories'
@@ -25,6 +26,45 @@ import { getImageUrl } from '#/lib/image-url'
 import { SUPPORTED_CURRENCY } from '#/lib/currency'
 
 const PAGE_SIZES = [10, 20, 50] as const
+const SORTABLE_COLUMNS = ['name', 'price', 'stock', 'status'] as const
+type SortableColumn = (typeof SORTABLE_COLUMNS)[number]
+
+function SortHeader({
+  column,
+  sortBy,
+  sortDirection,
+  onSort,
+  children,
+}: {
+  column: SortableColumn
+  sortBy?: string
+  sortDirection?: 'asc' | 'desc'
+  onSort: (column: SortableColumn) => void
+  children: React.ReactNode
+}) {
+  const sorted = sortBy === column
+  const direction = sortDirection ?? 'desc'
+  return (
+    <button
+      type='button'
+      onClick={() => onSort(column)}
+      className='flex items-center gap-1 font-semibold text-text-secondary hover:text-text-primary transition-colors cursor-pointer'
+      aria-label={`${children}${sorted ? ` (${direction === 'asc' ? 'ascending' : 'descending'})` : ''}`}
+    >
+      {children}
+      {sorted && (
+        <span className='text-text-muted'>
+          {direction === 'asc' ? (
+            <ChevronLeft size={14} className='rotate-90' aria-hidden='true' />
+          ) : (
+            <ChevronLeft size={14} className='-rotate-90' aria-hidden='true' />
+          )}
+        </span>
+      )}
+    </button>
+  )
+}
+
 /* -------------------------------------------------------------------------- */
 
 /* -------------------------------------------------------------------------- */
@@ -95,6 +135,23 @@ export function AdminProductsPage() {
   const handlePageSizeChange = useCallback(
     (pageSize: number) => navigateWithParams({ pageSize, page: 1 }),
     [navigateWithParams],
+  )
+
+  const handleSort = useCallback(
+    (column: SortableColumn) => {
+      const current = search.sortBy
+      const direction = search.sortDirection ?? 'desc'
+      if (current === column) {
+        if (direction === 'asc') {
+          navigateWithParams({ sortBy: undefined, sortDirection: undefined, page: 1 })
+        } else {
+          navigateWithParams({ sortBy: column, sortDirection: 'asc', page: 1 })
+        }
+      } else {
+        navigateWithParams({ sortBy: column, sortDirection: 'desc', page: 1 })
+      }
+    },
+    [navigateWithParams, search.sortBy, search.sortDirection],
   )
 
   const toggleProductSelection = useCallback((productId: string) => {
@@ -290,10 +347,10 @@ export function AdminProductsPage() {
           <span className='text-xs font-medium text-text-muted'>
             {m.admin_products_filter_shop()}
           </span>
-          <select
+          <Select
             value={search.shopId ?? ''}
             onChange={(e) => navigateWithParams({ shopId: e.target.value || undefined, page: 1 })}
-            className='h-9 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
+            className='h-9 sm:w-48'
           >
             <option value=''>{m.admin_products_filter_all_shops()}</option>
             {allShops.map((s) => (
@@ -301,19 +358,19 @@ export function AdminProductsPage() {
                 {s.name}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
 
         <div className='flex flex-col gap-1'>
           <span className='text-xs font-medium text-text-muted'>
             {m.admin_products_filter_category()}
           </span>
-          <select
+          <Select
             value={search.categoryId ?? ''}
             onChange={(e) =>
               navigateWithParams({ categoryId: e.target.value || undefined, page: 1 })
             }
-            className='h-9 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
+            className='h-9 sm:w-56'
           >
             <option value=''>{m.admin_products_filter_all_categories()}</option>
             {allCategories.map((c) => (
@@ -321,22 +378,22 @@ export function AdminProductsPage() {
                 {'\u00A0\u00A0'.repeat(c.depth) + c.name}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
 
         <div className='flex flex-col gap-1'>
           <span className='text-xs font-medium text-text-muted'>
             {m.admin_products_filter_status()}
           </span>
-          <select
+          <Select
             value={search.status ?? ''}
             onChange={(e) => navigateWithParams({ status: e.target.value || undefined, page: 1 })}
-            className='h-9 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none'
+            className='h-9 sm:w-40'
           >
             <option value=''>{m.admin_products_filter_all_statuses()}</option>
             <option value='active'>{m.admin_products_status_active()}</option>
             <option value='inactive'>{m.admin_products_status_inactive()}</option>
-          </select>
+          </Select>
         </div>
 
         <div className='flex flex-col gap-1'>
@@ -431,7 +488,14 @@ export function AdminProductsPage() {
                   />
                 </th>
                 <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
-                  {m.admin_products_col_product()}
+                  <SortHeader
+                    column='name'
+                    sortBy={search.sortBy}
+                    sortDirection={search.sortDirection}
+                    onSort={handleSort}
+                  >
+                    {m.admin_products_col_product()}
+                  </SortHeader>
                 </th>
                 <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
                   {m.admin_products_col_shop()}
@@ -443,16 +507,37 @@ export function AdminProductsPage() {
                   {m.admin_products_col_category()}
                 </th>
                 <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
-                  {m.admin_products_col_price()}
+                  <SortHeader
+                    column='price'
+                    sortBy={search.sortBy}
+                    sortDirection={search.sortDirection}
+                    onSort={handleSort}
+                  >
+                    {m.admin_products_col_price()}
+                  </SortHeader>
                 </th>
                 <th
                   scope='col'
                   className='pb-3 pr-4 font-semibold text-text-secondary hidden md:table-cell'
                 >
-                  {m.admin_products_col_stock()}
+                  <SortHeader
+                    column='stock'
+                    sortBy={search.sortBy}
+                    sortDirection={search.sortDirection}
+                    onSort={handleSort}
+                  >
+                    {m.admin_products_col_stock()}
+                  </SortHeader>
                 </th>
                 <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
-                  {m.admin_products_col_status()}
+                  <SortHeader
+                    column='status'
+                    sortBy={search.sortBy}
+                    sortDirection={search.sortDirection}
+                    onSort={handleSort}
+                  >
+                    {m.admin_products_col_status()}
+                  </SortHeader>
                 </th>
                 <th scope='col' className='pb-3 text-right font-semibold text-text-secondary'>
                   {m.admin_common_actions()}

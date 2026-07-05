@@ -32,7 +32,7 @@ export function ResetPassword() {
               search={{ redirect }}
               className='inline-block w-full rounded-lg bg-accent-primary px-4 py-2.5 text-center text-sm font-semibold text-text-on-primary hover:bg-accent-primary/90 transition-colors'
             >
-              {m.forgot_password_title()}
+              {m.button_request_new_reset_link()}
             </Link>
           </div>
         </div>

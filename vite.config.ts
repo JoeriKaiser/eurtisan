@@ -43,7 +43,10 @@ const config = defineConfig(({ mode }) => ({
       urlPatterns: [
         {
           pattern: '/:path(.*)?',
-          localized: [['en', '/:path(.*)?']],
+          localized: [
+            ['nl', '/nl/:path(.*)?'],
+            ['en', '/:path(.*)?'],
+          ],
         },
       ],
     }),

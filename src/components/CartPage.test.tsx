@@ -38,6 +38,7 @@ vi.mock('#/paraglide/messages', () => ({
     cart_shop_subtotal: () => 'Subtotal',
     cart_item_unavailable: () => 'Unavailable',
     cart_item_stock_warning: (inputs: { count: string }) => `Only ${inputs.count} in stock`,
+    cart_item_stock_limit_reached: () => 'Maximum available stock reached',
     cart_item_remove: () => 'Remove item from cart',
     cart_item_remove_confirm_title: () => 'Remove item',
     cart_item_remove_confirm_description: () =>
@@ -196,6 +197,7 @@ describe('CartPage', () => {
     }
     render(<CartPage cart={cart} />)
     expect(screen.getByLabelText('Increase quantity').hasAttribute('disabled')).toBe(true)
+    expect(screen.getByText('Maximum available stock reached')).toBeDefined()
   })
 
   it('calls updateCartItem when increasing quantity', async () => {

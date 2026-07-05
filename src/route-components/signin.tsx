@@ -37,6 +37,18 @@ const GithubIcon = (props: React.SVGProps<SVGSVGElement>) => (
   </svg>
 )
 
+function getAuthErrorMessage(
+  error: { message?: string; code?: string } | null | undefined,
+): string {
+  if (!error) return m.error_sign_in_failed()
+  if (error.code === 'ACCOUNT_DELETED') return m.error_sign_in_account_deleted()
+  const normalized = (error.message ?? '').trim().toLowerCase()
+  if (normalized.includes('deactivated') || normalized.includes('deleted')) {
+    return m.error_sign_in_account_deleted()
+  }
+  return error.message || m.error_sign_in_failed()
+}
+
 export function SignIn() {
   const router = useRouter()
   const { redirect } = useSearch({ from: '/signin' })
@@ -118,7 +130,7 @@ export function SignIn() {
         })
         if (result.error) {
           setStatus({
-            error: result.error.message || m.error_sign_in_failed(),
+            error: getAuthErrorMessage(result.error),
             info: '',
             loading: false,
           })
@@ -162,7 +174,7 @@ export function SignIn() {
       const result = await authClient.twoFactor.verifyTotp({ code: twoFactorCode.trim() })
       if (result.error) {
         setStatus({
-          error: result.error.message || m.error_sign_in_failed(),
+          error: getAuthErrorMessage(result.error),
           info: '',
           loading: false,
         })
@@ -180,8 +192,16 @@ export function SignIn() {
 
   return (
     <AuthShell
-      title={isSignUp ? m.sign_up_title() : m.sign_in_title()}
-      description={isSignUp ? m.sign_up_description() : m.sign_in_description()}
+      title={
+        needsTwoFactor ? m.two_factor_title() : isSignUp ? m.sign_up_title() : m.sign_in_title()
+      }
+      description={
+        needsTwoFactor
+          ? m.two_factor_description()
+          : isSignUp
+            ? m.sign_up_description()
+            : m.sign_in_description()
+      }
     >
       {needsTwoFactor ? (
         <form onSubmit={handleVerifyTwoFactor} className='grid gap-3'>
@@ -331,14 +351,16 @@ export function SignIn() {
             </div>
           )}
 
-          <div className='min-h-12'>
-            {status.error && <FeedbackBanner type='error' message={status.error} size='sm' />}
-            {status.info && <FeedbackBanner type='info' message={status.info} size='sm' />}
-          </div>
-
           <Button type='submit' isLoading={status.loading} className='w-full mt-1'>
             {isSignUp ? m.button_create_account() : m.button_sign_in()}
           </Button>
+
+          {(status.error || status.info) && (
+            <div className='mt-3'>
+              {status.error && <FeedbackBanner type='error' message={status.error} size='sm' />}
+              {status.info && <FeedbackBanner type='info' message={status.info} size='sm' />}
+            </div>
+          )}
         </form>
       )}
 

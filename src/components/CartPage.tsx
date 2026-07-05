@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import {
   AlertTriangle,
+  ArrowRight,
   ImageOff,
   Loader2,
   Minus,
@@ -216,19 +217,26 @@ function EmptyCart({ showEmptyMessage }: { showEmptyMessage?: boolean }) {
             {m.cart_empty_checkout_message()}
           </div>
         )}
-        <div className='mx-auto mb-6 flex size-16 items-center justify-center rounded-full bg-surface-inset text-text-muted'>
-          <ShoppingBag size={28} aria-hidden='true' />
+        <div className='rounded-[2rem] border border-border-subtle bg-scrim-subtle p-2 shadow-md'>
+          <div className='rounded-[calc(2rem-0.5rem)] bg-bg-elevated p-8 sm:p-12 text-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]'>
+            <div className='mx-auto mb-6 flex size-20 items-center justify-center rounded-full border border-accent-primary/10 bg-accent-primary-subtle text-accent-primary'>
+              <ShoppingBag size={36} strokeWidth={1.5} aria-hidden='true' />
+            </div>
+            <h1 className='display-title mb-3 text-2xl font-semibold text-text-primary'>
+              {m.cart_empty_title()}
+            </h1>
+            <p className='mb-8 text-text-secondary'>{m.cart_empty_description()}</p>
+            <Link
+              to='/category/all'
+              className='group inline-flex h-12 items-center justify-between gap-3 rounded-full bg-accent-primary pl-6 pr-2 text-base font-semibold text-text-on-primary no-underline shadow-md transition-all duration-fast ease-out hover:bg-accent-primary-hover active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
+            >
+              <span>{m.cart_empty_browse()}</span>
+              <span className='flex size-6 items-center justify-center rounded-full bg-scrim-subtle transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-[1px]'>
+                <ArrowRight size={14} aria-hidden='true' />
+              </span>
+            </Link>
+          </div>
         </div>
-        <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary'>
-          {m.cart_empty_title()}
-        </h1>
-        <p className='mb-8 text-text-secondary'>{m.cart_empty_description()}</p>
-        <Link
-          to='/category/all'
-          className='inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-accent-primary px-6 text-base font-medium text-text-on-primary no-underline shadow-sm transition-all duration-fast ease-out hover:bg-accent-primary-hover active:bg-accent-primary-active focus-visible:outline-none'
-        >
-          {m.cart_empty_browse()}
-        </Link>
       </div>
     </main>
   )
@@ -408,38 +416,40 @@ function CartItemRow({
 
         {/* Quantity controls */}
         {!item.unavailable && product && (
-          <div className='mt-1 flex items-center gap-3'>
-            <span className='text-xs text-text-secondary'>{m.cart_quantity_label()}</span>
-            <div className='inline-flex items-center rounded-lg border border-border-default bg-surface-default'>
-              <button
-                type='button'
-                aria-label={m.product_decrease_quantity()}
-                className='px-2.5 py-1.5 text-text-primary transition hover:bg-bg-inset disabled:opacity-40'
-                disabled={isUpdating || item.quantity <= 1}
-                onClick={() => onUpdateQuantity(item.productId, item.quantity - 1)}
-              >
-                <Minus size={14} aria-hidden='true' />
-              </button>
-              <span
-                className='w-10 text-center text-sm font-medium text-text-primary'
-                aria-live='polite'
-              >
-                {isUpdating ? (
-                  <Loader2 size={14} className='mx-auto animate-spin' aria-hidden='true' />
-                ) : (
-                  item.quantity
-                )}
-              </span>
-              <button
-                type='button'
-                aria-label={m.product_increase_quantity()}
-                className='px-2.5 py-1.5 text-text-primary transition hover:bg-bg-inset disabled:opacity-40'
-                disabled={isUpdating || item.quantity >= product.stockCount}
-                onClick={() => onUpdateQuantity(item.productId, item.quantity + 1)}
-              >
-                <Plus size={14} aria-hidden='true' />
-              </button>
+          <div className='mt-1 flex flex-col gap-1.5'>
+            <div className='flex items-center gap-3'>
+              <span className='text-xs text-text-secondary'>{m.cart_quantity_label()}</span>
+              <div className='inline-flex items-center rounded-lg border border-border-default bg-surface-default'>
+                <button
+                  type='button'
+                  aria-label={m.product_decrease_quantity()}
+                  className='px-2.5 py-1.5 text-text-primary transition hover:bg-bg-inset disabled:opacity-40'
+                  disabled={isUpdating || item.quantity <= 1}
+                  onClick={() => onUpdateQuantity(item.productId, item.quantity - 1)}
+                >
+                  <Minus size={14} aria-hidden='true' />
+                </button>
+                <span
+                  className='w-10 text-center text-sm font-medium text-text-primary'
+                  aria-live='polite'
+                  aria-busy={isUpdating}
+                >
+                  {item.quantity}
+                </span>
+                <button
+                  type='button'
+                  aria-label={m.product_increase_quantity()}
+                  className='px-2.5 py-1.5 text-text-primary transition hover:bg-bg-inset disabled:opacity-40'
+                  disabled={isUpdating || item.quantity >= product.stockCount}
+                  onClick={() => onUpdateQuantity(item.productId, item.quantity + 1)}
+                >
+                  <Plus size={14} aria-hidden='true' />
+                </button>
+              </div>
             </div>
+            {item.quantity >= product.stockCount && (
+              <p className='text-xs text-text-secondary'>{m.cart_item_stock_limit_reached()}</p>
+            )}
           </div>
         )}
 

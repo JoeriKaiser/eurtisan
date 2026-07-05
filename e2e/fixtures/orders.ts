@@ -289,8 +289,9 @@ export async function createPaidOrder(buyerSeed: string): Promise<TestOrder> {
 }
 
 /**
- * Create many paid orders for the same buyer without generating invoices.
+ * Create many orders for the same buyer without generating invoices.
  * Useful for pagination/order-list specs where only the count matters.
+ * Orders are given varied statuses, totals, and dates so the list is visually diverse.
  */
 export async function seedPaidOrders(
   buyerSeed: string,
@@ -304,15 +305,19 @@ export async function seedPaidOrders(
 
   const shippingCostCents = 500
   const unitPriceCents = product.priceCents
-  const subtotalCents = unitPriceCents
-  const totalCents = subtotalCents + shippingCostCents
-
   const baseAddress = makeAddress()
   const now = Date.now()
   const orders: Awaited<ReturnType<typeof createPaidOrder>>[] = []
 
+  const statuses = ['paid', 'processing', 'shipped', 'delivered'] as const
+
   for (let i = 0; i < count; i++) {
-    const createdAt = new Date(now - (count - i) * 1000)
+    const status = statuses[i % statuses.length]
+    const quantity = (i % 3) + 1
+    const subtotalCents = unitPriceCents * quantity
+    const totalCents = subtotalCents + shippingCostCents
+    // Spread orders across multiple days so row dates differ.
+    const createdAt = new Date(now - (count - i) * 24 * 60 * 60 * 1000)
     const molliePaymentId = `tr_e2e_${now}_${i}_${Math.random().toString(36).slice(2, 8)}`
 
     const [platformOrder] = await db
@@ -322,7 +327,7 @@ export async function seedPaidOrders(
         shippingAddress: baseAddress,
         billingAddress: baseAddress,
         totalCents,
-        status: 'paid',
+        status,
         molliePaymentId,
         createdAt,
       })
@@ -337,7 +342,7 @@ export async function seedPaidOrders(
         shippingCostCents,
         subtotalCents,
         vatAmountCents: 0,
-        status: 'paid',
+        status,
         createdAt,
       })
       .returning({ id: schema.shopOrder.id })
@@ -347,7 +352,7 @@ export async function seedPaidOrders(
       productId: product.id,
       productName: product.name,
       unitPriceCents,
-      quantity: 1,
+      quantity,
       totalCents: subtotalCents,
       vatRateBasisPoints: 0,
       vatAmountCents: 0,
@@ -450,7 +455,11 @@ export async function createReviewableOrder(buyerSeed: string): Promise<TestOrde
 export async function getProductById(productId: string) {
   process.env.DATABASE_URL = e2eDatabaseUrl
 
-  const [product] = await db.select().from(schema.product).where(eq(schema.product.id, productId)).limit(1)
+  const [product] = await db
+    .select()
+    .from(schema.product)
+    .where(eq(schema.product.id, productId))
+    .limit(1)
   if (!product) throw new Error(`Product ${productId} not found`)
   return product
 }

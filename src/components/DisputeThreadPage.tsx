@@ -1,10 +1,16 @@
 import { Link, useRouter } from '@tanstack/react-router'
 import { ArrowLeft, MessageSquare, Send } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { addDisputeMessage } from '#/lib/disputes'
 import type { DisputeDetail } from '#/lib/disputes.server'
+import {
+  getDisputeReasonLabel,
+  getDisputeReference,
+  getDisputeResolutionLabel,
+  getDisputeStatusLabel,
+} from '#/lib/disputes-ui'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 import { getLocalizedErrorMessage } from '#/lib/error-mapping'
@@ -23,11 +29,16 @@ export interface DisputeThreadPageProps {
 
 export default function DisputeThreadPage({ dispute }: DisputeThreadPageProps) {
   const router = useRouter()
+  const [localDispute, setLocalDispute] = useState(dispute)
   const [message, setMessage] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
-  const canPostMessage = dispute.status === 'open'
+  useEffect(() => {
+    setLocalDispute(dispute)
+  }, [dispute])
+
+  const canPostMessage = localDispute.status === 'open'
 
   const handleSubmit = async () => {
     const trimmed = message.trim()
@@ -35,11 +46,15 @@ export default function DisputeThreadPage({ dispute }: DisputeThreadPageProps) {
     setIsSubmitting(true)
     setSubmitError(null)
     try {
-      await addDisputeMessage({
-        data: { disputeId: dispute.id, message: trimmed },
+      const sent = await addDisputeMessage({
+        data: { disputeId: localDispute.id, message: trimmed },
       })
+      setLocalDispute((prev) => ({
+        ...prev,
+        messages: [...prev.messages, sent],
+      }))
       setMessage('')
-      router.invalidate()
+      void router.invalidate()
     } catch (err) {
       if (err instanceof Response) {
         const body = await err.json().catch(() => ({ message: 'Unknown error' }))
@@ -66,7 +81,7 @@ export default function DisputeThreadPage({ dispute }: DisputeThreadPageProps) {
         <div className='mb-6'>
           <Link
             to='/orders/$platformOrderId'
-            params={{ platformOrderId: dispute.order.platformOrderId }}
+            params={{ platformOrderId: localDispute.order.platformOrderId }}
             className='inline-flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary no-underline'
           >
             <ArrowLeft size={16} aria-hidden='true' />
@@ -79,10 +94,15 @@ export default function DisputeThreadPage({ dispute }: DisputeThreadPageProps) {
             <h1 className='display-title text-2xl font-semibold text-text-primary sm:text-3xl'>
               {m.dispute_title()}
             </h1>
-            <p className='mt-1 font-mono text-sm text-text-secondary'>{dispute.id}</p>
+            <p className='mt-1 font-mono text-sm text-text-secondary'>
+              {getDisputeReference(localDispute.id)}
+            </p>
           </div>
-          <Badge variant={dispute.status === 'open' ? 'warning' : 'default'}>
-            {dispute.status}
+          <Badge
+            variant={localDispute.status === 'open' ? 'warning' : 'default'}
+            className={localDispute.status === 'open' ? 'text-text-primary' : undefined}
+          >
+            {getDisputeStatusLabel(localDispute.status)}
           </Badge>
         </div>
 
@@ -92,27 +112,31 @@ export default function DisputeThreadPage({ dispute }: DisputeThreadPageProps) {
             <div className='grid gap-4 sm:grid-cols-2'>
               <div>
                 <p className='text-sm text-text-secondary'>{m.dispute_reason()}</p>
-                <p className='font-medium text-text-primary'>{dispute.reason}</p>
+                <p className='font-medium text-text-primary'>
+                  {getDisputeReasonLabel(localDispute.reason)}
+                </p>
               </div>
               <div>
                 <p className='text-sm text-text-secondary'>{m.dispute_status()}</p>
-                <p className='font-medium text-text-primary'>{dispute.status}</p>
+                <p className='font-medium text-text-primary'>
+                  {getDisputeStatusLabel(localDispute.status)}
+                </p>
               </div>
               <div>
                 <p className='text-sm text-text-secondary'>{m.dispute_shop()}</p>
-                <p className='font-medium text-text-primary'>{dispute.order.shopName}</p>
+                <p className='font-medium text-text-primary'>{localDispute.order.shopName}</p>
               </div>
               <div>
                 <p className='text-sm text-text-secondary'>{m.dispute_order_total()}</p>
                 <p className='font-medium text-text-primary'>
-                  {formatPriceEUR(dispute.order.totalCents)}
+                  {formatPriceEUR(localDispute.order.totalCents)}
                 </p>
               </div>
             </div>
             <div className='mt-4 border-t border-border-default pt-4'>
               <p className='text-sm text-text-secondary'>{m.dispute_description_label()}</p>
               <p className='mt-1 whitespace-pre-wrap text-sm text-text-primary'>
-                {dispute.description}
+                {localDispute.description}
               </p>
             </div>
           </div>
@@ -124,13 +148,13 @@ export default function DisputeThreadPage({ dispute }: DisputeThreadPageProps) {
               {m.dispute_messages_title()}
             </h2>
 
-            {dispute.messages.length === 0 ? (
+            {localDispute.messages.length === 0 ? (
               <p className='py-8 text-center text-sm text-text-secondary'>
                 {m.dispute_messages_empty()}
               </p>
             ) : (
               <ul className='space-y-4' aria-label={m.dispute_messages_title()}>
-                {dispute.messages.map((msg) => (
+                {localDispute.messages.map((msg) => (
                   <li
                     key={msg.id}
                     className='rounded-xl border border-border-default bg-surface-default p-4'
@@ -187,10 +211,11 @@ export default function DisputeThreadPage({ dispute }: DisputeThreadPageProps) {
               </div>
             )}
 
-            {dispute.status !== 'open' && (
+            {localDispute.status !== 'open' && (
               <div className='mt-6 rounded-lg bg-surface-inset p-4 text-center text-sm text-text-secondary'>
-                {m.dispute_status()}: {dispute.status}
-                {dispute.resolution && ` — ${dispute.resolution}`}
+                {m.dispute_status()}: {getDisputeStatusLabel(localDispute.status)}
+                {localDispute.resolution &&
+                  ` — ${getDisputeResolutionLabel(localDispute.resolution)}`}
               </div>
             )}
           </div>

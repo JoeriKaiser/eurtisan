@@ -132,8 +132,8 @@ test.describe('Checkout with VAT ID', () => {
 
     await page.getByRole('button', { name: /confirm purchase/i }).click()
 
-    // Confirm the submission is rejected and the user remains on the checkout page.
-    await expect(page.getByRole('alert')).toBeVisible({ timeout: 10000 })
+    // Inline field-level VAT validation should surface without a full server round-trip.
+    await expect(page.locator('[id="billingAddress.vatId-error"]')).toBeVisible({ timeout: 10000 })
     await expect(page).toHaveURL(/\/checkout/)
   })
 })

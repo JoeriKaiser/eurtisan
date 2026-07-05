@@ -201,10 +201,13 @@ export function NotificationsPage({
                     <button
                       type='button'
                       onClick={() => handleItemClick(item)}
+                      aria-label={
+                        isUnread ? m.notifications_status_unread() : m.notifications_status_read()
+                      }
                       className={`flex w-full items-start gap-3 rounded-xl border p-4 text-left transition no-underline ${
                         isUnread
-                          ? 'border-border-strong bg-surface-default hover:bg-bg-inset'
-                          : 'border-border-default bg-bg-inset hover:bg-surface-default opacity-75'
+                          ? 'border-border-strong border-l-4 border-l-accent-primary bg-surface-default shadow-sm hover:bg-bg-inset hover:shadow-md'
+                          : 'border-border-default border-l-4 border-l-transparent bg-bg-inset hover:bg-surface-default'
                       }`}
                     >
                       <div
@@ -217,7 +220,11 @@ export function NotificationsPage({
                         {TYPE_ICONS[item.type]}
                       </div>
                       <div className='min-w-0 flex-1'>
-                        <p className='text-sm font-medium text-text-primary'>
+                        <p
+                          className={`text-sm font-medium ${
+                            isUnread ? 'text-text-primary' : 'text-text-secondary'
+                          }`}
+                        >
                           {notificationPreview(item)}
                         </p>
                         <p className='mt-0.5 text-xs text-text-muted'>

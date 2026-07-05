@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import CheckoutPage from './CheckoutPage'
 
@@ -73,6 +73,8 @@ vi.mock('#/paraglide/messages', () => ({
     checkout_vat_id_placeholder: () => 'e.g., DE123456789',
     checkout_vat_id_helper: () =>
       'Enter to enable zero-rated EU cross-border billing. Must match the billing country.',
+    checkout_vat_id_invalid_format: () => 'Invalid VAT ID format',
+    checkout_vat_id_invalid_prefix: () => 'VAT ID country prefix must match the billing country',
     product_no_image: () => 'No image available',
     cart_shop_subtotal: () => 'Subtotal',
     error_cart_empty: () => 'Cart is empty',
@@ -394,6 +396,19 @@ describe('CheckoutPage', () => {
     expect(screen.getAllByText('€30.00').length).toBeGreaterThanOrEqual(1)
   })
 
+  it('updates order summary shipping line when shipping method changes', () => {
+    render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
+    // Default summary shows Standard shipping.
+    expect(screen.getAllByText('DHL Standard').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('€5.00').length).toBeGreaterThanOrEqual(1)
+
+    fireEvent.click(screen.getByLabelText(/DHL Express/i))
+
+    // Summary should now reflect the selected Express option and its cost.
+    expect(screen.getAllByText('DHL Express').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('€10.00').length).toBeGreaterThanOrEqual(1)
+  })
+
   it('renders multiple shop groups', () => {
     const summary = makeSummary({
       shops: [
@@ -704,6 +719,80 @@ describe('CheckoutPage', () => {
         // Submit button should be enabled
         const submitBtn = screen.getByRole('button', { name: 'Confirm purchase' })
         expect(submitBtn).toHaveProperty('disabled', false)
+      })
+    })
+  })
+
+  describe('VAT ID validation', () => {
+    it('shows an inline error for an invalid billing VAT ID', async () => {
+      render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
+
+      fireEvent.click(screen.getByLabelText('Same as shipping address'))
+      const billingSection = screen
+        .getByRole('heading', { name: 'Billing address' })
+        .closest('section')
+      if (!billingSection) throw new Error('Billing section not found')
+
+      // Fill the billing address so only the VAT ID is invalid.
+      fireEvent.change(within(billingSection).getByLabelText('Full name'), {
+        target: { value: 'Test Buyer' },
+      })
+      fireEvent.change(within(billingSection).getByLabelText('Street address'), {
+        target: { value: '42 Main St' },
+      })
+      fireEvent.change(within(billingSection).getByLabelText('City'), {
+        target: { value: 'Berlin' },
+      })
+      fireEvent.change(within(billingSection).getByLabelText('Postal code'), {
+        target: { value: '10115' },
+      })
+      fireEvent.change(within(billingSection).getByLabelText('Country'), {
+        target: { value: 'DE' },
+      })
+      fireEvent.change(within(billingSection).getByLabelText('VAT ID (Optional)'), {
+        target: { value: 'DE123' },
+      })
+      fireEvent.blur(within(billingSection).getByLabelText('VAT ID (Optional)'))
+
+      await waitFor(() => {
+        expect(screen.getByText('Invalid VAT ID format')).toBeDefined()
+      })
+    })
+
+    it('shows no error for a well-formed billing VAT ID', async () => {
+      render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
+
+      fireEvent.click(screen.getByLabelText('Same as shipping address'))
+      const billingSection = screen
+        .getByRole('heading', { name: 'Billing address' })
+        .closest('section')
+      if (!billingSection) throw new Error('Billing section not found')
+
+      fireEvent.change(within(billingSection).getByLabelText('Full name'), {
+        target: { value: 'Test Buyer' },
+      })
+      fireEvent.change(within(billingSection).getByLabelText('Street address'), {
+        target: { value: '42 Main St' },
+      })
+      fireEvent.change(within(billingSection).getByLabelText('City'), {
+        target: { value: 'Paris' },
+      })
+      fireEvent.change(within(billingSection).getByLabelText('Postal code'), {
+        target: { value: '75008' },
+      })
+      fireEvent.change(within(billingSection).getByLabelText('Country'), {
+        target: { value: 'FR' },
+      })
+      fireEvent.change(within(billingSection).getByLabelText('VAT ID (Optional)'), {
+        target: { value: 'FR12345678901' },
+      })
+      fireEvent.blur(within(billingSection).getByLabelText('VAT ID (Optional)'))
+
+      await waitFor(() => {
+        expect(screen.queryByText('Invalid VAT ID format')).toBeNull()
+        expect(
+          screen.queryByText('VAT ID country prefix must match the billing country'),
+        ).toBeNull()
       })
     })
   })

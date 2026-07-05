@@ -36,6 +36,8 @@ const listAllProductsInputSchema = z.object({
   status: z.enum(['active', 'inactive']).optional(),
   minPriceCents: z.number().int().min(0).optional(),
   maxPriceCents: z.number().int().min(0).optional(),
+  sortBy: z.enum(['name', 'price', 'stock', 'status']).optional(),
+  sortDirection: z.enum(['asc', 'desc']).optional().default('desc'),
   page: z.number().int().min(1).default(1),
   pageSize: z.number().int().min(1).max(100).default(20),
 })
@@ -68,6 +70,8 @@ export const listAllProducts = createServerFn({ method: 'GET' })
       status: data.status,
       minPriceCents: data.minPriceCents,
       maxPriceCents: data.maxPriceCents,
+      sortBy: data.sortBy,
+      sortDirection: data.sortDirection,
       page: data.page,
       pageSize: data.pageSize,
       total: result.total,

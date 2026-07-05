@@ -30,6 +30,10 @@ vi.mock('#/paraglide/messages', () => ({
   },
 }))
 
+vi.mock('#/components/AnalyticsConsentBanner', () => ({
+  AnalyticsConsentBanner: () => null,
+}))
+
 vi.mock('#/lib/auth-client', () => ({
   authClient: {
     requestPasswordReset: (...args: unknown[]) => mockRequestPasswordReset(...args),

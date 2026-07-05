@@ -1,6 +1,6 @@
 import { useRouter } from '@tanstack/react-router'
 import { Download, Mail, Plus, Trash2, X } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { m } from '#/paraglide/messages'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
@@ -27,6 +27,7 @@ interface ShopCustomerDetailPageProps {
 
 export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailPageProps) {
   const router = useRouter()
+  const [localCustomer, setLocalCustomer] = useState(customer)
   const [loading, setLoading] = useState(false)
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null,
@@ -38,8 +39,14 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
 
   const [newTag, setNewTag] = useState('')
 
+  useEffect(() => {
+    setLocalCustomer(customer)
+  }, [customer])
+
   const averageOrderCents =
-    customer.orderCount > 0 ? Math.round(customer.totalSpentCents / customer.orderCount) : 0
+    localCustomer.orderCount > 0
+      ? Math.round(localCustomer.totalSpentCents / localCustomer.orderCount)
+      : 0
 
   const showFeedback = (type: 'success' | 'error', message: string) => {
     setFeedback({ type, message })
@@ -55,10 +62,13 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
     if (!content) return
     setLoading(true)
     try {
-      await addCustomerNote({ data: { shopId, customerEmailHash: customer.emailHash, content } })
+      const note = await addCustomerNote({
+        data: { shopId, customerEmailHash: localCustomer.emailHash, content },
+      })
+      setLocalCustomer((prev) => ({ ...prev, notes: [note, ...prev.notes] }))
       setNewNote('')
-      await refresh()
       showFeedback('success', m.studio_customer_note_added())
+      void refresh()
     } catch {
       showFeedback('error', m.studio_customer_note_error())
     } finally {
@@ -77,11 +87,15 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
     if (!content) return
     setLoading(true)
     try {
-      await updateCustomerNote({ data: { noteId: editingNoteId, content } })
+      const updated = await updateCustomerNote({ data: { noteId: editingNoteId, content } })
+      setLocalCustomer((prev) => ({
+        ...prev,
+        notes: prev.notes.map((note) => (note.id === editingNoteId ? updated : note)),
+      }))
       setEditingNoteId(null)
       setEditNoteContent('')
-      await refresh()
       showFeedback('success', m.studio_customer_note_updated())
+      void refresh()
     } catch {
       showFeedback('error', m.studio_customer_note_error())
     } finally {
@@ -94,8 +108,12 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
     setLoading(true)
     try {
       await deleteCustomerNote({ data: { noteId } })
-      await refresh()
+      setLocalCustomer((prev) => ({
+        ...prev,
+        notes: prev.notes.filter((note) => note.id !== noteId),
+      }))
       showFeedback('success', m.studio_customer_note_deleted())
+      void refresh()
     } catch {
       showFeedback('error', m.studio_customer_note_error())
     } finally {
@@ -108,10 +126,16 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
     if (!tag) return
     setLoading(true)
     try {
-      await addCustomerTag({ data: { shopId, customerEmailHash: customer.emailHash, tag } })
+      const addedTag = await addCustomerTag({
+        data: { shopId, customerEmailHash: localCustomer.emailHash, tag },
+      })
+      setLocalCustomer((prev) => ({
+        ...prev,
+        tags: prev.tags.includes(addedTag) ? prev.tags : [...prev.tags, addedTag].sort(),
+      }))
       setNewTag('')
-      await refresh()
       showFeedback('success', m.studio_customer_tag_added())
+      void refresh()
     } catch {
       showFeedback('error', m.studio_customer_tag_error())
     } finally {
@@ -122,9 +146,13 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
   const handleRemoveTag = async (tag: string) => {
     setLoading(true)
     try {
-      await removeCustomerTag({ data: { shopId, customerEmailHash: customer.emailHash, tag } })
-      await refresh()
+      await removeCustomerTag({ data: { shopId, customerEmailHash: localCustomer.emailHash, tag } })
+      setLocalCustomer((prev) => ({
+        ...prev,
+        tags: prev.tags.filter((t) => t !== tag),
+      }))
       showFeedback('success', m.studio_customer_tag_removed())
+      void refresh()
     } catch {
       showFeedback('error', m.studio_customer_tag_error())
     } finally {
@@ -136,13 +164,13 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
     setLoading(true)
     try {
       const data = await exportCustomerData({
-        data: { shopId, customerEmailHash: customer.emailHash },
+        data: { shopId, customerEmailHash: localCustomer.emailHash },
       })
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `customer-export-${customer.emailHash}.json`
+      link.download = `customer-export-${localCustomer.emailHash}.json`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
@@ -162,13 +190,13 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
         <div className='mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
           <div>
             <h1 className='display-title mb-2 text-3xl font-semibold text-text-primary'>
-              {customer.name}
+              {localCustomer.name}
             </h1>
-            <p className='text-text-secondary'>{customer.email}</p>
+            <p className='text-text-secondary'>{localCustomer.email}</p>
           </div>
           <div className='flex items-center gap-2'>
             <a
-              href={`mailto:${customer.email}`}
+              href={`mailto:${localCustomer.email}`}
               className={cn(
                 'inline-flex h-8 items-center justify-center gap-2 rounded-lg border border-border-default',
                 'bg-surface-default px-3.5 text-xs font-semibold text-text-primary',
@@ -199,11 +227,11 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
         <div className='mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
           <MetricCard
             label={m.studio_customer_metric_orders()}
-            value={String(customer.orderCount)}
+            value={String(localCustomer.orderCount)}
           />
           <MetricCard
             label={m.studio_customer_metric_total_spent()}
-            value={formatPriceEUR(customer.totalSpentCents)}
+            value={formatPriceEUR(localCustomer.totalSpentCents)}
           />
           <MetricCard
             label={m.studio_customer_metric_average_order()}
@@ -211,7 +239,7 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
           />
           <MetricCard
             label={m.studio_customer_metric_first_order()}
-            value={formatDateShort(customer.firstOrderAt)}
+            value={formatDateShort(localCustomer.firstOrderAt)}
           />
         </div>
 
@@ -221,10 +249,10 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
             {m.studio_customer_tags_title()}
           </h2>
           <div className='mb-3 flex flex-wrap items-center gap-2'>
-            {customer.tags.length === 0 && (
+            {localCustomer.tags.length === 0 && (
               <span className='text-sm text-text-secondary'>{m.studio_customer_tags_empty()}</span>
             )}
-            {customer.tags.map((tag) => (
+            {localCustomer.tags.map((tag) => (
               <Badge key={tag} variant='secondary' className='gap-1 pr-1'>
                 {tag}
                 <button
@@ -294,11 +322,11 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
               </div>
             </div>
 
-            {customer.notes.length === 0 ? (
+            {localCustomer.notes.length === 0 ? (
               <p className='text-sm text-text-secondary'>{m.studio_customer_notes_empty()}</p>
             ) : (
               <ul className='space-y-3'>
-                {customer.notes.map((note) => (
+                {localCustomer.notes.map((note) => (
                   <li
                     key={note.id}
                     className='rounded-lg border border-border-subtle bg-surface-inset p-3'
@@ -376,7 +404,7 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
             <h2 className='mb-3 text-lg font-semibold text-text-primary'>
               {m.studio_customer_orders_title()}
             </h2>
-            {customer.orders.length === 0 ? (
+            {localCustomer.orders.length === 0 ? (
               <p className='text-sm text-text-secondary'>{m.studio_customer_orders_empty()}</p>
             ) : (
               <div className='overflow-x-auto rounded-lg border border-border-subtle'>
@@ -398,7 +426,7 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
                     </tr>
                   </thead>
                   <tbody className='divide-y divide-border-subtle'>
-                    {customer.orders.map((order) => (
+                    {localCustomer.orders.map((order) => (
                       <tr key={order.shopOrderId} className='bg-surface-default'>
                         <td className='px-3 py-2 text-text-secondary'>
                           {formatDateShort(order.createdAt)}

@@ -1,18 +1,50 @@
 import { Link } from '@tanstack/react-router'
 import { CheckCircle2, ImageOff, Loader2, XCircle } from 'lucide-react'
+import { useState } from 'react'
 import { Button } from '#/components/ui/button'
 import type { OrderDetail } from '#/lib/orders.server'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 
+const SUPPORT_EMAIL = 'support@eurtisan.eu'
+
 export interface OrderSuccessPageProps {
   order: OrderDetail
+  onRetryPayment?: () => Promise<{ checkoutUrl: string }>
 }
 
-export default function OrderSuccessPage({ order }: OrderSuccessPageProps) {
+export default function OrderSuccessPage({ order, onRetryPayment }: OrderSuccessPageProps) {
   const isPending = order.status === 'pending_payment'
   const isCancelled = order.status === 'cancelled'
   const isPaid = order.status === 'paid'
+
+  const [retryState, setRetryState] = useState<{
+    isLoading: boolean
+    error: string | null
+  }>({ isLoading: false, error: null })
+
+  const handleRetryPayment = async () => {
+    if (!onRetryPayment) return
+    setRetryState({ isLoading: true, error: null })
+    try {
+      const result = await onRetryPayment()
+      if (result?.checkoutUrl) {
+        window.location.href = result.checkoutUrl
+        return
+      }
+      setRetryState({ isLoading: false, error: m.checkout_missing_url() })
+    } catch (err) {
+      if (err instanceof Response) {
+        const body = await err.json().catch(() => ({}))
+        setRetryState({
+          isLoading: false,
+          error: body.message || m.checkout_error_submit(),
+        })
+      } else {
+        setRetryState({ isLoading: false, error: m.checkout_error_submit() })
+      }
+    }
+  }
 
   return (
     <main className='page-wrap px-4 pb-16 pt-14'>
@@ -141,10 +173,51 @@ export default function OrderSuccessPage({ order }: OrderSuccessPageProps) {
             </p>
           )}
 
-          <div className='mt-6 border-t border-border-default pt-6 text-center'>
-            <Link to='/category/all' className='no-underline'>
-              <Button size='lg'>{m.order_success_continue_shopping()}</Button>
-            </Link>
+          <div className='mt-6 border-t border-border-default pt-6 flex flex-col items-center gap-3'>
+            <div className='flex flex-wrap items-center justify-center gap-3'>
+              {isPending && onRetryPayment && (
+                <Button
+                  size='lg'
+                  onClick={() => {
+                    void handleRetryPayment()
+                  }}
+                  isLoading={retryState.isLoading}
+                  disabled={retryState.isLoading}
+                >
+                  {m.order_pending_retry_payment()}
+                </Button>
+              )}
+
+              {isCancelled && (
+                <>
+                  <Link to='/orders/$platformOrderId' params={{ platformOrderId: order.id }}>
+                    <Button variant='secondary' size='lg'>
+                      {m.order_failed_view_order()}
+                    </Button>
+                  </Link>
+                  <a
+                    href={`mailto:${SUPPORT_EMAIL}?subject=Payment issue for order ${order.orderNumber}`}
+                    className='no-underline'
+                  >
+                    <Button variant='secondary' size='lg'>
+                      {m.order_failed_contact_support()}
+                    </Button>
+                  </a>
+                </>
+              )}
+
+              <Link to='/category/all' className='no-underline'>
+                <Button size='lg' variant={isPending ? 'secondary' : undefined}>
+                  {m.order_success_continue_shopping()}
+                </Button>
+              </Link>
+            </div>
+
+            {retryState.error && (
+              <p className='text-sm text-error' role='alert'>
+                {retryState.error}
+              </p>
+            )}
           </div>
         </div>
       </div>

@@ -28,7 +28,9 @@ test.describe('creator fulfillment and financial actions', () => {
     })
   })
 
-  test('creator can complete Mollie Connect onboarding and view connection status', async ({ page }) => {
+  test('creator can complete Mollie Connect onboarding and view connection status', async ({
+    page,
+  }) => {
     const shop = await getCreatorShop()
 
     // Navigate to Creator Payouts page

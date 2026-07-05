@@ -7,8 +7,14 @@ import { updateMyEmailPreference } from '#/lib/account-email-preferences'
 import { m } from '#/paraglide/messages'
 
 export function AccountSettings() {
-  const { preferences: initialPreferences } = useLoaderData({ from: '/account/settings' })
+  const { preferences: initialPreferences, user } = useLoaderData({ from: '/account/settings' })
   const [preferences, setPreferences] = useState(initialPreferences)
+
+  const visiblePreferences = preferences.filter(
+    (preference) =>
+      preference.category !== 'marketing' &&
+      !(preference.category === 'seller_updates' && user?.role === 'customer'),
+  )
   const [preferenceStatus, setPreferenceStatus] = useState<
     Record<string, 'idle' | 'saving' | 'saved' | 'error'>
   >({})
@@ -115,78 +121,76 @@ export function AccountSettings() {
               )}
             </div>
 
-            <div className='border-t border-border-default pt-6'>
-              <h2 className='text-lg font-semibold text-text-primary'>
-                {m.account_email_preferences_title()}
-              </h2>
-              <p className='mt-1 text-sm text-text-secondary'>
-                {m.account_email_preferences_description()}
-              </p>
-              <div className='mt-4 space-y-4' aria-live='polite'>
-                {preferences.map((preference) => {
-                  const status = preferenceStatus[preference.category]
-                  const getMessage = (key: string) =>
-                    (m as unknown as Record<string, () => string>)[key]?.() ?? key
-                  const label = getMessage(preference.labelKey)
-                  const description = getMessage(preference.descriptionKey)
-                  const isMarketing = preference.category === 'marketing'
+            {visiblePreferences.length > 0 && (
+              <div className='border-t border-border-default pt-6'>
+                <h2 className='text-lg font-semibold text-text-primary'>
+                  {m.account_email_preferences_title()}
+                </h2>
+                <p className='mt-1 text-sm text-text-secondary'>
+                  {m.account_email_preferences_description()}
+                </p>
+                <div className='mt-4 space-y-4' aria-live='polite'>
+                  {visiblePreferences.map((preference) => {
+                    const status = preferenceStatus[preference.category]
+                    const getMessage = (key: string) =>
+                      (m as unknown as Record<string, () => string>)[key]?.() ?? key
+                    const label = getMessage(preference.labelKey)
+                    const description = getMessage(preference.descriptionKey)
 
-                  return (
-                    <div
-                      key={preference.category}
-                      className='flex items-start justify-between gap-4'
-                    >
-                      <div className='flex-1'>
-                        <label
-                          htmlFor={`preference-${preference.category}`}
-                          className='block text-sm font-medium text-text-primary'
-                        >
-                          {label}
-                        </label>
-                        <p className='text-sm text-text-secondary'>{description}</p>
-                        {isMarketing && (
-                          <p className='text-xs text-text-secondary'>
-                            {m.account_email_preference_marketing_note?.() ?? ''}
-                          </p>
-                        )}
+                    return (
+                      <div
+                        key={preference.category}
+                        className='flex items-start justify-between gap-4'
+                      >
+                        <div className='flex-1'>
+                          <label
+                            htmlFor={`preference-${preference.category}`}
+                            className='block text-sm font-medium text-text-primary'
+                          >
+                            {label}
+                          </label>
+                          <p className='text-sm text-text-secondary'>{description}</p>
+                        </div>
+                        <div className='flex min-w-[120px] flex-col items-end gap-1'>
+                          <button
+                            id={`preference-${preference.category}`}
+                            type='button'
+                            role='switch'
+                            aria-checked={preference.enabled}
+                            aria-label={label}
+                            disabled={status === 'saving'}
+                            onClick={() =>
+                              handlePreferenceChange(preference.category, !preference.enabled)
+                            }
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 ${
+                              preference.enabled ? 'bg-accent-primary' : 'bg-gray-300'
+                            } ${status === 'saving' ? 'opacity-70' : ''}`}
+                          >
+                            <span
+                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                preference.enabled ? 'translate-x-6' : 'translate-x-1'
+                              }`}
+                            />
+                          </button>
+                          <span className='h-4 text-xs'>
+                            {status === 'saved' && (
+                              <span className='text-success'>
+                                {m.account_email_preference_saved()}
+                              </span>
+                            )}
+                            {status === 'error' && (
+                              <span className='text-error'>
+                                {m.account_email_preference_error()}
+                              </span>
+                            )}
+                          </span>
+                        </div>
                       </div>
-                      <div className='flex min-w-[120px] flex-col items-end gap-1'>
-                        <button
-                          id={`preference-${preference.category}`}
-                          type='button'
-                          role='switch'
-                          aria-checked={preference.enabled}
-                          aria-label={label}
-                          disabled={status === 'saving'}
-                          onClick={() =>
-                            handlePreferenceChange(preference.category, !preference.enabled)
-                          }
-                          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 ${
-                            preference.enabled ? 'bg-accent-primary' : 'bg-gray-300'
-                          } ${status === 'saving' ? 'opacity-70' : ''}`}
-                        >
-                          <span
-                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                              preference.enabled ? 'translate-x-6' : 'translate-x-1'
-                            }`}
-                          />
-                        </button>
-                        <span className='h-4 text-xs'>
-                          {status === 'saved' && (
-                            <span className='text-success'>
-                              {m.account_email_preference_saved()}
-                            </span>
-                          )}
-                          {status === 'error' && (
-                            <span className='text-error'>{m.account_email_preference_error()}</span>
-                          )}
-                        </span>
-                      </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className='border-t border-border-default pt-6'>
               <h2 className='text-lg font-semibold text-error'>{m.account_delete_account()}</h2>
@@ -218,7 +222,7 @@ export function AccountSettings() {
                   type='submit'
                   variant='danger'
                   isLoading={deleteStatus === 'loading'}
-                  disabled={!confirmEmail}
+                  className='text-white'
                 >
                   {m.account_delete_submit()}
                 </Button>

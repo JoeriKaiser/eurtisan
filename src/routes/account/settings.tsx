@@ -2,14 +2,18 @@ import { createFileRoute } from '@tanstack/react-router'
 import { AccountSettings } from '#/route-components/account/settings'
 import { AccountShell } from '#/components/AccountShell'
 import { guardAuth } from '#/lib/route-guards'
+import { getCurrentUser } from '#/lib/server-auth'
 import { m } from '#/paraglide/messages'
 
 export const Route = createFileRoute('/account/settings')({
   beforeLoad: async () => guardAuth(),
   loader: async () => {
-    const { getMyEmailPreferences } = await import('#/lib/account-email-preferences')
+    const [{ getMyEmailPreferences }, user] = await Promise.all([
+      import('#/lib/account-email-preferences'),
+      getCurrentUser().catch(() => null),
+    ])
     const preferences = await getMyEmailPreferences()
-    return { preferences }
+    return { preferences, user }
   },
   head: () => ({
     meta: [

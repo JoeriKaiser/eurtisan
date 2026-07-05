@@ -1,11 +1,11 @@
 import { Link } from '@tanstack/react-router'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
+import { formatDateLong } from '#/lib/format-date'
 import type { BuyerOrderListItem } from '#/lib/orders.server'
 import { statusBadgeVariant } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
-import { formatDateLong } from '#/lib/format-date'
 
 export { OrdersError } from './OrdersError'
 export { OrdersLoading } from './OrdersLoading'
@@ -65,7 +65,7 @@ export function OrdersPage({
                       </p>
                       <p className='text-sm text-text-secondary'>
                         {formatDate(order.createdAt)} ·{' '}
-                        {m.orders_shop_count({ count: String(order.shopCount) })}
+                        {m.orders_shop_count({ count: order.shopCount })}
                       </p>
                       {order.shopSummary.length > 1 && (
                         <div className='flex flex-wrap gap-1 pt-1'>

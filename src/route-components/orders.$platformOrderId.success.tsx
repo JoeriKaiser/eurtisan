@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { useLoaderData, useParams } from '@tanstack/react-router'
-import { useRef } from 'react'
+import { useCallback, useRef } from 'react'
 import OrderSuccessPage from '#/components/OrderSuccessPage'
+import { retryPayment } from '#/lib/checkout'
 import { getBuyerOrderDetail } from '#/lib/orders'
 
 const POLL_INTERVAL_MS = 3_000
@@ -29,5 +30,9 @@ export function OrderSuccessRouteComponent() {
     initialData: initialOrder,
   })
 
-  return <OrderSuccessPage order={order} />
+  const handleRetryPayment = useCallback(async () => {
+    return retryPayment({ data: { platformOrderId } })
+  }, [platformOrderId])
+
+  return <OrderSuccessPage order={order} onRetryPayment={handleRetryPayment} />
 }

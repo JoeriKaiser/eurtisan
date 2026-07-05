@@ -158,12 +158,24 @@ export function InvoiceDetailComponent() {
                 <table className='w-full text-left text-sm print:text-black'>
                   <thead>
                     <tr className='border-b border-border-default pb-2 text-xs font-semibold uppercase tracking-wider text-text-muted print:text-gray-500'>
-                      <th className='pb-3 font-medium'>{m.invoice_th_description()}</th>
-                      <th className='pb-3 text-right font-medium'>{m.invoice_th_qty()}</th>
-                      <th className='pb-3 text-right font-medium'>{m.invoice_th_unit_price()}</th>
-                      <th className='pb-3 text-right font-medium'>{m.invoice_th_vat_rate()}</th>
-                      <th className='pb-3 text-right font-medium'>{m.invoice_th_vat_amount()}</th>
-                      <th className='pb-3 text-right font-medium'>{m.invoice_th_total()}</th>
+                      <th className='whitespace-nowrap pb-3 font-medium print:whitespace-normal'>
+                        {m.invoice_th_description()}
+                      </th>
+                      <th className='whitespace-nowrap pb-3 text-right font-medium print:whitespace-normal'>
+                        {m.invoice_th_qty()}
+                      </th>
+                      <th className='whitespace-nowrap pb-3 text-right font-medium print:whitespace-normal'>
+                        {m.invoice_th_unit_price()}
+                      </th>
+                      <th className='whitespace-nowrap pb-3 text-right font-medium print:whitespace-normal'>
+                        {m.invoice_th_vat_rate()}
+                      </th>
+                      <th className='whitespace-nowrap pb-3 text-right font-medium print:whitespace-normal'>
+                        {m.invoice_th_vat_amount()}
+                      </th>
+                      <th className='whitespace-nowrap pb-3 text-right font-medium print:whitespace-normal'>
+                        {m.invoice_th_total()}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>

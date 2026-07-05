@@ -407,7 +407,7 @@ export function CreatorProductsPage({
                   {m.creator_products_col_status()}
                 </th>
                 <th className='pb-3 font-medium text-text-secondary text-right'>
-                  <span className='sr-only'>{m.creator_products_col_actions()}</span>
+                  {m.creator_products_col_actions()}
                 </th>
               </tr>
             </thead>
