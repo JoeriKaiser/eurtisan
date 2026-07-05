@@ -21,7 +21,7 @@ export function Badge({ className, variant = 'default', ref, ...props }: BadgePr
     <span
       ref={ref}
       className={cn(
-        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors',
+        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap transition-colors',
         variants[variant],
         className,
       )}

@@ -13,7 +13,7 @@ import {
   resolveShopOrderManualReview,
   updateShopOrderTracking,
 } from '#/lib/shop-orders'
-import { getOrderStatusLabel } from '#/lib/orders-ui'
+import { getOrderStatusLabel, statusBadgeVariant } from '#/lib/orders-ui'
 import type { OrderStatus } from '#/lib/orders.server'
 import { m } from '#/paraglide/messages'
 import { ShopOrderShipDialog } from '#/route-components/studio/ShopOrderShipDialog'
@@ -25,27 +25,6 @@ import {
   ShippingLabelCard,
   ShippingMethodCard,
 } from './ShopOrderDetailCards'
-
-function getStatusBadgeVariant(orderStatus: string): React.ComponentProps<typeof Badge>['variant'] {
-  switch (orderStatus) {
-    case 'completed':
-    case 'delivered':
-      return 'success'
-    case 'cancelled':
-    case 'refunded':
-    case 'disputed':
-      return 'error'
-    case 'shipped':
-      return 'primary'
-    case 'paid':
-    case 'processing':
-      return 'warning'
-    case 'manual_review':
-      return 'warning'
-    default:
-      return 'default'
-  }
-}
 
 function parseResponseError(err: unknown): Promise<string> {
   if (err instanceof Response) {
@@ -197,7 +176,7 @@ export function ShopOrderDetailPage() {
             <p className='font-mono text-sm text-text-secondary'>{shopOrderId.slice(0, 8)}…</p>
           </div>
           <Badge
-            variant={getStatusBadgeVariant(currentStatus)}
+            variant={statusBadgeVariant(currentStatus as OrderStatus)}
             className='text-sm'
             role='status'
             aria-live='polite'

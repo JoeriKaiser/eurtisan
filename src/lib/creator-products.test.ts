@@ -35,6 +35,13 @@ vi.mock('./auth', () => ({
 
 vi.mock('./image-storage.server', () => ({
   deleteImageFromStorage: vi.fn(),
+  extractKeyFromUrl: (url: string) => {
+    if (/^(products|shops)\/[^/]+\.(jpg|jpeg|png|webp)$/.test(url)) return url
+    return null
+  },
+  isExternalImageUrl: (url: string) => {
+    return /^(https?:\/\/[^/]+|\/uploads\/).+\.(jpg|jpeg|png|webp)$/i.test(url)
+  },
 }))
 
 beforeEach(async () => {
@@ -719,6 +726,29 @@ describe('image validation', () => {
       images: [{ key: 'invalid-key.gif' }],
     })
     expect(result.success).toBe(false)
+  })
+
+  it('normalizes S3 URLs to object keys', () => {
+    const result = createProductSchema.safeParse({
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 2999,
+      stockCount: 10,
+      images: [{ key: 'https://s3.example.com/eurtisan-uploads/products/vase-1.jpg' }],
+    })
+    expect(result.success).toBe(true)
+    expect((result.data?.images ?? [])[0].key).toBe('products/vase-1.jpg')
+  })
+
+  it('accepts externally-hosted image URLs', () => {
+    const result = createProductSchema.safeParse({
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 2999,
+      stockCount: 10,
+      images: [{ key: 'https://picsum.photos/seed/vase/800/600.jpg' }],
+    })
+    expect(result.success).toBe(true)
   })
 
   it('limits images to 10 per product', () => {

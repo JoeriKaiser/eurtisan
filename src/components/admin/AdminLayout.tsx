@@ -428,7 +428,7 @@ export function AdminLayout() {
   )
 
   return (
-    <div className='flex min-h-[calc(100vh-65px)] flex-col md:flex-row'>
+    <div className='flex min-h-screen flex-col md:flex-row'>
       {/* Mobile drawer overlay */}
       {mobileOpen && (
         <div

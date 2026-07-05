@@ -28,6 +28,10 @@ export function getS3Endpoint(): string {
   return getEnvVar('S3_ENDPOINT')
 }
 
+export function getS3PublicEndpoint(): string {
+  return process.env.S3_PUBLIC_ENDPOINT || getEnvVar('S3_ENDPOINT')
+}
+
 export function getS3Region(): string {
   return getEnvVar('S3_REGION')
 }
@@ -46,6 +50,21 @@ export function getS3SecretAccessKey(): string {
 
 export const s3Client = new S3Client({
   endpoint: getS3Endpoint(),
+  region: getS3Region(),
+  credentials: {
+    accessKeyId: getS3AccessKeyId(),
+    secretAccessKey: getS3SecretAccessKey(),
+  },
+  forcePathStyle: true,
+  requestChecksumCalculation: 'WHEN_REQUIRED',
+})
+
+/**
+ * Separate S3 client configured with the public endpoint.
+ * Used only for generating browser-resolvable presigned URLs.
+ */
+export const s3PublicClient = new S3Client({
+  endpoint: getS3PublicEndpoint(),
   region: getS3Region(),
   credentials: {
     accessKeyId: getS3AccessKeyId(),

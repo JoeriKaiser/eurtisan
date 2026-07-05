@@ -116,6 +116,7 @@ vi.mock('#/lib/orders-ui', () => ({
   },
   isSupportedShippingCountry: (code: string) => code === 'DE',
   statusTimelineLabel: (status: string) => status.charAt(0).toUpperCase() + status.slice(1),
+  statusBadgeVariant: () => 'default',
 }))
 
 vi.mock('#/components/ui/primitives/dialog', () => ({

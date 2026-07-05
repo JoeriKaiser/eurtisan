@@ -87,6 +87,8 @@ if [ ! -f "$ENV_FILE" ]; then
   WRITE_ENV=true
 elif ! grep -q "S3_ACCESS_KEY_ID=${ACCESS_KEY_ID}" "$ENV_FILE" 2>/dev/null; then
   WRITE_ENV=true
+elif ! grep -q "AWS_ACCESS_KEY_ID=${ACCESS_KEY_ID}" "$ENV_FILE" 2>/dev/null; then
+  WRITE_ENV=true
 fi
 
 if [ "$WRITE_ENV" = "true" ]; then
@@ -97,12 +99,18 @@ S3_ACCESS_KEY_ID=${ACCESS_KEY_ID}
 S3_SECRET_ACCESS_KEY=${SECRET_KEY}
 IMGPROXY_S3_ACCESS_KEY_ID=${ACCESS_KEY_ID}
 IMGPROXY_S3_SECRET_ACCESS_KEY=${SECRET_KEY}
+AWS_ACCESS_KEY_ID=${ACCESS_KEY_ID}
+AWS_SECRET_ACCESS_KEY=${SECRET_KEY}
 EOF
-  echo "[garage-init] Credentials written. Recreating app and imgproxy..."
-  docker compose up -d app imgproxy >/dev/null 2>&1 || true
+  echo "[garage-init] Credentials written. Recreating app, imgproxy, and email-outbox-worker..."
+  docker compose up -d app imgproxy email-outbox-worker >/dev/null 2>&1 || true
 else
   echo "[garage-init] Credentials unchanged."
 fi
+
+# Configure CORS on the bucket for browser uploads
+echo "[garage-init] Configuring CORS on bucket..."
+docker compose exec -T app bun run scripts/setup-garage-cors.ts 2>/dev/null || echo "[garage-init] Warning: CORS setup skipped (app container may not be ready yet)"
 
 echo ""
 echo "========================================"

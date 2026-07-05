@@ -21,7 +21,10 @@
 import { createHmac } from 'node:crypto'
 import { DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { getS3Bucket, s3Client } from './s3-client.server'
+import { getS3Bucket, getS3PublicEndpoint, s3Client, s3PublicClient } from './s3-client.server'
+import { extractKeyFromUrl, isExternalImageUrl } from './image-url'
+
+export { extractKeyFromUrl, isExternalImageUrl }
 
 const PRESIGNED_URL_EXPIRY_SECONDS = 300 // 5 minutes
 
@@ -84,9 +87,36 @@ export async function createPresignedUploadUrl(key: string, contentType: string)
     ContentType: contentType,
   })
 
-  return getSignedUrl(s3Client, command, {
+  // Sign with the public-endpoint client so the browser can resolve the URL
+  // and the signature matches the Host header the browser will send.
+  return getSignedUrl(s3PublicClient, command, {
     expiresIn: PRESIGNED_URL_EXPIRY_SECONDS,
   })
+}
+
+/**
+ * Downloads an image from a URL and uploads it directly to S3 as the given key.
+ * Used by seed scripts to import placeholder images into platform storage.
+ */
+export async function uploadImageFromUrl(imageUrl: string, targetKey: string): Promise<void> {
+  validateKey(targetKey)
+
+  const response = await fetch(imageUrl)
+  if (!response.ok) {
+    throw new Error(`Failed to download image from ${imageUrl}: ${response.status}`)
+  }
+
+  const buffer = Buffer.from(await response.arrayBuffer())
+  const contentType = response.headers.get('content-type') || 'image/jpeg'
+
+  await s3Client.send(
+    new PutObjectCommand({
+      Bucket: getS3Bucket(),
+      Key: targetKey,
+      Body: buffer,
+      ContentType: contentType,
+    }),
+  )
 }
 
 /**
@@ -153,7 +183,7 @@ export function buildImgproxyUrl(key: string, options: ImgproxyOptions = {}): st
   const baseUrl = getImgproxyBaseUrl()
   if (!baseUrl) {
     // Fallback: return a direct S3 URL if imgproxy is not configured
-    const endpoint = process.env.S3_ENDPOINT ?? ''
+    const endpoint = getS3PublicEndpoint()
     const bucket = getS3Bucket()
     return `${endpoint}/${bucket}/${key}`
   }
@@ -186,36 +216,7 @@ export function buildImgproxyUrl(key: string, options: ImgproxyOptions = {}): st
  * (e.g., admin previews, downloads).
  */
 export function buildS3PublicUrl(key: string): string {
-  const endpoint = process.env.S3_ENDPOINT ?? ''
+  const endpoint = getS3PublicEndpoint()
   const bucket = getS3Bucket()
   return `${endpoint}/${bucket}/${key}`
-}
-
-/**
- * Extracts the object key from various URL formats.
- * Returns null if the URL does not match a known format.
- */
-export function extractKeyFromUrl(url: string): string | null {
-  if (!url) return null
-
-  // Already a bare key (products/... or shops/...)
-  if (url.match(/^(products|shops)\/[^/]+\.(jpg|jpeg|png|webp)$/)) {
-    return url
-  }
-
-  // Legacy local filesystem URL: /uploads/products/... or /uploads/shops/...
-  const legacyMatch = url.match(/\/uploads\/(products\/[^/]+\.(jpg|jpeg|png|webp))$/)
-  if (legacyMatch) return legacyMatch[1]
-
-  const legacyShopMatch = url.match(/\/uploads\/(shops\/[^/]+\.(jpg|jpeg|png|webp))$/)
-  if (legacyShopMatch) return legacyShopMatch[1]
-
-  // Direct S3 URL: http(s)://.../bucket/products/...
-  const s3Match = url.match(/\/eurtisan-uploads\/(products\/[^/]+\.(jpg|jpeg|png|webp))$/)
-  if (s3Match) return s3Match[1]
-
-  const s3ShopMatch = url.match(/\/eurtisan-uploads\/(shops\/[^/]+\.(jpg|jpeg|png|webp))$/)
-  if (s3ShopMatch) return s3ShopMatch[1]
-
-  return null
 }

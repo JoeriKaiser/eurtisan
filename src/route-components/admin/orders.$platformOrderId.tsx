@@ -7,6 +7,7 @@ import { statusBadgeVariant } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 import { formatDateMediumTime } from '#/lib/format-date'
+import { getCarrierTrackingUrl } from '#/lib/shipping'
 
 /* -------------------------------------------------------------------------- */
 /*                                   Helpers                                  */
@@ -196,27 +197,40 @@ export function AdminOrderDetailPage() {
                 </span>
                 {shop.shippingLabels.length > 0 ? (
                   <div className='flex flex-wrap items-center gap-2'>
-                    {shop.shippingLabels.map((label) => (
-                      <span
-                        key={label.createdAt.getTime()}
-                        className='inline-flex items-center gap-1'
-                      >
-                        <Package size={14} aria-hidden='true' />
-                        {m.order_detail_tracking()}:{' '}
-                        {label.labelUrl ? (
-                          <a
-                            href={label.labelUrl}
-                            target='_blank'
-                            rel='noopener noreferrer'
-                            className='text-accent-primary hover:underline'
-                          >
-                            {label.trackingNumber ?? label.carrier}
-                          </a>
-                        ) : (
-                          (label.trackingNumber ?? label.carrier)
-                        )}
-                      </span>
-                    ))}
+                    {shop.shippingLabels.map((label) => {
+                      const trackingUrl = getCarrierTrackingUrl(label.carrier, label.trackingNumber)
+                      return (
+                        <span
+                          key={label.createdAt.getTime()}
+                          className='inline-flex items-center gap-1'
+                        >
+                          <Package size={14} aria-hidden='true' />
+                          {m.order_detail_tracking()}:{' '}
+                          {trackingUrl ? (
+                            <a
+                              href={trackingUrl}
+                              target='_blank'
+                              rel='noopener noreferrer'
+                              className='text-accent-primary hover:underline font-mono'
+                            >
+                              {label.trackingNumber}
+                            </a>
+                          ) : (
+                            <span className='font-mono'>{label.trackingNumber}</span>
+                          )}
+                          {label.labelUrl && (
+                            <a
+                              href={label.labelUrl}
+                              target='_blank'
+                              rel='noopener noreferrer'
+                              className='ml-1 text-xs text-text-muted hover:text-text-primary underline'
+                            >
+                              (Label PDF)
+                            </a>
+                          )}
+                        </span>
+                      )
+                    })}
                   </div>
                 ) : (
                   shop.trackingNumber && (

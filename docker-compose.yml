@@ -2,6 +2,7 @@ services:
   db-test:
     image: postgres:16-alpine
     container_name: eurtisan-postgres-test
+    restart: unless-stopped
     ports:
       - "127.0.0.1:5439:5432"
     environment:
@@ -19,6 +20,7 @@ services:
   db:
     image: postgres:16-alpine
     container_name: eurtisan-postgres
+    restart: unless-stopped
     ports:
       - "127.0.0.1:5432:5432"
     environment:
@@ -38,6 +40,7 @@ services:
   meilisearch:
     image: getmeili/meilisearch:v1.43.0
     container_name: eurtisan-meilisearch
+    restart: unless-stopped
     ports:
       - "127.0.0.1:7700:7700"
     environment:
@@ -55,6 +58,7 @@ services:
   mailpit:
     image: axllent/mailpit:latest
     container_name: eurtisan-mailpit
+    restart: unless-stopped
     ports:
       - "1025:1025"
       - "8025:8025"
@@ -70,6 +74,7 @@ services:
   garage:
     image: dxflrs/garage:v2.3.0
     container_name: eurtisan-garage
+    restart: unless-stopped
     ports:
       - "3900:3900"
       - "3901:3901"
@@ -91,6 +96,7 @@ services:
   imgproxy:
     image: darthsim/imgproxy:v3
     container_name: eurtisan-imgproxy
+    restart: unless-stopped
     ports:
       - "8080:8080"
     env_file:
@@ -114,6 +120,7 @@ services:
   app:
     build: .
     container_name: eurtisan-app
+    restart: unless-stopped
     ports:
       - "3000:3000"
     env_file:
@@ -124,6 +131,7 @@ services:
       EMAIL_SMTP_PORT: 1025
       MOCK_PAYMENTS_ENABLED: "true"
       S3_ENDPOINT: http://garage:3900
+      S3_PUBLIC_ENDPOINT: http://localhost:3900
       S3_REGION: garage
       S3_BUCKET: eurtisan-uploads
       IMGPROXY_BASE_URL: http://localhost:8080
@@ -149,6 +157,7 @@ services:
   email-outbox-worker:
     build: .
     container_name: eurtisan-email-outbox-worker-dev
+    restart: unless-stopped
     env_file:
       - .env.garage
     environment:

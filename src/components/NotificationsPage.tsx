@@ -49,7 +49,8 @@ function resolveDeepLink(item: NotificationItem): string | null {
   switch (item.type) {
     case 'order_placed':
     case 'order_shipped':
-    case 'order_refunded': {
+    case 'order_refunded':
+    case 'order_chargeback': {
       const orderNumber = data.orderNumber ?? data.orderId ?? data.platformOrderId
       if (orderNumber) return `/orders/${orderNumber}`
       break
@@ -98,6 +99,10 @@ function notificationPreview(item: NotificationItem): string {
       })
     case 'order_refunded':
       return m.notification_order_refunded({
+        orderNumber: data.orderNumber ?? data.orderId ?? data.platformOrderId ?? '',
+      })
+    case 'order_chargeback':
+      return m.notification_order_chargeback({
         orderNumber: data.orderNumber ?? data.orderId ?? data.platformOrderId ?? '',
       })
     case 'review_received':

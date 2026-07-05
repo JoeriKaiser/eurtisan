@@ -127,6 +127,7 @@ describe('UserMenu', () => {
     render(<UserMenu />)
     fireEvent.click(screen.getByRole('button', { name: /open user menu/i }))
 
+    expect(screen.getByText('Creator Dashboard')).toBeDefined()
     expect(screen.getByText('My Studio')).toBeDefined()
     expect(screen.queryByText('Become a Creator')).toBeNull()
   })
@@ -150,6 +151,7 @@ describe('UserMenu', () => {
     fireEvent.click(screen.getByRole('button', { name: /open user menu/i }))
 
     expect(screen.getByText('Admin Dashboard')).toBeDefined()
+    expect(screen.getByText('Creator Dashboard')).toBeDefined()
     expect(screen.getByText('My Studio')).toBeDefined()
   })
 

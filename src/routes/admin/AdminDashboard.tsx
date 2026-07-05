@@ -52,9 +52,9 @@ interface StatCardProps {
 
 export function StatCard({ icon, label, value, iconBgClass, iconColorClass }: StatCardProps) {
   return (
-    <Card variant='elevated' className='flex items-start gap-4'>
+    <Card variant='elevated' className='flex items-center gap-5 p-5'>
       <div
-        className={`flex size-10 shrink-0 items-center justify-center rounded-lg ${iconBgClass}`}
+        className={`flex size-12 shrink-0 items-center justify-center rounded-xl ${iconBgClass}`}
       >
         <span className={iconColorClass}>{icon}</span>
       </div>
@@ -287,8 +287,8 @@ export function AdminDashboardPending() {
       <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4'>
         {[1, 2, 3, 4].map((n) => (
           <div key={n} className='island-shell rounded-xl p-5'>
-            <div className='flex items-start gap-4'>
-              <Skeleton className='size-10 rounded-lg' />
+            <div className='flex items-center gap-5'>
+              <Skeleton className='size-12 rounded-xl' />
               <div className='flex-1 space-y-2'>
                 <Skeleton className='size-4' />
                 <Skeleton className='size-8' />

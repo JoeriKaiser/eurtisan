@@ -9,7 +9,11 @@ import {
   shop,
 } from '#/db/schema'
 import { type ProductImageInput, validateImageKey } from './image-utils'
-import { deleteImageFromStorage } from './image-storage.server'
+import {
+  deleteImageFromStorage,
+  extractKeyFromUrl,
+  isExternalImageUrl,
+} from './image-storage.server'
 import { logger } from './logger.server'
 import { isPostgresUniqueViolation } from './db-errors'
 import { sanitizeRichText, validatePlainText } from './xss'
@@ -99,7 +103,12 @@ async function insertProductImages(
   if (images.length === 0) return []
 
   for (const img of images) {
-    validateImageKey(img.key)
+    const extractedKey = extractKeyFromUrl(img.key)
+    if (extractedKey) {
+      validateImageKey(extractedKey)
+    } else if (!isExternalImageUrl(img.key)) {
+      throw new Error('Invalid image key format')
+    }
   }
 
   const values = images.map((img, i) => ({
@@ -125,7 +134,12 @@ async function replaceProductImages(
   }
 
   for (const img of images) {
-    validateImageKey(img.key)
+    const extractedKey = extractKeyFromUrl(img.key)
+    if (extractedKey) {
+      validateImageKey(extractedKey)
+    } else if (!isExternalImageUrl(img.key)) {
+      throw new Error('Invalid image key format')
+    }
   }
 
   await tx.delete(productImage).where(eq(productImage.productId, productId))
@@ -354,7 +368,7 @@ export async function updateProductInternal(
     if (data.images !== undefined && oldImageKeys.length > 0) {
       const newKeys = new Set(data.images.map((img) => img.key))
       for (const key of oldImageKeys) {
-        if (!newKeys.has(key)) {
+        if (!newKeys.has(key) && extractKeyFromUrl(key) !== null) {
           try {
             await deleteImageFromStorage(key)
           } catch (err) {
@@ -655,6 +669,7 @@ export async function deleteProductInternal(
     // Delete from S3 after DB transaction succeeds
     if (oldKeys.length > 0) {
       for (const key of oldKeys) {
+        if (extractKeyFromUrl(key) === null) continue
         try {
           await deleteImageFromStorage(key)
         } catch (err) {
@@ -1100,6 +1115,7 @@ export async function bulkDeleteProductsInternal(
     })
 
     for (const img of oldImages) {
+      if (extractKeyFromUrl(img.url) === null) continue
       try {
         await deleteImageFromStorage(img.url)
       } catch (err) {

@@ -1,10 +1,15 @@
 import z from 'zod'
 
+import { extractKeyFromUrl, isExternalImageUrl } from './image-url'
+
+const imageKeyRegex = /^(products|shops)\/[^/]+\.(jpg|jpeg|png|webp)$/
+
 export const productImageInputSchema = z.object({
   key: z
     .string()
     .min(1)
-    .regex(/^(products|shops)\/[^/]+\.(jpg|jpeg|png|webp)$/, {
+    .transform((value) => extractKeyFromUrl(value) ?? value)
+    .refine((value) => imageKeyRegex.test(value) || isExternalImageUrl(value), {
       message: 'Invalid image key format',
     }),
   altText: z.string().max(500).optional(),

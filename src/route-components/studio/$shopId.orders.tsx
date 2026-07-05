@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
-import { getOrderStatusLabel } from '#/lib/orders-ui'
+import { getOrderStatusLabel, statusBadgeVariant } from '#/lib/orders-ui'
 import type { OrderStatus } from '#/lib/orders.server'
 import { useLoaderData, useNavigate, useParams } from '@tanstack/react-router'
 
@@ -20,25 +20,6 @@ const statusOptions: { value: '' | OrderStatus; label: string }[] = [
   { value: 'refunded', label: m.orderStatus_refunded() },
   { value: 'disputed', label: m.orderStatus_disputed() },
 ]
-
-function getStatusBadgeVariant(orderStatus: string): React.ComponentProps<typeof Badge>['variant'] {
-  switch (orderStatus) {
-    case 'completed':
-    case 'delivered':
-      return 'success'
-    case 'cancelled':
-    case 'refunded':
-    case 'disputed':
-      return 'error'
-    case 'shipped':
-      return 'primary'
-    case 'paid':
-    case 'processing':
-      return 'warning'
-    default:
-      return 'default'
-  }
-}
 
 export function ShopOrdersPage() {
   const { shopId } = useParams({ from: '/studio/$shopId/orders/' })
@@ -207,7 +188,7 @@ export function ShopOrdersPage() {
                   <p className='text-xs text-text-secondary'>{order.buyerEmail}</p>
                 </div>
                 <div>
-                  <Badge variant={getStatusBadgeVariant(order.status as OrderStatus)}>
+                  <Badge variant={statusBadgeVariant(order.status as OrderStatus)}>
                     {getOrderStatusLabel(order.status as OrderStatus)}
                   </Badge>
                 </div>

@@ -128,7 +128,7 @@ vi.mock('#/paraglide/messages', () => ({
 }))
 
 vi.mock('#/lib/orders-ui', () => ({
-  getStatusBadgeVariant: () => 'default',
+  statusBadgeVariant: () => 'default',
   getOrderStatusLabel: (status: string) => status.replace('_', ' '),
   isSupportedShippingCountry: () => true,
 }))

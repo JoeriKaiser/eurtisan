@@ -14,20 +14,30 @@ const Devtools = import.meta.env.DEV
   : null
 
 const AUTH_ROUTES = new Set(['/signin', '/forgot-password', '/reset-password', '/verify-email'])
+const LOCALES = new Set(['en', 'nl'])
+
+function stripLocalePrefix(pathname: string): string {
+  // Strip an optional locale prefix (e.g. /nl/admin) so route detection works
+  // regardless of the active locale.
+  const segments = pathname.split('/')
+  if (segments[1] && LOCALES.has(segments[1])) {
+    return segments.slice(2).join('/') === '' ? '/' : `/${segments.slice(2).join('/')}`
+  }
+  return pathname
+}
 
 function normalizeAuthRoute(pathname: string): string {
-  // Strip an optional locale prefix (e.g. /nl/signin) so the fixed banner is
-  // also suppressed on localized auth pages.
-  const withoutLocale = pathname.replace(/^\/(en|nl)(?=\/|$)/, '')
+  const withoutLocale = stripLocalePrefix(pathname)
   return withoutLocale === '' ? '/' : withoutLocale
 }
 
 export function RootComponent() {
   const router = useRouter()
   const pathname = router.state.location.pathname
+  const normalizedPathname = stripLocalePrefix(pathname)
   const isOnboarding = pathname.includes('/sell/onboarding/')
   const isAuthRoute = AUTH_ROUTES.has(normalizeAuthRoute(pathname))
-  const isAdminRoute = pathname.startsWith('/admin')
+  const isAdminRoute = normalizedPathname.startsWith('/admin')
 
   const { consent } = useAnalyticsConsent()
 

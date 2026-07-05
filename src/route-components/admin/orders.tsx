@@ -2,7 +2,6 @@ import { useLoaderData, useNavigate, useSearch } from '@tanstack/react-router'
 import { Inbox } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
 import { Card, CardContent } from '#/components/ui/card'
-import type { PaginatedAdminOrders } from '#/lib/admin-orders'
 import { downloadCSV, generateCSV } from '#/lib/csv-export'
 import { m } from '#/paraglide/messages'
 import { OrdersFilters } from './orders/OrdersFilters'
@@ -14,14 +13,13 @@ import { OrdersTable } from './orders/OrdersTable'
 /* -------------------------------------------------------------------------- */
 
 export function AdminOrdersPage() {
-  const initialData = useLoaderData({ from: '/admin/orders/' })
+  const orders = useLoaderData({ from: '/admin/orders/' })
   const navigate = useNavigate()
   const search = useSearch({ from: '/admin/orders/' })
 
-  const [orders, _setOrders] = useState<PaginatedAdminOrders>(initialData)
-
   // --- Search state ---
   const [searchValue, setSearchValue] = useState(search.query ?? '')
+
   const searchInputRef = useRef<HTMLInputElement>(null)
 
   // --- Pagination helpers ---

@@ -538,6 +538,7 @@
   "notification_dispute_resolved": "Dispute resolved for order {orderNumber}",
   "notification_payout_sent": "Payout sent: {amount}",
   "notification_order_refunded": "Order refunded: {orderNumber}",
+  "notification_order_chargeback": "Chargeback initiated for order {orderNumber}",
   "notification_dac7_warning": "DAC7 Compliance Alert: Shop \"{shopName}\" has {limitType} the sales threshold. Please update your Tax ID settings.",
   "notification_low_stock": "Low stock: {productName}",
   "order_detail_open_dispute": "Open dispute",

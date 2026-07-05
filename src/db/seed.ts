@@ -41,6 +41,10 @@ import {
 } from './seed-descriptions.ts'
 import { generateOrderNumber } from '../lib/order-numbers.ts'
 
+import { calculateVat } from '../lib/vat.server.ts'
+import { recalcPlatformOrderTree } from '../lib/financial-totals.server.ts'
+import { PLATFORM_FEE_PERCENT } from '../lib/platform-constants.ts'
+import { uploadImageFromUrl } from '../lib/image-storage.server.ts'
 // =============================================================================
 // Configuration
 // =============================================================================
@@ -77,6 +81,24 @@ function hashPassword(password: string): string {
 
 const PRODUCTS_UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'products')
 const SHOPS_UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'shops')
+const IMAGE_UPLOAD_CONCURRENCY = 8
+
+async function runWithConcurrency<T, R>(
+  items: T[],
+  fn: (item: T) => Promise<R>,
+  concurrency: number,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length)
+  let index = 0
+  async function worker() {
+    while (index < items.length) {
+      const i = index++
+      results[i] = await fn(items[i])
+    }
+  }
+  await Promise.all(Array.from({ length: concurrency }, () => worker()))
+  return results
+}
 
 const SHIPPED_STATUSES = new Set(['shipped', 'delivered', 'completed', 'disputed'])
 const DELIVERED_STATUSES = new Set(['delivered', 'completed'])
@@ -434,7 +456,10 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
   ]
 
   for (const creator of creators) {
-    const count = faker.number.int(CONFIG.shopsPerCreator)
+    const isDemoCreator = ['creator@eurtisan.local', 'creator.2fa@eurtisan.local'].includes(
+      creator.email,
+    )
+    const count = isDemoCreator ? 1 : faker.number.int(CONFIG.shopsPerCreator)
     for (let i = 0; i < count; i++) {
       const name = `${faker.helpers.arrayElement(prefixes)}${faker.helpers.arrayElement(suffixes)}`
         .replace(/\s+/g, ' ')
@@ -442,14 +467,16 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
       const locale = randomLocale()
       const slug = uniqueSlug(name, shopSlugs)
 
-      const status = faker.helpers.arrayElement([
-        'active',
-        'active',
-        'active',
-        'draft',
-        'pending_review',
-        'paused',
-      ]) as (typeof schema.shopStatusEnum.enumValues)[number]
+      const status = isDemoCreator
+        ? 'active'
+        : (faker.helpers.arrayElement([
+            'active',
+            'active',
+            'active',
+            'draft',
+            'pending_review',
+            'paused',
+          ]) as (typeof schema.shopStatusEnum.enumValues)[number])
       const paymentConnected = ['active', 'paused'].includes(status)
       const isVatRegistered = paymentConnected && faker.datatype.boolean(0.5)
       const vatId = isVatRegistered ? `${locale.country}${faker.string.numeric(11)}` : undefined
@@ -696,16 +723,21 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
     })
   }
 
-  // Image downloads disabled — seed uses external placeholder URLs directly.
-  // To re-enable local image storage, restore the downloadImage loop below.
-  // console.log('  Downloading shop banners...')
-  // await asyncPool(IMAGE_DOWNLOAD_CONCURRENCY, shops, async (shop) => {
-  //   if (!shop.image) return
-  //   const filename = `banner.jpg`
-  //   const dest = join(SHOPS_UPLOAD_DIR, shop.id!, filename)
-  //   await downloadImage(shop.image, dest)
-  //   shop.image = `/uploads/shops/${shop.id!}/${filename}`
-  // })
+  // Upload shop banners to S3 so shop.image stores real S3 keys.
+  console.log('  Uploading shop banners to S3...')
+  await runWithConcurrency(
+    shops.filter((s) => s.image),
+    async (shop) => {
+      const key = `shops/${shop.id}.jpg`
+      try {
+        await uploadImageFromUrl(shop.image!, key)
+        shop.image = key
+      } catch (err) {
+        console.error(`  Failed to upload shop banner ${shop.image}, leaving external URL:`, err)
+      }
+    },
+    IMAGE_UPLOAD_CONCURRENCY,
+  )
 
   if (shops.length > 0) {
     await db.insert(schema.shop).values(shops).onConflictDoNothing({ target: schema.shop.slug })
@@ -1004,14 +1036,23 @@ async function seedProducts(
     }
   }
 
-  // Image downloads disabled — seed uses external placeholder URLs directly.
-  // console.log('  Downloading product images...')
-  // await asyncPool(IMAGE_DOWNLOAD_CONCURRENCY, productImages, async (img) => {
-  //   const filename = `img-${img.sortOrder}.jpg`
-  //   const dest = join(PRODUCTS_UPLOAD_DIR, img.productId, filename)
-  //   await downloadImage(img.url, dest)
-  //   img.url = `/uploads/products/${img.productId}/${filename}`
-  // })
+  // Download placeholder images and upload them to S3 so product_image.url stores real S3 keys.
+  if (productImages.length > 0) {
+    console.log(`  Uploading ${productImages.length} product images to S3...`)
+    await runWithConcurrency(
+      productImages,
+      async (img) => {
+        const key = `products/${img.productId}-${img.sortOrder}.jpg`
+        try {
+          await uploadImageFromUrl(img.url, key)
+          img.url = key
+        } catch (err) {
+          console.error(`  Failed to upload image ${img.url}, leaving external URL:`, err)
+        }
+      },
+      IMAGE_UPLOAD_CONCURRENCY,
+    )
+  }
 
   await Promise.all(
     chunk(products, 100).map((c) => db.insert(schema.product).values(c).onConflictDoNothing()),
@@ -1181,10 +1222,12 @@ async function seedOrders(
     productsByShop.get(p.shopId)?.push(p)
   }
 
-  const shopEntries = Array.from(productsByShop.entries()).map(([shopId, products]) => ({
-    shopId,
-    products,
-  }))
+  const shopEntries = Array.from(productsByShop.entries())
+    .filter(([_, prods]) => prods.length > 0)
+    .map(([shopId, prods]) => ({
+      shopId,
+      products: prods,
+    }))
 
   const shopById = new Map(shops.map((s) => [s.id, s]))
 
@@ -1210,15 +1253,15 @@ async function seedOrders(
     const status = faker.helpers.arrayElement(statusPool)
     const orderDate = faker.date.past({ years: 1 })
     const platformOrderId = crypto.randomUUID()
-    const totalCents = faker.number.int({ min: 1200, max: 120000 })
 
+    // Create platform order record (totalCents placeholder, will be recalc'd)
     platformOrders.push({
       id: platformOrderId,
       orderNumber: generateOrderNumber(),
       userId: customer.id!,
       shippingAddress,
       billingAddress,
-      totalCents,
+      totalCents: 0,
       status,
       cancelledAt: status === 'cancelled' ? faker.date.recent({ days: 30 }) : undefined,
       cancellationReason:
@@ -1238,14 +1281,19 @@ async function seedOrders(
       updatedAt: orderDate,
     })
 
-    const shopCount = faker.number.int({ min: 1, max: 3 })
+    const shopCount = faker.number.int({ min: 1, max: Math.min(3, shopEntries.length) })
     const usedShops = new Set<string>()
+    const selectedEntries: typeof shopEntries = []
 
-    for (let s = 0; s < shopCount; s++) {
+    while (selectedEntries.length < shopCount) {
       const entry = faker.helpers.arrayElement(shopEntries)
-      if (usedShops.has(entry.shopId)) continue
-      usedShops.add(entry.shopId)
+      if (!usedShops.has(entry.shopId)) {
+        usedShops.add(entry.shopId)
+        selectedEntries.push(entry)
+      }
+    }
 
+    for (const entry of selectedEntries) {
       const shopOrderId = crypto.randomUUID()
       const shopStatus =
         status === 'pending_payment'
@@ -1254,39 +1302,37 @@ async function seedOrders(
             ? faker.helpers.arrayElement(['paid', 'processing'])
             : status
 
-      const subtotalCents = Math.floor(totalCents / shopCount)
-      const shippingCostCents = faker.number.int({ min: 399, max: 2499 })
+      const shop = shopById.get(entry.shopId)!
+      const sellerCountry = (shop.shippingOrigin as { country: string } | null)?.country ?? 'FR'
+      const buyerCountry = shippingAddress.country ?? 'FR'
 
-      shopOrders.push({
-        id: shopOrderId,
-        platformOrderId,
-        shopId: entry.shopId,
-        shippingMethod: faker.helpers.arrayElement(schema.shippingMethodEnum.enumValues),
-        shippingCostCents,
-        subtotalCents,
-        status: shopStatus,
-        trackingNumber: SHIPPED_STATUSES.has(shopStatus)
-          ? faker.string.alphanumeric(12).toUpperCase()
-          : undefined,
-        trackingUrl: SHIPPED_STATUSES.has(shopStatus)
-          ? `https://track.eurtisan.eu/${faker.string.alphanumeric(8)}`
-          : undefined,
-        deliveredAt: DELIVERED_STATUSES.has(shopStatus)
-          ? faker.date.recent({ days: 60 })
-          : undefined,
-        createdAt: orderDate,
-        updatedAt: orderDate,
-      })
-
-      // Order items
-      const itemCount = faker.number.int(CONFIG.itemsPerOrder)
+      // Pick 1 to 4 unique products for this shop order
+      const itemCount = faker.number.int({ min: 1, max: Math.min(4, entry.products.length) })
+      const selectedProducts: typeof entry.products = []
       const usedProducts = new Set<string>()
-      for (let k = 0; k < itemCount; k++) {
+      while (selectedProducts.length < itemCount) {
         const p = faker.helpers.arrayElement(entry.products)
-        if (usedProducts.has(p.id!)) continue
-        usedProducts.add(p.id!)
+        if (!usedProducts.has(p.id!)) {
+          usedProducts.add(p.id!)
+          selectedProducts.push(p)
+        }
+      }
+
+      for (const p of selectedProducts) {
         const quantity = faker.number.int({ min: 1, max: 4 })
-        const unitPriceCents = p.priceCents ?? 0
+        const catalogPrice = p.priceCents ?? 0
+
+        // Calculate VAT-exclusive unit price using the project's VAT utility
+        const itemVat = calculateVat({
+          sellerCountry,
+          buyerCountry,
+          isVatRegistered: shop.isVatRegistered ?? false,
+          vatRateCategory: (p.vatRateCategory as 'standard' | 'reduced' | 'exempt') ?? 'standard',
+          inclusiveAmountCents: catalogPrice,
+        })
+        const vatRateBasisPoints = itemVat.vatRateBasisPoints
+        const unitPriceCents = catalogPrice - itemVat.vatAmountCents
+
         orderItems.push({
           id: crypto.randomUUID(),
           shopOrderId,
@@ -1295,9 +1341,48 @@ async function seedOrders(
           unitPriceCents,
           quantity,
           totalCents: unitPriceCents * quantity,
+          vatRateBasisPoints,
+          vatAmountCents: 0, // recalcPlatformOrderTree will compute this
           createdAt: orderDate,
         })
       }
+
+      // Calculate shipping cost and its VAT
+      const rawShippingCostCents = faker.number.int({ min: 399, max: 2499 })
+      const shippingVat = calculateVat({
+        sellerCountry,
+        buyerCountry,
+        isVatRegistered: shop.isVatRegistered ?? false,
+        vatRateCategory: 'standard',
+        inclusiveAmountCents: rawShippingCostCents,
+      })
+      const shippingCostCents = rawShippingCostCents - shippingVat.vatAmountCents
+      const shippingVatRateBasisPoints = shippingVat.vatRateBasisPoints
+      const shippingVatAmountCents = shippingVat.vatAmountCents
+
+      shopOrders.push({
+        id: shopOrderId,
+        platformOrderId,
+        shopId: entry.shopId,
+        shippingMethod: faker.helpers.arrayElement(schema.shippingMethodEnum.enumValues),
+        shippingCostCents,
+        subtotalCents: 0, // recalcPlatformOrderTree will compute this
+        vatAmountCents: 0, // recalcPlatformOrderTree will compute this
+        shippingVatRateBasisPoints,
+        shippingVatAmountCents,
+        status: shopStatus,
+        trackingNumber: SHIPPED_STATUSES.has(shopStatus)
+          ? faker.string.alphanumeric(12).toUpperCase()
+          : undefined,
+        trackingUrl: SHIPPED_STATUSES.has(shopStatus)
+          ? `https://sendcloud.com/tracking?tracking_number=${faker.string.alphanumeric(12).toUpperCase()}`
+          : undefined,
+        deliveredAt: DELIVERED_STATUSES.has(shopStatus)
+          ? faker.date.recent({ days: 60 })
+          : undefined,
+        createdAt: orderDate,
+        updatedAt: orderDate,
+      })
 
       // Shipping labels
       if (LABEL_STATUSES.has(shopStatus)) {
@@ -1316,20 +1401,19 @@ async function seedOrders(
             'Colissimo',
           ]),
           trackingNumber: faker.string.alphanumeric(12).toUpperCase(),
-          labelUrl: `https://label.eurtisan.eu/${faker.string.alphanumeric(16)}.pdf`,
+          labelUrl: `https://mock.sendcloud.example.com/labels/${faker.string.alphanumeric(16)}.pdf`,
           createdAt: orderDate,
         })
       }
 
-      // Reviews for delivered / completed
+      // Reviews
       if (DELIVERED_STATUSES.has(shopStatus) && Math.random() < CONFIG.reviewsRate) {
-        const soItems = orderItems.filter((oi) => oi.shopOrderId === shopOrderId)
-        for (const item of soItems) {
+        for (const p of selectedProducts) {
           if (faker.datatype.boolean(0.45)) continue
           reviews.push({
             id: crypto.randomUUID(),
             shopOrderId,
-            productId: item.productId!,
+            productId: p.id!,
             buyerUserId: customer.id!,
             rating: faker.number.int({ min: 1, max: 5 }),
             comment: faker.helpers.maybe(() => faker.helpers.arrayElement(REVIEW_COMMENTS), {
@@ -1337,7 +1421,7 @@ async function seedOrders(
             }),
             createdAt: faker.date.soon({
               days: 14,
-              refDate: shopOrders[shopOrders.length - 1].deliveredAt ?? orderDate,
+              refDate: orderDate,
             }),
           })
         }
@@ -1377,10 +1461,6 @@ async function seedOrders(
                 'No action taken',
               ]),
             { probability: 0.6 },
-          ),
-          refundCents: faker.helpers.maybe(
-            () => faker.number.int({ min: 500, max: subtotalCents }),
-            { probability: 0.4 },
           ),
           createdAt: orderDate,
           updatedAt: orderDate,
@@ -1426,17 +1506,17 @@ async function seedOrders(
     }
   }
 
-  // Sequential: platformOrder must exist before shopOrder (FK dependency),
-  // and shopOrder must exist before orderItem/inventoryReservation/shippingLabel.
+  // Insert platformOrders
   await Promise.all(
     chunk(platformOrders, 100).map((c) =>
       db.insert(schema.platformOrder).values(c).onConflictDoNothing(),
     ),
   )
+  // Insert shopOrders
   await Promise.all(
     chunk(shopOrders, 100).map((c) => db.insert(schema.shopOrder).values(c).onConflictDoNothing()),
   )
-  // The following tables only FK to shopOrder / platformOrder and are independent of each other.
+  // Insert orderItems and related objects
   await Promise.all([
     ...chunk(orderItems, 200).map((c) =>
       db.insert(schema.orderItem).values(c).onConflictDoNothing(),
@@ -1450,12 +1530,19 @@ async function seedOrders(
     ...chunk(reviews, 100).map((c) => db.insert(schema.review).values(c).onConflictDoNothing()),
     ...chunk(disputes, 10).map((c) => db.insert(schema.dispute).values(c).onConflictDoNothing()),
   ])
-  // disputeMessages FK to disputes, so they must run after the disputes insert.
   await Promise.all(
     chunk(disputeMessages, 50).map((c) =>
       db.insert(schema.disputeMessage).values(c).onConflictDoNothing(),
     ),
   )
+
+  // Run derived totals recalculation (recalcPlatformOrderTree) inside a transaction context
+  console.log('Recalculating derived financial totals for seeded orders...')
+  for (const po of platformOrders) {
+    await db.transaction(async (tx) => {
+      await recalcPlatformOrderTree(tx, po.id!)
+    })
+  }
 
   console.log('Generating invoices for paid/completed orders...')
   const invoiceEligibleOrders = platformOrders.filter(
@@ -1490,19 +1577,39 @@ async function seedOrders(
 // =============================================================================
 // Payouts
 // =============================================================================
-async function seedPayouts(shopOrders: (typeof schema.shopOrder.$inferInsert)[]) {
+async function seedPayouts() {
   console.log('Seeding payouts...')
   const payouts: (typeof schema.payout.$inferInsert)[] = []
 
-  for (const shopOrder of shopOrders) {
+  const dbShopOrders = await db.select().from(schema.shopOrder)
+
+  for (const shopOrder of dbShopOrders) {
+    if (
+      !shopOrder.status ||
+      !['paid', 'processing', 'shipped', 'delivered', 'completed', 'disputed', 'refunded'].includes(
+        shopOrder.status,
+      )
+    ) {
+      continue
+    }
+
     const count = faker.number.int({ min: 0, max: 1 })
     for (let i = 0; i < count; i++) {
       const status = faker.helpers.arrayElement(schema.payoutStatusEnum.enumValues)
+
+      // Calculate platform fee and net amount
+      const netSubtotal = shopOrder.subtotalCents - shopOrder.vatAmountCents
+      const feeCents = Math.round(netSubtotal * (PLATFORM_FEE_PERCENT / 100))
+      let amountCents = shopOrder.subtotalCents - feeCents
+      if (shopOrder.shippingMethod === 'manual') {
+        amountCents += shopOrder.shippingCostCents
+      }
+
       payouts.push({
         id: crypto.randomUUID(),
-        shopId: shopOrder.shopId!,
-        shopOrderId: shopOrder.id!,
-        amountCents: faker.number.int({ min: 5000, max: 750000 }),
+        shopId: shopOrder.shopId,
+        shopOrderId: shopOrder.id,
+        amountCents,
         status,
         sentAt: status === 'sent' ? faker.date.past({ years: 1 }) : undefined,
         createdAt: faker.date.past({ years: 1 }),
@@ -1527,54 +1634,70 @@ async function seedNotifications(users: (typeof schema.user.$inferInsert)[]) {
   const types = [
     'order_placed',
     'order_shipped',
-    'order_delivered',
     'review_received',
-    'payout_sent',
-    'product_low_stock',
     'dispute_opened',
-    'shop_suspended',
-    'welcome',
-    'message_received',
-  ]
+    'dispute_resolved',
+    'payout_sent',
+    'order_refunded',
+    'order_chargeback',
+    'dac7_warning_limit',
+    'low_stock',
+  ] as const
 
   const notifications: (typeof schema.notification.$inferInsert)[] = []
 
   for (const user of users) {
     const count = faker.number.int({ min: 0, max: 10 })
     for (let i = 0; i < count; i++) {
+      const type = faker.helpers.arrayElement(types)
+      let data: Record<string, string> = {}
+      const mockOrderNumber = `ORD-${faker.string.alphanumeric(8).toUpperCase()}`
+
+      switch (type) {
+        case 'order_placed':
+        case 'order_shipped':
+        case 'order_refunded':
+        case 'order_chargeback':
+        case 'dispute_opened':
+        case 'dispute_resolved':
+          data = {
+            orderNumber: mockOrderNumber,
+            orderId: crypto.randomUUID(),
+          }
+          break
+        case 'review_received':
+          data = {
+            productName: faker.commerce.productName(),
+            productSlug: faker.lorem.slug(),
+            shopSlug: faker.lorem.slug(),
+          }
+          break
+        case 'payout_sent':
+          data = {
+            amount: `€${faker.finance.amount({ min: 10, max: 500, dec: 2 })}`,
+            shopId: crypto.randomUUID(),
+          }
+          break
+        case 'dac7_warning_limit':
+          data = {
+            shopName: faker.company.name(),
+            limitType: faker.helpers.arrayElement(['approaching', 'exceeded']),
+            shopId: crypto.randomUUID(),
+          }
+          break
+        case 'low_stock':
+          data = {
+            productName: faker.commerce.productName(),
+            productId: crypto.randomUUID(),
+          }
+          break
+      }
+
       notifications.push({
         id: crypto.randomUUID(),
         userId: user.id!,
-        type: faker.helpers.arrayElement(types),
-        data: {
-          title: faker.helpers.arrayElement([
-            'Order placed',
-            'Order shipped',
-            'Order delivered',
-            'New review received',
-            'Payout sent',
-            'Low stock alert',
-            'Dispute opened',
-            'Shop suspended',
-            'Welcome to Eurtisan',
-            'New message received',
-          ]),
-          body: faker.helpers.arrayElement([
-            'Your order has been confirmed and is being prepared.',
-            'Your order is on its way. Track it from your account.',
-            'Your order has been delivered. We hope you love it.',
-            'A buyer left a review on one of your products.',
-            'Your payout has been processed and sent.',
-            'One of your products is running low on stock.',
-            'A dispute has been opened for one of your orders.',
-            'Your shop has been suspended. Please review our policies.',
-            'Welcome to the marketplace. Set up your shop to start selling.',
-            'You have a new message from a buyer.',
-          ]),
-          actionUrl: faker.helpers.maybe(() => `/orders/${faker.string.alphanumeric(8)}`, {
-            probability: 0.3,
-          }),
-        },
+        type,
+        data,
         readAt: faker.datatype.boolean(0.55) ? faker.date.recent({ days: 30 }) : undefined,
         createdAt: faker.date.past({ years: 1 }),
       })
@@ -1721,8 +1844,8 @@ async function seed() {
   const [shops, categories] = await Promise.all([seedShops(users), seedCategories()])
   const products = await seedProducts(shops, categories)
   await seedCarts(users, products)
-  const shopOrders = await seedOrders(users, shops, products)
-  await seedPayouts(shopOrders)
+  await seedOrders(users, shops, products)
+  await seedPayouts()
   await seedNotifications(users)
   await seedCustomerManagement(shops, users)
 

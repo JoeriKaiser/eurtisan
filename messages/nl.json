@@ -538,6 +538,7 @@
   "notification_dispute_resolved": "Geschil opgelost voor bestelling {orderNumber}",
   "notification_payout_sent": "Uitbetaling verzonden: {amount}",
   "notification_order_refunded": "Bestelling terugbetaald: {orderNumber}",
+  "notification_order_chargeback": "Terugboeking gestart voor bestelling {orderNumber}",
   "notification_dac7_warning": "DAC7-compliance waarschuwing: winkel \"{shopName}\" heeft {limitType} de drempel bereikt. Update je btw-instellingen.",
   "notification_low_stock": "Lage voorraad: {productName}",
   "order_detail_open_dispute": "Geschil openen",

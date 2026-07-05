@@ -21,6 +21,7 @@ import {
   configureProductsIndex,
   populateProductsIndex,
 } from '../lib/meilisearch-products.server.ts'
+import { uploadImageFromUrl } from '../lib/image-storage.server.ts'
 import * as schema from './schema.ts'
 import { CATEGORY_DESCRIPTIONS, SUBCATEGORY_DESCRIPTIONS } from './seed-descriptions.ts'
 
@@ -81,6 +82,25 @@ function chunk<T>(arr: T[], size: number): T[][] {
     chunks.push(arr.slice(i, i + size))
   }
   return chunks
+}
+
+const IMAGE_UPLOAD_CONCURRENCY = 8
+
+async function runWithConcurrency<T, R>(
+  items: T[],
+  fn: (item: T) => Promise<R>,
+  concurrency: number,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length)
+  let index = 0
+  async function worker() {
+    while (index < items.length) {
+      const i = index++
+      results[i] = await fn(items[i])
+    }
+  }
+  await Promise.all(Array.from({ length: concurrency }, () => worker()))
+  return results
 }
 
 function pick<T>(arr: T[]): T {
@@ -603,6 +623,35 @@ async function seedShops(
     })
   }
 
+  // Upload shop images to S3 so the database stores real S3 keys.
+  if (shops.length > 0) {
+    console.log('  → Uploading shop images to S3...')
+    await runWithConcurrency(
+      shops,
+      async (shop) => {
+        const image = shop.image
+        const banner = shop.bannerImage
+        if (!image || !banner) return
+
+        try {
+          const imageKey = `shops/${shop.id}.jpg`
+          await uploadImageFromUrl(image, imageKey)
+          shop.image = imageKey
+
+          const bannerKey = `shops/${shop.id}-banner.jpg`
+          await uploadImageFromUrl(banner, bannerKey)
+          shop.bannerImage = bannerKey
+        } catch (err) {
+          console.error(
+            `  Failed to upload shop images for ${shop.slug}, leaving external URLs:`,
+            err,
+          )
+        }
+      },
+      IMAGE_UPLOAD_CONCURRENCY,
+    )
+  }
+
   if (shops.length > 0) {
     await db.insert(schema.shop).values(shops).onConflictDoNothing({ target: schema.shop.slug })
   }
@@ -813,6 +862,24 @@ async function seedProducts(
     newProductCount++
   }
 
+  // Upload product images to S3 so product_image.url stores real S3 keys.
+  if (productImages.length > 0) {
+    console.log('  → Uploading product images to S3...')
+    await runWithConcurrency(
+      productImages,
+      async (img) => {
+        const key = `products/${img.productId}-${img.sortOrder}.jpg`
+        try {
+          await uploadImageFromUrl(img.url, key)
+          img.url = key
+        } catch (err) {
+          console.error(`  Failed to upload product image ${img.url}, leaving external URL:`, err)
+        }
+      },
+      IMAGE_UPLOAD_CONCURRENCY,
+    )
+  }
+
   if (newProducts.length > 0) {
     await db.insert(schema.product).values(newProducts)
   }
@@ -957,7 +1024,7 @@ async function seedOrders(
         ? `TRK${faker.string.alphanumeric(10).toUpperCase()}`
         : undefined,
       trackingUrl: TRACKING_STATUSES.has(shopStatus)
-        ? `https://track.eurtisan.eu/${faker.string.alphanumeric(8)}`
+        ? `https://sendcloud.com/tracking?tracking_number=${faker.string.alphanumeric(12).toUpperCase()}`
         : undefined,
       deliveredAt: DELIVERED_STATUSES_2.has(shopStatus) ? daysAgo(scenario.daysAgo - 2) : undefined,
       createdAt: orderDate,

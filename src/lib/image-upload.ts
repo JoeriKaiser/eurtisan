@@ -13,11 +13,10 @@ import { requirePrivileged2FA } from './server-auth'
 import type { SafeUser } from './server-auth'
 import {
   buildImgproxyUrl,
-  buildS3PublicUrl,
   createPresignedUploadUrl,
   generateImageKey,
   ImageStorageError,
-} from './image-storage.server'
+} from '#/lib/image-storage.server'
 
 const presignedUrlSchema = z.object({
   prefix: z.enum(['products', 'shops']),
@@ -53,7 +52,7 @@ export const getPresignedUploadUrl = createServerFn({ method: 'POST' })
       return {
         key,
         uploadUrl,
-        previewUrl: buildS3PublicUrl(key),
+        previewUrl: buildImgproxyUrl(key),
         imgproxyUrl: buildImgproxyUrl(key),
       }
     } catch (err) {

@@ -188,36 +188,42 @@ export function HomeHeroSection({
           {/* Right Visual Column (Double-Bezel nested architecture) */}
           {shops.length > 0 && (
             <div className='hidden lg:flex items-center justify-center lg:w-[42%]'>
-              <div className='relative p-2 rounded-[2.5rem] bg-scrim-subtle border border-border-subtle shadow-xl w-full aspect-[4/3] overflow-hidden'>
-                <div className='relative w-full h-full overflow-hidden rounded-[calc(2.5rem-0.5rem)] bg-bg-elevated shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)] group'>
-                  <img
-                    src={shops[0].image ?? '/images/hero_artisan_goods.png'}
-                    alt={shops[0].name}
-                    className='w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]'
-                  />
-                  {/* Visual glassmorphic scrim overlay */}
-                  <div className='absolute inset-x-0 bottom-0 bg-gradient-to-t from-scrim-image via-scrim-image-subtle to-transparent p-6 flex items-end justify-between pointer-events-none'>
-                    <div className='text-white min-w-0'>
-                      <p className='text-[9px] uppercase tracking-widest font-bold opacity-80'>
-                        {m.home_hero_featured_maker()}
-                      </p>
-                      <h4 className='font-serif text-base font-bold tracking-wide mt-0.5 truncate'>
-                        {shops[0].name}
-                      </h4>
-                      {shops[0].tagline && (
-                        <p className='mt-0.5 text-xs opacity-90 truncate'>{shops[0].tagline}</p>
-                      )}
+              <Link
+                to='/shops/$shopSlug'
+                params={{ shopSlug: shops[0].slug }}
+                className='block w-full h-full cursor-pointer'
+              >
+                <div className='relative p-2 rounded-[2.5rem] bg-scrim-subtle border border-border-subtle shadow-xl w-full aspect-[4/3] overflow-hidden group hover:scale-[1.01] hover:shadow-2xl transition-all duration-300'>
+                  <div className='relative w-full h-full overflow-hidden rounded-[calc(2.5rem-0.5rem)] bg-bg-elevated shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]'>
+                    <img
+                      src={shops[0].image ?? '/images/hero_artisan_goods.png'}
+                      alt={shops[0].name}
+                      className='w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]'
+                    />
+                    {/* Visual glassmorphic scrim overlay */}
+                    <div className='absolute inset-x-0 bottom-0 bg-gradient-to-t from-scrim-image via-scrim-image-subtle to-transparent p-6 flex items-end justify-between pointer-events-none'>
+                      <div className='text-white min-w-0'>
+                        <p className='text-[9px] uppercase tracking-widest font-bold opacity-80'>
+                          {m.home_hero_featured_maker()}
+                        </p>
+                        <h4 className='font-serif text-base font-bold tracking-wide mt-0.5 truncate'>
+                          {shops[0].name}
+                        </h4>
+                        {shops[0].tagline && (
+                          <p className='mt-0.5 text-xs opacity-90 truncate'>{shops[0].tagline}</p>
+                        )}
+                      </div>
+                      <span className='text-[10px] font-bold text-white bg-white/20 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10 tracking-wide shrink-0 ml-3'>
+                        {shops[0].productCount === 1
+                          ? m.home_hero_featured_maker_product_single()
+                          : m.home_hero_featured_maker_products({
+                              count: String(shops[0].productCount),
+                            })}
+                      </span>
                     </div>
-                    <span className='text-[10px] font-bold text-white bg-white/20 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10 tracking-wide shrink-0 ml-3'>
-                      {shops[0].productCount === 1
-                        ? m.home_hero_featured_maker_product_single()
-                        : m.home_hero_featured_maker_products({
-                            count: String(shops[0].productCount),
-                          })}
-                    </span>
                   </div>
                 </div>
-              </div>
+              </Link>
             </div>
           )}
         </div>

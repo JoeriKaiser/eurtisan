@@ -1,4 +1,5 @@
 import { and, count, desc, eq, gte, ilike, isNull, ne, or, sql, sum } from 'drizzle-orm'
+import { getCarrierTrackingUrl } from './shipping'
 import { db } from '#/db/index'
 import {
   dispute,
@@ -662,10 +663,12 @@ export async function markShopOrderShippedWithLabelQuery(
   // doesn't hold a DB transaction open).
   const label = await createShippingLabelForOrderQuery(shopOrderId)
 
+  const trackingUrl = getCarrierTrackingUrl(label.carrier, label.trackingNumber)
+
   // Step 2: mark as shipped using the generated tracking info.
   return markShopOrderShippedQuery(shopOrderId, {
     trackingNumber: label.trackingNumber,
-    trackingUrl: label.labelUrl,
+    trackingUrl: trackingUrl || label.labelUrl,
   })
 }
 
