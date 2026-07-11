@@ -27,11 +27,15 @@ export function AdminAuditLogPage() {
 
   const navigateWithParams = useCallback(
     (overrides: Record<string, string | number | undefined>) => {
-      const cleaned: Record<string, string | number> = {}
+      const nextSearch: Record<string, string | number> = { ...search }
       for (const [key, value] of Object.entries(overrides)) {
-        if (value !== undefined && value !== '') cleaned[key] = value
+        if (value === undefined || value === '') {
+          delete nextSearch[key]
+        } else {
+          nextSearch[key] = value
+        }
       }
-      navigate({ to: '/admin/audit-log', search: { ...search, ...cleaned }, replace: true })
+      navigate({ to: '/admin/audit-log', search: nextSearch, replace: true })
     },
     [navigate, search],
   )

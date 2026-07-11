@@ -1,4 +1,4 @@
-import { useLoaderData, useNavigate, useSearch } from '@tanstack/react-router'
+import { useLoaderData, useNavigate, useRouter, useSearch } from '@tanstack/react-router'
 import {
   AlertTriangle,
   CheckCircle,
@@ -15,15 +15,14 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
 import { Select } from '#/components/ui/select'
-import type { PaginatedProducts } from '#/lib/admin-products'
+import { MAX_BULK_SELECTION } from '#/lib/admin-constants'
 import { toggleProductActive } from '#/lib/admin-products'
 import type { CategoryTreeNode } from '#/lib/categories'
 import { cn } from '#/lib/cn'
 import { downloadCSV, generateCSV } from '#/lib/csv-export'
-import { MAX_BULK_SELECTION } from '#/lib/admin-constants'
-import { m } from '#/paraglide/messages'
-import { getImageUrl } from '#/lib/image-url'
 import { SUPPORTED_CURRENCY } from '#/lib/currency'
+import { getImageUrl } from '#/lib/image-url'
+import { m } from '#/paraglide/messages'
 
 const PAGE_SIZES = [10, 20, 50] as const
 const SORTABLE_COLUMNS = ['name', 'price', 'stock', 'status'] as const
@@ -89,8 +88,10 @@ export function AdminProductsPage() {
   const loaderData = useLoaderData({ from: '/admin/products' })
   const navigate = useNavigate()
   const search = useSearch({ from: '/admin/products' })
+  const router = useRouter()
 
-  const [products, setProducts] = useState<PaginatedProducts>(loaderData.products)
+  const products = loaderData.products
+
   const [status, setStatus] = useState({
     actionError: null as string | null,
     successMessage: null as string | null,
@@ -196,7 +197,8 @@ export function AdminProductsPage() {
     )
     setBulk({ selectedProductIds: new Set(), progress: null })
     navigateWithParams({ page: 1 })
-  }, [bulk.selectedProductIds, navigateWithParams])
+    router.invalidate()
+  }, [bulk.selectedProductIds, navigateWithParams, router])
 
   const showSuccess = useCallback((message: string) => {
     setStatus((prev) => ({ ...prev, successMessage: message }))
@@ -212,12 +214,7 @@ export function AdminProductsPage() {
       setStatus((prev) => ({ ...prev, actionError: null }))
       try {
         const result = await toggleProductActive({ data: { productId } })
-        setProducts((prev) => ({
-          ...prev,
-          products: prev.products.map((p) =>
-            p.id === productId ? { ...p, isActive: result.isActive } : p,
-          ),
-        }))
+        router.invalidate()
         showSuccess(
           result.isActive
             ? m.admin_products_activated_success({ name })
@@ -230,7 +227,7 @@ export function AdminProductsPage() {
         }))
       }
     },
-    [showSuccess],
+    [showSuccess, router],
   )
 
   const totalPages = Math.max(1, Math.ceil(products.total / products.pageSize))
