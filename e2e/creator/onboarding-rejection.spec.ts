@@ -51,7 +51,11 @@ test.describe('onboarding rejection and resubmission', () => {
     const setCookie = signInResponse.headers.get('set-cookie')
     if (!setCookie) throw new Error('No session cookie returned from creator sign-in')
     const sessionCookie = setCookie.split(';')[0]
-    const [cookieName, cookieValue] = sessionCookie.split('=')
+    const eqIdx = sessionCookie.indexOf('=')
+
+    const cookieName = sessionCookie.slice(0, eqIdx)
+
+    const cookieValue = sessionCookie.slice(eqIdx + 1)
 
     await context.addCookies([
       {

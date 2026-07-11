@@ -23,7 +23,13 @@ test.describe('Customer sign-out', () => {
     const cookies = setCookie.split(',').map((cookie) => cookie.trim())
     const context = await browser.newContext()
     for (const cookie of cookies) {
-      const [name, value] = cookie.split(';')[0].split('=')
+      const cookiePart = cookie.split(';')[0]
+
+      const eqIdx = cookiePart.indexOf('=')
+
+      const name = cookiePart.slice(0, eqIdx)
+
+      const value = cookiePart.slice(eqIdx + 1)
       await context.addCookies([
         {
           name,

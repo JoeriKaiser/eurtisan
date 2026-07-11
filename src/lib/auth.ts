@@ -56,21 +56,6 @@ function injectToken(result: Record<string, unknown> | null, tokenMap: Map<strin
 const ENCRYPTED_ACCOUNT_FIELDS = ['accessToken', 'refreshToken', 'idToken', 'password'] as const
 const ENCRYPTED_TWO_FACTOR_FIELDS = ['secret', 'backupCodes'] as const
 
-/**
- * Disable Better Auth's built-in request rate limiting in development and test
- * environments. This prevents E2E and Viteset runs from being blocked by
- * sign-in rate limits when multiple auth setups run in quick succession.
- * Production keeps the default rate limit behavior.
- */
-function isAuthRateLimitDisabled(): boolean {
-  return (
-    typeof process !== 'undefined' &&
-    (process.env.NODE_ENV !== 'production' ||
-      process.env.E2E_TEST === 'true' ||
-      process.env.VITEST === 'true')
-  )
-}
-
 function encryptModelData(model: string, data: Record<string, unknown>): Record<string, unknown> {
   if (model !== 'account' && model !== 'two_factor') return data
   const fields = model === 'account' ? ENCRYPTED_ACCOUNT_FIELDS : ENCRYPTED_TWO_FACTOR_FIELDS
@@ -320,7 +305,14 @@ export const betterAuthOptions = {
       },
     },
   },
-  rateLimit: isAuthRateLimitDisabled() ? { enabled: false } : undefined,
+  // Disable Better Auth's built-in request rate limiting in development and
+  // test environments. This prevents E2E and Vitest runs from being blocked by
+  // sign-in rate limits when multiple auth setups run in quick succession.
+  // Production keeps the default rate limit behavior.
+  rateLimit:
+    typeof process !== 'undefined' && process.env.NODE_ENV !== 'production'
+      ? { enabled: false }
+      : undefined,
   plugins: [
     tanstackStartCookies(),
     twoFactor({

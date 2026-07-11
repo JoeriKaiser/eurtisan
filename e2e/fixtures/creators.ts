@@ -10,9 +10,6 @@ import { eq } from 'drizzle-orm'
 import * as schema from '../../src/db/schema'
 import { db } from '../db'
 
-const e2eDatabaseUrl =
-  process.env.E2E_DATABASE_URL ?? 'postgresql://eurtisan:eurtisan@db-test:5432/eurtisan_test'
-
 export interface TestCreator {
   id: string
   email: string
@@ -36,7 +33,7 @@ function hashPassword(password: string): string {
  * Useful when a spec must mutate creator account state (2FA, deletion, etc.).
  */
 export async function createVerifiedCreator(seed: string): Promise<TestCreator> {
-  process.env.DATABASE_URL = e2eDatabaseUrl
+  
 
   const email = `e2e-creator-${seed}@eurtisan.local`
   const password = 'test-password-123'
@@ -73,7 +70,7 @@ export async function createVerifiedCreator(seed: string): Promise<TestCreator> 
  * to its sessions, shops, orders, and other FK-dependent rows.
  */
 export async function deleteCreatorByEmail(email: string): Promise<void> {
-  process.env.DATABASE_URL = e2eDatabaseUrl
+  
 
   const [userRow] = await db
     .select({ id: schema.user.id })
@@ -91,7 +88,7 @@ export async function deleteCreatorByEmail(email: string): Promise<void> {
  * production account-deletion flow.
  */
 export async function markCreatorDeleted(email: string): Promise<void> {
-  process.env.DATABASE_URL = e2eDatabaseUrl
+  
 
   await db.update(schema.user).set({ deletedAt: new Date() }).where(eq(schema.user.email, email))
 }
@@ -100,7 +97,7 @@ export async function markCreatorDeleted(email: string): Promise<void> {
  * Toggle the `twoFactorEnabled` column on the user row for a creator.
  */
 export async function setCreatorTwoFactor(email: string, enabled: boolean): Promise<void> {
-  process.env.DATABASE_URL = e2eDatabaseUrl
+  
 
   await db
     .update(schema.user)
@@ -116,7 +113,7 @@ export async function createCreatorShop(
   owner: TestCreator,
   seed: string,
 ): Promise<{ id: string; slug: string; name: string }> {
-  process.env.DATABASE_URL = e2eDatabaseUrl
+  
 
   const id = randomUUID()
   const slug = `e2e-creator-shop-${seed}-${Date.now()}`
@@ -140,7 +137,7 @@ export async function createCreatorShop(
  * violations caused by restrictive references such as order items.
  */
 export async function deleteCreatorShop(shopId: string): Promise<void> {
-  process.env.DATABASE_URL = e2eDatabaseUrl
+  
 
   // Start with the shop-owned message threads so their messages cascade cleanly.
   await db.delete(schema.ownerMessageThread).where(eq(schema.ownerMessageThread.shopId, shopId))

@@ -291,17 +291,20 @@ export async function deleteProductOptionQuery(optionId: string, actor?: AuditAc
     }
 
     await tx.delete(productOption).where(eq(productOption.id, optionId))
-  })
 
-  if (actor) {
-    await writeAuditLog({
-      actor,
-      action: 'product_option_deleted',
-      resourceType: 'product_option',
-      resourceId: optionId,
-      metadata: { productId, name: existing[0].name },
-    })
-  }
+    if (actor) {
+      await writeAuditLog(
+        {
+          actor,
+          action: 'product_option_deleted',
+          resourceType: 'product_option',
+          resourceId: optionId,
+          metadata: { productId, name: existing[0].name },
+        },
+        tx,
+      )
+    }
+  })
 
   return getProductVariantMatrix(productId)
 }

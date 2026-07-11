@@ -8,6 +8,9 @@
 import { db } from '#/db/index'
 import { auditLog } from '#/db/schema'
 
+// Transaction client type passed by db.transaction() callbacks.
+type TransactionClient = Parameters<Parameters<typeof db.transaction>[0]>[0]
+
 export interface AuditActor {
   id: string
   name: string | null
@@ -21,8 +24,9 @@ export interface AuditLogInput {
   metadata?: Record<string, unknown>
 }
 
-export async function writeAuditLog(input: AuditLogInput): Promise<void> {
-  await db.insert(auditLog).values({
+export async function writeAuditLog(input: AuditLogInput, tx?: TransactionClient): Promise<void> {
+  const client = tx ?? db
+  await client.insert(auditLog).values({
     actorId: input.actor.id,
     actorName: input.actor.name ?? 'Unknown',
     action: input.action,
