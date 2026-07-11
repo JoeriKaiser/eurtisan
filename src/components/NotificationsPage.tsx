@@ -9,11 +9,11 @@ import {
   Truck,
   Undo2,
 } from 'lucide-react'
+import { formatDateShort } from '#/lib/format-date'
 import type { NotificationItem, NotificationType } from '#/lib/notifications.server'
 import { useMarkAllNotificationsRead, useMarkNotificationRead } from '#/lib/notifications-hooks'
 import { m } from '#/paraglide/messages'
 import { Button } from './ui/button'
-import { formatDateShort } from '#/lib/format-date'
 
 const TYPE_ICONS: Record<NotificationType, React.ReactNode> = {
   order_placed: <Package size={18} aria-hidden='true' />,
@@ -62,6 +62,8 @@ function resolveDeepLink(item: NotificationItem): string | null {
     }
     case 'dispute_opened':
     case 'dispute_resolved': {
+      const disputeId = data.disputeId
+      if (disputeId) return `/disputes/${disputeId}`
       const orderNumber = data.orderNumber ?? data.orderId ?? data.platformOrderId
       if (orderNumber) return `/account/orders/${orderNumber}`
       break

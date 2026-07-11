@@ -1,7 +1,7 @@
 import { existsSync, statSync } from 'node:fs'
+import { expect, test as setup } from '@playwright/test'
 import { E2E_CREATOR, loadAuthCookies } from './fixtures/auth'
 import { dismissAnalyticsConsentBanner } from './fixtures/consent'
-import { test as setup, expect } from '@playwright/test'
 
 const authFile = 'e2e/.auth/creator.json'
 const baseURL = process.env.BASE_URL || 'http://localhost:3000'
@@ -38,7 +38,11 @@ setup('authenticate as creator', async ({ page }) => {
     if (!setCookie) throw new Error('No set-cookie header returned from sign-in')
 
     const sessionCookie = setCookie.split(';')[0]
-    const [cookieName, cookieValue] = sessionCookie.split('=')
+    const eqIdx = sessionCookie.indexOf('=')
+
+    const cookieName = sessionCookie.slice(0, eqIdx)
+
+    const cookieValue = sessionCookie.slice(eqIdx + 1)
 
     cookies = [
       {

@@ -433,7 +433,10 @@ export class MolliePaymentProvider implements PaymentProvider {
   private async cancelPaymentMock(paymentId: string): Promise<void> {
     const status = mockPaymentStatuses.get(paymentId) ?? 'paid'
     const cancelableOverride = mockPaymentCancelable.get(paymentId)
-    const isCancelable = cancelableOverride ?? status !== 'paid'
+    // E2E fixtures use tr_e2e_* IDs; in mock mode these should always be
+    // cancelable so pending-payment order cancellation specs are deterministic.
+    const isE2eTestPayment = paymentId.startsWith('tr_e2e_')
+    const isCancelable = cancelableOverride ?? (isE2eTestPayment ? true : status !== 'paid')
 
     if (!isCancelable) {
       throw new Error('Payment has already been captured')

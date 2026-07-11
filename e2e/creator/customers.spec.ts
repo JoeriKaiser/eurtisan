@@ -1,6 +1,6 @@
-import { test, expect } from '@playwright/test'
 import { createHash } from 'node:crypto'
-import { createPaidOrder, getCreatorShop } from './fixtures/orders'
+import { expect, test } from '@playwright/test'
+import { createPaidOrder, getCreatorShop } from '../fixtures/orders'
 
 function hashEmail(email: string): string {
   return createHash('sha256').update(email.toLowerCase().trim()).digest('hex')

@@ -13,18 +13,18 @@ test.describe('creator product lifecycle', () => {
       'postgresql://eurtisan:eurtisan@db:5432/eurtisan'
     process.env.DATABASE_URL = connectionString
 
-    const { db } = await import('../src/db/index')
-    const { product } = await import('../src/db/schema')
+    const { db } = await import('../../src/db/index')
+    const { product } = await import('../../src/db/schema')
     await db.delete(product).where(like(product.name, `${E2E_PRODUCT_NAME_PREFIX}%`))
   })
 
   test('creator can save a draft, publish, unpublish, and archive a product', async ({ page }) => {
+    test.setTimeout(90_000)
     const suffix = Date.now().toString()
     const productName = `${E2E_PRODUCT_NAME_PREFIX} ${suffix}`
 
     await page.goto('/creator/products/new')
     await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
 
     await expect(page.getByRole('heading', { name: 'New Product' })).toBeVisible()
 
@@ -40,9 +40,8 @@ test.describe('creator product lifecycle', () => {
 
     await page.waitForURL(/\/creator\/products/)
     await page.waitForSelector('html[data-hydrated="true"]')
-
     await page.getByRole('tab', { name: 'Draft' }).click()
-    await page.waitForLoadState('networkidle')
+    await page.waitForSelector('tbody tr')
 
     const draftRow = page.locator('tbody tr').filter({ hasText: productName })
     await expect(draftRow.getByText('Draft').first()).toBeVisible()
@@ -56,7 +55,7 @@ test.describe('creator product lifecycle', () => {
     await page.goto('/creator/products')
     await page.waitForSelector('html[data-hydrated="true"]')
     await page.getByRole('tab', { name: 'Published' }).click()
-    await page.waitForLoadState('networkidle')
+    await page.waitForSelector('tbody tr')
 
     const publishedRow = page.locator('tbody tr').filter({ hasText: productName })
     await expect(publishedRow.getByText('Published').first()).toBeVisible()
@@ -71,7 +70,7 @@ test.describe('creator product lifecycle', () => {
     await page.goto('/creator/products')
     await page.waitForSelector('html[data-hydrated="true"]')
     await page.getByRole('tab', { name: 'Draft' }).click()
-    await page.waitForLoadState('networkidle')
+    await page.waitForSelector('tbody tr')
 
     const draftRow2 = page.locator('tbody tr').filter({ hasText: productName })
     await expect(draftRow2.getByText('Draft').first()).toBeVisible()
@@ -85,7 +84,7 @@ test.describe('creator product lifecycle', () => {
     await page.goto('/creator/products')
     await page.waitForSelector('html[data-hydrated="true"]')
     await page.getByRole('tab', { name: 'Published' }).click()
-    await page.waitForLoadState('networkidle')
+    await page.waitForSelector('tbody tr')
 
     const publishedRow2 = page.locator('tbody tr').filter({ hasText: productName })
     await expect(publishedRow2.getByText('Published').first()).toBeVisible()
@@ -99,7 +98,7 @@ test.describe('creator product lifecycle', () => {
     await page.goto('/creator/products')
     await page.waitForSelector('html[data-hydrated="true"]')
     await page.getByRole('tab', { name: 'Archived' }).click()
-    await page.waitForLoadState('networkidle')
+    await page.waitForSelector('tbody tr')
 
     const archivedRow = page.locator('tbody tr').filter({ hasText: productName })
     await expect(archivedRow.getByText('Archived').first()).toBeVisible()

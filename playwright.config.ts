@@ -17,7 +17,7 @@ export default defineConfig({
   projects: [
     {
       name: 'setup',
-      testMatch: /auth\.setup\.ts/,
+      testMatch: /\/auth\.setup\.ts$/,
     },
     {
       name: 'admin-setup',
@@ -31,11 +31,13 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'], storageState: 'e2e/.auth/creator.json' },
       dependencies: ['setup', 'admin-setup', 'customer-setup'],
-      testIgnore: [
-        /signin-ui\.spec\.ts/,
-        /account-deletion\.spec\.ts/,
-        /customer\//,
-      ],
+      testIgnore: [/signin-ui\.spec\.ts/, /account-deletion\.spec\.ts/, /customer\//, /creator\//],
+    },
+    {
+      name: 'chromium-creator',
+      testMatch: /creator\/.*\.spec\.ts/,
+      use: { ...devices['Desktop Chrome'], storageState: 'e2e/.auth/creator.json' },
+      dependencies: ['setup'],
     },
     {
       name: 'chromium-customer',

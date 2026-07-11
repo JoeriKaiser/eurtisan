@@ -5,6 +5,7 @@ services:
       DATABASE_URL: postgresql://eurtisan:eurtisan@db-test:5432/eurtisan_test
       E2E_TEST: "true"
       MAILPIT_API_URL: http://mailpit:8025/api/v1
+      S3_PUBLIC_ENDPOINT: http://eurtisan-garage:3900
     depends_on:
       db-test:
         condition: service_healthy

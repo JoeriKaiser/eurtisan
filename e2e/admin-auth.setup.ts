@@ -48,7 +48,11 @@ setup('authenticate as admin', async ({ page }) => {
     if (!setCookie) throw new Error('No set-cookie header returned from admin sign-in')
 
     const sessionCookie = setCookie.split(';')[0]
-    const [cookieName, cookieValue] = sessionCookie.split('=')
+    const eqIdx = sessionCookie.indexOf('=')
+
+    const cookieName = sessionCookie.slice(0, eqIdx)
+
+    const cookieValue = sessionCookie.slice(eqIdx + 1)
     console.log(`Setting cookie: ${cookieName} = ${cookieValue}`)
 
     cookies = [

@@ -532,3 +532,11 @@ export async function sendMollieWebhook(
     body: JSON.stringify({ id: paymentId }),
   })
 }
+
+export async function deleteOrder(order: TestOrder): Promise<void> {
+  process.env.DATABASE_URL = e2eDatabaseUrl
+
+  // Deleting the platform order cascades to the shop order, order items,
+  // inventory reservations, payouts, invoices, disputes, and shipping labels.
+  await db.delete(schema.platformOrder).where(eq(schema.platformOrder.id, order.platformOrderId))
+}

@@ -6,10 +6,9 @@ import type { BetterAuthOptions, DBAdapter, Where } from 'better-auth'
 import { APIError, betterAuth } from 'better-auth'
 import { twoFactor } from 'better-auth/plugins'
 import { tanstackStartCookies } from 'better-auth/tanstack-start'
-
+import { eq } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { user } from '#/db/schema'
-import { eq } from 'drizzle-orm'
 import { createEmailProvider } from '#/integrations/email'
 import { safeRedirect } from './auth-utils'
 import { ANONYMOUS_SESSION_COOKIE } from './cart-constants'
@@ -306,6 +305,14 @@ export const betterAuthOptions = {
       },
     },
   },
+  // Disable Better Auth's built-in request rate limiting in development and
+  // test environments. This prevents E2E and Vitest runs from being blocked by
+  // sign-in rate limits when multiple auth setups run in quick succession.
+  // Production keeps the default rate limit behavior.
+  rateLimit:
+    typeof process !== 'undefined' && process.env.NODE_ENV !== 'production'
+      ? { enabled: false }
+      : undefined,
   plugins: [
     tanstackStartCookies(),
     twoFactor({

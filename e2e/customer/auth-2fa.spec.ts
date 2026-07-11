@@ -35,7 +35,11 @@ test.describe('Customer two-factor authentication', () => {
   test('enables 2FA and requires TOTP on subsequent sign-in', async ({ page, context }) => {
     // Seed an authenticated browser context for the customer.
     const sessionCookie = await signInViaAPI()
-    const [cookieName, cookieValue] = sessionCookie.split('=')
+    const eqIdx = sessionCookie.indexOf('=')
+
+    const cookieName = sessionCookie.slice(0, eqIdx)
+
+    const cookieValue = sessionCookie.slice(eqIdx + 1)
     await context.addCookies([
       {
         name: cookieName,

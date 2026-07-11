@@ -1,6 +1,7 @@
-import { and, count, desc, eq, gte, inArray, lt, sum } from 'drizzle-orm'
+import { and, count, desc, eq, gte, inArray, lt, not, sum } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { platformOrder, product, review, shop, shopOrder, shopSocials, user } from '#/db/schema'
+import { decryptJsonb } from '#/lib/encryption.server'
 import { PLATFORM_FEE_PERCENT } from '#/lib/platform-constants'
 import type { Policies, SocialRow } from '#/lib/sell-onboarding'
 
@@ -112,7 +113,10 @@ const REVENUE_STATUSES = [
 export async function getCreatorDashboardStatsQuery(
   userId: string,
 ): Promise<CreatorDashboardStats> {
-  const shops = await db.select({ id: shop.id }).from(shop).where(eq(shop.ownerId, userId))
+  const shops = await db
+    .select({ id: shop.id })
+    .from(shop)
+    .where(and(eq(shop.ownerId, userId), not(eq(shop.status, 'archived'))))
 
   const shopIds = shops.map((s) => s.id)
   const totalShopCount = shopIds.length
@@ -240,7 +244,7 @@ export async function getCreatorShopsQuery(userId: string): Promise<CreatorShop[
       mollieAccountId: shop.mollieAccountId,
     })
     .from(shop)
-    .where(eq(shop.ownerId, userId))
+    .where(and(eq(shop.ownerId, userId), not(eq(shop.status, 'archived'))))
     .orderBy(shop.name)
 }
 
@@ -275,8 +279,8 @@ export async function getCreatorShopQuery(
     status: record.status,
     scheduledDeleteAt: record.scheduledDeleteAt,
     ownerId: record.ownerId,
-    shippingOrigin: (record.shippingOrigin as ShippingOrigin | null) ?? null,
-    businessAddress: (record.businessAddress as ShippingOrigin | null) ?? null,
+    shippingOrigin: decryptJsonb<ShippingOrigin | null>(record.shippingOrigin) ?? null,
+    businessAddress: decryptJsonb<ShippingOrigin | null>(record.businessAddress) ?? null,
     isVatRegistered: record.isVatRegistered,
     vatId: record.vatId,
     legalEntityType: record.legalEntityType as 'individual' | 'business' | null,
@@ -301,7 +305,10 @@ export async function getCreatorRecentActivityQuery(
   userId: string,
   limit: number,
 ): Promise<CreatorActivity[]> {
-  const shops = await db.select({ id: shop.id }).from(shop).where(eq(shop.ownerId, userId))
+  const shops = await db
+    .select({ id: shop.id })
+    .from(shop)
+    .where(and(eq(shop.ownerId, userId), not(eq(shop.status, 'archived'))))
 
   const shopIds = shops.map((s) => s.id)
 
