@@ -1246,7 +1246,10 @@ describe.sequential('checkout', () => {
       await seedUser()
       await seedShop()
       const c = await createCart('user-1')
-      const p = await seedProduct({ stockCount: 5 })
+      // The cart already reserves all available stock. Checkout must observe
+      // its in-transaction release before reserving the same quantity for the
+      // new platform order.
+      const p = await seedProduct({ stockCount: 2 })
 
       // Create a cart reservation by using addItemToCart (quantity 2 matches the
       // mock shipping provider's standard rate of 580 cents for 1000g).
