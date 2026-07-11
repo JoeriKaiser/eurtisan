@@ -324,7 +324,7 @@ export function AdminLayout() {
   // Keyboard shortcuts
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'k' && (e.metaKey || e.ctrlKey) && e.shiftKey) {
+      if (e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey) && e.shiftKey) {
         e.preventDefault()
         setSearchKey((k) => k + 1)
         setSearchOpen(true)
