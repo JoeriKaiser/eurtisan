@@ -11,10 +11,13 @@ vi.mock('#/lib/auth', () => ({
 }))
 
 vi.mock('#/lib/rate-limit', () => ({
-  checkRateLimit: mockCheckRateLimit,
   extractClientIp: mockExtractClientIp,
-  assertAuthRateLimit: vi.fn(),
   isAuthRateLimitedAction: vi.fn(),
+}))
+
+vi.mock('#/lib/rate-limit.server', () => ({
+  checkRateLimit: mockCheckRateLimit,
+  assertAuthRateLimit: vi.fn(),
 }))
 
 vi.mock('#/lib/auth-lockout.server', () => ({

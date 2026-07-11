@@ -1,3 +1,5 @@
+import '@tanstack/react-start/server-only'
+
 import { getBaseUrl } from './env.server'
 
 export class CsrfError extends Error {

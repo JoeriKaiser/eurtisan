@@ -364,16 +364,21 @@ db:5432
 
 ## File Organization
 
-- Shared reusable components belong in `src/components`.
-- Route-specific components should live beside their route when practical.
-- Database access belongs in server-side modules/functions only.
+- `src/routes/` contains TanStack route declarations, loaders, search validation, metadata, guards, and API/server handlers. Keep route orchestration thin.
+- `src/route-components/` contains route-owned page UI plus pending/error states and page-specific subcomponents, organized to mirror the route path.
+- Shared reusable components belong in `src/components`; small design-system primitives belong in `src/components/ui`.
+- Reusable client-side React hooks belong in `src/hooks/`; keep server-only logic out of hook modules.
+- `src/lib/` contains cohesive domain logic, server-function contracts, validation, authorization, and focused shared utilities. Keep `*.server.ts` implementations server-only and introduce domain subdirectories gradually when they improve ownership.
+- External provider clients and adapters belong in `src/integrations/`; cleanup, worker, synchronization, and reconciliation entrypoints belong in `src/jobs/`.
+- Database access belongs in `src/db/`, `src/db.ts`, or server-side modules/functions only. Shared test factories, scenarios, and cleanup helpers belong in `src/test/`.
 - Validation schemas should live near the domain they validate.
+- Existing page implementations in `src/components/`, `src/components/routes/`, and a few route files are transitional. Do not mass-move them solely for consistency; migrate touched features opportunistically. Do not add new route pages to `src/components/routes/` unless they are intentionally shared or part of an explicit migration.
 - Avoid generic dumping grounds like:
   - `helpers.ts`
   - `utils.ts`
   - `misc.ts`
 
-Prefer cohesive modules with clear responsibilities.
+Prefer cohesive modules with clear responsibilities. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the complete ownership map.
 
 ## Naming Conventions
 
@@ -440,8 +445,8 @@ ProductCard.test.tsx
 
 - Zod for runtime validation.
 - TanStack Query for remote state.
-- Server functions for authenticated mutations.
-- Co-located route logic where practical.
+- Server functions for authenticated mutations, with browser-importable contracts separated from server-only implementations.
+- Keep route orchestration in `src/routes/` and route-owned UI in the matching `src/route-components/` subtree.
 - Typed database access through Drizzle only.
 - Explicit loading/error states.
 - Small focused server functions.
@@ -453,7 +458,7 @@ ProductCard.test.tsx
 
 Never:
 
-- Import server-only modules into client code.
+- Import server-only modules (`*.server.*` or modules marked with `@tanstack/react-start/server-only`) into client code.
 - Expose secrets through serialized props or APIs.
 - Access the database from client components.
 - Perform authorization checks exclusively on the client.
@@ -783,26 +788,49 @@ Breaking changes must be:
 
 # Project Structure
 
+The complete placement and boundary rules are maintained in
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). The principal repository areas are:
+
 ```txt
 .
 ├── src/
-│   ├── routes/
-│   ├── components/
-│   ├── integrations/
-│   ├── lib/
-│   ├── db/
-│   ├── db.ts
-│   ├── router.tsx
-│   └── styles.css
-├── docker-compose.yml
-├── Dockerfile
-├── Makefile
-├── drizzle.config.ts
-├── instrument.server.mjs
-├── vite.config.ts
-├── biome.json
+│   ├── routes/           # TanStack route declarations and API handlers
+│   ├── route-components/ # Route-owned page UI and pending/error states
+│   ├── components/       # Reusable UI and design-system primitives
+│   ├── hooks/            # Reusable client-side React hooks
+│   ├── lib/              # Domain logic, server functions, and validation
+│   ├── integrations/     # External service adapters
+│   ├── jobs/             # Cleanup, worker, sync, and reconciliation entrypoints
+│   ├── db/               # Drizzle schema, seeds, and DB maintenance scripts
+│   ├── test/             # Shared test factories, scenarios, and helpers
+│   ├── types/            # Ambient and shared type declarations
+│   ├── paraglide/        # Generated localization runtime; do not edit
+│   ├── routeTree.gen.ts  # Generated TanStack route tree; do not edit
+│   ├── db.ts             # PostgreSQL pool
+│   ├── router.tsx        # Router configuration
+│   ├── start.ts          # Request middleware and TanStack Start setup
+│   └── styles.css        # Global styles and Tailwind imports
+├── messages/             # Paraglide translation sources
+├── drizzle/              # Committed Drizzle migrations and metadata
+├── e2e/                  # Playwright fixtures, setup, and workflows
+├── docs/                 # Architecture, operations, compliance, and runbooks
+├── infra/observability/  # Separately deployed observability configuration
+├── infrastructure/       # VPS provisioning and deployment automation
+├── public/               # Static assets
+├── scripts/              # Development and operational helpers
+├── docker-compose*.yml   # Local, staging, and production service definitions
+├── Makefile              # Standardized Docker-first workflows
+├── Dockerfile*           # Application images
+├── drizzle.config.ts     # Drizzle Kit configuration
+├── vite.config.ts       # Vite/TanStack Start configuration
+├── biome.json            # Lint and format configuration
 └── package.json
 ```
+
+`src/routeTree.gen.ts` and `src/paraglide/` are generated and must not be edited
+by hand. Migration SQL under `drizzle/` is generated, reviewed, committed, and
+must not be deleted or renamed after it may have been applied to a shared
+environment.
 
 ---
 
@@ -986,7 +1014,7 @@ make auth-secret
 6. Development runs fully inside containers.
 7. TanStack Router `__root` is reserved for the application root **only**. Nested layouts must use `route.tsx` inside the target folder (e.g. `src/routes/admin/route.tsx` for `/admin/*` layout). Using `__root.tsx` in a subfolder will silently orphan child routes — they will attach to the app root and the layout will never render. Always verify `getParentRoute` in `routeTree.gen.ts` after creating or renaming layout routes.
 8. Paraglide i18n requires explicit compilation. Adding keys to `messages/en.json` is not enough — run `bun run i18n:compile` (or `make dev` which may auto-compile). Uncompiled keys cause runtime `m.key is not a function` errors that only appear in the browser.
-9. Never import `.server.` modules into client code. TanStack Start's import-protection plugin will block the production build. If a server-only query must be refreshed from the client, wrap it in a `createServerFn` and call the wrapper instead.
+9. Never import server-only modules (`*.server.*` or modules marked with `@tanstack/react-start/server-only`) into client code. TanStack Start's import-protection plugin will block the production build. If a server-only query must be refreshed from the client, wrap it in a `createServerFn` and call the wrapper instead.
 10. Keep loader parameters within Zod schema bounds. A loader that calls a server function with hardcoded values (e.g. `pageSize: 1000`) will fail at runtime if the input schema caps that field lower (e.g. `.max(100)`).
 11. E2E auth is rate-limited by Better Auth. Rapid re-runs of `e2e/auth.setup.ts` will hit `429 Too Many Requests`. Reuse the generated `e2e/.auth/*.json` state across runs, or wait between attempts.
 12. `make e2e` does not pass through CLI flags. Playwright options like `--project=chromium` must be passed directly: `docker compose exec app bunx playwright test e2e/admin-panel.spec.ts --project=chromium`.
@@ -1000,6 +1028,10 @@ make auth-secret
 # Maintenance Requirements
 
 This document must remain synchronized with the actual architecture.
+
+For directory ownership, route/UI placement, generated-source, or server/client
+boundary changes, update [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), the
+README project tree, and this file in the same change.
 
 Update `AGENTS.md` whenever changes impact:
 

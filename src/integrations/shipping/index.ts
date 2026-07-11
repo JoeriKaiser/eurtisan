@@ -1,3 +1,5 @@
+import '@tanstack/react-start/server-only'
+
 import type { ShippingProvider } from '#/lib/shipping-provider'
 import { getSendcloudPublicKey, getSendcloudSecretKey } from '#/lib/env.server'
 

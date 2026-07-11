@@ -11,7 +11,7 @@ import {
   user,
 } from '#/db/schema'
 import { createMollieRoute } from '#/integrations/mollie'
-import { signMollieState } from './auth-utils'
+import { signMollieState } from './auth-utils.server'
 import { disconnectMollieConnect } from './mollie-connect.server'
 import type { AuditActor } from './audit-logger'
 import { logger } from './logger.server'

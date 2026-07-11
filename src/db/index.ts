@@ -1,3 +1,5 @@
+import '@tanstack/react-start/server-only'
+
 import { drizzle } from 'drizzle-orm/node-postgres'
 
 import { pool } from '../db.ts'

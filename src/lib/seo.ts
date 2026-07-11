@@ -5,12 +5,10 @@
  * and JSON-LD structured data for public routes.
  */
 import { m } from '#/paraglide/messages'
+import { getPublicUrl } from '#/lib/public-url'
 
 /** Default platform OG image used when no route-specific image is available. */
 const DEFAULT_OG_IMAGE_URL = '/logo512.png'
-
-/** Absolute base URL for canonical links and OG URLs (no trailing slash). */
-const BASE_URL = typeof process !== 'undefined' ? process.env.PUBLIC_URL || '' : ''
 
 export interface CreatePageMetaInput {
   /** Page title (localized). Appears as <title> and og:title. */
@@ -49,7 +47,8 @@ export function createPageMeta(input: CreatePageMetaInput): PageMetaResult {
   const description = input.description || m.meta_default_description()
   const ogImageUrl = input.ogImageUrl || DEFAULT_OG_IMAGE_URL
   const ogType = input.ogType ?? 'website'
-  const fullCanonical = BASE_URL ? `${BASE_URL}${input.canonicalPath}` : input.canonicalPath
+  const baseUrl = getPublicUrl()
+  const fullCanonical = baseUrl ? `${baseUrl}${input.canonicalPath}` : input.canonicalPath
 
   const meta: Array<Record<string, string>> = [
     { title: input.title },

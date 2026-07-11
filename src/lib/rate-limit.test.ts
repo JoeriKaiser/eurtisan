@@ -5,15 +5,14 @@ import { db } from '#/db/index'
 import { rateLimit } from '#/db/schema'
 import { clearTestTables } from '#/test/cleanup'
 import { getRateLimitRetentionDays } from './env.server'
+import { extractClientIp, isAuthRateLimitedAction } from './rate-limit'
 import {
   assertAuthRateLimit,
   assertEmailRateLimit,
   assertUserRateLimit,
   checkRateLimit,
   checkRateLimitDb,
-  extractClientIp,
-  isAuthRateLimitedAction,
-} from './rate-limit'
+} from './rate-limit.server'
 
 beforeEach(async () => {
   await clearTestTables()

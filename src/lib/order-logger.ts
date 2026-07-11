@@ -1,3 +1,5 @@
+import '@tanstack/react-start/server-only'
+
 /**
  * Structured logger for order lifecycle events.
  *

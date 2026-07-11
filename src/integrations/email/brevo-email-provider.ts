@@ -1,3 +1,5 @@
+import '@tanstack/react-start/server-only'
+
 /**
  * Brevo (formerly Sendinblue) email provider.
  *

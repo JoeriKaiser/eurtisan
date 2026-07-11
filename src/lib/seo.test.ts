@@ -200,4 +200,27 @@ describe('createPageMeta', () => {
     const canonical = result.links.find((l) => l.rel === 'canonical')
     expect(canonical?.href).toBe('/search?q=vase')
   })
+
+  it('reads PUBLIC_URL when metadata is generated', () => {
+    const previousPublicUrl = process.env.PUBLIC_URL
+    process.env.PUBLIC_URL = 'https://eurtisan.example'
+
+    try {
+      const result = createPageMeta({
+        title: 'About | Eurtisan',
+        description: 'Learn about our marketplace.',
+        canonicalPath: '/about',
+      })
+
+      expect(result.links.find((link) => link.rel === 'canonical')?.href).toBe(
+        'https://eurtisan.example/about',
+      )
+    } finally {
+      if (previousPublicUrl === undefined) {
+        delete process.env.PUBLIC_URL
+      } else {
+        process.env.PUBLIC_URL = previousPublicUrl
+      }
+    }
+  })
 })

@@ -1,7 +1,7 @@
 import { and, count, desc, eq, inArray, ne, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { orderItem, platformOrder, product, review, shop, shopOrder, user } from '#/db/schema'
-import { assertUserRateLimit } from './rate-limit'
+import { assertUserRateLimit } from './rate-limit.server'
 import { containsProfanity } from './profanity'
 import { sanitizeRichText } from './xss'
 

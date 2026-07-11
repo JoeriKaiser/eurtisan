@@ -1,3 +1,5 @@
+import '@tanstack/react-start/server-only'
+
 /**
  * Mock shipping provider for tests and local development.
  *
