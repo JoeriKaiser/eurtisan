@@ -25,6 +25,7 @@ import {
   createShop,
   createUser,
 } from '#/test/factories'
+import { verifyVatIdVies } from '#/lib/vat.server'
 import {
   type CheckoutInput,
   createCheckoutWithProvider,
@@ -753,6 +754,57 @@ describe.sequential('checkout', () => {
       expect(so2?.shippingCostCents).toBe(861)
     })
 
+    it('validates a reverse-charge VAT ID once for multiple items from the same shop', async () => {
+      await seedUser()
+      await seedShop({
+        isVatRegistered: true,
+        shippingOrigin: {
+          street: '1 Rue de Paris',
+          city: 'Paris',
+          postalCode: '75001',
+          country: 'FR',
+        },
+      })
+      const c = await createCart('user-1')
+      const p1 = await seedProduct({ id: 'prod-1', priceCents: 1190 })
+      const p2 = await seedProduct({
+        id: 'prod-2',
+        name: 'Bowl',
+        slug: 'bowl',
+        priceCents: 2380,
+      })
+
+      await createCartItem(c.id, p1.id, { quantity: 1 })
+      await createCartItem(c.id, p2.id, { quantity: 1 })
+
+      const viesSpy = vi.mocked(verifyVatIdVies)
+      viesSpy.mockClear()
+      vi.stubEnv('ENABLE_VIES_VALIDATION', 'true')
+
+      try {
+        await createCheckoutWithProvider(
+          makeInput(c.id, {
+            shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 580 }],
+            billingAddress: {
+              name: 'Test User',
+              street: '123 Main St',
+              city: 'Berlin',
+              postalCode: '10115',
+              country: 'DE',
+              vatId: 'DE123456789',
+            },
+          }),
+          'user-1',
+          createStubPaymentProvider(),
+        )
+
+        expect(viesSpy).toHaveBeenCalledTimes(1)
+        expect(viesSpy).toHaveBeenCalledWith('DE123456789', 'DE')
+      } finally {
+        vi.unstubAllEnvs()
+      }
+    })
+
     it('clears cart and items after successful order creation', async () => {
       await seedUser()
       await seedShop()
@@ -1246,7 +1298,10 @@ describe.sequential('checkout', () => {
       await seedUser()
       await seedShop()
       const c = await createCart('user-1')
-      const p = await seedProduct({ stockCount: 5 })
+      // The cart already reserves all available stock. Checkout must observe
+      // its in-transaction release before reserving the same quantity for the
+      // new platform order.
+      const p = await seedProduct({ stockCount: 2 })
 
       // Create a cart reservation by using addItemToCart (quantity 2 matches the
       // mock shipping provider's standard rate of 580 cents for 1000g).

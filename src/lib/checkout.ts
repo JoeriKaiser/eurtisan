@@ -1,4 +1,4 @@
-import { createServerFn } from '@tanstack/react-start'
+import { createServerFn, createServerOnlyFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
 import { createUserRateLimitMiddleware } from './rate-limit'
@@ -17,6 +17,13 @@ export type {
   ShippingSelection,
 } from './checkout.server'
 export type { ServicePoint } from '#/integrations/shipping'
+
+const getCheckoutServicePointsServerOnly = createServerOnlyFn(
+  async (input: { postalCode: string; country: string; carrier?: string }) => {
+    const { getCheckoutServicePoints } = await import('./checkout/shipping.server')
+    return getCheckoutServicePoints(input.postalCode, input.country, input.carrier)
+  },
+)
 
 const pickupPointSchema = z
   .object({
@@ -177,9 +184,11 @@ export const getServicePoints = createServerFn({ method: 'POST' })
       )
     }
 
-    const { getShippingProvider } = await import('#/integrations/shipping')
-    const provider = getShippingProvider()
-    return provider.getServicePoints(data.postalCode, data.country, data.carrier)
+    return getCheckoutServicePointsServerOnly({
+      postalCode: data.postalCode,
+      country: data.country,
+      carrier: data.carrier,
+    })
   })
 
 const retryPaymentRateLimitMiddleware = createUserRateLimitMiddleware(3, 60_000, 'retry_payment')
