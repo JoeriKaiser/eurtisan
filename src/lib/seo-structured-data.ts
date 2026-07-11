@@ -6,11 +6,7 @@
  * into page <head> as `<script type="application/ld+json">`.
  */
 import { m } from '#/paraglide/messages'
-
-/** Absolute base URL for schema @id and url fields. */
-function getPublicUrl(): string {
-  return typeof process !== 'undefined' ? process.env.PUBLIC_URL || '' : ''
-}
+import { getPublicUrl } from '#/lib/public-url'
 
 /**
  * Product structured data input.

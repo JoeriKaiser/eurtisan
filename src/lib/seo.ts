@@ -5,14 +5,10 @@
  * and JSON-LD structured data for public routes.
  */
 import { m } from '#/paraglide/messages'
+import { getPublicUrl } from '#/lib/public-url'
 
 /** Default platform OG image used when no route-specific image is available. */
 const DEFAULT_OG_IMAGE_URL = '/logo512.png'
-
-/** Absolute base URL for canonical links and OG URLs (no trailing slash). */
-function getPublicUrl(): string {
-  return typeof process !== 'undefined' ? process.env.PUBLIC_URL || '' : ''
-}
 
 export interface CreatePageMetaInput {
   /** Page title (localized). Appears as <title> and og:title. */
