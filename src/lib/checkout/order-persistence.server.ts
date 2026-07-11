@@ -156,7 +156,8 @@ export async function persistCheckoutOrder(
         input.billingAddress.vatId,
       )
 
-      if (reverseChargeApplies) {
+      const existing = shopGroups.get(productRecord.shopId)
+      if (!existing && reverseChargeApplies) {
         await validateCrossBorderBuyerVatId(
           sellerCountry,
           input.billingAddress.country,
@@ -177,7 +178,6 @@ export async function persistCheckoutOrder(
         quantity: row.item.quantity,
       })
 
-      const existing = shopGroups.get(productRecord.shopId)
       if (existing) {
         existing.items.push({
           product: productRecord,
