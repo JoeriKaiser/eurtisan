@@ -1,7 +1,7 @@
 import { existsSync, statSync } from 'node:fs'
+import { expect, test as setup } from '@playwright/test'
 import { E2E_CREATOR, loadAuthCookies } from './fixtures/auth'
 import { dismissAnalyticsConsentBanner } from './fixtures/consent'
-import { test as setup, expect } from '@playwright/test'
 
 const authFile = 'e2e/.auth/creator.json'
 const baseURL = process.env.BASE_URL || 'http://localhost:3000'

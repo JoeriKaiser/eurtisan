@@ -1,7 +1,7 @@
-import { test, expect } from '@playwright/test'
-import { eq, and } from 'drizzle-orm'
-import { db } from './db'
-import { shop, product, user } from '../src/db/schema'
+import { expect, test } from '@playwright/test'
+import { and, eq } from 'drizzle-orm'
+import { product, shop, user } from '../../src/db/schema'
+import { db } from '../db'
 
 async function getCreatorId() {
   const [row] = await db

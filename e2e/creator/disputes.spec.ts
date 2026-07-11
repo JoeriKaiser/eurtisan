@@ -1,9 +1,9 @@
-import { test, expect } from '@playwright/test'
 import { randomUUID } from 'node:crypto'
+import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
-import { db } from './db'
-import * as schema from '../src/db/schema'
-import { createDeliveredOrder } from './fixtures/orders'
+import * as schema from '../../src/db/schema'
+import { db } from '../db'
+import { createDeliveredOrder } from '../fixtures/orders'
 
 test.describe('creator disputes', () => {
   test.use({ storageState: 'e2e/.auth/creator.json' })

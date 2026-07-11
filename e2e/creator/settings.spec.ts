@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test'
-import { getCreatorShop } from './fixtures/orders'
+import { expect, test } from '@playwright/test'
+import { getCreatorShop } from '../fixtures/orders'
 
 test.describe('creator shop settings', () => {
   test.use({ storageState: 'e2e/.auth/creator.json' })
@@ -9,7 +9,7 @@ test.describe('creator shop settings', () => {
   test.beforeAll(async () => {
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const dummyDir = path.join(__dirname, 'fixtures')
+    const dummyDir = path.join(__dirname, '../fixtures')
     if (!fs.existsSync(dummyDir)) {
       fs.mkdirSync(dummyDir, { recursive: true })
     }

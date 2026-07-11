@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test'
-import { createPaidOrder } from './fixtures/orders'
+import { expect, test } from '@playwright/test'
+import { createPaidOrder } from '../fixtures/orders'
 
 test.describe('creator dashboard', () => {
   test.use({ storageState: 'e2e/.auth/creator.json' })

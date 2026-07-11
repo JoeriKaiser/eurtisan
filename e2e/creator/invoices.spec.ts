@@ -1,7 +1,7 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { and, eq } from 'drizzle-orm'
-import type { shop } from '../src/db/schema'
-import { E2E_CREATOR } from './fixtures/auth'
+import type { shop } from '../../src/db/schema'
+import { E2E_CREATOR } from '../fixtures/auth'
 
 const e2eDatabaseUrl =
   process.env.E2E_DATABASE_URL ?? 'postgresql://eurtisan:eurtisan@db-test:5432/eurtisan_test'
@@ -23,9 +23,9 @@ test.describe('Invoices E2E flow', () => {
   test.beforeAll(async () => {
     process.env.DATABASE_URL = e2eDatabaseUrl
 
-    const { db } = await import('../src/db/index')
-    const { platformOrder, shopOrder, invoices, shop, user } = await import('../src/db/schema')
-    const { createInvoicesForPlatformOrder } = await import('../src/lib/invoices.server')
+    const { db } = await import('../../src/db/index')
+    const { platformOrder, shopOrder, invoices, shop, user } = await import('../../src/db/schema')
+    const { createInvoicesForPlatformOrder } = await import('../../src/lib/invoices.server')
 
     const [creatorUser] = await db
       .select()
@@ -156,8 +156,8 @@ test.describe('Invoices E2E flow', () => {
     if (!shopSnapshot || !shopId) return
 
     process.env.DATABASE_URL = e2eDatabaseUrl
-    const { db } = await import('../src/db/index')
-    const { shop } = await import('../src/db/schema')
+    const { db } = await import('../../src/db/index')
+    const { shop } = await import('../../src/db/schema')
 
     await db
       .update(shop)

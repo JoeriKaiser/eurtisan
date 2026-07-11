@@ -9,10 +9,10 @@ import {
   productVariantOption,
   shop,
 } from '#/db/schema'
-import { validatePlainText } from './xss'
 import type { AuditActor } from './audit-logger'
 import { writeAuditLog } from './audit-logger'
 import { notifyLowStockIfNeeded } from './creator-products.server'
+import { validatePlainText } from './xss'
 
 export interface ProductOptionValueDetail {
   id: string
@@ -263,7 +263,35 @@ export async function deleteProductOptionQuery(optionId: string, actor?: AuditAc
     throw new Error('NOT_FOUND')
   }
 
-  await db.delete(productOption).where(eq(productOption.id, optionId))
+  const productId = existing[0].productId
+
+  // Find variants that include any value of this option; they must be removed
+  // along with the option so the matrix stays consistent.
+  const optionValues = await db
+    .select({ id: productOptionValue.id })
+    .from(productOptionValue)
+    .where(eq(productOptionValue.optionId, optionId))
+
+  const valueIds = optionValues.map((v) => v.id)
+
+  const variantsToDelete =
+    valueIds.length > 0
+      ? await db
+          .select({ variantId: productVariantOption.variantId })
+          .from(productVariantOption)
+          .where(inArray(productVariantOption.optionValueId, valueIds))
+          .groupBy(productVariantOption.variantId)
+      : []
+
+  const variantIdsToDelete = variantsToDelete.map((v) => v.variantId)
+
+  await db.transaction(async (tx) => {
+    if (variantIdsToDelete.length > 0) {
+      await tx.delete(productVariant).where(inArray(productVariant.id, variantIdsToDelete))
+    }
+
+    await tx.delete(productOption).where(eq(productOption.id, optionId))
+  })
 
   if (actor) {
     await writeAuditLog({
@@ -271,11 +299,11 @@ export async function deleteProductOptionQuery(optionId: string, actor?: AuditAc
       action: 'product_option_deleted',
       resourceType: 'product_option',
       resourceId: optionId,
-      metadata: { productId: existing[0].productId, name: existing[0].name },
+      metadata: { productId, name: existing[0].name },
     })
   }
 
-  return getProductVariantMatrix(existing[0].productId)
+  return getProductVariantMatrix(productId)
 }
 
 export async function createProductVariantQuery(

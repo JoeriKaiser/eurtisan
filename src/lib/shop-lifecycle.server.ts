@@ -69,7 +69,10 @@ export async function resumeShopQuery(shopId: string, user: SafeUser): Promise<v
     throw new ShopLifecycleError('INVALID_STATE', 'Shop is not paused.')
   }
 
-  await db.update(shop).set({ pausedAt: null, updatedAt: new Date() }).where(eq(shop.id, shopId))
+  await db
+    .update(shop)
+    .set({ status: 'active', pausedAt: null, updatedAt: new Date() })
+    .where(eq(shop.id, shopId))
 }
 
 export async function archiveShopQuery(shopId: string, user: SafeUser): Promise<void> {

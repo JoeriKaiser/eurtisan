@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test'
-import { createPaidOrder, getCreatorShop } from './fixtures/orders'
+import { expect, test } from '@playwright/test'
+import { createPaidOrder, getCreatorShop } from '../fixtures/orders'
 
 test.describe('creator fulfillment and financial actions', () => {
   test.use({ storageState: 'e2e/.auth/creator.json' })
@@ -31,6 +31,11 @@ test.describe('creator fulfillment and financial actions', () => {
   test('creator can complete Mollie Connect onboarding and view connection status', async ({
     page,
   }) => {
+    test.skip(
+      !process.env.MOLLIE_CLIENT_ID || !process.env.MOLLIE_CLIENT_SECRET,
+      'Mollie Connect credentials not configured; skip this test in the current environment.',
+    )
+
     const shop = await getCreatorShop()
 
     // Navigate to Creator Payouts page

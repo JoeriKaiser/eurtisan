@@ -115,12 +115,16 @@ obs-status:
 
 E2E_DATABASE_URL ?= postgresql://eurtisan:eurtisan@db-test:5432/eurtisan_test
 
+# Ensure the isolated E2E database is up before migrating/seeding.
+# Using the e2e compose overlay for these commands guarantees the correct
+# DATABASE_URL, E2E_TEST flag, and other e2e-only env vars are in scope.
 db-migrate-e2e: up
-	docker compose exec -e DATABASE_URL=$(E2E_DATABASE_URL) app bun run db:migrate
+	docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d db-test
+	docker compose -f docker-compose.yml -f docker-compose.e2e.yml run --rm app bun run db:migrate
 
 db-seed-e2e: db-migrate-e2e
-	docker compose exec -e DATABASE_URL=$(E2E_DATABASE_URL) app bun run db:seed -- --clear --force
-	docker compose exec app bun run scripts/setup-garage-cors.ts
+	docker compose -f docker-compose.yml -f docker-compose.e2e.yml run --rm app bun run db:seed -- --clear --force
+	docker compose run --rm app bun run scripts/setup-garage-cors.ts
 	@rm -f e2e/.auth/*.json
 
 # Bun/JSC heap cap for the test runner. The full browser project needs a large

@@ -1,5 +1,6 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
+import { createAdminContext } from '../fixtures/admin'
 
 const E2E_SHOP_NAME = 'Playwright Test Shop'
 
@@ -9,7 +10,7 @@ test.describe('shop creation onboarding', () => {
   test.beforeAll(async () => {
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const dummyDir = path.join(__dirname, 'fixtures')
+    const dummyDir = path.join(__dirname, '../fixtures')
     if (!fs.existsSync(dummyDir)) {
       fs.mkdirSync(dummyDir, { recursive: true })
     }
@@ -26,8 +27,8 @@ test.describe('shop creation onboarding', () => {
       'postgresql://eurtisan:eurtisan@db:5432/eurtisan'
     process.env.DATABASE_URL = connectionString
 
-    const { db } = await import('../src/db/index')
-    const { shop } = await import('../src/db/schema')
+    const { db } = await import('../../src/db/index')
+    const { shop } = await import('../../src/db/schema')
     await db.delete(shop).where(eq(shop.name, E2E_SHOP_NAME))
   })
 
@@ -134,8 +135,10 @@ test.describe('shop creation onboarding', () => {
     await expect(page.getByRole('heading', { name: /review & open shop/i })).toBeVisible()
 
     // 16. Accept terms and submit
-    await page.check('#terms')
-    await page.getByRole('button', { name: /submit for review/i }).click()
+    await page.click('#terms')
+    const submitBtn = page.getByRole('button', { name: /submit for review/i })
+    await expect(submitBtn).toBeEnabled()
+    await submitBtn.click()
 
     // 17. Verify redirection to status page (pending review)
     await page.waitForURL(/\/sell\/status\/[^/]+/)
@@ -146,7 +149,7 @@ test.describe('shop creation onboarding', () => {
     expect(shopId).toMatch(/^[0-9a-f-]+$/)
 
     // 18. Open separate Admin context to approve shop
-    const adminContext = await browser.newContext({ storageState: 'e2e/.auth/admin.json' })
+    const adminContext = await createAdminContext(browser)
     const adminPage = await adminContext.newPage()
 
     await adminPage.goto('/admin/shops?view=applications')

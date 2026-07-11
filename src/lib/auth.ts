@@ -6,10 +6,9 @@ import type { BetterAuthOptions, DBAdapter, Where } from 'better-auth'
 import { APIError, betterAuth } from 'better-auth'
 import { twoFactor } from 'better-auth/plugins'
 import { tanstackStartCookies } from 'better-auth/tanstack-start'
-
+import { eq } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { user } from '#/db/schema'
-import { eq } from 'drizzle-orm'
 import { createEmailProvider } from '#/integrations/email'
 import { safeRedirect } from './auth-utils'
 import { ANONYMOUS_SESSION_COOKIE } from './cart-constants'
@@ -56,6 +55,21 @@ function injectToken(result: Record<string, unknown> | null, tokenMap: Map<strin
 
 const ENCRYPTED_ACCOUNT_FIELDS = ['accessToken', 'refreshToken', 'idToken', 'password'] as const
 const ENCRYPTED_TWO_FACTOR_FIELDS = ['secret', 'backupCodes'] as const
+
+/**
+ * Disable Better Auth's built-in request rate limiting in development and test
+ * environments. This prevents E2E and Viteset runs from being blocked by
+ * sign-in rate limits when multiple auth setups run in quick succession.
+ * Production keeps the default rate limit behavior.
+ */
+function isAuthRateLimitDisabled(): boolean {
+  return (
+    typeof process !== 'undefined' &&
+    (process.env.NODE_ENV !== 'production' ||
+      process.env.E2E_TEST === 'true' ||
+      process.env.VITEST === 'true')
+  )
+}
 
 function encryptModelData(model: string, data: Record<string, unknown>): Record<string, unknown> {
   if (model !== 'account' && model !== 'two_factor') return data
@@ -306,6 +320,7 @@ export const betterAuthOptions = {
       },
     },
   },
+  rateLimit: isAuthRateLimitDisabled() ? { enabled: false } : undefined,
   plugins: [
     tanstackStartCookies(),
     twoFactor({
