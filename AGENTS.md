@@ -175,6 +175,7 @@ These rules are non-negotiable.
 - No plaintext secrets in source code.
 - No ignored TypeScript errors without explicit justification.
 - No silent failures.
+- No useEffect
 - No inaccessible UI for core functionality.
 - No unreviewable database schema changes.
 - No production-sensitive logic without tests.
