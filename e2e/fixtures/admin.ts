@@ -1,4 +1,5 @@
-import { randomBytes, randomUUID, scryptSync } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
+import { hashPassword } from '@better-auth/utils/password'
 import type { BrowserContext } from '@playwright/test'
 import { expect } from '@playwright/test'
 import { eq } from 'drizzle-orm'
@@ -14,17 +15,6 @@ export interface AdminCookie {
   httpOnly: boolean
   sameSite: 'Strict' | 'Lax' | 'None' | undefined
   expires: number
-}
-
-function hashPassword(password: string): string {
-  const salt = randomBytes(16).toString('hex')
-  const key = scryptSync(password, salt, 64, {
-    N: 16384,
-    r: 16,
-    p: 1,
-    maxmem: 128 * 16384 * 16 * 2,
-  })
-  return `${salt}:${key.toString('hex')}`
 }
 
 /**
@@ -115,7 +105,7 @@ export async function createTestUser(
     accountId: id,
     providerId: 'credential',
     userId: id,
-    password: hashPassword(password),
+    password: await hashPassword(password),
   })
 
   return { id, email, password, name, role }
