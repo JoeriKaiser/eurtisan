@@ -11,7 +11,7 @@ import {
 } from '#/lib/env.server'
 import { sha256Hex } from '#/lib/hash.server'
 import { logger } from '#/lib/logger.server'
-import { checkRateLimitDb } from '#/lib/rate-limit'
+import { checkRateLimitDb } from '#/lib/rate-limit.server'
 
 export type AuthEmailType = 'password_reset' | 'email_verification' | 'account_security_alert'
 

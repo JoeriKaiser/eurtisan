@@ -1,3 +1,5 @@
+import '@tanstack/react-start/server-only'
+
 /**
  * Minimal feature-flag registry backed by environment variables.
  *

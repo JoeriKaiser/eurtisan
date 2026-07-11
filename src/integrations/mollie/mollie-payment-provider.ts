@@ -1,3 +1,5 @@
+import '@tanstack/react-start/server-only'
+
 /**
  * Mollie payment provider — mock implementation.
  *

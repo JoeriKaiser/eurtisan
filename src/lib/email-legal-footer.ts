@@ -1,3 +1,5 @@
+import '@tanstack/react-start/server-only'
+
 import { m } from '#/paraglide/messages'
 import { getBaseUrl } from './env.server'
 import { getOrCreateUnsubscribeToken } from './email-preferences.server'

@@ -6,12 +6,8 @@ import {
   recordFailedSignIn,
   recordSuccessfulSignIn,
 } from '#/lib/auth-lockout.server'
-import {
-  assertAuthRateLimit,
-  checkRateLimit,
-  extractClientIp,
-  isAuthRateLimitedAction,
-} from '#/lib/rate-limit'
+import { extractClientIp, isAuthRateLimitedAction } from '#/lib/rate-limit'
+import { assertAuthRateLimit, checkRateLimit } from '#/lib/rate-limit.server'
 
 async function assertAuthGetRateLimit(request: Request): Promise<void> {
   const ip = extractClientIp(request)

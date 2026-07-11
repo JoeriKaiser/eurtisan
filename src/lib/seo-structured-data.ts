@@ -8,7 +8,9 @@
 import { m } from '#/paraglide/messages'
 
 /** Absolute base URL for schema @id and url fields. */
-const BASE_URL = typeof process !== 'undefined' ? process.env.PUBLIC_URL || '' : ''
+function getPublicUrl(): string {
+  return typeof process !== 'undefined' ? process.env.PUBLIC_URL || '' : ''
+}
 
 /**
  * Product structured data input.
@@ -41,7 +43,8 @@ export interface ProductJsonLdInput {
  * @see https://schema.org/Product
  */
 export function generateProductJsonLd(input: ProductJsonLdInput): Record<string, unknown> {
-  const fullUrl = BASE_URL ? `${BASE_URL}${input.canonicalPath}` : input.canonicalPath
+  const baseUrl = getPublicUrl()
+  const fullUrl = baseUrl ? `${baseUrl}${input.canonicalPath}` : input.canonicalPath
   const currency = input.currency ?? 'EUR'
 
   const jsonLd: Record<string, unknown> = {
@@ -105,7 +108,8 @@ export interface StoreJsonLdInput {
  * @see https://schema.org/Store
  */
 export function generateStoreJsonLd(input: StoreJsonLdInput): Record<string, unknown> {
-  const fullUrl = BASE_URL ? `${BASE_URL}${input.canonicalPath}` : input.canonicalPath
+  const baseUrl = getPublicUrl()
+  const fullUrl = baseUrl ? `${baseUrl}${input.canonicalPath}` : input.canonicalPath
 
   const jsonLd: Record<string, unknown> = {
     '@context': 'https://schema.org',
@@ -144,10 +148,10 @@ export interface WebSiteJsonLdInput {
  * @see https://schema.org/WebSite
  */
 export function generateWebSiteJsonLd(input: WebSiteJsonLdInput = {}): Record<string, unknown> {
-  const siteUrl = input.url ?? (BASE_URL || '/')
+  const baseUrl = getPublicUrl()
+  const siteUrl = input.url ?? (baseUrl || '/')
   const siteName = input.name ?? m.meta_title_default()
-  const searchTemplate =
-    input.searchUrlTemplate ?? `${BASE_URL || ''}/search?q={search_term_string}`
+  const searchTemplate = input.searchUrlTemplate ?? `${baseUrl || ''}/search?q={search_term_string}`
 
   const jsonLd: Record<string, unknown> = {
     '@context': 'https://schema.org',

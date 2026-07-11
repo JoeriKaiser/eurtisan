@@ -1,3 +1,5 @@
+import '@tanstack/react-start/server-only'
+
 /**
  * Content Security Policy configuration for Eurtisan.
  *

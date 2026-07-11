@@ -1,4 +1,4 @@
-import { createServerFn } from '@tanstack/react-start'
+import { createServerFn, createServerOnlyFn } from '@tanstack/react-start'
 import { eq } from 'drizzle-orm'
 
 import { shop, user } from '#/db/schema'
@@ -109,7 +109,7 @@ export const verifyShopOwnership = createServerFn({ method: 'GET' })
  * authentication. Development and test environments bypass the check so local
  * workflows and the test suite do not require a configured TOTP device.
  */
-export function requirePrivileged2FA(user: SafeUser): void {
+export const requirePrivileged2FA = createServerOnlyFn((user: SafeUser): void => {
   const isDevOrTest =
     typeof process !== 'undefined' &&
     (process.env.NODE_ENV === 'development' ||
@@ -123,14 +123,14 @@ export function requirePrivileged2FA(user: SafeUser): void {
   if ((user.role === 'creator' || user.role === 'admin') && !user.twoFactorEnabled) {
     throw new Error('TWO_FACTOR_REQUIRED')
   }
-}
+})
 
 export interface BecomeCreatorInput {
   shopName?: string
   shopSlug?: string
 }
 
-export async function becomeCreatorInternal(
+export const becomeCreatorInternal = createServerOnlyFn(async function becomeCreatorInternal(
   userId: string,
   userRole: string,
   data: BecomeCreatorInput,
@@ -151,7 +151,7 @@ export async function becomeCreatorInternal(
       status: 'draft',
     })
   }
-}
+})
 
 /**
  * Upgrades the authenticated customer to a creator.

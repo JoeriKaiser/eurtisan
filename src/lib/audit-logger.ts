@@ -1,3 +1,5 @@
+import '@tanstack/react-start/server-only'
+
 /**
  * Audit logging helper for owner and admin mutations.
  *

@@ -201,4 +201,24 @@ describe('generateWebSiteJsonLd', () => {
     const target = action.target as Record<string, unknown>
     expect(target.urlTemplate).toBe('https://eurtisan.eu/search?q={search_term_string}')
   })
+
+  it('reads PUBLIC_URL when structured data is generated', () => {
+    const previousPublicUrl = process.env.PUBLIC_URL
+    process.env.PUBLIC_URL = 'https://eurtisan.example'
+
+    try {
+      const result = generateWebSiteJsonLd()
+      expect(result.url).toBe('https://eurtisan.example')
+
+      const action = result.potentialAction as Record<string, unknown>
+      const target = action.target as Record<string, unknown>
+      expect(target.urlTemplate).toBe('https://eurtisan.example/search?q={search_term_string}')
+    } finally {
+      if (previousPublicUrl === undefined) {
+        delete process.env.PUBLIC_URL
+      } else {
+        process.env.PUBLIC_URL = previousPublicUrl
+      }
+    }
+  })
 })

@@ -1,3 +1,5 @@
+import '@tanstack/react-start/server-only'
+
 import { getMollieApiKey, getMollieTestMode, getMockPayoutsEnabled } from '#/lib/env.server'
 import { logger } from '#/lib/logger.server'
 

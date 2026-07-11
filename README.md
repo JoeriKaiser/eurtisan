@@ -70,16 +70,31 @@ Eurtisan connects European makers with European buyers. It is built as a product
 
 ```
 ├── src/
-│   ├── routes/           # File-based TanStack Router routes
-│   ├── components/       # Shared components + route-specific pages
-│   ├── db/               # Drizzle schema, migrations, seeds
-│   ├── lib/              # Business logic and utilities
-│   ├── integrations/     # External service clients
+│   ├── routes/           # TanStack route declarations and API handlers
+│   ├── route-components/ # Route-owned page UI and pending/error states
+│   ├── components/       # Reusable UI and design-system primitives
+│   ├── hooks/            # Reusable client-side React hooks
+│   ├── db/               # Drizzle schema, seeds, and DB maintenance scripts
+│   ├── db.ts             # PostgreSQL pool
+│   ├── lib/              # Domain logic, server functions, and validation
+│   ├── integrations/     # External service adapters
+│   ├── jobs/             # Cleanup, worker, sync, and reconciliation entrypoints
+│   ├── test/             # Shared test factories, scenarios, and helpers
+│   ├── types/            # Ambient and shared type declarations
+│   ├── paraglide/        # Generated localization runtime (do not edit)
+│   ├── routeTree.gen.ts  # Generated TanStack route tree (do not edit)
 │   ├── router.tsx        # Router configuration
+│   ├── start.ts          # Request middleware and TanStack Start setup
 │   └── styles.css        # Global styles + Tailwind imports
-├── drizzle/              # Generated migration files
-├── infrastructure/       # Ansible playbooks and inventory
-├── docker-compose.yml    # Local dev services (app, postgres, meilisearch, mailpit)
+├── messages/             # Paraglide translation sources
+├── drizzle/              # Committed Drizzle migrations and metadata
+├── e2e/                  # Playwright fixtures, setup, and workflows
+├── docs/                 # Architecture, operations, compliance, and runbooks
+├── infra/observability/  # Separately deployed Grafana stack configuration
+├── infrastructure/       # VPS provisioning and deployment automation
+├── public/               # Static assets
+├── scripts/              # Development and operational helpers
+├── docker-compose.yml    # Local dev services (app, postgres, search, mail)
 ├── docker-compose.staging.yml
 ├── docker-compose.prod.yml
 ├── Makefile              # Standardized workflows
@@ -207,6 +222,7 @@ See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for full details on DNS, SSH tunn
 
 For deeper architectural, compliance, and operational details, refer to:
 
+- **Architecture & Code Placement:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (directory ownership, route/UI conventions, server/client boundaries, and generated files).
 - **Developer Experience & Tooling:** [`docs/DEVELOPER_TOOLING.md`](docs/DEVELOPER_TOOLING.md) (SMTP/Mailpit email verification, Meilisearch checks, Drizzle Studio, and Playwright Agent CLI commands).
 - **Deployment & Backups:** [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) (Ansible setups, rollback procedures, database and WAL/offsite backup policies).
 - **GDPR & Privacy:** [`docs/DATA_RETENTION.md`](docs/DATA_RETENTION.md) (Data portability exports, deletion/erasure rules, and anonymization pipelines).
