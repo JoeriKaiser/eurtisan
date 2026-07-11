@@ -16,9 +16,6 @@ export interface AdminCookie {
   expires: number
 }
 
-const e2eDatabaseUrl =
-  process.env.E2E_DATABASE_URL ?? 'postgresql://eurtisan:eurtisan@db-test:5432/eurtisan_test'
-
 function hashPassword(password: string): string {
   const salt = randomBytes(16).toString('hex')
   const key = scryptSync(password, salt, 64, {
@@ -94,8 +91,6 @@ export async function createTestUser(
   seed: string,
   role: 'customer' | 'creator' | 'admin',
 ): Promise<TestUser> {
-  process.env.DATABASE_URL = e2eDatabaseUrl
-
   const email = `e2e-admin-${seed}@eurtisan.local`
   const password = 'test-password-123'
   const name = `E2E ${role.charAt(0).toUpperCase() + role.slice(1)} ${seed}`
@@ -130,8 +125,6 @@ export async function createTestUser(
  * Hard-delete a user by email, removing dependent account rows.
  */
 export async function deleteUserByEmail(email: string): Promise<void> {
-  process.env.DATABASE_URL = e2eDatabaseUrl
-
   const [userRow] = await db
     .select({ id: schema.user.id })
     .from(schema.user)
@@ -147,8 +140,6 @@ export async function deleteUserByEmail(email: string): Promise<void> {
  * Mark a user as banned with an optional reason.
  */
 export async function banUserByEmail(email: string, reason = 'E2E test ban'): Promise<void> {
-  process.env.DATABASE_URL = e2eDatabaseUrl
-
   await db
     .update(schema.user)
     .set({ bannedAt: new Date(), banReason: reason })
@@ -159,8 +150,6 @@ export async function banUserByEmail(email: string, reason = 'E2E test ban'): Pr
  * Clear a user's banned status.
  */
 export async function unbanUserByEmail(email: string): Promise<void> {
-  process.env.DATABASE_URL = e2eDatabaseUrl
-
   await db
     .update(schema.user)
     .set({ bannedAt: null, banReason: null })
@@ -179,8 +168,6 @@ export interface TestCategory {
  * Create a test category. Uses a unique slug derived from the seed.
  */
 export async function createTestCategory(seed: string, parentId?: string): Promise<TestCategory> {
-  process.env.DATABASE_URL = e2eDatabaseUrl
-
   const name = `E2E Category ${seed}`
   const slug = `e2e-category-${seed}`
   const description = `Test category created by E2E admin suite (${seed})`
@@ -216,8 +203,6 @@ export async function createTestCategory(seed: string, parentId?: string): Promi
  * Hard-delete a test category by id. Cascades to child categories via FK.
  */
 export async function deleteTestCategory(id: string): Promise<void> {
-  process.env.DATABASE_URL = e2eDatabaseUrl
-
   await db.delete(schema.categories).where(eq(schema.categories.id, id))
 }
 
@@ -225,7 +210,5 @@ export async function deleteTestCategory(id: string): Promise<void> {
  * Mark a user as deleted without removing the row, matching production account deletion.
  */
 export async function markUserDeleted(email: string): Promise<void> {
-  process.env.DATABASE_URL = e2eDatabaseUrl
-
   await db.update(schema.user).set({ deletedAt: new Date() }).where(eq(schema.user.email, email))
 }

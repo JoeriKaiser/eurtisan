@@ -2,6 +2,7 @@ import { expect, type Locator, type Page, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
 import * as schema from '../../src/db/schema'
 import { db } from '../db'
+import { deleteCustomerByEmail } from '../fixtures/customers'
 import {
   createReviewableOrder,
   createTestCustomer,
@@ -10,7 +11,7 @@ import {
 } from '../fixtures/orders'
 
 test.describe('admin review moderation', () => {
-  const created: Array<{ reviewId: string; order: TestOrder }> = []
+  const created: Array<{ reviewId: string; order: TestOrder; buyerEmail: string }> = []
 
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
@@ -18,7 +19,7 @@ test.describe('admin review moderation', () => {
   })
 
   test.afterAll(async () => {
-    for (const { reviewId, order } of created) {
+    for (const { reviewId, order, buyerEmail } of created) {
       if (reviewId) {
         await db
           .delete(schema.review)
@@ -26,6 +27,7 @@ test.describe('admin review moderation', () => {
           .catch(() => {})
       }
       await deleteOrder(order).catch(() => {})
+      await deleteCustomerByEmail(buyerEmail).catch(() => {})
     }
     created.length = 0
   })
@@ -48,7 +50,7 @@ test.describe('admin review moderation', () => {
       })
       .returning({ id: schema.review.id })
 
-    created.push({ reviewId: reviewRow.id, order })
+    created.push({ reviewId: reviewRow.id, order, buyerEmail: buyer.email })
     return { reviewId: reviewRow.id, order, comment, buyer }
   }
 

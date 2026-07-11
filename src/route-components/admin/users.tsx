@@ -1,9 +1,9 @@
-import { useLoaderData, useNavigate, useSearch } from '@tanstack/react-router'
+import { useLoaderData, useNavigate, useRouter, useSearch } from '@tanstack/react-router'
 import { Inbox } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
 import { Card, CardContent } from '#/components/ui/card'
-import type { AdminUserListItem, PaginatedUsers } from '#/lib/admin-users'
 import { banUser, unbanUser, updateUserRole } from '#/lib/admin-users'
+import type { AdminUserListItem } from '#/lib/admin-users'
 import { downloadCSV, generateCSV } from '#/lib/csv-export'
 import { m } from '#/paraglide/messages'
 import { BanDialog } from './users/BanDialog'
@@ -19,11 +19,13 @@ import { UsersTable } from './users/UsersTable'
 /* -------------------------------------------------------------------------- */
 
 export function AdminUsersPage() {
-  const loaderData = useLoaderData({ from: '/admin/users' }) as PaginatedUsers
+  const loaderData = useLoaderData({ from: '/admin/users' })
   const navigate = useNavigate()
   const search = useSearch({ from: '/admin/users' })
+  const router = useRouter()
 
-  const [users, setUsers] = useState(loaderData)
+  const users = loaderData
+
   const [status, setStatus] = useState({
     actionError: null as string | null,
     successMessage: null as string | null,
@@ -89,12 +91,7 @@ export function AdminUsersPage() {
           role: dialogs.selectedRole as 'customer' | 'creator' | 'admin',
         },
       })
-      setUsers((prev) => ({
-        ...prev,
-        users: prev.users.map((u) =>
-          u.id === dialogs.roleDialogUser?.id ? { ...u, role: dialogs.selectedRole } : u,
-        ),
-      }))
+      router.invalidate()
       showSuccess(m.admin_users_role_changed_success({ name: dialogs.roleDialogUser.name }))
       setDialogs((prev) => ({ ...prev, roleDialogUser: null }))
     } catch (err) {
@@ -105,7 +102,7 @@ export function AdminUsersPage() {
     } finally {
       setStatus((prev) => ({ ...prev, isSubmitting: false }))
     }
-  }, [dialogs.roleDialogUser, dialogs.selectedRole, showSuccess])
+  }, [dialogs.roleDialogUser, dialogs.selectedRole, showSuccess, router])
 
   const handleBan = useCallback(async () => {
     if (!dialogs.banDialogUser) return
@@ -114,14 +111,7 @@ export function AdminUsersPage() {
       await banUser({
         data: { userId: dialogs.banDialogUser.id, reason: dialogs.banReason || undefined },
       })
-      setUsers((prev) => ({
-        ...prev,
-        users: prev.users.map((u) =>
-          u.id === dialogs.banDialogUser?.id
-            ? { ...u, bannedAt: new Date(), banReason: dialogs.banReason || null }
-            : u,
-        ),
-      }))
+      router.invalidate()
       showSuccess(m.admin_users_banned_success({ name: dialogs.banDialogUser.name }))
       setDialogs((prev) => ({ ...prev, banDialogUser: null, banReason: '' }))
     } catch (err) {
@@ -132,19 +122,14 @@ export function AdminUsersPage() {
     } finally {
       setStatus((prev) => ({ ...prev, isSubmitting: false }))
     }
-  }, [dialogs.banDialogUser, dialogs.banReason, showSuccess])
+  }, [dialogs.banDialogUser, dialogs.banReason, showSuccess, router])
 
   const handleUnban = useCallback(
     async (userId: string, name: string) => {
       setStatus((prev) => ({ ...prev, actionError: null }))
       try {
         await unbanUser({ data: { userId } })
-        setUsers((prev) => ({
-          ...prev,
-          users: prev.users.map((u) =>
-            u.id === userId ? { ...u, bannedAt: null, banReason: null } : u,
-          ),
-        }))
+        router.invalidate()
         showSuccess(m.admin_users_unbanned_success({ name }))
       } catch (err) {
         setStatus((prev) => ({
@@ -153,7 +138,7 @@ export function AdminUsersPage() {
         }))
       }
     },
-    [showSuccess],
+    [showSuccess, router],
   )
 
   const handleExportCSV = useCallback(() => {

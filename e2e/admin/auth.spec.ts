@@ -93,23 +93,35 @@ test.describe('admin authentication and access control', () => {
     const admin = await createTestUser(seed, 'admin')
     createdEmails.push(admin.email)
 
-    // The test admin fixture enables 2FA by default; disable it so the UI
-    // stays on the sign-in form and surfaces the deleted-account error.
+    // Disable 2FA so the UI stays on the sign-in form and surfaces the
+    // deleted-account error instead of redirecting to 2FA setup.
     await db
       .update(schema.user)
       .set({ twoFactorEnabled: false })
       .where(eq(schema.user.email, admin.email))
 
+    // First verify the credentials are valid by signing in successfully.
+    await page.goto('/signin')
+    await page.waitForSelector('html[data-hydrated="true"]')
+    await page.locator('[id="email"]').fill(admin.email)
+    await page.locator('[id="password"]').fill(admin.password)
+    await page.getByRole('button', { name: /^sign in$/i }).click()
+    await page.waitForURL(/^(?!.*\/signin).+$/)
+    await page.goto('/admin')
+    await page.waitForSelector('html[data-hydrated="true"]')
+    await expect(page.getByRole('heading', { name: /Dashboard/i })).toBeVisible()
+
+    // Now mark the account deleted and try to sign in again.
     await markUserDeleted(admin.email)
 
     await page.goto('/signin')
     await page.waitForSelector('html[data-hydrated="true"]')
-
     await page.locator('[id="email"]').fill(admin.email)
     await page.locator('[id="password"]').fill(admin.password)
     await page.getByRole('button', { name: /^sign in$/i }).click()
 
     await expect(page.getByRole('alert')).toBeVisible({ timeout: 10000 })
+    await expect(page.getByText(/account has been deactivated/i)).toBeVisible()
     await expect(page).toHaveURL(/\/signin/)
   })
 })

@@ -39,8 +39,6 @@ test.describe('admin user management', () => {
 
   test.slow()
   test('filter by role shows only users in that role', async ({ page }) => {
-    // TODO: table sync bug — filters update URL but local state is stale, so we
-    // assert the filter control and URL instead of the table contents.
     const seed = `role-${Date.now()}`
     const customer = await createTestUser(`${seed}-customer`, 'customer')
     const creator = await createTestUser(`${seed}-creator`, 'creator')
@@ -53,12 +51,11 @@ test.describe('admin user management', () => {
     await page.waitForURL(/role=creator/)
 
     await expect(roleFilter).toHaveValue('creator')
-    await expect(page).toHaveURL(/role=creator/)
+    await expect(page.getByRole('cell', { name: creator.email })).toBeVisible()
+    await expect(page.getByRole('cell', { name: customer.email })).toBeHidden()
   })
 
   test('filter by status shows banned users', async ({ page }) => {
-    // TODO: table sync bug — filters update URL but local state is stale, so we
-    // assert the filter control and URL instead of the table contents.
     const user = await createTestUser(`status-${Date.now()}`, 'customer')
     createdUsers.push(user)
     await banUserByEmail(user.email)
@@ -69,6 +66,7 @@ test.describe('admin user management', () => {
     await bannedTab.click()
     await page.waitForURL(/status=banned/)
     await expect(bannedTab).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByRole('cell', { name: user.email })).toBeVisible()
 
     await unbanUserByEmail(user.email)
 
@@ -76,6 +74,7 @@ test.describe('admin user management', () => {
     await activeTab.click()
     await page.waitForURL(/status=active/)
     await expect(activeTab).toHaveAttribute('aria-selected', 'true')
+    await expect(page.getByRole('cell', { name: user.email })).toBeVisible()
   })
 
   test.slow()
