@@ -980,16 +980,18 @@ make auth-secret
 | `make build` | Build production app |
 | `make preview` | Preview production build |
 | `make start` | Start production server |
-| `make lint` | Run linting |
+| `make lint` | Run the read-only Biome lint and format check |
 | `make format` | Run formatting |
 | `make check` | Run full checks |
 | `make test` | Run tests (optionally with specific files: `make test <paths>`) |
 | `make test-related` | Run tests related to specific files (`make test-related <paths>`) |
 | `make auth-secret` | Generate Better Auth secret |
 | `make db-generate` | Generate migrations |
+| `make db-check` | Validate the Drizzle migration chain |
 | `make db-migrate` | Run migrations |
 | `make db-push` | Push schema locally |
 | `make db-studio` | Open Drizzle Studio |
+| `make i18n-compile` | Compile localization messages |
 
 ---
 

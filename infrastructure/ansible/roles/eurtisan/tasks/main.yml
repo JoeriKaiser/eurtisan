@@ -44,9 +44,9 @@
     state: directory
     mode: "0755"
 
-- name: Clone Codeberg repository
+- name: Clone canonical repository
   git:
-    repo: "https://codeberg.org/{{ codeberg_user }}/{{ codeberg_repo }}.git"
+    repo: "{{ repository_url }}"
     dest: /opt/eurtisan
     version: "{{ git_branch | default('main') }}"
     force: yes

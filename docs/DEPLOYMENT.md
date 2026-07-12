@@ -248,9 +248,19 @@ mollie_api_key: "test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 
 ---
 
-### Automated CI/CD (optional, future)
+### CI and deployment boundary
 
-Codeberg uses Forgejo, which supports [Forgejo Actions](https://forgejo.org/docs/next/user/actions/) (GitHub Actions–compatible). You can add a `.forgejo/workflows/deploy.yml` later to automate deploys on push/tag. For now, manual deployment keeps things simple and avoids relying on third-party CI runners.
+GitHub Actions runs validation for pull requests and pushes to `main`:
+
+- unit and browser tests
+- TypeScript, formatting, and lint checks
+- migration-chain validation
+- Prometheus and Ansible validation
+- production image build validation
+
+The workflow is deliberately not a deployment pipeline. It never invokes
+`deploy.sh`, accesses a VPS, or changes staging/production. Deployments remain
+manual through the SSH commands in this document.
 
 ---
 

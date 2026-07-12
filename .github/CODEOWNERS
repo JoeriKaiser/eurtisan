@@ -1,15 +1,15 @@
-# CODEOWNERS — replace @kaiser with your GitHub org/team or username.
+# CODEOWNERS — replace @JoeriKaiser with your GitHub org/team if ownership changes.
 # See docs/BRANCH_PROTECTION.md for required branch protection settings.
 
-* @kaiser
+* @JoeriKaiser
 
-/drizzle/ @kaiser
-/drizzle.config.ts @kaiser
-/infrastructure/ @kaiser
-/docker-compose.prod.yml @kaiser
-/Caddyfile @kaiser
-/Dockerfile.prod @kaiser
-/src/lib/auth.ts @kaiser
-/src/lib/auth-middleware.ts @kaiser
-/src/routes/api/webhooks/ @kaiser
-/src/integrations/payments/ @kaiser
+/drizzle/ @JoeriKaiser
+/drizzle.config.ts @JoeriKaiser
+/infrastructure/ @JoeriKaiser
+/docker-compose.prod.yml @JoeriKaiser
+/Caddyfile @JoeriKaiser
+/Dockerfile.prod @JoeriKaiser
+/src/lib/auth.ts @JoeriKaiser
+/src/lib/auth-middleware.ts @JoeriKaiser
+/src/routes/api/webhooks/ @JoeriKaiser
+/src/integrations/payments/ @JoeriKaiser

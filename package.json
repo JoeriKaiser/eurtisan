@@ -12,6 +12,7 @@
     "test": "vitest run",
     "start": "bun --import ./dist/server/instrument.server.mjs ./dist/server/server-entry.mjs",
     "db:generate": "drizzle-kit generate",
+    "db:check": "drizzle-kit check",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:pull": "drizzle-kit pull",
@@ -33,7 +34,7 @@
     "db:encrypt-jsonb-columns": "bun run src/db/migrate-encrypt-jsonb-columns.ts",
     "job:sendcloud-retention-cleanup": "bun run src/jobs/sendcloud-retention-cleanup.ts",
     "db:studio": "drizzle-kit studio",
-    "lint": "biome lint --write --unsafe ./src",
+    "lint": "biome ci --assist-enabled=false --error-on-warnings ./src",
     "format": "biome format --write ./src",
     "check": "bun tsc --noEmit",
     "i18n:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --strategy url cookie preferredLanguage baseLocale --emit-ts-declarations --output-structure locale-modules"

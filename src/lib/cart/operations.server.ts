@@ -10,11 +10,7 @@ import {
   reserveCartStockInTx,
 } from '../inventory.server'
 import { ANONYMOUS_SESSION_COOKIE } from './constants'
-import type {
-  CartDetail,
-  CartItemDetail,
-  CartShopGroup,
-} from './types'
+import type { CartDetail, CartItemDetail, CartShopGroup } from './types'
 
 export const AUTH_CART_DAYS = 30
 export const ANON_CART_DAYS = 7
