@@ -3,9 +3,9 @@ import { eq } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { user } from '#/db/schema'
 import { createEmailProvider } from '#/integrations/email'
-import { checkAuthEmailRateLimit } from '#/lib/email-rate-limit.server'
-import { logEmailEvent } from '#/lib/email-send-log.server'
-import { sha256Hex } from '#/lib/hash.server'
+import { checkAuthEmailRateLimit } from '../email-rate-limit.server'
+import { logEmailEvent } from '../email-send-log.server'
+import { sha256Hex } from '../hash.server'
 
 const MAX_FAILED_ATTEMPTS = 5
 const LOCKOUT_DURATION_MINUTES = 30

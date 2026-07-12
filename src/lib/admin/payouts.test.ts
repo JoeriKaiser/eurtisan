@@ -13,7 +13,7 @@ import {
   listPayoutHistoryQuery,
   listPendingPayoutsQuery,
   markPayoutSentQuery,
-} from '../payouts.server'
+} from '../payouts/operations.server'
 
 // These tests share a single database; disable concurrent execution so
 // beforeEach cleanup doesn't race with seeding in other tests.

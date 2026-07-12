@@ -11,8 +11,8 @@ import {
   createUser,
 } from '#/test/factories'
 
-import { listAllPlatformOrdersQuery } from '../admin-orders.server'
-import { listUsersQuery } from '../admin-users.server'
+import { listAllPlatformOrdersQuery } from './orders.server'
+import { listUsersQuery } from './users.server'
 import { emitAdminReadAudit } from '../audit-log.server'
 import { listPendingPayoutsQuery } from '../payouts.server'
 
