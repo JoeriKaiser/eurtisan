@@ -23,7 +23,7 @@ test.describe('Product reviews display', () => {
 
     // Average rating summary and review count should be present.
     await expect(reviewsSection.getByText(/\d+\.\d/)).toBeVisible()
-    await expect(reviewsSection.getByText(/\d+ reviews/i)).toBeVisible()
+    await expect(reviewsSection.getByText(/\d+ reviews?/i)).toBeVisible()
 
     // At least one review item (rendered as an <article>).
     await expect(reviewsSection.locator('article').first()).toBeVisible()

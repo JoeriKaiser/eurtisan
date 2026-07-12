@@ -13,7 +13,7 @@ import {
 } from './authz'
 
 // Mock Better Auth
-vi.mock('./auth', () => ({
+vi.mock('#/lib/auth/config.server', () => ({
   auth: {
     api: {
       getSession: vi.fn(),

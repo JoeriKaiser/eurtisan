@@ -1,1 +1,1 @@
-export const PLATFORM_FEE_PERCENT = 10
+export * from './shared/platform-constants'

@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { authPipeline, requireRole, requireShopOwnership } from '#/lib/authz'
 
-vi.mock('#/lib/auth', () => ({
+vi.mock('#/lib/auth/config.server', () => ({
   auth: {
     api: {
       getSession: vi.fn(),

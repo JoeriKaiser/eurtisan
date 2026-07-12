@@ -57,12 +57,12 @@ test.describe('Search', () => {
     const nextButton = pagination().getByRole('button', { name: /next/i })
     await expect(nextButton).toBeEnabled()
 
-    // Capture the first product name on page 1 to prove page 2 differs.
+    // Capture the first product accessible label on page 1 to prove page 2 differs.
     const firstProductOnPage1 = page.getByLabel(/^Product:/).first()
     await expect(firstProductOnPage1).toBeVisible()
-    const productNamePage1Raw = await firstProductOnPage1.textContent()
-    expect(productNamePage1Raw).toBeTruthy()
-    const productNamePage1 = productNamePage1Raw as string
+    const productLabelPage1 = await firstProductOnPage1.getAttribute('aria-label')
+    expect(productLabelPage1).toBeTruthy()
+    const expectedLabelPage1 = productLabelPage1 as string
 
     await nextButton.click()
     await page.waitForURL(/[?&]page=2/)
@@ -70,14 +70,14 @@ test.describe('Search', () => {
 
     const firstProductOnPage2 = page.getByLabel(/^Product:/).first()
     await expect(firstProductOnPage2).toBeVisible()
-    const productNamePage2Raw = await firstProductOnPage2.textContent()
-    expect(productNamePage2Raw).not.toEqual(productNamePage1)
+    const productLabelPage2 = await firstProductOnPage2.getAttribute('aria-label')
+    expect(productLabelPage2).not.toEqual(expectedLabelPage1)
 
     const previousButton = pagination().getByRole('button', { name: /previous/i })
     await previousButton.click()
     await page.waitForURL((url) => !url.searchParams.has('page'))
     await expect(pagination().getByText(/page 1 of \d+/i)).toBeVisible()
-    await expect(page.getByLabel(/^Product:/).first()).toHaveText(productNamePage1)
+    await expect(page.getByLabel(/^Product:/).first()).toHaveAttribute('aria-label', expectedLabelPage1)
   })
 
   test('shows empty state for non-matching query', async ({ page }) => {

@@ -11,7 +11,7 @@ import { Route } from './dashboard'
 
 const mockGetSession = vi.fn()
 
-vi.mock('#/lib/auth', () => ({
+vi.mock('#/lib/auth/config.server', () => ({
   auth: {
     api: {
       get getSession() {

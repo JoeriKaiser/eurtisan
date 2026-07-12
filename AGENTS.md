@@ -369,6 +369,7 @@ db:5432
 - Shared reusable components belong in `src/components`; small design-system primitives belong in `src/components/ui`.
 - Reusable client-side React hooks belong in `src/hooks/`; keep server-only logic out of hook modules.
 - `src/lib/` contains cohesive domain logic, server-function contracts, validation, authorization, and focused shared utilities. Keep `*.server.ts` implementations server-only and introduce domain subdirectories gradually when they improve ownership.
+- For migrated `src/lib/<domain>/` families, keep established root imports as compatibility contracts: browser-importable `createServerFn` modules own Zod validation and RPC authorization, while root `*.server.ts` modules re-export server-only implementations when existing consumers depend on them. Colocate browser-safe schemas, types, pure rules, and focused tests in the domain folder; place persistence/provider orchestration in `*.server.ts` files. Never import a domain `*.server.ts` module from browser code.
 - External provider clients and adapters belong in `src/integrations/`; cleanup, worker, synchronization, and reconciliation entrypoints belong in `src/jobs/`.
 - Database access belongs in `src/db/`, `src/db.ts`, or server-side modules/functions only. Shared test factories, scenarios, and cleanup helpers belong in `src/test/`.
 - Validation schemas should live near the domain they validate.
@@ -1017,7 +1018,7 @@ make auth-secret
 9. Never import server-only modules (`*.server.*` or modules marked with `@tanstack/react-start/server-only`) into client code. TanStack Start's import-protection plugin will block the production build. If a server-only query must be refreshed from the client, wrap it in a `createServerFn` and call the wrapper instead.
 10. Keep loader parameters within Zod schema bounds. A loader that calls a server function with hardcoded values (e.g. `pageSize: 1000`) will fail at runtime if the input schema caps that field lower (e.g. `.max(100)`).
 11. E2E auth is rate-limited by Better Auth. Rapid re-runs of `e2e/auth.setup.ts` will hit `429 Too Many Requests`. Reuse the generated `e2e/.auth/*.json` state across runs, or wait between attempts.
-12. `make e2e` does not pass through CLI flags. Playwright options like `--project=chromium` must be passed directly: `docker compose exec app bunx playwright test e2e/admin-panel.spec.ts --project=chromium`.
+12. `make e2e` does not pass through CLI flags. Playwright options like `--project=chromium` must be passed directly: `docker compose -f docker-compose.yml -f docker-compose.e2e.yml exec app bunx playwright test e2e/admin-panel.spec.ts --project=chromium`. The E2E overlay points the app at the isolated test database, so always use both compose files when running individual specs outside of `make e2e`.
 13. The `instrument.server.mjs` file must remain importable by Node at startup. Do not add TypeScript or ESM-only dependencies to it.
 14. The observability stack (`infra/observability/`) is deployed separately from the app and persists across app deploys.
 15. Privileged server functions (`creator`/`admin` actions) enforce 2FA independently of route guards via `requirePrivileged2FA`. Tests that call these functions must either set `twoFactorEnabled: true` on the test user or rely on the dev/test bypass.

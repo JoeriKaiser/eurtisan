@@ -1,20 +1,22 @@
-import { createServerFn } from '@tanstack/react-start'
-import { eq } from 'drizzle-orm'
+import { createServerFn, createServerOnlyFn } from '@tanstack/react-start'
 import z from 'zod'
-import { shop } from '#/db/schema'
 import { authMiddleware } from './auth-middleware'
 import { requirePrivileged2FA } from './server-auth'
 import type { SafeUser } from './server-auth'
 
 export type { ShopOrderDetail, ShopOrderItemDetail, ShopOrderListItem } from './shop-orders.server'
 
-async function isShopOwner(shopId: string, userId: string): Promise<boolean> {
-  const { db } = await import('#/db/index')
+const isShopOwner = createServerOnlyFn(async (shopId: string, userId: string): Promise<boolean> => {
+  const [{ db }, { shop }, { eq }] = await Promise.all([
+    import('#/db/index'),
+    import('#/db/schema'),
+    import('drizzle-orm'),
+  ])
   const record = await db.query.shop.findFirst({
     where: eq(shop.id, shopId),
   })
   return record?.ownerId === userId
-}
+})
 
 export const getShopOrder = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])

@@ -1,25 +1,20 @@
 import { createServerFn } from '@tanstack/react-start'
-import z from 'zod'
 import { authMiddleware } from './auth-middleware'
 import type { SafeUser } from './server-auth'
 import { requirePrivileged2FA } from './server-auth'
+import {
+  addDisputeMessageSchema,
+  listOpenDisputesInputSchema,
+  openDisputeSchema,
+  resolveDisputeSchema,
+} from './disputes/schemas'
 
-export const openDisputeSchema = z.object({
-  shopOrderId: z.string().uuid(),
-  reason: z.string().min(1).max(500),
-  description: z.string().min(1).max(5000),
-})
-
-export const addDisputeMessageSchema = z.object({
-  disputeId: z.string().uuid(),
-  message: z.string().min(1).max(5000),
-})
-
-export const resolveDisputeSchema = z.object({
-  disputeId: z.string().uuid(),
-  resolution: z.enum(['close', 'partial_refund', 'full_refund']),
-  refundCents: z.number().int().min(0).optional().nullable(),
-})
+export {
+  addDisputeMessageSchema,
+  listOpenDisputesInputSchema,
+  openDisputeSchema,
+  resolveDisputeSchema,
+} from './disputes/schemas'
 
 export type {
   CreatedDispute,
@@ -59,13 +54,6 @@ export const addDisputeMessage = createServerFn({ method: 'POST' })
     const { addDisputeMessageQuery } = await import('./disputes.server')
     return addDisputeMessageQuery(data.disputeId, data.message, context.user.id, context.user.role)
   })
-
-const listOpenDisputesInputSchema = z.object({
-  page: z.number().int().min(1).default(1),
-  pageSize: z.number().int().min(1).max(100).default(20),
-  status: z.enum(['all', 'open', 'resolved']).optional().default('open'),
-  query: z.string().optional(),
-})
 
 export const listOpenDisputes = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])

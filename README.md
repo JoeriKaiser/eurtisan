@@ -77,6 +77,33 @@ Eurtisan connects European makers with European buyers. It is built as a product
 │   ├── db/               # Drizzle schema, seeds, and DB maintenance scripts
 │   ├── db.ts             # PostgreSQL pool
 │   ├── lib/              # Domain logic, server functions, and validation
+│   │   ├── admin/        # Admin dashboards, moderation, and operations
+│   │   ├── audit/        # Audit logging and record keeping
+│   │   ├── auth/         # Authentication, authorization, sessions, and hooks
+│   │   ├── cart/         # Cart session, mutations, hooks, and UI helpers
+│   │   ├── checkout/     # Checkout orchestration, shipping, tax, and payment
+│   │   ├── customers/    # Customer profiles and order history queries
+│   │   ├── disputes/     # Dispute lifecycle, schemas, and operations
+│   │   ├── email/        # Email provider, templates, outbox, and preferences
+│   │   ├── images/       # Image URL, upload, storage, and responsive helpers
+│   │   ├── infra/        # Logging, metrics, caching, S3, encryption, env, db helpers
+│   │   ├── invoices/     # Invoice generation, credit notes, and VAT logic
+│   │   ├── jobs/         # Background jobs, cleanup, and reconciliation
+│   │   ├── marketing/    # SEO, structured data, sitemap, and robots.txt
+│   │   ├── notifications/# User notifications and hooks
+│   │   ├── orders/       # Order lifecycle, buyer queries, and UI helpers
+│   │   ├── payouts/      # Payout lifecycle, operations, and reconciliation
+│   │   ├── products/     # Public product catalog, search, creator dashboard, and visibility
+│   │   ├── reviews/      # Product reviews and ratings
+│   │   ├── search/       # Meilisearch client and search utilities
+│   │   ├── security/     # CSRF, CSP, rate limiting, and route guards
+│   │   ├── shared/       # Cross-cutting utilities and helpers
+│   │   ├── shipping/     # Shipping providers, rates, and estimates
+│   │   ├── shops/        # Shop lifecycle, settings, moderation, and onboarding
+│   │   ├── shop-orders/  # Domain types, lifecycle rules, and server operations
+│   │   ├── tax/          # VAT, pricing, payment providers, and tax reporting
+│   │   └── users/        # User queries, account data, and account operations
+│   │   └── ...           # Shared cross-cutting utilities remain at root
 │   ├── integrations/     # External service adapters
 │   ├── jobs/             # Cleanup, worker, sync, and reconciliation entrypoints
 │   ├── test/             # Shared test factories, scenarios, and helpers
