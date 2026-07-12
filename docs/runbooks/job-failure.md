@@ -13,6 +13,7 @@ All long-running jobs in `src/jobs/` are instrumented:
 - `audit-log-cleanup`
 - `email-retention-cleanup`
 - `email-suppression-cleanup`
+- `mollie-payment-reconciliation`
 - `payout-reconciliation`
 - `sendcloud-reconciliation`
 - `meilisearch-sync` (if running as a continuous job)

@@ -137,32 +137,3 @@ describe('MolliePaymentProvider production safety', () => {
     )
   })
 })
-
-describe('verifyWebhookReal malformed signatures', () => {
-  beforeEach(() => {
-    setEnv('MOLLIE_API_KEY', 'test_key')
-    setEnv('MOLLIE_WEBHOOK_SECRET', 'test_secret')
-  })
-
-  it('throws TypeError for an empty signature', async () => {
-    const provider = new MolliePaymentProvider({ mock: false })
-    await expect(provider.verifyWebhook({ id: 'tr_test' }, '', 'body')).rejects.toBeInstanceOf(
-      TypeError,
-    )
-  })
-
-  it('throws TypeError for a signature with invalid characters', async () => {
-    const provider = new MolliePaymentProvider({ mock: false })
-    await expect(
-      provider.verifyWebhook({ id: 'tr_test' }, 'not-valid!', 'body'),
-    ).rejects.toBeInstanceOf(TypeError)
-  })
-
-  it('throws RangeError for a signature with the wrong length', async () => {
-    const provider = new MolliePaymentProvider({ mock: false })
-    // Valid base64 but wrong length for HMAC-SHA256 (should be 44 chars).
-    await expect(
-      provider.verifyWebhook({ id: 'tr_test' }, 'aGVsbG8=', 'body'),
-    ).rejects.toBeInstanceOf(RangeError)
-  })
-})

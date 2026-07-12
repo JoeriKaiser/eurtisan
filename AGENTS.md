@@ -897,10 +897,15 @@ VITE_MEILISEARCH_HOST=http://localhost:7700
 VITE_MEILISEARCH_SEARCH_KEY=your-search-only-key
 
 # Mollie Payments (buyer checkout, refunds)
+# Classic webhooks are verified by retrieving authoritative payment state with this API key.
 MOLLIE_API_KEY=
-MOLLIE_WEBHOOK_SECRET=
 # Set to 'true' explicitly for local mock-payment testing
 MOCK_PAYMENTS_ENABLED=
+
+# Missed-webhook reconciliation tuning.
+MOLLIE_PAYMENT_RECONCILIATION_INTERVAL_MS=120000
+MOLLIE_PAYMENT_RECONCILIATION_MIN_AGE_MS=60000
+MOLLIE_PAYMENT_RECONCILIATION_BATCH_SIZE=100
 
 # Mollie Connect (seller onboarding and payouts)
 MOLLIE_CLIENT_ID=
@@ -983,6 +988,7 @@ make auth-secret
 | `make lint` | Run the read-only Biome lint and format check |
 | `make format` | Run formatting |
 | `make check` | Run full checks |
+| `make audit-production` | Fail on moderate-or-higher production dependency advisories |
 | `make test` | Run tests (optionally with specific files: `make test <paths>`) |
 | `make test-related` | Run tests related to specific files (`make test-related <paths>`) |
 | `make auth-secret` | Generate Better Auth secret |
@@ -1084,6 +1090,7 @@ If implementation and documentation diverge, the documentation is considered out
   - Authentication
 
 - Background jobs required for production correctness must be deployed as long-running containers or scheduled processes. The following jobs are not optional at launch:
+  - `bun run job:mollie-payment-reconciliation` — recovers delayed or missed classic Mollie payment webhooks.
   - `bun run job:payout-reconciliation` — reconciles payout status and alerts on stale pending payouts.
   - `bun run job:sendcloud-reconciliation` — backfills missed Sendcloud webhook status updates and marks delivered orders. This job must be running before the Sendcloud integration is considered live in production.
   - `bun run job:inventory-cleanup` — releases expired inventory reservations and cancels abandoned pending-payment orders.

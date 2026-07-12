@@ -193,6 +193,31 @@ services:
     command: >
       sh -c "bun run job:payout-reconciliation"
 
+  mollie-payment-reconciliation:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-mollie-payment-reconciliation-staging
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: unless-stopped
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:mollie-payment-reconciliation"
+
   sendcloud-reconciliation:
     image: eurtisan-app:${IMAGE_TAG:-latest}
     container_name: eurtisan-sendcloud-reconciliation-staging

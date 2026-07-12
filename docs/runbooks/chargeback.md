@@ -3,8 +3,8 @@
 ## What is a chargeback?
 
 A chargeback occurs when a buyer reverses a payment through their card issuer or
-bank. Mollie notifies Eurtisan via the `chargeback` status on the payment
-webhook.
+bank. Mollie notifies Eurtisan through the classic payment webhook; Eurtisan
+retrieves the payment and detects a positive authoritative charged-back amount.
 
 ## Automated handling
 

@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { assertMockPayoutsNotProduction, getHealthDiskThresholdBytes } from './env.server'
+import {
+  assertMockPayoutsNotProduction,
+  getHealthDiskThresholdBytes,
+  getMolliePaymentReconciliationBatchSize,
+  getMolliePaymentReconciliationIntervalMs,
+  getMolliePaymentReconciliationMinAgeMs,
+} from './env.server'
 
 describe('assertMockPayoutsNotProduction', () => {
   const originalNodeEnv = process.env.NODE_ENV
@@ -36,6 +42,51 @@ describe('assertMockPayoutsNotProduction', () => {
     process.env.MOCK_PAYOUTS_ENABLED = 'true'
 
     expect(() => assertMockPayoutsNotProduction()).not.toThrow()
+  })
+})
+
+describe('Mollie payment reconciliation configuration', () => {
+  const keys = [
+    'MOLLIE_PAYMENT_RECONCILIATION_INTERVAL_MS',
+    'MOLLIE_PAYMENT_RECONCILIATION_MIN_AGE_MS',
+    'MOLLIE_PAYMENT_RECONCILIATION_BATCH_SIZE',
+  ] as const
+  const originalValues = new Map(keys.map((key) => [key, process.env[key]]))
+
+  afterEach(() => {
+    for (const key of keys) {
+      const original = originalValues.get(key)
+      if (original === undefined) delete process.env[key]
+      else process.env[key] = original
+    }
+  })
+
+  it('uses safe defaults when tuning variables are unset', () => {
+    for (const key of keys) delete process.env[key]
+
+    expect(getMolliePaymentReconciliationIntervalMs()).toBe(120_000)
+    expect(getMolliePaymentReconciliationMinAgeMs()).toBe(60_000)
+    expect(getMolliePaymentReconciliationBatchSize()).toBe(100)
+  })
+
+  it('accepts positive integer tuning values', () => {
+    process.env.MOLLIE_PAYMENT_RECONCILIATION_INTERVAL_MS = '300000'
+    process.env.MOLLIE_PAYMENT_RECONCILIATION_MIN_AGE_MS = '90000'
+    process.env.MOLLIE_PAYMENT_RECONCILIATION_BATCH_SIZE = '25'
+
+    expect(getMolliePaymentReconciliationIntervalMs()).toBe(300_000)
+    expect(getMolliePaymentReconciliationMinAgeMs()).toBe(90_000)
+    expect(getMolliePaymentReconciliationBatchSize()).toBe(25)
+  })
+
+  it('rejects invalid and non-positive tuning values', () => {
+    process.env.MOLLIE_PAYMENT_RECONCILIATION_INTERVAL_MS = 'invalid'
+    process.env.MOLLIE_PAYMENT_RECONCILIATION_MIN_AGE_MS = '0'
+    process.env.MOLLIE_PAYMENT_RECONCILIATION_BATCH_SIZE = '-5'
+
+    expect(getMolliePaymentReconciliationIntervalMs()).toBe(120_000)
+    expect(getMolliePaymentReconciliationMinAgeMs()).toBe(60_000)
+    expect(getMolliePaymentReconciliationBatchSize()).toBe(100)
   })
 })
 

@@ -97,43 +97,6 @@ describe('MolliePaymentProvider (mock)', () => {
     })
   })
 
-  describe('verifyWebhook', () => {
-    it('returns true for valid mock signature', async () => {
-      const paymentId = 'tr_mock_000001'
-      const payload = { id: paymentId }
-      const signature = `mock_sig_${paymentId}`
-
-      const result = await provider.verifyWebhook(payload, signature)
-      expect(result).toBe(true)
-    })
-
-    it('returns false for invalid signature', async () => {
-      const payload = { id: 'tr_mock_000001' }
-      const signature = 'wrong_signature'
-
-      const result = await provider.verifyWebhook(payload, signature)
-      expect(result).toBe(false)
-    })
-
-    it('returns false when payload has no id', async () => {
-      const payload = { status: 'paid' }
-      const signature = 'mock_sig_tr_mock_000001'
-
-      const result = await provider.verifyWebhook(payload, signature)
-      expect(result).toBe(false)
-    })
-
-    it('returns false for non-object payload', async () => {
-      const result = await provider.verifyWebhook('not_an_object', 'any_sig')
-      expect(result).toBe(false)
-    })
-
-    it('returns false for null payload', async () => {
-      const result = await provider.verifyWebhook(null, 'any_sig')
-      expect(result).toBe(false)
-    })
-  })
-
   describe('refundPayment', () => {
     it('succeeds with a valid mock payment ID', async () => {
       await expect(provider.refundPayment('tr_mock_000001', 500)).resolves.toBeUndefined()
@@ -400,13 +363,43 @@ describe('MolliePaymentProvider (real with mocked fetch)', () => {
       expect(status).toBe('failed')
     })
 
-    it('returns cancelled status', async () => {
+    it('maps Mollie open and authorized states to pending', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch')
+      fetchSpy.mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: 'tr_real_12345', status: 'open' }), { status: 200 }),
+      )
+      fetchSpy.mockResolvedValueOnce(
+        new Response(JSON.stringify({ id: 'tr_real_12345', status: 'authorized' }), {
+          status: 200,
+        }),
+      )
+
+      await expect(provider.getPaymentStatus('tr_real_12345')).resolves.toBe('pending')
+      await expect(provider.getPaymentStatus('tr_real_12345')).resolves.toBe('pending')
+    })
+
+    it('maps Mollie canceled status to the internal cancelled status', async () => {
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-        new Response(JSON.stringify({ id: 'tr_real_12345', status: 'cancelled' }), { status: 200 }),
+        new Response(JSON.stringify({ id: 'tr_real_12345', status: 'canceled' }), { status: 200 }),
       )
 
       const status = await provider.getPaymentStatus('tr_real_12345')
       expect(status).toBe('cancelled')
+    })
+
+    it('detects a chargeback from Mollie amountChargedBack', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            id: 'tr_real_12345',
+            status: 'paid',
+            amountChargedBack: { currency: 'EUR', value: '25.00' },
+          }),
+          { status: 200 },
+        ),
+      )
+
+      await expect(provider.getPaymentStatus('tr_real_12345')).resolves.toBe('chargeback')
     })
 
     it('throws on API error', async () => {
@@ -421,11 +414,11 @@ describe('MolliePaymentProvider (real with mocked fetch)', () => {
 
     it('throws for unexpected status values', async () => {
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-        new Response(JSON.stringify({ id: 'tr_real_12345', status: 'open' }), { status: 200 }),
+        new Response(JSON.stringify({ id: 'tr_real_12345', status: 'unknown' }), { status: 200 }),
       )
 
       await expect(provider.getPaymentStatus('tr_real_12345')).rejects.toThrow(
-        'Unexpected Mollie payment status: open',
+        'Unexpected Mollie payment status: unknown',
       )
     })
   })
@@ -447,39 +440,6 @@ describe('MolliePaymentProvider (real with mocked fetch)', () => {
           }),
         }),
       )
-    })
-  })
-
-  describe('verifyWebhook', () => {
-    it('verifies HMAC signature with MOLLIE_WEBHOOK_SECRET', async () => {
-      setEnv('MOLLIE_WEBHOOK_SECRET', 'test_secret')
-
-      const payload = { id: 'tr_real_12345' }
-      const rawBody = JSON.stringify(payload)
-
-      const crypto = await import('node:crypto')
-      const expectedSig = crypto
-        .createHmac('sha256', 'test_secret')
-        .update(rawBody)
-        .digest('base64')
-
-      const result = await provider.verifyWebhook(payload, expectedSig, rawBody)
-      expect(result).toBe(true)
-    })
-
-    it('returns false when rawBody is missing', async () => {
-      setEnv('MOLLIE_WEBHOOK_SECRET', 'test_secret')
-
-      const result = await provider.verifyWebhook({ id: 'tr_real_12345' }, 'some_sig')
-      expect(result).toBe(false)
-    })
-
-    it('throws when MOLLIE_WEBHOOK_SECRET is not set', async () => {
-      setEnv('MOLLIE_WEBHOOK_SECRET', '')
-
-      await expect(
-        provider.verifyWebhook({ id: 'tr_real_12345' }, 'some_sig', 'raw'),
-      ).rejects.toThrow('MOLLIE_WEBHOOK_SECRET is not set')
     })
   })
 })

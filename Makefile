@@ -1,4 +1,4 @@
-.PHONY: up down stop logs dev build preview start install lint format check test test-related shell auth-secret db-generate db-check db-migrate db-push db-studio i18n-compile init db-seed meili-setup promtool-check FORCE
+.PHONY: up down stop logs dev build preview start install lint format check test test-related shell auth-secret db-generate db-check db-migrate db-push db-studio i18n-compile init db-seed meili-setup promtool-check audit-production FORCE
 
 # Docker Compose lifecycle
 up:
@@ -51,6 +51,10 @@ format: ensure-up
 
 check: ensure-up
 	docker compose exec -T app bun run check
+
+# Fail on production dependency advisories of moderate severity or higher.
+audit-production: ensure-up
+	docker compose exec -T app bun audit --production --audit-level=moderate
 
 i18n-compile: ensure-up
 	docker compose exec -T app bun run i18n:compile

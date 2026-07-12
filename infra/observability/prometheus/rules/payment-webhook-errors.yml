@@ -7,8 +7,26 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: Mollie webhook signature verification or 5xx errors detected
-          description: Mollie webhook requests failed signature verification or returned a server error in the last 5 minutes.
+          summary: Mollie webhook processing errors detected
+          description: Mollie webhook requests returned a server error in the last 5 minutes; Mollie should retry them.
+
+      - alert: EurtisanMolliePendingPaymentsStale
+        expr: eurtisan_mollie_oldest_pending_payment_age_seconds > 600
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Mollie payment reconciliation is not clearing pending orders
+          description: The oldest Mollie-backed pending payment has remained unresolved for more than 10 minutes.
+
+      - alert: EurtisanMolliePaymentReconciliationErrors
+        expr: increase(eurtisan_mollie_payment_reconciliation_errors_total[10m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Mollie payment reconciliation errors detected
+          description: At least one pending Mollie payment failed automated reconciliation in the last 10 minutes.
 
       - alert: EurtisanSendcloudWebhookFailed
         expr: increase(eurtisan_sendcloud_webhook_failed_total[5m]) > 0

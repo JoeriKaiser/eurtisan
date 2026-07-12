@@ -63,7 +63,6 @@ describe.sequential('checkout', () => {
         paymentId: testPaymentId,
         checkoutUrl: testCheckoutUrl,
       }),
-      verifyWebhook: async () => false,
       getPaymentStatus: async () => 'paid',
       getPaymentAmount: async () => 1000,
       refundPayment: async () => undefined,
@@ -872,7 +871,6 @@ describe.sequential('checkout', () => {
         createPayment: async () => {
           throw new Error('Simulated provider failure')
         },
-        verifyWebhook: async () => false,
         getPaymentStatus: async () => 'paid',
         getPaymentAmount: async () => 1000,
         refundPayment: async () => undefined,
@@ -1432,7 +1430,6 @@ describe.sequential('checkout', () => {
         createPayment: async () => {
           throw new Error('Simulated provider failure')
         },
-        verifyWebhook: async () => false,
         getPaymentStatus: async () => 'paid',
         getPaymentAmount: async () => 1000,
         refundPayment: async () => undefined,

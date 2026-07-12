@@ -30,10 +30,9 @@ import {
 import { processMollieWebhook } from './mollie'
 
 // ---------------------------------------------------------------------------
-// Stub payment provider — returns configurable webhook verification results
+// Stub payment provider — returns configurable authoritative payment state
 // ---------------------------------------------------------------------------
 
-let stubVerifyResult = true
 let stubPaymentStatus: 'pending' | 'paid' | 'expired' | 'failed' | 'cancelled' | 'chargeback' =
   'paid'
 let stubPaymentAmount = 1000
@@ -44,7 +43,6 @@ function createStubPaymentProvider(overrides?: Partial<PaymentProvider>): Paymen
       paymentId: 'tr_mock_000001',
       checkoutUrl: 'https://checkout.mollie.com/pay/tr_mock_000001',
     }),
-    verifyWebhook: async () => stubVerifyResult,
     getPaymentStatus: async () => stubPaymentStatus,
     getPaymentAmount: async () => stubPaymentAmount,
     refundPayment: async () => undefined,
@@ -156,18 +154,24 @@ async function seedInventoryReservation(
 }
 
 // ---------------------------------------------------------------------------
-// Helper: create a mock Request with JSON body and headers
+// Helper: create a classic Mollie form-encoded callback request
 // ---------------------------------------------------------------------------
 
 function mockRequest(body: unknown, headers?: Record<string, string>): Request {
-  const jsonBody = JSON.stringify(body)
+  const form = new URLSearchParams()
+  if (body && typeof body === 'object') {
+    for (const [key, value] of Object.entries(body)) {
+      form.append(key, String(value))
+    }
+  }
+
   return new Request('https://example.com/api/webhooks/mollie', {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
+      'Content-Type': 'application/x-www-form-urlencoded',
       ...headers,
     },
-    body: jsonBody,
+    body: form,
   })
 }
 
@@ -176,7 +180,6 @@ function mockRequest(body: unknown, headers?: Record<string, string>): Request {
 // ---------------------------------------------------------------------------
 
 beforeEach(async () => {
-  stubVerifyResult = true
   stubPaymentStatus = 'paid'
   stubPaymentAmount = 1000
   await clearTestTables()
@@ -188,7 +191,6 @@ beforeEach(async () => {
 })
 
 afterAll(async () => {
-  stubVerifyResult = true
   stubPaymentStatus = 'paid'
   stubPaymentAmount = 1000
   await clearTestTables()
@@ -199,8 +201,8 @@ afterAll(async () => {
 // ---------------------------------------------------------------------------
 
 describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
-  describe('signature verification', () => {
-    it('returns 200 and updates order to paid when webhook signature is valid', async () => {
+  describe('classic callback contract', () => {
+    it('returns 200 and updates the order from authoritative provider state', async () => {
       const order = await seedPlatformOrder()
       const shopOrd = await seedShopOrder({ platformOrderId: order.id })
 
@@ -235,18 +237,17 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
       expect(updatedShopOrder.status).toBe('paid')
     })
 
-    it('returns 401 when webhook signature is invalid', async () => {
-      await seedPlatformOrder()
+    it('does not require or trust a callback signature header', async () => {
+      const order = await seedPlatformOrder()
+      await seedShopOrder({ platformOrderId: order.id })
 
-      stubVerifyResult = false
-      const provider = createStubPaymentProvider()
-      const req = mockRequest({ id: 'tr_mock_000042' }, { 'X-Mollie-Signature': 'wrong_signature' })
+      const res = await processMollieWebhook(
+        mockRequest({ id: 'tr_mock_000042' }, { 'X-Mollie-Signature': 'untrusted' }),
+        { db, paymentProvider: createStubPaymentProvider() },
+      )
 
-      const res = await processMollieWebhook(req, { db, paymentProvider: provider })
-
-      expect(res.status).toBe(401)
-      const body = await res.json()
-      expect(body.error).toBe('Unauthorized')
+      expect(res.status).toBe(200)
+      await expect(res.json()).resolves.toMatchObject({ status: 'processed' })
     })
   })
 
@@ -309,87 +310,62 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
   })
 
   describe('malformed input', () => {
-    it('returns 400 for invalid JSON body', async () => {
-      const provider = createStubPaymentProvider()
+    it('returns 415 for a JSON callback instead of the classic form contract', async () => {
       const req = new Request('https://example.com/api/webhooks/mollie', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: 'not valid json at all',
+        body: JSON.stringify({ id: 'tr_mock_000042' }),
       })
 
-      const res = await processMollieWebhook(req, { db, paymentProvider: provider })
-
-      expect(res.status).toBe(400)
-      const body = await res.json()
-      expect(body.error).toBe('Bad Request')
-      expect(body.message).toBe('Invalid JSON body')
-    })
-
-    it('returns 400 when JSON body is missing the id field', async () => {
-      const provider = createStubPaymentProvider()
-      const req = mockRequest({ status: 'paid' })
-
-      const res = await processMollieWebhook(req, { db, paymentProvider: provider })
-
-      expect(res.status).toBe(400)
-      const body = await res.json()
-      expect(body.error).toBe('Bad Request')
-      expect(body.message).toBe('Missing payment ID')
-    })
-
-    it('returns 400 when id field is not a string', async () => {
-      const provider = createStubPaymentProvider()
-      const req = mockRequest({ id: 12345 })
-
-      const res = await processMollieWebhook(req, { db, paymentProvider: provider })
-
-      expect(res.status).toBe(400)
-      const body = await res.json()
-      expect(body.error).toBe('Bad Request')
-    })
-
-    it('returns 400 when id field is an empty string', async () => {
-      const provider = createStubPaymentProvider()
-      const req = mockRequest({ id: '' })
-
-      const res = await processMollieWebhook(req, { db, paymentProvider: provider })
-
-      expect(res.status).toBe(400)
-      const body = await res.json()
-      expect(body.error).toBe('Bad Request')
-      expect(body.message).toBe('Missing payment ID')
-    })
-
-    it('returns 400 when verifyWebhook throws TypeError (malformed signature)', async () => {
-      const provider = createStubPaymentProvider({
-        verifyWebhook: async () => {
-          throw new TypeError('Malformed signature')
-        },
+      const res = await processMollieWebhook(req, {
+        db,
+        paymentProvider: createStubPaymentProvider(),
       })
-      const req = mockRequest({ id: 'tr_mock_000042' }, { 'X-Mollie-Signature': 'bad' })
 
-      const res = await processMollieWebhook(req, { db, paymentProvider: provider })
-
-      expect(res.status).toBe(400)
-      const body = await res.json()
-      expect(body.error).toBe('Bad Request')
-      expect(body.message).toBe('Malformed signature')
+      expect(res.status).toBe(415)
+      await expect(res.json()).resolves.toMatchObject({ error: 'Unsupported Media Type' })
     })
 
-    it('returns 400 when verifyWebhook throws RangeError (malformed signature)', async () => {
-      const provider = createStubPaymentProvider({
-        verifyWebhook: async () => {
-          throw new RangeError('Malformed signature')
-        },
+    it('returns 400 when the form body is missing the id field', async () => {
+      const res = await processMollieWebhook(mockRequest({}), {
+        db,
+        paymentProvider: createStubPaymentProvider(),
       })
-      const req = mockRequest({ id: 'tr_mock_000042' }, { 'X-Mollie-Signature': 'bad' })
-
-      const res = await processMollieWebhook(req, { db, paymentProvider: provider })
 
       expect(res.status).toBe(400)
-      const body = await res.json()
-      expect(body.error).toBe('Bad Request')
-      expect(body.message).toBe('Malformed signature')
+      await expect(res.json()).resolves.toMatchObject({
+        error: 'Bad Request',
+        message: 'Missing or duplicate payment ID',
+      })
+    })
+
+    it('returns 400 when the payment id has an invalid shape', async () => {
+      const res = await processMollieWebhook(mockRequest({ id: 12345 }), {
+        db,
+        paymentProvider: createStubPaymentProvider(),
+      })
+
+      expect(res.status).toBe(400)
+      await expect(res.json()).resolves.toMatchObject({ error: 'Bad Request' })
+    })
+
+    it('returns 400 when the payment id is empty', async () => {
+      const res = await processMollieWebhook(mockRequest({ id: '' }), {
+        db,
+        paymentProvider: createStubPaymentProvider(),
+      })
+
+      expect(res.status).toBe(400)
+      await expect(res.json()).resolves.toMatchObject({ error: 'Bad Request' })
+    })
+
+    it('returns 413 before processing an oversized callback', async () => {
+      const res = await processMollieWebhook(mockRequest({ id: `tr_${'a'.repeat(1100)}` }), {
+        db,
+        paymentProvider: createStubPaymentProvider(),
+      })
+
+      expect(res.status).toBe(413)
     })
   })
 
@@ -597,7 +573,7 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
         .from(platformOrder)
         .where(eq(platformOrder.id, order.id))
         .limit(1)
-      expect(updatedOrder.status).toBe('pending_payment')
+      expect(updatedOrder.status).toBe('manual_review')
     })
 
     it('does not mark order as paid when webhook amount is higher than order total', async () => {
@@ -622,7 +598,7 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
         .from(platformOrder)
         .where(eq(platformOrder.id, order.id))
         .limit(1)
-      expect(updatedOrder.status).toBe('pending_payment')
+      expect(updatedOrder.status).toBe('manual_review')
     })
 
     it('marks order as paid when webhook amount matches order total exactly', async () => {
@@ -916,37 +892,30 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
     })
   })
 
-  describe('signature delivery', () => {
-    it('passes rawBody to the payment provider for HMAC verification', async () => {
-      await seedPlatformOrder()
+  describe('authoritative provider lookup', () => {
+    it('retrieves the exact form-encoded payment id from the provider', async () => {
+      const order = await seedPlatformOrder()
+      await seedShopOrder({ platformOrderId: order.id })
 
-      let receivedRawBody: string | undefined
-      const provider: PaymentProvider = {
-        createPayment: async () => ({
-          paymentId: 'tr_mock_000001',
-          checkoutUrl: 'https://checkout.mollie.com/pay/tr_mock_000001',
-        }),
-        verifyWebhook: async (_payload, _signature, rawBody) => {
-          receivedRawBody = rawBody
-          return true
+      let receivedPaymentId: string | undefined
+      const provider = createStubPaymentProvider({
+        getPaymentStatus: async (paymentId) => {
+          receivedPaymentId = paymentId
+          return 'paid'
         },
-        getPaymentStatus: async () => 'paid',
-        getPaymentAmount: async () => 1000,
-        refundPayment: async () => undefined,
-        cancelPayment: async () => undefined,
-      }
+      })
 
-      const payload = { id: 'tr_mock_000042' }
-      const req = mockRequest(payload, { 'X-Mollie-Signature': 'valid_sig' })
+      await processMollieWebhook(mockRequest({ id: 'tr_mock_000042' }), {
+        db,
+        paymentProvider: provider,
+      })
 
-      await processMollieWebhook(req, { db, paymentProvider: provider })
-
-      expect(receivedRawBody).toBe(JSON.stringify(payload))
+      expect(receivedPaymentId).toBe('tr_mock_000042')
     })
   })
 
   describe('provider error handling', () => {
-    it('returns 200 without updating order when getPaymentStatus throws', async () => {
+    it('returns 503 for retry without updating the order when Mollie is unavailable', async () => {
       const order = await seedPlatformOrder()
       await seedShopOrder({ platformOrderId: order.id })
 
@@ -962,9 +931,9 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
 
       const res = await processMollieWebhook(req, { db, paymentProvider: provider })
 
-      expect(res.status).toBe(200)
+      expect(res.status).toBe(503)
       const body = await res.json()
-      expect(body.status).toBe('provider_error')
+      expect(body.status).toBe('provider_or_processing_error')
 
       // Order must remain untouched
       const [updatedOrder] = await db
@@ -975,7 +944,7 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
       expect(updatedOrder.status).toBe('pending_payment')
     })
 
-    it('returns 200 without updating order when getPaymentStatus rejects with non-Error', async () => {
+    it('returns 503 when getPaymentStatus rejects with a non-Error value', async () => {
       const order = await seedPlatformOrder()
       await seedShopOrder({ platformOrderId: order.id })
 
@@ -991,9 +960,9 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
 
       const res = await processMollieWebhook(req, { db, paymentProvider: provider })
 
-      expect(res.status).toBe(200)
+      expect(res.status).toBe(503)
       const body = await res.json()
-      expect(body.status).toBe('provider_error')
+      expect(body.status).toBe('provider_or_processing_error')
 
       const [updatedOrder] = await db
         .select({ status: platformOrder.status })
@@ -1005,9 +974,10 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
   })
 
   describe('Race Conditions', () => {
-    it('prevents webhook from updating status to paid if the order was cancelled first', async () => {
+    it('refunds a captured payment if the order was cancelled first', async () => {
       stubPaymentStatus = 'paid'
-      const order = await seedPlatformOrder()
+      stubPaymentAmount = 1500
+      const order = await seedPlatformOrder({ totalCents: 1500 })
       await seedShopOrder({ platformOrderId: order.id })
 
       // User cancels the order first
@@ -1024,15 +994,14 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
       const res = await processMollieWebhook(req, { db, paymentProvider: provider })
       expect(res.status).toBe(200)
       const body = await res.json()
-      expect(body.status).toBe('already_processed')
+      expect(body.status).toBe('refunded_after_cancellation')
 
-      // Status must remain cancelled
       const [updatedOrder] = await db
         .select({ status: platformOrder.status })
         .from(platformOrder)
         .where(eq(platformOrder.id, order.id))
         .limit(1)
-      expect(updatedOrder.status).toBe('cancelled')
+      expect(updatedOrder.status).toBe('refunded')
     })
 
     it('prevents user cancellation if webhook processed the payment first', async () => {
@@ -1064,9 +1033,10 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
       expect(updatedOrder.status).toBe('paid')
     })
 
-    it('handles concurrent race condition where webhook gets delayed and user cancels in between', async () => {
+    it('refunds when cancellation commits during the provider lookup', async () => {
       stubPaymentStatus = 'paid'
-      const order = await seedPlatformOrder()
+      stubPaymentAmount = 1500
+      const order = await seedPlatformOrder({ totalCents: 1500 })
       await seedShopOrder({ platformOrderId: order.id })
 
       // Create a provider with a delay in getPaymentStatus to simulate concurrent execution
@@ -1095,15 +1065,14 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
       const res = await webhookPromise
       expect(res.status).toBe(200)
       const body = await res.json()
-      expect(body.status).toBe('already_processed')
+      expect(body.status).toBe('refunded_after_cancellation')
 
-      // Order status should be cancelled (not overwritten by paid)
       const [updatedOrder] = await db
         .select({ status: platformOrder.status })
         .from(platformOrder)
         .where(eq(platformOrder.id, order.id))
         .limit(1)
-      expect(updatedOrder.status).toBe('cancelled')
+      expect(updatedOrder.status).toBe('refunded')
     })
   })
 })

@@ -37,6 +37,9 @@ jobs:
       - name: Install locked dependencies
         run: make install
 
+      - name: Audit production dependencies
+        run: make audit-production
+
       - name: Compile i18n messages
         run: make i18n-compile
 

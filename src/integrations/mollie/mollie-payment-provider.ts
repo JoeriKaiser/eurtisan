@@ -1,22 +1,16 @@
 import '@tanstack/react-start/server-only'
 
 /**
- * Mollie payment provider — mock implementation.
+ * Mollie payment provider with real API and deterministic development modes.
  *
- * When MOLLIE_API_KEY is configured this module will eventually call the real
- * Mollie API. Until a business is registered the API calls are mocked so the
- * full payment flow (create → webhook → status update → refund) works
- * end-to-end in development.
- *
- * The mock generates predictable payment IDs and signatures so the webhook
- * handler can be tested deterministically.
+ * Classic Mollie webhooks contain only a payment id. Callers use this provider
+ * to retrieve authoritative payment state before applying order transitions.
  */
 import {
   getBaseUrl,
   getMockPaymentsEnabled,
   getMollieApiKey,
   getMollieTestMode,
-  getMollieWebhookSecret,
 } from '#/lib/env.server'
 import type { CreatePaymentResult, PaymentProvider } from '#/lib/payment-provider'
 
@@ -35,15 +29,6 @@ function nextMockPaymentId(): string {
   // same test database do not collide on the singleton counter.
   const suffix = process.hrtime.bigint().toString(36).slice(-6)
   return `${MOCK_ID_PREFIX}${suffix}_${String(mockCounter).padStart(4, '0')}`
-}
-
-/**
- * The mock webhook signature is simply `mock_sig_<paymentId>`.
- * In production this would be an HMAC-SHA256 computed with
- * `MOLLIE_WEBHOOK_SECRET`.
- */
-function mockSignature(paymentId: string): string {
-  return `mock_sig_${paymentId}`
 }
 
 /**
@@ -271,61 +256,6 @@ export class MolliePaymentProvider implements PaymentProvider {
   }
 
   // -----------------------------------------------------------------------
-  // verifyWebhook
-  // -----------------------------------------------------------------------
-
-  async verifyWebhook(payload: unknown, signature: string, rawBody?: string): Promise<boolean> {
-    if (this.mockMode) {
-      return this.verifyWebhookMock(payload, signature)
-    }
-
-    return this.verifyWebhookReal(payload, signature, rawBody)
-  }
-
-  private verifyWebhookMock(payload: unknown, signature: string): boolean {
-    // In mock mode we accept any payload with a payment ID that matches the
-    // signature pattern.
-    if (!payload || typeof payload !== 'object') return false
-
-    const id = (payload as Record<string, unknown>).id
-    if (typeof id !== 'string') return false
-
-    const expectedSig = mockSignature(id)
-    return signature === expectedSig
-  }
-
-  private async verifyWebhookReal(
-    _payload: unknown,
-    signature: string,
-    rawBody?: string,
-  ): Promise<boolean> {
-    const secret = getMollieWebhookSecret()
-
-    if (!secret) {
-      throw new Error('MOLLIE_WEBHOOK_SECRET is not set')
-    }
-
-    // Mollie signs webhooks by computing HMAC-SHA256 over the raw request
-    // body with the webhook secret, then base64-encodes the result.
-    //
-    // The raw body must be available; if it wasn't provided (e.g. body was
-    // already consumed) we cannot verify and must reject.
-    if (!rawBody) {
-      return false
-    }
-
-    // Validate signature format before processing to avoid crypto crashes.
-    if (!signature || typeof signature !== 'string' || !/^[A-Za-z0-9+/=]+$/.test(signature)) {
-      throw new TypeError('Malformed signature')
-    }
-
-    const cryptoModule = await import('node:crypto')
-    const computedHmac = cryptoModule.createHmac('sha256', secret).update(rawBody).digest('base64')
-
-    return cryptoModule.timingSafeEqual(Buffer.from(computedHmac), Buffer.from(signature))
-  }
-
-  // -----------------------------------------------------------------------
   // refundPayment
   // -----------------------------------------------------------------------
 
@@ -508,34 +438,48 @@ export class MolliePaymentProvider implements PaymentProvider {
       throw new Error('MOLLIE_API_KEY is not set')
     }
 
-    const response = await fetch(`https://api.mollie.com/v2/payments/${paymentId}`, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+    const response = await fetch(
+      `https://api.mollie.com/v2/payments/${encodeURIComponent(paymentId)}`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
       },
-    })
+    )
 
     if (!response.ok) {
       const errorBody = await response.text()
       throw new Error(`Mollie API error (${response.status}): ${errorBody}`)
     }
 
-    const data = (await response.json()) as { status: string; [key: string]: unknown }
-
-    const status = data.status
-    if (
-      status === 'pending' ||
-      status === 'paid' ||
-      status === 'expired' ||
-      status === 'failed' ||
-      status === 'cancelled' ||
-      status === 'chargeback'
-    ) {
-      return status
+    const data = (await response.json()) as {
+      status: string
+      amountChargedBack?: { currency: string; value: string }
+      [key: string]: unknown
     }
 
-    throw new Error(`Unexpected Mollie payment status: ${status}`)
+    const chargedBackAmount = Number.parseFloat(data.amountChargedBack?.value ?? '0')
+    if (Number.isFinite(chargedBackAmount) && chargedBackAmount > 0) {
+      return 'chargeback'
+    }
+
+    switch (data.status) {
+      case 'open':
+      case 'pending':
+      case 'authorized':
+        return 'pending'
+      case 'paid':
+      case 'expired':
+      case 'failed':
+        return data.status
+      case 'canceled':
+      case 'cancelled':
+        return 'cancelled'
+      default:
+        throw new Error(`Unexpected Mollie payment status: ${data.status}`)
+    }
   }
 
   // -----------------------------------------------------------------------

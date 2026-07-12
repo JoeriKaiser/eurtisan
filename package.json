@@ -24,6 +24,7 @@
     "job:meilisearch-sync": "bun run src/jobs/meilisearch-sync.ts",
     "job:audit-log-cleanup": "bun run src/jobs/audit-log-cleanup.ts",
     "job:sendcloud-reconciliation": "bun run src/jobs/sendcloud-reconciliation.ts",
+    "job:mollie-payment-reconciliation": "bun run src/jobs/mollie-payment-reconciliation.ts",
     "job:payout-reconciliation": "bun run src/jobs/payout-reconciliation.ts",
     "job:payout-reconciliation-log-cleanup": "bun run src/jobs/payout-reconciliation-log-cleanup.ts",
     "job:email-outbox-worker": "bun run src/jobs/email-outbox-worker.ts",
@@ -59,7 +60,7 @@
     "i18n-iso-countries": "^7.14.0",
     "lucide-react": "^1.14.0",
     "meilisearch": "^0.58.0",
-    "nodemailer": "^8.0.10",
+    "nodemailer": "^9.0.3",
     "pg": "^8.21.0",
     "prom-client": "^15.1.3",
     "react": "^19.2.6",
@@ -72,6 +73,8 @@
     "@biomejs/biome": "^2.4.14",
     "@faker-js/faker": "^10.4.0",
     "@inlang/paraglide-js": "^2.18.0",
+    "@playwright/cli": "^0.1.14",
+    "@playwright/test": "^1.52.0",
     "@tailwindcss/typography": "^0.5.19",
     "@tanstack/react-devtools": "^0.10.2",
     "@tanstack/react-query-devtools": "^5.100.9",
@@ -85,20 +88,23 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
     "dotenv": "^17.4.2",
+    "dotenv-cli": "^11.0.0",
+    "drizzle-kit": "^0.31.10",
     "jsdom": "^29.1.1",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",
-    "vite": "^8.0.11",
-    "@playwright/test": "^1.52.0",
-    "@playwright/cli": "^0.1.14",
+    "vite": "^8.1.4",
     "vitest": "^4.1.5",
-    "vitest-axe": "^0.1.0",
-    "dotenv-cli": "^11.0.0",
-    "drizzle-kit": "^0.31.10"
+    "vitest-axe": "^0.1.0"
   },
   "overrides": {
-    "ws": "^8.20.1",
-    "esbuild": "^0.25.0"
+    "@opentelemetry/core": "^2.8.0",
+    "esbuild": "^0.25.0",
+    "js-yaml": "^4.1.2",
+    "protobufjs": "^7.6.3",
+    "undici": "^7.28.0",
+    "vite": "^8.1.4",
+    "ws": "^8.20.1"
   },
   "engines": {
     "bun": "1.3.13"

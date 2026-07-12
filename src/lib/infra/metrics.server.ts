@@ -77,8 +77,26 @@ export const jobLastSuccessTimestamp = new Gauge({
 
 export const mollieWebhookFailedTotal = new Counter({
   name: 'eurtisan_mollie_webhook_failed_total',
-  help: 'Mollie webhook requests that failed signature verification or returned 5xx',
+  help: 'Mollie webhook requests that failed processing and returned 5xx',
   labelNames: ['reason'] as const,
+  registers: [metricsRegistry],
+})
+
+export const molliePendingPayments = new Gauge({
+  name: 'eurtisan_mollie_pending_payments',
+  help: 'Current number of pending platform orders linked to a Mollie payment',
+  registers: [metricsRegistry],
+})
+
+export const mollieOldestPendingPaymentAgeSeconds = new Gauge({
+  name: 'eurtisan_mollie_oldest_pending_payment_age_seconds',
+  help: 'Age in seconds of the oldest pending platform order linked to Mollie',
+  registers: [metricsRegistry],
+})
+
+export const molliePaymentReconciliationErrorsTotal = new Counter({
+  name: 'eurtisan_mollie_payment_reconciliation_errors_total',
+  help: 'Pending Mollie payments that failed an automated reconciliation attempt',
   registers: [metricsRegistry],
 })
 

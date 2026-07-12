@@ -44,19 +44,6 @@ export interface PaymentProvider {
   ): Promise<CreatePaymentResult>
 
   /**
-   * Verify the authenticity of an incoming webhook request.
-   *
-   * MUST be called before acting on any webhook payload. Returns `true` when
-   * the signature is valid.
-   *
-   * @param payload - The parsed JSON webhook payload.
-   * @param signature - The `X-Mollie-Signature` header value.
-   * @param rawBody - The raw request body string (required for real HMAC
-   *   verification; may be undefined in mock mode).
-   */
-  verifyWebhook(payload: unknown, signature: string, rawBody?: string): Promise<boolean>
-
-  /**
    * Query the status of an existing payment.
    *
    * Returns the current status as reported by the provider.

@@ -2,6 +2,14 @@
  * Shared environment utilities for server-side code.
  */
 
+function getPositiveIntegerEnv(name: string, fallback: number): number {
+  if (typeof process === 'undefined') return fallback
+  const raw = process.env[name]
+  if (!raw) return fallback
+  const parsed = Number.parseInt(raw, 10)
+  return Number.isNaN(parsed) || parsed <= 0 ? fallback : parsed
+}
+
 /**
  * Base URL for absolute references.
  * Uses PUBLIC_URL env var when set, otherwise falls back to localhost.
@@ -44,16 +52,6 @@ export function getMockPaymentsEnabled(): boolean {
     return process.env.MOCK_PAYMENTS_ENABLED === 'true'
   }
   return false
-}
-
-/**
- * Mollie webhook secret for signature verification (server-only).
- */
-export function getMollieWebhookSecret(): string | undefined {
-  if (typeof process !== 'undefined') {
-    return process.env.MOLLIE_WEBHOOK_SECRET
-  }
-  return undefined
 }
 
 /**
@@ -115,6 +113,27 @@ export function assertMockPayoutsNotProduction(): void {
   if (process.env.NODE_ENV === 'production' && process.env.MOCK_PAYOUTS_ENABLED === 'true') {
     throw new Error('MOCK_PAYOUTS_ENABLED=true is not allowed in production')
   }
+}
+
+/**
+ * Interval between pending Mollie payment reconciliation runs.
+ * Defaults to 2 minutes.
+ */
+export function getMolliePaymentReconciliationIntervalMs(): number {
+  return getPositiveIntegerEnv('MOLLIE_PAYMENT_RECONCILIATION_INTERVAL_MS', 2 * 60 * 1000)
+}
+
+/**
+ * Minimum age of a pending order before it is reconciled with Mollie.
+ * Defaults to 1 minute to avoid racing a normal webhook delivery.
+ */
+export function getMolliePaymentReconciliationMinAgeMs(): number {
+  return getPositiveIntegerEnv('MOLLIE_PAYMENT_RECONCILIATION_MIN_AGE_MS', 60 * 1000)
+}
+
+/** Maximum pending Mollie payments processed per reconciliation tick. */
+export function getMolliePaymentReconciliationBatchSize(): number {
+  return getPositiveIntegerEnv('MOLLIE_PAYMENT_RECONCILIATION_BATCH_SIZE', 100)
 }
 
 /**
