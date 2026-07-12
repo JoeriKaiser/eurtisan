@@ -1,4 +1,4 @@
-.PHONY: up down stop logs dev build preview start install lint format check test test-related shell auth-secret db-generate db-migrate db-push db-studio init db-seed meili-setup FORCE
+.PHONY: up down stop logs dev build preview start install lint format check test test-related shell auth-secret db-generate db-check db-migrate db-push db-studio i18n-compile init db-seed meili-setup promtool-check FORCE
 
 # Docker Compose lifecycle
 up:
@@ -27,14 +27,14 @@ shell:
 
 # Dependencies (works even if app isn't running; populates the node_modules volume)
 install:
-	docker compose run --rm app bun install
+	docker compose run --rm app bun install --frozen-lockfile
 
 # Development server (starts the app container with hot reload)
 dev: up
 
 # Build & Production
 build: up
-	docker compose exec app bun run build
+	docker compose exec -T app bun run build
 
 preview: up
 	docker compose exec app bun run preview
@@ -44,13 +44,16 @@ start: up
 
 # Tooling
 lint: ensure-up
-	docker compose exec app bun run lint
+	docker compose exec -T app bun run lint
 
 format: ensure-up
-	docker compose exec app bun run format
+	docker compose exec -T app bun run format
 
 check: ensure-up
-	docker compose exec app bun run check
+	docker compose exec -T app bun run check
+
+i18n-compile: ensure-up
+	docker compose exec -T app bun run i18n:compile
 
 # Observability & alerting validation
 PROMETHEUS_VERSION ?= v2.55.0
@@ -134,11 +137,11 @@ BUN_JSC_FORCE_RAM_SIZE ?= 30000000000
 test: ensure-up
 	@if [ -z "$(filter-out test,$(MAKECMDGOALS))" ]; then \
 		unit_exit=0; browser_exit=0; \
-		docker compose exec -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) app bun run test -- --project unit || unit_exit=$$?; \
-		docker compose exec -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) app bun run test -- --project browser || browser_exit=$$?; \
+		docker compose exec -T -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) app bun run test -- --project unit || unit_exit=$$?; \
+		docker compose exec -T -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) app bun run test -- --project browser || browser_exit=$$?; \
 		exit $$((unit_exit || browser_exit)); \
 	else \
-		docker compose exec -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) app bun run test $(filter-out test,$(MAKECMDGOALS)); \
+		docker compose exec -T -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) app bun run test $(filter-out test,$(MAKECMDGOALS)); \
 	fi
 
 test-related: ensure-up
@@ -218,10 +221,13 @@ init:
 
 # Database
 db-generate: up
-	docker compose exec app bun run db:generate
+	docker compose exec -T app bun run db:generate
+
+db-check: ensure-up
+	docker compose exec -T app bun run db:check
 
 db-migrate: up
-	docker compose exec app bun run db:migrate
+	docker compose exec -T app bun run db:migrate
 
 db-push: up
 	docker compose exec app bun run db:push
@@ -264,4 +270,3 @@ infra-secrets:
 	@:
 
 FORCE:
-

@@ -4,7 +4,7 @@ FROM oven/bun:1.3.13@sha256:87416c977a612a204eb54ab9f3927023c2a3c971f4f345a01da0
 WORKDIR /app
 
 COPY package.json bun.lock ./
-RUN bun install
+RUN bun install --frozen-lockfile
 
 # Install Playwright Chromium browser and its system dependencies for E2E tests.
 RUN apt-get update && \

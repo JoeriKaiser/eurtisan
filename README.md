@@ -157,11 +157,12 @@ The app is available at `http://localhost:3000`.
 | `make dev` | Start dev server with hot reload |
 | `make build` | Production build |
 | `make preview` | Preview production build |
-| `make lint` | Run Biome linter |
+| `make lint` | Run the read-only Biome lint and format check |
 | `make format` | Run Biome formatter |
 | `make check` | TypeScript type check |
 | `make test` | Run Vitest suite |
 | `make test-related <path>` | Run tests impacted by a file |
+| `make db-check` | Validate the Drizzle migration chain |
 | `make e2e` | Run Playwright E2E tests |
 | `make shell` | Open a shell in the app container |
 

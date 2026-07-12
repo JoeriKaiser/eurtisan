@@ -5,12 +5,7 @@ import { logger } from '../logger.server'
 import { meilisearchSyncQueueFailedTotal } from '../metrics.server'
 import { isMeilisearchConfigured, meilisearch } from '../meilisearch.server'
 import { fetchFirstImageUrls } from './operations.server'
-import type {
-  PaginatedProducts,
-  PublicProduct,
-  SearchFilters,
-  SearchSortOption,
-} from './types'
+import type { PaginatedProducts, PublicProduct, SearchFilters, SearchSortOption } from './types'
 
 export const PRODUCTS_INDEX = 'products'
 

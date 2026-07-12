@@ -1,6 +1,6 @@
-# ── Ansible / Git ────────────────────────────────────────────────────────
-codeberg_user: kaiser
-codeberg_repo: eurtisan
+# ── Repository / Git ────────────────────────────────────────────────────
+# GitHub is the canonical source. Codeberg is maintained as a mirror.
+repository_url: "https://github.com/JoeriKaiser/eurtisan.git"
 
 # ── Database ─────────────────────────────────────────────────────────────
 postgres_user: eurtisan

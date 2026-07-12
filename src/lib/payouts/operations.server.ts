@@ -174,7 +174,7 @@ async function insertPayoutReconciliationLog(
   })
 }
 
-/\* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
 /*                          Execute Payout                                     */
 /* -------------------------------------------------------------------------- */
 
@@ -496,7 +496,6 @@ function derivePayoutLine(
     platformFeeInvoiceNumber: invoiceNumbers.platformFeeInvoiceNumber,
   }
 }
-
 
 /* -------------------------------------------------------------------------- */
 /*                       List Pending Payouts Query                            */

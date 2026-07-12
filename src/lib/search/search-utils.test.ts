@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  buildFilterString,
-  escapeFilterValue,
-  highlightMatches,
-  parsePriceFilter,
-} from './utils'
+import { buildFilterString, escapeFilterValue, highlightMatches, parsePriceFilter } from './utils'
 
 describe('escapeFilterValue', () => {
   it('escapes double quotes', () => {

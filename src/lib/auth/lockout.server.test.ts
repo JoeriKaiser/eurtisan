@@ -6,11 +6,7 @@ import { user } from '#/db/schema'
 import { createEmailProvider } from '#/integrations/email'
 import { clearTestTables } from '#/test/cleanup'
 import { createUser } from '#/test/factories'
-import {
-  checkAccountLockout,
-  recordFailedSignIn,
-  recordSuccessfulSignIn,
-} from './lockout.server'
+import { checkAccountLockout, recordFailedSignIn, recordSuccessfulSignIn } from './lockout.server'
 
 vi.mock('#/integrations/email', () => ({
   createEmailProvider: vi.fn(() => ({

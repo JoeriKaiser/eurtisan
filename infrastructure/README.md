@@ -11,7 +11,7 @@ Provider-agnostic IaC for deploying Eurtisan on any VPS.
 | **Docker Compose** | Container orchestration (app, PostgreSQL, Meilisearch, jobs) |
 | **Prometheus + Alertmanager** | Metrics and alerting |
 | **Grafana + Alloy + Loki + Tempo** | Observability stack |
-| **Forgejo Actions** | Optional future CI/CD via Codeberg (not configured yet) |
+| **GitHub Actions** | Validation-only CI for GitHub pull requests and `main` |
 
 ## Prerequisites
 
@@ -23,7 +23,19 @@ Provider-agnostic IaC for deploying Eurtisan on any VPS.
    pip install ansible
    ```
 3. **SSH access** to the VPS as root (for initial provisioning)
-4. A **Codeberg** account with the repository pushed
+4. A **GitHub** account with the canonical repository pushed
+
+## Repository source and mirror
+
+GitHub is the canonical repository for Eurtisan:
+
+```txt
+https://github.com/JoeriKaiser/eurtisan
+```
+
+Codeberg is a source mirror. GitHub Actions runs validation only; it never
+deploys to staging or production. VPS deployments remain manual and pull from
+the canonical GitHub repository.
 
 ## Quick Start
 
@@ -103,9 +115,11 @@ ssh root@STAGING_IP 'COMPOSE_FILE=docker-compose.staging.yml /opt/eurtisan/deplo
 ssh root@PROD_IP '/opt/eurtisan/deploy.sh v1.2.3'
 ```
 
-### Automated Deploy (optional, future)
+### Automated Deploy
 
-Codeberg uses Forgejo, which supports [Forgejo Actions](https://forgejo.org/docs/next/user/actions/) (GitHub Actions–compatible). You can add a `.forgejo/workflows/deploy.yml` later to automate deploys on push/tag. For now, manual deployment keeps things simple and avoids relying on third-party CI runners.
+GitHub Actions is intentionally limited to validation. It does not run
+`deploy.sh`, connect to a VPS, or deploy to staging/production. Deployments
+remain manual through the SSH commands above.
 
 ## Directory Structure
 

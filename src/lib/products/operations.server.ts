@@ -223,7 +223,6 @@ export async function getProductsByShopSlugQuery(
   return listProductsQuery({ shopSlug }, pagination, 'newest')
 }
 
-
 export async function getShopBySlugQuery(slug: string): Promise<ShopSummary | null> {
   const [shopRow] = await db
     .select({
