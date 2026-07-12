@@ -39,7 +39,17 @@ Background work runs as separate Bun entrypoints in `src/jobs/`. Production depl
 | `infrastructure/ansible/` | Ansible provisioning, deployment, secrets templates, and VPS configuration | Runtime marketplace code |
 | `docs/` | Architectural, operational, compliance, runbook, and product-flow documentation | Source code or task-status tracking |
 
-`src/lib/` is currently mostly flat. New domain work should use cohesive names and may introduce domain subdirectories when that improves ownership; do not mass-move the existing library solely for visual consistency. Keep `*.server.ts` implementations and modules marked with `@tanstack/react-start/server-only` server-only. A browser-importable server-function or middleware contract must dynamically import its server implementation. Place schemas near the domain they validate, and keep pure types and logic browser-safe where they are imported by UI.
+`src/lib/` is currently mostly flat. Migrate it incrementally by cohesive domain family; do not mass-move existing modules solely for visual consistency. A migrated family uses these placement rules:
+
+- Keep an established root browser import such as `src/lib/shop-orders.ts` as the public `createServerFn` contract. It owns input validation and RPC authorization, and calls server-only helpers through `createServerOnlyFn` or dynamic imports.
+- Keep an established root server import such as `src/lib/shop-orders.server.ts` as a compatibility façade when routes, jobs, tests, or other domains already depend on it.
+- Put server-only persistence and orchestration in `src/lib/<domain>/*.server.ts`. Split by domain responsibility only when transaction boundaries, lock ordering, and dependency direction remain explicit.
+- Put browser-safe schemas, types, and pure domain rules in `src/lib/<domain>/*.ts`. These modules must not import database code, secrets, provider clients, or server-only modules.
+- Colocate focused tests with the extracted module. Existing broad compatibility and integration tests may remain at the root while they continue to exercise the public façade.
+
+The `src/lib/shop-orders/` family is the reference migration: `types.ts` owns read-model types, `lifecycle.ts` owns pure state rules, `fulfillment.server.ts` owns shipping-label provider orchestration, and `operations.server.ts` preserves the transaction-coupled lifecycle and resolution workflows. The root `shop-orders.ts` and `shop-orders.server.ts` contracts remain stable. External provider adapters stay in `src/integrations/`.
+
+Migrated families as of this writing: `admin`, `audit`, `auth`, `cart`, `checkout`, `customers`, `disputes`, `email`, `images`, `invoices`, `jobs`, `marketing`, `notifications`, `orders`, `payouts`, `products`, `reviews`, `search`, `security`, `shared`, `shipping`, `shop-orders`, `shops`, `tax`, `users`. Remaining flat modules should be migrated only when a feature touches them, preserving root compatibility contracts.
 
 ## Route and UI convention
 

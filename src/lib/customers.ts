@@ -11,7 +11,18 @@ import {
   listCustomersSchema,
   removeCustomerTagSchema,
   updateCustomerNoteSchema,
-} from './customers.schema'
+} from './customers/schemas'
+
+export {
+  addCustomerNoteSchema,
+  addCustomerTagSchema,
+  deleteCustomerNoteSchema,
+  exportCustomerDataSchema,
+  getCustomerDetailSchema,
+  listCustomersSchema,
+  removeCustomerTagSchema,
+  updateCustomerNoteSchema,
+} from './customers/schemas'
 
 export type {
   ShopCustomerListItem,

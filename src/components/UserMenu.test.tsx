@@ -3,7 +3,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { authClient } from '#/lib/auth-client'
+import { authClient } from '#/lib/auth/client'
 import UserMenu from './UserMenu'
 
 const mockNavigate = vi.fn()
@@ -21,7 +21,7 @@ vi.mock('@tanstack/react-router', () => ({
   }),
 }))
 
-vi.mock('#/lib/auth-client', () => ({
+vi.mock('#/lib/auth/client', () => ({
   authClient: {
     useSession: vi.fn(),
     signOut: vi.fn(),

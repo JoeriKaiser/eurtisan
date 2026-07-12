@@ -14,6 +14,7 @@ export default defineConfig({
   },
   test: {
     api: false,
+    fileParallelism: false,
     projects: ['./vitest.unit.config.ts', './vitest.browser.config.ts'],
   },
 })

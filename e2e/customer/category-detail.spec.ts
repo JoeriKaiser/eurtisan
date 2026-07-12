@@ -5,7 +5,7 @@ test.describe('Category detail', () => {
     await page.goto('/category/all')
     await page.waitForSelector('html[data-hydrated="true"]')
 
-    const firstCategory = page.locator('main ul a').first()
+    const firstCategory = page.locator('main ul a h3').first()
     await expect(firstCategory).toBeVisible()
     const categoryName = await firstCategory.textContent()
     await firstCategory.click()

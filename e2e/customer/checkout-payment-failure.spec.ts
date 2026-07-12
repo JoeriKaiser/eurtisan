@@ -19,6 +19,12 @@ test.use({ storageState: 'e2e/.auth/customer.json' })
 
 const baseURL = process.env.BASE_URL || 'http://localhost:3000'
 
+const failureUiByStatus = {
+  cancelled: { heading: /payment cancelled/i, message: /you cancelled the payment/i },
+  failed: { heading: /payment failed/i, message: /your payment could not be processed/i },
+  expired: { heading: /payment expired/i, message: /your payment session expired/i },
+} as const
+
 test.describe('Checkout payment failure states', () => {
   for (const paymentStatus of ['cancelled', 'failed', 'expired'] as const) {
     test(`displays payment failed UI after a ${paymentStatus} webhook`, async ({ page }) => {
@@ -34,10 +40,11 @@ test.describe('Checkout payment failure states', () => {
       expect(webhookResponse.status).toBe(200)
 
       // The page should update via polling and show the failure state.
-      await expect(page.getByRole('heading', { name: /payment failed/i })).toBeVisible({
+      const { heading, message } = failureUiByStatus[paymentStatus]
+      await expect(page.getByRole('heading', { name: heading })).toBeVisible({
         timeout: 15000,
       })
-      await expect(page.getByText(/your payment could not be processed/i)).toBeVisible()
+      await expect(page.getByText(message)).toBeVisible()
     })
   }
 })

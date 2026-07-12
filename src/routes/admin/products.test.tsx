@@ -132,6 +132,7 @@ vi.mock('@tanstack/react-router', () => ({
       {props.children}
     </a>
   ),
+  useRouter: () => ({ navigate: mockNavigate }),
 }))
 
 vi.mock('#/paraglide/messages', () => ({
