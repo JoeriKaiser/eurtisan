@@ -28,8 +28,12 @@ garage_exec() {
   docker exec "$CONTAINER_NAME" /garage "$@" 2>/dev/null
 }
 
-# Get node ID
-NODE_ID=$(garage_exec status | grep -E '^[a-f0-9]{16}' | head -1 | awk '{print $1}')
+# Get node status and ID. On a fresh Garage 2.3 cluster, `layout show`
+# reports that no nodes have a role rather than printing `NO ROLE ASSIGNED`;
+# `status` is the reliable source for deciding whether the layout needs
+# bootstrapping.
+STATUS=$(garage_exec status)
+NODE_ID=$(echo "$STATUS" | grep -E '^[a-f0-9]{16}' | head -1 | awk '{print $1}')
 if [ -z "$NODE_ID" ]; then
   echo "[garage-init] Could not determine node ID."
   exit 1
@@ -39,7 +43,7 @@ echo "[garage-init] Node ID: $NODE_ID"
 
 # Configure layout if not already done
 LAYOUT=$(garage_exec layout show || true)
-if echo "$LAYOUT" | grep -q "NO ROLE ASSIGNED"; then
+if echo "$STATUS" | grep -q "NO ROLE ASSIGNED"; then
   echo "[garage-init] Assigning role to node..."
   garage_exec layout assign "$NODE_ID" -z z1 -c 1TB >/dev/null
   VERSION=$(echo "$LAYOUT" | grep "Current cluster layout version:" | awk '{print $NF}')
