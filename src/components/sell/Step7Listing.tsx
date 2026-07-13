@@ -159,10 +159,10 @@ export function Step7Listing() {
     await saveStep(7, {})
   }, [draft.id, form, priceValue, saveStep])
 
-  useStepActions(7, { validate, save })
+  const stepActionsRef = useStepActions(7, { validate, save })
 
   return (
-    <div className='space-y-6'>
+    <div ref={stepActionsRef} className='space-y-6'>
       <div>
         <h2 className='display-title text-2xl text-text-primary'>{m.onboarding_listing_title()}</h2>
         <p className='mt-1 text-text-secondary'>{m.onboarding_listing_desc()}</p>

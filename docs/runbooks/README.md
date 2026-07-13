@@ -11,3 +11,7 @@ Operational procedures for on-call engineers. Pair with Grafana (Loki logs, Prom
 | [backup-restore.md](./backup-restore.md) | Data loss, need point-in-time or nightly restore |
 | [chargeback-received.md](./chargeback-received.md) | `Mollie chargeback received` alert, order status `chargeback` |
 | [job-failure.md](./job-failure.md) | Background job alerts (`EurtisanJobTickFailure`, `EurtisanJobStale`, `EurtisanJobAlertLog`) |
+| [financial-reconciliation.md](./financial-reconciliation.md) | Financial drift, missed scans, lock contention, evidence, escalation, and authorized correction |
+| [environment-configuration.md](./environment-configuration.md) | Build/runtime configuration, routing, secret ownership, or credential rotation |
+| [release-quality-gates.md](./release-quality-gates.md) | Reproduce CI, migration, bundle, image, Compose, and infrastructure gates locally |
+| [staging-qualification.md](./staging-qualification.md) | Collect honest EU staging, provider, recovery, observability, performance, and approval evidence |

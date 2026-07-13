@@ -114,11 +114,11 @@ fi
 
 # Configure CORS on the bucket for browser uploads
 echo "[garage-init] Configuring CORS on bucket..."
-docker compose exec -T app bun run scripts/setup-garage-cors.ts 2>/dev/null || echo "[garage-init] Warning: CORS setup skipped (app container may not be ready yet)"
+docker compose exec -T app bun run scripts/setup-garage-cors.ts
 
 echo ""
 echo "========================================"
 echo "Garage initialization complete!"
 echo "Bucket: ${BUCKET_NAME}"
-echo "Access Key ID: ${ACCESS_KEY_ID}"
+echo "Credentials: stored in the ignored ${ENV_FILE} (values not printed)"
 echo "========================================"

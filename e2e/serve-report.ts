@@ -1,5 +1,3 @@
-declare const Bun: any
-
 const port = Number(process.env.PORT) || 9323
 
 Bun.serve({

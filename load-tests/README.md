@@ -1,18 +1,20 @@
-# Load tests (k6)
+# Staging load qualification (k6)
 
-Target SLAs (staging baseline):
+Provisional service objectives pending the first owner-reviewed EU staging baseline:
 
-| Endpoint | p95 latency | Error rate |
-|----------|-------------|------------|
-| `GET /` | < 800ms | < 1% |
-| `GET /search?q=pottery` | < 1200ms | < 1% |
+| Endpoint | Virtual users | Duration | p95 latency | Error rate |
+|---|---:|---:|---:|---:|
+| `GET /` | 10 | 30s | < 800ms | < 1% |
+| `GET /search?q=ceramic` | 5 | 30s | < 1200ms | < 1% |
 
-## Run
+The values are explicit launch objectives, not measured staging evidence. Record the image digest, environment size, dataset, VUs, duration, and k6 summary during qualification. After the first baseline, approve or revise the objectives in review; never raise them only to make a failed run pass.
+
+Run only after the owner authorizes a load window:
 
 ```bash
-# Install k6: https://k6.io/docs/get-started/installation/
-k6 run load-tests/homepage.js
-k6 run load-tests/search.js
+make load-staging \
+  STAGING_LOAD_AUTHORIZED=I_HAVE_OWNER_AUTHORIZATION \
+  STAGING_BASE_URL=https://staging.eurtisan.eu
 ```
 
-Set `BASE_URL` (default `http://localhost:3000`).
+The Make target uses a digest-pinned k6 container. It does not read credentials and should target only the public staging origin. See [`docs/runbooks/staging-qualification.md`](../docs/runbooks/staging-qualification.md).

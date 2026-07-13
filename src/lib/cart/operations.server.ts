@@ -414,19 +414,16 @@ export async function mergeAnonymousCartIntoUserCart(sessionId: string, userId: 
     // stock during the merge calculation.
     await releaseCartStockInTx(tx, anonCartId)
 
-    // Fetch available stock and existing user cart items in parallel.
+    // Keep queries sequential on the transaction's single PostgreSQL client.
     // Exclude the user cart's own reservations so they don't double-count
     // against available inventory during the merge.
-    const [availableStockMap, existingUserItems] = await Promise.all([
-      getAvailableStockForProductsInTx(tx, productIds, userCartId),
-      tx
-        .select()
-        .from(cartItem)
-        .where(and(eq(cartItem.cartId, userCartId), inArray(cartItem.productId, productIds))),
-    ])
+    const availableStockMap = await getAvailableStockForProductsInTx(tx, productIds, userCartId)
+    const existingUserItems = await tx
+      .select()
+      .from(cartItem)
+      .where(and(eq(cartItem.cartId, userCartId), inArray(cartItem.productId, productIds)))
     const existingByProductId = new Map(existingUserItems.map((item) => [item.productId, item]))
 
-    const mutations: Promise<unknown>[] = []
     for (const anonItem of anonItems) {
       const productRecord = productById.get(anonItem.productId)
       if (!productRecord) continue
@@ -441,31 +438,26 @@ export async function mergeAnonymousCartIntoUserCart(sessionId: string, userId: 
 
       if (cappedQuantity <= 0) {
         if (existingItem) {
-          mutations.push(tx.delete(cartItem).where(eq(cartItem.id, existingItem.id)))
+          await tx.delete(cartItem).where(eq(cartItem.id, existingItem.id))
         }
         continue
       }
 
       if (existingItem) {
-        mutations.push(
-          tx
-            .update(cartItem)
-            .set({ quantity: cappedQuantity, updatedAt: new Date() })
-            .where(eq(cartItem.id, existingItem.id)),
-        )
+        await tx
+          .update(cartItem)
+          .set({ quantity: cappedQuantity, updatedAt: new Date() })
+          .where(eq(cartItem.id, existingItem.id))
       } else {
-        mutations.push(
-          tx.insert(cartItem).values({
-            cartId: userCartId,
-            productId: anonItem.productId,
-            quantity: cappedQuantity,
-          }),
-        )
+        await tx.insert(cartItem).values({
+          cartId: userCartId,
+          productId: anonItem.productId,
+          quantity: cappedQuantity,
+        })
       }
     }
 
-    mutations.push(tx.delete(cart).where(eq(cart.id, anonCartId)))
-    await Promise.all(mutations)
+    await tx.delete(cart).where(eq(cart.id, anonCartId))
 
     // Re-create cart reservations for the final user cart items (anon cart
     // reservations are cascade-deleted when the anonymous cart is removed).

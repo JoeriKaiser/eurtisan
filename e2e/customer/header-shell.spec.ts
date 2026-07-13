@@ -44,14 +44,11 @@ test.describe('Header shell', () => {
     await expect(notificationsLink.locator('output')).toBeVisible()
   })
 
-  test.fixme('switches locale via the header language dropdown', async ({ page }) => {
-    // Blocked by product bug: the router rewrite for localized URLs (e.g. /nl) is not
-    // handling incoming locale-prefixed paths in the dev E2E environment, so selecting a
-    // locale from the dropdown does not change the page language or URL.
+  test('switches locale via the header language dropdown', async ({ page }) => {
     await page.goto('/')
     await page.waitForSelector('html[data-hydrated="true"]')
 
-    const header = page.getByRole('navigation', { name: /main navigation/i })
+    const header = page.locator('header')
     const localeButton = header.getByRole('button', { name: /select language/i })
     await expect(localeButton).toBeVisible()
 

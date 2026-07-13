@@ -1,0 +1,27 @@
+{
+  "rationale": "Measured from the 2026-07-13 Docker production client build after route splitting, deferred Faro/search loading, and chart tree-shaking. Ceilings use fixed binary review units: 64 KiB for aggregate raw JavaScript, 16 KiB for aggregate gzip and initial raw JavaScript, 4 KiB for largest/initial/async gzip JavaScript and raw CSS, 16 KiB for largest raw and async JavaScript, and 1 KiB for gzip CSS. Initial JavaScript follows the Vite entry chunk's static import graph; async limits cover route and consent-gated chunks. The development-only Mollie route remains excluded from the production build.",
+  "baseline": {
+    "javascriptBytes": 2390625,
+    "javascriptGzipBytes": 702909,
+    "largestJavaScriptBytes": 1233060,
+    "largestJavaScriptGzipBytes": 346262,
+    "initialJavaScriptBytes": 1271332,
+    "initialJavaScriptGzipBytes": 358744,
+    "largestAsyncJavaScriptBytes": 341772,
+    "largestAsyncJavaScriptGzipBytes": 101971,
+    "cssBytes": 118502,
+    "cssGzipBytes": 20402
+  },
+  "maximum": {
+    "javascriptBytes": 2424832,
+    "javascriptGzipBytes": 704512,
+    "largestJavaScriptBytes": 1245184,
+    "largestJavaScriptGzipBytes": 348160,
+    "initialJavaScriptBytes": 1277952,
+    "initialJavaScriptGzipBytes": 360448,
+    "largestAsyncJavaScriptBytes": 344064,
+    "largestAsyncJavaScriptGzipBytes": 106496,
+    "cssBytes": 118784,
+    "cssGzipBytes": 20480
+  }
+}

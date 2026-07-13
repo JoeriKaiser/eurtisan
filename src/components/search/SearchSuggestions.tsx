@@ -1,6 +1,5 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowRight, Package, Search } from 'lucide-react'
-import { useEffect, useRef } from 'react'
 import type { SearchSuggestion } from '#/hooks/useSearchSuggestions'
 import { cn } from '#/lib/cn'
 import { m } from '#/paraglide/messages'
@@ -71,16 +70,6 @@ export default function SearchSuggestions({
   onSelect,
   onHover,
 }: SearchSuggestionsProps) {
-  const listRef = useRef<HTMLUListElement>(null)
-  const itemRefs = useRef<(HTMLLIElement | null)[]>([])
-
-  useEffect(() => {
-    const item = itemRefs.current[activeIndex]
-    if (item && listRef.current) {
-      item.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-    }
-  }, [activeIndex])
-
   if (isLoading) {
     return (
       <div className='p-4'>
@@ -104,7 +93,6 @@ export default function SearchSuggestions({
 
   return (
     <ul
-      ref={listRef}
       id='search-suggestions'
       aria-label='Search suggestions'
       className='max-h-80 overflow-y-auto py-2'
@@ -122,9 +110,11 @@ export default function SearchSuggestions({
         return (
           <li
             key={itemId}
-            ref={(el) => {
-              itemRefs.current[index] = el
-            }}
+            ref={
+              isActive
+                ? (node) => node?.scrollIntoView({ block: 'nearest', behavior: 'auto' })
+                : undefined
+            }
             onMouseEnter={() => onHover(index)}
           >
             {suggestion.href ? (

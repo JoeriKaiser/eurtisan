@@ -30,6 +30,7 @@ export function initFaro(): Faro | undefined {
   // Guard: SSR / Node.js / already initialized
   if (typeof window === 'undefined') return undefined
   if (faroInstance) return faroInstance
+  if (import.meta.env.VITE_FARO_ENABLED !== 'true') return undefined
 
   const collectorUrl = import.meta.env.VITE_FARO_COLLECTOR_URL
   if (!collectorUrl) {
@@ -50,7 +51,7 @@ export function initFaro(): Faro | undefined {
 
   // Sampling: only in production, configurable via env var, default 10%
   if (import.meta.env.PROD) {
-    const sampleRate = Number(import.meta.env.VITE_FARO_SAMPLE_RATE ?? '0.1')
+    const sampleRate = Number(import.meta.env.VITE_FARO_SAMPLE_RATE)
     if (Number.isFinite(sampleRate) && Math.random() >= sampleRate) {
       return undefined
     }
@@ -59,9 +60,9 @@ export function initFaro(): Faro | undefined {
   faroInstance = initializeFaro({
     url: collectorUrl,
     app: {
-      name: import.meta.env.VITE_FARO_APP_NAME ?? 'eurtisan',
-      version: import.meta.env.VITE_APP_VERSION ?? 'dev',
-      environment: import.meta.env.VITE_APP_ENV ?? 'development',
+      name: import.meta.env.VITE_FARO_APP_NAME,
+      version: import.meta.env.VITE_APP_VERSION,
+      environment: import.meta.env.VITE_APP_ENV,
     },
     instrumentations: [
       ...getWebInstrumentations({

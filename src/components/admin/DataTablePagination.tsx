@@ -42,7 +42,7 @@ export function DataTablePagination({
         <select
           value={pageSize}
           onChange={(e) => onPageSizeChange(Number(e.target.value))}
-          className='h-6 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none cursor-pointer'
+          className='min-h-8 rounded-md border border-border-default bg-surface-default px-2 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2 cursor-pointer'
           aria-label={m.admin_shops_page_size_label()}
         >
           {pageSizeOptions.map((size) => (
@@ -54,7 +54,7 @@ export function DataTablePagination({
       </div>
 
       {totalPages > 1 && (
-        <nav className='flex items-center gap-4' aria-label={ariaLabel}>
+        <nav className='flex items-center gap-4' aria-label={ariaLabel ?? m.pagination_label()}>
           <Button
             variant='secondary'
             size='sm'
@@ -65,7 +65,11 @@ export function DataTablePagination({
             <ChevronLeft size={16} aria-hidden='true' />
             {m.pagination_previous()}
           </Button>
-          <span className='text-sm text-text-secondary font-mono'>
+          <span
+            className='text-sm text-text-secondary font-mono'
+            aria-live='polite'
+            aria-atomic='true'
+          >
             {m.pagination_page_of({ page, totalPages })}
           </span>
           <Button

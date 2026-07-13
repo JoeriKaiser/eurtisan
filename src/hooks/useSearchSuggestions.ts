@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
 import {
   isMeilisearchClientConfigured,
   meilisearchClient,
@@ -118,20 +117,7 @@ async function fetchSuggestions(query: string): Promise<SearchSuggestion[]> {
   }
 }
 
-function useDebounceValue<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value)
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay)
-    return () => clearTimeout(timer)
-  }, [value, delay])
-
-  return debounced
-}
-
-export function useSearchSuggestions(query: string, enabled: boolean) {
-  const debouncedQuery = useDebounceValue(query, 150)
-
+export function useSearchSuggestions(debouncedQuery: string, enabled: boolean) {
   return useQuery({
     queryKey: ['search-suggestions', debouncedQuery],
     queryFn: () => fetchSuggestions(debouncedQuery),

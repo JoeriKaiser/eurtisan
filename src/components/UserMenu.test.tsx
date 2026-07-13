@@ -9,6 +9,7 @@ import UserMenu from './UserMenu'
 const mockNavigate = vi.fn()
 
 vi.mock('@tanstack/react-router', () => ({
+  useHydrated: () => true,
   Link: (props: { children: React.ReactNode; to: string }) => (
     <a href={props.to}>{props.children}</a>
   ),

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { AlertTriangle, Mail } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
@@ -7,24 +7,13 @@ import { authClient } from '#/lib/auth-client'
 import { m } from '#/paraglide/messages'
 import { AuthShell } from '#/components/auth/AuthShell'
 import { useSearch } from '@tanstack/react-router'
+import { useCountdown } from '#/hooks/useCountdown'
 
 export function ForgotPassword() {
   const { redirect } = useSearch({ from: '/forgot-password' })
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState({ loading: false, error: '', success: false })
-  const [cooldown, setCooldown] = useState(0)
-
-  useEffect(() => {
-    let timer: ReturnType<typeof setInterval> | undefined
-    if (cooldown > 0) {
-      timer = setInterval(() => {
-        setCooldown((prev) => prev - 1)
-      }, 1000)
-    }
-    return () => {
-      if (timer) clearInterval(timer)
-    }
-  }, [cooldown])
+  const { remaining: cooldown, start: startCooldown } = useCountdown()
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -44,7 +33,7 @@ export function ForgotPassword() {
         })
       } else {
         setStatus({ loading: false, error: '', success: true })
-        setCooldown(60)
+        startCooldown(60)
       }
     } catch {
       setStatus({ loading: false, error: m.error_unexpected(), success: false })
@@ -68,7 +57,7 @@ export function ForgotPassword() {
           error: result.error.message || m.error_unexpected(),
         }))
       } else {
-        setCooldown(60)
+        startCooldown(60)
         setStatus((prev) => ({ ...prev, loading: false }))
       }
     } catch {

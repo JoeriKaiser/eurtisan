@@ -140,10 +140,10 @@ export function Step1Identity() {
     await saveStep(1, form)
   }, [form, saveStep])
 
-  useStepActions(1, { validate, save })
+  const stepActionsRef = useStepActions(1, { validate, save })
 
   return (
-    <div className='space-y-6'>
+    <div ref={stepActionsRef} className='space-y-6'>
       <div>
         <h2 className='display-title text-2xl text-text-primary'>Let's start with the basics</h2>
         <p className='mt-1 text-text-secondary'>

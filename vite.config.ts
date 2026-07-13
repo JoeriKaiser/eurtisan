@@ -2,7 +2,19 @@ import { paraglideVitePlugin } from '@inlang/paraglide-js'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
+
+import {
+  parsePublicBuildEnvironment,
+  selectExplicitPublicBuildEnvironment,
+} from './src/lib/infra/public-environment'
+
+function readPublicBuildEnvironment(mode: string): Record<string, string | undefined> {
+  if (process.env.EURTISAN_PUBLIC_ENV_ONLY === 'true') {
+    return selectExplicitPublicBuildEnvironment(process.env)
+  }
+  return { ...loadEnv(mode, process.cwd(), ''), ...process.env }
+}
 
 const config = defineConfig(({ mode }) => ({
   resolve: { tsconfigPaths: true },
@@ -11,6 +23,9 @@ const config = defineConfig(({ mode }) => ({
     minify: 'esbuild',
     target: 'es2022',
     cssMinify: true,
+    // This is the measured largest-client-chunk ceiling from config/bundle-budgets.json.
+    // The dedicated bundle gate also checks gzip and aggregate budgets.
+    chunkSizeWarningLimit: 1245,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -27,9 +42,28 @@ const config = defineConfig(({ mode }) => ({
     external: ['zod', 'better-auth', '@better-auth/core', '@better-auth/drizzle-adapter'],
   },
   plugins: [
+    {
+      name: 'eurtisan-public-environment-contract',
+      enforce: 'pre',
+      config() {
+        parsePublicBuildEnvironment(readPublicBuildEnvironment(mode))
+      },
+    },
+    {
+      name: 'eurtisan-remove-client-localhost-fallbacks',
+      apply: 'build',
+      enforce: 'post',
+      renderChunk(code) {
+        const environment = parsePublicBuildEnvironment(readPublicBuildEnvironment(mode))
+        if (!['production', 'staging'].includes(environment.VITE_APP_ENV)) return null
+        if (!code.includes('http://localhost')) return null
+        return { code: code.replaceAll('http://localhost', environment.VITE_PUBLIC_URL), map: null }
+      },
+    },
     tanstackStart({
       router: {
-        routeFileIgnorePattern: mode === 'production' ? 'mollie-mock-oauth' : undefined,
+        routeFileIgnorePattern:
+          mode === 'production' ? '(\\.test\\.[jt]sx?$|mollie-mock-oauth)' : '\\.test\\.[jt]sx?$',
       },
     }),
     viteReact(),

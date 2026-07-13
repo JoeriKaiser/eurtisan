@@ -1,6 +1,6 @@
 import { useLoaderData, Link, useRouter } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import ProductGrid from '#/components/ProductGrid'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
@@ -8,6 +8,20 @@ import { m } from '#/paraglide/messages'
 import { SearchFilters } from './search/SearchFilters'
 
 export function SearchPage() {
+  const data = useLoaderData({ from: '/search' })
+  const stateKey = [
+    data.query,
+    data.page,
+    data.categorySlug,
+    data.shopSlug,
+    data.minPriceCents,
+    data.maxPriceCents,
+    data.sort,
+  ].join(':')
+  return <SearchPageContent key={stateKey} />
+}
+
+function SearchPageContent() {
   const {
     query,
     products,
@@ -30,18 +44,6 @@ export function SearchPage() {
     maxPrice: maxPriceCents !== undefined ? String(maxPriceCents / 100) : '',
     sort: sort ?? 'relevance',
   })
-
-  // Sync local state when loader data changes (e.g. back/forward navigation)
-  useEffect(() => {
-    setFilters({
-      query: query ?? '',
-      category: categorySlug ?? '',
-      shop: shopSlug ?? '',
-      minPrice: minPriceCents !== undefined ? String(minPriceCents / 100) : '',
-      maxPrice: maxPriceCents !== undefined ? String(maxPriceCents / 100) : '',
-      sort: sort ?? 'relevance',
-    })
-  }, [query, categorySlug, shopSlug, minPriceCents, maxPriceCents, sort])
 
   const buildSearchParams = useCallback(
     (overrides: Record<string, string | number | undefined>) => {

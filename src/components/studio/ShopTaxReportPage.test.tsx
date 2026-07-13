@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@tanstack/react-router', () => ({
   Link: (props: {
@@ -160,6 +160,11 @@ describe('ShopTaxReportPage', () => {
     mockGetShopTaxReport.mockReset()
     vi.mocked(generateCSV).mockClear()
     vi.mocked(downloadCSV).mockClear()
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it('renders title, period selector, and report sections', () => {

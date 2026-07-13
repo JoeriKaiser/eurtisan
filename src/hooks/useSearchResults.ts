@@ -1,21 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
 import { searchProducts } from '#/lib/products'
 
-function useDebounceValue<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value)
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay)
-    return () => clearTimeout(timer)
-  }, [value, delay])
-
-  return debounced
-}
-
-export function useSearchResults(query: string, enabled: boolean) {
-  const debouncedQuery = useDebounceValue(query, 150)
-
+export function useSearchResults(debouncedQuery: string, enabled: boolean) {
   return useQuery({
     queryKey: ['search-results', debouncedQuery],
     queryFn: async () => {

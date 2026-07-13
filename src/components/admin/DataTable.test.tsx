@@ -2,6 +2,7 @@
 
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
 import { DataTable } from './DataTable'
 
 interface Item {
@@ -44,6 +45,24 @@ describe('DataTable', () => {
     expect(screen.getByText('25')).toBeDefined()
   })
 
+  it('uses native keyboard-operable sort buttons and exposes aria-sort', () => {
+    render(
+      <DataTable
+        columns={columns}
+        data={data}
+        getRowId={(row) => row.id}
+        sorting={{ column: 'name', direction: 'asc' }}
+        onSortChange={vi.fn()}
+        aria-label='Test table'
+      />,
+    )
+
+    const nameButton = screen.getByRole('button', { name: /Name/ })
+    expect(nameButton.tagName).toBe('BUTTON')
+    expect(nameButton.closest('th')?.getAttribute('aria-sort')).toBe('ascending')
+    expect(screen.getByRole('columnheader', { name: /Age/ }).getAttribute('aria-sort')).toBe('none')
+  })
+
   it('calls onSortChange when sortable header is clicked', () => {
     const onSortChange = vi.fn()
     render(
@@ -79,6 +98,24 @@ describe('DataTable', () => {
 
     fireEvent.click(checkboxes[2] as HTMLElement)
     expect(onSelectionChange).toHaveBeenCalledWith(['1', '2'])
+  })
+
+  it('has no automated accessibility violations with sorting and selection', async () => {
+    const { container } = render(
+      <DataTable
+        columns={columns}
+        data={data}
+        getRowId={(row) => row.id}
+        sorting={{ column: 'name', direction: 'asc' }}
+        onSortChange={vi.fn()}
+        rowSelection
+        selectedRows={['1']}
+        onSelectionChange={vi.fn()}
+        aria-label='Test table'
+      />,
+    )
+
+    expect(await axe(container)).toHaveNoViolations()
   })
 
   it('renders empty state when no data', () => {

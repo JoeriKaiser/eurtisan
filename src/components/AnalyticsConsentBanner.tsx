@@ -1,9 +1,8 @@
 import { useAnalyticsConsent } from '#/hooks/use-analytics-consent'
 import { Button } from '#/components/ui/button'
-import { Link } from '@tanstack/react-router'
+import { Link, useHydrated } from '@tanstack/react-router'
 import { m } from '#/paraglide/messages'
 import { cn } from '#/lib/cn'
-import { useEffect, useState } from 'react'
 
 interface AnalyticsConsentBannerProps {
   /**
@@ -16,15 +15,10 @@ interface AnalyticsConsentBannerProps {
 
 export function AnalyticsConsentBanner({ position = 'fixed' }: AnalyticsConsentBannerProps) {
   const { consent, setConsent, isRequired } = useAnalyticsConsent()
-  const [mounted, setMounted] = useState(false)
+  const hydrated = useHydrated()
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  // Avoid rendering on the server or before hydration to prevent SSR/client
-  // mismatch and to keep the banner from intercepting clicks during hydration.
-  if (!mounted || !isRequired || consent !== null) {
+  // Keep SSR and the hydration render identical while local consent is unavailable.
+  if (!hydrated || !isRequired || consent !== null) {
     return null
   }
 

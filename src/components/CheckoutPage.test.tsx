@@ -2,6 +2,7 @@
 
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
 import CheckoutPage from './CheckoutPage'
 
 const mockCreateCheckout = vi.hoisted(() => vi.fn())
@@ -218,6 +219,11 @@ describe('CheckoutPage', () => {
         distance: '0.8 km',
       },
     ])
+  })
+
+  it('has no automated accessibility violations in the initial checkout state', async () => {
+    const { container } = render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
+    expect(await axe(container)).toHaveNoViolations()
   })
 
   it('renders checkout title', () => {

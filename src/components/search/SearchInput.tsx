@@ -1,5 +1,5 @@
 import { Command, Search, X } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { Input } from '#/components/ui/input'
 import { cn } from '#/lib/cn'
 
@@ -11,6 +11,7 @@ interface SearchInputProps {
   onSubmit: () => void
   onClear: () => void
   inputRef?: React.RefObject<HTMLInputElement | null>
+  autoFocus?: boolean
 }
 
 export default function SearchInput({
@@ -19,23 +20,13 @@ export default function SearchInput({
   onSubmit,
   onClear,
   inputRef: externalRef,
+  autoFocus = false,
 }: SearchInputProps) {
   const internalRef = useRef<HTMLInputElement>(null)
   const inputRef = externalRef ?? internalRef
-  const [placeholderIndex, setPlaceholderIndex] = useState(0)
   const [isFocused, setIsFocused] = useState(false)
 
-  // Rotating placeholder
-  useEffect(() => {
-    if (value.trim().length > 0) return
-    const timer = setInterval(() => {
-      setPlaceholderIndex((i) => (i + 1) % PLACEHOLDER_OPTIONS.length)
-    }, 3000)
-    return () => clearInterval(timer)
-  }, [value])
-
-  const placeholder =
-    value.trim().length > 0 ? '' : `Search for "${PLACEHOLDER_OPTIONS[placeholderIndex]}"...`
+  const placeholder = value.trim().length > 0 ? '' : `Search for "${PLACEHOLDER_OPTIONS[0]}"...`
 
   return (
     <div className='relative'>
@@ -49,6 +40,7 @@ export default function SearchInput({
       <Input
         ref={inputRef}
         type='search'
+        autoFocus={autoFocus}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onFocus={() => setIsFocused(true)}

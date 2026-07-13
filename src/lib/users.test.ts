@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
-import { user } from '#/db/schema'
+import { orderItem, user } from '#/db/schema'
 import { getUserDetailQuery, listUsersQuery } from './users.server'
 
 vi.mock('./auth', () => ({
@@ -13,6 +13,9 @@ vi.mock('./auth', () => ({
 }))
 
 beforeEach(async () => {
+  // Other database suites can leave fulfilled order items behind; remove the
+  // restrictive product references before deleting users and their shops.
+  await db.delete(orderItem)
   await db.delete(user)
 })
 

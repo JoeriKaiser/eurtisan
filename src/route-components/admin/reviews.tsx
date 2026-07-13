@@ -1,6 +1,6 @@
 import { useLoaderData, useNavigate, useSearch } from '@tanstack/react-router'
 import { Check, EyeOff, Flag, Inbox, Star } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Card, CardContent } from '#/components/ui/card'
 import { Button } from '#/components/ui/button'
 import type { AdminReviewsResult } from '#/lib/reviews.server'
@@ -34,13 +34,19 @@ function StarRating({ rating }: { rating: number }) {
 
 export function AdminReviewsPage() {
   const loaderData = useLoaderData({ from: '/admin/reviews' }) as AdminReviewsResult
+  const search = useSearch({ from: '/admin/reviews' })
+  return (
+    <AdminReviewsContent
+      key={`${search.status}:${search.page}:${loaderData.reviews.map((review) => `${review.id}:${review.moderationStatus}`).join(',')}`}
+    />
+  )
+}
+
+function AdminReviewsContent() {
+  const loaderData = useLoaderData({ from: '/admin/reviews' }) as AdminReviewsResult
   const navigate = useNavigate()
   const search = useSearch({ from: '/admin/reviews' })
   const [reviewsData, setReviewsData] = useState(loaderData)
-
-  useEffect(() => {
-    setReviewsData(loaderData)
-  }, [loaderData])
 
   const handleStatusChange = useCallback(
     (status: 'all' | 'approved' | 'flagged' | 'hidden') => {

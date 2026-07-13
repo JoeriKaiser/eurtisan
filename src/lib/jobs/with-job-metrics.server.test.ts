@@ -78,11 +78,26 @@ describe('withJobMetrics', () => {
     })
   })
 
-  it('does not throw when the wrapped function fails', async () => {
+  it('does not throw when the wrapped polling tick fails', async () => {
     await expect(
       withJobMetrics('test-job', async () => {
         throw new Error('expected failure')
       }),
     ).resolves.toBeUndefined()
+  })
+
+  it('can preserve failure metrics while rethrowing for one-shot exit semantics', async () => {
+    await expect(
+      withJobMetrics(
+        'test-job',
+        async () => {
+          throw new Error('expected one-shot failure')
+        },
+        { rethrow: true },
+      ),
+    ).rejects.toThrow('expected one-shot failure')
+    expect(getMetricValue('eurtisan_job_runs_total', { job: 'test-job', status: 'failure' })).toBe(
+      1,
+    )
   })
 })

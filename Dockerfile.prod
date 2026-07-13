@@ -18,9 +18,48 @@ COPY package.json bun.lock ./
 RUN --mount=type=cache,target=/home/bun/.bun/install/cache \
     bun install --frozen-lockfile
 
-# Copy source and build
+# Browser-visible values are immutable build inputs. They are deliberately
+# separate from server runtime secrets and are not inherited by the final stage.
+ARG PUBLIC_ANALYTICS_CONSENT_REQUIRED
+ARG PUBLIC_APP_ENV
+ARG PUBLIC_APP_VERSION
+ARG PUBLIC_FARO_COLLECTOR_URL
+ARG PUBLIC_FARO_ENABLED
+ARG PUBLIC_FARO_APP_NAME
+ARG PUBLIC_FARO_SAMPLE_RATE
+ARG PUBLIC_IMGPROXY_BASE_URL
+ARG PUBLIC_MEILISEARCH_HOST
+ARG PUBLIC_MEILISEARCH_VALUE
+ARG PUBLIC_SITE_URL
+ARG PUBLIC_S3_BUCKET
+ARG PUBLIC_UMAMI_ENABLED
+ARG PUBLIC_UMAMI_HOST_URL
+ARG PUBLIC_UMAMI_SCRIPT_INTEGRITY
+ARG PUBLIC_UMAMI_SCRIPT_URL
+ARG PUBLIC_UMAMI_WEBSITE_ID
+
+# Copy source and build. VITE_* values exist only for this build process.
 COPY . .
-RUN bun run build
+RUN EURTISAN_PUBLIC_ENV_ONLY=true \
+    VITE_ANALYTICS_CONSENT_REQUIRED="$PUBLIC_ANALYTICS_CONSENT_REQUIRED" \
+    VITE_APP_ENV="$PUBLIC_APP_ENV" \
+    VITE_APP_VERSION="$PUBLIC_APP_VERSION" \
+    VITE_FARO_COLLECTOR_URL="$PUBLIC_FARO_COLLECTOR_URL" \
+    VITE_FARO_ENABLED="$PUBLIC_FARO_ENABLED" \
+    VITE_FARO_APP_NAME="$PUBLIC_FARO_APP_NAME" \
+    VITE_FARO_SAMPLE_RATE="$PUBLIC_FARO_SAMPLE_RATE" \
+    VITE_IMGPROXY_BASE_URL="$PUBLIC_IMGPROXY_BASE_URL" \
+    VITE_MEILISEARCH_HOST="$PUBLIC_MEILISEARCH_HOST" \
+    VITE_MEILISEARCH_SEARCH_KEY="$PUBLIC_MEILISEARCH_VALUE" \
+    VITE_PUBLIC_URL="$PUBLIC_SITE_URL" \
+    VITE_S3_BUCKET="$PUBLIC_S3_BUCKET" \
+    VITE_UMAMI_ENABLED="$PUBLIC_UMAMI_ENABLED" \
+    VITE_UMAMI_HOST_URL="$PUBLIC_UMAMI_HOST_URL" \
+    VITE_UMAMI_SCRIPT_INTEGRITY="$PUBLIC_UMAMI_SCRIPT_INTEGRITY" \
+    VITE_UMAMI_SCRIPT_URL="$PUBLIC_UMAMI_SCRIPT_URL" \
+    VITE_UMAMI_WEBSITE_ID="$PUBLIC_UMAMI_WEBSITE_ID" \
+    bun run build \
+    && bun run bundle:check
 
 # Prune dev dependencies so the runtime stage only receives production packages
 RUN --mount=type=cache,target=/home/bun/.bun/install/cache \
@@ -46,6 +85,7 @@ COPY --from=builder /app/drizzle ./drizzle
 # Include source tree so server-side scripts (seed, jobs) can be run
 # with `bun run`. TypeScript only — no secrets live here.
 COPY --from=builder /app/src ./src
+COPY --from=builder /app/scripts ./scripts
 
 LABEL app=eurtisan
 

@@ -2,6 +2,7 @@
 
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
 import type { DisputeDetail } from '#/lib/disputes.server'
 import { addDisputeMessage } from '#/lib/disputes'
 import DisputeThreadPage, { DisputeThreadError, DisputeThreadLoading } from './DisputeThreadPage'
@@ -24,6 +25,7 @@ vi.mock('#/paraglide/messages', () => ({
   m: {
     dispute_back_to_order: () => 'Back to order',
     dispute_title: () => 'Dispute',
+    dispute_loading: () => 'Loading dispute details…',
     dispute_status: () => 'Status',
     dispute_status_open: () => 'Open',
     dispute_status_resolved: () => 'Resolved',
@@ -94,6 +96,11 @@ function makeDisputeDetail(overrides?: Partial<DisputeDetail>): DisputeDetail {
 }
 
 describe('DisputeThreadPage', () => {
+  it('has no automated accessibility violations in empty-message state', async () => {
+    const { container } = render(<DisputeThreadPage dispute={makeDisputeDetail()} />)
+    expect(await axe(container)).toHaveNoViolations()
+  })
+
   it('renders dispute summary', () => {
     const dispute = makeDisputeDetail()
     render(<DisputeThreadPage dispute={dispute} />)
@@ -174,6 +181,11 @@ describe('DisputeThreadPage', () => {
 })
 
 describe('DisputeThreadLoading', () => {
+  it('renders an accessible loading state', async () => {
+    const { container } = render(<DisputeThreadLoading />)
+    expect(await axe(container)).toHaveNoViolations()
+  })
+
   it('renders loading skeleton', () => {
     render(<DisputeThreadLoading />)
     expect(document.querySelectorAll('[aria-hidden="true"]').length).toBeGreaterThan(0)
@@ -181,6 +193,11 @@ describe('DisputeThreadLoading', () => {
 })
 
 describe('DisputeThreadError', () => {
+  it('renders an accessible error state', async () => {
+    const { container } = render(<DisputeThreadError error={new Error('load failed')} />)
+    expect(await axe(container)).toHaveNoViolations()
+  })
+
   it('renders not found error', () => {
     render(<DisputeThreadError error={new Error('Not Found')} />)
     expect(screen.getByText('Dispute not found.')).toBeDefined()

@@ -41,8 +41,6 @@ async function getTestProduct(shopId: string) {
 
 test.describe('owner navigation', () => {
   test('post-approval payment link, studio hub, and product edit link work', async ({ page }) => {
-    page.on('console', (msg) => console.log('OWNER NAV PAGE LOG:', msg.text()))
-    page.on('pageerror', (err) => console.error('OWNER NAV PAGE ERROR:', err.message))
     await page.setViewportSize({ width: 1440, height: 900 })
 
     const creatorId = await getCreatorId()

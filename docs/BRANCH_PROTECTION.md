@@ -12,7 +12,7 @@ Configure on the repository **Settings → Branches → Branch protection rules*
 | Require a pull request before merging | Enabled |
 | Required approvals | ≥ 1 |
 | Require review from Code Owners | Enabled (uses `.github/CODEOWNERS`) |
-| Require status checks to pass | Enabled for `Quality (Lint, Test & Type Check)`, `Prometheus Rules`, `Production Image & Script Validation`, and `Ansible Syntax` |
+| Require status checks to pass | Enabled for `Quality, Migrations, Tests & Build`, `Isolated Playwright E2E`, `Production Image Smoke`, `Compose, Workflow, Shell & Ansible`, and `Prometheus Rules` |
 | Require branches to be up to date | Enabled |
 
 ## CODEOWNERS
@@ -20,3 +20,5 @@ Configure on the repository **Settings → Branches → Branch protection rules*
 Replace `@eurtisan-maintainers` in `.github/CODEOWNERS` with your real `@org/team` or `@username`.
 
 Production deploys: only from reviewed `main` or release tags via `deploy.sh` on the VPS.
+
+Branch protection is external owner-managed state. After changing CI job names, an owner must update the required checks and record that verification; repository-local validation cannot prove the GitHub ruleset is active.

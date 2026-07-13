@@ -1,6 +1,6 @@
 import { useRouter } from '@tanstack/react-router'
 import { Download, Mail, Plus, Trash2, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { m } from '#/paraglide/messages'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
@@ -46,10 +46,6 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
 
   const [newTag, setNewTag] = useState('')
 
-  useEffect(() => {
-    setLocalCustomer(customer)
-  }, [customer])
-
   const averageOrderCents =
     localCustomer.orderCount > 0
       ? Math.round(localCustomer.totalSpentCents / localCustomer.orderCount)
@@ -57,7 +53,6 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
 
   const showFeedback = (type: 'success' | 'error', message: string) => {
     setFeedback({ type, message })
-    window.setTimeout(() => setFeedback(null), 4000)
   }
 
   const refresh = async () => {

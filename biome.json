@@ -11,6 +11,19 @@
       },
       "suspicious": {
         "noExplicitAny": "warn"
+      },
+      "style": {
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "paths": {
+              "react": {
+                "importNames": ["useEffect"],
+                "message": "Eurtisan forbids useEffect. Use loaders, event-driven updates, callback refs, or useSyncExternalStore."
+              }
+            }
+          }
+        }
       }
     }
   },

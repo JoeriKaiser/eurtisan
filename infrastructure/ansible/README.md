@@ -71,6 +71,30 @@ ansible-playbook -i inventory/staging.yml playbook.yml --vault-password-file=.va
 
 The playbook includes a pre-task that adds each target host to `known_hosts` automatically. If you prefer to manage keys yourself, remove the `known_hosts` pre-task from `playbook.yml`.
 
+## Configuration preflight
+
+The role validates required variable names, formats, integration modes, and
+cross-field constraints before provisioning or container startup. Failures identify
+variable names without printing their values. To validate an inventory without
+changing a host, supply the encrypted Vault variables and run:
+
+```bash
+ansible-playbook -i inventory/staging.yml preflight.yml \
+  -e @secrets.yml --vault-password-file=.vault_pass
+```
+
+Browser-visible values are built into the image. A `VITE_*` change therefore needs
+an image rebuild; server-only secret changes need recreation of all consuming
+containers. See `../../docs/runbooks/environment-configuration.md` for ownership and
+rotation procedures. Repository-local syntax, synthetic preflight, and template
+validation runs through `make ansible-check`; it does not access Vault or a host.
+
+Before promoting a qualified release, follow
+[`../../docs/runbooks/staging-qualification.md`](../../docs/runbooks/staging-qualification.md).
+The current per-host build path does not by itself prove that staging and production
+run the same image digest; choosing an immutable registry/artifact transport is an
+infrastructure-owner decision.
+
 ## Deployment
 
 ### Staging
@@ -143,4 +167,6 @@ group_vars/
 └── production.yml       # Production overrides (minimal)
 ```
 
-Secrets always live in **`secrets.yml`** (encrypted). Never put real secrets in `group_vars/*.yml`.
+Non-secret job policy lives in `group_vars/all.yml`; this includes the six-hour read-only financial reconciliation cadence and 500-record query batch. The role renders both values and Compose starts the singleton `financial-totals-reconciliation` service automatically.
+
+Secrets always live in **`secrets.yml`** (encrypted). Never put real secrets in `group_vars/*.yml`. Required launch secrets include database/auth encryption keys, Meilisearch master and restricted search keys, S3 and imgproxy credentials, Mollie Payments/Connect credentials, Sendcloud credentials and a dedicated webhook secret, metrics/Grafana credentials, and Brevo credentials in production.

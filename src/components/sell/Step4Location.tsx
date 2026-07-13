@@ -207,10 +207,10 @@ export function Step4Location() {
     })
   }, [form, saveStep])
 
-  useStepActions(4, { validate, save })
+  const stepActionsRef = useStepActions(4, { validate, save })
 
   return (
-    <div className='space-y-6'>
+    <div ref={stepActionsRef} className='space-y-6'>
       <div>
         <h2 className='display-title text-2xl text-text-primary'>{m.onboarding_step4_title()}</h2>
         <p className='mt-1 text-text-secondary'>{m.onboarding_step4_description()}</p>

@@ -1,5 +1,6 @@
+import { useQuery } from '@tanstack/react-query'
 import { X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   Dialog,
   DialogBackdrop,
@@ -27,11 +28,9 @@ interface AppListing {
   thumbnailUrl: string | null
 }
 
-interface DetailState {
-  details: ShopDraft | null
+interface ApplicationDetails {
+  details: ShopDraft
   listings: AppListing[]
-  isLoading: boolean
-  error: string | null
 }
 
 interface ApplicationReviewDialogProps {
@@ -49,52 +48,29 @@ export function ApplicationReviewDialog({
   isProcessing,
   actionType,
 }: ApplicationReviewDialogProps) {
-  const [state, setState] = useState<DetailState>({
-    details: null,
-    listings: [],
-    isLoading: !!appId,
-    error: null,
-  })
   const [note, setNote] = useState('')
-
-  useEffect(() => {
-    if (!appId) return
-
-    let cancelled = false
-
-    Promise.all([
-      getShopDraft({ data: { draftId: appId } }),
-      getShopDraftListings({ data: { shopId: appId } }),
-    ])
-      .then(([details, listings]) => {
-        if (cancelled) return
-        setState({
-          details,
-          listings: listings.products || [],
-          isLoading: false,
-          error: null,
-        })
-      })
-      .catch((err) => {
-        if (cancelled) return
-        setState({
-          details: null,
-          listings: [],
-          isLoading: false,
-          error: err instanceof Error ? err.message : 'Failed to load details',
-        })
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [appId])
+  const detailsQuery = useQuery<ApplicationDetails>({
+    queryKey: ['admin', 'shop-application', appId],
+    queryFn: async () => {
+      if (!appId) throw new Error('Application id is required')
+      const [details, listings] = await Promise.all([
+        getShopDraft({ data: { draftId: appId } }),
+        getShopDraftListings({ data: { shopId: appId } }),
+      ])
+      return { details, listings: listings.products || [] }
+    },
+    enabled: appId !== null,
+    staleTime: 30_000,
+  })
 
   const handleAction = (action: 'approve' | 'request_changes' | 'reject') => {
     onReviewAction(action, note.trim())
   }
 
-  const { details, listings, isLoading, error } = state
+  const details = detailsQuery.data?.details ?? null
+  const listings = detailsQuery.data?.listings ?? []
+  const isLoading = detailsQuery.isPending && appId !== null
+  const error = detailsQuery.error
 
   return (
     <Dialog open={!!appId} onOpenChange={(open) => !open && onClose()}>
@@ -118,15 +94,18 @@ export function ApplicationReviewDialog({
           </div>
 
           <div className='overflow-y-auto flex-1 min-h-0 px-6 py-4'>
-            {isLoading || !details ? (
-              <div className='space-y-6 py-4'>
+            {error ? (
+              <div
+                className='rounded-lg border border-error/30 bg-error-subtle p-4 text-sm text-error'
+                role='alert'
+              >
+                {error instanceof Error ? error.message : m.error_unexpected()}
+              </div>
+            ) : isLoading || !details ? (
+              <div className='space-y-6 py-4' aria-live='polite'>
                 <Skeleton className='size-8/3' />
                 <Skeleton className='h-32 w-full rounded-xl' />
                 <Skeleton className='h-32 w-full rounded-xl' />
-              </div>
-            ) : error ? (
-              <div className='rounded-lg border border-error/30 bg-error-subtle p-4 text-sm text-error'>
-                {error}
               </div>
             ) : (
               <div className='grid grid-cols-1 md:grid-cols-3 gap-6 py-2'>

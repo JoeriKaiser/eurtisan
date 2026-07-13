@@ -59,13 +59,13 @@ export function Step6Socials() {
     await saveStep(6, { socials })
   }, [socials, saveStep])
 
-  useStepActions(6, { validate, save })
+  const stepActionsRef = useStepActions(6, { validate, save })
 
   const usedPlatforms = new Set(socials.map((s) => s.platform))
   const availablePlatforms = SOCIAL_PLATFORMS.filter((p) => !usedPlatforms.has(p))
 
   return (
-    <div className='space-y-6'>
+    <div ref={stepActionsRef} className='space-y-6'>
       <div>
         <h2 className='display-title text-2xl text-text-primary'>Socials & Links</h2>
         <p className='mt-1 text-text-secondary'>Connect your audience.</p>

@@ -1,6 +1,6 @@
 import { Link, useRouter } from '@tanstack/react-router'
 import { Search, Store } from 'lucide-react'
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useRef } from 'react'
 import type { PaginatedProducts, ShopSummary } from '#/lib/products.server'
 import { m } from '#/paraglide/messages'
 import ProductGrid from './ProductGrid'
@@ -16,12 +16,6 @@ export interface ShopPageProps {
 export default function ShopPage({ shop, products, searchQuery }: ShopPageProps) {
   const router = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (inputRef.current && inputRef.current.value !== searchQuery) {
-      inputRef.current.value = searchQuery
-    }
-  }, [searchQuery])
 
   const handleSearch = useCallback(() => {
     const trimmed = inputRef.current?.value.trim() ?? ''
@@ -73,6 +67,7 @@ export default function ShopPage({ shop, products, searchQuery }: ShopPageProps)
             <div className='relative flex-1 sm:w-64'>
               <Search className='absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted' />
               <Input
+                key={searchQuery}
                 ref={inputRef}
                 type='search'
                 placeholder={m.shop_search_placeholder()}

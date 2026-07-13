@@ -91,10 +91,10 @@ export function Step2Story() {
     })
   }, [form, saveStep])
 
-  useStepActions(2, { validate, save })
+  const stepActionsRef = useStepActions(2, { validate, save })
 
   return (
-    <div className='space-y-6'>
+    <div ref={stepActionsRef} className='space-y-6'>
       <div>
         <h2 className='display-title text-2xl text-text-primary'>Tell Your Story</h2>
         <p className='mt-1 text-text-secondary'>

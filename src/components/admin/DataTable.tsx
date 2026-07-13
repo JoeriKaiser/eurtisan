@@ -100,37 +100,37 @@ export function DataTable<T>({
               <th
                 key={col.key}
                 scope='col'
-                className={cn(
-                  'pb-3 pr-4 font-semibold text-text-secondary',
-                  col.sortable && 'cursor-pointer select-none',
-                  col.headerClassName,
-                )}
-                onClick={() => handleSort(col)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleSort(col)
-                }}
-                tabIndex={col.sortable ? 0 : -1}
-                role={col.sortable ? 'button' : undefined}
+                className={cn('pb-3 pr-4 font-semibold text-text-secondary', col.headerClassName)}
                 aria-sort={
                   sorting?.column === col.key
                     ? sorting.direction === 'asc'
                       ? 'ascending'
                       : 'descending'
-                    : undefined
+                    : col.sortable
+                      ? 'none'
+                      : undefined
                 }
               >
-                <span className='flex items-center gap-1'>
-                  {col.header}
-                  {col.sortable && sorting?.column === col.key && (
-                    <span className='text-text-muted'>
-                      {sorting.direction === 'asc' ? (
-                        <ArrowUp size={14} aria-hidden='true' />
-                      ) : (
-                        <ArrowDown size={14} aria-hidden='true' />
-                      )}
-                    </span>
-                  )}
-                </span>
+                {col.sortable ? (
+                  <button
+                    type='button'
+                    className='flex min-h-8 items-center gap-1 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
+                    onClick={() => handleSort(col)}
+                  >
+                    {col.header}
+                    {sorting?.column === col.key && (
+                      <span className='text-text-muted'>
+                        {sorting.direction === 'asc' ? (
+                          <ArrowUp size={14} aria-hidden='true' />
+                        ) : (
+                          <ArrowDown size={14} aria-hidden='true' />
+                        )}
+                      </span>
+                    )}
+                  </button>
+                ) : (
+                  col.header
+                )}
               </th>
             ))}
           </tr>

@@ -59,11 +59,9 @@ export async function reorderCategoriesQuery(orderedIds: string[]): Promise<{ su
   if (orderedIds.length === 0) return { success: true }
 
   await db.transaction(async (tx) => {
-    await Promise.all(
-      orderedIds.map((id, i) =>
-        tx.update(categories).set({ sortOrder: i }).where(eq(categories.id, id)),
-      ),
-    )
+    for (const [sortOrder, id] of orderedIds.entries()) {
+      await tx.update(categories).set({ sortOrder }).where(eq(categories.id, id))
+    }
   })
 
   return { success: true }

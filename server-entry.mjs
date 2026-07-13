@@ -20,6 +20,7 @@ import { fileURLToPath } from 'node:url'
 import { logger, requestIdStore } from '../../src/lib/logger.server.ts'
 import { runWithCspNonce } from '../../src/lib/csp-nonce.server.ts'
 import { assertMockPayoutsNotProduction } from '../../src/lib/env.server.ts'
+import { assertValidServerEnvironment } from '../../src/lib/infra/server-environment.server.ts'
 import { getSafeRequestPath } from '../../src/lib/request-path.server.ts'
 
 const DIRNAME = fileURLToPath(new URL('.', import.meta.url))
@@ -29,8 +30,13 @@ const SERVER_DIR = DIRNAME
 const PORT = parseInt(process.env.PORT ?? '3000', 10)
 const HOST = process.env.HOST ?? '0.0.0.0'
 
-// Startup guard: mock payout modes are not allowed in production.
+// Validate the complete production contract before importing application code.
+assertValidServerEnvironment(process.env)
 assertMockPayoutsNotProduction()
+if (process.env.VALIDATE_ENV_ONLY === 'true') {
+  logger.info('Application environment configuration is valid')
+  process.exit(0)
+}
 const MAX_BODY_SIZE = parseInt(process.env.MAX_BODY_SIZE ?? '10485760', 10)
 const MAX_BODY_SIZE_WEBHOOKS = parseInt(process.env.MAX_BODY_SIZE_WEBHOOKS ?? '1048576', 10)
 

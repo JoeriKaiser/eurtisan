@@ -320,7 +320,6 @@ async function seedUsers() {
         verified: true,
       })
     }
-    console.log(`  Credentials: ${k.email} / ${password}`)
   }
 
   // Random admins
@@ -396,9 +395,7 @@ async function seedUsers() {
   }
   if (twoFactorEntries.length > 0) {
     await db.insert(schema.twoFactor).values(twoFactorEntries).onConflictDoNothing()
-    console.log('  Seeded 2FA configuration for creator.2fa@eurtisan.local:')
-    console.log('    Secret: MJSXE62TPNUGK4Z2')
-    console.log('    Backup Codes: 1234-5678, 8765-4321, 1111-2222, 3333-4444')
+    console.log('  Seeded deterministic local 2FA configuration (values not printed)')
   }
 
   console.log(`  ${users.length} new users, ${accounts.length} new accounts`)

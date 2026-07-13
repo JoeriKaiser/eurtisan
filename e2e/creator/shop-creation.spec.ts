@@ -36,9 +36,6 @@ test.describe('shop creation onboarding', () => {
     page,
     browser,
   }) => {
-    page.on('console', (msg) => console.log('SHOP CREATION PAGE LOG:', msg.text()))
-    page.on('pageerror', (err) => console.error('SHOP CREATION PAGE ERROR:', err.message))
-
     // 1. Navigate to Seller Hub and wait for hydration
     await page.goto('/sell')
     await page.waitForSelector('html[data-hydrated="true"]')

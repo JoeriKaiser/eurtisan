@@ -9,9 +9,7 @@ dist
 .gitignore
 
 # Environment files (never include real secrets)
-.env
-.env.local
-.env.*.local
+.env*
 
 # Development / IDE
 .vscode
@@ -58,6 +56,7 @@ scratch
 
 # Generated local caches
 project.inlang/cache
+.tanstack
 
 # Load tests (not needed at runtime)
 load-tests

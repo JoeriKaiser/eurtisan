@@ -15,7 +15,6 @@ test.describe('admin review moderation', () => {
 
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
-    page.on('pageerror', (err) => console.error('ADMIN REVIEWS PAGE ERROR:', err.message))
   })
 
   test.afterAll(async () => {

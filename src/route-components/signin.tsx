@@ -275,7 +275,7 @@ export function SignIn() {
               id='email'
               name='email'
               type='email'
-              autoComplete='username email'
+              autoComplete='email'
               value={form.email}
               onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
               required

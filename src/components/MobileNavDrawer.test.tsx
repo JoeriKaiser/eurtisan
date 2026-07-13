@@ -20,7 +20,8 @@ vi.mock('@tanstack/react-router', () => ({
     <a
       href={props.to}
       className={props.className}
-      onClick={() => {
+      onClick={(event) => {
+        event.preventDefault()
         if (props.onClick) props.onClick()
       }}
       aria-label={props['aria-label'] as string}

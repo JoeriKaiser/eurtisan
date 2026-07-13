@@ -114,6 +114,13 @@ Caddy on production automatically provisions Let's Encrypt certificates on the f
 
 ## 5. Deployment
 
+Production configuration is validated before application startup. Browser-visible
+`VITE_*` values are immutable image build inputs; changing one requires rebuilding
+and rolling out the image, not merely restarting a container. Server-only secrets
+remain runtime inputs from Ansible Vault. See
+[Production environment and client-build configuration](./runbooks/environment-configuration.md)
+for routing, validation, ownership, and rotation procedures.
+
 Deploy manually via SSH. The deploy script tags the currently running image as `eurtisan-app:rollback-before-deploy`, builds the new image, runs migrations, starts the services, and then performs post-deploy smoke tests.
 
 ```bash
@@ -260,7 +267,12 @@ GitHub Actions runs validation for pull requests and pushes to `main`:
 
 The workflow is deliberately not a deployment pipeline. It never invokes
 `deploy.sh`, accesses a VPS, or changes staging/production. Deployments remain
-manual through the SSH commands in this document.
+manual through the SSH commands in this document. Reproduce each CI stage with
+[release-quality-gates.md](./runbooks/release-quality-gates.md). Before any production
+promotion, complete the evidence process in
+[staging-qualification.md](./runbooks/staging-qualification.md); local CI and mocked E2E
+are not substitutes for authorized provider, backup/restore, alert, and EU-region
+staging evidence.
 
 ---
 
@@ -448,9 +460,15 @@ Ansible variables (see `infrastructure/ansible/group_vars/all.yml`):
 
 Before sending live mail, complete SPF, DKIM, and DMARC per [docs/EMAIL_DNS.md](./EMAIL_DNS.md).
 
-## Object storage (uploads)
+## Object storage, image, and search routing
 
 Product and shop images use **S3-compatible storage** (Garage locally, Scaleway in production) with presigned uploads — see `.env.example` (`S3_*`, `IMGPROXY_*`). This allows horizontal scaling without shared local disk.
+
+Shared environments expose imgproxy at the same-origin `/uploads` route and expose
+Meilisearch at `/meilisearch`. Caddy and the Ansible-managed staging Traefik route
+strip these prefixes before forwarding to private containers. The browser receives
+only the restricted Meilisearch search key; `MEILISEARCH_API_KEY` and all storage and
+imgproxy signing secrets remain server-only.
 
 ## Prometheus metrics
 

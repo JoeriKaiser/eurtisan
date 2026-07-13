@@ -2,6 +2,7 @@
 
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
 import { DataTablePagination } from './DataTablePagination'
 
 describe('DataTablePagination', () => {
@@ -66,6 +67,34 @@ describe('DataTablePagination', () => {
     const select = screen.getByLabelText('Shops per page')
     fireEvent.change(select, { target: { value: '50' } })
     expect(onPageSizeChange).toHaveBeenCalledWith(50)
+  })
+
+  it('announces page state in a localized named navigation landmark', () => {
+    render(
+      <DataTablePagination
+        page={2}
+        pageSize={20}
+        total={50}
+        onPageChange={vi.fn()}
+        onPageSizeChange={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByRole('navigation', { name: 'Pagination' })).toBeDefined()
+    expect(screen.getByText('Page 2 of 3').getAttribute('aria-live')).toBe('polite')
+  })
+
+  it('has no automated accessibility violations', async () => {
+    const { container } = render(
+      <DataTablePagination
+        page={1}
+        pageSize={20}
+        total={50}
+        onPageChange={vi.fn()}
+        onPageSizeChange={vi.fn()}
+      />,
+    )
+    expect(await axe(container)).toHaveNoViolations()
   })
 
   it('returns null when total is 0', () => {

@@ -1,0 +1,116 @@
+---
+- name: Validate deployment environment classification
+  ansible.builtin.assert:
+    that:
+      - deployment_environment in ['staging', 'production']
+      - caddy_domain is defined
+      - caddy_domain | length > 3
+    fail_msg: "deployment_environment and caddy_domain must identify staging or production"
+  tags: [always, preflight]
+
+- name: Validate launch-required integrations are explicitly enabled
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.vars', item, default='false') | bool
+    fail_msg: "{{ item }} is launch-required and must be explicitly true"
+  loop:
+    - meilisearch_enabled
+    - s3_storage_enabled
+    - imgproxy_enabled
+    - mollie_payments_enabled
+    - mollie_connect_enabled
+    - sendcloud_enabled
+    - faro_enabled
+  loop_control:
+    label: "{{ item }}"
+  tags: [always, preflight]
+
+- name: Validate required secret variables are present
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.vars', item, default='') | string | trim | length >= 16
+      - not (lookup('ansible.builtin.vars', item, default='') | string | lower is search('change.?me|placeholder|replace.?me|dummy'))
+    fail_msg: "{{ item }} is missing, too short, or contains a placeholder value"
+  loop:
+    - postgres_password
+    - better_auth_secret
+    - database_encryption_key
+    - meilisearch_api_key
+    - meilisearch_search_key
+    - s3_access_key_id
+    - s3_secret_access_key
+    - imgproxy_key
+    - imgproxy_salt
+    - mollie_api_key
+    - mollie_client_id
+    - mollie_client_secret
+    - sendcloud_public_key
+    - sendcloud_secret_key
+    - sendcloud_webhook_secret
+    - metrics_token
+    - grafana_admin_password
+  loop_control:
+    label: "{{ item }}"
+  tags: [always, preflight]
+
+- name: Validate optional Umami configuration when enabled
+  ansible.builtin.assert:
+    that:
+      - umami_script_url is defined
+      - umami_script_url is match('^https://')
+      - umami_website_id is defined
+      - umami_website_id | length > 0
+    fail_msg: "umami_script_url and umami_website_id are required when umami_enabled=true"
+  when: umami_enabled | bool
+  tags: [always, preflight]
+
+- name: Validate production email secrets are present
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.vars', item, default='') | string | trim | length >= 20
+    fail_msg: "{{ item }} is required when EMAIL_DELIVERY_PROVIDER=brevo"
+  loop:
+    - brevo_api_key
+  loop_control:
+    label: "{{ item }}"
+  when: email_delivery_provider == 'brevo'
+  tags: [always, preflight]
+
+- name: Validate production email webhook token length
+  ansible.builtin.assert:
+    that:
+      - brevo_webhook_token is defined
+      - brevo_webhook_token | length >= 64
+    fail_msg: "brevo_webhook_token must contain at least 64 characters"
+  when: email_delivery_provider == 'brevo'
+  tags: [always, preflight]
+
+- name: Validate secret formats and separation
+  ansible.builtin.assert:
+    that:
+      - database_encryption_key is match('^[A-Za-z0-9+/]{43}=$')
+      - database_encryption_key | b64decode | length == 32
+      - imgproxy_key is match('^[A-Fa-f0-9]{64,}$')
+      - imgproxy_salt is match('^[A-Fa-f0-9]{64,}$')
+      - meilisearch_search_key != meilisearch_api_key
+      - mollie_api_key is match('^(live|test)_[A-Za-z0-9_-]{20,}$')
+      - sendcloud_webhook_secret != sendcloud_secret_key
+    fail_msg: "Encryption, imgproxy, Meilisearch, Mollie, or webhook secret formats are invalid"
+  tags: [always, preflight]
+
+- name: Validate environment-specific provider safety
+  ansible.builtin.assert:
+    that:
+      - (deployment_environment == 'production' and not (mollie_test_mode | bool)) or (deployment_environment == 'staging' and (mollie_test_mode | bool))
+      - (deployment_environment == 'production' and not (sendcloud_force_unstamped_letter | bool)) or (deployment_environment == 'staging' and (sendcloud_force_unstamped_letter | bool))
+      - (deployment_environment == 'production' and email_delivery_provider == 'brevo') or (deployment_environment == 'staging' and email_delivery_provider == 'smtp')
+    fail_msg: "Mollie, Sendcloud, or email mode is inconsistent with deployment_environment"
+  tags: [always, preflight]
+
+- name: Validate alertmanager receiver configuration in production
+  ansible.builtin.assert:
+    that:
+      - (alertmanager_smtp_to | default('') | length > 0 and alertmanager_smtp_host | default('') | length > 0 and alertmanager_smtp_from | default('') | length > 0) or alertmanager_webhook_url | default('') | length > 0
+    fail_msg: "Production requires alertmanager_smtp_* or alertmanager_webhook_url"
+  when: deployment_environment == 'production'
+  tags: [always, preflight]

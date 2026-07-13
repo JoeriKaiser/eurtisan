@@ -131,10 +131,10 @@ export function Step3Visuals() {
     await saveStep(3, { image, bannerImage })
   }, [image, bannerImage, saveStep])
 
-  useStepActions(3, { validate, save })
+  const stepActionsRef = useStepActions(3, { validate, save })
 
   return (
-    <div className='space-y-6'>
+    <div ref={stepActionsRef} className='space-y-6'>
       <div>
         <h2 className='display-title text-2xl text-text-primary'>Visual Identity</h2>
         <p className='mt-1 text-text-secondary'>

@@ -450,6 +450,8 @@ ProductCard.test.tsx
 - Keep route orchestration in `src/routes/` and route-owned UI in the matching `src/route-components/` subtree.
 - Typed database access through Drizzle only.
 - Explicit loading/error states.
+- Route loaders or TanStack Query for remote data; event handlers for user-action consequences.
+- `useSyncExternalStore` for browser stores and React 19 callback refs with returned cleanup for DOM listeners or external registrations.
 - Small focused server functions.
 - Dependency injection through parameters instead of hidden globals.
 
@@ -837,12 +839,23 @@ environment.
 
 # Environment Variables
 
+Production and staging configuration has two validated contracts:
+
+- Browser-visible `VITE_*` values are immutable Docker build inputs validated by `src/lib/infra/public-environment.ts`. Unknown `VITE_*` names are rejected. Changing one requires rebuilding the image.
+- Server-only runtime values are validated by `src/lib/infra/server-environment.server.ts` before the web process and packaged background jobs start. Secrets must never use a `VITE_` prefix.
+
+Shared deployments expose imgproxy at same-origin `/uploads` and browser Meilisearch at `/meilisearch`; only the restricted search-only key is public. See `docs/runbooks/environment-configuration.md` for ownership and rotation.
+
 Copy `.env.local` and provide real values.
 
 ```bash
 # Observability (Grafana Stack — self-hosted)
+FARO_ENABLED=true
+VITE_FARO_ENABLED=true
 VITE_FARO_COLLECTOR_URL=/collect          # Faro beacon endpoint (same-origin)
 VITE_FARO_APP_NAME=eurtisan               # App name in Grafana
+VITE_FARO_SAMPLE_RATE=1
+VITE_PUBLIC_URL=http://localhost:3000
 VITE_APP_ENV=development                  # environment tag
 VITE_APP_VERSION=dev                      # release version tag
 
@@ -855,6 +868,8 @@ BETTER_AUTH_SECRET=
 PUBLIC_URL=http://localhost:3000
 
 # Umami (cookie-less analytics)
+UMAMI_ENABLED=false
+VITE_UMAMI_ENABLED=false
 VITE_UMAMI_SCRIPT_URL=
 VITE_UMAMI_WEBSITE_ID=
 VITE_UMAMI_HOST_URL=
@@ -884,6 +899,7 @@ DATABASE_POOL_IDLE_TIMEOUT_MS=30000
 DATABASE_POOL_CONNECTION_TIMEOUT_MS=5000
 
 # Meilisearch (server-side master key — NEVER expose to the browser)
+MEILISEARCH_ENABLED=true
 MEILISEARCH_HOST=http://localhost:7700
 MEILISEARCH_API_KEY=your-master-key
 
@@ -896,7 +912,25 @@ MEILISEARCH_API_KEY=your-master-key
 VITE_MEILISEARCH_HOST=http://localhost:7700
 VITE_MEILISEARCH_SEARCH_KEY=your-search-only-key
 
+# S3-compatible storage and imgproxy
+S3_STORAGE_ENABLED=true
+S3_ENDPOINT=http://garage:3900
+S3_PUBLIC_ENDPOINT=http://localhost:3900
+S3_REGION=garage
+S3_BUCKET=eurtisan-uploads
+S3_ACCESS_KEY_ID=
+S3_SECRET_ACCESS_KEY=
+IMGPROXY_ENABLED=true
+IMGPROXY_BASE_URL=http://localhost:8080
+IMGPROXY_HEALTH_URL=
+IMGPROXY_KEY=
+IMGPROXY_SALT=
+VITE_IMGPROXY_BASE_URL=http://localhost:8080
+VITE_S3_BUCKET=eurtisan-uploads
+
 # Mollie Payments (buyer checkout, refunds)
+MOLLIE_PAYMENTS_ENABLED=true
+MOLLIE_CONNECT_ENABLED=true
 # Classic webhooks are verified by retrieving authoritative payment state with this API key.
 MOLLIE_API_KEY=
 # Set to 'true' explicitly for local mock-payment testing
@@ -916,6 +950,7 @@ MOLLIE_CLIENT_SECRET=
 MOLLIE_TEST_MODE=true
 
 # Sendcloud (shipping labels, rates, tracking, service points)
+SENDCLOUD_ENABLED=true
 SENDCLOUD_PUBLIC_KEY=your-sendcloud-public-key
 SENDCLOUD_SECRET_KEY=your-sendcloud-secret-key
 # Webhook secret for HMAC-SHA256 verification of Sendcloud status callbacks.
@@ -936,6 +971,10 @@ MOCK_PAYOUTS_ENABLED=false
 
 # Payout reconciliation job interval (milliseconds). Default: 6 hours.
 PAYOUT_RECONCILIATION_INTERVAL_MS=21600000
+
+# Read-only financial invariant scan. Default cadence: 6 hours; batch: 500 records.
+FINANCIAL_TOTALS_RECONCILIATION_INTERVAL_MS=21600000
+FINANCIAL_TOTALS_RECONCILIATION_BATCH_SIZE=500
 
 # Sendcloud reconciliation job interval (milliseconds). Default: 6 hours.
 SENDCLOUD_RECONCILIATION_INTERVAL_MS=21600000
@@ -985,16 +1024,25 @@ make auth-secret
 | `make build` | Build production app |
 | `make preview` | Preview production build |
 | `make start` | Start production server |
-| `make lint` | Run the read-only Biome lint and format check |
-| `make format` | Run formatting |
-| `make check` | Run full checks |
+| `make lint` | Run the read-only Biome lint check |
+| `make format` | Run the read-only Biome format check |
+| `make format-fix` | Apply formatting explicitly |
+| `make check` | Run TypeScript checks |
 | `make audit-production` | Fail on moderate-or-higher production dependency advisories |
-| `make test` | Run tests (optionally with specific files: `make test <paths>`) |
+| `make bundle-check` | Enforce measured production client bundle budgets |
+| `make production-image-smoke` | Build and smoke-test production image configuration |
+| `make compose-check` | Validate production and staging Compose models |
+| `make ci-workflow-check` | Validate GitHub Actions syntax and semantics |
+| `make shell-syntax` | Validate shell scripts and rendered backup template syntax |
+| `make ansible-check` | Validate Ansible syntax, synthetic preflight, and templates |
+| `make test` | Run tests with release-warning enforcement (optionally with specific files: `make test <paths>`) |
 | `make test-related` | Run tests related to specific files (`make test-related <paths>`) |
+| `make test-accessibility` | Run focused rendered accessibility scans and static theme/reflow contracts |
 | `make auth-secret` | Generate Better Auth secret |
 | `make db-generate` | Generate migrations |
 | `make db-check` | Validate the Drizzle migration chain |
 | `make db-migrate` | Run migrations |
+| `make db-migrate-fresh` | Apply all migrations to an ephemeral isolated PostgreSQL database |
 | `make db-push` | Push schema locally |
 | `make db-studio` | Open Drizzle Studio |
 | `make i18n-compile` | Compile localization messages |
@@ -1092,6 +1140,7 @@ If implementation and documentation diverge, the documentation is considered out
 - Background jobs required for production correctness must be deployed as long-running containers or scheduled processes. The following jobs are not optional at launch:
   - `bun run job:mollie-payment-reconciliation` — recovers delayed or missed classic Mollie payment webhooks.
   - `bun run job:payout-reconciliation` — reconciles payout status and alerts on stale pending payouts.
+  - `bun run job:financial-totals-reconciliation` — runs a singleton, six-hour, repeatable-read and strictly read-only invariant scan across orders, VAT, invoices, refunds, payouts, and provider state; any correction requires the authorized procedure in `docs/runbooks/financial-reconciliation.md`.
   - `bun run job:sendcloud-reconciliation` — backfills missed Sendcloud webhook status updates and marks delivered orders. This job must be running before the Sendcloud integration is considered live in production.
   - `bun run job:inventory-cleanup` — releases expired inventory reservations and cancels abandoned pending-payment orders.
   - `bun run job:session-cleanup` — deletes expired Better Auth sessions.

@@ -157,12 +157,19 @@ The app is available at `http://localhost:3000`.
 | `make dev` | Start dev server with hot reload |
 | `make build` | Production build |
 | `make preview` | Preview production build |
-| `make lint` | Run the read-only Biome lint and format check |
-| `make format` | Run Biome formatter |
+| `make lint` | Run the read-only Biome lint check |
+| `make format` | Run the read-only Biome format check |
+| `make format-fix` | Apply Biome formatting explicitly |
 | `make check` | TypeScript type check |
-| `make test` | Run Vitest suite |
+| `make test` | Run Vitest with release-warning enforcement |
 | `make test-related <path>` | Run tests impacted by a file |
+| `make test-accessibility` | Run focused component accessibility scans plus contrast/reflow contracts |
 | `make db-check` | Validate the Drizzle migration chain |
+| `make db-migrate-fresh` | Apply all migrations to an ephemeral PostgreSQL database |
+| `make bundle-check` | Enforce measured production client bundle budgets |
+| `make production-image-smoke` | Build and validate the production image/configuration |
+| `make compose-check` | Validate production and staging Compose models |
+| `make ansible-check` | Validate Ansible syntax, preflight, and templates |
 | `make e2e` | Run Playwright E2E tests |
 | `make shell` | Open a shell in the app container |
 
@@ -201,13 +208,20 @@ Copy `.env.example` to `.env.local` and fill in the values. Key variables:
 | `DATABASE_ENCRYPTION_KEY` | 256-bit base64 key for encrypting sensitive fields at rest |
 | `BETTER_AUTH_SECRET` | Session signing secret |
 | `BETTER_AUTH_URL` | Public auth endpoint base URL |
-| `MEILISEARCH_HOST` / `MEILISEARCH_API_KEY` | Search index |
+| `MEILISEARCH_HOST` / `MEILISEARCH_API_KEY` | Private search index and master key |
+| `VITE_MEILISEARCH_HOST` / `VITE_MEILISEARCH_SEARCH_KEY` | Public same-origin search route and restricted search-only key |
+| `S3_*` / `IMGPROXY_*` | Object storage and signed image delivery |
 | `MOLLIE_API_KEY` | Payment provider |
 | `SENDCLOUD_PUBLIC_KEY` / `SENDCLOUD_SECRET_KEY` | Sendcloud shipping integration credentials |
 | `BREVO_API_KEY` | Transactional email |
 | `MOCK_PAYMENTS_ENABLED` | Enable mock payment flow for local dev |
 | `ENABLE_VIES_VALIDATION` | Enable live validation with EU VIES service |
 | `PLATFORM_VAT_LIABLE` | Charge VAT on platform fees (French regime when false) |
+
+`VITE_*` values are validated image-build inputs and require a rebuild when changed.
+Server secrets are validated separately at process startup and must never use the
+`VITE_` prefix. See
+[`docs/runbooks/environment-configuration.md`](docs/runbooks/environment-configuration.md).
 
 ---
 
@@ -242,7 +256,7 @@ make infra-setup-staging
 make infra-setup-production
 ```
 
-See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for full details on DNS, SSH tunnels, IP whitelisting, backups, and restore procedures.
+See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for deployment details. Release gates and the evidence-oriented staging process are documented in [`docs/runbooks/release-quality-gates.md`](docs/runbooks/release-quality-gates.md) and [`docs/runbooks/staging-qualification.md`](docs/runbooks/staging-qualification.md).
 
 ---
 
@@ -250,7 +264,7 @@ See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for full details on DNS, SSH tunn
 
 For deeper architectural, compliance, and operational details, refer to:
 
-- **Architecture & Code Placement:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (directory ownership, route/UI conventions, server/client boundaries, and generated files).
+- **Architecture & Code Placement:** [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (directory ownership, route splitting, route/UI conventions, React lifecycle ownership, server/client boundaries, and generated files).
 - **Developer Experience & Tooling:** [`docs/DEVELOPER_TOOLING.md`](docs/DEVELOPER_TOOLING.md) (SMTP/Mailpit email verification, Meilisearch checks, Drizzle Studio, and Playwright Agent CLI commands).
 - **Deployment & Backups:** [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) (Ansible setups, rollback procedures, database and WAL/offsite backup policies).
 - **GDPR & Privacy:** [`docs/DATA_RETENTION.md`](docs/DATA_RETENTION.md) (Data portability exports, deletion/erasure rules, and anonymization pipelines).

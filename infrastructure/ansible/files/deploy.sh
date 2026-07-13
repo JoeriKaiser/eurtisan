@@ -34,11 +34,11 @@ if [ "${1:-}" = "--canary" ]; then
 fi
 
 GIT_REF="${1:-main}"
-# Docker image tags cannot contain '/' (e.g. feature/foo).
-IMAGE_TAG="$(echo "$GIT_REF" | tr '/' '-')"
-export IMAGE_TAG
 
-PUBLIC_URL="${PUBLIC_URL:-http://localhost:3000}"
+if [ -z "${PUBLIC_URL:-}" ]; then
+  echo "==> CONFIGURATION FAILED: PUBLIC_URL is required"
+  exit 1
+fi
 SMOKE_TEST_BASE="${SMOKE_TEST_BASE:-http://app:3000}"
 DEPLOY_ALERT_WEBHOOK="${DEPLOY_ALERT_WEBHOOK:-${BACKUP_ALERT_WEBHOOK:-}}"
 CANARY_PORT="${CANARY_PORT:-3001}"
@@ -165,8 +165,27 @@ echo "==> Checking out ${GIT_REF}..."
 git checkout "${GIT_REF}"
 git pull origin "${GIT_REF}"
 
+RELEASE_VERSION="$(git rev-parse HEAD)"
+IMAGE_TAG="${RELEASE_VERSION:0:12}"
+VITE_APP_VERSION="$RELEASE_VERSION"
+export IMAGE_TAG VITE_APP_VERSION
+
+# Keep runtime observability metadata aligned with the immutable build input.
+# These are public values; Ansible remains the owner of every secret in .env.
+sed -i -E "s/^IMAGE_TAG=.*/IMAGE_TAG=${IMAGE_TAG}/" "$APP_DIR/.env"
+sed -i -E "s/^VITE_APP_VERSION=.*/VITE_APP_VERSION=${RELEASE_VERSION}/" "$APP_DIR/.env"
+
+# Compose interpolation must succeed before any application container starts.
+docker compose -f "$COMPOSE_FILE" config >/dev/null
+
 echo "==> Building application image (tag: ${IMAGE_TAG})..."
 docker compose -f "$COMPOSE_FILE" build app
+
+echo "==> Validating compiled browser configuration..."
+docker run --rm --env-file "$APP_DIR/.env" "eurtisan-app:${IMAGE_TAG}" bun run smoke:client-config
+
+echo "==> Validating server environment contract..."
+docker compose -f "$COMPOSE_FILE" run --rm --no-deps app bun run validate:server-env
 
 echo "==> Running database migrations..."
 if docker compose -f "$COMPOSE_FILE" run --rm app bun run db:migrate; then

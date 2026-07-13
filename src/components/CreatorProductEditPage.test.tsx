@@ -489,7 +489,7 @@ describe('CreatorProductEditPage', () => {
     )
 
     const file = new File(['fake-png'], 'new-product.png', { type: 'image/png' })
-    const input = document.getElementById('product-image-upload') as HTMLInputElement
+    const input = screen.getByLabelText('Product images') as HTMLInputElement
     fireEvent.change(input, { target: { files: [file] } })
 
     await waitFor(() => {
@@ -744,9 +744,8 @@ describe('CreatorProductEditPage', () => {
     expect(screen.getByText('Are you sure you want to delete this product?')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Delete' })).toBeTruthy()
 
-    // There are two "Cancel" buttons: form Cancel + dialog Cancel. Verify both exist.
-    const cancelButtons = screen.getAllByRole('button', { name: 'Cancel' })
-    expect(cancelButtons.length).toBe(2)
+    // The modal makes background controls inaccessible while it owns focus.
+    expect(screen.getAllByRole('button', { name: 'Cancel' })).toHaveLength(1)
   })
 
   it('cancels delete confirmation dialog', () => {
@@ -761,10 +760,7 @@ describe('CreatorProductEditPage', () => {
     const deleteButton = screen.getByRole('button', { name: /Delete product/i })
     fireEvent.click(deleteButton)
 
-    // Click the dialog's Cancel button (second "Cancel" in DOM — the first is the form Cancel)
-    const cancelButtons = screen.getAllByRole('button', { name: 'Cancel' })
-    // The dialog Cancel is the last one rendered
-    fireEvent.click(cancelButtons[cancelButtons.length - 1])
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
 
     expect(screen.queryByRole('dialog')).toBeNull()
   })

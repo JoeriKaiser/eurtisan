@@ -16,6 +16,7 @@ All long-running jobs in `src/jobs/` are instrumented:
 - `mollie-payment-reconciliation`
 - `payout-reconciliation`
 - `sendcloud-reconciliation`
+- `financial-totals-reconciliation` (also see [financial-reconciliation.md](./financial-reconciliation.md))
 - `meilisearch-sync` (if running as a continuous job)
 
 ## Alerts

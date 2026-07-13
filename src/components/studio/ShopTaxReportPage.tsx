@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Download, FileText } from 'lucide-react'
 import { m } from '#/paraglide/messages'
@@ -122,6 +122,7 @@ export function ShopTaxReportPage({ initialReport }: ShopTaxReportPageProps) {
   const [period, setPeriod] = useState<ShopTaxReport['period']>(initialReport.period)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const requestVersionRef = useRef(0)
 
   const currentYear = new Date().getFullYear()
   const years = useMemo(() => {
@@ -130,6 +131,8 @@ export function ShopTaxReportPage({ initialReport }: ShopTaxReportPageProps) {
 
   const loadReport = useCallback(
     async (nextPeriod: ShopTaxReport['period']) => {
+      const requestVersion = ++requestVersionRef.current
+      setPeriod(nextPeriod)
       setIsLoading(true)
       setError(null)
       try {
@@ -140,38 +143,42 @@ export function ShopTaxReportPage({ initialReport }: ShopTaxReportPageProps) {
             month: nextPeriod.month,
           },
         })
+        if (requestVersion !== requestVersionRef.current) return
         setReport(nextReport)
         setPeriod(nextReport.period)
       } catch (err) {
-        setError(err instanceof Error ? err.message : m.tax_report_error())
+        if (requestVersion === requestVersionRef.current) {
+          setError(err instanceof Error ? err.message : m.tax_report_error())
+        }
       } finally {
-        setIsLoading(false)
+        if (requestVersion === requestVersionRef.current) setIsLoading(false)
       }
     },
     [initialReport.shopId],
   )
 
-  useEffect(() => {
-    if (period.year !== initialReport.period.year || period.month !== initialReport.period.month) {
-      void loadReport(period)
+  const lifecycleOwnerRef = useCallback((node: HTMLElement | null) => {
+    if (!node) return
+    return () => {
+      requestVersionRef.current++
     }
-  }, [period, loadReport, initialReport.period.year, initialReport.period.month])
+  }, [])
 
   const handleYearChange = (value: string) => {
-    setPeriod((prev) => ({ ...prev, year: Number.parseInt(value, 10) }))
+    void loadReport({ ...period, year: Number.parseInt(value, 10) })
   }
 
   const handleMonthChange = (value: string) => {
-    setPeriod((prev) =>
+    const nextPeriod =
       value === 'annual'
-        ? { year: prev.year }
-        : { year: prev.year, month: Number.parseInt(value, 10) },
-    )
+        ? { year: period.year }
+        : { year: period.year, month: Number.parseInt(value, 10) }
+    void loadReport(nextPeriod)
   }
 
   return (
     <main className='page-wrap px-4 py-12'>
-      <section className='island-shell rounded-2xl p-6 sm:p-8'>
+      <section ref={lifecycleOwnerRef} className='island-shell rounded-2xl p-6 sm:p-8'>
         <div className='mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
           <div>
             <h1 className='display-title mb-2 text-3xl font-semibold text-text-primary'>

@@ -117,7 +117,7 @@ vi.mock('#/paraglide/messages', () => ({
   },
 }))
 
-import { AdminDashboard, StatCard } from './AdminDashboard'
+import { AdminDashboard, StatCard } from '#/route-components/admin/index'
 
 describe('AdminDashboard', () => {
   it('renders the dashboard title', () => {

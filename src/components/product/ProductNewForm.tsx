@@ -1,9 +1,10 @@
 import { useRouter } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
+import { useCallback, useReducer, useRef, useState } from 'react'
 import { Button } from '#/components/ui/button'
 import { FeedbackBanner } from '#/components/ui/FeedbackBanner'
 import { useImageUpload } from '#/hooks/useImageUpload'
+import { useManagedTimeouts } from '#/hooks/useManagedTimeouts'
 import type { CreatorShop } from '#/lib/creator-dashboard'
 import { createProduct } from '#/lib/creator-products'
 import { createProductSchema } from '#/lib/creator-products.schema'
@@ -28,8 +29,6 @@ interface FeedbackState {
 const MAX_IMAGES = 10
 const MAX_IMAGE_SIZE = 5 * 1024 * 1024 // 5MB
 const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
-const SLUG_DEBOUNCE_MS = 400
-
 /* -------------------------------------------------------------------------- */
 /*                          Module-scope pure functions                       */
 /* -------------------------------------------------------------------------- */
@@ -134,12 +133,12 @@ interface ProductNewFormProps {
 
 export function ProductNewForm({ initialShops, categories }: ProductNewFormProps) {
   const router = useRouter()
+  const { schedule } = useManagedTimeouts()
 
   const [formState, dispatchForm] = useReducer(formReducer, initialShops, createInitialFormState)
   const [images, setImages] = useState<UploadedImage[]>([])
 
   const slugManuallyEditedRef = useRef(false)
-  const slugTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [submitting, setSubmitting] = useState(false)
   const [feedback, setFeedback] = useState<FeedbackState | null>(null)
@@ -174,32 +173,15 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
   const handleSlugChange = (value: string) => {
     const cleaned = value.toLowerCase().replace(/\s+/g, '-')
     dispatchForm({ type: 'setField', field: 'slug', value: cleaned })
+    dispatchForm({
+      type: 'setSlugError',
+      error:
+        cleaned && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(cleaned)
+          ? m.creator_product_new_slug_format_error()
+          : null,
+    })
     slugManuallyEditedRef.current = true
   }
-
-  // Debounced slug format validation
-  useEffect(() => {
-    if (slugTimerRef.current) {
-      clearTimeout(slugTimerRef.current)
-    }
-
-    slugTimerRef.current = setTimeout(() => {
-      dispatchForm({
-        type: 'setSlugError',
-        error: !formState.values.slug
-          ? null
-          : !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(formState.values.slug)
-            ? m.creator_product_new_slug_format_error()
-            : null,
-      })
-    }, SLUG_DEBOUNCE_MS)
-
-    return () => {
-      if (slugTimerRef.current) {
-        clearTimeout(slugTimerRef.current)
-      }
-    }
-  }, [formState.values.slug])
 
   /* ---------------------------- Image handling ----------------------------- */
 
@@ -448,9 +430,13 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
 
       setFeedback({ type: 'success', message: m.creator_product_new_save_success() })
 
-      setTimeout(() => {
-        router.navigate({ to: '/creator/products' })
-      }, 800)
+      schedule(
+        'post-create-navigation',
+        () => {
+          router.navigate({ to: '/creator/products' })
+        },
+        800,
+      )
     } catch (err) {
       if (err instanceof Error) {
         if (err.message === 'DUPLICATE_SLUG') {

@@ -1,5 +1,5 @@
 import { useLoaderData, useNavigate, useSearch } from '@tanstack/react-router'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { downloadCSV, generateCSV } from '#/lib/csv-export'
 import { moderateShop as moderateShopApplication } from '#/lib/sell-onboarding'
 import type { PaginatedShops, ShopListItem, SuspensionFilter } from '#/lib/shop-moderation'
@@ -62,6 +62,16 @@ const STATUS_LABELS: Record<string, string> = {
 
 export function AdminShopsPage() {
   const loaderData = useLoaderData({ from: '/admin/shops' }) as LoaderResult
+  const search = useSearch({ from: '/admin/shops' })
+  const rows =
+    loaderData.view === 'moderation'
+      ? loaderData.shops.shops.map((shop) => `${shop.id}:${shop.isSuspended}`)
+      : loaderData.applications.map((application) => `${application.id}:${application.status}`)
+  return <AdminShopsContent key={`${JSON.stringify(search)}:${rows.join(',')}`} />
+}
+
+function AdminShopsContent() {
+  const loaderData = useLoaderData({ from: '/admin/shops' }) as LoaderResult
   const navigate = useNavigate()
   const search = useSearch({ from: '/admin/shops' })
 
@@ -103,16 +113,6 @@ export function AdminShopsPage() {
   // --- Refs for stale-closure safety ---
   const searchRef = useRef(search)
   searchRef.current = search
-  const successTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
-
-  // Sync state with loader data changes
-  useEffect(() => {
-    if (loaderData.view === 'moderation') {
-      setShops(loaderData.shops)
-    } else {
-      setApplications(loaderData.applications)
-    }
-  }, [loaderData])
 
   /* ---- Navigation helpers ---- */
   const navigateWithParams = useCallback(
@@ -327,9 +327,6 @@ export function AdminShopsPage() {
             ? m.admin_shops_suspended_success({ name: result.name })
             : m.admin_shops_unsuspended_success({ name: result.name }),
         )
-
-        if (successTimerRef.current) clearTimeout(successTimerRef.current)
-        successTimerRef.current = setTimeout(() => setSuccessMessage(null), 3000)
       } catch (err) {
         setActionError(err instanceof Error ? err.message : m.admin_shops_action_error())
       } finally {
@@ -392,9 +389,6 @@ export function AdminShopsPage() {
 
       setSuccessMessage(m.admin_shops_review_success({ status: STATUS_LABELS[result.status] }))
       setSelectedAppId(null)
-
-      if (successTimerRef.current) clearTimeout(successTimerRef.current)
-      successTimerRef.current = setTimeout(() => setSuccessMessage(null), 3000)
     } catch (err) {
       setActionError(err instanceof Error ? err.message : m.admin_shops_action_error())
     } finally {

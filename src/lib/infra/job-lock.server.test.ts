@@ -37,6 +37,20 @@ describe('withJobLock', () => {
     }
   })
 
+  it('prevents overlapping financial reconciliation runs', async () => {
+    const holder = new Client({ connectionString: DATABASE_URL })
+    await holder.connect()
+    await holder.query('SELECT pg_advisory_lock(1015)')
+
+    try {
+      const result = await withJobLock('financial-totals-reconciliation', async () => 'ran')
+      expect(result).toBeUndefined()
+    } finally {
+      await holder.query('SELECT pg_advisory_unlock(1015)')
+      await holder.end()
+    }
+  })
+
   it('releases the lock after the callback throws so a second attempt can succeed', async () => {
     await expect(
       withJobLock('session-cleanup', async () => {

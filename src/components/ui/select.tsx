@@ -21,7 +21,8 @@ export function Select({ className, error, children, ref, ...props }: SelectProp
         className,
       )}
       aria-invalid={error ? 'true' : undefined}
-      aria-describedby={error ? `${props.id}-error` : undefined}
+      aria-describedby={error && props.id ? `${props.id}-error` : undefined}
+      aria-errormessage={error && props.id ? `${props.id}-error` : undefined}
       {...props}
     >
       {children}

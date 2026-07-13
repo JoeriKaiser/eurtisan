@@ -4,7 +4,7 @@ import { s3Client, getS3Bucket } from '../src/lib/s3-client.server.ts'
 async function setupCors() {
   const bucketName = getS3Bucket()
   console.log(`[garage-cors] Setting up CORS for bucket: ${bucketName}`)
-  
+
   try {
     const command = new PutBucketCorsCommand({
       Bucket: bucketName,
@@ -20,7 +20,7 @@ async function setupCors() {
         ],
       },
     })
-    
+
     await s3Client.send(command)
     console.log('[garage-cors] CORS configuration applied successfully!')
   } catch (error) {

@@ -17,7 +17,7 @@ import {
   Users,
   X,
 } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { authClient } from '#/lib/auth-client'
 import { useAuth } from '#/lib/auth-hooks'
 import { cn } from '#/lib/cn'
@@ -246,16 +246,6 @@ function AdminSearchModal({
     [onOpenChange, router],
   )
 
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const timer = setTimeout(() => {
-      inputRef.current?.focus()
-    }, 50)
-    return () => clearTimeout(timer)
-  }, [open])
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogPortal>
@@ -265,8 +255,8 @@ function AdminSearchModal({
             <div className='flex items-center gap-3'>
               <Search size={18} className='text-text-muted' aria-hidden='true' />
               <input
-                ref={inputRef}
                 type='text'
+                autoFocus={open}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder={m.admin_layout_search_placeholder()}
@@ -321,8 +311,8 @@ export function AdminLayout() {
 
   const currentPath = location.pathname
 
-  // Keyboard shortcuts
-  useEffect(() => {
+  const keyboardShortcutOwnerRef = useCallback((node: HTMLDivElement | null) => {
+    if (!node) return
     const handler = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey) && e.shiftKey) {
         e.preventDefault()
@@ -428,7 +418,7 @@ export function AdminLayout() {
   )
 
   return (
-    <div className='flex min-h-screen flex-col md:flex-row'>
+    <div ref={keyboardShortcutOwnerRef} className='flex min-h-screen flex-col md:flex-row'>
       {/* Mobile drawer overlay */}
       {mobileOpen && (
         <div

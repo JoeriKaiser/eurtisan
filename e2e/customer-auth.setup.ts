@@ -1,7 +1,7 @@
 import { existsSync, statSync } from 'node:fs'
+import { expect, test as setup } from '@playwright/test'
 import { E2E_CUSTOMER, loadAuthCookies } from './fixtures/auth'
 import { dismissAnalyticsConsentBanner } from './fixtures/consent'
-import { test as setup, expect } from '@playwright/test'
 
 const authFile = 'e2e/.auth/customer.json'
 const baseURL = process.env.BASE_URL || 'http://localhost:3000'
@@ -59,9 +59,6 @@ setup('authenticate as customer', async ({ page }) => {
   await page.context().addCookies(cookies)
 
   await page.setViewportSize({ width: 1440, height: 900 })
-  page.on('console', (msg) => console.log('PAGE LOG:', msg.text()))
-  page.on('pageerror', (err) => console.log('PAGE ERROR:', err.message))
-
   await page.goto('/')
   await page.waitForSelector('html[data-hydrated="true"]')
   await dismissAnalyticsConsentBanner(page)

@@ -1,6 +1,6 @@
 import { formOptions, useForm } from '@tanstack/react-form'
 import { Loader2, MapPin, Truck } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import z from 'zod'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
@@ -357,46 +357,21 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
     [cartId, form, clearPickupPointIfNoServicePointMethod],
   )
 
-  // Listen for address field changes and debounce rate fetching
-  const subscribeToAddressChanges = useCallback(() => {
-    const subscription = form.store.subscribe(() => {
-      const state = form.store.state
-      const addr = state.values.shippingAddress
-
-      // Only fetch rates once the address has country + postalCode + city (minimum)
-      if (!addr.country || !addr.postalCode || !addr.city) return
-
-      // Validate the partial address before fetching
-      const result = addressSchema.safeParse(addr)
-      if (!result.success) return
-
-      // Debounce: wait 600ms after the last keystroke
+  const scheduleRateFetch = useCallback(
+    (address: CheckoutFormValues['shippingAddress']) => {
+      if (!addressSchema.safeParse(address).success) return
       if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current)
-      fetchTimerRef.current = setTimeout(() => {
-        fetchRates(addr)
-      }, 600)
-    })
+      fetchTimerRef.current = setTimeout(() => void fetchRates(address), 600)
+    },
+    [fetchRates],
+  )
 
+  const formOwnerRef = useCallback((node: HTMLFormElement | null) => {
+    if (!node) return
     return () => {
-      if (
-        subscription &&
-        typeof subscription === 'object' &&
-        'unsubscribe' in subscription &&
-        typeof subscription.unsubscribe === 'function'
-      ) {
-        subscription.unsubscribe()
-      }
-    }
-  }, [form.store, fetchRates])
-
-  const unsubRef = useRef<(() => void) | null>(null)
-  useEffect(() => {
-    unsubRef.current = subscribeToAddressChanges()
-    return () => {
-      unsubRef.current?.()
       if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current)
     }
-  }, [subscribeToAddressChanges])
+  }, [])
 
   const openPickupPointPicker = () => {
     setDialog((prev) => ({ key: prev.key + 1, open: true }))
@@ -421,6 +396,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
           finally redirects to an external payment provider URL. A native
           <form action> would forfeit all of this client-side orchestration. */}
       <form
+        ref={formOwnerRef}
         onSubmit={async (e) => {
           e.preventDefault()
           e.stopPropagation()
@@ -454,7 +430,13 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                       id={field.name}
                       name={field.name}
                       value={field.state.value}
-                      onChange={(e) => field.handleChange(e.target.value)}
+                      onChange={(e) => {
+                        field.handleChange(e.target.value)
+                        scheduleRateFetch({
+                          ...form.store.state.values.shippingAddress,
+                          name: e.target.value,
+                        })
+                      }}
                       onBlur={field.handleBlur}
                       error={getFieldError(field.state.meta.errors[0])}
                       autoComplete='name'
@@ -478,7 +460,13 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                       id={field.name}
                       name={field.name}
                       value={field.state.value}
-                      onChange={(e) => field.handleChange(e.target.value)}
+                      onChange={(e) => {
+                        field.handleChange(e.target.value)
+                        scheduleRateFetch({
+                          ...form.store.state.values.shippingAddress,
+                          street: e.target.value,
+                        })
+                      }}
                       onBlur={field.handleBlur}
                       error={getFieldError(field.state.meta.errors[0])}
                       autoComplete='street-address'
@@ -502,7 +490,13 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                       id={field.name}
                       name={field.name}
                       value={field.state.value}
-                      onChange={(e) => field.handleChange(e.target.value)}
+                      onChange={(e) => {
+                        field.handleChange(e.target.value)
+                        scheduleRateFetch({
+                          ...form.store.state.values.shippingAddress,
+                          city: e.target.value,
+                        })
+                      }}
                       onBlur={field.handleBlur}
                       error={getFieldError(field.state.meta.errors[0])}
                       autoComplete='address-level2'
@@ -526,7 +520,13 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                       id={field.name}
                       name={field.name}
                       value={field.state.value}
-                      onChange={(e) => field.handleChange(e.target.value)}
+                      onChange={(e) => {
+                        field.handleChange(e.target.value)
+                        scheduleRateFetch({
+                          ...form.store.state.values.shippingAddress,
+                          postalCode: e.target.value,
+                        })
+                      }}
                       onBlur={field.handleBlur}
                       error={getFieldError(field.state.meta.errors[0])}
                       autoComplete='postal-code'
@@ -550,7 +550,13 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                       id={field.name}
                       name={field.name}
                       value={field.state.value}
-                      onChange={(e) => field.handleChange(e.target.value)}
+                      onChange={(e) => {
+                        field.handleChange(e.target.value)
+                        scheduleRateFetch({
+                          ...form.store.state.values.shippingAddress,
+                          country: e.target.value,
+                        })
+                      }}
                       onBlur={field.handleBlur}
                       aria-invalid={!!field.state.meta.errors[0]}
                       aria-describedby={

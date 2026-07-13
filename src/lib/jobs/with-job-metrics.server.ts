@@ -10,7 +10,11 @@
 import { jobLastSuccessTimestamp, jobRunDurationSeconds, jobRunsTotal } from '#/lib/metrics.server'
 import { logger } from '#/lib/logger.server'
 
-export async function withJobMetrics(jobName: string, fn: () => Promise<void>): Promise<void> {
+export async function withJobMetrics(
+  jobName: string,
+  fn: () => Promise<void>,
+  options: { rethrow?: boolean } = {},
+): Promise<void> {
   const end = jobRunDurationSeconds.startTimer({ job: jobName })
 
   try {
@@ -21,6 +25,7 @@ export async function withJobMetrics(jobName: string, fn: () => Promise<void>): 
   } catch (error) {
     jobRunsTotal.inc({ job: jobName, status: 'failure' })
     logger.error(`Job tick failed: ${jobName}`, error, { alert: true, job: jobName })
+    if (options.rethrow) throw error
   } finally {
     end()
   }

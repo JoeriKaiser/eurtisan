@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockInvalidate = vi.fn()
@@ -346,7 +346,7 @@ describe('CreatorProductNewPage', () => {
     render(<CreatorProductNewPage shops={makeShops()} categories={makeCategories()} />)
 
     const file = new File(['dummy'], 'test.gif', { type: 'image/gif' })
-    const input = document.getElementById('product-image-upload') as HTMLInputElement
+    const input = screen.getByLabelText('Product images') as HTMLInputElement
     fireEvent.change(input, { target: { files: [file] } })
 
     await waitFor(() => {
@@ -359,7 +359,7 @@ describe('CreatorProductNewPage', () => {
 
     const largeBuffer = new ArrayBuffer(6 * 1024 * 1024)
     const file = new File([largeBuffer], 'large.png', { type: 'image/png' })
-    const input = document.getElementById('product-image-upload') as HTMLInputElement
+    const input = screen.getByLabelText('Product images') as HTMLInputElement
     fireEvent.change(input, { target: { files: [file] } })
 
     await waitFor(() => {
@@ -371,7 +371,7 @@ describe('CreatorProductNewPage', () => {
     render(<CreatorProductNewPage shops={makeShops()} categories={makeCategories()} />)
 
     const file = new File(['fake-png-content'], 'product.png', { type: 'image/png' })
-    const input = document.getElementById('product-image-upload') as HTMLInputElement
+    const input = screen.getByLabelText('Product images') as HTMLInputElement
     fireEvent.change(input, { target: { files: [file] } })
 
     // Should show a 'reading' state initially, then the thumbnail
@@ -514,27 +514,29 @@ describe('CreatorProductNewPage', () => {
       expect((submitButton as HTMLButtonElement).disabled).toBe(true)
     })
 
-    // Resolve and clean up
-    resolvePromise({
-      id: 'new-product',
-      name: 'Handmade Mug',
-      description: null,
-      slug: 'handmade-mug',
-      priceCents: 2999,
-      stockCount: 10,
-      isActive: true,
-      status: 'published',
-      publishedAt: new Date(),
-      vatRateCategory: 'standard',
-      shopId: 'shop-1',
-      categoryId: null,
-      lowStockThreshold: 5,
-      weightGrams: null,
-      lengthCm: null,
-      widthCm: null,
-      heightCm: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+    await act(async () => {
+      resolvePromise({
+        id: 'new-product',
+        name: 'Handmade Mug',
+        description: null,
+        slug: 'handmade-mug',
+        priceCents: 2999,
+        stockCount: 10,
+        isActive: true,
+        status: 'published',
+        publishedAt: new Date(),
+        vatRateCategory: 'standard',
+        shopId: 'shop-1',
+        categoryId: null,
+        lowStockThreshold: 5,
+        weightGrams: null,
+        lengthCm: null,
+        widthCm: null,
+        heightCm: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      await deferred
     })
   })
 

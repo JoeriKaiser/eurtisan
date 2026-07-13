@@ -21,13 +21,16 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     environment:
-      - CADDY_DOMAIN=${CADDY_DOMAIN}
+      - CADDY_DOMAIN=${CADDY_DOMAIN:?required public domain}
+      - GRAFANA_ADMIN_IPS=${GRAFANA_ADMIN_IPS:-0.0.0.0/32}
     networks:
       - eurtisan
     depends_on:
       app:
         condition: service_healthy
       imgproxy:
+        condition: service_healthy
+      meilisearch:
         condition: service_healthy
     deploy:
       resources:
@@ -40,6 +43,24 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.prod
+      args:
+        PUBLIC_ANALYTICS_CONSENT_REQUIRED: ${VITE_ANALYTICS_CONSENT_REQUIRED:?required public build value}
+        PUBLIC_APP_ENV: ${VITE_APP_ENV:?required public build value}
+        PUBLIC_APP_VERSION: ${VITE_APP_VERSION:?immutable release version required}
+        PUBLIC_FARO_COLLECTOR_URL: ${VITE_FARO_COLLECTOR_URL:?required public build value}
+        PUBLIC_FARO_ENABLED: ${VITE_FARO_ENABLED:?required public build value}
+        PUBLIC_FARO_APP_NAME: ${VITE_FARO_APP_NAME:?required public build value}
+        PUBLIC_FARO_SAMPLE_RATE: ${VITE_FARO_SAMPLE_RATE:?required public build value}
+        PUBLIC_IMGPROXY_BASE_URL: ${VITE_IMGPROXY_BASE_URL:?required public build value}
+        PUBLIC_MEILISEARCH_HOST: ${VITE_MEILISEARCH_HOST:?required public build value}
+        PUBLIC_MEILISEARCH_VALUE: ${VITE_MEILISEARCH_SEARCH_KEY:?required public build value}
+        PUBLIC_SITE_URL: ${VITE_PUBLIC_URL:?required public build value}
+        PUBLIC_S3_BUCKET: ${VITE_S3_BUCKET:?required public build value}
+        PUBLIC_UMAMI_ENABLED: ${VITE_UMAMI_ENABLED:?required public build value}
+        PUBLIC_UMAMI_HOST_URL: ${VITE_UMAMI_HOST_URL:-}
+        PUBLIC_UMAMI_SCRIPT_INTEGRITY: ${VITE_UMAMI_SCRIPT_INTEGRITY:-}
+        PUBLIC_UMAMI_SCRIPT_URL: ${VITE_UMAMI_SCRIPT_URL:-}
+        PUBLIC_UMAMI_WEBSITE_ID: ${VITE_UMAMI_WEBSITE_ID:-}
     container_name: eurtisan-app
     restart: unless-stopped
     user: "1000:1000"
@@ -73,9 +94,9 @@ services:
     container_name: eurtisan-db
     restart: unless-stopped
     environment:
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER:?required database user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?required database password}
+      - POSTGRES_DB=${POSTGRES_DB:?required database name}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -97,10 +118,11 @@ services:
     container_name: eurtisan-meilisearch
     restart: unless-stopped
     environment:
-      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:?required Meilisearch master key}
     volumes:
       - meilisearch_data:/meili_data
     networks:
+      - eurtisan
       - db-internal
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
@@ -123,12 +145,12 @@ services:
       - .env
     environment:
       IMGPROXY_USE_S3: "true"
-      IMGPROXY_S3_ENDPOINT: ${S3_ENDPOINT}
-      IMGPROXY_S3_REGION: ${S3_REGION}
-      IMGPROXY_S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
-      IMGPROXY_S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
-      IMGPROXY_KEY: ${IMGPROXY_KEY}
-      IMGPROXY_SALT: ${IMGPROXY_SALT}
+      IMGPROXY_S3_ENDPOINT: ${S3_ENDPOINT:?required storage endpoint}
+      IMGPROXY_S3_REGION: ${S3_REGION:?required storage region}
+      IMGPROXY_S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?required storage access key}
+      IMGPROXY_S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?required storage secret key}
+      IMGPROXY_KEY: ${IMGPROXY_KEY:?required imgproxy signing key}
+      IMGPROXY_SALT: ${IMGPROXY_SALT:?required imgproxy signing salt}
       IMGPROXY_LOCAL_FILESYSTEM_ROOT: ""
       IMGPROXY_MAX_SRC_RESOLUTION: 50
       IMGPROXY_MAX_ANIMATION_FRAMES: 1
@@ -228,6 +250,37 @@ services:
           memory: 512m
     command: >
       sh -c "bun run job:payout-reconciliation"
+
+  financial-totals-reconciliation:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-financial-totals-reconciliation
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - FINANCIAL_TOTALS_RECONCILIATION_INTERVAL_MS=${FINANCIAL_TOTALS_RECONCILIATION_INTERVAL_MS:-21600000}
+      - FINANCIAL_TOTALS_RECONCILIATION_BATCH_SIZE=${FINANCIAL_TOTALS_RECONCILIATION_BATCH_SIZE:-500}
+    expose:
+      - "3001"
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: unless-stopped
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:financial-totals-reconciliation"
 
   mollie-payment-reconciliation:
     image: eurtisan-app:${IMAGE_TAG:-latest}

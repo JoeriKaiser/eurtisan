@@ -97,7 +97,8 @@ test.describe('creator payouts list', () => {
 
     await customerLink.click()
     const invoiceNumber = pendingOrder.invoiceNumber
-    if (!invoiceNumber) throw new Error('pendingOrder.invoiceNumber is required for invoice link test')
+    if (!invoiceNumber)
+      throw new Error('pendingOrder.invoiceNumber is required for invoice link test')
     await page.waitForURL(`/invoices/${invoiceNumber}`)
     await expect(page.getByRole('heading', { name: 'INVOICE', exact: true })).toBeVisible()
     await expect(page.getByText(invoiceNumber).first()).toBeVisible()

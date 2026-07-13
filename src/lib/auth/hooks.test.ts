@@ -3,17 +3,6 @@ import { describe, expect, it, vi } from 'vitest'
 import { authClient } from './client'
 import { useAuth, useCanAccess, useHasRole } from './hooks'
 
-vi.mock('react', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('react')>()
-  return {
-    ...actual,
-    useState: (_initial: unknown) => [true, vi.fn()],
-    useEffect: (f: () => unknown) => {
-      f()
-    },
-  }
-})
-
 vi.mock('./client', () => ({
   authClient: {
     useSession: vi.fn(),
@@ -21,6 +10,7 @@ vi.mock('./client', () => ({
 }))
 
 vi.mock('@tanstack/react-router', () => ({
+  useHydrated: () => true,
   getRouteApi: () => ({
     useLoaderData: () => null,
   }),

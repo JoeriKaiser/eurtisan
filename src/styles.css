@@ -1,4 +1,14 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
+@source "./";
+@source not "../.agents";
+@source not "../.github";
+@source not "../docs";
+@source not "../infra";
+@source not "../infrastructure";
+@source not "../load-tests";
+@source not "../README.md";
+@source not "../DESIGN.md";
+@source not "../PRODUCT.md";
 /* Google Fonts are loaded via <link> tags in the HTML <head> (see __root.tsx)
    rather than @import in CSS. This avoids the render-blocking cascade where
    the browser must load the full CSS file, discover the @import, then fetch
@@ -86,9 +96,9 @@
 :root {
   /* Text */
   --ds-text-primary: var(--palette-walnut-900);
-  --ds-text-secondary: var(--palette-walnut-500);
-  --ds-text-muted: var(--palette-walnut-400);
-  --ds-text-placeholder: var(--palette-walnut-400);
+  --ds-text-secondary: var(--palette-walnut-600);
+  --ds-text-muted: var(--palette-walnut-600);
+  --ds-text-placeholder: var(--palette-walnut-600);
   --ds-text-brand: var(--ds-accent-primary);
   --ds-text-on-accent: var(--palette-walnut-50);
   --ds-text-on-primary: var(--palette-walnut-50);
@@ -112,12 +122,12 @@
   --ds-surface-inset: var(--palette-walnut-100);
 
   /* Accent / Primary */
-  --ds-accent-primary: var(--palette-moss-500);
-  --ds-accent-primary-hover: var(--palette-moss-600);
-  --ds-accent-primary-active: var(--palette-moss-700);
+  --ds-accent-primary: var(--palette-moss-600);
+  --ds-accent-primary-hover: var(--palette-moss-700);
+  --ds-accent-primary-active: var(--palette-moss-800);
   --ds-accent-primary-subtle: var(--palette-moss-100);
-  --ds-accent-secondary: var(--palette-sage-500);
-  --ds-accent-secondary-hover: var(--palette-sage-600);
+  --ds-accent-secondary: var(--palette-sage-600);
+  --ds-accent-secondary-hover: var(--palette-sage-700);
   --ds-accent-secondary-subtle: var(--palette-sage-100);
 
   /* Border */
@@ -132,19 +142,19 @@
   --ds-shadow-xl: 0 16px 48px oklch(20% 0.02 75 / 0.11);
 
   /* Semantic status */
-  --ds-error: var(--palette-brick-500);
+  --ds-error: var(--palette-brick-600);
   --ds-error-subtle: var(--palette-brick-100);
-  --ds-error-hover: var(--palette-brick-600);
+  --ds-error-hover: var(--palette-brick-700);
   --ds-warning: var(--palette-ochre-500);
   --ds-warning-subtle: var(--palette-ochre-100);
   --ds-warning-strong: var(--palette-ochre-800);
-  --ds-success: oklch(58% 0.14 130);
+  --ds-success: oklch(43% 0.12 130);
   --ds-success-subtle: oklch(94% 0.04 130);
 
   /* Focus ring */
   --ds-ring-width: 2px;
   --ds-ring-offset: 2px;
-  --ds-ring-color: var(--palette-sage-400);
+  --ds-ring-color: var(--palette-sage-600);
 
   /* Spacing (4pt base) — layout tokens for explicit use, NOT mapped to the Tailwind utility spacing scale. Tailwind utilities like p-8, gap-8, h-8, size-9 must remain on the standard Tailwind scale so component sizing is predictable. */
   --ds-space-1: 4px;
@@ -696,6 +706,22 @@ input[type="search"]::-webkit-search-results-decoration {
 }
 
 /* ─── Reduced Motion ─── */
+@media (forced-colors: active) {
+  :focus-visible {
+    outline: 2px solid CanvasText;
+    outline-offset: 2px;
+  }
+
+  button,
+  input,
+  select,
+  textarea,
+  [role="button"],
+  [role="menuitem"] {
+    forced-color-adjust: auto;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

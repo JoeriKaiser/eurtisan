@@ -1,4 +1,4 @@
-.PHONY: up down stop logs dev build preview start install lint format check test test-related shell auth-secret db-generate db-check db-migrate db-push db-studio i18n-compile init db-seed meili-setup promtool-check audit-production FORCE
+.PHONY: up down stop logs dev build preview start install lint format format-fix check bundle-check test test-related test-accessibility shell auth-secret db-generate db-check db-migrate db-migrate-fresh db-push db-studio i18n-compile init db-seed meili-setup promtool-check audit-production production-image-smoke compose-check ci-workflow-check shell-syntax ansible-check ansible-syntax ansible-preflight-staging ansible-preflight-production staging-smoke staging-evidence-create staging-evidence-validate staging-evidence-final load-staging FORCE
 
 # Docker Compose lifecycle
 up:
@@ -34,7 +34,29 @@ dev: up
 
 # Build & Production
 build: up
-	docker compose exec -T app bun run build
+	docker compose exec -T \
+	  -e EURTISAN_PUBLIC_ENV_ONLY=true \
+	  -e VITE_ANALYTICS_CONSENT_REQUIRED=true \
+	  -e VITE_APP_ENV=production \
+	  -e VITE_APP_VERSION=0000000000000000000000000000000000000000 \
+	  -e VITE_FARO_COLLECTOR_URL=/collect \
+	  -e VITE_FARO_ENABLED=true \
+	  -e VITE_FARO_APP_NAME=eurtisan \
+	  -e VITE_FARO_SAMPLE_RATE=0.1 \
+	  -e VITE_IMGPROXY_BASE_URL=https://build-smoke.eurtisan.test/uploads \
+	  -e VITE_MEILISEARCH_HOST=https://build-smoke.eurtisan.test/meilisearch \
+	  -e VITE_MEILISEARCH_SEARCH_KEY=searchrestrictedbuildvalue000000000001 \
+	  -e VITE_PUBLIC_URL=https://build-smoke.eurtisan.test \
+	  -e VITE_S3_BUCKET=eurtisan-build-smoke \
+	  -e VITE_UMAMI_ENABLED=false \
+	  -e VITE_UMAMI_HOST_URL= \
+	  -e VITE_UMAMI_SCRIPT_INTEGRITY= \
+	  -e VITE_UMAMI_SCRIPT_URL= \
+	  -e VITE_UMAMI_WEBSITE_ID= \
+	  app bun run build
+
+bundle-check: ensure-up
+	docker compose exec -T app bun run bundle:check
 
 preview: up
 	docker compose exec app bun run preview
@@ -42,12 +64,18 @@ preview: up
 start: up
 	docker compose exec app bun run start
 
+production-image-smoke:
+	sh scripts/smoke-production-image.sh
+
 # Tooling
 lint: ensure-up
 	docker compose exec -T app bun run lint
 
 format: ensure-up
 	docker compose exec -T app bun run format
+
+format-fix: ensure-up
+	docker compose exec -T app bun run format:fix
 
 check: ensure-up
 	docker compose exec -T app bun run check
@@ -60,12 +88,12 @@ i18n-compile: ensure-up
 	docker compose exec -T app bun run i18n:compile
 
 # Observability & alerting validation
-PROMETHEUS_VERSION ?= v2.55.0
+PROMETHEUS_IMAGE ?= prom/prometheus:v2.55.0@sha256:378f4e03703557d1c6419e6caccf922f96e6d88a530f7431d66a4c4f4b1000fe
 
 promtool-check:
 	docker run --rm -v "$(PWD)/infra/observability/prometheus/rules:/rules:ro" \
 	  --entrypoint promtool \
-	  prom/prometheus:$(PROMETHEUS_VERSION) \
+	  $(PROMETHEUS_IMAGE) \
 	  check rules \
 	  /rules/app-health.yml \
 	  /rules/backup-failure.yml \
@@ -74,6 +102,7 @@ promtool-check:
 	  /rules/dependency-health.yml \
 	  /rules/disk-space.yml \
 	  /rules/email-alerts.yml \
+	  /rules/financial-reconciliation.yml \
 	  /rules/job-errors.yml \
 	  /rules/meilisearch-health.yml \
 	  /rules/payment-webhook-errors.yml \
@@ -150,6 +179,20 @@ test: ensure-up
 
 test-related: ensure-up
 	docker compose exec app bunx vitest related $(filter-out test-related,$(MAKECMDGOALS)) --run
+
+# Focused rendered accessibility scans and static theme/reflow contracts.
+test-accessibility: ensure-up
+	docker compose exec -T -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) app bun run test -- \
+	  src/lib/accessibility/contrast.test.ts \
+	  src/components/ui/accessibility.test.tsx \
+	  src/components/ui/primitives/accessibility.test.tsx \
+	  src/components/admin/DataTable.test.tsx \
+	  src/components/admin/DataTablePagination.test.tsx \
+	  src/route-components/signin.test.tsx \
+	  src/components/ProductDetail.test.tsx \
+	  src/components/CartPage.test.tsx \
+	  src/components/CheckoutPage.test.tsx \
+	  src/components/DisputeThreadPage.test.tsx
 
 e2e-install: up
 	docker compose exec app bunx playwright install --with-deps chromium
@@ -233,6 +276,9 @@ db-check: ensure-up
 db-migrate: up
 	docker compose exec -T app bun run db:migrate
 
+db-migrate-fresh: ensure-up
+	sh scripts/validate-fresh-migrations.sh
+
 db-push: up
 	docker compose exec app bun run db:push
 
@@ -250,7 +296,62 @@ db-studio:
 meili-setup: up
 	docker compose exec app bun run src/lib/meili-setup.ts
 
-# ── Infrastructure ───────────────────────────────────────────────────────
+# ── Release and infrastructure validation ───────────────────────────────
+ACTIONLINT_IMAGE ?= rhysd/actionlint:1.7.7@sha256:887a259a5a534f3c4f36cb02dca341673c6089431057242cdc931e9f133147e9
+
+compose-check:
+	sh scripts/validate-compose-config.sh
+
+ci-workflow-check:
+	docker run --rm -v "$(PWD):/repo:ro" -w /repo $(ACTIONLINT_IMAGE)
+
+shell-syntax:
+	bash scripts/validate-shell-syntax.sh
+
+ansible-check:
+	bash scripts/validate-ansible.sh
+
+# ── Authorized staging qualification ─────────────────────────────────────
+staging-smoke: ensure-up
+	@test -n "$(STAGING_BASE_URL)" || (echo "STAGING_BASE_URL is required"; exit 1)
+	@test -n "$(EXPECTED_RELEASE)" || (echo "EXPECTED_RELEASE is required"; exit 1)
+	docker compose exec -T app bun run staging:qualification smoke --base-url "$(STAGING_BASE_URL)" --expected-release "$(EXPECTED_RELEASE)"
+
+staging-evidence-create: ensure-up
+	@test -n "$(QUALIFICATION_EVIDENCE)" || (echo "QUALIFICATION_EVIDENCE is required"; exit 1)
+	docker compose exec -T app bun run staging:qualification create --output "$(QUALIFICATION_EVIDENCE)" --qualification-id "$(QUALIFICATION_ID)" --eu-region "$(QUALIFICATION_REGION)" --git-sha "$(QUALIFICATION_GIT_SHA)" --image-repository "$(QUALIFICATION_IMAGE_REPOSITORY)" --image-digest "$(QUALIFICATION_IMAGE_DIGEST)" --public-config-digest "$(QUALIFICATION_PUBLIC_CONFIG_DIGEST)"
+
+staging-evidence-validate: ensure-up
+	@test -n "$(QUALIFICATION_EVIDENCE)" || (echo "QUALIFICATION_EVIDENCE is required"; exit 1)
+	docker compose exec -T app bun run staging:qualification validate --evidence "$(QUALIFICATION_EVIDENCE)" --final false
+
+staging-evidence-final: ensure-up
+	@test -n "$(QUALIFICATION_EVIDENCE)" || (echo "QUALIFICATION_EVIDENCE is required"; exit 1)
+	docker compose exec -T app bun run staging:qualification validate --evidence "$(QUALIFICATION_EVIDENCE)" --final true
+
+K6_IMAGE ?= grafana/k6:1.1.0@sha256:aa8202f377550cee0c8bad295bbe8d2d4d4cf88d15c98383e9ecc53c56882308
+load-staging:
+	@test "$(STAGING_LOAD_AUTHORIZED)" = "I_HAVE_OWNER_AUTHORIZATION" || (echo "Set STAGING_LOAD_AUTHORIZED=I_HAVE_OWNER_AUTHORIZATION after approval"; exit 1)
+	@test -n "$(STAGING_BASE_URL)" || (echo "STAGING_BASE_URL is required"; exit 1)
+	docker run --rm -e BASE_URL="$(STAGING_BASE_URL)" -v "$(PWD)/load-tests:/scripts:ro" $(K6_IMAGE) run /scripts/homepage.js
+	docker run --rm -e BASE_URL="$(STAGING_BASE_URL)" -v "$(PWD)/load-tests:/scripts:ro" $(K6_IMAGE) run /scripts/search.js
+
+# ── Owner-supplied Ansible validation/deployment ─────────────────────────
+ANSIBLE_PREFLIGHT_VARS ?=
+ANSIBLE_VALIDATION_IMAGE ?= python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf
+ANSIBLE_VALIDATION_SETUP = PIP_ROOT_USER_ACTION=ignore pip install --disable-pip-version-check --quiet ansible==14.1.0
+
+ansible-syntax:
+	docker run --rm -v "$(PWD):/workspace:ro" -w /workspace $(ANSIBLE_VALIDATION_IMAGE) sh -c "$(ANSIBLE_VALIDATION_SETUP) && ansible-playbook -i infrastructure/ansible/inventory/staging.example.yml infrastructure/ansible/playbook.yml --syntax-check && ansible-playbook -i infrastructure/ansible/inventory/production.example.yml infrastructure/ansible/playbook.yml --syntax-check"
+
+ansible-preflight-staging:
+	@test -n "$(ANSIBLE_PREFLIGHT_VARS)" || (echo "ANSIBLE_PREFLIGHT_VARS is required"; exit 1)
+	docker run --rm -v "$(PWD):/workspace:ro" -v "$(ANSIBLE_PREFLIGHT_VARS):/tmp/preflight-vars.yml:ro" -w /workspace $(ANSIBLE_VALIDATION_IMAGE) sh -c "$(ANSIBLE_VALIDATION_SETUP) && ansible-playbook -i infrastructure/ansible/inventory/staging.example.yml infrastructure/ansible/preflight.yml -e @/tmp/preflight-vars.yml"
+
+ansible-preflight-production:
+	@test -n "$(ANSIBLE_PREFLIGHT_VARS)" || (echo "ANSIBLE_PREFLIGHT_VARS is required"; exit 1)
+	docker run --rm -v "$(PWD):/workspace:ro" -v "$(ANSIBLE_PREFLIGHT_VARS):/tmp/preflight-vars.yml:ro" -w /workspace $(ANSIBLE_VALIDATION_IMAGE) sh -c "$(ANSIBLE_VALIDATION_SETUP) && ansible-playbook -i infrastructure/ansible/inventory/production.example.yml infrastructure/ansible/preflight.yml -e @/tmp/preflight-vars.yml"
+
 infra-setup-staging:
 	ansible-playbook -i infrastructure/ansible/inventory/staging.yml infrastructure/ansible/playbook.yml -e @infrastructure/ansible/secrets.yml --vault-password-file infrastructure/ansible/.vault_pass
 
@@ -265,8 +366,11 @@ infra-init:
 # Generate production secrets (run locally, copy output to secrets.yml)
 infra-secrets:
 	@echo "postgres_password: $$(openssl rand -base64 32 | tr '+/' '-_')"
-	@echo "better_auth_secret: $$(openssl rand -base64 32 | tr '+/' '-_')"
+	@echo "better_auth_secret: $$(openssl rand -base64 32)"
+	@echo "database_encryption_key: $$(openssl rand -base64 32)"
 	@echo "meilisearch_api_key: $$(openssl rand -base64 32 | tr '+/' '-_')"
+	@echo "imgproxy_key: $$(openssl rand -hex 32)"
+	@echo "imgproxy_salt: $$(openssl rand -hex 32)"
 	@echo "metrics_token: $$(openssl rand -base64 32 | tr '+/' '-_')"
 
 # Catch-all rule to allow passing arbitrary arguments (like file paths) to test/other commands without Make complaining

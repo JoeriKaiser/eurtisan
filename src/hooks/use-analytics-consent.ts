@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useSyncExternalStore } from 'react'
 
 const STORAGE_KEY = 'eurtisan_analytics_consent'
+const CONSENT_CHANGE_EVENT = 'eurtisan:analytics-consent-change'
 
 export type AnalyticsConsent = 'granted' | 'denied' | null
 
@@ -29,7 +30,24 @@ function writeStoredConsent(consent: AnalyticsConsent): void {
       window.localStorage.setItem(STORAGE_KEY, consent)
     }
   } catch {
-    // Ignore write failures.
+    // localStorage may be unavailable; the in-page event still updates consumers.
+  }
+  window.dispatchEvent(new Event(CONSENT_CHANGE_EVENT))
+}
+
+function getConsentSnapshot(): AnalyticsConsent {
+  return isDoNotTrack() ? 'denied' : readStoredConsent()
+}
+
+function subscribeToConsent(onStoreChange: () => void): () => void {
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key === null || event.key === STORAGE_KEY) onStoreChange()
+  }
+  window.addEventListener('storage', handleStorage)
+  window.addEventListener(CONSENT_CHANGE_EVENT, onStoreChange)
+  return () => {
+    window.removeEventListener('storage', handleStorage)
+    window.removeEventListener(CONSENT_CHANGE_EVENT, onStoreChange)
   }
 }
 
@@ -45,20 +63,11 @@ export function useAnalyticsConsent(): {
   setConsent: (consent: 'granted' | 'denied') => void
   isRequired: boolean
 } {
-  const [consent, setConsentState] = useState<AnalyticsConsent>(() =>
-    isDoNotTrack() ? 'denied' : readStoredConsent(),
-  )
+  const consent = useSyncExternalStore(subscribeToConsent, getConsentSnapshot, () => null)
 
   const setConsent = useCallback((value: 'granted' | 'denied') => {
     writeStoredConsent(value)
-    setConsentState(value)
   }, [])
-
-  useEffect(() => {
-    if (isDoNotTrack() && consent !== 'denied') {
-      setConsentState('denied')
-    }
-  }, [consent])
 
   const isRequired = import.meta.env.VITE_ANALYTICS_CONSENT_REQUIRED !== 'false' && !isDoNotTrack()
 

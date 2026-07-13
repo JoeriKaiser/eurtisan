@@ -137,6 +137,22 @@ export function getMolliePaymentReconciliationBatchSize(): number {
 }
 
 /**
+ * Interval between read-only financial totals reconciliation runs.
+ * Defaults to 6 hours, with a minimum accepted cadence of 5 minutes.
+ */
+export function getFinancialTotalsReconciliationIntervalMs(): number {
+  return Math.max(
+    5 * 60 * 1000,
+    getPositiveIntegerEnv('FINANCIAL_TOTALS_RECONCILIATION_INTERVAL_MS', 6 * 60 * 60 * 1000),
+  )
+}
+
+/** Maximum records fetched per financial reconciliation query batch. */
+export function getFinancialTotalsReconciliationBatchSize(): number {
+  return Math.min(5_000, getPositiveIntegerEnv('FINANCIAL_TOTALS_RECONCILIATION_BATCH_SIZE', 500))
+}
+
+/**
  * Interval between payout reconciliation job runs (milliseconds).
  * Defaults to 6 hours.
  */

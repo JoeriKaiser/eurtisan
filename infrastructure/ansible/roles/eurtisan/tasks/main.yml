@@ -1,20 +1,10 @@
 ---
+- name: Validate deployment configuration before changing the host
+  ansible.builtin.import_tasks: preflight.yml
+
 - name: Determine compose file
   set_fact:
     compose_file: "{{ 'docker-compose.staging.yml' if (coexist_with_proxy | default(false)) else 'docker-compose.prod.yml' }}"
-
-- name: Validate alertmanager receiver configuration in production
-  ansible.builtin.fail:
-    msg: |
-      At least one alertmanager receiver must be configured in production.
-      Set one or both of the following in secrets.yml:
-        alertmanager_smtp_to (with alertmanager_smtp_host and alertmanager_smtp_from)
-        alertmanager_webhook_url
-  when:
-    - (alertmanager_smtp_to is not defined or alertmanager_smtp_to == '')
-    - (alertmanager_webhook_url is not defined or alertmanager_webhook_url == '')
-    - not (coexist_with_proxy | default(false))
-  tags: [always]
 
 - name: Determine if direct port access override is needed
   set_fact:
@@ -34,10 +24,6 @@
   set_fact:
     docker_compose: "docker compose -f {{ compose_file }}{% if use_port_override %} -f docker-compose.override.yml{% endif %}{% if postgres_wal_archive_enabled | default(false) %} -f docker-compose.wal-archive.yml{% endif %}"
 
-- name: Determine image tag
-  set_fact:
-    image_tag: "{{ git_branch | default('main') | regex_replace('/', '-') }}"
-
 - name: Create application directory
   file:
     path: /opt/eurtisan
@@ -50,6 +36,12 @@
     dest: /opt/eurtisan
     version: "{{ git_branch | default('main') }}"
     force: yes
+  register: repository_checkout
+
+- name: Set immutable release and image identifiers
+  set_fact:
+    release_version: "{{ repository_checkout.after }}"
+    image_tag: "{{ repository_checkout.after[:12] }}"
 
 - name: Write production environment file
   template:
@@ -220,6 +212,18 @@
   async: 1800
   poll: 15
 
+- name: Smoke-test compiled browser configuration
+  command: "docker run --rm --env-file /opt/eurtisan/.env eurtisan-app:{{ image_tag }} bun run smoke:client-config"
+  args:
+    chdir: /opt/eurtisan
+
+- name: Validate server environment inside the production image
+  command: "{{ docker_compose }} run --rm --no-deps app bun run validate:server-env"
+  args:
+    chdir: /opt/eurtisan
+  environment:
+    IMAGE_TAG: "{{ image_tag }}"
+
 - name: Run database migrations
   command: "{{ docker_compose }} run --rm app bun run db:migrate"
   args:
@@ -266,6 +270,31 @@
                 middlewares:
                   - eurtisan-staging-strip-collect
 
+              # Public image delivery through imgproxy. The prefix is stripped
+              # so imgproxy receives its native signed/insecure path.
+              eurtisan-staging-uploads:
+                rule: "Host(`staging.eurtisan.eu`) && PathPrefix(`/uploads/`)"
+                priority: 10
+                entrypoints:
+                  - https
+                tls:
+                  certResolver: letsencrypt
+                service: eurtisan-staging-imgproxy
+                middlewares:
+                  - eurtisan-staging-strip-uploads
+
+              # Browser search uses only the restricted search-only key.
+              eurtisan-staging-meilisearch:
+                rule: "Host(`staging.eurtisan.eu`) && PathPrefix(`/meilisearch/`)"
+                priority: 10
+                entrypoints:
+                  - https
+                tls:
+                  certResolver: letsencrypt
+                service: eurtisan-staging-meilisearch
+                middlewares:
+                  - eurtisan-staging-strip-meilisearch
+
               # Grafana UI — behind the same IP whitelist as the app.
               # Higher priority so it matches before the catch-all app route.
               # DO NOT strip /grafana — Grafana with serve_from_sub_path=true
@@ -309,6 +338,16 @@
                   prefixes:
                     - "/collect"
 
+              eurtisan-staging-strip-uploads:
+                stripPrefix:
+                  prefixes:
+                    - "/uploads"
+
+              eurtisan-staging-strip-meilisearch:
+                stripPrefix:
+                  prefixes:
+                    - "/meilisearch"
+
           {% if allowed_ips is defined %}
               eurtisan-staging-whitelist:
                 ipWhiteList:
@@ -328,6 +367,16 @@
                 loadBalancer:
                   servers:
                     - url: "http://eurtisan-alloy:8027"
+
+              eurtisan-staging-imgproxy:
+                loadBalancer:
+                  servers:
+                    - url: "http://eurtisan-imgproxy-staging:8080"
+
+              eurtisan-staging-meilisearch:
+                loadBalancer:
+                  servers:
+                    - url: "http://eurtisan-meilisearch-staging:7700"
 
               eurtisan-staging-grafana:
                 loadBalancer:

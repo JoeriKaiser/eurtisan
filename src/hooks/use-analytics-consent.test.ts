@@ -16,6 +16,7 @@ function createStorage() {
 
 describe('useAnalyticsConsent', () => {
   beforeEach(() => {
+    vi.stubEnv('VITE_ANALYTICS_CONSENT_REQUIRED', 'true')
     vi.stubGlobal('localStorage', createStorage())
     vi.stubGlobal('navigator', { doNotTrack: '0' } as Navigator)
   })

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { m } from '#/paraglide/messages'
 import type { Policies } from '#/lib/sell-onboarding'
 
@@ -83,12 +83,17 @@ export function ShopSettingsPolicies({ policies, onChange }: ShopSettingsPolicie
 
   const [additionalInfo, setAdditionalInfo] = useState(policies?.additionalInfo ?? '')
 
-  useEffect(() => {
-    const hasReturns = returns.preset !== 'no'
-    const hasExchanges = exchanges.preset !== 'no'
-    const hasCustom = custom.preset !== 'no'
+  const commit = (
+    nextReturns = returns,
+    nextExchanges = exchanges,
+    nextCustom = custom,
+    nextAdditionalInfo = additionalInfo,
+  ) => {
+    const hasReturns = nextReturns.preset !== 'no'
+    const hasExchanges = nextExchanges.preset !== 'no'
+    const hasCustom = nextCustom.preset !== 'no'
 
-    if (!hasReturns && !hasExchanges && !hasCustom && !additionalInfo.trim()) {
+    if (!hasReturns && !hasExchanges && !hasCustom && !nextAdditionalInfo.trim()) {
       onChange(null)
       return
     }
@@ -96,22 +101,39 @@ export function ShopSettingsPolicies({ policies, onChange }: ShopSettingsPolicie
     onChange({
       returns: {
         accepted: hasReturns,
-        windowDays: returns.preset === 'yes14' ? 14 : returns.preset === 'yes30' ? 30 : undefined,
-        conditions: returns.preset === 'custom' ? returns.conditions : undefined,
+        windowDays:
+          nextReturns.preset === 'yes14' ? 14 : nextReturns.preset === 'yes30' ? 30 : undefined,
+        conditions: nextReturns.preset === 'custom' ? nextReturns.conditions : undefined,
       },
       exchanges: {
         accepted: hasExchanges,
-        conditions: exchanges.preset === 'custom' ? exchanges.conditions : undefined,
+        conditions: nextExchanges.preset === 'custom' ? nextExchanges.conditions : undefined,
       },
       customOrders: {
         accepted: hasCustom,
-        details: custom.preset === 'custom' ? custom.details : undefined,
+        details: nextCustom.preset === 'custom' ? nextCustom.details : undefined,
       },
       paymentMethods: policies?.paymentMethods ?? [],
-      additionalInfo: additionalInfo.trim() || undefined,
+      additionalInfo: nextAdditionalInfo.trim() || undefined,
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [returns, exchanges, custom, additionalInfo, policies?.paymentMethods, onChange])
+  }
+
+  const updateReturns = (next: typeof returns) => {
+    setReturns(next)
+    commit(next)
+  }
+  const updateExchanges = (next: typeof exchanges) => {
+    setExchanges(next)
+    commit(returns, next)
+  }
+  const updateCustom = (next: typeof custom) => {
+    setCustom(next)
+    commit(returns, exchanges, next)
+  }
+  const updateAdditionalInfo = (next: string) => {
+    setAdditionalInfo(next)
+    commit(returns, exchanges, custom, next)
+  }
 
   return (
     <div className='rounded-xl border border-border-subtle p-4'>
@@ -124,13 +146,13 @@ export function ShopSettingsPolicies({ policies, onChange }: ShopSettingsPolicie
         <PolicyCard
           title={m.creator_shop_policies_returns_title()}
           preset={returns.preset}
-          onPresetChange={(preset) => setReturns((prev) => ({ ...prev, preset }))}
+          onPresetChange={(preset) => updateReturns({ ...returns, preset })}
         >
           <textarea
             rows={3}
             maxLength={500}
             value={returns.conditions}
-            onChange={(e) => setReturns((prev) => ({ ...prev, conditions: e.target.value }))}
+            onChange={(e) => updateReturns({ ...returns, conditions: e.target.value })}
             placeholder={m.creator_shop_policies_returns_placeholder()}
             aria-label={m.creator_shop_policies_returns_title()}
             className='w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary placeholder:text-text-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:border-accent-secondary focus-visible:ring-accent-secondary/20 resize-y'
@@ -140,13 +162,13 @@ export function ShopSettingsPolicies({ policies, onChange }: ShopSettingsPolicie
         <PolicyCard
           title={m.creator_shop_policies_exchanges_title()}
           preset={exchanges.preset}
-          onPresetChange={(preset) => setExchanges((prev) => ({ ...prev, preset }))}
+          onPresetChange={(preset) => updateExchanges({ ...exchanges, preset })}
         >
           <textarea
             rows={3}
             maxLength={500}
             value={exchanges.conditions}
-            onChange={(e) => setExchanges((prev) => ({ ...prev, conditions: e.target.value }))}
+            onChange={(e) => updateExchanges({ ...exchanges, conditions: e.target.value })}
             placeholder={m.creator_shop_policies_exchanges_placeholder()}
             aria-label={m.creator_shop_policies_exchanges_title()}
             className='w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary placeholder:text-text-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:border-accent-secondary focus-visible:ring-accent-secondary/20 resize-y'
@@ -156,13 +178,13 @@ export function ShopSettingsPolicies({ policies, onChange }: ShopSettingsPolicie
         <PolicyCard
           title={m.creator_shop_policies_custom_orders_title()}
           preset={custom.preset}
-          onPresetChange={(preset) => setCustom((prev) => ({ ...prev, preset }))}
+          onPresetChange={(preset) => updateCustom({ ...custom, preset })}
         >
           <textarea
             rows={3}
             maxLength={500}
             value={custom.details}
-            onChange={(e) => setCustom((prev) => ({ ...prev, details: e.target.value }))}
+            onChange={(e) => updateCustom({ ...custom, details: e.target.value })}
             placeholder={m.creator_shop_policies_custom_orders_placeholder()}
             aria-label={m.creator_shop_policies_custom_orders_title()}
             className='w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary placeholder:text-text-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:border-accent-secondary focus-visible:ring-accent-secondary/20 resize-y'
@@ -181,7 +203,7 @@ export function ShopSettingsPolicies({ policies, onChange }: ShopSettingsPolicie
             rows={4}
             maxLength={2000}
             value={additionalInfo}
-            onChange={(e) => setAdditionalInfo(e.target.value)}
+            onChange={(e) => updateAdditionalInfo(e.target.value)}
             placeholder={m.creator_shop_policies_additional_placeholder()}
             className='w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary placeholder:text-text-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:border-accent-secondary focus-visible:ring-accent-secondary/20 resize-y'
           />

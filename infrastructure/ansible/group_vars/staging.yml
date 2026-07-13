@@ -1,2 +1,10 @@
-# Staging-specific overrides (if any)
-# Most config is inherited from all.yml or host-level inventory
+deployment_environment: staging
+s3_bucket: eurtisan-staging-uploads
+mollie_test_mode: true
+sendcloud_force_unstamped_letter: true
+email_delivery_provider: smtp
+email_smtp_host: mailpit
+email_smtp_port: "1025"
+email_from_address: noreply@staging.eurtisan.eu
+app_container_name: eurtisan-app-staging
+faro_sample_rate: "1"

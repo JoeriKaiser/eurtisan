@@ -1,59 +1,34 @@
-import { Link, useRouter } from '@tanstack/react-router'
-import { useState, useEffect } from 'react'
+import { Link, useLoaderData, useSearch } from '@tanstack/react-router'
+import { useState } from 'react'
 import { AlertTriangle, CheckCircle, Mail, Loader2 } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import { authClient } from '#/lib/auth-client'
 import { isLocalRedirect } from '#/lib/auth-utils'
 import { m } from '#/paraglide/messages'
 import { AuthShell } from '#/components/auth/AuthShell'
-import { useSearch } from '@tanstack/react-router'
+import { useCountdown } from '#/hooks/useCountdown'
+
+export function VerifyEmailPending() {
+  return (
+    <AuthShell title={m.verify_email_title()}>
+      <div className='flex flex-col items-center justify-center gap-4 py-6' aria-live='polite'>
+        <Loader2 className='size-6 animate-spin text-accent-primary' aria-hidden='true' />
+        <p className='text-sm text-text-secondary'>{m.verify_email_pending()}</p>
+      </div>
+    </AuthShell>
+  )
+}
 
 export function VerifyEmail() {
-  const router = useRouter()
-  const { email, token, redirect } = useSearch({ from: '/verify-email' })
+  const { email, redirect } = useSearch({ from: '/verify-email' })
+  const verification = useLoaderData({ from: '/verify-email' })
 
-  const [verification, setVerification] = useState({ verifying: !!token, success: false })
-  const [resend, setResend] = useState({ loading: false, error: '', info: '' })
-  const [cooldown, setCooldown] = useState(0)
-
-  // Handle automatic verification if token is present
-  useEffect(() => {
-    if (token) {
-      const verify = async () => {
-        try {
-          const result = await authClient.verifyEmail({
-            query: {
-              token,
-            },
-          })
-          if (result.error) {
-            setResend((prev) => ({ ...prev, error: result.error.message || m.error_unexpected() }))
-          } else {
-            setVerification({ verifying: false, success: true })
-            await router.invalidate()
-          }
-        } catch {
-          setResend((prev) => ({ ...prev, error: m.error_unexpected() }))
-        } finally {
-          setVerification((prev) => ({ ...prev, verifying: false }))
-        }
-      }
-      void verify()
-    }
-  }, [token, router])
-
-  // Cooldown timer effect
-  useEffect(() => {
-    let timer: ReturnType<typeof setInterval> | undefined
-    if (cooldown > 0) {
-      timer = setInterval(() => {
-        setCooldown((prev) => prev - 1)
-      }, 1000)
-    }
-    return () => {
-      if (timer) clearInterval(timer)
-    }
-  }, [cooldown])
+  const [resend, setResend] = useState({
+    loading: false,
+    error: verification.status === 'error' ? m.error_unexpected() : '',
+    info: '',
+  })
+  const { remaining: cooldown, start: startCooldown } = useCountdown()
 
   const handleResend = async () => {
     if (!email || cooldown > 0) return
@@ -68,27 +43,15 @@ export function VerifyEmail() {
         setResend({ loading: false, error: result.error.message || m.error_unexpected(), info: '' })
       } else {
         setResend({ loading: false, error: '', info: m.verify_email_resend_success() })
-        setCooldown(60)
+        startCooldown(60)
       }
     } catch {
       setResend({ loading: false, error: m.error_unexpected(), info: '' })
     }
   }
 
-  // Verification in progress
-  if (verification.verifying) {
-    return (
-      <AuthShell title={m.verify_email_title()}>
-        <div className='flex flex-col items-center justify-center gap-4 py-6' aria-live='polite'>
-          <Loader2 className='size-6 animate-spin text-accent-primary' />
-          <p className='text-sm text-text-secondary'>Verifying your email address, please wait…</p>
-        </div>
-      </AuthShell>
-    )
-  }
-
   // Verification completed successfully
-  if (verification.success) {
+  if (verification.status === 'success') {
     return (
       <AuthShell title={m.verify_email_success_title()}>
         <div className='space-y-6 text-center font-medium' aria-live='polite'>
@@ -118,9 +81,7 @@ export function VerifyEmail() {
         </div>
 
         <p className='text-sm text-text-secondary leading-relaxed'>
-          {email
-            ? m.verify_email_description({ email })
-            : 'Please check your inbox and click the verification link we sent to verify your account.'}
+          {email ? m.verify_email_description({ email }) : m.verify_email_check_inbox()}
         </p>
 
         {email && (

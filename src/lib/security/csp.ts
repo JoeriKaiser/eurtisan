@@ -39,7 +39,7 @@ const DEFAULT_CONNECT_SRC = ["'self'", 'https://api.mollie.com', 'https://api.br
 const DEFAULT_SCRIPT_SRC = ["'self'"]
 
 function getMeilisearchOrigin(): string | null {
-  const host = process.env.MEILISEARCH_HOST
+  const host = process.env.VITE_MEILISEARCH_HOST
   if (!host) return null
   try {
     const url = new URL(host)

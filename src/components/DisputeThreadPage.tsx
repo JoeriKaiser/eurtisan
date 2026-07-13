@@ -1,6 +1,6 @@
 import { Link, useRouter } from '@tanstack/react-router'
 import { ArrowLeft, MessageSquare, Send } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { addDisputeMessage } from '#/lib/disputes'
@@ -34,18 +34,10 @@ export default function DisputeThreadPage({ dispute }: DisputeThreadPageProps) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
-  useEffect(() => {
-    setLocalDispute(dispute)
-  }, [dispute])
-
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const canPostMessage = localDispute.status === 'open'
-
-  useEffect(() => {
-    if (canPostMessage && textareaRef.current) {
-      textareaRef.current.scrollIntoView?.({ behavior: 'auto', block: 'end' })
-    }
-  }, [canPostMessage])
+  const textareaRef = useCallback((node: HTMLTextAreaElement | null) => {
+    node?.scrollIntoView?.({ behavior: 'auto', block: 'end' })
+  }, [])
 
   const handleSubmit = async () => {
     const trimmed = message.trim()

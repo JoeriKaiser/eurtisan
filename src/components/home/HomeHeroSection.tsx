@@ -113,49 +113,51 @@ export function HomeHeroSection({
             </p>
 
             {/* Hero Search */}
-            <search className='mb-8 max-w-lg block'>
-              <form onSubmit={handleSearch}>
-                <div className='relative flex gap-2 items-center'>
-                  <div className='relative flex-1'>
-                    <Search className='absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-text-placeholder' />
-                    <input
-                      type='search'
-                      placeholder={m.home_search_placeholder()}
-                      className={`flex h-12 w-full rounded-full border bg-bg-elevated/85 backdrop-blur-sm px-4 pl-10 text-sm text-text-primary placeholder:text-text-placeholder transition-colors duration-fast ease-out focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20 disabled:cursor-not-allowed disabled:opacity-50 ${
-                        searchError
-                          ? 'border-error focus-visible:border-error focus-visible:ring-error/20'
-                          : 'border-border-default hover:border-border-strong'
-                      }`}
-                      value={searchQuery}
-                      onChange={(e) => {
-                        setSearchQuery(e.target.value)
-                        if (searchError) setSearchError(false)
-                      }}
-                      aria-label={m.home_search_placeholder()}
-                      aria-invalid={searchError}
-                      aria-describedby={searchError ? 'search-error' : undefined}
-                    />
-                  </div>
-                  <button
-                    type='submit'
-                    className='group relative flex items-center justify-between gap-3 h-12 pl-6 pr-2 bg-accent-primary text-text-on-primary hover:bg-accent-primary-hover active:bg-accent-primary-active rounded-full font-semibold shadow-md active:scale-[0.98] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
-                  >
-                    <span>{m.home_search_button()}</span>
-                    <span className='flex size-6 rounded-full bg-scrim-subtle group-hover:bg-scrim items-center justify-center transition-transform duration-300 group-hover:scale-105'>
-                      <Search className='size-3.5 text-current' />
-                    </span>
-                  </button>
+            <form
+              aria-label={m.home_search_button()}
+              className='mb-8 max-w-lg block'
+              onSubmit={handleSearch}
+            >
+              <div className='relative flex gap-2 items-center'>
+                <div className='relative flex-1'>
+                  <Search className='absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-text-placeholder' />
+                  <input
+                    type='search'
+                    placeholder={m.home_search_placeholder()}
+                    className={`flex h-12 w-full rounded-full border bg-bg-elevated/85 backdrop-blur-sm px-4 pl-10 text-sm text-text-primary placeholder:text-text-placeholder transition-colors duration-fast ease-out focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20 disabled:cursor-not-allowed disabled:opacity-50 ${
+                      searchError
+                        ? 'border-error focus-visible:border-error focus-visible:ring-error/20'
+                        : 'border-border-default hover:border-border-strong'
+                    }`}
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value)
+                      if (searchError) setSearchError(false)
+                    }}
+                    aria-label={m.home_search_placeholder()}
+                    aria-invalid={searchError}
+                    aria-describedby={searchError ? 'search-error' : undefined}
+                  />
                 </div>
-                {/* Search validation error — absolute layout to avoid layout shift (CLS) */}
-                <div className='relative min-h-[1.5rem] mt-1' aria-live='assertive'>
-                  {searchError && (
-                    <p id='search-error' className='absolute text-xs text-error font-semibold'>
-                      {m.home_search_error_empty()}
-                    </p>
-                  )}
-                </div>
-              </form>
-            </search>
+                <button
+                  type='submit'
+                  className='group relative flex items-center justify-between gap-3 h-12 pl-6 pr-2 bg-accent-primary text-text-on-primary hover:bg-accent-primary-hover active:bg-accent-primary-active rounded-full font-semibold shadow-md active:scale-[0.98] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
+                >
+                  <span>{m.home_search_button()}</span>
+                  <span className='flex size-6 rounded-full bg-scrim-subtle group-hover:bg-scrim items-center justify-center transition-transform duration-300 group-hover:scale-105'>
+                    <Search className='size-3.5 text-current' />
+                  </span>
+                </button>
+              </div>
+              {/* Search validation error — absolute layout to avoid layout shift (CLS) */}
+              <div className='relative min-h-[1.5rem] mt-1' aria-live='assertive'>
+                {searchError && (
+                  <p id='search-error' className='absolute text-xs text-error font-semibold'>
+                    {m.home_search_error_empty()}
+                  </p>
+                )}
+              </div>
+            </form>
 
             {/* Hero Action Buttons */}
             <div className='flex flex-wrap gap-4 items-center mt-2'>

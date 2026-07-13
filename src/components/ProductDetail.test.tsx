@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
 import type { ProductDetail as ProductDetailType } from '#/lib/products.server'
 import ProductDetail from './ProductDetail'
 
@@ -100,6 +101,11 @@ describe('ProductDetail', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAddToCart.mockResolvedValue({ id: 'item-1', productId: 'prod-1', quantity: 1 })
+  })
+
+  it('has no automated accessibility violations in the purchasable state', async () => {
+    const { container } = render(<ProductDetail product={makeProduct()} />)
+    expect(await axe(container)).toHaveNoViolations()
   })
 
   it('renders product name', () => {
@@ -311,6 +317,8 @@ describe('ProductDetail', () => {
     })
     expect(button.hasAttribute('disabled')).toBe(true)
 
-    resolve({ id: 'item-1', productId: 'prod-1', quantity: 1 })
+    await act(async () => {
+      resolve({ id: 'item-1', productId: 'prod-1', quantity: 1 })
+    })
   })
 })

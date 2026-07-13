@@ -1,7 +1,13 @@
-import { use } from 'react'
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 import { m } from '#/paraglide/messages'
-
-const rechartsPromise = import('recharts')
 
 export interface TrendDataPoint {
   date: string
@@ -68,9 +74,6 @@ export default function TrendChartInner({
       </div>
     )
   }
-
-  const { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } =
-    use(rechartsPromise)
 
   return (
     <figure aria-label={ariaLabel}>

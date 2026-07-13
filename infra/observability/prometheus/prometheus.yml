@@ -25,6 +25,13 @@ scrape_configs:
     static_configs:
       - targets: ['eurtisan-app:3000']
 
+  - job_name: 'eurtisan-financial-totals-reconciliation'
+    metrics_path: /metrics
+    params:
+      token: ["{{ metrics_token | default('') }}"]
+    static_configs:
+      - targets: ['financial-totals-reconciliation:3001']
+
   - job_name: 'alloy'
     static_configs:
       - targets: ['eurtisan-alloy:12345']

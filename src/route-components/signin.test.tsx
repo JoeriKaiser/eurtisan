@@ -2,6 +2,7 @@
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
 import { SignIn } from './signin'
 
 const mockNavigate = vi.fn()
@@ -105,6 +106,11 @@ describe('SignIn', () => {
     expect(screen.getByRole('button', { name: 'Sign in' })).toBeDefined()
   })
 
+  it('has no automated accessibility violations in the sign-in state', async () => {
+    const { container } = render(<SignIn />)
+    expect(await axe(container)).toHaveNoViolations()
+  })
+
   it('renders the sign-up form when toggled', () => {
     render(<SignIn />)
 
@@ -132,6 +138,7 @@ describe('SignIn', () => {
       )
     })
     expect(mockSignUpEmail).not.toHaveBeenCalled()
+    expect(await axe(document.body)).toHaveNoViolations()
   })
 
   it('renders the error banner above the submit button with reserved space to avoid layout shift', async () => {
@@ -205,6 +212,7 @@ describe('SignIn', () => {
     })
 
     expect(screen.getByRole('heading', { name: 'Two-factor authentication' })).toBeDefined()
+    expect(await axe(document.body)).toHaveNoViolations()
     expect(screen.getByRole('status').textContent).toContain(
       'Enter the 6-digit code from your authenticator app.',
     )

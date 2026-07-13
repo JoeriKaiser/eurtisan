@@ -20,7 +20,7 @@ export function Step8Review() {
     await saveStep(8, { termsAgreed })
   }, [termsAgreed, saveStep])
 
-  useStepActions(8, { validate, save })
+  const stepActionsRef = useStepActions(8, { validate, save })
 
   const handleSubmit = async () => {
     if (!termsAgreed) return
@@ -153,7 +153,7 @@ export function Step8Review() {
   ]
 
   return (
-    <div className='space-y-6'>
+    <div ref={stepActionsRef} className='space-y-6'>
       <div>
         <h2 className='display-title text-2xl text-text-primary'>Review & Open Shop</h2>
         <p className='mt-1 text-text-secondary'>Everything looks great. Let's make it official.</p>

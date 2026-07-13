@@ -393,41 +393,41 @@ describe('Header', () => {
     expect(screen.getByRole('dialog', { name: 'Navigation Drawer' })).toBeDefined()
   })
 
-  it('renders mobile search button and opens search overlay on click', () => {
+  it('renders mobile search button and opens search overlay on click', async () => {
     renderWithProviders(<Header />)
     const searchBtn = screen.getByRole('button', { name: 'Search products' })
     expect(searchBtn).toBeDefined()
 
     // Click trigger to open search overlay
     fireEvent.click(searchBtn)
-    expect(screen.getByTestId('search-overlay')).toBeDefined()
+    expect(await screen.findByTestId('search-overlay')).toBeDefined()
   })
 
-  it('renders desktop search button and opens search overlay on click', () => {
+  it('renders desktop search button and opens search overlay on click', async () => {
     renderWithProviders(<Header />)
     const searchBtn = screen.getByRole('button', { name: 'Search products...' })
     expect(searchBtn).toBeDefined()
 
     // Click trigger to open search overlay
     fireEvent.click(searchBtn)
-    expect(screen.getByTestId('search-overlay')).toBeDefined()
+    expect(await screen.findByTestId('search-overlay')).toBeDefined()
   })
 
-  it('opens search overlay on / keyboard shortcut', () => {
+  it('opens search overlay on / keyboard shortcut', async () => {
     renderWithProviders(<Header />)
     expect(screen.queryByTestId('search-overlay')).toBeNull()
 
     // Press '/' key
     fireEvent.keyDown(document, { key: '/' })
-    expect(screen.getByTestId('search-overlay')).toBeDefined()
+    expect(await screen.findByTestId('search-overlay')).toBeDefined()
   })
 
-  it('opens search overlay on Cmd+K keyboard shortcut', () => {
+  it('opens search overlay on Cmd+K keyboard shortcut', async () => {
     renderWithProviders(<Header />)
     expect(screen.queryByTestId('search-overlay')).toBeNull()
 
     // Press 'Cmd+K' key
     fireEvent.keyDown(document, { key: 'k', metaKey: true })
-    expect(screen.getByTestId('search-overlay')).toBeDefined()
+    expect(await screen.findByTestId('search-overlay')).toBeDefined()
   })
 })

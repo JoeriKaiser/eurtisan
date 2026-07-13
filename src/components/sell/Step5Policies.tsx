@@ -121,10 +121,10 @@ export function Step5Policies() {
     await saveStep(5, { policies: buildPolicies() })
   }, [saveStep, buildPolicies])
 
-  useStepActions(5, { validate, save })
+  const stepActionsRef = useStepActions(5, { validate, save })
 
   return (
-    <div className='space-y-6'>
+    <div ref={stepActionsRef} className='space-y-6'>
       <div>
         <h2 className='display-title text-2xl text-text-primary'>Shop Policies</h2>
         <p className='mt-1 text-text-secondary'>

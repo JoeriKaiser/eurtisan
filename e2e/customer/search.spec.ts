@@ -77,7 +77,10 @@ test.describe('Search', () => {
     await previousButton.click()
     await page.waitForURL((url) => !url.searchParams.has('page'))
     await expect(pagination().getByText(/page 1 of \d+/i)).toBeVisible()
-    await expect(page.getByLabel(/^Product:/).first()).toHaveAttribute('aria-label', expectedLabelPage1)
+    await expect(page.getByLabel(/^Product:/).first()).toHaveAttribute(
+      'aria-label',
+      expectedLabelPage1,
+    )
   })
 
   test('shows empty state for non-matching query', async ({ page }) => {

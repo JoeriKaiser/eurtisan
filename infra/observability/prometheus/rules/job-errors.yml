@@ -20,7 +20,7 @@ groups:
           description: "Job {{ $labels.job }} reported at least one failed tick in the last 5 minutes."
 
       - alert: EurtisanJobStale
-        expr: time() - eurtisan_job_last_success_timestamp > 600
+        expr: time() - eurtisan_job_last_success_timestamp{job!="financial-totals-reconciliation"} > 600
         for: 2m
         labels:
           severity: critical

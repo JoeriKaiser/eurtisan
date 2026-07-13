@@ -64,6 +64,8 @@ src/route-components/<route>.error.tsx    # error UI, when needed
 
 Nested route folders should mirror the URL structure. Route modules may contain a small component when the page is genuinely tiny, but substantial page UI belongs in `src/route-components/`. New reusable pieces belong in `src/components/`; primitives belong in `src/components/ui/`.
 
+TanStack Start owns automatic splitting of route `component`, `pendingComponent`, and `errorComponent` properties in the installed version; loaders and guards remain eager so data loading does not gain an extra chunk waterfall. `vite.config.ts` excludes `*.test.ts(x)` from route generation in every mode and excludes the development-only Mollie mock route from production. Tests may remain colocated under `src/routes/`, but no page component or unrelated helper may be added there.
+
 The repository contains older page-level implementations in `src/components/`, `src/components/routes/`, and, in a few cases, `src/routes/`. These are transitional exceptions. Do not perform broad moves solely to make the tree uniform; migrate a touched feature when there is a clear correctness or maintainability benefit. Do not add new route pages to `src/components/routes/` unless the component is intentionally shared or is part of an explicit migration.
 
 ## Server and client boundaries
@@ -77,6 +79,10 @@ The repository contains older page-level implementations in `src/components/`, `
 - Keep route components concerned with rendering and interaction; put business rules and persistence in `src/lib/` and `src/db/`.
 
 See the TanStack Start server/client boundary guidance in `AGENTS.md` before changing a module that is imported by both routes and UI.
+
+## React lifecycle ownership
+
+Runtime `useEffect` is prohibited and enforced by Biome. Use route loaders or TanStack Query for remote data, event handlers for user-action consequences, keyed component boundaries for loader-owned state resets, `useSyncExternalStore` for browser stores, and React 19 callback refs for DOM listeners or external registrations. Callback-ref setup must return cleanup; timers must be owned by a subscribed store or by the mounted element that schedules them. Consent-gated Faro and the search overlay are dynamically imported so neither external synchronization nor optional integrations enlarge the initial route graph.
 
 ## Generated files and source of truth
 

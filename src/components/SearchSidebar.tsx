@@ -1,8 +1,10 @@
+import { useQuery } from '@tanstack/react-query'
 import { Link, useRouter } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { listCategories } from '#/lib/categories'
 import { m } from '#/paraglide/messages'
+import { queryKeys } from '#/lib/query-keys'
 import { Input } from './ui/input'
 import { Skeleton } from './ui/skeleton'
 
@@ -48,14 +50,11 @@ export default function SearchSidebar() {
 }
 
 function CategoryLinks() {
-  const [categoryList, setCategoryList] = useState<Awaited<ReturnType<typeof listCategories>>>([])
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    listCategories()
-      .then(setCategoryList)
-      .finally(() => setIsLoading(false))
-  }, [])
+  const { data: categoryList = [], isLoading } = useQuery({
+    queryKey: queryKeys.categoriesList,
+    queryFn: () => listCategories({ data: {} }),
+    staleTime: 5 * 60_000,
+  })
 
   if (isLoading) {
     return (

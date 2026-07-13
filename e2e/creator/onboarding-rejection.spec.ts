@@ -32,9 +32,6 @@ test.describe('onboarding rejection and resubmission', () => {
   })
 
   test('creator can be rejected, resubmit, and be approved', async ({ page, browser, context }) => {
-    page.on('console', (msg) => console.log('ONBOARDING REJECTION PAGE LOG:', msg.text()))
-    page.on('pageerror', (err) => console.error('ONBOARDING REJECTION PAGE ERROR:', err.message))
-
     const seed = `rejection-${Date.now()}`
     const fullName = `${E2E_SHOP_NAME_PREFIX} ${seed}`
     const creator = await createVerifiedCreator(seed)

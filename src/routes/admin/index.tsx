@@ -6,7 +6,11 @@ import {
   getRecentOrders,
   getRecentSignups,
 } from '#/lib/admin-dashboard'
-import { AdminDashboard, AdminDashboardError, AdminDashboardPending } from './AdminDashboard'
+import {
+  AdminDashboard,
+  AdminDashboardError,
+  AdminDashboardPending,
+} from '#/route-components/admin/index'
 
 export const Route = createFileRoute('/admin/')({
   loader: async () => {

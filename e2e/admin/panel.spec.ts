@@ -2,8 +2,6 @@ import { expect, test } from '@playwright/test'
 
 test.describe('admin panel navigation', () => {
   test('admin pages render with sidebar links', async ({ page }) => {
-    page.on('console', (msg) => console.log('ADMIN PANEL PAGE LOG:', msg.text()))
-    page.on('pageerror', (err) => console.error('ADMIN PANEL PAGE ERROR:', err.message, err.stack))
     await page.setViewportSize({ width: 1440, height: 900 })
 
     // 1. Dashboard — verify sidebar links exist

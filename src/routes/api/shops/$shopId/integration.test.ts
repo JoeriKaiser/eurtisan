@@ -1,6 +1,6 @@
 import { config } from 'dotenv'
 
-config({ path: '.env.local' })
+config({ path: '.env.local', quiet: true })
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 

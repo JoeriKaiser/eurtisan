@@ -22,7 +22,8 @@ export function Input({ className, error, ref, ...props }: InputProps) {
         className,
       )}
       aria-invalid={error ? 'true' : undefined}
-      aria-describedby={error ? `${props.id}-error` : undefined}
+      aria-describedby={error && props.id ? `${props.id}-error` : undefined}
+      aria-errormessage={error && props.id ? `${props.id}-error` : undefined}
       {...props}
     />
   )

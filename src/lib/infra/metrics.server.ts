@@ -75,6 +75,34 @@ export const jobLastSuccessTimestamp = new Gauge({
   registers: [metricsRegistry],
 })
 
+export const jobLockContentionTotal = new Counter({
+  name: 'eurtisan_job_lock_contention_total',
+  help: 'Background job starts that could not acquire their singleton advisory lock',
+  labelNames: ['job'] as const,
+  registers: [metricsRegistry],
+})
+
+export const financialReconciliationRecordsCheckedTotal = new Counter({
+  name: 'eurtisan_financial_reconciliation_records_checked_total',
+  help: 'Financial records checked by routine read-only reconciliation',
+  labelNames: ['entity'] as const,
+  registers: [metricsRegistry],
+})
+
+export const financialReconciliationMismatchesTotal = new Counter({
+  name: 'eurtisan_financial_reconciliation_mismatches_total',
+  help: 'Financial invariant mismatches detected by category',
+  labelNames: ['category'] as const,
+  registers: [metricsRegistry],
+})
+
+export const financialReconciliationLastRunMismatches = new Gauge({
+  name: 'eurtisan_financial_reconciliation_last_run_mismatches',
+  help: 'Financial invariant mismatches in the latest completed run by category',
+  labelNames: ['category'] as const,
+  registers: [metricsRegistry],
+})
+
 export const mollieWebhookFailedTotal = new Counter({
   name: 'eurtisan_mollie_webhook_failed_total',
   help: 'Mollie webhook requests that failed processing and returned 5xx',

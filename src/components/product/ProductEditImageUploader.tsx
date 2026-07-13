@@ -1,6 +1,7 @@
+import { useId } from 'react'
 import { ArrowDown, ArrowUp, ImageIcon, Upload, X } from 'lucide-react'
-import { m } from '#/paraglide/messages'
 import { Button } from '#/components/ui/button'
+import { m } from '#/paraglide/messages'
 
 export interface ImageEntry {
   id: string
@@ -32,12 +33,18 @@ export function ProductEditImageUploader({
   onMoveUp,
   onMoveDown,
 }: ProductEditImageUploaderProps) {
+  const uploadId = useId()
+  const hintId = `${uploadId}-hint`
+  const errorId = `${uploadId}-error`
+
   return (
-    <div>
-      <span className='mb-2 block text-sm font-medium text-text-primary'>
+    <fieldset>
+      <legend className='mb-2 block text-sm font-medium text-text-primary'>
         {m.creator_product_new_images_label()}
-      </span>
-      <p className='mb-3 text-xs text-text-muted'>{m.creator_product_edit_images_hint()}</p>
+      </legend>
+      <p id={hintId} className='mb-3 text-xs text-text-muted'>
+        {m.creator_product_edit_images_hint()}
+      </p>
 
       {images.length > 0 && (
         <div className='mb-3 grid grid-cols-2 gap-2'>
@@ -47,7 +54,11 @@ export function ProductEditImageUploader({
               className='group relative overflow-hidden rounded-lg border border-border-default'
             >
               {img.uploading ? (
-                <div className='flex aspect-square items-center justify-center bg-surface-inset'>
+                <div
+                  className='flex aspect-square items-center justify-center bg-surface-inset'
+                  role='status'
+                  aria-live='polite'
+                >
                   <div className='text-center'>
                     <svg
                       className='mx-auto size-6 animate-spin text-text-muted'
@@ -70,11 +81,16 @@ export function ProductEditImageUploader({
                         d='M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z'
                       />
                     </svg>
-                    <p className='mt-1 text-xs text-text-muted'>Uploading…</p>
+                    <p className='mt-1 text-xs text-text-muted'>
+                      {m.creator_product_new_images_reading()}
+                    </p>
                   </div>
                 </div>
               ) : img.error ? (
-                <div className='flex aspect-square items-center justify-center bg-error-subtle p-2 text-center'>
+                <div
+                  className='flex aspect-square items-center justify-center bg-error-subtle p-2 text-center'
+                  role='alert'
+                >
                   <p className='text-xs text-error'>{img.error}</p>
                 </div>
               ) : (
@@ -91,10 +107,10 @@ export function ProductEditImageUploader({
                     <button
                       type='button'
                       onClick={() => onRemoveImage(img.id)}
-                      className='flex size-6 items-center justify-center rounded-full bg-bg-overlay/80 text-white transition hover:bg-error'
+                      className='flex size-8 items-center justify-center rounded-full bg-bg-overlay/80 text-white transition hover:bg-error focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2'
                       aria-label={m.creator_product_edit_image_remove()}
                     >
-                      <X size={14} />
+                      <X size={16} aria-hidden='true' />
                     </button>
                   </div>
                   <div className='flex justify-center gap-1 p-1'>
@@ -102,19 +118,19 @@ export function ProductEditImageUploader({
                       type='button'
                       onClick={() => onMoveUp(img.id)}
                       disabled={idx === 0}
-                      className='flex size-6 items-center justify-center rounded bg-bg-overlay/80 text-white transition hover:bg-surface-inset disabled:opacity-30'
+                      className='flex size-8 items-center justify-center rounded bg-bg-overlay/80 text-white transition hover:bg-surface-inset disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2'
                       aria-label={m.creator_product_edit_image_move_up()}
                     >
-                      <ArrowUp size={14} />
+                      <ArrowUp size={16} aria-hidden='true' />
                     </button>
                     <button
                       type='button'
                       onClick={() => onMoveDown(img.id)}
                       disabled={idx === images.length - 1}
-                      className='flex size-6 items-center justify-center rounded bg-bg-overlay/80 text-white transition hover:bg-surface-inset disabled:opacity-30'
+                      className='flex size-8 items-center justify-center rounded bg-bg-overlay/80 text-white transition hover:bg-surface-inset disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2'
                       aria-label={m.creator_product_edit_image_move_down()}
                     >
-                      <ArrowDown size={14} />
+                      <ArrowDown size={16} aria-hidden='true' />
                     </button>
                   </div>
                 </div>
@@ -135,31 +151,37 @@ export function ProductEditImageUploader({
 
       <div>
         <input
-          id='product-image-upload'
+          id={uploadId}
           type='file'
           accept='image/jpeg,image/png,image/webp'
           multiple
           onChange={onImageSelect}
-          className='hidden'
+          className='sr-only'
           aria-label={m.creator_product_new_images_label()}
+          aria-describedby={`${hintId}${fieldError ? ` ${errorId}` : ''}`}
+          aria-invalid={fieldError ? 'true' : undefined}
         />
         <Button
           type='button'
           variant='secondary'
           size='sm'
-          onClick={() => document.getElementById('product-image-upload')?.click()}
+          onClick={() => document.getElementById(uploadId)?.click()}
           disabled={images.length >= maxImages}
           className='w-full'
         >
           <Upload size={16} aria-hidden='true' />
           {m.creator_product_new_images_add()}
         </Button>
-        <p className='mt-1 text-xs text-text-muted text-center'>
-          {images.filter((i) => !i.error && !i.uploading).length}/{maxImages}
+        <p className='mt-1 text-xs text-text-muted text-center' role='status' aria-live='polite'>
+          {images.filter((image) => !image.error && !image.uploading).length}/{maxImages}
         </p>
       </div>
 
-      {fieldError && <p className='mt-2 text-sm text-error'>{fieldError}</p>}
-    </div>
+      {fieldError && (
+        <p id={errorId} className='mt-2 text-sm text-error' role='alert'>
+          {fieldError}
+        </p>
+      )}
+    </fieldset>
   )
 }

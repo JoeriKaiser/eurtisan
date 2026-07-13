@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react'
-import { getRouteApi } from '@tanstack/react-router'
+import { getRouteApi, useHydrated } from '@tanstack/react-router'
 import { authClient } from './client'
 import type { UserRole } from './authz'
 
@@ -38,11 +37,7 @@ export function useAuth(): AuthState {
   const rootUser = rootData?.user ?? null
 
   const { data: session, isPending } = authClient.useSession()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const hydrated = useHydrated()
 
   const activeUser = session?.user
     ? ({
@@ -56,7 +51,7 @@ export function useAuth(): AuthState {
     : null
 
   // During SSR and initial client hydration render, use rootUser to avoid hydration mismatch.
-  const user = mounted ? activeUser || (session === null ? null : rootUser) : rootUser
+  const user = hydrated ? activeUser || (session === null ? null : rootUser) : rootUser
   const isAuthPending = isPending && !activeUser && !rootUser
 
   return {

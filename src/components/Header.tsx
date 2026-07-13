@@ -1,6 +1,6 @@
 import { getRouteApi, Link } from '@tanstack/react-router'
 import { Bell, Menu, Search, ShoppingCart } from 'lucide-react'
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { lazy, Suspense, useCallback, useState, useSyncExternalStore } from 'react'
 import { useCart } from '#/components/CartProvider'
 import { useAuth } from '#/lib/auth-hooks'
 import type { CategoryTreeNode } from '#/lib/categories'
@@ -11,12 +11,12 @@ import { m } from '#/paraglide/messages'
 import CategoriesMegamenu from './CategoriesMegamenu'
 import LocaleDropdown from './LocaleDropdown'
 import MobileNavDrawer from './MobileNavDrawer'
-import SearchOverlay from './search/SearchOverlay'
 import ThemeToggle from './ThemeToggle'
 import UserMenu from './UserMenu'
 import Logo from './Logo'
 
 const rootRoute = getRouteApi('__root__')
+const SearchOverlay = lazy(() => import('./search/SearchOverlay'))
 
 export default function Header() {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
@@ -30,28 +30,33 @@ export default function Header() {
   const loaderData = rootRoute.useLoaderData()
   const categories = (loaderData.categories ?? []) as CategoryTreeNode[]
 
+  const subscribeToScroll = useCallback((callback: () => void) => {
+    window.addEventListener('scroll', callback, { passive: true })
+    return () => window.removeEventListener('scroll', callback)
+  }, [])
+
   // Scroll state to add border shadow on scroll
   const isScrolled = useSyncExternalStore(
-    (callback) => {
-      window.addEventListener('scroll', callback, { passive: true })
-      return () => window.removeEventListener('scroll', callback)
-    },
+    subscribeToScroll,
     () => window.scrollY > 10,
     () => false,
   )
 
-  // Global keyboard shortcuts: / and Cmd+K / Ctrl+K to open search overlay
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      const target = e.target as HTMLElement
+  const keyboardShortcutOwnerRef = useCallback((node: HTMLElement | null) => {
+    if (!node) return
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement
       const isTypingInField =
         target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
 
       if (isTypingInField) return
-
-      if (e.key === '/' || (e.metaKey && e.key === 'k') || (e.ctrlKey && e.key === 'k')) {
-        e.preventDefault()
-        setSearchKey((k) => k + 1)
+      if (
+        event.key === '/' ||
+        (event.metaKey && event.key === 'k') ||
+        (event.ctrlKey && event.key === 'k')
+      ) {
+        event.preventDefault()
+        setSearchKey((key) => key + 1)
         setSearchOverlayOpen(true)
       }
     }
@@ -64,6 +69,7 @@ export default function Header() {
 
   return (
     <header
+      ref={keyboardShortcutOwnerRef}
       className={cn(
         'sticky top-0 z-sticky border-b bg-surface-default/80 backdrop-blur-lg transition-all duration-base ease-out',
         isScrolled ? 'border-border-strong shadow-md' : 'border-border-default',
@@ -192,11 +198,11 @@ export default function Header() {
         categories={categories}
         onOpenSearch={() => setSearchOverlayOpen(true)}
       />
-      <SearchOverlay
-        key={searchKey}
-        isOpen={searchOverlayOpen}
-        onClose={() => setSearchOverlayOpen(false)}
-      />
+      {searchOverlayOpen ? (
+        <Suspense fallback={null}>
+          <SearchOverlay key={searchKey} isOpen onClose={() => setSearchOverlayOpen(false)} />
+        </Suspense>
+      ) : null}
     </header>
   )
 }

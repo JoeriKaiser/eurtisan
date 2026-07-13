@@ -522,14 +522,10 @@ export async function sendMollieWebhook(
     body: JSON.stringify({ paymentId, status, amountCents }),
   })
 
-  const signature = `mock_sig_${paymentId}`
   return fetch(`${baseURL}/api/webhooks/mollie`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Mollie-Signature': signature,
-    },
-    body: JSON.stringify({ id: paymentId }),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ id: paymentId }),
   })
 }
 

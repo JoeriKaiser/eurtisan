@@ -10,16 +10,16 @@ on:
 permissions:
   contents: read
 
-# Validation only. This workflow never runs deploy.sh, changes infrastructure,
-# or deploys to staging/production.
+# Validation only. No job deploys, accesses Vault, or contacts staging/provider accounts.
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  lint-and-test:
-    name: Quality (Lint, Test & Type Check)
+  quality:
+    name: Quality, Migrations, Tests & Build
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     permissions:
       contents: read
     steps:
@@ -28,7 +28,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Prepare safe CI environment
+      - name: Prepare safe local-only CI environment
         run: cp .env.example .env.local
 
       - name: Start Docker services
@@ -36,6 +36,15 @@ jobs:
 
       - name: Install locked dependencies
         run: make install
+
+      - name: Check formatting
+        run: make format
+
+      - name: Lint
+        run: make lint
+
+      - name: Type check
+        run: make check
 
       - name: Audit production dependencies
         run: make audit-production
@@ -46,26 +55,103 @@ jobs:
       - name: Validate migration chain
         run: make db-check
 
-      - name: Apply migrations to the CI database
-        run: make db-migrate
+      - name: Apply full migration chain to a fresh isolated database
+        run: make db-migrate-fresh
 
-      - name: Lint and format check
-        run: make lint
+      - name: Run focused accessibility component and static gates
+        run: make test-accessibility
 
-      - name: Run unit and browser tests
+      - name: Run unit and browser tests with warning gate
         run: make test
 
-      - name: Type check
-        run: make check
+      - name: Build production application with warning gate
+        run: make build
+
+      - name: Enforce measured client bundle budgets
+        run: make bundle-check
+
+      - name: Verify validation did not mutate tracked files
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain --untracked-files=no)"
 
       - name: Stop Docker services
         if: always()
         run: docker compose down -v --remove-orphans
 
+  e2e:
+    name: Isolated Playwright E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: quality
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
+      - name: Prepare safe local-only CI environment
+        run: cp .env.example .env.local
+
+      - name: Start Docker services
+        run: make up
+
+      - name: Install locked dependencies
+        run: make install
+
+      - name: Run isolated Playwright workflows
+        run: make e2e
+
+      - name: Stop Docker services
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker-compose.e2e.yml down -v --remove-orphans
+
+  production-image:
+    name: Production Image Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: quality
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
+      - name: Build and smoke-test production image configuration
+        run: PRODUCTION_SMOKE_IMAGE=eurtisan-app:ci make production-image-smoke
+
+  infrastructure:
+    name: Compose, Workflow, Shell & Ansible
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
+      - name: Validate production and staging Compose models
+        run: make compose-check
+
+      - name: Validate GitHub Actions semantics
+        run: make ci-workflow-check
+
+      - name: Validate shell syntax
+        run: make shell-syntax
+
+      - name: Validate Ansible syntax, preflight, and templates
+        run: make ansible-check
+
   prometheus-rules:
     name: Prometheus Rules
     runs-on: ubuntu-latest
-    needs: lint-and-test
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
@@ -76,57 +162,3 @@ jobs:
 
       - name: Check Prometheus rules
         run: make promtool-check
-
-  dockerfile-prod:
-    name: Production Image & Script Validation
-    runs-on: ubuntu-latest
-    needs: lint-and-test
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-        with:
-          persist-credentials: false
-
-      - name: Build production image
-        run: docker build -f Dockerfile.prod -t eurtisan-app:ci .
-
-      - name: Validate deploy script syntax
-        run: bash -n infrastructure/ansible/files/deploy.sh
-
-      - name: Validate backup script template syntax
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          content = Path('infrastructure/ansible/roles/eurtisan/templates/backup.sh.j2').read_text()
-          rendered = re.sub(r'\{\{[^}]+\}\}', "''", content)
-          rendered = re.sub(r'\{%[^%]+%\}', '', rendered)
-          Path('/tmp/backup-rendered.sh').write_text(rendered)
-          PY
-          bash -n /tmp/backup-rendered.sh
-
-  ansible-syntax:
-    name: Ansible Syntax
-    runs-on: ubuntu-latest
-    needs: lint-and-test
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
-        with:
-          persist-credentials: false
-
-      - name: Setup Python
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
-        with:
-          python-version: '3.12'
-
-      - name: Install Ansible
-        run: pip install ansible==14.1.0
-
-      - name: Syntax-check playbook
-        run: ansible-playbook -i infrastructure/ansible/inventory/staging.example.yml infrastructure/ansible/playbook.yml --syntax-check

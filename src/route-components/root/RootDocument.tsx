@@ -22,6 +22,10 @@ export function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body className='font-sans antialiased [overflow-wrap:anywhere]'>
         {children}
+        <script>{`document.documentElement.setAttribute('data-hydrated','true')`}</script>
+        {import.meta.env.DEV ? (
+          <script>{`if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(registrations){registrations.forEach(function(registration){registration.unregister()})})}`}</script>
+        ) : null}
         <Scripts />
       </body>
     </html>
