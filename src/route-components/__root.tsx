@@ -1,4 +1,4 @@
-import { Outlet, useRouter } from '@tanstack/react-router'
+import { Outlet, useRouter, useRouterState } from '@tanstack/react-router'
 import { lazy, Suspense, useCallback, useRef } from 'react'
 import { useAnalyticsConsent } from '#/hooks/use-analytics-consent'
 import { ObservabilityErrorBoundary } from '#/components/ObservabilityErrorBoundary'
@@ -33,7 +33,7 @@ function normalizeAuthRoute(pathname: string): string {
 
 export function RootComponent() {
   const router = useRouter()
-  const pathname = router.state.location.pathname
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
   const normalizedPathname = stripLocalePrefix(pathname)
   const isOnboarding = pathname.includes('/sell/onboarding/')
   const isAuthRoute = AUTH_ROUTES.has(normalizeAuthRoute(pathname))
@@ -85,7 +85,15 @@ export function RootComponent() {
             {m.nav_skip_to_content()}
           </a>
           {!isAdminRoute && <Header />}
-          <div id='main-content' className='flex-1 outline-none' tabIndex={-1}>
+          <div
+            id='main-content'
+            className={
+              isAdminRoute || isOnboarding
+                ? 'flex-1 outline-none'
+                : 'page-transition-content flex-1 outline-none'
+            }
+            tabIndex={-1}
+          >
             <Outlet />
           </div>
           {!isOnboarding && !isAdminRoute && <Footer />}

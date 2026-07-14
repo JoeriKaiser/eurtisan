@@ -1,7 +1,9 @@
 import { Link, useRouter } from '@tanstack/react-router'
 import { Search, Store } from 'lucide-react'
 import { useCallback, useRef } from 'react'
+import { getImageUrl } from '#/lib/image-url'
 import type { PaginatedProducts, ShopSummary } from '#/lib/products.server'
+import { getShopImageTransitionName } from '#/lib/view-transitions'
 import { m } from '#/paraglide/messages'
 import ProductGrid from './ProductGrid'
 import { Button } from './ui/button'
@@ -45,18 +47,33 @@ export default function ShopPage({ shop, products, searchQuery }: ShopPageProps)
     <main className='page-wrap px-4 pb-16 pt-14'>
       {/* Shop Header */}
       <section className='island-shell rounded-2xl px-6 py-10 sm:px-10 sm:py-14'>
-        <div className='mb-4 flex items-center gap-3'>
-          <Store size={24} className='text-accent-primary' aria-hidden='true' />
-          <p className='island-kicker'>{m.shop_kicker()}</p>
+        <div className='flex items-start gap-5 sm:gap-6'>
+          <div
+            className='flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-accent-primary/10 bg-accent-primary-subtle text-accent-primary sm:size-20'
+            style={{ viewTransitionName: getShopImageTransitionName(shop.id) }}
+          >
+            {shop.image ? (
+              <img
+                src={getImageUrl(shop.image, { width: 160, format: 'webp' })}
+                alt=''
+                className='h-full w-full object-cover'
+              />
+            ) : (
+              <Store size={28} strokeWidth={1.5} aria-hidden='true' />
+            )}
+          </div>
+          <div className='min-w-0'>
+            <p className='island-kicker mb-2'>{m.shop_kicker()}</p>
+            <h1 className='display-title mb-4 text-4xl font-semibold tracking-tight text-text-primary sm:text-5xl'>
+              {shop.name}
+            </h1>
+            {shop.description ? (
+              <p className='max-w-2xl text-base leading-relaxed text-text-secondary'>
+                {shop.description}
+              </p>
+            ) : null}
+          </div>
         </div>
-        <h1 className='display-title mb-4 text-4xl font-semibold tracking-tight text-text-primary sm:text-5xl'>
-          {shop.name}
-        </h1>
-        {shop.description ? (
-          <p className='max-w-2xl text-base leading-relaxed text-text-secondary'>
-            {shop.description}
-          </p>
-        ) : null}
       </section>
 
       {/* Products */}

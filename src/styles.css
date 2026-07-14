@@ -682,6 +682,102 @@
   background: radial-gradient(circle, oklch(62% 0.09 145 / 0.2), transparent 70%);
 }
 
+/* ─── Page View Transitions ─── */
+.page-transition-content {
+  view-transition-name: page-content;
+}
+
+/* Disable the browser's default full-page crossfade. Only pathname changes
+   receive the restrained content transition below. */
+::view-transition-group(root),
+::view-transition-old(root),
+::view-transition-new(root),
+::view-transition-group(page-content),
+::view-transition-old(page-content),
+::view-transition-new(page-content) {
+  animation: none;
+}
+
+html:active-view-transition-type(page)::view-transition-old(page-content) {
+  transform-origin: top center;
+  animation: page-transition-out 170ms var(--ds-ease-out) both;
+}
+
+html:active-view-transition-type(page)::view-transition-new(page-content) {
+  transform-origin: top center;
+  animation: page-transition-in 250ms var(--ds-ease-out) both;
+}
+
+@keyframes page-transition-out {
+  to {
+    opacity: 0;
+    transform: scale(1.002);
+  }
+}
+
+@keyframes page-transition-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+html:active-view-transition-type(onboarding-forward)::view-transition-old(page-content) {
+  animation: onboarding-step-out-forward 170ms var(--ds-ease-out) both;
+}
+
+html:active-view-transition-type(onboarding-forward)::view-transition-new(page-content) {
+  animation: onboarding-step-in-forward 240ms var(--ds-ease-out) both;
+}
+
+html:active-view-transition-type(onboarding-backward)::view-transition-old(page-content) {
+  animation: onboarding-step-out-backward 170ms var(--ds-ease-out) both;
+}
+
+html:active-view-transition-type(onboarding-backward)::view-transition-new(page-content) {
+  animation: onboarding-step-in-backward 240ms var(--ds-ease-out) both;
+}
+
+@keyframes onboarding-step-out-forward {
+  to {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+}
+
+@keyframes onboarding-step-in-forward {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes onboarding-step-out-backward {
+  to {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+}
+
+@keyframes onboarding-step-in-backward {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 /* ─── Animation ─── */
 .rise-in {
   animation: rise-in 600ms var(--ds-ease-out) both;
@@ -723,6 +819,13 @@ input[type="search"]::-webkit-search-results-decoration {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    /* biome-ignore lint/complexity/noImportantStyles: accessibility reduced-motion reset must override view-transition selectors */
+    animation: none !important;
+  }
+
   *,
   *::before,
   *::after {

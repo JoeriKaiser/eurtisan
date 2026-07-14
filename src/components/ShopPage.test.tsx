@@ -107,6 +107,21 @@ describe('ShopPage', () => {
     expect(screen.queryByText('A test shop description')).toBeNull()
   })
 
+  it('renders the shop image with the featured-card shared-element name', () => {
+    const { container } = render(
+      <ShopPage
+        shop={makeShop({ image: 'http://example.com/shop.jpg' })}
+        products={makePaginatedProducts()}
+        searchQuery=''
+      />,
+    )
+    const image = container.querySelector("img[src='http://example.com/shop.jpg']")
+    expect(image?.getAttribute('alt')).toBe('')
+    expect(image?.parentElement?.style.getPropertyValue('view-transition-name')).toBe(
+      'shop-image-shop-1',
+    )
+  })
+
   it('renders products in grid', () => {
     const products = makePaginatedProducts({
       products: [makeProduct('1'), makeProduct('2')],

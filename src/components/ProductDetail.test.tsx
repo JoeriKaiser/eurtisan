@@ -140,6 +140,14 @@ describe('ProductDetail', () => {
     expect(tabs.length).toBe(2)
   })
 
+  it('matches the product card shared-element image name', () => {
+    render(<ProductDetail product={makeProduct()} />)
+    const imageBoundary = screen.getAllByAltText('Front view')[0]?.parentElement?.parentElement
+    expect(imageBoundary?.style.getPropertyValue('view-transition-name')).toBe(
+      'product-image-prod-1',
+    )
+  })
+
   it('switches main image when thumbnail is clicked', () => {
     render(<ProductDetail product={makeProduct()} />)
     const tabs = screen.getAllByRole('tab')
