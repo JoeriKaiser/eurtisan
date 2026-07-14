@@ -121,6 +121,7 @@ export default function BuyerOrderDetailPage({
   const [activeDisputeShop, setActiveDisputeShop] = useState<OrderShopGroup | null>(null)
   const [disputeReason, setDisputeReason] = useState('item_not_received')
   const [disputeDescription, setDisputeDescription] = useState('')
+  const [disputeConfirmed, setDisputeConfirmed] = useState(false)
   const [isDisputeSubmitting, setIsDisputeSubmitting] = useState(false)
   const [disputeError, setDisputeError] = useState<string | null>(null)
   const [openedDispute, setOpenedDispute] = useState<{
@@ -138,9 +139,13 @@ export default function BuyerOrderDetailPage({
   }
 
   const handleOpenDispute = (shop: OrderShopGroup) => {
-    if (shop.status !== 'delivered' || !isDisputeEligible(shop.deliveredAt)) return
+    const isDeliveredEligible = shop.status === 'delivered' && isDisputeEligible(shop.deliveredAt)
+    const isNonDeliveryEligible = shop.nonDeliveryEligibility?.eligible === true
+    if (!isDeliveredEligible && !isNonDeliveryEligible) return
+
     setDisputeReason('item_not_received')
     setDisputeDescription('')
+    setDisputeConfirmed(false)
     setDisputeError(null)
     setActiveDisputeShop(shop)
   }
@@ -149,11 +154,18 @@ export default function BuyerOrderDetailPage({
     setActiveDisputeShop(null)
     setDisputeReason('item_not_received')
     setDisputeDescription('')
+    setDisputeConfirmed(false)
     setDisputeError(null)
   }
 
   const handleSubmitDispute = async () => {
-    if (!activeDisputeShop || !disputeDescription.trim()) return
+    const requiresNonDeliveryConfirmation = activeDisputeShop?.status !== 'delivered'
+    if (
+      !activeDisputeShop ||
+      !disputeDescription.trim() ||
+      (requiresNonDeliveryConfirmation && !disputeConfirmed)
+    )
+      return
     setIsDisputeSubmitting(true)
     setDisputeError(null)
     try {
@@ -561,11 +573,29 @@ export default function BuyerOrderDetailPage({
                   </div>
                 )}
 
-                {/* Dispute CTA for delivered items */}
                 {(shop.status === 'delivered' ||
+                  shop.nonDeliveryEligibility ||
                   shop.disputeId ||
                   openedDispute?.shopOrderId === shop.shopOrderId) && (
-                  <div className='flex justify-end'>
+                  <div className='flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle pt-3'>
+                    <div className='max-w-xl' aria-live='polite'>
+                      {shop.nonDeliveryEligibility && shop.status !== 'delivered' && (
+                        <>
+                          <p className='text-sm font-medium text-text-primary'>
+                            {shop.nonDeliveryEligibility.eligible
+                              ? m.order_non_delivery_eligible()
+                              : shop.nonDeliveryEligibility.eligibleAt
+                                ? m.order_non_delivery_eligible_date({
+                                    date: formatDate(shop.nonDeliveryEligibility.eligibleAt),
+                                  })
+                                : m.order_non_delivery_unavailable()}
+                          </p>
+                          <p className='mt-1 text-xs text-text-muted'>
+                            {m.order_non_delivery_evidence_guidance()}
+                          </p>
+                        </>
+                      )}
+                    </div>
                     {shop.disputeId ? (
                       <Link
                         to='/disputes/$disputeId'
@@ -584,28 +614,35 @@ export default function BuyerOrderDetailPage({
                         <MessageSquare size={14} aria-hidden='true' />
                         {m.order_detail_view_dispute()}
                       </Link>
-                    ) : isDisputeEligible(shop.deliveredAt) ? (
-                      <Button
-                        variant='ghost'
-                        size='sm'
-                        onClick={() => handleOpenDispute(shop)}
-                        className='text-error hover:bg-error/5 hover:text-error'
-                      >
+                    ) : shop.status === 'delivered' ? (
+                      isDisputeEligible(shop.deliveredAt) ? (
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          onClick={() => handleOpenDispute(shop)}
+                          className='text-error hover:bg-error/5 hover:text-error'
+                        >
+                          <AlertTriangle size={14} className='mr-1' aria-hidden='true' />
+                          {m.order_detail_open_dispute()}
+                        </Button>
+                      ) : (
+                        <Button
+                          variant='ghost'
+                          size='sm'
+                          disabled
+                          title={m.order_detail_dispute_disabled_tooltip()}
+                          className='text-text-muted'
+                        >
+                          <AlertTriangle size={14} className='mr-1' aria-hidden='true' />
+                          {m.order_detail_open_dispute()}
+                        </Button>
+                      )
+                    ) : shop.nonDeliveryEligibility?.eligible ? (
+                      <Button variant='secondary' size='sm' onClick={() => handleOpenDispute(shop)}>
                         <AlertTriangle size={14} className='mr-1' aria-hidden='true' />
                         {m.order_detail_open_dispute()}
                       </Button>
-                    ) : (
-                      <Button
-                        variant='ghost'
-                        size='sm'
-                        disabled
-                        title={m.order_detail_dispute_disabled_tooltip()}
-                        className='text-text-muted'
-                      >
-                        <AlertTriangle size={14} className='mr-1' aria-hidden='true' />
-                        {m.order_detail_open_dispute()}
-                      </Button>
-                    )}
+                    ) : null}
                   </div>
                 )}
               </section>
@@ -750,26 +787,41 @@ export default function BuyerOrderDetailPage({
                 }}
               >
                 <div>
-                  <label
-                    htmlFor='dispute-reason'
-                    className='mb-1.5 block text-sm font-medium text-text-primary'
-                  >
-                    {m.dispute_reason_label()}
-                  </label>
-                  <select
-                    id='dispute-reason'
-                    value={disputeReason}
-                    onChange={(e) => setDisputeReason(e.target.value)}
-                    disabled={isDisputeSubmitting}
-                    className='h-10 w-full rounded-lg border border-border-default bg-surface-default px-3 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20 disabled:opacity-50'
-                  >
-                    <option value='item_not_received'>
-                      {m.dispute_reason_item_not_received()}
-                    </option>
-                    <option value='not_as_described'>{m.dispute_reason_not_as_described()}</option>
-                    <option value='damaged'>{m.dispute_reason_damaged()}</option>
-                    <option value='other'>{m.dispute_reason_other()}</option>
-                  </select>
+                  {activeDisputeShop.status === 'delivered' ? (
+                    <>
+                      <label
+                        htmlFor='dispute-reason'
+                        className='mb-1.5 block text-sm font-medium text-text-primary'
+                      >
+                        {m.dispute_reason_label()}
+                      </label>
+                      <select
+                        id='dispute-reason'
+                        value={disputeReason}
+                        onChange={(e) => setDisputeReason(e.target.value)}
+                        disabled={isDisputeSubmitting}
+                        className='h-10 w-full rounded-lg border border-border-default bg-surface-default px-3 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20 disabled:opacity-50'
+                      >
+                        <option value='item_not_received'>
+                          {m.dispute_reason_item_not_received()}
+                        </option>
+                        <option value='not_as_described'>
+                          {m.dispute_reason_not_as_described()}
+                        </option>
+                        <option value='damaged'>{m.dispute_reason_damaged()}</option>
+                        <option value='other'>{m.dispute_reason_other()}</option>
+                      </select>
+                    </>
+                  ) : (
+                    <>
+                      <p className='mb-1.5 text-sm font-medium text-text-primary'>
+                        {m.dispute_reason_label()}
+                      </p>
+                      <p className='rounded-lg border border-border-default bg-surface-inset px-3 py-2 text-sm text-text-primary'>
+                        {m.dispute_reason_item_not_received()}
+                      </p>
+                    </>
+                  )}
                 </div>
 
                 <div>
@@ -796,7 +848,28 @@ export default function BuyerOrderDetailPage({
                   </p>
                 </div>
 
-                {disputeError && <p className='text-sm text-error'>{disputeError}</p>}
+                {activeDisputeShop.status !== 'delivered' && (
+                  <>
+                    <p className='text-xs text-text-muted'>
+                      {m.order_non_delivery_evidence_guidance()}
+                    </p>
+
+                    <label className='flex items-start gap-2 text-sm text-text-secondary'>
+                      <input
+                        type='checkbox'
+                        checked={disputeConfirmed}
+                        onChange={(event) => setDisputeConfirmed(event.target.checked)}
+                        disabled={isDisputeSubmitting}
+                        className='mt-1 size-4 accent-accent-primary'
+                      />
+                      <span>{m.order_non_delivery_confirmation()}</span>
+                    </label>
+                  </>
+                )}
+
+                <div className='min-h-5' aria-live='polite' aria-atomic='true'>
+                  {disputeError && <p className='text-sm text-error'>{disputeError}</p>}
+                </div>
 
                 <div className='flex justify-end gap-3'>
                   <Button
@@ -810,7 +883,11 @@ export default function BuyerOrderDetailPage({
                   <Button
                     type='submit'
                     isLoading={isDisputeSubmitting}
-                    disabled={!disputeDescription.trim() || isDisputeSubmitting}
+                    disabled={
+                      !disputeDescription.trim() ||
+                      (activeDisputeShop.status !== 'delivered' && !disputeConfirmed) ||
+                      isDisputeSubmitting
+                    }
                   >
                     {m.dispute_submit()}
                   </Button>

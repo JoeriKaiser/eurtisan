@@ -3,7 +3,10 @@ import { db } from '#/db/index'
 import { shippingLabel, shopOrder } from '#/db/schema'
 import { getShippingProvider } from '#/integrations/shipping'
 import { logger } from '../logger.server'
-import { markShopOrderDeliveredQuery } from '../shop-orders.server'
+import {
+  markShopOrderDeliveredQuery,
+  updateAuthoritativeTrackingStateQuery,
+} from '../shop-orders.server'
 
 export interface SendcloudReconciliationResult {
   checked: number
@@ -59,6 +62,22 @@ export async function reconcileSendcloudShipments(options?: {
 
     try {
       const info = await provider.trackShipment(row.trackingNumber)
+      const eventTimes = info.events
+        .map((event) => new Date(event.timestamp))
+        .filter((eventAt) => !Number.isNaN(eventAt.getTime()))
+      const latestEventAt = eventTimes.sort((left, right) => right.getTime() - left.getTime())[0]
+      const terminalWithoutEvent = [
+        'delivered',
+        'unable_to_deliver',
+        'returned_to_sender',
+      ].includes(info.status)
+
+      if (latestEventAt || terminalWithoutEvent) {
+        await updateAuthoritativeTrackingStateQuery(row.shopOrderId, {
+          status: info.status,
+          eventAt: latestEventAt ?? new Date(),
+        })
+      }
 
       if (info.status === 'delivered') {
         await markShopOrderDeliveredQuery(row.shopOrderId)

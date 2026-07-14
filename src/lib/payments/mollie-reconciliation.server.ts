@@ -16,6 +16,7 @@ import {
 } from '#/lib/metrics.server'
 import { logOrderPaid } from '#/lib/order-logger'
 import type { PaymentProvider } from '#/lib/payment-provider'
+import { createDeliveryPromiseSnapshot } from '#/lib/disputes/non-delivery'
 
 export type MolliePaymentReconciliationStatus =
   | 'already_processed'
@@ -340,16 +341,41 @@ async function markPendingOrderPaid(
       return { status: 'inventory_mismatch' }
     }
 
+    const paidAt = new Date()
     const [platformOrderRecord] = await tx
       .update(platformOrder)
-      .set({ status: 'paid', updatedAt: new Date() })
+      .set({ status: 'paid', paidAt, updatedAt: paidAt })
       .where(eq(platformOrder.id, platformOrderId))
       .returning({ totalCents: platformOrder.totalCents })
 
-    await tx
-      .update(shopOrder)
-      .set({ status: 'paid', updatedAt: new Date() })
+    const shopOrderPromises = await tx
+      .select({
+        id: shopOrder.id,
+        processingTimeMaxBusinessDays: shopOrder.processingTimeMaxBusinessDays,
+        transitTimeMinBusinessDays: shopOrder.transitTimeMinBusinessDays,
+        transitTimeMaxBusinessDays: shopOrder.transitTimeMaxBusinessDays,
+      })
+      .from(shopOrder)
       .where(eq(shopOrder.platformOrderId, platformOrderId))
+
+    for (const orderPromise of shopOrderPromises) {
+      const promise = createDeliveryPromiseSnapshot({
+        paidAt,
+        processingTimeMaxBusinessDays: orderPromise.processingTimeMaxBusinessDays,
+        transitTimeMinBusinessDays: orderPromise.transitTimeMinBusinessDays,
+        transitTimeMaxBusinessDays: orderPromise.transitTimeMaxBusinessDays,
+      })
+      await tx
+        .update(shopOrder)
+        .set({
+          status: 'paid',
+          fulfillmentDueAt: promise.fulfillmentDueAt,
+          earliestDeliveryAt: promise.earliestDeliveryAt,
+          deliveryDueAt: promise.deliveryDueAt,
+          updatedAt: paidAt,
+        })
+        .where(eq(shopOrder.id, orderPromise.id))
+    }
 
     await createInvoicesForPlatformOrder(platformOrderId, tx)
     await decrementStockForPaidOrder(tx, platformOrderId)

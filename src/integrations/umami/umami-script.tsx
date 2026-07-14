@@ -1,4 +1,5 @@
 import { useAnalyticsConsent } from '#/hooks/use-analytics-consent'
+import { trackPageView } from './track'
 
 interface UmamiConfig {
   scriptUrl: string
@@ -36,7 +37,9 @@ export function UmamiScript() {
       defer
       src={config.scriptUrl}
       data-website-id={config.websiteId}
+      data-auto-track='false'
       data-do-not-track='true'
+      onLoad={() => void trackPageView()}
       crossOrigin='anonymous'
       {...(config.integrity ? { integrity: config.integrity } : {})}
       {...(config.hostUrl ? { 'data-host-url': config.hostUrl } : {})}

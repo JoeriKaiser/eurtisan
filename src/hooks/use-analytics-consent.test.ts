@@ -41,6 +41,24 @@ describe('useAnalyticsConsent', () => {
     expect(localStorage.getItem('eurtisan_analytics_consent')).toBe('denied')
   })
 
+  it('revokes a prior grant, removes the loaded analytics client, and persists denial', () => {
+    const { result } = renderHook(() => useAnalyticsConsent())
+    act(() => result.current.setConsent('granted'))
+    window.umami = { track: vi.fn().mockResolvedValue('ok') }
+
+    act(() => result.current.setConsent('denied'))
+
+    expect(result.current.consent).toBe('denied')
+    expect(localStorage.getItem('eurtisan_analytics_consent')).toBe('denied')
+    expect(window.umami).toBeUndefined()
+  })
+
+  it('restores a persisted choice for a new subscriber', () => {
+    localStorage.setItem('eurtisan_analytics_consent', 'granted')
+    const { result } = renderHook(() => useAnalyticsConsent())
+    expect(result.current.consent).toBe('granted')
+  })
+
   it('denies consent automatically when Do Not Track is enabled', () => {
     vi.stubGlobal('navigator', { doNotTrack: '1' } as Navigator)
     const { result } = renderHook(() => useAnalyticsConsent())

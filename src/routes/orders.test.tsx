@@ -79,6 +79,18 @@ vi.mock('#/paraglide/messages', () => ({
     order_detail_open_dispute: () => 'Open dispute',
     order_detail_view_dispute: () => 'View dispute',
     order_detail_dispute_disabled_tooltip: () => 'Dispute window has expired (30 days)',
+    order_non_delivery_title: () => 'Buyer protection',
+    order_non_delivery_eligible: () => 'This order is eligible for a non-delivery report.',
+    order_non_delivery_eligible_date: ({ date }: { date: string }) =>
+      `You can report non-delivery from ${date}.`,
+    order_non_delivery_unavailable: () => 'Non-delivery reporting is unavailable.',
+    order_non_delivery_evidence_guidance: () =>
+      'Include tracking updates and messages with the seller.',
+    order_non_delivery_report: () => 'Report non-delivery',
+    order_non_delivery_modal_description: () =>
+      'Tell us what happened so the seller and support team can review it.',
+    order_non_delivery_confirmation: () =>
+      'I confirm that the order has not arrived and this information is accurate.',
     dispute_modal_title: () => 'Open a dispute',
     dispute_modal_description: () => 'Describe the issue with your order.',
     dispute_reason_label: () => 'Reason',
@@ -99,6 +111,7 @@ vi.mock('#/paraglide/messages', () => ({
     error_dispute_exists: () => 'A dispute already exists for this order',
     error_order_not_delivered: () => 'Order must be delivered before opening a dispute',
     error_order_delivery_date_missing: () => 'Order delivery date is missing',
+    error_non_delivery_not_eligible: () => 'This order is not yet eligible.',
   },
 }))
 
@@ -919,6 +932,52 @@ describe('Order detail page', () => {
     })
     render(<BuyerOrderDetailPage order={order} />)
     expect(screen.queryByRole('button', { name: 'Open dispute' })).toBeNull()
+  })
+
+  it('shows the server-derived non-delivery eligibility date before reporting opens', () => {
+    const order = makeOrderDetail()
+    order.shops[0].nonDeliveryEligibility = {
+      eligible: false,
+      eligibleAt: new Date('2026-07-20T12:00:00Z'),
+      basis: null,
+      reason: 'fulfillment_in_progress',
+    }
+
+    render(<BuyerOrderDetailPage order={order} />)
+
+    expect(screen.getByText(/You can report non-delivery from/)).toBeDefined()
+    expect(screen.queryByRole('button', { name: 'Open dispute' })).toBeNull()
+  })
+
+  it('requires confirmation before submitting an eligible non-delivery report', () => {
+    const order = makeOrderDetail({ status: 'shipped' })
+    order.shops[0].status = 'shipped'
+    order.shops[0].nonDeliveryEligibility = {
+      eligible: true,
+      eligibleAt: new Date('2026-07-10T12:00:00Z'),
+      basis: 'shipment_overdue',
+      reason: null,
+    }
+
+    render(<BuyerOrderDetailPage order={order} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Open dispute' }))
+
+    expect(screen.getByText('Item not received')).toBeDefined()
+    expect(
+      screen.getAllByText('Include tracking updates and messages with the seller.'),
+    ).toHaveLength(2)
+    const submit = screen.getByRole('button', { name: 'Submit dispute' })
+    fireEvent.change(screen.getByLabelText('Description'), {
+      target: { value: 'The parcel has not arrived.' },
+    })
+    expect(submit.hasAttribute('disabled')).toBe(true)
+
+    fireEvent.click(
+      screen.getByRole('checkbox', {
+        name: 'I confirm that the order has not arrived and this information is accurate.',
+      }),
+    )
+    expect(submit.hasAttribute('disabled')).toBe(false)
   })
 
   it('renders disabled dispute button with tooltip for delivered orders past 30 days', () => {

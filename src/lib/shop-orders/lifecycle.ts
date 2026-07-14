@@ -2,8 +2,8 @@ import type { OrderStatus } from '../order-status'
 
 const VALID_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
   pending_payment: ['paid', 'cancelled', 'refunded'],
-  paid: ['processing', 'shipped', 'refunded'],
-  processing: ['shipped', 'refunded'],
+  paid: ['processing', 'shipped', 'disputed', 'refunded'],
+  processing: ['shipped', 'disputed', 'refunded'],
   shipped: ['delivered', 'disputed', 'refunded'],
   delivered: ['completed', 'disputed', 'refunded'],
   completed: ['refunded'],

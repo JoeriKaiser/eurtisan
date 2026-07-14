@@ -19,6 +19,8 @@ export function getLocalizedErrorMessage(codeOrMessage: string | null | undefine
       return m.error_order_not_delivered()
     case 'ORDER_DELIVERY_DATE_MISSING':
       return m.error_order_delivery_date_missing()
+    case 'NON_DELIVERY_NOT_ELIGIBLE':
+      return m.error_non_delivery_not_eligible()
     case 'SHIPPING_UNSUPPORTED':
       return m.error_shipping_unsupported()
   }
@@ -49,6 +51,9 @@ export function getLocalizedErrorMessage(codeOrMessage: string | null | undefine
   }
   if (normalized.includes('delivery date is missing')) {
     return m.error_order_delivery_date_missing()
+  }
+  if (normalized.includes('not yet eligible for a non-delivery report')) {
+    return m.error_non_delivery_not_eligible()
   }
 
   // Return the original message if no map is matched

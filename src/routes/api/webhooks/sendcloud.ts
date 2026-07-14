@@ -14,7 +14,10 @@ import { SendcloudProvider } from '#/integrations/shipping/sendcloud-provider'
 import { getSendcloudWebhookSecret } from '#/lib/env.server'
 import { logger } from '#/lib/logger.server'
 import { sendcloudWebhookFailedTotal } from '#/lib/metrics.server'
-import { markShopOrderDeliveredQuery } from '#/lib/shop-orders.server'
+import {
+  markShopOrderDeliveredQuery,
+  updateAuthoritativeTrackingStateQuery,
+} from '#/lib/shop-orders.server'
 
 /** Expected webhook payload shape from Sendcloud. */
 export interface SendcloudWebhookPayload {
@@ -133,6 +136,23 @@ export async function processSendcloudWebhook(
 
   // 5. Update label and order status based on Sendcloud status.
   const normalizedStatus = normalizeStatus(statusMessage ?? '')
+
+  if (normalizedStatus) {
+    try {
+      await updateAuthoritativeTrackingStateQuery(label.shopOrderId, {
+        status: normalizedStatus,
+        eventAt: new Date(),
+      })
+    } catch (err) {
+      await markEventProcessed(database, eventRecord.id, 'tracking_update_failed')
+      logger.error('Sendcloud webhook: failed to persist tracking state', err, {
+        shopOrderId: label.shopOrderId,
+        trackingNumber,
+        parcelId,
+      })
+      return jsonResponse(200, 'tracking_update_failed', 'Failed to update tracking state')
+    }
+  }
 
   if (normalizedStatus === 'delivered') {
     try {

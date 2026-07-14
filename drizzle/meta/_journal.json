@@ -526,6 +526,13 @@
       "when": 1783105544212,
       "tag": "0074_shocking_iron_fist",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1783980557813,
+      "tag": "0075_dry_trish_tilby",
+      "breakpoints": true
     }
   ]
 }

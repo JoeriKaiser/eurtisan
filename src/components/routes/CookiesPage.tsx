@@ -5,7 +5,7 @@ import { Button } from '#/components/ui/button'
 import { Check, Cookie, ShieldCheck, ToggleLeft, ToggleRight } from 'lucide-react'
 import { useAnalyticsConsent } from '#/hooks/use-analytics-consent'
 
-const LAST_UPDATED = '24 May 2026'
+const LAST_UPDATED = '13 July 2026'
 
 const sections = [
   { title: m.cookies_section_1_title(), text: m.cookies_section_1_text() },

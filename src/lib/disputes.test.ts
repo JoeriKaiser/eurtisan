@@ -2,7 +2,15 @@ import { eq } from 'drizzle-orm'
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
-import { dispute, inventoryReservation, payout, platformOrder, shopOrder } from '#/db/schema'
+import {
+  auditLog,
+  dispute,
+  inventoryReservation,
+  notification,
+  payout,
+  platformOrder,
+  shopOrder,
+} from '#/db/schema'
 
 import { molliePaymentProvider } from '#/integrations/mollie'
 
@@ -76,6 +84,45 @@ async function seedDeliveredOrder(overrides?: {
   return { order, shopOrder: so }
 }
 
+async function seedNonDeliveryOrder(options?: {
+  status?: 'paid' | 'processing' | 'shipped'
+  userId?: string
+  fulfillmentDueAt?: Date | null
+  earliestDeliveryAt?: Date | null
+  deliveryDueAt?: Date | null
+  trackingStatus?: string | null
+  lastTrackingEventAt?: Date | null
+}) {
+  const paidAt = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000)
+  const order = await createPlatformOrder(options?.userId ?? 'user-1', {
+    totalCents: 2500,
+    status: options?.status ?? 'paid',
+    paidAt,
+  })
+  const so = await createShopOrder(order, 'shop-1', {
+    shippingMethod: 'standard',
+    shippingCostCents: 500,
+    subtotalCents: 2000,
+    status: options?.status ?? 'paid',
+    fulfillmentDueAt:
+      options?.fulfillmentDueAt === undefined
+        ? new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
+        : options.fulfillmentDueAt,
+    earliestDeliveryAt:
+      options?.earliestDeliveryAt === undefined
+        ? new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+        : options.earliestDeliveryAt,
+    deliveryDueAt:
+      options?.deliveryDueAt === undefined
+        ? new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+        : options.deliveryDueAt,
+    shippedAt: options?.status === 'shipped' ? paidAt : null,
+    trackingStatus: options?.trackingStatus ?? null,
+    lastTrackingEventAt: options?.lastTrackingEventAt ?? null,
+  })
+  return { order, shopOrder: so }
+}
+
 async function seedProductAndReservation(platformOrderId: string, shopOrderId: string) {
   const prod = await createProduct('shop-1', {
     id: 'prod-1',
@@ -144,6 +191,210 @@ describe('openDisputeQuery', () => {
       expect(err instanceof Response).toBe(true)
       expect((err as Response).status).toBe(400)
     }
+  })
+
+  it('rejects an early item-not-received report with the authoritative eligibility date', async () => {
+    await seedUser()
+    await seedShop()
+    const eligibleAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)
+    const { shopOrder: so } = await seedNonDeliveryOrder({
+      fulfillmentDueAt: new Date(eligibleAt.getTime() - 2 * 24 * 60 * 60 * 1000),
+    })
+
+    await expect(
+      openDisputeQuery(
+        {
+          shopOrderId: so.id,
+          reason: 'item_not_received',
+          description: 'The seller has not dispatched my order.',
+        },
+        'user-1',
+      ),
+    ).rejects.toMatchObject({ status: 403 })
+  })
+
+  it('allows an overdue unshipped item-not-received report', async () => {
+    await seedUser()
+    await seedShop()
+    const { order, shopOrder: so } = await seedNonDeliveryOrder()
+
+    const result = await openDisputeQuery(
+      {
+        shopOrderId: so.id,
+        reason: 'item_not_received',
+        description: 'The fulfillment deadline has passed and this has not shipped.',
+      },
+      'user-1',
+    )
+
+    expect(result.status).toBe('open')
+    const [updatedShopOrder] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
+    const [updatedPlatformOrder] = await db
+      .select()
+      .from(platformOrder)
+      .where(eq(platformOrder.id, order.id))
+    expect(updatedShopOrder.status).toBe('disputed')
+    expect(updatedPlatformOrder.status).toBe('disputed')
+  })
+
+  it('notifies the seller and active admins with role-appropriate links and audits opening', async () => {
+    await seedUser()
+    const seller = await seedUser({
+      id: 'seller-1',
+      name: 'Seller',
+      email: 'seller@example.com',
+      role: 'creator',
+    })
+    const admin = await seedUser({
+      id: 'admin-1',
+      name: 'Admin',
+      email: 'admin@example.com',
+      role: 'admin',
+    })
+    await seedShop({ ownerId: seller.id })
+    const { shopOrder: so } = await seedNonDeliveryOrder()
+
+    const result = await openDisputeQuery(
+      {
+        shopOrderId: so.id,
+        reason: 'item_not_received',
+        description: 'The fulfillment deadline has passed.',
+      },
+      'user-1',
+    )
+
+    const notifications = await db
+      .select()
+      .from(notification)
+      .where(eq(notification.type, 'dispute_opened'))
+    expect(notifications).toHaveLength(3)
+    expect(notifications.find((item) => item.userId === seller.id)?.data).toMatchObject({
+      disputeId: result.id,
+      targetPath: `/disputes/${result.id}`,
+    })
+    expect(notifications.find((item) => item.userId === admin.id)?.data).toMatchObject({
+      disputeId: result.id,
+      targetPath: `/admin/disputes/${result.id}`,
+    })
+
+    const [audit] = await db.select().from(auditLog).where(eq(auditLog.resourceId, result.id))
+    expect(audit).toMatchObject({
+      actorId: 'user-1',
+      action: 'dispute.open',
+      resourceType: 'dispute',
+    })
+  })
+
+  it('allows an overdue shipped item-not-received report', async () => {
+    await seedUser()
+    await seedShop()
+    const { shopOrder: so } = await seedNonDeliveryOrder({ status: 'shipped' })
+
+    const result = await openDisputeQuery(
+      {
+        shopOrderId: so.id,
+        reason: 'item_not_received',
+        description: 'The latest promised delivery date has passed.',
+      },
+      'user-1',
+    )
+
+    expect(result.status).toBe('open')
+  })
+
+  it('allows a stalled tracked shipment after seven days without movement', async () => {
+    await seedUser()
+    await seedShop()
+    const { shopOrder: so } = await seedNonDeliveryOrder({
+      status: 'shipped',
+      deliveryDueAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000),
+      earliestDeliveryAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+      trackingStatus: 'in_transit',
+      lastTrackingEventAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
+    })
+
+    const result = await openDisputeQuery(
+      {
+        shopOrderId: so.id,
+        reason: 'item_not_received',
+        description: 'Tracking has not moved for more than seven days.',
+      },
+      'user-1',
+    )
+
+    expect(result.status).toBe('open')
+  })
+
+  it.each([
+    { bannedAt: new Date() },
+    { deletedAt: new Date() },
+  ])('rejects banned or deleted buyer accounts at the query boundary', async (accountState) => {
+    await seedUser(accountState)
+    await seedShop()
+    const { shopOrder: so } = await seedNonDeliveryOrder()
+
+    await expect(
+      openDisputeQuery(
+        {
+          shopOrderId: so.id,
+          reason: 'item_not_received',
+          description: 'This account must not be allowed to act.',
+        },
+        'user-1',
+      ),
+    ).rejects.toMatchObject({ status: 403 })
+  })
+
+  it.each([
+    'pending',
+    'in_transit',
+    'sent',
+  ] as const)('does not create, release, or reverse a %s payout when non-delivery is reported', async (payoutStatus) => {
+    await seedUser()
+    await seedShop()
+    const { shopOrder: so } = await seedNonDeliveryOrder({ status: 'shipped' })
+    const existingPayout = await createPayout('shop-1', {
+      shopOrderId: so.id,
+      amountCents: 1800,
+      status: payoutStatus,
+    })
+
+    await openDisputeQuery(
+      {
+        shopOrderId: so.id,
+        reason: 'item_not_received',
+        description: 'The parcel is overdue.',
+      },
+      'user-1',
+    )
+
+    const payouts = await db.select().from(payout).where(eq(payout.shopOrderId, so.id))
+    expect(payouts).toHaveLength(1)
+    expect(payouts[0]).toMatchObject({ id: existingPayout.id, status: payoutStatus })
+  })
+
+  it('serializes a non-delivery report against a concurrent delivery update', async () => {
+    await seedUser()
+    await seedShop()
+    const { shopOrder: so } = await seedNonDeliveryOrder({ status: 'shipped' })
+    const { markShopOrderDeliveredQuery } = await import('./shop-orders.server')
+
+    const [disputeResult] = await Promise.allSettled([
+      openDisputeQuery(
+        {
+          shopOrderId: so.id,
+          reason: 'item_not_received',
+          description: 'The parcel is overdue.',
+        },
+        'user-1',
+      ),
+      markShopOrderDeliveredQuery(so.id),
+    ])
+
+    expect(disputeResult.status).toBe('fulfilled')
+    const [updated] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
+    expect(updated.status).toBe('disputed')
+    expect(await db.select().from(dispute).where(eq(dispute.shopOrderId, so.id))).toHaveLength(1)
   })
 
   it('throws 403 when order belongs to another user', async () => {
@@ -856,6 +1107,69 @@ describe('resolveDisputeQuery', () => {
     expect(updatedPo.status).toBe('completed')
   })
 
+  it('restores pre-delivery fulfillment status when a non-delivery report is closed', async () => {
+    await seedUser()
+    await seedShop()
+    const { order, shopOrder: so } = await seedNonDeliveryOrder({ status: 'shipped' })
+    const d = await openDisputeQuery(
+      {
+        shopOrderId: so.id,
+        reason: 'item_not_received',
+        description: 'The parcel is overdue.',
+      },
+      'user-1',
+    )
+
+    await resolveDisputeQuery(d.id, { resolution: 'close' }, { userId: 'admin-1', role: 'admin' })
+
+    const [updatedShopOrder] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
+    const [updatedPlatformOrder] = await db
+      .select()
+      .from(platformOrder)
+      .where(eq(platformOrder.id, order.id))
+    expect(updatedShopOrder.status).toBe('shipped')
+    expect(updatedPlatformOrder.status).toBe('shipped')
+    expect(await db.select().from(payout).where(eq(payout.shopOrderId, so.id))).toHaveLength(0)
+  })
+
+  it('preserves concurrent delivery evidence and releases payout only after delivery reconciliation', async () => {
+    await seedUser()
+    await seedShop()
+    const { shopOrder: so } = await seedNonDeliveryOrder({ status: 'shipped' })
+    const d = await openDisputeQuery(
+      {
+        shopOrderId: so.id,
+        reason: 'item_not_received',
+        description: 'The parcel is overdue.',
+      },
+      'user-1',
+    )
+    const { markShopOrderDeliveredQuery, updateAuthoritativeTrackingStateQuery } = await import(
+      './shop-orders.server'
+    )
+
+    await updateAuthoritativeTrackingStateQuery(so.id, {
+      status: 'delivered',
+      eventAt: new Date(),
+    })
+    await resolveDisputeQuery(d.id, { resolution: 'close' }, { userId: 'admin-1', role: 'admin' })
+
+    const [restoredShopOrder] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
+    expect(restoredShopOrder).toMatchObject({ status: 'shipped', trackingStatus: 'delivered' })
+    expect(await db.select().from(payout).where(eq(payout.shopOrderId, so.id))).toHaveLength(0)
+
+    await markShopOrderDeliveredQuery(so.id)
+
+    const [deliveredShopOrder] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
+    expect(deliveredShopOrder.status).toBe('delivered')
+    const createdPayouts = await db.select().from(payout).where(eq(payout.shopOrderId, so.id))
+    expect(createdPayouts).toHaveLength(1)
+    expect(createdPayouts[0].status).toBe('pending')
+    expect(deliveredShopOrder.disputeWindowExpiresAt?.getTime() ?? 0).toBeGreaterThan(
+      deliveredShopOrder.deliveredAt?.getTime() ?? 0,
+    )
+  })
+
   it('resolves with full_refund and transitions to refunded', async () => {
     await seedUser()
     await seedShop()
@@ -984,9 +1298,11 @@ describe('resolveDisputeQuery', () => {
 
     const { getNotificationsQuery } = await import('./notifications.server')
     const sellerNotifications = await getNotificationsQuery(seller.id, 1, 10)
-    expect(sellerNotifications.notifications).toHaveLength(1)
-    expect(sellerNotifications.notifications[0].type).toBe('dispute_resolved')
-    expect(sellerNotifications.notifications[0].data).toMatchObject({
+    const resolvedNotifications = sellerNotifications.notifications.filter(
+      (notification) => notification.type === 'dispute_resolved',
+    )
+    expect(resolvedNotifications).toHaveLength(1)
+    expect(resolvedNotifications[0].data).toMatchObject({
       disputeId: d.id,
       shopOrderId: so.id,
       resolution: 'close',

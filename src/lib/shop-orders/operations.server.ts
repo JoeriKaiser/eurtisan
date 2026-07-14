@@ -324,9 +324,12 @@ export async function markShopOrderShippedQuery(
       )
     }
 
+    const shippedAt = new Date()
     const updateData: Partial<typeof shopOrder.$inferInsert> = {
       status: 'shipped',
-      updatedAt: new Date(),
+      shippedAt,
+      trackingStatus: input.trackingNumber ? 'label_created' : record.trackingStatus,
+      updatedAt: shippedAt,
     }
     if (input.trackingNumber !== undefined) {
       updateData.trackingNumber = input.trackingNumber
@@ -581,6 +584,7 @@ export async function updateShopOrderStatusQuery(
     }
 
     if (nextStatus === 'shipped') {
+      updateData.shippedAt = record.shippedAt ?? new Date()
       if (input.trackingNumber !== undefined) {
         updateData.trackingNumber = input.trackingNumber
           ? validatePlainText(input.trackingNumber, 'Tracking number')
@@ -588,6 +592,9 @@ export async function updateShopOrderStatusQuery(
       }
       if (input.trackingUrl !== undefined) {
         updateData.trackingUrl = validatedTrackingUrl
+      }
+      if (input.trackingNumber) {
+        updateData.trackingStatus = 'label_created'
       }
     }
 
@@ -1126,6 +1133,53 @@ export async function cancelShopOrderQuery(
 /* -------------------------------------------------------------------------- */
 /*                          Tracking Info Updates                             */
 /* -------------------------------------------------------------------------- */
+
+export async function updateAuthoritativeTrackingStateQuery(
+  shopOrderId: string,
+  input: { status: string; eventAt: Date },
+): Promise<void> {
+  const status = validatePlainText(input.status, 'Tracking status').slice(0, 200)
+
+  await db.transaction(async (tx) => {
+    const [record] = await tx
+      .select({
+        id: shopOrder.id,
+        trackingStatus: shopOrder.trackingStatus,
+        lastTrackingEventAt: shopOrder.lastTrackingEventAt,
+      })
+      .from(shopOrder)
+      .where(eq(shopOrder.id, shopOrderId))
+      .for('update')
+      .limit(1)
+
+    if (!record) {
+      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (
+      record.lastTrackingEventAt &&
+      (record.lastTrackingEventAt > input.eventAt ||
+        (record.lastTrackingEventAt.getTime() === input.eventAt.getTime() &&
+          record.trackingStatus === status))
+    )
+      return
+
+    await tx
+      .update(shopOrder)
+      .set({
+        trackingStatus: status,
+        lastTrackingEventAt: input.eventAt,
+        trackingHistory: sql`${shopOrder.trackingHistory} || ${JSON.stringify([
+          { status, updatedAt: input.eventAt.toISOString() },
+        ])}::jsonb`,
+        updatedAt: new Date(),
+      })
+      .where(eq(shopOrder.id, shopOrderId))
+  })
+}
 
 export interface UpdateShopOrderTrackingInput {
   trackingNumber?: string | null

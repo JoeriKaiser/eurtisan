@@ -1,3 +1,4 @@
+import { hasAnalyticsConsent } from '#/hooks/use-analytics-consent'
 import type { UmamiClient } from './types'
 
 function getUmamiClient(): UmamiClient | undefined {
@@ -16,9 +17,22 @@ export function trackEvent(
   eventName: string,
   eventData?: Record<string, unknown>,
 ): Promise<string | undefined> {
+  if (!hasAnalyticsConsent()) return Promise.resolve(undefined)
   const umami = getUmamiClient()
   if (!umami) {
     return Promise.resolve(undefined)
   }
   return umami.track(eventName, eventData).catch(() => undefined)
+}
+
+export function trackPageView(): Promise<string | undefined> {
+  if (!hasAnalyticsConsent()) return Promise.resolve(undefined)
+  const umami = getUmamiClient()
+  if (!umami) return Promise.resolve(undefined)
+  return umami
+    .track((properties) => ({
+      ...properties,
+      url: window.location.pathname,
+    }))
+    .catch(() => undefined)
 }

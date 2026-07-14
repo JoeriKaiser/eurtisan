@@ -1,10 +1,12 @@
-import { and, asc, count, eq, ilike, or, sql } from 'drizzle-orm'
+import { and, asc, count, eq, ilike, isNull, or, sql } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 import type z from 'zod'
 import { db } from '#/db/index'
 import {
+  auditLog,
   dispute,
   disputeMessage,
+  notification,
   orderItem,
   platformOrder,
   shop,
@@ -22,6 +24,7 @@ import { restoreShopOrderStockInTx } from '../inventory.server'
 import { createCreditNoteForShopOrder } from '../invoices.server'
 import { reversePayoutForRefund } from '../payouts.server'
 import { sanitizeRichText, validatePlainText } from '../xss'
+import { getNonDeliveryEligibility } from './non-delivery'
 import type { openDisputeSchema } from './schemas'
 import type {
   CreatedDispute,
@@ -37,101 +40,177 @@ import { isValidDisputeTransition } from './lifecycle'
 const creatorUser = alias(user, 'creator')
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
+const RESTORABLE_NON_DELIVERY_STATUSES = new Set<OrderStatus>(['paid', 'processing', 'shipped'])
+
+function getCloseResolutionStatus(openedFromOrderStatus: OrderStatus | null): OrderStatus {
+  return openedFromOrderStatus && RESTORABLE_NON_DELIVERY_STATUSES.has(openedFromOrderStatus)
+    ? openedFromOrderStatus
+    : 'completed'
+}
 
 export async function openDisputeQuery(
   input: z.infer<typeof openDisputeSchema>,
   buyerUserId: string,
 ): Promise<CreatedDispute> {
-  const [shopOrderRecord] = await db
-    .select()
-    .from(shopOrder)
-    .where(eq(shopOrder.id, input.shopOrderId))
-    .limit(1)
+  const now = new Date()
+  const reason = validatePlainText(input.reason, 'Dispute reason')
+  const description = sanitizeRichText(input.description) ?? ''
 
-  if (!shopOrderRecord) {
-    throw new Response(JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }), {
-      status: 404,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
+  const outcome = await db.transaction(async (tx) => {
+    const [shopOrderRecord] = await tx
+      .select()
+      .from(shopOrder)
+      .where(eq(shopOrder.id, input.shopOrderId))
+      .for('update')
+      .limit(1)
 
-  const [platformOrderRecord] = await db
-    .select({
-      id: platformOrder.id,
-      orderNumber: platformOrder.orderNumber,
-      userId: platformOrder.userId,
-    })
-    .from(platformOrder)
-    .where(eq(platformOrder.id, shopOrderRecord.platformOrderId))
-    .limit(1)
+    if (!shopOrderRecord) {
+      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
 
-  if (!platformOrderRecord || platformOrderRecord.userId !== buyerUserId) {
-    throw new Response(JSON.stringify({ error: 'Forbidden', message: 'Access denied' }), {
-      status: 403,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
+    const [platformOrderRecord] = await tx
+      .select({
+        id: platformOrder.id,
+        orderNumber: platformOrder.orderNumber,
+        userId: platformOrder.userId,
+        paidAt: platformOrder.paidAt,
+      })
+      .from(platformOrder)
+      .where(eq(platformOrder.id, shopOrderRecord.platformOrderId))
+      .limit(1)
 
-  const existingDispute = await db
-    .select()
-    .from(dispute)
-    .where(eq(dispute.shopOrderId, input.shopOrderId))
-    .limit(1)
+    const [buyerAccount] = await tx
+      .select({
+        id: user.id,
+        name: user.name,
+        bannedAt: user.bannedAt,
+        deletedAt: user.deletedAt,
+      })
+      .from(user)
+      .where(eq(user.id, buyerUserId))
+      .limit(1)
 
-  if (existingDispute.length > 0) {
-    throw new Response(
-      JSON.stringify({ error: 'Conflict', message: 'A dispute already exists for this order' }),
-      { status: 409, headers: { 'Content-Type': 'application/json' } },
-    )
-  }
+    if (
+      !platformOrderRecord ||
+      platformOrderRecord.userId !== buyerUserId ||
+      !buyerAccount ||
+      buyerAccount.bannedAt ||
+      buyerAccount.deletedAt
+    ) {
+      throw new Response(JSON.stringify({ error: 'Forbidden', message: 'Access denied' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
 
-  if (shopOrderRecord.status !== 'delivered') {
-    throw new Response(
-      JSON.stringify({
-        error: 'Bad Request',
-        message: 'Order must be delivered before opening a dispute',
-      }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } },
-    )
-  }
+    const [existingDispute] = await tx
+      .select({ id: dispute.id })
+      .from(dispute)
+      .where(eq(dispute.shopOrderId, input.shopOrderId))
+      .limit(1)
 
-  if (!shopOrderRecord.deliveredAt) {
-    throw new Response(
-      JSON.stringify({ error: 'Bad Request', message: 'Order delivery date is missing' }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } },
-    )
-  }
+    if (existingDispute) {
+      throw new Response(
+        JSON.stringify({
+          error: 'Conflict',
+          message: 'A dispute already exists for this order',
+          code: 'DISPUTE_EXISTS',
+        }),
+        { status: 409, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
 
-  const daysSinceDelivery = (Date.now() - shopOrderRecord.deliveredAt.getTime()) / MS_PER_DAY
-  if (daysSinceDelivery > DISPUTE_WINDOW_DAYS) {
-    throw new Response(
-      JSON.stringify({
-        error: 'Forbidden',
-        message: 'Dispute window has expired (30 days)',
-        code: 'DISPUTE_WINDOW_EXPIRED',
-      }),
-      { status: 403, headers: { 'Content-Type': 'application/json' } },
-    )
-  }
+    let eligibilityBasis: string | null = null
+    if (shopOrderRecord.status === 'delivered') {
+      if (!shopOrderRecord.deliveredAt) {
+        throw new Response(
+          JSON.stringify({
+            error: 'Bad Request',
+            message: 'Order delivery date is missing',
+            code: 'ORDER_DELIVERY_DATE_MISSING',
+          }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
 
-  const result = await db.transaction(async (tx) => {
+      const disputeWindowExpiresAt =
+        shopOrderRecord.disputeWindowExpiresAt ??
+        new Date(shopOrderRecord.deliveredAt.getTime() + DISPUTE_WINDOW_DAYS * MS_PER_DAY)
+      if (now > disputeWindowExpiresAt) {
+        throw new Response(
+          JSON.stringify({
+            error: 'Forbidden',
+            message: 'Dispute window has expired (30 days)',
+            code: 'DISPUTE_WINDOW_EXPIRED',
+          }),
+          { status: 403, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+      eligibilityBasis = 'delivered_window'
+    } else if (reason === 'item_not_received') {
+      const eligibility = getNonDeliveryEligibility(
+        {
+          status: shopOrderRecord.status,
+          createdAt: shopOrderRecord.createdAt,
+          paidAt: platformOrderRecord.paidAt,
+          shippingMethod: shopOrderRecord.shippingMethod,
+          fulfillmentDueAt: shopOrderRecord.fulfillmentDueAt,
+          earliestDeliveryAt: shopOrderRecord.earliestDeliveryAt,
+          deliveryDueAt: shopOrderRecord.deliveryDueAt,
+          shippedAt: shopOrderRecord.shippedAt,
+          trackingStatus: shopOrderRecord.trackingStatus,
+          lastTrackingEventAt: shopOrderRecord.lastTrackingEventAt,
+        },
+        now,
+      )
+
+      if (!eligibility.eligible) {
+        throw new Response(
+          JSON.stringify({
+            error: 'Forbidden',
+            message: 'This order is not yet eligible for a non-delivery report',
+            code: 'NON_DELIVERY_NOT_ELIGIBLE',
+            eligibleAt: eligibility.eligibleAt?.toISOString() ?? null,
+          }),
+          { status: 403, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+      eligibilityBasis = eligibility.basis
+    } else {
+      throw new Response(
+        JSON.stringify({
+          error: 'Bad Request',
+          message: 'Order must be delivered before opening this type of dispute',
+          code: 'ORDER_NOT_DELIVERED',
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+
     let created: typeof dispute.$inferSelect
     try {
-      const result = await tx
+      const rows = await tx
         .insert(dispute)
         .values({
           shopOrderId: input.shopOrderId,
           buyerUserId,
-          reason: validatePlainText(input.reason, 'Dispute reason'),
-          description: sanitizeRichText(input.description) ?? '',
+          reason,
+          description,
+          openedFromOrderStatus: shopOrderRecord.status,
         })
         .returning()
-      created = result[0]
+      created = rows[0]
     } catch (err) {
-      // Unique constraint violation (23505) — duplicate dispute race condition
       if (err && typeof err === 'object' && 'code' in err && err.code === '23505') {
         throw new Response(
-          JSON.stringify({ error: 'Conflict', message: 'A dispute already exists for this order' }),
+          JSON.stringify({
+            error: 'Conflict',
+            message: 'A dispute already exists for this order',
+            code: 'DISPUTE_EXISTS',
+          }),
           { status: 409, headers: { 'Content-Type': 'application/json' } },
         )
       }
@@ -140,67 +219,134 @@ export async function openDisputeQuery(
 
     await tx
       .update(shopOrder)
-      .set({ status: 'disputed', updatedAt: new Date() })
+      .set({ status: 'disputed', updatedAt: now })
       .where(eq(shopOrder.id, input.shopOrderId))
 
     await recalcPlatformOrderStatus(tx, shopOrderRecord.platformOrderId)
 
-    try {
-      const { createNotification } = await import('../notifications.server')
-      await createNotification(buyerUserId, 'dispute_opened', {
-        platformOrderId: shopOrderRecord.platformOrderId,
-        orderNumber: platformOrderRecord.orderNumber,
-        shopOrderId: input.shopOrderId,
-      })
-    } catch {
-      // Notification errors must not break the primary business transaction
+    const [shopRecord] = await tx
+      .select({ name: shop.name, ownerId: shop.ownerId })
+      .from(shop)
+      .where(eq(shop.id, shopOrderRecord.shopId))
+      .limit(1)
+    const adminRecords = await tx
+      .select({ id: user.id })
+      .from(user)
+      .where(and(eq(user.role, 'admin'), isNull(user.bannedAt), isNull(user.deletedAt)))
+
+    const sellerUserId = shopRecord?.ownerId ?? null
+    const notificationRecipients = new Map<string, string>([
+      [buyerUserId, `/disputes/${created.id}`],
+    ])
+    if (sellerUserId) notificationRecipients.set(sellerUserId, `/disputes/${created.id}`)
+    for (const admin of adminRecords) {
+      notificationRecipients.set(admin.id, `/admin/disputes/${created.id}`)
     }
 
-    logOrderDisputed({
-      disputeId: created.id,
-      shopOrderId: created.shopOrderId,
-      platformOrderId: shopOrderRecord.platformOrderId,
-      reason: created.reason,
+    await tx.insert(notification).values(
+      Array.from(notificationRecipients, ([userId, targetPath]) => ({
+        userId,
+        type: 'dispute_opened',
+        data: {
+          disputeId: created.id,
+          platformOrderId: shopOrderRecord.platformOrderId,
+          orderNumber: platformOrderRecord.orderNumber,
+          shopOrderId: input.shopOrderId,
+          targetPath,
+        },
+      })),
+    )
+
+    await tx.insert(auditLog).values({
+      actorId: buyerUserId,
+      actorName: buyerAccount.name,
+      action: 'dispute.open',
+      resourceType: 'dispute',
+      resourceId: created.id,
+      metadata: {
+        shopOrderId: input.shopOrderId,
+        platformOrderId: shopOrderRecord.platformOrderId,
+        reason,
+        eligibilityBasis,
+      },
     })
 
     return {
-      id: created.id,
-      shopOrderId: created.shopOrderId,
-      buyerUserId: created.buyerUserId,
-      reason: created.reason,
-      description: created.description,
-      status: created.status,
-      createdAt: created.createdAt,
+      created: {
+        id: created.id,
+        shopOrderId: created.shopOrderId,
+        buyerUserId: created.buyerUserId,
+        reason: created.reason,
+        description: created.description,
+        status: created.status,
+        createdAt: created.createdAt,
+      },
+      buyerName: buyerAccount.name,
+      shopName: shopRecord?.name ?? 'Eurtisan',
+      sellerUserId,
+      adminUserIds: adminRecords.map((admin) => admin.id),
+      platformOrderId: shopOrderRecord.platformOrderId,
+      orderNumber: platformOrderRecord.orderNumber,
+      eligibilityBasis,
     }
   })
 
-  // Send dispute update email after the transaction
-  try {
-    const [{ sendNotificationEmail }, [buyerRecord], [shopRecord]] = await Promise.all([
-      import('../notifications.server'),
-      db.select({ name: user.name }).from(user).where(eq(user.id, buyerUserId)).limit(1),
-      db.select().from(shop).where(eq(shop.id, shopOrderRecord.shopId)).limit(1),
-    ])
+  logOrderDisputed({
+    disputeId: outcome.created.id,
+    shopOrderId: outcome.created.shopOrderId,
+    platformOrderId: outcome.platformOrderId,
+    reason: outcome.created.reason,
+  })
 
+  try {
+    const { sendNotificationEmail } = await import('../notifications.server')
+    const disputeUrl = `${getBaseUrl()}/disputes/${outcome.created.id}`
     await sendNotificationEmail({
       userId: buyerUserId,
       template: 'dispute_update',
       data: {
-        orderNumber: platformOrderRecord.orderNumber,
-        buyerName: buyerRecord?.name,
-        shopName: shopRecord?.name ?? 'Eurtisan',
+        orderNumber: outcome.orderNumber,
+        buyerName: outcome.buyerName,
+        shopName: outcome.shopName,
         status: 'opened',
-        message: input.reason,
-        disputeUrl: `${getBaseUrl()}/disputes/${result.id}`,
+        message: reason,
+        disputeUrl,
       },
-      idempotencyKey: `dispute:${result.id}:opened`,
+      idempotencyKey: `dispute:${outcome.created.id}:opened`,
       category: 'transactional',
     })
-  } catch {
-    // Email errors must not break the primary business flow
+
+    const staffRecipients = new Map<string, string>()
+    if (outcome.sellerUserId) staffRecipients.set(outcome.sellerUserId, disputeUrl)
+    for (const adminUserId of outcome.adminUserIds) {
+      staffRecipients.set(adminUserId, `${getBaseUrl()}/admin/disputes/${outcome.created.id}`)
+    }
+    await Promise.all(
+      Array.from(staffRecipients, ([userId, recipientDisputeUrl]) =>
+        sendNotificationEmail({
+          userId,
+          template: 'dispute_update',
+          data: {
+            orderNumber: outcome.orderNumber,
+            shopName: outcome.shopName,
+            status: 'opened',
+            message: reason,
+            disputeUrl: recipientDisputeUrl,
+          },
+          idempotencyKey: `dispute:${outcome.created.id}:opened:${userId}`,
+          category: 'transactional',
+        }),
+      ),
+    )
+  } catch (error) {
+    logger.error('Failed to enqueue dispute-opened email notifications', error, {
+      alert: true,
+      disputeId: outcome.created.id,
+      shopOrderId: outcome.created.shopOrderId,
+    })
   }
 
-  return result
+  return outcome.created
 }
 
 export async function addDisputeMessageQuery(
@@ -630,8 +776,6 @@ export async function resolveDisputeQuery(
 
   // Step 1: record the refund intent, reverse any routed payout, create the
   // credit note, and mark the dispute resolved before contacting Mollie (P0-22).
-  const newOrderStatus: OrderStatus = input.resolution === 'close' ? 'completed' : 'refunded'
-
   const result = await db.transaction(async (tx) => {
     // Acquire row-level lock on the dispute before any status-dependent action
     const [lockedDispute] = await tx
@@ -691,6 +835,7 @@ export async function resolveDisputeQuery(
     }
 
     const shopOrderRefundIncrement = refundCents ?? 0
+    const closeResolutionStatus = getCloseResolutionStatus(lockedDispute.openedFromOrderStatus)
     let reversalOptions: {
       reverseRouting?: boolean
       routingReversals?: { organizationId: string; amountCents: number }[]
@@ -731,7 +876,7 @@ export async function resolveDisputeQuery(
         ? tx
             .update(shopOrder)
             .set({
-              status: newOrderStatus,
+              status: closeResolutionStatus,
               updatedAt: new Date(),
             })
             .where(eq(shopOrder.id, lockedDispute.shopOrderId))

@@ -620,7 +620,15 @@ describe.sequential('checkout', () => {
 
     it('creates platform_order, shop_order, and order_item records', async () => {
       await seedUser()
-      await seedShop()
+      await seedShop({
+        shippingOrigin: {
+          street: '456 Workshop Lane',
+          city: 'Paris',
+          postalCode: '75001',
+          country: 'FR',
+          processingTimeDays: { min: 2, max: 5 },
+        },
+      })
       const c = await createCart('user-1')
       const p = await seedProduct()
 
@@ -668,6 +676,13 @@ describe.sequential('checkout', () => {
       expect(shopOrders[0].shippingCostCents).toBe(580)
       expect(shopOrders[0].subtotalCents).toBe(2000)
       expect(shopOrders[0].status).toBe('pending_payment')
+      expect(shopOrders[0].processingTimeMaxBusinessDays).toBe(5)
+      expect(shopOrders[0].transitTimeMinBusinessDays).toBeGreaterThan(0)
+      expect(shopOrders[0].transitTimeMaxBusinessDays).toBeGreaterThanOrEqual(
+        shopOrders[0].transitTimeMinBusinessDays ?? 0,
+      )
+      expect(shopOrders[0].fulfillmentDueAt).toBeNull()
+      expect(shopOrders[0].deliveryDueAt).toBeNull()
 
       const orderItems = await db
         .select()

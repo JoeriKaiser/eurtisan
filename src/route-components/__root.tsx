@@ -2,6 +2,7 @@ import { Outlet, useRouter } from '@tanstack/react-router'
 import { lazy, Suspense, useCallback, useRef } from 'react'
 import { useAnalyticsConsent } from '#/hooks/use-analytics-consent'
 import { ObservabilityErrorBoundary } from '#/components/ObservabilityErrorBoundary'
+import { trackPageView } from '#/integrations/umami'
 import { m } from '#/paraglide/messages'
 import { AnalyticsConsentBanner } from '../components/AnalyticsConsentBanner'
 import CartProvider from '../components/CartProvider'
@@ -50,16 +51,16 @@ export function RootComponent() {
         const location = router.state.location
         const locationKey = `${location.pathname}${location.searchStr}`
         if (locationKey === lastTrackedLocation.current) return
+        lastTrackedLocation.current = locationKey
+        void trackPageView()
 
         const { getFaro, initFaro } = await import('#/integrations/faro')
         if (disposed) return
         const faro = initFaro() ?? getFaro()
-        if (!faro?.api || locationKey === lastTrackedLocation.current) return
+        if (!faro?.api) return
 
-        lastTrackedLocation.current = locationKey
         faro.api.pushEvent('route_change', {
           path: location.pathname,
-          search: location.searchStr,
         })
       }
 

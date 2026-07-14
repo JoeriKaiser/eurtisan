@@ -141,12 +141,18 @@ describe('POST /api/webhooks/sendcloud (processSendcloudWebhook)', () => {
     expect(body.status).toBe('processed')
 
     const [updatedShopOrder] = await db
-      .select({ status: shopOrder.status })
+      .select({
+        status: shopOrder.status,
+        trackingStatus: shopOrder.trackingStatus,
+        lastTrackingEventAt: shopOrder.lastTrackingEventAt,
+      })
       .from(shopOrder)
       .where(eq(shopOrder.id, shopOrd.id))
       .limit(1)
 
     expect(updatedShopOrder?.status).toBe('delivered')
+    expect(updatedShopOrder?.trackingStatus).toBe('delivered')
+    expect(updatedShopOrder?.lastTrackingEventAt).toBeInstanceOf(Date)
 
     const [event] = await db
       .select()

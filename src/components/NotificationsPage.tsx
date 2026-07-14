@@ -45,6 +45,9 @@ function formatRelativeTime(date: Date): string {
 
 function resolveDeepLink(item: NotificationItem): string | null {
   const data = item.data as Record<string, string | undefined>
+  if (data.targetPath?.startsWith('/') && !data.targetPath.startsWith('//')) {
+    return data.targetPath
+  }
 
   switch (item.type) {
     case 'order_placed':

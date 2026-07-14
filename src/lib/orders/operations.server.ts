@@ -14,6 +14,7 @@ import { getShippingProvider } from '#/integrations/shipping'
 import type { ShippingAddress } from '../checkout.server'
 import { decryptJsonb } from '../encryption.server'
 import { releaseStockInTx } from '../inventory.server'
+import { getNonDeliveryEligibility } from '../disputes/non-delivery'
 import type {
   BuyerOrderListItem,
   BuyerOrderShopSummary,
@@ -49,6 +50,7 @@ export async function getBuyerOrderDetailQuery(
       orderNumber: platformOrder.orderNumber,
       totalCents: platformOrder.totalCents,
       status: platformOrder.status,
+      paidAt: platformOrder.paidAt,
       createdAt: platformOrder.createdAt,
       cancelledAt: platformOrder.cancelledAt,
       cancellationReason: platformOrder.cancellationReason,
@@ -221,7 +223,19 @@ export async function getBuyerOrderDetailQuery(
         labelUrl: label.labelUrl,
         createdAt: label.createdAt,
       })),
-      trackingStatus: trackingStatusMap.get(so.shopOrder.id) ?? null,
+      trackingStatus: trackingStatusMap.get(so.shopOrder.id) ?? so.shopOrder.trackingStatus ?? null,
+      nonDeliveryEligibility: getNonDeliveryEligibility({
+        status: so.shopOrder.status,
+        createdAt: so.shopOrder.createdAt,
+        paidAt: order.paidAt,
+        shippingMethod: so.shopOrder.shippingMethod,
+        fulfillmentDueAt: so.shopOrder.fulfillmentDueAt,
+        earliestDeliveryAt: so.shopOrder.earliestDeliveryAt,
+        deliveryDueAt: so.shopOrder.deliveryDueAt,
+        shippedAt: so.shopOrder.shippedAt,
+        trackingStatus: so.shopOrder.trackingStatus,
+        lastTrackingEventAt: so.shopOrder.lastTrackingEventAt,
+      }),
       invoiceNumber: invoiceNumberByShopOrderId.get(so.shopOrder.id) ?? null,
       disputeId: disputeIdByShopOrderId.get(so.shopOrder.id) ?? null,
       items: (itemsByShopOrderId.get(so.shopOrder.id) ?? []).map((item) => ({
@@ -261,6 +275,7 @@ export async function getBuyerOrderDetailByOrderNumberQuery(
       orderNumber: platformOrder.orderNumber,
       totalCents: platformOrder.totalCents,
       status: platformOrder.status,
+      paidAt: platformOrder.paidAt,
       createdAt: platformOrder.createdAt,
       cancelledAt: platformOrder.cancelledAt,
       cancellationReason: platformOrder.cancellationReason,
@@ -430,7 +445,19 @@ export async function getBuyerOrderDetailByOrderNumberQuery(
         labelUrl: label.labelUrl,
         createdAt: label.createdAt,
       })),
-      trackingStatus: trackingStatusMap.get(so.shopOrder.id) ?? null,
+      trackingStatus: trackingStatusMap.get(so.shopOrder.id) ?? so.shopOrder.trackingStatus ?? null,
+      nonDeliveryEligibility: getNonDeliveryEligibility({
+        status: so.shopOrder.status,
+        createdAt: so.shopOrder.createdAt,
+        paidAt: order.paidAt,
+        shippingMethod: so.shopOrder.shippingMethod,
+        fulfillmentDueAt: so.shopOrder.fulfillmentDueAt,
+        earliestDeliveryAt: so.shopOrder.earliestDeliveryAt,
+        deliveryDueAt: so.shopOrder.deliveryDueAt,
+        shippedAt: so.shopOrder.shippedAt,
+        trackingStatus: so.shopOrder.trackingStatus,
+        lastTrackingEventAt: so.shopOrder.lastTrackingEventAt,
+      }),
       invoiceNumber: invoiceNumberByShopOrderId.get(so.shopOrder.id) ?? null,
       disputeId: disputeIdByShopOrderId.get(so.shopOrder.id) ?? null,
       items: (itemsByShopOrderId.get(so.shopOrder.id) ?? []).map((item) => ({

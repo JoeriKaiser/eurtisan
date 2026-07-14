@@ -66,13 +66,20 @@ describe('reconcileSendcloudShipments', () => {
     expect(result).toEqual({ checked: 1, updated: 1, errors: 0 })
 
     const [updated] = await db
-      .select({ status: shopOrder.status, deliveredAt: shopOrder.deliveredAt })
+      .select({
+        status: shopOrder.status,
+        deliveredAt: shopOrder.deliveredAt,
+        trackingStatus: shopOrder.trackingStatus,
+        lastTrackingEventAt: shopOrder.lastTrackingEventAt,
+      })
       .from(shopOrder)
       .where(eq(shopOrder.id, sOrder.id))
       .limit(1)
 
     expect(updated.status).toBe('delivered')
     expect(updated.deliveredAt).not.toBeNull()
+    expect(updated.trackingStatus).toBe('delivered')
+    expect(updated.lastTrackingEventAt).toBeInstanceOf(Date)
   })
 
   it('does nothing when provider reports in_transit', async () => {

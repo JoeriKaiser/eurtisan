@@ -5,12 +5,14 @@ import {
   TransportItemType,
 } from '@grafana/faro-web-sdk'
 import { TracingInstrumentation } from '@grafana/faro-web-tracing'
+import { ANALYTICS_CONSENT_CHANGE_EVENT, hasAnalyticsConsent } from '#/hooks/use-analytics-consent'
 
 let faroInstance: Faro | undefined
+let consentListenerRegistered = false
 
 /**
  * Simple non-cryptographic hash for redacting user IDs.
- * Produces a stable, deterministic identifier that cannot be reversed.
+ * Produces a stable pseudonymous identifier without transmitting the raw user ID.
  */
 function simpleHash(input: string): string {
   let hash = 0
@@ -29,8 +31,12 @@ export function getFaro(): Faro | undefined {
 export function initFaro(): Faro | undefined {
   // Guard: SSR / Node.js / already initialized
   if (typeof window === 'undefined') return undefined
-  if (faroInstance) return faroInstance
-  if (import.meta.env.VITE_FARO_ENABLED !== 'true') return undefined
+  if (faroInstance) {
+    if (hasAnalyticsConsent()) faroInstance.unpause()
+    else faroInstance.pause()
+    return faroInstance
+  }
+  if (import.meta.env.VITE_FARO_ENABLED !== 'true' || !hasAnalyticsConsent()) return undefined
 
   const collectorUrl = import.meta.env.VITE_FARO_COLLECTOR_URL
   if (!collectorUrl) {
@@ -75,6 +81,8 @@ export function initFaro(): Faro | undefined {
       persistent: false,
     },
     beforeSend: (event) => {
+      if (!hasAnalyticsConsent()) return null
+
       // Optional dev fallback: log errors to console so they are not lost if the collector is unreachable
       if (import.meta.env.DEV && event.type === TransportItemType.EXCEPTION) {
         const payload = event.payload as { type?: string; value?: string; stacktrace?: unknown }
@@ -91,10 +99,9 @@ export function initFaro(): Faro | undefined {
       if (event.meta?.page?.url) {
         try {
           const url = new URL(event.meta.page.url)
-          if (url.searchParams.has('token')) {
-            url.searchParams.set('token', '[REDACTED]')
-            event.meta.page.url = url.toString()
-          }
+          url.search = ''
+          url.hash = ''
+          event.meta.page.url = url.toString()
         } catch {
           // ignore malformed URLs
         }
@@ -113,7 +120,7 @@ export function initFaro(): Faro | undefined {
             return prefix + simpleHash(id)
           })
           // Strip query parameters from non-page URLs embedded in the payload
-          .replace(/(https?:\/\/[^\s"']+)(?:\?[^\s"']*)/gi, '$1')
+          .replace(/(https?:\/\/[^\s"'?]+)\?[^\s"']*/gi, '$1')
 
         try {
           event.payload = JSON.parse(redacted)
@@ -125,6 +132,15 @@ export function initFaro(): Faro | undefined {
       return event
     },
   })
+
+  if (!consentListenerRegistered) {
+    window.addEventListener(ANALYTICS_CONSENT_CHANGE_EVENT, () => {
+      if (!faroInstance) return
+      if (hasAnalyticsConsent()) faroInstance.unpause()
+      else faroInstance.pause()
+    })
+    consentListenerRegistered = true
+  }
 
   return faroInstance
 }

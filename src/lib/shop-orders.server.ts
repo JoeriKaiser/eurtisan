@@ -9,6 +9,7 @@ export {
   refundCancelledPlatformOrder,
   refundShopOrderQuery,
   resolveManualReviewQuery,
+  updateAuthoritativeTrackingStateQuery,
   updateShopOrderStatusQuery,
   updateShopOrderTrackingQuery,
 } from './shop-orders/operations.server'

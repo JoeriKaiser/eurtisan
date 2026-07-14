@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { cart, cartItem, orderItem, platformOrder, product, shop, shopOrder } from '#/db/schema'
-import { encryptJsonb } from '../encryption.server'
+import { decryptJsonb, encryptJsonb } from '../encryption.server'
 import { recalcPlatformOrderTree } from '../financial-totals.server'
 import { generateUniqueOrderNumber } from '../order-numbers.server'
 import {
@@ -10,6 +10,7 @@ import {
   releaseCartStockInTx,
   reserveStockInTx,
 } from '../inventory.server'
+import type { ValidatedShippingSelection } from './shipping.server'
 import type { CheckoutInput } from './types'
 import {
   calculateCheckoutLineTotals,
@@ -39,7 +40,7 @@ export interface PersistedCheckoutOrder {
 export async function persistCheckoutOrder(
   input: CheckoutInput,
   userId: string,
-  shippingCostByShop: Map<string, number>,
+  shippingDetailsByShop: Map<string, ValidatedShippingSelection>,
 ): Promise<PersistedCheckoutOrder> {
   return db.transaction(async (tx) => {
     const items = await tx
@@ -139,6 +140,7 @@ export async function persistCheckoutOrder(
         vatAmountCents: number
         shippingVatRateBasisPoints: number
         shippingVatAmountCents: number
+        processingTimeMaxBusinessDays: number | null
       }
     >()
 
@@ -198,9 +200,18 @@ export async function persistCheckoutOrder(
         isSellerVatRegistered: shopRecord.isVatRegistered,
         buyerVatId: input.billingAddress.vatId,
         reverseChargeApplies,
-        shippingCostCents: shippingCostByShop.get(productRecord.shopId) ?? 0,
+        shippingCostCents: shippingDetailsByShop.get(productRecord.shopId)?.costCents ?? 0,
       })
-      shippingCostByShop.set(productRecord.shopId, shippingTotals.shippingCostCents)
+      const shippingDetails = shippingDetailsByShop.get(productRecord.shopId)
+      if (shippingDetails) {
+        shippingDetailsByShop.set(productRecord.shopId, {
+          ...shippingDetails,
+          costCents: shippingTotals.shippingCostCents,
+        })
+      }
+      const shippingOrigin = decryptJsonb<{
+        processingTimeDays?: { max?: number }
+      }>(shopRecord.shippingOrigin)
 
       shopGroups.set(productRecord.shopId, {
         shopId: productRecord.shopId,
@@ -218,12 +229,14 @@ export async function persistCheckoutOrder(
         vatAmountCents: lineTotals.vatAmountCents,
         shippingVatRateBasisPoints: shippingTotals.vatRateBasisPoints,
         shippingVatAmountCents: shippingTotals.vatAmountCents,
+        processingTimeMaxBusinessDays: shippingOrigin?.processingTimeDays?.max ?? null,
       })
     }
 
     let grandTotalCents = 0
     for (const group of shopGroups.values()) {
-      grandTotalCents += group.subtotalCents + (shippingCostByShop.get(group.shopId) ?? 0)
+      grandTotalCents +=
+        group.subtotalCents + (shippingDetailsByShop.get(group.shopId)?.costCents ?? 0)
     }
 
     const orderNumber = await generateUniqueOrderNumber()
@@ -243,7 +256,8 @@ export async function persistCheckoutOrder(
       Array.from(shopGroups.values()).map(async (group) => {
         const selection = selectionMap.get(group.shopId)
         const shippingMethod = selection?.method ?? 'standard'
-        const shippingCostCents = shippingCostByShop.get(group.shopId) ?? 0
+        const shippingDetails = shippingDetailsByShop.get(group.shopId)
+        const shippingCostCents = shippingDetails?.costCents ?? 0
 
         const [shopOrderRecord] = await tx
           .insert(shopOrder)
@@ -253,6 +267,9 @@ export async function persistCheckoutOrder(
             shippingMethod,
             shippingRateId: selection?.rateId ?? null,
             shippingCostCents,
+            processingTimeMaxBusinessDays: group.processingTimeMaxBusinessDays,
+            transitTimeMinBusinessDays: shippingDetails?.estimatedDays?.min ?? null,
+            transitTimeMaxBusinessDays: shippingDetails?.estimatedDays?.max ?? null,
             subtotalCents: group.subtotalCents,
             vatAmountCents: group.vatAmountCents,
             shippingVatRateBasisPoints: group.shippingVatRateBasisPoints,

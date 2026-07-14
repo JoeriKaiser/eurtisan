@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '#/db/index'
-import { platformOrder } from '#/db/schema'
+import { platformOrder, shopOrder } from '#/db/schema'
 import type { PaymentProvider } from '#/lib/payment-provider'
 import { clearTestTables } from '#/test/cleanup'
 import { createPlatformOrder, createShop, createShopOrder, createUser } from '#/test/factories'
@@ -46,6 +46,9 @@ async function seedPendingPayment(updatedAt: Date) {
     status: 'pending_payment',
     subtotalCents: 1000,
     shippingCostCents: 0,
+    processingTimeMaxBusinessDays: 3,
+    transitTimeMinBusinessDays: 2,
+    transitTimeMaxBusinessDays: 5,
   })
   return order
 }
@@ -69,10 +72,27 @@ describe('reconcilePendingMolliePayments', () => {
 
     expect(result).toMatchObject({ checked: 1, processed: 1, errors: 0 })
     const [updated] = await db
-      .select({ status: platformOrder.status })
+      .select({ status: platformOrder.status, paidAt: platformOrder.paidAt })
       .from(platformOrder)
       .where(eq(platformOrder.id, order.id))
     expect(updated.status).toBe('paid')
+    expect(updated.paidAt).toBeInstanceOf(Date)
+
+    const [promises] = await db
+      .select({
+        fulfillmentDueAt: shopOrder.fulfillmentDueAt,
+        earliestDeliveryAt: shopOrder.earliestDeliveryAt,
+        deliveryDueAt: shopOrder.deliveryDueAt,
+      })
+      .from(shopOrder)
+      .where(eq(shopOrder.platformOrderId, order.id))
+    expect(promises.fulfillmentDueAt).toBeInstanceOf(Date)
+    expect(promises.earliestDeliveryAt?.getTime()).toBeGreaterThan(
+      promises.fulfillmentDueAt?.getTime() ?? 0,
+    )
+    expect(promises.deliveryDueAt?.getTime()).toBeGreaterThan(
+      promises.earliestDeliveryAt?.getTime() ?? 0,
+    )
   })
 
   it('does not race a recent payment that is still inside the webhook grace period', async () => {

@@ -1,7 +1,7 @@
 import LegalPageLayout from '#/components/LegalPageLayout'
 import { m } from '#/paraglide/messages'
 
-const LAST_UPDATED = '24 May 2026'
+const LAST_UPDATED = '13 July 2026'
 
 const sections = [
   { title: m.privacy_section_1_title(), text: m.privacy_section_1_text() },

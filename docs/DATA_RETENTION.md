@@ -6,7 +6,11 @@ Summary for GDPR and operations. Align `/privacy` if customer-facing text must m
 |-----------|-----------|--------|
 | Orders & invoices | 10 years (FR tax) | PII retained after account deletion where legally required |
 | Audit log | ~2 years | `AUDIT_LOG_POLICY.md`, `job:audit-log-cleanup` |
-| Application logs (Loki) | 30 days | `retention_period: 720h` in `infra/observability/loki/loki.yml` |
+| Application and consented Faro logs/errors (Loki) | 30 days | `retention_period: 720h` in `infra/observability/loki/loki.yml` |
+| Browser and server traces (Tempo) | 7 days | `block_retention: 168h` in `infra/observability/tempo/tempo.yml` |
+| Operational metrics (Prometheus) | 15 days | `--storage.tsdb.retention.time=15d` in the observability Compose model |
+| Optional Umami analytics | Disabled | Production deployment defaults keep Umami off; confirm and document retention before enabling |
+| Browser analytics preference | Until changed or browser storage is cleared | Stored in localStorage; Faro's non-persistent session identifier is tab-bound |
 | Sessions | Until expiry | `job:session-cleanup` |
 | Email suppression | Until removed / 30 days for soft bounces | `job:email-suppression-cleanup`; hard bounces/spam are permanent |
 | Email outbox | 7 days for terminal rows | `job:email-retention-cleanup` deletes sent/failed/suppressed/bounced rows |

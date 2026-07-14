@@ -480,10 +480,11 @@ describe('isValidStatusTransition', () => {
     expect(isValidStatusTransition('completed', 'refunded')).toBe(true)
   })
 
-  it('allows disputed from shipped and delivered', () => {
+  it('allows disputes for paid and fulfilled orders', () => {
+    expect(isValidStatusTransition('paid', 'disputed')).toBe(true)
+    expect(isValidStatusTransition('processing', 'disputed')).toBe(true)
     expect(isValidStatusTransition('shipped', 'disputed')).toBe(true)
     expect(isValidStatusTransition('delivered', 'disputed')).toBe(true)
-    expect(isValidStatusTransition('processing', 'disputed')).toBe(false)
   })
 
   it('rejects invalid transitions', () => {

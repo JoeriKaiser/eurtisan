@@ -9,7 +9,7 @@ import type { PaymentProvider } from '../payment-provider'
 import { scheduleCheckoutPostOrderNotifications } from './notifications.server'
 import { persistCheckoutOrder } from './order-persistence.server'
 import { initiateCheckoutPayment } from './payment.server'
-import { validateCheckoutShippingSelections } from './shipping.server'
+import { validateCheckoutShippingSelectionDetails } from './shipping.server'
 import type { CheckoutInput, CheckoutItem, CreateCheckoutResult } from './types'
 
 /**
@@ -95,7 +95,7 @@ export async function createCheckoutWithProvider(
     }
   }
 
-  const shippingCostByShop = await validateCheckoutShippingSelections(
+  const shippingDetailsByShop = await validateCheckoutShippingSelectionDetails(
     Array.from(shopItemsMap, ([shopId, items]) => ({
       shopId,
       items,
@@ -105,7 +105,7 @@ export async function createCheckoutWithProvider(
     input.shippingSelections,
   )
 
-  const result = await persistCheckoutOrder(input, userId, shippingCostByShop)
+  const result = await persistCheckoutOrder(input, userId, shippingDetailsByShop)
   const checkoutUrl = await initiateCheckoutPayment(
     result.platformOrderId,
     result.grandTotalCents,

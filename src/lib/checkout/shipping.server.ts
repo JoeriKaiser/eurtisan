@@ -203,12 +203,17 @@ export async function getCheckoutServicePoints(
  * The resulting map contains only authoritative carrier costs, never the
  * client-supplied totals.
  */
-export async function validateCheckoutShippingSelections(
+export interface ValidatedShippingSelection {
+  costCents: number
+  estimatedDays: { min: number; max: number } | null
+}
+
+export async function validateCheckoutShippingSelectionDetails(
   shops: readonly CheckoutShippingShop[],
   shippingAddress: ShippingAddress,
   shippingSelections: readonly ShippingSelection[],
   shippingProvider?: ShippingProvider,
-): Promise<Map<string, number>> {
+): Promise<Map<string, ValidatedShippingSelection>> {
   const shippingEntries = await Promise.all(
     shops.map(async (shop) => {
       const options = await getShippingOptionsForShop(
@@ -335,16 +340,32 @@ export async function validateCheckoutShippingSelections(
     }
   }
 
-  const shippingCostByShop = new Map<string, number>()
+  const detailsByShop = new Map<string, ValidatedShippingSelection>()
   for (const shop of shops) {
     const selection = selectionMap.get(shop.shopId)
     if (!selection) continue
     const options = shippingOptionsByShop.get(shop.shopId) ?? []
-    shippingCostByShop.set(
-      shop.shopId,
-      getShippingCostFromOptions(options, selection.method, selection.rateId),
-    )
+    const selected = getSelectedShippingOption(options, selection)
+    detailsByShop.set(shop.shopId, {
+      costCents: getShippingCostFromOptions(options, selection.method, selection.rateId),
+      estimatedDays: selected?.estimatedDays ?? null,
+    })
   }
 
-  return shippingCostByShop
+  return detailsByShop
+}
+
+export async function validateCheckoutShippingSelections(
+  shops: readonly CheckoutShippingShop[],
+  shippingAddress: ShippingAddress,
+  shippingSelections: readonly ShippingSelection[],
+  shippingProvider?: ShippingProvider,
+): Promise<Map<string, number>> {
+  const details = await validateCheckoutShippingSelectionDetails(
+    shops,
+    shippingAddress,
+    shippingSelections,
+    shippingProvider,
+  )
+  return new Map(Array.from(details, ([shopId, selection]) => [shopId, selection.costCents]))
 }

@@ -1,7 +1,7 @@
 import { useCallback, useSyncExternalStore } from 'react'
 
 const STORAGE_KEY = 'eurtisan_analytics_consent'
-const CONSENT_CHANGE_EVENT = 'eurtisan:analytics-consent-change'
+export const ANALYTICS_CONSENT_CHANGE_EVENT = 'eurtisan:analytics-consent-change'
 
 export type AnalyticsConsent = 'granted' | 'denied' | null
 
@@ -32,7 +32,10 @@ function writeStoredConsent(consent: AnalyticsConsent): void {
   } catch {
     // localStorage may be unavailable; the in-page event still updates consumers.
   }
-  window.dispatchEvent(new Event(CONSENT_CHANGE_EVENT))
+  if (consent !== 'granted' && 'umami' in window) {
+    delete window.umami
+  }
+  window.dispatchEvent(new Event(ANALYTICS_CONSENT_CHANGE_EVENT))
 }
 
 function getConsentSnapshot(): AnalyticsConsent {
@@ -44,10 +47,10 @@ function subscribeToConsent(onStoreChange: () => void): () => void {
     if (event.key === null || event.key === STORAGE_KEY) onStoreChange()
   }
   window.addEventListener('storage', handleStorage)
-  window.addEventListener(CONSENT_CHANGE_EVENT, onStoreChange)
+  window.addEventListener(ANALYTICS_CONSENT_CHANGE_EVENT, onStoreChange)
   return () => {
     window.removeEventListener('storage', handleStorage)
-    window.removeEventListener(CONSENT_CHANGE_EVENT, onStoreChange)
+    window.removeEventListener(ANALYTICS_CONSENT_CHANGE_EVENT, onStoreChange)
   }
 }
 

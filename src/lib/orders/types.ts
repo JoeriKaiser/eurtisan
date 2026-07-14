@@ -1,4 +1,5 @@
 import type { ShippingAddress } from '../checkout.server'
+import type { NonDeliveryEligibility } from '../disputes/non-delivery'
 import type { OrderStatus } from './lifecycle'
 
 export interface OrderItemDetail {
@@ -37,6 +38,7 @@ export interface OrderShopGroup {
   deliveredAt: Date | null
   shippingLabels: ShippingLabelInfo[]
   trackingStatus: string | null
+  nonDeliveryEligibility?: NonDeliveryEligibility
   items: OrderItemDetail[]
   invoiceNumber: string | null
   disputeId: string | null
