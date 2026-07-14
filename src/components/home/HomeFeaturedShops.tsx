@@ -68,7 +68,7 @@ export function HomeFeaturedShops({ shops }: HomeFeaturedShopsProps) {
           >
             <div className='w-full h-full bg-bg-elevated rounded-[calc(20px-6px)] p-5 flex items-start gap-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]'>
               <div
-                className='flex size-14 shrink-0 items-center justify-center rounded-xl bg-accent-primary-subtle text-accent-primary overflow-hidden border border-accent-primary/10 transition-transform duration-500 group-hover:scale-105'
+                className='flex size-14 shrink-0 items-center justify-center rounded-xl bg-accent-primary-subtle text-accent-primary overflow-hidden border border-accent-primary/10'
                 style={{ viewTransitionName: getShopImageTransitionName(shop.id) }}
               >
                 {shop.image ? (

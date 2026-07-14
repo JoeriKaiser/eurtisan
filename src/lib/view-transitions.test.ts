@@ -46,6 +46,16 @@ describe('navigation view transitions', () => {
     ).toEqual(['onboarding-backward'])
   })
 
+  it('does not animate the same onboarding step', () => {
+    expect(
+      resolveNavigationTransitionTypes({
+        pathChanged: true,
+        fromPathname: '/sell/onboarding/draft-1/story',
+        toPathname: '/sell/onboarding/draft-1/story/',
+      }),
+    ).toBe(false)
+  })
+
   it('keeps ordinary page motion when entering a different onboarding draft', () => {
     expect(
       resolveNavigationTransitionTypes({

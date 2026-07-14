@@ -35,6 +35,7 @@ export function resolveNavigationTransitionTypes({
   if (fromStep && toStep && fromStep.draftId === toStep.draftId) {
     if (toStep.stepIndex > fromStep.stepIndex) return [ONBOARDING_FORWARD_TRANSITION_TYPE]
     if (toStep.stepIndex < fromStep.stepIndex) return [ONBOARDING_BACKWARD_TRANSITION_TYPE]
+    return false
   }
 
   return [PAGE_TRANSITION_TYPE]
