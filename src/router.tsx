@@ -5,6 +5,7 @@ import {
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query'
 import { deLocalizeUrl, extractLocaleFromUrl, localizeUrl } from '#/paraglide/runtime'
 import { getContext } from './integrations/tanstack-query/root-provider'
+import { resolveNavigationTransitionTypes } from './lib/view-transitions'
 import { NotFoundPage } from '#/components/NotFoundPage'
 import { routeTree } from './routeTree.gen'
 
@@ -26,6 +27,14 @@ export function getRouter() {
     scrollRestoration: true,
     defaultPreload: 'intent',
     defaultPreloadStaleTime: 30_000,
+    defaultViewTransition: {
+      types: ({ fromLocation, toLocation, pathChanged }) =>
+        resolveNavigationTransitionTypes({
+          fromPathname: fromLocation?.pathname,
+          toPathname: toLocation.pathname,
+          pathChanged,
+        }),
+    },
     defaultNotFoundComponent: DefaultNotFoundComponent,
     rewrite: {
       input: ({ url }) => {

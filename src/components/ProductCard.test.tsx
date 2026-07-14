@@ -72,6 +72,14 @@ describe('ProductCard', () => {
     expect(img.getAttribute('src')).toBe('http://example.com/vase.jpg')
   })
 
+  it('provides a stable shared-element name for its image boundary', () => {
+    render(<ProductCard product={makeProduct()} imageUrl='http://example.com/vase.jpg' />)
+    const imageBoundary = screen.getByAltText('Handmade Vase').parentElement?.parentElement
+    expect(imageBoundary?.style.getPropertyValue('view-transition-name')).toBe(
+      'product-image-prod-1',
+    )
+  })
+
   it('shows placeholder when no image is provided', () => {
     const { container } = render(<ProductCard product={makeProduct()} />)
     expect(container.querySelector('img')).toBeNull()

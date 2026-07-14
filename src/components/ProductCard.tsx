@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { PackageX, Store } from 'lucide-react'
 import { formatPriceEUR } from '#/lib/pricing'
 import type { PublicProduct } from '#/lib/products'
+import { getProductImageTransitionName } from '#/lib/view-transitions'
 import { ResponsiveImage } from '#/lib/responsive-image'
 import { m } from '#/paraglide/messages'
 import ProductImagePlaceholder from './ProductImagePlaceholder'
@@ -22,7 +23,10 @@ export default function ProductCard({ product, imageUrl }: ProductCardProps) {
       aria-label={m.product_card_label({ name: product.name })}
     >
       {/* Image */}
-      <div className='relative aspect-[4/3] w-full overflow-hidden bg-surface-inset'>
+      <div
+        className='relative aspect-[4/3] w-full overflow-hidden bg-surface-inset'
+        style={{ viewTransitionName: getProductImageTransitionName(product.id) }}
+      >
         {imageUrl ? (
           <ResponsiveImage
             src={imageUrl}

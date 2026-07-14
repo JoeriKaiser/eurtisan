@@ -15,6 +15,7 @@ import ProductReviews from '#/components/ProductReviews'
 import { useAddToCart } from '#/lib/cart-hooks'
 import { formatPriceEUR } from '#/lib/pricing'
 import type { ProductDetail as ProductDetailType } from '#/lib/products.server'
+import { getProductImageTransitionName } from '#/lib/view-transitions'
 import { ResponsiveImage } from '#/lib/responsive-image'
 import { m } from '#/paraglide/messages'
 
@@ -79,7 +80,10 @@ export default function ProductDetail({ product }: ProductDetailProps) {
         {/* Left column: images */}
         <div>
           {/* Main image */}
-          <div className='island-shell relative aspect-[4/3] w-full overflow-hidden rounded-2xl'>
+          <div
+            className='island-shell relative aspect-[4/3] w-full overflow-hidden rounded-2xl'
+            style={{ viewTransitionName: getProductImageTransitionName(product.id) }}
+          >
             {selectedImage ? (
               <ResponsiveImage
                 src={selectedImage.url}

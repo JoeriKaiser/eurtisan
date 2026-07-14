@@ -1,19 +1,9 @@
 import { useNavigate, useRouter } from '@tanstack/react-router'
 import { Check, ChevronLeft, ChevronRight, Save, X } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
+import { SELL_ONBOARDING_STEPS } from '#/lib/sell-onboarding-steps'
 import { Button } from '../ui/button'
 import { useOnboarding } from './OnboardingProvider'
-
-const STEPS = [
-  { id: 1, name: 'Identity', path: 'identity' as const },
-  { id: 2, name: 'Story', path: 'story' as const },
-  { id: 3, name: 'Visuals', path: 'visuals' as const },
-  { id: 4, name: 'Location', path: 'location' as const },
-  { id: 5, name: 'Policies', path: 'policies' as const },
-  { id: 6, name: 'Socials', path: 'socials' as const },
-  { id: 7, name: 'First Listing', path: 'listing' as const },
-  { id: 8, name: 'Review', path: 'review' as const },
-]
 
 interface Props {
   draftId: string
@@ -30,7 +20,9 @@ export function WizardShell({ draftId, currentStep, saveIndicator, children }: P
 
   const currentPath = router.state.location.pathname
   const activeStep = useMemo(
-    () => STEPS.find((s) => currentPath.includes(`/${s.path}`))?.id ?? currentStep,
+    () =>
+      SELL_ONBOARDING_STEPS.find((step) => currentPath.includes(`/${step.path}`))?.id ??
+      currentStep,
     [currentPath, currentStep],
   )
 
@@ -45,7 +37,7 @@ export function WizardShell({ draftId, currentStep, saveIndicator, children }: P
 
   const handleBack = useCallback(() => {
     if (activeStep <= 1) return
-    const prev = STEPS[activeStep - 2]
+    const prev = SELL_ONBOARDING_STEPS[activeStep - 2]
     navigate({ to: `/sell/onboarding/$draftId/${prev.path}`, params: { draftId } })
   }, [activeStep, navigate, draftId])
 
@@ -54,7 +46,7 @@ export function WizardShell({ draftId, currentStep, saveIndicator, children }: P
     try {
       const success = await executeStepActions(activeStep)
       if (success && activeStep < 8) {
-        const next = STEPS[activeStep]
+        const next = SELL_ONBOARDING_STEPS[activeStep]
         navigate({ to: `/sell/onboarding/$draftId/${next.path}`, params: { draftId } })
       }
     } finally {
@@ -85,7 +77,7 @@ export function WizardShell({ draftId, currentStep, saveIndicator, children }: P
 
           {/* Mobile: horizontal step dots */}
           <div className='flex items-center gap-2 overflow-x-auto md:hidden'>
-            {STEPS.map((step) => (
+            {SELL_ONBOARDING_STEPS.map((step) => (
               <button
                 key={step.id}
                 type='button'
@@ -115,7 +107,7 @@ export function WizardShell({ draftId, currentStep, saveIndicator, children }: P
 
           {/* Desktop: vertical step list */}
           <nav className='hidden space-y-1 md:block' aria-label='Onboarding steps'>
-            {STEPS.map((step) => {
+            {SELL_ONBOARDING_STEPS.map((step) => {
               const isActive = step.id === activeStep
               const isCompleted = step.id < currentStep
               const isClickable = canNavigateToStep(step.id)
@@ -168,7 +160,7 @@ export function WizardShell({ draftId, currentStep, saveIndicator, children }: P
         </header>
 
         {/* Step Content */}
-        <main className='flex-1 overflow-y-auto px-4 py-6 md:px-8'>
+        <main className='page-transition-content flex-1 overflow-y-auto px-4 py-6 md:px-8'>
           <div className='mx-auto max-w-2xl'>{children}</div>
         </main>
 

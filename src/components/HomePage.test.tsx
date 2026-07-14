@@ -121,6 +121,9 @@ describe('HomePage', () => {
     expect(within(featuredShopsSection).getByText('Shop shop-1')).toBeDefined()
     expect(within(featuredShopsSection).getByText('Shop shop-2')).toBeDefined()
     expect(within(featuredShopsSection).getAllByText('3 products').length).toBe(2)
+    const firstShopLink = within(featuredShopsSection).getByText('Shop shop-1').closest('a')
+    const imageBoundary = firstShopLink?.querySelector<HTMLElement>('[style]')
+    expect(imageBoundary?.style.getPropertyValue('view-transition-name')).toBe('shop-image-shop-1')
   })
 
   it('shows singular product count for one product', () => {

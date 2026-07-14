@@ -1,6 +1,8 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowUpRight, Store } from 'lucide-react'
+import { getImageUrl } from '#/lib/image-url'
 import type { FeaturedShop } from '#/lib/products'
+import { getShopImageTransitionName } from '#/lib/view-transitions'
 import { m } from '#/paraglide/messages'
 
 interface HomeFeaturedShopsProps {
@@ -65,9 +67,16 @@ export function HomeFeaturedShops({ shops }: HomeFeaturedShopsProps) {
             className='group relative p-1.5 rounded-[20px] bg-scrim-subtle border border-border-subtle transition-all duration-300 hover:shadow-md hover:border-border-strong hover:-translate-y-0.5 flex no-underline'
           >
             <div className='w-full h-full bg-bg-elevated rounded-[calc(20px-6px)] p-5 flex items-start gap-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]'>
-              <div className='flex size-14 shrink-0 items-center justify-center rounded-xl bg-accent-primary-subtle text-accent-primary overflow-hidden border border-accent-primary/10 transition-transform duration-500 group-hover:scale-105'>
+              <div
+                className='flex size-14 shrink-0 items-center justify-center rounded-xl bg-accent-primary-subtle text-accent-primary overflow-hidden border border-accent-primary/10 transition-transform duration-500 group-hover:scale-105'
+                style={{ viewTransitionName: getShopImageTransitionName(shop.id) }}
+              >
                 {shop.image ? (
-                  <img src={shop.image} alt='' className='h-full w-full object-cover' />
+                  <img
+                    src={getImageUrl(shop.image, { width: 160, format: 'webp' })}
+                    alt=''
+                    className='h-full w-full object-cover'
+                  />
                 ) : (
                   <Store size={24} strokeWidth={1.5} />
                 )}

@@ -51,6 +51,8 @@ describe('responsive and user-preference static contracts', () => {
   const rootRoute = readFileSync('src/routes/__root.tsx', 'utf8')
   const rootComponent = readFileSync('src/route-components/__root.tsx', 'utf8')
   const rootDocument = readFileSync('src/route-components/root/RootDocument.tsx', 'utf8')
+  const adminLayout = readFileSync('src/components/admin/AdminLayout.tsx', 'utf8')
+  const wizardShell = readFileSync('src/components/sell/WizardShell.tsx', 'utf8')
 
   it('does not disable browser zoom and preserves narrow-layout text wrapping', () => {
     expect(rootRoute).toContain('width=device-width, initial-scale=1')
@@ -60,9 +62,26 @@ describe('responsive and user-preference static contracts', () => {
 
   it('defines reduced-motion and forced-colors behavior without hiding focus', () => {
     expect(styles).toContain('@media (prefers-reduced-motion: reduce)')
+    expect(styles).toContain('::view-transition-group(*)')
+    expect(styles).toContain('animation: none !important')
     expect(styles).toContain('@media (forced-colors: active)')
     expect(styles).toContain(':focus-visible')
     expect(styles).not.toMatch(/:focus(?:-visible)?[^{}]*\{[^{}]*outline:\s*(?:0|none)[^{}]*\}/s)
+  })
+
+  it('limits page transitions to route content instead of persistent shells', () => {
+    expect(rootComponent).toContain('useRouterState')
+    expect(rootComponent).toContain("'page-transition-content flex-1 outline-none'")
+    expect(adminLayout).toContain(
+      "className='page-transition-content flex-1 overflow-y-auto px-4 py-6 md:px-8'",
+    )
+    expect(wizardShell).toContain(
+      "<main className='page-transition-content flex-1 overflow-y-auto px-4 py-6 md:px-8'>",
+    )
+    expect(styles).toContain('view-transition-name: page-content')
+    expect(styles).toContain('html:active-view-transition-type(page)')
+    expect(styles).toContain('html:active-view-transition-type(onboarding-forward)')
+    expect(styles).toContain('html:active-view-transition-type(onboarding-backward)')
   })
 
   it('keeps skip navigation localized, focusable, and linked to the outlet target', () => {
