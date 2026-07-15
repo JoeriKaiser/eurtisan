@@ -675,6 +675,7 @@ Required for critical workflows:
 - Tests must not rely on external network access.
 - Mock external services explicitly.
 - Avoid snapshot-heavy testing.
+- Playwright E2E is an explicit local/release gate via `make e2e`; GitHub Actions CI does not run it.
 
 ---
 
