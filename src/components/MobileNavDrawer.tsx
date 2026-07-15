@@ -1,11 +1,9 @@
 import { Dialog as BaseDialog } from '@base-ui-components/react/dialog'
 import { Link } from '@tanstack/react-router'
 import { ArrowRight, Bell, LogOut, Menu, Package, Search, Settings, User, X } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { authClient } from '#/lib/auth-client'
 import { useAuth } from '#/lib/auth-hooks'
-import { getCategoryIcon } from '#/lib/category-icons'
 import { m } from '#/paraglide/messages'
 import { getLocale, locales, setLocale } from '#/paraglide/runtime'
 import Logo from './Logo'
@@ -154,34 +152,31 @@ export default function MobileNavDrawer({ categories, onOpenSearch }: MobileNavD
                   </div>
 
                   <ul className='mt-4 grid list-none grid-cols-2 gap-2 p-0'>
-                    {visibleCategories.map((category) => {
-                      const Icon = getCategoryIcon(category.name) as LucideIcon
-                      return (
-                        <li key={category.id}>
-                          <Link
-                            to='/category/$slug'
-                            params={{ slug: category.slug }}
-                            onClick={closeNavigation}
-                            className='group flex min-h-20 flex-col justify-between rounded-2xl bg-surface-inset p-3.5 text-text-primary no-underline transition-colors hover:bg-accent-primary-subtle dark:bg-surface-default'
+                    {visibleCategories.map((category) => (
+                      <li key={category.id}>
+                        <Link
+                          to='/category/$slug'
+                          params={{ slug: category.slug }}
+                          onClick={closeNavigation}
+                          className='group flex min-h-20 flex-col justify-between rounded-2xl bg-surface-inset p-3.5 text-text-primary no-underline transition-colors hover:bg-accent-primary-subtle dark:bg-surface-default'
+                        >
+                          <span
+                            className='display-title text-xl font-semibold leading-none text-accent-primary'
+                            aria-hidden='true'
                           >
-                            <Icon
-                              size={19}
-                              strokeWidth={1.5}
-                              className='text-accent-primary'
+                            {category.name.charAt(0).toUpperCase()}
+                          </span>
+                          <span className='mt-3 flex items-end justify-between gap-2 text-sm font-semibold'>
+                            <span className='line-clamp-2'>{category.name}</span>
+                            <ArrowRight
+                              size={14}
+                              className='shrink-0 transition-transform duration-fast ease-out group-hover:translate-x-0.5'
                               aria-hidden='true'
                             />
-                            <span className='mt-3 flex items-end justify-between gap-2 text-sm font-semibold'>
-                              <span className='line-clamp-2'>{category.name}</span>
-                              <ArrowRight
-                                size={14}
-                                className='shrink-0 transition-transform duration-fast ease-out group-hover:translate-x-0.5'
-                                aria-hidden='true'
-                              />
-                            </span>
-                          </Link>
-                        </li>
-                      )
-                    })}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
                   </ul>
                 </section>
               ) : null}
