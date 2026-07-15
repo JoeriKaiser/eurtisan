@@ -1,51 +1,85 @@
+import { useSearch } from '@tanstack/react-router'
 import { m } from '#/paraglide/messages'
 
-export function SearchPending() {
+function DiscoverySkeleton() {
+  const patterns = [
+    { id: 'feature', className: 'col-span-2 row-span-2' },
+    { id: 'small-a', className: 'row-span-1' },
+    { id: 'portrait-a', className: 'row-span-2' },
+    { id: 'small-b', className: 'row-span-1' },
+    { id: 'small-c', className: 'row-span-1' },
+    { id: 'landscape', className: 'col-span-2 row-span-1' },
+    { id: 'portrait-b', className: 'row-span-2' },
+    { id: 'small-d', className: 'row-span-1' },
+    { id: 'small-e', className: 'row-span-1' },
+  ]
+
   return (
-    <main className='page-wrap px-4 pb-16 pt-14'>
-      <section className='island-shell rounded-2xl px-6 py-10 sm:px-10 sm:py-14'>
-        <div className='mb-4 size-4 animate-pulse rounded bg-[var(--sand)]' />
-        <div className='mb-6 h-10 w-1/3 animate-pulse rounded bg-[var(--sand)]' />
-        <div className='flex gap-2'>
-          <div className='h-10 flex-1 animate-pulse rounded bg-[var(--sand)] sm:max-w-md' />
-          <div className='size-10 animate-pulse rounded bg-[var(--sand)]' />
+    <div className='grid auto-rows-[12rem] grid-flow-dense grid-cols-2 gap-2 sm:auto-rows-[15rem] sm:gap-3 md:grid-cols-4 lg:grid-cols-5'>
+      {patterns.map((pattern) => (
+        <div
+          key={pattern.id}
+          className={`animate-pulse rounded-2xl bg-surface-inset ${pattern.className}`}
+        />
+      ))}
+      <span className='sr-only'>{m.product_grid_loading()}</span>
+    </div>
+  )
+}
+
+function ProductSkeletons() {
+  return (
+    <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3' aria-live='polite'>
+      {[1, 2, 3, 4, 5, 6].map((item) => (
+        <div
+          key={`skeleton-${item}`}
+          className='island-shell flex flex-col overflow-hidden rounded-2xl'
+        >
+          <div className='aspect-[4/3] w-full animate-pulse bg-surface-inset' />
+          <div className='flex flex-1 flex-col gap-2 p-4'>
+            <div className='h-5 w-2/3 animate-pulse rounded bg-surface-inset' />
+            <div className='h-4 w-full animate-pulse rounded bg-surface-inset' />
+            <div className='mt-4 h-6 w-1/3 animate-pulse rounded bg-surface-inset' />
+          </div>
+        </div>
+      ))}
+      <span className='sr-only'>{m.product_grid_loading()}</span>
+    </div>
+  )
+}
+
+export function SearchPending() {
+  const search = useSearch({ from: '/search' })
+  const isVisualBrowseMode = !search.q
+
+  return (
+    <main className='mx-auto w-full max-w-[1320px] px-4 pb-16'>
+      <section className='pb-6 pt-8 sm:pb-7 sm:pt-10'>
+        <div className='flex items-end justify-between gap-4'>
+          <div className='h-11 w-64 animate-pulse rounded-lg bg-surface-inset' />
+          <div className='h-11 w-32 animate-pulse rounded-xl bg-surface-inset' />
         </div>
       </section>
-      <div className='mt-8 grid gap-6 lg:grid-cols-[280px_1fr]'>
-        <div className='island-shell rounded-2xl p-5 sm:p-6'>
-          <div className='mb-4 size-5 animate-pulse rounded bg-[var(--sand)]' />
-          <div className='space-y-4'>
-            <div className='h-10 w-full animate-pulse rounded bg-[var(--sand)]' />
-            <div className='h-10 w-full animate-pulse rounded bg-[var(--sand)]' />
-            <div className='flex gap-2'>
-              <div className='h-9 flex-1 animate-pulse rounded bg-[var(--sand)]' />
-              <div className='h-9 flex-1 animate-pulse rounded bg-[var(--sand)]' />
-            </div>
-          </div>
+
+      <section className='flex gap-2 overflow-hidden border-y border-border-default py-4'>
+        {[1, 2, 3, 4, 5, 6].map((item) => (
+          <div
+            key={`filter-skeleton-${item}`}
+            className='h-10 w-28 shrink-0 animate-pulse rounded-full bg-surface-inset'
+          />
+        ))}
+      </section>
+
+      <section className='pt-5'>
+        <div className='flex items-center justify-between gap-4'>
+          <div className='h-5 w-28 animate-pulse rounded bg-surface-inset' />
+          <div className='h-10 w-36 animate-pulse rounded-lg bg-surface-inset' />
         </div>
-        <div>
-          <div className='mb-4 flex items-center justify-between'>
-            <div className='size-4 animate-pulse rounded bg-[var(--sand)]' />
-            <div className='size-9 animate-pulse rounded bg-[var(--sand)]' />
-          </div>
-          <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3' aria-live='polite'>
-            {[1, 2, 3, 4, 5, 6].map((n) => (
-              <div
-                key={`skeleton-${n}`}
-                className='island-shell flex flex-col overflow-hidden rounded-2xl'
-              >
-                <div className='aspect-[4/3] w-full animate-pulse bg-[var(--sand)]' />
-                <div className='flex flex-1 flex-col gap-2 p-4'>
-                  <div className='h-5 w-1/3 animate-pulse rounded bg-[var(--sand)]' />
-                  <div className='h-4 w-full animate-pulse rounded bg-[var(--sand)]' />
-                  <div className='mt-auto h-6 w-1/3 animate-pulse rounded bg-[var(--sand)]' />
-                </div>
-              </div>
-            ))}
-            <span className='sr-only'>{m.product_grid_loading()}</span>
-          </div>
+        <div className='mt-4 h-11 animate-pulse rounded-xl bg-surface-inset' />
+        <div className='mt-5'>
+          {isVisualBrowseMode ? <DiscoverySkeleton /> : <ProductSkeletons />}
         </div>
-      </div>
+      </section>
     </main>
   )
 }

@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import z from 'zod'
 import { listCategories } from '#/lib/categories'
 import { hydrateQueryData } from '#/lib/hydrate-query'
-import { listShops, searchProducts } from '#/lib/products'
+import { searchProducts } from '#/lib/products'
 import { queryKeys } from '#/lib/query-keys'
 import { createPageMeta } from '#/lib/seo'
 import { m } from '#/paraglide/messages'
@@ -49,9 +49,8 @@ export const Route = createFileRoute('/search')({
   loader: async ({ context, deps }) => {
     const { query, page, categorySlug, shopSlug, minPriceCents, maxPriceCents, sort } = deps
 
-    const [categories, shops, products] = await Promise.all([
+    const [categories, products] = await Promise.all([
       listCategories({ data: {} }),
-      listShops({ data: { page: 1, pageSize: 100 } }),
       searchProducts({
         data: {
           query,
@@ -73,7 +72,6 @@ export const Route = createFileRoute('/search')({
       products,
       page,
       categories,
-      shops,
       categorySlug,
       shopSlug,
       minPriceCents,
@@ -83,8 +81,10 @@ export const Route = createFileRoute('/search')({
   },
   head: ({ loaderData }) => {
     const query = loaderData?.query ?? ''
-    const title = query ? m.search_meta_title({ query }) : m.meta_title_default()
-    const description = query ? m.search_meta_description({ query }) : m.home_description()
+    const title = query ? m.search_meta_title({ query }) : m.search_discovery_meta_title()
+    const description = query
+      ? m.search_meta_description({ query })
+      : m.search_discovery_meta_description()
     const canonicalPath = query ? `/search?q=${encodeURIComponent(query)}` : '/search'
 
     const { meta, links } = createPageMeta({

@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
 import MobileNavDrawer from './MobileNavDrawer'
 
-const mockNavigate = vi.fn()
-const mockOnClose = vi.fn()
 const mockSetLocale = vi.fn()
 const mockUseAuth = vi.fn()
+const mockSignOut = vi.fn(() => Promise.resolve())
 
 vi.mock('@tanstack/react-router', () => ({
   Link: (props: {
@@ -22,26 +22,21 @@ vi.mock('@tanstack/react-router', () => ({
       className={props.className}
       onClick={(event) => {
         event.preventDefault()
-        if (props.onClick) props.onClick()
+        props.onClick?.()
       }}
       aria-label={props['aria-label'] as string}
     >
       {props.children}
     </a>
   ),
-  useRouter: () => ({
-    navigate: mockNavigate,
-  }),
 }))
 
 vi.mock('#/paraglide/messages', () => ({
   m: {
+    nav_main: () => 'Main navigation',
     nav_logo: () => 'Eurtisan',
-    nav_home: () => 'Home',
     nav_about: () => 'About',
-    nav_categories: () => 'Categories',
     nav_profile: () => 'Profile',
-    nav_account: () => 'Account',
     account_orders: () => 'Orders',
     notifications_title: () => 'Notifications',
     nav_start_selling: () => 'Start Selling',
@@ -49,7 +44,15 @@ vi.mock('#/paraglide/messages', () => ({
     nav_settings: () => 'Settings',
     nav_sign_out: () => 'Sign out',
     nav_sign_in: () => 'Sign in',
-    search_header_placeholder: () => 'Search products...',
+    mobile_nav_label: () => 'Mobile navigation',
+    mobile_nav_close: () => 'Close navigation',
+    mobile_nav_search: () => 'Find an object or maker',
+    mobile_nav_explore: () => 'Explore the market',
+    mobile_nav_browse_crafts: () => 'Browse by craft',
+    mobile_nav_view_all_categories: ({ count }: { count: number }) => `View all ${count}`,
+    mobile_nav_account: () => 'Your account',
+    mobile_nav_language: () => 'Language',
+    mobile_nav_theme: () => 'Theme',
   },
 }))
 
@@ -69,32 +72,27 @@ vi.mock('#/lib/auth-hooks', () => ({
 
 vi.mock('#/lib/auth-client', () => ({
   authClient: {
-    signOut: vi.fn(() => Promise.resolve()),
+    signOut: () => mockSignOut(),
   },
 }))
 
 const mockOnOpenSearch = vi.fn()
 
-function renderDrawer(
-  isOpen: boolean,
-  categories: Array<{ id: string; name: string; slug: string }> = [],
-) {
-  return render(
-    <MobileNavDrawer
-      isOpen={isOpen}
-      onClose={mockOnClose}
-      categories={categories}
-      onOpenSearch={mockOnOpenSearch}
-    />,
-  )
+function renderDrawer(categories: Array<{ id: string; name: string; slug: string }> = []) {
+  return render(<MobileNavDrawer categories={categories} onOpenSearch={mockOnOpenSearch} />)
+}
+
+function openDrawer(categories: Array<{ id: string; name: string; slug: string }> = []) {
+  const result = renderDrawer(categories)
+  fireEvent.click(screen.getByRole('button', { name: 'Open menu' }))
+  return result
 }
 
 describe('MobileNavDrawer', () => {
   beforeEach(() => {
-    mockNavigate.mockClear()
-    mockOnClose.mockClear()
     mockOnOpenSearch.mockClear()
     mockSetLocale.mockClear()
+    mockSignOut.mockClear()
     mockUseAuth.mockReturnValue({
       user: null,
       isPending: false,
@@ -103,61 +101,64 @@ describe('MobileNavDrawer', () => {
   })
 
   it('renders nothing when closed', () => {
-    renderDrawer(false)
+    renderDrawer()
     expect(screen.queryByText('Eurtisan')).toBeNull()
+    expect(screen.queryByText('Explore the market')).toBeNull()
+  })
+
+  it('renders the full-screen market map when open', () => {
+    openDrawer()
+
+    expect(screen.getByText('Eurtisan')).toBeDefined()
+    expect(screen.getByText('Explore the market')).toBeDefined()
+    expect(screen.getByText('About')).toBeDefined()
+    expect(screen.getByText('Start Selling')).toBeDefined()
+    expect(screen.getByText('Theme Toggle Button')).toBeDefined()
     expect(screen.queryByText('Home')).toBeNull()
   })
 
-  it('renders correctly when open', () => {
-    renderDrawer(true)
-    expect(screen.getByText('Eurtisan')).toBeDefined()
-    expect(screen.getByText('Home')).toBeDefined()
-    expect(screen.getByText('About')).toBeDefined()
-    expect(screen.getByText('Theme Toggle Button')).toBeDefined()
+  it('closes from the close control and primary links', async () => {
+    openDrawer()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close navigation' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Mobile navigation' })).toBeNull(),
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open menu' }))
+    fireEvent.click(screen.getByRole('link', { name: 'Explore the market' }))
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Mobile navigation' })).toBeNull(),
+    )
   })
 
-  it('calls onClose when close button is clicked', () => {
-    renderDrawer(true)
-    const closeBtn = screen.getByRole('button', { name: 'Close menu' })
-    fireEvent.click(closeBtn)
-    expect(mockOnClose).toHaveBeenCalledTimes(1)
+  it('shows a concise category matrix and links to the complete category index', () => {
+    const categories = Array.from({ length: 9 }, (_, index) => ({
+      id: String(index + 1),
+      name: `Craft ${index + 1}`,
+      slug: `craft-${index + 1}`,
+    }))
+
+    openDrawer(categories)
+
+    expect(screen.getByText('Browse by craft')).toBeDefined()
+    expect(screen.getByRole('link', { name: 'Craft 1' })).toBeDefined()
+    expect(screen.getByRole('link', { name: 'Craft 8' })).toBeDefined()
+    expect(screen.queryByRole('link', { name: 'Craft 9' })).toBeNull()
+    expect(screen.getByRole('link', { name: 'View all 9' })).toBeDefined()
   })
 
-  it('calls onClose when home or about links are clicked', () => {
-    renderDrawer(true)
-    const homeLink = screen.getByRole('link', { name: 'Home' })
-    fireEvent.click(homeLink)
-    expect(mockOnClose).toHaveBeenCalledTimes(1)
-  })
+  it('allows changing language and closes navigation', async () => {
+    openDrawer()
 
-  it('renders categories collapsible when categories are available', () => {
-    const categories = [{ id: '1', name: 'Ceramics', slug: 'ceramics' }]
-    renderDrawer(true, categories)
-    const trigger = screen.getByRole('button', { name: 'Categories' })
-    expect(trigger).toBeDefined()
-    expect(screen.queryByText('Ceramics')).toBeNull()
-
-    // Expand categories
-    fireEvent.click(trigger)
-    const catLink = screen.getByRole('link', { name: 'Ceramics' })
-    expect(catLink).toBeDefined()
-
-    // Click category link
-    fireEvent.click(catLink)
-    expect(mockOnClose).toHaveBeenCalledTimes(1)
-  })
-
-  it('allows changing language and closes drawer', () => {
-    renderDrawer(true)
-    const frButton = screen.getByRole('button', { name: 'fr' })
-    expect(frButton).toBeDefined()
-
-    fireEvent.click(frButton)
+    fireEvent.click(screen.getByRole('button', { name: 'fr' }))
     expect(mockSetLocale).toHaveBeenCalledWith('fr')
-    expect(mockOnClose).toHaveBeenCalledTimes(1)
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Mobile navigation' })).toBeNull(),
+    )
   })
 
-  it('renders authenticated user details and links', () => {
+  it('preserves authenticated account destinations', () => {
     mockUseAuth.mockReturnValue({
       user: {
         id: 'user-1',
@@ -169,22 +170,34 @@ describe('MobileNavDrawer', () => {
       isAuthenticated: true,
     })
 
-    renderDrawer(true)
+    openDrawer()
 
     expect(screen.getByText('John Artisan')).toBeDefined()
     expect(screen.getByText('john@eurtisan.local')).toBeDefined()
-    expect(screen.getByText('Profile')).toBeDefined()
     expect(screen.getByText('My Shop')).toBeDefined()
+    expect(screen.getByText('Profile')).toBeDefined()
+    expect(screen.getByText('Orders')).toBeDefined()
+    expect(screen.getByText('Notifications')).toBeDefined()
+    expect(screen.getByText('Settings')).toBeDefined()
     expect(screen.getByText('Sign out')).toBeDefined()
+    expect(screen.queryByText('Start Selling')).toBeNull()
   })
 
-  it('calls onClose and onOpenSearch when search button trigger is clicked', () => {
-    renderDrawer(true)
-    const searchBtn = screen.getByRole('button', { name: 'Search products...' })
-    expect(searchBtn).toBeDefined()
+  it('closes and opens search from the search destination', async () => {
+    openDrawer()
 
-    fireEvent.click(searchBtn)
+    fireEvent.click(screen.getByRole('button', { name: 'Find an object or maker' }))
     expect(mockOnOpenSearch).toHaveBeenCalledTimes(1)
-    expect(mockOnClose).toHaveBeenCalledTimes(1)
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Mobile navigation' })).toBeNull(),
+    )
+  })
+
+  it('has no automated accessibility violations', async () => {
+    openDrawer([{ id: '1', name: 'Ceramics', slug: 'ceramics' }])
+
+    const dialog = await screen.findByRole('dialog', { name: 'Mobile navigation' })
+    await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true))
+    expect(await axe(dialog)).toHaveNoViolations()
   })
 })

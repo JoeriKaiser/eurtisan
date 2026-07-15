@@ -1,5 +1,5 @@
 import { getRouteApi, Link } from '@tanstack/react-router'
-import { Bell, Menu, Search, ShoppingCart } from 'lucide-react'
+import { Bell, Search, ShoppingCart } from 'lucide-react'
 import { lazy, Suspense, useCallback, useState, useSyncExternalStore } from 'react'
 import { useCart } from '#/components/CartProvider'
 import { useAuth } from '#/lib/auth-hooks'
@@ -19,7 +19,6 @@ const rootRoute = getRouteApi('__root__')
 const SearchOverlay = lazy(() => import('./search/SearchOverlay'))
 
 export default function Header() {
-  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
   const [searchOverlayOpen, setSearchOverlayOpen] = useState(false)
   const [searchKey, setSearchKey] = useState(0)
   const { cart, isLoading: cartLoading } = useCart()
@@ -79,17 +78,13 @@ export default function Header() {
         className='page-wrap flex items-center gap-x-2 md:gap-x-4 px-2 md:px-4 py-2.5'
         aria-label={m.nav_main()}
       >
-        {/* Mobile Hamburger Trigger */}
-        <button
-          type='button'
-          onClick={() => setMobileDrawerOpen(true)}
-          className='inline-flex items-center justify-center rounded-lg p-1.5 text-text-secondary transition-colors hover:bg-bg-inset hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2 md:hidden outline-none flex-shrink-0'
-          aria-label='Open menu'
-          aria-expanded={mobileDrawerOpen}
-          aria-haspopup='dialog'
-        >
-          <Menu size={20} aria-hidden='true' />
-        </button>
+        <MobileNavDrawer
+          categories={categories}
+          onOpenSearch={() => {
+            setSearchKey((key) => key + 1)
+            setSearchOverlayOpen(true)
+          }}
+        />
 
         {/* Logo */}
         <Logo />
@@ -192,12 +187,6 @@ export default function Header() {
         </div>
       </nav>
 
-      <MobileNavDrawer
-        isOpen={mobileDrawerOpen}
-        onClose={() => setMobileDrawerOpen(false)}
-        categories={categories}
-        onOpenSearch={() => setSearchOverlayOpen(true)}
-      />
       {searchOverlayOpen ? (
         <Suspense fallback={null}>
           <SearchOverlay key={searchKey} isOpen onClose={() => setSearchOverlayOpen(false)} />
