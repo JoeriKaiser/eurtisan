@@ -1,6 +1,22 @@
 #!/bin/sh
 set -eu
 
+# Compose requires service-level env_file paths to exist even when config is
+# validated with explicit shell values and --no-env-resolution. Production and
+# staging provide a real ignored .env file; clean CI checkouts do not.
+created_env_file=false
+if [ ! -e .env ]; then
+  : >.env
+  created_env_file=true
+fi
+
+cleanup() {
+  if [ "$created_env_file" = true ]; then
+    rm -f .env
+  fi
+}
+trap cleanup EXIT HUP INT TERM
+
 validate() {
   compose_file="$1"
   app_environment="$2"

@@ -58,6 +58,9 @@ jobs:
       - name: Apply full migration chain to a fresh isolated database
         run: make db-migrate-fresh
 
+      - name: Apply migrations to the CI test database
+        run: make db-migrate
+
       - name: Run focused accessibility component and static gates
         run: make test-accessibility
 
