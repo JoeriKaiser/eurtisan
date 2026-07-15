@@ -2,7 +2,7 @@ import { Dialog as BaseDialog } from '@base-ui-components/react/dialog'
 import { Link } from '@tanstack/react-router'
 import { ArrowRight, Bell, LogOut, Menu, Package, Search, Settings, User, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { authClient } from '#/lib/auth-client'
 import { useAuth } from '#/lib/auth-hooks'
 import { getCategoryIcon } from '#/lib/category-icons'
@@ -26,6 +26,12 @@ export default function MobileNavDrawer({ categories, onOpenSearch }: MobileNavD
   const initials = user?.name?.charAt(0).toUpperCase() || 'U'
 
   const closeNavigation = () => setIsOpen(false)
+  const markTriggerHydrated = useCallback((node: HTMLButtonElement | null) => {
+    if (!node) return
+
+    node.dataset.mobileNavHydrated = 'true'
+    return () => node.removeAttribute('data-mobile-nav-hydrated')
+  }, [])
 
   const handleSignOut = async () => {
     await authClient.signOut()
@@ -35,8 +41,9 @@ export default function MobileNavDrawer({ categories, onOpenSearch }: MobileNavD
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <BaseDialog.Trigger
+        ref={markTriggerHydrated}
         className='inline-flex shrink-0 items-center justify-center rounded-lg p-1.5 text-text-secondary outline-none transition-colors hover:bg-bg-inset hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2 md:hidden'
-        aria-label='Open menu'
+        aria-label={m.mobile_nav_open()}
       >
         <Menu size={20} aria-hidden='true' />
       </BaseDialog.Trigger>

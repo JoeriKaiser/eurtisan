@@ -26,13 +26,17 @@ const tilePatterns = [
 ]
 
 export function DiscoveryWall({ products }: DiscoveryWallProps) {
+  const linkedProducts = products.filter(
+    (product): product is PublicProduct & { shopSlug: string } => Boolean(product.shopSlug),
+  )
+
   return (
     <div className='grid auto-rows-[12rem] grid-flow-dense grid-cols-2 gap-2 sm:auto-rows-[15rem] sm:gap-3 md:grid-cols-4 lg:grid-cols-5'>
-      {products.map((product, index) => (
+      {linkedProducts.map((product, index) => (
         <Link
           key={product.id}
           to='/shops/$shopSlug/products/$productSlug'
-          params={{ shopSlug: product.shopSlug ?? 'unknown', productSlug: product.slug }}
+          params={{ shopSlug: product.shopSlug, productSlug: product.slug }}
           className={`group relative min-h-0 overflow-hidden rounded-2xl bg-surface-inset no-underline ${tilePatterns[index % tilePatterns.length]}`}
           aria-label={m.product_card_label({ name: product.name })}
         >

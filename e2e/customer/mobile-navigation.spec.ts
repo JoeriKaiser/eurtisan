@@ -1,16 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 
 async function waitForMobileMenuHydration(page: Page) {
-  await page.waitForFunction(() => {
-    const trigger = document.querySelector<HTMLButtonElement>('button[aria-label="Open menu"]')
-    if (!trigger) return false
-
-    const reactPropsKey = Object.keys(trigger).find((key) => key.startsWith('__reactProps$'))
-    if (!reactPropsKey) return false
-
-    const reactProps = (trigger as unknown as Record<string, { onClick?: unknown }>)[reactPropsKey]
-    return typeof reactProps?.onClick === 'function'
-  })
+  await page.locator('button[data-mobile-nav-hydrated="true"]').waitFor()
 }
 
 test.use({

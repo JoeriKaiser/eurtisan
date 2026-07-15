@@ -49,6 +49,18 @@ describe('DiscoveryWall', () => {
     expect(screen.getAllByText('€49.99')).toHaveLength(3)
   })
 
+  it('omits products without a routable shop instead of rendering dead links', () => {
+    render(
+      <DiscoveryWall
+        products={[makeProduct('unroutable', { shopSlug: null }), makeProduct('routable')]}
+      />,
+    )
+
+    expect(screen.getAllByRole('link')).toHaveLength(1)
+    expect(screen.queryByRole('link', { name: 'Product: Handmade object unroutable' })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Product: Handmade object routable' })).toBeDefined()
+  })
+
   it('provides a stable shared-element name for product navigation', () => {
     render(<DiscoveryWall products={[makeProduct('one')]} />)
 

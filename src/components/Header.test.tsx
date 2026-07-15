@@ -80,6 +80,7 @@ vi.mock('#/paraglide/messages', () => ({
     nav_sign_out: () => 'Sign out',
     nav_sign_in: () => 'Sign in',
     mobile_nav_label: () => 'Mobile navigation',
+    mobile_nav_open: () => 'Open menu',
     mobile_nav_close: () => 'Close navigation',
     mobile_nav_search: () => 'Find an object or maker',
     mobile_nav_explore: () => 'Explore the market',
