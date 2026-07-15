@@ -12,7 +12,7 @@ Configure on the repository **Settings → Branches → Branch protection rules*
 | Require a pull request before merging | Enabled |
 | Required approvals | ≥ 1 |
 | Require review from Code Owners | Enabled (uses `.github/CODEOWNERS`) |
-| Require status checks to pass | Enabled for `Quality, Migrations, Tests & Build`, `Isolated Playwright E2E`, `Production Image Smoke`, `Compose, Workflow, Shell & Ansible`, and `Prometheus Rules` |
+| Require status checks to pass | Enabled for `Quality, Migrations, Tests & Build`, `Production Image Smoke`, `Compose, Workflow, Shell & Ansible`, and `Prometheus Rules` |
 | Require branches to be up to date | Enabled |
 
 ## CODEOWNERS

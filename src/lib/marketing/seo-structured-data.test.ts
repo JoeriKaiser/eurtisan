@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock paraglide messages before importing the module under test
 vi.mock('#/paraglide/messages', () => ({
@@ -12,6 +12,20 @@ import {
   generateStoreJsonLd,
   generateWebSiteJsonLd,
 } from './seo-structured-data'
+
+const configuredPublicUrl = process.env.PUBLIC_URL
+
+beforeEach(() => {
+  delete process.env.PUBLIC_URL
+})
+
+afterEach(() => {
+  if (configuredPublicUrl === undefined) {
+    delete process.env.PUBLIC_URL
+  } else {
+    process.env.PUBLIC_URL = configuredPublicUrl
+  }
+})
 
 describe('generateProductJsonLd', () => {
   const baseProductInput = {

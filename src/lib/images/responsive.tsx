@@ -69,6 +69,18 @@ export function ResponsiveImage({
     setIsLoaded(true)
   }, [])
 
+  const imageRef = useCallback((node: HTMLImageElement | null) => {
+    if (!node?.complete) return
+
+    if (node.naturalWidth > 0) {
+      setIsLoaded(true)
+      return
+    }
+
+    setHasError(true)
+    setIsLoaded(true)
+  }, [])
+
   if (!src) {
     return <>{fallback}</>
   }
@@ -95,6 +107,7 @@ export function ResponsiveImage({
         </div>
       ) : (
         <img
+          ref={imageRef}
           src={defaultUrl}
           srcSet={srcset}
           sizes={sizes}

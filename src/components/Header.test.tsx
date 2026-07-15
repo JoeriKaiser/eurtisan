@@ -79,6 +79,16 @@ vi.mock('#/paraglide/messages', () => ({
     nav_settings: () => 'Settings',
     nav_sign_out: () => 'Sign out',
     nav_sign_in: () => 'Sign in',
+    mobile_nav_label: () => 'Mobile navigation',
+    mobile_nav_open: () => 'Open menu',
+    mobile_nav_close: () => 'Close navigation',
+    mobile_nav_search: () => 'Find an object or maker',
+    mobile_nav_explore: () => 'Explore the market',
+    mobile_nav_browse_crafts: () => 'Browse by craft',
+    mobile_nav_view_all_categories: ({ count }: { count: number }) => `View all ${count}`,
+    mobile_nav_account: () => 'Your account',
+    mobile_nav_language: () => 'Language',
+    mobile_nav_theme: () => 'Theme',
     search_header_placeholder: () => 'Search products...',
     search_header_button: () => 'Search',
     search_overlay_title: () => 'Search',
@@ -390,7 +400,7 @@ describe('Header', () => {
 
     // Click trigger to open mobile drawer
     fireEvent.click(menuBtn)
-    expect(screen.getByRole('dialog', { name: 'Navigation Drawer' })).toBeDefined()
+    expect(screen.getByRole('dialog', { name: 'Mobile navigation' })).toBeDefined()
   })
 
   it('renders mobile search button and opens search overlay on click', async () => {

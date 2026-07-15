@@ -607,6 +607,8 @@ describe('searchProductsMeilisearch', () => {
 })
 
 describe('processMeilisearchSyncQueue', () => {
+  const readyRunAt = new Date(0)
+
   it('does nothing when the queue is empty', async () => {
     const result = await processMeilisearchSyncQueue()
     expect(result.processedCount).toBe(0)
@@ -619,6 +621,7 @@ describe('processMeilisearchSyncQueue', () => {
       productId: p.id,
       action: 'index',
       status: 'pending',
+      runAt: readyRunAt,
     })
 
     const result = await processMeilisearchSyncQueue()
@@ -651,6 +654,7 @@ describe('processMeilisearchSyncQueue', () => {
       productId: p.id,
       action: 'delete',
       status: 'pending',
+      runAt: readyRunAt,
     })
 
     const result = await processMeilisearchSyncQueue()
@@ -669,6 +673,7 @@ describe('processMeilisearchSyncQueue', () => {
       productId: p.id,
       action: 'delete',
       status: 'pending',
+      runAt: readyRunAt,
     })
 
     const result = await processMeilisearchSyncQueue()
@@ -692,6 +697,7 @@ describe('processMeilisearchSyncQueue', () => {
         action: 'delete',
         status: 'pending',
         attempts: 4,
+        runAt: readyRunAt,
       })
       .returning()
 

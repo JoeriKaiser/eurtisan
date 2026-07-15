@@ -1,10 +1,9 @@
-import { useLoaderData, Link, useRouter } from '@tanstack/react-router'
-import { Search } from 'lucide-react'
+import { useLoaderData, useRouter } from '@tanstack/react-router'
+import { ArrowLeft, Search, Shuffle } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import ProductGrid from '#/components/ProductGrid'
-import { Button } from '#/components/ui/button'
-import { Input } from '#/components/ui/input'
 import { m } from '#/paraglide/messages'
+import { DiscoveryWall } from './search/DiscoveryWall'
 import { SearchFilters } from './search/SearchFilters'
 
 export function SearchPage() {
@@ -27,7 +26,6 @@ function SearchPageContent() {
     products,
     page,
     categories,
-    shops,
     categorySlug,
     shopSlug,
     minPriceCents,
@@ -49,33 +47,35 @@ function SearchPageContent() {
     (overrides: Record<string, string | number | undefined>) => {
       const params: Record<string, string | number> = {}
 
-      const q = overrides.q !== undefined ? overrides.q : filters.query.trim()
+      const q = Object.hasOwn(overrides, 'q') ? overrides.q : filters.query.trim()
       if (q) params.q = q
 
-      const category = overrides.category !== undefined ? overrides.category : filters.category
+      const category = Object.hasOwn(overrides, 'category') ? overrides.category : filters.category
       if (category) params.category = category
 
-      const shop = overrides.shop !== undefined ? overrides.shop : filters.shop
+      const shop = Object.hasOwn(overrides, 'shop') ? overrides.shop : filters.shop
       if (shop) params.shop = shop
 
-      const minPrice =
-        overrides.minPrice !== undefined ? String(overrides.minPrice) : filters.minPrice
+      const minPrice = Object.hasOwn(overrides, 'minPrice')
+        ? String(overrides.minPrice ?? '')
+        : filters.minPrice
       if (minPrice) {
         const cents = Math.round(Number.parseFloat(minPrice) * 100)
         if (!Number.isNaN(cents) && cents >= 0) params.minPrice = cents
       }
 
-      const maxPrice =
-        overrides.maxPrice !== undefined ? String(overrides.maxPrice) : filters.maxPrice
+      const maxPrice = Object.hasOwn(overrides, 'maxPrice')
+        ? String(overrides.maxPrice ?? '')
+        : filters.maxPrice
       if (maxPrice) {
         const cents = Math.round(Number.parseFloat(maxPrice) * 100)
         if (!Number.isNaN(cents) && cents >= 0) params.maxPrice = cents
       }
 
-      const sortValue = overrides.sort !== undefined ? overrides.sort : filters.sort
+      const sortValue = Object.hasOwn(overrides, 'sort') ? overrides.sort : filters.sort
       if (sortValue && sortValue !== 'relevance') params.sort = sortValue
 
-      const pageValue = overrides.page !== undefined ? overrides.page : 1
+      const pageValue = Object.hasOwn(overrides, 'page') ? overrides.page : 1
       if (pageValue && pageValue !== 1) params.page = pageValue
 
       return params
@@ -93,10 +93,6 @@ function SearchPageContent() {
     },
     [router, buildSearchParams],
   )
-
-  const handleSearch = useCallback(() => {
-    navigateWithParams({ page: 1 })
-  }, [navigateWithParams])
 
   const handlePageChange = useCallback(
     (newPage: number) => {
@@ -130,125 +126,156 @@ function SearchPageContent() {
       filters.sort !== 'relevance',
   )
 
-  const isEmptyQuery = query.length === 0
+  const isVisualBrowseMode = query.length === 0
   const hasNoResults = products.products.length === 0
-  const showSearchPrompt = isEmptyQuery && hasNoResults && products.total === 0 && !hasActiveFilters
+
+  const handleSurprise = useCallback(() => {
+    const candidates = products.products.filter((product) => product.shopSlug)
+    const product = candidates[Math.floor(Math.random() * candidates.length)]
+    if (!product?.shopSlug) return
+
+    router.navigate({
+      to: '/shops/$shopSlug/products/$productSlug',
+      params: { shopSlug: product.shopSlug, productSlug: product.slug },
+    })
+  }, [products.products, router])
 
   return (
-    <main className='page-wrap px-4 pb-16 pt-14'>
-      {/* Hero search section */}
-      <section className='island-shell rounded-2xl px-6 py-10 sm:px-10 sm:py-14'>
-        <p className='island-kicker mb-3'>{m.search_kicker()}</p>
-        <h1 className='display-title mb-6 text-4xl font-semibold tracking-tight text-text-primary sm:text-5xl'>
-          {m.search_title()}
-        </h1>
-
-        <div className='flex gap-2'>
-          <div className='relative flex-1 sm:max-w-md'>
-            <Search className='absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted' />
-            <Input
-              type='search'
-              placeholder={m.search_input_placeholder()}
-              value={filters.query}
-              onChange={(e) => setFilters((prev) => ({ ...prev, query: e.target.value }))}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  handleSearch()
-                }
-              }}
-              className='pl-9'
-              aria-label={m.search_input_placeholder()}
-            />
-          </div>
-          <Button onClick={handleSearch} variant='secondary'>
-            {m.search_button()}
-          </Button>
+    <main className='mx-auto w-full max-w-[1320px] px-4 pb-16'>
+      <section className='pb-6 pt-8 sm:pb-7 sm:pt-10'>
+        <div className='flex flex-wrap items-end justify-between gap-4'>
+          <h1 className='display-title max-w-[22ch] text-3xl font-semibold tracking-tight text-text-primary text-balance sm:text-4xl'>
+            {isVisualBrowseMode ? m.search_explore_title() : m.search_results_title({ query })}
+          </h1>
+          {isVisualBrowseMode ? (
+            <button
+              type='button'
+              onClick={handleSurprise}
+              disabled={products.products.every((product) => !product.shopSlug)}
+              className='inline-flex min-h-11 items-center gap-2 rounded-xl border border-border-default bg-surface-default px-4 py-2.5 text-sm font-semibold text-text-primary transition-colors hover:border-border-strong hover:bg-surface-inset active:bg-bg-inset disabled:cursor-not-allowed disabled:opacity-50'
+            >
+              <Shuffle size={16} aria-hidden='true' />
+              {m.search_surprise_me()}
+            </button>
+          ) : (
+            <button
+              type='button'
+              onClick={handleClearFilters}
+              className='inline-flex min-h-11 items-center gap-2 py-2 text-sm font-semibold text-text-primary transition-colors hover:text-accent-primary'
+            >
+              <ArrowLeft size={16} aria-hidden='true' />
+              {m.search_back_to_discovery()}
+            </button>
+          )}
         </div>
       </section>
 
-      {/* Main content with sidebar */}
-      <div className='mt-8 grid gap-6 lg:grid-cols-[280px_1fr]'>
-        {/* Filter sidebar */}
-        <SearchFilters
-          filters={filters}
-          setFilters={setFilters}
-          categories={categories}
-          shops={shops}
-          navigateWithParams={navigateWithParams}
-          handleClearFilters={handleClearFilters}
-          hasActiveFilters={hasActiveFilters}
-        />
-
-        {/* Results area */}
-        <div>
-          {/* Sort bar */}
-          <div className='mb-4 flex flex-wrap items-center justify-between gap-3'>
-            {!showSearchPrompt && (
-              <p className='text-sm text-text-secondary'>
-                {m.search_results_count({ count: products.total })}
-              </p>
-            )}
-            <div className='flex items-center gap-2'>
-              <label htmlFor='search-sort' className='text-sm text-text-secondary'>
-                {m.search_sort_label()}
-              </label>
-              <select
-                id='search-sort'
-                value={filters.sort}
-                onChange={(e) => {
-                  setFilters((prev) => ({ ...prev, sort: e.target.value }))
-                  navigateWithParams({ sort: e.target.value, page: 1 })
+      <section className='border-y border-border-default py-4'>
+        <nav
+          className='flex items-center gap-2 overflow-x-auto pb-1'
+          aria-label={m.search_filter_category()}
+        >
+          <button
+            type='button'
+            onClick={() => {
+              setFilters((previous) => ({ ...previous, category: '' }))
+              navigateWithParams({ category: undefined, page: 1 })
+            }}
+            className={`min-h-10 shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+              filters.category
+                ? 'bg-surface-inset text-text-secondary hover:text-text-primary'
+                : 'bg-accent-primary text-text-on-primary'
+            }`}
+            aria-pressed={!filters.category}
+          >
+            {m.search_filter_category_all()}
+          </button>
+          {categories.map((category) => {
+            const isSelected = filters.category === category.slug
+            return (
+              <button
+                key={category.id}
+                type='button'
+                onClick={() => {
+                  setFilters((previous) => ({ ...previous, category: category.slug }))
+                  navigateWithParams({ category: category.slug, page: 1 })
                 }}
-                className='h-9 rounded-lg border border-border-default bg-surface-default px-3 py-1.5 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
+                className={`min-h-10 shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                  isSelected
+                    ? 'bg-accent-primary text-text-on-primary'
+                    : 'bg-surface-inset text-text-secondary hover:text-text-primary'
+                }`}
+                aria-pressed={isSelected}
               >
-                <option value='relevance'>{m.search_sort_relevance()}</option>
-                <option value='price_asc'>{m.search_sort_price_asc()}</option>
-                <option value='price_desc'>{m.search_sort_price_desc()}</option>
-                <option value='newest'>{m.search_sort_newest()}</option>
-              </select>
-            </div>
-          </div>
+                {category.name}
+              </button>
+            )
+          })}
+        </nav>
+      </section>
 
-          {/* Empty states and results */}
-          {showSearchPrompt ? (
-            <div className='island-shell rounded-2xl p-8 text-center sm:p-12'>
-              <Search size={48} className='mx-auto mb-4 text-text-muted' aria-hidden='true' />
-              <h2 className='mb-2 text-xl font-semibold text-text-primary'>
-                {m.search_prompt_title()}
-              </h2>
-              <p className='text-text-secondary'>{m.search_prompt_description()}</p>
-            </div>
-          ) : isEmptyQuery && !hasNoResults ? (
-            <div className='space-y-6'>
-              <div className='island-shell rounded-2xl px-6 py-8'>
-                <h2 className='mb-1 text-xl font-semibold text-text-primary'>
-                  {m.search_all_products_title()}
-                </h2>
-                <p className='text-text-secondary'>{m.search_all_products_description()}</p>
-              </div>
-              <ProductGrid
-                products={products.products}
-                page={page}
-                totalPages={products.totalPages}
-                onPageChange={handlePageChange}
-              />
-            </div>
-          ) : hasNoResults ? (
-            <div className='island-shell rounded-2xl p-8 text-center sm:p-12'>
+      <section className='pt-5'>
+        <div className='flex flex-wrap items-center justify-between gap-3'>
+          <p className='text-sm font-medium text-text-secondary' aria-live='polite'>
+            {isVisualBrowseMode
+              ? m.search_objects_count({ count: products.total })
+              : m.search_results_count({ count: products.total })}
+          </p>
+          <div className='flex items-center gap-2'>
+            <label htmlFor='search-sort' className='text-sm text-text-secondary'>
+              {m.search_sort_label()}
+            </label>
+            <select
+              id='search-sort'
+              value={filters.sort}
+              onChange={(event) => {
+                setFilters((previous) => ({ ...previous, sort: event.target.value }))
+                navigateWithParams({ sort: event.target.value, page: 1 })
+              }}
+              className='h-10 rounded-lg border border-border-default bg-surface-default px-3 py-1.5 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
+            >
+              <option value='relevance'>{m.search_sort_relevance()}</option>
+              <option value='price_asc'>{m.search_sort_price_asc()}</option>
+              <option value='price_desc'>{m.search_sort_price_desc()}</option>
+              <option value='newest'>{m.search_sort_newest()}</option>
+            </select>
+          </div>
+        </div>
+
+        <div className='mt-4'>
+          <SearchFilters
+            filters={filters}
+            setFilters={setFilters}
+            categories={categories}
+            navigateWithParams={navigateWithParams}
+            handleClearFilters={handleClearFilters}
+            hasActiveFilters={hasActiveFilters}
+            showCategory={!isVisualBrowseMode}
+          />
+        </div>
+
+        <div className='mt-5'>
+          {hasNoResults ? (
+            <div className='rounded-2xl border border-border-default bg-surface-inset p-8 text-center sm:p-12'>
+              <Search size={36} className='mx-auto mb-4 text-accent-primary' aria-hidden='true' />
               <h2 className='mb-2 text-xl font-semibold text-text-primary'>
                 {m.search_no_results_title()}
               </h2>
-              <p className='mb-6 text-text-secondary'>
-                {m.search_no_results_description({ query })}
+              <p className='mx-auto mb-6 max-w-lg text-text-secondary'>
+                {query
+                  ? m.search_no_results_description({ query })
+                  : m.search_no_filter_results_description()}
               </p>
-              <Link
-                to='/category/all'
-                className='inline-flex items-center gap-2 rounded-lg bg-accent-primary px-6 py-3 text-sm font-medium text-text-on-primary no-underline transition-colors hover:bg-accent-primary-hover'
+              <button
+                type='button'
+                onClick={handleClearFilters}
+                className='inline-flex min-h-11 items-center rounded-xl bg-accent-primary px-6 py-3 text-sm font-semibold text-text-on-primary transition-colors hover:bg-accent-primary-hover active:bg-accent-primary-active'
               >
-                {m.search_no_results_browse_categories()}
-              </Link>
+                {m.search_clear_filters()}
+              </button>
             </div>
+          ) : isVisualBrowseMode ? (
+            <DiscoveryWall products={products.products} />
           ) : (
             <ProductGrid
               products={products.products}
@@ -258,7 +285,7 @@ function SearchPageContent() {
             />
           )}
         </div>
-      </div>
+      </section>
     </main>
   )
 }
