@@ -52,17 +52,24 @@ function getSenderName(): string {
   return getEmailFromName()
 }
 
+interface BrevoEmailProviderOptions {
+  mock?: boolean
+  retryDelaysMs?: number[]
+}
+
 export class BrevoEmailProvider implements EmailProvider {
   readonly name = 'brevo' as const
   private readonly mockMode: boolean
   private readonly apiKey: string | undefined
+  private readonly retryDelaysMs: number[] | undefined
   private readonly senderEmail: string
   private readonly senderName: string
   private readonly replyTo: string
 
-  constructor(options?: { mock?: boolean }) {
+  constructor(options?: BrevoEmailProviderOptions) {
     this.mockMode = options?.mock ?? !isRealModeEnabled()
     this.apiKey = getBrevoApiKey()
+    this.retryDelaysMs = options?.retryDelaysMs
     this.senderEmail = getSenderEmail()
     this.senderName = getSenderName()
     this.replyTo = getEmailReplyToAddress()
@@ -225,6 +232,7 @@ export class BrevoEmailProvider implements EmailProvider {
         }
         return false
       },
+      this.retryDelaysMs,
     )
 
     const result = (await response.json()) as { messageId?: string }
