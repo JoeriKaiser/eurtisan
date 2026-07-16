@@ -55,6 +55,9 @@ jobs:
       - name: Install locked dependencies
         run: make install
 
+      - name: Compile i18n messages
+        run: make i18n-compile
+
       - name: Check formatting
         run: make format
 
@@ -66,9 +69,6 @@ jobs:
 
       - name: Audit production dependencies
         run: make audit-production
-
-      - name: Compile i18n messages
-        run: make i18n-compile
 
       - name: Validate migration chain
         run: make db-check

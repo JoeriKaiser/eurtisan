@@ -1,7 +1,7 @@
 import { defineProject } from 'vitest/config'
-import { classifyUnitTestFiles } from './scripts/vitest-test-classification'
+import { loadUnitTestClassification } from './scripts/vitest-test-classification'
 
-const { database } = classifyUnitTestFiles()
+const { database } = loadUnitTestClassification()
 
 export default defineProject({
   resolve: { tsconfigPaths: true },
