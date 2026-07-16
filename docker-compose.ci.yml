@@ -21,6 +21,9 @@ services:
       dockerfile: Dockerfile
       target: runtime
     command: ["sleep", "infinity"]
+    environment:
+      S3_ACCESS_KEY_ID: ci-placeholder
+      S3_SECRET_ACCESS_KEY: ci-placeholder
     depends_on: !override
       db:
         condition: service_healthy
