@@ -17,6 +17,10 @@ export default defineConfig({
   },
   test: {
     api: false,
-    projects: ['./vitest.unit.config.ts', './vitest.browser.config.ts'],
+    projects: [
+      './vitest.unit.config.ts',
+      './vitest.integration.config.ts',
+      './vitest.browser.config.ts',
+    ],
   },
 })

@@ -4,14 +4,16 @@
 up:
 	touch .env.garage
 	docker compose up -d
-	sh scripts/garage-init.sh
+	@if [ "$(SKIP_GARAGE_INIT)" != "true" ]; then sh scripts/garage-init.sh; fi
 
 # Start services only if they are not already running. Avoids recreating a container
 # that was started with a different compose override (e.g. docker-compose.e2e.yml).
 ensure-up:
-	touch .env.garage
-	docker compose up -d --no-recreate
-	sh scripts/garage-init.sh
+	@if [ "$(SKIP_DOCKER_ENSURE_UP)" != "true" ]; then \
+		touch .env.garage; \
+		docker compose up -d --no-recreate; \
+		if [ "$(SKIP_GARAGE_INIT)" != "true" ]; then sh scripts/garage-init.sh; fi; \
+	fi
 
 down:
 	docker compose down
@@ -169,10 +171,8 @@ BUN_JSC_FORCE_RAM_SIZE ?= 30000000000
 
 test: ensure-up
 	@if [ -z "$(filter-out test,$(MAKECMDGOALS))" ]; then \
-		unit_exit=0; browser_exit=0; \
-		docker compose exec -T -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) app bun run test -- --project unit || unit_exit=$$?; \
-		docker compose exec -T -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) app bun run test -- --project browser || browser_exit=$$?; \
-		exit $$((unit_exit || browser_exit)); \
+		docker compose exec -T -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) app \
+		  bun run scripts/run-checked-command.ts test -- bun run scripts/run-vitest-suite.ts; \
 	else \
 		docker compose exec -T -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) app bun run test $(filter-out test,$(MAKECMDGOALS)); \
 	fi

@@ -18,6 +18,12 @@ function setEnv(key: string, value: string) {
   process.env[key] = value
 }
 
+const immediateRetryDelaysMs = [0, 0, 0]
+
+function createRealProvider(): BrevoEmailProvider {
+  return new BrevoEmailProvider({ mock: false, retryDelaysMs: immediateRetryDelaysMs })
+}
+
 function createMockResponse(status: number, bodyText: string) {
   return {
     ok: status >= 200 && status < 300,
@@ -49,7 +55,7 @@ describe('BrevoEmailProvider sendReal timeout', () => {
       .spyOn(globalThis, 'fetch')
       .mockRejectedValue(new DOMException('The operation timed out.', 'AbortError'))
 
-    const provider = new BrevoEmailProvider({ mock: false })
+    const provider = createRealProvider()
 
     await expect(
       provider.sendTransactional('alice@example.com', 'order_confirmation', {
@@ -68,7 +74,7 @@ describe('BrevoEmailProvider sendReal timeout', () => {
     const networkError = new TypeError('fetch failed')
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(networkError)
 
-    const provider = new BrevoEmailProvider({ mock: false })
+    const provider = createRealProvider()
 
     let caughtError: unknown
     await provider
@@ -84,7 +90,7 @@ describe('BrevoEmailProvider sendReal timeout', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(4)
 
     fetchSpy.mockRestore()
-  }, 15000)
+  })
 })
 
 describe('BrevoEmailProvider retry logic', () => {
@@ -95,7 +101,7 @@ describe('BrevoEmailProvider retry logic', () => {
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(createMockResponse(400, 'Bad Request'))
 
-    const provider = new BrevoEmailProvider({ mock: false })
+    const provider = createRealProvider()
 
     await expect(
       provider.sendTransactional('alice@example.com', 'order_confirmation', {
@@ -116,7 +122,7 @@ describe('BrevoEmailProvider retry logic', () => {
       .mockResolvedValueOnce(createMockResponse(500, 'Internal Server Error'))
       .mockResolvedValueOnce(createMockResponse(200, 'OK'))
 
-    const provider = new BrevoEmailProvider({ mock: false })
+    const provider = createRealProvider()
 
     const result = await provider.sendTransactional('alice@example.com', 'order_confirmation', {
       orderNumber: '42',
@@ -127,7 +133,7 @@ describe('BrevoEmailProvider retry logic', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(2)
 
     fetchSpy.mockRestore()
-  }, 10000)
+  })
 
   it('retries on network errors and succeeds on recovery', async () => {
     setEnv('BREVO_API_KEY', 'test-api-key')
@@ -138,7 +144,7 @@ describe('BrevoEmailProvider retry logic', () => {
       .mockRejectedValueOnce(new TypeError('fetch failed'))
       .mockResolvedValueOnce(createMockResponse(200, 'OK'))
 
-    const provider = new BrevoEmailProvider({ mock: false })
+    const provider = createRealProvider()
 
     const result = await provider.sendTransactional('alice@example.com', 'order_confirmation', {
       orderNumber: '42',
@@ -149,7 +155,7 @@ describe('BrevoEmailProvider retry logic', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(3)
 
     fetchSpy.mockRestore()
-  }, 10000)
+  })
 
   it('exhausts all retries on persistent 5xx and throws last error', async () => {
     setEnv('BREVO_API_KEY', 'test-api-key')
@@ -158,7 +164,7 @@ describe('BrevoEmailProvider retry logic', () => {
       .spyOn(globalThis, 'fetch')
       .mockResolvedValue(createMockResponse(502, 'Bad Gateway'))
 
-    const provider = new BrevoEmailProvider({ mock: false })
+    const provider = createRealProvider()
 
     let caughtError: unknown
     await provider
@@ -174,7 +180,7 @@ describe('BrevoEmailProvider retry logic', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(4)
 
     fetchSpy.mockRestore()
-  }, 15000)
+  })
 })
 
 describe('BrevoEmailProvider result shape', () => {
@@ -194,7 +200,7 @@ describe('BrevoEmailProvider headers', () => {
 
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(createMockResponse(200, 'OK'))
 
-    const provider = new BrevoEmailProvider({ mock: false })
+    const provider = createRealProvider()
     await provider.sendTransactional(
       'alice@example.com',
       'order_confirmation',

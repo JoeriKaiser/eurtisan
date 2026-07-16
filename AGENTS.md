@@ -676,6 +676,8 @@ Required for critical workflows:
 - Mock external services explicitly.
 - Avoid snapshot-heavy testing.
 - Playwright E2E is an explicit local/release gate via `make e2e`; GitHub Actions CI does not run it.
+- The full Vitest gate classifies runtime database dependencies: DB-backed unit files remain serial, while pure unit and browser files run in bounded parallel workers. Browser tests must not directly import database modules; keep database-sensitive coverage in `*.test.ts` files.
+- GitHub Actions uses `docker-compose.ci.yml` with the lean Docker `runtime` target and only the app/database services. Local Compose keeps the default `development` target with Playwright for explicit E2E runs.
 
 ---
 

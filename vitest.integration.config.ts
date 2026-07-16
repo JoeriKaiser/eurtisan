@@ -1,7 +1,7 @@
 import { defineProject } from 'vitest/config'
 import { classifyUnitTestFiles } from './scripts/vitest-test-classification'
 
-const { pure } = classifyUnitTestFiles()
+const { database } = classifyUnitTestFiles()
 
 export default defineProject({
   resolve: { tsconfigPaths: true },
@@ -9,15 +9,14 @@ export default defineProject({
     port: 0,
   },
   test: {
-    name: 'unit-pure',
+    name: 'unit-db',
     environment: 'node',
     globals: true,
     setupFiles: ['./src/test-setup-unit.ts'],
-    include: pure,
+    include: database,
     exclude: ['node_modules', 'e2e', 'dist'],
     pool: 'forks',
-    fileParallelism: true,
-    maxWorkers: 2,
+    fileParallelism: false,
     execArgv: [],
   },
 })

@@ -2,18 +2,22 @@
 set -eu
 
 # Compose requires service-level env_file paths to exist even when config is
-# validated with explicit shell values and --no-env-resolution. Production and
-# staging provide a real ignored .env file; clean CI checkouts do not.
-created_env_file=false
-if [ ! -e .env ]; then
-  : >.env
-  created_env_file=true
-fi
+# validated with explicit shell values and --no-env-resolution. Real workflows
+# provide ignored files; clean CI checkouts do not.
+created_env_files=""
+ensure_env_file() {
+  if [ ! -e "$1" ]; then
+    : >"$1"
+    created_env_files="$created_env_files $1"
+  fi
+}
+ensure_env_file .env
+ensure_env_file .env.garage
 
 cleanup() {
-  if [ "$created_env_file" = true ]; then
-    rm -f .env
-  fi
+  for env_file in $created_env_files; do
+    rm -f "$env_file"
+  done
 }
 trap cleanup EXIT HUP INT TERM
 
@@ -54,5 +58,6 @@ validate() {
 
 validate docker-compose.prod.yml production
 validate docker-compose.staging.yml staging
+docker compose -f docker-compose.yml -f docker-compose.ci.yml config --quiet
 
-echo "Production and staging Compose configuration is valid"
+echo "Production, staging, and CI Compose configuration is valid"

@@ -1,4 +1,7 @@
 import { defineProject } from 'vitest/config'
+import { assertBrowserTestsDatabaseFree } from './scripts/vitest-test-classification'
+
+assertBrowserTestsDatabaseFree()
 
 export default defineProject({
   resolve: { tsconfigPaths: true },
@@ -13,7 +16,8 @@ export default defineProject({
     include: ['src/**/*.test.tsx'],
     exclude: ['node_modules', 'e2e', 'dist'],
     pool: 'forks',
-    fileParallelism: false,
+    fileParallelism: true,
+    maxWorkers: 2,
     execArgv: [],
   },
 })
