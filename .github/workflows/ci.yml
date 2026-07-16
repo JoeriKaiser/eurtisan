@@ -89,6 +89,12 @@ jobs:
       - name: Enforce measured client bundle budgets
         run: make bundle-check
 
+      # Production route generation intentionally excludes the development-only
+      # Mollie mock route. Restore the committed development manifest after the
+      # production artifacts and bundle budgets have been validated.
+      - name: Restore development route tree
+        run: git restore --source=HEAD -- src/routeTree.gen.ts
+
       - name: Verify validation did not mutate tracked files
         run: |
           git diff --exit-code
