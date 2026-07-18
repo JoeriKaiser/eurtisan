@@ -278,20 +278,20 @@ const server = createServer(async (req, res) => {
       }
     })
 
-    responseHeaders['Vary'] = 'Accept-Encoding, Accept-Language'
-    responseHeaders['X-Content-Type-Options'] = 'nosniff'
-    responseHeaders['X-Frame-Options'] = 'DENY'
-    responseHeaders['Referrer-Policy'] = 'strict-origin-when-cross-origin'
-    responseHeaders['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=(), payment=()'
+    responseHeaders['vary'] = 'Accept-Encoding, Accept-Language'
+    responseHeaders['x-content-type-options'] = 'nosniff'
+    responseHeaders['x-frame-options'] = 'DENY'
+    responseHeaders['referrer-policy'] = 'strict-origin-when-cross-origin'
+    responseHeaders['permissions-policy'] = 'camera=(), microphone=(), geolocation=(), payment=()'
     if (scheme === 'https') {
-      responseHeaders['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+      responseHeaders['strict-transport-security'] = 'max-age=31536000; includeSubDomains'
     }
 
     const contentType = response.headers.get('content-type') || ''
     let transformedHtml = null
     if (process.env.NODE_ENV === 'production' && contentType.includes('text/html')) {
       transformedHtml = injectScriptNonces(await response.text(), cspNonce)
-      responseHeaders['Content-Security-Policy'] = buildCspHeader({ nonce: cspNonce })
+      responseHeaders['content-security-policy'] = buildCspHeader({ nonce: cspNonce })
       delete responseHeaders['content-length']
     }
 
@@ -299,9 +299,9 @@ const server = createServer(async (req, res) => {
     if (req.method === 'GET' || req.method === 'HEAD') {
       if (contentType.includes('text/html')) {
         if (isPublicRoute(url)) {
-          responseHeaders['Cache-Control'] = 'public, s-maxage=60, max-age=0, stale-while-revalidate=300'
+          responseHeaders['cache-control'] = 'private, no-store'
         } else if (isPrivateRoute(url)) {
-          responseHeaders['Cache-Control'] = 'private, no-store'
+          responseHeaders['cache-control'] = 'private, no-store'
         }
       }
     }
