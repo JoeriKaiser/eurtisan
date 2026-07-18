@@ -138,6 +138,11 @@ EOF
 
 docker run --rm --env-file "$SERVER_ENV_FILE" -e VALIDATE_ENV_ONLY=true "$IMAGE_NAME"
 docker run --rm --env-file "$SERVER_ENV_FILE" "$IMAGE_NAME" bun run validate:server-env
+docker run --rm --env-file "$SERVER_ENV_FILE" \
+  -e BREVO_API_KEY= \
+  -e EMAIL_SMTP_HOST=mailpit \
+  "$IMAGE_NAME" \
+  bun -e "await import('#/lib/env.server'); const { BrevoEmailProvider } = await import('./src/integrations/email/brevo-email-provider.ts'); new BrevoEmailProvider({ mock: true })"
 
 APP_CONTAINER="$(docker run -d --env-file "$SERVER_ENV_FILE" "$IMAGE_NAME")"
 health_body=""

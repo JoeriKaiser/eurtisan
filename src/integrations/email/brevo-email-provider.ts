@@ -17,6 +17,7 @@ import {
   getEmailFromAddress,
   getEmailFromName,
   getEmailReplyToAddress,
+  getEmailSmtpHost,
 } from '#/lib/env.server'
 import { logger } from '#/lib/logger.server'
 import { isEmailSuppressed } from '#/lib/email-suppression.server'
@@ -74,7 +75,12 @@ export class BrevoEmailProvider implements EmailProvider {
     this.senderName = getSenderName()
     this.replyTo = getEmailReplyToAddress()
 
-    if (process.env.NODE_ENV === 'production' && this.mockMode && !this.apiKey) {
+    if (
+      process.env.NODE_ENV === 'production' &&
+      this.mockMode &&
+      !this.apiKey &&
+      !getEmailSmtpHost()
+    ) {
       throw new Error(
         'No email provider configured in production. Set BREVO_API_KEY or EMAIL_SMTP_HOST.',
       )

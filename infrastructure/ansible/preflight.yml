@@ -21,3 +21,11 @@
         mode: "0600"
       check_mode: true
       changed_when: false
+
+    - name: Render the managed Alertmanager template without writing it
+      ansible.builtin.template:
+        src: roles/eurtisan/templates/alertmanager.yml.j2
+        dest: "/tmp/eurtisan-{{ inventory_hostname }}-alertmanager.yml"
+        mode: "0600"
+      check_mode: true
+      changed_when: false

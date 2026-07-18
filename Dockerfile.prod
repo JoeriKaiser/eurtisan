@@ -94,6 +94,7 @@ COPY --from=builder --chown=bun:bun /app/drizzle ./drizzle
 # with `bun run`. TypeScript only — no secrets live here.
 COPY --from=builder --chown=bun:bun /app/src ./src
 COPY --from=builder --chown=bun:bun /app/scripts ./scripts
+COPY --from=builder --chown=bun:bun /app/tsconfig.json ./tsconfig.json
 
 LABEL app=eurtisan
 

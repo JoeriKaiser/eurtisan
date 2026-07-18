@@ -192,6 +192,12 @@
         dest: /opt/eurtisan/observability/prometheus/prometheus.yml
         mode: "0644"
 
+    - name: Render environment-specific Alertmanager configuration
+      template:
+        src: alertmanager.yml.j2
+        dest: /opt/eurtisan/observability/alertmanager/alertmanager.yml
+        mode: "0644"
+
     - name: Ensure observability stack is running
       command: "docker compose -f /opt/eurtisan/observability/docker-compose.observability.yml --env-file /opt/eurtisan/.env up -d --force-recreate"
       args:

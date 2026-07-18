@@ -66,12 +66,20 @@ describe('createEmailProvider', () => {
 })
 
 describe('BrevoEmailProvider production safety', () => {
-  it('throws in production when mock mode is requested without BREVO_API_KEY', () => {
+  it('throws in production when mock mode is requested without BREVO_API_KEY or SMTP', () => {
     setEnv('NODE_ENV', 'production')
     setEnv('BREVO_API_KEY', '')
+    setEnv('EMAIL_SMTP_HOST', '')
     expect(() => new BrevoEmailProvider({ mock: true })).toThrow(
       'No email provider configured in production. Set BREVO_API_KEY or EMAIL_SMTP_HOST.',
     )
+  })
+
+  it('does not throw in production when SMTP is configured', () => {
+    setEnv('NODE_ENV', 'production')
+    setEnv('BREVO_API_KEY', '')
+    setEnv('EMAIL_SMTP_HOST', 'mailpit')
+    expect(() => new BrevoEmailProvider({ mock: true })).not.toThrow()
   })
 
   it('does not throw in development when mock mode is requested without BREVO_API_KEY', () => {

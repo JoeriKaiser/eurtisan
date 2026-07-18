@@ -1,53 +1,14 @@
-# Alertmanager configuration for Eurtisan.
-#
-# In production, set one of the following environment variables in the
-# alertmanager service so alerts actually reach an operator:
-#   ALERTMANAGER_SMTP_HOST / ALERTMANAGER_SMTP_FROM / ALERTMANAGER_SMTP_TO
-#   ALERTMANAGER_WEBHOOK_URL
-#
-# Local/dev deployments can run with the null receiver; alerts are logged but
-# not sent anywhere.
-
-global:
-  smtp_smarthost: '${ALERTMANAGER_SMTP_HOST}'
-  smtp_from: '${ALERTMANAGER_SMTP_FROM}'
-  smtp_require_tls: false
+# Local Alertmanager configuration for Eurtisan. Ansible replaces this file on
+# managed hosts with an environment-specific rendered configuration.
 
 route:
   group_by: ['alertname', 'severity']
   group_wait: 30s
   group_interval: 5m
   repeat_interval: 4h
-  # Use 'null' in dev/local mode so alerts are logged but not sent.
-  # Production must set ALERTMANAGER_DEFAULT_RECEIVER=default in .env.
-  receiver: '${ALERTMANAGER_DEFAULT_RECEIVER:-null}'
-  routes:
-    - match:
-        severity: critical
-      receiver: critical
-      continue: true
+  receiver: 'null'
 
 receivers:
-  - name: default
-    email_configs:
-      - to: '${ALERTMANAGER_SMTP_TO}'
-        send_resolved: true
-        headers:
-          Subject: 'Eurtisan alert: {{ .GroupLabels.alertname }}'
-    webhook_configs:
-      - url: '${ALERTMANAGER_WEBHOOK_URL}'
-        send_resolved: true
-
-  - name: critical
-    email_configs:
-      - to: '${ALERTMANAGER_SMTP_TO}'
-        send_resolved: true
-        headers:
-          Subject: 'Eurtisan CRITICAL alert: {{ .GroupLabels.alertname }}'
-    webhook_configs:
-      - url: '${ALERTMANAGER_WEBHOOK_URL}'
-        send_resolved: true
-
   - name: 'null'
 
 inhibit_rules:
