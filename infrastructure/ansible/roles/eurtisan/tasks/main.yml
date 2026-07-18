@@ -333,6 +333,7 @@
                   - http
                 middlewares:
                   - eurtisan-staging-redirect
+                service: noop@internal
 
               # Faro collector — must be public (receives client beacons from all IPs)
               # Higher priority so it matches before the catch-all app route.
