@@ -190,7 +190,7 @@ services:
         condition: service_healthy
     deploy:
       restart_policy:
-        condition: unless-stopped
+        condition: on-failure
         delay: 10s
         max_attempts: 5
         window: 120s
@@ -219,7 +219,7 @@ services:
         condition: service_healthy
     deploy:
       restart_policy:
-        condition: unless-stopped
+        condition: on-failure
         delay: 10s
         max_attempts: 5
         window: 120s
@@ -246,7 +246,7 @@ services:
         condition: service_healthy
     deploy:
       restart_policy:
-        condition: unless-stopped
+        condition: on-failure
         delay: 10s
         max_attempts: 5
         window: 120s
@@ -277,7 +277,7 @@ services:
         condition: service_healthy
     deploy:
       restart_policy:
-        condition: unless-stopped
+        condition: on-failure
         delay: 10s
         max_attempts: 5
         window: 120s
@@ -304,7 +304,7 @@ services:
         condition: service_healthy
     deploy:
       restart_policy:
-        condition: unless-stopped
+        condition: on-failure
         delay: 10s
         max_attempts: 5
         window: 120s
@@ -331,7 +331,7 @@ services:
         condition: service_healthy
     deploy:
       restart_policy:
-        condition: unless-stopped
+        condition: on-failure
         delay: 10s
         max_attempts: 5
         window: 120s
@@ -358,7 +358,7 @@ services:
         condition: service_healthy
     deploy:
       restart_policy:
-        condition: unless-stopped
+        condition: on-failure
         delay: 10s
         max_attempts: 5
         window: 120s
@@ -385,7 +385,7 @@ services:
         condition: service_healthy
     deploy:
       restart_policy:
-        condition: unless-stopped
+        condition: on-failure
         delay: 10s
         max_attempts: 5
         window: 120s
@@ -412,7 +412,7 @@ services:
         condition: service_healthy
     deploy:
       restart_policy:
-        condition: unless-stopped
+        condition: on-failure
         delay: 10s
         max_attempts: 5
         window: 120s
@@ -439,7 +439,7 @@ services:
         condition: service_healthy
     deploy:
       restart_policy:
-        condition: unless-stopped
+        condition: on-failure
         delay: 10s
         max_attempts: 5
         window: 120s
@@ -466,7 +466,7 @@ services:
         condition: service_healthy
     deploy:
       restart_policy:
-        condition: unless-stopped
+        condition: on-failure
         delay: 10s
         max_attempts: 5
         window: 120s
@@ -493,7 +493,7 @@ services:
         condition: service_healthy
     deploy:
       restart_policy:
-        condition: unless-stopped
+        condition: on-failure
         delay: 10s
         max_attempts: 5
         window: 120s
@@ -520,7 +520,7 @@ services:
         condition: service_healthy
     deploy:
       restart_policy:
-        condition: unless-stopped
+        condition: on-failure
         delay: 10s
         max_attempts: 5
         window: 120s
@@ -547,7 +547,7 @@ services:
         condition: service_healthy
     deploy:
       restart_policy:
-        condition: unless-stopped
+        condition: on-failure
         delay: 10s
         max_attempts: 5
         window: 120s
@@ -574,7 +574,7 @@ services:
         condition: service_healthy
     deploy:
       restart_policy:
-        condition: unless-stopped
+        condition: on-failure
         delay: 10s
         max_attempts: 5
         window: 120s

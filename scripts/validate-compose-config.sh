@@ -56,6 +56,11 @@ validate() {
     docker compose -f "$compose_file" config --no-env-resolution --quiet
 }
 
+if grep -q '^        condition: unless-stopped$' docker-compose.prod.yml docker-compose.staging.yml; then
+  echo "deploy.restart_policy condition=unless-stopped is invalid with max_attempts; use on-failure" >&2
+  exit 1
+fi
+
 validate docker-compose.prod.yml production
 validate docker-compose.staging.yml staging
 docker compose -f docker-compose.yml -f docker-compose.ci.yml config --quiet
