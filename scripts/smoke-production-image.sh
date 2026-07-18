@@ -163,6 +163,27 @@ if [ "$health_ready" != "true" ]; then
   docker logs "$APP_CONTAINER" >&2
   exit 1
 fi
+docker exec "$APP_CONTAINER" bun -e '
+  const response = await fetch("http://127.0.0.1:3000/terms", {
+    headers: { "x-forwarded-proto": "https" },
+  })
+  if (!response.ok) throw new Error(`Production HTML route returned HTTP ${response.status}`)
+  const requiredHeaders = [
+    "content-security-policy",
+    "strict-transport-security",
+    "x-content-type-options",
+    "x-frame-options",
+    "referrer-policy",
+    "permissions-policy",
+  ]
+  const missingHeaders = requiredHeaders.filter((name) => !response.headers.get(name))
+  if (missingHeaders.length > 0) throw new Error(`Missing production headers: ${missingHeaders.join(", ")}`)
+  const csp = response.headers.get("content-security-policy")
+  const nonce = csp?.match(/nonce-([A-Za-z0-9+/=]+)/)?.[1]
+  const html = await response.text()
+  if (!nonce) throw new Error("Production CSP does not contain a nonce")
+  if (!html.includes(`nonce="${nonce}"`)) throw new Error("Production HTML nonce does not match CSP")
+'
 docker rm -f "$APP_CONTAINER" >/dev/null
 APP_CONTAINER=""
 

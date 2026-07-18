@@ -69,6 +69,14 @@ describe('buildCspHeader', () => {
     process.env.VITE_MEILISEARCH_HOST = original
   })
 
+  it('adds the public storage origin for browser uploads', () => {
+    const original = process.env.S3_PUBLIC_ENDPOINT
+    process.env.S3_PUBLIC_ENDPOINT = 'https://s3-staging.eurtisan.eu/path'
+    const csp = buildCspHeader()
+    expect(csp).toContain('https://s3-staging.eurtisan.eu')
+    process.env.S3_PUBLIC_ENDPOINT = original
+  })
+
   it('does not add undefined origins when env vars are missing', () => {
     const originalMeili = process.env.VITE_MEILISEARCH_HOST
     process.env.VITE_MEILISEARCH_HOST = ''

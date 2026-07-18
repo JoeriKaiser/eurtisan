@@ -49,6 +49,17 @@ function getMeilisearchOrigin(): string | null {
   }
 }
 
+function getStorageOrigin(): string | null {
+  const endpoint = process.env.S3_PUBLIC_ENDPOINT
+  if (!endpoint) return null
+  try {
+    const url = new URL(endpoint)
+    return `${url.protocol}//${url.host}`
+  } catch {
+    return null
+  }
+}
+
 function getUmamiScriptOrigin(): string | null {
   const url = process.env.VITE_UMAMI_SCRIPT_URL
   if (!url) return null
@@ -89,6 +100,9 @@ export function buildCspHeader(options: BuildCspHeaderOptions = {}): string {
 
   const meilisearch = getMeilisearchOrigin()
   if (meilisearch) connectSrc.add(meilisearch)
+
+  const storage = getStorageOrigin()
+  if (storage) connectSrc.add(storage)
 
   const umamiScript = getUmamiScriptOrigin()
   if (umamiScript) {

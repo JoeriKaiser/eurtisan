@@ -18,7 +18,8 @@ import { createServer } from 'node:http'
 import { extname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { logger, requestIdStore } from '../../src/lib/logger.server.ts'
-import { runWithCspNonce } from '../../src/lib/csp-nonce.server.ts'
+import { buildCspHeader } from '../../src/lib/csp.ts'
+import { injectScriptNonces, runWithCspNonce } from '../../src/lib/csp-nonce.server.ts'
 import { assertMockPayoutsNotProduction } from '../../src/lib/env.server.ts'
 import { assertValidServerEnvironment } from '../../src/lib/infra/server-environment.server.ts'
 import { getSafeRequestPath } from '../../src/lib/request-path.server.ts'
@@ -278,10 +279,24 @@ const server = createServer(async (req, res) => {
     })
 
     responseHeaders['Vary'] = 'Accept-Encoding, Accept-Language'
+    responseHeaders['X-Content-Type-Options'] = 'nosniff'
+    responseHeaders['X-Frame-Options'] = 'DENY'
+    responseHeaders['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    responseHeaders['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=(), payment=()'
+    if (scheme === 'https') {
+      responseHeaders['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    }
+
+    const contentType = response.headers.get('content-type') || ''
+    let transformedHtml = null
+    if (process.env.NODE_ENV === 'production' && contentType.includes('text/html')) {
+      transformedHtml = injectScriptNonces(await response.text(), cspNonce)
+      responseHeaders['Content-Security-Policy'] = buildCspHeader({ nonce: cspNonce })
+      delete responseHeaders['content-length']
+    }
 
     // Add cache headers for public/private HTML routes
     if (req.method === 'GET' || req.method === 'HEAD') {
-      const contentType = response.headers.get('content-type') || ''
       if (contentType.includes('text/html')) {
         if (isPublicRoute(url)) {
           responseHeaders['Cache-Control'] = 'public, s-maxage=60, max-age=0, stale-while-revalidate=300'
@@ -292,6 +307,15 @@ const server = createServer(async (req, res) => {
     }
 
     res.writeHead(response.status, response.statusText, responseHeaders)
+
+    if (transformedHtml !== null) {
+      if (req.method === 'HEAD') {
+        res.end()
+      } else {
+        res.end(transformedHtml)
+      }
+      return
+    }
 
     if (response.body) {
       const reader = response.body.getReader()
