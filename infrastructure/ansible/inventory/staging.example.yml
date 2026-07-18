@@ -12,6 +12,6 @@ staging:
       # Set to true when an existing reverse proxy (e.g. Coolify) already owns ports 80/443.
       # The app will bind to localhost only and the external proxy handles SSL + routing.
       coexist_with_proxy: true
-      # Optional — expose port 3001 directly for browser access (bypasses Coolify).
+      # Optional — expose port 3002 directly for browser access (bypasses Coolify).
       # UFW will only allow these IPs. Set in secrets.yml, not here.
       # app_access_ips: "REDACTED"

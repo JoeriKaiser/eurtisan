@@ -45,7 +45,7 @@ If staging shares a VPS with Coolify or another reverse proxy, set:
 coexist_with_proxy: true
 ```
 
-This skips Caddy and UFW configuration. The app binds to `127.0.0.1:3001` and your existing proxy handles SSL and routing.
+This skips Caddy and UFW configuration. The app exposes an optional SSH fallback at `127.0.0.1:3002`; the existing proxy handles SSL and routes to the container over the shared Docker network.
 
 ---
 
@@ -196,7 +196,7 @@ Failure behavior:
 
 Environment variables:
 
-- `CANARY_PORT` — port the canary binds to (default: `3001`). On staging, set this to `3002` because `docker-compose.staging.yml` already maps `127.0.0.1:3001:3000`.
+- `CANARY_PORT` — port the canary binds to (default: `3001`). On staging, set this to `3003` because Grafana and the staging app fallback use ports `3001` and `3002`.
 - `CANARY_STABILIZE_SECONDS` — observation period after initial health (default: `300`).
 
 This is a single-host manual canary; it validates the new image in isolation but does not route live production traffic to the canary. True blue/green load-balanced canaries are future work.
@@ -208,10 +208,10 @@ This is a single-host manual canary; it validates the new image in isolation but
 From your local machine:
 
 ```bash
-ssh -i ~/.ssh/server_id_rsa -L 3001:127.0.0.1:3001 ubuntu@STAGING_IP -N
+ssh -i ~/.ssh/server_id_rsa -L 3002:127.0.0.1:3002 ubuntu@STAGING_IP -N
 ```
 
-Then open `http://localhost:3001` in your browser.
+Then open `http://localhost:3002` in your browser.
 
 **Option B — Direct access with IP whitelist:**
 
@@ -230,7 +230,7 @@ Then run:
 make infra-setup-staging
 ```
 
-Ansible will open port 3001 in UFW, restricted to your IP only, and rebind the app to all interfaces. Access it at `http://STAGING_IP:3001`.
+Ansible will open port 3002 in UFW, restricted to your IP only, and rebind the app to all interfaces. Access it at `http://STAGING_IP:3002`.
 
 ---
 

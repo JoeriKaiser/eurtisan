@@ -54,7 +54,7 @@ vi infrastructure/ansible/inventory/production.yml
 ```
 
 **Staging on an existing VPS (e.g. with Coolify):**
-Set `coexist_with_proxy: true` in `inventory/staging.yml`. This skips Caddy and UFW so the existing reverse proxy owns ports 80/443. The app binds to `127.0.0.1:3001` and your proxy routes to it.
+Set `coexist_with_proxy: true` in `inventory/staging.yml`. This skips Caddy and UFW so the existing reverse proxy owns ports 80/443. The app also exposes an optional SSH fallback on `127.0.0.1:3002`; the proxy routes to the container over the shared Docker network.
 
 ### 2. Set Secrets
 
@@ -203,14 +203,14 @@ docker compose -f docker-compose.prod.yml start app
 
 ## Staging Access Control
 
-When `coexist_with_proxy: true`, the app binds to `127.0.0.1:3001` and is **not** publicly accessible.
+When `coexist_with_proxy: true`, Traefik reaches the app over the shared Docker network and the optional SSH fallback binds to `127.0.0.1:3002`.
 
 **Access options:**
 
 1. **SSH Tunnel (most secure):**
    ```bash
-   ssh -i ~/.ssh/key -L 3001:127.0.0.1:3001 user@STAGING_IP -N
-   # Then open http://localhost:3001
+   ssh -i ~/.ssh/key -L 3002:127.0.0.1:3002 user@STAGING_IP -N
+   # Then open http://localhost:3002
    ```
 
 2. **Direct access with IP whitelist:**
@@ -218,10 +218,10 @@ When `coexist_with_proxy: true`, the app binds to `127.0.0.1:3001` and is **not*
    ```yaml
    app_access_ips: "YOUR_PUBLIC_IP"
    ```
-   Re-run the playbook. UFW will open port 3001 for your IP only.
+   Re-run the playbook. UFW will open port 3002 for your IP only.
 
 3. **Coolify proxy (proper way):**
-   Add a Coolify application resource for `staging.eurtisan.eu` → `http://127.0.0.1:3001`.
+   Use the Ansible-managed Traefik route from `staging.eurtisan.eu` to `eurtisan-app-staging:3000` on the shared Coolify network.
    Then configure Traefik labels for IP whitelisting.
 
 See `docs/DEPLOYMENT.md` for full details.

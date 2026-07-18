@@ -18,7 +18,7 @@
       services:
         app:
           ports:
-            - "0.0.0.0:3001:3000"
+            - "0.0.0.0:3002:3000"
 
 - name: Determine Docker Compose command
   set_fact:
@@ -477,7 +477,7 @@
       ufw:
         rule: allow
         from_ip: "{{ item }}"
-        port: "3001"
+        port: "3002"
         proto: tcp
       loop: "{{ app_access_ips.split(',') }}"
 

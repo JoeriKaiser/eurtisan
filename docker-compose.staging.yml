@@ -4,7 +4,7 @@
 #
 # Wire this up in Coolify:
 #   Domain: staging.eurtisan.eu
-#   Port:   3001   (or whatever you map below)
+#   Port:   3000   (Traefik uses the shared Coolify network)
 #
 # REQUIRED in .env: PUBLIC_URL=https://staging.eurtisan.eu
 # See .env.staging.example for the full template.
@@ -46,7 +46,7 @@ services:
     ports:
       # Direct access fallback (SSH tunnel or IP-whitelisted).
       # Traefik routes internally via the coolify network — this port is not required for that.
-      - "127.0.0.1:3001:3000"
+      - "127.0.0.1:3002:3000"
     networks:
       - eurtisan
       - coolify
