@@ -1,6 +1,7 @@
 import { Link, useRouter } from '@tanstack/react-router'
 import { ArrowRight, Search } from 'lucide-react'
 import { useState } from 'react'
+import { getImageUrl } from '#/lib/image-url'
 import { m } from '#/paraglide/messages'
 
 interface FeaturedMakerShop {
@@ -198,7 +199,11 @@ export function HomeHeroSection({
                 <div className='relative p-2 rounded-[2.5rem] bg-scrim-subtle border border-border-subtle shadow-xl w-full aspect-[4/3] overflow-hidden group hover:scale-[1.01] hover:shadow-2xl transition-all duration-300'>
                   <div className='relative w-full h-full overflow-hidden rounded-[calc(2.5rem-0.5rem)] bg-bg-elevated shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]'>
                     <img
-                      src={shops[0].image ?? '/images/hero_artisan_goods.png'}
+                      src={
+                        shops[0].image
+                          ? getImageUrl(shops[0].image, { width: 960, format: 'webp' })
+                          : '/images/hero_artisan_goods.png'
+                      }
                       alt={shops[0].name}
                       className='w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]'
                     />

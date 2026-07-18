@@ -1,4 +1,4 @@
-import { Link, Outlet, useLocation, useRouter } from '@tanstack/react-router'
+import { Link, Outlet, useLoaderData, useLocation, useRouter } from '@tanstack/react-router'
 import {
   Banknote,
   ChevronRight,
@@ -38,6 +38,8 @@ interface NavItem {
   label: string
   href: string
   icon: React.ReactNode
+  search?: { view: 'applications'; status: 'pending_review' }
+  badgeCount?: number
 }
 
 interface NavSection {
@@ -45,7 +47,7 @@ interface NavSection {
   items: NavItem[]
 }
 
-function useNavSections(): NavSection[] {
+function useNavSections(pendingShopReviewCount = 0): NavSection[] {
   return useMemo(
     () => [
       {
@@ -80,6 +82,11 @@ function useNavSections(): NavSection[] {
             label: m.admin_layout_nav_shops(),
             href: '/admin/shops',
             icon: <Store size={18} aria-hidden='true' />,
+            search:
+              pendingShopReviewCount > 0
+                ? { view: 'applications', status: 'pending_review' }
+                : undefined,
+            badgeCount: pendingShopReviewCount,
           },
           {
             label: m.admin_layout_nav_products(),
@@ -124,7 +131,7 @@ function useNavSections(): NavSection[] {
         ],
       },
     ],
-    [],
+    [pendingShopReviewCount],
   )
 }
 
@@ -300,13 +307,15 @@ function AdminSearchModal({
 /* -------------------------------------------------------------------------- */
 
 export function AdminLayout() {
+  const { pendingShopReviewCount } = useLoaderData({ from: '/admin' })
+  const router = useRouter()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchKey, setSearchKey] = useState(0)
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
   const location = useLocation()
   const { user } = useAuth()
-  const navSections = useNavSections()
+  const navSections = useNavSections(pendingShopReviewCount)
   const breadcrumbs = useBreadcrumbs()
 
   const currentPath = location.pathname
@@ -366,6 +375,7 @@ export function AdminLayout() {
                 <li key={item.href}>
                   <Link
                     to={item.href}
+                    search={item.search}
                     className={cn(
                       'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                       isActive(item.href)
@@ -379,7 +389,20 @@ export function AdminLayout() {
                     >
                       {item.icon}
                     </span>
-                    {item.label}
+                    <span className='min-w-0 flex-1'>{item.label}</span>
+                    {!!item.badgeCount && (
+                      <>
+                        <span
+                          className='inline-flex min-w-6 items-center justify-center rounded-full bg-warning-subtle px-1.5 py-0.5 text-xs font-bold tabular-nums text-warning'
+                          aria-hidden='true'
+                        >
+                          {item.badgeCount}
+                        </span>
+                        <span className='sr-only'>
+                          {m.admin_review_queue_count({ count: String(item.badgeCount) })}
+                        </span>
+                      </>
+                    )}
                   </Link>
                 </li>
               ))}
@@ -405,7 +428,9 @@ export function AdminLayout() {
           </div>
           <button
             type='button'
-            onClick={() => void authClient.signOut()}
+            onClick={() => {
+              void authClient.signOut().then(() => router.navigate({ to: '/' }))
+            }}
             className='rounded p-1.5 text-text-muted hover:bg-bg-inset hover:text-text-primary transition-colors'
             aria-label={m.admin_layout_logout()}
             title={m.admin_layout_logout()}
@@ -505,6 +530,19 @@ export function AdminLayout() {
           </div>
 
           <div className='flex items-center gap-2'>
+            {pendingShopReviewCount > 0 && (
+              <Link
+                to='/admin/shops'
+                search={{ view: 'applications', status: 'pending_review' }}
+                className='inline-flex min-h-9 items-center gap-2 rounded-lg bg-warning-subtle px-3 py-1.5 text-sm font-semibold text-warning no-underline transition-colors hover:bg-warning/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
+              >
+                <Store size={16} aria-hidden='true' />
+                <span className='hidden sm:inline'>
+                  {m.admin_review_queue_count({ count: String(pendingShopReviewCount) })}
+                </span>
+                <span className='tabular-nums sm:hidden'>{pendingShopReviewCount}</span>
+              </Link>
+            )}
             <button
               type='button'
               onClick={() => {

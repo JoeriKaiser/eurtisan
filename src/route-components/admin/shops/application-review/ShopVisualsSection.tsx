@@ -1,24 +1,26 @@
+import { getImageUrl } from '#/lib/image-url'
+import { m } from '#/paraglide/messages'
+
 interface ShopVisualsSectionProps {
   image: string | null
   bannerImage: string | null
-}
-
-function isSafeImageUrl(url: string | null): url is string {
-  if (!url) return false
-  return url.startsWith('/uploads/') || url.startsWith('http://') || url.startsWith('https://')
 }
 
 export function ShopVisualsSection({ image, bannerImage }: ShopVisualsSectionProps) {
   return (
     <div className='space-y-2'>
       <h3 className='text-xs font-semibold uppercase tracking-wider text-text-muted'>
-        Shop Visuals
+        {m.admin_shops_application_section_visuals()}
       </h3>
       <div className='bg-surface-inset rounded-xl p-4 space-y-4 border border-border-subtle'>
         <div className='flex gap-4 items-center'>
-          {image && isSafeImageUrl(image) ? (
+          {image ? (
             <div className='size-16 rounded-full overflow-hidden border border-border-default bg-surface-default flex-shrink-0 shadow-sm'>
-              <img src={image} alt='Logo' className='w-full h-full object-cover' />
+              <img
+                src={getImageUrl(image, { width: 160, format: 'webp' })}
+                alt={m.admin_shops_application_logo_alt()}
+                className='h-full w-full object-cover'
+              />
             </div>
           ) : (
             <div className='size-16 rounded-full bg-surface-default border border-border-subtle flex items-center justify-center text-text-muted text-xs flex-shrink-0'>
@@ -32,9 +34,13 @@ export function ShopVisualsSection({ image, bannerImage }: ShopVisualsSectionPro
         </div>
         <div>
           <p className='text-xs text-text-muted mb-1.5'>Banner Image</p>
-          {bannerImage && isSafeImageUrl(bannerImage) ? (
+          {bannerImage ? (
             <div className='h-32 w-full rounded-lg overflow-hidden border border-border-default bg-surface-default shadow-sm'>
-              <img src={bannerImage} alt='Banner' className='w-full h-full object-cover' />
+              <img
+                src={getImageUrl(bannerImage, { width: 960, format: 'webp' })}
+                alt={m.admin_shops_application_banner_alt()}
+                className='h-full w-full object-cover'
+              />
             </div>
           ) : (
             <div className='h-20 w-full rounded-lg bg-surface-default border border-border-subtle flex items-center justify-center text-text-muted text-sm shadow-inner'>

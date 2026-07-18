@@ -15,6 +15,7 @@ test.describe('creator sign-in negative paths', () => {
   test('wrong password shows an error and stays on /signin', async ({ page }) => {
     await page.goto('/signin')
     await page.waitForSelector('html[data-hydrated="true"]')
+    await page.waitForLoadState('networkidle')
 
     await page.locator('[id="email"]').fill(E2E_CREATOR.email)
     await page.locator('[id="password"]').fill('wrong-password-123')
@@ -27,6 +28,7 @@ test.describe('creator sign-in negative paths', () => {
   test('non-existent email shows an error and stays on /signin', async ({ page }) => {
     await page.goto('/signin')
     await page.waitForSelector('html[data-hydrated="true"]')
+    await page.waitForLoadState('networkidle')
 
     await page.locator('[id="email"]').fill('does-not-exist@eurtisan.local')
     await page.locator('[id="password"]').fill('any-password-123')
@@ -43,6 +45,7 @@ test.describe('creator sign-in negative paths', () => {
 
       await page.goto('/signin')
       await page.waitForSelector('html[data-hydrated="true"]')
+      await page.waitForLoadState('networkidle')
 
       await page.locator('[id="email"]').fill(creator.email)
       await page.locator('[id="password"]').fill(creator.password)
@@ -65,49 +68,64 @@ test.describe('become-creator flow', () => {
     }
   })
 
-  test('customer can start onboarding, save identity, and become a creator', async ({ page }) => {
+  test('customer can save a complete profile without premature creator promotion', async ({
+    page,
+  }) => {
     customer = await createVerifiedCustomer(`become-creator-${Date.now()}`)
-
-    // Sign in as the fresh customer
     await page.goto('/signin')
     await page.waitForSelector('html[data-hydrated="true"]')
+    await page.waitForLoadState('networkidle')
     await page.locator('[id="email"]').fill(customer.email)
     await page.locator('[id="password"]').fill(customer.password)
     await page.getByRole('button', { name: /^sign in$/i }).click()
-
-    // Wait for post-sign-in navigation to settle
     await page.waitForURL(/^(?!.*\/signin).+$/)
 
-    // Navigate to the seller hub as a customer
     await page.goto('/sell')
     await page.waitForSelector('html[data-hydrated="true"]')
+    await page.waitForLoadState('networkidle')
     await dismissAnalyticsConsentBanner(page)
-    await expect(page.getByRole('heading', { name: 'Seller Hub' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Open a New Shop' })).toBeVisible()
-
-    // Starting a new shop creates a draft, upgrades the customer role to creator,
-    // and redirects to the onboarding identity step.
-    await page.getByRole('button', { name: 'Open a New Shop' }).click()
+    await page.waitForLoadState('networkidle')
+    await page.getByRole('button', { name: 'Create a shop' }).click()
     await page.waitForURL(/\/sell\/onboarding\/[^/]+\/identity/)
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await expect(page.getByRole('heading', { name: /start with the basics/i })).toBeVisible()
+    await page.waitForLoadState('networkidle')
+    await expect(page.getByRole('heading', { name: /build your shop profile/i })).toBeVisible()
 
-    // Fill the identity step with a unique shop name and slug
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const imagePath = path.join(__dirname, '../fixtures/become-creator.png')
+    fs.writeFileSync(
+      imagePath,
+      Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+        'base64',
+      ),
+    )
+
     const seed = Date.now()
-    const shopName = `E2E Become Creator ${seed}`
-    const shopSlug = `e2e-become-creator-${seed}`
-    await page.fill('#shop-name', shopName)
-    await page.fill('#shop-slug', shopSlug)
+    await page.fill('#shop-name', `E2E Become Creator ${seed}`)
+    await page.fill('#shop-slug', `e2e-become-creator-${seed}`)
     await page.selectOption('#shop-category', 'art_collectibles')
-    await page.getByRole('button', { name: 'Handmade by me' }).click({ force: true })
+    await page.getByLabel('Handmade by me').check()
+    await page.fill(
+      '#shop-description',
+      'I create thoughtful handmade objects using traditional methods in my small European workshop.',
+    )
+    await page.setInputFiles('input[type="file"]', imagePath)
+    await expect(page.getByRole('button', { name: /remove shop icon/i })).toBeVisible({
+      timeout: 15000,
+    })
     await page.getByRole('button', { name: 'Continue' }).click()
-    await page.waitForURL(/\/sell\/onboarding\/[^/]+\/story/)
-    await expect(page.getByRole('heading', { name: /tell your story/i })).toBeVisible()
+    await page.waitForURL(/\/sell\/onboarding\/[^/]+\/location/)
 
-    // Reload to refresh the auth session and verify the upgraded role is reflected in the UI
-    await page.reload()
-    await page.waitForSelector('html[data-hydrated="true"]')
+    const { eq } = await import('drizzle-orm')
+    const { db } = await import('../db')
+    const { user } = await import('../../src/db/schema')
+    const account = await db.query.user.findFirst({ where: eq(user.email, customer.email) })
+    expect(account?.role).toBe('customer')
+
+    await page.goto('/')
+    await page.waitForLoadState('networkidle')
     await page.getByRole('button', { name: 'Open user menu' }).click()
-    await expect(page.getByRole('menuitem', { name: 'Creator Dashboard' })).toBeVisible()
+    await expect(page.getByRole('menuitem', { name: 'Creator Dashboard' })).not.toBeVisible()
   })
 })

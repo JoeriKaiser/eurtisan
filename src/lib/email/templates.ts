@@ -40,6 +40,8 @@ export async function renderTemplate(
       return renderPasswordReset(data, to)
     case 'account_security_alert':
       return renderAccountSecurityAlert(data, to)
+    case 'shop_moderation_update':
+      return renderShopModerationUpdate(data, to)
     default: {
       // Exhaustiveness check — should never happen at runtime with correct types.
       const _exhaustive: never = template
@@ -475,6 +477,45 @@ ${m.email_security_alert_ignore()}
 ${await renderEmailLegalFooterText(to)}`
 
   return { subject: m.email_security_alert_subject(), html, text }
+}
+
+async function renderShopModerationUpdate(
+  data: Record<string, unknown>,
+  to?: string,
+): Promise<RenderedEmail> {
+  const creatorName = String(data.creatorName ?? data.buyerName ?? m.email_default_name())
+  const shopName = String(data.shopName ?? m.onboarding_untitled_shop())
+  const status = String(data.status ?? 'pending_review')
+  const note = data.note ? String(data.note) : ''
+  const statusUrl = String(data.statusUrl ?? '')
+  const statusLabel =
+    status === 'approved'
+      ? m.seller_hub_status_approved()
+      : status === 'changes_requested'
+        ? m.seller_hub_status_changes()
+        : m.seller_hub_status_rejected()
+  const subject = m.email_shop_moderation_subject({ shopName, status: statusLabel })
+  const noteHtml = note
+    ? `<p style="margin: 16px 0; padding: 12px; background: #f5f2ee; border-radius: 8px;">${escapeHtml(note)}</p>`
+    : ''
+  const contentHtml = `<h1 style="margin: 0 0 16px; font-size: 24px;">${escapeHtml(
+    m.email_shop_moderation_title({ shopName }),
+  )}</h1>
+  <p>${escapeHtml(m.email_greeting({ name: creatorName }))}</p>
+  <p>${escapeHtml(m.email_shop_moderation_body({ status: statusLabel }))}</p>
+  ${noteHtml}
+  <p><a href="${escapeHtml(statusUrl)}">${escapeHtml(m.email_shop_moderation_cta())}</a></p>
+  ${await renderEmailLegalFooterHtml(to)}`
+  const text = `${m.email_shop_moderation_title({ shopName })}
+
+${m.email_greeting({ name: creatorName })}
+
+${m.email_shop_moderation_body({ status: statusLabel })}${note ? `\n\n${note}` : ''}
+
+${m.email_shop_moderation_cta()}: ${statusUrl}
+
+${await renderEmailLegalFooterText(to)}`
+  return { subject, html: wrapInEmailTemplate(subject, contentHtml), text }
 }
 
 /* -------------------------------------------------------------------------- */

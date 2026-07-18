@@ -18,6 +18,7 @@ export const notificationTypeEnum = z.enum([
   'order_chargeback',
   'dac7_warning_limit',
   'low_stock',
+  'shop_moderation_update',
 ])
 
 export type NotificationType = z.infer<typeof notificationTypeEnum>

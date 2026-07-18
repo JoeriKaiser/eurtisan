@@ -9,12 +9,12 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from '../auth-middleware'
-import { requirePrivileged2FA } from '../server-auth'
 import type { SafeUser } from '../server-auth'
 
 const presignedUrlSchema = z.object({
   prefix: z.enum(['products', 'shops']),
   contentType: z.enum(['image/jpeg', 'image/png', 'image/webp']),
+  onboardingDraftId: z.string().uuid().optional(),
 })
 
 /**
@@ -32,10 +32,8 @@ export const getPresignedUploadUrl = createServerFn({ method: 'POST' })
       throw new Error('UNAUTHENTICATED')
     }
 
-    // Dynamic import keeps this server-only module out of the browser bundle.
-    const { requireRoleForUser } = await import('../authz')
-    requireRoleForUser('creator', context.user)
-    requirePrivileged2FA(context.user as SafeUser)
+    const { authorizeImageUploadInternal } = await import('./upload-authorization.server')
+    await authorizeImageUploadInternal(context.user as SafeUser, data.onboardingDraftId)
 
     // Dynamic import keeps this server-only module out of the browser bundle.
     const { buildImgproxyUrl, createPresignedUploadUrl, generateImageKey, ImageStorageError } =

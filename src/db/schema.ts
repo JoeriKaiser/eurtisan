@@ -186,10 +186,14 @@ export const shop = pgTable(
     status: shopStatusEnum('status').notNull().default('draft'),
     onboardingStep: integer('onboarding_step').notNull().default(1),
     onboardingCompletedAt: timestamp('onboarding_completed_at'),
+    onboardingListingId: text('onboarding_listing_id'),
+    sellerTermsAcceptedAt: timestamp('seller_terms_accepted_at'),
+    sellerTermsVersion: text('seller_terms_version'),
 
     // Moderation
     isSuspended: boolean('is_suspended').notNull().default(false),
     moderationNote: text('moderation_note'),
+    moderationStage: integer('moderation_stage'),
     submittedAt: timestamp('submitted_at'),
     reviewedAt: timestamp('reviewed_at'),
     reviewedBy: text('reviewed_by').references(() => user.id),

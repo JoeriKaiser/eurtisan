@@ -1,5 +1,5 @@
 import { Dialog as BaseDialog } from '@base-ui-components/react/dialog'
-import { Link } from '@tanstack/react-router'
+import { Link, useRouter } from '@tanstack/react-router'
 import { ArrowRight, Bell, LogOut, Menu, Package, Search, Settings, User, X } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { authClient } from '#/lib/auth-client'
@@ -18,6 +18,7 @@ interface MobileNavDrawerProps {
 const VISIBLE_CATEGORY_COUNT = 8
 
 export default function MobileNavDrawer({ categories, onOpenSearch }: MobileNavDrawerProps) {
+  const router = useRouter()
   const { user } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const visibleCategories = categories.slice(0, VISIBLE_CATEGORY_COUNT)
@@ -34,6 +35,7 @@ export default function MobileNavDrawer({ categories, onOpenSearch }: MobileNavD
   const handleSignOut = async () => {
     await authClient.signOut()
     closeNavigation()
+    await router.navigate({ to: '/' })
   }
 
   return (

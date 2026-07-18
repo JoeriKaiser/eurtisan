@@ -17,6 +17,10 @@ vi.mock('@tanstack/react-router', () => ({
 
 vi.mock('#/paraglide/messages', () => ({
   m: {
+    image_upload_invalid_type: () => 'Choose a JPEG, PNG, or WebP image.',
+    image_upload_too_large: () => 'This image is larger than 5 MB. Choose a smaller file.',
+    image_upload_failed: () =>
+      'We could not upload this image. Check your connection and try again.',
     creator_product_edit_title: () => 'Edit Product',
     creator_product_edit_description: () => 'Update your product details, images, and status.',
     creator_product_edit_images_hint: () =>

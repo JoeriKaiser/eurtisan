@@ -126,6 +126,14 @@ describe('HomePage', () => {
     expect(imageBoundary?.style.getPropertyValue('view-transition-name')).toBe('shop-image-shop-1')
   })
 
+  it('resolves an uploaded shop image key in the homepage hero', () => {
+    const shops = [makeShop('shop-1', { image: 'shops/hero-shop.webp' })]
+    render(<HomePage categories={[]} products={[]} shops={shops} />)
+
+    const heroImage = screen.getByRole('img', { name: 'Shop shop-1' }) as HTMLImageElement
+    expect(heroImage.src).toContain('/plain/s3://eurtisan-uploads/shops/hero-shop.webp')
+  })
+
   it('shows singular product count for one product', () => {
     const shops = [makeShop('shop-1', { productCount: 1 })]
     render(<HomePage categories={[]} products={[]} shops={shops} />)

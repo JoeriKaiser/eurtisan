@@ -1,5 +1,6 @@
-import { m } from '#/paraglide/messages'
 import { SUPPORTED_CURRENCY } from '#/lib/currency'
+import { getImageUrl } from '#/lib/image-url'
+import { m } from '#/paraglide/messages'
 
 interface AppListing {
   id: string
@@ -35,10 +36,10 @@ export function ProductListingsSection({ listings }: ProductListingsSectionProps
           listings.map((listing) => (
             <div key={listing.id} className='space-y-3'>
               <div className='flex gap-4 items-start'>
-                {listing.imageCount > 0 ? (
+                {listing.imageCount > 0 && listing.thumbnailUrl ? (
                   <div className='size-20 rounded-lg overflow-hidden border border-border-default bg-surface-default flex-shrink-0 shadow-sm'>
                     <img
-                      src={listing.thumbnailUrl || '/placeholder.png'}
+                      src={getImageUrl(listing.thumbnailUrl)}
                       alt={listing.name}
                       className='w-full h-full object-cover'
                     />

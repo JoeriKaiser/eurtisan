@@ -29,6 +29,7 @@ const config = defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          if (id.includes('/src/paraglide/')) return 'i18n'
           if (!id.includes('node_modules')) return
           if (id.includes('react-dom') || id.includes('/react/')) return 'vendor'
           if (id.includes('@tanstack/react-router') || id.includes('@tanstack/react-start'))

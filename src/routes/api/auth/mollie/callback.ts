@@ -146,17 +146,20 @@ export const Route = createFileRoute('/api/auth/mollie/callback')({
         if (accessToken) updatePayload.mollieAccessToken = encrypt(accessToken)
         if (refreshToken) updatePayload.mollieRefreshToken = encrypt(refreshToken)
         if (tokenExpiresAt) updatePayload.mollieTokenExpiresAt = tokenExpiresAt
-        if (shopRecord.status === 'approved' || shopRecord.status === 'active') {
-          updatePayload.status = 'active'
-        }
-
         await db.update(shop).set(updatePayload).where(eq(shop.id, shopId))
 
-        // Redirect back to payouts dashboard
+        const { activateApprovedShopAndListing } = await import('#/lib/shops/activation.server')
+        const activation = await activateApprovedShopAndListing(shopId)
+        const activationSearch = activation.activated
+          ? 'success=mollie_connected&shop=live'
+          : activation.reason === 'not_approved'
+            ? 'success=mollie_connected'
+            : `success=mollie_connected&activation=${encodeURIComponent(activation.reason ?? 'pending')}`
+
         return new Response(null, {
           status: 302,
           headers: {
-            Location: `/creator/payouts?shopId=${encodeURIComponent(shopId)}&success=mollie_connected`,
+            Location: `/creator/payouts?shopId=${encodeURIComponent(shopId)}&${activationSearch}`,
           },
         })
       },

@@ -36,7 +36,11 @@ interface ApplicationDetails {
 interface ApplicationReviewDialogProps {
   appId: string | null
   onClose: () => void
-  onReviewAction: (action: 'approve' | 'request_changes' | 'reject', note: string) => void
+  onReviewAction: (
+    action: 'approve' | 'request_changes' | 'reject',
+    note: string,
+    stage: number,
+  ) => void
   isProcessing: boolean
   actionType: 'approve' | 'request_changes' | 'reject' | null
 }
@@ -49,6 +53,7 @@ export function ApplicationReviewDialog({
   actionType,
 }: ApplicationReviewDialogProps) {
   const [note, setNote] = useState('')
+  const [stage, setStage] = useState(1)
   const detailsQuery = useQuery<ApplicationDetails>({
     queryKey: ['admin', 'shop-application', appId],
     queryFn: async () => {
@@ -64,7 +69,7 @@ export function ApplicationReviewDialog({
   })
 
   const handleAction = (action: 'approve' | 'request_changes' | 'reject') => {
-    onReviewAction(action, note.trim())
+    onReviewAction(action, note.trim(), stage)
   }
 
   const details = detailsQuery.data?.details ?? null
@@ -76,8 +81,8 @@ export function ApplicationReviewDialog({
     <Dialog open={!!appId} onOpenChange={(open) => !open && onClose()}>
       <DialogPortal>
         <DialogBackdrop />
-        <DialogPopup className='max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0'>
-          <div className='flex items-center justify-between border-b border-border-subtle px-6 py-4 flex-shrink-0'>
+        <DialogPopup className='!w-[calc(100vw-2rem)] !max-w-7xl max-h-[calc(100dvh-2rem)] overflow-hidden flex flex-col p-0'>
+          <div className='flex shrink-0 items-center justify-between gap-4 border-b border-border-subtle px-4 py-4 sm:px-6'>
             <DialogTitle className='text-xl'>
               {isLoading || !details
                 ? m.admin_shops_review_details()
@@ -86,14 +91,14 @@ export function ApplicationReviewDialog({
             <button
               type='button'
               onClick={onClose}
-              className='rounded p-1 text-text-muted hover:bg-bg-inset hover:text-text-primary transition-colors'
+              className='inline-flex size-11 shrink-0 items-center justify-center rounded-xl text-text-muted transition-colors hover:bg-bg-inset hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
               aria-label={m.admin_shops_cancel()}
             >
               <X size={18} />
             </button>
           </div>
 
-          <div className='overflow-y-auto flex-1 min-h-0 px-6 py-4'>
+          <div className='min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6'>
             {error ? (
               <div
                 className='rounded-lg border border-error/30 bg-error-subtle p-4 text-sm text-error'
@@ -108,24 +113,31 @@ export function ApplicationReviewDialog({
                 <Skeleton className='h-32 w-full rounded-xl' />
               </div>
             ) : (
-              <div className='grid grid-cols-1 md:grid-cols-3 gap-6 py-2'>
-                <div className='md:col-span-2 space-y-6'>
+              <div className='grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_22rem]'>
+                <div className='grid min-w-0 grid-cols-1 content-start gap-6 xl:grid-cols-2'>
                   <ShopIdentitySection details={details} />
                   <ShopStorySection details={details} />
                   <ShopVisualsSection image={details.image} bannerImage={details.bannerImage} />
                   <ShopPoliciesSection details={details} />
-                  <ProductListingsSection listings={listings} />
+                  <div className='xl:col-span-2'>
+                    <ProductListingsSection listings={listings} />
+                  </div>
                 </div>
 
-                <div className='md:col-span-1'>
+                <aside
+                  className='order-first min-w-0 lg:order-none'
+                  aria-label={m.admin_shops_review_decision_title()}
+                >
                   <ReviewActionsPanel
                     note={note}
                     onNoteChange={setNote}
+                    stage={stage}
+                    onStageChange={setStage}
                     onAction={handleAction}
                     isProcessing={isProcessing}
                     actionType={actionType}
                   />
-                </div>
+                </aside>
               </div>
             )}
           </div>

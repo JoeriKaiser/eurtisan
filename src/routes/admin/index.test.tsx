@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest'
 const mockNavigate = vi.fn()
 
 const mockLoaderData = {
+  pendingShopReviewCount: 2,
   stats: {
     totalUsers: 42,
     activeShops: 7,
@@ -93,6 +94,9 @@ vi.mock('#/paraglide/messages', () => ({
     admin_stats_active_shops: () => 'Active Shops',
     admin_stats_open_disputes: () => 'Open Disputes',
     admin_stats_pending_payouts: () => 'Pending Payouts',
+    admin_review_queue_title: () => 'Seller applications need attention',
+    admin_review_queue_count: ({ count }: { count: string }) => `${count} awaiting review`,
+    admin_review_queue_action: () => 'Open review queue',
     admin_recent_signups_title: () => 'Recent Signups',
     admin_recent_signups_empty: () => 'No signups yet.',
     admin_recent_orders_title: () => 'Recent Orders',
@@ -120,6 +124,14 @@ vi.mock('#/paraglide/messages', () => ({
 import { AdminDashboard, StatCard } from '#/route-components/admin/index'
 
 describe('AdminDashboard', () => {
+  it('shows a direct link to pending seller applications', () => {
+    render(<AdminDashboard />)
+
+    expect(screen.getByText('Seller applications need attention')).toBeDefined()
+    expect(screen.getByText('2 awaiting review')).toBeDefined()
+    expect(screen.getByRole('link', { name: /Open review queue/i })).toBeDefined()
+  })
+
   it('renders the dashboard title', () => {
     render(<AdminDashboard />)
 

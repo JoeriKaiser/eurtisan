@@ -1,6 +1,7 @@
 export {
   getAdminDashboardStatsQuery,
   getDashboardTrendsQuery,
+  getPendingShopReviewCountQuery,
   getRecentAuditEntriesQuery,
   getRecentOrdersQuery,
   getRecentSignupsQuery,

@@ -31,7 +31,7 @@ describe('navigation view transitions', () => {
       resolveNavigationTransitionTypes({
         pathChanged: true,
         fromPathname: '/sell/onboarding/draft-1/identity',
-        toPathname: '/sell/onboarding/draft-1/visuals',
+        toPathname: '/sell/onboarding/draft-1/listing',
       }),
     ).toEqual(['onboarding-forward'])
   })
@@ -50,8 +50,8 @@ describe('navigation view transitions', () => {
     expect(
       resolveNavigationTransitionTypes({
         pathChanged: true,
-        fromPathname: '/sell/onboarding/draft-1/story',
-        toPathname: '/sell/onboarding/draft-1/story/',
+        fromPathname: '/sell/onboarding/draft-1/listing',
+        toPathname: '/sell/onboarding/draft-1/listing/',
       }),
     ).toBe(false)
   })
@@ -60,8 +60,8 @@ describe('navigation view transitions', () => {
     expect(
       resolveNavigationTransitionTypes({
         pathChanged: true,
-        fromPathname: '/sell/onboarding/draft-1/story',
-        toPathname: '/sell/onboarding/draft-2/visuals',
+        fromPathname: '/sell/onboarding/draft-1/identity',
+        toPathname: '/sell/onboarding/draft-2/listing',
       }),
     ).toEqual(['page'])
   })

@@ -56,6 +56,54 @@ export function CreatorDashboardPage({ stats, activity, shops }: CreatorDashboar
         </h1>
         <p className='mb-8 text-text-secondary'>{m.creator_description()}</p>
 
+        {firstShop?.status === 'active' &&
+          (!firstShop.bannerImage ||
+            (firstShop.socialCount ?? 0) === 0 ||
+            !firstShop.announcement) && (
+            <section
+              className='mb-8 rounded-xl border border-border-default bg-surface-inset p-5'
+              aria-labelledby='shop-readiness-title'
+            >
+              <div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
+                <div>
+                  <h2 id='shop-readiness-title' className='font-semibold text-text-primary'>
+                    {m.creator_readiness_title()}
+                  </h2>
+                  <p className='mt-1 text-sm text-text-secondary'>
+                    {m.creator_readiness_description()}
+                  </p>
+                </div>
+                <Link
+                  to='/creator/shop'
+                  search={{ shopId: firstShop.id }}
+                  className='inline-flex min-h-11 items-center text-sm font-semibold text-accent-primary hover:underline'
+                >
+                  {m.creator_readiness_open_settings()}
+                </Link>
+              </div>
+              <ul className='mt-4 grid gap-2 text-sm text-text-secondary sm:grid-cols-3'>
+                <li className='flex items-center gap-2'>
+                  <span
+                    className={`size-2 rounded-full ${firstShop.bannerImage ? 'bg-success' : 'bg-warning'}`}
+                  />
+                  {m.creator_readiness_banner()}
+                </li>
+                <li className='flex items-center gap-2'>
+                  <span
+                    className={`size-2 rounded-full ${(firstShop.socialCount ?? 0) > 0 ? 'bg-success' : 'bg-warning'}`}
+                  />
+                  {m.creator_readiness_socials()}
+                </li>
+                <li className='flex items-center gap-2'>
+                  <span
+                    className={`size-2 rounded-full ${firstShop.announcement ? 'bg-success' : 'bg-warning'}`}
+                  />
+                  {m.creator_readiness_announcement()}
+                </li>
+              </ul>
+            </section>
+          )}
+
         {/* Stat Cards */}
         <div className='mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4'>
           <StatCard

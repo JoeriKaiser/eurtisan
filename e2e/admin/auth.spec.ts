@@ -24,6 +24,7 @@ test.describe('admin authentication and access control', () => {
   test('admin can sign in and reach the dashboard', async ({ page }) => {
     await page.goto('/signin?redirect=/admin')
     await page.waitForSelector('html[data-hydrated="true"]')
+    await page.waitForLoadState('networkidle')
 
     await page.locator('[id="email"]').fill(E2E_ADMIN.email)
     await page.locator('[id="password"]').fill(E2E_ADMIN.password)
@@ -32,6 +33,11 @@ test.describe('admin authentication and access control', () => {
     await page.waitForSelector('html[data-hydrated="true"]')
     await expect(page).toHaveURL(/\/admin\/?$/)
     await expect(page.getByRole('heading', { name: /Dashboard/i })).toBeVisible({ timeout: 10000 })
+
+    await page.waitForLoadState('networkidle')
+    await page.getByRole('button', { name: 'Sign out' }).click()
+    await expect(page).toHaveURL(/\/\/?$/)
+    await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible()
   })
 
   test('non-admin customer is redirected to forbidden', async ({ page }) => {
@@ -41,6 +47,7 @@ test.describe('admin authentication and access control', () => {
 
     await page.goto('/signin')
     await page.waitForSelector('html[data-hydrated="true"]')
+    await page.waitForLoadState('networkidle')
 
     await page.locator('[id="email"]').fill(customer.email)
     await page.locator('[id="password"]').fill(customer.password)
@@ -64,6 +71,7 @@ test.describe('admin authentication and access control', () => {
 
     await page.goto('/signin')
     await page.waitForSelector('html[data-hydrated="true"]')
+    await page.waitForLoadState('networkidle')
 
     await page.locator('[id="email"]').fill(creator.email)
     await page.locator('[id="password"]').fill(creator.password)
@@ -103,6 +111,7 @@ test.describe('admin authentication and access control', () => {
     // First verify the credentials are valid by signing in successfully.
     await page.goto('/signin')
     await page.waitForSelector('html[data-hydrated="true"]')
+    await page.waitForLoadState('networkidle')
     await page.locator('[id="email"]').fill(admin.email)
     await page.locator('[id="password"]').fill(admin.password)
     await page.getByRole('button', { name: /^sign in$/i }).click()
@@ -116,6 +125,7 @@ test.describe('admin authentication and access control', () => {
 
     await page.goto('/signin')
     await page.waitForSelector('html[data-hydrated="true"]')
+    await page.waitForLoadState('networkidle')
     await page.locator('[id="email"]').fill(admin.email)
     await page.locator('[id="password"]').fill(admin.password)
     await page.getByRole('button', { name: /^sign in$/i }).click()

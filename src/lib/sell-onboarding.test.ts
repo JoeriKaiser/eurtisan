@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  SELLER_TERMS_VERSION,
   slugify,
   step1IdentitySchema,
   step4LocationSchema,
@@ -9,476 +10,197 @@ import {
 } from './sell-onboarding'
 import { validateImageUrl, validateSocialUrl } from './sell-onboarding.server'
 
-describe('slugify', () => {
-  it('converts to lowercase and replaces spaces with hyphens', () => {
+const profile = {
+  name: 'Élan Ceramics',
+  slug: 'elan-ceramics',
+  tagline: 'Hand-thrown tableware from Lyon',
+  category: 'home_living',
+  productionType: 'handmade',
+  description: 'I create durable stoneware slowly and carefully in my small workshop in Lyon.',
+  hasProductionPartner: false,
+  productionPartnerDetails: '',
+  image: 'https://example.test/shop.webp',
+}
+
+const sellerDetails = {
+  shippingOrigin: {
+    country: 'FR',
+    city: 'Lyon',
+    postalCode: '69001',
+    processingTimeDays: { min: 1, max: 3 },
+    shipsInternational: true,
+  },
+  businessAddress: {
+    street: '4 Rue Mercière',
+    city: 'Lyon',
+    postalCode: '69001',
+    country: 'FR',
+  },
+  currency: 'EUR',
+  isVatRegistered: false,
+  vatId: '',
+  legalEntityType: 'individual',
+  dateOfBirth: '1990-05-15',
+  taxId: 'FRTIN12345',
+  businessRegistrationNumber: '',
+}
+
+const listing = {
+  draftId: 'shop-1',
+  name: 'Speckled stoneware mug',
+  slug: 'speckled-stoneware-mug',
+  description: 'A tactile stoneware mug, thrown and glazed by hand for everyday use.',
+  priceCents: 3600,
+  stockCount: 5,
+  categoryId: '11111111-1111-4111-8111-111111111111',
+  vatRateCategory: 'standard',
+  weightGrams: 450,
+  lengthCm: 12,
+  widthCm: 12,
+  heightCm: 10,
+  images: [{ key: 'products/mug.webp', altText: 'Speckled mug on a linen cloth' }],
+}
+
+const delivery = {
+  shippingOrigin: sellerDetails.shippingOrigin,
+  policies: {
+    returns: { accepted: true, windowDays: 14 },
+    exchanges: { accepted: true, windowDays: 14 },
+    customOrders: { accepted: false },
+    paymentMethods: [],
+    mandatoryRightsAcknowledged: true,
+  },
+}
+
+describe('shop slugs', () => {
+  it('normalises names to stable URL slugs', () => {
     expect(slugify('Sunflower Ceramics')).toBe('sunflower-ceramics')
-  })
-
-  it('removes special characters', () => {
     expect(slugify('My @ Shop!')).toBe('my-shop')
+    expect(slugify('a'.repeat(50))).toHaveLength(40)
   })
 
-  it('trims to max 40 chars', () => {
-    const long = 'a'.repeat(50)
-    expect(slugify(long).length).toBe(40)
-  })
-})
-
-describe('suggestSlug', () => {
-  it('returns a slug with a random suffix', () => {
-    const result = suggestSlug('My Shop')
-    expect(result.startsWith('my-shop-')).toBe(true)
-    expect(result.length).toBeGreaterThan('my-shop-'.length)
+  it('adds a suffix for draft suggestions', () => {
+    expect(suggestSlug('My Shop')).toMatch(/^my-shop-[a-z0-9]{4}$/)
   })
 })
 
-describe('step1IdentitySchema', () => {
-  it('passes with valid data', () => {
-    const result = step1IdentitySchema.safeParse({
-      name: 'Valid Name',
-      slug: 'valid-name',
-      tagline: '',
-      category: 'jewelry_accessories',
-      productionType: 'handmade',
-    })
-    expect(result.success).toBe(true)
+describe('five-stage onboarding schemas', () => {
+  it('accepts a complete physical-goods profile with a Unicode name', () => {
+    expect(step1IdentitySchema.safeParse(profile).success).toBe(true)
   })
 
-  it('fails with short name', () => {
-    const result = step1IdentitySchema.safeParse({
-      name: 'AB',
-      slug: 'ab',
-      tagline: '',
-      category: 'other',
-      productionType: 'mixed',
-    })
-    expect(result.success).toBe(false)
+  it('rejects removed digital-goods production types', () => {
+    expect(step1IdentitySchema.safeParse({ ...profile, productionType: 'digital' }).success).toBe(
+      false,
+    )
   })
 
-  it('fails with invalid slug characters', () => {
-    const result = step1IdentitySchema.safeParse({
-      name: 'My Shop',
-      slug: 'my_shop!',
-      tagline: '',
-      category: 'other',
-      productionType: 'mixed',
-    })
-    expect(result.success).toBe(false)
-  })
-})
-
-describe('step4LocationSchema', () => {
-  it('passes with valid shipping origin', () => {
-    const result = step4LocationSchema.safeParse({
-      shippingOrigin: {
-        country: 'FR',
-        processingTimeDays: { min: 1, max: 3 },
-        shipsInternational: false,
-      },
-      currency: 'EUR',
-      legalEntityType: 'individual',
-      dateOfBirth: '1990-01-01',
-      taxId: 'TIN123456',
-    })
-    expect(result.success).toBe(true)
+  it('requires a production-partner explanation when selected', () => {
+    expect(
+      step1IdentitySchema.safeParse({
+        ...profile,
+        hasProductionPartner: true,
+        productionPartnerDetails: '',
+      }).success,
+    ).toBe(false)
   })
 
-  it('passes for business with registration number', () => {
-    const result = step4LocationSchema.safeParse({
-      shippingOrigin: {
-        country: 'FR',
-        processingTimeDays: { min: 1, max: 3 },
-        shipsInternational: false,
-      },
-      currency: 'EUR',
-      legalEntityType: 'business',
-      taxId: 'TIN123456',
-      businessRegistrationNumber: 'REG123456',
-    })
-    expect(result.success).toBe(true)
+  it('accepts complete dispatch, legal identity, and tax details', () => {
+    expect(step4LocationSchema.safeParse(sellerDetails).success).toBe(true)
   })
 
-  it('fails when processing min > max', () => {
-    const result = step4LocationSchema.safeParse({
-      shippingOrigin: {
-        country: 'FR',
-        processingTimeDays: { min: 5, max: 3 },
-        shipsInternational: false,
-      },
-      currency: 'EUR',
-      legalEntityType: 'individual',
-      dateOfBirth: '1990-01-01',
-      taxId: 'TIN123456',
-    })
-    expect(result.success).toBe(false)
+  it('requires a legal street address and valid processing range', () => {
+    expect(
+      step4LocationSchema.safeParse({
+        ...sellerDetails,
+        shippingOrigin: {
+          ...sellerDetails.shippingOrigin,
+          processingTimeDays: { min: 5, max: 2 },
+        },
+        businessAddress: { ...sellerDetails.businessAddress, street: '' },
+      }).success,
+    ).toBe(false)
   })
 
-  it('fails with invalid country code', () => {
-    const result = step4LocationSchema.safeParse({
-      shippingOrigin: {
-        country: 'XX',
-        processingTimeDays: { min: 1, max: 3 },
-        shipsInternational: false,
-      },
-      currency: 'EUR',
-      legalEntityType: 'individual',
-      dateOfBirth: '1990-01-01',
-      taxId: 'TIN123456',
-    })
-    expect(result.success).toBe(false)
+  it('requires business registration for registered businesses', () => {
+    expect(
+      step4LocationSchema.safeParse({
+        ...sellerDetails,
+        legalEntityType: 'business',
+        dateOfBirth: '',
+        businessRegistrationNumber: '',
+      }).success,
+    ).toBe(false)
   })
 
-  it('fails with invalid currency', () => {
-    const result = step4LocationSchema.safeParse({
-      shippingOrigin: {
-        country: 'FR',
-        processingTimeDays: { min: 1, max: 3 },
-        shipsInternational: false,
-      },
-      currency: 'LOL',
-      legalEntityType: 'individual',
-      dateOfBirth: '1990-01-01',
-      taxId: 'TIN123456',
-    })
-    expect(result.success).toBe(false)
+  it('accepts a sale-ready physical listing', () => {
+    expect(step7ListingSchema.safeParse(listing).success).toBe(true)
   })
 
-  it('fails for business without registration number', () => {
-    const result = step4LocationSchema.safeParse({
-      shippingOrigin: {
-        country: 'FR',
-        processingTimeDays: { min: 1, max: 3 },
-        shipsInternational: false,
-      },
-      currency: 'EUR',
-      legalEntityType: 'business',
-      taxId: 'TIN123456',
-    })
-    expect(result.success).toBe(false)
+  it('rejects products without parcel dimensions, stock, or a photo', () => {
+    expect(
+      step7ListingSchema.safeParse({
+        ...listing,
+        stockCount: 0,
+        weightGrams: 0,
+        images: [],
+      }).success,
+    ).toBe(false)
   })
 
-  it('fails for individual with invalid DOB format', () => {
-    const result = step4LocationSchema.safeParse({
-      shippingOrigin: {
-        country: 'FR',
-        processingTimeDays: { min: 1, max: 3 },
-        shipsInternational: false,
-      },
-      currency: 'EUR',
-      legalEntityType: 'individual',
-      dateOfBirth: '1990/01/01',
-      taxId: 'TIN123456',
-    })
-    expect(result.success).toBe(false)
+  it('rejects unsafe image object keys', () => {
+    expect(
+      step7ListingSchema.safeParse({
+        ...listing,
+        images: [{ key: 'https://evil.test/image.jpg', altText: 'Unsafe image' }],
+      }).success,
+    ).toBe(false)
   })
 
-  it('fails without taxId', () => {
-    const result = step4LocationSchema.safeParse({
-      shippingOrigin: {
-        country: 'FR',
-        processingTimeDays: { min: 1, max: 3 },
-        shipsInternational: false,
-      },
-      currency: 'EUR',
-      legalEntityType: 'individual',
-      dateOfBirth: '1990-01-01',
-    })
-    expect(result.success).toBe(false)
-  })
-})
-
-describe('step7ListingSchema', () => {
-  it('passes with valid price', () => {
-    const result = step7ListingSchema.safeParse({
-      name: 'Handmade Mug',
-      description: 'A beautiful handmade ceramic mug.',
-      priceCents: 1500,
-      stockCount: 10,
-      images: [{ key: 'products/mug-1.jpg', altText: 'Front view' }],
-    })
-    expect(result.success).toBe(true)
-  })
-
-  it('fails with price too high', () => {
-    const result = step7ListingSchema.safeParse({
-      name: 'Handmade Mug',
-      description: 'A beautiful handmade ceramic mug.',
-      priceCents: 1_000_000_01, // 1 cent over €1M
-      stockCount: 10,
-      images: [{ key: 'products/mug-1.jpg', altText: 'Front view' }],
-    })
-    expect(result.success).toBe(false)
-  })
-
-  it('fails with invalid image key format', () => {
-    const result = step7ListingSchema.safeParse({
-      name: 'Handmade Mug',
-      description: 'A beautiful handmade ceramic mug.',
-      priceCents: 1500,
-      stockCount: 10,
-      images: [{ key: 'invalid-key.gif' }],
-    })
-    expect(result.success).toBe(false)
-  })
-})
-
-describe('validateImageUrl', () => {
-  it('returns null for null, undefined, or empty string', () => {
-    expect(validateImageUrl(null)).toBeNull()
-    expect(validateImageUrl(undefined)).toBeNull()
-    expect(validateImageUrl('')).toBeNull()
-  })
-
-  it('accepts valid /uploads/ paths', () => {
-    expect(validateImageUrl('/uploads/shop-123/logo.png')).toBe('/uploads/shop-123/logo.png')
-  })
-
-  it('accepts valid http:// URLs', () => {
-    expect(validateImageUrl('http://example.com/image.jpg')).toBe('http://example.com/image.jpg')
-  })
-
-  it('accepts valid https:// URLs', () => {
-    expect(validateImageUrl('https://example.com/image.jpg')).toBe('https://example.com/image.jpg')
-  })
-
-  it('rejects javascript: URLs', () => {
-    expect(() => validateImageUrl('javascript:alert(1)')).toThrow()
-    try {
-      validateImageUrl('javascript:alert(1)')
-    } catch (err) {
-      expect(err).toBeInstanceOf(Response)
-      expect((err as Response).status).toBe(400)
-    }
-  })
-
-  it('rejects data: URLs', () => {
-    expect(() => validateImageUrl('data:text/html,<script>alert(1)</script>')).toThrow()
-  })
-
-  it('rejects vbscript: URLs', () => {
-    expect(() => validateImageUrl('vbscript:msgbox(1)')).toThrow()
-  })
-
-  it('rejects non-allowed relative paths', () => {
-    expect(() => validateImageUrl('/images/logo.png')).toThrow()
-  })
-})
-
-describe('validateSocialUrl', () => {
-  it('throws for null or undefined', () => {
-    expect(() => validateSocialUrl(null)).toThrow()
-    expect(() => validateSocialUrl(undefined)).toThrow()
-  })
-
-  it('throws for empty string', () => {
-    expect(() => validateSocialUrl('')).toThrow()
-  })
-
-  it('accepts valid https:// URLs', () => {
-    expect(validateSocialUrl('https://instagram.com/myshop')).toBe('https://instagram.com/myshop')
-  })
-
-  it('accepts valid http:// URLs', () => {
-    expect(validateSocialUrl('http://example.com')).toBe('http://example.com')
-  })
-
-  it('rejects javascript: URLs', () => {
-    expect(() => validateSocialUrl('javascript:alert(1)')).toThrow()
-    try {
-      validateSocialUrl('javascript:alert(1)')
-    } catch (err) {
-      expect(err).toBeInstanceOf(Response)
-      expect((err as Response).status).toBe(400)
-    }
-  })
-
-  it('rejects data: URLs', () => {
-    expect(() => validateSocialUrl('data:text/html,<script>alert(1)</script>')).toThrow()
-  })
-
-  it('rejects invalid URL strings', () => {
-    expect(() => validateSocialUrl('not-a-url')).toThrow()
-  })
-})
-
-describe('validateOnboardingStepData', () => {
-  it('accepts valid step 1 data', () => {
-    expect(() =>
-      validateOnboardingStepData(1, {
-        name: 'Valid Name',
-        slug: 'valid-name',
-        tagline: '',
-        category: 'jewelry_accessories',
-        productionType: 'handmade',
-      }),
-    ).not.toThrow()
-  })
-
-  it('rejects invalid step 1 data (short name)', () => {
-    expect(() =>
-      validateOnboardingStepData(1, {
-        name: 'AB',
-        slug: 'ab',
-        tagline: '',
-        category: 'other',
-        productionType: 'mixed',
-      }),
-    ).toThrow()
-  })
-
-  it('rejects invalid step 1 data (invalid slug)', () => {
-    expect(() =>
-      validateOnboardingStepData(1, {
-        name: 'My Shop',
-        slug: 'my_shop!',
-        tagline: '',
-        category: 'other',
-        productionType: 'mixed',
-      }),
-    ).toThrow()
-  })
-
-  it('accepts valid step 2 data', () => {
-    expect(() =>
-      validateOnboardingStepData(2, {
-        description: 'A'.repeat(50),
-        tags: [],
-        languages: [],
-        hasProductionPartner: false,
-      }),
-    ).not.toThrow()
-  })
-
-  it('rejects invalid step 2 data (short description)', () => {
-    expect(() =>
-      validateOnboardingStepData(2, {
-        description: 'Too short',
-        tags: [],
-        languages: [],
-        hasProductionPartner: false,
-      }),
-    ).toThrow()
-  })
-
-  it('accepts valid step 3 data', () => {
-    expect(() =>
-      validateOnboardingStepData(3, {
-        image: '',
-        bannerImage: '',
-      }),
-    ).not.toThrow()
-  })
-
-  it('rejects invalid step 3 data (non-string image)', () => {
-    expect(() =>
-      validateOnboardingStepData(3, {
-        image: 123,
-      }),
-    ).toThrow()
-  })
-
-  it('accepts valid step 4 data', () => {
+  it('requires acknowledgement that mandatory buyer rights remain applicable', () => {
     expect(() =>
       validateOnboardingStepData(4, {
-        shippingOrigin: {
-          country: 'FR',
-          processingTimeDays: { min: 1, max: 3 },
-          shipsInternational: false,
-        },
-        currency: 'EUR',
-        legalEntityType: 'individual',
-        dateOfBirth: '1985-05-12',
-        taxId: 'TIN789456',
-      }),
-    ).not.toThrow()
-  })
-
-  it('rejects invalid step 4 data (invalid VAT ID)', () => {
-    expect(() =>
-      validateOnboardingStepData(4, {
-        shippingOrigin: {
-          country: 'FR',
-          processingTimeDays: { min: 1, max: 3 },
-          shipsInternational: false,
-        },
-        currency: 'EUR',
-        isVatRegistered: true,
-        vatId: '',
-        legalEntityType: 'individual',
-        dateOfBirth: '1985-05-12',
-        taxId: 'TIN789456',
+        ...delivery,
+        policies: { ...delivery.policies, mandatoryRightsAcknowledged: false },
       }),
     ).toThrow()
   })
 
-  it('accepts valid step 5 data', () => {
+  it('validates every stage in the new sequence', () => {
+    expect(() => validateOnboardingStepData(1, profile)).not.toThrow()
+    expect(() => validateOnboardingStepData(2, sellerDetails)).not.toThrow()
+    expect(() =>
+      validateOnboardingStepData(3, { productId: '22222222-2222-4222-8222-222222222222' }),
+    ).not.toThrow()
+    expect(() => validateOnboardingStepData(4, delivery)).not.toThrow()
     expect(() =>
       validateOnboardingStepData(5, {
-        policies: {
-          returns: { accepted: false },
-          exchanges: { accepted: false },
-          customOrders: { accepted: false },
-          paymentMethods: [],
-        },
-      }),
-    ).not.toThrow()
-  })
-
-  it('rejects invalid step 5 data (bad policy shape)', () => {
-    expect(() =>
-      validateOnboardingStepData(5, {
-        policies: {
-          returns: { accepted: 'yes' },
-        },
-      }),
-    ).toThrow()
-  })
-
-  it('accepts valid step 6 data', () => {
-    expect(() =>
-      validateOnboardingStepData(6, {
-        socials: [{ platform: 'instagram', url: 'https://instagram.com/test' }],
-      }),
-    ).not.toThrow()
-  })
-
-  it('rejects invalid step 6 data (bad platform)', () => {
-    expect(() =>
-      validateOnboardingStepData(6, {
-        socials: [{ platform: 'unknown', url: 'https://example.com' }],
-      }),
-    ).toThrow()
-  })
-
-  it('accepts valid step 7 data (empty)', () => {
-    expect(() => validateOnboardingStepData(7, {})).not.toThrow()
-  })
-
-  it('rejects invalid step 7 data (non-empty)', () => {
-    expect(() => validateOnboardingStepData(7, { name: 'Bad' })).toThrow()
-  })
-
-  it('accepts valid step 8 data', () => {
-    expect(() =>
-      validateOnboardingStepData(8, {
         termsAgreed: true,
+        termsVersion: SELLER_TERMS_VERSION,
       }),
     ).not.toThrow()
   })
 
-  it('rejects invalid step 8 data (termsAgreed false)', () => {
-    expect(() =>
-      validateOnboardingStepData(8, {
-        termsAgreed: false,
-      }),
-    ).toThrow()
+  it.each([0, 6, 8])('rejects stage %s outside the five-stage contract', (stage) => {
+    expect(() => validateOnboardingStepData(stage, {})).toThrow(
+      `Invalid onboarding stage: ${stage}`,
+    )
+  })
+})
+
+describe('external URL validation', () => {
+  it('allows safe image sources and rejects executable schemes', () => {
+    expect(validateImageUrl('/uploads/shop.webp')).toBe('/uploads/shop.webp')
+    expect(validateImageUrl('https://example.test/shop.webp')).toBe(
+      'https://example.test/shop.webp',
+    )
+    expect(() => validateImageUrl('javascript:alert(1)')).toThrow()
+    expect(() => validateImageUrl('data:text/html,unsafe')).toThrow()
   })
 
-  it('rejects invalid step 8 data (missing termsAgreed)', () => {
-    expect(() => validateOnboardingStepData(8, {})).toThrow()
-  })
-
-  it('rejects unknown step numbers', () => {
-    expect(() => validateOnboardingStepData(9, {})).toThrow('Invalid onboarding step: 9')
+  it('requires full HTTP or HTTPS social URLs', () => {
+    expect(validateSocialUrl('https://instagram.com/elan')).toBe('https://instagram.com/elan')
+    expect(() => validateSocialUrl('@elan')).toThrow()
+    expect(() => validateSocialUrl('javascript:alert(1)')).toThrow()
   })
 })

@@ -42,6 +42,10 @@ export default function UserMenu() {
   }
 
   const initials = user.name?.charAt(0).toUpperCase() || 'U'
+  const handleSignOut = async () => {
+    await authClient.signOut()
+    await router.navigate({ to: '/' })
+  }
 
   return (
     <DropdownMenu>
@@ -121,7 +125,7 @@ export default function UserMenu() {
           </DropdownMenuItem>
 
           <DropdownMenuItem
-            onClick={() => void authClient.signOut()}
+            onClick={() => void handleSignOut()}
             className='text-error hover:bg-error-subtle focus-visible:bg-error-subtle'
           >
             <LogOut size={16} />

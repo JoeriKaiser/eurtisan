@@ -155,7 +155,7 @@ graph TD
 
 ### Available Actions Right Now (Admin)
 *   **Moderation & Safety**:
-    *   **Review Onboarding Applications**: Read submitted shop drafts, approve them to launch on the marketplace, reject applications, or request changes with inline comments.
+    *   **Review Onboarding Applications**: The dashboard and admin shell show the pending-review count and link directly to the queue. Admins can inspect the complete application, approve or reject it, or request changes for a specific onboarding stage with feedback shown to the maker.
     *   **Suspend Shops**: Instantly toggle suspensions on active shops, which hides their products from public search indices and storefronts.
     *   **Ban Users**: Permanently ban problematic buyers or sellers, blocking their authenticated sessions.
 *   **Catalog & Content Management**:
@@ -183,7 +183,7 @@ stateDiagram-v2
     PendingReview --> ChangesRequested : Admin requests edits
     PendingReview --> Rejected : Admin rejects application
     ChangesRequested --> PendingReview : Creator resubmits application
-    Approved --> Active : Shop goes live
+    Approved --> Active : Creator enables 2FA, connects Mollie, and publishes
     Active --> Suspended : Admin suspends shop
     Suspended --> Active : Admin lifts suspension
 ```
@@ -234,7 +234,7 @@ To help prepare the application for v1.0 release, this checklist details what is
 - [x] Open dispute form with reason classifications
 
 ### 6.3 Creator Flow
-- [x] Eight-stage onboarding wizard (wizard status verification)
+- [x] Five-stage physical-goods onboarding with draft persistence, moderation feedback, and explicit launch
 - [x] Creator stats dashboard (overview charts, activity lists)
 - [x] Product creation (with title slug generation and category mapping)
 - [x] Image file uploads (written directly to the public asset server)

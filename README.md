@@ -53,7 +53,7 @@ Eurtisan connects European makers with European buyers. It is built as a product
 - Post-purchase: order tracking, product reviews, and dispute filing.
 
 ### Creators
-- Eight-step onboarding wizard with draft persistence and admin review workflow.
+- Five-stage onboarding with draft persistence, admin review feedback, and an explicit go-live handoff.
 - Shop management: settings, policies, visuals, social links.
 - Product catalog: create, edit, activate/deactivate, image uploads.
 - Order fulfillment: status updates, tracking registration, Sendcloud shipping label integration.

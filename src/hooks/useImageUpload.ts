@@ -10,6 +10,7 @@
 
 import { useCallback, useState } from 'react'
 import { getPresignedUploadUrl } from '#/lib/image-upload'
+import { m } from '#/paraglide/messages'
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 const ALLOWED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
@@ -28,7 +29,7 @@ export interface UseImageUploadReturn {
   clearError: () => void
 }
 
-export function useImageUpload(): UseImageUploadReturn {
+export function useImageUpload(options?: { onboardingDraftId?: string }): UseImageUploadReturn {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -39,12 +40,12 @@ export function useImageUpload(): UseImageUploadReturn {
       setError(null)
 
       if (!ALLOWED_TYPES.has(file.type)) {
-        setError('Invalid file type. Allowed: JPEG, PNG, WebP.')
+        setError(m.image_upload_invalid_type())
         return null
       }
 
       if (file.size > MAX_FILE_SIZE) {
-        setError('File too large. Max size: 5MB.')
+        setError(m.image_upload_too_large())
         return null
       }
 
@@ -52,7 +53,11 @@ export function useImageUpload(): UseImageUploadReturn {
 
       try {
         const { key, uploadUrl, previewUrl, imgproxyUrl } = await getPresignedUploadUrl({
-          data: { prefix, contentType: file.type as 'image/jpeg' | 'image/png' | 'image/webp' },
+          data: {
+            prefix,
+            contentType: file.type as 'image/jpeg' | 'image/png' | 'image/webp',
+            onboardingDraftId: options?.onboardingDraftId,
+          },
         })
 
         const response = await fetch(uploadUrl, {
@@ -68,15 +73,14 @@ export function useImageUpload(): UseImageUploadReturn {
         }
 
         return { key, previewUrl, imgproxyUrl }
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Upload failed'
-        setError(message)
+      } catch {
+        setError(m.image_upload_failed())
         return null
       } finally {
         setUploading(false)
       }
     },
-    [],
+    [options?.onboardingDraftId],
   )
 
   const uploadMultiple = useCallback(
