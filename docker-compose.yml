@@ -104,6 +104,7 @@ services:
     environment:
       IMGPROXY_USE_S3: "true"
       IMGPROXY_S3_ENDPOINT: http://garage:3900
+      IMGPROXY_S3_ENDPOINT_USE_PATH_STYLE: "true"
       IMGPROXY_S3_REGION: ${S3_REGION:-garage}
       IMGPROXY_KEY: ${IMGPROXY_KEY:-}
       IMGPROXY_SALT: ${IMGPROXY_SALT:-}

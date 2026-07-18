@@ -146,9 +146,10 @@ services:
     environment:
       IMGPROXY_USE_S3: "true"
       IMGPROXY_S3_ENDPOINT: ${S3_ENDPOINT:?required storage endpoint}
+      IMGPROXY_S3_ENDPOINT_USE_PATH_STYLE: "true"
       IMGPROXY_S3_REGION: ${S3_REGION:?required storage region}
-      IMGPROXY_S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?required storage access key}
-      IMGPROXY_S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?required storage secret key}
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?required storage access key}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?required storage secret key}
       IMGPROXY_KEY: ${IMGPROXY_KEY:?required imgproxy signing key}
       IMGPROXY_SALT: ${IMGPROXY_SALT:?required imgproxy signing salt}
       IMGPROXY_LOCAL_FILESYSTEM_ROOT: ""

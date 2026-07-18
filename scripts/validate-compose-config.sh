@@ -61,6 +61,16 @@ if grep -q '^        condition: unless-stopped$' docker-compose.prod.yml docker-
   exit 1
 fi
 
+if grep -q 'IMGPROXY_S3_\(ACCESS_KEY_ID\|SECRET_ACCESS_KEY\)' docker-compose.prod.yml docker-compose.staging.yml; then
+  echo "imgproxy uses the AWS SDK credential names, not IMGPROXY_S3_* credential names" >&2
+  exit 1
+fi
+for compose_file in docker-compose.prod.yml docker-compose.staging.yml; do
+  grep -q 'AWS_ACCESS_KEY_ID:' "$compose_file"
+  grep -q 'AWS_SECRET_ACCESS_KEY:' "$compose_file"
+  grep -q 'IMGPROXY_S3_ENDPOINT_USE_PATH_STYLE:' "$compose_file"
+done
+
 validate docker-compose.prod.yml production
 validate docker-compose.staging.yml staging
 docker compose -f docker-compose.yml -f docker-compose.ci.yml config --quiet
