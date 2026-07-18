@@ -213,6 +213,19 @@
       when: coexist_with_proxy | default(false)
   tags: [observability]
 
+- name: Stop stateless application services before building
+  command: >-
+    {{ docker_compose }} stop
+    app imgproxy
+    inventory-cleanup session-cleanup cart-cleanup verification-cleanup
+    meilisearch-sync audit-log-cleanup sendcloud-reconciliation
+    mollie-payment-reconciliation payout-reconciliation
+    payout-reconciliation-log-cleanup email-outbox-worker
+    email-suppression-cleanup email-retention-cleanup
+    financial-totals-reconciliation sendcloud-retention-cleanup
+  args:
+    chdir: /opt/eurtisan
+
 - name: Start stateful dependencies first
   command: "{{ docker_compose }} up -d db meilisearch{{ ' garage' if (garage_enabled | bool) else '' }}"
   args:
