@@ -54,6 +54,12 @@ fi
 
 build_image
 
+IMAGE_RELEASE="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$IMAGE_NAME")"
+if [ "$IMAGE_RELEASE" != "$RELEASE_VERSION" ]; then
+  echo "Production image OCI revision label does not match the release version" >&2
+  exit 1
+fi
+
 docker run --rm \
   -e VITE_ANALYTICS_CONSENT_REQUIRED=true \
   -e VITE_APP_ENV=production \
@@ -186,6 +192,16 @@ docker exec "$APP_CONTAINER" bun -e '
   const html = await response.text()
   if (!nonce) throw new Error("Production CSP does not contain a nonce")
   if (!html.includes(`nonce="${nonce}"`)) throw new Error("Production HTML nonce does not match CSP")
+
+  const imageResponse = await fetch(
+    "http://127.0.0.1:3000/api/image?key=products%2F00000000-0000-4000-8000-000000000000.jpg&width=400&format=webp",
+    { redirect: "manual" },
+  )
+  const imageLocation = imageResponse.headers.get("location") ?? ""
+  if (imageResponse.status !== 307) throw new Error(`Image delivery returned HTTP ${imageResponse.status}`)
+  if (!imageLocation.includes("/uploads/") || imageLocation.includes("/insecure/")) {
+    throw new Error("Image delivery did not return a signed same-origin imgproxy path")
+  }
 '
 docker rm -f "$APP_CONTAINER" >/dev/null
 APP_CONTAINER=""

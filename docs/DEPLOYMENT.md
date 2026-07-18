@@ -7,9 +7,10 @@ Deploy Eurtisan to staging and production using Ansible and Docker.
 ## Prerequisites
 
 - **Ansible** installed locally: `pip install ansible`
+- **Docker** running on the Ansible controller; release images are built there from a clean Git worktree
 - **Two VPSes** (or one for staging + one for production):
   - Ubuntu 24.04 LTS
-  - Staging: 4 vCPU / 8GB RAM recommended (2 vCPU / 4GB is the bare minimum and will rely heavily on swap during builds)
+  - Staging: 2 vCPU / 4GB RAM minimum
   - Production: 4 vCPU / 8GB RAM recommended
 - **SSH access** to the VPS as a user with passwordless `sudo` (or root)
 - A host-specific read-only GitHub deploy key at `/root/.ssh/eurtisan_github_deploy`, registered for the private repository
@@ -92,9 +93,9 @@ Ansible will:
 1. Harden the server (UFW, fail2ban, auto-updates) — skipped on staging if `coexist_with_proxy: true`
 2. Install Docker + Docker Compose plugin
 3. Clone the repository to `/opt/eurtisan`
-4. Write the `.env` file
-5. Start all services
-6. Run database migrations
+4. Build the exact release in an isolated controller worktree, transfer it over SSH, and verify its OCI revision label
+5. Write the `.env` file
+6. Run database migrations and start all services
 7. Schedule nightly database backups at 03:00 UTC
 
 ---
@@ -122,15 +123,22 @@ remain runtime inputs from Ansible Vault. See
 [Production environment and client-build configuration](./runbooks/environment-configuration.md)
 for routing, validation, ownership, and rotation procedures.
 
-Deploy manually via SSH. The deploy script tags the currently running image as `eurtisan-app:rollback-before-deploy`, builds the new image, runs migrations, starts the services, and then performs post-deploy smoke tests.
+Deploy through Ansible from the trusted controller:
 
 ```bash
-# Deploy latest main to staging
-ssh -i ~/.ssh/server_id_rsa_1 ubuntu@STAGING_IP 'COMPOSE_FILE=docker-compose.staging.yml /opt/eurtisan/deploy.sh main'
-
-# Deploy a specific tag to production
-ssh -i ~/.ssh/server_id_rsa_1 ubuntu@PROD_IP '/opt/eurtisan/deploy.sh v1.2.3'
+make infra-setup-staging
+make infra-setup-production
 ```
+
+The controller checks out the exact remote Git SHA into a clean temporary worktree,
+builds and labels the image locally, transfers the compressed artifact over the
+inventory's authenticated SSH connection, verifies the label on the target, and only
+then begins migrations and rollout. Temporary controller and target archives are
+removed even when a task fails. No production image compilation occurs on a VPS.
+
+`/opt/eurtisan/deploy.sh` is retained for controlled recovery of an image that Ansible
+has already transferred. It refuses to build source or deploy an image whose OCI
+revision label differs from the checked-out release.
 
 ### Smoke tests & rollback
 
@@ -182,7 +190,7 @@ ssh -i ~/.ssh/server_id_rsa_1 ubuntu@PROD_IP '/opt/eurtisan/deploy.sh --canary m
 
 What it does:
 
-1. Builds the new image and runs database migrations as usual.
+1. Verifies the controller-built image and runs database migrations as usual.
 2. Starts one temporary `eurtisan-app-canary` container on `127.0.0.1:3001`.
 3. Polls `/api/health/ready` until the canary reports healthy.
 4. Observes the canary for `CANARY_STABILIZE_SECONDS` (default: 300).
@@ -473,9 +481,12 @@ Product and shop images use **S3-compatible storage** (Garage locally and on sta
 
 Shared environments expose imgproxy at the same-origin `/uploads` route and expose
 Meilisearch at `/meilisearch`. Caddy and the Ansible-managed staging Traefik route
-strip these prefixes before forwarding to private containers. The browser receives
-only the restricted Meilisearch search key; `MEILISEARCH_API_KEY` and all storage and
-imgproxy signing secrets remain server-only.
+strip these prefixes before forwarding to private containers. Browser image elements
+use `/api/image` with bounded object-key and resize parameters; that server endpoint
+redirects to a signed `/uploads/...` path. This preserves responsive images without
+shipping the imgproxy key or permitting unsigned open-proxy requests. The browser
+receives only the restricted Meilisearch search key; `MEILISEARCH_API_KEY` and all
+storage and imgproxy signing secrets remain server-only.
 
 ## Prometheus metrics
 

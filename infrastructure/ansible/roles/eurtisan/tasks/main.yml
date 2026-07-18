@@ -213,7 +213,159 @@
       when: coexist_with_proxy | default(false)
   tags: [observability]
 
-- name: Stop stateless application services before building
+- name: Build and transfer the immutable application image from the controller
+  block:
+    - name: Create isolated controller build directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: -eurtisan-image
+      delegate_to: localhost
+      become: false
+      register: controller_build_directory
+
+    - name: Create clean release worktree on the controller
+      ansible.builtin.command:
+        argv:
+          - git
+          - worktree
+          - add
+          - --detach
+          - "{{ controller_build_directory.path }}/source"
+          - "{{ release_version }}"
+      args:
+        chdir: "{{ playbook_dir }}/../.."
+      delegate_to: localhost
+      become: false
+
+    - name: Build immutable release image on the controller
+      ansible.builtin.command:
+        argv:
+          - docker
+          - build
+          - --file
+          - Dockerfile.prod
+          - --tag
+          - "eurtisan-app:{{ image_tag }}"
+          - --build-arg
+          - "PUBLIC_ANALYTICS_CONSENT_REQUIRED=true"
+          - --build-arg
+          - "PUBLIC_APP_ENV={{ deployment_environment }}"
+          - --build-arg
+          - "PUBLIC_APP_VERSION={{ release_version }}"
+          - --build-arg
+          - "PUBLIC_FARO_COLLECTOR_URL=/collect"
+          - --build-arg
+          - "PUBLIC_FARO_ENABLED={{ faro_enabled | bool | lower }}"
+          - --build-arg
+          - "PUBLIC_FARO_APP_NAME=eurtisan"
+          - --build-arg
+          - "PUBLIC_FARO_SAMPLE_RATE={{ faro_sample_rate }}"
+          - --build-arg
+          - "PUBLIC_IMGPROXY_BASE_URL=https://{{ caddy_domain }}/uploads"
+          - --build-arg
+          - "PUBLIC_MEILISEARCH_HOST=https://{{ caddy_domain }}/meilisearch"
+          - --build-arg
+          - PUBLIC_MEILISEARCH_VALUE
+          - --build-arg
+          - "PUBLIC_SITE_URL=https://{{ caddy_domain }}"
+          - --build-arg
+          - "PUBLIC_S3_BUCKET={{ s3_bucket }}"
+          - --build-arg
+          - "PUBLIC_UMAMI_ENABLED={{ umami_enabled | bool | lower }}"
+          - --build-arg
+          - "PUBLIC_UMAMI_HOST_URL={{ umami_host_url | default('') }}"
+          - --build-arg
+          - "PUBLIC_UMAMI_SCRIPT_INTEGRITY={{ umami_script_integrity | default('') }}"
+          - --build-arg
+          - "PUBLIC_UMAMI_SCRIPT_URL={{ umami_script_url | default('') }}"
+          - --build-arg
+          - "PUBLIC_UMAMI_WEBSITE_ID={{ umami_website_id | default('') }}"
+          - .
+      args:
+        chdir: "{{ controller_build_directory.path }}/source"
+      environment:
+        DOCKER_BUILDKIT: "1"
+        PUBLIC_MEILISEARCH_VALUE: "{{ meilisearch_search_key }}"
+      delegate_to: localhost
+      become: false
+      no_log: true
+
+    - name: Inspect controller-built application image
+      ansible.builtin.command: "docker image inspect eurtisan-app:{{ image_tag }}"
+      delegate_to: localhost
+      become: false
+      register: controller_image
+      changed_when: false
+
+    - name: Export compressed immutable image artifact on the controller
+      ansible.builtin.shell: >-
+        set -o pipefail && umask 077 &&
+        docker image save eurtisan-app:{{ image_tag }} |
+        gzip -1 > {{ controller_build_directory.path | quote }}/eurtisan-app.tar.gz
+      args:
+        executable: /bin/bash
+      delegate_to: localhost
+      become: false
+
+    - name: Transfer immutable image artifact over SSH
+      ansible.builtin.copy:
+        src: "{{ controller_build_directory.path }}/eurtisan-app.tar.gz"
+        dest: "/tmp/eurtisan-app-{{ image_tag }}.tar.gz"
+        mode: "0600"
+
+    - name: Load immutable image artifact on the target
+      ansible.builtin.shell: >-
+        set -o pipefail &&
+        gzip -dc /tmp/eurtisan-app-{{ image_tag }}.tar.gz |
+        docker image load
+      args:
+        executable: /bin/bash
+
+    - name: Inspect transferred application image
+      ansible.builtin.command: "docker image inspect eurtisan-app:{{ image_tag }}"
+      register: transferred_image
+      changed_when: false
+
+    - name: Verify transferred image release identity
+      ansible.builtin.assert:
+        that:
+          - (transferred_image.stdout | from_json)[0].Id == (controller_image.stdout | from_json)[0].Id
+          - (transferred_image.stdout | from_json)[0].Config.Labels['org.opencontainers.image.revision'] == release_version
+        fail_msg: "Transferred application image identity does not match the controller-built release"
+  always:
+    - name: Remove transferred image archive from the target
+      ansible.builtin.file:
+        path: "/tmp/eurtisan-app-{{ image_tag }}.tar.gz"
+        state: absent
+
+    - name: Remove clean release worktree from the controller
+      ansible.builtin.command:
+        argv:
+          - git
+          - worktree
+          - remove
+          - --force
+          - "{{ controller_build_directory.path | default('/tmp/eurtisan-build-not-created') }}/source"
+      args:
+        chdir: "{{ playbook_dir }}/../.."
+      delegate_to: localhost
+      become: false
+      failed_when: false
+      when:
+        - controller_build_directory is defined
+        - controller_build_directory.path is defined
+
+    - name: Remove controller build directory
+      ansible.builtin.file:
+        path: "{{ controller_build_directory.path | default('/tmp/eurtisan-build-not-created') }}"
+        state: absent
+      delegate_to: localhost
+      become: false
+      when:
+        - controller_build_directory is defined
+        - controller_build_directory.path is defined
+
+- name: Stop stateless application services before rollout
   command: >-
     {{ docker_compose }} stop
     app imgproxy
@@ -271,15 +423,6 @@
     chdir: /opt/eurtisan
     executable: /bin/bash
   no_log: true
-
-- name: Build application image
-  command: "{{ docker_compose }} build app"
-  args:
-    chdir: /opt/eurtisan
-  environment:
-    IMAGE_TAG: "{{ image_tag }}"
-  async: 1800
-  poll: 15
 
 - name: Configure staging Garage upload CORS
   when: garage_enabled | bool

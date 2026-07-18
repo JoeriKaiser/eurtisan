@@ -4,6 +4,7 @@
 
 - Ansible 2.14+
 - `ansible-vault` (bundled with Ansible)
+- Docker running on the trusted Ansible controller
 - SSH access to the target server(s)
 
 ## Secrets Management
@@ -91,25 +92,28 @@ validation runs through `make ansible-check`; it does not access Vault or a host
 
 Before promoting a qualified release, follow
 [`../../docs/runbooks/staging-qualification.md`](../../docs/runbooks/staging-qualification.md).
-The current per-host build path does not by itself prove that staging and production
-run the same image digest; choosing an immutable registry/artifact transport is an
-infrastructure-owner decision.
+The playbook builds the exact release SHA in a clean temporary worktree on the trusted
+controller, transfers the compressed image over authenticated SSH, and verifies its
+OCI revision label before migrations or rollout. The VPS never compiles application
+source. Temporary archives are removed from both controller and target on success or
+failure.
 
 ## Deployment
 
 ### Staging
 
 ```bash
-cd infrastructure/ansible
-ansible-playbook -i inventory/staging.yml playbook.yml --vault-password-file=.vault_pass
+make infra-setup-staging
 ```
 
 ### Production
 
 ```bash
-cd infrastructure/ansible
-ansible-playbook -i inventory/production.yml playbook.yml --vault-password-file=.vault_pass
+make infra-setup-production
 ```
+
+Run these from the repository root so the controller can create a clean Git worktree
+for the remote release SHA and reuse its local Docker build cache.
 
 ## Inventory Structure
 

@@ -18,9 +18,10 @@ Provider-agnostic IaC for deploying Eurtisan on any VPS.
 1. **A VPS** running Ubuntu 24.04 (or any Debian-based distro)
    - Staging: 2 vCPU / 4GB RAM minimum
    - Production: 4 vCPU / 8GB RAM recommended
-2. **Ansible** installed on your local machine:
+2. **Ansible and Docker** installed on the trusted controller:
    ```bash
    pip install ansible
+   docker info
    ```
 3. **SSH access** to the VPS as root (for initial provisioning)
 4. A **read-only GitHub deploy key** at `/root/.ssh/eurtisan_github_deploy` on each VPS, registered for the private canonical repository
@@ -91,9 +92,9 @@ The playbook will:
 3. Install rclone for off-site backups
 4. Validate that at least one Alertmanager receiver is configured in production
 5. Clone the repository to `/opt/eurtisan`
-6. Write the `.env` file
-7. Start all services
-8. Run database migrations
+6. Build the immutable release in a clean controller worktree and transfer it over SSH
+7. Verify the image's OCI revision label before writing runtime configuration
+8. Run migrations and start all services
 9. Set up nightly database backups with off-site upload when configured
 10. Configure PostgreSQL WAL archiving when enabled
 
@@ -110,21 +111,23 @@ Caddy will automatically provision Let's Encrypt certificates on first request.
 
 ### Manual Deploy
 
-SSH to the VPS and run the deploy script:
+Run the canonical Ansible workflow from the trusted controller:
 
 ```bash
-# Deploy latest main to staging
-ssh root@STAGING_IP 'COMPOSE_FILE=docker-compose.staging.yml /opt/eurtisan/deploy.sh main'
-
-# Deploy a specific tag to production
-ssh root@PROD_IP '/opt/eurtisan/deploy.sh v1.2.3'
+make infra-setup-staging
+make infra-setup-production
 ```
+
+Ansible builds from a clean worktree at the exact checked-out release, transfers the
+compressed image through authenticated SSH, verifies its OCI revision label, and
+cleans temporary artifacts. The VPS `deploy.sh` only accepts a matching image that
+Ansible has already transferred and never compiles source on the target.
 
 ### Automated Deploy
 
-GitHub Actions is intentionally limited to validation. It does not run
-`deploy.sh`, connect to a VPS, or deploy to staging/production. Deployments
-remain manual through the SSH commands above.
+GitHub Actions remains validation-only. It does not access Vault, connect to a VPS,
+or deploy staging/production. This avoids introducing long-lived deployment or
+registry credentials into GitHub.
 
 ## Directory Structure
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Eurtisan deploy script
-# Run on the VPS to pull latest code, build, migrate, and restart.
+# Run on the VPS to deploy an immutable image already transferred by Ansible.
 # Usage: ./deploy.sh [--skip-smoke-test] [--canary] [git-ref]
 #   --skip-smoke-test — bypass post-deploy smoke tests (emergency manual use only)
 #   --canary — run a single canary container before full rollout
@@ -178,8 +178,18 @@ sed -i -E "s/^VITE_APP_VERSION=.*/VITE_APP_VERSION=${RELEASE_VERSION}/" "$APP_DI
 # Compose interpolation must succeed before any application container starts.
 docker compose -f "$COMPOSE_FILE" config >/dev/null
 
-echo "==> Building application image (tag: ${IMAGE_TAG})..."
-docker compose -f "$COMPOSE_FILE" build app
+echo "==> Verifying controller-built application image (tag: ${IMAGE_TAG})..."
+if ! docker image inspect "eurtisan-app:${IMAGE_TAG}" >/dev/null 2>&1; then
+  echo "==> IMAGE NOT FOUND: run the Ansible deployment to build and transfer ${IMAGE_TAG}"
+  exit 1
+fi
+IMAGE_RELEASE=$(docker image inspect \
+  --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' \
+  "eurtisan-app:${IMAGE_TAG}")
+if [ "$IMAGE_RELEASE" != "$RELEASE_VERSION" ]; then
+  echo "==> IMAGE VERIFICATION FAILED: release label does not match checked-out source"
+  exit 1
+fi
 
 echo "==> Validating compiled browser configuration..."
 docker run --rm --env-file "$APP_DIR/.env" "eurtisan-app:${IMAGE_TAG}" bun run smoke:client-config
