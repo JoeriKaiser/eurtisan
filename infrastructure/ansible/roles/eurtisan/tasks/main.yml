@@ -496,6 +496,12 @@
       environment:
         IMAGE_TAG: "{{ image_tag }}"
 
+    - name: Reload Traefik routing after the app rollout
+      file:
+        path: /data/coolify/proxy/dynamic/eurtisan-staging.yml
+        state: touch
+        access_time: preserve
+
 - name: Expose app port directly (optional, when app_access_ips is set)
   when:
     - coexist_with_proxy | default(false)
