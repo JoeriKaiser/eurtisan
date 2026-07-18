@@ -165,7 +165,10 @@ if [ "$health_ready" != "true" ]; then
 fi
 docker exec "$APP_CONTAINER" bun -e '
   const response = await fetch("http://127.0.0.1:3000/terms", {
-    headers: { "x-forwarded-proto": "https" },
+    headers: {
+      "accept-encoding": "gzip, deflate, br",
+      "x-forwarded-proto": "https",
+    },
   })
   if (!response.ok) throw new Error(`Production HTML route returned HTTP ${response.status}`)
   const requiredHeaders = [

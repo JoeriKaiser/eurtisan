@@ -255,6 +255,9 @@ const server = createServer(async (req, res) => {
 
     const requestHeaders = {}
     for (const [key, value] of Object.entries(req.headers)) {
+      // The internal fetch handler must return identity HTML so the final
+      // response boundary can normalize CSP nonces before transport encoding.
+      if (key.toLowerCase() === 'accept-encoding') continue
       if (value) {
         requestHeaders[key] = Array.isArray(value) ? value.join(', ') : value
       }
