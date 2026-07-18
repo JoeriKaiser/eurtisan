@@ -274,7 +274,7 @@
     IMAGE_TAG: "{{ image_tag }}"
 
 - name: Run database migrations
-  command: "{{ docker_compose }} run --rm app bun run db:migrate"
+  command: "{{ docker_compose }} run --rm --no-deps app bun run db:migrate"
   args:
     chdir: /opt/eurtisan
   environment:

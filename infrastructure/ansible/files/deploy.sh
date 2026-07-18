@@ -188,7 +188,7 @@ echo "==> Validating server environment contract..."
 docker compose -f "$COMPOSE_FILE" run --rm --no-deps app bun run validate:server-env
 
 echo "==> Running database migrations..."
-if docker compose -f "$COMPOSE_FILE" run --rm app bun run db:migrate; then
+if docker compose -f "$COMPOSE_FILE" run --rm --no-deps app bun run db:migrate; then
   echo "==> Migration succeeded"
 
   if [ "$CANARY" = true ]; then

@@ -10,13 +10,15 @@
 
 # ── Builder ──────────────────────────────────────────────────────────────
 # Pinned digest for oven/bun:1.3.13
-FROM oven/bun:1.3.13@sha256:87416c977a612a204eb54ab9f3927023c2a3c971f4f345a01da08ea6262ae30e AS builder
+FROM oven/bun:1.3.13@sha256:87416c977a612a204eb54ab9f3927023c2a3c971f4f345a01da08ea6262ae30e AS dependencies
 WORKDIR /app
 
-# Install dependencies first (cache layer)
+# Install dependencies first (cache layer).
 COPY package.json bun.lock ./
 RUN --mount=type=cache,target=/home/bun/.bun/install/cache \
     bun install --frozen-lockfile
+
+FROM dependencies AS builder
 
 # Browser-visible values are immutable build inputs. They are deliberately
 # separate from server runtime secrets and are not inherited by the final stage.
@@ -61,7 +63,11 @@ RUN EURTISAN_PUBLIC_ENV_ONLY=true \
     bun run build \
     && bun run bundle:check
 
-# Prune dev dependencies so the runtime stage only receives production packages
+# Build production dependencies independently from application source. Source or
+# public-version changes must not invalidate the large runtime node_modules layer.
+FROM oven/bun:1.3.13@sha256:87416c977a612a204eb54ab9f3927023c2a3c971f4f345a01da08ea6262ae30e AS production-dependencies
+WORKDIR /app
+COPY package.json bun.lock ./
 RUN --mount=type=cache,target=/home/bun/.bun/install/cache \
     bun install --production --frozen-lockfile
 
@@ -75,17 +81,18 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy built application from builder
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/drizzle.config.ts ./
-COPY --from=builder /app/drizzle ./drizzle
+# Set ownership while copying. A recursive chown of node_modules made host builds
+# I/O-bound for many minutes and invalidated otherwise reusable runtime layers.
+COPY --from=builder --chown=bun:bun /app/dist ./dist
+COPY --from=production-dependencies --chown=bun:bun /app/package.json ./
+COPY --from=production-dependencies --chown=bun:bun /app/node_modules ./node_modules
+COPY --from=builder --chown=bun:bun /app/drizzle.config.ts ./
+COPY --from=builder --chown=bun:bun /app/drizzle ./drizzle
 
 # Include source tree so server-side scripts (seed, jobs) can be run
 # with `bun run`. TypeScript only — no secrets live here.
-COPY --from=builder /app/src ./src
-COPY --from=builder /app/scripts ./scripts
+COPY --from=builder --chown=bun:bun /app/src ./src
+COPY --from=builder --chown=bun:bun /app/scripts ./scripts
 
 LABEL app=eurtisan
 
@@ -95,10 +102,9 @@ EXPOSE 3000
 # Copy the custom server entry that wraps the TanStack Start handler
 # with static file serving and an HTTP listener.
 # Must be placed in dist/server/ alongside server.js for correct path resolution.
-COPY server-entry.mjs ./dist/server/server-entry.mjs
+COPY --chown=bun:bun server-entry.mjs ./dist/server/server-entry.mjs
 
 # Run as non-root user for security. The oven/bun image provides UID 1000 (bun).
-RUN chown -R bun:bun /app
 USER bun
 
 CMD ["bun", "--import", "./dist/server/instrument.server.mjs", "./dist/server/server-entry.mjs"]
