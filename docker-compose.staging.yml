@@ -60,7 +60,7 @@ services:
       garage:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health/ready"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/api/health/ready | grep -q '\"status\":\"ok\"'"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -114,6 +114,7 @@ services:
       - meilisearch_data:/meili_data
     networks:
       - eurtisan
+      - coolify
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
       interval: 10s
@@ -136,6 +137,7 @@ services:
       - ./garage.staging.toml:/etc/garage.toml:ro
     networks:
       - eurtisan
+      - coolify
     healthcheck:
       test: ["CMD", "/garage", "status"]
       interval: 5s
@@ -165,6 +167,7 @@ services:
       IMGPROXY_MAX_ANIMATION_FRAMES: 1
     networks:
       - eurtisan
+      - coolify
     depends_on:
       garage:
         condition: service_healthy

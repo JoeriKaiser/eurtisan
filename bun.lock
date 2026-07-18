@@ -13,6 +13,7 @@
         "@grafana/faro-react": "^1.12.0",
         "@grafana/faro-web-sdk": "^1.12.0",
         "@grafana/faro-web-tracing": "^1.12.0",
+        "@inlang/paraglide-js": "^2.18.0",
         "@tailwindcss/vite": "^4.2.4",
         "@tanstack/react-form": "^1.29.1",
         "@tanstack/react-query": "^5.100.9",
@@ -38,7 +39,6 @@
       "devDependencies": {
         "@biomejs/biome": "^2.4.14",
         "@faker-js/faker": "^10.4.0",
-        "@inlang/paraglide-js": "^2.18.0",
         "@playwright/cli": "^0.1.14",
         "@playwright/test": "^1.52.0",
         "@tailwindcss/typography": "^0.5.19",

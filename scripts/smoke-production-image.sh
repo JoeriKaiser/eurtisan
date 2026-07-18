@@ -6,7 +6,11 @@ PUBLIC_ORIGIN="${PRODUCTION_SMOKE_ORIGIN:-https://build-smoke.eurtisan.test}"
 RELEASE_VERSION="${PRODUCTION_SMOKE_VERSION:-$(git rev-parse HEAD)}"
 SEARCH_VALUE="searchrestrictedbuildvalue000000000001"
 SERVER_ENV_FILE="$(mktemp)"
+APP_CONTAINER=""
 cleanup() {
+  if [ -n "$APP_CONTAINER" ]; then
+    docker rm -f "$APP_CONTAINER" >/dev/null 2>&1 || true
+  fi
   rm -f "$SERVER_ENV_FILE"
 }
 trap cleanup EXIT INT TERM
@@ -134,6 +138,28 @@ EOF
 
 docker run --rm --env-file "$SERVER_ENV_FILE" -e VALIDATE_ENV_ONLY=true "$IMAGE_NAME"
 docker run --rm --env-file "$SERVER_ENV_FILE" "$IMAGE_NAME" bun run validate:server-env
+
+APP_CONTAINER="$(docker run -d --env-file "$SERVER_ENV_FILE" "$IMAGE_NAME")"
+health_body=""
+health_ready=false
+for _attempt in $(seq 1 30); do
+  if health_body="$(
+    docker exec "$APP_CONTAINER" bun -e \
+      "const response = await fetch('http://127.0.0.1:3000/api/health/live'); if (!response.ok) process.exit(1); process.stdout.write(await response.text())" \
+      2>/dev/null
+  )" && [ "$health_body" = '{"status":"ok"}' ]; then
+    health_ready=true
+    break
+  fi
+  sleep 1
+done
+if [ "$health_ready" != "true" ]; then
+  echo "Production server did not return a valid liveness response: $health_body" >&2
+  docker logs "$APP_CONTAINER" >&2
+  exit 1
+fi
+docker rm -f "$APP_CONTAINER" >/dev/null
+APP_CONTAINER=""
 
 docker run --rm --env-file "$SERVER_ENV_FILE" -e VALIDATE_ENV_ONLY=true "$IMAGE_NAME" sh -c '
   set -eu

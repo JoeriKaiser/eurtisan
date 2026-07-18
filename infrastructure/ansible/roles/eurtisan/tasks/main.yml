@@ -196,6 +196,15 @@
       command: "docker compose -f /opt/eurtisan/observability/docker-compose.observability.yml --env-file /opt/eurtisan/.env up -d --force-recreate"
       args:
         chdir: /opt/eurtisan/observability
+
+    - name: Connect proxy-facing observability services to Coolify network
+      community.docker.docker_network:
+        name: coolify
+        connected:
+          - eurtisan-alloy
+          - eurtisan-grafana
+        appends: true
+      when: coexist_with_proxy | default(false)
   tags: [observability]
 
 - name: Start stateful dependencies first
