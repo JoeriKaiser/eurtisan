@@ -862,6 +862,8 @@ async function seedProducts(
       priceCents: def.priceCents,
       stockCount: def.stockCount,
       isActive: def.stockCount > 0,
+      status: 'published',
+      publishedAt: new Date(),
       shopId: shop.id,
       categoryId: category?.id,
     })
