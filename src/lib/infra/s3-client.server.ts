@@ -3,8 +3,8 @@
  *
  * Uses the AWS SDK v3 S3 client with a configurable endpoint,
  * allowing the same code to work with:
- * - Garage (local development)
- * - Scaleway Object Storage (staging/production)
+ * - Garage (local development and staging)
+ * - Scaleway Object Storage (production)
  *
  * Environment variables:
  * - S3_ENDPOINT: Full URL to the S3-compatible API

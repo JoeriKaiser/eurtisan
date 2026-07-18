@@ -53,6 +53,24 @@
     label: "{{ item }}"
   tags: [always, preflight]
 
+- name: Validate staging Garage secrets
+  ansible.builtin.assert:
+    that:
+      - garage_rpc_secret is match('^[A-Fa-f0-9]{64}$')
+      - garage_admin_token | string | trim | length >= 32
+      - s3_access_key_id is match('^GK[A-Fa-f0-9]{24}$')
+      - s3_secret_access_key is match('^[A-Fa-f0-9]{64}$')
+    fail_msg: "Garage RPC, admin, and S3 credentials must use the required formats"
+  when: garage_enabled | bool
+  tags: [always, preflight]
+
+- name: Validate environment storage ownership
+  ansible.builtin.assert:
+    that:
+      - (deployment_environment == 'staging' and (garage_enabled | bool) and s3_endpoint == 'http://garage:3900' and s3_public_endpoint == 'https://' ~ garage_public_domain and s3_region == 'garage') or (deployment_environment == 'production' and not (garage_enabled | bool) and s3_endpoint is match('^https://s3\\.[a-z0-9-]+\\.scw\\.cloud$') and s3_public_endpoint == s3_endpoint)
+    fail_msg: "Staging must use private Garage with its public S3 domain; production must use Scaleway S3"
+  tags: [always, preflight]
+
 - name: Validate optional Umami configuration when enabled
   ansible.builtin.assert:
     that:
@@ -88,8 +106,9 @@
 - name: Validate secret formats and separation
   ansible.builtin.assert:
     that:
+      # Canonical base64 for 32 bytes is exactly 43 base64 characters plus '='.
+      # Do not use Jinja's text-oriented b64decode filter for random binary data.
       - database_encryption_key is match('^[A-Za-z0-9+/]{43}=$')
-      - database_encryption_key | b64decode | length == 32
       - imgproxy_key is match('^[A-Fa-f0-9]{64,}$')
       - imgproxy_salt is match('^[A-Fa-f0-9]{64,}$')
       - meilisearch_search_key != meilisearch_api_key

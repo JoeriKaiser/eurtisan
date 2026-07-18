@@ -81,6 +81,10 @@ cd infrastructure/ansible
 ansible-playbook -i inventory/production.yml playbook.yml -e @secrets.yml
 ```
 
+The staging playbook also runs a private single-node Garage service, initializes its
+layout and bucket, and exposes only the authenticated S3 API through
+`s3-staging.eurtisan.eu`. Production continues to use Scaleway Object Storage.
+
 The playbook will:
 1. Harden the server (UFW, fail2ban, auto-updates)
 2. Install Docker + Docker Compose plugin
@@ -97,6 +101,7 @@ The playbook will:
 
 Set an A record for your domain/subdomain pointing to the VPS IP:
 - `staging.eurtisan.eu` → staging VPS IP
+- `s3-staging.eurtisan.eu` → staging VPS IP (Garage S3 API)
 - `eurtisan.eu` + `www.eurtisan.eu` → production VPS IP
 
 Caddy will automatically provision Let's Encrypt certificates on first request.

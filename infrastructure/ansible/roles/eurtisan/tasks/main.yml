@@ -49,6 +49,13 @@
     dest: /opt/eurtisan/.env
     mode: "0600"
 
+- name: Render staging Garage configuration
+  when: garage_enabled | bool
+  template:
+    src: garage.toml.j2
+    dest: /opt/eurtisan/garage.staging.toml
+    mode: "0600"
+
 - name: Write deploy script
   copy:
     src: deploy.sh
@@ -189,8 +196,8 @@
         chdir: /opt/eurtisan/observability
   tags: [observability]
 
-- name: Start database and meilisearch first
-  command: "{{ docker_compose }} up -d db meilisearch"
+- name: Start stateful dependencies first
+  command: "{{ docker_compose }} up -d db meilisearch{{ ' garage' if (garage_enabled | bool) else '' }}"
   args:
     chdir: /opt/eurtisan
 
@@ -203,6 +210,38 @@
   retries: 15
   delay: 2
 
+- name: Initialize staging Garage layout, bucket, and access key
+  when: garage_enabled | bool
+  ansible.builtin.shell: |
+    set -euo pipefail
+    garage() {
+      {{ docker_compose }} exec -T garage /garage "$@"
+    }
+
+    status="$(garage status)"
+    node_id="$(printf '%s\n' "$status" | awk '/^[a-f0-9]{16}/ { print $1; exit }')"
+    test -n "$node_id"
+
+    if printf '%s\n' "$status" | grep -q 'NO ROLE ASSIGNED'; then
+      current_version="$(garage layout show | awk '/Current cluster layout version:/ { print $NF; exit }')"
+      garage layout assign "$node_id" -z staging-eu -c 1TB >/dev/null
+      garage layout apply --version "$((current_version + 1))" >/dev/null
+    fi
+
+    if ! garage bucket list | grep -Fq '{{ s3_bucket }}'; then
+      garage bucket create '{{ s3_bucket }}' >/dev/null
+    fi
+
+    if ! garage key list | grep -Fq '{{ s3_access_key_id }}'; then
+      garage key import --yes -n staging-app '{{ s3_access_key_id }}' '{{ s3_secret_access_key }}' >/dev/null
+    fi
+
+    garage bucket allow '{{ s3_bucket }}' --key '{{ s3_access_key_id }}' --read --write --owner >/dev/null
+  args:
+    chdir: /opt/eurtisan
+    executable: /bin/bash
+  no_log: true
+
 - name: Build application image
   command: "{{ docker_compose }} build app"
   args:
@@ -211,6 +250,14 @@
     IMAGE_TAG: "{{ image_tag }}"
   async: 1800
   poll: 15
+
+- name: Configure staging Garage upload CORS
+  when: garage_enabled | bool
+  command: "{{ docker_compose }} run --rm --no-deps app bun run scripts/setup-garage-cors.ts"
+  args:
+    chdir: /opt/eurtisan
+  environment:
+    IMAGE_TAG: "{{ image_tag }}"
 
 - name: Smoke-test compiled browser configuration
   command: "docker run --rm --env-file /opt/eurtisan/.env eurtisan-app:{{ image_tag }} bun run smoke:client-config"
@@ -295,6 +342,24 @@
                 middlewares:
                   - eurtisan-staging-strip-meilisearch
 
+              # Garage exposes only its authenticated S3 API on a dedicated host.
+              # Browser uploads are authorized by short-lived presigned URLs.
+              eurtisan-staging-s3-http:
+                rule: "Host(`{{ garage_public_domain }}`)"
+                entrypoints:
+                  - http
+                middlewares:
+                  - eurtisan-staging-redirect
+                service: eurtisan-staging-garage
+
+              eurtisan-staging-s3:
+                rule: "Host(`{{ garage_public_domain }}`)"
+                entrypoints:
+                  - https
+                tls:
+                  certResolver: letsencrypt
+                service: eurtisan-staging-garage
+
               # Grafana UI — behind the same IP whitelist as the app.
               # Higher priority so it matches before the catch-all app route.
               # DO NOT strip /grafana — Grafana with serve_from_sub_path=true
@@ -372,6 +437,11 @@
                 loadBalancer:
                   servers:
                     - url: "http://eurtisan-imgproxy-staging:8080"
+
+              eurtisan-staging-garage:
+                loadBalancer:
+                  servers:
+                    - url: "http://eurtisan-garage-staging:3900"
 
               eurtisan-staging-meilisearch:
                 loadBalancer:

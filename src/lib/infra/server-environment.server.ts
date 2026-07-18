@@ -95,7 +95,7 @@ const serverEnvironmentSchema = z
   .superRefine((environment, context) => {
     const publicUrl = parseHttpsUrl('PUBLIC_URL', environment.PUBLIC_URL, context)
     const authUrl = parseHttpsUrl('BETTER_AUTH_URL', environment.BETTER_AUTH_URL, context)
-    const s3Endpoint = parseHttpsUrl('S3_ENDPOINT', environment.S3_ENDPOINT, context)
+    const s3Endpoint = parseStorageEndpoint(environment.APP_ENV, environment.S3_ENDPOINT, context)
     const s3PublicEndpoint = parseHttpsUrl(
       'S3_PUBLIC_ENDPOINT',
       environment.S3_PUBLIC_ENDPOINT,
@@ -144,7 +144,14 @@ const serverEnvironmentSchema = z
     if (environment.IMGPROXY_HEALTH_URL !== 'http://imgproxy:8080/health') {
       addIssue(context, 'IMGPROXY_HEALTH_URL', 'must use the private imgproxy health endpoint')
     }
-    if (s3Endpoint && s3PublicEndpoint && s3Endpoint.origin !== s3PublicEndpoint.origin) {
+    const usesPrivateStagingGarage =
+      environment.APP_ENV === 'staging' && s3Endpoint?.origin === 'http://garage:3900'
+    if (
+      s3Endpoint &&
+      s3PublicEndpoint &&
+      !usesPrivateStagingGarage &&
+      s3Endpoint.origin !== s3PublicEndpoint.origin
+    ) {
       addIssue(context, 'S3_PUBLIC_ENDPOINT', 'must match the configured S3 API origin')
     }
 
@@ -231,6 +238,17 @@ function addIssue(context: z.RefinementCtx, name: string, message: string): void
 
 function requireEnabled(context: z.RefinementCtx, value: string, name: string): void {
   if (value !== 'true') addIssue(context, name, 'is launch-required and must be explicitly true')
+}
+
+function parseStorageEndpoint(
+  appEnvironment: 'staging' | 'production',
+  value: string,
+  context: z.RefinementCtx,
+): URL | null {
+  if (appEnvironment === 'staging' && value === 'http://garage:3900') {
+    return new URL(value)
+  }
+  return parseHttpsUrl('S3_ENDPOINT', value, context)
 }
 
 function parseHttpsUrl(name: string, value: string, context: z.RefinementCtx): URL | null {

@@ -18,8 +18,10 @@ better_auth_secret: ci-validation-auth-secret-value-0001
 database_encryption_key: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
 meilisearch_api_key: ci-validation-meili-master-key
 meilisearch_search_key: ci-validation-meili-search-key
-s3_access_key_id: ci-validation-storage-access
-s3_secret_access_key: ci-validation-storage-secret
+s3_access_key_id: GKaaaaaaaaaaaaaaaaaaaaaaaa
+s3_secret_access_key: dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+garage_rpc_secret: eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+garage_admin_token: ci-validation-garage-admin-token-0001
 imgproxy_key: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 imgproxy_salt: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 mollie_api_key: $mollie_key

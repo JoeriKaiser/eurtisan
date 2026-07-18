@@ -57,6 +57,8 @@ services:
         condition: service_healthy
       imgproxy:
         condition: service_healthy
+      garage:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health/ready"]
       interval: 30s
@@ -124,6 +126,28 @@ services:
           cpus: '1.5'
           memory: 2g
 
+  garage:
+    image: dxflrs/garage:v2.3.0@sha256:866bd13ed2038ba7e7190e840482bc27234c4afaf77be8cfa439ae088c1e4690
+    container_name: eurtisan-garage-staging
+    restart: unless-stopped
+    volumes:
+      - garage_meta:/var/lib/garage/meta
+      - garage_data:/var/lib/garage/data
+      - ./garage.staging.toml:/etc/garage.toml:ro
+    networks:
+      - eurtisan
+    healthcheck:
+      test: ["CMD", "/garage", "status"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1g
+
   imgproxy:
     image: darthsim/imgproxy:v3@sha256:419f92ee3a3137ddc2552a92ae2f46a97e9b8c22e03f8a6efa0cb217d8db7f45
     container_name: eurtisan-imgproxy-staging
@@ -141,6 +165,9 @@ services:
       IMGPROXY_MAX_ANIMATION_FRAMES: 1
     networks:
       - eurtisan
+    depends_on:
+      garage:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
       interval: 15s
@@ -555,6 +582,8 @@ services:
 volumes:
   postgres_data:
   meilisearch_data:
+  garage_meta:
+  garage_data:
   mailpit_data:
 
 networks:

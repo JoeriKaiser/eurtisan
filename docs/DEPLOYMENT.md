@@ -235,6 +235,12 @@ Ansible will open port 3001 in UFW, restricted to your IP only, and rebind the a
 
 ### Staging Configuration
 
+**Object storage:** Staging runs a single-node Garage service in the staging Compose
+stack. Add an A record for `s3-staging.eurtisan.eu` pointing to the staging VPS before
+provisioning. Ansible initializes the Garage layout, imports the staging-only S3 key,
+creates `eurtisan-staging-uploads`, grants access, and configures browser-upload CORS.
+Scaleway S3 is reserved for production.
+
 **Emails:** Staging automatically routes emails through **Mailpit** (captured, not sent). View captured emails at `http://STAGING_IP:8025` via SSH tunnel:
 
 ```bash
@@ -462,7 +468,7 @@ Before sending live mail, complete SPF, DKIM, and DMARC per [docs/EMAIL_DNS.md](
 
 ## Object storage, image, and search routing
 
-Product and shop images use **S3-compatible storage** (Garage locally, Scaleway in production) with presigned uploads — see `.env.example` (`S3_*`, `IMGPROXY_*`). This allows horizontal scaling without shared local disk.
+Product and shop images use **S3-compatible storage** (Garage locally and on staging, Scaleway in production) with presigned uploads — see `.env.example` (`S3_*`, `IMGPROXY_*`). Staging exposes Garage's authenticated S3 API at `s3-staging.eurtisan.eu`; the Garage admin API remains private. This allows horizontal scaling without shared local disk.
 
 Shared environments expose imgproxy at the same-origin `/uploads` route and expose
 Meilisearch at `/meilisearch`. Caddy and the Ansible-managed staging Traefik route

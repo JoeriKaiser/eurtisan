@@ -9,6 +9,7 @@ postgres_db: eurtisan
 # ── Launch integration contract ─────────────────────────────────────────
 meilisearch_enabled: true
 s3_storage_enabled: true
+garage_enabled: false
 imgproxy_enabled: true
 mollie_payments_enabled: true
 mollie_connect_enabled: true
@@ -20,8 +21,8 @@ platform_vat_liable: true
 financial_totals_reconciliation_interval_ms: "21600000"
 financial_totals_reconciliation_batch_size: "500"
 
-# Existing infrastructure uses Scaleway S3-compatible object storage and
-# same-origin reverse-proxy routes for imgproxy and browser search.
+# Production uses Scaleway S3-compatible object storage. Staging overrides
+# these values with its private Garage service and dedicated public S3 domain.
 s3_endpoint: "https://s3.fr-par.scw.cloud"
 s3_public_endpoint: "https://s3.fr-par.scw.cloud"
 s3_region: "fr-par"

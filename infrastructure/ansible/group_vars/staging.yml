@@ -1,4 +1,9 @@
 deployment_environment: staging
+garage_enabled: true
+garage_public_domain: s3-staging.eurtisan.eu
+s3_endpoint: http://garage:3900
+s3_public_endpoint: https://s3-staging.eurtisan.eu
+s3_region: garage
 s3_bucket: eurtisan-staging-uploads
 mollie_test_mode: true
 sendcloud_force_unstamped_letter: true

@@ -3,6 +3,8 @@ import { s3Client, getS3Bucket } from '../src/lib/s3-client.server.ts'
 
 async function setupCors() {
   const bucketName = getS3Bucket()
+  const publicUrl = process.env.PUBLIC_URL ?? 'http://localhost:3000'
+  const allowedOrigin = new URL(publicUrl).origin
   console.log(`[garage-cors] Setting up CORS for bucket: ${bucketName}`)
 
   try {
@@ -13,7 +15,7 @@ async function setupCors() {
           {
             AllowedHeaders: ['*'],
             AllowedMethods: ['GET', 'PUT', 'POST', 'DELETE', 'HEAD'],
-            AllowedOrigins: ['*'],
+            AllowedOrigins: [allowedOrigin],
             ExposeHeaders: ['ETag'],
             MaxAgeSeconds: 3000,
           },
