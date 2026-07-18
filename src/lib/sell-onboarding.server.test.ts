@@ -2,9 +2,12 @@ import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '#/db/index'
 import { categories, product, productImage, shop, user } from '#/db/schema'
+import { clearTestTables } from '#/test/cleanup'
 import { SELLER_TERMS_VERSION } from './sell-onboarding'
 import {
   createShopDraftInternal,
+  deleteShopDraftInternal,
+  getOnboardingListingInternal,
   getOnboardingReadinessInternal,
   getShopDraftQuery,
   saveDraftListingInternal,
@@ -15,11 +18,7 @@ import {
 const CATEGORY_ID = '11111111-1111-4111-8111-111111111111'
 
 beforeEach(async () => {
-  await db.delete(productImage)
-  await db.delete(product)
-  await db.delete(categories)
-  await db.delete(shop)
-  await db.delete(user)
+  await clearTestTables()
 })
 
 async function seedUser(overrides?: Partial<typeof user.$inferInsert>) {
@@ -118,6 +117,41 @@ async function seedCompleteProduct() {
   return productId
 }
 
+async function seedForeignProduct() {
+  const foreignProductId = '33333333-3333-4333-8333-333333333333'
+  await seedUser({ id: 'user-2', email: 'other@example.com' })
+  await seedShop({
+    id: 'shop-2',
+    ownerId: 'user-2',
+    name: 'Other Atelier',
+    slug: 'other-atelier',
+  })
+  await db.insert(product).values({
+    id: foreignProductId,
+    name: 'Other seller product',
+    slug: 'other-seller-product',
+    description: 'A product that belongs exclusively to a different seller shop.',
+    priceCents: 2500,
+    stockCount: 2,
+    shopId: 'shop-2',
+    categoryId: CATEGORY_ID,
+    isActive: false,
+    status: 'draft',
+    vatRateCategory: 'standard',
+    weightGrams: 500,
+    lengthCm: 12,
+    widthCm: 12,
+    heightCm: 12,
+  })
+  await db.insert(productImage).values({
+    id: 'image-foreign',
+    productId: foreignProductId,
+    url: 'products/foreign.webp',
+    sortOrder: 0,
+  })
+  return foreignProductId
+}
+
 const acceptedTerms = {
   termsAgreed: true as const,
   termsVersion: SELLER_TERMS_VERSION,
@@ -208,6 +242,49 @@ describe('sell onboarding server', () => {
     const [record] = await db.select().from(shop).where(eq(shop.id, 'shop-1'))
     expect(record.onboardingListingId).toBe(created.id)
     expect(record.onboardingStep).toBe(4)
+  })
+
+  it('rejects attaching a product owned by another shop', async () => {
+    await seedUser()
+    await seedCategory()
+    await seedShop()
+    const foreignProductId = await seedForeignProduct()
+
+    await expect(
+      saveOnboardingStepInternal('user-1', 'customer', {
+        draftId: 'shop-1',
+        step: 3,
+        data: { productId: foreignProductId },
+      }),
+    ).rejects.toThrow('INVALID_ONBOARDING_LISTING')
+
+    const [record] = await db.select().from(shop).where(eq(shop.id, 'shop-1'))
+    expect(record.onboardingListingId).toBeNull()
+  })
+
+  it('does not return a foreign product from a corrupted onboarding reference', async () => {
+    await seedUser()
+    await seedCategory()
+    await seedShop()
+    const foreignProductId = await seedForeignProduct()
+    await db
+      .update(shop)
+      .set({ onboardingListingId: foreignProductId })
+      .where(eq(shop.id, 'shop-1'))
+
+    expect(await getOnboardingListingInternal('shop-1')).toBeNull()
+    const readiness = await getOnboardingReadinessInternal('shop-1')
+    expect(readiness.items.find((item) => item.id === 'product')?.complete).toBe(false)
+  })
+
+  it('allows a privileged admin to delete another seller draft', async () => {
+    await seedUser()
+    await seedShop()
+    await seedUser({ id: 'admin-1', email: 'admin@example.com', role: 'admin' })
+
+    await deleteShopDraftInternal('admin-1', 'admin', 'shop-1')
+
+    expect(await db.select().from(shop).where(eq(shop.id, 'shop-1'))).toHaveLength(0)
   })
 
   it('reports authoritative readiness and rejects incomplete submission', async () => {

@@ -583,8 +583,9 @@ export const deleteShopDraft = createServerFn({ method: 'POST' })
   .inputValidator(z.object({ shopId: z.string().min(1) }))
   .handler(async ({ context, data }) => {
     if (!context.user) throw new Error('UNAUTHENTICATED')
+    if (context.user.role === 'admin') requirePrivileged2FA(context.user as SafeUser)
     const { deleteShopDraftInternal } = await import('./sell-onboarding.server')
-    return deleteShopDraftInternal(context.user.id, data.shopId)
+    return deleteShopDraftInternal(context.user.id, context.user.role, data.shopId)
   })
 
 /**

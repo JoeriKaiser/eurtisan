@@ -253,7 +253,15 @@ export async function saveOnboardingStepInternal(
   if (d.policies !== undefined) updateData.policies = d.policies
   if (d.announcement !== undefined)
     updateData.announcement = d.announcement ? String(d.announcement) : null
-  if (d.productId !== undefined) updateData.onboardingListingId = String(d.productId)
+  if (d.productId !== undefined) {
+    const requestedProductId = String(d.productId)
+    const ownedListing = await db.query.product.findFirst({
+      columns: { id: true },
+      where: and(eq(product.id, requestedProductId), eq(product.shopId, payload.draftId)),
+    })
+    if (!ownedListing) throw new Error('INVALID_ONBOARDING_LISTING')
+    updateData.onboardingListingId = ownedListing.id
+  }
   if (d.termsAgreed === true && d.termsVersion) {
     updateData.sellerTermsAcceptedAt = new Date()
     updateData.sellerTermsVersion = String(d.termsVersion)
@@ -381,7 +389,9 @@ export async function getOnboardingListingInternal(shopId: string) {
   if (!record?.onboardingListingId) return null
 
   const [listing, images] = await Promise.all([
-    db.query.product.findFirst({ where: eq(product.id, record.onboardingListingId) }),
+    db.query.product.findFirst({
+      where: and(eq(product.id, record.onboardingListingId), eq(product.shopId, shopId)),
+    }),
     db
       .select({
         key: productImage.url,
@@ -389,6 +399,7 @@ export async function getOnboardingListingInternal(shopId: string) {
         sortOrder: productImage.sortOrder,
       })
       .from(productImage)
+      .innerJoin(product, and(eq(product.id, productImage.productId), eq(product.shopId, shopId)))
       .where(eq(productImage.productId, record.onboardingListingId))
       .orderBy(asc(productImage.sortOrder)),
   ])
@@ -471,8 +482,8 @@ export async function getOnboardingReadinessInternal(shopId: string) {
   }
 }
 
-export async function deleteShopDraftInternal(userId: string, shopId: string) {
-  const record = await verifyShopOwnershipOrAdmin(shopId, userId, 'customer')
+export async function deleteShopDraftInternal(userId: string, userRole: string, shopId: string) {
+  const record = await verifyShopOwnershipOrAdmin(shopId, userId, userRole)
   if (record.status !== 'draft' && record.status !== 'changes_requested') {
     throw new Error('FORBIDDEN')
   }
