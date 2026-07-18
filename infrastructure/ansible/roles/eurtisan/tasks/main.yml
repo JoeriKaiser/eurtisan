@@ -451,10 +451,37 @@
   environment:
     IMAGE_TAG: "{{ image_tag }}"
 
-- name: Start all services
-  command: "{{ docker_compose }} up -d"
+- name: Start application and runtime dependencies
+  command: "{{ docker_compose }} up -d{{ ' mailpit' if (coexist_with_proxy | default(false)) else '' }} imgproxy app"
   args:
     chdir: /opt/eurtisan
+  environment:
+    IMAGE_TAG: "{{ image_tag }}"
+
+- name: Wait for application readiness before starting background services
+  command: "{{ docker_compose }} up -d --wait app"
+  args:
+    chdir: /opt/eurtisan
+  environment:
+    IMAGE_TAG: "{{ image_tag }}"
+
+- name: Start background services without saturating the host
+  ansible.builtin.shell: |
+    set -euo pipefail
+    for service in \
+      inventory-cleanup session-cleanup cart-cleanup verification-cleanup \
+      meilisearch-sync audit-log-cleanup sendcloud-reconciliation \
+      mollie-payment-reconciliation payout-reconciliation \
+      payout-reconciliation-log-cleanup email-outbox-worker \
+      email-suppression-cleanup email-retention-cleanup \
+      financial-totals-reconciliation sendcloud-retention-cleanup
+    do
+      {{ docker_compose }} up -d --no-deps "$service"
+      sleep 2
+    done
+  args:
+    chdir: /opt/eurtisan
+    executable: /bin/bash
   environment:
     IMAGE_TAG: "{{ image_tag }}"
 
