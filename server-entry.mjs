@@ -153,6 +153,16 @@ function getBodyLimit(url) {
   return url.startsWith('/api/webhooks/') ? MAX_BODY_SIZE_WEBHOOKS : MAX_BODY_SIZE
 }
 
+function setResponseHeader(headers, name, value) {
+  const normalizedName = name.toLowerCase()
+  for (const existingName of Object.keys(headers)) {
+    if (existingName.toLowerCase() === normalizedName) {
+      delete headers[existingName]
+    }
+  }
+  headers[normalizedName] = value
+}
+
 // Create the HTTP server
 const server = createServer(async (req, res) => {
   const incomingRequestId = req.headers['x-request-id']
@@ -294,7 +304,11 @@ const server = createServer(async (req, res) => {
     let transformedHtml = null
     if (process.env.NODE_ENV === 'production' && contentType.includes('text/html')) {
       transformedHtml = injectScriptNonces(await response.text(), cspNonce)
-      responseHeaders['content-security-policy'] = buildCspHeader({ nonce: cspNonce })
+      setResponseHeader(
+        responseHeaders,
+        'content-security-policy',
+        buildCspHeader({ nonce: cspNonce }),
+      )
       delete responseHeaders['content-length']
     }
 
