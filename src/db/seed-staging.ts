@@ -13,7 +13,6 @@
  */
 
 import { randomBytes, scryptSync } from 'node:crypto'
-import { faker } from '@faker-js/faker'
 import { eq } from 'drizzle-orm'
 import { pool } from '../db.ts'
 import { db } from './index.ts'
@@ -35,8 +34,24 @@ function nextStagingOrderNumber(): string {
 // 1. Configuration
 // ═══════════════════════════════════════════════════════════════════════════
 
-/** Fixed seed ensures deterministic data across runs. */
-faker.seed(42)
+/** Fixed-state pseudo-random generator keeps curated staging data deterministic. */
+let randomState = 42
+function random(): number {
+  randomState = (randomState + 0x6d2b79f5) | 0
+  let value = randomState
+  value = Math.imul(value ^ (value >>> 15), value | 1)
+  value ^= value + Math.imul(value ^ (value >>> 7), value | 61)
+  return ((value ^ (value >>> 14)) >>> 0) / 4_294_967_296
+}
+
+function randomInteger(min: number, max: number): number {
+  return Math.floor(random() * (max - min + 1)) + min
+}
+
+function randomAlphanumeric(length: number): string {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+  return Array.from({ length }, () => alphabet[randomInteger(0, alphabet.length - 1)]).join('')
+}
 
 /** Generate a unique scrypt password hash compatible with Better Auth. */
 function hashPassword(password: string): string {
@@ -104,7 +119,7 @@ async function runWithConcurrency<T, R>(
 }
 
 function pick<T>(arr: T[]): T {
-  return faker.helpers.arrayElement(arr)
+  return arr[randomInteger(0, arr.length - 1)]
 }
 
 const COUNTRY_CODES = [
@@ -160,22 +175,24 @@ const REVIEW_COMMENTS = [
   'Fantastic service and an exceptional product.',
 ]
 
+const STAGING_CITIES = ['Amsterdam', 'Antwerp', 'Berlin', 'Lille', 'Lisbon', 'Milan', 'Prague']
+let addressCounter = 0
 function makeAddress(): Record<string, unknown> {
+  addressCounter += 1
   return {
-    name: faker.person.fullName(),
-    line1: faker.location.streetAddress({ useFullAddress: true }),
-    line2:
-      faker.helpers.maybe(() => faker.location.secondaryAddress(), { probability: 0.3 }) ??
-      undefined,
-    city: faker.location.city(),
-    postalCode: faker.location.zipCode(),
+    name: `Staging Customer ${String(addressCounter).padStart(3, '0')}`,
+    line1: `${randomInteger(1, 240)} Artisan Street`,
+    line2: random() < 0.3 ? `Studio ${randomInteger(1, 20)}` : undefined,
+    city: pick(STAGING_CITIES),
+    postalCode: String(randomInteger(10_000, 99_999)),
     country: pick(COUNTRY_CODES),
   }
 }
 
 /** Safe date relative to now (always in the past, minimum 1 day). */
 function daysAgo(days: number): Date {
-  return faker.date.recent({ days: Math.max(days, 1) })
+  const elapsedDays = 1 + random() * Math.max(days - 1, 0)
+  return new Date(Date.now() - elapsedDays * 24 * 60 * 60 * 1000)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -977,7 +994,7 @@ async function seedOrders(
     const shopStatus = scenario.status
 
     // Pick 1-3 random products
-    const itemCount = faker.number.int({ min: 1, max: Math.min(3, shopProds.length) })
+    const itemCount = randomInteger(1, Math.min(3, shopProds.length))
     const usedProds = new Set<string>()
     const items: Array<{ product: typeof schema.product.$inferSelect; qty: number }> = []
 
@@ -985,7 +1002,7 @@ async function seedOrders(
       const p = pick(shopProds)
       if (usedProds.has(p.id)) continue
       usedProds.add(p.id)
-      items.push({ product: p, qty: faker.number.int({ min: 1, max: 3 }) })
+      items.push({ product: p, qty: randomInteger(1, 3) })
     }
 
     const subtotalCents = items.reduce((sum, it) => {
@@ -1021,10 +1038,10 @@ async function seedOrders(
       subtotalCents,
       status: shopStatus,
       trackingNumber: TRACKING_STATUSES.has(shopStatus)
-        ? `TRK${faker.string.alphanumeric(10).toUpperCase()}`
+        ? `TRK${randomAlphanumeric(10)}`
         : undefined,
       trackingUrl: TRACKING_STATUSES.has(shopStatus)
-        ? `https://sendcloud.com/tracking?tracking_number=${faker.string.alphanumeric(12).toUpperCase()}`
+        ? `https://sendcloud.com/tracking?tracking_number=${randomAlphanumeric(12)}`
         : undefined,
       deliveredAt: DELIVERED_STATUSES_2.has(shopStatus) ? daysAgo(scenario.daysAgo - 2) : undefined,
       createdAt: orderDate,
@@ -1053,7 +1070,7 @@ async function seedOrders(
           shopOrderId,
           productId: it.product.id,
           buyerUserId: customer.id,
-          rating: faker.number.int({ min: 3, max: 5 }),
+          rating: randomInteger(3, 5),
           comment: pick(REVIEW_COMMENTS),
           createdAt: orderDate,
         })
