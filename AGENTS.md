@@ -1,1258 +1,232 @@
-# Project Context — Eurtisan
+# Eurtisan agent guide
 
-> Durable reference for AI agents and contributors working on this full-stack marketplace application.
->
-> Purpose: A European-centered online marketplace where creatives, artisans, and makers sell custom merchandise.
->
-> Quality Constraint: Production-grade by default. No shortcuts. If an implementation is incomplete or deviates from best practices, it must be improved before it is considered done.
+Eurtisan is a production-grade marketplace for European creatives, artisans, and makers. It is GDPR-conscious, EUR-first, localization-ready, and deployed in European regions where practical.
 
----
+This file contains rules that should influence agent decisions. Detailed inventories and procedures live in the canonical references below; read the relevant document before changing that subsystem rather than relying on duplicated summaries.
 
 <!-- intent-skills:start -->
-## Skill Loading
+## Skill loading
 
 Before substantial work:
 
-- Run:
-  ```bash
-  npx @tanstack/intent@latest list
-  ```
-
-- If a local skill clearly matches the task, load it:
-  ```bash
-  npx @tanstack/intent@latest load <package>#<skill>
-  ```
-
-- Follow all instructions defined in the returned `SKILL.md`.
-- In monorepos, run skill checks from the workspace root.
-- Prefer the most specific skill relevant to the package or concern being modified.
-- Load multiple skills only if the task spans multiple domains.
+1. Run `npx @tanstack/intent@latest list` from the workspace root.
+2. If a local skill clearly matches the task, load it with `npx @tanstack/intent@latest load <package>#<skill>`.
+3. Follow the returned `SKILL.md`. Prefer the most specific skill and load multiple skills only for genuinely cross-domain work.
 
 <!-- intent-skills:end -->
 
----
+## Canonical references
 
-# Project Identity
+| Concern | Source of truth |
+| --- | --- |
+| Stack, setup, project overview, common commands | [`README.md`](README.md) |
+| Code placement, runtime boundaries, generated files | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
+| Design system and visual rules | [`DESIGN.md`](DESIGN.md) |
+| Environment variable names and local defaults | [`.env.example`](.env.example) |
+| Build/runtime configuration and secret ownership | [`docs/runbooks/environment-configuration.md`](docs/runbooks/environment-configuration.md) |
+| Deployment and infrastructure | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) and [`infrastructure/README.md`](infrastructure/README.md) |
+| Operational procedures | [`docs/runbooks/README.md`](docs/runbooks/README.md) |
+| Data retention and deletion exceptions | [`docs/DATA_RETENTION.md`](docs/DATA_RETENTION.md) |
+| Company profile and French tax rules | `BUSINESS.md` (local, intentionally untracked) |
+| Agent/browser/integration tooling | [`docs/DEVELOPER_TOOLING.md`](docs/DEVELOPER_TOOLING.md) |
+| Available workflows | [`Makefile`](Makefile) |
 
-Eurtisan is a full-stack marketplace built for Europe.
+If documentation and implementation disagree, inspect the implementation and correct the relevant canonical document as part of the change.
 
-## Product Focus
+## Decision order
 
-- Audience: European creatives, artisans, and makers.
-- Primary use case: Selling custom merchandise and artisan goods.
-- Region-first architecture:
-  - GDPR-conscious
-  - Euro-first pricing
-  - Localization-ready
-  - European data residency
-- Development stage: Early-stage product, but all code should be written to production standards.
-
----
-
-# Agent Behavioral Contract
-
-When modifying this project, agents must:
-
-- Prefer existing architectural patterns over introducing new abstractions.
-- Keep changes minimal, cohesive, and task-focused.
-- Avoid speculative architecture or premature optimization unless explicitly requested.
-- Preserve backward compatibility unless behavior changes are intentional.
-- Avoid rewriting unrelated code during focused tasks.
-- Favor readability and explicitness over cleverness.
-- Reuse existing utilities and infrastructure before introducing new solutions.
-- Leave the codebase in a better state than it was found.
-
-Agents must verify:
-
-- Relevant and impacted tests pass (either by running targeted test files or checking for regression on related modules).
-- Formatting and linting pass.
-- TypeScript passes without ignored errors.
-- Accessibility implications are considered.
-- Security implications are considered.
-- Performance implications are considered.
-- Server/client boundaries remain correct.
-
-If requirements are ambiguous or risky, request clarification instead of making assumptions.
-
----
-
-# Decision Hierarchy
-
-When tradeoffs exist, prioritize in this order:
+When requirements conflict, prioritize:
 
 1. Security
-2. Correctness
-3. Data integrity
-4. Accessibility
-5. Reliability
-6. Performance
-7. Maintainability
-8. Developer experience
-9. Convenience
+2. Correctness and data integrity
+3. Accessibility
+4. Reliability
+5. Performance
+6. Maintainability
+7. Developer experience
+8. Convenience
 
----
+Ask for clarification before proceeding when requirements are ambiguous or when a change affects authentication/authorization semantics, may cause data loss, significantly changes dependencies or infrastructure, requires broad refactoring, or conflicts with this guide.
 
-# Change Scope Discipline
+## Working agreement
 
-Agents must keep diffs tightly scoped to the requested task.
+- Inspect `git status` first and preserve user changes. Do not rewrite or remove unrelated work.
+- Before modifying a subsystem, inspect adjacent modules, shared abstractions, schemas/types, related routes/components, and existing tests. Find and follow a similar implementation where possible.
+- Keep diffs minimal, cohesive, and task-focused. Avoid drive-by refactors, broad renames, speculative abstractions, and unrelated formatting.
+- Preserve public contracts and backward compatibility unless a behavior change is intentional and documented.
+- Prefer readable, explicit code and existing utilities over cleverness or new abstractions. If introducing a pattern, explain why existing patterns are insufficient.
+- Verify library APIs against the installed version; do not invent or assume framework behavior.
+- Do not hide blockers or incomplete behavior. If safe completion is impossible, leave the repository in a correct state and explain the blocker.
+- Mention meaningful out-of-scope findings separately; fix them only when they block security, correctness, maintainability, performance, or safe completion.
 
-Avoid:
-
-- Drive-by refactors
-- Broad renaming
-- Unrelated formatting changes
-- Moving files without justification
-- Introducing architectural patterns not required by the task
-
-If unrelated issues are discovered:
-
-- Mention them separately
-- Optionally recommend follow-up work
-- Do not fix them unless they block:
-  - correctness
-  - security
-  - maintainability
-  - performance
-
----
-
-# Existing Pattern Discovery
-
-Before implementing new functionality, agents must:
-
-1. Identify similar existing implementations.
-2. Reuse established patterns where practical.
-3. Match surrounding naming, structure, and conventions.
-4. Prefer consistency over novelty.
-
-Before modifying a subsystem, agents must inspect:
-- adjacent modules
-- shared abstractions
-- existing tests
-- related routes/components
-- relevant schemas/types
-
-When introducing a new pattern or abstraction, agents must justify:
-
-- Why existing patterns are insufficient
-- Why the new abstraction improves maintainability, correctness, or reliability
-
----
-
-# Accuracy Requirements
-
-Agents must not:
-
-- Fabricate APIs
-- Invent library behavior
-- Assume undocumented framework capabilities
-- Reference nonexistent files or modules
-
-When uncertain:
-
-- Inspect the codebase
-- Verify assumptions
-- Request clarification
-
----
-
-# Dependency Verification
-
-Before using a library feature or API:
-
-- Verify it exists in the installed version.
-- Match current project conventions.
-- Avoid relying on outdated examples or documentation.
-
----
-
-# Hard Quality Constraints
-
-These rules are non-negotiable.
-
-- No temporary hacks intended to be fixed later.
-- No skipped validation on external input.
-- No plaintext secrets in source code.
-- No ignored TypeScript errors without explicit justification.
-- No silent failures.
-- No useEffect
-- No inaccessible UI for core functionality.
-- No unreviewable database schema changes.
-- No production-sensitive logic without tests.
-- No architectural drift from documented patterns.
-- Do not claim work is done if `make lint` or `make format` return errors or warnings.
-- Do not claim work is done if `make check` returns an error or warning.
-- Do not claim work is done if relevant/impacted tests (run via targeted file paths, e.g. `make test src/lib/pricing.test.ts`, or related tests, e.g. via `make test-related src/lib/pricing.ts`) return failures. Note that running the full test suite with `make test` is recommended before opening a pull request or when making broad changes, but not required for every individual task.
-
-Improve adjacent low-quality implementations only when they directly impact:
-
-- Correctness
-- Security
-- Maintainability
-- Performance
-- Ability to complete the requested task safely
-
----
-
-# Explicitly Prohibited
+## Non-negotiable engineering rules
 
 Do not:
 
-- Introduce `any` types without justification.
-- Disable lint/type rules globally.
-- Commit dead code or commented-out code.
-- Leave placeholder TODOs as substitutes for implementation.
-- Store secrets in source files, tests, fixtures, logs, or examples.
-- Introduce duplicate business logic.
-- Add dependencies with overlapping responsibilities.
-- Bypass schema validation on mutations or APIs.
-- Use client-side data fetching where server rendering/server functions are more appropriate.
-- Introduce global mutable state without strong justification.
-- Use `db:push` in shared, persistent, staging, or production environments.
-- Refactor unrelated systems during focused feature work.
-- Silence errors instead of handling them correctly.
+- add temporary production hacks, fake production behavior, placeholder TODO implementations, dead code, or commented-out alternatives;
+- introduce `any` or suppress TypeScript/lint errors without a narrow, documented justification;
+- disable validation, authorization, lint, or type rules globally;
+- swallow errors or claim functionality works when critical logic is incomplete;
+- duplicate business logic or add overlapping dependencies;
+- introduce global mutable state without strong justification;
+- hardcode secrets, tokens, credentials, or sensitive production data in source, tests, fixtures, examples, or logs;
+- hand-edit generated files (`src/routeTree.gen.ts`, `src/paraglide/`, build output);
+- use React `useEffect`; use the lifecycle patterns documented in `docs/ARCHITECTURE.md`;
+- ship inaccessible core functionality or production-sensitive logic without appropriate tests.
 
----
+Production paths must use real implementations. Test doubles are allowed only in explicit test/dev boundaries and must never activate accidentally in production.
 
-# Implementation Authenticity
+## Docker-first workflow and verification
 
-Do not:
+Docker Compose is the source of truth. Run project workflows through `make` from the host; those targets execute Node, Bun, PostgreSQL, and project tooling in containers. Do not run project tooling directly on the host unless a canonical document explicitly requires it.
 
-- Simulate production behavior with fake implementations.
-- Hardcode temporary mock data in production paths.
-- Claim features work when critical logic is incomplete.
-- Leave partial implementations hidden behind optimistic comments.
+For code changes, completion requires:
 
-If implementation cannot be completed safely:
+- `make lint` with no errors or warnings;
+- `make format` with no formatting failures;
+- `make check` with no TypeScript errors;
+- focused tests via `make test <paths>` or impacted tests via `make test-related <paths>`;
+- the full `make test` suite for broad or architectural changes.
 
-- Explain the blocker explicitly.
-- Leave the system in a correct and honest state.
+Run additional relevant gates (accessibility, bundle, production image, Compose, infrastructure, migrations, E2E) when the affected subsystem requires them. For documentation-only changes, verify links and consistency; do not run unrelated code gates solely for ceremony.
 
----
+Never report a gate as passing unless it was run successfully. State any skipped check and the reason.
 
-# Definition of Done
+## Architecture and placement
 
-A task is only considered complete when:
+Follow [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). Core ownership rules:
 
-- The implementation works end-to-end.
-- Relevant tests exist and pass.
-- `make lint` and `make format` run without errors or warnings.
-- `make check` runs without errors or warnings.
-- TypeScript passes cleanly.
-- Relevant and impacted tests pass (using targeted test execution or related test runs). The full suite via `make test` is run if changes are wide-ranging or architectural.
-- Accessibility concerns are addressed.
-- Loading, empty, and error states are handled.
-- Security implications are reviewed.
-- Performance implications are reviewed.
-- Database changes include migrations.
-- Documentation is updated if behavior changes.
-- New environment variables are documented.
-- New dependencies are justified.
-- Changes align with the architectural rules in this document.
+- `src/routes/`: thin TanStack route declarations, loaders, metadata, guards, search validation, and API/server handlers.
+- `src/route-components/`: route-owned page UI, pending/error states, and page-specific components mirroring route paths.
+- `src/components/`: reusable UI; `src/components/ui/`: small design-system primitives.
+- `src/hooks/`: reusable browser hooks only.
+- `src/lib/`: domain rules, validation, authorization, server-function contracts, and cohesive shared logic.
+- `src/integrations/`: external-provider clients and adapters.
+- `src/jobs/`: cleanup, worker, synchronization, and reconciliation entrypoints; production-critical jobs must remain represented in deployment configuration.
+- `src/db/` and `src/db.ts`: schema, migrations support, and database access.
+- `src/test/`: shared factories, scenarios, cleanup, and test helpers.
 
----
+Keep business logic out of UI and route orchestration. Keep provider details behind adapters. Avoid generic dumping grounds such as `helpers.ts`, `utils.ts`, or `misc.ts`; name modules by responsibility.
 
-# When to Ask for Clarification
+Existing page code in `src/components/`, `src/components/routes/`, and some route files is transitional. Do not mass-move it for consistency; migrate touched features only when useful. Do not add new route pages to `src/components/routes/` unless intentionally shared or part of an explicit migration.
 
-Agents should request clarification when:
+For migrated `src/lib/<domain>/` families:
 
-- Requirements are ambiguous.
-- Multiple architectural directions are equally valid.
-- A schema migration may cause data loss.
-- A change impacts authentication or authorization semantics.
-- A change impacts infrastructure or deployment behavior.
-- A dependency addition significantly alters the stack.
-- A task requires broad refactoring outside the requested scope.
-- A requested implementation conflicts with this document.
+- keep established root imports as compatibility contracts;
+- browser-importable `createServerFn` modules own Zod input validation and RPC authorization;
+- keep persistence/provider orchestration in `*.server.ts` modules;
+- colocate browser-safe schemas, types, pure rules, and focused tests;
+- never import server-only modules from browser code.
 
----
+Naming: components use PascalCase, hooks use a `use` prefix, server functions use action-oriented names, database tables/columns use snake_case, and tests are preferably colocated.
 
-# Docker-First Development
+## Server/client and data boundaries
 
-All commands run inside the Docker Compose environment.
+- Treat all browser and provider input as untrusted. Validate external input at the server boundary with Zod.
+- Never import `*.server.*`, database clients, secrets, Node-only APIs, or modules marked `@tanstack/react-start/server-only` into browser code.
+- Never expose secrets through serialized props, API responses, or `VITE_*` variables.
+- Use server functions for authenticated mutations. Keep browser-importable contracts separate from server-only implementation.
+- Prefer SSR/route loaders for initial data and TanStack Query for remote synchronization. Use stable query keys and explicit invalidation after mutations.
+- Avoid duplicate fetch layers, redundant post-hydration requests, and client state for server-owned data.
+- Use event handlers for user-action consequences, `useSyncExternalStore` for browser stores, and React 19 callback refs with returned cleanup for DOM/external registrations.
+- Keep serialized boundaries explicit and payloads minimal.
 
-The host machine only requires Docker.
+## Security and privacy
 
-Node.js, Bun, PostgreSQL, and tooling must remain containerized to ensure reproducible development and eliminate environment drift.
+Authorization is server-enforced and deny-by-default. Every protected resource operation must verify:
 
-Every workflow is exposed through `make` targets.
+- authenticated identity and active account state;
+- ownership or explicit permissions;
+- applicable shop/organization relationship;
+- privileged-role (`creator`, `admin`) 2FA on both routes and server functions.
 
-Do not run tooling directly on the host machine unless explicitly documented.
+Reject deleted or banned accounts in sessions and server functions. Never trust client-provided ownership or role identifiers. Use parameterized Drizzle queries, least privilege, and safe rendering/sanitization for user content. Return user-safe errors while preserving actionable, non-sensitive server context.
 
-# Additional Developer Experience (DX) & Agent Tooling
+Never log passwords, tokens, secrets, or PII. Follow [`docs/DATA_RETENTION.md`](docs/DATA_RETENTION.md) for deletion/anonymization and legal-retention exceptions.
 
-For helper targets to accelerate test validation and integration debugging (such as programmatic email testing, local search engine inspection, and database schema visualization), see [DEVELOPER_TOOLING.md](file:///home/joeri/Projects/Eurtisan/docs/DEVELOPER_TOOLING.md).
+Browser-visible `VITE_*` values are immutable build inputs validated by `src/lib/infra/public-environment.ts`; unknown names are rejected and changes require an image rebuild. Server-only values are runtime inputs validated by `src/lib/infra/server-environment.server.ts`. Document environment changes in `.env.example` and the environment runbook.
 
+## European marketplace constraints
 
+- EUR is the default currency. Keep pricing and VAT rules isolated and testable; do not duplicate financial calculations.
+- Eurtisan is established in France. Base fee, VAT, B2B/B2C, reverse-charge, and legal-disclosure behavior on `BUSINESS.md` and focused domain rules.
+- Minimize collected personal data and keep production infrastructure in European regions where practical.
+- User-facing strings must use the established Paraglide localization system. After changing `messages/`, run `make i18n-compile`; never edit generated locale modules.
 
----
+## UI and accessibility
 
-# Service Topology
+Follow existing primitives and [`DESIGN.md`](DESIGN.md); do not introduce a one-off visual language. Brand surfaces may be expressive, while product workflows should remain restrained and task-focused.
 
-| Service | Container | Role |
-|---|---|---|
-| `app` | `eurtisan-app` | TanStack Start application + Bun toolchain |
-| `db` | `eurtisan-postgres` | PostgreSQL 16 |
+For every affected flow:
 
-Both services share the `eurtisan` bridge network.
+- use semantic HTML before ARIA;
+- ensure keyboard access, visible focus, sufficient contrast, labels, and associated validation messages;
+- use accessible primitives for dialogs, menus, and other composite controls, including focus management;
+- handle loading, empty, success, and error states intentionally and without cumulative layout shift;
+- preserve responsive behavior and avoid unnecessary animation; respect reduced-motion preferences;
+- keep core form and action layouts visually stable as feedback changes.
 
-Database hostname inside containers:
+Do not add decorative complexity as a substitute for complete interaction behavior.
 
-```txt
-db:5432
-```
+## Errors, observability, and performance
 
----
+- Fail explicitly and predictably. Do not silently recover from data-integrity or security failures.
+- Give users safe, useful messages and emit structured, actionable server logs for critical failures without sensitive data.
+- Integrate new critical flows with existing observability where useful; avoid noisy or duplicate telemetry.
+- Treat bundle size, hydration, query count, re-renders, and network round trips as budgets.
+- Prefer SSR and minimal client state, lazy-load genuinely heavy optional features, and optimize measured query problems before adding caching or complexity.
+- Prefer platform capabilities and existing dependencies. Before adding a dependency, verify maintenance, installed-version compatibility, bundle/runtime cost, and lack of overlap; document the justification.
 
-# Chosen Stack & Integrations
+## Testing
 
-| Concern | Library / Service | Notes |
-|---|---|---|
-| Framework | TanStack Start | SSR, streaming, server functions |
-| Routing | TanStack Router | File-based, type-safe routing |
-| State / Cache | TanStack Query | Remote state and SSR hydration |
-| Forms | TanStack Form | Form state + validation |
-| Validation | Zod | Runtime-safe schemas |
-| Auth | Better Auth | Mounted at `/api/auth/$` |
-| Database | PostgreSQL 16 | Primary relational database |
-| ORM | Drizzle ORM | Typed SQL access |
-| Migrations | Drizzle Kit | Migration generation and execution |
-| Monitoring | Grafana Stack (self-hosted) | Loki (logs), Tempo (traces), Prometheus (metrics), Grafana (UI) |
-| Shipping | Sendcloud | Labels, rates, tracking, and service points via Sendcloud API v2; webhook endpoint at `/api/webhooks/sendcloud` |
-| Styling | Tailwind CSS v4 | Utility-first styling |
-| Toolchain | Bun | Runtime/package manager |
-| Lint / Format | Biome | Formatting + linting |
-| Testing | Vitest + Testing Library | Unit and component testing |
-| Browser Automation (Agents) | Playwright Agent CLI | `@playwright/cli` run inside the container for token-efficient agent interactions |
+Add tests at the lowest level that proves the behavior:
 
----
+- unit tests for domain rules, validation, pricing, and utilities;
+- Testing Library component tests for interaction and accessibility-sensitive UI;
+- integration tests for authentication, authorization, payments/checkout, permissions, and database-sensitive flows;
+- E2E tests for critical user journeys when unit/integration coverage cannot prove the complete contract.
 
-# European / Marketplace Constraints
+Tests must be deterministic and must not call external networks; mock providers explicitly and avoid snapshot-heavy coverage.
 
-## GDPR Readiness
+The Vitest gate classifies runtime database dependencies. DB-backed unit files remain serial; pure unit and browser files run in bounded parallel workers. Browser tests and their browser-runtime dependency graphs must remain database-free; keep database-sensitive coverage in `*.test.ts` files.
 
-- Collect only necessary data.
-- Plan for deletion/export workflows.
-- Avoid retaining unnecessary personally identifiable information.
-- Treat privacy as a core architectural concern.
-- Account deletion must anonymize or redact PII across all retained records (user, shop, invoices, payouts, orders, disputes, reviews, audit logs). See `docs/DATA_RETENTION.md` for the exact retention exceptions and why they remain.
+Playwright E2E is a local/release gate, not a GitHub Actions gate. Use the documented Compose E2E overlay for individual specs. Better Auth rate-limits repeated auth setup, so reuse generated auth state when possible.
 
-## Currency
+## Database and migrations
 
-- EUR is the default currency.
-- Pricing logic must remain isolated and testable.
-- Future VAT/tax systems must be injectable.
+Use Drizzle for typed database access. Shared, staging, review, and production environments must use committed migrations; `make db-push` is only for disposable local prototyping.
 
-## Localization
+For schema changes:
 
-- UI strings must be localization-ready.
-- Avoid deeply embedded hardcoded user-facing strings.
-- New UI systems must support future i18n integration.
+1. Generate with `make db-generate`.
+2. Review the SQL and metadata; include required data migration/backfill logic.
+3. Prefer backward-compatible, low-lock changes and consider rollback/partial-application behavior.
+4. Obtain explicit approval before destructive or potentially data-losing changes.
+5. Run `make db-check`, `make db-migrate-fresh`, and relevant database tests.
 
-## Data Residency
+Never delete or rename a migration that may have reached a shared environment. Do not re-baseline the incremental chain casually; existing migrations contain required data fixes.
 
-- Production infrastructure must remain in European regions whenever possible.
+Staging seed data is idempotent, additive, deterministic, and curated. Local development seeding is destructive/random and requires explicit force flags; use only the appropriate documented target.
 
-## Business Location & Entity Rules
+## Non-obvious project gotchas
 
-- Eurtisan is established in France (FR). All platform fee calculations, domestic/cross-border B2B/B2C rules, and legal disclosures are based on French tax regulations.
-- A detailed company profile, tax residency status, and VAT/Reverse Charge rules are documented in the ignored [BUSINESS.md](file:///home/joeri/Projects/Eurtisan/BUSINESS.md) file in the project root.
+- TanStack Router reserves `__root.tsx` for the application root. Nested layouts use `route.tsx`; verify generated parent relationships after creating or renaming layouts.
+- Loader arguments must satisfy the same Zod bounds as external callers; hardcoded oversized values fail at runtime.
+- To refresh a server-only query from browser code, expose a browser-safe `createServerFn` contract rather than importing its implementation.
+- `instrument.server.mjs` must stay directly importable by Node at startup; do not add TypeScript syntax or incompatible imports.
+- Grafana Faro uses `sessionStorage`, not cookies; its beacon mechanism does not itself require analytics-cookie consent.
+- The observability stack in `infra/observability/` deploys separately and persists across application deployments.
+- Privileged tests may need 2FA-enabled users because server functions enforce 2FA independently of route guards.
+- Deleted users are deactivated; tests reusing deleted records should expect unauthenticated/banned behavior.
+- `make e2e` does not forward arbitrary Playwright flags. Follow `docs/DEVELOPER_TOOLING.md` and use both Compose files when invoking individual E2E specs directly.
 
----
+## Documentation maintenance
 
-# File & Naming Conventions
+Update behavior documentation when behavior changes. In particular:
 
-## File Organization
+- directory ownership, route/UI placement, generated sources, or server/client boundaries: update `docs/ARCHITECTURE.md`, the README project tree, and this guide;
+- environment variables: update `.env.example` and the environment runbook;
+- deployment assumptions, required jobs, or infrastructure: update deployment/infrastructure documentation and Compose configuration;
+- localization strategy, testing workflow, database policy, dependencies, or security expectations: update the corresponding canonical reference.
 
-- `src/routes/` contains TanStack route declarations, loaders, search validation, metadata, guards, and API/server handlers. Keep route orchestration thin.
-- `src/route-components/` contains route-owned page UI plus pending/error states and page-specific subcomponents, organized to mirror the route path.
-- Shared reusable components belong in `src/components`; small design-system primitives belong in `src/components/ui`.
-- Reusable client-side React hooks belong in `src/hooks/`; keep server-only logic out of hook modules.
-- `src/lib/` contains cohesive domain logic, server-function contracts, validation, authorization, and focused shared utilities. Keep `*.server.ts` implementations server-only and introduce domain subdirectories gradually when they improve ownership.
-- For migrated `src/lib/<domain>/` families, keep established root imports as compatibility contracts: browser-importable `createServerFn` modules own Zod validation and RPC authorization, while root `*.server.ts` modules re-export server-only implementations when existing consumers depend on them. Colocate browser-safe schemas, types, pure rules, and focused tests in the domain folder; place persistence/provider orchestration in `*.server.ts` files. Never import a domain `*.server.ts` module from browser code.
-- External provider clients and adapters belong in `src/integrations/`; cleanup, worker, synchronization, and reconciliation entrypoints belong in `src/jobs/`.
-- Database access belongs in `src/db/`, `src/db.ts`, or server-side modules/functions only. Shared test factories, scenarios, and cleanup helpers belong in `src/test/`.
-- Validation schemas should live near the domain they validate.
-- Existing page implementations in `src/components/`, `src/components/routes/`, and a few route files are transitional. Do not mass-move them solely for consistency; migrate touched features opportunistically. Do not add new route pages to `src/components/routes/` unless they are intentionally shared or part of an explicit migration.
-- Avoid generic dumping grounds like:
-  - `helpers.ts`
-  - `utils.ts`
-  - `misc.ts`
-
-Prefer cohesive modules with clear responsibilities. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the complete ownership map.
-
-## Naming Conventions
-
-### Components
-
-Use PascalCase:
-
-```txt
-ProductCard.tsx
-CheckoutForm.tsx
-```
-
-### Hooks
-
-Use camelCase with `use` prefix:
-
-```txt
-useCart.ts
-useCurrentUser.ts
-```
-
-### Server Functions
-
-Use action-oriented naming:
-
-```txt
-createProduct.ts
-updateProfile.ts
-deleteListing.ts
-```
-
-### Route Files
-
-Follow TanStack Router conventions exactly.
-
-### Database
-
-- Tables: snake_case plural
-- Columns: snake_case
-- Enum names: descriptive and explicit
-
-### Tests
-
-Prefer colocated tests:
-
-```txt
-ProductCard.test.tsx
-```
-
----
-
-# Code Organization Conventions
-
-- Prefer small composable modules over giant files.
-- Keep business logic outside UI components.
-- Server-only code must never leak into client bundles.
-- Prefer composition over inheritance.
-- Prefer explicit types over unreadable inferred generics.
-- Avoid deeply nested component trees when simpler composition is possible.
-
----
-
-# Preferred Patterns
-
-- Zod for runtime validation.
-- TanStack Query for remote state.
-- Server functions for authenticated mutations, with browser-importable contracts separated from server-only implementations.
-- Keep route orchestration in `src/routes/` and route-owned UI in the matching `src/route-components/` subtree.
-- Typed database access through Drizzle only.
-- Explicit loading/error states.
-- Route loaders or TanStack Query for remote data; event handlers for user-action consequences.
-- `useSyncExternalStore` for browser stores and React 19 callback refs with returned cleanup for DOM listeners or external registrations.
-- Small focused server functions.
-- Dependency injection through parameters instead of hidden globals.
-
----
-
-# Server / Client Boundary Rules
-
-Never:
-
-- Import server-only modules (`*.server.*` or modules marked with `@tanstack/react-start/server-only`) into client code.
-- Expose secrets through serialized props or APIs.
-- Access the database from client components.
-- Perform authorization checks exclusively on the client.
-
-Prefer:
-
-- Server functions for mutations.
-- SSR/server-side data loading when appropriate.
-- Explicit serialization boundaries.
-- Minimal client-side state.
-
----
-
-# Security Requirements
-
-- Treat all client input as untrusted.
-- Validate all external input on the server.
-- Never expose secrets to the client bundle.
-- Use parameterized queries through Drizzle.
-- Authorization checks must happen server-side.
-- Sanitize user-generated content before rendering.
-- Avoid leaking internal implementation details to users.
-- Use least-privilege principles whenever possible.
-- Enforce two-factor authentication for privileged roles (`creator`, `admin`) on every route and server function they can reach; route-level guards alone are not sufficient.
-- Treat deleted accounts as deactivated: reject sessions, server functions, and mutations for users with `deletedAt` set.
-
----
-
-# Authorization Principles
-
-Authorization must be:
-
-- Explicit
-- Server-enforced
-- Deny-by-default
-
-Do not assume:
-
-- Authenticated users are authorized
-- Ownership without verification
-- Client-provided identifiers are trustworthy
-
-All resource access must validate:
-
-- User identity
-- Ownership or permissions
-- Organization/store relationships where applicable
-- Two-factor authentication for privileged roles (`creator`, `admin`) on both routes and server functions
-- Whether the account has been deleted or banned (deleted users must not be able to act through sessions or server functions)
-
----
-
-# Accessibility Requirements
-
-- All interactive elements must be keyboard accessible.
-- Inputs require labels and validation messaging.
-- Use semantic HTML before ARIA.
-- Ensure sufficient color contrast.
-- Loading/error states must be accessible.
-- Dialogs and modals must manage focus correctly.
-- Avoid inaccessible custom controls when native elements suffice.
-
----
-
-# UI / UX Consistency
-
-Prefer:
-
-- Existing design primitives
-- Consistent spacing and typography
-- Predictable interaction patterns
-- Reusable UI composition
-
-Avoid:
-
-- One-off styling systems
-- Inconsistent interaction behavior
-- Unnecessary visual complexity
-
-## Production-Grade UI & Style Constraints
-
-To maintain a premium, cohesive, and production-grade marketplace visual standard:
-
-- **Rich Aesthetics & Premium Feel:** Implement modern web design best practices (e.g., custom gradients, cohesive dark/light palettes, and refined shadow levels). Avoid basic default styles or raw, unharmonious colors.
-- **Micro-Animations & Transitions:** Utilize subtle transitions and interactive hover effects to make the interface feel responsive and alive.
-- **Zero Cumulative Layout Shift (CLS):** Dynamic elements (such as success/error banners or validation status indicators) must never trigger vertical/horizontal layout shifts. Ensure submit buttons and core forms remain visually static.
-- **Ergonomics & Balanced Spacing:** Avoid excessive vertical whitespace padding between structural layouts (such as auth shells and standard headers/footers). Align layouts to comfortably fit within standard viewport folds.
-- **No Structural Placeholders:** Always implement complete user flows (e.g., password visibility toggles, real-time validations, and descriptive illustrations) rather than using simplified visual shortcuts.
-- **Accessibility Integration:** All premium interactive elements must maintain keyboard focusability, proper labels, clear contrast, and semantic HTML structure.
-
----
-
-# Performance Expectations
-
-- Prefer SSR/server rendering where beneficial.
-- Avoid unnecessary client-side state.
-- Avoid unnecessary re-renders.
-- Lazy-load heavy features when appropriate.
-- Consider bundle size before adding dependencies.
-- Optimize queries before introducing caching layers.
-- Measure before introducing complexity.
-
----
-
-# Performance Budget Mindset
-
-Treat:
-
-- Bundle size
-- Hydration cost
-- Query count
-- Re-render frequency
-- Network round trips
-
-as constrained resources.
-
-New dependencies, client-side logic, and abstractions should justify their runtime cost.
-
----
-
-# Data Fetching & Cache Consistency
-
-Prefer:
-
-- Server-side data loading for initial render
-- TanStack Query for remote state synchronization
-- Explicit cache invalidation after mutations
-- Stable query keys
-
-Avoid:
-
-- Duplicate fetching layers
-- Redundant client fetching after SSR
-- Hidden cache invalidation behavior
-- Mixing unrelated cache strategies
-
----
-
-# Error Handling Standards
-
-- Fail explicitly and predictably.
-- Do not swallow exceptions silently.
-- Return user-safe error messages.
-- Log actionable server-side errors.
-- Handle loading, empty, and failure states intentionally.
-
----
-
-# Logging Standards
-
-- Never log:
-  - passwords
-  - tokens
-  - secrets
-  - PII
-
-- Prefer structured logging.
-- Remove debug logs before completion unless intentionally retained.
-
----
-
-# Observability Expectations
-
-New critical flows should:
-
-- Emit actionable logs
-- Integrate with existing monitoring
-- Surface meaningful error context
-- Avoid noisy or duplicate reporting
-
-Errors should be:
-
-- Traceable by developers
-- Safe for users
-- Useful in production debugging
-
----
-
-# Testing Expectations
-
-## Unit Tests
-
-Required for:
-
-- Business logic
-- Validation
-- Pricing logic
-- Utility/domain logic
-
-## Component Tests
-
-Use Testing Library for:
-
-- Interactive UI
-- Form behavior
-- Accessibility-sensitive flows
-
-## Integration Tests
-
-Required for critical workflows:
-
-- Authentication
-- Authorization
-- Checkout/payment logic
-- Permissions
-- Database-sensitive flows
-
-## Testing Rules
-
-- Tests must be deterministic.
-- Tests must not rely on external network access.
-- Mock external services explicitly.
-- Avoid snapshot-heavy testing.
-- Playwright E2E is an explicit local/release gate via `make e2e`; GitHub Actions CI does not run it.
-- The full Vitest gate classifies runtime database dependencies: DB-backed unit files remain serial, while pure unit and browser files run in bounded parallel workers. Browser tests must remain database-free across their browser-runtime dependency graph; TanStack server-contract implementation imports are excluded because the compiler removes them from browser bundles. Keep database-sensitive coverage in `*.test.ts` files.
-- GitHub Actions uses `docker-compose.ci.yml` with the lean Docker `runtime` target and only the app/database services. Local Compose keeps the default `development` target with Playwright for explicit E2E runs.
-
----
-
-# Dependency Policy
-
-Before adding dependencies:
-
-- Prefer platform capabilities first.
-- Prefer existing project tooling.
-- Evaluate maintenance quality and ecosystem adoption.
-- Avoid overlapping libraries.
-- Prefer lightweight dependencies.
-
-Any new dependency should be justified.
-
-Do not add dependencies for trivial utilities.
-
----
-
-# Database Workflow Policy
-
-## Local Development
-
-`make db-push` may be used only for disposable local prototyping.
-
-## Shared Environments
-
-Shared, staging, review, and production environments must use migrations.
-
-Schema changes are not complete until:
-
-## Staging / Production Seed Data
-
-After initial deployment, inject permanent curated demo data with the idempotent staging seed:
-
-```bash
-# From the host machine
-ssh root@STAGING_IP 'cd /opt/eurtisan && docker compose -f docker-compose.staging.yml run --rm app bun run db:staging-seed'
-```
-
-The staging seed (`src/db/seed-staging.ts`) is:
-- **Idempotent** — safe to re-run; existing records are skipped
-- **Additive only** — never clears data
-- **Deterministic** — uses `faker.seed(42)` for reproducible output
-- **Curated** — realistic European artisan marketplace data with known test accounts
-
-Contrast with the local dev seed (`src/db/seed.ts`) which is bulk, random, and requires `--clear --force`.
-
-1. A migration is generated
-2. The migration is committed
-3. The migration has been tested
-
----
-
-# Migration Safety
-
-Schema migrations must:
-
-- Be backward-compatible when possible
-- Avoid destructive operations without explicit approval
-- Include data migration strategies when needed
-- Consider rollback implications
-- Avoid locking large tables unnecessarily
-
-Destructive operations require explicit confirmation.
-
-## Migration chain integrity
-
-As of the production-readiness remediation, the project uses an **incremental
-migration chain** rather than a single consolidated baseline. Re-baselining was
-deferred because multiple remediation phases generated migrations that contain
-required data fixes (e.g., payout reversion, encryption backfills). To keep the
-chain healthy, every PR must pass:
-
-- `drizzle-kit check`
-- `make db-migrate` on a fresh database
-- No deletion or renaming of migrations that have been applied to staging or
-  production
-
-If the chain ever becomes unrecoverable, the team should coordinate a planned
-maintenance window to generate a new baseline from the final schema and migrate
-all environments forward.
-
----
-
-# API & Server Function Design
-
-- Validate all inputs with Zod.
-- Keep handlers focused and composable.
-- Avoid hidden side effects.
-- Return typed responses.
-- Authorization must be explicit.
-- Prefer predictable APIs over overly generic abstractions.
-
----
-
-# API Stability
-
-Avoid breaking:
-
-- Route contracts
-- Response shapes
-- Public component APIs
-- Database semantics
-- Query parameter behavior
-
-Breaking changes must be:
-
-- Intentional
-- Documented
-- Justified
-
----
-
-# Project Structure
-
-The complete placement and boundary rules are maintained in
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md). The principal repository areas are:
-
-```txt
-.
-├── src/
-│   ├── routes/           # TanStack route declarations and API handlers
-│   ├── route-components/ # Route-owned page UI and pending/error states
-│   ├── components/       # Reusable UI and design-system primitives
-│   ├── hooks/            # Reusable client-side React hooks
-│   ├── lib/              # Domain logic, server functions, and validation
-│   ├── integrations/     # External service adapters
-│   ├── jobs/             # Cleanup, worker, sync, and reconciliation entrypoints
-│   ├── db/               # Drizzle schema, seeds, and DB maintenance scripts
-│   ├── test/             # Shared test factories, scenarios, and helpers
-│   ├── types/            # Ambient and shared type declarations
-│   ├── paraglide/        # Generated localization runtime; do not edit
-│   ├── routeTree.gen.ts  # Generated TanStack route tree; do not edit
-│   ├── db.ts             # PostgreSQL pool
-│   ├── router.tsx        # Router configuration
-│   ├── start.ts          # Request middleware and TanStack Start setup
-│   └── styles.css        # Global styles and Tailwind imports
-├── messages/             # Paraglide translation sources
-├── drizzle/              # Committed Drizzle migrations and metadata
-├── e2e/                  # Playwright fixtures, setup, and workflows
-├── docs/                 # Architecture, operations, compliance, and runbooks
-├── infra/observability/  # Separately deployed observability configuration
-├── infrastructure/       # VPS provisioning and deployment automation
-├── public/               # Static assets
-├── scripts/              # Development and operational helpers
-├── docker-compose*.yml   # Local, staging, and production service definitions
-├── Makefile              # Standardized Docker-first workflows
-├── Dockerfile*           # Application images
-├── drizzle.config.ts     # Drizzle Kit configuration
-├── vite.config.ts       # Vite/TanStack Start configuration
-├── biome.json            # Lint and format configuration
-└── package.json
-```
-
-`src/routeTree.gen.ts` and `src/paraglide/` are generated and must not be edited
-by hand. Migration SQL under `drizzle/` is generated, reviewed, committed, and
-must not be deleted or renamed after it may have been applied to a shared
-environment.
-
----
-
-# Environment Variables
-
-Production and staging configuration has two validated contracts:
-
-- Browser-visible `VITE_*` values are immutable Docker build inputs validated by `src/lib/infra/public-environment.ts`. Unknown `VITE_*` names are rejected. Changing one requires rebuilding the image.
-- Server-only runtime values are validated by `src/lib/infra/server-environment.server.ts` before the web process and packaged background jobs start. Secrets must never use a `VITE_` prefix.
-
-Shared deployments expose imgproxy at same-origin `/uploads` and browser Meilisearch at `/meilisearch`; only the restricted search-only key is public. See `docs/runbooks/environment-configuration.md` for ownership and rotation.
-
-Copy `.env.local` and provide real values.
-
-```bash
-# Observability (Grafana Stack — self-hosted)
-FARO_ENABLED=true
-VITE_FARO_ENABLED=true
-VITE_FARO_COLLECTOR_URL=/collect          # Faro beacon endpoint (same-origin)
-VITE_FARO_APP_NAME=eurtisan               # App name in Grafana
-VITE_FARO_SAMPLE_RATE=1
-VITE_PUBLIC_URL=http://localhost:3000
-VITE_APP_ENV=development                  # environment tag
-VITE_APP_VERSION=dev                      # release version tag
-
-# Better Auth
-BETTER_AUTH_URL=http://localhost:3000
-# Required in production. Generate with: make auth-secret
-BETTER_AUTH_SECRET=
-
-# Public URL of the application (required for SSR, emails, and absolute links)
-PUBLIC_URL=http://localhost:3000
-
-# Umami (cookie-less analytics)
-UMAMI_ENABLED=false
-VITE_UMAMI_ENABLED=false
-VITE_UMAMI_SCRIPT_URL=
-VITE_UMAMI_WEBSITE_ID=
-VITE_UMAMI_HOST_URL=
-VITE_UMAMI_SCRIPT_INTEGRITY=
-
-# Analytics consent banner (required in production)
-VITE_ANALYTICS_CONSENT_REQUIRED=true
-
-# Grafana admin IP allow-list (Caddy). Space-separated CIDR ranges.
-# Defaults to 0.0.0.0/32 (blocks all access) if unset.
-GRAFANA_ADMIN_IPS=
-
-# Public Grafana root URL used by the observability stack.
-GRAFANA_ROOT_URL=https://eurtisan.eu/grafana
-
-# Name of the app container as seen by Docker (used by Alloy log tailing).
-APP_CONTAINER_NAME=eurtisan-app
-
-# Database
-DATABASE_URL=postgresql://eurtisan:eurtisan@db:5432/eurtisan
-
-# Database pool sizing — tune per environment based on expected concurrency
-# and PostgreSQL max_connections (default 100). With multiple app replicas,
-# divide max_connections by replica count and leave headroom for migrations.
-DATABASE_POOL_MAX=20
-DATABASE_POOL_IDLE_TIMEOUT_MS=30000
-DATABASE_POOL_CONNECTION_TIMEOUT_MS=5000
-
-# Meilisearch (server-side master key — NEVER expose to the browser)
-MEILISEARCH_ENABLED=true
-MEILISEARCH_HOST=http://localhost:7700
-MEILISEARCH_API_KEY=your-master-key
-
-# Meilisearch (browser-facing search-only key)
-# Generate after Meilisearch boots:
-#   curl -X POST "http://localhost:7700/keys" \
-#     -H "Authorization: Bearer $MEILI_MASTER_KEY" \
-#     -H "Content-Type: application/json" \
-#     -d '{"actions":["search"],"indexes":["products"],"expiresAt":null}'
-VITE_MEILISEARCH_HOST=http://localhost:7700
-VITE_MEILISEARCH_SEARCH_KEY=your-search-only-key
-
-# S3-compatible storage and imgproxy
-S3_STORAGE_ENABLED=true
-S3_ENDPOINT=http://garage:3900
-S3_PUBLIC_ENDPOINT=http://localhost:3900
-S3_REGION=garage
-S3_BUCKET=eurtisan-uploads
-S3_ACCESS_KEY_ID=
-S3_SECRET_ACCESS_KEY=
-IMGPROXY_ENABLED=true
-IMGPROXY_BASE_URL=http://localhost:8080
-IMGPROXY_HEALTH_URL=
-IMGPROXY_KEY=
-IMGPROXY_SALT=
-VITE_IMGPROXY_BASE_URL=http://localhost:8080
-VITE_S3_BUCKET=eurtisan-uploads
-
-# Mollie Payments (buyer checkout, refunds)
-MOLLIE_PAYMENTS_ENABLED=true
-MOLLIE_CONNECT_ENABLED=true
-# Classic webhooks are verified by retrieving authoritative payment state with this API key.
-MOLLIE_API_KEY=
-# Set to 'true' explicitly for local mock-payment testing
-MOCK_PAYMENTS_ENABLED=
-
-# Missed-webhook reconciliation tuning.
-MOLLIE_PAYMENT_RECONCILIATION_INTERVAL_MS=120000
-MOLLIE_PAYMENT_RECONCILIATION_MIN_AGE_MS=60000
-MOLLIE_PAYMENT_RECONCILIATION_BATCH_SIZE=100
-
-# Mollie Connect (seller onboarding and payouts)
-MOLLIE_CLIENT_ID=
-MOLLIE_CLIENT_SECRET=
-
-# Mollie test mode. Set to 'true' to use Mollie's test environment.
-# Defaults to 'true' in development, 'false' in production.
-MOLLIE_TEST_MODE=true
-
-# Sendcloud (shipping labels, rates, tracking, service points)
-SENDCLOUD_ENABLED=true
-SENDCLOUD_PUBLIC_KEY=your-sendcloud-public-key
-SENDCLOUD_SECRET_KEY=your-sendcloud-secret-key
-# Webhook secret for HMAC-SHA256 verification of Sendcloud status callbacks.
-SENDCLOUD_WEBHOOK_SECRET=your-sendcloud-webhook-secret
-# Optional: force the Sendcloud "Unstamped letter" method in non-production environments.
-# Defaults to 'true' when VITE_APP_ENV is not 'production'.
-SENDCLOUD_FORCE_UNSTAMPED_LETTER=true
-# Optional: explicit Sendcloud method id for the Unstamped letter service.
-SENDCLOUD_UNSTAMPED_LETTER_METHOD_ID=
-
-# Number of days to retain Sendcloud webhook event rows before cleanup.
-# Defaults to 30, minimum 1.
-SENDCLOUD_WEBHOOK_RETENTION_DAYS=30
-
-# Mock payouts (no external Mollie Routes API calls).
-# Useful for local development when MOLLIE_API_KEY is not set.
-MOCK_PAYOUTS_ENABLED=false
-
-# Payout reconciliation job interval (milliseconds). Default: 6 hours.
-PAYOUT_RECONCILIATION_INTERVAL_MS=21600000
-
-# Read-only financial invariant scan. Default cadence: 6 hours; batch: 500 records.
-FINANCIAL_TOTALS_RECONCILIATION_INTERVAL_MS=21600000
-FINANCIAL_TOTALS_RECONCILIATION_BATCH_SIZE=500
-
-# Sendcloud reconciliation job interval (milliseconds). Default: 6 hours.
-SENDCLOUD_RECONCILIATION_INTERVAL_MS=21600000
-
-# Tax / VAT
-# When true, cross-border EU B2B VAT IDs are verified live with VIES.
-# When false or unset, only offline format checks are performed.
-ENABLE_VIES_VALIDATION=false
-
-# When true, the platform charges VAT on platform fees per EU B2B/B2C rules.
-# When false, the platform operates under the French "Franchise en base de TVA" regime.
-# Defaults to true for safety.
-PLATFORM_VAT_LIABLE=true
-
-# Health-check disk path (mount point checked for free space). Use the path
-# that stores real application data in production, not /tmp.
-HEALTH_DISK_PATH=/
-
-# Cleanup job intervals (all have sensible defaults; uncomment to override):
-# SESSION_CLEANUP_INTERVAL_MS=60000
-# CART_CLEANUP_INTERVAL_MS=60000
-# VERIFICATION_CLEANUP_INTERVAL_MS=60000
-# AUDIT_LOG_CLEANUP_INTERVAL_MS=86400000
-# AUDIT_LOG_RETENTION_DAYS=365
-# INVENTORY_CLEANUP_INTERVAL_MS=60000
-```
-
-Generate auth secret:
-
-```bash
-make auth-secret
-```
-
----
-
-# Makefile Commands
-
-| Command | Description |
-|---|---|
-| `make up` | Start services |
-| `make down` | Stop services |
-| `make logs` | View logs |
-| `make shell` | Open shell in app container |
-| `make install` | Install dependencies |
-| `make init` | Initialize project (build, install, compile i18n, migrate, seed) |
-| `make dev` | Start development server |
-| `make build` | Build production app |
-| `make preview` | Preview production build |
-| `make start` | Start production server |
-| `make lint` | Run the read-only Biome lint check |
-| `make format` | Run the read-only Biome format check |
-| `make format-fix` | Apply formatting explicitly |
-| `make check` | Run TypeScript checks |
-| `make audit-production` | Fail on moderate-or-higher production dependency advisories |
-| `make bundle-check` | Enforce measured production client bundle budgets |
-| `make production-image-smoke` | Build and smoke-test production image configuration |
-| `make compose-check` | Validate production and staging Compose models |
-| `make ci-workflow-check` | Validate GitHub Actions syntax and semantics |
-| `make shell-syntax` | Validate shell scripts and rendered backup template syntax |
-| `make ansible-check` | Validate Ansible syntax, synthetic preflight, and templates |
-| `make test` | Run tests with release-warning enforcement (optionally with specific files: `make test <paths>`) |
-| `make test-related` | Run tests related to specific files (`make test-related <paths>`) |
-| `make test-accessibility` | Run focused rendered accessibility scans and static theme/reflow contracts |
-| `make auth-secret` | Generate Better Auth secret |
-| `make db-generate` | Generate migrations |
-| `make db-check` | Validate the Drizzle migration chain |
-| `make db-migrate` | Run migrations |
-| `make db-migrate-fresh` | Apply all migrations to an ephemeral isolated PostgreSQL database |
-| `make db-push` | Push schema locally |
-| `make db-studio` | Open Drizzle Studio |
-| `make i18n-compile` | Compile localization messages |
-
----
-
-# Key Architectural Decisions
-
-1. File-based routing via TanStack Router.
-2. Business logic uses server functions.
-3. Better Auth mounted at `/api/auth/$`.
-4. Shared PostgreSQL connection pool.
-5. Self-hosted Grafana observability stack (Loki, Tempo, Prometheus, Grafana).
-6. Docker is the source of truth for development environments.
-7. Localization readiness is mandatory from the start.
-
----
-
-# Known Gotchas
-
-1. Docker is required for all workflows.
-2. `.env.local` must remain out of version control.
-3. Grafana Faro uses `sessionStorage`, not cookies. No consent banner required for the beacon mechanism.
-4. Biome is the single lint/format tool.
-5. Production infrastructure should remain in EU regions.
-6. Development runs fully inside containers.
-7. TanStack Router `__root` is reserved for the application root **only**. Nested layouts must use `route.tsx` inside the target folder (e.g. `src/routes/admin/route.tsx` for `/admin/*` layout). Using `__root.tsx` in a subfolder will silently orphan child routes — they will attach to the app root and the layout will never render. Always verify `getParentRoute` in `routeTree.gen.ts` after creating or renaming layout routes.
-8. Paraglide i18n requires explicit compilation. Adding keys to `messages/en.json` is not enough — run `bun run i18n:compile` (or `make dev` which may auto-compile). Uncompiled keys cause runtime `m.key is not a function` errors that only appear in the browser.
-9. Never import server-only modules (`*.server.*` or modules marked with `@tanstack/react-start/server-only`) into client code. TanStack Start's import-protection plugin will block the production build. If a server-only query must be refreshed from the client, wrap it in a `createServerFn` and call the wrapper instead.
-10. Keep loader parameters within Zod schema bounds. A loader that calls a server function with hardcoded values (e.g. `pageSize: 1000`) will fail at runtime if the input schema caps that field lower (e.g. `.max(100)`).
-11. E2E auth is rate-limited by Better Auth. Rapid re-runs of `e2e/auth.setup.ts` will hit `429 Too Many Requests`. Reuse the generated `e2e/.auth/*.json` state across runs, or wait between attempts.
-12. `make e2e` does not pass through CLI flags. Playwright options like `--project=chromium` must be passed directly: `docker compose -f docker-compose.yml -f docker-compose.e2e.yml exec app bunx playwright test e2e/admin-panel.spec.ts --project=chromium`. The E2E overlay points the app at the isolated test database, so always use both compose files when running individual specs outside of `make e2e`.
-13. The `instrument.server.mjs` file must remain importable by Node at startup. Do not add TypeScript or ESM-only dependencies to it.
-14. The observability stack (`infra/observability/`) is deployed separately from the app and persists across app deploys.
-15. Privileged server functions (`creator`/`admin` actions) enforce 2FA independently of route guards via `requirePrivileged2FA`. Tests that call these functions must either set `twoFactorEnabled: true` on the test user or rely on the dev/test bypass.
-16. Accounts with `deletedAt` set are treated as deactivated. `authMiddleware` and server-auth helpers reject them, so any test that reuses a deleted user record should expect `UNAUTHENTICATED`/`BANNED` behavior.
-
----
-
-# Maintenance Requirements
-
-This document must remain synchronized with the actual architecture.
-
-For directory ownership, route/UI placement, generated-source, or server/client
-boundary changes, update [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), the
-README project tree, and this file in the same change.
-
-Update `AGENTS.md` whenever changes impact:
-
-- Core architecture
-- Stack/tooling
-- Directory structure
-- Development workflows
-- Testing strategy
-- Deployment assumptions
-- Security expectations
-- Localization/i18n strategy
-- Database workflow
-- Environment variables
-- Dependency policies
-
-Examples requiring updates:
-
-- Adding an i18n library
-- Replacing authentication providers
-- Introducing background jobs
-- Changing deployment targets
-- Adding monorepo packages
-- Replacing testing infrastructure
-- Changing TanStack Router layout conventions or route tree structure
-- Modifying Paraglide compilation strategy or message file locations
-- Altering server/client boundary rules (e.g. `.server.` file patterns)
-
-If implementation and documentation diverge, the documentation is considered outdated and must be corrected as part of the task.
-
----
-
-# Deployment Notes
-
-- Server output lives in:
-  ```txt
-  dist/server/
-  ```
-
-- Production start command:
-  ```bash
-  bun --import ./dist/server/instrument.server.mjs ./dist/server/server-entry.mjs
-  ```
-
-- Runtime environment variables are required for:
-  - Observability (Faro/Grafana)
-  - Database
-  - Authentication
-
-- Background jobs required for production correctness must be deployed as long-running containers or scheduled processes. The following jobs are not optional at launch:
-  - `bun run job:mollie-payment-reconciliation` — recovers delayed or missed classic Mollie payment webhooks.
-  - `bun run job:payout-reconciliation` — reconciles payout status and alerts on stale pending payouts.
-  - `bun run job:financial-totals-reconciliation` — runs a singleton, six-hour, repeatable-read and strictly read-only invariant scan across orders, VAT, invoices, refunds, payouts, and provider state; any correction requires the authorized procedure in `docs/runbooks/financial-reconciliation.md`.
-  - `bun run job:sendcloud-reconciliation` — backfills missed Sendcloud webhook status updates and marks delivered orders. This job must be running before the Sendcloud integration is considered live in production.
-  - `bun run job:inventory-cleanup` — releases expired inventory reservations and cancels abandoned pending-payment orders.
-  - `bun run job:session-cleanup` — deletes expired Better Auth sessions.
-  - `bun run job:cart-cleanup` — deletes expired anonymous carts.
-  - `bun run job:audit-log-cleanup` — purges audit-log entries beyond the retention period.
-  - `bun run job:verification-cleanup` — deletes expired email/verification tokens.
-
-- Prefer deployment regions inside Europe.
-
-## Infrastructure Deployment (Ansible)
-
-The production and staging environments are deployed via Ansible:
-
-```bash
-cd infrastructure/ansible
-ansible-playbook -i inventory/staging.yml playbook.yml --vault-password-file=.vault_pass
-```
-
-### Secrets
-
-All sensitive values live in `infrastructure/ansible/secrets.yml`, which is **encrypted with Ansible Vault**.
-
-- The vault password is stored in `infrastructure/ansible/.vault_pass` (`.gitignore`-d).
-- The committed `.vault_pass` is a placeholder; create it locally with the real password before running Ansible.
-- Edit secrets: `ansible-vault edit secrets.yml --vault-password-file=.vault_pass`
-- View secrets: `ansible-vault view secrets.yml --vault-password-file=.vault_pass`
-- Rotate the vault password: `ansible-vault rekey secrets.yml --vault-password-file=.vault_pass --new-vault-password-file=.vault_pass.new`
-- Never commit `.vault_pass`, `.vault_pass.new`, or an unencrypted `secrets.yml`.
-
-For full details, see `infrastructure/ansible/README.md`.
-
----
-
-# Development Workflow
-
-## Start Services
-
-```bash
-make up
-```
-
-Application URL:
-
-```txt
-http://localhost:3000
-```
-
-## Install Dependencies
-
-```bash
-make install
-```
-
-## Run Tests
-
-To run the entire test suite:
-
-```bash
-make test
-```
-
-To run a specific test file (much faster for targeted validation):
-
-```bash
-make test src/lib/pricing.test.ts
-```
-
-To run only tests related to a specific file (impacted tests):
-
-```bash
-make test-related src/lib/pricing.ts
-```
-
-## Run Checks
-
-```bash
-make check
-```
-
-## Pre-Commit Hooks
-
-A secret-scanning pre-commit hook lives in `.githooks/pre-commit`. It scans staged changes for potential secrets (API keys, passwords, tokens, AWS keys, etc.).
-
-Enable it once per clone:
-
-```bash
-git config core.hooksPath .githooks
-```
-
-If you need to bypass the hook for a safe commit:
-
-```bash
-git commit --no-verify
-```
-
-## Database Workflow
-
-1. Modify schema
-2. Generate migration:
-   ```bash
-   make db-generate
-   ```
-
-3. Apply migration:
-   ```bash
-   make db-migrate
-   ```
-
-4. Inspect database:
-   ```bash
-   make db-studio
-   ```
+Prefer links to canonical detail over copying command catalogs, environment samples, deployment steps, or architecture inventories into this file.
