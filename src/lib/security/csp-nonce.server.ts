@@ -20,5 +20,11 @@ export function getCspNonce(): string | undefined {
  */
 export function injectScriptNonces(html: string, nonce: string): string {
   const safeNonce = nonce.replace(/["'<>]/g, '')
-  return html.replace(/<script(?![^>]*\snonce=)/gi, `<script nonce="${safeNonce}"`)
+  return html.replace(/<script\b([^>]*)>/gi, (_tag, attributes: string) => {
+    const normalizedAttributes = attributes.replace(
+      /\snonce\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi,
+      '',
+    )
+    return `<script nonce="${safeNonce}"${normalizedAttributes}>`
+  })
 }

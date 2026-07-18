@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { runWithCspNonce } from './csp-nonce.server'
+import { injectScriptNonces, runWithCspNonce } from './csp-nonce.server'
 import { cspMiddlewareHandler } from '../../start'
 import { buildCspHeader } from './csp'
 
@@ -61,6 +61,14 @@ describe('CSP middleware integration', () => {
     expect(csp).toBeTruthy()
     expect(csp).toContain("'nonce-test-nonce-xyz'")
     expect(html).toContain('nonce="test-nonce-xyz"')
+  })
+
+  it('normalizes existing script nonces to the final response nonce', () => {
+    const html = '<script nonce="cached-nonce">one</script><script type="module">two</script>'
+    const result = injectScriptNonces(html, 'response-nonce')
+
+    expect(result).not.toContain('cached-nonce')
+    expect(result.match(/nonce="response-nonce"/g)).toHaveLength(2)
   })
 
   it('preserves existing response headers while adding CSP', async () => {
