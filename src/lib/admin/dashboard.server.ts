@@ -14,6 +14,15 @@ export interface AdminDashboardStats {
   pendingPayouts: number
 }
 
+export async function getPendingShopReviewCountQuery(): Promise<number> {
+  const [result] = await db
+    .select({ count: count() })
+    .from(shop)
+    .where(eq(shop.status, 'pending_review'))
+
+  return Number(result?.count ?? 0)
+}
+
 /* -------------------------------------------------------------------------- */
 /*                            Dashboard Stats Query                           */
 /* -------------------------------------------------------------------------- */

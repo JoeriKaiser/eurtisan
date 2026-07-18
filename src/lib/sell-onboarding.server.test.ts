@@ -1,17 +1,23 @@
 import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
-
 import { db } from '#/db/index'
-import { product, shop, user } from '#/db/schema'
+import { categories, product, productImage, shop, user } from '#/db/schema'
+import { SELLER_TERMS_VERSION } from './sell-onboarding'
 import {
   createShopDraftInternal,
+  getOnboardingReadinessInternal,
   getShopDraftQuery,
+  saveDraftListingInternal,
   saveOnboardingStepInternal,
   submitShopForReviewInternal,
 } from './sell-onboarding.server'
 
+const CATEGORY_ID = '11111111-1111-4111-8111-111111111111'
+
 beforeEach(async () => {
+  await db.delete(productImage)
   await db.delete(product)
+  await db.delete(categories)
   await db.delete(shop)
   await db.delete(user)
 })
@@ -24,10 +30,27 @@ async function seedUser(overrides?: Partial<typeof user.$inferInsert>) {
       name: 'Test Seller',
       email: 'seller@example.com',
       emailVerified: true,
+      role: 'customer',
       ...overrides,
     })
     .returning()
     .then((rows) => rows[0])
+}
+
+async function seedCategory() {
+  await db.insert(categories).values({
+    id: CATEGORY_ID,
+    name: 'Ceramics',
+    slug: 'ceramics',
+  })
+}
+
+const completePolicies = {
+  returns: { accepted: true, windowDays: 14 },
+  exchanges: { accepted: true, windowDays: 14 },
+  customOrders: { accepted: false },
+  paymentMethods: [],
+  mandatoryRightsAcknowledged: true,
 }
 
 async function seedShop(overrides?: Partial<typeof shop.$inferInsert>) {
@@ -35,186 +58,199 @@ async function seedShop(overrides?: Partial<typeof shop.$inferInsert>) {
     .insert(shop)
     .values({
       id: 'shop-1',
-      name: 'Test Shop',
-      slug: 'test-shop',
+      name: 'Test Atelier',
+      slug: 'test-atelier',
       ownerId: 'user-1',
       status: 'draft',
+      category: 'home_living',
+      productionType: 'handmade',
+      description: 'A detailed shop story about careful European ceramic craft and materials.',
+      image: 'https://example.test/shop.webp',
+      shippingOrigin: {
+        country: 'FR',
+        city: 'Paris',
+        postalCode: '75001',
+        processingTimeDays: { min: 1, max: 3 },
+        shipsInternational: true,
+      },
+      businessAddress: {
+        street: '12 Rue des Artisans',
+        city: 'Paris',
+        postalCode: '75001',
+        country: 'FR',
+      },
+      legalEntityType: 'individual',
+      dateOfBirth: '1990-05-15',
+      taxId: 'FRTIN12345',
+      policies: completePolicies,
       ...overrides,
     })
     .returning()
     .then((rows) => rows[0])
 }
 
-async function seedProduct(overrides?: Partial<typeof product.$inferInsert>) {
-  return db
-    .insert(product)
-    .values({
-      id: 'prod-1',
-      name: 'Test Listing',
-      slug: 'test-listing',
-      priceCents: 1000,
-      shopId: 'shop-1',
-      isActive: false,
-      ...overrides,
-    })
-    .returning()
-    .then((rows) => rows[0])
+async function seedCompleteProduct() {
+  const productId = '22222222-2222-4222-8222-222222222222'
+  await db.insert(product).values({
+    id: productId,
+    name: 'Ceramic serving bowl',
+    slug: 'ceramic-serving-bowl',
+    description: 'A hand-thrown serving bowl made from durable speckled stoneware.',
+    priceCents: 4800,
+    stockCount: 3,
+    shopId: 'shop-1',
+    categoryId: CATEGORY_ID,
+    isActive: false,
+    status: 'draft',
+    vatRateCategory: 'standard',
+    weightGrams: 900,
+    lengthCm: 24,
+    widthCm: 24,
+    heightCm: 10,
+  })
+  await db.insert(productImage).values({
+    id: 'image-1',
+    productId,
+    url: 'products/bowl.webp',
+    sortOrder: 0,
+  })
+  await db.update(shop).set({ onboardingListingId: productId }).where(eq(shop.id, 'shop-1'))
+  return productId
 }
 
-describe('sell-onboarding.server', () => {
-  describe('createShopDraftInternal', () => {
-    it('creates a new draft shop for a user', async () => {
-      const u = await seedUser()
-      const draft = await createShopDraftInternal(u)
-      expect(draft.id).toBeDefined()
+const acceptedTerms = {
+  termsAgreed: true as const,
+  termsVersion: SELLER_TERMS_VERSION,
+}
 
-      const [record] = await db.select().from(shop).where(eq(shop.id, draft.id))
-      expect(record).toBeDefined()
-      expect(record.ownerId).toBe(u.id)
-      expect(record.status).toBe('draft')
-    })
+describe('sell onboarding server', () => {
+  it('creates an incomplete draft without prematurely promoting the customer', async () => {
+    const seller = await seedUser()
+    const draft = await createShopDraftInternal(seller)
+    const [record] = await db.select().from(shop).where(eq(shop.id, draft.id))
+    const [account] = await db.select().from(user).where(eq(user.id, seller.id))
+
+    expect(record.name).toBe('')
+    expect(record.slug).toMatch(/^draft-/)
+    expect(record.onboardingStep).toBe(1)
+    expect(account.role).toBe('customer')
   })
 
-  describe('saveOnboardingStepInternal and getShopDraftQuery', () => {
-    it('saves and retrieves DAC7 compliance fields correctly', async () => {
-      await seedUser()
-      await seedShop()
+  it('persists and decrypts seller identity, dispatch, and business-address fields', async () => {
+    await seedUser()
+    await seedShop({ shippingOrigin: null, businessAddress: null })
 
-      await saveOnboardingStepInternal('user-1', 'creator', {
-        draftId: 'shop-1',
-        step: 4,
-        data: {
-          shippingOrigin: {
-            country: 'FR',
-            processingTimeDays: { min: 1, max: 3 },
-            shipsInternational: false,
-          },
-          currency: 'EUR',
-          legalEntityType: 'individual',
-          dateOfBirth: '1990-05-15',
-          taxId: 'FRTIN12345',
+    await saveOnboardingStepInternal('user-1', 'customer', {
+      draftId: 'shop-1',
+      step: 2,
+      data: {
+        shippingOrigin: {
+          country: 'FR',
+          city: 'Lyon',
+          postalCode: '69001',
+          processingTimeDays: { min: 2, max: 4 },
+          shipsInternational: false,
         },
-      })
-
-      const draft = await getShopDraftQuery('shop-1', 'user-1', 'creator')
-      expect(draft.legalEntityType).toBe('individual')
-      expect(draft.dateOfBirth).toBe('1990-05-15')
-      expect(draft.taxId).toBe('FRTIN12345')
-      expect(draft.businessRegistrationNumber).toBeNull()
+        businessAddress: {
+          street: '4 Rue Mercière',
+          city: 'Lyon',
+          postalCode: '69001',
+          country: 'FR',
+        },
+        currency: 'EUR',
+        isVatRegistered: false,
+        vatId: '',
+        legalEntityType: 'individual',
+        dateOfBirth: '1990-05-15',
+        taxId: 'FRTIN12345',
+        businessRegistrationNumber: '',
+      },
     })
+
+    const draft = await getShopDraftQuery('shop-1', 'user-1', 'customer')
+    expect(draft.shippingOrigin?.city).toBe('Lyon')
+    expect(draft.businessAddress?.street).toBe('4 Rue Mercière')
+    expect(draft.taxId).toBe('FRTIN12345')
+    expect(draft.onboardingStep).toBe(3)
   })
 
-  describe('submitShopForReviewInternal', () => {
-    it('throws error if taxId is missing', async () => {
-      await seedUser()
-      await seedShop({
-        taxId: null,
-      })
+  it('creates one onboarding product and updates it on later saves', async () => {
+    await seedUser({ role: 'creator' })
+    await seedCategory()
+    await seedShop()
+    const input = {
+      draftId: 'shop-1',
+      name: 'Handmade stoneware cup',
+      slug: 'handmade-stoneware-cup',
+      description: 'A tactile stoneware cup made and glazed by hand in our small workshop.',
+      priceCents: 3200,
+      stockCount: 4,
+      categoryId: CATEGORY_ID,
+      vatRateCategory: 'standard' as const,
+      weightGrams: 420,
+      lengthCm: 12,
+      widthCm: 12,
+      heightCm: 10,
+      images: [{ key: 'products/cup.webp', altText: 'Speckled cup on a linen table' }],
+    }
 
-      await expect(submitShopForReviewInternal('user-1', 'creator', 'shop-1')).rejects.toThrowError(
-        'MISSING_TAX_ID',
-      )
-    })
+    const created = await saveDraftListingInternal(
+      { id: 'user-1', name: 'Test Seller', role: 'creator' },
+      input,
+    )
+    const updated = await saveDraftListingInternal(
+      { id: 'user-1', name: 'Test Seller', role: 'creator' },
+      { ...input, name: 'Updated stoneware cup', priceCents: 3500 },
+    )
 
-    it('throws error if DOB is missing or invalid for individual', async () => {
-      await seedUser()
-      await seedShop({
-        taxId: 'TIN12345',
-        legalEntityType: 'individual',
-        dateOfBirth: null,
-      })
-
-      await expect(submitShopForReviewInternal('user-1', 'creator', 'shop-1')).rejects.toThrowError(
-        'MISSING_OR_INVALID_DOB',
-      )
-
-      await db.update(shop).set({ dateOfBirth: '1990/01/01' }).where(eq(shop.id, 'shop-1'))
-      await expect(submitShopForReviewInternal('user-1', 'creator', 'shop-1')).rejects.toThrowError(
-        'MISSING_OR_INVALID_DOB',
-      )
-    })
-
-    it('throws error if business registration number is missing for business', async () => {
-      await seedUser()
-      await seedShop({
-        taxId: 'TIN12345',
-        legalEntityType: 'business',
-        businessRegistrationNumber: null,
-      })
-
-      await expect(submitShopForReviewInternal('user-1', 'creator', 'shop-1')).rejects.toThrowError(
-        'MISSING_BUSINESS_REGISTRATION',
-      )
-    })
-
-    it('throws error if no listings exist', async () => {
-      await seedUser()
-      await seedShop({
-        taxId: 'TIN12345',
-        legalEntityType: 'individual',
-        dateOfBirth: '1990-01-01',
-      })
-
-      await expect(submitShopForReviewInternal('user-1', 'creator', 'shop-1')).rejects.toThrowError(
-        'MISSING_LISTING',
-      )
-    })
-
-    it('submits shop for review on successful validation', async () => {
-      await seedUser()
-      await seedShop({
-        taxId: 'TIN12345',
-        legalEntityType: 'individual',
-        dateOfBirth: '1990-01-01',
-      })
-      await seedProduct()
-
-      const result = await submitShopForReviewInternal('user-1', 'creator', 'shop-1')
-      expect(result.success).toBe(true)
-
-      const [record] = await db.select().from(shop).where(eq(shop.id, 'shop-1'))
-      expect(record.status).toBe('pending_review')
-      expect(record.submittedAt).toBeInstanceOf(Date)
-    })
+    expect(updated.id).toBe(created.id)
+    expect(await db.select().from(product)).toHaveLength(1)
+    const [record] = await db.select().from(shop).where(eq(shop.id, 'shop-1'))
+    expect(record.onboardingListingId).toBe(created.id)
+    expect(record.onboardingStep).toBe(4)
   })
 
-  describe('saveOnboardingStepInternal step bounds', () => {
-    it('rejects a step below 1', async () => {
-      await seedUser()
-      await seedShop()
+  it('reports authoritative readiness and rejects incomplete submission', async () => {
+    await seedUser()
+    await seedCategory()
+    await seedShop({ image: null })
+    await seedCompleteProduct()
 
-      await expect(
-        saveOnboardingStepInternal('user-1', 'creator', {
-          draftId: 'shop-1',
-          step: 0,
-          data: {},
-        }),
-      ).rejects.toThrow('INVALID_ONBOARDING_STEP')
-    })
+    const readiness = await getOnboardingReadinessInternal('shop-1')
+    expect(readiness.ready).toBe(false)
+    expect(readiness.items.find((item) => item.id === 'profile')?.complete).toBe(false)
+    await expect(
+      submitShopForReviewInternal('user-1', 'customer', 'shop-1', acceptedTerms),
+    ).rejects.toThrow('INCOMPLETE_ONBOARDING:profile')
+  })
 
-    it('rejects a step above 8', async () => {
-      await seedUser()
-      await seedShop()
+  it('stores terms acceptance, promotes the seller, and submits a complete shop', async () => {
+    await seedUser()
+    await seedCategory()
+    await seedShop()
+    await seedCompleteProduct()
 
-      await expect(
-        saveOnboardingStepInternal('user-1', 'creator', {
-          draftId: 'shop-1',
-          step: 9,
-          data: {},
-        }),
-      ).rejects.toThrow('INVALID_ONBOARDING_STEP')
-    })
+    const result = await submitShopForReviewInternal('user-1', 'customer', 'shop-1', acceptedTerms)
+    expect(result.success).toBe(true)
 
-    it('accepts a step at the upper bound', async () => {
-      await seedUser()
-      await seedShop()
+    const [record] = await db.select().from(shop).where(eq(shop.id, 'shop-1'))
+    const [seller] = await db.select().from(user).where(eq(user.id, 'user-1'))
+    expect(record.status).toBe('pending_review')
+    expect(record.onboardingCompletedAt).toBeInstanceOf(Date)
+    expect(record.sellerTermsAcceptedAt).toBeInstanceOf(Date)
+    expect(record.sellerTermsVersion).toBe(SELLER_TERMS_VERSION)
+    expect(seller.role).toBe('creator')
+  })
 
-      const result = await saveOnboardingStepInternal('user-1', 'creator', {
+  it.each([0, 6])('rejects onboarding stage %s outside the five-stage flow', async (stage) => {
+    await seedUser()
+    await seedShop()
+    await expect(
+      saveOnboardingStepInternal('user-1', 'customer', {
         draftId: 'shop-1',
-        step: 8,
+        step: stage,
         data: {},
-      })
-      expect(result.success).toBe(true)
-    })
+      }),
+    ).rejects.toThrow('INVALID_ONBOARDING_STEP')
   })
 })

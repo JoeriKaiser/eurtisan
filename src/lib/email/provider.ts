@@ -15,6 +15,7 @@ export type EmailTemplate =
   | 'email_verification'
   | 'password_reset'
   | 'account_security_alert'
+  | 'shop_moderation_update'
 
 /** Provider identifiers. */
 export type EmailProviderName = 'brevo' | 'smtp' | 'mock'

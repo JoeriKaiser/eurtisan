@@ -156,6 +156,31 @@ describe('UserMenu', () => {
     expect(screen.getByText('My Studio')).toBeDefined()
   })
 
+  it('signs out and redirects to the home page', async () => {
+    mockUseSession.mockReturnValue({
+      data: {
+        user: {
+          id: 'user-1',
+          name: 'Alice',
+          email: 'alice@example.com',
+          emailVerified: true,
+          image: null,
+          role: 'customer',
+        },
+      },
+      isPending: false,
+    })
+
+    render(<UserMenu />)
+    fireEvent.click(screen.getByRole('button', { name: /open user menu/i }))
+    fireEvent.click(screen.getByText('Sign out'))
+
+    await waitFor(() => {
+      expect(authClient.signOut).toHaveBeenCalledTimes(1)
+      expect(mockNavigate).toHaveBeenCalledWith({ to: '/' })
+    })
+  })
+
   it('navigates to /sell when clicking Become a Creator', async () => {
     mockUseSession.mockReturnValue({
       data: {

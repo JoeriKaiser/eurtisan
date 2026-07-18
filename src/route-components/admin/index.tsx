@@ -1,5 +1,5 @@
 import { getRouteApi, Link } from '@tanstack/react-router'
-import { AlertTriangle, Gavel, ShoppingBag, Users } from 'lucide-react'
+import { AlertTriangle, ArrowRight, Gavel, ShoppingBag, Store, Users } from 'lucide-react'
 import { Suspense } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
@@ -13,6 +13,7 @@ import { m } from '#/paraglide/messages'
 import { formatDateMediumTime } from '#/lib/format-date'
 
 const route = getRouteApi('/admin/')
+const adminRoute = getRouteApi('/admin')
 
 /* -------------------------------------------------------------------------- */
 /*                                   Helpers                                  */
@@ -72,6 +73,7 @@ export function StatCard({ icon, label, value, iconBgClass, iconColorClass }: St
 
 export function AdminDashboard() {
   const loaderData = route.useLoaderData()
+  const { pendingShopReviewCount } = adminRoute.useLoaderData()
   const { stats, signups, orders } = loaderData
 
   return (
@@ -83,6 +85,30 @@ export function AdminDashboard() {
         </h1>
         <p className='mt-1 text-text-secondary'>{m.admin_description()}</p>
       </div>
+
+      {pendingShopReviewCount > 0 && (
+        <section className='flex flex-col gap-4 rounded-2xl border border-warning/30 bg-warning-subtle p-5 sm:flex-row sm:items-center sm:justify-between'>
+          <div className='flex items-start gap-3'>
+            <span className='flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface-default text-warning'>
+              <Store size={20} aria-hidden='true' />
+            </span>
+            <div>
+              <h2 className='font-semibold text-text-primary'>{m.admin_review_queue_title()}</h2>
+              <p className='mt-0.5 text-sm text-text-secondary'>
+                {m.admin_review_queue_count({ count: String(pendingShopReviewCount) })}
+              </p>
+            </div>
+          </div>
+          <Link
+            to='/admin/shops'
+            search={{ view: 'applications', status: 'pending_review' }}
+            className='inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-accent-primary px-4 py-2 text-sm font-semibold text-text-on-primary no-underline transition-colors hover:bg-accent-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
+          >
+            {m.admin_review_queue_action()}
+            <ArrowRight size={16} aria-hidden='true' />
+          </Link>
+        </section>
+      )}
 
       {/* Stat Cards */}
       <div className='grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4'>

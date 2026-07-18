@@ -20,6 +20,7 @@ const {
   mockGetShopDraftListings,
   mockGetShopsForModeration,
   mockModerateShopApplication,
+  mockRouterInvalidate,
 } = vi.hoisted(() => ({
   mockModerateShop: vi.fn(),
   mockNavigateFn: vi.fn(),
@@ -27,6 +28,7 @@ const {
   mockGetShopDraftListings: vi.fn(),
   mockGetShopsForModeration: vi.fn(),
   mockModerateShopApplication: vi.fn(),
+  mockRouterInvalidate: vi.fn().mockResolvedValue(undefined),
 }))
 
 /* -------------------------------------------------------------------------- */
@@ -98,6 +100,7 @@ vi.mock('@tanstack/react-router', () => ({
   useLoaderData: () => activeLoaderData,
   useSearch: () => activeSearch,
   useNavigate: () => mockNavigateFn,
+  useRouter: () => ({ invalidate: mockRouterInvalidate }),
   createFileRoute: () => {
     const routeObj = {
       useLoaderData: () => activeLoaderData,
@@ -598,6 +601,8 @@ describe('AdminShopsPage — onboarding applications view', () => {
       expect(screen.getByText('We make quality artisan items.')).toBeDefined()
       expect(screen.getByText('Cozy Wool Socks')).toBeDefined()
       expect(screen.getByText(/15,00/)).toBeDefined()
+      expect(screen.getByRole('dialog').className).toContain('!max-w-7xl')
+      expect(screen.getByText('admin_shops_review_decision_title')).toBeDefined()
     })
   })
 

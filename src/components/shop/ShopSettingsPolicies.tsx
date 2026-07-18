@@ -107,6 +107,8 @@ export function ShopSettingsPolicies({ policies, onChange }: ShopSettingsPolicie
       },
       exchanges: {
         accepted: hasExchanges,
+        windowDays:
+          nextExchanges.preset === 'yes14' ? 14 : nextExchanges.preset === 'yes30' ? 30 : undefined,
         conditions: nextExchanges.preset === 'custom' ? nextExchanges.conditions : undefined,
       },
       customOrders: {
@@ -115,6 +117,7 @@ export function ShopSettingsPolicies({ policies, onChange }: ShopSettingsPolicie
       },
       paymentMethods: policies?.paymentMethods ?? [],
       additionalInfo: nextAdditionalInfo.trim() || undefined,
+      mandatoryRightsAcknowledged: policies?.mandatoryRightsAcknowledged ?? true,
     })
   }
 

@@ -1,4 +1,4 @@
-import { useLoaderData, useNavigate, useSearch } from '@tanstack/react-router'
+import { useLoaderData, useNavigate, useRouter, useSearch } from '@tanstack/react-router'
 import { useCallback, useRef, useState } from 'react'
 import { downloadCSV, generateCSV } from '#/lib/csv-export'
 import { moderateShop as moderateShopApplication } from '#/lib/sell-onboarding'
@@ -73,6 +73,7 @@ export function AdminShopsPage() {
 function AdminShopsContent() {
   const loaderData = useLoaderData({ from: '/admin/shops' }) as LoaderResult
   const navigate = useNavigate()
+  const router = useRouter()
   const search = useSearch({ from: '/admin/shops' })
 
   // --- List States ---
@@ -356,6 +357,7 @@ function AdminShopsContent() {
   const handleReviewAction = async (
     action: 'approve' | 'request_changes' | 'reject',
     note: string,
+    stage: number,
   ) => {
     if (!selectedAppId) return
 
@@ -370,7 +372,12 @@ function AdminShopsContent() {
 
     try {
       const result = await moderateShopApplication({
-        data: { shopId: selectedAppId, action, note: note || undefined },
+        data: {
+          shopId: selectedAppId,
+          action,
+          note: note || undefined,
+          stage: action === 'request_changes' ? stage : undefined,
+        },
       })
 
       const currentStatusFilter = searchRef.current.status
@@ -389,6 +396,7 @@ function AdminShopsContent() {
 
       setSuccessMessage(m.admin_shops_review_success({ status: STATUS_LABELS[result.status] }))
       setSelectedAppId(null)
+      await router.invalidate()
     } catch (err) {
       setActionError(err instanceof Error ? err.message : m.admin_shops_action_error())
     } finally {

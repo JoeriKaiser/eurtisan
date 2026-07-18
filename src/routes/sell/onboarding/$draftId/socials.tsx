@@ -1,6 +1,11 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { Step6Socials } from '#/components/sell/Step6Socials'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/sell/onboarding/$draftId/socials')({
-  component: Step6Socials,
+  beforeLoad: ({ params }) => {
+    throw redirect({
+      to: '/sell/onboarding/$draftId/identity',
+      params: { draftId: params.draftId },
+      replace: true,
+    })
+  },
 })

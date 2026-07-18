@@ -17,11 +17,12 @@ export const SHOP_CATEGORIES = [
   'clothing',
   'craft_supplies',
   'vintage',
-  'digital_downloads',
   'other',
 ] as const
 
-export const PRODUCTION_TYPES = ['handmade', 'vintage', 'supplies', 'digital', 'mixed'] as const
+export const PRODUCTION_TYPES = ['handmade', 'vintage', 'supplies', 'mixed'] as const
+
+export const SELLER_TERMS_VERSION = '2026-07-16' as const
 
 export const SOCIAL_PLATFORMS = [
   'website',
@@ -38,25 +39,38 @@ export const SOCIAL_PLATFORMS = [
 /* -------------------------------------------------------------------------- */
 
 export const ALLOWED_COUNTRY_CODES = [
+  'AT',
+  'BE',
+  'BG',
+  'HR',
+  'CY',
+  'CZ',
+  'DK',
+  'EE',
+  'FI',
   'FR',
   'DE',
-  'IT',
-  'ES',
-  'NL',
-  'BE',
-  'AT',
-  'PT',
-  'PL',
+  'GR',
+  'HU',
+  'IS',
   'IE',
-  'SE',
-  'DK',
-  'FI',
-  'GB',
-  'US',
-  'CA',
-  'AU',
-  'CH',
+  'IT',
+  'LV',
+  'LI',
+  'LT',
+  'LU',
+  'MT',
+  'NL',
   'NO',
+  'PL',
+  'PT',
+  'RO',
+  'SK',
+  'SI',
+  'ES',
+  'SE',
+  'CH',
+  'GB',
 ] as const
 
 export const ALLOWED_CURRENCIES = [SUPPORTED_CURRENCY] as const
@@ -74,8 +88,8 @@ const processingTimeSchema = z
 const shippingOriginSchema = z.object({
   country: z.enum(ALLOWED_COUNTRY_CODES),
   state: z.string().optional(),
-  city: z.string().optional(),
-  postalCode: z.string().optional(),
+  city: z.string().trim().min(2, 'Enter your dispatch city').max(100),
+  postalCode: z.string().trim().min(2, 'Enter your dispatch postal code').max(20),
   processingTimeDays: processingTimeSchema,
   shipsInternational: z.boolean(),
 })
@@ -83,11 +97,12 @@ const shippingOriginSchema = z.object({
 export const policiesSchema = z.object({
   returns: z.object({
     accepted: z.boolean(),
-    windowDays: z.number().int().optional(),
+    windowDays: z.number().int().min(14).max(30).optional(),
     conditions: z.string().max(500).optional(),
   }),
   exchanges: z.object({
     accepted: z.boolean(),
+    windowDays: z.number().int().min(14).max(30).optional(),
     conditions: z.string().max(500).optional(),
   }),
   customOrders: z.object({
@@ -96,23 +111,41 @@ export const policiesSchema = z.object({
   }),
   paymentMethods: z.array(z.string()).default([]),
   additionalInfo: z.string().max(2000).optional(),
+  mandatoryRightsAcknowledged: z.boolean().default(false),
 })
 
-export const step1IdentitySchema = z.object({
-  name: z
-    .string()
-    .min(4, 'Shop name must be at least 4 characters')
-    .max(40, 'Shop name must be at most 40 characters')
-    .regex(/^[a-zA-Z0-9 -]+$/, 'Only letters, numbers, spaces, and hyphens allowed'),
-  slug: z
-    .string()
-    .min(3, 'Slug must be at least 3 characters')
-    .max(40, 'Slug must be at most 40 characters')
-    .regex(/^[a-z0-9-]+$/, 'Only lowercase letters, numbers, and hyphens'),
-  tagline: z.string().max(80).optional().or(z.literal('')),
-  category: z.enum(SHOP_CATEGORIES),
-  productionType: z.enum(PRODUCTION_TYPES),
-})
+export const step1IdentitySchema = z
+  .object({
+    name: z
+      .string()
+      .min(4, 'Shop name must be at least 4 characters')
+      .max(40, 'Shop name must be at most 40 characters')
+      .regex(/^[\p{L}\p{N} -]+$/u, 'Use letters, numbers, spaces, or hyphens'),
+    slug: z
+      .string()
+      .min(3, 'Shop URL must be at least 3 characters')
+      .max(40, 'Shop URL must be at most 40 characters')
+      .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'Use lowercase letters, numbers, and single hyphens'),
+    tagline: z.string().max(80).optional().or(z.literal('')),
+    category: z.enum(SHOP_CATEGORIES),
+    productionType: z.enum(PRODUCTION_TYPES),
+    description: z
+      .string()
+      .min(50, 'Shop story must be at least 50 characters')
+      .max(5000, 'Shop story must be at most 5000 characters'),
+    hasProductionPartner: z.boolean().default(false),
+    productionPartnerDetails: z.string().max(500).optional().or(z.literal('')),
+    image: z.string().min(1, 'Add a shop icon'),
+  })
+  .superRefine((data, context) => {
+    if (data.hasProductionPartner && !data.productionPartnerDetails?.trim()) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Describe what your production partner does',
+        path: ['productionPartnerDetails'],
+      })
+    }
+  })
 
 export const step2StorySchema = z.object({
   description: z
@@ -130,15 +163,23 @@ export const step3VisualsSchema = z.object({
   bannerImage: z.string().optional(),
 })
 
+const businessAddressSchema = z.object({
+  street: z.string().trim().min(3, 'Enter your legal street address').max(200),
+  city: z.string().trim().min(2, 'Enter your legal address city').max(100),
+  postalCode: z.string().trim().min(2, 'Enter your legal address postal code').max(20),
+  country: z.enum(ALLOWED_COUNTRY_CODES),
+})
+
 export const step4LocationSchema = z
   .object({
     shippingOrigin: shippingOriginSchema,
+    businessAddress: businessAddressSchema,
     currency: z.enum(ALLOWED_CURRENCIES),
     isVatRegistered: z.boolean().default(false),
     vatId: z.string().optional().or(z.literal('')),
     legalEntityType: z.enum(['individual', 'business']).default('individual'),
     dateOfBirth: z.string().optional().or(z.literal('')),
-    taxId: z.string().optional().or(z.literal('')),
+    taxId: z.string().trim().min(3, 'Enter your Tax Identification Number'),
     businessRegistrationNumber: z.string().optional().or(z.literal('')),
   })
   .superRefine((data, ctx) => {
@@ -168,10 +209,21 @@ export const step4LocationSchema = z
       })
     }
     if (data.legalEntityType === 'individual') {
-      if (!data.dateOfBirth || !/^\d{4}-\d{2}-\d{2}$/.test(data.dateOfBirth)) {
+      const birthDate = data.dateOfBirth ? new Date(`${data.dateOfBirth}T00:00:00Z`) : null
+      const now = new Date()
+      const minimumAdultDate = new Date(
+        Date.UTC(now.getUTCFullYear() - 18, now.getUTCMonth(), now.getUTCDate()),
+      )
+      if (
+        !data.dateOfBirth ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(data.dateOfBirth) ||
+        !birthDate ||
+        Number.isNaN(birthDate.getTime()) ||
+        birthDate > minimumAdultDate
+      ) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          message: 'Date of birth is required in YYYY-MM-DD format for individual sellers',
+          message: 'Individual sellers must be at least 18 years old',
           path: ['dateOfBirth'],
         })
       }
@@ -186,9 +238,20 @@ export const step4LocationSchema = z
     }
   })
 
-export const step5PoliciesSchema = z.object({
-  policies: policiesSchema.optional(),
-})
+export const step5PoliciesSchema = z
+  .object({
+    shippingOrigin: shippingOriginSchema,
+    policies: policiesSchema,
+  })
+  .superRefine((data, context) => {
+    if (!data.policies.mandatoryRightsAcknowledged) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Confirm that mandatory consumer rights remain applicable',
+        path: ['policies', 'mandatoryRightsAcknowledged'],
+      })
+    }
+  })
 
 export type Policies = z.infer<typeof policiesSchema>
 
@@ -212,16 +275,23 @@ const listingImageSchema = z.object({
 })
 
 export const step7ListingSchema = z.object({
+  productId: z.string().uuid().optional(),
   name: z.string().min(5).max(140),
   description: z.string().min(20).max(2000),
   priceCents: z.number().int().min(50).max(1_000_000_00),
-  stockCount: z.number().int().min(0).default(1),
-  categoryId: z.string().uuid().optional(),
+  stockCount: z.number().int().min(1).default(1),
+  categoryId: z.string().uuid('Choose a product category'),
+  vatRateCategory: z.enum(['standard', 'reduced', 'exempt']),
+  weightGrams: z.number().int().min(1).max(1_000_000),
+  lengthCm: z.number().int().min(1).max(1_000),
+  widthCm: z.number().int().min(1).max(1_000),
+  heightCm: z.number().int().min(1).max(1_000),
   images: z.array(listingImageSchema).min(1).max(5),
 })
 
 export const step8ReviewSchema = z.object({
   termsAgreed: z.literal(true),
+  termsVersion: z.literal(SELLER_TERMS_VERSION),
 })
 
 export type Step1Identity = z.infer<typeof step1IdentitySchema>
@@ -237,12 +307,16 @@ export type Step7Listing = z.infer<typeof step7ListingSchema>
 /* -------------------------------------------------------------------------- */
 
 export function slugify(name: string): string {
-  return name
+  const normalized = name
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/[^a-z0-9 -]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
+    .replace(/[\s-]+/g, '-')
+    .replace(/^-|-$/g, '')
     .slice(0, 40)
+
+  return normalized || 'shop'
 }
 
 export function suggestSlug(name: string): string {
@@ -266,10 +340,18 @@ export interface ShippingOriginData {
 
 export interface PoliciesData {
   returns: { accepted: boolean; windowDays?: number; conditions?: string }
-  exchanges: { accepted: boolean; conditions?: string }
+  exchanges: { accepted: boolean; windowDays?: number; conditions?: string }
   customOrders: { accepted: boolean; details?: string }
   paymentMethods: string[]
   additionalInfo?: string
+  mandatoryRightsAcknowledged: boolean
+}
+
+export interface BusinessAddressData {
+  street: string
+  city: string
+  postalCode: string
+  country: string
 }
 
 export interface ShopDraft {
@@ -287,6 +369,7 @@ export interface ShopDraft {
   productionPartnerDetails: string | null
   languages: string[]
   shippingOrigin: ShippingOriginData | null
+  businessAddress: BusinessAddressData | null
   currency: string
   isVatRegistered: boolean
   vatId: string | null
@@ -299,8 +382,12 @@ export interface ShopDraft {
   status: string
   onboardingStep: number
   onboardingCompletedAt: Date | null
+  onboardingListingId: string | null
+  sellerTermsAcceptedAt: Date | null
+  sellerTermsVersion: string | null
   isSuspended: boolean
   moderationNote: string | null
+  moderationStage: number | null
   submittedAt: Date | null
   reviewedAt: Date | null
   reviewedBy: string | null
@@ -352,30 +439,19 @@ export function validateOnboardingStepData(step: number, data: unknown): void {
       step1IdentitySchema.parse(data)
       break
     case 2:
-      step2StorySchema.parse(data)
-      break
-    case 3:
-      step3VisualsSchema.parse(data)
-      break
-    case 4:
       step4LocationSchema.parse(data)
       break
-    case 5:
+    case 3:
+      z.object({ productId: z.string().uuid() }).strict().parse(data)
+      break
+    case 4:
       step5PoliciesSchema.parse(data)
       break
-    case 6:
-      step6SocialsSchema.parse(data)
-      break
-    case 7:
-      // Step 7 listing data is persisted via createDraftListing, not saveOnboardingStep.
-      // Reject any injected fields to prevent cross-step mutation.
-      z.object({}).strict().parse(data)
-      break
-    case 8:
+    case 5:
       step8ReviewSchema.parse(data)
       break
     default:
-      throw new Error(`Invalid onboarding step: ${step}`)
+      throw new Error(`Invalid onboarding stage: ${step}`)
   }
 }
 
@@ -388,7 +464,7 @@ export const saveOnboardingStep = createServerFn({ method: 'POST' })
   .inputValidator(
     z.object({
       draftId: z.string().min(1),
-      step: z.number().int().min(1).max(8),
+      step: z.number().int().min(1).max(5),
       data: z.record(z.unknown()),
     }),
   )
@@ -441,11 +517,74 @@ export const getSellerShops = createServerFn({ method: 'GET' })
  */
 export const submitShopForReview = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ draftId: z.string().min(1) }))
+  .inputValidator(
+    z.object({
+      draftId: z.string().min(1),
+      termsAgreed: z.literal(true),
+      termsVersion: z.literal(SELLER_TERMS_VERSION),
+    }),
+  )
   .handler(async ({ context, data }) => {
     if (!context.user) throw new Error('UNAUTHENTICATED')
     const { submitShopForReviewInternal } = await import('./sell-onboarding.server')
-    return submitShopForReviewInternal(context.user.id, context.user.role, data.draftId)
+    return submitShopForReviewInternal(context.user.id, context.user.role, data.draftId, {
+      termsAgreed: data.termsAgreed,
+      termsVersion: data.termsVersion,
+    })
+  })
+
+export const launchApprovedShop = createServerFn({ method: 'POST' })
+  .middleware([authMiddleware])
+  .inputValidator(z.object({ shopId: z.string().min(1) }))
+  .handler(async ({ context, data }) => {
+    if (!context.user) throw new Error('UNAUTHENTICATED')
+    const [
+      { requirePrivileged2FA },
+      { activateApprovedShopAndListing },
+      { verifyShopOwnershipOrAdmin },
+    ] = await Promise.all([
+      import('./server-auth'),
+      import('./shops/activation.server'),
+      import('./sell-onboarding.server'),
+    ])
+    requirePrivileged2FA(context.user)
+    await verifyShopOwnershipOrAdmin(data.shopId, context.user.id, context.user.role)
+    const result = await activateApprovedShopAndListing(data.shopId)
+    if (!result.activated) throw new Error(`SHOP_NOT_READY:${result.reason}`)
+    return result
+  })
+
+export const getOnboardingReadiness = createServerFn({ method: 'GET' })
+  .middleware([authMiddleware])
+  .inputValidator(z.object({ draftId: z.string().min(1) }))
+  .handler(async ({ context, data }) => {
+    if (!context.user) throw new Error('UNAUTHENTICATED')
+    const { getOnboardingReadinessInternal, verifyShopOwnershipOrAdmin } = await import(
+      './sell-onboarding.server'
+    )
+    await verifyShopOwnershipOrAdmin(data.draftId, context.user.id, context.user.role)
+    return getOnboardingReadinessInternal(data.draftId)
+  })
+
+export const getOnboardingListing = createServerFn({ method: 'GET' })
+  .middleware([authMiddleware])
+  .inputValidator(z.object({ draftId: z.string().min(1) }))
+  .handler(async ({ context, data }) => {
+    if (!context.user) throw new Error('UNAUTHENTICATED')
+    const { getOnboardingListingInternal, verifyShopOwnershipOrAdmin } = await import(
+      './sell-onboarding.server'
+    )
+    await verifyShopOwnershipOrAdmin(data.draftId, context.user.id, context.user.role)
+    return getOnboardingListingInternal(data.draftId)
+  })
+
+export const deleteShopDraft = createServerFn({ method: 'POST' })
+  .middleware([authMiddleware])
+  .inputValidator(z.object({ shopId: z.string().min(1) }))
+  .handler(async ({ context, data }) => {
+    if (!context.user) throw new Error('UNAUTHENTICATED')
+    const { deleteShopDraftInternal } = await import('./sell-onboarding.server')
+    return deleteShopDraftInternal(context.user.id, data.shopId)
   })
 
 /**
@@ -461,10 +600,10 @@ export const getShopStatus = createServerFn({ method: 'GET' })
   })
 
 /**
- * Creates a draft listing (product) attached to a draft shop.
- * The product is created with isActive: false.
+ * Creates or updates the single onboarding product attached to a draft shop.
+ * The product remains inactive and in draft status until shop activation.
  */
-export const createDraftListing = createServerFn({ method: 'POST' })
+export const saveDraftListing = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
   .inputValidator(
     step7ListingSchema.extend({
@@ -478,32 +617,8 @@ export const createDraftListing = createServerFn({ method: 'POST' })
   .handler(async ({ context, data }) => {
     if (!context.user) throw new Error('UNAUTHENTICATED')
 
-    const { verifyShopOwnershipOrAdmin } = await import('./sell-onboarding.server')
-    const record = await verifyShopOwnershipOrAdmin(
-      data.draftId,
-      context.user.id,
-      context.user.role,
-    )
-
-    if (record.status !== 'draft' && record.status !== 'changes_requested') {
-      throw new Error('FORBIDDEN')
-    }
-
-    const { createProductInternal } = await import('./creator-products.server')
-
-    const created = await createProductInternal({
-      name: data.name,
-      description: data.description,
-      slug: data.slug,
-      priceCents: data.priceCents,
-      stockCount: data.stockCount,
-      shopId: data.draftId,
-      categoryId: data.categoryId,
-      isActive: false,
-      images: data.images,
-    })
-
-    return created
+    const { saveDraftListingInternal } = await import('./sell-onboarding.server')
+    return saveDraftListingInternal(context.user, data)
   })
 
 /* -------------------------------------------------------------------------- */
@@ -514,6 +629,7 @@ const moderationActionSchema = z.object({
   shopId: z.string().min(1),
   action: z.enum(['approve', 'request_changes', 'reject']),
   note: z.string().optional(),
+  stage: z.number().int().min(1).max(4).optional(),
 })
 
 /**

@@ -8,8 +8,10 @@ import MobileNavDrawer from './MobileNavDrawer'
 const mockSetLocale = vi.fn()
 const mockUseAuth = vi.fn()
 const mockSignOut = vi.fn(() => Promise.resolve())
+const mockNavigate = vi.fn(() => Promise.resolve())
 
 vi.mock('@tanstack/react-router', () => ({
+  useRouter: () => ({ navigate: mockNavigate }),
   Link: (props: {
     children: React.ReactNode
     to: string
@@ -94,6 +96,7 @@ describe('MobileNavDrawer', () => {
     mockOnOpenSearch.mockClear()
     mockSetLocale.mockClear()
     mockSignOut.mockClear()
+    mockNavigate.mockClear()
     mockUseAuth.mockReturnValue({
       user: null,
       isPending: false,
@@ -182,6 +185,28 @@ describe('MobileNavDrawer', () => {
     expect(screen.getByText('Settings')).toBeDefined()
     expect(screen.getByText('Sign out')).toBeDefined()
     expect(screen.queryByText('Start Selling')).toBeNull()
+  })
+
+  it('signs out, closes the drawer, and redirects home', async () => {
+    mockUseAuth.mockReturnValue({
+      user: {
+        id: 'user-1',
+        name: 'John Artisan',
+        email: 'john@eurtisan.local',
+        role: 'creator',
+      },
+      isPending: false,
+      isAuthenticated: true,
+    })
+
+    openDrawer()
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+
+    await waitFor(() => {
+      expect(mockSignOut).toHaveBeenCalledTimes(1)
+      expect(mockNavigate).toHaveBeenCalledWith({ to: '/' })
+      expect(screen.queryByRole('dialog', { name: 'Mobile navigation' })).toBeNull()
+    })
   })
 
   it('closes and opens search from the search destination', async () => {

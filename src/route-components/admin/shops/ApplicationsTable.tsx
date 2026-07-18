@@ -4,6 +4,7 @@ import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
 import { m } from '#/paraglide/messages'
 import { formatDateMediumTime } from '#/lib/format-date'
+import { getImageUrl } from '#/lib/image-url'
 
 const STATUS_LABELS: Record<string, string> = {
   all: m.admin_shops_filter_all(),
@@ -15,11 +16,6 @@ const STATUS_LABELS: Record<string, string> = {
 
 function formatDate(date: Date | string): string {
   return formatDateMediumTime(new Date(date))
-}
-
-function isSafeImageUrl(url: string | null): url is string {
-  if (!url) return false
-  return url.startsWith('/uploads/') || url.startsWith('http://') || url.startsWith('https://')
 }
 
 interface ApplicationListItem {
@@ -92,9 +88,13 @@ export function ApplicationsTable({ applications, onReview }: ApplicationsTableP
               {/* Name */}
               <td className='py-3 pr-4 font-medium text-text-primary'>
                 <div className='flex items-center gap-3'>
-                  {app.image && isSafeImageUrl(app.image) ? (
+                  {app.image ? (
                     <div className='size-6 rounded-full overflow-hidden border border-border-default bg-surface-default flex-shrink-0'>
-                      <img src={app.image} alt='' className='h-full w-full object-cover' />
+                      <img
+                        src={getImageUrl(app.image, { width: 96, format: 'webp' })}
+                        alt=''
+                        className='h-full w-full object-cover'
+                      />
                     </div>
                   ) : (
                     <div className='size-6 rounded-full bg-surface-inset border border-border-subtle flex items-center justify-center text-text-muted flex-shrink-0'>

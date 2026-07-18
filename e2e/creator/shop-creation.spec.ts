@@ -4,6 +4,15 @@ import { createAdminContext } from '../fixtures/admin'
 
 const E2E_SHOP_NAME = 'Playwright Test Shop'
 
+test.setTimeout(180000)
+
+function useE2eDatabase() {
+  process.env.DATABASE_URL =
+    process.env.E2E_DATABASE_URL ??
+    process.env.DATABASE_URL ??
+    'postgresql://eurtisan:eurtisan@db:5432/eurtisan'
+}
+
 test.describe('shop creation onboarding', () => {
   let dummyPngPath: string
 
@@ -11,9 +20,7 @@ test.describe('shop creation onboarding', () => {
     const fs = await import('node:fs')
     const path = await import('node:path')
     const dummyDir = path.join(__dirname, '../fixtures')
-    if (!fs.existsSync(dummyDir)) {
-      fs.mkdirSync(dummyDir, { recursive: true })
-    }
+    if (!fs.existsSync(dummyDir)) fs.mkdirSync(dummyDir, { recursive: true })
     dummyPngPath = path.join(dummyDir, 'dummy.png')
     const base64Png =
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
@@ -21,158 +28,156 @@ test.describe('shop creation onboarding', () => {
   })
 
   test.afterAll(async () => {
-    const connectionString =
-      process.env.E2E_DATABASE_URL ??
-      process.env.DATABASE_URL ??
-      'postgresql://eurtisan:eurtisan@db:5432/eurtisan'
-    process.env.DATABASE_URL = connectionString
-
+    useE2eDatabase()
     const { db } = await import('../../src/db/index')
     const { shop } = await import('../../src/db/schema')
     await db.delete(shop).where(eq(shop.name, E2E_SHOP_NAME))
   })
 
-  test('creator can complete full onboarding, submit, and admin can approve', async ({
+  test('creator builds a valid shop and its first product becomes public at go-live', async ({
     page,
     browser,
   }) => {
-    // 1. Navigate to Seller Hub and wait for hydration
     await page.goto('/sell')
     await page.waitForSelector('html[data-hydrated="true"]')
     await page.waitForLoadState('networkidle')
     await expect(page.getByRole('heading', { name: 'Seller Hub' })).toBeVisible()
+    await page.getByRole('button', { name: 'Create a shop' }).click()
 
-    // 2. Start a new shop — bypass the confirmation dialog (seeded creator already has 6 shops)
-    await page.evaluate(() => {
-      window.confirm = () => true
-    })
-    await page.getByRole('button', { name: 'Open a New Shop' }).click()
-
-    // 3. Wait for redirect to onboarding step 1 (identity)
     await page.waitForURL(/\/sell\/onboarding\/[^/]+\/identity/)
     await page.waitForLoadState('networkidle')
-    await expect(page.getByRole('heading', { name: /start with the basics/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /build your shop profile/i })).toBeVisible()
 
-    // 4. Fill out step 1: Identity
     await page.fill('#shop-name', E2E_SHOP_NAME)
-    // Slug should auto-populate from name; wait for it
-    await expect(page.locator('#shop-slug')).not.toHaveValue('')
+    await expect(page.locator('#shop-slug')).toHaveValue('playwright-test-shop')
+    await expect(page.getByText('Available')).toBeVisible()
     await page.fill('#shop-tagline', 'Handcrafted goods for E2E testing')
     await page.selectOption('#shop-category', 'art_collectibles')
-    await page.getByRole('button', { name: 'Handmade by me' }).click()
-
-    // 5. Continue to step 2: Story
-    await page.getByRole('button', { name: 'Continue' }).click()
-    await page.waitForURL(/\/sell\/onboarding\/[^/]+\/story/)
-    await expect(page.getByRole('heading', { name: /tell your story/i })).toBeVisible()
-
-    // 6. Fill out step 2: Story
+    await page.getByLabel('Handmade by me').check()
     await page.fill(
       '#shop-description',
-      'We create beautiful handcrafted ceramics using traditional European techniques.',
+      'We create beautiful handcrafted ceramics using traditional European techniques in our small independent workshop.',
     )
-    await page.fill('#shop-tags', 'pottery')
-    await page.getByRole('button', { name: 'Add' }).first().click()
-    await expect(page.getByText('pottery')).toBeVisible()
-
-    await page.fill('#shop-languages', 'English')
-    await page.getByRole('button', { name: 'Add' }).nth(1).click()
-    await expect(page.getByText('English')).toBeVisible()
-
-    // 7. Continue to step 3: Visuals
-    await page.getByRole('button', { name: 'Continue' }).click()
-    await page.waitForURL(/\/sell\/onboarding\/[^/]+\/visuals/)
-    await expect(page.getByRole('heading', { name: /visual identity/i })).toBeVisible()
-
-    // 8. Upload Shop icon
-    await page.setInputFiles('input[id="upload-Shop icon"]', dummyPngPath)
-    await expect(page.getByRole('button', { name: 'Remove image' })).toBeVisible({ timeout: 15000 })
-
-    // 9. Continue to step 4: Location
-    await page.getByRole('button', { name: 'Continue' }).click()
-    await page.waitForURL(/\/sell\/onboarding\/[^/]+\/location/)
-    await expect(page.getByRole('heading', { name: /location & shipping/i })).toBeVisible()
-
-    // 10. Fill step 4 Location fields
-    await page.selectOption('#country', 'FR')
-    await page.fill('#tax-id', 'FR123456789')
-    await page.fill('#date-of-birth', '1990-01-01')
-
-    // 11. Continue to step 5: Policies
-    await page.getByRole('button', { name: 'Continue' }).click()
-    await page.waitForURL(/\/sell\/onboarding\/[^/]+\/policies/)
-    await expect(page.getByRole('heading', { name: /shop policies/i })).toBeVisible()
-
-    // 12. Continue to step 6: Socials
-    await page.getByRole('button', { name: 'Continue' }).click()
-    await page.waitForURL(/\/sell\/onboarding\/[^/]+\/socials/)
-    await expect(page.getByRole('heading', { name: /socials & links/i })).toBeVisible()
-
-    // 13. Continue to step 7: Listing
-    await page.getByRole('button', { name: 'Continue' }).click()
-    await page.waitForURL(/\/sell\/onboarding\/[^/]+\/listing/)
-    await expect(page.getByRole('heading', { name: /your first listing/i })).toBeVisible()
-
-    // 14. Upload product image & fill out fields
     await page.setInputFiles('input[type="file"]', dummyPngPath)
-    await expect(page.getByRole('button', { name: /remove image/i })).toBeVisible({
+    await expect(page.getByRole('button', { name: /remove shop icon/i })).toBeVisible({
       timeout: 15000,
     })
+
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await page.waitForURL(/\/sell\/onboarding\/[^/]+\/location/)
+    await expect(page.getByRole('heading', { name: /verify your seller details/i })).toBeVisible()
+
+    await page.selectOption('#dispatch-country', 'FR')
+    await page.fill('#dispatch-city', 'Lyon')
+    await page.fill('#dispatch-postal', '69001')
+    await page.fill('#business-street', '4 Rue Mercière')
+    await page.fill('#business-city', 'Lyon')
+    await page.fill('#business-postal', '69001')
+    await page.selectOption('#business-country', 'FR')
+    await page.fill('#tax-id', 'FRTIN123456')
+    await page.fill('#date-of-birth', '1990-01-01')
+
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await page.waitForURL(/\/sell\/onboarding\/[^/]+\/listing/)
+    await expect(page.getByRole('heading', { name: /create your first product/i })).toBeVisible()
+
     await page.fill('#listing-name', 'E2E Creator Onboarding Item')
     await page.fill(
-      '#listing-desc',
-      'Beautiful handcrafted ceramics using traditional European techniques.',
+      '#listing-description',
+      'A beautiful handcrafted ceramic piece made with traditional European workshop techniques.',
     )
+    await page.selectOption('#listing-category', { index: 1 })
+    await page.setInputFiles('input[type="file"]', dummyPngPath)
+    await expect(page.getByRole('button', { name: /remove product image 1/i })).toBeVisible({
+      timeout: 15000,
+    })
     await page.fill('#listing-price', '49.99')
     await page.fill('#listing-stock', '10')
+    await page.fill('#listing-weight', '600')
+    await page.fill('#listing-length', '20')
+    await page.fill('#listing-width', '20')
+    await page.fill('#listing-height', '12')
 
-    // 15. Continue to step 8: Review
+    await page.getByRole('button', { name: 'Continue' }).click()
+    await page.waitForURL(/\/sell\/onboarding\/[^/]+\/policies/)
+    await expect(
+      page.getByRole('heading', { name: /set delivery and shop policies/i }),
+    ).toBeVisible()
+    await page.getByLabel(/i understand that my shop policies/i).check()
+
     await page.getByRole('button', { name: 'Continue' }).click()
     await page.waitForURL(/\/sell\/onboarding\/[^/]+\/review/)
-    await expect(page.getByRole('heading', { name: /review & open shop/i })).toBeVisible()
+    await expect(page.getByRole('heading', { name: /preview and submit/i })).toBeVisible()
+    useE2eDatabase()
+    const reviewShopId = new URL(page.url()).pathname.split('/')[3]
+    const { db } = await import('../../src/db/index')
+    const { product, shop, user } = await import('../../src/db/schema')
+    const { getOnboardingReadinessInternal } = await import('../../src/lib/shops/onboarding.server')
+    const readiness = await getOnboardingReadinessInternal(reviewShopId)
+    expect(readiness.items, JSON.stringify(readiness.items)).toEqual([
+      { id: 'profile', path: 'identity', complete: true },
+      { id: 'seller', path: 'location', complete: true },
+      { id: 'product', path: 'listing', complete: true },
+      { id: 'delivery', path: 'policies', complete: true },
+    ])
+    await page.reload()
+    await page.waitForLoadState('networkidle')
+    await expect(page.getByText('Ready to submit')).toBeVisible()
+    await page.getByLabel(/i agree to the seller terms/i).check()
+    await page.getByRole('button', { name: /submit shop for review/i }).click()
 
-    // 16. Accept terms and submit
-    await page.click('#terms')
-    const submitBtn = page.getByRole('button', { name: /submit for review/i })
-    await expect(submitBtn).toBeEnabled()
-    await submitBtn.click()
-
-    // 17. Verify redirection to status page (pending review)
     await page.waitForURL(/\/sell\/status\/[^/]+/)
     await expect(page.getByRole('heading', { name: /your shop is under review/i })).toBeVisible()
-
-    const statusUrl = new URL(page.url())
-    const shopId = statusUrl.pathname.split('/').pop()
+    const shopId = new URL(page.url()).pathname.split('/').pop()
     expect(shopId).toMatch(/^[0-9a-f-]+$/)
+    if (!shopId) throw new Error('Submitted shop id was missing from the status URL')
 
-    // 18. Open separate Admin context to approve shop
     const adminContext = await createAdminContext(browser)
     const adminPage = await adminContext.newPage()
-
     await adminPage.goto('/admin/shops?view=applications')
     await adminPage.waitForSelector('html[data-hydrated="true"]')
-
-    // 19. Locate the submitted application in the table and click Review Application
-    const reviewBtn = adminPage
+    await adminPage.waitForLoadState('networkidle')
+    await adminPage
       .locator('tr')
       .filter({ hasText: E2E_SHOP_NAME })
       .getByRole('button', { name: 'Review Application' })
-    await expect(reviewBtn).toBeVisible()
-    await reviewBtn.click()
-
-    // 20. Click Approve Shop button in the moderation dialog
-    const approveBtn = adminPage.getByRole('button', { name: 'Approve Shop' })
-    await expect(approveBtn).toBeVisible()
-    await approveBtn.click()
-
-    // 21. Verify the dialog closes successfully
-    await expect(
-      adminPage.getByRole('heading', { name: /application review details/i }),
-    ).not.toBeVisible()
+      .click()
+    await expect(adminPage.getByRole('dialog')).toBeVisible()
+    await adminPage.getByRole('button', { name: 'Approve Shop' }).click()
+    await expect(adminPage.getByRole('dialog')).not.toBeVisible()
     await adminContext.close()
 
-    // 22. Reload the Creator status page and verify it changes to Approved
+    const [approvedShop] = await db.select().from(shop).where(eq(shop.id, shopId))
+    await db.update(user).set({ twoFactorEnabled: false }).where(eq(user.id, approvedShop.ownerId))
     await page.reload()
     await expect(page.getByRole('heading', { name: /your shop is approved/i })).toBeVisible()
+    await expect(page.getByText(/publish the approved first product/i)).not.toHaveClass(
+      /line-through/,
+    )
+    await expect(page.getByRole('link', { name: 'Enable 2FA' })).toBeVisible()
+
+    useE2eDatabase()
+    await db.update(user).set({ twoFactorEnabled: true }).where(eq(user.id, approvedShop.ownerId))
+    await db.update(shop).set({ paymentConnected: true }).where(eq(shop.id, shopId))
+    await page.reload()
+    await page.waitForLoadState('networkidle')
+    await page.getByRole('button', { name: 'Publish and go live' }).click()
+    await expect(page.getByRole('heading', { name: /your shop is live/i })).toBeVisible()
+
+    const [liveShop] = await db.select().from(shop).where(eq(shop.id, shopId))
+    if (!liveShop.onboardingListingId) throw new Error('Live shop has no onboarding listing')
+    const [liveProduct] = await db
+      .select()
+      .from(product)
+      .where(eq(product.id, liveShop.onboardingListingId))
+    expect(liveShop.status).toBe('active')
+    expect(liveProduct.status).toBe('published')
+    expect(liveProduct.isActive).toBe(true)
+
+    const anonymousContext = await browser.newContext({ baseURL: new URL(page.url()).origin })
+    const anonymousPage = await anonymousContext.newPage()
+    await anonymousPage.goto(`/shops/${liveShop.slug}/products/${liveProduct.slug}`)
+    await expect(anonymousPage.getByRole('heading', { name: liveProduct.name })).toBeVisible()
+    await anonymousContext.close()
   })
 })

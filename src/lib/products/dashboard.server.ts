@@ -9,6 +9,11 @@ export interface CreatorShop {
   id: string
   name: string
   slug: string
+  status?: string
+  image?: string | null
+  bannerImage?: string | null
+  announcement?: string | null
+  socialCount?: number
   paymentConnected?: boolean
   mollieAccountId?: string | null
 }
@@ -240,11 +245,18 @@ export async function getCreatorShopsQuery(userId: string): Promise<CreatorShop[
       id: shop.id,
       name: shop.name,
       slug: shop.slug,
+      status: shop.status,
+      image: shop.image,
+      bannerImage: shop.bannerImage,
+      announcement: shop.announcement,
+      socialCount: count(shopSocials.id),
       paymentConnected: shop.paymentConnected,
       mollieAccountId: shop.mollieAccountId,
     })
     .from(shop)
+    .leftJoin(shopSocials, eq(shopSocials.shopId, shop.id))
     .where(and(eq(shop.ownerId, userId), not(eq(shop.status, 'archived'))))
+    .groupBy(shop.id)
     .orderBy(shop.name)
 }
 

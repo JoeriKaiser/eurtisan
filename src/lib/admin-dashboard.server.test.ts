@@ -4,6 +4,7 @@ import { createAuditLog, createPlatformOrder, createShop, createUser } from '#/t
 import {
   getAdminDashboardStatsQuery,
   getDashboardTrendsQuery,
+  getPendingShopReviewCountQuery,
   getRecentAuditEntriesQuery,
   getRecentOrdersQuery,
   getRecentSignupsQuery,
@@ -76,6 +77,22 @@ describe.sequential('admin-dashboard.server', () => {
       const stats = await getAdminDashboardStatsQuery()
       expect(stats.totalUsers).toBe(1)
       expect(stats.activeShops).toBe(1)
+    })
+  })
+
+  describe('getPendingShopReviewCountQuery', () => {
+    it('counts only shops awaiting admin review', async () => {
+      await seedUser({ id: 'u-1', name: 'Alice', email: 'alice@test.com', role: 'creator' })
+      await seedShop({ id: 's-1', status: 'pending_review' })
+      await seedShop({ id: 's-2', name: 'Draft Shop', slug: 'draft-shop', status: 'draft' })
+      await seedShop({
+        id: 's-3',
+        name: 'Changes Shop',
+        slug: 'changes-shop',
+        status: 'changes_requested',
+      })
+
+      expect(await getPendingShopReviewCountQuery()).toBe(1)
     })
   })
 

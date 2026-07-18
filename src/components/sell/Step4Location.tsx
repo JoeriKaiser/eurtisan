@@ -1,464 +1,440 @@
+import { Link } from '@tanstack/react-router'
+import { LockKeyhole, ShieldCheck, WalletCards } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
-import { step4LocationSchema } from '#/lib/sell-onboarding'
+import {
+  ALLOWED_COUNTRY_CODES,
+  step4LocationSchema,
+  type BusinessAddressData,
+  type ShippingOriginData,
+} from '#/lib/sell-onboarding'
+import { getLocale } from '#/paraglide/runtime'
+import { m } from '#/paraglide/messages'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
 import { Select } from '../ui/select'
 import { Switch } from '../ui/switch'
 import { useOnboarding } from './OnboardingProvider'
 import { useStepActions } from './useStepActions'
-import { m } from '#/paraglide/messages'
 
-const COUNTRIES = [
-  { code: 'FR', name: 'France' },
-  { code: 'DE', name: 'Germany' },
-  { code: 'IT', name: 'Italy' },
-  { code: 'ES', name: 'Spain' },
-  { code: 'NL', name: 'Netherlands' },
-  { code: 'BE', name: 'Belgium' },
-  { code: 'AT', name: 'Austria' },
-  { code: 'PT', name: 'Portugal' },
-  { code: 'PL', name: 'Poland' },
-  { code: 'IE', name: 'Ireland' },
-  { code: 'SE', name: 'Sweden' },
-  { code: 'DK', name: 'Denmark' },
-  { code: 'FI', name: 'Finland' },
-  { code: 'GB', name: 'United Kingdom' },
-  { code: 'US', name: 'United States' },
-  { code: 'CA', name: 'Canada' },
-  { code: 'AU', name: 'Australia' },
-  { code: 'CH', name: 'Switzerland' },
-  { code: 'NO', name: 'Norway' },
-]
+interface SellerData {
+  shippingOrigin: ShippingOriginData
+  businessAddress: BusinessAddressData
+  currency: 'EUR'
+  isVatRegistered: boolean
+  vatId: string
+  legalEntityType: 'individual' | 'business'
+  dateOfBirth: string
+  taxId: string
+  businessRegistrationNumber: string
+}
 
-const STATES_US = [
-  'Alabama',
-  'Alaska',
-  'Arizona',
-  'Arkansas',
-  'California',
-  'Colorado',
-  'Connecticut',
-  'Delaware',
-  'Florida',
-  'Georgia',
-  'Hawaii',
-  'Idaho',
-  'Illinois',
-  'Indiana',
-  'Iowa',
-  'Kansas',
-  'Kentucky',
-  'Louisiana',
-  'Maine',
-  'Maryland',
-  'Massachusetts',
-  'Michigan',
-  'Minnesota',
-  'Mississippi',
-  'Missouri',
-  'Montana',
-  'Nebraska',
-  'Nevada',
-  'New Hampshire',
-  'New Jersey',
-  'New Mexico',
-  'New York',
-  'North Carolina',
-  'North Dakota',
-  'Ohio',
-  'Oklahoma',
-  'Oregon',
-  'Pennsylvania',
-  'Rhode Island',
-  'South Carolina',
-  'South Dakota',
-  'Tennessee',
-  'Texas',
-  'Utah',
-  'Vermont',
-  'Virginia',
-  'Washington',
-  'West Virginia',
-  'Wisconsin',
-  'Wyoming',
-]
-const PROVINCES_CA = [
-  'Alberta',
-  'British Columbia',
-  'Manitoba',
-  'New Brunswick',
-  'Newfoundland and Labrador',
-  'Nova Scotia',
-  'Ontario',
-  'Prince Edward Island',
-  'Quebec',
-  'Saskatchewan',
-]
-const STATES_AU = [
-  'Australian Capital Territory',
-  'New South Wales',
-  'Northern Territory',
-  'Queensland',
-  'South Australia',
-  'Tasmania',
-  'Victoria',
-  'Western Australia',
-]
+function focusFirstError(errors: Record<string, string>) {
+  const fieldMap: Record<string, string> = {
+    'shippingOrigin.country': 'dispatch-country',
+    'shippingOrigin.city': 'dispatch-city',
+    'shippingOrigin.postalCode': 'dispatch-postal',
+    'businessAddress.street': 'business-street',
+    'businessAddress.city': 'business-city',
+    'businessAddress.postalCode': 'business-postal',
+    'businessAddress.country': 'business-country',
+    legalEntityType: 'legal-entity-type',
+    taxId: 'tax-id',
+    dateOfBirth: 'date-of-birth',
+    businessRegistrationNumber: 'business-registration-number',
+    vatId: 'vat-id',
+  }
+  const id = fieldMap[Object.keys(errors)[0]]
+  if (id) document.getElementById(id)?.focus()
+}
 
 export function Step4Location() {
-  const { saveStep, getStepData } = useOnboarding()
-  const data = getStepData(4) as {
-    shippingOrigin: {
-      country: string
-      state?: string
-      city?: string
-      postalCode?: string
-      processingTimeDays: { min: number; max: number }
-      shipsInternational: boolean
-    }
-    isVatRegistered?: boolean
-    vatId?: string | null
-    legalEntityType?: 'individual' | 'business'
-    dateOfBirth?: string | null
-    taxId?: string | null
-    businessRegistrationNumber?: string | null
-  }
-
-  const [form, setForm] = useState({
-    country: data.shippingOrigin?.country ?? '',
-    state: data.shippingOrigin?.state ?? '',
-    city: data.shippingOrigin?.city ?? '',
-    postalCode: data.shippingOrigin?.postalCode ?? '',
-    processingMin: data.shippingOrigin?.processingTimeDays?.min ?? 1,
-    processingMax: data.shippingOrigin?.processingTimeDays?.max ?? 3,
-    shipsInternational: data.shippingOrigin?.shipsInternational ?? false,
-    isVatRegistered: data.isVatRegistered ?? false,
-    vatId: data.vatId ?? '',
-    legalEntityType: data.legalEntityType ?? 'individual',
-    dateOfBirth: data.dateOfBirth ?? '',
-    taxId: data.taxId ?? '',
-    businessRegistrationNumber: data.businessRegistrationNumber ?? '',
-  })
+  const { saveStep, getStepData, updateField } = useOnboarding()
+  const form = getStepData(2) as unknown as SellerData
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const countries = useMemo(() => {
+    const names = new Intl.DisplayNames([getLocale()], { type: 'region' })
+    return ALLOWED_COUNTRY_CODES.map((code) => ({ code, name: names.of(code) ?? code })).sort(
+      (left, right) => left.name.localeCompare(right.name),
+    )
+  }, [])
 
-  const stateOptions = useMemo(() => {
-    if (form.country === 'US') return STATES_US
-    if (form.country === 'CA') return PROVINCES_CA
-    if (form.country === 'AU') return STATES_AU
-    return []
-  }, [form.country])
-
-  const handleCountryChange = (value: string) => {
-    setForm((prev) => ({
-      ...prev,
-      country: value,
-      state: '',
-    }))
+  const updateOrigin = (fields: Partial<ShippingOriginData>) => {
+    updateField(2, 'shippingOrigin', { ...form.shippingOrigin, ...fields })
+  }
+  const updateAddress = (fields: Partial<BusinessAddressData>) => {
+    updateField(2, 'businessAddress', { ...form.businessAddress, ...fields })
   }
 
   const validate = useCallback(() => {
-    const result = step4LocationSchema.safeParse({
-      shippingOrigin: {
-        country: form.country,
-        state: form.state || undefined,
-        city: form.city || undefined,
-        postalCode: form.postalCode || undefined,
-        processingTimeDays: { min: form.processingMin, max: form.processingMax },
-        shipsInternational: form.shipsInternational,
-      },
-      currency: 'EUR',
-      isVatRegistered: form.isVatRegistered,
-      vatId: form.vatId,
-      legalEntityType: form.legalEntityType,
-      dateOfBirth: form.dateOfBirth,
-      taxId: form.taxId,
-      businessRegistrationNumber: form.businessRegistrationNumber,
-    })
-    if (!result.success) {
-      const fieldErrors: Record<string, string> = {}
-      for (const issue of result.error.issues) {
-        const key = issue.path.join('.')
-        fieldErrors[key] = issue.message
-      }
-      setErrors(fieldErrors)
-      return false
+    const result = step4LocationSchema.safeParse(form)
+    if (result.success) {
+      setErrors({})
+      return true
     }
-    setErrors({})
-    return true
+    const nextErrors: Record<string, string> = {}
+    for (const issue of result.error.issues) nextErrors[issue.path.join('.')] = issue.message
+    setErrors(nextErrors)
+    focusFirstError(nextErrors)
+    return false
   }, [form])
 
-  const save = useCallback(async () => {
-    await saveStep(4, {
-      shippingOrigin: {
-        country: form.country,
-        state: form.state || undefined,
-        city: form.city || undefined,
-        postalCode: form.postalCode || undefined,
-        processingTimeDays: { min: form.processingMin, max: form.processingMax },
-        shipsInternational: form.shipsInternational,
-      },
-      currency: 'EUR',
-      isVatRegistered: form.isVatRegistered,
-      vatId: form.vatId,
-      legalEntityType: form.legalEntityType,
-      dateOfBirth: form.dateOfBirth,
-      taxId: form.taxId,
-      businessRegistrationNumber: form.businessRegistrationNumber,
-    })
-  }, [form, saveStep])
-
-  const stepActionsRef = useStepActions(4, { validate, save })
+  const save = useCallback(
+    async () => saveStep(2, form as unknown as Record<string, unknown>),
+    [form, saveStep],
+  )
+  const stepActionsRef = useStepActions(2, { validate, save })
+  const adultCutoff = new Date()
+  adultCutoff.setFullYear(adultCutoff.getFullYear() - 18)
+  const maximumBirthDate = adultCutoff.toISOString().slice(0, 10)
 
   return (
-    <div ref={stepActionsRef} className='space-y-6'>
-      <div>
-        <h2 className='display-title text-2xl text-text-primary'>{m.onboarding_step4_title()}</h2>
-        <p className='mt-1 text-text-secondary'>{m.onboarding_step4_description()}</p>
-      </div>
+    <div ref={stepActionsRef} className='space-y-8'>
+      <header>
+        <p className='text-sm font-medium text-accent-primary'>{m.onboarding_stage_seller()}</p>
+        <h1 className='display-title mt-1 text-2xl text-text-primary'>
+          {m.onboarding_seller_title()}
+        </h1>
+        <p className='mt-2 max-w-[65ch] text-text-secondary'>{m.onboarding_seller_description()}</p>
+      </header>
 
-      <div>
-        <Label htmlFor='country' required>
-          {m.onboarding_step4_country_label()}
-        </Label>
-        <Select
-          id='country'
-          value={form.country}
-          onChange={(e) => handleCountryChange(e.target.value)}
-          className='mt-1'
-        >
-          <option value=''>{m.onboarding_step4_country_placeholder()}</option>
-          {COUNTRIES.map((c) => (
-            <option key={c.code} value={c.code}>
-              {c.name}
-            </option>
-          ))}
-        </Select>
-        {errors['shippingOrigin.country'] && (
-          <p className='mt-1 text-sm text-error'>{errors['shippingOrigin.country']}</p>
-        )}
-      </div>
+      <section
+        className='grid gap-3 rounded-xl border border-border-default bg-surface-inset p-4 sm:grid-cols-3'
+        aria-label={m.onboarding_launch_requirements()}
+      >
+        <div className='flex gap-3'>
+          <ShieldCheck className='size-5 shrink-0 text-accent-primary' aria-hidden='true' />
+          <div>
+            <p className='text-sm font-semibold text-text-primary'>
+              {m.onboarding_review_requirement()}
+            </p>
+            <p className='mt-1 text-xs text-text-muted'>{m.onboarding_review_requirement_hint()}</p>
+          </div>
+        </div>
+        <div className='flex gap-3'>
+          <LockKeyhole className='size-5 shrink-0 text-accent-primary' aria-hidden='true' />
+          <div>
+            <p className='text-sm font-semibold text-text-primary'>
+              {m.onboarding_2fa_requirement()}
+            </p>
+            <p className='mt-1 text-xs text-text-muted'>{m.onboarding_2fa_requirement_hint()}</p>
+          </div>
+        </div>
+        <div className='flex gap-3'>
+          <WalletCards className='size-5 shrink-0 text-accent-primary' aria-hidden='true' />
+          <div>
+            <p className='text-sm font-semibold text-text-primary'>
+              {m.onboarding_payment_requirement()}
+            </p>
+            <p className='mt-1 text-xs text-text-muted'>
+              {m.onboarding_payment_requirement_hint()}
+            </p>
+          </div>
+        </div>
+      </section>
 
-      {stateOptions.length > 0 && (
+      <section className='space-y-5' aria-labelledby='dispatch-title'>
         <div>
-          <Label htmlFor='state'>{m.onboarding_step4_state_label()}</Label>
+          <h2 id='dispatch-title' className='text-lg font-semibold text-text-primary'>
+            {m.onboarding_dispatch_title()}
+          </h2>
+          <p className='mt-1 text-sm text-text-secondary'>{m.onboarding_dispatch_description()}</p>
+        </div>
+        <div>
+          <Label htmlFor='dispatch-country' required>
+            {m.onboarding_country()}
+          </Label>
           <Select
-            id='state'
-            value={form.state}
-            onChange={(e) => setForm((prev) => ({ ...prev, state: e.target.value }))}
+            id='dispatch-country'
+            value={form.shippingOrigin.country}
+            onChange={(event) => {
+              const country = event.target.value
+              updateOrigin({ country })
+              if (!form.businessAddress.country) updateAddress({ country })
+            }}
             className='mt-1'
+            error={errors['shippingOrigin.country']}
           >
-            <option value=''>{m.onboarding_step4_state_placeholder()}</option>
-            {stateOptions.map((s) => (
-              <option key={s} value={s}>
-                {s}
+            <option value=''>{m.onboarding_country_placeholder()}</option>
+            {countries.map((country) => (
+              <option key={country.code} value={country.code}>
+                {country.name}
               </option>
             ))}
           </Select>
-        </div>
-      )}
-
-      <div className='grid gap-4 sm:grid-cols-2'>
-        <div>
-          <Label htmlFor='city'>{m.onboarding_step4_city_label()}</Label>
-          <Input
-            id='city'
-            value={form.city}
-            onChange={(e) => setForm((prev) => ({ ...prev, city: e.target.value }))}
-            placeholder={m.onboarding_step4_city_placeholder()}
-            className='mt-1'
-          />
-        </div>
-        <div>
-          <Label htmlFor='postal'>{m.onboarding_step4_postal_label()}</Label>
-          <Input
-            id='postal'
-            value={form.postalCode}
-            onChange={(e) => setForm((prev) => ({ ...prev, postalCode: e.target.value }))}
-            placeholder={m.onboarding_step4_postal_placeholder()}
-            className='mt-1'
-          />
-        </div>
-      </div>
-
-      <div>
-        <Label required>{m.onboarding_step4_processing_time_label()}</Label>
-        <div className='mt-1 flex items-center gap-2'>
-          <span className='text-sm text-text-secondary'>
-            {m.onboarding_step4_processing_time_prefix()}
-          </span>
-          <Input
-            type='number'
-            min={1}
-            max={90}
-            value={form.processingMin}
-            onChange={(e) =>
-              setForm((prev) => ({ ...prev, processingMin: Number(e.target.value) }))
-            }
-            className='w-20'
-          />
-          <span className='text-sm text-text-secondary'>–</span>
-          <Input
-            type='number'
-            min={1}
-            max={90}
-            value={form.processingMax}
-            onChange={(e) =>
-              setForm((prev) => ({ ...prev, processingMax: Number(e.target.value) }))
-            }
-            className='w-20'
-          />
-          <span className='text-sm text-text-secondary'>
-            {m.onboarding_step4_processing_time_suffix()}
-          </span>
-        </div>
-        {errors['shippingOrigin.processingTimeDays'] && (
-          <p className='mt-1 text-sm text-error'>{errors['shippingOrigin.processingTimeDays']}</p>
-        )}
-      </div>
-
-      <div className='rounded-xl border border-border-default p-4'>
-        <div className='flex items-center justify-between'>
-          <Label htmlFor='ships-international'>
-            {m.onboarding_step4_ships_international_label()}
-          </Label>
-          <Switch
-            id='ships-international'
-            checked={form.shipsInternational}
-            onCheckedChange={(checked) =>
-              setForm((prev) => ({ ...prev, shipsInternational: checked }))
-            }
-          />
-        </div>
-      </div>
-
-      <div className='border-t border-border-default pt-6 space-y-4'>
-        <div>
-          <h3 className='text-sm font-semibold text-text-primary uppercase tracking-wider mb-2'>
-            {m.onboarding_step4_tax_settings_title()}
-          </h3>
-          <p className='text-xs text-text-secondary mb-4'>
-            {m.onboarding_step4_vat_registered_description()}
-          </p>
-        </div>
-
-        <div className='flex items-center justify-between rounded-xl border border-border-default p-4'>
-          <div>
-            <Label htmlFor='is-vat-registered' className='font-semibold'>
-              {m.onboarding_step4_vat_registered_label()}
-            </Label>
-            <p className='text-xs text-text-secondary mt-0.5'>
-              {m.onboarding_step4_vat_registered_description()}
+          {errors['shippingOrigin.country'] && (
+            <p id='dispatch-country-error' className='mt-1 text-sm text-error'>
+              {errors['shippingOrigin.country']}
             </p>
-          </div>
-          <Switch
-            id='is-vat-registered'
-            checked={form.isVatRegistered}
-            onCheckedChange={(checked) =>
-              setForm((prev) => ({ ...prev, isVatRegistered: checked }))
-            }
-          />
+          )}
         </div>
-
-        {form.isVatRegistered && (
-          <div className='space-y-1.5 transition-all duration-200'>
-            <Label htmlFor='vat-id' required>
-              {m.onboarding_step4_vat_id_label()}
+        <div className='grid gap-4 sm:grid-cols-2'>
+          <div>
+            <Label htmlFor='dispatch-city' required>
+              {m.onboarding_city()}
             </Label>
             <Input
-              id='vat-id'
-              value={form.vatId}
-              onChange={(e) => setForm((prev) => ({ ...prev, vatId: e.target.value }))}
-              placeholder={m.onboarding_step4_vat_id_placeholder()}
+              id='dispatch-city'
+              value={form.shippingOrigin.city ?? ''}
+              onChange={(event) => updateOrigin({ city: event.target.value })}
+              placeholder={m.onboarding_city_placeholder()}
               className='mt-1'
+              error={errors['shippingOrigin.city']}
             />
-            {errors.vatId && <p className='mt-1 text-sm text-error'>{errors.vatId}</p>}
+            {errors['shippingOrigin.city'] && (
+              <p id='dispatch-city-error' className='mt-1 text-sm text-error'>
+                {errors['shippingOrigin.city']}
+              </p>
+            )}
           </div>
-        )}
-      </div>
+          <div>
+            <Label htmlFor='dispatch-postal' required>
+              {m.onboarding_postal_code()}
+            </Label>
+            <Input
+              id='dispatch-postal'
+              value={form.shippingOrigin.postalCode ?? ''}
+              onChange={(event) => updateOrigin({ postalCode: event.target.value })}
+              placeholder={m.onboarding_postal_placeholder()}
+              className='mt-1'
+              error={errors['shippingOrigin.postalCode']}
+            />
+            {errors['shippingOrigin.postalCode'] && (
+              <p id='dispatch-postal-error' className='mt-1 text-sm text-error'>
+                {errors['shippingOrigin.postalCode']}
+              </p>
+            )}
+          </div>
+        </div>
+      </section>
 
-      <div className='border-t border-border-default pt-6 space-y-4'>
+      <section
+        className='space-y-5 border-t border-border-default pt-8'
+        aria-labelledby='legal-address-title'
+      >
         <div>
-          <h3 className='text-sm font-semibold text-text-primary uppercase tracking-wider mb-2'>
-            {m.onboarding_step4_tax_identity_title()}
-          </h3>
-          <p className='text-xs text-text-secondary mb-4'>
-            {m.onboarding_step4_tax_identity_description()}
+          <h2 id='legal-address-title' className='text-lg font-semibold text-text-primary'>
+            {m.onboarding_legal_address_title()}
+          </h2>
+          <p className='mt-1 text-sm text-text-secondary'>
+            {m.onboarding_legal_address_description()}
           </p>
         </div>
+        <div>
+          <Label htmlFor='business-street' required>
+            {m.onboarding_street()}
+          </Label>
+          <Input
+            id='business-street'
+            value={form.businessAddress.street}
+            onChange={(event) => updateAddress({ street: event.target.value })}
+            placeholder={m.onboarding_street_placeholder()}
+            className='mt-1'
+            error={errors['businessAddress.street']}
+          />
+          {errors['businessAddress.street'] && (
+            <p id='business-street-error' className='mt-1 text-sm text-error'>
+              {errors['businessAddress.street']}
+            </p>
+          )}
+        </div>
+        <div className='grid gap-4 sm:grid-cols-2'>
+          <div>
+            <Label htmlFor='business-city' required>
+              {m.onboarding_city()}
+            </Label>
+            <Input
+              id='business-city'
+              value={form.businessAddress.city}
+              onChange={(event) => updateAddress({ city: event.target.value })}
+              className='mt-1'
+              error={errors['businessAddress.city']}
+            />
+            {errors['businessAddress.city'] && (
+              <p id='business-city-error' className='mt-1 text-sm text-error'>
+                {errors['businessAddress.city']}
+              </p>
+            )}
+          </div>
+          <div>
+            <Label htmlFor='business-postal' required>
+              {m.onboarding_postal_code()}
+            </Label>
+            <Input
+              id='business-postal'
+              value={form.businessAddress.postalCode}
+              onChange={(event) => updateAddress({ postalCode: event.target.value })}
+              className='mt-1'
+              error={errors['businessAddress.postalCode']}
+            />
+            {errors['businessAddress.postalCode'] && (
+              <p id='business-postal-error' className='mt-1 text-sm text-error'>
+                {errors['businessAddress.postalCode']}
+              </p>
+            )}
+          </div>
+        </div>
+        <div>
+          <Label htmlFor='business-country' required>
+            {m.onboarding_country()}
+          </Label>
+          <Select
+            id='business-country'
+            value={form.businessAddress.country}
+            onChange={(event) => updateAddress({ country: event.target.value })}
+            className='mt-1'
+            error={errors['businessAddress.country']}
+          >
+            <option value=''>{m.onboarding_country_placeholder()}</option>
+            {countries.map((country) => (
+              <option key={country.code} value={country.code}>
+                {country.name}
+              </option>
+            ))}
+          </Select>
+          {errors['businessAddress.country'] && (
+            <p id='business-country-error' className='mt-1 text-sm text-error'>
+              {errors['businessAddress.country']}
+            </p>
+          )}
+        </div>
+      </section>
 
+      <section
+        className='space-y-5 border-t border-border-default pt-8'
+        aria-labelledby='tax-title'
+      >
+        <div>
+          <h2 id='tax-title' className='text-lg font-semibold text-text-primary'>
+            {m.onboarding_tax_title()}
+          </h2>
+          <p className='mt-1 text-sm text-text-secondary'>{m.onboarding_tax_description()}</p>
+          <Link
+            to='/privacy'
+            target='_blank'
+            className='mt-2 inline-flex min-h-11 items-center text-sm font-medium text-accent-primary hover:underline'
+          >
+            {m.onboarding_privacy_link()}
+          </Link>
+        </div>
         <div>
           <Label htmlFor='legal-entity-type' required>
-            {m.onboarding_step4_legal_entity_type_label()}
+            {m.onboarding_entity_type()}
           </Label>
           <Select
             id='legal-entity-type'
             value={form.legalEntityType}
-            onChange={(e) =>
-              setForm((prev) => ({
-                ...prev,
-                legalEntityType: e.target.value as 'individual' | 'business',
-              }))
-            }
+            onChange={(event) => updateField(2, 'legalEntityType', event.target.value)}
             className='mt-1'
+            error={errors.legalEntityType}
           >
-            <option value='individual'>{m.onboarding_step4_legal_entity_individual()}</option>
-            <option value='business'>{m.onboarding_step4_legal_entity_business()}</option>
+            <option value='individual'>{m.onboarding_entity_individual()}</option>
+            <option value='business'>{m.onboarding_entity_business()}</option>
           </Select>
           {errors.legalEntityType && (
-            <p className='mt-1 text-sm text-error'>{errors.legalEntityType}</p>
+            <p id='legal-entity-type-error' className='mt-1 text-sm text-error'>
+              {errors.legalEntityType}
+            </p>
           )}
         </div>
-
         <div>
           <Label htmlFor='tax-id' required>
-            {m.onboarding_step4_tax_id_label()}
+            {m.onboarding_tax_id()}
           </Label>
           <Input
             id='tax-id'
             value={form.taxId}
-            onChange={(e) => setForm((prev) => ({ ...prev, taxId: e.target.value }))}
-            placeholder={m.onboarding_step4_tax_id_placeholder()}
+            onChange={(event) => updateField(2, 'taxId', event.target.value)}
+            placeholder={m.onboarding_tax_id_placeholder()}
             className='mt-1'
+            error={errors.taxId}
           />
-          {errors.taxId && <p className='mt-1 text-sm text-error'>{errors.taxId}</p>}
+          {errors.taxId ? (
+            <p id='tax-id-error' className='mt-1 text-sm text-error'>
+              {errors.taxId}
+            </p>
+          ) : (
+            <p className='mt-1 text-xs text-text-muted'>
+              {m.onboarding_tax_id_hint({
+                country: form.shippingOrigin.country || m.onboarding_selected_country(),
+              })}
+            </p>
+          )}
         </div>
-
-        {form.legalEntityType === 'individual' && (
-          <div className='space-y-1.5'>
+        {form.legalEntityType === 'individual' ? (
+          <div>
             <Label htmlFor='date-of-birth' required>
-              {m.onboarding_step4_date_of_birth_label()}
+              {m.onboarding_birth_date()}
             </Label>
             <Input
               id='date-of-birth'
               type='date'
+              max={maximumBirthDate}
               value={form.dateOfBirth}
-              onChange={(e) => setForm((prev) => ({ ...prev, dateOfBirth: e.target.value }))}
+              onChange={(event) => updateField(2, 'dateOfBirth', event.target.value)}
               className='mt-1'
+              error={errors.dateOfBirth}
             />
-            {errors.dateOfBirth && <p className='mt-1 text-sm text-error'>{errors.dateOfBirth}</p>}
+            {errors.dateOfBirth && (
+              <p id='date-of-birth-error' className='mt-1 text-sm text-error'>
+                {errors.dateOfBirth}
+              </p>
+            )}
           </div>
-        )}
-
-        {form.legalEntityType === 'business' && (
-          <div className='space-y-1.5'>
+        ) : (
+          <div>
             <Label htmlFor='business-registration-number' required>
-              {m.onboarding_step4_business_registration_number_label()}
+              {m.onboarding_registration_number()}
             </Label>
             <Input
               id='business-registration-number'
               value={form.businessRegistrationNumber}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, businessRegistrationNumber: e.target.value }))
-              }
-              placeholder={m.onboarding_step4_business_registration_number_placeholder()}
+              onChange={(event) => updateField(2, 'businessRegistrationNumber', event.target.value)}
+              placeholder={m.onboarding_registration_placeholder()}
               className='mt-1'
+              error={errors.businessRegistrationNumber}
             />
             {errors.businessRegistrationNumber && (
-              <p className='mt-1 text-sm text-error'>{errors.businessRegistrationNumber}</p>
+              <p id='business-registration-number-error' className='mt-1 text-sm text-error'>
+                {errors.businessRegistrationNumber}
+              </p>
             )}
           </div>
         )}
-      </div>
+
+        <div className='rounded-xl border border-border-default p-4'>
+          <div className='flex min-h-11 items-center justify-between gap-4'>
+            <div>
+              <Label htmlFor='is-vat-registered'>{m.onboarding_vat_registered()}</Label>
+              <p className='mt-1 text-xs text-text-muted'>{m.onboarding_vat_registered_hint()}</p>
+            </div>
+            <Switch
+              id='is-vat-registered'
+              checked={form.isVatRegistered}
+              onCheckedChange={(checked) => updateField(2, 'isVatRegistered', checked)}
+            />
+          </div>
+          {form.isVatRegistered && (
+            <div className='mt-4'>
+              <Label htmlFor='vat-id' required>
+                {m.onboarding_vat_id()}
+              </Label>
+              <Input
+                id='vat-id'
+                value={form.vatId}
+                onChange={(event) => updateField(2, 'vatId', event.target.value)}
+                placeholder={m.onboarding_vat_placeholder()}
+                className='mt-1'
+                error={errors.vatId}
+              />
+              {errors.vatId && (
+                <p id='vat-id-error' className='mt-1 text-sm text-error'>
+                  {errors.vatId}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   )
 }

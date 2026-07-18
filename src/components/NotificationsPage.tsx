@@ -8,6 +8,7 @@ import {
   Star,
   Truck,
   Undo2,
+  Store,
 } from 'lucide-react'
 import { formatDateShort } from '#/lib/format-date'
 import type { NotificationItem, NotificationType } from '#/lib/notifications.server'
@@ -26,6 +27,7 @@ const TYPE_ICONS: Record<NotificationType, React.ReactNode> = {
   order_chargeback: <AlertTriangle size={18} aria-hidden='true' />,
   dac7_warning_limit: <AlertTriangle size={18} aria-hidden='true' />,
   low_stock: <PackageMinus size={18} aria-hidden='true' />,
+  shop_moderation_update: <Store size={18} aria-hidden='true' />,
 }
 
 function formatRelativeTime(date: Date): string {
@@ -86,6 +88,11 @@ function resolveDeepLink(item: NotificationItem): string | null {
       if (productId) return `/creator/products/${productId}/edit`
       break
     }
+    case 'shop_moderation_update': {
+      const shopId = data.shopId
+      if (shopId) return `/sell/status/${shopId}`
+      break
+    }
   }
   return null
 }
@@ -129,6 +136,24 @@ function notificationPreview(item: NotificationItem): string {
       })
     case 'low_stock':
       return m.notification_low_stock({ productName: data.productName ?? '' })
+    case 'shop_moderation_update': {
+      const shopName = data.shopName ?? ''
+      switch (data.status) {
+        case 'changes_requested':
+          return m.notification_shop_changes_requested({ shopName })
+        case 'approved':
+          return m.notification_shop_approved({ shopName })
+        case 'active':
+          return m.notification_shop_active({ shopName })
+        case 'rejected':
+          return m.notification_shop_rejected({ shopName })
+        default:
+          return m.notification_shop_moderation({
+            shopName,
+            status: data.statusLabel ?? data.status ?? '',
+          })
+      }
+    }
     default:
       return ''
   }
@@ -207,6 +232,17 @@ export function NotificationsPage({
             <ul className='space-y-3' aria-label={m.notifications_title()}>
               {notifications.map((item) => {
                 const isUnread = !item.readAt
+                const data = item.data as Record<string, string | undefined>
+                const moderationDetail =
+                  item.type === 'shop_moderation_update' && data.note?.trim()
+                    ? data.note.trim()
+                    : null
+                const describedBy = [
+                  moderationDetail ? `notif-detail-${item.id}` : null,
+                  isUnread ? `notif-status-${item.id}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' ')
 
                 return (
                   <li key={item.id}>
@@ -214,7 +250,7 @@ export function NotificationsPage({
                       type='button'
                       onClick={() => handleItemClick(item)}
                       aria-labelledby={`notif-preview-${item.id} notif-time-${item.id}`}
-                      aria-describedby={isUnread ? `notif-status-${item.id}` : undefined}
+                      aria-describedby={describedBy || undefined}
                       className={`flex w-full items-start gap-3 rounded-xl border p-4 text-left transition no-underline ${
                         isUnread
                           ? 'border-border-strong border-l-4 border-l-accent-primary bg-surface-default shadow-sm hover:bg-bg-inset hover:shadow-md'
@@ -239,7 +275,15 @@ export function NotificationsPage({
                         >
                           {notificationPreview(item)}
                         </p>
-                        <p id={`notif-time-${item.id}`} className='mt-0.5 text-xs text-text-muted'>
+                        {moderationDetail && (
+                          <p
+                            id={`notif-detail-${item.id}`}
+                            className='mt-1 line-clamp-2 text-sm leading-relaxed text-text-secondary'
+                          >
+                            {moderationDetail}
+                          </p>
+                        )}
+                        <p id={`notif-time-${item.id}`} className='mt-1 text-xs text-text-muted'>
                           {formatRelativeTime(item.createdAt)}
                         </p>
                       </div>

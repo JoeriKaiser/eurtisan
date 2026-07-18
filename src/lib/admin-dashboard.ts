@@ -31,6 +31,20 @@ async function requireAdmin(context: { user?: { id: string; role: string } | nul
 }
 
 /**
+ * Returns the current number of seller applications awaiting review.
+ * The admin layout uses this aggregate to keep the review queue visible.
+ */
+export const getPendingShopReviewCount = createServerFn({ method: 'GET' })
+  .middleware([authMiddleware])
+  .handler(async ({ context }) => {
+    await requireAdmin(context)
+    requirePrivileged2FA(context.user as SafeUser)
+
+    const { getPendingShopReviewCountQuery } = await import('./admin-dashboard.server')
+    return getPendingShopReviewCountQuery()
+  })
+
+/**
  * Returns aggregated platform-wide counts for the admin dashboard.
  * Only accessible by users with the admin role — returns 403 otherwise.
  */

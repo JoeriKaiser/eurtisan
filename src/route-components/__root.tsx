@@ -84,7 +84,7 @@ export function RootComponent() {
           >
             {m.nav_skip_to_content()}
           </a>
-          {!isAdminRoute && <Header />}
+          {!isAdminRoute && !isOnboarding && <Header />}
           <div
             id='main-content'
             className={

@@ -55,6 +55,13 @@ vi.mock('#/paraglide/messages', () => ({
     notification_dispute_opened: ({ orderNumber }: { orderNumber: string }) =>
       `Dispute opened for order ${orderNumber}`,
     notification_payout_sent: ({ amount }: { amount: string }) => `Payout sent: ${amount}`,
+    notification_shop_moderation: ({ shopName }: { shopName: string }) => `${shopName} was updated`,
+    notification_shop_changes_requested: ({ shopName }: { shopName: string }) =>
+      `Changes requested for ${shopName}`,
+    notification_shop_approved: ({ shopName }: { shopName: string }) => `${shopName} was approved`,
+    notification_shop_active: ({ shopName }: { shopName: string }) => `${shopName} is live`,
+    notification_shop_rejected: ({ shopName }: { shopName: string }) =>
+      `${shopName} was not approved`,
     time_just_now: () => 'Just now',
     time_minutes_ago: ({ count }: { count: string }) => `${count} min ago`,
     time_hours_ago: ({ count }: { count: string }) => `${count} hr ago`,
@@ -184,6 +191,37 @@ describe('NotificationsPage', () => {
 
     expect(mockMutateAsync).toHaveBeenCalledWith('notif-1')
     expect(mockNavigate).toHaveBeenCalledWith({ to: '/orders/order-123' })
+  })
+
+  it('shows moderation feedback and opens the shop status page', () => {
+    const notifications = [
+      makeNotification({
+        type: 'shop_moderation_update',
+        data: {
+          shopId: 'shop-1',
+          shopName: 'Clay Studio',
+          status: 'changes_requested',
+          note: 'Add a clear photo of the product label.',
+          targetPath: '/sell/status/shop-1',
+        },
+      }),
+    ]
+
+    render(
+      <NotificationsPage
+        notifications={notifications}
+        total={1}
+        page={1}
+        totalPages={1}
+        onPageChange={() => {}}
+        isNavigating={false}
+      />,
+    )
+
+    expect(screen.getByText('Changes requested for Clay Studio')).toBeDefined()
+    expect(screen.getByText('Add a clear photo of the product label.')).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: /Changes requested for Clay Studio/i }))
+    expect(mockNavigate).toHaveBeenCalledWith({ to: '/sell/status/shop-1' })
   })
 
   it('does not mark read if already read', () => {
