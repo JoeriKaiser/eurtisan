@@ -12,6 +12,7 @@ Deploy Eurtisan to staging and production using Ansible and Docker.
   - Staging: 4 vCPU / 8GB RAM recommended (2 vCPU / 4GB is the bare minimum and will rely heavily on swap during builds)
   - Production: 4 vCPU / 8GB RAM recommended
 - **SSH access** to the VPS as a user with passwordless `sudo` (or root)
+- A host-specific read-only GitHub deploy key at `/root/.ssh/eurtisan_github_deploy`, registered for the private repository
 - Domain **eurtisan.eu** with DNS management access
 
 ---

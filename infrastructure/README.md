@@ -23,7 +23,7 @@ Provider-agnostic IaC for deploying Eurtisan on any VPS.
    pip install ansible
    ```
 3. **SSH access** to the VPS as root (for initial provisioning)
-4. A **GitHub** account with the canonical repository pushed
+4. A **read-only GitHub deploy key** at `/root/.ssh/eurtisan_github_deploy` on each VPS, registered for the private canonical repository
 
 ## Repository source and mirror
 
@@ -35,7 +35,7 @@ https://github.com/JoeriKaiser/eurtisan
 
 Codeberg is a source mirror. GitHub Actions runs validation only; it never
 deploys to staging or production. VPS deployments remain manual and pull from
-the canonical GitHub repository.
+the private canonical GitHub repository using a host-specific read-only deploy key.
 
 ## Quick Start
 

@@ -1,6 +1,7 @@
 # ── Repository / Git ────────────────────────────────────────────────────
 # GitHub is the canonical source. Codeberg is maintained as a mirror.
-repository_url: "https://github.com/JoeriKaiser/eurtisan.git"
+repository_url: "git@github.com:JoeriKaiser/eurtisan.git"
+repository_deploy_key_path: "/root/.ssh/eurtisan_github_deploy"
 
 # ── Database ─────────────────────────────────────────────────────────────
 postgres_user: eurtisan

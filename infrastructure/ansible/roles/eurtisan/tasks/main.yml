@@ -35,6 +35,8 @@
     repo: "{{ repository_url }}"
     dest: /opt/eurtisan
     version: "{{ git_branch | default('main') }}"
+    key_file: "{{ repository_deploy_key_path }}"
+    accept_newhostkey: true
     force: yes
   register: repository_checkout
 
