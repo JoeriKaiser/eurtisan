@@ -285,8 +285,14 @@ const server = createServer(async (req, res) => {
 
     const responseHeaders = {}
     response.headers.forEach((value, key) => {
-      // Skip transfer-encoding as Node.js handles chunked encoding itself
-      if (key.toLowerCase() !== 'transfer-encoding') {
+      const normalizedKey = key.toLowerCase()
+      // Node owns representation framing, and this boundary owns the final CSP
+      // after all HTML nonce normalization has completed.
+      if (
+        normalizedKey !== 'transfer-encoding' &&
+        normalizedKey !== 'content-length' &&
+        normalizedKey !== 'content-security-policy'
+      ) {
         responseHeaders[key] = value
       }
     })
