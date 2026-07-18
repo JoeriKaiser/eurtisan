@@ -14,23 +14,19 @@ describe('getImageUrl', () => {
     expect(getImageUrl('/uploads/legacy/image.jpg')).toBe('/uploads/legacy/image.jpg')
   })
 
-  it('builds imgproxy URL with width', () => {
-    const url = getImageUrl('products/abc.jpg', { width: 400 })
-    expect(url).toContain('w:400')
-    expect(url).toContain('products/abc.jpg')
-    expect(url).not.toContain('%2F')
+  it('builds a same-origin delivery URL with width', () => {
+    expect(getImageUrl('products/abc.jpg', { width: 400 })).toBe(
+      '/api/image?key=products%2Fabc.jpg&width=400',
+    )
   })
 
-  it('builds imgproxy URL with webp format', () => {
-    const url = getImageUrl('products/abc.jpg', { width: 400, format: 'webp' })
-    expect(url).toContain('w:400')
-    expect(url).toContain('f:webp')
-    expect(url).toContain('products/abc.jpg')
+  it('builds a same-origin delivery URL with WebP format', () => {
+    expect(getImageUrl('products/abc.jpg', { width: 400, format: 'webp' })).toBe(
+      '/api/image?key=products%2Fabc.jpg&width=400&format=webp',
+    )
   })
 
-  it('builds imgproxy URL without options', () => {
-    const url = getImageUrl('products/abc.jpg')
-    expect(url).toContain('plain/s3://')
-    expect(url).toContain('products/abc.jpg')
+  it('builds a same-origin delivery URL without options', () => {
+    expect(getImageUrl('products/abc.jpg')).toBe('/api/image?key=products%2Fabc.jpg')
   })
 })

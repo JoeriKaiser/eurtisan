@@ -131,7 +131,7 @@ describe('HomePage', () => {
     render(<HomePage categories={[]} products={[]} shops={shops} />)
 
     const heroImage = screen.getByRole('img', { name: 'Shop shop-1' }) as HTMLImageElement
-    expect(heroImage.src).toContain('/plain/s3://eurtisan-uploads/shops/hero-shop.webp')
+    expect(heroImage.src).toContain('/api/image?key=shops%2Fhero-shop.webp&width=960&format=webp')
   })
 
   it('shows singular product count for one product', () => {

@@ -100,17 +100,31 @@ describe('public staging smoke checks', () => {
       if (url.pathname.startsWith('/api/health')) {
         return Response.json({ status: 'ok' })
       }
-      return new Response('', {
-        status: 200,
-        headers: {
-          'Content-Security-Policy': "default-src 'self'",
-          'Strict-Transport-Security': 'max-age=31536000',
-          'X-Content-Type-Options': 'nosniff',
-          'X-Frame-Options': 'DENY',
-          'Referrer-Policy': 'strict-origin-when-cross-origin',
-          'Permissions-Policy': 'camera=()',
+      if (url.pathname === '/api/image') {
+        return new Response(null, {
+          status: 307,
+          headers: { Location: '/uploads/signed/plain/s3/image.jpg' },
+        })
+      }
+      if (url.pathname.startsWith('/uploads/signed/')) {
+        return new Response('image', { headers: { 'Content-Type': 'image/jpeg' } })
+      }
+      return new Response(
+        '<img src="/api/image?key=products%2Fabc.jpg&amp;width=400"><script nonce="dGVzdG5vbmNlMTIzNA=="></script>',
+        {
+          status: 200,
+          headers: {
+            'Cache-Control': 'private, no-store',
+            'Content-Security-Policy':
+              "default-src 'self'; script-src 'nonce-dGVzdG5vbmNlMTIzNA=='",
+            'Strict-Transport-Security': 'max-age=31536000',
+            'X-Content-Type-Options': 'nosniff',
+            'X-Frame-Options': 'DENY',
+            'Referrer-Policy': 'strict-origin-when-cross-origin',
+            'Permissions-Policy': 'camera=()',
+          },
         },
-      })
+      )
     })
 
     const result = await runPublicStagingChecks({
@@ -124,7 +138,12 @@ describe('public staging smoke checks', () => {
       {
         id: 'security.headers-csp',
         status: 'passed',
-        detail: 'Required security headers are present',
+        detail: 'Security headers, CSP nonces, and HTML cache policy match across 3 responses',
+      },
+      {
+        id: 'provider.storage-imgproxy',
+        status: 'passed',
+        detail: 'Validated delivery redirected to signed imgproxy content',
       },
       {
         id: 'health.liveness-readiness',

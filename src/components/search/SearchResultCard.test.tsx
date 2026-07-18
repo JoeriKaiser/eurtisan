@@ -64,9 +64,7 @@ describe('SearchResultCard', () => {
   it('renders product image through getImageUrl when imageUrl is provided', () => {
     render(<SearchResultCard product={makeProduct()} imageUrl='products/vase.jpg' />)
     const img = screen.getByAltText('Handmade Vase')
-    expect(img.getAttribute('src')).toContain('w:128')
-    expect(img.getAttribute('src')).toContain('f:webp')
-    expect(img.getAttribute('src')).toContain('products/vase.jpg')
+    expect(img.getAttribute('src')).toBe('/api/image?key=products%2Fvase.jpg&width=128&format=webp')
   })
 
   it('renders legacy /uploads/ image path as-is', () => {

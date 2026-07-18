@@ -195,9 +195,14 @@ export async function runPublicStagingChecks(input: {
     results.push({ id, status: passed ? 'passed' : 'failed', detail })
   }
 
+  let rootHtml: string | null = null
   try {
-    const root = await request(baseUrl, { redirect: 'error' })
+    const rootResponses = await Promise.all(
+      Array.from({ length: 3 }, () => request(baseUrl, { redirect: 'error' })),
+    )
+    const root = rootResponses[0]
     record('infrastructure.dns-tls', root.ok, `HTTPS root returned ${root.status}`)
+
     const requiredHeaders = [
       'content-security-policy',
       'strict-transport-security',
@@ -206,18 +211,75 @@ export async function runPublicStagingChecks(input: {
       'referrer-policy',
       'permissions-policy',
     ]
-    const missingHeaders = requiredHeaders.filter((header) => !root.headers.get(header))
+    const failures: string[] = []
+    const bodies = await Promise.all(rootResponses.map((response) => response.text()))
+    rootHtml = bodies[0]
+
+    rootResponses.forEach((response, index) => {
+      const missingHeaders = requiredHeaders.filter((header) => !response.headers.get(header))
+      if (missingHeaders.length > 0) failures.push(`response ${index + 1} missing headers`)
+
+      const csp = response.headers.get('content-security-policy') ?? ''
+      const cspNonce = csp.match(/'nonce-([A-Za-z0-9+/=]+)'/)?.[1]
+      const htmlNonces = [...bodies[index].matchAll(/<script\b[^>]*\snonce="([^"]+)"/gi)].map(
+        (match) => match[1],
+      )
+      if (!cspNonce || htmlNonces.length === 0 || htmlNonces.some((nonce) => nonce !== cspNonce)) {
+        failures.push(`response ${index + 1} has mismatched CSP nonces`)
+      }
+      if (!response.headers.get('cache-control')?.includes('private, no-store')) {
+        failures.push(`response ${index + 1} permits HTML caching`)
+      }
+    })
+
     record(
       'security.headers-csp',
-      missingHeaders.length === 0,
-      missingHeaders.length === 0
-        ? 'Required security headers are present'
-        : `Missing: ${missingHeaders.join(', ')}`,
+      failures.length === 0,
+      failures.length === 0
+        ? 'Security headers, CSP nonces, and HTML cache policy match across 3 responses'
+        : failures.join('; '),
     )
   } catch (error) {
     const detail = error instanceof Error ? error.message : 'HTTPS request failed'
     record('infrastructure.dns-tls', false, detail)
     record('security.headers-csp', false, 'Root response was unavailable')
+  }
+
+  try {
+    const encodedDeliveryUrl = rootHtml?.match(/(?:src|href)="([^"]*\/api\/image\?[^"#]+)"/i)?.[1]
+    if (!encodedDeliveryUrl) throw new Error('Root HTML did not contain an image delivery URL')
+
+    const deliveryUrl = new URL(encodedDeliveryUrl.replaceAll('&amp;', '&'), baseUrl)
+    const redirect = await request(deliveryUrl, { redirect: 'manual' })
+    const location = redirect.headers.get('location')
+    if (redirect.status !== 307 || !location) {
+      throw new Error(`Image delivery returned ${redirect.status} without a signed redirect`)
+    }
+
+    const signedUrl = new URL(location, baseUrl)
+    if (signedUrl.origin !== baseUrl.origin || !signedUrl.pathname.startsWith('/uploads/')) {
+      throw new Error('Image delivery redirect left the same-origin imgproxy route')
+    }
+    if (signedUrl.pathname.includes('/insecure/')) {
+      throw new Error('Image delivery returned an unsigned imgproxy path')
+    }
+
+    const image = await request(signedUrl, { redirect: 'error' })
+    const contentType = image.headers.get('content-type') ?? ''
+    const passed = image.ok && contentType.startsWith('image/')
+    record(
+      'provider.storage-imgproxy',
+      passed,
+      passed
+        ? 'Validated delivery redirected to signed imgproxy content'
+        : `Signed image request returned ${image.status}`,
+    )
+  } catch (error) {
+    record(
+      'provider.storage-imgproxy',
+      false,
+      error instanceof Error ? error.message : 'Image delivery qualification failed',
+    )
   }
 
   const healthPaths = ['/api/health/live', '/api/health/ready', '/api/health', '/api/health/deps']

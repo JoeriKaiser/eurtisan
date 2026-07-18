@@ -50,6 +50,7 @@ import { Route as CategorySlugRouteImport } from './routes/category/$slug'
 import { Route as ApiUnsubscribeRouteImport } from './routes/api/unsubscribe'
 import { Route as ApiProductsRouteImport } from './routes/api/products'
 import { Route as ApiMetricsRouteImport } from './routes/api/metrics'
+import { Route as ApiImageRouteImport } from './routes/api/image'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiBackupReportRouteImport } from './routes/api/backup-report'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
@@ -318,6 +319,11 @@ const ApiProductsRoute = ApiProductsRouteImport.update({
 const ApiMetricsRoute = ApiMetricsRouteImport.update({
   id: '/api/metrics',
   path: '/api/metrics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiImageRoute = ApiImageRouteImport.update({
+  id: '/api/image',
+  path: '/api/image',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
@@ -697,6 +703,7 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRoute
   '/api/backup-report': typeof ApiBackupReportRoute
   '/api/health': typeof ApiHealthRouteWithChildren
+  '/api/image': typeof ApiImageRoute
   '/api/metrics': typeof ApiMetricsRoute
   '/api/products': typeof ApiProductsRoute
   '/api/unsubscribe': typeof ApiUnsubscribeRoute
@@ -797,6 +804,7 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/api/backup-report': typeof ApiBackupReportRoute
   '/api/health': typeof ApiHealthRouteWithChildren
+  '/api/image': typeof ApiImageRoute
   '/api/metrics': typeof ApiMetricsRoute
   '/api/products': typeof ApiProductsRoute
   '/api/unsubscribe': typeof ApiUnsubscribeRoute
@@ -898,6 +906,7 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/api/backup-report': typeof ApiBackupReportRoute
   '/api/health': typeof ApiHealthRouteWithChildren
+  '/api/image': typeof ApiImageRoute
   '/api/metrics': typeof ApiMetricsRoute
   '/api/products': typeof ApiProductsRoute
   '/api/unsubscribe': typeof ApiUnsubscribeRoute
@@ -1007,6 +1016,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/api/backup-report'
     | '/api/health'
+    | '/api/image'
     | '/api/metrics'
     | '/api/products'
     | '/api/unsubscribe'
@@ -1107,6 +1117,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/api/backup-report'
     | '/api/health'
+    | '/api/image'
     | '/api/metrics'
     | '/api/products'
     | '/api/unsubscribe'
@@ -1207,6 +1218,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/api/backup-report'
     | '/api/health'
+    | '/api/image'
     | '/api/metrics'
     | '/api/products'
     | '/api/unsubscribe'
@@ -1306,6 +1318,7 @@ export interface RootRouteChildren {
   AccountSettingsRoute: typeof AccountSettingsRoute
   ApiBackupReportRoute: typeof ApiBackupReportRoute
   ApiHealthRoute: typeof ApiHealthRouteWithChildren
+  ApiImageRoute: typeof ApiImageRoute
   ApiMetricsRoute: typeof ApiMetricsRoute
   ApiProductsRoute: typeof ApiProductsRoute
   ApiUnsubscribeRoute: typeof ApiUnsubscribeRoute
@@ -1621,6 +1634,13 @@ declare module '@tanstack/react-router' {
       path: '/api/metrics'
       fullPath: '/api/metrics'
       preLoaderRoute: typeof ApiMetricsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/image': {
+      id: '/api/image'
+      path: '/api/image'
+      fullPath: '/api/image'
+      preLoaderRoute: typeof ApiImageRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/health': {
@@ -2389,6 +2409,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccountSettingsRoute: AccountSettingsRoute,
   ApiBackupReportRoute: ApiBackupReportRoute,
   ApiHealthRoute: ApiHealthRouteWithChildren,
+  ApiImageRoute: ApiImageRoute,
   ApiMetricsRoute: ApiMetricsRoute,
   ApiProductsRoute: ApiProductsRoute,
   ApiUnsubscribeRoute: ApiUnsubscribeRoute,
