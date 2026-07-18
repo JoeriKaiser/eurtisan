@@ -40,9 +40,13 @@ DESIGN.md
 PRODUCT.md
 docs
 
-# Infrastructure (not needed inside the image)
+# Infrastructure and host orchestration (not needed inside the image)
 infrastructure
 infra
+docker-compose*.yml
+Caddyfile
+garage.toml
+Makefile
 
 # CI configs (not needed at runtime)
 .github

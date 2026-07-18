@@ -81,11 +81,12 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Set ownership while copying. A recursive chown of node_modules made host builds
-# I/O-bound for many minutes and invalidated otherwise reusable runtime layers.
-COPY --from=builder --chown=bun:bun /app/dist ./dist
+# Copy stable dependencies before volatile build artifacts so every release-version
+# change does not force Docker to recopy the large node_modules tree. Set ownership
+# while copying instead of running an I/O-heavy recursive chown afterward.
 COPY --from=production-dependencies --chown=bun:bun /app/package.json ./
 COPY --from=production-dependencies --chown=bun:bun /app/node_modules ./node_modules
+COPY --from=builder --chown=bun:bun /app/dist ./dist
 COPY --from=builder --chown=bun:bun /app/drizzle.config.ts ./
 COPY --from=builder --chown=bun:bun /app/drizzle ./drizzle
 
