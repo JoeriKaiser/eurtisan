@@ -489,8 +489,8 @@
         state: absent
       ignore_errors: true
 
-    - name: Restart app to pick up Traefik config
-      command: "{{ docker_compose }} up -d app"
+    - name: Restart app and wait for readiness before reloading Traefik
+      command: "{{ docker_compose }} up -d --wait app"
       args:
         chdir: /opt/eurtisan
       environment:
