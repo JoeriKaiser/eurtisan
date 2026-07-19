@@ -28,12 +28,16 @@ describe('document hydration readiness', () => {
     document.documentElement.removeEventListener('eurtisan:hydrated', onHydrated)
   })
 
-  it('does not publish readiness after an immediate cleanup replay', async () => {
-    const cleanup = markDocumentHydrated(document.body)
-    cleanup?.()
+  it('publishes readiness after a Strict Mode callback-ref replay', async () => {
+    const firstCleanup = markDocumentHydrated(document.body)
+    firstCleanup?.()
+    const secondCleanup = markDocumentHydrated(document.body)
 
     await Promise.resolve()
 
+    expect(document.documentElement.getAttribute('data-hydrated')).toBe('true')
+
+    secondCleanup?.()
     expect(document.documentElement.hasAttribute('data-hydrated')).toBe(false)
   })
 })
