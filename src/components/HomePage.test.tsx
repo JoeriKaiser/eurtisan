@@ -132,6 +132,11 @@ describe('HomePage', () => {
 
     const heroImage = screen.getByRole('img', { name: 'Shop shop-1' }) as HTMLImageElement
     expect(heroImage.src).toContain('/api/image?key=shops%2Fhero-shop.webp&width=960&format=webp')
+    expect(
+      screen.getByRole('img', {
+        name: 'A maker arranging ceramics and textiles in a sunlit workshop',
+      }),
+    ).toBeDefined()
   })
 
   it('shows singular product count for one product', () => {
@@ -378,8 +383,8 @@ describe('HomePage', () => {
   it('renders marketplace statistics', () => {
     const stats = { sellerCount: 45, productCount: 820, countryCount: 12 }
     render(<HomePage categories={[]} products={[]} shops={[]} stats={stats} />)
-    expect(screen.getByText('45')).toBeDefined()
-    expect(screen.getByText('820')).toBeDefined()
-    expect(screen.getByText('12')).toBeDefined()
+    expect(screen.getAllByText('45')).toHaveLength(2)
+    expect(screen.getAllByText('820')).toHaveLength(2)
+    expect(screen.getAllByText('12')).toHaveLength(2)
   })
 })

@@ -2,66 +2,50 @@ import { Eye, MapPin, ShieldCheck, Store } from 'lucide-react'
 import { m } from '#/paraglide/messages'
 
 export function HomeValuePropositionStrip() {
+  const values = [
+    {
+      Icon: MapPin,
+      title: m.home_val_made_in_europe_title(),
+      description: m.home_val_made_in_europe_desc(),
+    },
+    {
+      Icon: Store,
+      title: m.home_val_direct_title(),
+      description: m.home_val_direct_desc(),
+    },
+    {
+      Icon: ShieldCheck,
+      title: m.home_val_secure_title(),
+      description: m.home_val_secure_desc(),
+    },
+    {
+      Icon: Eye,
+      title: m.home_val_gdpr_title(),
+      description: m.home_val_gdpr_desc(),
+    },
+  ]
+
   return (
     <section
-      className='border-y border-border-subtle bg-bg-base/40 py-10'
+      className='border-y border-border-subtle bg-bg-base/40 py-7 lg:py-10'
       aria-label='Value Proposition'
     >
-      <div className='max-w-7xl mx-auto px-6 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-border-subtle/70'>
-        <div className='flex items-start gap-4 transition-transform hover:translate-y-[-1px] duration-300'>
-          <div className='p-2.5 rounded-2xl bg-accent-primary-subtle text-accent-primary shrink-0 border border-accent-primary/10 shadow-sm'>
-            <MapPin size={20} strokeWidth={1.5} aria-hidden='true' />
-          </div>
-          <div>
-            <h3 className='text-sm font-bold text-text-primary tracking-wide'>
-              {m.home_val_made_in_europe_title()}
-            </h3>
-            <p className='text-xs text-text-secondary mt-1 leading-relaxed font-sans'>
-              {m.home_val_made_in_europe_desc()}
-            </p>
-          </div>
-        </div>
-
-        <div className='flex items-start gap-4 lg:pl-6 transition-transform hover:translate-y-[-1px] duration-300'>
-          <div className='p-2.5 rounded-2xl bg-accent-primary-subtle text-accent-primary shrink-0 border border-accent-primary/10 shadow-sm'>
-            <Store size={20} strokeWidth={1.5} aria-hidden='true' />
-          </div>
-          <div>
-            <h3 className='text-sm font-bold text-text-primary tracking-wide'>
-              {m.home_val_direct_title()}
-            </h3>
-            <p className='text-xs text-text-secondary mt-1 leading-relaxed font-sans'>
-              {m.home_val_direct_desc()}
-            </p>
-          </div>
-        </div>
-
-        <div className='flex items-start gap-4 lg:pl-6 transition-transform hover:translate-y-[-1px] duration-300'>
-          <div className='p-2.5 rounded-2xl bg-accent-primary-subtle text-accent-primary shrink-0 border border-accent-primary/10 shadow-sm'>
-            <ShieldCheck size={20} strokeWidth={1.5} aria-hidden='true' />
-          </div>
-          <div>
-            <h3 className='text-sm font-bold text-text-primary tracking-wide'>
-              {m.home_val_secure_title()}
-            </h3>
-            <p className='text-xs text-text-secondary mt-1 leading-relaxed font-sans'>
-              {m.home_val_secure_desc()}
-            </p>
-          </div>
-        </div>
-
-        <div className='flex items-start gap-4 lg:pl-6 transition-transform hover:translate-y-[-1px] duration-300'>
-          <div className='p-2.5 rounded-2xl bg-accent-primary-subtle text-accent-primary shrink-0 border border-accent-primary/10 shadow-sm'>
-            <Eye size={20} strokeWidth={1.5} aria-hidden='true' />
-          </div>
-          <div>
-            <h3 className='text-sm font-bold text-text-primary tracking-wide'>
-              {m.home_val_gdpr_title()}
-            </h3>
-            <p className='text-xs text-text-secondary mt-1 leading-relaxed font-sans'>
-              {m.home_val_gdpr_desc()}
-            </p>
-          </div>
+      <div className='mx-auto max-w-7xl px-6'>
+        <div className='flex snap-x snap-mandatory gap-0 overflow-x-auto md:grid md:grid-cols-2 md:gap-8 lg:grid-cols-4 lg:divide-x lg:divide-border-subtle/70'>
+          {values.map(({ Icon, title, description }) => (
+            <div
+              key={title}
+              className='mr-6 flex min-w-[78vw] snap-start items-start gap-4 border-r border-border-subtle pr-6 last:mr-0 last:border-r-0 md:m-0 md:min-w-0 md:border-r-0 md:p-0 lg:pl-6 lg:first:pl-0'
+            >
+              <div className='shrink-0 rounded-2xl border border-accent-primary/10 bg-accent-primary-subtle p-2.5 text-accent-primary shadow-sm'>
+                <Icon size={20} strokeWidth={1.5} aria-hidden='true' />
+              </div>
+              <div>
+                <h3 className='text-sm font-bold tracking-wide text-text-primary'>{title}</h3>
+                <p className='mt-1 text-xs leading-relaxed text-text-secondary'>{description}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </section>

@@ -1,5 +1,5 @@
-import { useLoaderData, useRouter } from '@tanstack/react-router'
-import { ArrowLeft, Search, Shuffle } from 'lucide-react'
+import { Link, useLoaderData, useNavigate } from '@tanstack/react-router'
+import { ArrowLeft, ChevronLeft, ChevronRight, Search, Shuffle } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import ProductGrid from '#/components/ProductGrid'
 import { m } from '#/paraglide/messages'
@@ -32,7 +32,7 @@ function SearchPageContent() {
     maxPriceCents,
     sort,
   } = useLoaderData({ from: '/search' })
-  const router = useRouter()
+  const navigate = useNavigate({ from: '/search' })
 
   const [filters, setFilters] = useState({
     query: query ?? '',
@@ -85,20 +85,9 @@ function SearchPageContent() {
 
   const navigateWithParams = useCallback(
     (overrides: Record<string, string | number | undefined>) => {
-      router.navigate({
-        to: '/search',
-        search: buildSearchParams(overrides),
-        replace: true,
-      })
+      replaceSearchLocation(buildSearchParams(overrides))
     },
-    [router, buildSearchParams],
-  )
-
-  const handlePageChange = useCallback(
-    (newPage: number) => {
-      navigateWithParams({ page: newPage })
-    },
-    [navigateWithParams],
+    [buildSearchParams],
   )
 
   const handleClearFilters = useCallback(() => {
@@ -111,12 +100,8 @@ function SearchPageContent() {
       maxPrice: '',
       sort: 'relevance',
     }))
-    router.navigate({
-      to: '/search',
-      search: {},
-      replace: true,
-    })
-  }, [router])
+    replaceSearchLocation({})
+  }, [])
 
   const hasActiveFilters = Boolean(
     filters.category ||
@@ -134,11 +119,11 @@ function SearchPageContent() {
     const product = candidates[Math.floor(Math.random() * candidates.length)]
     if (!product?.shopSlug) return
 
-    router.navigate({
+    navigate({
       to: '/shops/$shopSlug/products/$productSlug',
       params: { shopSlug: product.shopSlug, productSlug: product.slug },
     })
-  }, [products.products, router])
+  }, [products.products, navigate])
 
   return (
     <main className='mx-auto w-full max-w-[1320px] px-4 pb-16'>
@@ -175,40 +160,40 @@ function SearchPageContent() {
           className='flex items-center gap-2 overflow-x-auto pb-1'
           aria-label={m.search_filter_category()}
         >
-          <button
-            type='button'
-            onClick={() => {
-              setFilters((previous) => ({ ...previous, category: '' }))
-              navigateWithParams({ category: undefined, page: 1 })
-            }}
-            className={`min-h-10 shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+          <Link
+            to='/search'
+            search={(previous) => ({ ...previous, category: undefined, page: undefined })}
+            replace
+            className={`inline-flex min-h-10 shrink-0 items-center rounded-full px-4 py-2 text-sm font-semibold no-underline transition-colors ${
               filters.category
                 ? 'bg-surface-inset text-text-secondary hover:text-text-primary'
                 : 'bg-accent-primary text-text-on-primary'
             }`}
-            aria-pressed={!filters.category}
+            aria-current={!filters.category ? 'page' : undefined}
           >
             {m.search_filter_category_all()}
-          </button>
+          </Link>
           {categories.map((category) => {
             const isSelected = filters.category === category.slug
             return (
-              <button
+              <Link
                 key={category.id}
-                type='button'
-                onClick={() => {
-                  setFilters((previous) => ({ ...previous, category: category.slug }))
-                  navigateWithParams({ category: category.slug, page: 1 })
-                }}
-                className={`min-h-10 shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                to='/search'
+                search={(previous) => ({
+                  ...previous,
+                  category: category.slug,
+                  page: undefined,
+                })}
+                replace
+                className={`inline-flex min-h-10 shrink-0 items-center rounded-full px-4 py-2 text-sm font-semibold no-underline transition-colors ${
                   isSelected
                     ? 'bg-accent-primary text-text-on-primary'
                     : 'bg-surface-inset text-text-secondary hover:text-text-primary'
                 }`}
-                aria-pressed={isSelected}
+                aria-current={isSelected ? 'page' : undefined}
               >
                 {category.name}
-              </button>
+              </Link>
             )
           })}
         </nav>
@@ -229,8 +214,9 @@ function SearchPageContent() {
               id='search-sort'
               value={filters.sort}
               onChange={(event) => {
-                setFilters((previous) => ({ ...previous, sort: event.target.value }))
-                navigateWithParams({ sort: event.target.value, page: 1 })
+                replaceSearchLocation(
+                  buildSearchParams({ sort: event.currentTarget.value, page: 1 }),
+                )
               }}
               className='h-10 rounded-lg border border-border-default bg-surface-default px-3 py-1.5 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
             >
@@ -277,15 +263,76 @@ function SearchPageContent() {
           ) : isVisualBrowseMode ? (
             <DiscoveryWall products={products.products} />
           ) : (
-            <ProductGrid
-              products={products.products}
-              page={page}
-              totalPages={products.totalPages}
-              onPageChange={handlePageChange}
-            />
+            <div className='space-y-6'>
+              <ProductGrid products={products.products} />
+              <SearchPagination page={page} totalPages={products.totalPages} />
+            </div>
           )}
         </div>
       </section>
     </main>
+  )
+}
+
+function replaceSearchLocation(params: Record<string, string | number>) {
+  const url = new URL(window.location.href)
+  url.search = ''
+  for (const [key, value] of Object.entries(params)) {
+    url.searchParams.set(key, String(value))
+  }
+  window.location.replace(url.toString())
+}
+
+function SearchPagination({ page, totalPages }: { page: number; totalPages: number }) {
+  if (totalPages <= 1) return null
+
+  const paginationLinkClass =
+    'inline-flex min-h-10 items-center gap-1 rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary no-underline transition-colors hover:bg-surface-inset'
+  const disabledClass =
+    'inline-flex min-h-10 items-center gap-1 rounded-lg border border-border-default bg-surface-inset px-3 py-2 text-sm text-text-muted opacity-50'
+
+  return (
+    <nav aria-label={m.product_pagination()} className='flex items-center justify-center gap-2'>
+      {page > 1 ? (
+        <Link
+          to='/search'
+          search={(previous) => ({
+            ...previous,
+            page: page - 1 === 1 ? undefined : page - 1,
+          })}
+          className={paginationLinkClass}
+          aria-label={m.pagination_previous()}
+        >
+          <ChevronLeft size={16} aria-hidden='true' />
+          <span className='hidden sm:inline'>{m.pagination_previous()}</span>
+        </Link>
+      ) : (
+        <span className={disabledClass} aria-disabled='true'>
+          <ChevronLeft size={16} aria-hidden='true' />
+          <span className='hidden sm:inline'>{m.pagination_previous()}</span>
+        </span>
+      )}
+
+      <span className='text-sm text-text-secondary'>
+        {m.pagination_page_of({ page, totalPages })}
+      </span>
+
+      {page < totalPages ? (
+        <Link
+          to='/search'
+          search={(previous) => ({ ...previous, page: page + 1 })}
+          className={paginationLinkClass}
+          aria-label={m.pagination_next()}
+        >
+          <span className='hidden sm:inline'>{m.pagination_next()}</span>
+          <ChevronRight size={16} aria-hidden='true' />
+        </Link>
+      ) : (
+        <span className={disabledClass} aria-disabled='true'>
+          <span className='hidden sm:inline'>{m.pagination_next()}</span>
+          <ChevronRight size={16} aria-hidden='true' />
+        </span>
+      )}
+    </nav>
   )
 }
