@@ -1,6 +1,7 @@
 import { HeadContent, Scripts, useLocation } from '@tanstack/react-router'
 import { getLocale } from '#/paraglide/runtime'
 import { UmamiScript } from '#/integrations/umami'
+import { markDocumentHydrated } from './hydration-readiness'
 
 export function RootDocument({ children }: { children: React.ReactNode }) {
   const location = useLocation()
@@ -20,9 +21,8 @@ export function RootDocument({ children }: { children: React.ReactNode }) {
         ) : null}
         {!isAdmin && <UmamiScript />}
       </head>
-      <body className='font-sans antialiased [overflow-wrap:anywhere]'>
+      <body ref={markDocumentHydrated} className='font-sans antialiased [overflow-wrap:anywhere]'>
         {children}
-        <script>{`document.documentElement.setAttribute('data-hydrated','true')`}</script>
         {import.meta.env.DEV ? (
           <script>{`if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(function(registrations){registrations.forEach(function(registration){registration.unregister()})})}`}</script>
         ) : null}
