@@ -63,9 +63,11 @@ export function HomeFeaturedProducts({ products }: HomeFeaturedProductsProps) {
           </div>
         </div>
       ) : (
-        <div className='grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'>
+        <div className='flex gap-4 overflow-x-auto pb-4 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:pb-0 lg:grid-cols-4'>
           {products.map((product) => (
-            <ProductCard key={product.id} product={product} imageUrl={product.image?.url ?? null} />
+            <div key={product.id} className='grid min-w-[82vw] sm:min-w-0'>
+              <ProductCard product={product} imageUrl={product.image?.url ?? null} />
+            </div>
           ))}
         </div>
       )}

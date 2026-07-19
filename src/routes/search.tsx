@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import z from 'zod'
-import { listCategories } from '#/lib/categories'
+import { listCategoriesWithCounts } from '#/lib/categories'
 import { hydrateQueryData } from '#/lib/hydrate-query'
 import { searchProducts } from '#/lib/products'
 import { queryKeys } from '#/lib/query-keys'
@@ -50,7 +50,7 @@ export const Route = createFileRoute('/search')({
     const { query, page, categorySlug, shopSlug, minPriceCents, maxPriceCents, sort } = deps
 
     const [categories, products] = await Promise.all([
-      listCategories({ data: {} }),
+      listCategoriesWithCounts(),
       searchProducts({
         data: {
           query,

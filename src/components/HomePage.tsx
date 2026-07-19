@@ -92,14 +92,19 @@ export default function HomePage({
 
       <HomeHeroSection user={user} sellerShops={sellerShops} shops={shops} />
       <HomeStatsStrip stats={stats} />
-      <HomeValuePropositionStrip />
 
-      {/* MAIN CONTAINER */}
-      <main className='max-w-7xl mx-auto px-6 py-16 space-y-24'>
-        <HomeFeaturedProducts products={products} />
-        <HomeFeaturedShops shops={shops} />
-        <HomeCategoryDiscovery categories={categories} />
-        <HomePreFooterCTA user={user} sellerShops={sellerShops} />
+      <main>
+        <div className='mx-auto max-w-7xl px-6 pt-6 pb-16 md:pt-0 md:pb-24'>
+          <HomeFeaturedProducts products={products} />
+        </div>
+
+        <HomeValuePropositionStrip />
+
+        <div className='mx-auto max-w-7xl space-y-24 px-6 py-16'>
+          <HomeFeaturedShops shops={shops} />
+          <HomeCategoryDiscovery categories={categories} />
+          <HomePreFooterCTA user={user} sellerShops={sellerShops} />
+        </div>
       </main>
     </div>
   )

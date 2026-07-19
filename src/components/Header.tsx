@@ -87,7 +87,7 @@ export default function Header() {
         />
 
         {/* Logo */}
-        <Logo />
+        <Logo textClassName='hidden sm:inline' />
 
         {/* Nav links */}
         <div className='hidden items-center gap-x-4 text-sm font-medium md:flex flex-shrink-0'>
@@ -183,7 +183,9 @@ export default function Header() {
           <div className='hidden md:inline-flex flex-shrink-0'>
             <LocaleDropdown />
           </div>
-          <ThemeToggle />
+          <div className='hidden md:block'>
+            <ThemeToggle />
+          </div>
         </div>
       </nav>
 

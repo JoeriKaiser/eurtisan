@@ -70,10 +70,10 @@ export function HomeCategoryDiscovery({ categories }: HomeCategoryDiscoveryProps
               </div>
 
               {/* Right Visual Panel */}
-              <div className='hidden md:block w-[40%] relative overflow-hidden bg-bg-inset border-l border-border-subtle/70'>
+              <div className='relative order-first h-44 w-full overflow-hidden border-b border-border-subtle/70 bg-bg-inset md:order-none md:h-auto md:w-[40%] md:border-b-0 md:border-l'>
                 <img
                   src='/images/spotlight_ceramics.png'
-                  alt='Pottery craft showcase'
+                  alt={m.home_category_spotlight_image_alt()}
                   className='absolute inset-0 w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]'
                 />
                 <div className='absolute inset-0 bg-gradient-to-r from-bg-elevated/40 via-transparent to-transparent pointer-events-none' />
@@ -84,14 +84,11 @@ export function HomeCategoryDiscovery({ categories }: HomeCategoryDiscoveryProps
 
         {/* Remaining Categories Grid */}
         {otherCategories.length > 0 && (
-          <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
+          <div className='flex gap-4 overflow-x-auto pb-4 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-3'>
             {otherCategories.slice(0, 6).map((category) => (
-              <CategoryCard
-                key={category.id}
-                id={category.id}
-                name={category.name}
-                slug={category.slug}
-              />
+              <div key={category.id} className='min-w-[70vw] sm:min-w-0'>
+                <CategoryCard id={category.id} name={category.name} slug={category.slug} />
+              </div>
             ))}
           </div>
         )}

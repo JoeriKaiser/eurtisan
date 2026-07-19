@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { ChevronDown, SlidersHorizontal, X } from 'lucide-react'
 import { Input } from '#/components/ui/input'
 import { m } from '#/paraglide/messages'
@@ -7,7 +8,6 @@ export function SearchFilters({
   setFilters,
   categories,
   navigateWithParams,
-  handleClearFilters,
   hasActiveFilters,
   showCategory = true,
 }: {
@@ -22,7 +22,6 @@ export function SearchFilters({
   setFilters: React.Dispatch<React.SetStateAction<typeof filters>>
   categories: Array<{ id: string; name: string; slug: string }>
   navigateWithParams: (overrides: Record<string, string | number | undefined>) => void
-  handleClearFilters: () => void
   hasActiveFilters: boolean
   showCategory?: boolean
 }) {
@@ -147,14 +146,15 @@ export function SearchFilters({
           </div>
 
           {hasActiveFilters ? (
-            <button
-              type='button'
-              onClick={handleClearFilters}
-              className='mt-4 inline-flex min-h-11 items-center gap-1.5 py-2 text-sm font-semibold text-text-secondary transition-colors hover:text-text-primary'
+            <Link
+              to='/search'
+              search={{}}
+              replace
+              className='mt-4 inline-flex min-h-11 items-center gap-1.5 py-2 text-sm font-semibold text-text-secondary no-underline transition-colors hover:text-text-primary'
             >
               <X size={15} aria-hidden='true' />
               {m.search_clear_filters()}
-            </button>
+            </Link>
           ) : null}
         </div>
       </details>

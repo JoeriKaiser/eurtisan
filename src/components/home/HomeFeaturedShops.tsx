@@ -58,53 +58,54 @@ export function HomeFeaturedShops({ shops }: HomeFeaturedShopsProps) {
           </p>
         </div>
       </div>
-      <div className='grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'>
+      <div className='flex gap-4 overflow-x-auto pb-4 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:pb-0 lg:grid-cols-3'>
         {shops.map((shop) => (
-          <Link
-            key={shop.id}
-            to='/shops/$shopSlug'
-            params={{ shopSlug: shop.slug }}
-            className='group relative p-1.5 rounded-[20px] bg-scrim-subtle border border-border-subtle transition-all duration-300 hover:shadow-md hover:border-border-strong hover:-translate-y-0.5 flex no-underline'
-          >
-            <div className='w-full h-full bg-bg-elevated rounded-[calc(20px-6px)] p-5 flex items-start gap-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]'>
-              <div
-                className='flex size-14 shrink-0 items-center justify-center rounded-xl bg-accent-primary-subtle text-accent-primary overflow-hidden border border-accent-primary/10'
-                style={{ viewTransitionName: getShopImageTransitionName(shop.id) }}
-              >
-                {shop.image ? (
-                  <img
-                    src={getImageUrl(shop.image, { width: 160, format: 'webp' })}
-                    alt=''
-                    className='h-full w-full object-cover'
-                  />
-                ) : (
-                  <Store size={24} strokeWidth={1.5} />
-                )}
-              </div>
-              <div className='min-w-0 flex-1'>
-                {shop.category && (
-                  <span className='inline-block mb-1 text-[9px] font-bold uppercase tracking-widest text-accent-primary'>
-                    {shop.category}
-                  </span>
-                )}
-                <h3 className='text-sm font-bold text-text-primary truncate font-sans group-hover:text-accent-primary transition-colors'>
-                  Shop {shop.name.startsWith('Shop ') ? shop.name.substring(5) : shop.name}
-                </h3>
-                {shop.tagline && (
-                  <p className='text-xs text-text-secondary truncate mt-1 font-sans italic opacity-95'>
-                    "{shop.tagline}"
+          <div key={shop.id} className='min-w-[78vw] sm:min-w-0'>
+            <Link
+              to='/shops/$shopSlug'
+              params={{ shopSlug: shop.slug }}
+              className='group relative p-1.5 rounded-[20px] bg-scrim-subtle border border-border-subtle transition-all duration-300 hover:shadow-md hover:border-border-strong hover:-translate-y-0.5 flex no-underline'
+            >
+              <div className='w-full h-full bg-bg-elevated rounded-[calc(20px-6px)] p-5 flex items-start gap-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.15)]'>
+                <div
+                  className='flex size-14 shrink-0 items-center justify-center rounded-xl bg-accent-primary-subtle text-accent-primary overflow-hidden border border-accent-primary/10'
+                  style={{ viewTransitionName: getShopImageTransitionName(shop.id) }}
+                >
+                  {shop.image ? (
+                    <img
+                      src={getImageUrl(shop.image, { width: 160, format: 'webp' })}
+                      alt=''
+                      className='h-full w-full object-cover'
+                    />
+                  ) : (
+                    <Store size={24} strokeWidth={1.5} />
+                  )}
+                </div>
+                <div className='min-w-0 flex-1'>
+                  {shop.category && (
+                    <span className='inline-block mb-1 text-[9px] font-bold uppercase tracking-widest text-accent-primary'>
+                      {shop.category}
+                    </span>
+                  )}
+                  <h3 className='text-sm font-bold text-text-primary truncate font-sans group-hover:text-accent-primary transition-colors'>
+                    Shop {shop.name.startsWith('Shop ') ? shop.name.substring(5) : shop.name}
+                  </h3>
+                  {shop.tagline && (
+                    <p className='text-xs text-text-secondary truncate mt-1 font-sans italic opacity-95'>
+                      "{shop.tagline}"
+                    </p>
+                  )}
+                  <p className='text-xs text-text-muted font-sans mt-2 font-semibold'>
+                    {shop.productCount} {shop.productCount === 1 ? 'product' : 'products'}
                   </p>
-                )}
-                <p className='text-xs text-text-muted font-sans mt-2 font-semibold'>
-                  {shop.productCount} {shop.productCount === 1 ? 'product' : 'products'}
-                </p>
+                </div>
+                <ArrowUpRight
+                  size={15}
+                  className='text-text-muted transition-all duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-accent-primary self-start mt-1 shrink-0'
+                />
               </div>
-              <ArrowUpRight
-                size={15}
-                className='text-text-muted transition-all duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-accent-primary self-start mt-1 shrink-0'
-              />
-            </div>
-          </Link>
+            </Link>
+          </div>
         ))}
       </div>
     </section>
