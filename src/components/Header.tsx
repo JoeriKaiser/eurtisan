@@ -87,7 +87,7 @@ export default function Header() {
         />
 
         {/* Logo */}
-        <Logo textClassName='hidden min-[360px]:inline' />
+        <Logo textClassName='hidden sm:inline' />
 
         {/* Nav links */}
         <div className='hidden items-center gap-x-4 text-sm font-medium md:flex flex-shrink-0'>

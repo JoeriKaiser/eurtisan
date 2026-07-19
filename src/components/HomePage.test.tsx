@@ -132,11 +132,13 @@ describe('HomePage', () => {
 
     const heroImage = screen.getByRole('img', { name: 'Shop shop-1' }) as HTMLImageElement
     expect(heroImage.src).toContain('/api/image?key=shops%2Fhero-shop.webp&width=960&format=webp')
-    expect(
-      screen.getByRole('img', {
-        name: 'A maker arranging ceramics and textiles in a sunlit workshop',
-      }),
-    ).toBeDefined()
+    const mobileHeroImage = screen.getByRole('img', {
+      name: 'A maker arranging ceramics and textiles in a sunlit workshop',
+    }) as HTMLElement
+    expect(mobileHeroImage.style.backgroundImage).toContain(
+      '/api/image?key=shops%2Fhero-shop.webp&width=960&format=webp',
+    )
+    expect(mobileHeroImage.style.backgroundImage).toContain('/images/hero_artisan_goods.png')
   })
 
   it('shows singular product count for one product', () => {

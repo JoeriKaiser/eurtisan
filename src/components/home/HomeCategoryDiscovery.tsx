@@ -84,9 +84,9 @@ export function HomeCategoryDiscovery({ categories }: HomeCategoryDiscoveryProps
 
         {/* Remaining Categories Grid */}
         {otherCategories.length > 0 && (
-          <div className='flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-3'>
+          <div className='flex gap-4 overflow-x-auto pb-4 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-3'>
             {otherCategories.slice(0, 6).map((category) => (
-              <div key={category.id} className='min-w-[70vw] snap-start sm:min-w-0'>
+              <div key={category.id} className='min-w-[70vw] sm:min-w-0'>
                 <CategoryCard id={category.id} name={category.name} slug={category.slug} />
               </div>
             ))}

@@ -46,7 +46,11 @@ test.describe('Homepage', () => {
         Math.abs((firstCardBounds?.height ?? 0) - (secondCardBounds?.height ?? 0)),
       ).toBeLessThan(1)
 
-      await expect(page.locator('section').first().locator('img').first()).toBeVisible()
+      await expect(
+        page.getByRole('img', {
+          name: 'A maker arranging ceramics and textiles in a sunlit workshop',
+        }),
+      ).toBeVisible()
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
       await expect(
         page.getByRole('searchbox', { name: /search for handmade products/i }),

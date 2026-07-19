@@ -58,9 +58,9 @@ export function HomeFeaturedShops({ shops }: HomeFeaturedShopsProps) {
           </p>
         </div>
       </div>
-      <div className='flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:pb-0 lg:grid-cols-3'>
+      <div className='flex gap-4 overflow-x-auto pb-4 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:pb-0 lg:grid-cols-3'>
         {shops.map((shop) => (
-          <div key={shop.id} className='min-w-[78vw] snap-start sm:min-w-0'>
+          <div key={shop.id} className='min-w-[78vw] sm:min-w-0'>
             <Link
               to='/shops/$shopSlug'
               params={{ shopSlug: shop.slug }}

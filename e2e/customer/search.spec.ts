@@ -14,7 +14,7 @@ test.describe('Search', () => {
     await expect(categoryNavigation.getByRole('link', { name: 'Woodwork' })).toBeVisible()
   })
 
-  test('supports category filtering in discovery mode', async ({ page }) => {
+  test('supports category filtering and sorting in discovery mode', async ({ page }) => {
     await page.goto('/search')
     await page.waitForSelector('html[data-hydrated="true"]')
 
@@ -28,6 +28,12 @@ test.describe('Search', () => {
     await page.waitForURL(/[?&]category=ceramics/)
     await expect(ceramicsLink).toHaveAttribute('aria-current', 'page')
     await expect(page.getByLabel(/^Product:/).first()).toBeVisible()
+
+    const sortNavigation = page.getByRole('navigation', { name: /^sort by$/i })
+    const priceDescendingLink = sortNavigation.getByRole('link', { name: 'Price (High to Low)' })
+    await priceDescendingLink.click()
+    await page.waitForURL(/[?&]sort=price_desc/)
+    await expect(priceDescendingLink).toHaveAttribute('aria-current', 'page')
 
     await categoryNavigation.getByRole('link', { name: 'All categories' }).click()
     await page.waitForURL((url) => !url.searchParams.has('category'))
@@ -73,6 +79,10 @@ test.describe('Search', () => {
 
     await expect(page.getByRole('heading', { name: /results for/i })).toBeVisible()
     await expect(page.getByRole('heading', { name: /no results found/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /clear filters/i })).toBeVisible()
+    const clearLink = page.getByRole('link', { name: /clear filters/i })
+    await expect(clearLink).toBeVisible()
+    await clearLink.click()
+    await page.waitForURL((url) => url.pathname.endsWith('/search') && url.search === '')
+    await expect(page.getByRole('heading', { name: 'Explore the market' })).toBeVisible()
   })
 })

@@ -114,30 +114,33 @@ export function HomeHeroSection({
                 params={{ shopSlug: featuredShop.slug }}
                 className='block no-underline'
               >
-                <img
-                  src='/images/hero_artisan_goods.png'
-                  alt={m.home_hero_image_alt()}
-                  className='aspect-video w-full object-cover min-[360px]:aspect-[5/4]'
+                <div
+                  role='img'
+                  aria-label={m.home_hero_image_alt()}
+                  className='aspect-video w-full bg-cover bg-center sm:aspect-[5/4]'
+                  style={{
+                    backgroundImage: `url("${featuredImageSrc}"), url("/images/hero_artisan_goods.png")`,
+                  }}
                 />
               </Link>
             ) : (
               <img
                 src={featuredImageSrc}
                 alt={m.home_hero_image_alt()}
-                className='aspect-video w-full object-cover min-[360px]:aspect-[5/4]'
+                className='aspect-video w-full object-cover sm:aspect-[5/4]'
               />
             )}
           </div>
 
           {/* Primary hero content */}
-          <div className='relative z-10 mx-4 -mt-10 max-w-2xl rounded-t-[2rem] border-t border-border-subtle bg-bg-base px-5 pt-5 pb-2 shadow-[0_-12px_32px_oklch(20%_0.02_75_/_0.08)] min-[360px]:pt-7 sm:px-7 lg:m-0 lg:w-[55%] lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none'>
-            <span className='mb-4 inline-flex items-center gap-1.5 rounded-full bg-accent-primary-subtle px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-accent-primary min-[360px]:mb-6'>
+          <div className='relative z-10 mx-4 -mt-10 max-w-2xl rounded-t-3xl border-t border-border-subtle bg-bg-base px-5 pt-5 pb-2 shadow-lg sm:px-7 sm:pt-7 lg:m-0 lg:w-[55%] lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none'>
+            <span className='mb-4 inline-flex items-center gap-1.5 rounded-full bg-accent-primary-subtle px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-accent-primary sm:mb-6'>
               {m.home_hero_kicker()}
             </span>
-            <h1 className='display-title mb-4 text-4xl font-bold tracking-tight text-text-primary min-[360px]:mb-5 min-[360px]:text-[2.5rem] min-[380px]:text-5xl lg:mb-6 lg:text-6xl xl:text-7xl leading-[1.02] lg:leading-[1.08]'>
+            <h1 className='display-title mb-4 text-4xl font-bold leading-none tracking-tight text-text-primary sm:mb-5 sm:text-5xl lg:mb-6 lg:text-6xl lg:leading-tight xl:text-7xl'>
               {m.home_hero_title()}
             </h1>
-            <p className='mb-5 max-w-lg font-sans text-sm leading-relaxed text-text-secondary min-[360px]:mb-8 min-[360px]:text-base sm:text-lg lg:hidden'>
+            <p className='mb-5 max-w-lg font-sans text-sm leading-relaxed text-text-secondary sm:mb-8 sm:text-lg lg:hidden'>
               {m.home_hero_desc_mobile()}
             </p>
             <p className='mb-8 hidden max-w-lg font-sans text-lg leading-relaxed text-text-secondary lg:block'>
@@ -156,7 +159,7 @@ export function HomeHeroSection({
                   <input
                     type='search'
                     placeholder={m.home_search_placeholder()}
-                    className={`flex h-12 min-w-0 w-full rounded-full border bg-bg-elevated px-4 pl-10 text-sm text-text-primary placeholder:text-text-placeholder transition-colors duration-fast ease-out focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20 disabled:cursor-not-allowed disabled:opacity-50 lg:bg-bg-elevated/85 lg:backdrop-blur-sm ${
+                    className={`flex h-12 min-w-0 w-full rounded-full border bg-bg-elevated px-4 pl-10 text-sm text-text-primary placeholder:text-text-placeholder transition-colors duration-fast ease-out focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20 disabled:cursor-not-allowed disabled:opacity-50 ${
                       searchError
                         ? 'border-error focus-visible:border-error focus-visible:ring-error/20'
                         : 'border-border-default hover:border-border-strong'
@@ -173,9 +176,9 @@ export function HomeHeroSection({
                 </div>
                 <button
                   type='submit'
-                  className='group relative flex size-12 shrink-0 items-center justify-center gap-3 rounded-full bg-accent-primary text-text-on-primary shadow-md transition-all active:scale-[0.98] active:bg-accent-primary-active cursor-pointer hover:bg-accent-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2 min-[360px]:w-auto min-[360px]:justify-between min-[360px]:pl-5 min-[360px]:pr-2'
+                  className='group relative flex size-12 shrink-0 items-center justify-center gap-3 rounded-full bg-accent-primary text-text-on-primary shadow-md transition-all active:scale-[0.98] active:bg-accent-primary-active cursor-pointer hover:bg-accent-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2 lg:w-auto lg:justify-between lg:pl-5 lg:pr-2'
                 >
-                  <span className='sr-only min-[360px]:not-sr-only'>{m.home_search_button()}</span>
+                  <span className='sr-only lg:not-sr-only'>{m.home_search_button()}</span>
                   <span className='flex size-6 rounded-full bg-scrim-subtle group-hover:bg-scrim items-center justify-center transition-transform duration-300 group-hover:scale-105'>
                     <Search className='size-3.5 text-current' />
                   </span>

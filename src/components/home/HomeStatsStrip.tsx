@@ -13,14 +13,17 @@ export function HomeStatsStrip({ stats }: HomeStatsStripProps) {
     {
       value: stats.sellerCount,
       label: m.home_stats_makers({ count: stats.sellerCount.toString() }),
+      unit: m.home_stats_makers_unit(),
     },
     {
       value: stats.productCount,
       label: m.home_stats_products({ count: stats.productCount.toString() }),
+      unit: m.home_stats_products_unit(),
     },
     {
       value: stats.countryCount,
       label: m.home_stats_eu({ count: stats.countryCount.toString() }),
+      unit: m.home_stats_eu_unit(),
     },
   ]
 
@@ -31,17 +34,14 @@ export function HomeStatsStrip({ stats }: HomeStatsStripProps) {
         className='animate-fade-in-up md:-mt-24 md:mb-16'
         style={{ animationDelay: '100ms' }}
       >
-        <div className='grid grid-cols-3 bg-accent-primary px-3 py-5 text-text-on-primary md:hidden'>
+        <div className='grid grid-cols-3 gap-2 bg-accent-primary px-3 py-5 text-text-on-primary md:hidden'>
           {marketplaceStats.map((stat) => (
-            <div
-              key={stat.label}
-              className='min-w-0 border-l border-text-on-primary/20 px-2 text-center first:border-l-0'
-            >
+            <div key={stat.label} className='min-w-0 px-2 text-center'>
               <strong className='block text-2xl font-extrabold leading-none tabular-nums'>
                 {stat.value}
               </strong>
-              <span className='mt-2 block text-[9px] font-bold uppercase leading-tight tracking-[0.08em] opacity-90'>
-                {stat.label.replace(/^\d+\s*/, '')}
+              <span className='mt-2 block text-[9px] font-bold uppercase leading-tight tracking-wide opacity-90'>
+                {stat.unit}
               </span>
             </div>
           ))}

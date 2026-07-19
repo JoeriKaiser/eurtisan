@@ -1,4 +1,4 @@
-import { Link, useLoaderData, useNavigate } from '@tanstack/react-router'
+import { Link, useLoaderData, useRouter } from '@tanstack/react-router'
 import { ArrowLeft, ChevronLeft, ChevronRight, Search, Shuffle } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import ProductGrid from '#/components/ProductGrid'
@@ -32,7 +32,7 @@ function SearchPageContent() {
     maxPriceCents,
     sort,
   } = useLoaderData({ from: '/search' })
-  const navigate = useNavigate({ from: '/search' })
+  const router = useRouter()
 
   const [filters, setFilters] = useState({
     query: query ?? '',
@@ -85,23 +85,14 @@ function SearchPageContent() {
 
   const navigateWithParams = useCallback(
     (overrides: Record<string, string | number | undefined>) => {
-      replaceSearchLocation(buildSearchParams(overrides))
+      router.navigate({
+        to: '/search',
+        search: buildSearchParams(overrides),
+        replace: true,
+      })
     },
-    [buildSearchParams],
+    [router, buildSearchParams],
   )
-
-  const handleClearFilters = useCallback(() => {
-    setFilters((prev) => ({
-      ...prev,
-      query: '',
-      category: '',
-      shop: '',
-      minPrice: '',
-      maxPrice: '',
-      sort: 'relevance',
-    }))
-    replaceSearchLocation({})
-  }, [])
 
   const hasActiveFilters = Boolean(
     filters.category ||
@@ -119,11 +110,11 @@ function SearchPageContent() {
     const product = candidates[Math.floor(Math.random() * candidates.length)]
     if (!product?.shopSlug) return
 
-    navigate({
+    router.navigate({
       to: '/shops/$shopSlug/products/$productSlug',
       params: { shopSlug: product.shopSlug, productSlug: product.slug },
     })
-  }, [products.products, navigate])
+  }, [products.products, router])
 
   return (
     <main className='mx-auto w-full max-w-[1320px] px-4 pb-16'>
@@ -143,14 +134,15 @@ function SearchPageContent() {
               {m.search_surprise_me()}
             </button>
           ) : (
-            <button
-              type='button'
-              onClick={handleClearFilters}
-              className='inline-flex min-h-11 items-center gap-2 py-2 text-sm font-semibold text-text-primary transition-colors hover:text-accent-primary'
+            <Link
+              to='/search'
+              search={{}}
+              replace
+              className='inline-flex min-h-11 items-center gap-2 py-2 text-sm font-semibold text-text-primary no-underline transition-colors hover:text-accent-primary'
             >
               <ArrowLeft size={16} aria-hidden='true' />
               {m.search_back_to_discovery()}
-            </button>
+            </Link>
           )}
         </div>
       </section>
@@ -206,26 +198,37 @@ function SearchPageContent() {
               ? m.search_objects_count({ count: products.total })
               : m.search_results_count({ count: products.total })}
           </p>
-          <div className='flex items-center gap-2'>
-            <label htmlFor='search-sort' className='text-sm text-text-secondary'>
-              {m.search_sort_label()}
-            </label>
-            <select
-              id='search-sort'
-              value={filters.sort}
-              onChange={(event) => {
-                replaceSearchLocation(
-                  buildSearchParams({ sort: event.currentTarget.value, page: 1 }),
-                )
-              }}
-              className='h-10 rounded-lg border border-border-default bg-surface-default px-3 py-1.5 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
-            >
-              <option value='relevance'>{m.search_sort_relevance()}</option>
-              <option value='price_asc'>{m.search_sort_price_asc()}</option>
-              <option value='price_desc'>{m.search_sort_price_desc()}</option>
-              <option value='newest'>{m.search_sort_newest()}</option>
-            </select>
-          </div>
+          <nav
+            className='flex items-center gap-2 overflow-x-auto'
+            aria-label={m.search_sort_label()}
+          >
+            <span className='shrink-0 text-sm text-text-secondary'>{m.search_sort_label()}</span>
+            {[
+              { value: 'relevance', label: m.search_sort_relevance() },
+              { value: 'price_asc', label: m.search_sort_price_asc() },
+              { value: 'price_desc', label: m.search_sort_price_desc() },
+              { value: 'newest', label: m.search_sort_newest() },
+            ].map((option) => (
+              <Link
+                key={option.value}
+                to='/search'
+                search={(previous) => ({
+                  ...previous,
+                  sort: option.value === 'relevance' ? undefined : option.value,
+                  page: undefined,
+                })}
+                replace
+                className={`shrink-0 rounded-lg px-3 py-2 text-sm no-underline ${
+                  filters.sort === option.value
+                    ? 'bg-accent-primary text-text-on-primary'
+                    : 'bg-surface-inset text-text-secondary'
+                }`}
+                aria-current={filters.sort === option.value ? 'page' : undefined}
+              >
+                {option.label}
+              </Link>
+            ))}
+          </nav>
         </div>
 
         <div className='mt-4'>
@@ -234,7 +237,6 @@ function SearchPageContent() {
             setFilters={setFilters}
             categories={categories}
             navigateWithParams={navigateWithParams}
-            handleClearFilters={handleClearFilters}
             hasActiveFilters={hasActiveFilters}
             showCategory={!isVisualBrowseMode}
           />
@@ -252,13 +254,14 @@ function SearchPageContent() {
                   ? m.search_no_results_description({ query })
                   : m.search_no_filter_results_description()}
               </p>
-              <button
-                type='button'
-                onClick={handleClearFilters}
-                className='inline-flex min-h-11 items-center rounded-xl bg-accent-primary px-6 py-3 text-sm font-semibold text-text-on-primary transition-colors hover:bg-accent-primary-hover active:bg-accent-primary-active'
+              <Link
+                to='/search'
+                search={{}}
+                replace
+                className='inline-flex min-h-11 items-center rounded-xl bg-accent-primary px-6 py-3 text-sm font-semibold text-text-on-primary no-underline transition-colors hover:bg-accent-primary-hover active:bg-accent-primary-active'
               >
                 {m.search_clear_filters()}
-              </button>
+              </Link>
             </div>
           ) : isVisualBrowseMode ? (
             <DiscoveryWall products={products.products} />
@@ -272,15 +275,6 @@ function SearchPageContent() {
       </section>
     </main>
   )
-}
-
-function replaceSearchLocation(params: Record<string, string | number>) {
-  const url = new URL(window.location.href)
-  url.search = ''
-  for (const [key, value] of Object.entries(params)) {
-    url.searchParams.set(key, String(value))
-  }
-  window.location.replace(url.toString())
 }
 
 function SearchPagination({ page, totalPages }: { page: number; totalPages: number }) {
