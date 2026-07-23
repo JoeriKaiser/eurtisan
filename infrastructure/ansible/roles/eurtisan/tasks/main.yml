@@ -213,7 +213,7 @@
       when: coexist_with_proxy | default(false)
   tags: [observability]
 
-- name: Build and transfer the immutable application image from the controller
+- name: Publish, sign, verify, and pull the immutable application image
   block:
     - name: Create isolated controller build directory
       ansible.builtin.tempfile:
@@ -222,6 +222,14 @@
       delegate_to: localhost
       become: false
       register: controller_build_directory
+
+    - name: Create isolated controller registry credential directory
+      ansible.builtin.file:
+        path: "{{ controller_build_directory.path }}/registry-auth"
+        state: directory
+        mode: "0700"
+      delegate_to: localhost
+      become: false
 
     - name: Create clean release worktree on the controller
       ansible.builtin.command:
@@ -290,53 +298,264 @@
       become: false
       no_log: true
 
-    - name: Inspect controller-built application image
-      ansible.builtin.command: "docker image inspect eurtisan-app:{{ image_tag }}"
+    - name: Check the controller signing key files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ release_signing_private_key_path }}"
+        - "{{ release_signing_public_key_path }}"
       delegate_to: localhost
       become: false
-      register: controller_image
-      changed_when: false
+      register: release_signing_key_files
 
-    - name: Export compressed immutable image artifact on the controller
-      ansible.builtin.shell: >-
-        set -o pipefail && umask 077 &&
-        docker image save eurtisan-app:{{ image_tag }} |
-        gzip -1 > {{ controller_build_directory.path | quote }}/eurtisan-app.tar.gz
-      args:
-        executable: /bin/bash
-      delegate_to: localhost
-      become: false
-
-    - name: Transfer immutable image artifact over SSH
-      ansible.builtin.copy:
-        src: "{{ controller_build_directory.path }}/eurtisan-app.tar.gz"
-        dest: "/tmp/eurtisan-app-{{ image_tag }}.tar.gz"
-        mode: "0600"
-
-    - name: Load immutable image artifact on the target
-      ansible.builtin.shell: >-
-        set -o pipefail &&
-        gzip -dc /tmp/eurtisan-app-{{ image_tag }}.tar.gz |
-        docker image load
-      args:
-        executable: /bin/bash
-
-    - name: Inspect transferred application image
-      ansible.builtin.command: "docker image inspect eurtisan-app:{{ image_tag }}"
-      register: transferred_image
-      changed_when: false
-
-    - name: Verify transferred image release identity
+    - name: Require protected signing keys on the controller
       ansible.builtin.assert:
         that:
-          - (transferred_image.stdout | from_json)[0].Id == (controller_image.stdout | from_json)[0].Id
-          - (transferred_image.stdout | from_json)[0].Config.Labels['org.opencontainers.image.revision'] == release_version
-        fail_msg: "Transferred application image identity does not match the controller-built release"
-  always:
-    - name: Remove transferred image archive from the target
+          - release_signing_key_files.results | map(attribute='stat.exists') | min
+          - release_signing_key_files.results | map(attribute='stat.isreg') | min
+        fail_msg: "Generate the protected offline Cosign key pair at the configured controller paths"
+
+    - name: Require Cosign on the trusted controller
+      ansible.builtin.command: cosign version
+      delegate_to: localhost
+      become: false
+      changed_when: false
+
+    - name: Log the controller in to the private release registry
+      ansible.builtin.command:
+        argv:
+          - docker
+          - login
+          - "{{ release_registry }}"
+          - --username
+          - "{{ registry_push_access_key_id }}"
+          - --password-stdin
+        stdin: "{{ registry_push_secret_key }}"
+      environment:
+        DOCKER_CONFIG: "{{ controller_build_directory.path }}/registry-auth"
+      delegate_to: localhost
+      become: false
+      no_log: true
+
+    - name: Tag the environment-qualified release image
+      ansible.builtin.command: >-
+        docker tag eurtisan-app:{{ image_tag }}
+        {{ release_image_repository }}:{{ deployment_environment }}-{{ release_version }}
+      delegate_to: localhost
+      become: false
+
+    - name: Publish the immutable release image
+      ansible.builtin.command: >-
+        docker push {{ release_image_repository }}:{{ deployment_environment }}-{{ release_version }}
+      environment:
+        DOCKER_CONFIG: "{{ controller_build_directory.path }}/registry-auth"
+      delegate_to: localhost
+      become: false
+      register: release_image_push
+      changed_when: true
+
+    - name: Inspect the published image digest
+      ansible.builtin.command: >-
+        docker image inspect
+        {{ release_image_repository }}:{{ deployment_environment }}-{{ release_version }}
+      delegate_to: localhost
+      become: false
+      register: published_image
+      changed_when: false
+
+    - name: Select the immutable repository digest
+      ansible.builtin.set_fact:
+        release_image_reference: >-
+          {{
+            ((published_image.stdout | from_json)[0].RepoDigests
+              | select('match', '^' ~ release_image_repository ~ '@sha256:')
+              | list
+              | first)
+          }}
+
+    - name: Validate the published digest identity
+      ansible.builtin.assert:
+        that:
+          - release_image_reference is match('^' ~ release_image_repository ~ '@sha256:[a-f0-9]{64}$')
+          - (published_image.stdout | from_json)[0].Config.Labels['org.opencontainers.image.revision'] == release_version
+        fail_msg: "Published release digest or OCI revision does not match the intended release"
+
+    - name: Sign the immutable release digest
+      ansible.builtin.command:
+        argv:
+          - cosign
+          - sign
+          - --yes
+          - --key
+          - "{{ release_signing_private_key_path }}"
+          - "{{ release_image_reference }}"
+      environment:
+        COSIGN_PASSWORD: "{{ cosign_password }}"
+        DOCKER_CONFIG: "{{ controller_build_directory.path }}/registry-auth"
+      delegate_to: localhost
+      become: false
+      no_log: true
+
+    - name: Verify the release signature before deployment
+      ansible.builtin.command:
+        argv:
+          - cosign
+          - verify
+          - --key
+          - "{{ release_signing_public_key_path }}"
+          - "{{ release_image_reference }}"
+      environment:
+        DOCKER_CONFIG: "{{ controller_build_directory.path }}/registry-auth"
+      delegate_to: localhost
+      become: false
+      register: release_signature_verification
+      changed_when: false
+      no_log: true
+
+    - name: Set the qualified release digest
+      ansible.builtin.set_fact:
+        release_image_digest: "{{ release_image_reference.split('@')[1] }}"
+
+    - name: Create isolated target registry credential directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: -eurtisan-registry-auth
+      register: target_registry_auth_directory
+
+    - name: Protect the target registry credential directory
       ansible.builtin.file:
-        path: "/tmp/eurtisan-app-{{ image_tag }}.tar.gz"
+        path: "{{ target_registry_auth_directory.path }}"
+        state: directory
+        mode: "0700"
+
+    - name: Log the target in to the private release registry
+      ansible.builtin.command:
+        argv:
+          - docker
+          - login
+          - "{{ release_registry }}"
+          - --username
+          - "{{ registry_pull_access_key_id }}"
+          - --password-stdin
+        stdin: "{{ registry_pull_secret_key }}"
+      environment:
+        DOCKER_CONFIG: "{{ target_registry_auth_directory.path }}"
+      no_log: true
+
+    - name: Pull only the verified immutable digest
+      ansible.builtin.command: "docker pull {{ release_image_reference }}"
+      environment:
+        DOCKER_CONFIG: "{{ target_registry_auth_directory.path }}"
+      register: release_image_pull
+      changed_when: "'Downloaded newer image' in release_image_pull.stdout"
+
+    - name: Tag the verified digest for Compose
+      ansible.builtin.command: >-
+        docker tag {{ release_image_reference }} eurtisan-app:{{ image_tag }}
+
+    - name: Inspect the pulled application image
+      ansible.builtin.command: "docker image inspect eurtisan-app:{{ image_tag }}"
+      register: pulled_image
+      changed_when: false
+
+    - name: Verify the pulled digest and release identity
+      ansible.builtin.assert:
+        that:
+          - release_image_reference in (pulled_image.stdout | from_json)[0].RepoDigests
+          - (pulled_image.stdout | from_json)[0].Config.Labels['org.opencontainers.image.revision'] == release_version
+        fail_msg: "Pulled application image identity does not match the signed release digest"
+
+    - name: Inspect the currently running application image for rollback
+      ansible.builtin.shell: |
+        set -euo pipefail
+        container_id="$({{ docker_compose }} ps -q app)"
+        if [ -n "$container_id" ]; then
+          image_id="$(docker inspect --format='{% raw %}{{.Image}}{% endraw %}' "$container_id")"
+          docker image inspect "$image_id"
+        fi
+      args:
+        chdir: /opt/eurtisan
+        executable: /bin/bash
+      register: current_application_image
+      changed_when: false
+
+    - name: Select the current verified rollback digest
+      ansible.builtin.set_fact:
+        rollback_image_reference: >-
+          {{
+            (((current_application_image.stdout | from_json)[0].RepoDigests
+              | select('match', '^' ~ release_image_repository ~ '@sha256:')
+              | list
+              | first
+              | default(''))
+              if current_application_image.stdout | trim | length > 0 else '')
+          }}
+        rollback_release_version: >-
+          {{
+            ((current_application_image.stdout | from_json)[0].Config.Labels['org.opencontainers.image.revision']
+              if current_application_image.stdout | trim | length > 0 else '')
+          }}
+
+    - name: Verify the rollback digest signature
+      ansible.builtin.command:
+        argv:
+          - cosign
+          - verify
+          - --key
+          - "{{ release_signing_public_key_path }}"
+          - "{{ rollback_image_reference }}"
+      environment:
+        DOCKER_CONFIG: "{{ controller_build_directory.path }}/registry-auth"
+      delegate_to: localhost
+      become: false
+      changed_when: false
+      no_log: true
+      when: rollback_image_reference | length > 0
+
+    - name: Retain the verified rollback digest locally
+      ansible.builtin.command: >-
+        docker tag {{ rollback_image_reference }} eurtisan-app:rollback-before-deploy
+      when: rollback_image_reference | length > 0
+
+    - name: Rewrite the managed environment with the qualified digest
+      ansible.builtin.template:
+        src: .env.j2
+        dest: /opt/eurtisan/.env
+        mode: "0600"
+
+    - name: Report the qualified release identity
+      ansible.builtin.debug:
+        msg: "Qualified {{ deployment_environment }} release {{ release_version }} as {{ release_image_reference }}"
+  always:
+    - name: Log the controller out of the private release registry
+      ansible.builtin.command: "docker logout {{ release_registry }}"
+      environment:
+        DOCKER_CONFIG: "{{ controller_build_directory.path | default('/tmp/eurtisan-build-not-created') }}/registry-auth"
+      delegate_to: localhost
+      become: false
+      changed_when: false
+      failed_when: false
+      when:
+        - controller_build_directory is defined
+        - controller_build_directory.path is defined
+
+    - name: Log the target out of the private release registry
+      ansible.builtin.command: "docker logout {{ release_registry }}"
+      environment:
+        DOCKER_CONFIG: "{{ target_registry_auth_directory.path | default('/tmp/eurtisan-registry-auth-not-created') }}"
+      changed_when: false
+      failed_when: false
+      when:
+        - target_registry_auth_directory is defined
+        - target_registry_auth_directory.path is defined
+
+    - name: Remove target registry credential directory
+      ansible.builtin.file:
+        path: "{{ target_registry_auth_directory.path | default('/tmp/eurtisan-registry-auth-not-created') }}"
         state: absent
+      when:
+        - target_registry_auth_directory is defined
+        - target_registry_auth_directory.path is defined
 
     - name: Remove clean release worktree from the controller
       ansible.builtin.command:
@@ -432,61 +651,52 @@
   environment:
     IMAGE_TAG: "{{ image_tag }}"
 
-- name: Smoke-test compiled browser configuration
-  command: "docker run --rm --env-file /opt/eurtisan/.env eurtisan-app:{{ image_tag }} bun run smoke:client-config"
-  args:
-    chdir: /opt/eurtisan
+- name: Roll out the verified digest with automatic application rollback
+  block:
+    - name: Run the qualified release rollout
+      ansible.builtin.import_tasks: rollout.yml
+  rescue:
+    - name: Require a verified rollback generation
+      ansible.builtin.assert:
+        that:
+          - rollback_image_reference | default('') | length > 0
+          - rollback_release_version | default('') is match('^[a-f0-9]{40}$')
+        fail_msg: "Rollout failed and no previously verified digest is available; manual recovery is required"
 
-- name: Validate server environment inside the production image
-  command: "{{ docker_compose }} run --rm --no-deps app bun run validate:server-env"
-  args:
-    chdir: /opt/eurtisan
-  environment:
-    IMAGE_TAG: "{{ image_tag }}"
+    - name: Restore rollback release metadata
+      ansible.builtin.lineinfile:
+        path: /opt/eurtisan/.env
+        regexp: "^{{ item.key }}="
+        line: "{{ item.key }}={{ item.value }}"
+        mode: "0600"
+      loop:
+        - key: IMAGE_TAG
+          value: rollback-before-deploy
+        - key: IMAGE_DIGEST
+          value: "{{ rollback_image_reference.split('@')[1] }}"
+        - key: VITE_APP_VERSION
+          value: "{{ rollback_release_version }}"
 
-- name: Run database migrations
-  command: "{{ docker_compose }} run --rm --no-deps app bun run db:migrate"
-  args:
-    chdir: /opt/eurtisan
-  environment:
-    IMAGE_TAG: "{{ image_tag }}"
+    - name: Restart every application service on the verified rollback digest
+      ansible.builtin.command: "{{ docker_compose }} up -d"
+      args:
+        chdir: /opt/eurtisan
+      environment:
+        IMAGE_TAG: rollback-before-deploy
 
-- name: Start application and runtime dependencies
-  command: "{{ docker_compose }} up -d{{ ' mailpit' if (coexist_with_proxy | default(false)) else '' }} imgproxy app"
-  args:
-    chdir: /opt/eurtisan
-  environment:
-    IMAGE_TAG: "{{ image_tag }}"
+    - name: Verify rollback readiness
+      ansible.builtin.command: "{{ docker_compose }} up -d --wait app"
+      args:
+        chdir: /opt/eurtisan
+      environment:
+        IMAGE_TAG: rollback-before-deploy
 
-- name: Wait for application readiness before starting background services
-  command: "{{ docker_compose }} up -d --wait app"
-  args:
-    chdir: /opt/eurtisan
-  environment:
-    IMAGE_TAG: "{{ image_tag }}"
-
-- name: Start background services without saturating the host
-  ansible.builtin.shell: |
-    set -euo pipefail
-    for service in \
-      inventory-cleanup session-cleanup cart-cleanup verification-cleanup \
-      meilisearch-sync audit-log-cleanup sendcloud-reconciliation \
-      mollie-payment-reconciliation payout-reconciliation \
-      payout-reconciliation-log-cleanup email-outbox-worker \
-      email-suppression-cleanup email-retention-cleanup \
-      financial-totals-reconciliation sendcloud-retention-cleanup
-    do
-      {{ docker_compose }} up -d --no-deps "$service"
-      sleep 2
-    done
-  args:
-    chdir: /opt/eurtisan
-    executable: /bin/bash
-  environment:
-    IMAGE_TAG: "{{ image_tag }}"
-
-- name: Tag deployed image as latest
-  command: "docker tag eurtisan-app:{{ image_tag }} eurtisan-app:latest"
+    - name: Stop after a successful automatic rollback
+      ansible.builtin.fail:
+        msg: >-
+          Release {{ release_image_reference }} failed rollout and was rolled back to
+          {{ rollback_image_reference }}. Database migrations are not reversed; inspect
+          migration state before retrying.
 
 - name: Write Traefik dynamic config for staging route
   when: coexist_with_proxy | default(false)

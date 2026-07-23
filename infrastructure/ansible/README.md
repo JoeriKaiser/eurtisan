@@ -4,7 +4,7 @@
 
 - Ansible 2.14+
 - `ansible-vault` (bundled with Ansible)
-- Docker running on the trusted Ansible controller
+- Docker and Cosign running on the trusted Ansible controller
 - SSH access to the target server(s)
 
 ## Secrets Management
@@ -93,10 +93,13 @@ validation runs through `make ansible-check`; it does not access Vault or a host
 Before promoting a qualified release, follow
 [`../../docs/runbooks/staging-qualification.md`](../../docs/runbooks/staging-qualification.md).
 The playbook builds the exact release SHA in a clean temporary worktree on the trusted
-controller, transfers the compressed image over authenticated SSH, and verifies its
-OCI revision label before migrations or rollout. The VPS never compiles application
-source. Temporary archives are removed from both controller and target on success or
-failure.
+controller, publishes the environment-qualified variant to the private Scaleway
+`fr-par` registry, signs the immutable digest, and verifies it before the target pulls
+that digest. The VPS never compiles application source and receives only a pull-only
+registry credential during deployment. Production preflight requires the approved
+staging digest. Follow
+[`../../docs/runbooks/release-promotion-and-rollback.md`](../../docs/runbooks/release-promotion-and-rollback.md)
+for registry retention, signing-key setup, promotion, and rollback rehearsal.
 
 ## Deployment
 
@@ -173,4 +176,4 @@ group_vars/
 
 Non-secret job policy lives in `group_vars/all.yml`; this includes the six-hour read-only financial reconciliation cadence and 500-record query batch. The role renders both values and Compose starts the singleton `financial-totals-reconciliation` service automatically.
 
-Secrets always live in **`secrets.yml`** (encrypted). Never put real secrets in `group_vars/*.yml`. Required launch secrets include database/auth encryption keys, Meilisearch master and restricted search keys, S3 and imgproxy credentials, Mollie Payments/Connect credentials, Sendcloud credentials and a dedicated webhook secret, metrics/Grafana credentials, and Brevo credentials in production.
+Secrets always live in **`secrets.yml`** (encrypted). Never put real secrets in `group_vars/*.yml`. Required launch secrets include database/auth encryption keys, Meilisearch master and restricted search keys, S3 and imgproxy credentials, separate registry push/pull credentials, the Cosign key password, Mollie Payments/Connect credentials, Sendcloud credentials and a dedicated webhook secret, metrics/Grafana credentials, and Brevo credentials in production. Production also records the approved staging digest in Vault.

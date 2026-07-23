@@ -1,0 +1,88 @@
+---
+- name: Smoke-test compiled browser configuration
+  ansible.builtin.command: "docker run --rm --env-file /opt/eurtisan/.env eurtisan-app:{{ image_tag }} bun run smoke:client-config"
+  args:
+    chdir: /opt/eurtisan
+
+- name: Validate server environment inside the production image
+  ansible.builtin.command: "{{ docker_compose }} run --rm --no-deps app bun run validate:server-env"
+  args:
+    chdir: /opt/eurtisan
+  environment:
+    IMAGE_TAG: "{{ image_tag }}"
+
+- name: Run database migrations
+  ansible.builtin.command: "{{ docker_compose }} run --rm --no-deps app bun run db:migrate"
+  args:
+    chdir: /opt/eurtisan
+  environment:
+    IMAGE_TAG: "{{ image_tag }}"
+
+- name: Start application and runtime dependencies
+  ansible.builtin.command: "{{ docker_compose }} up -d{{ ' mailpit' if (coexist_with_proxy | default(false)) else '' }} imgproxy app"
+  args:
+    chdir: /opt/eurtisan
+  environment:
+    IMAGE_TAG: "{{ image_tag }}"
+
+- name: Wait for application readiness before starting background services
+  ansible.builtin.command: "{{ docker_compose }} up -d --wait app"
+  args:
+    chdir: /opt/eurtisan
+  environment:
+    IMAGE_TAG: "{{ image_tag }}"
+
+- name: Start background services without saturating the host
+  ansible.builtin.shell: |
+    set -euo pipefail
+    for service in \
+      inventory-cleanup session-cleanup cart-cleanup verification-cleanup \
+      meilisearch-sync audit-log-cleanup sendcloud-reconciliation \
+      mollie-payment-reconciliation payout-reconciliation \
+      payout-reconciliation-log-cleanup email-outbox-worker \
+      email-suppression-cleanup email-retention-cleanup \
+      financial-totals-reconciliation sendcloud-retention-cleanup
+    do
+      {{ docker_compose }} up -d --no-deps "$service"
+      sleep 2
+    done
+  args:
+    chdir: /opt/eurtisan
+    executable: /bin/bash
+  environment:
+    IMAGE_TAG: "{{ image_tag }}"
+
+- name: Tag deployed image as latest
+  ansible.builtin.command: "docker tag eurtisan-app:{{ image_tag }} eurtisan-app:latest"
+
+- name: Ensure release history directory exists
+  ansible.builtin.file:
+    path: /opt/eurtisan/releases
+    state: directory
+    mode: "0700"
+
+- name: Check for a current release record
+  ansible.builtin.stat:
+    path: /opt/eurtisan/releases/current.env
+  register: current_release_record
+
+- name: Retain the previous known-good release record
+  ansible.builtin.copy:
+    src: /opt/eurtisan/releases/current.env
+    dest: /opt/eurtisan/releases/previous.env
+    remote_src: true
+    mode: "0600"
+  when: current_release_record.stat.exists
+
+- name: Record the deployed qualified digest
+  ansible.builtin.copy:
+    dest: /opt/eurtisan/releases/current.env
+    mode: "0600"
+    content: |
+      RELEASE_VERSION={{ release_version }}
+      IMAGE_REPOSITORY={{ release_image_repository }}
+      IMAGE_DIGEST={{ release_image_digest }}
+      IMAGE_REFERENCE={{ release_image_reference }}
+      {% if deployment_environment == 'production' %}
+      PROMOTED_STAGING_IMAGE_DIGEST={{ promoted_staging_image_digest }}
+      {% endif %}

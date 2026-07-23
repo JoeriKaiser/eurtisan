@@ -7,7 +7,7 @@ Deploy Eurtisan to staging and production using Ansible and Docker.
 ## Prerequisites
 
 - **Ansible** installed locally: `pip install ansible`
-- **Docker** running on the Ansible controller; release images are built there from a clean Git worktree
+- **Docker and Cosign** on the trusted Ansible controller; release images are built there from a clean Git worktree, signed, and published to the private `fr-par` registry
 - **Two VPSes** (or one for staging + one for production):
   - Ubuntu 24.04 LTS
   - Staging: 2 vCPU / 4GB RAM minimum
@@ -93,8 +93,8 @@ Ansible will:
 1. Harden the server (UFW, fail2ban, auto-updates) — skipped on staging if `coexist_with_proxy: true`
 2. Install Docker + Docker Compose plugin
 3. Clone the repository to `/opt/eurtisan`
-4. Build the exact release in an isolated controller worktree, transfer it over SSH, and verify its OCI revision label
-5. Write the `.env` file
+4. Build the exact release in an isolated controller worktree, publish and sign its immutable digest, then pull and verify that digest on the target
+5. Write the `.env` file with the qualified repository digest
 6. Run database migrations and start all services
 7. Schedule nightly database backups at 03:00 UTC
 
@@ -131,14 +131,17 @@ make infra-setup-production
 ```
 
 The controller checks out the exact remote Git SHA into a clean temporary worktree,
-builds and labels the image locally, transfers the compressed artifact over the
-inventory's authenticated SSH connection, verifies the label on the target, and only
-then begins migrations and rollout. Temporary controller and target archives are
-removed even when a task fails. No production image compilation occurs on a VPS.
+builds the environment-qualified variant, publishes it to the private Scaleway
+`fr-par` registry, signs the immutable digest with the protected offline Cosign key,
+and verifies the signature before the target pulls that digest. The target verifies
+the repository digest and OCI revision before migrations. No production image
+compilation occurs on a VPS. Production additionally requires the qualified staging
+digest as an explicit promotion input; see
+[Signed release promotion and rollback](./runbooks/release-promotion-and-rollback.md).
 
-`/opt/eurtisan/deploy.sh` is retained for controlled recovery of an image that Ansible
-has already transferred. It refuses to build source or deploy an image whose OCI
-revision label differs from the checked-out release.
+`/opt/eurtisan/deploy.sh` is retained for controlled recovery of an image digest that
+Ansible already pulled and verified. It refuses to build source or deploy an image
+whose OCI revision or repository digest differs from Ansible-managed metadata.
 
 ### Smoke tests & rollback
 
@@ -151,7 +154,7 @@ After `docker compose up -d`, the script polls:
 If any probe fails within the timeout (120s by default), the script:
 
 1. Sends an alert to `DEPLOY_ALERT_WEBHOOK` (or `BACKUP_ALERT_WEBHOOK` if unset).
-2. Rolls back to `eurtisan-app:rollback-before-deploy`.
+2. Rolls back to `eurtisan-app:rollback-before-deploy`, which Ansible creates only after verifying the previous registry digest's signature.
 3. Re-runs smoke tests against the rollback image.
 4. Exits non-zero so callers (CI/CD, `make deploy`) know the deploy failed.
 

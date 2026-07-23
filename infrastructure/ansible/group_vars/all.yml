@@ -3,6 +3,15 @@
 repository_url: "git@github.com:JoeriKaiser/eurtisan.git"
 repository_deploy_key_path: "/root/.ssh/eurtisan_github_deploy"
 
+# ── Signed release channel ───────────────────────────────────────────────
+# Private Scaleway Container Registry keeps release artifacts in fr-par.
+# Registry credentials and the Cosign key password belong in Ansible Vault.
+release_registry: "rg.fr-par.scw.cloud"
+release_image_repository: "rg.fr-par.scw.cloud/eurtisan/app"
+release_registry_minimum_retained_generations: 2
+release_signing_private_key_path: "{{ lookup('env', 'HOME') }}/.config/eurtisan/cosign.key"
+release_signing_public_key_path: "{{ lookup('env', 'HOME') }}/.config/eurtisan/cosign.pub"
+
 # ── Database ─────────────────────────────────────────────────────────────
 postgres_user: eurtisan
 postgres_db: eurtisan
@@ -58,6 +67,12 @@ email_smtp_port: "587"
 #   sendcloud_public_key: "provider public key"
 #   sendcloud_secret_key: "provider secret key"
 #   sendcloud_webhook_secret: "dedicated webhook secret"
+#   registry_push_access_key_id: "controller-only registry push IAM access key"
+#   registry_push_secret_key: "controller-only registry push IAM secret key"
+#   registry_pull_access_key_id: "target registry pull-only IAM access key"
+#   registry_pull_secret_key: "target registry pull-only IAM secret key"
+#   cosign_password: "password protecting the offline Cosign private key"
+#   promoted_staging_image_digest: "sha256:<qualified-staging-digest>" # production only
 #
 # Optional — webhook URL for backup failure alerts (e.g. Slack, Discord, OpsGenie).
 #   backup_alert_webhook: "https://hooks.slack.com/services/..."

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Eurtisan deploy script
-# Run on the VPS to deploy an immutable image already transferred by Ansible.
+# Run on the VPS to recover an immutable digest already pulled and verified by Ansible.
 # Usage: ./deploy.sh [--skip-smoke-test] [--canary] [git-ref]
 #   --skip-smoke-test — bypass post-deploy smoke tests (emergency manual use only)
 #   --canary — run a single canary container before full rollout
@@ -37,6 +37,10 @@ GIT_REF="${1:-main}"
 
 if [ -z "${PUBLIC_URL:-}" ]; then
   echo "==> CONFIGURATION FAILED: PUBLIC_URL is required"
+  exit 1
+fi
+if [ -z "${IMAGE_REPOSITORY:-}" ] || [ -z "${IMAGE_DIGEST:-}" ]; then
+  echo "==> CONFIGURATION FAILED: Ansible-managed IMAGE_REPOSITORY and IMAGE_DIGEST are required"
   exit 1
 fi
 SMOKE_TEST_BASE="${SMOKE_TEST_BASE:-http://app:3000}"
@@ -178,9 +182,9 @@ sed -i -E "s/^VITE_APP_VERSION=.*/VITE_APP_VERSION=${RELEASE_VERSION}/" "$APP_DI
 # Compose interpolation must succeed before any application container starts.
 docker compose -f "$COMPOSE_FILE" config >/dev/null
 
-echo "==> Verifying controller-built application image (tag: ${IMAGE_TAG})..."
+echo "==> Verifying Ansible-qualified application image (tag: ${IMAGE_TAG})..."
 if ! docker image inspect "eurtisan-app:${IMAGE_TAG}" >/dev/null 2>&1; then
-  echo "==> IMAGE NOT FOUND: run the Ansible deployment to build and transfer ${IMAGE_TAG}"
+  echo "==> IMAGE NOT FOUND: run Ansible to pull and verify ${IMAGE_REPOSITORY}@${IMAGE_DIGEST}"
   exit 1
 fi
 IMAGE_RELEASE=$(docker image inspect \
@@ -190,6 +194,16 @@ if [ "$IMAGE_RELEASE" != "$RELEASE_VERSION" ]; then
   echo "==> IMAGE VERIFICATION FAILED: release label does not match checked-out source"
   exit 1
 fi
+IMAGE_REPO_DIGESTS=$(docker image inspect \
+  --format '{{ json .RepoDigests }}' \
+  "eurtisan-app:${IMAGE_TAG}")
+case "$IMAGE_REPO_DIGESTS" in
+  *\"${IMAGE_REPOSITORY}@${IMAGE_DIGEST}\"*) ;;
+  *)
+    echo "==> IMAGE VERIFICATION FAILED: local tag is not backed by the Ansible-qualified digest"
+    exit 1
+    ;;
+esac
 
 echo "==> Validating compiled browser configuration..."
 docker run --rm --env-file "$APP_DIR/.env" "eurtisan-app:${IMAGE_TAG}" bun run smoke:client-config

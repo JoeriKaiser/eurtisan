@@ -18,10 +18,11 @@ Provider-agnostic IaC for deploying Eurtisan on any VPS.
 1. **A VPS** running Ubuntu 24.04 (or any Debian-based distro)
    - Staging: 2 vCPU / 4GB RAM minimum
    - Production: 4 vCPU / 8GB RAM recommended
-2. **Ansible and Docker** installed on the trusted controller:
+2. **Ansible, Docker, and Cosign** installed on the trusted controller:
    ```bash
    pip install ansible
    docker info
+   cosign version
    ```
 3. **SSH access** to the VPS as root (for initial provisioning)
 4. A **read-only GitHub deploy key** at `/root/.ssh/eurtisan_github_deploy` on each VPS, registered for the private canonical repository
@@ -92,8 +93,8 @@ The playbook will:
 3. Install rclone for off-site backups
 4. Validate that at least one Alertmanager receiver is configured in production
 5. Clone the repository to `/opt/eurtisan`
-6. Build the immutable release in a clean controller worktree and transfer it over SSH
-7. Verify the image's OCI revision label before writing runtime configuration
+6. Build the environment-qualified release in a clean controller worktree, publish it to the private `fr-par` registry, and sign its digest
+7. Verify the signature, repository digest, and OCI revision before writing runtime configuration
 8. Run migrations and start all services
 9. Set up nightly database backups with off-site upload when configured
 10. Configure PostgreSQL WAL archiving when enabled
@@ -118,10 +119,12 @@ make infra-setup-staging
 make infra-setup-production
 ```
 
-Ansible builds from a clean worktree at the exact checked-out release, transfers the
-compressed image through authenticated SSH, verifies its OCI revision label, and
-cleans temporary artifacts. The VPS `deploy.sh` only accepts a matching image that
-Ansible has already transferred and never compiles source on the target.
+Ansible builds from a clean worktree at the exact checked-out release, publishes and
+signs the environment-qualified digest in the private Scaleway `fr-par` registry,
+then makes the target pull only that verified digest. The VPS `deploy.sh` only accepts
+a local digest matching Ansible-managed repository and revision metadata and never
+compiles source on the target. See
+[`docs/runbooks/release-promotion-and-rollback.md`](../docs/runbooks/release-promotion-and-rollback.md).
 
 ### Automated Deploy
 

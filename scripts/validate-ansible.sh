@@ -32,6 +32,12 @@ sendcloud_secret_key: ci-validation-sendcloud-secret
 sendcloud_webhook_secret: ci-validation-sendcloud-webhook
 metrics_token: ci-validation-metrics-token
 grafana_admin_password: ci-validation-grafana-password
+registry_push_access_key_id: ci-validation-registry-push-access
+registry_push_secret_key: ci-validation-registry-push-secret
+registry_pull_access_key_id: ci-validation-registry-pull-access
+registry_pull_secret_key: ci-validation-registry-pull-secret
+cosign_password: ci-validation-cosign-password
+promoted_staging_image_digest: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 brevo_api_key: ci-validation-brevo-api-key
 brevo_webhook_token: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 s3_bucket: ci-validation-uploads

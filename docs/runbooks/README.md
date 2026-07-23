@@ -14,4 +14,5 @@ Operational procedures for on-call engineers. Pair with Grafana (Loki logs, Prom
 | [financial-reconciliation.md](./financial-reconciliation.md) | Financial drift, missed scans, lock contention, evidence, escalation, and authorized correction |
 | [environment-configuration.md](./environment-configuration.md) | Build/runtime configuration, routing, secret ownership, or credential rotation |
 | [release-quality-gates.md](./release-quality-gates.md) | Reproduce CI, migration, bundle, image, Compose, and infrastructure gates locally |
+| [release-promotion-and-rollback.md](./release-promotion-and-rollback.md) | Publish, sign, promote, verify, retain, or roll back an application digest |
 | [staging-qualification.md](./staging-qualification.md) | Collect honest EU staging, provider, recovery, observability, performance, and approval evidence |
