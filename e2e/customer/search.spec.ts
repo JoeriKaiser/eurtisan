@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 
 test.use({ storageState: { cookies: [], origins: [] } })
@@ -5,7 +6,7 @@ test.use({ storageState: { cookies: [], origins: [] } })
 test.describe('Search', () => {
   test('lists category shortcuts in discovery mode', async ({ page }) => {
     await page.goto('/search')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const categoryNavigation = page.getByRole('navigation', { name: /^category$/i })
     await expect(categoryNavigation.getByRole('link', { name: 'All categories' })).toBeVisible()
@@ -16,7 +17,7 @@ test.describe('Search', () => {
 
   test('supports category filtering and sorting in discovery mode', async ({ page }) => {
     await page.goto('/search')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: 'Explore the market' })).toBeVisible()
     await expect(page.getByText(/^\d+ objects to explore$/i)).toBeVisible()
@@ -42,7 +43,7 @@ test.describe('Search', () => {
 
   test('supports pagination across query result pages', async ({ page }) => {
     await page.goto('/search?q=artisan')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const pagination = page.getByRole('navigation', { name: /product pagination/i })
     await expect(pagination).toBeVisible()
@@ -75,7 +76,7 @@ test.describe('Search', () => {
 
   test('shows an empty state for a non-matching query', async ({ page }) => {
     await page.goto('/search?q=xyznonexistent12345')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: /results for/i })).toBeVisible()
     await expect(page.getByRole('heading', { name: /no results found/i })).toBeVisible()

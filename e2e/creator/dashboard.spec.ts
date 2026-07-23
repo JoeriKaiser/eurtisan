@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 import { createPaidOrder } from '../fixtures/orders'
 
@@ -10,7 +11,7 @@ test.describe('creator dashboard', () => {
 
     // Navigate to the creator dashboard
     await page.goto('/creator')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     // Verify statistics cards are visible
     await expect(page.getByRole('heading', { name: 'Creator Dashboard' })).toBeVisible()

@@ -187,79 +187,81 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
 
   const handleImageSelect = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const files = e.target.files
+      const input = e.currentTarget
+      const files = input.files
       if (!files || files.length === 0) return
 
-      const remaining = MAX_IMAGES - images.length
-      if (remaining <= 0) {
-        dispatchForm({
-          type: 'mergeFieldErrors',
-          errors: { images: m.creator_product_new_images_error_max() },
+      try {
+        const remaining = MAX_IMAGES - images.length
+        if (remaining <= 0) {
+          dispatchForm({
+            type: 'mergeFieldErrors',
+            errors: { images: m.creator_product_new_images_error_max() },
+          })
+          return
+        }
+
+        const filesToAdd = Array.from(files).slice(0, remaining)
+
+        const placeholders: UploadedImage[] = filesToAdd.map((file) => {
+          if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+            return {
+              id: crypto.randomUUID(),
+              key: '',
+              previewUrl: '',
+              altText: '',
+              uploading: false,
+              error: m.creator_product_new_images_error_type(),
+            }
+          }
+          if (file.size > MAX_IMAGE_SIZE) {
+            return {
+              id: crypto.randomUUID(),
+              key: '',
+              previewUrl: '',
+              altText: '',
+              uploading: false,
+              error: m.creator_product_new_images_error_size(),
+            }
+          }
+          return {
+            id: crypto.randomUUID(),
+            key: '',
+            previewUrl: URL.createObjectURL(file),
+            altText: '',
+            uploading: true,
+            error: null,
+          }
         })
-        return
+
+        setImages((prev) => [...prev, ...placeholders])
+        dispatchForm({ type: 'clearFieldError', field: 'images' })
+
+        const validFiles = filesToAdd.filter((_file, index) => !placeholders[index]?.error)
+        const results = validFiles.length > 0 ? await uploadMultiple(validFiles, 'products') : []
+
+        setImages((prev) =>
+          prev.map((img) => {
+            const placeholder = placeholders.find((p) => p.id === img.id)
+            if (!placeholder) return img
+            if (placeholder.error) return img
+            const validIndex = validFiles.indexOf(filesToAdd[placeholders.indexOf(placeholder)])
+            if (validIndex < 0) return img
+            const result = results[validIndex]
+            if (!result) {
+              return { ...img, uploading: false, error: uploadError ?? 'Upload failed' }
+            }
+            return {
+              ...img,
+              key: result.key,
+              previewUrl: result.previewUrl,
+              uploading: false,
+            }
+          }),
+        )
+      } finally {
+        input.value = ''
       }
-
-      const filesToAdd = Array.from(files).slice(0, remaining)
-
-      const placeholders: UploadedImage[] = filesToAdd.map((file) => {
-        if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
-          return {
-            id: crypto.randomUUID(),
-            key: '',
-            previewUrl: '',
-            altText: '',
-            uploading: false,
-            error: m.creator_product_new_images_error_type(),
-          }
-        }
-        if (file.size > MAX_IMAGE_SIZE) {
-          return {
-            id: crypto.randomUUID(),
-            key: '',
-            previewUrl: '',
-            altText: '',
-            uploading: false,
-            error: m.creator_product_new_images_error_size(),
-          }
-        }
-        return {
-          id: crypto.randomUUID(),
-          key: '',
-          previewUrl: URL.createObjectURL(file),
-          altText: '',
-          uploading: true,
-          error: null,
-        }
-      })
-
-      setImages((prev) => [...prev, ...placeholders])
-      dispatchForm({ type: 'clearFieldError', field: 'images' })
-
-      const validFiles = filesToAdd.filter((_file, index) => !placeholders[index]?.error)
-      const results = validFiles.length > 0 ? await uploadMultiple(validFiles, 'products') : []
-
-      setImages((prev) =>
-        prev.map((img) => {
-          const placeholder = placeholders.find((p) => p.id === img.id)
-          if (!placeholder) return img
-          if (placeholder.error) return img
-          const validIndex = validFiles.indexOf(filesToAdd[placeholders.indexOf(placeholder)])
-          if (validIndex < 0) return img
-          const result = results[validIndex]
-          if (!result) {
-            return { ...img, uploading: false, error: uploadError ?? 'Upload failed' }
-          }
-          return {
-            ...img,
-            key: result.key,
-            previewUrl: result.previewUrl,
-            uploading: false,
-          }
-        }),
-      )
-
-      const input = document.getElementById('product-image-upload') as HTMLInputElement
-      if (input) input.value = ''
     },
     [images.length, uploadMultiple, uploadError],
   )

@@ -1,3 +1,4 @@
+import { waitForAppHydration } from './fixtures/hydration'
 import { existsSync, statSync } from 'node:fs'
 import { expect, test as setup } from '@playwright/test'
 import { E2E_CUSTOMER, loadAuthCookies } from './fixtures/auth'
@@ -60,7 +61,7 @@ setup('authenticate as customer', async ({ page }) => {
 
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/')
-  await page.waitForSelector('html[data-hydrated="true"]')
+  await waitForAppHydration(page)
   await dismissAnalyticsConsentBanner(page)
   await expect(page.getByText(E2E_CUSTOMER.displayName)).toBeVisible()
 

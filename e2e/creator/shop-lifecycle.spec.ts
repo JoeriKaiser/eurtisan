@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, type Page, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
 import * as schema from '../../src/db/schema'
@@ -69,7 +70,7 @@ test.describe('creator shop lifecycle', () => {
 
   async function goToShopSettings(page: Page): Promise<void> {
     await page.goto(`/creator/shop?shopId=${shop.id}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
   }
 

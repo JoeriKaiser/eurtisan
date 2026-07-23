@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 import { getCreatorShop } from '../fixtures/orders'
 
@@ -28,7 +29,7 @@ test.describe('creator shop settings', () => {
     const testDesc = `This is a test description of the shop settings update ${uniqueSuffix}`
 
     await page.goto(`/creator/shop?shopId=${shop.id}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     // 1. Edit brand details
     await page.fill('#shop-name', testName)
@@ -65,12 +66,12 @@ test.describe('creator shop settings', () => {
 
     // Verify on public shop page that it updated
     await page.goto(`/shops/${shop.slug}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await expect(page.getByRole('heading', { name: testName })).toBeVisible()
 
     // 7. Verify DAC7 Tax report page loads
     await page.goto(`/studio/${shop.id}/settings/tax`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     // Verify DAC7 Tax Report page contents are rendered
     await expect(page.getByRole('heading', { name: /Tax & VAT Reporting/i })).toBeVisible()
@@ -80,7 +81,7 @@ test.describe('creator shop settings', () => {
   test('creator can view DAC7 tax report page', async ({ page }) => {
     const shop = await getCreatorShop()
     await page.goto(`/studio/${shop.id}/settings/tax`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     // Verify DAC7 Tax Report page contents are rendered
     await expect(page.getByRole('heading', { name: /Tax & VAT Reporting/i })).toBeVisible()

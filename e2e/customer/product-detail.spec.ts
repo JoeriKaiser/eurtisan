@@ -1,9 +1,10 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { test, expect } from '@playwright/test'
 
 test.describe('Product detail', () => {
   test('renders product information and allows add to cart', async ({ page }) => {
     await page.goto('/search')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const productLink = page.getByLabel(/^Product:/).first()
     await expect(productLink).toBeVisible()
@@ -27,7 +28,7 @@ test.describe('Product detail', () => {
 
   test('returns 404 for a non-existent product', async ({ page }) => {
     await page.goto('/shops/test-shop/products/xyznonexistent12345')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByText(/not found/i)).toBeVisible()
   })

@@ -44,7 +44,12 @@ function makeConfig(maximum = 10_000): BundleBudgetConfig {
     cssBytes: maximum,
     cssGzipBytes: maximum,
   }
-  return { rationale: 'Measured fixture baseline.', baseline: metrics, maximum: metrics }
+  return {
+    rationale: 'Measured fixture baseline.',
+    baseline: { ...metrics },
+    maximum: { ...metrics },
+    incrementalMaximum: {},
+  }
 }
 
 afterEach(() => {
@@ -87,6 +92,16 @@ describe('bundle budget', () => {
     ])
   })
 
+  it('uses the tighter incremental or global limit', () => {
+    const config = makeConfig(200)
+    config.baseline.cssBytes = 100
+    config.incrementalMaximum.cssBytes = 20
+
+    expect(checkBundleBudget({ ...config.maximum, cssBytes: 121 }, config)).toEqual([
+      { metric: 'cssBytes', actual: 121, maximum: 120 },
+    ])
+  })
+
   it('rejects incomplete or unjustified budget configuration', () => {
     expect(() => parseBundleBudgetConfig({ baseline: {}, maximum: {} })).toThrow(
       'rationale is required',
@@ -97,5 +112,11 @@ describe('bundle budget', () => {
         maximum: { ...makeConfig().maximum, javascriptBytes: 0 },
       }),
     ).toThrow('maximum.javascriptBytes must be a positive integer')
+    expect(() =>
+      parseBundleBudgetConfig({
+        ...makeConfig(),
+        incrementalMaximum: { cssBytes: 0 },
+      }),
+    ).toThrow('incrementalMaximum.cssBytes must be a positive integer')
   })
 })

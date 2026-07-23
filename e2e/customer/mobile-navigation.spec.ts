@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test, type Page } from '@playwright/test'
 
 async function waitForMobileMenuHydration(page: Page) {
@@ -12,7 +13,7 @@ test.use({
 test.describe('Mobile navigation', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/search')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await waitForMobileMenuHydration(page)
   })
 

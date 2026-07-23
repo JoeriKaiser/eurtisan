@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { type BrowserContext, expect, test } from '@playwright/test'
 import { dismissAnalyticsConsentBanner } from '../fixtures/consent'
 import {
@@ -58,7 +59,7 @@ test.describe('creator access control', () => {
 
   test('guest is redirected to /signin when navigating to /creator', async ({ page }) => {
     await page.goto('/creator')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
 
     await expect(page).toHaveURL(/\/signin/)
@@ -74,7 +75,7 @@ test.describe('creator access control', () => {
     await signInAndApplyCookies(context, customer.email, customer.password)
 
     await page.goto('/creator')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
 
     await expect(page).toHaveURL(/\/forbidden/)
@@ -93,7 +94,7 @@ test.describe('creator access control', () => {
     const seededShop = await getCreatorShop()
 
     await page.goto(`/studio/${seededShop.id}/orders`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
 
     await expect(page).toHaveURL(/\/forbidden|\/signin/)
@@ -110,7 +111,7 @@ test.describe('creator access control', () => {
     await markCreatorDeleted(creator.email)
 
     await page.goto('/creator')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const url = page.url()
     const bodyText = await page.locator('body').textContent()

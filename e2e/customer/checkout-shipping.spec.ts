@@ -1,8 +1,9 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, type Page, test } from '@playwright/test'
 
 async function addProductToCart(page: Page) {
   await page.goto('/search')
-  await page.waitForSelector('html[data-hydrated="true"]')
+  await waitForAppHydration(page)
 
   const productLink = page.getByLabel(/^Product:/).first()
   await expect(productLink).toBeVisible()
@@ -30,7 +31,7 @@ test.describe('Checkout shipping method selection', () => {
     await addProductToCart(page)
 
     await page.goto('/checkout')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await fillShippingAddress(page)
 

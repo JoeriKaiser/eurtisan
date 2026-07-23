@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, type Page, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
 import { shop, user } from '../../src/db/schema'
@@ -65,15 +66,13 @@ test.describe('creator onboarding validation and draft persistence', () => {
       },
     ])
     await page.goto('/')
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
+    await waitForAppHydration(page)
     await expect(page.getByText(creator.name)).toBeVisible()
   }
 
   async function startOnboarding(page: Page): Promise<string> {
     await page.goto('/sell')
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
+    await waitForAppHydration(page)
     await page.getByRole('button', { name: 'Create a shop' }).click()
     await page.waitForURL(/\/sell\/onboarding\/[^/]+\/identity/)
     await page.waitForLoadState('networkidle')

@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 
 test.use({ storageState: 'e2e/.auth/customer.json' })
@@ -5,7 +6,7 @@ test.use({ storageState: 'e2e/.auth/customer.json' })
 test.describe('Account settings', () => {
   test('exports account data and toggles email preferences', async ({ page }) => {
     await page.goto('/account/settings')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: /settings/i })).toBeVisible()
 
@@ -28,7 +29,7 @@ test.describe('Account settings', () => {
 
       // Reload and verify persistence for this single toggle.
       await page.reload()
-      await page.waitForSelector('html[data-hydrated="true"]')
+      await waitForAppHydration(page)
       const reloadedSwitch = page.getByRole('switch').nth(i)
       await expect(reloadedSwitch).toHaveAttribute(
         'aria-checked',

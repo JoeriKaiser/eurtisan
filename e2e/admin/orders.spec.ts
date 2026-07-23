@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, type Page, test } from '@playwright/test'
 import {
   createPaidOrder,
@@ -14,7 +15,7 @@ let pendingOrder: TestOrder
 
 async function openOrders(page: Page) {
   await page.goto('/admin/orders')
-  await page.waitForSelector('html[data-hydrated="true"]')
+  await waitForAppHydration(page)
 }
 
 test.describe('admin orders', () => {

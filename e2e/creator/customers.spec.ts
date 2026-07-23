@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { createHash } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 import { createPaidOrder, getCreatorShop } from '../fixtures/orders'
@@ -22,7 +23,7 @@ test.describe('creator customers CRM', () => {
 
     // 1. Navigate to studio customer list
     await page.goto(`/studio/${shop.id}/customers`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     // Verify list contains our new customer
     await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible()
@@ -32,7 +33,7 @@ test.describe('creator customers CRM', () => {
     // 2. Click "View" link to navigate to details
     await row.getByRole('link', { name: 'View' }).click()
     await page.waitForURL(`/studio/${shop.id}/customers/${customerHash}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     // Verify detail page has loaded
     await expect(page.getByRole('heading', { name: customerName })).toBeVisible()

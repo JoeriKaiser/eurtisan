@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 import { eq, inArray } from 'drizzle-orm'
 import * as schema from '../../src/db/schema'
@@ -47,7 +48,7 @@ test.describe('creator manual review resolution', () => {
     const order = await createManualReviewOrder('manual-review-paid')
 
     await page.goto(`/studio/${shop.id}/orders/${order.shopOrderId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: /order detail/i })).toBeVisible()
     await expect(page.locator('[role="status"]').filter({ hasText: 'Manual review' })).toBeVisible()
@@ -70,7 +71,7 @@ test.describe('creator manual review resolution', () => {
     const order = await createManualReviewOrder('manual-review-cancelled')
 
     await page.goto(`/studio/${shop.id}/orders/${order.shopOrderId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: /order detail/i })).toBeVisible()
     await expect(page.locator('[role="status"]').filter({ hasText: 'Manual review' })).toBeVisible()

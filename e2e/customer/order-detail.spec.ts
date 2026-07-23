@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 /**
  * Caveat: this spec asserts that the invoice link is present. Downloading the invoice
  * is blocked by an invoice-viewer runtime crash (Faro error boundary) and is covered
@@ -18,7 +19,7 @@ test.use({ storageState: 'e2e/.auth/customer.json' })
 test.describe('Order detail', () => {
   test('renders order status, items, shipping address, and invoice link', async ({ page }) => {
     await page.goto(`/orders/${order.platformOrderId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: /order details/i })).toBeVisible()
     await expect(page.getByText(/delivered/i).first()).toBeVisible()

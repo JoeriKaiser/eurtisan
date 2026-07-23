@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, type Locator, type Page, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
 import * as schema from '../../src/db/schema'
@@ -59,7 +60,7 @@ test.describe('admin review moderation', () => {
 
   test('admin reviews list renders', async ({ page }) => {
     await page.goto('/admin/reviews')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: 'Review Moderation' })).toBeVisible({
       timeout: 10000,
@@ -71,7 +72,7 @@ test.describe('admin review moderation', () => {
     const { comment } = await seedReview('flagged')
 
     await page.goto('/admin/reviews')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const row = findReviewRow(page, comment)
 
@@ -92,7 +93,7 @@ test.describe('admin review moderation', () => {
     const { comment } = await seedReview('approved')
 
     await page.goto('/admin/reviews')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const row = findReviewRow(page, comment)
     await expect(row).toBeVisible()
@@ -107,7 +108,7 @@ test.describe('admin review moderation', () => {
     const { comment } = await seedReview('flagged')
 
     await page.goto('/admin/reviews')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const row = findReviewRow(page, comment)
     await expect(row).toBeVisible()
@@ -122,7 +123,7 @@ test.describe('admin review moderation', () => {
     const { comment } = await seedReview('hidden')
 
     await page.goto('/admin/reviews')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const row = findReviewRow(page, comment)
     await expect(row).toBeVisible()

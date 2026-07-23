@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
@@ -59,7 +60,7 @@ test.afterAll(async () => {
 test.describe('Creator dispute notification deep link', () => {
   test('navigates from the notification list to the dispute detail', async ({ page }) => {
     await page.goto('/notifications')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const notificationList = page.getByRole('list', { name: /notifications/i })
     await expect(notificationList).toBeVisible()

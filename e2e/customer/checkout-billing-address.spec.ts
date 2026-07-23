@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 /**
  * Caveat: the service-point "no results" state is unreachable in E2E because the mock
  * shipping provider always returns pick-up points. This spec exercises the happy path
@@ -9,7 +10,7 @@ import { sendMollieWebhook } from '../fixtures/orders'
 
 async function addProductToCart(page: Page) {
   await page.goto('/search')
-  await page.waitForSelector('html[data-hydrated="true"]')
+  await waitForAppHydration(page)
 
   const productLink = page.getByLabel(/^Product:/).first()
   await expect(productLink).toBeVisible()
@@ -27,7 +28,7 @@ test.describe('Checkout with separate billing address', () => {
     await addProductToCart(page)
 
     await page.goto('/checkout')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await expect(page.getByRole('heading', { name: /checkout/i })).toBeVisible()
 
     // Shipping address.

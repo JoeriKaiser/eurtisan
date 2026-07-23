@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 import { and, eq } from 'drizzle-orm'
 import { product, shop, user } from '../../src/db/schema'
@@ -59,14 +60,14 @@ test.describe('owner navigation', () => {
 
     // 1. Post-approval payment link
     await page.goto(`/sell/status/${testShop.id}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await expect(page.getByRole('heading', { name: /approved/i })).toBeVisible({ timeout: 10000 })
     await page.getByRole('link', { name: /connect payment/i }).click()
     await page.waitForURL(/\/creator\/payouts\?shopId=/)
 
     // 2. Studio hub links
     await page.goto(`/studio/${testShop.id}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await expect(page.getByRole('heading', { name: /shop dashboard/i })).toBeVisible({
       timeout: 10000,
     })
@@ -75,19 +76,19 @@ test.describe('owner navigation', () => {
     await page.waitForURL(/\/creator\/shop\?shopId=/)
 
     await page.goto(`/studio/${testShop.id}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await page.getByRole('link', { name: /products/i }).click()
     await page.waitForURL(/\/creator\/products\?shopId=/)
 
     await page.goto(`/studio/${testShop.id}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await page.getByRole('link', { name: /orders/i }).click()
     await page.waitForURL(new RegExp(`/studio/${testShop.id}/orders`))
 
     // 3. Product edit link
     if (testProduct) {
       await page.goto(`/creator/products?shopId=${testShop.id}`)
-      await page.waitForSelector('html[data-hydrated="true"]')
+      await waitForAppHydration(page)
       await expect(page.getByRole('heading', { name: /products/i })).toBeVisible({ timeout: 10000 })
       const editLink = page
         .locator('table tbody tr a[href*="/creator/products/"][href$="/edit"]')

@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 import { seedPaidOrders } from '../fixtures/orders'
 
@@ -16,7 +17,7 @@ test.use({ storageState: 'e2e/.auth/customer.json' })
 test.describe('Account orders list', () => {
   test('lists orders and supports pagination', async ({ page }) => {
     await page.goto('/account/orders')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: /orders/i })).toBeVisible()
     await expect(

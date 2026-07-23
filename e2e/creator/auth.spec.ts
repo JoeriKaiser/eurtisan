@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 import { E2E_CREATOR } from '../fixtures/auth'
 import { dismissAnalyticsConsentBanner } from '../fixtures/consent'
@@ -14,8 +15,7 @@ test.use({ storageState: { cookies: [], origins: [] } })
 test.describe('creator sign-in negative paths', () => {
   test('wrong password shows an error and stays on /signin', async ({ page }) => {
     await page.goto('/signin')
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
+    await waitForAppHydration(page)
 
     await page.locator('[id="email"]').fill(E2E_CREATOR.email)
     await page.locator('[id="password"]').fill('wrong-password-123')
@@ -27,8 +27,7 @@ test.describe('creator sign-in negative paths', () => {
 
   test('non-existent email shows an error and stays on /signin', async ({ page }) => {
     await page.goto('/signin')
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
+    await waitForAppHydration(page)
 
     await page.locator('[id="email"]').fill('does-not-exist@eurtisan.local')
     await page.locator('[id="password"]').fill('any-password-123')
@@ -44,8 +43,7 @@ test.describe('creator sign-in negative paths', () => {
       await markCreatorDeleted(creator.email)
 
       await page.goto('/signin')
-      await page.waitForSelector('html[data-hydrated="true"]')
-      await page.waitForLoadState('networkidle')
+      await waitForAppHydration(page)
 
       await page.locator('[id="email"]').fill(creator.email)
       await page.locator('[id="password"]').fill(creator.password)
@@ -73,16 +71,14 @@ test.describe('become-creator flow', () => {
   }) => {
     customer = await createVerifiedCustomer(`become-creator-${Date.now()}`)
     await page.goto('/signin')
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
+    await waitForAppHydration(page)
     await page.locator('[id="email"]').fill(customer.email)
     await page.locator('[id="password"]').fill(customer.password)
     await page.getByRole('button', { name: /^sign in$/i }).click()
     await page.waitForURL(/^(?!.*\/signin).+$/)
 
     await page.goto('/sell')
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
+    await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
     await page.waitForLoadState('networkidle')
     await page.getByRole('button', { name: 'Create a shop' }).click()

@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 /**
  * Global search overlay behavior.
  *
@@ -13,7 +14,7 @@ test.describe('Search overlay', () => {
 
   test('opens from the header, shows suggestions, and navigates on submit', async ({ page }) => {
     await page.goto('/')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await page.getByRole('button', { name: /search products/i }).click()
 
@@ -37,7 +38,7 @@ test.describe('Search overlay', () => {
 
   test('remembers recent searches', async ({ page }) => {
     await page.goto('/')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     // Perform a search.
     await page.getByRole('button', { name: /search products/i }).click()
@@ -48,7 +49,7 @@ test.describe('Search overlay', () => {
 
     // Reopen overlay and assert the recent search appears.
     await page.goto('/')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await page.getByRole('button', { name: /search products/i }).click()
     await expect(
       page.getByRole('dialog', { name: 'Search' }).getByText(/eurtisan-recent/i),

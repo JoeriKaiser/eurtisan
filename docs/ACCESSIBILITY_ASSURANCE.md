@@ -2,7 +2,7 @@
 
 ## Release standard and regression gate
 
-WCAG 2.1 AA is the release floor. Automated checks are regression signals, not a conformance claim. `make test-accessibility` runs focused Vitest component/runtime scans and static contrast, reflow, reduced-motion, forced-colors, and skip-navigation contracts. CI runs this target in the existing quality job before the complete `make test` gate. No Playwright scenario is added or broadened by this assurance layer.
+WCAG 2.1 AA is the release floor. Automated checks are regression signals, not a conformance claim. `make test-accessibility` runs focused Vitest component/runtime scans and static contrast, reflow, reduced-motion, forced-colors, and skip-navigation contracts. The complete `make test` CI gate executes these files once as part of its unit and browser projects; `make test-accessibility` remains an explicit local focused gate without duplicating the same files in CI. No Playwright scenario is added or broadened by this assurance layer.
 
 Automated scans use the installed `vitest-axe` 0.1.0 / axe-core integration and Testing Library against rendered DOM. They test behavior and semantics, not snapshots. Color contrast is checked with repository-local OKLCH-to-relative-luminance calculations for the semantic light/dark token pairs because JSDOM cannot evaluate rendered CSS contrast reliably.
 

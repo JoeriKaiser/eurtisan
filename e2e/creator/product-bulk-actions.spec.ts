@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 import { like } from 'drizzle-orm'
@@ -49,7 +50,7 @@ test.describe('creator product bulk actions', () => {
     }
 
     await page.goto(`/creator/products?shopId=${shop.id}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await page
       .getByRole('searchbox', { name: 'Search products by name…' })
@@ -89,7 +90,7 @@ test.describe('creator product bulk actions', () => {
     }
 
     await page.goto(`/creator/products?shopId=${shop.id}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await page
       .getByRole('searchbox', { name: 'Search products by name…' })

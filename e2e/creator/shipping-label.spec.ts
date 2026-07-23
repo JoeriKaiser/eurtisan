@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
 import * as schema from '../../src/db/schema'
@@ -30,7 +31,7 @@ test.describe('creator shipping label generation', () => {
     }
 
     await page.goto(`/studio/${shopId}/orders/${order.shopOrderId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
 
     await expect(page.getByRole('heading', { name: /order detail/i })).toBeVisible()

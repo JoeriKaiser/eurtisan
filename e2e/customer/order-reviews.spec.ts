@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { test, expect } from '@playwright/test'
 import { createReviewableOrder, getCreatorShop, getProductById } from '../fixtures/orders'
 
@@ -13,7 +14,7 @@ test.use({ storageState: 'e2e/.auth/customer.json' })
 test.describe('Order reviews', () => {
   test('submits a product review from a delivered order', async ({ page }) => {
     await page.goto(`/orders/${order.platformOrderId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const reviewButton = page.getByRole('button', { name: /write a review/i })
     await expect(reviewButton).toBeVisible()
@@ -39,7 +40,7 @@ test.describe('Order reviews', () => {
     const [shop, product] = await Promise.all([getCreatorShop(), getProductById(order.productId)])
 
     await page.goto(`/shops/${shop.slug}/products/${product.slug}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const reviewsHeading = page.getByRole('heading', { name: /^Reviews$/i })
     await expect(reviewsHeading).toBeVisible({ timeout: 10000 })

@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { test, expect } from '@playwright/test'
 import { createVerifiedCustomer, deleteCustomerByEmail } from '../fixtures/customers'
 import { dismissAnalyticsConsentBanner } from '../fixtures/consent'
@@ -54,7 +55,7 @@ test.describe('Customer two-factor authentication', () => {
 
     // Enable 2FA.
     await page.goto('/account/security')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
 
     await page.locator('[id="2fa-password"]').fill(customer.password)
@@ -75,7 +76,7 @@ test.describe('Customer two-factor authentication', () => {
 
     // Sign out.
     await page.goto('/')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
     await page.getByRole('button', { name: customer.name }).click()
     await page.getByRole('menuitem', { name: /sign out/i }).click()
@@ -85,7 +86,7 @@ test.describe('Customer two-factor authentication', () => {
 
     // Sign in again — should now prompt for TOTP.
     await page.goto('/signin')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await page.locator('[id="email"]').fill(customer.email)
     await page.locator('[id="password"]').fill(customer.password)
     await page.getByRole('button', { name: /^sign in$/i }).click()

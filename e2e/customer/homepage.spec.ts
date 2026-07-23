@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { test, expect } from '@playwright/test'
 
 test.use({ storageState: { cookies: [], origins: [] } })
@@ -5,7 +6,7 @@ test.use({ storageState: { cookies: [], origins: [] } })
 test.describe('Homepage', () => {
   test('renders marketplace sections for guests', async ({ page }) => {
     await page.goto('/')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
@@ -13,7 +14,16 @@ test.describe('Homepage', () => {
     await expect(
       page.locator('section[aria-labelledby="categories-heading"] a').first(),
     ).toBeVisible()
-    await expect(page.getByLabel(/^Product:/).first()).toBeVisible()
+    const firstProduct = page.getByLabel(/^Product:/).first()
+    await expect(firstProduct).toBeVisible()
+    const seededProductImage = firstProduct.getByRole('img')
+    await expect(seededProductImage).toBeVisible()
+    await expect
+      .poll(() => seededProductImage.evaluate((image: HTMLImageElement) => image.naturalWidth))
+      .toBeGreaterThan(0)
+    await expect(seededProductImage).toHaveScreenshot('seeded-product-image.png', {
+      animations: 'disabled',
+    })
     await expect(page.locator('section[aria-labelledby="shops-heading"] a').first()).toBeVisible()
 
     // Marketplace stats and seller CTA.
@@ -28,7 +38,7 @@ test.describe('Homepage', () => {
     ]) {
       await page.setViewportSize(viewport)
       await page.goto('/')
-      await page.waitForSelector('html[data-hydrated="true"]')
+      await waitForAppHydration(page)
 
       const productCards = page.locator('main').getByLabel(/^Product:/)
       await expect(productCards.first()).toBeAttached()

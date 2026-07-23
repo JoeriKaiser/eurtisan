@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 
 test.use({ storageState: 'e2e/.auth/customer.json' })
@@ -5,7 +6,7 @@ test.use({ storageState: 'e2e/.auth/customer.json' })
 test.describe('Notifications', () => {
   test('renders the notifications list and supports mark-all-read', async ({ page }) => {
     await page.goto('/notifications')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: /notifications/i })).toBeVisible()
 
@@ -32,7 +33,7 @@ test.describe('Notifications', () => {
 
   test('navigates via notification deep link', async ({ page }) => {
     await page.goto('/notifications')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const notificationList = page.getByRole('list', { name: /notifications/i })
     const firstItem = notificationList.getByRole('listitem').first()

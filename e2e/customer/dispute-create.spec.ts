@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { test, expect } from '@playwright/test'
 import { createDeliveredOrder, getDisputeIdForShopOrder } from '../fixtures/orders'
 
@@ -14,7 +15,7 @@ test.describe('Customer-initiated dispute', () => {
     page,
   }) => {
     await page.goto(`/orders/${order.platformOrderId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: /order details/i })).toBeVisible()
 
@@ -38,7 +39,7 @@ test.describe('Customer-initiated dispute', () => {
     expect(disputeId).toBeTruthy()
 
     await page.goto(`/disputes/${disputeId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: /dispute/i })).toBeVisible()
     await expect(page.getByText('The package was empty when it arrived.')).toBeVisible()

@@ -1,10 +1,11 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 import { getCreatorShop, getTestProduct } from '../fixtures/orders'
 
 test.describe('Shop page', () => {
   test('renders shop header and product list', async ({ page }) => {
     await page.goto('/')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     // Click the first featured shop card inside the shops section.
     const firstShop = page.locator('section[aria-labelledby="shops-heading"] a').first()
@@ -21,7 +22,7 @@ test.describe('Shop page', () => {
     const product = await getTestProduct(shop.id)
 
     await page.goto(`/shops/${shop.slug}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: /products/i })).toBeVisible()
 
@@ -40,7 +41,7 @@ test.describe('Shop page', () => {
 
     // Clear the search via direct navigation and confirm the full product grid returns.
     await page.goto(`/shops/${shop.slug}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const clearedUrl = new URL(page.url())
     expect(clearedUrl.searchParams.has('search')).toBe(false)
@@ -49,7 +50,7 @@ test.describe('Shop page', () => {
 
   test('returns 404 for a non-existent shop', async ({ page }) => {
     await page.goto('/shops/xyznonexistent12345')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByText(/not found/i)).toBeVisible()
   })

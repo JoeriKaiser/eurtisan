@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
 import { createAdminContext } from '../fixtures/admin'
@@ -39,8 +40,7 @@ test.describe('shop creation onboarding', () => {
     browser,
   }) => {
     await page.goto('/sell')
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
+    await waitForAppHydration(page)
     await expect(page.getByRole('heading', { name: 'Seller Hub' })).toBeVisible()
     await page.getByRole('button', { name: 'Create a shop' }).click()
 
@@ -135,8 +135,7 @@ test.describe('shop creation onboarding', () => {
     const adminContext = await createAdminContext(browser)
     const adminPage = await adminContext.newPage()
     await adminPage.goto('/admin/shops?view=applications')
-    await adminPage.waitForSelector('html[data-hydrated="true"]')
-    await adminPage.waitForLoadState('networkidle')
+    await waitForAppHydration(adminPage)
     await adminPage
       .locator('tr')
       .filter({ hasText: E2E_SHOP_NAME })

@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
 import * as schema from '../../src/db/schema'
@@ -36,7 +37,7 @@ test.describe('creator payouts list', () => {
 
   test('renders payouts page heading and table', async ({ page }) => {
     await page.goto(`/creator/payouts?shopId=${shopId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
 
     await expect(page.getByRole('heading', { name: 'Payouts', exact: true })).toBeVisible()
@@ -48,7 +49,7 @@ test.describe('creator payouts list', () => {
 
   test('status filter updates the list', async ({ page }) => {
     await page.goto(`/creator/payouts?shopId=${shopId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
     await page.waitForLoadState('networkidle')
 
@@ -88,7 +89,7 @@ test.describe('creator payouts list', () => {
 
   test('payout row invoice link navigates to the invoice page', async ({ page }) => {
     await page.goto(`/creator/payouts?shopId=${shopId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
 
     const row = page.locator('tbody tr').filter({ hasText: pendingOrder.shopOrderId.slice(0, 8) })
@@ -106,7 +107,7 @@ test.describe('creator payouts list', () => {
 
   test('disconnect button opens confirmation dialog when present', async ({ page }) => {
     await page.goto(`/creator/payouts?shopId=${shopId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
 
     const disconnectButton = page.getByRole('button', { name: 'Disconnect account' })

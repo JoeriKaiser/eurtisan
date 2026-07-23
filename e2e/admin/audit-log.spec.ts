@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import type { Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
@@ -102,7 +103,7 @@ test.describe('admin audit log', () => {
 
 async function goto(page: Page, path: string): Promise<void> {
   await page.goto(path)
-  await page.waitForSelector('html[data-hydrated="true"]')
+  await waitForAppHydration(page)
 }
 
 async function banUserViaUI(page: Page, target: TestUser): Promise<void> {

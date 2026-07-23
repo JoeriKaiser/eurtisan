@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 import { eq, like } from 'drizzle-orm'
 import { categories } from '../../src/db/schema'
@@ -30,7 +31,7 @@ test.describe('admin category management', () => {
     const description = `E2E category created via admin UI (${seed})`
 
     await page.goto('/admin/categories')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await page.getByRole('button', { name: 'New Category' }).first().click()
     await page.locator('#cat-name').fill(name)
@@ -49,7 +50,7 @@ test.describe('admin category management', () => {
     const updatedName = `${category.name} Updated`
 
     await page.goto('/admin/categories')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const row = page.getByRole('row', { name: new RegExp(category.name, 'i') })
     await row.getByRole('button', { name: new RegExp(`Edit ${category.name}`) }).click()
@@ -69,7 +70,7 @@ test.describe('admin category management', () => {
     seededCategories.push(category)
 
     await page.goto('/admin/categories')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const row = page.getByRole('row', { name: new RegExp(category.name, 'i') })
     await row.getByRole('button', { name: new RegExp(`Delete ${category.name}`) }).click()
@@ -95,7 +96,7 @@ test.describe('admin category management', () => {
     await db.update(categories).set({ sortOrder: 1 }).where(eq(categories.id, categoryB.id))
 
     await page.goto('/admin/categories')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('cell', { name: categoryA.name, exact: true })).toBeVisible({
       timeout: 10000,

@@ -8,6 +8,18 @@
     fail_msg: "deployment_environment and caddy_domain must identify staging or production"
   tags: [always, preflight]
 
+- name: Validate signed release channel policy
+  ansible.builtin.assert:
+    that:
+      - release_registry == 'rg.fr-par.scw.cloud'
+      - release_image_repository is match('^rg\.fr-par\.scw\.cloud/[a-z0-9._/-]+$')
+      - release_registry_minimum_retained_generations | int >= 2
+      - release_signing_private_key_path | length > 5
+      - release_signing_public_key_path | length > 5
+      - deployment_environment != 'production' or promoted_staging_image_digest | default('') is match('^sha256:[a-f0-9]{64}$')
+    fail_msg: "The private EU release registry, signing paths, retention, or production promotion digest is invalid"
+  tags: [always, preflight]
+
 - name: Validate launch-required integrations are explicitly enabled
   ansible.builtin.assert:
     that:
@@ -49,6 +61,11 @@
     - sendcloud_webhook_secret
     - metrics_token
     - grafana_admin_password
+    - registry_push_access_key_id
+    - registry_push_secret_key
+    - registry_pull_access_key_id
+    - registry_pull_secret_key
+    - cosign_password
   loop_control:
     label: "{{ item }}"
   tags: [always, preflight]
@@ -114,7 +131,12 @@
       - meilisearch_search_key != meilisearch_api_key
       - mollie_api_key is match('^(live|test)_[A-Za-z0-9_-]{20,}$')
       - sendcloud_webhook_secret != sendcloud_secret_key
-    fail_msg: "Encryption, imgproxy, Meilisearch, Mollie, or webhook secret formats are invalid"
+      - registry_push_access_key_id != registry_pull_access_key_id
+      - registry_push_secret_key != registry_pull_secret_key
+      - registry_pull_access_key_id != s3_access_key_id
+      - registry_pull_secret_key != s3_secret_access_key
+      - cosign_password != registry_push_secret_key
+    fail_msg: "Encryption, signing, registry, imgproxy, Meilisearch, Mollie, or webhook secret formats are invalid"
   tags: [always, preflight]
 
 - name: Validate environment-specific provider safety

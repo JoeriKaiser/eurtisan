@@ -19,6 +19,7 @@
  */
 
 import { createHmac } from 'node:crypto'
+import { readFile } from 'node:fs/promises'
 import { DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { getS3Bucket, getS3PublicEndpoint, s3Client, s3PublicClient } from '../s3-client.server'
@@ -98,25 +99,41 @@ export async function createPresignedUploadUrl(key: string, contentType: string)
  * Downloads an image from a URL and uploads it directly to S3 as the given key.
  * Used by seed scripts to import placeholder images into platform storage.
  */
-export async function uploadImageFromUrl(imageUrl: string, targetKey: string): Promise<void> {
+async function uploadImageBytes(
+  bytes: Buffer,
+  targetKey: string,
+  contentType: string,
+): Promise<void> {
   validateKey(targetKey)
-
-  const response = await fetch(imageUrl)
-  if (!response.ok) {
-    throw new Error(`Failed to download image from ${imageUrl}: ${response.status}`)
-  }
-
-  const buffer = Buffer.from(await response.arrayBuffer())
-  const contentType = response.headers.get('content-type') || 'image/jpeg'
+  validateContentType(contentType)
 
   await s3Client.send(
     new PutObjectCommand({
       Bucket: getS3Bucket(),
       Key: targetKey,
-      Body: buffer,
+      Body: bytes,
       ContentType: contentType,
     }),
   )
+}
+
+export async function uploadImageFromUrl(imageUrl: string, targetKey: string): Promise<void> {
+  const response = await fetch(imageUrl)
+  if (!response.ok) {
+    throw new Error(`Failed to download image from ${imageUrl}: ${response.status}`)
+  }
+
+  const contentType = response.headers.get('content-type') || 'image/jpeg'
+  await uploadImageBytes(Buffer.from(await response.arrayBuffer()), targetKey, contentType)
+}
+
+/** Uploads a trusted local fixture without making seed/test setup depend on the network. */
+export async function uploadImageFromFile(
+  filePath: string,
+  targetKey: string,
+  contentType: 'image/jpeg' | 'image/png' | 'image/webp',
+): Promise<void> {
+  await uploadImageBytes(await readFile(filePath), targetKey, contentType)
 }
 
 /**

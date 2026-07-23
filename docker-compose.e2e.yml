@@ -6,6 +6,15 @@ services:
       E2E_TEST: "true"
       MAILPIT_API_URL: http://mailpit:8025/api/v1
       S3_PUBLIC_ENDPOINT: http://eurtisan-garage:3900
+      IMGPROXY_BASE_URL: http://imgproxy:8080
+      VITE_IMGPROXY_BASE_URL: http://imgproxy:8080
+      IMGPROXY_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      IMGPROXY_SALT: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
     depends_on:
       db-test:
         condition: service_healthy
+
+  imgproxy:
+    environment:
+      IMGPROXY_KEY: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+      IMGPROXY_SALT: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb

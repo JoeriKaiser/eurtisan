@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 import { like } from 'drizzle-orm'
 
@@ -24,7 +25,7 @@ test.describe('creator product lifecycle', () => {
     const productName = `${E2E_PRODUCT_NAME_PREFIX} ${suffix}`
 
     await page.goto('/creator/products/new')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: 'New Product' })).toBeVisible()
 
@@ -39,7 +40,7 @@ test.describe('creator product lifecycle', () => {
     await page.getByRole('button', { name: 'Save as draft' }).click()
 
     await page.waitForURL(/\/creator\/products/)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await page.getByRole('tab', { name: 'Draft' }).click()
     await page.waitForSelector('tbody tr')
 
@@ -47,13 +48,13 @@ test.describe('creator product lifecycle', () => {
     await expect(draftRow.getByText('Draft').first()).toBeVisible()
 
     await draftRow.getByRole('link', { name: `Edit ${productName}` }).click()
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await page.getByRole('button', { name: 'Publish' }).click()
     await expect(page.getByText('Product updated successfully.')).toBeVisible()
 
     await page.goto('/creator/products')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await page.getByRole('tab', { name: 'Published' }).click()
     await page.waitForSelector('tbody tr')
 
@@ -62,13 +63,13 @@ test.describe('creator product lifecycle', () => {
     await expect(publishedRow.getByRole('button', { name: /Deactivate/ })).toBeVisible()
 
     await publishedRow.getByRole('link', { name: `Edit ${productName}` }).click()
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await page.getByRole('button', { name: 'Unpublish' }).click()
     await expect(page.getByText('Product updated successfully.')).toBeVisible()
 
     await page.goto('/creator/products')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await page.getByRole('tab', { name: 'Draft' }).click()
     await page.waitForSelector('tbody tr')
 
@@ -76,13 +77,13 @@ test.describe('creator product lifecycle', () => {
     await expect(draftRow2.getByText('Draft').first()).toBeVisible()
 
     await draftRow2.getByRole('link', { name: `Edit ${productName}` }).click()
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await page.getByRole('button', { name: 'Publish' }).click()
     await expect(page.getByText('Product updated successfully.')).toBeVisible()
 
     await page.goto('/creator/products')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await page.getByRole('tab', { name: 'Published' }).click()
     await page.waitForSelector('tbody tr')
 
@@ -90,13 +91,13 @@ test.describe('creator product lifecycle', () => {
     await expect(publishedRow2.getByText('Published').first()).toBeVisible()
 
     await publishedRow2.getByRole('link', { name: `Edit ${productName}` }).click()
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await page.getByRole('button', { name: 'Archive' }).click()
     await expect(page.getByText('Product updated successfully.')).toBeVisible()
 
     await page.goto('/creator/products')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await page.getByRole('tab', { name: 'Archived' }).click()
     await page.waitForSelector('tbody tr')
 

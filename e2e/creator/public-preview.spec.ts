@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 import { and, eq, inArray, isNotNull } from 'drizzle-orm'
@@ -105,7 +106,7 @@ test.describe('creator public shop preview', () => {
     }
 
     await page.goto(`/shops/${shop.slug}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
 
     await expect(page.getByRole('heading', { level: 1, name: shop.name })).toBeVisible()
@@ -120,7 +121,7 @@ test.describe('creator public shop preview', () => {
 
     await productCard.click()
     await page.waitForURL(/\/shops\/[^/]+\/products\/[^/]+/)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { level: 1, name: publishedProduct.name })).toBeVisible()
     await expect(page.getByText(/€/)).toBeVisible()
@@ -137,7 +138,7 @@ test.describe('creator public shop preview', () => {
     createdProductIds.push(hiddenProduct.id)
 
     await page.goto(`/shops/${shop.slug}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByLabel(/^Product:/).filter({ hasText: hiddenProduct.name })).toHaveCount(
       0,

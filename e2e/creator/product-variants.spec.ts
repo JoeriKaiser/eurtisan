@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 import { like } from 'drizzle-orm'
 import { db } from '../../src/db/index'
@@ -17,8 +18,7 @@ test.describe('creator product variants', () => {
     const productName = `${E2E_PRODUCT_NAME_PREFIX} ${suffix}`
 
     await page.goto('/creator/products/new')
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
+    await waitForAppHydration(page)
     await expect(page.getByRole('heading', { name: 'New Product' })).toBeVisible()
 
     await page.fill('#product-name', productName)
@@ -28,15 +28,13 @@ test.describe('creator product variants', () => {
     await page.getByRole('button', { name: 'Save as draft' }).click()
 
     await page.waitForURL(/\/creator\/products/)
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
+    await waitForAppHydration(page)
 
     const productRow = page.locator('tbody tr').filter({ hasText: productName })
     await expect(productRow.getByRole('link', { name: `Edit ${productName}` })).toBeVisible()
     await productRow.getByRole('link', { name: `Edit ${productName}` }).click()
 
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
+    await waitForAppHydration(page)
     await expect(page.getByRole('heading', { name: 'Edit Product' })).toBeVisible()
 
     const variantsHeading = page.getByRole('heading', { name: 'Variants' })
@@ -87,7 +85,7 @@ test.describe('creator product variants', () => {
 
     const colorOption = page.locator('li').filter({ hasText: 'Color' })
     await colorOption.getByRole('button', { name: 'Delete option' }).click()
-    await page.locator('dialog').getByRole('button', { name: 'Delete option' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Delete option' }).click()
     await expect(page.getByText('Option saved.')).toBeVisible({ timeout: 15000 })
 
     await expect(colorOption).not.toBeVisible()
