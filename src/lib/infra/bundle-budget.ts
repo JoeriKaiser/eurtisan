@@ -22,6 +22,7 @@ export interface BundleBudgetConfig {
   rationale: string
   baseline: BundleMetrics
   maximum: BundleMetrics
+  incrementalMaximum: Partial<BundleMetrics>
 }
 
 export interface BundleBudgetViolation {
@@ -136,14 +137,41 @@ export function parseBundleBudgetConfig(value: unknown): BundleBudgetConfig {
     }
   }
 
-  return { rationale: candidate.rationale, baseline, maximum }
+  const incrementalMaximum: Partial<BundleMetrics> = {}
+  if (candidate.incrementalMaximum !== undefined) {
+    if (typeof candidate.incrementalMaximum !== 'object' || candidate.incrementalMaximum === null) {
+      throw new Error('Bundle budget incrementalMaximum must be an object')
+    }
+    for (const metric of BUNDLE_METRIC_NAMES) {
+      const amount = candidate.incrementalMaximum[metric]
+      if (amount === undefined) continue
+      if (!Number.isSafeInteger(amount) || amount <= 0) {
+        throw new Error(`Bundle budget incrementalMaximum.${metric} must be a positive integer`)
+      }
+      incrementalMaximum[metric] = amount
+    }
+  }
+
+  return { rationale: candidate.rationale, baseline, maximum, incrementalMaximum }
+}
+
+export function getEffectiveBundleMaximum(
+  metric: BundleMetricName,
+  config: BundleBudgetConfig,
+): number {
+  const incrementalMaximum = config.incrementalMaximum[metric]
+  return incrementalMaximum === undefined
+    ? config.maximum[metric]
+    : Math.min(config.maximum[metric], config.baseline[metric] + incrementalMaximum)
 }
 
 export function checkBundleBudget(
   actual: BundleMetrics,
   config: BundleBudgetConfig,
 ): BundleBudgetViolation[] {
-  return BUNDLE_METRIC_NAMES.filter((metric) => actual[metric] > config.maximum[metric]).map(
-    (metric) => ({ metric, actual: actual[metric], maximum: config.maximum[metric] }),
-  )
+  return BUNDLE_METRIC_NAMES.map((metric) => ({
+    metric,
+    actual: actual[metric],
+    maximum: getEffectiveBundleMaximum(metric, config),
+  })).filter(({ actual, maximum }) => actual > maximum)
 }

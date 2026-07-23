@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import {
   BUNDLE_METRIC_NAMES,
   checkBundleBudget,
+  getEffectiveBundleMaximum,
   measureClientBundle,
   parseBundleBudgetConfig,
 } from '../src/lib/infra/bundle-budget'
@@ -15,9 +16,12 @@ const violations = checkBundleBudget(actual, config)
 
 console.log('Production client bundle budget (bytes):')
 for (const metric of BUNDLE_METRIC_NAMES) {
-  console.log(
-    `- ${metric}: actual=${actual[metric]} baseline=${config.baseline[metric]} maximum=${config.maximum[metric]}`,
-  )
+  const incrementalMaximum = config.incrementalMaximum[metric]
+  const policy =
+    incrementalMaximum === undefined
+      ? `maximum=${config.maximum[metric]}`
+      : `changeMaximum=${incrementalMaximum} effectiveMaximum=${getEffectiveBundleMaximum(metric, config)} globalMaximum=${config.maximum[metric]}`
+  console.log(`- ${metric}: actual=${actual[metric]} baseline=${config.baseline[metric]} ${policy}`)
 }
 
 if (violations.length > 0) {
