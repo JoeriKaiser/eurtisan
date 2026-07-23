@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockInvalidate = vi.fn()
 const mockNavigate = vi.fn()
+const { mockUploadMultiple } = vi.hoisted(() => ({ mockUploadMultiple: vi.fn() }))
 
 vi.mock('@tanstack/react-router', () => ({
   Link: (props: { children: React.ReactNode; to: string; className?: string }) => (
@@ -173,6 +174,10 @@ vi.mock('#/lib/creator-products', () => ({
   archiveProduct: vi.fn(),
 }))
 
+vi.mock('#/hooks/useImageUpload', () => ({
+  useImageUpload: () => ({ uploadMultiple: mockUploadMultiple, error: null }),
+}))
+
 import type { CreatorShop } from '#/lib/creator-dashboard'
 import { deleteProduct, updateProduct } from '#/lib/creator-products'
 import {
@@ -277,6 +282,14 @@ describe('CreatorProductEditPage', () => {
   beforeEach(() => {
     mockInvalidate.mockReset()
     mockNavigate.mockReset()
+    mockUploadMultiple.mockReset()
+    mockUploadMultiple.mockImplementation(async (files: File[]) =>
+      files.map((file, index) => ({
+        key: `products/${file.name}`,
+        previewUrl: `blob:uploaded-${index}`,
+        imgproxyUrl: `/uploads/products/${file.name}`,
+      })),
+    )
     vi.mocked(updateProduct).mockReset()
     vi.mocked(deleteProduct).mockReset()
   })
@@ -501,6 +514,39 @@ describe('CreatorProductEditPage', () => {
       // But the new image has a "Remove image" button too
       const removeButtons = screen.getAllByLabelText('Remove image')
       expect(removeButtons.length).toBeGreaterThanOrEqual(2)
+    })
+  })
+
+  it('allows the same image file to be selected again after removal', async () => {
+    render(
+      <CreatorProductEditPage
+        shops={makeShops()}
+        categories={makeCategories()}
+        product={makeProduct({ images: [] })}
+      />,
+    )
+
+    const file = new File(['fake-png'], 'new-product.png', { type: 'image/png' })
+    const input = screen.getByLabelText('Product images') as HTMLInputElement
+    const selectFile = () => {
+      Object.defineProperty(input, 'value', {
+        configurable: true,
+        writable: true,
+        value: `C:\\fakepath\\${file.name}`,
+      })
+      fireEvent.change(input, { target: { files: [file] } })
+    }
+
+    selectFile()
+    await waitFor(() => expect(input.value).toBe(''))
+    fireEvent.click(screen.getByLabelText('Remove image'))
+    expect(screen.queryByLabelText('Remove image')).toBeNull()
+
+    selectFile()
+    await waitFor(() => {
+      expect(input.value).toBe('')
+      expect(screen.getByLabelText('Remove image')).toBeTruthy()
+      expect(mockUploadMultiple).toHaveBeenCalledTimes(2)
     })
   })
 
