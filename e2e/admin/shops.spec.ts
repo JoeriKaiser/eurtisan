@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
 import type { shopStatusEnum } from '../../src/db/schema'
@@ -34,7 +35,7 @@ test.describe('admin shop moderation', () => {
     const { shop } = await seedCreatorWithShop(seed)
 
     await page.goto('/admin/shops')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: 'Shop Moderation' })).toBeVisible()
     await expect(page.getByRole('columnheader', { name: 'Shop Name' })).toBeVisible()
@@ -48,7 +49,7 @@ test.describe('admin shop moderation', () => {
     const { shop } = await seedCreatorWithShop(seed)
 
     await page.goto('/admin/shops')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const filterTabs = page.getByRole('tablist', { name: 'Filter shops by status' })
     const row = page.locator('table tbody tr').filter({ hasText: shop.name })
@@ -69,7 +70,7 @@ test.describe('admin shop moderation', () => {
     await setShopStatus(shop.id, 'pending_review')
 
     await page.goto('/admin/shops')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await page.getByRole('tab', { name: 'Onboarding Applications' }).click()
     await expect(page).toHaveURL(/[?&]view=applications/)
@@ -93,7 +94,7 @@ test.describe('admin shop moderation', () => {
     await setShopStatus(shop.id, 'pending_review')
 
     await page.goto('/admin/shops')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await page.getByRole('tab', { name: 'Onboarding Applications' }).click()
     await expect(page).toHaveURL(/[?&]view=applications/)
@@ -118,7 +119,7 @@ test.describe('admin shop moderation', () => {
     const { shop } = await seedCreatorWithShop(seed)
 
     await page.goto('/admin/shops')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const row = page.locator('table tbody tr').filter({ hasText: shop.name })
     await expect(row).toBeVisible()

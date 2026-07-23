@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 import { dismissAnalyticsConsentBanner } from '../fixtures/consent'
 import type { TestOrder } from '../fixtures/orders'
@@ -27,7 +28,7 @@ test.describe('Creator order cancellation', () => {
     }
 
     await page.goto(`/studio/${shopId}/orders/${order.shopOrderId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
 
     await expect(page.getByRole('heading', { name: /order detail/i })).toBeVisible()

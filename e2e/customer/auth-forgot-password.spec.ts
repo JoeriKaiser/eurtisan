@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { test, expect } from '@playwright/test'
 import { createVerifiedCustomer, deleteCustomerByEmail } from '../fixtures/customers'
 import { clearInboxFor, getLatestEmail, isMailpitAvailable } from '../fixtures/email'
@@ -20,7 +21,7 @@ test.describe('Customer forgot password', () => {
 
   test('requests a password reset link and observes cooldown', async ({ page }) => {
     await page.goto('/forgot-password')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await page.fill('#email', customer.email)
     await page.getByRole('button', { name: /send reset link/i }).click()

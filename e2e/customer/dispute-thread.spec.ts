@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { test, expect } from '@playwright/test'
 import { createDeliveredOrder, createDisputeForOrder } from '../fixtures/orders'
 
@@ -14,7 +15,7 @@ test.use({ storageState: 'e2e/.auth/customer.json' })
 test.describe('Dispute thread', () => {
   test('posts a message in the dispute thread', async ({ page }) => {
     await page.goto(`/disputes/${disputeId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: /dispute/i })).toBeVisible()
 

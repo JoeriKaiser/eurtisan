@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, type Page, test } from '@playwright/test'
 import { inArray } from 'drizzle-orm'
 import * as schema from '../../src/db/schema'
@@ -112,7 +113,7 @@ test.describe('creator orders list', () => {
     await row.click()
 
     await page.waitForURL(`/studio/${shopId}/orders/${targetOrder.shopOrderId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: 'Order Detail' })).toBeVisible()
     await expect(page.getByRole('status')).toContainText('Paid')
@@ -122,7 +123,7 @@ test.describe('creator orders list', () => {
 
 async function openOrders(page: Page, query = '') {
   await page.goto(`/studio/${shopId}/orders${query}`)
-  await page.waitForSelector('html[data-hydrated="true"]')
+  await waitForAppHydration(page)
   await dismissAnalyticsConsentBanner(page)
   await page.waitForLoadState('networkidle')
 }

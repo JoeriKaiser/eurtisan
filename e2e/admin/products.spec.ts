@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
@@ -66,7 +67,7 @@ test.describe('admin product catalog', () => {
 
   test('admin product catalog renders', async ({ page }) => {
     await page.goto('/admin/products')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: 'Product Catalog' })).toBeVisible()
     await expect(page.getByRole('table')).toBeVisible()
@@ -74,7 +75,7 @@ test.describe('admin product catalog', () => {
 
   test('admin can search products by name', async ({ page }) => {
     await page.goto('/admin/products')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await page.getByRole('textbox', { name: 'Search by product or shop name…' }).fill(productName)
     await page.getByRole('button', { name: 'Search', exact: true }).click()
@@ -85,7 +86,7 @@ test.describe('admin product catalog', () => {
 
   test('admin can filter products by status', async ({ page }) => {
     await page.goto('/admin/products')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await page.getByRole('textbox', { name: 'Search by product or shop name…' }).fill(productName)
     await page.getByRole('button', { name: 'Search', exact: true }).click()
@@ -107,7 +108,7 @@ test.describe('admin product catalog', () => {
 
   test('admin can toggle a product active state', async ({ page }) => {
     await page.goto('/admin/products')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await page.getByRole('textbox', { name: 'Search by product or shop name…' }).fill(productName)
     await page.getByRole('button', { name: 'Search', exact: true }).click()
@@ -129,7 +130,7 @@ test.describe('admin product catalog', () => {
 
   test('bulk selection and export CSV', async ({ page }) => {
     await page.goto('/admin/products')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await page.getByRole('textbox', { name: 'Search by product or shop name…' }).fill(productName)
     await page.getByRole('button', { name: 'Search', exact: true }).click()

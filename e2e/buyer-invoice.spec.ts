@@ -1,3 +1,4 @@
+import { waitForAppHydration } from './fixtures/hydration'
 import { test, expect } from '@playwright/test'
 import { createPaidOrder } from './fixtures/orders'
 
@@ -9,7 +10,7 @@ test.describe('Buyer invoice download', () => {
     if (!order.invoiceNumber) throw new Error('Invoice number missing from test order')
 
     await page.goto(`/account/orders/${order.orderNumber}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: /order details/i })).toBeVisible()
 

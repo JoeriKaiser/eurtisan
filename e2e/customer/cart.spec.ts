@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 import { addFirstProductToCart, emptyCart } from '../fixtures/cart'
 import { getCreatorShop, getTestProduct, setProductStock } from '../fixtures/orders'
@@ -9,7 +10,7 @@ test.describe('Cart', () => {
 
     // Go to cart.
     await page.goto('/cart')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: /your cart/i })).toBeVisible()
     await expect(page.getByRole('link', { name: /proceed to checkout/i })).toBeVisible()
@@ -38,13 +39,13 @@ test.describe('Cart', () => {
 
     // Navigate directly to the product whose stock we control.
     await page.goto(`/shops/${shop.slug}/products/${product.slug}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await page.getByRole('button', { name: /add to cart/i }).click()
     await page.getByText(/added to cart/i).waitFor({ state: 'visible' })
 
     await page.goto('/cart')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const increaseButton = page.getByRole('button', { name: /increase quantity/i })
 

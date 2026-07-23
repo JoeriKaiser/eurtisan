@@ -1,3 +1,4 @@
+import { waitForAppHydration } from './fixtures/hydration'
 import { existsSync, statSync } from 'node:fs'
 import { expect, test as setup } from '@playwright/test'
 import { E2E_ADMIN, loadAuthCookies } from './fixtures/auth'
@@ -60,7 +61,7 @@ setup('authenticate as admin', async ({ page }) => {
   await page.context().addCookies(cookies)
 
   await page.goto('/admin')
-  await page.waitForSelector('html[data-hydrated="true"]')
+  await waitForAppHydration(page)
 
   await dismissAnalyticsConsentBanner(page)
 

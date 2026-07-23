@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import path from 'node:path'
 import { expect, test } from '@playwright/test'
 import { like } from 'drizzle-orm'
@@ -24,8 +25,7 @@ test.describe('creator product validation', () => {
     const shop = await getCreatorShop()
 
     await page.goto(`/creator/products/new?shopId=${shop.id}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: 'New Product' })).toBeVisible()
 
@@ -41,8 +41,7 @@ test.describe('creator product validation', () => {
     const existingProduct = await getTestProduct(shop.id)
 
     await page.goto(`/creator/products/new?shopId=${shop.id}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: 'New Product' })).toBeVisible()
 
@@ -72,8 +71,7 @@ test.describe('creator product validation', () => {
     const shop = await getCreatorShop()
 
     await page.goto(`/creator/products/new?shopId=${shop.id}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: 'New Product' })).toBeVisible()
 
@@ -96,8 +94,7 @@ test.describe('creator product validation', () => {
     const shop = await getCreatorShop()
 
     await page.goto(`/creator/products/new?shopId=${shop.id}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: 'New Product' })).toBeVisible()
 
@@ -110,7 +107,7 @@ test.describe('creator product validation', () => {
     await page.fill('#product-price', '29.99')
     await page.fill('#product-stock', '12')
 
-    await page.setInputFiles('#product-image-upload', dummyPngPath)
+    await page.getByLabel('Product images').setInputFiles(dummyPngPath)
 
     await expect(page.getByRole('button', { name: /Remove image/i })).toBeVisible({
       timeout: 15000,

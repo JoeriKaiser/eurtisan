@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
 import * as schema from '../../src/db/schema'
@@ -88,7 +89,7 @@ test.describe('admin payouts', () => {
 
   test('admin payouts page renders', async ({ page }) => {
     await page.goto('/admin/payouts')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: 'Payout Oversight' })).toBeVisible()
     await expect(page.getByRole('tab', { name: 'Pending' })).toBeVisible()
@@ -99,7 +100,7 @@ test.describe('admin payouts', () => {
     const { amountCents } = await createTestPayout('pending', { createdAt: new Date('2024-01-01') })
 
     await page.goto('/admin/payouts?tab=pending&pageSize=100')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const row = page.locator('tbody tr').filter({ hasText: amountRegex(amountCents) })
     await expect(row).toBeVisible()
@@ -110,7 +111,7 @@ test.describe('admin payouts', () => {
     const { amountCents } = await createTestPayout('sent')
 
     await page.goto('/admin/payouts?tab=history&pageSize=100')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const row = page.locator('tbody tr').filter({ hasText: amountRegex(amountCents) })
     await expect(row).toBeVisible()
@@ -125,7 +126,7 @@ test.describe('admin payouts', () => {
     })
 
     await page.goto('/admin/payouts?tab=pending&pageSize=100')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const row = page.locator('tbody tr').filter({ hasText: amountRegex(amountCents) })
     await expect(row.getByRole('button', { name: 'Send Payout' })).toBeVisible()
@@ -146,7 +147,7 @@ test.describe('admin payouts', () => {
     await createTestPayout('sent', { createdAt: new Date() })
 
     await page.goto('/admin/payouts?tab=history&pageSize=100')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const [download] = await Promise.all([
       page.waitForEvent('download'),

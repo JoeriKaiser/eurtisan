@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
@@ -81,7 +82,7 @@ test.describe('creator advanced shop settings', () => {
     const newAnnouncement = 'Welcome to the advanced shop settings test run!'
 
     await page.goto(`/creator/shop?shopId=${shopId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
     await page.waitForLoadState('networkidle')
 
@@ -122,7 +123,7 @@ test.describe('creator advanced shop settings', () => {
 
     // Reload and verify values persisted.
     await page.goto(`/creator/shop?shopId=${shopId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
     await page.waitForLoadState('networkidle')
 
@@ -137,7 +138,7 @@ test.describe('creator advanced shop settings', () => {
 
     // Verify the new slug is reachable on the public shop page.
     await page.goto(`/shops/${newSlug}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await expect(page.getByRole('heading', { level: 1, name: originalName })).toBeVisible()
   })
 })

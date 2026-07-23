@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { test, expect } from '@playwright/test'
 import { deleteCustomerByEmail } from '../fixtures/customers'
 import { dismissAnalyticsConsentBanner } from '../fixtures/consent'
@@ -25,7 +26,7 @@ test.describe('Customer sign-up', () => {
     await clearInboxFor(email)
 
     await page.goto('/signin')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
 
     // Toggle to sign-up mode.
@@ -47,14 +48,14 @@ test.describe('Customer sign-up', () => {
     const token = extractVerificationToken(message)
 
     await page.goto(`/verify-email?token=${token}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByText(/email verified/i)).toBeVisible({ timeout: 10000 })
   })
 
   test('shows error for mismatched passwords', async ({ page }) => {
     await page.goto('/signin')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await page.getByRole('button', { name: /sign up/i }).click()
 

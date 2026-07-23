@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 import { createPaidOrder, getCreatorShop } from '../fixtures/orders'
 
@@ -9,7 +10,7 @@ test.describe('Seller fulfillment flow', () => {
     const order = await createPaidOrder('fulfillment')
 
     await page.goto(`/studio/${shop.id}/orders/${order.shopOrderId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: /order detail/i })).toBeVisible()
     await expect(page.getByText(/paid/i).first()).toBeVisible()

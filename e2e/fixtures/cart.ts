@@ -1,3 +1,4 @@
+import { waitForAppHydration } from './hydration'
 import type { Page } from '@playwright/test'
 
 /**
@@ -8,7 +9,7 @@ import type { Page } from '@playwright/test'
  */
 export async function addFirstProductToCart(page: Page): Promise<string> {
   await page.goto('/search')
-  await page.waitForSelector('html[data-hydrated="true"]')
+  await waitForAppHydration(page)
 
   const productLink = page.getByLabel(/^Product:/).first()
   await productLink.waitFor({ state: 'visible' })
@@ -27,7 +28,7 @@ export async function addFirstProductToCart(page: Page): Promise<string> {
 /** Remove every item from the cart, tolerating an already-empty cart. */
 export async function emptyCart(page: Page): Promise<void> {
   await page.goto('/cart')
-  await page.waitForSelector('html[data-hydrated="true"]')
+  await waitForAppHydration(page)
 
   // eslint-disable-next-line no-constant-condition
   while (true) {

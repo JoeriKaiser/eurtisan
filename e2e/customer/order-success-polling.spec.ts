@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 import { createPendingCheckoutOrder } from '../fixtures/checkout'
 import { sendMollieWebhook } from '../fixtures/orders'
@@ -28,7 +29,7 @@ test.describe('Order success polling', () => {
 
     // Navigate to the order detail to confirm the platform order is actually paid.
     await page.goto(`/orders/${platformOrderId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await expect(page.getByText(/paid/i).first()).toBeVisible()
   })
 })

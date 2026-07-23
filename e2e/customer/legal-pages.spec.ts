@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { test, expect } from '@playwright/test'
 
 test.describe('Legal pages', () => {
@@ -9,7 +10,7 @@ test.describe('Legal pages', () => {
   ] as const) {
     test(`${path} renders`, async ({ page }) => {
       await page.goto(path)
-      await page.waitForSelector('html[data-hydrated="true"]')
+      await waitForAppHydration(page)
       await expect(page.getByRole('heading', { name: heading }).first()).toBeVisible()
     })
   }

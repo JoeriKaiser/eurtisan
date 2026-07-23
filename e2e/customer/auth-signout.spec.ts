@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { test, expect } from '@playwright/test'
 import { E2E_CUSTOMER } from '../fixtures/auth'
 
@@ -45,7 +46,7 @@ test.describe('Customer sign-out', () => {
 
     const page = await context.newPage()
     await page.goto('/')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     // Open user menu and sign out.
     await page.getByRole('button', { name: /customer user/i }).click()
@@ -57,7 +58,7 @@ test.describe('Customer sign-out', () => {
     // Try to access a protected route in a fresh page (no storage state).
     const guestPage = await context.newPage()
     await guestPage.goto('/account/orders')
-    await guestPage.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(guestPage)
 
     await expect(guestPage).toHaveURL(/\/signin/)
 

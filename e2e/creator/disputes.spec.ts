@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
@@ -39,7 +40,7 @@ test.describe('creator disputes', () => {
 
     // 5. Navigate directly to the dispute thread as the creator
     await page.goto(`/disputes/${disputeId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     // Verify dispute details page loads
     await expect(page.getByRole('heading', { name: 'Dispute' })).toBeVisible()

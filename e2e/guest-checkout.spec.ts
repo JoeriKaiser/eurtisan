@@ -1,3 +1,4 @@
+import { waitForAppHydration } from './fixtures/hydration'
 import { test, expect } from '@playwright/test'
 import { sendMollieWebhook } from './fixtures/orders'
 
@@ -6,7 +7,7 @@ test.use({ storageState: 'e2e/.auth/customer.json' })
 test.describe('Guest buyer checkout', () => {
   test('adds a product to cart, checks out, and completes a mock payment', async ({ page }) => {
     await page.goto('/search')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     // Click the first product card.
     const firstCard = page.getByRole('link', { name: /^Product:/ }).first()
@@ -25,11 +26,11 @@ test.describe('Guest buyer checkout', () => {
 
     // Go to cart and proceed to checkout.
     await page.goto('/cart')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await page.getByRole('link', { name: /proceed to checkout/i }).click()
 
     await page.waitForURL('/checkout')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await expect(page.getByRole('heading', { name: /checkout/i })).toBeVisible()
 
     // Fill shipping address.
@@ -78,7 +79,7 @@ test.describe('Guest buyer checkout', () => {
 
     // The buyer order detail should also reflect the paid status.
     await page.goto(`/orders/${platformOrderId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await expect(page.getByText(/paid/i).first()).toBeVisible()
   })
 })

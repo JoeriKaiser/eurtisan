@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { randomBytes } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import { test, expect } from '@playwright/test'
@@ -28,7 +29,7 @@ test.describe('Unsubscribe', () => {
 
   test('unsubscribes with a valid token', async ({ page }) => {
     await page.goto(`/unsubscribe?token=${token}&category=marketing`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: /preferences updated/i })).toBeVisible()
     await expect(page.getByText(/unsubscribed/i)).toBeVisible()
@@ -37,7 +38,7 @@ test.describe('Unsubscribe', () => {
 
   test('shows error for an invalid token', async ({ page }) => {
     await page.goto('/unsubscribe?token=invalid-token')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: /could not update preferences/i })).toBeVisible()
     await expect(page.getByText(/could not be updated/i)).toBeVisible()

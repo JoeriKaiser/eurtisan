@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { test, expect } from '@playwright/test'
 import { deleteCustomerByEmail } from '../fixtures/customers'
 import { dismissAnalyticsConsentBanner } from '../fixtures/consent'
@@ -29,7 +30,7 @@ test.describe('Customer verify email', () => {
 
     // Sign up to generate a verification email.
     await page.goto('/signin')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
 
     await page.getByRole('button', { name: /sign up/i }).click()
@@ -46,20 +47,20 @@ test.describe('Customer verify email', () => {
 
     // The user is already a guest after sign-up because /verify-email is guest-only.
     await page.goto(`/verify-email?token=${token}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByText(/email verified/i)).toBeVisible({ timeout: 10000 })
 
     // Verification signs the user in (autoSignInAfterVerification), so sign
     // out before testing the guest-only resend flow.
     await page.goto('/')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await page.getByRole('button', { name: /open user menu/i }).click()
     await page.getByRole('menuitem', { name: /sign out/i }).click()
 
     // Resend flow from the "check your inbox" screen (guest context).
     await page.goto(`/verify-email?email=${encodeURIComponent(email)}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await page.getByRole('button', { name: /resend/i }).click()
     await expect(page.getByText(/verification email resent successfully/i)).toBeVisible({

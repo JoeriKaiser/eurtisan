@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
@@ -68,7 +69,7 @@ test.describe('creator account deletion side effects', () => {
   }) => {
     // Sign in as the fresh creator.
     await page.goto('/signin')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await page.locator('[id="email"]').fill(creator.email)
     await page.locator('[id="password"]').fill(creator.password)
     await page.getByRole('button', { name: /^sign in$/i }).click()
@@ -76,14 +77,14 @@ test.describe('creator account deletion side effects', () => {
 
     // Initiate account deletion from the settings page.
     await page.goto('/account/settings')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await page.locator('[id="confirm-email"]').fill(creator.email)
     await page.getByRole('button', { name: 'Delete account permanently' }).click()
     await page.waitForURL(/\?accountDeleted=1/)
 
     // The creator can no longer sign in.
     await page.goto('/signin')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await page.locator('[id="email"]').fill(creator.email)
     await page.locator('[id="password"]').fill(creator.password)
     await page.getByRole('button', { name: /^sign in$/i }).click()
@@ -93,14 +94,14 @@ test.describe('creator account deletion side effects', () => {
     // The public shop page is no longer visible.
     const shopPage = await page.context().newPage()
     await shopPage.goto(`/shops/${shop.slug}`)
-    await shopPage.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(shopPage)
     await expect(shopPage.getByRole('heading', { name: 'Page not found' })).toBeVisible()
     await shopPage.close()
 
     // The public product page is no longer visible.
     const productPage = await page.context().newPage()
     await productPage.goto(`/shops/${shop.slug}/products/${productSlug}`)
-    await productPage.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(productPage)
     await expect(productPage.getByRole('heading', { name: 'Page not found' })).toBeVisible()
     await productPage.close()
   })

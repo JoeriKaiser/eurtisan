@@ -1,3 +1,4 @@
+import { waitForAppHydration } from './fixtures/hydration'
 import { existsSync, statSync } from 'node:fs'
 import { expect, test as setup } from '@playwright/test'
 import { E2E_CREATOR, loadAuthCookies } from './fixtures/auth'
@@ -65,7 +66,7 @@ setup('authenticate as creator', async ({ page }) => {
 
   // Navigate to home page with the authenticated context
   await page.goto('/')
-  await page.waitForSelector('html[data-hydrated="true"]')
+  await waitForAppHydration(page)
 
   // Dismiss the analytics consent banner so it does not block later tests.
   await dismissAnalyticsConsentBanner(page)

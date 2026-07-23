@@ -1,3 +1,4 @@
+import { waitForAppHydration } from './fixtures/hydration'
 import { test, expect } from '@playwright/test'
 import { createDeliveredOrder } from './fixtures/orders'
 import { E2E_CUSTOMER } from './fixtures/auth'
@@ -13,7 +14,7 @@ test.describe('Buyer opens a dispute', () => {
 
   test('opens a dispute from the order detail page', async ({ page }) => {
     await page.goto(`/orders/${order.platformOrderId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const openDisputeButton = page.getByRole('button', { name: /open dispute/i })
     await expect(openDisputeButton).toBeVisible()
@@ -35,7 +36,7 @@ test.describe('Admin resolves a dispute', () => {
 
   test('resolves the dispute as closed with no refund', async ({ page }) => {
     await page.goto('/admin/disputes')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     // Find the dispute row for our buyer.
     const row = page.locator('tr').filter({ hasText: E2E_CUSTOMER.displayName }).first()

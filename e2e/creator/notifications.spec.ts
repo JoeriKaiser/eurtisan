@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
@@ -39,7 +40,7 @@ test.describe('Creator notifications', () => {
     notificationIds.push(notificationId)
 
     await page.goto('/notifications')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     // The notifications list should render with at least one item.
     const notificationList = page.getByRole('list', { name: /notifications/i })

@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { randomUUID } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 import { like } from 'drizzle-orm'
@@ -32,8 +33,7 @@ test.describe('creator product catalog', () => {
 
   test('default product list renders', async ({ page }) => {
     await page.goto(`/creator/products?shopId=${shopId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: 'Products' })).toBeVisible()
     await expect(page.locator('tbody tr').first()).toBeVisible()
@@ -60,8 +60,7 @@ test.describe('creator product catalog', () => {
     await createFixtureProduct({ name: archivedName, status: 'archived', shopId })
 
     await page.goto(`/creator/products?shopId=${shopId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
+    await waitForAppHydration(page)
 
     await page.getByRole('tab', { name: 'Draft' }).click()
     await page.waitForLoadState('networkidle')
@@ -78,8 +77,7 @@ test.describe('creator product catalog', () => {
 
   test('search filter finds a product and shows empty state for no matches', async ({ page }) => {
     await page.goto(`/creator/products?shopId=${shopId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
+    await waitForAppHydration(page)
 
     const searchBox = page.getByRole('searchbox', { name: 'Search products by name…' })
     await searchBox.fill(seededProductName)
@@ -114,8 +112,7 @@ test.describe('creator product catalog', () => {
 
     const search = encodeURIComponent(`${E2E_PRODUCT_NAME_PREFIX} Pagination`)
     await page.goto(`/creator/products?shopId=${shopId}&search=${search}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('navigation', { name: 'Product pagination' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Next' })).toBeEnabled()

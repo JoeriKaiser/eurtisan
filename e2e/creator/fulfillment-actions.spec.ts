@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 import { createPaidOrder, getCreatorShop } from '../fixtures/orders'
 
@@ -9,7 +10,7 @@ test.describe('creator fulfillment and financial actions', () => {
     const order = await createPaidOrder('refund-flow')
 
     await page.goto(`/studio/${shop.id}/orders/${order.shopOrderId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: /order detail/i })).toBeVisible()
     await expect(page.getByText(/paid/i).first()).toBeVisible()
@@ -40,7 +41,7 @@ test.describe('creator fulfillment and financial actions', () => {
 
     // Navigate to Creator Payouts page
     await page.goto(`/creator/payouts?shopId=${shop.id}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: 'Payouts', exact: true })).toBeVisible()
 
@@ -60,7 +61,7 @@ test.describe('creator fulfillment and financial actions', () => {
 
     // Wait for redirect to mock Mollie OAuth screen
     await page.waitForURL(/\/mollie-mock-oauth/)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await expect(page.getByRole('heading', { name: /authorize eurtisan/i })).toBeVisible()
 
     // Click Authorize Access button
@@ -68,7 +69,7 @@ test.describe('creator fulfillment and financial actions', () => {
 
     // Verify redirect back to Payouts page and connection status shows Connected
     await page.waitForURL(/\/creator\/payouts/)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await expect(page.getByText('Connected').first()).toBeVisible({ timeout: 15000 })
   })
 })

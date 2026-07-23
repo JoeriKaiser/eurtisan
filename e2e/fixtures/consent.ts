@@ -1,3 +1,4 @@
+import { waitForAppHydration } from './hydration'
 import type { Page } from '@playwright/test'
 
 const STORAGE_KEY = 'eurtisan_analytics_consent'
@@ -16,5 +17,5 @@ export async function dismissAnalyticsConsentBanner(page: Page): Promise<void> {
   }, STORAGE_KEY)
   // Force a reload so the banner reads the stored consent and hides itself.
   await page.reload()
-  await page.waitForSelector('html[data-hydrated="true"]')
+  await waitForAppHydration(page)
 }

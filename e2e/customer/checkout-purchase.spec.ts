@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 /**
  * End-to-end purchase journey.
  *
@@ -37,7 +38,7 @@ test.describe('Checkout purchase journey', () => {
 
     // Order detail should show the order as paid/processing and expose an invoice link.
     await page.goto(`/orders/${platformOrderId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: /order details/i })).toBeVisible()
     await expect(page.getByText(/paid|processing/i).first()).toBeVisible()

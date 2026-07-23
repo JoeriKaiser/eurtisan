@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 import { eq } from 'drizzle-orm'
 import * as schema from '../../src/db/schema'
@@ -23,14 +24,13 @@ test.describe('admin authentication and access control', () => {
 
   test('admin can sign in and reach the dashboard', async ({ page }) => {
     await page.goto('/signin?redirect=/admin')
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
+    await waitForAppHydration(page)
 
     await page.locator('[id="email"]').fill(E2E_ADMIN.email)
     await page.locator('[id="password"]').fill(E2E_ADMIN.password)
     await page.getByRole('button', { name: /^sign in$/i }).click()
 
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await expect(page).toHaveURL(/\/admin\/?$/)
     await expect(page.getByRole('heading', { name: /Dashboard/i })).toBeVisible({ timeout: 10000 })
 
@@ -46,8 +46,7 @@ test.describe('admin authentication and access control', () => {
     createdEmails.push(customer.email)
 
     await page.goto('/signin')
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
+    await waitForAppHydration(page)
 
     await page.locator('[id="email"]').fill(customer.email)
     await page.locator('[id="password"]').fill(customer.password)
@@ -56,7 +55,7 @@ test.describe('admin authentication and access control', () => {
     await expect(page).toHaveURL(/\/\/?$/)
 
     await page.goto('/admin')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page).toHaveURL(/\/forbidden/)
     await expect(page.getByRole('heading', { name: /Access Denied/i })).toBeVisible({
@@ -70,8 +69,7 @@ test.describe('admin authentication and access control', () => {
     createdEmails.push(creator.email)
 
     await page.goto('/signin')
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
+    await waitForAppHydration(page)
 
     await page.locator('[id="email"]').fill(creator.email)
     await page.locator('[id="password"]').fill(creator.password)
@@ -80,7 +78,7 @@ test.describe('admin authentication and access control', () => {
     await expect(page).toHaveURL(/\/\/?$/)
 
     await page.goto('/admin')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page).toHaveURL(/\/forbidden/)
     await expect(page.getByRole('heading', { name: /Access Denied/i })).toBeVisible({
@@ -90,7 +88,7 @@ test.describe('admin authentication and access control', () => {
 
   test('unauthenticated user is redirected to signin', async ({ page }) => {
     await page.goto('/admin')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page).toHaveURL(/\/signin/)
     await expect(page.getByRole('heading', { name: /Sign in/i })).toBeVisible()
@@ -110,22 +108,20 @@ test.describe('admin authentication and access control', () => {
 
     // First verify the credentials are valid by signing in successfully.
     await page.goto('/signin')
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
+    await waitForAppHydration(page)
     await page.locator('[id="email"]').fill(admin.email)
     await page.locator('[id="password"]').fill(admin.password)
     await page.getByRole('button', { name: /^sign in$/i }).click()
     await page.waitForURL(/^(?!.*\/signin).+$/)
     await page.goto('/admin')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await expect(page.getByRole('heading', { name: /Dashboard/i })).toBeVisible()
 
     // Now mark the account deleted and try to sign in again.
     await markUserDeleted(admin.email)
 
     await page.goto('/signin')
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
+    await waitForAppHydration(page)
     await page.locator('[id="email"]').fill(admin.email)
     await page.locator('[id="password"]').fill(admin.password)
     await page.getByRole('button', { name: /^sign in$/i }).click()

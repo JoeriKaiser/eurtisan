@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 import { emptyCart } from '../fixtures/cart'
 import { getCreatorShop, getTestProduct } from '../fixtures/orders'
@@ -19,7 +20,7 @@ test.describe('Header shell', () => {
     const product = await getTestProduct(shop.id)
 
     await page.goto(`/shops/${shop.slug}/products/${product.slug}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const cartLink = page.getByRole('link', { name: /cart/i })
     await expect(cartLink).toBeVisible()
@@ -36,7 +37,7 @@ test.describe('Header shell', () => {
 
   test('shows the unread notifications badge for an authenticated user', async ({ page }) => {
     await page.goto('/')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const notificationsLink = page.getByRole('link', { name: /notifications/i })
     await expect(notificationsLink).toBeVisible()
@@ -46,7 +47,7 @@ test.describe('Header shell', () => {
 
   test('switches locale via the header language dropdown', async ({ page }) => {
     await page.goto('/')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const header = page.locator('header')
     const localeButton = header.getByRole('button', { name: /select language/i })
@@ -69,7 +70,7 @@ test.describe('Header shell', () => {
 
   test('toggles dark mode via the theme button', async ({ page }) => {
     await page.goto('/')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const themeButton = page.getByRole('button', { name: /theme mode/i })
     await expect(themeButton).toBeVisible()

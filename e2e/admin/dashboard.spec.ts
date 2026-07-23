@@ -1,10 +1,11 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 
 test.describe('admin dashboard', () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/admin')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
   })
 
   test('dashboard renders stat cards and navigation', async ({ page }) => {

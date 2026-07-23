@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { expect, test } from '@playwright/test'
@@ -65,8 +66,7 @@ test.describe('onboarding changes-requested and resubmission', () => {
     ])
 
     await page.goto('/sell')
-    await page.waitForSelector('html[data-hydrated="true"]')
-    await page.waitForLoadState('networkidle')
+    await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
     await page.waitForLoadState('networkidle')
     await page.getByRole('button', { name: 'Create a shop' }).click()
@@ -135,8 +135,7 @@ test.describe('onboarding changes-requested and resubmission', () => {
     const adminContext = await createAdminContext(browser)
     const adminPage = await adminContext.newPage()
     await adminPage.goto('/admin/shops?view=applications')
-    await adminPage.waitForSelector('html[data-hydrated="true"]')
-    await adminPage.waitForLoadState('networkidle')
+    await waitForAppHydration(adminPage)
     await dismissAnalyticsConsentBanner(adminPage)
     await adminPage.waitForLoadState('networkidle')
     await adminPage
@@ -177,8 +176,7 @@ test.describe('onboarding changes-requested and resubmission', () => {
     const adminContext2 = await createAdminContext(browser)
     const adminPage2 = await adminContext2.newPage()
     await adminPage2.goto('/admin/shops?view=applications')
-    await adminPage2.waitForSelector('html[data-hydrated="true"]')
-    await adminPage2.waitForLoadState('networkidle')
+    await waitForAppHydration(adminPage2)
     await adminPage2
       .locator('tr')
       .filter({ hasText: `/${shopSlug}` })

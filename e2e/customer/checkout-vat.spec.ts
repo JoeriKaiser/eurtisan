@@ -1,9 +1,10 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, type Page, test } from '@playwright/test'
 import { sendMollieWebhook } from '../fixtures/orders'
 
 async function addProductToCart(page: Page) {
   await page.goto('/search')
-  await page.waitForSelector('html[data-hydrated="true"]')
+  await waitForAppHydration(page)
 
   const productLink = page.getByLabel(/^Product:/).first()
   await expect(productLink).toBeVisible()
@@ -59,7 +60,7 @@ test.describe('Checkout with VAT ID', () => {
     await addProductToCart(page)
 
     await page.goto('/checkout')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await page.getByLabel(/full name/i).fill('E2E Buyer')
     await page.getByLabel(/street address/i).fill('42 Avenue des Champs-Élysées')
@@ -112,7 +113,7 @@ test.describe('Checkout with VAT ID', () => {
     await addProductToCart(page)
 
     await page.goto('/checkout')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await fillAddress(page, { prefix: 'shippingAddress' })
 

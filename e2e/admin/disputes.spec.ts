@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
 import type { TestOrder } from '../fixtures/orders'
 import {
@@ -23,7 +24,7 @@ test.describe('admin dispute management', () => {
     await createDisputeForOrder(order, 'item_not_received', 'The item never arrived.')
 
     await page.goto('/admin/disputes')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: /Dispute/i })).toBeVisible({ timeout: 10000 })
     await expect(page.getByRole('table')).toBeVisible()
@@ -45,7 +46,7 @@ test.describe('admin dispute management', () => {
     createdOrders.push(orderWithoutDispute)
 
     await page.goto('/admin/disputes')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const disputeRow = page.locator('tr').filter({ hasText: disputeId.slice(0, 8) })
 
@@ -68,7 +69,7 @@ test.describe('admin dispute management', () => {
     const disputeId = await createDisputeForOrder(order, 'damaged', 'Item arrived damaged.')
 
     await page.goto('/admin/disputes')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const disputeRow = page.locator('tr').filter({ hasText: disputeId.slice(0, 8) })
     await expect(disputeRow).toBeVisible()
@@ -91,7 +92,7 @@ test.describe('admin dispute management', () => {
     )
 
     await page.goto(`/admin/disputes/${disputeId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await expect(page.getByRole('heading', { name: /Dispute Other/i })).toBeVisible()
 
     const message = `Admin follow-up message ${Date.now()}`
@@ -112,7 +113,7 @@ test.describe('admin dispute management', () => {
     )
 
     await page.goto(`/admin/disputes/${disputeId}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await expect(page.getByRole('heading', { name: /Dispute Item not received/i })).toBeVisible()
 
     await page.getByLabel(/resolution/i).selectOption('full_refund')

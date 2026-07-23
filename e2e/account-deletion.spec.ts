@@ -1,3 +1,4 @@
+import { waitForAppHydration } from './fixtures/hydration'
 import { test, expect } from '@playwright/test'
 import { eq } from 'drizzle-orm'
 import { createTestCustomer } from './fixtures/orders'
@@ -40,7 +41,7 @@ test.describe('Account deletion and erasure', () => {
     ])
 
     await page.goto('/account/settings')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await page.getByLabel(/type your email to confirm/i).fill(customer.email)
     await page.getByRole('button', { name: /delete account permanently/i }).click()

@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { test, expect } from '@playwright/test'
 import { emptyCart } from '../fixtures/cart'
 
@@ -8,7 +9,7 @@ test.describe('Checkout with empty cart', () => {
     await emptyCart(page)
 
     await page.goto('/checkout')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page).toHaveURL(/\/cart/)
     await expect(page.getByRole('heading', { name: /your cart is empty/i })).toBeVisible()

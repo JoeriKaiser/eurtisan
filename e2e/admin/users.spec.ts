@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, type Page, test } from '@playwright/test'
 import {
   banUserByEmail,
@@ -10,7 +11,7 @@ import { dismissAnalyticsConsentBanner } from '../fixtures/consent'
 
 async function openUsers(page: Page) {
   await page.goto('/admin/users')
-  await page.waitForSelector('html[data-hydrated="true"]')
+  await waitForAppHydration(page)
   await dismissAnalyticsConsentBanner(page)
 }
 
@@ -97,7 +98,7 @@ test.describe('admin user management', () => {
     await expect(page.getByText(`Role updated for ${user.name}.`)).toBeVisible()
 
     await page.reload()
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await expect(page.getByRole('cell', { name: user.email })).toBeVisible()
     await expect(page.locator('tr', { hasText: user.email })).toContainText(/creator/i)
   })

@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 /**
  * Product reviews display on the public product detail page.
  *
@@ -13,7 +14,7 @@ test.describe('Product reviews display', () => {
     const product = await getShopProductWithReviews(shop.id)
 
     await page.goto(`/shops/${shop.slug}/products/${product.slug}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     // Reviews are fetched client-side; wait for the section heading.
     const reviewsHeading = page.getByRole('heading', { name: /^Reviews$/ })
@@ -38,7 +39,7 @@ test.describe('Authenticated review actions', () => {
     const product = await getShopProductWithReviews(shop.id)
 
     await page.goto(`/shops/${shop.slug}/products/${product.slug}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const reviewsHeading = page.getByRole('heading', { name: /^Reviews$/ })
     await expect(reviewsHeading).toBeVisible({ timeout: 10000 })

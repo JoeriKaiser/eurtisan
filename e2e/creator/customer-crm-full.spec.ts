@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { createHash } from 'node:crypto'
 import { expect, test } from '@playwright/test'
 import { and, eq } from 'drizzle-orm'
@@ -60,7 +61,7 @@ test.describe('creator customer CRM full', () => {
   test('creator can search customers, manage notes and tags, and export data', async ({ page }) => {
     // 1. Navigate to the customer directory.
     await page.goto(`/studio/${shopId}/customers`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
 
     await expect(page.getByRole('heading', { name: 'Customers' })).toBeVisible()
@@ -87,7 +88,7 @@ test.describe('creator customer CRM full', () => {
       .getByRole('link', { name: 'View' })
       .click()
     await page.waitForURL(`/studio/${shopId}/customers/${customerHash}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
 
     await expect(page.getByRole('heading', { name: customerName })).toBeVisible()

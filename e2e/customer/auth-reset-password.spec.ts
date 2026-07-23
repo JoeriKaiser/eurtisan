@@ -1,3 +1,4 @@
+import { waitForAppHydration } from '../fixtures/hydration'
 import { test, expect } from '@playwright/test'
 import { createVerifiedCustomer, deleteCustomerByEmail } from '../fixtures/customers'
 import {
@@ -24,7 +25,7 @@ test.describe('Customer reset password', () => {
 
   test('shows error when token is missing', async ({ page }) => {
     await page.goto('/reset-password')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     await expect(page.getByText(/invalid.*token|token.*invalid/i)).toBeVisible()
   })
@@ -34,7 +35,7 @@ test.describe('Customer reset password', () => {
 
     // Request reset link.
     await page.goto('/forgot-password')
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
     await page.fill('#email', customer.email)
     await page.getByRole('button', { name: /send reset link/i }).click()
     await expect(page.getByText(/check your email/i)).toBeVisible({ timeout: 10000 })
@@ -44,7 +45,7 @@ test.describe('Customer reset password', () => {
 
     // Visit reset URL.
     await page.goto(`/reset-password?token=${token}`)
-    await page.waitForSelector('html[data-hydrated="true"]')
+    await waitForAppHydration(page)
 
     const newPassword = 'NewPassword123!'
     await page.fill('#password', newPassword)

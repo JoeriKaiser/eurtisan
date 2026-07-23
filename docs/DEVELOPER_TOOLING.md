@@ -33,6 +33,8 @@ make playwright-cli CMD="close-all"
 
 The CLI saves snapshots, screenshots, and videos directly to the local directory (which is mapped to the host). Make sure to close all active browser sessions (`make playwright-cli CMD="close-all"`) when your tasks are complete to avoid orphaned browser processes inside the container.
 
+Playwright specs must import `waitForAppHydration` from `e2e/fixtures/hydration.ts` and call it after a full-page navigation before interacting with React controls. The helper waits for the root callback-ref signal emitted only after React commits the hydrated tree. Do not duplicate its selector or use `networkidle` as a hydration proxy. Keep a network-idle wait only when network quiescence is itself the behavior under test and no user-visible locator can express the requirement.
+
 ---
 
 ### 2. Programmatic Email Testing (Mailpit Helper)

@@ -1,3 +1,4 @@
+import { waitForAppHydration } from './hydration'
 /**
  * Checkout test helpers.
  *
@@ -73,7 +74,7 @@ export async function completeCheckout(
   const shipping = { ...DEFAULT_SHIPPING, ...options.shippingAddress }
 
   await page.goto('/checkout')
-  await page.waitForSelector('html[data-hydrated="true"]')
+  await waitForAppHydration(page)
 
   // Fill shipping address using stable input names to avoid ambiguity with billing fields.
   await page.locator('input[name="shippingAddress.name"]').fill(shipping.name)

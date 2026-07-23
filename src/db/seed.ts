@@ -44,10 +44,12 @@ import { generateOrderNumber } from '../lib/order-numbers.ts'
 import { calculateVat } from '../lib/vat.server.ts'
 import { recalcPlatformOrderTree } from '../lib/financial-totals.server.ts'
 import { PLATFORM_FEE_PERCENT } from '../lib/platform-constants.ts'
-import { uploadImageFromUrl } from '../lib/image-storage.server.ts'
+import { uploadImageFromFile, uploadImageFromUrl } from '../lib/image-storage.server.ts'
 // =============================================================================
 // Configuration
 // =============================================================================
+const IS_E2E_SEED = process.env.E2E_TEST === 'true'
+
 const CONFIG = {
   admins: 6,
   creators: 35,
@@ -82,6 +84,8 @@ function hashPassword(password: string): string {
 const PRODUCTS_UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'products')
 const SHOPS_UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'shops')
 const IMAGE_UPLOAD_CONCURRENCY = 8
+const E2E_SHOP_IMAGE_FIXTURE = join(process.cwd(), 'e2e', 'fixtures', 'seed-shop.jpg')
+const E2E_PRODUCT_IMAGE_FIXTURE = join(process.cwd(), 'e2e', 'fixtures', 'seed-product.jpg')
 
 async function runWithConcurrency<T, R>(
   items: T[],
@@ -722,19 +726,27 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
 
   // Upload shop banners to S3 so shop.image stores real S3 keys.
   console.log('  Uploading shop banners to S3...')
-  await runWithConcurrency(
-    shops.filter((s) => s.image),
-    async (shop) => {
-      const key = `shops/${shop.id}.jpg`
-      try {
-        await uploadImageFromUrl(shop.image!, key)
-        shop.image = key
-      } catch (err) {
-        console.error(`  Failed to upload shop banner ${shop.image}, leaving external URL:`, err)
-      }
-    },
-    IMAGE_UPLOAD_CONCURRENCY,
-  )
+  if (IS_E2E_SEED) {
+    const key = 'shops/e2e-seed-shop.jpg'
+    await uploadImageFromFile(E2E_SHOP_IMAGE_FIXTURE, key, 'image/jpeg')
+    for (const shop of shops) {
+      if (shop.image) shop.image = key
+    }
+  } else {
+    await runWithConcurrency(
+      shops.filter((s) => s.image),
+      async (shop) => {
+        const key = `shops/${shop.id}.jpg`
+        try {
+          await uploadImageFromUrl(shop.image!, key)
+          shop.image = key
+        } catch (err) {
+          console.error(`  Failed to upload shop banner ${shop.image}, leaving external URL:`, err)
+        }
+      },
+      IMAGE_UPLOAD_CONCURRENCY,
+    )
+  }
 
   if (shops.length > 0) {
     await db.insert(schema.shop).values(shops).onConflictDoNothing({ target: schema.shop.slug })
@@ -1036,19 +1048,25 @@ async function seedProducts(
   // Download placeholder images and upload them to S3 so product_image.url stores real S3 keys.
   if (productImages.length > 0) {
     console.log(`  Uploading ${productImages.length} product images to S3...`)
-    await runWithConcurrency(
-      productImages,
-      async (img) => {
-        const key = `products/${img.productId}-${img.sortOrder}.jpg`
-        try {
-          await uploadImageFromUrl(img.url, key)
-          img.url = key
-        } catch (err) {
-          console.error(`  Failed to upload image ${img.url}, leaving external URL:`, err)
-        }
-      },
-      IMAGE_UPLOAD_CONCURRENCY,
-    )
+    if (IS_E2E_SEED) {
+      const key = 'products/e2e-seed-product.jpg'
+      await uploadImageFromFile(E2E_PRODUCT_IMAGE_FIXTURE, key, 'image/jpeg')
+      for (const image of productImages) image.url = key
+    } else {
+      await runWithConcurrency(
+        productImages,
+        async (img) => {
+          const key = `products/${img.productId}-${img.sortOrder}.jpg`
+          try {
+            await uploadImageFromUrl(img.url, key)
+            img.url = key
+          } catch (err) {
+            console.error(`  Failed to upload image ${img.url}, leaving external URL:`, err)
+          }
+        },
+        IMAGE_UPLOAD_CONCURRENCY,
+      )
+    }
   }
 
   await Promise.all(
@@ -1120,7 +1138,7 @@ async function seedProductVariants(productId: string, baseSlug: string, _product
     for (const cVal of colorValues) {
       const variantId = crypto.randomUUID()
       const variantName = `${sVal.value} / ${cVal.value}`
-      const variantSku = `${baseSlug}-${sVal.value.toLowerCase()}-${cVal.value.toLowerCase().replace(/\s+/g, '-')}`
+      const variantSku = `${baseSlug}-${productId.slice(0, 8)}-${sVal.value.toLowerCase()}-${cVal.value.toLowerCase().replace(/\s+/g, '-')}`
       const priceAdjustment = sVal.value === 'L' ? 500 : 0 // Large costs 5€ extra
       const stockCount = faker.number.int({ min: 5, max: 40 })
 
