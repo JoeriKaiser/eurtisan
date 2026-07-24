@@ -205,6 +205,7 @@ export async function getCheckoutServicePoints(
  */
 export interface ValidatedShippingSelection {
   costCents: number
+  standardCostCents?: number
   estimatedDays: { min: number; max: number } | null
 }
 
@@ -346,8 +347,10 @@ export async function validateCheckoutShippingSelectionDetails(
     if (!selection) continue
     const options = shippingOptionsByShop.get(shop.shopId) ?? []
     const selected = getSelectedShippingOption(options, selection)
+    const standard = options.find((option) => !option.fallback && option.method === 'standard')
     detailsByShop.set(shop.shopId, {
       costCents: getShippingCostFromOptions(options, selection.method, selection.rateId),
+      standardCostCents: standard?.costCents ?? selected?.costCents ?? 0,
       estimatedDays: selected?.estimatedDays ?? null,
     })
   }

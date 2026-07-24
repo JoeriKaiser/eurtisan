@@ -1,5 +1,5 @@
 import { Link, useLoaderData, useParams, useRouter } from '@tanstack/react-router'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, RotateCcw } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
@@ -39,7 +39,9 @@ function parseResponseError(err: unknown): Promise<string> {
 
 export function ShopOrderDetailPage() {
   const { shopId, shopOrderId } = useParams({ from: '/studio/$shopId/orders/$shopOrderId' })
-  const { order } = useLoaderData({ from: '/studio/$shopId/orders/$shopOrderId' })
+  const { order, returnRequests = [] } = useLoaderData({
+    from: '/studio/$shopId/orders/$shopOrderId',
+  })
   const currentStatus = order.status as OrderStatus
   const router = useRouter()
   const [shipDialog, setShipDialog] = useState({ open: false, key: 0 })
@@ -220,6 +222,41 @@ export function ShopOrderDetailPage() {
             }
             onResolveReview={() => setReviewDialog(true)}
           />
+
+          {returnRequests.length > 0 && (
+            <section className='rounded-xl border border-border-subtle bg-surface-default p-4'>
+              <h2 className='flex items-center gap-2 text-base font-semibold text-text-primary'>
+                <RotateCcw size={18} aria-hidden='true' />
+                {m.return_seller_requests()}
+              </h2>
+              <div className='mt-3 divide-y divide-border-subtle'>
+                {returnRequests.map((request) => (
+                  <div
+                    key={request.id}
+                    className='flex flex-wrap items-center justify-between gap-3 py-3'
+                  >
+                    <div>
+                      <p className='text-sm font-medium text-text-primary'>
+                        {request.type === 'withdrawal'
+                          ? m.return_type_withdrawal()
+                          : m.return_type_defective()}
+                      </p>
+                      <p className='text-sm text-text-muted'>
+                        {m.return_status({ status: request.status.replaceAll('_', ' ') })}
+                      </p>
+                    </div>
+                    <Link
+                      to='/returns/$returnRequestId'
+                      params={{ returnRequestId: request.id }}
+                      className='inline-flex min-h-11 items-center text-sm font-semibold text-accent-primary no-underline hover:underline'
+                    >
+                      {m.return_review_request()}
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {trackingForm.editing && (
             <div className='rounded-xl border border-border-subtle bg-surface-default p-4'>

@@ -9,6 +9,7 @@
 /** Supported transactional email templates. */
 export type EmailTemplate =
   | 'order_confirmation'
+  | 'guest_order_access'
   | 'shipping_notification'
   | 'dispute_update'
   | 'order_refunded'

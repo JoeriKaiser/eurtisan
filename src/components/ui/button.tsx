@@ -21,8 +21,8 @@ const variants = {
 }
 
 const sizes = {
-  sm: 'h-8 px-3.5 text-xs',
-  md: 'h-10 px-4 text-sm',
+  sm: 'h-11 px-3.5 text-xs',
+  md: 'h-11 px-4 text-sm',
   lg: 'h-12 px-6 text-base',
 }
 

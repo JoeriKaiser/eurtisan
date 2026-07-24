@@ -16,6 +16,7 @@ export interface AuthState {
     emailVerified: boolean
     image: string | null
     role: UserRole
+    isAnonymous: boolean
   } | null
   isPending: boolean
   isAuthenticated: boolean
@@ -34,7 +35,9 @@ function extractRole(user: unknown): UserRole {
  */
 export function useAuth(): AuthState {
   const rootData = getRouteApi('__root__').useLoaderData()
-  const rootUser = rootData?.user ?? null
+  const rootUser = rootData?.user
+    ? ({ ...rootData.user, isAnonymous: rootData.user.isAnonymous === true } as AuthState['user'])
+    : null
 
   const { data: session, isPending } = authClient.useSession()
   const hydrated = useHydrated()
@@ -47,6 +50,11 @@ export function useAuth(): AuthState {
         emailVerified: session.user.emailVerified ?? false,
         image: session.user.image ?? null,
         role: extractRole(session.user),
+        isAnonymous:
+          typeof session.user === 'object' &&
+          session.user !== null &&
+          'isAnonymous' in session.user &&
+          session.user.isAnonymous === true,
       } as AuthState['user'])
     : null
 
@@ -57,7 +65,7 @@ export function useAuth(): AuthState {
   return {
     user,
     isPending: isAuthPending,
-    isAuthenticated: !!user,
+    isAuthenticated: !!user && !user.isAnonymous,
   }
 }
 

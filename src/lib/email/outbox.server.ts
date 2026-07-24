@@ -11,6 +11,7 @@ import { db } from '#/db/index'
 import { emailOutbox } from '#/db/schema'
 import type { EmailTemplate } from '#/lib/email-provider'
 import type { EmailCategory } from '#/lib/email-preferences.server'
+import { encrypt } from '#/lib/encryption.server'
 import { sha256Hex } from '#/lib/hash.server'
 import { logger } from '#/lib/logger.server'
 import { emailQueuedTotal } from '#/lib/metrics.server'
@@ -18,7 +19,7 @@ import type { SerializableValue } from '#/lib/notifications.server'
 
 export interface EnqueueEmailOptions {
   to: string
-  userId: string
+  userId: string | null
   template: EmailTemplate
   data: Record<string, SerializableValue>
   category: EmailCategory
@@ -33,6 +34,7 @@ export interface EmailOutboxRow {
   userId: string | null
   idempotencyKey: string
   recipientHash: string
+  recipientEmail: string | null
   template: EmailTemplate
   locale: string
   data: Record<string, SerializableValue>
@@ -72,6 +74,7 @@ export async function enqueueEmail(
     userId: options.userId,
     idempotencyKey,
     recipientHash,
+    recipientEmail: encrypt(normalizedEmail),
     template: options.template,
     locale: options.locale ?? 'en',
     data: options.data,

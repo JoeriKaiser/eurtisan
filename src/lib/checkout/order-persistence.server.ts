@@ -1,7 +1,8 @@
 import { eq } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { cart, cartItem, orderItem, platformOrder, product, shop, shopOrder } from '#/db/schema'
-import { decryptJsonb, encryptJsonb } from '../encryption.server'
+import { decryptJsonb, encrypt, encryptJsonb } from '../encryption.server'
+import { sha256Hex } from '../hash.server'
 import { recalcPlatformOrderTree } from '../financial-totals.server'
 import { generateUniqueOrderNumber } from '../order-numbers.server'
 import {
@@ -29,6 +30,7 @@ export interface PersistedCheckoutOrder {
   orderNumber: string
   createdShopOrders: CreatedCheckoutShopOrder[]
   grandTotalCents: number
+  reservationExpiresAt: Date
 }
 
 /**
@@ -41,7 +43,13 @@ export async function persistCheckoutOrder(
   input: CheckoutInput,
   userId: string,
   shippingDetailsByShop: Map<string, ValidatedShippingSelection>,
+  isGuest = false,
+  authenticatedEmail = '',
 ): Promise<PersistedCheckoutOrder> {
+  const normalizedBuyerEmail = (input.shippingAddress.contactEmail ?? authenticatedEmail)
+    .trim()
+    .toLowerCase()
+  const buyerEmailHash = await sha256Hex(normalizedBuyerEmail)
   return db.transaction(async (tx) => {
     const items = await tx
       .select({
@@ -245,6 +253,10 @@ export async function persistCheckoutOrder(
       .values({
         userId,
         orderNumber,
+        checkoutAttemptId: input.checkoutAttemptId,
+        buyerEmail: encrypt(normalizedBuyerEmail),
+        buyerEmailHash,
+        isGuest,
         shippingAddress: encryptJsonb(input.shippingAddress),
         billingAddress: encryptJsonb(input.billingAddress),
         totalCents: grandTotalCents,
@@ -267,6 +279,7 @@ export async function persistCheckoutOrder(
             shippingMethod,
             shippingRateId: selection?.rateId ?? null,
             shippingCostCents,
+            standardShippingCostCents: shippingDetails?.standardCostCents ?? shippingCostCents,
             processingTimeMaxBusinessDays: group.processingTimeMaxBusinessDays,
             transitTimeMinBusinessDays: shippingDetails?.estimatedDays?.min ?? null,
             transitTimeMaxBusinessDays: shippingDetails?.estimatedDays?.max ?? null,
@@ -289,6 +302,8 @@ export async function persistCheckoutOrder(
               totalCents: lineItem.lineTotalCents,
               vatRateBasisPoints: lineItem.vatRateBasisPoints,
               vatAmountCents: lineItem.vatAmountCents,
+              returnPolicySnapshot: lineItem.product.returnPolicy,
+              returnWindowDays: 14,
               weightGrams: lineItem.product.weightGrams,
               lengthCm: lineItem.product.lengthCm,
               widthCm: lineItem.product.widthCm,
@@ -345,6 +360,7 @@ export async function persistCheckoutOrder(
       orderNumber: platformOrderRecord.orderNumber,
       createdShopOrders,
       grandTotalCents: finalGrandTotalCents,
+      reservationExpiresAt,
     }
   })
 }

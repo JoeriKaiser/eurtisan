@@ -42,6 +42,7 @@ interface ProductDetail {
   isActive: boolean
   status?: 'draft' | 'published' | 'archived'
   vatRateCategory: string
+  returnPolicy: string
   shopId: string
   categoryId: string | null
   weightGrams: number | null
@@ -90,6 +91,7 @@ export interface FormValues {
   categoryId: string
   isActive: boolean
   vatRateCategory: 'standard' | 'reduced' | 'exempt'
+  returnPolicy: 'standard' | 'personalized' | 'perishable' | 'hygiene_sealed'
   weightGrams: string
   lengthCm: string
   widthCm: string
@@ -122,6 +124,7 @@ function createInitialFormState(product: ProductDetail): FormState {
       categoryId: product.categoryId ?? '',
       isActive: product.isActive,
       vatRateCategory: (product.vatRateCategory as 'standard' | 'reduced' | 'exempt') ?? 'standard',
+      returnPolicy: (product.returnPolicy as FormValues['returnPolicy'] | undefined) ?? 'standard',
       weightGrams: product.weightGrams != null ? String(product.weightGrams) : '',
       lengthCm: product.lengthCm != null ? String(product.lengthCm) : '',
       widthCm: product.widthCm != null ? String(product.widthCm) : '',
@@ -212,6 +215,7 @@ export function ProductEditForm({
     categoryId: product.categoryId ?? '',
     isActive: product.isActive,
     vatRateCategory: product.vatRateCategory ?? 'standard',
+    returnPolicy: product.returnPolicy ?? 'standard',
     weightGrams: product.weightGrams != null ? String(product.weightGrams) : '',
     lengthCm: product.lengthCm != null ? String(product.lengthCm) : '',
     widthCm: product.widthCm != null ? String(product.widthCm) : '',
@@ -228,6 +232,7 @@ export function ProductEditForm({
     formState.values.categoryId !== originalState.categoryId ||
     formState.values.isActive !== originalState.isActive ||
     formState.values.vatRateCategory !== originalState.vatRateCategory ||
+    formState.values.returnPolicy !== originalState.returnPolicy ||
     formState.values.weightGrams !== originalState.weightGrams ||
     formState.values.lengthCm !== originalState.lengthCm ||
     formState.values.widthCm !== originalState.widthCm ||
@@ -423,6 +428,7 @@ export function ProductEditForm({
           categoryId: formState.values.categoryId || undefined,
           isActive: formState.values.isActive,
           vatRateCategory: formState.values.vatRateCategory,
+          returnPolicy: formState.values.returnPolicy,
           weightGrams: formState.values.weightGrams
             ? Number.parseInt(formState.values.weightGrams, 10)
             : undefined,

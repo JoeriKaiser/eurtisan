@@ -1,7 +1,8 @@
-import { eq } from 'drizzle-orm'
+import { and, desc, eq, gt } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { platformOrder } from '#/db/schema'
+import { inventoryReservation, paymentAttempt, platformOrder, shopOrder } from '#/db/schema'
 import { SUPPORTED_CURRENCY } from '../currency'
+import { decryptJsonb, encrypt } from '../encryption.server'
 import { getBaseUrl } from '../env.server'
 import { logger } from '../logger.server'
 import type { PaymentProvider } from '../payment-provider'
@@ -22,19 +23,59 @@ async function createAndPersistPayment(
   paymentProvider: PaymentProvider,
 ): Promise<string> {
   const { redirectUrl, webhookUrl } = getPaymentUrls(platformOrderId)
+  const [order] = await db
+    .select({ orderNumber: platformOrder.orderNumber })
+    .from(platformOrder)
+    .where(eq(platformOrder.id, platformOrderId))
+    .limit(1)
+
+  const [inFlightAttempt] = await db
+    .select()
+    .from(paymentAttempt)
+    .where(
+      and(
+        eq(paymentAttempt.platformOrderId, platformOrderId),
+        eq(paymentAttempt.status, 'initiating'),
+      ),
+    )
+    .orderBy(desc(paymentAttempt.createdAt))
+    .limit(1)
+
+  const idempotencyKey = inFlightAttempt?.idempotencyKey ?? crypto.randomUUID()
+  const attemptId = inFlightAttempt?.id
+    ? inFlightAttempt.id
+    : (
+        await db
+          .insert(paymentAttempt)
+          .values({ platformOrderId, idempotencyKey })
+          .returning({ id: paymentAttempt.id })
+      )[0].id
+
   const payment = await paymentProvider.createPayment(
     totalCents,
     SUPPORTED_CURRENCY,
-    `Eurtisan order ${platformOrderId}`,
+    `Eurtisan order ${order?.orderNumber ?? platformOrderId}`,
     redirectUrl,
     webhookUrl,
     buyerCountry,
+    idempotencyKey,
   )
 
-  await db
-    .update(platformOrder)
-    .set({ molliePaymentId: payment.paymentId, updatedAt: new Date() })
-    .where(eq(platformOrder.id, platformOrderId))
+  await db.transaction(async (tx) => {
+    await tx
+      .update(paymentAttempt)
+      .set({
+        status: 'completed',
+        providerPaymentId: payment.paymentId,
+        checkoutUrl: encrypt(payment.checkoutUrl),
+        updatedAt: new Date(),
+      })
+      .where(eq(paymentAttempt.id, attemptId))
+    await tx
+      .update(platformOrder)
+      .set({ molliePaymentId: payment.paymentId, updatedAt: new Date() })
+      .where(eq(platformOrder.id, platformOrderId))
+  })
 
   return payment.checkoutUrl
 }
@@ -49,18 +90,15 @@ export async function initiateCheckoutPayment(
   totalCents: number,
   buyerCountry: string | undefined,
   paymentProvider: PaymentProvider,
-): Promise<string> {
+): Promise<string | null> {
   try {
     return await createAndPersistPayment(platformOrderId, totalCents, buyerCountry, paymentProvider)
   } catch (error) {
-    logger.error('Payment initiation failed in createCheckout', error, { platformOrderId })
-    throw new Response(
-      JSON.stringify({
-        error: 'Service Unavailable',
-        message: 'Payment could not be initiated. Please try again.',
-      }),
-      { status: 503, headers: { 'Content-Type': 'application/json' } },
-    )
+    logger.error('Payment initiation failed in createCheckout', error, {
+      alert: true,
+      platformOrderId,
+    })
+    return null
   }
 }
 
@@ -94,17 +132,58 @@ export async function retryPayment(
     })
   }
 
-  if (order.status !== 'pending_payment') {
+  if (!['pending_payment', 'cancelled'].includes(order.status)) {
     throw new Response(
       JSON.stringify({
         error: 'Conflict',
-        message: 'Order is not in pending payment status',
+        code: 'PAYMENT_NOT_RETRYABLE',
+        message: 'This payment can no longer be retried.',
       }),
       { status: 409, headers: { 'Content-Type': 'application/json' } },
     )
   }
 
-  const shippingAddress = order.shippingAddress as { country?: string } | null
+  const [activeReservation] = await db
+    .select({ expiresAt: inventoryReservation.expiresAt })
+    .from(inventoryReservation)
+    .where(
+      and(
+        eq(inventoryReservation.platformOrderId, platformOrderId),
+        gt(inventoryReservation.expiresAt, new Date()),
+      ),
+    )
+    .limit(1)
+
+  if (!activeReservation) {
+    throw new Response(
+      JSON.stringify({
+        error: 'Conflict',
+        code: 'RESERVATION_EXPIRED',
+        message: 'The inventory reservation has expired. Rebuild your cart to continue.',
+      }),
+      { status: 409, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  if (order.status === 'cancelled') {
+    await db.transaction(async (tx) => {
+      await tx
+        .update(platformOrder)
+        .set({
+          status: 'pending_payment',
+          cancelledAt: null,
+          cancellationReason: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(platformOrder.id, platformOrderId))
+      await tx
+        .update(shopOrder)
+        .set({ status: 'pending_payment', updatedAt: new Date() })
+        .where(eq(shopOrder.platformOrderId, platformOrderId))
+    })
+  }
+
+  const shippingAddress = decryptJsonb<{ country?: string }>(order.shippingAddress)
   const buyerCountry = shippingAddress?.country
 
   try {

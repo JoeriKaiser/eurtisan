@@ -116,6 +116,12 @@ vi.mock('#/paraglide/messages', () => ({
     vat_category_reduced: () => 'Reduced rate',
     vat_category_exempt: () => 'VAT exempt',
     vat_category_hint: () => 'Determines the tax rate applied at checkout.',
+    return_policy_label: () => 'Withdrawal policy',
+    return_policy_hint: () => 'Choose the applicable policy.',
+    return_policy_standard: () => 'Standard 14-day withdrawal',
+    return_policy_personalized: () => 'Personalised or made to order',
+    return_policy_perishable: () => 'Perishable goods',
+    return_policy_hygiene: () => 'Sealed hygiene goods',
     product_shipping_dimensions_label: () => 'Shipping dimensions',
     product_shipping_dimensions_optional: () => 'Optional — used for accurate shipping rates',
     product_weight_label: () => 'Weight (g)',
@@ -208,6 +214,7 @@ interface ProductDetail {
   status: 'draft' | 'published' | 'archived'
   publishedAt: Date | null
   vatRateCategory: string
+  returnPolicy: 'standard' | 'personalized' | 'perishable' | 'hygiene_sealed'
   shopId: string
   categoryId: string | null
   weightGrams: number | null
@@ -250,6 +257,7 @@ function makeProduct(overrides?: Partial<ProductDetail>): ProductDetail {
     status: 'published',
     publishedAt: new Date(),
     vatRateCategory: 'standard',
+    returnPolicy: 'standard',
     shopId: 'shop-1',
     categoryId: 'cat-1',
     weightGrams: null,
@@ -636,6 +644,7 @@ describe('CreatorProductEditPage', () => {
       status: 'published',
       publishedAt: new Date(),
       vatRateCategory: 'standard',
+      returnPolicy: 'standard',
       shopId: 'shop-1',
       categoryId: 'cat-1',
       lowStockThreshold: 5,
@@ -740,6 +749,7 @@ describe('CreatorProductEditPage', () => {
       shopId: 'shop-1',
       categoryId: null,
       vatRateCategory: 'standard',
+      returnPolicy: 'standard',
       lowStockThreshold: 5,
       weightGrams: null,
       lengthCm: null,

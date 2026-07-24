@@ -5,7 +5,7 @@ import { db } from '#/db/index'
 import { orderItem, platformOrder, product, productVariant, shopOrder } from '#/db/schema'
 import { molliePaymentProvider } from '#/integrations/mollie'
 import { handleChargeback } from '#/lib/chargebacks.server'
-import { decrementStockForPaidOrder, releaseStockInTx } from '#/lib/inventory.server'
+import { decrementStockForPaidOrder } from '#/lib/inventory.server'
 import { logger } from '#/lib/logger.server'
 import {
   mollieOldestPendingPaymentAgeSeconds,
@@ -427,8 +427,9 @@ async function cancelPendingOrder(
       .set({ status: 'cancelled', updatedAt: now })
       .where(eq(shopOrder.platformOrderId, platformOrderId))
 
-    await releaseStockInTx(tx, platformOrderId)
-
+    // Keep the order reservation until its existing expiry so the buyer can
+    // retry a failed, expired, or user-cancelled payment on the same order.
+    // Availability calculations ignore expired reservations automatically.
     return 'cancelled'
   })
 }

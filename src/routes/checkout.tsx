@@ -7,7 +7,7 @@ import { CheckoutRouteComponent } from '#/route-components/checkout'
 
 export const Route = createFileRoute('/checkout')({
   beforeLoad: async () => guardAuth('/checkout'),
-  loader: async () => {
+  loader: async ({ context }) => {
     // Sequential by design: getCheckoutSummary requires cart.id.
     const cart = await getCart()
     if (!cart || cart.totalItems === 0) {
@@ -17,7 +17,12 @@ export const Route = createFileRoute('/checkout')({
     if (!summary || summary.shops.length === 0) {
       throw redirect({ to: '/cart', search: { message: 'empty_cart' } })
     }
-    return { summary, cartId: cart.id }
+    return {
+      summary,
+      cartId: cart.id,
+      initialContactEmail:
+        context.user && context.user.isAnonymous !== true ? context.user.email : '',
+    }
   },
   head: () => ({
     meta: [

@@ -19,6 +19,7 @@ interface ProductDetail {
   stockCount: number
   isActive: boolean
   vatRateCategory: string
+  returnPolicy: string
   shopId: string
   categoryId: string | null
   weightGrams: number | null

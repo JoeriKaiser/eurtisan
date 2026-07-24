@@ -4,20 +4,28 @@ import { checkoutInputSchema } from './checkout'
 describe('checkoutInputSchema', () => {
   const validInput = {
     cartId: '550e8400-e29b-41d4-a716-446655440000',
+    checkoutAttemptId: '650e8400-e29b-41d4-a716-446655440000',
+    contactEmail: 'buyer@example.com',
     shippingSelections: [{ shopId: 'shop-1', method: 'standard' as const, costCents: 500 }],
     shippingAddress: {
       name: 'Test User',
       street: '123 Main St',
+      addressLine2: '',
       city: 'Berlin',
       postalCode: '10115',
       country: 'DE',
+      contactEmail: 'buyer@example.com',
+      phone: '',
     },
     billingAddress: {
       name: 'Test User',
       street: '123 Main St',
+      addressLine2: '',
       city: 'Berlin',
       postalCode: '10115',
       country: 'DE',
+      contactEmail: 'buyer@example.com',
+      phone: '',
     },
   }
 
@@ -50,6 +58,7 @@ describe('checkoutInputSchema', () => {
     const result = checkoutInputSchema.safeParse({
       ...validInput,
       billingAddress: {
+        ...validInput.billingAddress,
         name: 'Billing User',
         street: '456 Oak Ave',
         city: 'Munich',

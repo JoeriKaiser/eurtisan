@@ -49,7 +49,7 @@ Background work runs as separate Bun entrypoints in `src/jobs/`. Production depl
 
 The `src/lib/shop-orders/` family is the reference migration: `types.ts` owns read-model types, `lifecycle.ts` owns pure state rules, `fulfillment.server.ts` owns shipping-label provider orchestration, and `operations.server.ts` preserves the transaction-coupled lifecycle and resolution workflows. The root `shop-orders.ts` and `shop-orders.server.ts` contracts remain stable. External provider adapters stay in `src/integrations/`.
 
-Migrated families as of this writing: `admin`, `audit`, `auth`, `cart`, `checkout`, `customers`, `disputes`, `email`, `images`, `invoices`, `jobs`, `marketing`, `notifications`, `orders`, `payouts`, `products`, `reviews`, `search`, `security`, `shared`, `shipping`, `shop-orders`, `shops`, `tax`, `users`. Remaining flat modules should be migrated only when a feature touches them, preserving root compatibility contracts.
+Migrated families as of this writing: `admin`, `audit`, `auth`, `cart`, `checkout`, `customers`, `disputes`, `email`, `images`, `invoices`, `jobs`, `marketing`, `notifications`, `orders`, `payouts`, `products`, `returns`, `reviews`, `search`, `security`, `shared`, `shipping`, `shop-orders`, `shops`, `tax`, `users`. Remaining flat modules should be migrated only when a feature touches them, preserving root compatibility contracts.
 
 ## Route and UI convention
 

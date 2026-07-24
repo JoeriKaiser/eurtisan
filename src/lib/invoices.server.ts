@@ -11,4 +11,5 @@ export {
   createCreditNoteForShopOrder,
   createInvoicesForPlatformOrder,
   getInvoiceByIdQuery,
+  getInvoicePlatformOrderIdQuery,
 } from './invoices/operations.server'

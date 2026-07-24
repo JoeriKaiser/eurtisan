@@ -22,6 +22,15 @@ import type {
   OrderShopGroup,
 } from './types'
 
+export async function getShopOrderPlatformOrderId(shopOrderId: string): Promise<string | null> {
+  const [record] = await db
+    .select({ platformOrderId: shopOrder.platformOrderId })
+    .from(shopOrder)
+    .where(eq(shopOrder.id, shopOrderId))
+    .limit(1)
+  return record?.platformOrderId ?? null
+}
+
 export async function getOrderOwnerId(platformOrderId: string): Promise<string | null> {
   const [order] = await db
     .select({ userId: platformOrder.userId })

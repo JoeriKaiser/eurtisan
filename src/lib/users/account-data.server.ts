@@ -10,6 +10,7 @@ import {
   customerTag,
   dispute,
   disputeMessage,
+  guestOrderAccess,
   invoices,
   notification,
   ownerMessage,
@@ -19,6 +20,8 @@ import {
   platformOrder,
   product,
   review,
+  returnRequest,
+  returnRequestMessage,
   session,
   shop,
   shopOrder,
@@ -121,6 +124,17 @@ export interface UserDataExport {
     description: string
     status: string
     createdAt: string
+  }>
+  returns: Array<{
+    id: string
+    shopOrderId: string
+    type: string
+    status: string
+    reason: string
+    refundCents: number
+    trackingNumber: string | null
+    createdAt: string
+    messages: Array<{ id: string; message: string; createdAt: string }>
   }>
   reviews: Array<{
     id: string
@@ -374,6 +388,23 @@ export async function exportUserData(userId: string): Promise<UserDataExport> {
     messagesByThread.set(message.threadId, list)
   }
 
+  const returnRows = await db
+    .select()
+    .from(returnRequest)
+    .where(eq(returnRequest.buyerUserId, userId))
+  const returnMessages =
+    returnRows.length > 0
+      ? await db
+          .select()
+          .from(returnRequestMessage)
+          .where(
+            inArray(
+              returnRequestMessage.returnRequestId,
+              returnRows.map((row) => row.id),
+            ),
+          )
+      : []
+
   const allShopOrders = [
     ...shopOrdersAsBuyer.map((order) => ({
       ...order,
@@ -494,6 +525,23 @@ export async function exportUserData(userId: string): Promise<UserDataExport> {
       status: d.status,
       createdAt: d.createdAt.toISOString(),
     })),
+    returns: returnRows.map((request) => ({
+      id: request.id,
+      shopOrderId: request.shopOrderId,
+      type: request.type,
+      status: request.status,
+      reason: request.reason,
+      refundCents: request.refundCents,
+      trackingNumber: request.trackingNumber,
+      createdAt: request.createdAt.toISOString(),
+      messages: returnMessages
+        .filter((message) => message.returnRequestId === request.id)
+        .map((message) => ({
+          id: message.id,
+          message: message.message,
+          createdAt: message.createdAt.toISOString(),
+        })),
+    })),
     reviews: reviews.map((r) => ({
       id: r.id,
       productId: r.productId,
@@ -593,9 +641,21 @@ export async function deleteUserAccount(userId: string): Promise<void> {
         .set({
           shippingAddress: encryptJsonb(redacted),
           billingAddress: encryptJsonb(redacted),
+          buyerEmail: null,
+          buyerEmailHash: null,
+          isGuest: false,
           updatedAt: new Date(),
         })
         .where(eq(platformOrder.id, order.id))
+    }
+
+    if (userOrders.length > 0) {
+      await tx.delete(guestOrderAccess).where(
+        inArray(
+          guestOrderAccess.platformOrderId,
+          userOrders.map((order) => order.id),
+        ),
+      )
     }
 
     await tx.update(review).set({ comment: null }).where(eq(review.buyerUserId, userId))
@@ -625,6 +685,15 @@ export async function deleteUserAccount(userId: string): Promise<void> {
       .update(disputeMessage)
       .set({ message: '[message removed — account deleted]' })
       .where(eq(disputeMessage.senderUserId, userId))
+
+    await tx
+      .update(returnRequest)
+      .set({ reason: '[redacted — account deleted]', updatedAt: new Date() })
+      .where(eq(returnRequest.buyerUserId, userId))
+    await tx
+      .update(returnRequestMessage)
+      .set({ message: '[message removed — account deleted]' })
+      .where(eq(returnRequestMessage.senderUserId, userId))
 
     const ownedShopInvoiceIds = await tx
       .select({ id: invoices.id })

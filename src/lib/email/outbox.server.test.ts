@@ -66,7 +66,12 @@ describe('enqueueEmail', () => {
     })
     expect(row).toBeDefined()
     if (!row) throw new Error('row not found')
-    expect('recipientEmail' in row).toBe(false)
+    expect(row.recipientEmail).not.toContain('plaintext@example.com')
+    expect(
+      await import('../encryption.server').then((module) =>
+        module.decrypt(row.recipientEmail ?? ''),
+      ),
+    ).toBe('plaintext@example.com')
     expect(row.recipientHash).toBe(
       await import('../hash.server').then((m) => m.sha256Hex('plaintext@example.com')),
     )

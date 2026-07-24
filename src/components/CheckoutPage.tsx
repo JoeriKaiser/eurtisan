@@ -1,90 +1,85 @@
 import { formOptions, useForm } from '@tanstack/react-form'
-import { Loader2, MapPin, Truck } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { ArrowLeft, Loader2, LockKeyhole, MapPin, Truck } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
 import z from 'zod'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { createCheckout, getCheckoutSummary } from '#/lib/checkout'
+import { checkoutAddressSchema } from '#/lib/checkout/schemas'
 import type { CheckoutShopGroup, CheckoutSummary, ShippingOption } from '#/lib/checkout.server'
 import { cn } from '#/lib/cn'
 import { getLocalizedErrorMessage } from '#/lib/error-mapping'
 import { SUPPORTED_COUNTRY_CODES } from '#/lib/orders-ui'
+import { isPostalCodeValid } from '#/lib/shared/address-validation'
 import { formatPriceEUR } from '#/lib/pricing'
-import { validateVatId } from '#/lib/vat'
 import { m } from '#/paraglide/messages'
+import { getLocale } from '#/paraglide/runtime'
 import { CheckoutLegalDisclosures } from './checkout/CheckoutLegalDisclosures'
 import { CheckoutOrderItems } from './checkout/CheckoutOrderItems'
 import { PickupPointSelectorModal } from './checkout/PickupPointSelectorModal'
 
 function getFieldError(error: unknown): string | undefined {
-  if (typeof error === 'string') return error
-  if (error && typeof error === 'object' && 'message' in error) return String(error.message)
-  return undefined
+  const code =
+    typeof error === 'string'
+      ? error
+      : error && typeof error === 'object' && 'message' in error
+        ? String(error.message)
+        : undefined
+  switch (code) {
+    case 'NAME_REQUIRED':
+      return m.checkout_error_name_required()
+    case 'STREET_REQUIRED':
+      return m.checkout_error_street_required()
+    case 'CITY_REQUIRED':
+      return m.checkout_error_city_required()
+    case 'POSTAL_INVALID':
+      return m.checkout_error_postal_invalid()
+    case 'EMAIL_INVALID':
+      return m.checkout_error_email_invalid()
+    case 'VAT_PREFIX_INVALID':
+      return m.checkout_vat_id_invalid_prefix()
+    case 'VAT_FORMAT_INVALID':
+      return m.checkout_vat_id_invalid_format()
+    default:
+      return code
+  }
 }
 
 export interface CheckoutPageProps {
   summary: CheckoutSummary
   cartId: string
+  initialContactEmail?: string
 }
 
-const pickupPointSchema = z.object({
-  id: z.string().min(1),
-  name: z.string().min(1),
-  street: z.string().min(1),
-  postalCode: z.string().min(1),
-  city: z.string().min(1),
-  country: z.string().min(1),
-})
-
-const addressSchema = z
-  .object({
-    name: z.string().min(1, m.checkout_error_name_required()).max(255),
-    street: z.string().min(1, m.checkout_error_street_required()).max(255),
-    city: z.string().min(1, m.checkout_error_city_required()).max(255),
-    postalCode: z.string().min(1, m.checkout_error_postal_required()).max(50),
-    country: z.string().min(1, m.checkout_error_country_required()).max(100),
-    vatId: z.string().optional().nullable(),
-    pickupPoint: pickupPointSchema.optional(),
-  })
-  .superRefine((data, ctx) => {
-    if (!data.vatId) return
-    const cleaned = data.vatId.replace(/\s/g, '').toUpperCase()
-    const prefix = cleaned.slice(0, 2)
-    if (
-      data.country &&
-      prefix !== data.country &&
-      !(data.country === 'GR' && (prefix === 'EL' || prefix === 'GR'))
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: m.checkout_vat_id_invalid_prefix(),
-        path: ['vatId'],
-      })
-    }
-    const { valid } = validateVatId(data.vatId)
-    if (!valid) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: m.checkout_vat_id_invalid_format(),
-        path: ['vatId'],
-      })
-    }
-  })
-
-const billingAddressBaseSchema = z.object({
-  name: z.string().max(255),
-  street: z.string().max(255),
-  city: z.string().max(255),
-  postalCode: z.string().max(50),
-  country: z.string().max(100),
+const addressSchema = checkoutAddressSchema
+const billingDraftAddressSchema = z.object({
+  name: z.string(),
+  street: z.string(),
+  addressLine2: z.string(),
+  city: z.string(),
+  postalCode: z.string(),
+  country: z.string(),
+  contactEmail: z.string(),
+  phone: z.string(),
   vatId: z.string().optional().nullable(),
+  pickupPoint: z
+    .object({
+      id: z.string(),
+      name: z.string(),
+      street: z.string(),
+      postalCode: z.string(),
+      city: z.string(),
+      country: z.string(),
+    })
+    .optional(),
 })
 
 const checkoutFormSchema = z
   .object({
     shippingAddress: addressSchema,
     sameAsShipping: z.boolean(),
-    billingAddress: billingAddressBaseSchema,
+    billingAddress: billingDraftAddressSchema,
     shippingSelections: z.array(
       z.object({
         shopId: z.string().min(1),
@@ -168,6 +163,10 @@ function scrollToFirstInvalidField() {
 /**
  * Format estimated delivery days as a localized human-readable string.
  */
+function getCountryName(code: string): string {
+  return new Intl.DisplayNames([getLocale()], { type: 'region' }).of(code) ?? code
+}
+
 function formatEstimatedDays(days: ShippingOption['estimatedDays']): string | null {
   if (!days) return null
   if (days.min === days.max) {
@@ -178,15 +177,22 @@ function formatEstimatedDays(days: ShippingOption['estimatedDays']): string | nu
   return m.shipping_estimatedDays_range({ min: days.min, max: days.max })
 }
 
-export default function CheckoutPage({ summary: initialSummary, cartId }: CheckoutPageProps) {
+export default function CheckoutPage({
+  summary: initialSummary,
+  cartId,
+  initialContactEmail = '',
+}: CheckoutPageProps) {
+  const checkoutAttemptIdRef = useRef(crypto.randomUUID())
   const [currentSummary, setCurrentSummary] = useState<CheckoutSummary>(initialSummary)
   const [status, setStatus] = useState({
     submitError: null as string | null,
     isFetchingRates: false,
     rateError: null as string | null,
+    quoteFresh: false,
   })
   const fetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastFetchedAddressRef = useRef<string>('')
+  const rateRequestSequenceRef = useRef(0)
 
   const defaultShippingSelections = currentSummary.shops.map(getDefaultShippingSelection)
 
@@ -196,18 +202,24 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
         shippingAddress: {
           name: '',
           street: '',
+          addressLine2: '',
           city: '',
           postalCode: '',
           country: '',
+          contactEmail: initialContactEmail,
+          phone: '',
           vatId: '',
           pickupPoint: undefined,
         },
         billingAddress: {
           name: '',
           street: '',
+          addressLine2: '',
           city: '',
           postalCode: '',
           country: '',
+          contactEmail: initialContactEmail,
+          phone: '',
           vatId: '',
         },
         sameAsShipping: true as boolean,
@@ -220,10 +232,17 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
       onSubmit: async ({ value }) => {
         setStatus((prev) => ({ ...prev, submitError: null }))
         try {
-          const billingAddress = value.sameAsShipping ? value.shippingAddress : value.billingAddress
+          const billingAddress = value.sameAsShipping
+            ? value.shippingAddress
+            : {
+                ...value.billingAddress,
+                contactEmail: value.shippingAddress.contactEmail,
+                phone: value.shippingAddress.phone,
+              }
           const result = await createCheckout({
             data: {
               cartId,
+              checkoutAttemptId: checkoutAttemptIdRef.current,
               shippingAddress: value.shippingAddress,
               billingAddress,
               shippingSelections: value.shippingSelections,
@@ -239,10 +258,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
             return
           }
           if (!result?.checkoutUrl) {
-            setStatus((prev) => ({
-              ...prev,
-              submitError: m.checkout_missing_url(),
-            }))
+            window.location.href = `/orders/${result.platformOrderId}/success`
             return
           }
           window.location.href = result.checkoutUrl
@@ -299,10 +315,14 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
     async (address: CheckoutFormValues['shippingAddress']) => {
       const addressKey = `${address.country}:${address.postalCode}:${address.city}`
       if (addressKey === lastFetchedAddressRef.current) return
-      lastFetchedAddressRef.current = addressKey
+      const requestSequence = ++rateRequestSequenceRef.current
 
-      setStatus((prev) => ({ ...prev, isFetchingRates: true }))
-      setStatus((prev) => ({ ...prev, rateError: null }))
+      setStatus((prev) => ({
+        ...prev,
+        isFetchingRates: true,
+        rateError: null,
+        quoteFresh: false,
+      }))
 
       try {
         const updatedSummary = await getCheckoutSummary({
@@ -312,7 +332,9 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
             shippingSelections: form.state.values.shippingSelections,
           },
         })
+        if (requestSequence !== rateRequestSequenceRef.current) return
         setCurrentSummary(updatedSummary)
+        lastFetchedAddressRef.current = addressKey
 
         // Rebuild shipping selections by shopId so a re-ordered summary never
         // shifts a buyer's chosen method to the wrong shop.
@@ -331,6 +353,11 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
         form.setFieldValue('shippingSelections', nextSelections)
         clearPickupPointIfNoServicePointMethod()
 
+        const hasOnlyFallback = updatedSummary.shops.some((shop) =>
+          shop.shippingOptions.every((option) => option.fallback),
+        )
+        setStatus((prev) => ({ ...prev, quoteFresh: !hasOnlyFallback }))
+
         // Check if any shop has only unsupported fallbacks
         for (const shop of updatedSummary.shops) {
           if (
@@ -346,12 +373,16 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
           }
         }
       } catch {
+        if (requestSequence !== rateRequestSequenceRef.current) return
         setStatus((prev) => ({
           ...prev,
           rateError: m.checkout_rate_error(),
+          quoteFresh: false,
         }))
       } finally {
-        setStatus((prev) => ({ ...prev, isFetchingRates: false }))
+        if (requestSequence === rateRequestSequenceRef.current) {
+          setStatus((prev) => ({ ...prev, isFetchingRates: false }))
+        }
       }
     },
     [cartId, form, clearPickupPointIfNoServicePointMethod],
@@ -359,7 +390,14 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
 
   const scheduleRateFetch = useCallback(
     (address: CheckoutFormValues['shippingAddress']) => {
-      if (!addressSchema.safeParse(address).success) return
+      setStatus((prev) => ({ ...prev, quoteFresh: false }))
+      if (
+        !address.name.trim() ||
+        !address.street.trim() ||
+        !address.city.trim() ||
+        !isPostalCodeValid(address.postalCode, address.country)
+      )
+        return
       if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current)
       fetchTimerRef.current = setTimeout(() => void fetchRates(address), 600)
     },
@@ -382,11 +420,37 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
   // -----------------------------------------------------------------------
 
   return (
-    <main className='page-wrap px-4 pb-16 pt-14'>
-      <div className='mb-8'>
-        <h1 className='display-title text-3xl font-semibold text-text-primary sm:text-4xl'>
-          {m.checkout_title()}
-        </h1>
+    <main className='page-wrap px-4 pb-28 pt-10 lg:pb-16'>
+      <div className='mb-8 space-y-5'>
+        <Link
+          to='/cart'
+          className='inline-flex min-h-11 items-center gap-2 rounded-lg text-sm font-medium text-text-secondary no-underline outline-none transition-colors hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
+        >
+          <ArrowLeft size={16} aria-hidden='true' />
+          {m.checkout_back_to_cart()}
+        </Link>
+        <div className='flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between'>
+          <div>
+            <p className='mb-1 text-sm font-semibold text-accent-primary'>
+              {m.checkout_secure_kicker()}
+            </p>
+            <h1 className='text-3xl font-semibold tracking-tight text-text-primary'>
+              {m.checkout_title()}
+            </h1>
+          </div>
+          <ol
+            className='flex items-center gap-2 text-sm text-text-secondary'
+            aria-label={m.checkout_progress_label()}
+          >
+            <li>{m.checkout_progress_cart()}</li>
+            <li aria-hidden='true'>/</li>
+            <li className='font-semibold text-text-primary' aria-current='step'>
+              {m.checkout_progress_delivery()}
+            </li>
+            <li aria-hidden='true'>/</li>
+            <li>{m.checkout_progress_payment()}</li>
+          </ol>
+        </div>
       </div>
 
       {/* Client-side preventDefault is required because this form is managed
@@ -396,6 +460,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
           finally redirects to an external payment provider URL. A native
           <form action> would forfeit all of this client-side orchestration. */}
       <form
+        id='checkout-form'
         ref={formOwnerRef}
         onSubmit={async (e) => {
           e.preventDefault()
@@ -450,6 +515,40 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                 )}
               </form.Field>
 
+              <form.Field name='shippingAddress.contactEmail'>
+                {(field) => (
+                  <div className='grid gap-2 sm:col-span-2'>
+                    <label htmlFor={field.name} className='text-sm font-medium text-text-primary'>
+                      {m.checkout_field_email()}
+                    </label>
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      type='email'
+                      value={field.state.value}
+                      onChange={(event) => {
+                        field.handleChange(event.target.value)
+                        form.setFieldValue('billingAddress.contactEmail', event.target.value)
+                        scheduleRateFetch({
+                          ...form.store.state.values.shippingAddress,
+                          contactEmail: event.target.value,
+                        })
+                      }}
+                      onBlur={field.handleBlur}
+                      error={getFieldError(field.state.meta.errors[0])}
+                      autoComplete='email'
+                      inputMode='email'
+                    />
+                    <p className='text-xs text-text-muted'>{m.checkout_field_email_hint()}</p>
+                    {field.state.meta.errors[0] && (
+                      <p id={`${field.name}-error`} className='text-xs text-error'>
+                        {getFieldError(field.state.meta.errors[0])}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </form.Field>
+
               <form.Field name='shippingAddress.street'>
                 {(field) => (
                   <div className='grid gap-2 sm:col-span-2'>
@@ -476,6 +575,24 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                         {getFieldError(field.state.meta.errors[0])}
                       </p>
                     )}
+                  </div>
+                )}
+              </form.Field>
+
+              <form.Field name='shippingAddress.addressLine2'>
+                {(field) => (
+                  <div className='grid gap-2 sm:col-span-2'>
+                    <label htmlFor={field.name} className='text-sm font-medium text-text-primary'>
+                      {m.checkout_field_address_line_2()}
+                    </label>
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      value={field.state.value ?? ''}
+                      onChange={(event) => field.handleChange(event.target.value)}
+                      onBlur={field.handleBlur}
+                      autoComplete='address-line2'
+                    />
                   </div>
                 )}
               </form.Field>
@@ -564,7 +681,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                       }
                       autoComplete='country-name'
                       className={cn(
-                        'h-10 w-full rounded-lg border bg-surface-default px-3 py-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2',
+                        'h-11 w-full rounded-lg border bg-surface-default px-3 py-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2',
                         field.state.meta.errors[0]
                           ? 'border-error focus-visible:border-error focus-visible:ring-error/20'
                           : 'border-border-default hover:border-border-strong focus-visible:border-accent-secondary focus-visible:ring-accent-secondary/20',
@@ -575,7 +692,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                       </option>
                       {SUPPORTED_COUNTRY_CODES.map((code) => (
                         <option key={code} value={code}>
-                          {code}
+                          {getCountryName(code)}
                         </option>
                       ))}
                     </select>
@@ -583,6 +700,56 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                       <p id={`${field.name}-error`} className='text-xs text-error'>
                         {getFieldError(field.state.meta.errors[0])}
                       </p>
+                    )}
+                  </div>
+                )}
+              </form.Field>
+
+              <form.Field name='shippingAddress.phone'>
+                {(field) => (
+                  <div className='grid gap-2 sm:col-span-2'>
+                    <label htmlFor={field.name} className='text-sm font-medium text-text-primary'>
+                      {m.checkout_field_phone()}
+                    </label>
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      type='tel'
+                      value={field.state.value ?? ''}
+                      onChange={(event) => {
+                        field.handleChange(event.target.value)
+                        form.setFieldValue('billingAddress.phone', event.target.value)
+                      }}
+                      onBlur={field.handleBlur}
+                      autoComplete='tel'
+                      inputMode='tel'
+                    />
+                    <p className='text-xs text-text-muted'>{m.checkout_field_phone_hint()}</p>
+                  </div>
+                )}
+              </form.Field>
+
+              <form.Field name='shippingAddress.vatId'>
+                {(field) => (
+                  <div className='grid gap-2 sm:col-span-2'>
+                    <label htmlFor={field.name} className='text-sm font-medium text-text-primary'>
+                      {m.checkout_vat_id_label()}
+                    </label>
+                    <Input
+                      id={field.name}
+                      name={field.name}
+                      value={field.state.value ?? ''}
+                      onChange={(event) => field.handleChange(event.target.value)}
+                      onBlur={field.handleBlur}
+                      error={getFieldError(field.state.meta.errors[0])}
+                      placeholder={m.checkout_vat_id_placeholder()}
+                    />
+                    {field.state.meta.errors[0] ? (
+                      <p id={`${field.name}-error`} className='text-xs text-error'>
+                        {getFieldError(field.state.meta.errors[0])}
+                      </p>
+                    ) : (
+                      <p className='text-xs text-text-muted'>{m.checkout_vat_id_helper()}</p>
                     )}
                   </div>
                 )}
@@ -745,7 +912,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                             }
                             autoComplete='country-name'
                             className={cn(
-                              'h-10 w-full rounded-lg border bg-surface-default px-3 py-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2',
+                              'h-11 w-full rounded-lg border bg-surface-default px-3 py-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:ring-2',
                               field.state.meta.errors[0]
                                 ? 'border-error focus-visible:border-error focus-visible:ring-error/20'
                                 : 'border-border-default hover:border-border-strong focus-visible:border-accent-secondary focus-visible:ring-accent-secondary/20',
@@ -756,7 +923,7 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                             </option>
                             {SUPPORTED_COUNTRY_CODES.map((code) => (
                               <option key={code} value={code}>
-                                {code}
+                                {getCountryName(code)}
                               </option>
                             ))}
                           </select>
@@ -838,110 +1005,160 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                     <legend className='mb-3 text-sm font-medium text-text-secondary'>
                       {shop.shopName}
                     </legend>
-                    {shop.shippingOptions.length === 0 ? (
-                      <p className='text-sm text-text-muted italic'>
-                        Enter your shipping address to see available rates.
-                      </p>
+                    {shop.shippingOptions.length === 0 ||
+                    shop.shippingOptions.every((option) => option.fallback) ? (
+                      <div className='flex items-center justify-between gap-4 rounded-xl bg-surface-inset px-4 py-3'>
+                        <p className='text-sm text-text-secondary'>
+                          {status.rateError
+                            ? status.rateError
+                            : m.checkout_shipping_address_prompt()}
+                        </p>
+                        {status.rateError && (
+                          <Button
+                            type='button'
+                            variant='secondary'
+                            size='sm'
+                            onClick={() => {
+                              lastFetchedAddressRef.current = ''
+                              void fetchRates(form.state.values.shippingAddress)
+                            }}
+                          >
+                            {m.checkout_rate_retry()}
+                          </Button>
+                        )}
+                      </div>
                     ) : (
                       <div className='space-y-2'>
-                        {shop.shippingOptions.map((option) => {
-                          const isManualFallback = option.fallback && option.method === 'manual'
-                          const estimatedDaysStr = formatEstimatedDays(option.estimatedDays)
+                        {shop.shippingOptions
+                          .filter((option) => !option.fallback)
+                          .map((option) => {
+                            const isManualFallback = option.fallback && option.method === 'manual'
+                            const estimatedDaysStr = formatEstimatedDays(option.estimatedDays)
 
-                          return (
-                            <form.Field
-                              key={`${shop.shopId}-${option.rateId ?? option.method}`}
-                              name={`shippingSelections[${fieldIndex}]`}
-                            >
-                              {(field) => {
-                                const isSelected =
-                                  field.state.value?.rateId === option.rateId &&
-                                  field.state.value?.method === option.method
+                            return (
+                              <form.Field
+                                key={`${shop.shopId}-${option.rateId ?? option.method}`}
+                                name={`shippingSelections[${fieldIndex}]`}
+                              >
+                                {(field) => {
+                                  const isSelected =
+                                    field.state.value?.rateId === option.rateId &&
+                                    field.state.value?.method === option.method
 
-                                return (
-                                  <label
-                                    className={`flex cursor-pointer flex-col rounded-xl border p-4 transition-colors ${
-                                      isSelected
-                                        ? 'border-accent-primary bg-accent-primary/5'
-                                        : isManualFallback
-                                          ? 'border-border-default bg-surface-inset'
-                                          : 'border-border-default hover:border-border-strong'
-                                    }`}
-                                  >
-                                    <div className='flex items-center justify-between'>
-                                      <div className='flex items-center gap-3'>
-                                        <input
-                                          type='radio'
-                                          name={`shipping-shop-${shop.shopId}`}
-                                          checked={isSelected}
-                                          onChange={() => {
-                                            const nextSelection = {
-                                              shopId: shop.shopId,
-                                              rateId: option.rateId,
-                                              method: option.method,
-                                              costCents: option.costCents,
-                                            }
-                                            const nextSelections =
-                                              form.state.values.shippingSelections.map((s, idx) =>
-                                                idx === fieldIndex ? nextSelection : s,
-                                              )
-                                            field.handleChange(nextSelection)
-                                            clearPickupPointIfNoServicePointMethod()
+                                  return (
+                                    <label
+                                      className={`flex cursor-pointer flex-col rounded-xl border p-4 transition-colors ${
+                                        isSelected
+                                          ? 'border-accent-primary bg-accent-primary/5'
+                                          : isManualFallback
+                                            ? 'border-border-default bg-surface-inset'
+                                            : 'border-border-default hover:border-border-strong'
+                                      }`}
+                                    >
+                                      <div className='flex items-center justify-between'>
+                                        <div className='flex items-center gap-3'>
+                                          <input
+                                            type='radio'
+                                            name={`shipping-shop-${shop.shopId}`}
+                                            checked={isSelected}
+                                            onChange={() => {
+                                              const nextSelection = {
+                                                shopId: shop.shopId,
+                                                rateId: option.rateId,
+                                                method: option.method,
+                                                costCents: option.costCents,
+                                              }
+                                              const nextSelections =
+                                                form.state.values.shippingSelections.map(
+                                                  (s, idx) =>
+                                                    idx === fieldIndex ? nextSelection : s,
+                                                )
+                                              field.handleChange(nextSelection)
+                                              clearPickupPointIfNoServicePointMethod()
 
-                                            // Keep the authoritative server summary in sync with
-                                            // the buyer's shipping choice so grand totals and VAT
-                                            // estimates never drift from what will be charged.
-                                            const address = form.state.values.shippingAddress
-                                            if (
-                                              address.country &&
-                                              address.postalCode &&
-                                              address.city &&
-                                              addressSchema.safeParse(address).success
-                                            ) {
-                                              getCheckoutSummary({
-                                                data: {
-                                                  cartId,
-                                                  shippingAddress: address,
-                                                  shippingSelections: nextSelections,
-                                                },
-                                              })
-                                                .then(setCurrentSummary)
-                                                .catch(() => {
-                                                  // Address-rate fetching already surfaces errors;
-                                                  // silently ignore refetch failures here.
+                                              // Keep the authoritative server summary in sync with
+                                              // the buyer's shipping choice so grand totals and VAT
+                                              // estimates never drift from what will be charged.
+                                              const address = form.state.values.shippingAddress
+                                              if (
+                                                address.country &&
+                                                address.postalCode &&
+                                                address.city &&
+                                                addressSchema.safeParse(address).success
+                                              ) {
+                                                const requestSequence =
+                                                  ++rateRequestSequenceRef.current
+                                                setStatus((prev) => ({
+                                                  ...prev,
+                                                  isFetchingRates: true,
+                                                  rateError: null,
+                                                  quoteFresh: false,
+                                                }))
+                                                void getCheckoutSummary({
+                                                  data: {
+                                                    cartId,
+                                                    shippingAddress: address,
+                                                    shippingSelections: nextSelections,
+                                                  },
                                                 })
-                                            }
-                                          }}
-                                          className='size-4 accent-accent-primary'
-                                        />
-                                        <div>
-                                          <span className='text-sm font-medium text-text-primary'>
-                                            {option.serviceName ?? option.label}
-                                          </span>
-                                          {option.carrier && (
-                                            <span className='ml-2 text-xs text-text-muted capitalize'>
-                                              {option.carrier.replace(/_/g, ' ')}
+                                                  .then((summary) => {
+                                                    if (
+                                                      requestSequence !==
+                                                      rateRequestSequenceRef.current
+                                                    )
+                                                      return
+                                                    setCurrentSummary(summary)
+                                                    setStatus((prev) => ({
+                                                      ...prev,
+                                                      isFetchingRates: false,
+                                                      quoteFresh: true,
+                                                    }))
+                                                  })
+                                                  .catch(() => {
+                                                    if (
+                                                      requestSequence !==
+                                                      rateRequestSequenceRef.current
+                                                    )
+                                                      return
+                                                    setStatus((prev) => ({
+                                                      ...prev,
+                                                      isFetchingRates: false,
+                                                      rateError: m.checkout_rate_error(),
+                                                      quoteFresh: false,
+                                                    }))
+                                                  })
+                                              }
+                                            }}
+                                            className='size-4 accent-accent-primary'
+                                          />
+                                          <div>
+                                            <span className='text-sm font-medium text-text-primary'>
+                                              {option.serviceName ?? option.label}
                                             </span>
-                                          )}
-                                          {estimatedDaysStr && (
-                                            <span className='ml-1 block text-xs text-text-secondary'>
-                                              {estimatedDaysStr}
-                                            </span>
-                                          )}
+                                            {option.carrier && (
+                                              <span className='ml-2 text-xs text-text-muted capitalize'>
+                                                {option.carrier.replace(/_/g, ' ')}
+                                              </span>
+                                            )}
+                                            {estimatedDaysStr && (
+                                              <span className='ml-1 block text-xs text-text-secondary'>
+                                                {estimatedDaysStr}
+                                              </span>
+                                            )}
+                                          </div>
                                         </div>
+                                        <span className='text-sm font-semibold text-text-primary'>
+                                          {option.costCents === 0
+                                            ? '—'
+                                            : formatPriceEUR(option.costCents)}
+                                        </span>
                                       </div>
-                                      <span className='text-sm font-semibold text-text-primary'>
-                                        {option.costCents === 0
-                                          ? '—'
-                                          : formatPriceEUR(option.costCents)}
-                                      </span>
-                                    </div>
-                                  </label>
-                                )
-                              }}
-                            </form.Field>
-                          )
-                        })}
+                                    </label>
+                                  )
+                                }}
+                              </form.Field>
+                            )
+                          })}
                       </div>
                     )}
                   </fieldset>
@@ -1087,7 +1304,10 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
             <form.Subscribe selector={(state) => state.isSubmitting}>
               {(isSubmitting) => {
                 const disableSubmit =
-                  isSubmitting || (hasServicePointSelection && !selectedPickupPoint)
+                  isSubmitting ||
+                  status.isFetchingRates ||
+                  !status.quoteFresh ||
+                  (hasServicePointSelection && !selectedPickupPoint)
                 return (
                   <>
                     <Button
@@ -1106,9 +1326,18 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
                         m.checkout_confirm_button()
                       )}
                     </Button>
+                    <p className='mt-3 flex items-center justify-center gap-1.5 text-xs text-text-muted'>
+                      <LockKeyhole size={14} aria-hidden='true' />
+                      {m.checkout_mollie_handoff()}
+                    </p>
                     {hasServicePointSelection && !selectedPickupPoint && (
                       <p className='mt-2.5 text-xs text-error text-center' role='alert'>
                         {m.checkout_pickup_point_required()}
+                      </p>
+                    )}
+                    {!status.quoteFresh && !status.isFetchingRates && !status.rateError && (
+                      <p className='mt-2.5 text-center text-xs text-text-secondary'>
+                        {m.checkout_shipping_address_prompt()}
                       </p>
                     )}
                   </>
@@ -1118,6 +1347,37 @@ export default function CheckoutPage({ summary: initialSummary, cartId }: Checko
           </section>
         </div>
       </form>
+
+      <div className='fixed inset-x-0 bottom-0 z-sticky border-t border-border-default bg-surface-default/95 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur-lg lg:hidden'>
+        <div className='mx-auto flex max-w-lg items-center gap-4'>
+          <div className='min-w-0 flex-1'>
+            <p className='text-xs text-text-secondary'>{m.checkout_grand_total()}</p>
+            <p className='truncate text-lg font-bold tabular-nums text-text-primary'>
+              {formatPriceEUR(currentSummary.grandTotalCents)}
+            </p>
+          </div>
+          <form.Subscribe selector={(state) => state.isSubmitting}>
+            {(isSubmitting) => (
+              <Button
+                type='submit'
+                form='checkout-form'
+                size='lg'
+                isLoading={isSubmitting}
+                disabled={
+                  isSubmitting ||
+                  status.isFetchingRates ||
+                  !status.quoteFresh ||
+                  (hasServicePointSelection && !selectedPickupPoint)
+                }
+              >
+                {m.checkout_mobile_payment_action({
+                  total: formatPriceEUR(currentSummary.grandTotalCents),
+                })}
+              </Button>
+            )}
+          </form.Subscribe>
+        </div>
+      </div>
 
       <PickupPointSelectorModal
         key={dialog.key}

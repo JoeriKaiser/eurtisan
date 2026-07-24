@@ -36,6 +36,8 @@ export interface OrderShopGroup {
   trackingNumber: string | null
   trackingUrl: string | null
   deliveredAt: Date | null
+  earliestDeliveryAt?: Date | null
+  deliveryDueAt?: Date | null
   shippingLabels: ShippingLabelInfo[]
   trackingStatus: string | null
   nonDeliveryEligibility?: NonDeliveryEligibility

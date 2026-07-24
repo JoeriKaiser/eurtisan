@@ -31,6 +31,7 @@ import { getOrderStatusLabel, statusBadgeVariant } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
 import { createReview } from '#/lib/reviews'
 import type { ReviewableItem } from '#/lib/reviews.server'
+import type { ReturnRequestSummary } from '#/lib/returns'
 import { getCarrierTrackingUrl } from '#/lib/shipping'
 import { m } from '#/paraglide/messages'
 
@@ -93,6 +94,7 @@ function getStatusProgress(status: OrderStatus): number {
 export interface BuyerOrderDetailPageProps {
   order: OrderDetail
   reviewableItems?: ReviewableItem[]
+  returns?: ReturnRequestSummary[]
   backTo?: string
 }
 
@@ -102,6 +104,7 @@ const EMPTY_ITEMS: ReviewableItem[] = []
 export default function BuyerOrderDetailPage({
   order,
   reviewableItems = EMPTY_ITEMS,
+  returns = [],
   backTo = '/orders',
   // eslint-disable-next-line
 }: BuyerOrderDetailPageProps) {
@@ -570,6 +573,42 @@ export default function BuyerOrderDetailPage({
                         </div>
                       )
                     })}
+                  </div>
+                )}
+
+                {(shop.status === 'delivered' || shop.status === 'completed') && (
+                  <div className='flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle pt-3'>
+                    <div>
+                      <p className='text-sm font-medium text-text-primary'>
+                        {m.return_order_help_title()}
+                      </p>
+                      <p className='mt-1 text-xs text-text-muted'>{m.return_order_help()}</p>
+                    </div>
+                    <div className='flex flex-wrap gap-2'>
+                      {returns
+                        .filter((request) => request.shopOrderId === shop.shopOrderId)
+                        .map((request) => (
+                          <Link
+                            key={request.id}
+                            to='/returns/$returnRequestId'
+                            params={{ returnRequestId: request.id }}
+                            className='inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold text-accent-primary no-underline hover:bg-accent-primary/5'
+                          >
+                            {m.return_view_request()}
+                          </Link>
+                        ))}
+                      <Link
+                        to='/orders/$platformOrderId/returns/new'
+                        params={{ platformOrderId: order.id }}
+                        search={{ shopOrderId: shop.shopOrderId }}
+                        className='no-underline'
+                      >
+                        <Button variant='secondary' size='sm' className='min-h-11'>
+                          <Package size={15} aria-hidden='true' />
+                          {m.return_start_request()}
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
                 )}
 

@@ -19,6 +19,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as MollieMockOauthRouteImport } from './routes/mollie-mock-oauth'
+import { Route as GuestOrderAccessRouteImport } from './routes/guest-order-access'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as ForbiddenRouteImport } from './routes/forbidden'
 import { Route as CreatorRouteImport } from './routes/creator'
@@ -39,6 +40,7 @@ import { Route as StudioShopIdRouteImport } from './routes/studio/$shopId'
 import { Route as SitemapXmlRouteImport } from './routes/sitemap.xml'
 import { Route as ShopsShopSlugRouteImport } from './routes/shops/$shopSlug'
 import { Route as RobotsTxtRouteImport } from './routes/robots.txt'
+import { Route as ReturnsReturnRequestIdRouteImport } from './routes/returns.$returnRequestId'
 import { Route as OrdersPlatformOrderIdRouteImport } from './routes/orders.$platformOrderId'
 import { Route as InvoicesInvoiceIdRouteImport } from './routes/invoices.$invoiceId'
 import { Route as DisputesDisputeIdRouteImport } from './routes/disputes.$disputeId'
@@ -106,6 +108,7 @@ import { Route as SellOnboardingDraftIdPoliciesRouteImport } from './routes/sell
 import { Route as SellOnboardingDraftIdLocationRouteImport } from './routes/sell/onboarding/$draftId/location'
 import { Route as SellOnboardingDraftIdListingRouteImport } from './routes/sell/onboarding/$draftId/listing'
 import { Route as SellOnboardingDraftIdIdentityRouteImport } from './routes/sell/onboarding/$draftId/identity'
+import { Route as OrdersPlatformOrderIdReturnsNewRouteImport } from './routes/orders.$platformOrderId.returns.new'
 import { Route as CreatorProductsProductIdEditRouteImport } from './routes/creator/products/$productId/edit'
 import { Route as ApiShopsShopIdSettingsRouteImport } from './routes/api/shops/$shopId/settings'
 import { Route as ApiShopsShopIdProductsRouteImport } from './routes/api/shops/$shopId/products'
@@ -164,6 +167,11 @@ const NotificationsRoute = NotificationsRouteImport.update({
 const MollieMockOauthRoute = MollieMockOauthRouteImport.update({
   id: '/mollie-mock-oauth',
   path: '/mollie-mock-oauth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuestOrderAccessRoute = GuestOrderAccessRouteImport.update({
+  id: '/guest-order-access',
+  path: '/guest-order-access',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -264,6 +272,11 @@ const ShopsShopSlugRoute = ShopsShopSlugRouteImport.update({
 const RobotsTxtRoute = RobotsTxtRouteImport.update({
   id: '/robots/txt',
   path: '/robots/txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReturnsReturnRequestIdRoute = ReturnsReturnRequestIdRouteImport.update({
+  id: '/returns/$returnRequestId',
+  path: '/returns/$returnRequestId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OrdersPlatformOrderIdRoute = OrdersPlatformOrderIdRouteImport.update({
@@ -619,6 +632,12 @@ const SellOnboardingDraftIdIdentityRoute =
     path: '/identity',
     getParentRoute: () => SellOnboardingDraftIdRoute,
   } as any)
+const OrdersPlatformOrderIdReturnsNewRoute =
+  OrdersPlatformOrderIdReturnsNewRouteImport.update({
+    id: '/returns/new',
+    path: '/returns/new',
+    getParentRoute: () => OrdersPlatformOrderIdRoute,
+  } as any)
 const CreatorProductsProductIdEditRoute =
   CreatorProductsProductIdEditRouteImport.update({
     id: '/$productId/edit',
@@ -679,6 +698,7 @@ export interface FileRoutesByFullPath {
   '/creator': typeof CreatorRouteWithChildren
   '/forbidden': typeof ForbiddenRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/guest-order-access': typeof GuestOrderAccessRoute
   '/mollie-mock-oauth': typeof MollieMockOauthRoute
   '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRouteWithChildren
@@ -715,6 +735,7 @@ export interface FileRoutesByFullPath {
   '/disputes/$disputeId': typeof DisputesDisputeIdRoute
   '/invoices/$invoiceId': typeof InvoicesInvoiceIdRoute
   '/orders/$platformOrderId': typeof OrdersPlatformOrderIdRouteWithChildren
+  '/returns/$returnRequestId': typeof ReturnsReturnRequestIdRoute
   '/robots/txt': typeof RobotsTxtRoute
   '/shops/$shopSlug': typeof ShopsShopSlugRouteWithChildren
   '/sitemap/xml': typeof SitemapXmlRoute
@@ -758,6 +779,7 @@ export interface FileRoutesByFullPath {
   '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRouteWithChildren
   '/api/shops/$shopId/settings': typeof ApiShopsShopIdSettingsRoute
   '/creator/products/$productId/edit': typeof CreatorProductsProductIdEditRoute
+  '/orders/$platformOrderId/returns/new': typeof OrdersPlatformOrderIdReturnsNewRoute
   '/sell/onboarding/$draftId/identity': typeof SellOnboardingDraftIdIdentityRoute
   '/sell/onboarding/$draftId/listing': typeof SellOnboardingDraftIdListingRoute
   '/sell/onboarding/$draftId/location': typeof SellOnboardingDraftIdLocationRoute
@@ -784,6 +806,7 @@ export interface FileRoutesByTo {
   '/cookies': typeof CookiesRoute
   '/forbidden': typeof ForbiddenRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/guest-order-access': typeof GuestOrderAccessRoute
   '/mollie-mock-oauth': typeof MollieMockOauthRoute
   '/notifications': typeof NotificationsRoute
   '/privacy': typeof PrivacyRoute
@@ -814,6 +837,7 @@ export interface FileRoutesByTo {
   '/creator/shop': typeof CreatorShopRoute
   '/disputes/$disputeId': typeof DisputesDisputeIdRoute
   '/invoices/$invoiceId': typeof InvoicesInvoiceIdRoute
+  '/returns/$returnRequestId': typeof ReturnsReturnRequestIdRoute
   '/robots/txt': typeof RobotsTxtRoute
   '/sitemap/xml': typeof SitemapXmlRoute
   '/account': typeof AccountIndexRoute
@@ -852,6 +876,7 @@ export interface FileRoutesByTo {
   '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRouteWithChildren
   '/api/shops/$shopId/settings': typeof ApiShopsShopIdSettingsRoute
   '/creator/products/$productId/edit': typeof CreatorProductsProductIdEditRoute
+  '/orders/$platformOrderId/returns/new': typeof OrdersPlatformOrderIdReturnsNewRoute
   '/sell/onboarding/$draftId/identity': typeof SellOnboardingDraftIdIdentityRoute
   '/sell/onboarding/$draftId/listing': typeof SellOnboardingDraftIdListingRoute
   '/sell/onboarding/$draftId/location': typeof SellOnboardingDraftIdLocationRoute
@@ -882,6 +907,7 @@ export interface FileRoutesById {
   '/creator': typeof CreatorRouteWithChildren
   '/forbidden': typeof ForbiddenRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/guest-order-access': typeof GuestOrderAccessRoute
   '/mollie-mock-oauth': typeof MollieMockOauthRoute
   '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRouteWithChildren
@@ -918,6 +944,7 @@ export interface FileRoutesById {
   '/disputes/$disputeId': typeof DisputesDisputeIdRoute
   '/invoices/$invoiceId': typeof InvoicesInvoiceIdRoute
   '/orders/$platformOrderId': typeof OrdersPlatformOrderIdRouteWithChildren
+  '/returns/$returnRequestId': typeof ReturnsReturnRequestIdRoute
   '/robots/txt': typeof RobotsTxtRoute
   '/shops/$shopSlug': typeof ShopsShopSlugRouteWithChildren
   '/sitemap/xml': typeof SitemapXmlRoute
@@ -961,6 +988,7 @@ export interface FileRoutesById {
   '/api/shops/$shopId/products': typeof ApiShopsShopIdProductsRouteWithChildren
   '/api/shops/$shopId/settings': typeof ApiShopsShopIdSettingsRoute
   '/creator/products/$productId/edit': typeof CreatorProductsProductIdEditRoute
+  '/orders/$platformOrderId/returns/new': typeof OrdersPlatformOrderIdReturnsNewRoute
   '/sell/onboarding/$draftId/identity': typeof SellOnboardingDraftIdIdentityRoute
   '/sell/onboarding/$draftId/listing': typeof SellOnboardingDraftIdListingRoute
   '/sell/onboarding/$draftId/location': typeof SellOnboardingDraftIdLocationRoute
@@ -992,6 +1020,7 @@ export interface FileRouteTypes {
     | '/creator'
     | '/forbidden'
     | '/forgot-password'
+    | '/guest-order-access'
     | '/mollie-mock-oauth'
     | '/notifications'
     | '/orders'
@@ -1028,6 +1057,7 @@ export interface FileRouteTypes {
     | '/disputes/$disputeId'
     | '/invoices/$invoiceId'
     | '/orders/$platformOrderId'
+    | '/returns/$returnRequestId'
     | '/robots/txt'
     | '/shops/$shopSlug'
     | '/sitemap/xml'
@@ -1071,6 +1101,7 @@ export interface FileRouteTypes {
     | '/api/shops/$shopId/products'
     | '/api/shops/$shopId/settings'
     | '/creator/products/$productId/edit'
+    | '/orders/$platformOrderId/returns/new'
     | '/sell/onboarding/$draftId/identity'
     | '/sell/onboarding/$draftId/listing'
     | '/sell/onboarding/$draftId/location'
@@ -1097,6 +1128,7 @@ export interface FileRouteTypes {
     | '/cookies'
     | '/forbidden'
     | '/forgot-password'
+    | '/guest-order-access'
     | '/mollie-mock-oauth'
     | '/notifications'
     | '/privacy'
@@ -1127,6 +1159,7 @@ export interface FileRouteTypes {
     | '/creator/shop'
     | '/disputes/$disputeId'
     | '/invoices/$invoiceId'
+    | '/returns/$returnRequestId'
     | '/robots/txt'
     | '/sitemap/xml'
     | '/account'
@@ -1165,6 +1198,7 @@ export interface FileRouteTypes {
     | '/api/shops/$shopId/products'
     | '/api/shops/$shopId/settings'
     | '/creator/products/$productId/edit'
+    | '/orders/$platformOrderId/returns/new'
     | '/sell/onboarding/$draftId/identity'
     | '/sell/onboarding/$draftId/listing'
     | '/sell/onboarding/$draftId/location'
@@ -1194,6 +1228,7 @@ export interface FileRouteTypes {
     | '/creator'
     | '/forbidden'
     | '/forgot-password'
+    | '/guest-order-access'
     | '/mollie-mock-oauth'
     | '/notifications'
     | '/orders'
@@ -1230,6 +1265,7 @@ export interface FileRouteTypes {
     | '/disputes/$disputeId'
     | '/invoices/$invoiceId'
     | '/orders/$platformOrderId'
+    | '/returns/$returnRequestId'
     | '/robots/txt'
     | '/shops/$shopSlug'
     | '/sitemap/xml'
@@ -1273,6 +1309,7 @@ export interface FileRouteTypes {
     | '/api/shops/$shopId/products'
     | '/api/shops/$shopId/settings'
     | '/creator/products/$productId/edit'
+    | '/orders/$platformOrderId/returns/new'
     | '/sell/onboarding/$draftId/identity'
     | '/sell/onboarding/$draftId/listing'
     | '/sell/onboarding/$draftId/location'
@@ -1303,6 +1340,7 @@ export interface RootRouteChildren {
   CreatorRoute: typeof CreatorRouteWithChildren
   ForbiddenRoute: typeof ForbiddenRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  GuestOrderAccessRoute: typeof GuestOrderAccessRoute
   MollieMockOauthRoute: typeof MollieMockOauthRoute
   NotificationsRoute: typeof NotificationsRoute
   OrdersRoute: typeof OrdersRouteWithChildren
@@ -1326,6 +1364,7 @@ export interface RootRouteChildren {
   CategoryAllRoute: typeof CategoryAllRoute
   DisputesDisputeIdRoute: typeof DisputesDisputeIdRoute
   InvoicesInvoiceIdRoute: typeof InvoicesInvoiceIdRoute
+  ReturnsReturnRequestIdRoute: typeof ReturnsReturnRequestIdRoute
   RobotsTxtRoute: typeof RobotsTxtRoute
   ShopsShopSlugRoute: typeof ShopsShopSlugRouteWithChildren
   SitemapXmlRoute: typeof SitemapXmlRoute
@@ -1417,6 +1456,13 @@ declare module '@tanstack/react-router' {
       path: '/mollie-mock-oauth'
       fullPath: '/mollie-mock-oauth'
       preLoaderRoute: typeof MollieMockOauthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guest-order-access': {
+      id: '/guest-order-access'
+      path: '/guest-order-access'
+      fullPath: '/guest-order-access'
+      preLoaderRoute: typeof GuestOrderAccessRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -1557,6 +1603,13 @@ declare module '@tanstack/react-router' {
       path: '/robots/txt'
       fullPath: '/robots/txt'
       preLoaderRoute: typeof RobotsTxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/returns/$returnRequestId': {
+      id: '/returns/$returnRequestId'
+      path: '/returns/$returnRequestId'
+      fullPath: '/returns/$returnRequestId'
+      preLoaderRoute: typeof ReturnsReturnRequestIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/orders/$platformOrderId': {
@@ -2028,6 +2081,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SellOnboardingDraftIdIdentityRouteImport
       parentRoute: typeof SellOnboardingDraftIdRoute
     }
+    '/orders/$platformOrderId/returns/new': {
+      id: '/orders/$platformOrderId/returns/new'
+      path: '/returns/new'
+      fullPath: '/orders/$platformOrderId/returns/new'
+      preLoaderRoute: typeof OrdersPlatformOrderIdReturnsNewRouteImport
+      parentRoute: typeof OrdersPlatformOrderIdRoute
+    }
     '/creator/products/$productId/edit': {
       id: '/creator/products/$productId/edit'
       path: '/$productId/edit'
@@ -2260,11 +2320,13 @@ const CreatorRouteWithChildren =
 interface OrdersPlatformOrderIdRouteChildren {
   OrdersPlatformOrderIdSuccessRoute: typeof OrdersPlatformOrderIdSuccessRoute
   OrdersPlatformOrderIdIndexRoute: typeof OrdersPlatformOrderIdIndexRoute
+  OrdersPlatformOrderIdReturnsNewRoute: typeof OrdersPlatformOrderIdReturnsNewRoute
 }
 
 const OrdersPlatformOrderIdRouteChildren: OrdersPlatformOrderIdRouteChildren = {
   OrdersPlatformOrderIdSuccessRoute: OrdersPlatformOrderIdSuccessRoute,
   OrdersPlatformOrderIdIndexRoute: OrdersPlatformOrderIdIndexRoute,
+  OrdersPlatformOrderIdReturnsNewRoute: OrdersPlatformOrderIdReturnsNewRoute,
 }
 
 const OrdersPlatformOrderIdRouteWithChildren =
@@ -2394,6 +2456,7 @@ const rootRouteChildren: RootRouteChildren = {
   CreatorRoute: CreatorRouteWithChildren,
   ForbiddenRoute: ForbiddenRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  GuestOrderAccessRoute: GuestOrderAccessRoute,
   MollieMockOauthRoute: MollieMockOauthRoute,
   NotificationsRoute: NotificationsRoute,
   OrdersRoute: OrdersRouteWithChildren,
@@ -2417,6 +2480,7 @@ const rootRouteChildren: RootRouteChildren = {
   CategoryAllRoute: CategoryAllRoute,
   DisputesDisputeIdRoute: DisputesDisputeIdRoute,
   InvoicesInvoiceIdRoute: InvoicesInvoiceIdRoute,
+  ReturnsReturnRequestIdRoute: ReturnsReturnRequestIdRoute,
   RobotsTxtRoute: RobotsTxtRoute,
   ShopsShopSlugRoute: ShopsShopSlugRouteWithChildren,
   SitemapXmlRoute: SitemapXmlRoute,
