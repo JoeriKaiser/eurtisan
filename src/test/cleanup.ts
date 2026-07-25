@@ -38,6 +38,8 @@ export async function clearTestTables(): Promise<void> {
     'product_option_value',
     'product_option',
     'product_image',
+    // References product, so it must be cleared before it.
+    'search_event',
     'product',
     'shop_socials',
     'shop',

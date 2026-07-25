@@ -126,6 +126,7 @@ const searchProductsSchema = z.object({
   shopSlug: z.string().min(1).optional(),
   minPriceCents: z.coerce.number().int().min(0).optional(),
   maxPriceCents: z.coerce.number().int().min(0).optional(),
+  inStockOnly: z.coerce.boolean().optional(),
   sort: z.enum(['relevance', 'price_asc', 'price_desc', 'newest']).optional().default('relevance'),
   page: z.coerce.number().int().min(1).optional().default(1),
   pageSize: z.coerce.number().int().min(1).max(100).optional().default(24),
@@ -163,6 +164,7 @@ export const searchProducts = createServerFn({
         shopSlug: data.shopSlug,
         minPriceCents: data.minPriceCents,
         maxPriceCents: data.maxPriceCents,
+        inStockOnly: data.inStockOnly,
       },
       data.sort,
       { page: data.page, pageSize: data.pageSize },
@@ -181,4 +183,52 @@ export const searchSuggestionsFallback = createServerFn({
   .handler(async ({ data }) => {
     const { searchSuggestionsFallbackQuery } = await import('./products.server')
     return searchSuggestionsFallbackQuery(data.query)
+  })
+
+/**
+ * Queries other buyers actually ran, for the overlay's trending list.
+ *
+ * Returns an empty list before any telemetry exists; the caller falls back to a
+ * curated set so a cold install still shows something useful.
+ */
+export const listTrendingSearches = createServerFn({
+  method: 'GET',
+})
+  .middleware([searchRateLimitMiddleware])
+  .handler(async () => {
+    const { getPopularQueries } = await import('./search/analytics.server')
+    try {
+      return await getPopularQueries(30, 6)
+    } catch {
+      return [] as string[]
+    }
+  })
+
+const trackSearchClickSchema = z.object({
+  query: z.string().min(1).max(255),
+  productId: z.string().min(1).max(255),
+  position: z.coerce.number().int().min(1).max(1000),
+})
+
+/**
+ * Record that a buyer opened a search result.
+ *
+ * Fire-and-forget from the client: the response carries no data and a failure
+ * here must never interrupt navigation to the product.
+ */
+export const trackSearchClick = createServerFn({
+  method: 'POST',
+})
+  .middleware([searchRateLimitMiddleware])
+  .inputValidator(trackSearchClickSchema)
+  .handler(async ({ data }) => {
+    const { recordSearchClick } = await import('./search/analytics.server')
+    const { searchResultClicksTotal } = await import('./metrics.server')
+    searchResultClicksTotal.inc()
+    await recordSearchClick({
+      query: data.query,
+      productId: data.productId,
+      position: data.position,
+    })
+    return { ok: true as const }
   })

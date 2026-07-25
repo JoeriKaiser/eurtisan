@@ -110,6 +110,12 @@ services:
       - .env
     environment:
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?required Meilisearch master key}
+      # Without MEILI_ENV=production Meilisearch serves the search-preview UI
+      # and enables vendor telemetry by default. Production mode also enforces a
+      # master key of at least 16 bytes — a shorter key makes the service refuse
+      # to start.
+      MEILI_ENV: production
+      MEILI_NO_ANALYTICS: "true"
     volumes:
       - meilisearch_data:/meili_data
     networks:
@@ -438,6 +444,31 @@ services:
           memory: 512m
     command: >
       sh -c "bun run job:audit-log-cleanup"
+
+  search-event-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-search-event-cleanup-staging
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:search-event-cleanup"
 
   payout-reconciliation-log-cleanup:
     image: eurtisan-app:${IMAGE_TAG:-latest}

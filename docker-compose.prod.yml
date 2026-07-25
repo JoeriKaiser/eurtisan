@@ -9,8 +9,13 @@
 
 services:
   caddy:
-    # Pinned digest for caddy:2-alpine
-    image: caddy:2-alpine@sha256:86deaf5e3d3408a6ccec08fbb79989783dd26e206ae10bcf78a801dc8c9ab794
+    # Caddy with the rate_limit module compiled in — see Dockerfile.caddy.
+    # The stock caddy:2-alpine image does not ship rate limiting and refuses to
+    # start on a Caddyfile that uses the directive, so the proxy is built here.
+    image: eurtisan-caddy:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile.caddy
     container_name: eurtisan-caddy
     restart: unless-stopped
     ports:
@@ -119,6 +124,12 @@ services:
     restart: unless-stopped
     environment:
       - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:?required Meilisearch master key}
+      # Without MEILI_ENV=production Meilisearch serves the search-preview UI
+      # and enables vendor telemetry by default. Production mode also enforces a
+      # master key of at least 16 bytes — a shorter key makes the service refuse
+      # to start.
+      - MEILI_ENV=production
+      - MEILI_NO_ANALYTICS=true
     volumes:
       - meilisearch_data:/meili_data
     networks:
@@ -423,6 +434,33 @@ services:
           memory: 512m
     command: >
       sh -c "bun run job:audit-log-cleanup"
+
+  search-event-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-search-event-cleanup
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:search-event-cleanup"
 
   payout-reconciliation-log-cleanup:
     image: eurtisan-app:${IMAGE_TAG:-latest}

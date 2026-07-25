@@ -5,7 +5,15 @@ import { db } from '#/db/index'
 import { meilisearchSyncQueue, product, shop } from '#/db/schema'
 
 import { clearTestTables } from '#/test/cleanup'
-import { createCategory, createProduct, createShop, createUser } from '#/test/factories'
+import {
+  createCategory,
+  createPlatformOrder,
+  createProduct,
+  createReview,
+  createShop,
+  createShopOrder,
+  createUser,
+} from '#/test/factories'
 
 import {
   configureProductsIndex,
@@ -32,7 +40,7 @@ const {
   mockUpdateSettings: vi.fn().mockResolvedValue(undefined),
   mockDeleteDocument: vi.fn().mockResolvedValue(undefined),
   mockDeleteDocuments: vi.fn().mockResolvedValue(undefined),
-  mockSearch: vi.fn().mockResolvedValue({ hits: [], estimatedTotalHits: 0 }),
+  mockSearch: vi.fn().mockResolvedValue({ hits: [], totalHits: 0 }),
   mockHealth: vi.fn().mockResolvedValue({ status: 'available' }),
   mockCreateIndex: vi.fn().mockResolvedValue(undefined),
   mockUpdateIndex: vi.fn().mockResolvedValue(undefined),
@@ -80,23 +88,56 @@ describe('configureProductsIndex', () => {
     expect(meilisearch?.createIndex).toHaveBeenCalledWith(PRODUCTS_INDEX, { primaryKey: 'id' })
     expect(meilisearch?.index).toHaveBeenCalledWith(PRODUCTS_INDEX)
     const index = meilisearch?.index(PRODUCTS_INDEX)
-    expect(index?.updateSettings).toHaveBeenCalledWith({
-      searchableAttributes: ['name', 'description'],
-      filterableAttributes: [
-        'categoryId',
-        'shopId',
-        'priceCents',
-        'isActive',
-        'shopSlug',
-        'categorySlug',
-      ],
-      sortableAttributes: ['priceCents', 'createdAt'],
-      rankingRules: ['words', 'typo', 'proximity', 'attribute', 'sort', 'exactness'],
-      typoTolerance: {
-        enabled: true,
-        minWordSizeForTypos: { oneTypo: 4, twoTypos: 8 },
-      },
-    })
+    expect(index?.updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        // Name first so a title match outranks a description match.
+        searchableAttributes: ['name', 'shopName', 'categoryName', 'description'],
+        filterableAttributes: [
+          'categoryId',
+          'shopId',
+          'priceCents',
+          'isActive',
+          'shopSlug',
+          'categorySlug',
+          'inStock',
+          'stockCount',
+        ],
+        sortableAttributes: ['priceCents', 'createdAt', 'popularityScore', 'ratingAverage'],
+        // Custom rules trail the built-ins so they only break relevance ties.
+        rankingRules: [
+          'words',
+          'typo',
+          'proximity',
+          'attribute',
+          'sort',
+          'exactness',
+          'inStockRank:desc',
+          'popularityScore:desc',
+        ],
+        typoTolerance: {
+          enabled: true,
+          minWordSizeForTypos: { oneTypo: 4, twoTypos: 8 },
+        },
+        pagination: { maxTotalHits: 10_000 },
+        localizedAttributes: [
+          {
+            locales: ['eng', 'nld'],
+            attributePatterns: ['name', 'description', 'categoryName', 'shopName'],
+          },
+        ],
+      }),
+    )
+  })
+
+  it('registers bidirectional English/Dutch synonyms', async () => {
+    await configureProductsIndex()
+
+    const settings = mockUpdateSettings.mock.calls[0][0] as {
+      synonyms: Record<string, string[]>
+    }
+
+    expect(settings.synonyms.mug).toContain('mok')
+    expect(settings.synonyms.mok).toContain('mug')
   })
 
   it('attempts to update index primary key if creation fails', async () => {
@@ -200,6 +241,66 @@ describe('syncProductToMeilisearch', () => {
     const doc = mockAddDocuments.mock.calls[0][0][0]
     expect(doc.categoryId).toBeNull()
     expect(doc.categorySlug).toBeNull()
+    expect(doc.categoryName).toBeNull()
+  })
+
+  it('indexes shop and category names so they are searchable', async () => {
+    const { product: p } = await seedShopAndProduct({
+      categoryId: '550e8400-e29b-41d4-a716-446655440001',
+    })
+
+    await syncProductToMeilisearch(p)
+
+    const doc = mockAddDocuments.mock.calls[0][0][0]
+    expect(doc.shopName).toBe('Test Shop')
+    expect(doc.categoryName).toBe('Pottery')
+  })
+
+  it('indexes stock so out-of-stock products can be filtered and deboosted', async () => {
+    const { product: p } = await seedShopAndProduct()
+
+    await syncProductToMeilisearch({ ...p, stockCount: 0 })
+
+    const doc = mockAddDocuments.mock.calls[0][0][0]
+    expect(doc.stockCount).toBe(0)
+    expect(doc.inStock).toBe(false)
+    expect(doc.inStockRank).toBe(0)
+  })
+
+  it('scores an unreviewed product from the rating prior', async () => {
+    const { product: p } = await seedShopAndProduct()
+
+    await syncProductToMeilisearch(p)
+
+    const doc = mockAddDocuments.mock.calls[0][0][0]
+    expect(doc.reviewCount).toBe(0)
+    expect(doc.ratingAverage).toBe(0)
+    expect(doc.popularityScore).toBe(70)
+  })
+
+  it('folds approved reviews into the popularity score and ignores hidden ones', async () => {
+    const { shop: s, product: p } = await seedShopAndProduct()
+    const buyer = await createUser({
+      id: 'buyer-1',
+      name: 'Buyer',
+      email: 'buyer@example.com',
+      emailVerified: true,
+    })
+    const platformOrder = await createPlatformOrder(buyer)
+
+    const approved = await createShopOrder(platformOrder, s)
+    await createReview(approved, p, buyer, { rating: 5 })
+
+    const hidden = await createShopOrder(platformOrder, s)
+    await createReview(hidden, p, buyer, { rating: 1, moderationStatus: 'hidden' })
+
+    await syncProductToMeilisearch(p)
+
+    const doc = mockAddDocuments.mock.calls[0][0][0]
+    // Only the approved five-star review counts.
+    expect(doc.reviewCount).toBe(1)
+    expect(doc.ratingAverage).toBe(5)
+    expect(doc.popularityScore).toBeGreaterThan(70)
   })
 })
 
@@ -423,7 +524,7 @@ describe('searchProductsMeilisearch', () => {
 
     mockSearch.mockResolvedValueOnce({
       hits: [{ id: 'prod-1' }],
-      estimatedTotalHits: 1,
+      totalHits: 1,
     })
 
     const result = await searchProductsMeilisearch('vase', {}, 'relevance', {
@@ -442,7 +543,7 @@ describe('searchProductsMeilisearch', () => {
 
     mockSearch.mockResolvedValueOnce({
       hits: [{ id: 'prod-1' }, { id: 'prod-2' }],
-      estimatedTotalHits: 2,
+      totalHits: 2,
     })
 
     const result = await searchProductsMeilisearch(undefined, { shopSlug: 'shop-1' }, 'relevance', {
@@ -462,7 +563,7 @@ describe('searchProductsMeilisearch', () => {
   it('escapes double quotes in shopSlug and categorySlug filters', async () => {
     await seedSearchData()
 
-    mockSearch.mockResolvedValueOnce({ hits: [], estimatedTotalHits: 0 })
+    mockSearch.mockResolvedValueOnce({ hits: [], totalHits: 0 })
 
     await searchProductsMeilisearch(
       undefined,
@@ -488,7 +589,7 @@ describe('searchProductsMeilisearch', () => {
 
     mockSearch.mockResolvedValueOnce({
       hits: [{ id: 'prod-1' }],
-      estimatedTotalHits: 1,
+      totalHits: 1,
     })
 
     await searchProductsMeilisearch(undefined, { categorySlug: 'pottery' }, 'relevance', {
@@ -507,7 +608,7 @@ describe('searchProductsMeilisearch', () => {
   it('filters by price range', async () => {
     await seedSearchData()
 
-    mockSearch.mockResolvedValueOnce({ hits: [], estimatedTotalHits: 0 })
+    mockSearch.mockResolvedValueOnce({ hits: [], totalHits: 0 })
 
     await searchProductsMeilisearch(
       undefined,
@@ -534,7 +635,7 @@ describe('searchProductsMeilisearch', () => {
   it('sorts by price ascending', async () => {
     await seedSearchData()
 
-    mockSearch.mockResolvedValueOnce({ hits: [], estimatedTotalHits: 0 })
+    mockSearch.mockResolvedValueOnce({ hits: [], totalHits: 0 })
 
     await searchProductsMeilisearch(undefined, {}, 'price_asc', { page: 1, pageSize: 10 })
 
@@ -549,7 +650,7 @@ describe('searchProductsMeilisearch', () => {
   it('sorts by price descending', async () => {
     await seedSearchData()
 
-    mockSearch.mockResolvedValueOnce({ hits: [], estimatedTotalHits: 0 })
+    mockSearch.mockResolvedValueOnce({ hits: [], totalHits: 0 })
 
     await searchProductsMeilisearch(undefined, {}, 'price_desc', { page: 1, pageSize: 10 })
 
@@ -564,7 +665,7 @@ describe('searchProductsMeilisearch', () => {
   it('sorts by newest', async () => {
     await seedSearchData()
 
-    mockSearch.mockResolvedValueOnce({ hits: [], estimatedTotalHits: 0 })
+    mockSearch.mockResolvedValueOnce({ hits: [], totalHits: 0 })
 
     await searchProductsMeilisearch(undefined, {}, 'newest', { page: 1, pageSize: 10 })
 
@@ -576,7 +677,47 @@ describe('searchProductsMeilisearch', () => {
     )
   })
 
-  it('falls back to null when meilisearch hits are filtered by hydration', async () => {
+  it('uses finite pagination so totals are exact rather than estimated', async () => {
+    await seedSearchData()
+
+    mockSearch.mockResolvedValueOnce({ hits: [], totalHits: 0 })
+
+    await searchProductsMeilisearch('vase', {}, 'relevance', { page: 3, pageSize: 24 })
+
+    expect(mockSearch).toHaveBeenCalledWith(
+      'vase',
+      expect.objectContaining({ page: 3, hitsPerPage: 24 }),
+    )
+    const [, options] = mockSearch.mock.calls[0]
+    expect(options).not.toHaveProperty('limit')
+    expect(options).not.toHaveProperty('offset')
+  })
+
+  it('serves the hydrated subset when only some hits are stale', async () => {
+    await seedSearchData()
+
+    // prod-3 is returned by the index but no longer satisfies the invariant.
+    await db.update(product).set({ isActive: false }).where(eq(product.id, 'prod-3'))
+
+    mockSearch.mockResolvedValueOnce({
+      hits: [{ id: 'prod-1' }, { id: 'prod-3' }],
+      totalHits: 2,
+    })
+
+    const result = await searchProductsMeilisearch(undefined, {}, 'relevance', {
+      page: 1,
+      pageSize: 10,
+    })
+
+    expect(result).not.toBeNull()
+    expect(result?.products.map((p) => p.id)).toEqual(['prod-1'])
+    // The stale hit is discounted from the reported total.
+    expect(result?.total).toBe(1)
+    // ...and scheduled for removal from the index.
+    expect(mockDeleteDocuments).toHaveBeenCalledWith(['prod-3'])
+  })
+
+  it('falls back to null when every hit on the page is stale', async () => {
     const { s1 } = await seedSearchData()
 
     // Suspend shop-1 after seeding
@@ -584,7 +725,7 @@ describe('searchProductsMeilisearch', () => {
 
     mockSearch.mockResolvedValueOnce({
       hits: [{ id: 'prod-1' }, { id: 'prod-2' }],
-      estimatedTotalHits: 2,
+      totalHits: 2,
     })
 
     const result = await searchProductsMeilisearch(undefined, {}, 'relevance', {
@@ -593,6 +734,25 @@ describe('searchProductsMeilisearch', () => {
     })
 
     expect(result).toBeNull()
+    expect(mockDeleteDocuments).toHaveBeenCalledWith(['prod-1', 'prod-2'])
+  })
+
+  it('escapes backslashes so a filter value cannot break out of its literal', async () => {
+    await seedSearchData()
+
+    mockSearch.mockResolvedValueOnce({ hits: [], totalHits: 0 })
+
+    await searchProductsMeilisearch(undefined, { categorySlug: 'pottery\\' }, 'relevance', {
+      page: 1,
+      pageSize: 10,
+    })
+
+    expect(mockSearch).toHaveBeenCalledWith(
+      '',
+      expect.objectContaining({
+        filter: expect.arrayContaining(['categorySlug = "pottery\\\\"']),
+      }),
+    )
   })
 
   it('falls back to null on search error', async () => {
@@ -662,11 +822,54 @@ describe('processMeilisearchSyncQueue', () => {
 
     const items = await db.select().from(meilisearchSyncQueue)
     expect(items).toHaveLength(0)
-    expect(mockDeleteDocument).toHaveBeenCalledTimes(1)
+    expect(mockDeleteDocuments).toHaveBeenCalledWith([p.id])
+  })
+
+  it('writes a whole batch with a single addDocuments call', async () => {
+    const { shop: s } = await seedShopAndProduct()
+    for (const id of ['prod-2', 'prod-3', 'prod-4']) {
+      await createProduct(s, { id, name: id, slug: id, priceCents: 1000, isActive: true })
+    }
+
+    await db.insert(meilisearchSyncQueue).values(
+      ['prod-1', 'prod-2', 'prod-3', 'prod-4'].map((productId) => ({
+        productId,
+        action: 'index' as const,
+        status: 'pending' as const,
+        runAt: readyRunAt,
+      })),
+    )
+
+    const result = await processMeilisearchSyncQueue()
+
+    expect(result.processedCount).toBe(4)
+    expect(mockAddDocuments).toHaveBeenCalledTimes(1)
+    expect(mockAddDocuments.mock.calls[0][0]).toHaveLength(4)
+    expect(await db.select().from(meilisearchSyncQueue)).toHaveLength(0)
+  })
+
+  it('removes products that no longer satisfy the index invariant', async () => {
+    const { product: p } = await seedShopAndProduct()
+    await db.update(product).set({ isActive: false }).where(eq(product.id, p.id))
+
+    await db.insert(meilisearchSyncQueue).values({
+      productId: p.id,
+      action: 'index',
+      status: 'pending',
+      runAt: readyRunAt,
+    })
+
+    await processMeilisearchSyncQueue()
+
+    // Enqueued as an index, but it must leave the index rather than enter it.
+    expect(mockAddDocuments).not.toHaveBeenCalled()
+    expect(mockDeleteDocuments).toHaveBeenCalledWith([p.id])
   })
 
   it('handles errors by incrementing attempts and calculating backoff', async () => {
     const { product: p } = await seedShopAndProduct()
+    // Fail the batch write, then the per-item retry it falls back to.
+    mockDeleteDocuments.mockRejectedValueOnce(new Error('Meili down'))
     mockDeleteDocument.mockRejectedValueOnce(new Error('Meili down'))
 
     await db.insert(meilisearchSyncQueue).values({
@@ -686,8 +889,37 @@ describe('processMeilisearchSyncQueue', () => {
     expect(item.runAt.getTime()).toBeGreaterThan(Date.now())
   })
 
+  it('isolates a failing item so the rest of the batch still lands', async () => {
+    const { shop: s } = await seedShopAndProduct()
+    await createProduct(s, {
+      id: 'prod-ok',
+      name: 'Fine',
+      slug: 'fine',
+      priceCents: 1000,
+      isActive: true,
+    })
+
+    // Batch write fails once; the per-item pass then succeeds for both.
+    mockAddDocuments.mockRejectedValueOnce(new Error('batch rejected'))
+
+    await db.insert(meilisearchSyncQueue).values(
+      ['prod-1', 'prod-ok'].map((productId) => ({
+        productId,
+        action: 'index' as const,
+        status: 'pending' as const,
+        runAt: readyRunAt,
+      })),
+    )
+
+    const result = await processMeilisearchSyncQueue()
+
+    expect(result.processedCount).toBe(2)
+    expect(await db.select().from(meilisearchSyncQueue)).toHaveLength(0)
+  })
+
   it('marks item as failed after 5 attempts', async () => {
     const { product: p } = await seedShopAndProduct()
+    mockDeleteDocuments.mockRejectedValue(new Error('Meili down'))
     mockDeleteDocument.mockRejectedValue(new Error('Meili down'))
 
     const [inserted] = await db

@@ -5,6 +5,7 @@ import {
   countDistinct,
   desc,
   eq,
+  gt,
   gte,
   ilike,
   inArray,
@@ -17,6 +18,7 @@ import { categories, product, productImage, shop } from '#/db/schema'
 import { getDescendantCategoryIds } from '../categories.server'
 import { logger } from '../logger.server'
 import { searchQueriesTotal } from '../metrics.server'
+import { recordSearchEvent } from '../search/analytics.server'
 import { sanitizeRichText, validatePlainText } from '../xss'
 import { withServerCache } from '../server-cache.server'
 import type {
@@ -527,11 +529,11 @@ export async function searchProductsQuery(
   })
   if (meiliResult) {
     if (trimmedQuery) {
-      searchQueriesTotal.inc({ has_results: meiliResult.products.length > 0 ? 'true' : 'false' })
-      logger.info('[search] query executed', {
+      searchQueriesTotal.inc({ has_results: meiliResult.total > 0 ? 'true' : 'false' })
+      await recordSearchEvent({
         query: trimmedQuery,
-        results: meiliResult.products.length,
-        total: meiliResult.total,
+        resultCount: meiliResult.total,
+        source: 'meilisearch',
       })
     }
     return meiliResult
@@ -562,6 +564,10 @@ export async function searchProductsQuery(
     conditions.push(lte(product.priceCents, filters.maxPriceCents))
   }
 
+  if (filters.inStockOnly) {
+    conditions.push(gt(product.stockCount, 0))
+  }
+
   const useFts = trimmedQuery.length > 0 && (await isTsvectorAvailable())
 
   let searchVector: ReturnType<typeof sql> | undefined
@@ -569,8 +575,13 @@ export async function searchProductsQuery(
 
   if (trimmedQuery.length > 0) {
     if (useFts) {
-      searchVector = sql`to_tsvector('english', ${product.name} || ' ' || coalesce(${product.description}, ''))`
-      plainQuery = sql`plainto_tsquery('english', ${trimmedQuery})`
+      // Listings are written in English or Dutch, so stem against both
+      // dictionaries and OR the queries together. The English stemmer leaves
+      // Dutch inflections intact, so "sokken" never matched a search for
+      // "sok"; the Dutch stemmer reduces both to the same root.
+      const searchText = sql`${product.name} || ' ' || coalesce(${product.description}, '')`
+      searchVector = sql`(to_tsvector('english', ${searchText}) || to_tsvector('dutch', ${searchText}))`
+      plainQuery = sql`(plainto_tsquery('english', ${trimmedQuery}) || plainto_tsquery('dutch', ${trimmedQuery}))`
       conditions.push(sql`${searchVector} @@ ${plainQuery}`)
     } else {
       const searchCondition = or(
@@ -617,12 +628,8 @@ export async function searchProductsQuery(
   })()
 
   if (trimmedQuery) {
-    searchQueriesTotal.inc({ has_results: products.length > 0 ? 'true' : 'false' })
-    logger.info('[search] query executed', {
-      query: trimmedQuery,
-      results: products.length,
-      total: total,
-    })
+    searchQueriesTotal.inc({ has_results: total > 0 ? 'true' : 'false' })
+    await recordSearchEvent({ query: trimmedQuery, resultCount: total, source: 'postgres' })
   }
 
   const imageUrls = await fetchFirstImageUrls(products.map((p) => p.id))

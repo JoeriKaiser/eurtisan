@@ -30,6 +30,7 @@ function SearchPageContent() {
     shopSlug,
     minPriceCents,
     maxPriceCents,
+    inStockOnly,
     sort,
   } = useLoaderData({ from: '/search' })
   const router = useRouter()
@@ -40,6 +41,7 @@ function SearchPageContent() {
     shop: shopSlug ?? '',
     minPrice: minPriceCents !== undefined ? String(minPriceCents / 100) : '',
     maxPrice: maxPriceCents !== undefined ? String(maxPriceCents / 100) : '',
+    inStock: inStockOnly ? 'true' : '',
     sort: sort ?? 'relevance',
   })
 
@@ -72,6 +74,9 @@ function SearchPageContent() {
         if (!Number.isNaN(cents) && cents >= 0) params.maxPrice = cents
       }
 
+      const inStock = Object.hasOwn(overrides, 'inStock') ? overrides.inStock : filters.inStock
+      if (inStock) params.inStock = 'true'
+
       const sortValue = Object.hasOwn(overrides, 'sort') ? overrides.sort : filters.sort
       if (sortValue && sortValue !== 'relevance') params.sort = sortValue
 
@@ -99,6 +104,7 @@ function SearchPageContent() {
       filters.shop ||
       filters.minPrice ||
       filters.maxPrice ||
+      filters.inStock ||
       filters.sort !== 'relevance',
   )
 
@@ -236,6 +242,7 @@ function SearchPageContent() {
             filters={filters}
             setFilters={setFilters}
             categories={categories}
+            facets={products.facets}
             navigateWithParams={navigateWithParams}
             hasActiveFilters={hasActiveFilters}
             showCategory={!isVisualBrowseMode}

@@ -1,14 +1,15 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowRight, Package, Search } from 'lucide-react'
-import type { SearchSuggestion } from '#/hooks/useSearchSuggestions'
 import { cn } from '#/lib/cn'
+import type { SearchSuggestion } from '#/lib/search/suggestions'
 import { m } from '#/paraglide/messages'
 
 interface SearchSuggestionsProps {
   suggestions: SearchSuggestion[]
-  query: string
   isLoading: boolean
   activeIndex: number
+  listboxId: string
+  optionId: (index: number) => string
   onSelect: (suggestion: SearchSuggestion) => void
   onHover: (index: number) => void
 }
@@ -19,54 +20,18 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
   category: <ArrowRight size={14} aria-hidden='true' />,
 }
 
-const TYPE_LABELS: Record<string, string> = {
-  query: 'Search',
-  product: m.search_suggestions_products(),
-  category: m.search_suggestions_categories(),
-}
-
-function HighlightText({ text, query }: { text: string; query: string }) {
-  if (!query.trim()) return <>{text}</>
-
-  const escapedTerms = query
-    .trim()
-    .split(/\s+/)
-    .filter((t) => t.length > 0)
-    .map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-
-  if (escapedTerms.length === 0) return <>{text}</>
-
-  const pattern = new RegExp(`(${escapedTerms.join('|')})`, 'gi')
-  const elements: React.ReactNode[] = []
-  let match: RegExpExecArray | null
-  let lastIndex = 0
-
-  for (;;) {
-    match = pattern.exec(text)
-    if (match === null) break
-    if (match.index > lastIndex) {
-      elements.push(<span key={`pre-${match.index}`}>{text.slice(lastIndex, match.index)}</span>)
-    }
-    elements.push(
-      <mark key={match.index} className='bg-transparent font-semibold text-text-primary'>
-        {match[0]}
-      </mark>,
-    )
-    lastIndex = match.index + match[0].length
-  }
-
-  if (lastIndex < text.length) {
-    elements.push(<span key={`post-${lastIndex}`}>{text.slice(lastIndex)}</span>)
-  }
-
-  return <>{elements}</>
+function typeLabel(type: SearchSuggestion['type']): string {
+  if (type === 'product') return m.search_suggestions_products()
+  if (type === 'category') return m.search_suggestions_categories()
+  return m.search_suggestion_type_query()
 }
 
 export default function SearchSuggestions({
   suggestions,
-  query,
   isLoading,
   activeIndex,
+  listboxId,
+  optionId,
   onSelect,
   onHover,
 }: SearchSuggestionsProps) {
@@ -82,7 +47,7 @@ export default function SearchSuggestions({
             />
           ))}
         </div>
-        <span className='sr-only'>Loading suggestions</span>
+        <span className='sr-only'>{m.search_loading_suggestions()}</span>
       </div>
     )
   }
@@ -93,23 +58,51 @@ export default function SearchSuggestions({
 
   return (
     <ul
-      id='search-suggestions'
-      aria-label='Search suggestions'
+      id={listboxId}
+      // biome-ignore lint/a11y/noNoninteractiveElementToInteractiveRole: pairs with the input's role="combobox"
+      role='listbox'
+      aria-label={m.search_suggestions_label()}
       className='max-h-80 overflow-y-auto py-2'
     >
       {suggestions.map((suggestion, index) => {
         const isActive = index === activeIndex
         const icon = TYPE_ICONS[suggestion.type]
-        const typeLabel = TYPE_LABELS[suggestion.type]
-        const safeLabel = suggestion.label
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/^-+|-+$/g, '')
-        const itemId = `suggestion-${suggestion.type}-${safeLabel}-${index}`
+        const itemId = optionId(index)
+
+        const body = (
+          <>
+            <span
+              className={cn(
+                'flex size-7 shrink-0 items-center justify-center rounded-md',
+                isActive
+                  ? 'bg-accent-primary/10 text-accent-primary'
+                  : 'bg-surface-inset text-text-muted',
+              )}
+              aria-hidden='true'
+            >
+              {icon}
+            </span>
+            <span className='flex-1'>
+              <span className='font-medium'>{suggestion.label}</span>
+              <span className='ml-2 text-xs text-text-muted'>{typeLabel(suggestion.type)}</span>
+            </span>
+          </>
+        )
+
+        const className = cn(
+          'flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors',
+          isActive
+            ? 'bg-accent-primary-subtle text-text-primary'
+            : 'text-text-secondary hover:bg-bg-inset hover:text-text-primary',
+        )
 
         return (
+          // `role="none"` on the wrapper keeps the option role on the
+          // interactive element, so the anchor stays a real link (middle-click,
+          // open-in-new-tab) while remaining a valid listbox child.
           <li
             key={itemId}
+            role='none'
             ref={
               isActive
                 ? (node) => node?.scrollIntoView({ block: 'nearest', behavior: 'auto' })
@@ -121,34 +114,17 @@ export default function SearchSuggestions({
               <Link
                 to={suggestion.href}
                 id={itemId}
-                className={cn(
-                  'flex items-center gap-3 px-4 py-2.5 text-sm transition-colors',
-                  isActive
-                    ? 'bg-accent-primary-subtle text-text-primary'
-                    : 'text-text-secondary hover:bg-bg-inset hover:text-text-primary',
-                )}
+                role='option'
+                aria-selected={isActive}
+                // Focus stays on the input; aria-activedescendant conveys position.
+                tabIndex={-1}
+                className={className}
                 onClick={(e) => {
                   e.stopPropagation()
                   onSelect(suggestion)
                 }}
               >
-                <span
-                  className={cn(
-                    'flex size-7 shrink-0 items-center justify-center rounded-md',
-                    isActive
-                      ? 'bg-accent-primary/10 text-accent-primary'
-                      : 'bg-surface-inset text-text-muted',
-                  )}
-                  aria-hidden='true'
-                >
-                  {icon}
-                </span>
-                <span className='flex-1'>
-                  <span className='font-medium'>
-                    <HighlightText text={suggestion.label} query={query} />
-                  </span>
-                  <span className='ml-2 text-xs text-text-muted'>{typeLabel}</span>
-                </span>
+                {body}
                 {suggestion.type === 'category' && (
                   <span className='text-xs text-text-muted'>
                     {m.search_view_all_in({ category: suggestion.label })}
@@ -159,31 +135,13 @@ export default function SearchSuggestions({
               <button
                 type='button'
                 id={itemId}
-                className={cn(
-                  'flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors',
-                  isActive
-                    ? 'bg-accent-primary-subtle text-text-primary'
-                    : 'text-text-secondary hover:bg-bg-inset hover:text-text-primary',
-                )}
+                role='option'
+                aria-selected={isActive}
+                tabIndex={-1}
+                className={className}
                 onClick={() => onSelect(suggestion)}
               >
-                <span
-                  className={cn(
-                    'flex size-7 shrink-0 items-center justify-center rounded-md',
-                    isActive
-                      ? 'bg-accent-primary/10 text-accent-primary'
-                      : 'bg-surface-inset text-text-muted',
-                  )}
-                  aria-hidden='true'
-                >
-                  {icon}
-                </span>
-                <span className='flex-1'>
-                  <span className='font-medium'>
-                    <HighlightText text={suggestion.label} query={query} />
-                  </span>
-                  <span className='ml-2 text-xs text-text-muted'>{typeLabel}</span>
-                </span>
+                {body}
               </button>
             )}
           </li>
