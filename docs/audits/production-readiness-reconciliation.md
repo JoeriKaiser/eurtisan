@@ -2,8 +2,8 @@
 
 **Reconciled at:** `41349a5` · 2026-07-25
 **Against:** [`docs/PRODUCTION_READINESS_AUDIT.md`](../PRODUCTION_READINESS_AUDIT.md) (dated 2026-06-21)
-**Scope:** all 23 **P0** findings, plus 25 of the 49 **P1** findings. The
-remaining 24 P1s and all 34 P2s are **not** reconciled.
+**Scope:** all 23 **P0** findings, plus 31 of the 49 **P1** findings. The
+remaining 18 P1s and all 34 P2s are **not** reconciled.
 
 ## Why this exists
 
@@ -18,8 +18,8 @@ ready … critical blockers in money-handling, data integrity, GDPR erasure,
 migration tooling, monitoring auth, and security logging" — no longer describes
 the codebase at this commit.
 
-That verdict covers the P0 tier. A partial P1 pass has since checked 25 of 49
-findings and found **all 25 fixed** — see the P1 section below. 24 P1s and all
+That verdict covers the P0 tier. A partial P1 pass has since checked 31 of 49
+findings and found **all 31 fixed** — see the P1 section below. 18 P1s and all
 34 P2s remain unchecked, so this is still not a statement that the platform is
 launch-ready.
 
@@ -71,10 +71,10 @@ suggested.
 
 ## P1 tier — partial pass
 
-**Reconciled at:** `f1270f3` · 2026-07-25 · **25 of 49 checked, all 25 fixed.**
-The remaining 24 are listed below as unchecked, not as open.
+**Reconciled at:** `8ee4348` · 2026-07-25 · **31 of 49 checked, all 31 fixed.**
+The remaining 18 are listed below as unchecked, not as open.
 
-### Fixed — verified (25)
+### Fixed — verified (31)
 
 **Database integrity (12).** Every schema finding is resolved.
 
@@ -121,21 +121,34 @@ The remaining 24 are listed below as unchecked, not as open.
 | P1-26 | Bun pinned to `1.3.13` by SHA256 digest in both Dockerfiles; CI executes through Docker, so the toolchain is deterministic |
 | P1-49 | 0 of 16 job services carry a redundant `build:` block |
 
-### Not yet checked (24)
+**Money-adjacent (6).** Checked by reading the code, as the P0 money path was.
+
+| ID | Evidence |
+|---|---|
+| P1-1 | Dispute resolution calls `createCreditNoteForShopOrder(lockedDispute.shopOrderId, tx)` at `src/lib/disputes/operations.server.ts:861`, inside the transaction |
+| P1-2 | Full owner refunds include shipping: `refundCents = remainingTotalCents` (`shop-orders/operations.server.ts:797`), and the cancellation path uses `subtotalCents + shippingCostCents - refundedCents` (`:1432`) |
+| P1-5 | Zero `Promise.all` calls remain in the invoice modules, so the sequence-backed `allocateNextInvoiceNumber` is no longer raced. No hardcoded currency in line descriptions — the only `EUR` occurrence is a billing-party constant. |
+| P1-6 | `total_order_value` is computed, not hardcoded (`sendcloud-provider.ts:414`), with a test asserting a real value (`'12.34'`) |
+| P1-7 | Both halves fixed. `attributeRefundsToShopOrder` (`payouts/reconciliation.server.ts:74`) attributes each refund proportionally to that shop order's unrefunded portion — its docstring names the exact failure mode the audit described. `listMollieRefundsForPayment` now **throws** on a non-OK response (`:53`) instead of swallowing it into an empty list; reconciliation errors are counted and logged. |
+| P1-46 | Full token lifecycle implemented in `src/lib/tax/mollie-connect.server.ts`: `refreshMollieConnectTokens` (`grant_type: 'refresh_token'`), `ensureMollieAccessToken` for refresh-on-demand, merchant-revoked detection, and `disconnectMollieConnect` calling `revokeMollieToken(refreshToken, 'refresh_token')` so the Mollie-side grant is actually revoked |
+
+### Not yet checked (18)
 
 Not evidence of a problem — simply not reached in this pass.
 
-`P1-1` `P1-2` `P1-3` `P1-4` `P1-5` `P1-6` `P1-7` (invoicing, refunds, DAC7, tax config,
-shipping, payout reconciliation) · `P1-18` (backup retention doc consistency) ·
-`P1-27` (E2E breadth — partially addressed by the search specs added in #15) ·
-`P1-28` `P1-29` (env docs, CODEOWNERS) · `P1-30` `P1-31` (health-check external
-calls, Alloy CORS) · `P1-34` `P1-35` `P1-48` (authorization) · `P1-40`–`P1-45`
-(frontend i18n, a11y, theme, flows, checkout) · `P1-46` (Mollie Connect token
-refresh) · `P1-47` (GDPR export completeness)
+`P1-3` `P1-4` (DAC7 tax identity editing, tax env var documentation) ·
+`P1-18` (backup retention doc consistency) · `P1-27` (E2E breadth — partially
+addressed by the search specs added in #15) · `P1-28` `P1-29` (env docs,
+CODEOWNERS) · `P1-30` `P1-31` (health-check external calls, Alloy CORS) ·
+`P1-34` `P1-35` `P1-48` (authorization) · `P1-40`–`P1-45` (frontend i18n, a11y,
+theme, route completeness, checkout fragility) · `P1-47` (GDPR export
+completeness)
 
-The money-adjacent ones (`P1-1`, `P1-2`, `P1-5`, `P1-6`, `P1-7`, `P1-46`) are the
-highest-value remainder and deserve the same read-the-code treatment the P0
-money-path findings got.
+The remainder splits into three natural groups: **authorization** (`P1-34`,
+`P1-35`, `P1-48`), **frontend quality** (`P1-40`–`P1-45`, six findings covering
+i18n, accessibility, theming and checkout), and **compliance/config**
+(`P1-3`, `P1-4`, `P1-47`, plus housekeeping). Authorization is the group worth
+reading carefully; the frontend group is large enough to warrant its own pass.
 
 ## Remaining work
 
