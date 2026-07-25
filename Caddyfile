@@ -27,8 +27,31 @@
 
 	# Browser search uses a restricted search-only key. The master key remains
 	# server-only; handle_path strips the public prefix before Meilisearch.
+	#
+	# The search key is public by design (it ships in the JS bundle), so this
+	# route is defended at the edge as well: only the search endpoints are
+	# reachable, and the rate limit bounds scraping and query floods. Paths are
+	# matched after handle_path has stripped the /meilisearch prefix.
 	handle_path /meilisearch/* {
-		reverse_proxy meilisearch:7700
+		@search_endpoints {
+			method POST
+			path /indexes/products/search /indexes/products/facet-search /multi-search
+		}
+		handle @search_endpoints {
+			rate_limit {
+				zone search {
+					key {remote_host}
+					events 120
+					window 1m
+				}
+			}
+			reverse_proxy meilisearch:7700
+		}
+		# Everything else on the Meilisearch API (documents, keys, tasks, dumps,
+		# stats, settings) is never needed by a browser.
+		handle {
+			respond "Forbidden" 403
+		}
 	}
 
 	# Edge rate limiting for authentication endpoints

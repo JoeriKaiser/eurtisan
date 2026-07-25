@@ -110,6 +110,10 @@ services:
       - .env
     environment:
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?required Meilisearch master key}
+      # Without MEILI_ENV=production Meilisearch serves the search-preview UI
+      # and enables vendor telemetry by default.
+      MEILI_ENV: production
+      MEILI_NO_ANALYTICS: "true"
     volumes:
       - meilisearch_data:/meili_data
     networks:

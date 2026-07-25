@@ -32,7 +32,7 @@ const {
   mockUpdateSettings: vi.fn().mockResolvedValue(undefined),
   mockDeleteDocument: vi.fn().mockResolvedValue(undefined),
   mockDeleteDocuments: vi.fn().mockResolvedValue(undefined),
-  mockSearch: vi.fn().mockResolvedValue({ hits: [], estimatedTotalHits: 0 }),
+  mockSearch: vi.fn().mockResolvedValue({ hits: [], totalHits: 0 }),
   mockHealth: vi.fn().mockResolvedValue({ status: 'available' }),
   mockCreateIndex: vi.fn().mockResolvedValue(undefined),
   mockUpdateIndex: vi.fn().mockResolvedValue(undefined),
@@ -96,6 +96,7 @@ describe('configureProductsIndex', () => {
         enabled: true,
         minWordSizeForTypos: { oneTypo: 4, twoTypos: 8 },
       },
+      pagination: { maxTotalHits: 10_000 },
     })
   })
 
@@ -423,7 +424,7 @@ describe('searchProductsMeilisearch', () => {
 
     mockSearch.mockResolvedValueOnce({
       hits: [{ id: 'prod-1' }],
-      estimatedTotalHits: 1,
+      totalHits: 1,
     })
 
     const result = await searchProductsMeilisearch('vase', {}, 'relevance', {
@@ -442,7 +443,7 @@ describe('searchProductsMeilisearch', () => {
 
     mockSearch.mockResolvedValueOnce({
       hits: [{ id: 'prod-1' }, { id: 'prod-2' }],
-      estimatedTotalHits: 2,
+      totalHits: 2,
     })
 
     const result = await searchProductsMeilisearch(undefined, { shopSlug: 'shop-1' }, 'relevance', {
@@ -462,7 +463,7 @@ describe('searchProductsMeilisearch', () => {
   it('escapes double quotes in shopSlug and categorySlug filters', async () => {
     await seedSearchData()
 
-    mockSearch.mockResolvedValueOnce({ hits: [], estimatedTotalHits: 0 })
+    mockSearch.mockResolvedValueOnce({ hits: [], totalHits: 0 })
 
     await searchProductsMeilisearch(
       undefined,
@@ -488,7 +489,7 @@ describe('searchProductsMeilisearch', () => {
 
     mockSearch.mockResolvedValueOnce({
       hits: [{ id: 'prod-1' }],
-      estimatedTotalHits: 1,
+      totalHits: 1,
     })
 
     await searchProductsMeilisearch(undefined, { categorySlug: 'pottery' }, 'relevance', {
@@ -507,7 +508,7 @@ describe('searchProductsMeilisearch', () => {
   it('filters by price range', async () => {
     await seedSearchData()
 
-    mockSearch.mockResolvedValueOnce({ hits: [], estimatedTotalHits: 0 })
+    mockSearch.mockResolvedValueOnce({ hits: [], totalHits: 0 })
 
     await searchProductsMeilisearch(
       undefined,
@@ -534,7 +535,7 @@ describe('searchProductsMeilisearch', () => {
   it('sorts by price ascending', async () => {
     await seedSearchData()
 
-    mockSearch.mockResolvedValueOnce({ hits: [], estimatedTotalHits: 0 })
+    mockSearch.mockResolvedValueOnce({ hits: [], totalHits: 0 })
 
     await searchProductsMeilisearch(undefined, {}, 'price_asc', { page: 1, pageSize: 10 })
 
@@ -549,7 +550,7 @@ describe('searchProductsMeilisearch', () => {
   it('sorts by price descending', async () => {
     await seedSearchData()
 
-    mockSearch.mockResolvedValueOnce({ hits: [], estimatedTotalHits: 0 })
+    mockSearch.mockResolvedValueOnce({ hits: [], totalHits: 0 })
 
     await searchProductsMeilisearch(undefined, {}, 'price_desc', { page: 1, pageSize: 10 })
 
@@ -564,7 +565,7 @@ describe('searchProductsMeilisearch', () => {
   it('sorts by newest', async () => {
     await seedSearchData()
 
-    mockSearch.mockResolvedValueOnce({ hits: [], estimatedTotalHits: 0 })
+    mockSearch.mockResolvedValueOnce({ hits: [], totalHits: 0 })
 
     await searchProductsMeilisearch(undefined, {}, 'newest', { page: 1, pageSize: 10 })
 
@@ -576,7 +577,47 @@ describe('searchProductsMeilisearch', () => {
     )
   })
 
-  it('falls back to null when meilisearch hits are filtered by hydration', async () => {
+  it('uses finite pagination so totals are exact rather than estimated', async () => {
+    await seedSearchData()
+
+    mockSearch.mockResolvedValueOnce({ hits: [], totalHits: 0 })
+
+    await searchProductsMeilisearch('vase', {}, 'relevance', { page: 3, pageSize: 24 })
+
+    expect(mockSearch).toHaveBeenCalledWith(
+      'vase',
+      expect.objectContaining({ page: 3, hitsPerPage: 24 }),
+    )
+    const [, options] = mockSearch.mock.calls[0]
+    expect(options).not.toHaveProperty('limit')
+    expect(options).not.toHaveProperty('offset')
+  })
+
+  it('serves the hydrated subset when only some hits are stale', async () => {
+    await seedSearchData()
+
+    // prod-3 is returned by the index but no longer satisfies the invariant.
+    await db.update(product).set({ isActive: false }).where(eq(product.id, 'prod-3'))
+
+    mockSearch.mockResolvedValueOnce({
+      hits: [{ id: 'prod-1' }, { id: 'prod-3' }],
+      totalHits: 2,
+    })
+
+    const result = await searchProductsMeilisearch(undefined, {}, 'relevance', {
+      page: 1,
+      pageSize: 10,
+    })
+
+    expect(result).not.toBeNull()
+    expect(result?.products.map((p) => p.id)).toEqual(['prod-1'])
+    // The stale hit is discounted from the reported total.
+    expect(result?.total).toBe(1)
+    // ...and scheduled for removal from the index.
+    expect(mockDeleteDocuments).toHaveBeenCalledWith(['prod-3'])
+  })
+
+  it('falls back to null when every hit on the page is stale', async () => {
     const { s1 } = await seedSearchData()
 
     // Suspend shop-1 after seeding
@@ -584,7 +625,7 @@ describe('searchProductsMeilisearch', () => {
 
     mockSearch.mockResolvedValueOnce({
       hits: [{ id: 'prod-1' }, { id: 'prod-2' }],
-      estimatedTotalHits: 2,
+      totalHits: 2,
     })
 
     const result = await searchProductsMeilisearch(undefined, {}, 'relevance', {
@@ -593,6 +634,25 @@ describe('searchProductsMeilisearch', () => {
     })
 
     expect(result).toBeNull()
+    expect(mockDeleteDocuments).toHaveBeenCalledWith(['prod-1', 'prod-2'])
+  })
+
+  it('escapes backslashes so a filter value cannot break out of its literal', async () => {
+    await seedSearchData()
+
+    mockSearch.mockResolvedValueOnce({ hits: [], totalHits: 0 })
+
+    await searchProductsMeilisearch(undefined, { categorySlug: 'pottery\\' }, 'relevance', {
+      page: 1,
+      pageSize: 10,
+    })
+
+    expect(mockSearch).toHaveBeenCalledWith(
+      '',
+      expect.objectContaining({
+        filter: expect.arrayContaining(['categorySlug = "pottery\\\\"']),
+      }),
+    )
   })
 
   it('falls back to null on search error', async () => {
