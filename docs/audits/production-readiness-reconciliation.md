@@ -237,13 +237,20 @@ or uncertain.** The other 10 were not reached.
 ### Not checked (10)
 
 `P2-1` (DAC7 threshold vs refunds) · `P2-2` (non-DB work in transactions) ·
-`P2-3` (manual-review paid resolution oversell) · `P2-4` (credit-note typing) ·
-`P2-6` (money-path test coverage) · `P2-8` (checkout shipping array index) ·
-`P2-13` (state machine at schema level) · `P2-17` (composite indexes) ·
-`P2-24` (job command style) · `P2-29` (root loader auth logging)
+`P2-4` (credit-note typing) · `P2-6` (money-path test coverage) ·
+`P2-8` (checkout shipping array index) · `P2-13` (state machine at schema
+level) · `P2-17` (composite indexes) · `P2-24` (job command style) ·
+`P2-29` (root loader auth logging)
 
-`P2-3` is the one to prioritise — it is an oversell path, the same class of
-correctness issue as the P0 money-path findings.
+`P2-3` was checked after this pass and **fixed** — see below.
+
+
+## Fixes applied after reconciliation
+
+| ID | Fix |
+|---|---|
+| P2-3 | **Manual-review paid resolution could oversell.** `decrementStockForPaidOrder` clamped with `Math.max(0, …)`, silently selling stock that did not exist. The response now depends on whether the caller can still refuse: payment-webhook paths keep clamping (throwing would fail the webhook and strand a captured payment) but raise an `alert: true` log and increment `eurtisan_inventory_oversell_total`, while `resolveManualReviewQuery` passes `rejectOnShortfall: true` and gets an `InsufficientStockError`, surfaced as a 409 telling the operator to cancel and refund instead. Four tests cover both directions. |
+| — | **Suspending a shop left its listings searchable.** `moderateShopQuery` updated `shop.isSuspended` but nothing propagated to the search index. It now enqueues an `index` action for every product of the shop inside the same transaction — correct in both directions, since the sync worker re-evaluates eligibility and removes or restores the document. Enqueued rather than called inline so moderation cannot fail on a search outage. Three tests. |
 
 
 ## Remaining work

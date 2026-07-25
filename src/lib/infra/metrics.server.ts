@@ -147,6 +147,12 @@ export const ordersPaidTotal = new Counter({
   registers: [metricsRegistry],
 })
 
+export const inventoryOversellTotal = new Counter({
+  name: 'eurtisan_inventory_oversell_total',
+  help: 'Paid orders committed against insufficient stock (requires manual intervention)',
+  registers: [metricsRegistry],
+})
+
 export const ordersCancelledTotal = new Counter({
   name: 'eurtisan_orders_cancelled_total',
   help: 'Platform orders cancelled (payment failed/expired or chargeback)',

@@ -429,10 +429,25 @@ export const resolveShopOrderManualReview = createServerFn({ method: 'POST' })
     }
     requirePrivileged2FA(context.user as SafeUser)
 
-    return resolveManualReviewQuery(data.shopOrderId, {
-      resolution: data.resolution,
-      reason: data.reason,
-    })
+    try {
+      return await resolveManualReviewQuery(data.shopOrderId, {
+        resolution: data.resolution,
+        reason: data.reason,
+      })
+    } catch (err) {
+      // Resolving to paid is refused when stock no longer covers the order, so
+      // the operator can cancel and refund instead of overselling (P2-3).
+      if (err instanceof Error && err.name === 'InsufficientStockError') {
+        throw new Response(
+          JSON.stringify({
+            error: 'Conflict',
+            message: `Cannot resolve to paid: ${err.message}. Cancel and refund the order instead.`,
+          }),
+          { status: 409, headers: { 'Content-Type': 'application/json' } },
+        )
+      }
+      throw err
+    }
   })
 
 export const listShopOrders = createServerFn({ method: 'GET' })

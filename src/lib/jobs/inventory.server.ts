@@ -1,6 +1,8 @@
 import { and, eq, gte, inArray, isNull, lt, ne, or, sql, sum } from 'drizzle-orm'
 import type { NodePgDatabase } from 'drizzle-orm/node-postgres'
 import { db } from '#/db/index'
+import { logger } from '../logger.server'
+import { inventoryOversellTotal } from '../metrics.server'
 import type * as schema from '#/db/schema'
 import {
   inventoryReservation,
@@ -522,10 +524,60 @@ export async function cancelAbandonedPendingPaymentOrders(
  *
  * Stock is clamped to zero so it never goes negative. After decrementing,
  * every `inventory_reservation` row tied to the platform order is deleted.
+ *
+ * Clamping hides overselling, so a shortfall is never silent. Which response is
+ * correct depends on whether the caller can still refuse the order:
+ *
+ * - **Payment already captured** (webhooks, reconciliation): clamp and raise an
+ *   ops alert. Throwing here would fail the webhook and leave the payment
+ *   captured with the order unprocessed, which is worse than an oversell
+ *   somebody is paged about.
+ * - **`rejectOnShortfall: true`** (an operator resolving a manual review, who
+ *   can still cancel and refund instead): throw {@link InsufficientStockError}
+ *   so the order is not confirmed against stock that does not exist.
  */
+/**
+ * Reject or report an attempt to commit more stock than exists.
+ *
+ * Clamping to zero keeps the column valid but loses the fact that the platform
+ * sold something it cannot ship, which is precisely the part someone needs to
+ * know about.
+ */
+function assertOrReportShortfall(input: {
+  available: number
+  requested: number
+  productId: string
+  variantId: string | null
+  platformOrderId: string
+  rejectOnShortfall: boolean
+}): void {
+  const shortfall = input.requested - input.available
+  if (shortfall <= 0) return
+
+  if (input.rejectOnShortfall) {
+    throw new InsufficientStockError(
+      `Requested ${input.requested} but only ${Math.max(0, input.available)} available`,
+      Math.max(0, input.available),
+      input.requested,
+    )
+  }
+
+  inventoryOversellTotal.inc()
+  logger.error('Oversold stock while committing a paid order', undefined, {
+    alert: true,
+    platformOrderId: input.platformOrderId,
+    productId: input.productId,
+    variantId: input.variantId,
+    requested: input.requested,
+    available: input.available,
+    shortfall,
+  })
+}
+
 export async function decrementStockForPaidOrder(
   tx: DbOrTx,
   platformOrderId: string,
+  options: { rejectOnShortfall?: boolean } = {},
 ): Promise<void> {
   const items = await tx
     .select({
@@ -569,6 +621,15 @@ export async function decrementStockForPaidOrder(
         throw new Error(`Product variant ${entry.variantId} not found`)
       }
 
+      assertOrReportShortfall({
+        available: variantRow.stockCount,
+        requested: entry.quantity,
+        productId: entry.productId,
+        variantId: entry.variantId,
+        platformOrderId,
+        rejectOnShortfall: options.rejectOnShortfall ?? false,
+      })
+
       const newStock = Math.max(0, variantRow.stockCount - entry.quantity)
       await tx
         .update(productVariant)
@@ -584,6 +645,15 @@ export async function decrementStockForPaidOrder(
       if (!productRow) {
         throw new Error(`Product ${entry.productId} not found`)
       }
+
+      assertOrReportShortfall({
+        available: productRow.stockCount,
+        requested: entry.quantity,
+        productId: entry.productId,
+        variantId: null,
+        platformOrderId,
+        rejectOnShortfall: options.rejectOnShortfall ?? false,
+      })
 
       const newStock = Math.max(0, productRow.stockCount - entry.quantity)
       await tx

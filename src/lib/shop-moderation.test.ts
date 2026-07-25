@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
-import { shop, user } from '#/db/schema'
+import { meilisearchSyncQueue, product, shop, user } from '#/db/schema'
 import { listAllShopsQuery, moderateShopQuery } from './shop-moderation.server'
 
 vi.mock('./auth', () => ({
@@ -234,6 +234,46 @@ describe('moderateShopQuery', () => {
     const result = await moderateShopQuery('shop-1', 'unsuspend')
 
     expect(result.isSuspended).toBe(false)
+  })
+
+  it('enqueues the shop products for reindexing when suspending', async () => {
+    await seedUser()
+    await seedShop()
+    await db.insert(product).values([
+      { id: 'p-1', name: 'A', slug: 'a', shopId: 'shop-1', priceCents: 100 },
+      { id: 'p-2', name: 'B', slug: 'b', shopId: 'shop-1', priceCents: 200 },
+    ])
+
+    await moderateShopQuery('shop-1', 'suspend')
+
+    // Without this the listings stay searchable after suspension: the index is
+    // a separate store and nothing else in this path updates it.
+    const queued = await db.select().from(meilisearchSyncQueue)
+    expect(queued.map((q) => q.productId).sort()).toEqual(['p-1', 'p-2'])
+    expect(queued.every((q) => q.action === 'index')).toBe(true)
+  })
+
+  it('enqueues reindexing on unsuspend too, so listings come back', async () => {
+    await seedUser()
+    await seedShop({ isSuspended: true })
+    await db
+      .insert(product)
+      .values({ id: 'p-1', name: 'A', slug: 'a', shopId: 'shop-1', priceCents: 100 })
+
+    await moderateShopQuery('shop-1', 'unsuspend')
+
+    const queued = await db.select().from(meilisearchSyncQueue)
+    expect(queued).toHaveLength(1)
+    expect(queued[0].action).toBe('index')
+  })
+
+  it('does not enqueue anything for a shop with no products', async () => {
+    await seedUser()
+    await seedShop()
+
+    await moderateShopQuery('shop-1', 'suspend')
+
+    expect(await db.select().from(meilisearchSyncQueue)).toHaveLength(0)
   })
 
   it('throws a clear error for an invalid shop ID', async () => {
