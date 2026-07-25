@@ -13,9 +13,9 @@
 > written on 2026-06-21 and do **not** reflect subsequent work — in particular,
 > the "Top 10 blockers" list is historical.
 >
-> All 49 P1 findings have been checked: 45 fixed, 4 partially open (all small and
-> frontend-only). The 34 P2s remain unchecked, so this is not a statement that
-> the platform is launch-ready.
+> All 49 P1 findings checked: 45 fixed, 4 partially open (small, frontend-only).
+> Of 34 P2s, 24 checked: 21 fixed, 3 open or uncertain. Across all tiers: **96 of
+> 106 reconciled, 89 fixed, 1 cosmetic, 7 open or uncertain — all small.**
 
 ---
 

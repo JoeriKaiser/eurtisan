@@ -2,8 +2,8 @@
 
 **Reconciled at:** `41349a5` · 2026-07-25
 **Against:** [`docs/PRODUCTION_READINESS_AUDIT.md`](../PRODUCTION_READINESS_AUDIT.md) (dated 2026-06-21)
-**Scope:** all 23 **P0** and all 49 **P1** findings. The 34 **P2** findings are
-**not** reconciled.
+**Scope:** all 23 **P0**, all 49 **P1**, and 24 of the 34 **P2** findings —
+96 of 106 total.
 
 ## Why this exists
 
@@ -22,8 +22,9 @@ The P1 tier is now also complete: **45 of 49 fixed, 4 partially open**, all four
 small and frontend-only. Nothing in the P0 or P1 tiers blocks a launch on
 correctness, money handling, data integrity or authorization grounds.
 
-The 34 P2 findings remain unchecked, so this is still not a blanket
-launch-readiness statement.
+Of 34 P2 findings, 24 are checked: 21 fixed, 3 open or uncertain, 10 not
+reached. Across all tiers that is **96 of 106 reconciled — 89 fixed, 1 cosmetic,
+7 open or uncertain, all of them small.**
 
 ## Verdicts
 
@@ -181,11 +182,61 @@ frontend-only.
 
 
 
+## P2 tier — partial pass
+
+**Reconciled at:** `8ee4348` · 2026-07-25 · **24 of 34 checked: 21 fixed, 3 open
+or uncertain.** The other 10 were not reached.
+
+### Fixed — verified (21)
+
+| ID | Evidence |
+|---|---|
+| P2-5 | `getViesTimeoutMs()` reads `VIES_TIMEOUT_MS` (`infra/env.server.ts:416`) — no longer hardcoded |
+| P2-7 | Single EU country source in `src/lib/shared/address-validation.ts` |
+| P2-9 | JSONB PII encrypted via `encryptJsonb` / `decryptJsonb` |
+| P2-10 | Account deletion redacts `ownerMessage` and `customerNote` |
+| P2-12 | `emailOutbox.recipientEmail` encrypted and decrypted through the encryption module |
+| P2-14 | `audit_log.actorId` is `onDelete: 'set null'`, so audit history survives actor deletion |
+| P2-16 | `meilisearchSyncActionEnum` and `meilisearchSyncQueueStatusEnum` replace free text |
+| P2-18 | The redundant `rate_limit` index is gone; one remains |
+| P2-19 | `shop_onboarding_step_bounds` check constraint present |
+| P2-20 | `shopSocialPlatformEnum` replaces free text |
+| P2-21 | `payout-reconciliation-log-cleanup` job exists and is deployed |
+| P2-22 | All 21 production services declare CPU and memory limits |
+| P2-23 | Disk threshold configurable via `HEALTH_DISK_THRESHOLD_BYTES` |
+| P2-25 | No hardcoded 30-second wait loop remains in the Makefile |
+| P2-26 | `src/lib/shared/request-path.server.ts` sanitises paths, redacting sensitive query parameters before logging |
+| P2-28 | Canary/staged rollout implemented — 10 references across the Ansible role and deployment guide |
+| P2-30 | No `console.warn` remains in the auth utilities |
+| P2-31 | `as any` / `as unknown as` survive only in auth **test** files, not production code |
+| P2-32 | Caddy rate-limits `handle /api/auth*` across all methods, GET included |
+| P2-33 | `crypto.timingSafeEqual` used for the metrics token comparison |
+| P2-34 | No placeholder hrefs remain in the footer |
+
+### Open or uncertain (3)
+
+| ID | Status | Detail |
+|---|---|---|
+| P2-11 | **Likely open** | Account deletion redacts `ownerMessage` and `customerNote` but `shippingLabel` does not appear in `account-data.server.ts`. Shipping labels carry names and addresses. Worth confirming whether they are covered by another retention path before acting. |
+| P2-15 | **Open by design?** | `invoices.originalInvoiceNumber` still has no foreign key. It references an invoice *number* (a string) rather than an id, so an FK may have been deliberately omitted. Needs a decision rather than a fix. |
+| P2-27 | **Likely open** | No deployment success/failure notification found in `rollout.yml`. Low impact given alerting covers runtime health, but a failed rollout is currently silent. |
+
+### Not checked (10)
+
+`P2-1` (DAC7 threshold vs refunds) · `P2-2` (non-DB work in transactions) ·
+`P2-3` (manual-review paid resolution oversell) · `P2-4` (credit-note typing) ·
+`P2-6` (money-path test coverage) · `P2-8` (checkout shipping array index) ·
+`P2-13` (state machine at schema level) · `P2-17` (composite indexes) ·
+`P2-24` (job command style) · `P2-29` (root loader auth logging)
+
+`P2-3` is the one to prioritise — it is an oversell path, the same class of
+correctness issue as the P0 money-path findings.
+
+
 ## Remaining work
 
-- **P2 (34 findings) is unreconciled.** Given the P0 and P1 rates, expect most to
-  be resolved — but "expect" is exactly the assumption this document exists to
-  replace.
+- **10 P2 findings remain unchecked**, listed above. `P2-3` (manual-review
+  oversell) is the one with correctness stakes.
 - **The four open P1s are the actionable output of this whole exercise.** They
   are small: an undefined `info` theme token, three raw status enums shown to
   buyers, three native confirm dialogs, and a placeholder studio index. None
