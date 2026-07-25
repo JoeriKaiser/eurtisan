@@ -48,6 +48,65 @@ async function fetchReviewAggregates(productIds: string[]): Promise<Map<string, 
   )
 }
 
+/** A product joined to its shop, as returned by the indexing queries. */
+type ProductWithShop = {
+  product: typeof product.$inferSelect
+  shop: typeof shop.$inferSelect
+}
+
+/**
+ * Build index documents for a batch of product rows.
+ *
+ * Single definition of the document shape, shared by the full rebuild and the
+ * incremental sync queue, with all enrichment (category, review totals,
+ * thumbnail) fetched in one round trip per batch rather than per product.
+ */
+async function buildProductDocuments(
+  rows: ProductWithShop[],
+): Promise<MeilisearchProductDocument[]> {
+  if (rows.length === 0) return []
+
+  const productIds = rows.map((row) => row.product.id)
+  const categoryIds = [
+    ...new Set(rows.map((row) => row.product.categoryId).filter((id): id is string => id != null)),
+  ]
+
+  const [categoryRows, aggregates, imageUrls] = await Promise.all([
+    categoryIds.length > 0
+      ? db
+          .select({ id: categories.id, slug: categories.slug, name: categories.name })
+          .from(categories)
+          .where(inArray(categories.id, categoryIds))
+      : Promise.resolve([]),
+    fetchReviewAggregates(productIds),
+    fetchFirstImageUrls(productIds),
+  ])
+  const categoryById = new Map(categoryRows.map((c) => [c.id, c]))
+
+  return rows.map((row) => {
+    const prod = row.product
+    const category = prod.categoryId ? categoryById.get(prod.categoryId) : undefined
+
+    return {
+      id: prod.id,
+      name: prod.name,
+      description: prod.description,
+      slug: prod.slug,
+      priceCents: prod.priceCents,
+      isActive: prod.isActive,
+      shopId: prod.shopId,
+      shopSlug: row.shop.slug,
+      shopName: row.shop.name,
+      categoryId: prod.categoryId,
+      categorySlug: category?.slug ?? null,
+      categoryName: category?.name ?? null,
+      ...buildRelevanceFields(prod.stockCount, aggregates.get(prod.id) ?? EMPTY_AGGREGATE),
+      imageUrl: imageUrls.get(prod.id) ?? null,
+      createdAt: prod.createdAt.toISOString(),
+    }
+  })
+}
+
 /** Build the relevance-signal portion of a document from its review totals. */
 function buildRelevanceFields(stockCount: number, aggregate: ReviewAggregate) {
   return {
@@ -110,22 +169,22 @@ export async function isMeilisearchHealthy(): Promise<boolean> {
   }
 }
 
-export async function configureProductsIndex(): Promise<void> {
+export async function configureProductsIndex(indexUid: string = PRODUCTS_INDEX): Promise<void> {
   if (!meilisearch) return
 
   // Explicitly create/update the index with the primary key 'id' to prevent
   // auto-inference failures when multiple fields in the document end with 'id'.
   try {
-    await meilisearch.createIndex(PRODUCTS_INDEX, { primaryKey: 'id' })
+    await meilisearch.createIndex(indexUid, { primaryKey: 'id' })
   } catch {
     try {
-      await meilisearch.index(PRODUCTS_INDEX).update({ primaryKey: 'id' })
+      await meilisearch.index(indexUid).update({ primaryKey: 'id' })
     } catch (err) {
       logger.error('Failed to set Meilisearch index primary key', err)
     }
   }
 
-  const index = meilisearch.index(PRODUCTS_INDEX)
+  const index = meilisearch.index(indexUid)
   await index.updateSettings({
     // Order is significant: the `attribute` ranking rule weights earlier
     // attributes more heavily, so a query matching a product name outranks the
@@ -316,6 +375,7 @@ export async function clearProductsIndex(): Promise<void> {
 
 export async function populateProductsIndex(
   batchSize = 500,
+  indexUid: string = PRODUCTS_INDEX,
 ): Promise<{ synced: number; errors: number }> {
   if (!meilisearch) return { synced: 0, errors: 0 }
   const client = meilisearch
@@ -345,53 +405,11 @@ export async function populateProductsIndex(
 
     if (products.length === 0) break
 
-    const categoryIds = [
-      ...new Set(
-        products.map((row) => row.product.categoryId).filter((id): id is string => id != null),
-      ),
-    ]
-    const [categoryRows, aggregates, imageUrls] = await Promise.all([
-      categoryIds.length > 0
-        ? db
-            .select({ id: categories.id, slug: categories.slug, name: categories.name })
-            .from(categories)
-            .where(inArray(categories.id, categoryIds))
-        : Promise.resolve([]),
-      fetchReviewAggregates(products.map((row) => row.product.id)),
-      fetchFirstImageUrls(products.map((row) => row.product.id)),
-    ])
-    const categoryById = new Map(categoryRows.map((c) => [c.id, c]))
-
-    const docs: MeilisearchProductDocument[] = []
-    for (const row of products) {
-      try {
-        const prod = row.product
-        const category = prod.categoryId ? categoryById.get(prod.categoryId) : undefined
-
-        docs.push({
-          id: prod.id,
-          name: prod.name,
-          description: prod.description,
-          slug: prod.slug,
-          priceCents: prod.priceCents,
-          isActive: prod.isActive,
-          shopId: prod.shopId,
-          shopSlug: row.shop.slug,
-          shopName: row.shop.name,
-          categoryId: prod.categoryId,
-          categorySlug: category?.slug ?? null,
-          categoryName: category?.name ?? null,
-          ...buildRelevanceFields(prod.stockCount, aggregates.get(prod.id) ?? EMPTY_AGGREGATE),
-          imageUrl: imageUrls.get(prod.id) ?? null,
-          createdAt: prod.createdAt.toISOString(),
-        })
-      } catch {
-        errors++
-      }
-    }
+    const docs = await buildProductDocuments(products)
+    errors += products.length - docs.length
 
     if (docs.length > 0) {
-      await client.index(PRODUCTS_INDEX).addDocuments(docs, { primaryKey: 'id' })
+      await client.index(indexUid).addDocuments(docs, { primaryKey: 'id' })
       synced += docs.length
     }
 
@@ -400,6 +418,65 @@ export async function populateProductsIndex(
   }
 
   return { synced, errors }
+}
+
+/**
+ * Rebuild the products index without downtime.
+ *
+ * `clearProductsIndex` + `populateProductsIndex` leaves search returning
+ * nothing for the whole rebuild, which on a marketplace means an empty
+ * storefront. Instead build a fresh index alongside the live one and swap them
+ * atomically, so readers only ever see a complete index.
+ *
+ * Returns null when Meilisearch is not configured.
+ */
+export async function rebuildProductsIndex(
+  batchSize = 500,
+): Promise<{ synced: number; errors: number } | null> {
+  if (!meilisearch) return null
+  const client = meilisearch
+
+  // A fixed name (rather than a timestamp) means a crashed rebuild leaves one
+  // recoverable index behind instead of accumulating them.
+  const stagingUid = `${PRODUCTS_INDEX}_rebuild`
+
+  logger.info('[meilisearch] Rebuilding products index', { stagingUid })
+
+  // Start from empty in case a previous rebuild died partway through.
+  try {
+    await client.tasks.waitForTask(await client.deleteIndex(stagingUid))
+  } catch {
+    // The staging index normally does not exist; that is the expected case.
+  }
+
+  await configureProductsIndex(stagingUid)
+  const result = await populateProductsIndex(batchSize, stagingUid)
+
+  // addDocuments only enqueues work — the swap must not happen until the
+  // staging index has actually finished indexing.
+  await client.tasks.waitForTask(
+    await client.index(stagingUid).updateSettings({ pagination: { maxTotalHits: MAX_TOTAL_HITS } }),
+  )
+
+  // `rename: false` is a true swap: the live uid keeps serving throughout and
+  // ends up pointing at the freshly built data.
+  await client.tasks.waitForTask(
+    await client.swapIndexes([{ indexes: [PRODUCTS_INDEX, stagingUid], rename: false }]),
+  )
+
+  // After the swap, `stagingUid` holds the previous generation.
+  try {
+    await client.tasks.waitForTask(await client.deleteIndex(stagingUid))
+  } catch (err) {
+    logger.error('Failed to delete the superseded Meilisearch index', err)
+  }
+
+  logger.info('[meilisearch] Products index rebuilt', {
+    synced: result.synced,
+    errors: result.errors,
+  })
+
+  return result
 }
 
 export async function searchProductsMeilisearch(
@@ -517,9 +594,12 @@ export async function searchProductsMeilisearch(
     // Every hit on this page is stale: the index is badly desynced, so the
     // PostgreSQL path will give a materially better answer than an empty page.
     if (orderedRows.length === 0) {
+      // The raw query is deliberately omitted: search terms are user-typed free
+      // text under a retention policy, and application logs are not covered by
+      // it. The stale ids are the actionable part anyway.
       logger.warn('Meilisearch returned only stale hits; falling back to PostgreSQL', {
-        query,
         expectedHits: hits.length,
+        staleIds,
       })
       void purgeStaleDocuments(staleIds)
       return null
@@ -530,9 +610,9 @@ export async function searchProductsMeilisearch(
     // result set and re-running the whole search against PostgreSQL.
     if (staleIds.length > 0) {
       logger.warn('Meilisearch returned stale hits; serving hydrated subset', {
-        query,
         expectedHits: hits.length,
         hydratedHits: orderedRows.length,
+        staleIds,
       })
       void purgeStaleDocuments(staleIds)
     }
@@ -575,58 +655,130 @@ export async function processMeilisearchSyncQueue(
     return { processedCount: 0 }
   }
 
-  await Promise.all(
-    queueItems.map(async (item) => {
-      try {
-        if (item.action === 'index') {
-          const [prod] = await db
-            .select()
-            .from(product)
-            .where(eq(product.id, item.productId))
-            .limit(1)
-          if (!prod) {
-            await removeProductFromMeilisearch(item.productId)
-          } else {
-            await syncProductToMeilisearch(prod)
-          }
-        } else if (item.action === 'delete') {
-          await removeProductFromMeilisearch(item.productId)
-        }
-
-        await db.delete(meilisearchSyncQueue).where(eq(meilisearchSyncQueue.id, item.id))
-      } catch (err: unknown) {
-        const attempts = item.attempts + 1
-        const lastError = err instanceof Error ? err.message : String(err)
-        const backoffSec = 2 ** attempts * 5
-        const runAt = new Date(Date.now() + backoffSec * 1000)
-
-        await db
-          .update(meilisearchSyncQueue)
-          .set({
-            attempts,
-            lastError,
-            runAt,
-            status: attempts >= 5 ? 'failed' : 'pending',
-            updatedAt: new Date(),
-          })
-          .where(eq(meilisearchSyncQueue.id, item.id))
-
-        if (attempts >= 5) {
-          meilisearchSyncQueueFailedTotal.inc()
-          logger.error('Meilisearch sync queue item failed permanently', undefined, {
-            alert: true,
-            productId: item.productId,
-            queueId: item.id,
-          })
-        }
-
-        logger.error(
-          `[meilisearch-sync] Error processing item ${item.id} (attempt ${attempts})`,
-          err,
-        )
-      }
-    }),
-  )
+  try {
+    await processQueueBatch(queueItems)
+  } catch (err) {
+    // A batch write is all-or-nothing, so one bad row would otherwise stall
+    // every item behind it. Fall back to per-item processing to isolate the
+    // offender and let the rest through.
+    logger.warn('[meilisearch-sync] Batch write failed; retrying items individually', {
+      batchSize: queueItems.length,
+      error: err instanceof Error ? err.message : String(err),
+    })
+    for (const item of queueItems) {
+      await processQueueItem(item)
+    }
+  }
 
   return { processedCount: queueItems.length }
+}
+
+type SyncQueueItem = typeof meilisearchSyncQueue.$inferSelect
+
+/**
+ * Apply a whole batch with one write per operation type.
+ *
+ * The previous implementation issued an `addDocuments` call per row — fifty
+ * separate Meilisearch tasks per tick, each preceded by its own shop and
+ * category lookup.
+ */
+async function processQueueBatch(items: SyncQueueItem[]): Promise<void> {
+  if (!meilisearch) {
+    // Nothing to sync to; drop the rows so the queue does not grow unbounded.
+    await db.delete(meilisearchSyncQueue).where(
+      inArray(
+        meilisearchSyncQueue.id,
+        items.map((item) => item.id),
+      ),
+    )
+    return
+  }
+
+  const indexIds = [...new Set(items.filter((i) => i.action === 'index').map((i) => i.productId))]
+  const deleteIds = new Set(items.filter((i) => i.action === 'delete').map((i) => i.productId))
+
+  // Only products still satisfying the index invariant may be written; the rest
+  // are removed, which also covers rows deleted since they were enqueued.
+  const rows =
+    indexIds.length > 0
+      ? await db
+          .select()
+          .from(product)
+          .innerJoin(shop, eq(product.shopId, shop.id))
+          .where(
+            and(
+              inArray(product.id, indexIds),
+              eq(product.status, 'published'),
+              eq(product.isActive, true),
+              eq(shop.isSuspended, false),
+              eq(shop.status, 'active'),
+            ),
+          )
+      : []
+
+  const indexableIds = new Set(rows.map((row) => row.product.id))
+  for (const id of indexIds) {
+    if (!indexableIds.has(id)) deleteIds.add(id)
+  }
+
+  const docs = await buildProductDocuments(rows)
+
+  if (docs.length > 0) {
+    await meilisearch.index(PRODUCTS_INDEX).addDocuments(docs, { primaryKey: 'id' })
+  }
+  if (deleteIds.size > 0) {
+    await meilisearch.index(PRODUCTS_INDEX).deleteDocuments([...deleteIds])
+  }
+
+  await db.delete(meilisearchSyncQueue).where(
+    inArray(
+      meilisearchSyncQueue.id,
+      items.map((item) => item.id),
+    ),
+  )
+}
+
+/** Process a single queue row, recording backoff on failure. */
+async function processQueueItem(item: SyncQueueItem): Promise<void> {
+  try {
+    if (item.action === 'index') {
+      const [prod] = await db.select().from(product).where(eq(product.id, item.productId)).limit(1)
+      if (!prod) {
+        await removeProductFromMeilisearch(item.productId)
+      } else {
+        await syncProductToMeilisearch(prod)
+      }
+    } else if (item.action === 'delete') {
+      await removeProductFromMeilisearch(item.productId)
+    }
+
+    await db.delete(meilisearchSyncQueue).where(eq(meilisearchSyncQueue.id, item.id))
+  } catch (err: unknown) {
+    const attempts = item.attempts + 1
+    const lastError = err instanceof Error ? err.message : String(err)
+    const backoffSec = 2 ** attempts * 5
+    const runAt = new Date(Date.now() + backoffSec * 1000)
+
+    await db
+      .update(meilisearchSyncQueue)
+      .set({
+        attempts,
+        lastError,
+        runAt,
+        status: attempts >= 5 ? 'failed' : 'pending',
+        updatedAt: new Date(),
+      })
+      .where(eq(meilisearchSyncQueue.id, item.id))
+
+    if (attempts >= 5) {
+      meilisearchSyncQueueFailedTotal.inc()
+      logger.error('Meilisearch sync queue item failed permanently', undefined, {
+        alert: true,
+        productId: item.productId,
+        queueId: item.id,
+      })
+    }
+
+    logger.error(`[meilisearch-sync] Error processing item ${item.id} (attempt ${attempts})`, err)
+  }
 }

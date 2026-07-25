@@ -491,6 +491,33 @@ shipping the imgproxy key or permitting unsigned open-proxy requests. The browse
 receives only the restricted Meilisearch search key; `MEILISEARCH_API_KEY` and all
 storage and imgproxy signing secrets remain server-only.
 
+Caddy restricts `/meilisearch` to the search endpoints and rate-limits it, since the
+search key is public by design. **The Ansible-managed staging Traefik route does not
+yet apply the same restriction** — mirror it there before staging is exposed beyond
+IP-whitelisted access.
+
+Provision or rotate the browser search key with `bun run search:provision-key`; the
+value is baked into the client bundle at build time, so rotating requires a rebuild
+and prompt redeploy. See the [Meilisearch runbook](runbooks/meilisearch-failure.md).
+
+### Reindexing after a deploy
+
+Meilisearch applies index settings only to documents indexed *after* the change, so a
+deploy that alters searchable attributes, ranking rules, synonyms, `localizedAttributes`,
+or the document shape must be followed by a rebuild:
+
+```
+docker compose -f docker-compose.prod.yml run --rm app bun run search:reindex
+```
+
+This builds a complete index alongside the live one and swaps them atomically, so
+search keeps serving the previous generation throughout — never clear the index and
+repopulate in production, which empties the storefront for the duration.
+
+Note that `MEILI_MASTER_KEY` must be at least 16 bytes: the containers run with
+`MEILI_ENV=production`, which enforces that minimum and exits on boot if the key is
+shorter.
+
 ## Prometheus metrics
 
 The app exposes `GET /api/metrics` for Prometheus. Optional protection: set `METRICS_TOKEN` and configure scrape `authorization: Bearer <token>`.

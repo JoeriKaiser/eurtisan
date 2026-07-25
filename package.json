@@ -14,6 +14,8 @@
     "start": "bun run validate:server-env && bun --import ./dist/server/instrument.server.mjs ./dist/server/server-entry.mjs",
     "validate:server-env": "bun run scripts/validate-server-environment.ts",
     "smoke:client-config": "bun run scripts/smoke-production-client-config.ts",
+    "search:reindex": "bun run scripts/meilisearch-reindex.ts",
+    "search:provision-key": "bun run scripts/meilisearch-provision-key.ts",
     "db:generate": "drizzle-kit generate",
     "db:check": "drizzle-kit check",
     "db:migrate": "drizzle-kit migrate",

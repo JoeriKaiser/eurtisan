@@ -111,7 +111,9 @@ services:
     environment:
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?required Meilisearch master key}
       # Without MEILI_ENV=production Meilisearch serves the search-preview UI
-      # and enables vendor telemetry by default.
+      # and enables vendor telemetry by default. Production mode also enforces a
+      # master key of at least 16 bytes — a shorter key makes the service refuse
+      # to start.
       MEILI_ENV: production
       MEILI_NO_ANALYTICS: "true"
     volumes:

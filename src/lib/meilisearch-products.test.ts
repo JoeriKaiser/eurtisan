@@ -822,11 +822,54 @@ describe('processMeilisearchSyncQueue', () => {
 
     const items = await db.select().from(meilisearchSyncQueue)
     expect(items).toHaveLength(0)
-    expect(mockDeleteDocument).toHaveBeenCalledTimes(1)
+    expect(mockDeleteDocuments).toHaveBeenCalledWith([p.id])
+  })
+
+  it('writes a whole batch with a single addDocuments call', async () => {
+    const { shop: s } = await seedShopAndProduct()
+    for (const id of ['prod-2', 'prod-3', 'prod-4']) {
+      await createProduct(s, { id, name: id, slug: id, priceCents: 1000, isActive: true })
+    }
+
+    await db.insert(meilisearchSyncQueue).values(
+      ['prod-1', 'prod-2', 'prod-3', 'prod-4'].map((productId) => ({
+        productId,
+        action: 'index' as const,
+        status: 'pending' as const,
+        runAt: readyRunAt,
+      })),
+    )
+
+    const result = await processMeilisearchSyncQueue()
+
+    expect(result.processedCount).toBe(4)
+    expect(mockAddDocuments).toHaveBeenCalledTimes(1)
+    expect(mockAddDocuments.mock.calls[0][0]).toHaveLength(4)
+    expect(await db.select().from(meilisearchSyncQueue)).toHaveLength(0)
+  })
+
+  it('removes products that no longer satisfy the index invariant', async () => {
+    const { product: p } = await seedShopAndProduct()
+    await db.update(product).set({ isActive: false }).where(eq(product.id, p.id))
+
+    await db.insert(meilisearchSyncQueue).values({
+      productId: p.id,
+      action: 'index',
+      status: 'pending',
+      runAt: readyRunAt,
+    })
+
+    await processMeilisearchSyncQueue()
+
+    // Enqueued as an index, but it must leave the index rather than enter it.
+    expect(mockAddDocuments).not.toHaveBeenCalled()
+    expect(mockDeleteDocuments).toHaveBeenCalledWith([p.id])
   })
 
   it('handles errors by incrementing attempts and calculating backoff', async () => {
     const { product: p } = await seedShopAndProduct()
+    // Fail the batch write, then the per-item retry it falls back to.
+    mockDeleteDocuments.mockRejectedValueOnce(new Error('Meili down'))
     mockDeleteDocument.mockRejectedValueOnce(new Error('Meili down'))
 
     await db.insert(meilisearchSyncQueue).values({
@@ -846,8 +889,37 @@ describe('processMeilisearchSyncQueue', () => {
     expect(item.runAt.getTime()).toBeGreaterThan(Date.now())
   })
 
+  it('isolates a failing item so the rest of the batch still lands', async () => {
+    const { shop: s } = await seedShopAndProduct()
+    await createProduct(s, {
+      id: 'prod-ok',
+      name: 'Fine',
+      slug: 'fine',
+      priceCents: 1000,
+      isActive: true,
+    })
+
+    // Batch write fails once; the per-item pass then succeeds for both.
+    mockAddDocuments.mockRejectedValueOnce(new Error('batch rejected'))
+
+    await db.insert(meilisearchSyncQueue).values(
+      ['prod-1', 'prod-ok'].map((productId) => ({
+        productId,
+        action: 'index' as const,
+        status: 'pending' as const,
+        runAt: readyRunAt,
+      })),
+    )
+
+    const result = await processMeilisearchSyncQueue()
+
+    expect(result.processedCount).toBe(2)
+    expect(await db.select().from(meilisearchSyncQueue)).toHaveLength(0)
+  })
+
   it('marks item as failed after 5 attempts', async () => {
     const { product: p } = await seedShopAndProduct()
+    mockDeleteDocuments.mockRejectedValue(new Error('Meili down'))
     mockDeleteDocument.mockRejectedValue(new Error('Meili down'))
 
     const [inserted] = await db
