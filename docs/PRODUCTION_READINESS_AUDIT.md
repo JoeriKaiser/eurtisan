@@ -5,6 +5,13 @@
 **Method:** Read-only static code review. No code was modified and no runtime data was accessed.  
 **Audited areas:** Frontend UX, backend correctness, authorization/security, database/schema, GDPR/compliance, payments/tax/VAT/invoicing, shipping, order lifecycle, disputes, payouts, operations, deployment, observability, backups, and testing.
 
+> **Status is tracked separately — read this alongside
+> [`audits/production-readiness-reconciliation.md`](audits/production-readiness-reconciliation.md).**
+> As of `6fac0a6` (2026-07-25), **15 of the 23 P0 findings below are verifiably
+> fixed** and 1 is cosmetic; 7 still need confirmation. The finding text below is
+> preserved as written on 2026-06-21 and does **not** reflect subsequent work.
+> P1 and P2 have not yet been reconciled.
+
 ---
 
 ## Executive Summary
