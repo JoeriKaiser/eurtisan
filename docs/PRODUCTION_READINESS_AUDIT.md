@@ -13,8 +13,9 @@
 > written on 2026-06-21 and do **not** reflect subsequent work — in particular,
 > the "Top 10 blockers" list is historical.
 >
-> P1 (49) and P2 (34) have **not** been reconciled, so this is not a statement
-> that the platform is launch-ready.
+> Of the 49 P1 findings, 25 have been checked and all 25 are fixed; 24 P1s and
+> all 34 P2s remain unchecked, so this is not a statement that the platform is
+> launch-ready.
 
 ---
 
