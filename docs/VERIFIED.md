@@ -2,8 +2,8 @@
 
 Areas that have been deliberately examined and found sound, so work can skip
 re-auditing them. This is the positive counterpart to
-[`PRODUCTION_READINESS_AUDIT.md`](PRODUCTION_READINESS_AUDIT.md), which records
-what is broken.
+[`audits/production-readiness-reconciliation.md`](audits/production-readiness-reconciliation.md),
+which records the open findings.
 
 **This is not a list of "done" areas.** A verdict like "payments ✅" rots
 silently: the code changes, the claim stays, and the doc starts steering people

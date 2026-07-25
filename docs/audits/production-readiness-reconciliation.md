@@ -1,7 +1,20 @@
 # Production-readiness audit — reconciliation
 
 **Reconciled at:** `41349a5` · 2026-07-25
-**Against:** [`docs/PRODUCTION_READINESS_AUDIT.md`](../PRODUCTION_READINESS_AUDIT.md) (dated 2026-06-21)
+**Against:** the production-readiness audit of 2026-06-21 (106 findings)
+
+That audit has since been **deleted**. Its executive summary asserted 23
+launch blockers and "not production-launch ready", which this reconciliation
+showed to be false — leaving it in the repository was actively misleading. The
+full text of all 106 findings remains in git history:
+
+```
+git show e5e7754:docs/PRODUCTION_READINESS_AUDIT.md
+```
+
+Everything still actionable was carried into this document before deletion; see
+**Open items** below. Finding IDs (`P0-1`, `P1-42`, …) refer to that historical
+document and are kept so the two can still be cross-read.
 **Scope:** all 23 **P0**, all 49 **P1**, and 24 of the 34 **P2** findings —
 96 of 106 total.
 

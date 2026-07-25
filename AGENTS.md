@@ -26,7 +26,7 @@ Before substantial work:
 | Build/runtime configuration and secret ownership | [`docs/runbooks/environment-configuration.md`](docs/runbooks/environment-configuration.md) |
 | Deployment and infrastructure | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) and [`infrastructure/README.md`](infrastructure/README.md) |
 | Operational procedures | [`docs/runbooks/README.md`](docs/runbooks/README.md) |
-| Known defects and launch blockers | [`docs/PRODUCTION_READINESS_AUDIT.md`](docs/PRODUCTION_READINESS_AUDIT.md) and [`docs/plans/production-readiness/README.md`](docs/plans/production-readiness/README.md) |
+| Known defects and open findings | [`docs/audits/production-readiness-reconciliation.md`](docs/audits/production-readiness-reconciliation.md) |
 | Areas already verified sound | [`docs/VERIFIED.md`](docs/VERIFIED.md) |
 | Data retention and deletion exceptions | [`docs/DATA_RETENTION.md`](docs/DATA_RETENTION.md) |
 | Company profile and French tax rules | `BUSINESS.md` (local, intentionally untracked) |

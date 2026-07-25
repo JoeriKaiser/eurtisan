@@ -1,6 +1,6 @@
 # Production-Readiness Remediation Plans
 
-These plans translate `docs/PRODUCTION_READINESS_AUDIT.md` into implementer-ready,
+These plans translate the 2026-06-21 production-readiness audit into implementer-ready,
 phased work. Each phase is a complete, self-contained plan that can be handed to
 an individual agent or team.
 
@@ -148,7 +148,7 @@ an individual agent or team.
 ## Notes on scope
 
 All **23 P0**, **49 P1**, and **34 P2** findings from
-`docs/PRODUCTION_READINESS_AUDIT.md` are now mapped to a phase above. The
+that audit are now mapped to a phase above. The
 "Needs clarification" items were resolved inside the relevant plans with
 documented assumptions.
 
@@ -175,7 +175,7 @@ some necessary overlap:
 
 ## North Star follow-up phases
 
-These phases are not one-to-one mappings from `docs/PRODUCTION_READINESS_AUDIT.md`
+These phases are not one-to-one mappings from that audit
 but close owner-facing capability gaps listed in `AGENTS.md`.
 
 | Phase | Plan file | Theme |
