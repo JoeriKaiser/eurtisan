@@ -1,9 +1,9 @@
-# Production-readiness audit — P0 reconciliation
+# Production-readiness audit — reconciliation
 
 **Reconciled at:** `41349a5` · 2026-07-25
 **Against:** [`docs/PRODUCTION_READINESS_AUDIT.md`](../PRODUCTION_READINESS_AUDIT.md) (dated 2026-06-21)
-**Scope of this pass:** the 23 **P0 "cannot launch"** findings only. P1 (49) and
-P2 (34) have **not** been reconciled.
+**Scope:** all 23 **P0** findings, plus 25 of the 49 **P1** findings. The
+remaining 24 P1s and all 34 P2s are **not** reconciled.
 
 ## Why this exists
 
@@ -18,8 +18,10 @@ ready … critical blockers in money-handling, data integrity, GDPR erasure,
 migration tooling, monitoring auth, and security logging" — no longer describes
 the codebase at this commit.
 
-That verdict covers the P0 tier only. 49 P1 and 34 P2 findings remain
-unreconciled, and "no P0s open" is not the same as "ready to launch".
+That verdict covers the P0 tier. A partial P1 pass has since checked 25 of 49
+findings and found **all 25 fixed** — see the P1 section below. 24 P1s and all
+34 P2s remain unchecked, so this is still not a statement that the platform is
+launch-ready.
 
 ## Verdicts
 
@@ -66,6 +68,74 @@ suggested.
 | P0-19 | Debug / data-leak logging in production paths | Every file named in the finding is now clean except `src/integrations/faro.ts`, whose three remaining calls are each gated behind `import.meta.env.DEV` — the suggested fix. The invoice-JSON dump is gone. |
 | P0-22 | Mollie refund executed before the DB transaction commits | Restructured as the audit proposed, in both paths. The transaction records durable intent (`refundPendingCents`, `lastRefundAttemptedAt`), reverses the payout and writes the credit note, then commits; the Mollie call is an explicit "Step 2" afterwards, and its failure raises an `alert: true` log plus a 502. See `src/lib/shop-orders/operations.server.ts:855` and `src/lib/disputes/operations.server.ts:940`. |
 | P0-23 | Chargeback handling incomplete | `src/lib/tax/chargebacks.server.ts` implements the full workflow: `reversePayoutForRefund`, `restoreShopOrderStockInTx`, credit-note issuance, and notifications — all inside one transaction, documented as retry-safe. |
+
+## P1 tier — partial pass
+
+**Reconciled at:** `f1270f3` · 2026-07-25 · **25 of 49 checked, all 25 fixed.**
+The remaining 24 are listed below as unchecked, not as open.
+
+### Fixed — verified (25)
+
+**Database integrity (12).** Every schema finding is resolved.
+
+| ID | Evidence |
+|---|---|
+| P1-8 | Credentials are encrypted at the application layer (AES-256-GCM), not stored plaintext: `encryption.server.ts` decrypts `account.password`, `shop.mollieAccessToken`, `two_factor.secret`. The column type stays `text` because ciphertext is text — the finding read the schema, not the access path. |
+| P1-9 | `payout.shopOrderId` is `.notNull()` with a cascade FK |
+| P1-10 | Split into two indexes so neither spans a nullable column: `inventory_reservation_product_order_unique` and `..._product_cart_unique` |
+| P1-11 | Variant stock non-negative check present |
+| P1-12 | Positive-quantity checks present on cart and order items |
+| P1-13 | 4 financial consistency check constraints |
+| P1-14 | Explicit upper bounds: `refundedCents <= totalCents` and `refundedCents <= subtotalCents + shippingCostCents` |
+| P1-15 | `session.tokenHash` is `.notNull()` with a unique index |
+| P1-36 | Partial unique index: `.on(table.sku).where(isNotNull(table.sku))` |
+| P1-37 | `product_option_value_option_value_unique` on `(optionId, value)` |
+| P1-38 | `product_variant_product_name_unique` on `(productId, name)` |
+| P1-39 | `account_provider_account_unique` present |
+
+**Observability (4).**
+
+| ID | Evidence |
+|---|---|
+| P1-20 | 25 alert rules across 12 files — money, backups, job staleness, webhooks, disputes — not just email |
+| P1-21 | The `receiver: 'null'` default is the **local dev** file, which says so in its header. The Ansible template (`alertmanager.yml.j2`) routes `severity: critical` to a `critical` receiver. |
+| P1-22 | `GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}` — env-supplied, no weak default |
+| P1-33 | Logger has redaction handling (10 references) |
+
+**Backups (3).** All three are implemented; two ship **disabled by default**, which is an ops decision rather than missing code.
+
+| ID | Evidence |
+|---|---|
+| P1-17 | Offsite upload implemented via rclone; `backup_offsite_rclone_remote` defaults to `""` (unconfigured) with a 90-day offsite retention setting |
+| P1-19 | WAL archiving implemented with `docker-compose.wal-archive.yml`; `postgres_wal_archive_enabled` defaults to `false` |
+| P1-32 | `backup.sh.j2` creates a Meilisearch dump alongside each database backup |
+
+**CI and operations (6).**
+
+| ID | Evidence |
+|---|---|
+| P1-16 | `sendcloud-retention-cleanup` job exists and is deployed |
+| P1-23 | `withJobLock` takes a PostgreSQL advisory lock per job, with a `LOCK_IDS` registry — single-instance execution across containers |
+| P1-24 | All 16 job services carry `restart_policy: {condition: on-failure, delay: 10s, max_attempts: 5, window: 120s}` |
+| P1-25 | CI runs `make check` (tsc), `make test`, `make build`, plus format, lint, `audit-production`, `db-check`, and bundle budgets |
+| P1-26 | Bun pinned to `1.3.13` by SHA256 digest in both Dockerfiles; CI executes through Docker, so the toolchain is deterministic |
+| P1-49 | 0 of 16 job services carry a redundant `build:` block |
+
+### Not yet checked (24)
+
+Not evidence of a problem — simply not reached in this pass.
+
+`P1-1` `P1-2` `P1-3` `P1-4` `P1-5` `P1-6` `P1-7` (invoicing, refunds, DAC7, tax config,
+shipping, payout reconciliation) · `P1-18` (backup retention doc consistency) ·
+`P1-27` (E2E breadth — partially addressed by the search specs added in #15) ·
+`P1-28` `P1-29` (env docs, CODEOWNERS) · `P1-30` `P1-31` (health-check external
+calls, Alloy CORS) · `P1-34` `P1-35` `P1-48` (authorization) · `P1-40`–`P1-45`
+(frontend i18n, a11y, theme, flows, checkout) · `P1-46` (Mollie Connect token
+refresh) · `P1-47` (GDPR export completeness)
+
+The money-adjacent ones (`P1-1`, `P1-2`, `P1-5`, `P1-6`, `P1-7`, `P1-46`) are the
+highest-value remainder and deserve the same read-the-code treatment the P0
+money-path findings got.
 
 ## Remaining work
 
