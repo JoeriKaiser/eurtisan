@@ -7,10 +7,14 @@
 
 > **Status is tracked separately — read this alongside
 > [`audits/production-readiness-reconciliation.md`](audits/production-readiness-reconciliation.md).**
-> As of `6fac0a6` (2026-07-25), **15 of the 23 P0 findings below are verifiably
-> fixed** and 1 is cosmetic; 7 still need confirmation. The finding text below is
-> preserved as written on 2026-06-21 and does **not** reflect subsequent work.
-> P1 and P2 have not yet been reconciled.
+> As of `41349a5` (2026-07-25), **none of the 23 P0 findings below is still
+> open**: 22 are verifiably fixed and 1 (P0-4, migration-file numbering) is
+> cosmetic. The executive summary and finding text below are preserved as
+> written on 2026-06-21 and do **not** reflect subsequent work — in particular,
+> the "Top 10 blockers" list is historical.
+>
+> P1 (49) and P2 (34) have **not** been reconciled, so this is not a statement
+> that the platform is launch-ready.
 
 ---
 

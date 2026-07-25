@@ -1,6 +1,6 @@
 # Production-readiness audit — P0 reconciliation
 
-**Reconciled at:** `6fac0a6` · 2026-07-25
+**Reconciled at:** `41349a5` · 2026-07-25
 **Against:** [`docs/PRODUCTION_READINESS_AUDIT.md`](../PRODUCTION_READINESS_AUDIT.md) (dated 2026-06-21)
 **Scope of this pass:** the 23 **P0 "cannot launch"** findings only. P1 (49) and
 P2 (34) have **not** been reconciled.
@@ -12,9 +12,14 @@ PRs ago and carries no resolution status, so "23 P0 blockers" had become an
 unknown rather than a checklist — expensive to act on and easy to over- or
 under-react to.
 
-**Headline: 15 of 23 P0s are verifiably fixed, 1 is cosmetic, and 7 need a
-closer look.** The launch-blocker list is materially shorter than the audit
-implies, but it is not empty.
+**Headline: none of the 23 P0 findings is still open.** 22 are verifiably fixed
+and 1 (P0-4) is cosmetic. The audit's executive summary — "not production-launch
+ready … critical blockers in money-handling, data integrity, GDPR erasure,
+migration tooling, monitoring auth, and security logging" — no longer describes
+the codebase at this commit.
+
+That verdict covers the P0 tier only. 49 P1 and 34 P2 findings remain
+unreconciled, and "no P0s open" is not the same as "ready to launch".
 
 ## Verdicts
 
@@ -46,25 +51,39 @@ Each verdict states the evidence, so it can be re-checked rather than trusted.
 |---|---|---|
 | P0-4 | Broken Drizzle migration chain | Duplicate numeric prefixes remain (`0048_crazy_maddog` / `0048_dapper_joystick`, `0072_revert_premature_payout_releases` / `0072_worthless_angel`) and there is no `0047`. **But the chain applies cleanly**: the journal holds 79 distinct `idx`+`tag` entries for 79 SQL files, `drizzle-kit migrate` was run twice against a fresh database during this session with no error, and CI runs `scripts/validate-fresh-migrations.sh`. Drizzle keys on `idx`/`tag`, not the filename prefix, so the duplication is untidy rather than broken. Worth renaming for legibility; not launch-blocking. |
 
-### Still to confirm — could not verify mechanically (7)
+### Fixed — confirmed by reading the logic (7)
 
-These need a human read of the logic. They are **not** confirmed open — only
-unconfirmed.
+These could not be settled by pattern-matching and needed the code read. All
+seven turned out to be resolved, several implemented exactly as the audit
+suggested.
 
-| ID | Finding | What to check |
+| ID | Finding | Evidence |
 |---|---|---|
-| P0-3 | Dispute refunds clear the wrong reservations, don't restore stock | Trace reservation clearing and stock restoration in `src/lib/disputes/operations.server.ts` |
-| P0-15 | VIES validation falls open | Find the actual VIES call path; the `catch` blocks in `src/lib/tax/vat.server.ts:60` belong to locale country-code lookup, not VIES |
-| P0-16 | Greek VAT-ID / country-code mismatch (EL vs GR) | Check the EL/GR normalisation in VAT-ID validation |
-| P0-18 | Hardcoded Euro symbols and English VAT labels | Sweep tax/VAT UI strings for Paraglide coverage; search was the only area with hardcoded English when spot-checked, but tax labels were not examined |
-| P0-19 | Debug / data-leak logging in production paths | Audit remaining `console.*` and `logger.debug` calls for PII |
-| P0-22 | Mollie refund executed before the DB transaction commits | Check ordering around `refundPayment` at `src/lib/shop-orders/operations.server.ts:857,1034` and `src/lib/disputes/operations.server.ts:943` |
-| P0-23 | Chargeback handling incomplete | `src/routes/api/webhooks/mollie-chargeback.ts` exists; compare against the finding's requirements |
+| P0-3 | Dispute refunds clear wrong reservations, don't restore stock | `restoreShopOrderStockInTx(tx, platformOrderId, shopOrderId)` exists at `src/lib/jobs/inventory.server.ts:292` — the exact signature the audit proposed. Scoped to one shop order, increments `product.stockCount`, deletes only that order's reservations. Called from dispute resolution (`src/lib/disputes/operations.server.ts:1020`) and 6 other paths; covered by `inventory.server.test.ts:424`. |
+| P0-15 | VIES validation falls open | `verifyVatIdVies` (`src/lib/tax/vat.server.ts:167`) is documented and implemented **fail-closed**: non-OK HTTP, network error, timeout, and invalid JSON all `return false`, each with an `alert: true` ops log. |
+| P0-16 | Greek VAT-ID / country-code mismatch | Handled in both directions: `src/lib/tax/vat-patterns.ts:49` accepts `EL` and `GR` prefixes when the address country is GR, and `vat.server.ts:170` normalises `GR` → `EL` before calling VIES. |
+| P0-18 | Hardcoded Euro symbols and English VAT labels | Zero raw `€` characters and zero hardcoded VAT/tax labels remain across `src/components` and `src/route-components`. |
+| P0-19 | Debug / data-leak logging in production paths | Every file named in the finding is now clean except `src/integrations/faro.ts`, whose three remaining calls are each gated behind `import.meta.env.DEV` — the suggested fix. The invoice-JSON dump is gone. |
+| P0-22 | Mollie refund executed before the DB transaction commits | Restructured as the audit proposed, in both paths. The transaction records durable intent (`refundPendingCents`, `lastRefundAttemptedAt`), reverses the payout and writes the credit note, then commits; the Mollie call is an explicit "Step 2" afterwards, and its failure raises an `alert: true` log plus a 502. See `src/lib/shop-orders/operations.server.ts:855` and `src/lib/disputes/operations.server.ts:940`. |
+| P0-23 | Chargeback handling incomplete | `src/lib/tax/chargebacks.server.ts` implements the full workflow: `reversePayoutForRefund`, `restoreShopOrderStockInTx`, credit-note issuance, and notifications — all inside one transaction, documented as retry-safe. |
 
 ## Remaining work
 
-- **P1 (49 findings) and P2 (34 findings) are unreconciled.** The same method
-  applies and would likely show a similar resolution rate.
-- The audit itself still carries no inline status. This document is the
-  cross-reference; if it proves useful, folding status into the audit rows would
-  remove the indirection.
+- **P1 (49 findings) and P2 (34 findings) are unreconciled.** Given the P0 rate,
+  expect most to be resolved too — but "expect" is exactly the assumption this
+  document exists to replace.
+- **P0-4 is worth tidying, carefully.** Renaming the duplicated migration files
+  means editing `tag` values in `drizzle/meta/_journal.json` to match, and those
+  tags are what already-migrated environments match against. It is a deliberate
+  migration-tooling change, not a rename — treat it as such or leave it.
+- The audit still carries no inline per-finding status; this document is the
+  cross-reference. Folding status into the rows would remove the indirection if
+  that proves annoying.
+
+## Method
+
+Verdicts came from reading the current implementation at the recorded commit,
+not from the audit's original file paths — most of which have since moved
+(`src/lib/disputes.server.ts` → `src/lib/disputes/operations.server.ts`, and so
+on). Anything that could not be settled by reading was recorded as unconfirmed
+rather than assumed; on this pass, nothing remained in that state.
