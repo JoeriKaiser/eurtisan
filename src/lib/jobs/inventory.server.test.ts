@@ -15,6 +15,7 @@ import {
 
 import {
   cancelAbandonedPendingPaymentOrders,
+  decrementStockForPaidOrder,
   releaseExpiredReservations,
   restoreShopOrderStockInTx,
 } from './inventory.server'
@@ -547,5 +548,128 @@ describe('restoreShopOrderStockInTx', () => {
 
     const [updated] = await db.select().from(product).where(eq(product.id, prod.id))
     expect(updated.stockCount).toBe(7)
+  })
+})
+
+describe('decrementStockForPaidOrder oversell handling', () => {
+  beforeEach(async () => {
+    await db.delete(orderItem)
+    await db.delete(inventoryReservation)
+    await db.delete(shopOrder)
+    await db.delete(platformOrder)
+    await db.delete(product)
+    await db.delete(shop)
+    await db.delete(user)
+  })
+
+  /** Seeds an order for `orderQuantity` units against `stockCount` in stock. */
+  async function seedOrder(stockCount: number, orderQuantity: number) {
+    const [owner] = await db
+      .insert(user)
+      .values({
+        id: randomUUID(),
+        name: 'Owner',
+        email: `owner-${randomUUID()}@example.com`,
+        role: 'creator',
+        emailVerified: true,
+      })
+      .returning()
+
+    const [shopRecord] = await db
+      .insert(shop)
+      .values({ id: randomUUID(), name: 'S', slug: `s-${randomUUID()}`, ownerId: owner.id })
+      .returning()
+
+    const [prod] = await db
+      .insert(product)
+      .values({
+        id: randomUUID(),
+        name: 'Vase',
+        slug: `vase-${randomUUID()}`,
+        priceCents: 1000,
+        shopId: shopRecord.id,
+        stockCount,
+      })
+      .returning()
+
+    const [po] = await db
+      .insert(platformOrder)
+      .values({
+        id: randomUUID(),
+        userId: owner.id,
+        shippingAddress: { name: 'B', country: 'FR' },
+        billingAddress: { name: 'B', country: 'FR' },
+        totalCents: 1000,
+        status: 'paid',
+      })
+      .returning()
+
+    const [so] = await db
+      .insert(shopOrder)
+      .values({ id: randomUUID(), platformOrderId: po.id, shopId: shopRecord.id, status: 'paid' })
+      .returning()
+
+    await db.insert(orderItem).values({
+      id: randomUUID(),
+      shopOrderId: so.id,
+      productId: prod.id,
+      productName: 'Vase',
+      unitPriceCents: 1000,
+      quantity: orderQuantity,
+      totalCents: 1000 * orderQuantity,
+      vatRateBasisPoints: 0,
+      vatAmountCents: 0,
+    })
+
+    return { product: prod, platformOrder: po }
+  }
+
+  it('decrements normally when stock covers the order', async () => {
+    const { product: prod, platformOrder: po } = await seedOrder(5, 2)
+
+    await db.transaction(async (tx) => {
+      await decrementStockForPaidOrder(tx, po.id)
+    })
+
+    const [updated] = await db.select().from(product).where(eq(product.id, prod.id))
+    expect(updated.stockCount).toBe(3)
+  })
+
+  it('clamps rather than failing when the payment is already captured', async () => {
+    // Throwing here would fail the payment webhook and leave money captured
+    // against an unprocessed order, which is worse than a flagged oversell.
+    const { product: prod, platformOrder: po } = await seedOrder(1, 3)
+
+    await db.transaction(async (tx) => {
+      await decrementStockForPaidOrder(tx, po.id)
+    })
+
+    const [updated] = await db.select().from(product).where(eq(product.id, prod.id))
+    expect(updated.stockCount).toBe(0)
+  })
+
+  it('refuses to oversell when the caller can still cancel and refund', async () => {
+    const { product: prod, platformOrder: po } = await seedOrder(1, 3)
+
+    await expect(
+      db.transaction(async (tx) => {
+        await decrementStockForPaidOrder(tx, po.id, { rejectOnShortfall: true })
+      }),
+    ).rejects.toThrow(/only 1 available/)
+
+    // The transaction rolled back, so stock is untouched.
+    const [updated] = await db.select().from(product).where(eq(product.id, prod.id))
+    expect(updated.stockCount).toBe(1)
+  })
+
+  it('allows an exactly-sufficient order under rejectOnShortfall', async () => {
+    const { product: prod, platformOrder: po } = await seedOrder(3, 3)
+
+    await db.transaction(async (tx) => {
+      await decrementStockForPaidOrder(tx, po.id, { rejectOnShortfall: true })
+    })
+
+    const [updated] = await db.select().from(product).where(eq(product.id, prod.id))
+    expect(updated.stockCount).toBe(0)
   })
 })

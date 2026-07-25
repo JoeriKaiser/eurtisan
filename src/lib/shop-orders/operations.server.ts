@@ -1408,7 +1408,12 @@ export async function resolveManualReviewQuery(
 
       if (platformRecord?.status === 'paid') {
         const { decrementStockForPaidOrder } = await import('../inventory.server')
-        await decrementStockForPaidOrder(tx, record.platformOrderId)
+        // An operator resolving a manual review can still cancel and refund, so
+        // refuse to confirm the order against stock that no longer exists
+        // rather than clamping to zero and overselling (P2-3).
+        await decrementStockForPaidOrder(tx, record.platformOrderId, {
+          rejectOnShortfall: true,
+        })
       }
     } else if (input.resolution === 'cancelled') {
       // A manual-review order has already been paid by the buyer. Cancelling it

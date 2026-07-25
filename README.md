@@ -270,7 +270,7 @@ For deeper architectural, compliance, and operational details, refer to:
 - **GDPR & Privacy:** [`docs/DATA_RETENTION.md`](docs/DATA_RETENTION.md) (Data portability exports, deletion/erasure rules, and anonymization pipelines).
 - **Security Audit Logs:** [`docs/AUDIT_LOG_POLICY.md`](docs/AUDIT_LOG_POLICY.md) (Standard fields, events, and persistence rules).
 - **User Flows:** [`docs/user_flow.md`](docs/user_flow.md) (Detailed product workflows for shopper, seller, and administrator personas).
-- **Production Readiness:** [`docs/audits/production-readiness-reconciliation.md`](docs/audits/production-readiness-reconciliation.md) (open findings and what has been verified fixed) and [`docs/VERIFIED.md`](docs/VERIFIED.md) (areas already checked sound).
+- **Production Readiness:** [`docs/audits/production-readiness-reconciliation.md`](docs/audits/production-readiness-reconciliation.md) (open findings and what has been verified fixed).
 
 ---
 

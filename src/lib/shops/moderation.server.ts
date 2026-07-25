@@ -1,6 +1,6 @@
 import { and, count, desc, eq, ilike, or } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { shop, user } from '#/db/schema'
+import { meilisearchSyncQueue, product, shop, user } from '#/db/schema'
 import { validatePlainText } from '../xss'
 
 /* -------------------------------------------------------------------------- */
@@ -172,11 +172,38 @@ export async function moderateShopQuery(
     updateData.moderationNote = note ? validatePlainText(note, 'Moderation note') : null
   }
 
-  const [updated] = await db.update(shop).set(updateData).where(eq(shop.id, shopId)).returning({
-    id: shop.id,
-    name: shop.name,
-    isSuspended: shop.isSuspended,
-    moderationNote: shop.moderationNote,
+  const [updated] = await db.transaction(async (tx) => {
+    const rows = await tx.update(shop).set(updateData).where(eq(shop.id, shopId)).returning({
+      id: shop.id,
+      name: shop.name,
+      isSuspended: shop.isSuspended,
+      moderationNote: shop.moderationNote,
+    })
+
+    // Suspension state is part of the search index invariant, but the index is
+    // a separate store that nothing here would otherwise update — a suspended
+    // shop's listings would stay searchable until something happened to
+    // re-index them. Enqueue rather than calling Meilisearch inline so the
+    // moderation action cannot fail on a search outage.
+    //
+    // `index` is correct in both directions: the sync worker re-evaluates
+    // eligibility and removes the document when the shop is suspended, or
+    // restores it when the suspension is lifted.
+    const products = await tx
+      .select({ id: product.id })
+      .from(product)
+      .where(eq(product.shopId, shopId))
+
+    if (products.length > 0) {
+      await tx.insert(meilisearchSyncQueue).values(
+        products.map((row) => ({
+          productId: row.id,
+          action: 'index' as const,
+        })),
+      )
+    }
+
+    return rows
   })
 
   return updated
