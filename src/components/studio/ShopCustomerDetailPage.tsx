@@ -1,4 +1,5 @@
 import { useRouter } from '@tanstack/react-router'
+import ConfirmDialog from '#/components/ui/ConfirmDialog'
 import { getOrderStatusLabel } from '#/lib/orders-ui'
 import { Download, Mail, Plus, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
@@ -29,6 +30,7 @@ interface ShopCustomerDetailPageProps {
 export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailPageProps) {
   const router = useRouter()
   const [localCustomer, setLocalCustomer] = useState(customer)
+  const [pendingNoteDelete, setPendingNoteDelete] = useState<string | null>(null)
   const [loading, setLoading] = useState({
     addNote: false,
     updateNote: false,
@@ -106,8 +108,10 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
     }
   }
 
+  // Deleting a note is irreversible, so it confirms through a real dialog
+  // rather than window.confirm.
   const handleDeleteNote = async (noteId: string) => {
-    if (!window.confirm(m.studio_customer_note_delete_confirm())) return
+    setPendingNoteDelete(null)
     setLoading((prev) => ({ ...prev, deleteNote: true }))
     try {
       await deleteCustomerNote({ data: { noteId } })
@@ -387,7 +391,7 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
                             </button>
                             <button
                               type='button'
-                              onClick={() => handleDeleteNote(note.id)}
+                              onClick={() => setPendingNoteDelete(note.id)}
                               className='text-error hover:text-error-hover'
                             >
                               <Trash2 size={14} aria-hidden='true' />
@@ -450,6 +454,21 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
           </div>
         </div>
       </section>
+
+      <ConfirmDialog
+        open={pendingNoteDelete !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingNoteDelete(null)
+        }}
+        destructive
+        title={m.studio_customer_note_delete_title()}
+        description={m.studio_customer_note_delete_confirm()}
+        confirmLabel={m.studio_customer_note_delete()}
+        busy={loading.deleteNote}
+        onConfirm={() => {
+          if (pendingNoteDelete) void handleDeleteNote(pendingNoteDelete)
+        }}
+      />
     </main>
   )
 }

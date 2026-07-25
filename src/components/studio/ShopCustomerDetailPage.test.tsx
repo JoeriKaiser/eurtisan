@@ -13,6 +13,10 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('#/paraglide/messages', () => ({
   m: {
     studio_customer_contact: () => 'Contact',
+    studio_customer_note_delete_title: () => 'Delete this note?',
+    studio_customer_note_delete: () => 'Delete note',
+    confirm_dialog_cancel: () => 'Cancel',
+    confirm_dialog_confirm: () => 'Confirm',
     studio_customer_export_data: () => 'Export data',
     studio_customer_export_success: () => 'Export started',
     studio_customer_export_error: () => 'Export failed',

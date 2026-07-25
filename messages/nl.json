@@ -2141,5 +2141,13 @@
   "search_categories_matching": "Categorieën die overeenkomen met \"{query}\"",
   "search_no_products_found": "Geen producten gevonden voor \"{query}\"",
   "search_no_results_try_broader": "Zoek in plaats daarvan op \"{query}\"",
-  "search_recent_remove": "Verwijder \"{query}\" uit recente zoekopdrachten"
+  "search_recent_remove": "Verwijder \"{query}\" uit recente zoekopdrachten",
+  "confirm_dialog_cancel": "Annuleren",
+  "confirm_dialog_confirm": "Bevestigen",
+  "order_refund": "Bestelling terugbetalen",
+  "order_cancel": "Bestelling annuleren",
+  "order_refund_confirm_title": "Deze bestelling terugbetalen?",
+  "order_cancel_confirm_title": "Deze bestelling annuleren?",
+  "studio_customer_note_delete_title": "Deze notitie verwijderen?",
+  "studio_customer_note_delete": "Notitie verwijderen"
 }

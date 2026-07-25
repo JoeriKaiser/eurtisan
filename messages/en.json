@@ -2141,5 +2141,13 @@
   "search_categories_matching": "Categories matching \"{query}\"",
   "search_no_products_found": "No products found for \"{query}\"",
   "search_no_results_try_broader": "Search for \"{query}\" instead",
-  "search_recent_remove": "Remove \"{query}\" from recent searches"
+  "search_recent_remove": "Remove \"{query}\" from recent searches",
+  "confirm_dialog_cancel": "Cancel",
+  "confirm_dialog_confirm": "Confirm",
+  "order_refund": "Refund order",
+  "order_cancel": "Cancel order",
+  "order_refund_confirm_title": "Refund this order?",
+  "order_cancel_confirm_title": "Cancel this order?",
+  "studio_customer_note_delete_title": "Delete this note?",
+  "studio_customer_note_delete": "Delete note"
 }
