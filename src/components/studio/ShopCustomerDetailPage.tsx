@@ -1,4 +1,5 @@
 import { useRouter } from '@tanstack/react-router'
+import { getOrderStatusLabel } from '#/lib/orders-ui'
 import { Download, Mail, Plus, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
 import { m } from '#/paraglide/messages'
@@ -438,7 +439,7 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
                           {formatPriceEUR(order.subtotalCents)}
                         </td>
                         <td className='px-3 py-2'>
-                          <Badge variant='secondary'>{order.status}</Badge>
+                          <Badge variant='secondary'>{getOrderStatusLabel(order.status)}</Badge>
                         </td>
                       </tr>
                     ))}

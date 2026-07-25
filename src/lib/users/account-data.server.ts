@@ -19,10 +19,11 @@ import {
   payoutReconciliationLog,
   platformOrder,
   product,
-  review,
   returnRequest,
   returnRequestMessage,
+  review,
   session,
+  shippingLabel,
   shop,
   shopOrder,
   twoFactor,
@@ -720,6 +721,27 @@ export async function deleteUserAccount(userId: string): Promise<void> {
         .update(invoices)
         .set({ billingDetails: encryptJsonb(redacted) })
         .where(eq(invoices.id, invoice.id))
+    }
+
+    // Shipping labels hold no PII directly, but `labelUrl` resolves — with
+    // carrier credentials — to a PDF bearing the buyer's name and address, and
+    // the tracking identifiers are carrier-side handles to the same shipment.
+    // The document itself lives at Sendcloud and is subject to their retention,
+    // so what we can erase is our resolvable pointer to it. The row survives
+    // because the seller's fulfilment record legitimately outlives the buyer's
+    // account, exactly as invoices do above.
+    const buyerShippingLabelIds = await tx
+      .select({ id: shippingLabel.id })
+      .from(shippingLabel)
+      .innerJoin(shopOrder, eq(shippingLabel.shopOrderId, shopOrder.id))
+      .innerJoin(platformOrder, eq(shopOrder.platformOrderId, platformOrder.id))
+      .where(eq(platformOrder.userId, userId))
+
+    for (const label of buyerShippingLabelIds) {
+      await tx
+        .update(shippingLabel)
+        .set({ labelUrl: null, trackingNumber: null, externalParcelId: null })
+        .where(eq(shippingLabel.id, label.id))
     }
 
     const ownedPayoutLogRows = await tx
