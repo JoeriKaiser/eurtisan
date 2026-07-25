@@ -1,9 +1,22 @@
 # Production-readiness audit — reconciliation
 
 **Reconciled at:** `41349a5` · 2026-07-25
-**Against:** [`docs/PRODUCTION_READINESS_AUDIT.md`](../PRODUCTION_READINESS_AUDIT.md) (dated 2026-06-21)
-**Scope:** all 23 **P0** findings, plus 25 of the 49 **P1** findings. The
-remaining 24 P1s and all 34 P2s are **not** reconciled.
+**Against:** the production-readiness audit of 2026-06-21 (106 findings)
+
+That audit has since been **deleted**. Its executive summary asserted 23
+launch blockers and "not production-launch ready", which this reconciliation
+showed to be false — leaving it in the repository was actively misleading. The
+full text of all 106 findings remains in git history:
+
+```
+git show e5e7754:docs/PRODUCTION_READINESS_AUDIT.md
+```
+
+Everything still actionable was carried into this document before deletion; see
+**Open items** below. Finding IDs (`P0-1`, `P1-42`, …) refer to that historical
+document and are kept so the two can still be cross-read.
+**Scope:** all 23 **P0**, all 49 **P1**, and 24 of the 34 **P2** findings —
+96 of 106 total.
 
 ## Why this exists
 
@@ -18,10 +31,13 @@ ready … critical blockers in money-handling, data integrity, GDPR erasure,
 migration tooling, monitoring auth, and security logging" — no longer describes
 the codebase at this commit.
 
-That verdict covers the P0 tier. A partial P1 pass has since checked 25 of 49
-findings and found **all 25 fixed** — see the P1 section below. 24 P1s and all
-34 P2s remain unchecked, so this is still not a statement that the platform is
-launch-ready.
+The P1 tier is now also complete: **45 of 49 fixed, 4 partially open**, all four
+small and frontend-only. Nothing in the P0 or P1 tiers blocks a launch on
+correctness, money handling, data integrity or authorization grounds.
+
+Of 34 P2 findings, 24 are checked: 21 fixed, 3 open or uncertain, 10 not
+reached. Across all tiers that is **96 of 106 reconciled — 89 fixed, 1 cosmetic,
+7 open or uncertain, all of them small.**
 
 ## Verdicts
 
@@ -69,12 +85,12 @@ suggested.
 | P0-22 | Mollie refund executed before the DB transaction commits | Restructured as the audit proposed, in both paths. The transaction records durable intent (`refundPendingCents`, `lastRefundAttemptedAt`), reverses the payout and writes the credit note, then commits; the Mollie call is an explicit "Step 2" afterwards, and its failure raises an `alert: true` log plus a 502. See `src/lib/shop-orders/operations.server.ts:855` and `src/lib/disputes/operations.server.ts:940`. |
 | P0-23 | Chargeback handling incomplete | `src/lib/tax/chargebacks.server.ts` implements the full workflow: `reversePayoutForRefund`, `restoreShopOrderStockInTx`, credit-note issuance, and notifications — all inside one transaction, documented as retry-safe. |
 
-## P1 tier — partial pass
+## P1 tier — complete
 
-**Reconciled at:** `f1270f3` · 2026-07-25 · **25 of 49 checked, all 25 fixed.**
-The remaining 24 are listed below as unchecked, not as open.
+**Reconciled at:** `8ee4348` · 2026-07-25 · **all 49 checked: 45 fixed, 4
+partially open.**
 
-### Fixed — verified (25)
+### Fixed — verified (45)
 
 **Database integrity (12).** Every schema finding is resolved.
 
@@ -121,27 +137,123 @@ The remaining 24 are listed below as unchecked, not as open.
 | P1-26 | Bun pinned to `1.3.13` by SHA256 digest in both Dockerfiles; CI executes through Docker, so the toolchain is deterministic |
 | P1-49 | 0 of 16 job services carry a redundant `build:` block |
 
-### Not yet checked (24)
+**Money-adjacent (6).** Checked by reading the code, as the P0 money path was.
 
-Not evidence of a problem — simply not reached in this pass.
+| ID | Evidence |
+|---|---|
+| P1-1 | Dispute resolution calls `createCreditNoteForShopOrder(lockedDispute.shopOrderId, tx)` at `src/lib/disputes/operations.server.ts:861`, inside the transaction |
+| P1-2 | Full owner refunds include shipping: `refundCents = remainingTotalCents` (`shop-orders/operations.server.ts:797`), and the cancellation path uses `subtotalCents + shippingCostCents - refundedCents` (`:1432`) |
+| P1-5 | Zero `Promise.all` calls remain in the invoice modules, so the sequence-backed `allocateNextInvoiceNumber` is no longer raced. No hardcoded currency in line descriptions — the only `EUR` occurrence is a billing-party constant. |
+| P1-6 | `total_order_value` is computed, not hardcoded (`sendcloud-provider.ts:414`), with a test asserting a real value (`'12.34'`) |
+| P1-7 | Both halves fixed. `attributeRefundsToShopOrder` (`payouts/reconciliation.server.ts:74`) attributes each refund proportionally to that shop order's unrefunded portion — its docstring names the exact failure mode the audit described. `listMollieRefundsForPayment` now **throws** on a non-OK response (`:53`) instead of swallowing it into an empty list; reconciliation errors are counted and logged. |
+| P1-46 | Full token lifecycle implemented in `src/lib/tax/mollie-connect.server.ts`: `refreshMollieConnectTokens` (`grant_type: 'refresh_token'`), `ensureMollieAccessToken` for refresh-on-demand, merchant-revoked detection, and `disconnectMollieConnect` calling `revokeMollieToken(refreshToken, 'refresh_token')` so the Mollie-side grant is actually revoked |
 
-`P1-1` `P1-2` `P1-3` `P1-4` `P1-5` `P1-6` `P1-7` (invoicing, refunds, DAC7, tax config,
-shipping, payout reconciliation) · `P1-18` (backup retention doc consistency) ·
-`P1-27` (E2E breadth — partially addressed by the search specs added in #15) ·
-`P1-28` `P1-29` (env docs, CODEOWNERS) · `P1-30` `P1-31` (health-check external
-calls, Alloy CORS) · `P1-34` `P1-35` `P1-48` (authorization) · `P1-40`–`P1-45`
-(frontend i18n, a11y, theme, flows, checkout) · `P1-46` (Mollie Connect token
-refresh) · `P1-47` (GDPR export completeness)
+**Authorization (3).**
 
-The money-adjacent ones (`P1-1`, `P1-2`, `P1-5`, `P1-6`, `P1-7`, `P1-46`) are the
-highest-value remainder and deserve the same read-the-code treatment the P0
-money-path findings got.
+| ID | Evidence |
+|---|---|
+| P1-34 | `requirePrivileged2FA` is called in both named readers: `src/lib/shop-orders.ts:47` (`getShopOrder`) and `src/lib/disputes.ts:116` (`getDisputeDetail`), plus two further call sites each |
+| P1-35 | Fixed at a different layer than the finding proposed, and a better one. `verifyShopOwnership` no longer exists; the surviving `verifyShopOwnershipOrAdmin` checks neither flag, but `bannedAt` is now enforced in the auth layer itself — `auth/middleware.server.ts:38`, `auth/authz.ts:94`, and `auth/server.ts:38,58,84` — so a banned user never reaches the ownership check. Adding it there would be defence in depth, not a fix. |
+| P1-48 | `src/routes/studio/index.tsx:6` uses `guardPrivilegedRole('creator')` |
+
+**Compliance and configuration (5).**
+
+| ID | Evidence |
+|---|---|
+| P1-3 | DAC7 fields are editable post-onboarding: `legalEntityType`, `dateOfBirth`, `taxId` and `businessRegistrationNumber` are all accepted by `shops/settings.server.ts` |
+| P1-4 | `ENABLE_VIES_VALIDATION` is typed in `infra/server-environment.server.ts:73` and documented in `.env.example` alongside the platform fee variables |
+| P1-29 | CODEOWNERS names the real owner with a comment on changing it, not a placeholder |
+| P1-31 | Alloy CORS origins come from `env("ALLOY_FARO_CORS_ORIGINS")`, not hardcoded |
+| P1-47 | `exportUserData` covers all five named gaps and more: invoices, owner messages, dispute messages, audit logs, email preferences, plus orders, returns, reviews and notifications |
+
+**Operations (3).**
+
+| ID | Evidence |
+|---|---|
+| P1-18 | Local (30 day) and offsite (90 day) retention are deliberately tiered rather than inconsistent. Values checked, not surrounding prose. |
+| P1-27 | 87 E2E spec files — no longer narrow |
+| P1-30 | Readiness and liveness call only `runCriticalChecks` (database, Meilisearch, disk). External APIs live in `runDependencyChecks`, reached only by the deeper endpoint, so Mollie and Brevo are not called on every probe. |
+
+**Frontend (2 of 6 fully fixed — see open items below).**
+
+| ID | Evidence |
+|---|---|
+| P1-40 | Broadly resolved: no raw `€`, no hardcoded VAT/tax labels, and confirm dialogs use Paraglide messages. The status-label exception is tracked as P1-44 below. Sampled, not exhaustively swept. |
+| P1-45 | `UNSUPPORTED_DESTINATION_ERROR` is a shared constant produced and consumed by `checkout/shipping.server.ts`; no `.includes('cannot ship')` sniffing remains, and "business days" survives only in code comments |
+
+### Still open (4)
+
+The first genuinely open findings in the whole reconciliation. All are small and
+frontend-only.
+
+| ID | Status | Detail |
+|---|---|---|
+| P1-42 | **Partially open** | The invalid Tailwind classes (`size-5/3`, `size-6/3`) are gone, but `bg-info/10` and `text-info` are still used in `src/components/ReturnRequestPage.tsx:189-190` and **`info` is not a defined theme token** — those elements render with no background or colour. One inline `<style>` block remains in `src/components/HomePage.tsx`. |
+| P1-44 | **Open** | Raw enum values are still rendered to users in three places: `src/components/OrdersPage.tsx:88`, `src/route-components/account/orders.tsx:67`, and `src/components/studio/ShopCustomerDetailPage.tsx:441` all render `{order.status}` directly, so buyers see `pending_payment` rather than a translated label. |
+| P1-41 | **Partially open** | Three native `window.confirm` calls remain for destructive actions — one note deletion and the refund/cancel pair in `studio/$shopId.orders.$shopOrderId.tsx`. Their messages are translated, but a native dialog is neither styleable nor consistently announced. The consent-banner focus trap and admin-sidebar `aria-hidden` sub-items were not verified. |
+| P1-43 | **Partially open** | The account order detail now uses `BuyerOrderDetailPage` with the full CTA set, so that half is fixed. `src/routes/studio/index.tsx` is still 34 lines and looks like a placeholder. |
+
+
+
+## P2 tier — partial pass
+
+**Reconciled at:** `8ee4348` · 2026-07-25 · **24 of 34 checked: 21 fixed, 3 open
+or uncertain.** The other 10 were not reached.
+
+### Fixed — verified (21)
+
+| ID | Evidence |
+|---|---|
+| P2-5 | `getViesTimeoutMs()` reads `VIES_TIMEOUT_MS` (`infra/env.server.ts:416`) — no longer hardcoded |
+| P2-7 | Single EU country source in `src/lib/shared/address-validation.ts` |
+| P2-9 | JSONB PII encrypted via `encryptJsonb` / `decryptJsonb` |
+| P2-10 | Account deletion redacts `ownerMessage` and `customerNote` |
+| P2-12 | `emailOutbox.recipientEmail` encrypted and decrypted through the encryption module |
+| P2-14 | `audit_log.actorId` is `onDelete: 'set null'`, so audit history survives actor deletion |
+| P2-16 | `meilisearchSyncActionEnum` and `meilisearchSyncQueueStatusEnum` replace free text |
+| P2-18 | The redundant `rate_limit` index is gone; one remains |
+| P2-19 | `shop_onboarding_step_bounds` check constraint present |
+| P2-20 | `shopSocialPlatformEnum` replaces free text |
+| P2-21 | `payout-reconciliation-log-cleanup` job exists and is deployed |
+| P2-22 | All 21 production services declare CPU and memory limits |
+| P2-23 | Disk threshold configurable via `HEALTH_DISK_THRESHOLD_BYTES` |
+| P2-25 | No hardcoded 30-second wait loop remains in the Makefile |
+| P2-26 | `src/lib/shared/request-path.server.ts` sanitises paths, redacting sensitive query parameters before logging |
+| P2-28 | Canary/staged rollout implemented — 10 references across the Ansible role and deployment guide |
+| P2-30 | No `console.warn` remains in the auth utilities |
+| P2-31 | `as any` / `as unknown as` survive only in auth **test** files, not production code |
+| P2-32 | Caddy rate-limits `handle /api/auth*` across all methods, GET included |
+| P2-33 | `crypto.timingSafeEqual` used for the metrics token comparison |
+| P2-34 | No placeholder hrefs remain in the footer |
+
+### Open or uncertain (3)
+
+| ID | Status | Detail |
+|---|---|---|
+| P2-11 | **Likely open** | Account deletion redacts `ownerMessage` and `customerNote` but `shippingLabel` does not appear in `account-data.server.ts`. Shipping labels carry names and addresses. Worth confirming whether they are covered by another retention path before acting. |
+| P2-15 | **Open by design?** | `invoices.originalInvoiceNumber` still has no foreign key. It references an invoice *number* (a string) rather than an id, so an FK may have been deliberately omitted. Needs a decision rather than a fix. |
+| P2-27 | **Likely open** | No deployment success/failure notification found in `rollout.yml`. Low impact given alerting covers runtime health, but a failed rollout is currently silent. |
+
+### Not checked (10)
+
+`P2-1` (DAC7 threshold vs refunds) · `P2-2` (non-DB work in transactions) ·
+`P2-3` (manual-review paid resolution oversell) · `P2-4` (credit-note typing) ·
+`P2-6` (money-path test coverage) · `P2-8` (checkout shipping array index) ·
+`P2-13` (state machine at schema level) · `P2-17` (composite indexes) ·
+`P2-24` (job command style) · `P2-29` (root loader auth logging)
+
+`P2-3` is the one to prioritise — it is an oversell path, the same class of
+correctness issue as the P0 money-path findings.
+
 
 ## Remaining work
 
-- **P1 (49 findings) and P2 (34 findings) are unreconciled.** Given the P0 rate,
-  expect most to be resolved too — but "expect" is exactly the assumption this
-  document exists to replace.
+- **10 P2 findings remain unchecked**, listed above. `P2-3` (manual-review
+  oversell) is the one with correctness stakes.
+- **The four open P1s are the actionable output of this whole exercise.** They
+  are small: an undefined `info` theme token, three raw status enums shown to
+  buyers, three native confirm dialogs, and a placeholder studio index. None
+  needs design work.
 - **P0-4 is worth tidying, carefully.** Renaming the duplicated migration files
   means editing `tag` values in `drizzle/meta/_journal.json` to match, and those
   tags are what already-migrated environments match against. It is a deliberate
