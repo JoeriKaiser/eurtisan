@@ -14,6 +14,7 @@ export interface CheckoutNotificationInput {
   userId: string
   grandTotalCents: number
   createdShopOrders: CreatedCheckoutShopOrder[]
+  isGuest?: boolean
 }
 
 /**
@@ -87,21 +88,22 @@ export function scheduleCheckoutPostOrderNotifications(input: CheckoutNotificati
         platformOrderId: input.platformOrderId,
         orderNumber: input.orderNumber,
       })
-      await sendNotificationEmail({
-        userId: input.userId,
-        template: 'order_confirmation',
-        data: {
-          orderNumber: input.orderNumber,
-          buyerName: buyerRecord?.name,
-          shopName: 'Eurtisan',
-          items: buyerItems,
-          total: formatPriceEUR(input.grandTotalCents),
-          orderUrl: `${baseUrl}/orders/${input.platformOrderId}`,
-          ...buyerSellerPayload,
-        },
-        idempotencyKey: `order:${input.platformOrderId}:confirmation:buyer`,
-        category: 'transactional',
-      })
+      if (!input.isGuest)
+        await sendNotificationEmail({
+          userId: input.userId,
+          template: 'order_confirmation',
+          data: {
+            orderNumber: input.orderNumber,
+            buyerName: buyerRecord?.name,
+            shopName: 'Eurtisan',
+            items: buyerItems,
+            total: formatPriceEUR(input.grandTotalCents),
+            orderUrl: `${baseUrl}/orders/${input.platformOrderId}`,
+            ...buyerSellerPayload,
+          },
+          idempotencyKey: `order:${input.platformOrderId}:confirmation:buyer`,
+          category: 'transactional',
+        })
 
       const orderItemsByShop = new Map<string, typeof allOrderItems>()
       for (const item of allOrderItems) {

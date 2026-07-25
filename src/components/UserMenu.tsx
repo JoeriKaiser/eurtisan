@@ -29,7 +29,7 @@ export default function UserMenu() {
   const router = useRouter()
   const { user } = useAuth()
 
-  if (!user) {
+  if (!user || user.isAnonymous) {
     return (
       <Link
         to='/signin'

@@ -28,6 +28,8 @@ export async function renderTemplate(
   switch (template) {
     case 'order_confirmation':
       return renderOrderConfirmation(data, to)
+    case 'guest_order_access':
+      return renderGuestOrderAccess(data, to)
     case 'shipping_notification':
       return renderShippingNotification(data, to)
     case 'dispute_update':
@@ -158,6 +160,43 @@ ${sellerTradeName && sellerContactEmail ? `\n${m.email_seller_identity_title()}:
 ${await renderEmailLegalFooterText(to)}`
 
   return { subject: m.email_order_confirmation_subject({ orderNumber, shopName }), html, text }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                           Guest order access                               */
+/* -------------------------------------------------------------------------- */
+
+async function renderGuestOrderAccess(
+  data: Record<string, unknown>,
+  to?: string,
+): Promise<RenderedEmail> {
+  const buyerName = String(data.buyerName ?? m.email_default_name())
+  const orderNumber = String(data.orderNumber ?? '')
+  const accessUrl = String(data.accessUrl ?? '')
+  if (!accessUrl) throw new Error('Guest order access URL is required')
+
+  const subject = m.email_guest_order_access_subject({ orderNumber })
+  const contentHtml = `<div style="font-size: 20px; font-weight: 700; color: #111827; line-height: 1.3;">${escapeHtml(
+    m.email_guest_order_access_title({ buyerName }),
+  )}</div>
+  <br />
+  <div style="color: #374151; font-size: 16px; line-height: 1.5;">${escapeHtml(
+    m.email_guest_order_access_body({ orderNumber }),
+  )}</div>
+  <br />
+  <div style="font-size: 16px; line-height: 1.5;"><a href="${escapeHtml(accessUrl)}" style="color: #2563eb; text-decoration: underline;">${escapeHtml(
+    m.email_guest_order_access_action(),
+  )}</a></div>
+  <br />
+  <div style="color: #6b7280; font-size: 14px; line-height: 1.5;">${escapeHtml(
+    m.email_guest_order_access_expiry(),
+  )}</div>
+  <br /><br />
+  ${await renderEmailLegalFooterHtml(to)}`
+
+  const html = wrapInEmailTemplate(subject, contentHtml)
+  const text = `${m.email_guest_order_access_title({ buyerName })}\n\n${m.email_guest_order_access_body({ orderNumber })}\n\n${m.email_guest_order_access_action()}: ${accessUrl}\n\n${m.email_guest_order_access_expiry()}\n\n${await renderEmailLegalFooterText(to)}`
+  return { subject, html, text }
 }
 
 /* -------------------------------------------------------------------------- */

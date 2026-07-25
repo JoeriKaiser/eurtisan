@@ -56,19 +56,32 @@ export const getInvoiceData = createServerFn({ method: 'GET' })
     }),
   )
   .handler(async ({ context, data }) => {
-    if (!context.user) {
-      throw new Response(
-        JSON.stringify({ error: 'Unauthorized', message: 'Authentication required.' }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } },
-      )
-    }
-
-    const { getInvoiceByIdQuery } = await import('./invoices.server')
-    const invoice = await getInvoiceByIdQuery(
-      data.invoiceNumber,
-      context.user.id,
-      context.user.role,
+    const { getInvoiceByIdQuery, getInvoicePlatformOrderIdQuery } = await import(
+      './invoices.server'
     )
+    let userId = context.user?.id
+    let role = context.user?.role
+    if (!userId || !role) role = 'customer'
+    if (role === 'customer') {
+      const platformOrderId = await getInvoicePlatformOrderIdQuery(data.invoiceNumber)
+      if (!platformOrderId) {
+        throw new Response(JSON.stringify({ error: 'Not Found', message: 'Invoice not found.' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      const { canAccessOrder } = await import('./checkout/guest-access.server')
+      if (!(await canAccessOrder(platformOrderId, context.user?.id))) {
+        throw new Response(JSON.stringify({ error: 'Forbidden', message: 'Access denied.' }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' },
+        })
+      }
+      const { getOrderOwnerId } = await import('./orders.server')
+      userId = (await getOrderOwnerId(platformOrderId)) ?? undefined
+    }
+    if (!userId) throw new Response(null, { status: 403 })
+    const invoice = await getInvoiceByIdQuery(data.invoiceNumber, userId, role)
     const parsed = invoiceBillingDetailsSchema.safeParse(invoice.billingDetails)
     if (!parsed.success) {
       throw new Response(

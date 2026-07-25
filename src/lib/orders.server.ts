@@ -13,5 +13,6 @@ export {
   getBuyerOrderDetailByOrderNumberQuery,
   getBuyerOrderDetailQuery,
   getOrderOwnerId,
+  getShopOrderPlatformOrderId,
   listBuyerOrdersQuery,
 } from './orders/operations.server'

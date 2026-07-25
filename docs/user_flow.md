@@ -43,8 +43,9 @@ graph TD
     ShopFront --> Product
     
     Product -->|Action: Add to Cart| Cart["Cart View (/cart)"]:::route
-    Cart -->|Action: Checkout| Checkout["Checkout (/checkout)"]:::route
+    Cart -->|Action: Checkout as guest or member| Checkout["One-page checkout (/checkout)"]:::route
     Checkout -->|Action: Pay via Mollie| Payment[Mollie Hosted Gateway]
+    Checkout -->|Provider unavailable| Success
     
     Payment -->|Success Callback| Success["Order Success (/orders/$id/success)"]:::route
     Payment -->|Webhook| Webhook["Mollie Webhook (/api/webhooks/mollie)"]
@@ -52,6 +53,10 @@ graph TD
     Success -->|Action: Track Order| OrderDetail["Order Tracking (/orders/$id)"]:::route
     OrderDetail -->|Action: Create Review| Review[Submit Product Review]
     OrderDetail -->|Action: Open Dispute| Dispute["Dispute Portal (/disputes/$id)"]:::route
+    OrderDetail -->|Action: Start return| Return["Return request (/returns/$id)"]:::route
+    Return -->|Buyer tracking / seller receipt| Refund[Refund and credit-note workflow]
+    Success -->|Guest email link| GuestAccess["Secure guest access (/guest-order-access)"]:::route
+    GuestAccess --> OrderDetail
     
     Dispute -->|Action: Message Thread| DisputeChat[Dispute Messaging]
 ```
@@ -67,12 +72,15 @@ graph TD
     *   **Quantity Adjustments**: Increment/decrement counts, validating against available stock.
     *   **Cart Merging**: Guest carts automatically merge onto account carts upon successful login.
 *   **Checkout & Order Placement**:
-    *   **Place Order**: Complete a shipping and billing form validating address formats.
+    *   **Guest or Member Checkout**: Complete the same one-page contact, delivery, billing, shipping, legal-disclosure, and payment flow without being forced to create an account.
+    *   **Fresh Shipping Quote**: Checkout cannot submit a fallback or stale carrier rate; address changes invalidate the previous quote.
     *   **Inventory Reservation**: Lock product inventory temporarily (15-minute lease) during checkout to prevent double-selling.
-    *   **Complete Payment**: Transact via the Mollie integration.
+    *   **Payment Recovery**: A failed or cancelled Mollie attempt can be retried against the same idempotent order while its reservation is active. After expiry, currently available items can be rebuilt into a cart.
 *   **Post-Purchase**:
+    *   **Secure Guest Access**: Guest buyers receive a 24-hour, single-order email link and can request a replacement without exposing whether an order exists. A verified account claims matching guest orders.
     *   **Track Shipments**: View order tracking numbers, carrier details, and status history.
     *   **Rate & Review**: Leave a star rating and written review per product from completed orders.
+    *   **Withdraw or Return**: Submit per-seller, partial-quantity withdrawals or defective-item returns. The baseline is 14 days for withdrawal, buyer-funded discretionary shipping, seller-funded defective shipping, and refund after receipt or shipping evidence. Purchase-time exclusions and standard outbound shipping cost are snapshotted.
     *   **File Dispute**: Initiate formal dispute resolution within 30 days of order placement.
 
 ---

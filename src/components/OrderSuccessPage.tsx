@@ -1,7 +1,8 @@
 import { Link } from '@tanstack/react-router'
-import { CheckCircle2, ImageOff, Loader2, XCircle } from 'lucide-react'
+import { CheckCircle2, Download, ImageOff, Loader2, MapPin, XCircle } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '#/components/ui/button'
+import { rebuildCartFromOrder } from '#/lib/checkout'
 import type { OrderDetail } from '#/lib/orders.server'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
@@ -32,28 +33,52 @@ export default function OrderSuccessPage({ order, onRetryPayment }: OrderSuccess
   const [retryState, setRetryState] = useState<{
     isLoading: boolean
     error: string | null
-  }>({ isLoading: false, error: null })
+    reservationExpired: boolean
+  }>({ isLoading: false, error: null, reservationExpired: false })
 
   const handleRetryPayment = async () => {
     if (!onRetryPayment) return
-    setRetryState({ isLoading: true, error: null })
+    setRetryState({ isLoading: true, error: null, reservationExpired: false })
     try {
       const result = await onRetryPayment()
       if (result?.checkoutUrl) {
         window.location.href = result.checkoutUrl
         return
       }
-      setRetryState({ isLoading: false, error: m.checkout_missing_url() })
+      setRetryState({
+        isLoading: false,
+        error: m.checkout_missing_url(),
+        reservationExpired: false,
+      })
     } catch (err) {
       if (err instanceof Response) {
         const body = await err.json().catch(() => ({}))
         setRetryState({
           isLoading: false,
           error: body.message || m.checkout_error_submit(),
+          reservationExpired: body.code === 'RESERVATION_EXPIRED',
         })
       } else {
-        setRetryState({ isLoading: false, error: m.checkout_error_submit() })
+        setRetryState({
+          isLoading: false,
+          error: m.checkout_error_submit(),
+          reservationExpired: false,
+        })
       }
+    }
+  }
+
+  const handleRebuildCart = async () => {
+    setRetryState((state) => ({ ...state, isLoading: true, error: null }))
+    try {
+      const result = await rebuildCartFromOrder({ data: { platformOrderId: order.id } })
+      window.location.href = result.skipped > 0 ? '/cart?message=stock_changed' : '/cart'
+    } catch {
+      setRetryState({
+        isLoading: false,
+        error: m.order_failed_rebuild_error(),
+        reservationExpired: true,
+      })
     }
   }
 
@@ -133,6 +158,36 @@ export default function OrderSuccessPage({ order, onRetryPayment }: OrderSuccess
               </p>
             </div>
           </div>
+
+          {isPaid && (
+            <div className='mb-6 grid gap-4 border-b border-border-default pb-6 sm:grid-cols-2'>
+              <div>
+                <h2 className='flex items-center gap-2 text-sm font-semibold text-text-primary'>
+                  <MapPin size={16} aria-hidden='true' />
+                  {m.order_detail_shipping_address()}
+                </h2>
+                <address className='mt-2 not-italic text-sm leading-relaxed text-text-secondary'>
+                  <span className='block text-text-primary'>{order.shippingAddress.name}</span>
+                  <span className='block'>{order.shippingAddress.street}</span>
+                  {order.shippingAddress.addressLine2 && (
+                    <span className='block'>{order.shippingAddress.addressLine2}</span>
+                  )}
+                  <span className='block'>
+                    {order.shippingAddress.postalCode} {order.shippingAddress.city}
+                  </span>
+                  <span className='block'>{order.shippingAddress.country}</span>
+                </address>
+              </div>
+              <div>
+                <h2 className='text-sm font-semibold text-text-primary'>
+                  {m.order_success_next_steps()}
+                </h2>
+                <p className='mt-2 text-sm leading-relaxed text-text-secondary'>
+                  {m.order_success_email_sent({ email: order.shippingAddress.contactEmail ?? '' })}
+                </p>
+              </div>
+            </div>
+          )}
 
           <h2 className='mb-4 text-lg font-semibold text-text-primary'>
             {m.order_success_items()}
@@ -250,13 +305,47 @@ export default function OrderSuccessPage({ order, onRetryPayment }: OrderSuccess
                 </>
               )}
 
+              {isPaid && (
+                <Link
+                  to='/orders/$platformOrderId'
+                  params={{ platformOrderId: order.id }}
+                  className='no-underline'
+                >
+                  <Button size='lg'>{m.order_success_view_order()}</Button>
+                </Link>
+              )}
+              {isPaid &&
+                order.shops
+                  .filter((shop) => shop.invoiceNumber)
+                  .map((shop) => (
+                    <Link
+                      key={shop.shopOrderId}
+                      to='/invoices/$invoiceId'
+                      params={{ invoiceId: shop.invoiceNumber ?? '' }}
+                      className='no-underline'
+                    >
+                      <Button size='lg' variant='secondary'>
+                        <Download size={16} aria-hidden='true' />
+                        {m.order_success_invoice({ shop: shop.shopName })}
+                      </Button>
+                    </Link>
+                  ))}
               <Link to='/category/all' className='no-underline'>
-                <Button size='lg' variant={isPending || isCancelled ? 'secondary' : undefined}>
+                <Button size='lg' variant='secondary'>
                   {m.order_success_continue_shopping()}
                 </Button>
               </Link>
             </div>
 
+            {retryState.reservationExpired && (
+              <Button
+                size='lg'
+                onClick={() => void handleRebuildCart()}
+                isLoading={retryState.isLoading}
+              >
+                {m.order_failed_rebuild_cart()}
+              </Button>
+            )}
             {retryState.error && (
               <p className='text-sm text-error' role='alert'>
                 {retryState.error}

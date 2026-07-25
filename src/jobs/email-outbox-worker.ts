@@ -27,11 +27,13 @@ import {
   resetStuckSendingRows,
   type EmailOutboxRow,
 } from '#/lib/email-outbox.server'
+import { decrypt } from '#/lib/encryption.server'
 import { getEmailHeaders } from '#/lib/email-headers.server'
 import { isEmailEnabledForUser } from '#/lib/email-preferences.server'
 import { logEmailEvent } from '#/lib/email-send-log.server'
 import { isEmailSuppressed } from '#/lib/email-suppression.server'
 import {
+  getBaseUrl,
   getEmailMaxRetries,
   getEmailOutboxWorkerBatchSize,
   getEmailOutboxWorkerIntervalMs,
@@ -54,28 +56,16 @@ let tickCount = 0
 async function sendOutboxRow(row: EmailOutboxRow): Promise<void> {
   const provider = createEmailProvider()
 
-  if (!row.userId) {
-    await markOutboxMaxRetriesReached(row.id, 'missing recipient user id', row.maxRetries)
-    emailFailedTotal.inc({ template: row.template })
-    await logEmailEvent({
-      outboxId: row.id,
-      recipientHash: row.recipientHash,
-      template: row.template,
-      category: row.category,
-      provider: provider.name,
-      status: 'failed',
-      statusDetail: 'missing recipient user id',
-    })
-    return
-  }
+  const [recipientUser] = row.userId
+    ? await db
+        .select({ email: user.email, deletedAt: user.deletedAt })
+        .from(user)
+        .where(eq(user.id, row.userId))
+        .limit(1)
+    : [null]
 
-  const [recipientUser] = await db
-    .select({ email: user.email, deletedAt: user.deletedAt })
-    .from(user)
-    .where(eq(user.id, row.userId))
-    .limit(1)
-
-  if (!recipientUser || recipientUser.deletedAt) {
+  const guestRecipientEmail = row.recipientEmail ? decrypt(row.recipientEmail) : null
+  if ((!recipientUser || recipientUser.deletedAt) && !guestRecipientEmail) {
     await markOutboxMaxRetriesReached(row.id, 'recipient user not found or deleted', row.maxRetries)
     emailFailedTotal.inc({ template: row.template })
     await logEmailEvent({
@@ -90,7 +80,8 @@ async function sendOutboxRow(row: EmailOutboxRow): Promise<void> {
     return
   }
 
-  const recipientEmail = recipientUser.email
+  const recipientEmail = recipientUser?.email ?? guestRecipientEmail
+  if (!recipientEmail) return
 
   if (await isEmailSuppressed(recipientEmail)) {
     emailSuppressedSkipsTotal.inc()
@@ -107,7 +98,7 @@ async function sendOutboxRow(row: EmailOutboxRow): Promise<void> {
     return
   }
 
-  const enabled = await isEmailEnabledForUser(row.userId, row.category)
+  const enabled = row.userId ? await isEmailEnabledForUser(row.userId, row.category) : true
   if (!enabled) {
     await markOutboxSuppressed(row.id, 'category disabled')
     await logEmailEvent({
@@ -127,10 +118,20 @@ async function sendOutboxRow(row: EmailOutboxRow): Promise<void> {
   await markOutboxSending(row.id)
 
   try {
+    const templateData = { ...row.data } as Record<string, unknown>
+    if (row.template === 'guest_order_access') {
+      const encryptedAccessToken = templateData.encryptedAccessToken
+      if (typeof encryptedAccessToken !== 'string') {
+        throw new Error('Guest-order access email is missing its encrypted token')
+      }
+      const token = decrypt(encryptedAccessToken)
+      templateData.accessUrl = `${getBaseUrl()}/guest-order-access?token=${encodeURIComponent(token)}`
+      delete templateData.encryptedAccessToken
+    }
     const result = await provider.sendTransactional(
       recipientEmail,
       row.template,
-      row.data as Record<string, unknown>,
+      templateData,
       headers,
     )
 

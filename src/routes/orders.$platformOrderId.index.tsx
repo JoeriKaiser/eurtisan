@@ -5,18 +5,20 @@ import { BuyerOrderDetailError } from '#/components/BuyerOrderDetailError'
 import { OrderDetailRouteComponent } from '#/route-components/orders.$platformOrderId'
 import { getBuyerOrderDetail } from '#/lib/orders'
 import { getReviewableItems } from '#/lib/reviews'
-import { guardAuth } from '#/lib/route-guards'
+import { listOrderReturns } from '#/lib/returns'
 import { m } from '#/paraglide/messages'
 
 export const Route = createFileRoute('/orders/$platformOrderId/')({
-  beforeLoad: async () => guardAuth(),
   loader: async ({ params }) => {
     try {
-      const [order, reviewable] = await Promise.all([
+      const [order, reviewableResult, returns] = await Promise.all([
         getBuyerOrderDetail({ data: { orderId: params.platformOrderId } }),
-        getReviewableItems({ data: { platformOrderId: params.platformOrderId } }),
+        getReviewableItems({ data: { platformOrderId: params.platformOrderId } }).catch(() => ({
+          items: [],
+        })),
+        listOrderReturns({ data: { platformOrderId: params.platformOrderId } }),
       ])
-      return { order, reviewableItems: reviewable.items }
+      return { order, reviewableItems: reviewableResult.items, returns }
     } catch (err) {
       if (err instanceof Response && err.status === 404) {
         throw notFound()

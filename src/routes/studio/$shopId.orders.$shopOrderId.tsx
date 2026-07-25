@@ -4,6 +4,7 @@ import { ShopOrderDetailPending } from '#/route-components/studio/$shopId.orders
 import { ShopOrderDetailError } from '#/route-components/studio/$shopId.orders.$shopOrderId.error'
 import { getShopOrderDetail } from '#/lib/shop-orders'
 import { guardShopOwnership } from '#/lib/route-guards'
+import { listShopOrderReturns } from '#/lib/returns'
 
 export const Route = createFileRoute('/studio/$shopId/orders/$shopOrderId')({
   beforeLoad: async ({ params }) => guardShopOwnership(params.shopId),
@@ -19,7 +20,10 @@ export const Route = createFileRoute('/studio/$shopId/orders/$shopOrderId')({
     if (!order || order.shopId !== params.shopId) {
       throw notFound()
     }
-    return { order }
+    const returnRequests = await listShopOrderReturns({
+      data: { shopOrderId: params.shopOrderId },
+    })
+    return { order, returnRequests }
   },
   head: () => ({
     meta: [{ title: 'Order Detail | Studio' }],

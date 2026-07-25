@@ -300,7 +300,7 @@ describe('CartPage', () => {
 
   it('enables checkout when all items are available', () => {
     render(<CartPage cart={makeCart()} />)
-    const checkoutBtn = screen.getByRole('link', { name: 'Proceed to checkout' })
+    const checkoutBtn = screen.getByRole('button', { name: 'Proceed to checkout' })
     expect(checkoutBtn.hasAttribute('disabled')).toBe(false)
   })
 

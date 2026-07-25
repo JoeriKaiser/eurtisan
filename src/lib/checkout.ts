@@ -2,8 +2,13 @@ import { createServerFn, createServerOnlyFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
 import { createUserRateLimitMiddleware } from './rate-limit'
-import { isoCountryCodeSchema, isPostalCodeValid } from './address-validation'
-import { validateVatId } from './vat'
+import { isoCountryCodeSchema } from './address-validation'
+import {
+  checkoutAddressSchema,
+  checkoutInputSchema,
+  shippingSelectionSchema,
+} from './checkout/schemas'
+export { checkoutAddressSchema, checkoutInputSchema } from './checkout/schemas'
 
 export type {
   CheckoutInput,
@@ -25,97 +30,13 @@ const getCheckoutServicePointsServerOnly = createServerOnlyFn(
   },
 )
 
-const pickupPointSchema = z
-  .object({
-    id: z.string().min(1),
-    name: z.string().min(1),
-    street: z.string().min(1),
-    postalCode: z.string().min(3).max(20),
-    city: z.string().min(1),
-    country: isoCountryCodeSchema,
-  })
-  .superRefine((data, ctx) => {
-    if (!isPostalCodeValid(data.postalCode, data.country)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `Invalid postal code format for ${data.country}`,
-        path: ['postalCode'],
-      })
-    }
-  })
-
-const shippingAddressSchema = z
-  .object({
-    name: z.string().min(1).max(255),
-    street: z.string().min(1).max(255),
-    city: z.string().min(1).max(255),
-    postalCode: z.string().min(3).max(20),
-    country: isoCountryCodeSchema,
-    vatId: z.string().optional().nullable(),
-    pickupPoint: pickupPointSchema.optional(),
-  })
-  .superRefine((data, ctx) => {
-    if (!isPostalCodeValid(data.postalCode, data.country)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `Invalid postal code format for ${data.country}`,
-        path: ['postalCode'],
-      })
-    }
-    if (data.vatId) {
-      const cleaned = data.vatId.replace(/\s/g, '').toUpperCase()
-      const prefix = cleaned.slice(0, 2)
-      // Greece uses ISO code GR in addresses but VAT IDs may start with EL (VIES) or GR.
-      const prefixMatches =
-        prefix === data.country || (data.country === 'GR' && (prefix === 'EL' || prefix === 'GR'))
-      if (!prefixMatches) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `VAT ID country code prefix (${prefix}) must match address country (${data.country})`,
-          path: ['vatId'],
-        })
-      }
-      const { valid, message } = validateVatId(data.vatId)
-      if (!valid) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: message ?? 'Invalid VAT ID format',
-          path: ['vatId'],
-        })
-      }
-    }
-  })
-
-export const checkoutInputSchema = z.object({
-  cartId: z.string().uuid(),
-  shippingSelections: z.array(
-    z.object({
-      shopId: z.string().min(1),
-      rateId: z.string().optional(),
-      method: z.enum(['standard', 'express', 'manual']),
-      costCents: z.number().int().min(0),
-    }),
-  ),
-  shippingAddress: shippingAddressSchema,
-  billingAddress: shippingAddressSchema,
-})
-
 export const getCheckoutSummary = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
   .inputValidator(
     z.object({
       cartId: z.string().uuid(),
-      shippingAddress: shippingAddressSchema.optional(),
-      shippingSelections: z
-        .array(
-          z.object({
-            shopId: z.string().min(1),
-            rateId: z.string().optional(),
-            method: z.enum(['standard', 'express', 'manual']),
-            costCents: z.number().int().min(0),
-          }),
-        )
-        .optional(),
+      shippingAddress: checkoutAddressSchema.optional(),
+      shippingSelections: z.array(shippingSelectionSchema).optional(),
     }),
   )
   .handler(async ({ context, data }) => {
@@ -191,6 +112,21 @@ export const getServicePoints = createServerFn({ method: 'POST' })
     })
   })
 
+export const rebuildCartFromOrder = createServerFn({ method: 'POST' })
+  .middleware([authMiddleware])
+  .inputValidator(z.object({ platformOrderId: z.string().uuid() }))
+  .handler(async ({ context, data }) => {
+    const { canAccessOrder } = await import('./checkout/guest-access.server')
+    if (!(await canAccessOrder(data.platformOrderId, context.user?.id))) {
+      throw new Response(JSON.stringify({ error: 'Forbidden', message: 'Access denied' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    const { rebuildCartFromOrderQuery } = await import('./checkout.server')
+    return rebuildCartFromOrderQuery(data.platformOrderId, context.user?.id ?? null)
+  })
+
 const retryPaymentRateLimitMiddleware = createUserRateLimitMiddleware(3, 60_000, 'retry_payment')
 
 export const retryPayment = createServerFn({ method: 'POST' })
@@ -201,14 +137,23 @@ export const retryPayment = createServerFn({ method: 'POST' })
     }),
   )
   .handler(async ({ context, data }) => {
-    if (!context.user) {
+    const { canAccessOrder } = await import('./checkout/guest-access.server')
+    if (!(await canAccessOrder(data.platformOrderId, context.user?.id))) {
       throw new Response(
-        JSON.stringify({ error: 'Unauthorized', message: 'Authentication required' }),
+        JSON.stringify({ error: 'Unauthorized', message: 'Order access required' }),
         { status: 401, headers: { 'Content-Type': 'application/json' } },
       )
     }
 
+    const { getOrderOwnerId } = await import('./orders.server')
+    const ownerId = await getOrderOwnerId(data.platformOrderId)
+    if (!ownerId) {
+      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Order not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
     const { retryPayment: retryPaymentQuery } = await import('./checkout.server')
     const { molliePaymentProvider } = await import('#/integrations/mollie')
-    return retryPaymentQuery(data.platformOrderId, context.user.id, molliePaymentProvider)
+    return retryPaymentQuery(data.platformOrderId, ownerId, molliePaymentProvider)
   })

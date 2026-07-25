@@ -41,6 +41,7 @@ export interface PaymentProvider {
     redirectUrl: string,
     webhookUrl: string,
     billingCountry?: string,
+    idempotencyKey?: string,
   ): Promise<CreatePaymentResult>
 
   /**
@@ -71,7 +72,11 @@ export interface PaymentProvider {
   refundPayment(
     paymentId: string,
     amountCents?: number,
-    options?: { reverseRouting?: boolean; routingReversals?: RoutingReversal[] },
+    options?: {
+      reverseRouting?: boolean
+      routingReversals?: RoutingReversal[]
+      idempotencyKey?: string
+    },
   ): Promise<void>
 
   /**

@@ -45,6 +45,7 @@ export async function verifyProductOwnership(productId: string, userId: string) 
       status: product.status,
       publishedAt: product.publishedAt,
       vatRateCategory: product.vatRateCategory,
+      returnPolicy: product.returnPolicy,
       shopId: product.shopId,
       categoryId: product.categoryId,
       weightGrams: product.weightGrams,
@@ -172,6 +173,7 @@ export async function createProductInternal(
     isActive?: boolean
     status?: 'draft' | 'published'
     vatRateCategory?: 'standard' | 'reduced' | 'exempt'
+    returnPolicy?: 'standard' | 'personalized' | 'perishable' | 'hygiene_sealed'
     weightGrams?: number
     lengthCm?: number
     widthCm?: number
@@ -206,6 +208,7 @@ export async function createProductInternal(
           status,
           publishedAt: status === 'published' ? new Date() : null,
           vatRateCategory: data.vatRateCategory ?? 'standard',
+          returnPolicy: data.returnPolicy ?? 'standard',
           weightGrams: data.weightGrams ?? null,
           lengthCm: data.lengthCm ?? null,
           widthCm: data.widthCm ?? null,
@@ -279,6 +282,7 @@ export async function updateProductInternal(
     isActive?: boolean
     status?: 'draft' | 'published' | 'archived'
     vatRateCategory?: 'standard' | 'reduced' | 'exempt'
+    returnPolicy?: 'standard' | 'personalized' | 'perishable' | 'hygiene_sealed'
     weightGrams?: number
     lengthCm?: number
     widthCm?: number
@@ -317,6 +321,7 @@ export async function updateProductInternal(
     }
   }
   if (data.vatRateCategory !== undefined) updateData.vatRateCategory = data.vatRateCategory
+  if (data.returnPolicy !== undefined) updateData.returnPolicy = data.returnPolicy
   if (data.weightGrams !== undefined) updateData.weightGrams = data.weightGrams ?? null
   if (data.lengthCm !== undefined) updateData.lengthCm = data.lengthCm ?? null
   if (data.widthCm !== undefined) updateData.widthCm = data.widthCm ?? null

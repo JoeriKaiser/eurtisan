@@ -544,6 +544,18 @@ export async function createCreditNoteForShopOrder(
 /**
  * Retrieves an invoice and validates user permissions.
  */
+export async function getInvoicePlatformOrderIdQuery(
+  invoiceNumber: string,
+): Promise<string | null> {
+  const [record] = await db
+    .select({ platformOrderId: shopOrder.platformOrderId })
+    .from(invoices)
+    .innerJoin(shopOrder, eq(invoices.shopOrderId, shopOrder.id))
+    .where(eq(invoices.invoiceNumber, invoiceNumber))
+    .limit(1)
+  return record?.platformOrderId ?? null
+}
+
 export async function getInvoiceByIdQuery(
   invoiceNumber: string,
   userId: string,

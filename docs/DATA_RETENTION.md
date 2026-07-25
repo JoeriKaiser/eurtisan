@@ -4,7 +4,8 @@ Summary for GDPR and operations. Align `/privacy` if customer-facing text must m
 
 | Data type | Retention | Notes |
 |-----------|-----------|--------|
-| Orders & invoices | 10 years (FR tax) | PII retained after account deletion where legally required |
+| Orders, return records & invoices | 10 years (FR tax/transaction evidence) | Financial records and policy snapshots retained; direct PII is encrypted and redacted on account deletion where permitted |
+| Guest-order access tokens | 24 hours or until order claim | Only token/email hashes are stored in the access table; raw tokens exist only in email and the HttpOnly order-access cookie |
 | Audit log | ~2 years | `AUDIT_LOG_POLICY.md`, `job:audit-log-cleanup` |
 | Application and consented Faro logs/errors (Loki) | 30 days | `retention_period: 720h` in `infra/observability/loki/loki.yml` |
 | Browser and server traces (Tempo) | 7 days | `block_retention: 168h` in `infra/observability/tempo/tempo.yml` |
@@ -30,7 +31,7 @@ Self-service deletion is implemented in `src/lib/account-data.server.ts` (`delet
 | Table | Columns retained | Redaction on deletion |
 |-------|------------------|-----------------------|
 | `user` | `id`, `role`, `createdAt`, `updatedAt`, `deletedAt` | `name`, `email`, `image` anonymized; `emailVerified`, `twoFactorEnabled` reset |
-| `platform_order` | All order financial/transaction data | `shippingAddress`, `billingAddress` replaced with redacted address object |
+| `platform_order` | All order financial/transaction data | `shippingAddress`, `billingAddress` replaced with redacted address object; encrypted `buyerEmail` and its lookup hash cleared; guest flag reset |
 | `shop_order` | All order financial/fulfillment data | No direct PII; retained for tax/dispute history |
 | `invoices` | `invoiceNumber`, type, amounts, VAT, shop order link | `billingDetails` replaced with redacted address object for both seller invoices (shops owned by the user) and buyer invoices (orders placed by the user) |
 | `shop` (owned) | `id`, name, slug, status, financial/tax data | `businessAddress`, `shippingOrigin` replaced with redacted address object; status set to `archived` |
@@ -40,6 +41,9 @@ Self-service deletion is implemented in `src/lib/account-data.server.ts` (`delet
 | `review` | Rating, product link | `comment` set to `null` |
 | `dispute` | Reason, status, resolution | `description` redacted |
 | `dispute_message` (sent by user) | Thread context | `message` replaced with `'[message removed — account deleted]'` |
+| `return_request` | Status, item/refund totals, deadlines, policy version, shipping evidence | Free-text `reason` redacted; financial and lifecycle evidence retained |
+| `return_request_message` (sent by user) | Thread context | `message` replaced with `'[message removed — account deleted]'` |
+| `guest_order_access` | None | Rows for the user's orders are deleted and links stop authorizing access |
 | `owner_message_thread` | Thread metadata | `subject` set to `'[REDACTED]'` |
 | `owner_message` | Message thread context | `body` set to `'[REDACTED]'` |
 | `customer_note` | Shop owner notes | `content` set to `'[REDACTED]'` |

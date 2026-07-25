@@ -896,13 +896,9 @@ describe.sequential('checkout', () => {
         shippingSelections: [{ shopId: 'shop-1', method: 'standard', costCents: 580 }],
       })
 
-      try {
-        await createCheckoutWithProvider(input, 'user-1', failingProvider)
-        expect.fail('Should have thrown')
-      } catch (err) {
-        expect(err instanceof Response).toBe(true)
-        expect((err as Response).status).toBe(503)
-      }
+      const failedResult = await createCheckoutWithProvider(input, 'user-1', failingProvider)
+      expect(failedResult.checkoutUrl).toBeNull()
+      expect(failedResult.paymentInitiationFailed).toBe(true)
 
       // Order should remain in pending_payment so the buyer can retry
       const platformOrders = await db.select().from(platformOrder)
@@ -1358,6 +1354,16 @@ describe.sequential('checkout', () => {
   })
 
   describe('retryPayment', () => {
+    async function reserveOrder(orderId: string) {
+      const productRecord = await seedProduct({ stockCount: 5 })
+      await db.insert(inventoryReservation).values({
+        productId: productRecord.id,
+        platformOrderId: orderId,
+        quantity: 1,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      })
+    }
+
     it('throws 404 for nonexistent platform order', async () => {
       try {
         await retryPayment(
@@ -1417,6 +1423,7 @@ describe.sequential('checkout', () => {
         totalCents: 2580,
         status: 'pending_payment',
       })
+      await reserveOrder(order.id)
 
       const result = await retryPayment(order.id, 'user-1', createStubPaymentProvider())
 
@@ -1451,6 +1458,7 @@ describe.sequential('checkout', () => {
         cancelPayment: async () => undefined,
       }
 
+      await reserveOrder(order.id)
       try {
         await retryPayment(order.id, 'user-1', failingProvider)
         expect.fail('Should have thrown')
@@ -1473,6 +1481,7 @@ describe.sequential('checkout', () => {
         status: 'pending_payment',
         molliePaymentId: 'old_payment_id',
       })
+      await reserveOrder(order.id)
 
       const result = await retryPayment(order.id, 'user-1', createStubPaymentProvider())
 

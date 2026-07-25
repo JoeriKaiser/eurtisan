@@ -1,6 +1,14 @@
-import { eq, inArray } from 'drizzle-orm'
+import { and, eq, gt, inArray } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { cart, cartItem, product, shop } from '#/db/schema'
+import {
+  cart,
+  cartItem,
+  inventoryReservation,
+  platformOrder,
+  product,
+  shop,
+  user,
+} from '#/db/schema'
 import { molliePaymentProvider } from '#/integrations/mollie'
 import type { ShippingAddress as ProviderShippingAddress } from '#/integrations/shipping'
 import { ordersCreatedTotal } from '../metrics.server'
@@ -8,7 +16,7 @@ import { logOrderCreated } from '../order-logger'
 import type { PaymentProvider } from '../payment-provider'
 import { scheduleCheckoutPostOrderNotifications } from './notifications.server'
 import { persistCheckoutOrder } from './order-persistence.server'
-import { initiateCheckoutPayment } from './payment.server'
+import { initiateCheckoutPayment, retryPayment } from './payment.server'
 import { validateCheckoutShippingSelectionDetails } from './shipping.server'
 import type { CheckoutInput, CheckoutItem, CreateCheckoutResult } from './types'
 
@@ -40,6 +48,44 @@ export async function createCheckoutWithProvider(
   userId: string,
   paymentProvider: PaymentProvider,
 ): Promise<CreateCheckoutResult> {
+  input.checkoutAttemptId ??= crypto.randomUUID()
+  const [buyer] = await db
+    .select({ isAnonymous: user.isAnonymous, email: user.email })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1)
+
+  const [existingOrder] = await db
+    .select()
+    .from(platformOrder)
+    .where(eq(platformOrder.checkoutAttemptId, input.checkoutAttemptId))
+    .limit(1)
+
+  if (existingOrder) {
+    if (existingOrder.userId !== userId) {
+      throw new Response(JSON.stringify({ error: 'Forbidden', message: 'Access denied' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    const [reservation] = await db
+      .select({ expiresAt: inventoryReservation.expiresAt })
+      .from(inventoryReservation)
+      .where(
+        and(
+          eq(inventoryReservation.platformOrderId, existingOrder.id),
+          gt(inventoryReservation.expiresAt, new Date()),
+        ),
+      )
+      .limit(1)
+    const payment = await retryPayment(existingOrder.id, userId, paymentProvider)
+    return {
+      platformOrderId: existingOrder.id,
+      checkoutUrl: payment.checkoutUrl,
+      reservationExpiresAt: reservation?.expiresAt ?? new Date(),
+    }
+  }
+
   const [cartRecord] = await db.select().from(cart).where(eq(cart.id, input.cartId)).limit(1)
   if (!cartRecord || cartRecord.userId !== userId) {
     throw new Response(
@@ -105,7 +151,13 @@ export async function createCheckoutWithProvider(
     input.shippingSelections,
   )
 
-  const result = await persistCheckoutOrder(input, userId, shippingDetailsByShop)
+  const result = await persistCheckoutOrder(
+    input,
+    userId,
+    shippingDetailsByShop,
+    buyer?.isAnonymous === true,
+    buyer?.email ?? '',
+  )
   const checkoutUrl = await initiateCheckoutPayment(
     result.platformOrderId,
     result.grandTotalCents,
@@ -113,13 +165,34 @@ export async function createCheckoutWithProvider(
     paymentProvider,
   )
 
-  scheduleCheckoutPostOrderNotifications({
-    platformOrderId: result.platformOrderId,
-    orderNumber: result.orderNumber,
-    userId,
-    grandTotalCents: result.grandTotalCents,
-    createdShopOrders: result.createdShopOrders,
-  })
+  const isGuest = buyer?.isAnonymous === true
+  if (isGuest) {
+    try {
+      const { issueGuestOrderAccess } = await import('./guest-access.server')
+      await issueGuestOrderAccess({
+        platformOrderId: result.platformOrderId,
+        orderNumber: result.orderNumber,
+        email: input.shippingAddress.contactEmail ?? buyer?.email ?? '',
+        buyerName: input.shippingAddress.name,
+      })
+    } catch (error) {
+      const { logger } = await import('../logger.server')
+      logger.error('Failed to issue guest order access', error, {
+        alert: true,
+        platformOrderId: result.platformOrderId,
+      })
+    }
+  }
+
+  if (checkoutUrl)
+    scheduleCheckoutPostOrderNotifications({
+      platformOrderId: result.platformOrderId,
+      orderNumber: result.orderNumber,
+      userId,
+      grandTotalCents: result.grandTotalCents,
+      createdShopOrders: result.createdShopOrders,
+      isGuest,
+    })
 
   ordersCreatedTotal.inc()
   logOrderCreated({
@@ -129,5 +202,10 @@ export async function createCheckoutWithProvider(
     shopOrderCount: result.createdShopOrders.length,
   })
 
-  return { platformOrderId: result.platformOrderId, checkoutUrl }
+  return {
+    platformOrderId: result.platformOrderId,
+    checkoutUrl,
+    paymentInitiationFailed: checkoutUrl === null,
+    reservationExpiresAt: result.reservationExpiresAt,
+  }
 }

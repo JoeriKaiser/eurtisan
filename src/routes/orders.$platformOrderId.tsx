@@ -1,7 +1,8 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router'
-import { guardAuth } from '#/lib/route-guards'
+import { requireOrderAccess } from '#/lib/orders'
 
 export const Route = createFileRoute('/orders/$platformOrderId')({
-  beforeLoad: async () => guardAuth(),
+  beforeLoad: async ({ params }) =>
+    requireOrderAccess({ data: { orderId: params.platformOrderId } }),
   component: () => <Outlet />,
 })

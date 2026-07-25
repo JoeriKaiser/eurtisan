@@ -15,6 +15,7 @@ export interface FormValues {
   isActive: boolean
   status: 'draft' | 'published'
   vatRateCategory: 'standard' | 'reduced' | 'exempt'
+  returnPolicy: 'standard' | 'personalized' | 'perishable' | 'hygiene_sealed'
   weightGrams: string
   lengthCm: string
   widthCm: string
@@ -363,6 +364,29 @@ export function ProductNewFormFields({
           ))}
         </select>
         <p className='mt-1.5 text-xs text-text-muted'>{m.vat_category_hint()}</p>
+      </div>
+
+      <div>
+        <label
+          htmlFor='product-return-policy'
+          className='mb-2 block text-sm font-medium text-text-primary'
+        >
+          {m.return_policy_label()}
+        </label>
+        <select
+          id='product-return-policy'
+          value={values.returnPolicy}
+          onChange={(event) =>
+            onFieldChange('returnPolicy', event.target.value as FormValues['returnPolicy'])
+          }
+          className='flex h-11 w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary transition-colors hover:border-border-strong focus-visible:border-accent-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
+        >
+          <option value='standard'>{m.return_policy_standard()}</option>
+          <option value='personalized'>{m.return_policy_personalized()}</option>
+          <option value='perishable'>{m.return_policy_perishable()}</option>
+          <option value='hygiene_sealed'>{m.return_policy_hygiene()}</option>
+        </select>
+        <p className='mt-1.5 text-xs text-text-muted'>{m.return_policy_hint()}</p>
       </div>
 
       {/* Active toggle */}

@@ -393,7 +393,7 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
   })
 
   describe('payment status handling', () => {
-    it('cancels the order and releases stock when payment status is expired', async () => {
+    it('cancels the order and retains its active reservation when payment status is expired', async () => {
       stubPaymentStatus = 'expired'
       const order = await seedPlatformOrder()
       const shopOrd = await seedShopOrder({ platformOrderId: order.id })
@@ -431,10 +431,10 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
         .select()
         .from(inventoryReservation)
         .where(eq(inventoryReservation.platformOrderId, order.id))
-      expect(reservations).toHaveLength(0)
+      expect(reservations).toHaveLength(1)
     })
 
-    it('cancels the order and releases stock when payment status is failed', async () => {
+    it('cancels the order and retains its active reservation when payment status is failed', async () => {
       stubPaymentStatus = 'failed'
       const order = await seedPlatformOrder()
       const shopOrd = await seedShopOrder({ platformOrderId: order.id })
@@ -464,10 +464,10 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
         .select()
         .from(inventoryReservation)
         .where(eq(inventoryReservation.platformOrderId, order.id))
-      expect(reservations).toHaveLength(0)
+      expect(reservations).toHaveLength(1)
     })
 
-    it('cancels the order and releases stock when payment status is cancelled', async () => {
+    it('cancels the order and retains its active reservation when payment status is cancelled', async () => {
       stubPaymentStatus = 'cancelled'
       const order = await seedPlatformOrder()
       const shopOrd = await seedShopOrder({ platformOrderId: order.id })
@@ -497,7 +497,7 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
         .select()
         .from(inventoryReservation)
         .where(eq(inventoryReservation.platformOrderId, order.id))
-      expect(reservations).toHaveLength(0)
+      expect(reservations).toHaveLength(1)
     })
 
     it('returns 200 without changes when payment status is still pending', async () => {

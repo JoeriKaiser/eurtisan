@@ -11,7 +11,7 @@ export function Input({ className, error, ref, ...props }: InputProps) {
     <input
       ref={ref}
       className={cn(
-        'flex h-10 w-full rounded-lg border bg-surface-default px-3 py-2 text-sm text-text-primary',
+        'flex h-11 w-full rounded-lg border bg-surface-default px-3 py-2 text-sm text-text-primary',
         'placeholder:text-text-placeholder',
         'transition-colors duration-fast ease-out',
         'focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20',

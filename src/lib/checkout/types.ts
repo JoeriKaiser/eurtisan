@@ -71,9 +71,12 @@ export interface ShippingSelection {
 export interface ShippingAddress {
   name: string
   street: string
+  addressLine2?: string
   city: string
   postalCode: string
   country: string
+  contactEmail?: string
+  phone?: string
   vatId?: string | null
   pickupPoint?: {
     id: string
@@ -87,6 +90,7 @@ export interface ShippingAddress {
 
 export interface CheckoutInput {
   cartId: string
+  checkoutAttemptId?: string
   shippingSelections: ShippingSelection[]
   shippingAddress: ShippingAddress
   billingAddress: ShippingAddress
@@ -95,7 +99,9 @@ export interface CheckoutInput {
 export interface CreateCheckoutResult {
   platformOrderId: string
   /** URL the buyer must visit to complete the Mollie payment. */
-  checkoutUrl: string
+  checkoutUrl: string | null
+  paymentInitiationFailed?: boolean
+  reservationExpiresAt: Date
 }
 
 export interface RetryPaymentResult {

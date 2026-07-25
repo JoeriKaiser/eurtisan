@@ -11,6 +11,7 @@ import { createUser } from '#/test/factories'
 import { clearTestTables } from '#/test/cleanup'
 
 import { enqueueEmail } from '#/lib/email-outbox.server'
+import { encrypt } from '#/lib/encryption.server'
 import { sha256Hex } from '#/lib/hash.server'
 
 let sendTransactional = vi.fn()
@@ -83,6 +84,36 @@ describe('processOutboxBatch', () => {
     expect(logs).toHaveLength(1)
     expect(logs[0]?.status).toBe('accepted')
     expect(logs[0]?.providerMessageId).toBe('msg-1')
+  })
+
+  it('decrypts guest access tokens only at delivery time', async () => {
+    sendTransactional.mockResolvedValue({
+      messageId: 'msg-guest',
+      accepted: true,
+      provider: 'mock',
+    })
+    const token = 'guest-access-token-that-is-long-enough'
+    await enqueueEmail({
+      to: 'guest@example.com',
+      userId: null,
+      template: 'guest_order_access',
+      data: { orderNumber: 'GUEST-42', encryptedAccessToken: encrypt(token) },
+      category: 'transactional',
+      idempotencyKey: 'worker-guest',
+    })
+
+    const { processOutboxBatch } = await importWorker()
+    await processOutboxBatch(10)
+
+    expect(sendTransactional).toHaveBeenCalledWith(
+      'guest@example.com',
+      'guest_order_access',
+      {
+        orderNumber: 'GUEST-42',
+        accessUrl: expect.stringContaining(`token=${encodeURIComponent(token)}`),
+      },
+      expect.any(Object),
+    )
   })
 
   it('skips suppressed recipients and marks the row suppressed', async () => {

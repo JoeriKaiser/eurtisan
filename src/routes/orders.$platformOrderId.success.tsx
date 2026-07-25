@@ -1,12 +1,12 @@
 import { createFileRoute, notFound, redirect } from '@tanstack/react-router'
 import { NotFoundPage } from '#/components/NotFoundPage'
-import { getBuyerOrderDetail, type OrderDetail } from '#/lib/orders'
-import { guardAuth } from '#/lib/route-guards'
+import { getBuyerOrderDetail, requireOrderAccess, type OrderDetail } from '#/lib/orders'
 import { m } from '#/paraglide/messages'
 import { OrderSuccessRouteComponent } from '#/route-components/orders.$platformOrderId.success'
 
 export const Route = createFileRoute('/orders/$platformOrderId/success')({
-  beforeLoad: async () => guardAuth(),
+  beforeLoad: async ({ params }) =>
+    requireOrderAccess({ data: { orderId: params.platformOrderId } }),
   loader: async ({ params }) => {
     let order: OrderDetail
     try {
@@ -16,14 +16,6 @@ export const Route = createFileRoute('/orders/$platformOrderId/success')({
         throw notFound()
       }
       throw err
-    }
-
-    // If the order is cancelled, redirect to the standard order details page.
-    if (order.status === 'cancelled') {
-      throw redirect({
-        to: '/orders/$platformOrderId',
-        params: { platformOrderId: params.platformOrderId },
-      })
     }
 
     // If the order is still pending payment and was created more than 5 minutes ago,

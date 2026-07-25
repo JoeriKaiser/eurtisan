@@ -429,7 +429,9 @@ describe('MolliePaymentProvider (real with mocked fetch)', () => {
         .spyOn(globalThis, 'fetch')
         .mockResolvedValue(new Response(JSON.stringify({ id: 're_12345' }), { status: 201 }))
 
-      await provider.refundPayment('tr_real_12345', 500)
+      await provider.refundPayment('tr_real_12345', 500, {
+        idempotencyKey: 'return-refund-request-1',
+      })
 
       expect(fetchSpy).toHaveBeenCalledWith(
         'https://api.mollie.com/v2/payments/tr_real_12345/refunds',
@@ -437,6 +439,7 @@ describe('MolliePaymentProvider (real with mocked fetch)', () => {
           method: 'POST',
           headers: expect.objectContaining({
             Authorization: 'Bearer test_live_key',
+            'Idempotency-Key': 'return-refund-request-1',
           }),
         }),
       )

@@ -12,23 +12,37 @@ export type {
   OrderStatus,
 } from './orders.server'
 
+export const requireOrderAccess = createServerFn({ method: 'GET' })
+  .middleware([authMiddleware])
+  .inputValidator(z.object({ orderId: z.string().uuid() }))
+  .handler(async ({ context, data }) => {
+    const { canAccessOrder } = await import('./checkout/guest-access.server')
+    if (!(await canAccessOrder(data.orderId, context.user?.id))) {
+      throw new Response(JSON.stringify({ error: 'Forbidden', message: 'Access denied' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    return { authorized: true }
+  })
+
 export const getBuyerOrderDetail = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .inputValidator(z.object({ orderId: z.string().uuid() }))
   .handler(async ({ context, data }) => {
-    if (!context.user) {
-      throw new Response(
-        JSON.stringify({ error: 'Unauthorized', message: 'Authentication required' }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } },
-      )
-    }
-
     const { getBuyerOrderDetailQuery, getOrderOwnerId } = await import('./orders.server')
-    const result = await getBuyerOrderDetailQuery(data.orderId, context.user.id)
+    const ownerId = await getOrderOwnerId(data.orderId)
+    const { canAccessOrder } = await import('./checkout/guest-access.server')
+    if (!ownerId || !(await canAccessOrder(data.orderId, context.user?.id))) {
+      throw new Response(JSON.stringify({ error: 'Forbidden', message: 'Access denied' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    const result = await getBuyerOrderDetailQuery(data.orderId, ownerId)
 
     if (!result) {
-      const ownerId = await getOrderOwnerId(data.orderId)
-      if (ownerId && ownerId !== context.user.id) {
+      if (ownerId && ownerId !== context.user?.id) {
         throw new Response(JSON.stringify({ error: 'Forbidden', message: 'Access denied' }), {
           status: 403,
           headers: { 'Content-Type': 'application/json' },

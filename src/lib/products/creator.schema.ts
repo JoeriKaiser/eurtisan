@@ -30,6 +30,10 @@ export const createProductSchema = z.object({
   categoryId: z.string().uuid().optional(),
   isActive: z.boolean().optional().default(true),
   vatRateCategory: z.enum(['standard', 'reduced', 'exempt']).optional().default('standard'),
+  returnPolicy: z
+    .enum(['standard', 'personalized', 'perishable', 'hygiene_sealed'])
+    .optional()
+    .default('standard'),
   weightGrams: z.coerce.number().int().positive().optional(),
   lengthCm: z.coerce.number().int().positive().optional(),
   widthCm: z.coerce.number().int().positive().optional(),

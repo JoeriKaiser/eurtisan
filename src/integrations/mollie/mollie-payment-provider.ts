@@ -158,6 +158,7 @@ export class MolliePaymentProvider implements PaymentProvider {
     redirectUrl: string,
     webhookUrl: string,
     billingCountry?: string,
+    idempotencyKey?: string,
   ): Promise<CreatePaymentResult> {
     if (this.mockMode) {
       return this.createPaymentMock(amountCents, currency, description, redirectUrl)
@@ -170,6 +171,7 @@ export class MolliePaymentProvider implements PaymentProvider {
       redirectUrl,
       webhookUrl,
       billingCountry,
+      idempotencyKey,
     )
   }
 
@@ -208,6 +210,7 @@ export class MolliePaymentProvider implements PaymentProvider {
     redirectUrl: string,
     webhookUrl: string,
     billingCountry?: string,
+    idempotencyKey?: string,
   ): Promise<CreatePaymentResult> {
     const apiKey = getMollieApiKey()
 
@@ -234,6 +237,7 @@ export class MolliePaymentProvider implements PaymentProvider {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
+        ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
       },
       body: JSON.stringify(body),
     })
@@ -265,6 +269,7 @@ export class MolliePaymentProvider implements PaymentProvider {
     options?: {
       reverseRouting?: boolean
       routingReversals?: { organizationId: string; amountCents: number }[]
+      idempotencyKey?: string
     },
   ): Promise<void> {
     if (this.mockMode) {
@@ -280,6 +285,7 @@ export class MolliePaymentProvider implements PaymentProvider {
     _options?: {
       reverseRouting?: boolean
       routingReversals?: { organizationId: string; amountCents: number }[]
+      idempotencyKey?: string
     },
   ): Promise<void> {
     // In mock mode we only validate that the payment ID looks plausible.
@@ -297,6 +303,7 @@ export class MolliePaymentProvider implements PaymentProvider {
     options?: {
       reverseRouting?: boolean
       routingReversals?: { organizationId: string; amountCents: number }[]
+      idempotencyKey?: string
     },
   ): Promise<void> {
     const apiKey = getMollieApiKey()
@@ -340,6 +347,7 @@ export class MolliePaymentProvider implements PaymentProvider {
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
+        ...(options?.idempotencyKey ? { 'Idempotency-Key': options.idempotencyKey } : {}),
       },
       body: JSON.stringify(body),
     })

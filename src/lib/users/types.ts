@@ -11,6 +11,7 @@ export interface SafeUser {
   emailVerified: boolean
   image: string | null
   role: UserRole
+  isAnonymous?: boolean
   createdAt: Date
   updatedAt: Date
 }
@@ -32,6 +33,7 @@ export interface AuthSafeUser {
   bannedAt: Date | null
   deletedAt: Date | null
   twoFactorEnabled: boolean
+  isAnonymous?: boolean
 }
 
 /**
@@ -50,6 +52,7 @@ export interface RawAuthUser {
   bannedAt: Date | null
   deletedAt: Date | null
   twoFactorEnabled: boolean
+  isAnonymous?: boolean
 }
 
 export function toSafeUser(raw: unknown): AuthSafeUser {
@@ -64,5 +67,6 @@ export function toSafeUser(raw: unknown): AuthSafeUser {
     bannedAt: user.bannedAt,
     deletedAt: user.deletedAt,
     twoFactorEnabled: user.twoFactorEnabled,
+    isAnonymous: user.isAnonymous ?? false,
   }
 }

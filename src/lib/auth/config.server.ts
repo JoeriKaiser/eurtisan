@@ -6,11 +6,11 @@ import { drizzleAdapter } from '@better-auth/drizzle-adapter'
 import { getRequestProtocol } from '@tanstack/react-start/server'
 import type { BetterAuthOptions, DBAdapter, Where } from 'better-auth'
 import { APIError, betterAuth } from 'better-auth'
-import { twoFactor } from 'better-auth/plugins'
+import { anonymous, twoFactor } from 'better-auth/plugins'
 import { tanstackStartCookies } from 'better-auth/tanstack-start'
 import { eq } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { user } from '#/db/schema'
+import { dispute, notification, platformOrder, returnRequest, review, user } from '#/db/schema'
 import { createEmailProvider } from '#/integrations/email'
 import { safeRedirect } from './utils'
 import { ANONYMOUS_SESSION_COOKIE } from '../cart-constants'
@@ -316,6 +316,34 @@ export const betterAuthOptions = {
       ? { enabled: false }
       : undefined,
   plugins: [
+    anonymous({
+      emailDomainName: 'guest.eurtisan.local',
+      generateName: () => 'Guest buyer',
+      onLinkAccount: async ({ anonymousUser, newUser }) => {
+        await db.transaction(async (tx) => {
+          await tx
+            .update(platformOrder)
+            .set({ userId: newUser.user.id, updatedAt: new Date() })
+            .where(eq(platformOrder.userId, anonymousUser.user.id))
+          await tx
+            .update(dispute)
+            .set({ buyerUserId: newUser.user.id })
+            .where(eq(dispute.buyerUserId, anonymousUser.user.id))
+          await tx
+            .update(returnRequest)
+            .set({ buyerUserId: newUser.user.id, updatedAt: new Date() })
+            .where(eq(returnRequest.buyerUserId, anonymousUser.user.id))
+          await tx
+            .update(review)
+            .set({ buyerUserId: newUser.user.id })
+            .where(eq(review.buyerUserId, anonymousUser.user.id))
+          await tx
+            .update(notification)
+            .set({ userId: newUser.user.id })
+            .where(eq(notification.userId, anonymousUser.user.id))
+        })
+      },
+    }),
     tanstackStartCookies(),
     twoFactor({
       issuer: 'Eurtisan',
@@ -330,7 +358,12 @@ export const betterAuthOptions = {
             throw new Error('Invalid session data.')
           }
           const rows = await db
-            .select({ deletedAt: user.deletedAt })
+            .select({
+              deletedAt: user.deletedAt,
+              email: user.email,
+              emailVerified: user.emailVerified,
+              isAnonymous: user.isAnonymous,
+            })
             .from(user)
             .where(eq(user.id, session.userId))
             .limit(1)
@@ -345,7 +378,25 @@ export const betterAuthOptions = {
         after: async (session, context) => {
           if (!context) return
           const sessionId = context.getCookie(ANONYMOUS_SESSION_COOKIE) ?? undefined
-          const { handlePostLoginCartMerge } = await import('../cart.server')
+          const [{ handlePostLoginCartMerge }, accountRows] = await Promise.all([
+            import('../cart.server'),
+            db
+              .select({
+                email: user.email,
+                emailVerified: user.emailVerified,
+                isAnonymous: user.isAnonymous,
+              })
+              .from(user)
+              .where(eq(user.id, session.userId))
+              .limit(1),
+          ])
+          const account = accountRows[0]
+          if (account?.emailVerified && !account.isAnonymous) {
+            const { claimGuestOrdersForVerifiedUser } = await import(
+              '../checkout/guest-access.server'
+            )
+            await claimGuestOrdersForVerifiedUser({ userId: session.userId, email: account.email })
+          }
           await handlePostLoginCartMerge(sessionId, session.userId, () => {
             context.setCookie(ANONYMOUS_SESSION_COOKIE, '', {
               httpOnly: true,

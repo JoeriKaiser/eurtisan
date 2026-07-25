@@ -46,6 +46,7 @@ export const user = pgTable(
     failedLoginAttempts: integer('failed_login_attempts').notNull().default(0),
     lockedUntil: timestamp('locked_until'),
     twoFactorEnabled: boolean('two_factor_enabled').notNull().default(false),
+    isAnonymous: boolean('is_anonymous').notNull().default(false),
     deletedAt: timestamp('deleted_at'),
     unsubscribeToken: text('unsubscribe_token').unique(),
     createdAt: timestamp().notNull().defaultNow(),
@@ -288,6 +289,7 @@ export const product = pgTable(
     status: productStatusEnum().notNull().default('draft'),
     publishedAt: timestamp('published_at'),
     vatRateCategory: text('vat_rate_category').notNull().default('standard'),
+    returnPolicy: text('return_policy').notNull().default('standard'),
     shopId: text('shop_id')
       .notNull()
       .references(() => shop.id, { onDelete: 'cascade' }),
@@ -320,6 +322,10 @@ export const product = pgTable(
       .where(sql`${table.status} = 'published'`),
     check('stock_count_non_negative', sql`${table.stockCount} >= 0`),
     check('price_cents_non_negative', sql`${table.priceCents} >= 0`),
+    check(
+      'product_return_policy_valid',
+      sql`${table.returnPolicy} IN ('standard', 'personalized', 'perishable', 'hygiene_sealed')`,
+    ),
     check(
       'product_weight_grams_positive',
       sql`${table.weightGrams} IS NULL OR ${table.weightGrams} > 0`,
@@ -490,6 +496,10 @@ export const platformOrder = pgTable(
     cancelledAt: timestamp('cancelled_at'),
     cancellationReason: text('cancellation_reason'),
     molliePaymentId: text('mollie_payment_id'),
+    checkoutAttemptId: uuid('checkout_attempt_id'),
+    buyerEmail: text('buyer_email'),
+    buyerEmailHash: text('buyer_email_hash'),
+    isGuest: boolean('is_guest').notNull().default(false),
     paidAt: timestamp('paid_at'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -505,7 +515,9 @@ export const platformOrder = pgTable(
     ),
     index('platform_order_status_created_at_idx').on(table.status, table.createdAt),
     index('platform_order_mollie_payment_id_idx').on(table.molliePaymentId),
+    index('platform_order_buyer_email_hash_idx').on(table.buyerEmailHash),
     uniqueIndex('platform_order_order_number_unique').on(table.orderNumber),
+    uniqueIndex('platform_order_checkout_attempt_id_unique').on(table.checkoutAttemptId),
     // Mollie guarantees payment ID uniqueness per environment. Cross-environment
     // data migrations (e.g. staging → production) may collide; remove or adjust
     // this constraint if such migrations are performed.
@@ -513,6 +525,30 @@ export const platformOrder = pgTable(
     check(
       'platform_order_refunded_cents_not_over_total',
       sql`${table.refundedCents} <= ${table.totalCents}`,
+    ),
+  ],
+)
+
+export const paymentAttempt = pgTable(
+  'payment_attempt',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    platformOrderId: uuid('platform_order_id')
+      .notNull()
+      .references(() => platformOrder.id, { onDelete: 'cascade' }),
+    idempotencyKey: text('idempotency_key').notNull(),
+    status: text().notNull().default('initiating'),
+    providerPaymentId: text('provider_payment_id'),
+    checkoutUrl: text('checkout_url'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('payment_attempt_order_idx').on(table.platformOrderId, table.createdAt),
+    uniqueIndex('payment_attempt_idempotency_key_unique').on(table.idempotencyKey),
+    check(
+      'payment_attempt_status_valid',
+      sql`${table.status} IN ('initiating', 'completed', 'superseded')`,
     ),
   ],
 )
@@ -530,6 +566,7 @@ export const shopOrder = pgTable(
     shippingMethod: shippingMethodEnum('shipping_method').notNull().default('standard'),
     shippingRateId: text('shipping_rate_id'),
     shippingCostCents: integer('shipping_cost_cents').notNull().default(0),
+    standardShippingCostCents: integer('standard_shipping_cost_cents').notNull().default(0),
     subtotalCents: integer('subtotal_cents').notNull().default(0),
     vatAmountCents: integer('vat_amount_cents').notNull().default(0),
     shippingVatRateBasisPoints: integer('shipping_vat_rate_basis_points').notNull().default(0),
@@ -593,6 +630,8 @@ export const orderItem = pgTable(
     totalCents: integer('total_cents').notNull().default(0),
     vatRateBasisPoints: integer('vat_rate_basis_points').notNull().default(0),
     vatAmountCents: integer('vat_amount_cents').notNull().default(0),
+    returnPolicySnapshot: text('return_policy_snapshot').notNull().default('standard'),
+    returnWindowDays: integer('return_window_days').notNull().default(14),
     weightGrams: integer('weight_grams'),
     lengthCm: integer('length_cm'),
     widthCm: integer('width_cm'),
@@ -604,6 +643,32 @@ export const orderItem = pgTable(
     index('order_item_product_id_idx').on(table.productId),
     index('order_item_shop_order_id_product_id_idx').on(table.shopOrderId, table.productId),
     check('order_item_quantity_positive', sql`${table.quantity} > 0`),
+    check(
+      'order_item_return_policy_valid',
+      sql`${table.returnPolicySnapshot} IN ('standard', 'personalized', 'perishable', 'hygiene_sealed')`,
+    ),
+    check('order_item_return_window_positive', sql`${table.returnWindowDays} > 0`),
+  ],
+)
+
+export const guestOrderAccess = pgTable(
+  'guest_order_access',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    platformOrderId: uuid('platform_order_id')
+      .notNull()
+      .references(() => platformOrder.id, { onDelete: 'cascade' }),
+    emailHash: text('email_hash').notNull(),
+    tokenHash: text('token_hash').notNull(),
+    expiresAt: timestamp('expires_at').notNull(),
+    consumedAt: timestamp('consumed_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('guest_order_access_order_unique').on(table.platformOrderId),
+    uniqueIndex('guest_order_access_token_hash_unique').on(table.tokenHash),
+    index('guest_order_access_email_hash_idx').on(table.emailHash),
+    index('guest_order_access_expires_at_idx').on(table.expiresAt),
   ],
 )
 
@@ -759,6 +824,102 @@ export const dispute = pgTable(
     uniqueIndex('dispute_shop_order_id_unique').on(table.shopOrderId),
     check('dispute_status_check', sql`${table.status} IN ('open', 'resolved', 'closed')`),
   ],
+)
+
+export const returnRequestStatusEnum = pgEnum('return_request_status', [
+  'requested',
+  'authorized',
+  'awaiting_shipment',
+  'in_transit',
+  'received',
+  'refund_pending',
+  'refunded',
+  'rejected',
+  'closed',
+])
+
+export const returnRequestTypeEnum = pgEnum('return_request_type', ['withdrawal', 'defective'])
+
+export const returnRequest = pgTable(
+  'return_request',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    shopOrderId: uuid('shop_order_id')
+      .notNull()
+      .references(() => shopOrder.id, { onDelete: 'cascade' }),
+    buyerUserId: text('buyer_user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'restrict' }),
+    type: returnRequestTypeEnum('type').notNull(),
+    status: returnRequestStatusEnum('status').notNull().default('requested'),
+    reason: text().notNull(),
+    returnShippingPayer: text('return_shipping_payer').notNull(),
+    policyVersion: text('policy_version').notNull().default('eu-baseline-2026-01'),
+    requestDeadline: timestamp('request_deadline').notNull(),
+    returnDeadline: timestamp('return_deadline').notNull(),
+    refundCents: integer('refund_cents').notNull().default(0),
+    outboundShippingRefundCents: integer('outbound_shipping_refund_cents').notNull().default(0),
+    carrier: text(),
+    trackingNumber: text('tracking_number'),
+    labelUrl: text('label_url'),
+    rejectionReason: text('rejection_reason'),
+    receivedAt: timestamp('received_at'),
+    refundAttemptedAt: timestamp('refund_attempted_at'),
+    refundedAt: timestamp('refunded_at'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('return_request_shop_order_idx').on(table.shopOrderId),
+    index('return_request_buyer_idx').on(table.buyerUserId),
+    index('return_request_status_idx').on(table.status),
+    check(
+      'return_request_shipping_payer_valid',
+      sql`${table.returnShippingPayer} IN ('buyer', 'seller')`,
+    ),
+    check('return_request_refund_non_negative', sql`${table.refundCents} >= 0`),
+    check(
+      'return_request_outbound_refund_non_negative',
+      sql`${table.outboundShippingRefundCents} >= 0`,
+    ),
+  ],
+)
+
+export const returnRequestItem = pgTable(
+  'return_request_item',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    returnRequestId: uuid('return_request_id')
+      .notNull()
+      .references(() => returnRequest.id, { onDelete: 'cascade' }),
+    orderItemId: uuid('order_item_id')
+      .notNull()
+      .references(() => orderItem.id, { onDelete: 'restrict' }),
+    quantity: integer().notNull(),
+    refundCents: integer('refund_cents').notNull(),
+  },
+  (table) => [
+    uniqueIndex('return_request_item_unique').on(table.returnRequestId, table.orderItemId),
+    index('return_request_item_request_idx').on(table.returnRequestId),
+    check('return_request_item_quantity_positive', sql`${table.quantity} > 0`),
+    check('return_request_item_refund_non_negative', sql`${table.refundCents} >= 0`),
+  ],
+)
+
+export const returnRequestMessage = pgTable(
+  'return_request_message',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    returnRequestId: uuid('return_request_id')
+      .notNull()
+      .references(() => returnRequest.id, { onDelete: 'cascade' }),
+    senderUserId: text('sender_user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'restrict' }),
+    message: text().notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [index('return_request_message_request_idx').on(table.returnRequestId)],
 )
 
 export const disputeMessage = pgTable(
@@ -959,6 +1120,7 @@ export const emailOutbox = pgTable(
     userId: text('user_id').references(() => user.id, { onDelete: 'cascade' }),
     idempotencyKey: text('idempotency_key').notNull().unique(),
     recipientHash: text('recipient_hash').notNull(),
+    recipientEmail: text('recipient_email'),
     template: text().notNull(),
     locale: text().notNull().default('en'),
     data: jsonb().notNull(),

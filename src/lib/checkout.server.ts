@@ -17,6 +17,7 @@ export {
 } from './checkout/shipping.server'
 export { retryPayment } from './checkout/payment.server'
 export { getCheckoutSummaryQuery } from './checkout/summary.server'
+export { rebuildCartFromOrderQuery } from './checkout/rebuild-cart.server'
 export {
   createCheckoutQuery,
   createCheckoutWithProvider,

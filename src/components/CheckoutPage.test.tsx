@@ -26,10 +26,21 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('#/paraglide/messages', () => ({
   m: {
     checkout_title: () => 'Checkout',
+    checkout_back_to_cart: () => 'Back to cart',
+    checkout_secure_kicker: () => 'Secure one-page checkout',
+    checkout_progress_label: () => 'Checkout progress',
+    checkout_progress_cart: () => 'Cart',
+    checkout_progress_delivery: () => 'Delivery',
+    checkout_progress_payment: () => 'Payment',
     checkout_shipping_address: () => 'Shipping address',
     checkout_billing_address: () => 'Billing address',
     checkout_billing_same_as_shipping: () => 'Same as shipping address',
     checkout_field_full_name: () => 'Full name',
+    checkout_field_email: () => 'Email address',
+    checkout_field_email_hint: () => 'Receipt email',
+    checkout_field_phone: () => 'Phone number',
+    checkout_field_phone_hint: () => 'Carrier contact',
+    checkout_field_address_line_2: () => 'Apartment, suite, etc. (optional)',
     checkout_field_street: () => 'Street address',
     checkout_field_city: () => 'City',
     checkout_field_postal_code: () => 'Postal code',
@@ -47,12 +58,17 @@ vi.mock('#/paraglide/messages', () => ({
     checkout_order_summary: () => 'Order summary',
     checkout_grand_total: () => 'Grand total',
     checkout_confirm_button: () => 'Confirm purchase',
+    checkout_continue_to_payment: () => 'Continue to secure payment',
+    checkout_mobile_payment_action: ({ total }: { total: string }) => `Pay ${total}`,
+    checkout_mollie_handoff: () => 'Secure Mollie payment',
     checkout_confirm_loading: () => 'Processing…',
     checkout_error_name_required: () => 'Full name is required',
     checkout_error_street_required: () => 'Street address is required',
     checkout_error_city_required: () => 'City is required',
     checkout_error_postal_required: () => 'Postal code is required',
     checkout_error_country_required: () => 'Country is required',
+    checkout_error_email_invalid: () => 'Enter a valid email address',
+    checkout_error_postal_invalid: () => 'Enter a valid postal code',
     checkout_error_submit: () => 'Could not complete checkout. Please try again.',
     checkout_shippingUnsupported: () => 'We cannot ship to this address for this shop.',
     checkout_pickup_point_label: () => 'Pick-up Point',
@@ -65,6 +81,8 @@ vi.mock('#/paraglide/messages', () => ({
     checkout_pickup_point_required: () =>
       'Please select a pick-up point before placing your order.',
     checkout_rate_error: () => 'Could not fetch shipping rates. Please try again.',
+    checkout_rate_retry: () => 'Retry shipping rates',
+    checkout_shipping_address_prompt: () => 'Enter a complete address',
     checkout_missing_url: () => 'Checkout URL is missing. Please try again.',
     checkout_shipping_label: () => 'Shipping',
     checkout_includes_vat: () => 'Includes VAT',
@@ -82,6 +100,8 @@ vi.mock('#/paraglide/messages', () => ({
     error_out_of_stock: () => 'Some items are out of stock',
     error_dispute_window_expired: () => 'Dispute window has expired (30 days)',
     error_unexpected: () => 'An unexpected error occurred',
+    checkout_rights_summary_title: () => 'Your purchase rights',
+    checkout_rights_summary: () => '14-day withdrawal rights apply with exclusions.',
     checkout_legal_heading: () => 'Seller information & your rights',
     checkout_seller_identity_title: () => 'Seller (trader)',
     checkout_seller_contact_label: () => 'Contact',
@@ -264,19 +284,21 @@ describe('CheckoutPage', () => {
   it('renders order summary with totals', () => {
     render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
     expect(screen.getByText('Order summary')).toBeDefined()
-    expect(screen.getByText('Grand total')).toBeDefined()
+    expect(screen.getAllByText('Grand total').length).toBeGreaterThanOrEqual(1)
   })
 
   it('shows validation errors for empty required fields on submit', async () => {
     render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm purchase' }))
+    const submitButton = screen.getByRole('button', { name: 'Confirm purchase' })
+    const form = submitButton.closest('form')
+    if (form) fireEvent.submit(form)
 
     await waitFor(() => {
       expect(screen.getByText('Full name is required')).toBeDefined()
       expect(screen.getByText('Street address is required')).toBeDefined()
       expect(screen.getByText('City is required')).toBeDefined()
-      expect(screen.getByText('Postal code is required')).toBeDefined()
-      expect(screen.getByText('Country is required')).toBeDefined()
+      expect(screen.getByLabelText('Postal code').getAttribute('aria-invalid')).toBe('true')
+      expect(screen.getByLabelText('Country').getAttribute('aria-invalid')).toBe('true')
     })
   })
 
@@ -292,7 +314,7 @@ describe('CheckoutPage', () => {
   it('calls createCheckout with rateId and redirects on success', async () => {
     const savedLocation = window.location
     delete (window as { location?: unknown }).location
-    window.location = { ...savedLocation, href: '' } as Location & string
+    window.location = { ...savedLocation, href: 'http://localhost/' } as Location & string
 
     const checkoutUrl = 'https://checkout.mollie.com/pay/test_payment_1'
     mockCreateCheckout.mockResolvedValue({
@@ -300,7 +322,13 @@ describe('CheckoutPage', () => {
       checkoutUrl,
     })
 
-    render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
+    render(
+      <CheckoutPage
+        summary={makeSummary()}
+        cartId='cart-1'
+        initialContactEmail='buyer@example.com'
+      />,
+    )
 
     fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Test User' } })
     fireEvent.change(screen.getByLabelText('Street address'), { target: { value: '123 Main St' } })
@@ -316,7 +344,9 @@ describe('CheckoutPage', () => {
       { timeout: 1500 },
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm purchase' }))
+    const submitButton = screen.getByRole('button', { name: 'Confirm purchase' })
+    await waitFor(() => expect(submitButton).toHaveProperty('disabled', false))
+    fireEvent.click(submitButton)
 
     await waitFor(() => {
       expect(mockCreateCheckout).toHaveBeenCalledWith({
@@ -368,7 +398,13 @@ describe('CheckoutPage', () => {
       new Response(JSON.stringify({ message: 'Cart is empty' }), { status: 409 }),
     )
 
-    render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
+    render(
+      <CheckoutPage
+        summary={makeSummary()}
+        cartId='cart-1'
+        initialContactEmail='buyer@example.com'
+      />,
+    )
 
     fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Test User' } })
     fireEvent.change(screen.getByLabelText('Street address'), { target: { value: '123 Main St' } })
@@ -384,7 +420,9 @@ describe('CheckoutPage', () => {
       { timeout: 1500 },
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm purchase' }))
+    const submitButton = screen.getByRole('button', { name: 'Confirm purchase' })
+    await waitFor(() => expect(submitButton).toHaveProperty('disabled', false))
+    fireEvent.click(submitButton)
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toBeDefined()
@@ -409,7 +447,13 @@ describe('CheckoutPage', () => {
       }),
     )
 
-    render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
+    render(
+      <CheckoutPage
+        summary={makeSummary()}
+        cartId='cart-1'
+        initialContactEmail='buyer@example.com'
+      />,
+    )
 
     fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Test User' } })
     fireEvent.change(screen.getByLabelText('Street address'), { target: { value: '123 Main St' } })
@@ -653,7 +697,13 @@ describe('CheckoutPage', () => {
 
     mockGetCheckoutSummary.mockResolvedValueOnce(summaryAFirst).mockResolvedValueOnce(summaryBFirst)
 
-    render(<CheckoutPage summary={summaryAFirst} cartId='cart-1' />)
+    render(
+      <CheckoutPage
+        summary={summaryAFirst}
+        cartId='cart-1'
+        initialContactEmail='buyer@example.com'
+      />,
+    )
 
     // Fill the shipping address to trigger the first rate fetch
     fireEvent.change(screen.getByLabelText('Full name'), { target: { value: 'Test User' } })
@@ -750,9 +800,9 @@ describe('CheckoutPage', () => {
         expect(
           screen.queryByText('Please select a pick-up point before placing your order.'),
         ).toBeNull()
-        // Submit button should be enabled
+        // A pick-up point alone is insufficient until the address has a fresh quote.
         const submitBtn = screen.getByRole('button', { name: 'Confirm purchase' })
-        expect(submitBtn).toHaveProperty('disabled', false)
+        expect(submitBtn).toHaveProperty('disabled', true)
       })
     })
   })

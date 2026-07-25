@@ -57,6 +57,7 @@ export interface FormValues {
   isActive: boolean
   status: 'draft' | 'published'
   vatRateCategory: 'standard' | 'reduced' | 'exempt'
+  returnPolicy: 'standard' | 'personalized' | 'perishable' | 'hygiene_sealed'
   weightGrams: string
   lengthCm: string
   widthCm: string
@@ -90,6 +91,7 @@ function createInitialFormState(initialShops: CreatorShop[]): FormState {
       isActive: true,
       status: 'published',
       vatRateCategory: 'standard',
+      returnPolicy: 'standard',
       weightGrams: '',
       lengthCm: '',
       widthCm: '',
@@ -285,6 +287,7 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
       categoryId: formState.values.categoryId || undefined,
       isActive: formState.values.isActive,
       vatRateCategory: formState.values.vatRateCategory,
+      returnPolicy: formState.values.returnPolicy,
       weightGrams: formState.values.weightGrams
         ? Number.parseInt(formState.values.weightGrams, 10)
         : undefined,
@@ -410,6 +413,7 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
           isActive: formState.values.isActive,
           status: submitStatusRef.current,
           vatRateCategory: formState.values.vatRateCategory,
+          returnPolicy: formState.values.returnPolicy,
           weightGrams: formState.values.weightGrams
             ? Number.parseInt(formState.values.weightGrams, 10)
             : undefined,

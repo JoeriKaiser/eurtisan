@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { useCart } from '#/components/CartProvider'
+import { authClient } from '#/lib/auth-client'
 import type { CartDetail, CartItemDetail, CartShopGroup } from '#/lib/cart.server'
 import { useRemoveCartItem, useUpdateCartItem } from '#/lib/cart-hooks'
 import { getCartDistinctItemCount, isCartEmpty } from '#/lib/cart-ui'
@@ -46,6 +47,8 @@ export default function CartPage({ cart: initialCart, showEmptyMessage }: CartPa
     confirmRemoveItem: null as CartItemDetail | null,
     updateErrorItemId: null as string | null,
     removeErrorItemId: null as string | null,
+    checkoutPending: false,
+    checkoutError: false,
   })
 
   const hasUnavailableItems =
@@ -70,6 +73,20 @@ export default function CartPage({ cart: initialCart, showEmptyMessage }: CartPa
       setOps((prev) => ({ ...prev, removeErrorItemId: productId }))
     } finally {
       setOps((prev) => ({ ...prev, removingItemId: null, confirmRemoveItem: null }))
+    }
+  }
+
+  const handleProceedToCheckout = async () => {
+    setOps((prev) => ({ ...prev, checkoutPending: true, checkoutError: false }))
+    try {
+      const session = await authClient.getSession()
+      if (!session.data?.user) {
+        const result = await authClient.signIn.anonymous()
+        if (result.error) throw new Error(result.error.message)
+      }
+      window.location.href = '/checkout'
+    } catch {
+      setOps((prev) => ({ ...prev, checkoutPending: false, checkoutError: true }))
     }
   }
 
@@ -154,12 +171,22 @@ export default function CartPage({ cart: initialCart, showEmptyMessage }: CartPa
                 {m.cart_proceed_to_checkout()}
               </Button>
             ) : (
-              <Link
-                to='/checkout'
-                className='mt-6 inline-flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-accent-primary px-6 text-base font-medium text-text-on-primary no-underline shadow-sm transition-all duration-fast ease-out hover:bg-accent-primary-hover active:bg-accent-primary-active focus-visible:outline-none'
+              <Button
+                type='button'
+                size='lg'
+                className='mt-6 w-full'
+                onClick={() => void handleProceedToCheckout()}
+                isLoading={ops.checkoutPending}
+                disabled={ops.checkoutPending}
               >
                 {m.cart_proceed_to_checkout()}
-              </Link>
+              </Button>
+            )}
+
+            {ops.checkoutError && (
+              <p className='mt-2 text-sm text-error' role='alert'>
+                {m.checkout_error_submit()}
+              </p>
             )}
 
             {hasUnavailableItems && (
