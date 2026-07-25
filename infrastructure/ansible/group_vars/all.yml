@@ -97,6 +97,11 @@ backup_retention_days: 30
 # rules when available; the backup script falls back to `rclone delete`.
 backup_offsite_retention_days: 90
 
+# Webhook posted to when a rollout finishes, so a failed deploy is not silent.
+# Any endpoint accepting a JSON POST (Slack/Discord/Alertmanager). Empty
+# disables notification entirely.
+deploy_notification_webhook: ""
+
 # rclone remote for off-site backups, e.g. "eurtisan-backups:eurtisan"
 backup_offsite_rclone_remote: ""
 

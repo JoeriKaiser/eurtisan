@@ -1,6 +1,7 @@
 import { Link, useLoaderData, useParams, useRouter } from '@tanstack/react-router'
 import { ArrowLeft, RotateCcw } from 'lucide-react'
 import { useCallback, useState } from 'react'
+import ConfirmDialog from '#/components/ui/ConfirmDialog'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
@@ -102,8 +103,13 @@ export function ShopOrderDetailPage() {
     void withLoading('isMarkingDelivered', () => markShopOrderDelivered({ data: { shopOrderId } }))
   }, [withLoading, shopOrderId])
 
+  // Refund and cancel move money and are irreversible, so both confirm through
+  // a real dialog rather than window.confirm — which cannot be styled and is
+  // suppressible in some browsers in a way that silently returns false.
+  const [pendingAction, setPendingAction] = useState<'refund' | 'cancel' | null>(null)
+
   const handleRefund = useCallback(() => {
-    if (!window.confirm(m.order_refund_confirm())) return
+    setPendingAction(null)
     void withLoading(
       'isRefunding',
       () => refundShopOrder({ data: { shopOrderId } }),
@@ -112,7 +118,7 @@ export function ShopOrderDetailPage() {
   }, [withLoading, shopOrderId])
 
   const handleCancel = useCallback(() => {
-    if (!window.confirm(m.order_cancel_confirm())) return
+    setPendingAction(null)
     void withLoading(
       'isCancelling',
       () => cancelShopOrder({ data: { shopOrderId } }),
@@ -403,6 +409,25 @@ export function ShopOrderDetailPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={pendingAction !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingAction(null)
+        }}
+        destructive
+        title={
+          pendingAction === 'refund'
+            ? m.order_refund_confirm_title()
+            : m.order_cancel_confirm_title()
+        }
+        description={
+          pendingAction === 'refund' ? m.order_refund_confirm() : m.order_cancel_confirm()
+        }
+        confirmLabel={pendingAction === 'refund' ? m.order_refund() : m.order_cancel()}
+        busy={status.isRefunding || status.isCancelling}
+        onConfirm={pendingAction === 'refund' ? handleRefund : handleCancel}
+      />
     </main>
   )
 }

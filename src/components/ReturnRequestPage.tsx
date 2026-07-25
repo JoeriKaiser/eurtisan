@@ -186,8 +186,12 @@ export function ReturnRequestPage({
           placeholder={m.return_reason_placeholder()}
         />
 
-        <div className='mt-6 flex gap-3 rounded-xl bg-info/10 p-4 text-sm leading-relaxed text-text-secondary'>
-          <AlertCircle className='mt-0.5 shrink-0 text-info' size={18} aria-hidden='true' />
+        <div className='mt-6 flex gap-3 rounded-xl bg-accent-secondary-subtle p-4 text-sm leading-relaxed text-text-secondary'>
+          <AlertCircle
+            className='mt-0.5 shrink-0 text-accent-secondary'
+            size={18}
+            aria-hidden='true'
+          />
           <p>
             {type === 'withdrawal' ? m.return_cost_buyer_notice() : m.return_cost_seller_notice()}
           </p>

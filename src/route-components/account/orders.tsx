@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { formatDateLong } from '#/lib/format-date'
-import { statusBadgeVariant } from '#/lib/orders-ui'
+import { getOrderStatusLabel, statusBadgeVariant } from '#/lib/orders-ui'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 
@@ -64,7 +64,9 @@ export function AccountOrders() {
                     <span className='text-base font-semibold text-text-primary'>
                       {formatPriceEUR(order.totalCents)}
                     </span>
-                    <Badge variant={statusBadgeVariant(order.status)}>{order.status}</Badge>
+                    <Badge variant={statusBadgeVariant(order.status)}>
+                      {getOrderStatusLabel(order.status)}
+                    </Badge>
                   </div>
                 </Link>
               ))}

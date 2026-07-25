@@ -3,6 +3,7 @@ import { and, count, desc, eq, ilike, inArray, sql, type SQL } from 'drizzle-orm
 import { db } from '#/db/index'
 import { customerNote, customerTag, orderItem, platformOrder, shopOrder, user } from '#/db/schema'
 import { logger } from '../logger.server'
+import type { OrderStatus } from '../orders.server'
 import { writeAuditLog, type AuditActor } from '../audit-logger'
 
 export function hashEmail(email: string): string {
@@ -42,7 +43,8 @@ export interface ShopCustomerDetail {
 export interface CustomerOrderSummary {
   shopOrderId: string
   platformOrderId: string
-  status: string
+  /** Typed so the UI can render a translated label rather than the raw enum. */
+  status: OrderStatus
   subtotalCents: number
   itemCount: number
   createdAt: Date
