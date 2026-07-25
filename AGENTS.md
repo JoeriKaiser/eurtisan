@@ -26,6 +26,8 @@ Before substantial work:
 | Build/runtime configuration and secret ownership | [`docs/runbooks/environment-configuration.md`](docs/runbooks/environment-configuration.md) |
 | Deployment and infrastructure | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) and [`infrastructure/README.md`](infrastructure/README.md) |
 | Operational procedures | [`docs/runbooks/README.md`](docs/runbooks/README.md) |
+| Known defects and launch blockers | [`docs/PRODUCTION_READINESS_AUDIT.md`](docs/PRODUCTION_READINESS_AUDIT.md) and [`docs/plans/production-readiness/README.md`](docs/plans/production-readiness/README.md) |
+| Areas already verified sound | [`docs/VERIFIED.md`](docs/VERIFIED.md) |
 | Data retention and deletion exceptions | [`docs/DATA_RETENTION.md`](docs/DATA_RETENTION.md) |
 | Company profile and French tax rules | `BUSINESS.md` (local, intentionally untracked) |
 | Agent/browser/integration tooling | [`docs/DEVELOPER_TOOLING.md`](docs/DEVELOPER_TOOLING.md) |
@@ -228,5 +230,22 @@ Update behavior documentation when behavior changes. In particular:
 - environment variables: update `.env.example` and the environment runbook;
 - deployment assumptions, required jobs, or infrastructure: update deployment/infrastructure documentation and Compose configuration;
 - localization strategy, testing workflow, database policy, dependencies, or security expectations: update the corresponding canonical reference.
+
+### Verified areas ledger
+
+Before auditing an area, check [`docs/VERIFIED.md`](docs/VERIFIED.md) — it may
+already have been examined. Read the row's evidence and its "Not checked" column
+rather than treating the row as blanket approval.
+
+After deliberately verifying an area and finding it sound, add or update a row.
+Record the mechanism relied on and what was *not* covered, never a bare verdict:
+a claim like "payments are fine" cannot be falsified later, and a stale
+reassurance is worse than no entry because it steers work away from something
+that may since have broken. Delete any row you find to be wrong and raise it as
+an audit finding instead.
+
+Run `bun run docs:check-verified` to flag rows whose code has changed since they
+were verified. Do this when touching a listed area, and re-pin the row's commit
+once you have re-confirmed the evidence still holds.
 
 Prefer links to canonical detail over copying command catalogs, environment samples, deployment steps, or architecture inventories into this file.
