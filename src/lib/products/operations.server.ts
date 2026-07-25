@@ -5,6 +5,7 @@ import {
   countDistinct,
   desc,
   eq,
+  gt,
   gte,
   ilike,
   inArray,
@@ -562,6 +563,10 @@ export async function searchProductsQuery(
     conditions.push(lte(product.priceCents, filters.maxPriceCents))
   }
 
+  if (filters.inStockOnly) {
+    conditions.push(gt(product.stockCount, 0))
+  }
+
   const useFts = trimmedQuery.length > 0 && (await isTsvectorAvailable())
 
   let searchVector: ReturnType<typeof sql> | undefined
@@ -569,8 +574,13 @@ export async function searchProductsQuery(
 
   if (trimmedQuery.length > 0) {
     if (useFts) {
-      searchVector = sql`to_tsvector('english', ${product.name} || ' ' || coalesce(${product.description}, ''))`
-      plainQuery = sql`plainto_tsquery('english', ${trimmedQuery})`
+      // Listings are written in English or Dutch, so stem against both
+      // dictionaries and OR the queries together. The English stemmer leaves
+      // Dutch inflections intact, so "sokken" never matched a search for
+      // "sok"; the Dutch stemmer reduces both to the same root.
+      const searchText = sql`${product.name} || ' ' || coalesce(${product.description}, '')`
+      searchVector = sql`(to_tsvector('english', ${searchText}) || to_tsvector('dutch', ${searchText}))`
+      plainQuery = sql`(plainto_tsquery('english', ${trimmedQuery}) || plainto_tsquery('dutch', ${trimmedQuery}))`
       conditions.push(sql`${searchVector} @@ ${plainQuery}`)
     } else {
       const searchCondition = or(

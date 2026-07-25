@@ -1092,6 +1092,52 @@ describe('searchProductsQuery', () => {
     return { s1, s2, c1, c2 }
   }
 
+  it('matches Dutch inflections that the English stemmer leaves intact', async () => {
+    const u = await createUser({ id: 'user-nl' })
+    const s = await createShop(u, { id: 'shop-nl', name: 'Wolwinkel', slug: 'wolwinkel' })
+    await createProduct(s, {
+      id: 'prod-nl',
+      name: 'Wollen sokken',
+      slug: 'wollen-sokken',
+      priceCents: 1500,
+    })
+
+    // "sokken" only reduces to "sok" under the Dutch dictionary.
+    const result = await searchProductsQuery('sok', {}, 'relevance', { page: 1, pageSize: 10 })
+
+    expect(result.products.map((p) => p.id)).toContain('prod-nl')
+  })
+
+  it('filters out sold-out products when inStockOnly is set', async () => {
+    const u = await createUser({ id: 'user-stock' })
+    const s = await createShop(u, { id: 'shop-stock', name: 'Stock', slug: 'stock' })
+    await createProduct(s, {
+      id: 'prod-in-stock',
+      name: 'Available Lamp',
+      slug: 'available-lamp',
+      priceCents: 1000,
+      stockCount: 4,
+    })
+    await createProduct(s, {
+      id: 'prod-sold-out',
+      name: 'Sold Out Lamp',
+      slug: 'sold-out-lamp',
+      priceCents: 1000,
+      stockCount: 0,
+    })
+
+    const all = await searchProductsQuery('lamp', {}, 'relevance', { page: 1, pageSize: 10 })
+    expect(all.products.map((p) => p.id)).toEqual(
+      expect.arrayContaining(['prod-in-stock', 'prod-sold-out']),
+    )
+
+    const inStock = await searchProductsQuery('lamp', { inStockOnly: true }, 'relevance', {
+      page: 1,
+      pageSize: 10,
+    })
+    expect(inStock.products.map((p) => p.id)).toEqual(['prod-in-stock'])
+  })
+
   it('returns products matching case-insensitive name', async () => {
     await seedSearchProducts()
 

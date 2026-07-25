@@ -1,12 +1,64 @@
-import { and, eq, gt, inArray, lte } from 'drizzle-orm'
+import { and, count, eq, gt, inArray, lte, sum } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { categories, meilisearchSyncQueue, product, shop } from '#/db/schema'
+import { categories, meilisearchSyncQueue, product, review, shop } from '#/db/schema'
 import { logger } from '../logger.server'
 import { meilisearchSyncQueueFailedTotal } from '../metrics.server'
 import { isMeilisearchConfigured, meilisearch } from '../meilisearch.server'
+import type { ReviewAggregate } from '../search/relevance'
+import { computePopularityScore, computeRatingAverage } from '../search/relevance'
+import { PRODUCT_SYNONYMS } from '../search/synonyms'
 import { escapeFilterValue } from '../search/utils'
 import { fetchFirstImageUrls } from './operations.server'
-import type { PaginatedProducts, PublicProduct, SearchFilters, SearchSortOption } from './types'
+import type {
+  PaginatedProducts,
+  PublicProduct,
+  SearchFacets,
+  SearchFilters,
+  SearchSortOption,
+} from './types'
+
+const EMPTY_AGGREGATE: ReviewAggregate = { reviewCount: 0, ratingSum: 0 }
+
+/**
+ * Approved-review totals per product. Flagged and hidden reviews must not
+ * influence ranking, so they are excluded here rather than at read time.
+ */
+async function fetchReviewAggregates(productIds: string[]): Promise<Map<string, ReviewAggregate>> {
+  if (productIds.length === 0) return new Map()
+
+  const rows = await db
+    .select({
+      productId: review.productId,
+      reviewCount: count(),
+      ratingSum: sum(review.rating),
+    })
+    .from(review)
+    .where(and(eq(review.moderationStatus, 'approved'), inArray(review.productId, productIds)))
+    .groupBy(review.productId)
+
+  return new Map(
+    rows.map((row) => [
+      row.productId,
+      {
+        reviewCount: Number(row.reviewCount ?? 0),
+        // `sum` returns a numeric string in postgres.
+        ratingSum: Number(row.ratingSum ?? 0),
+      },
+    ]),
+  )
+}
+
+/** Build the relevance-signal portion of a document from its review totals. */
+function buildRelevanceFields(stockCount: number, aggregate: ReviewAggregate) {
+  return {
+    stockCount,
+    inStock: stockCount > 0,
+    inStockRank: stockCount > 0 ? 1 : 0,
+    ratingAverage: computeRatingAverage(aggregate),
+    reviewCount: aggregate.reviewCount,
+    popularityScore: computePopularityScore(aggregate),
+  }
+}
 
 export const PRODUCTS_INDEX = 'products'
 
@@ -26,8 +78,19 @@ export interface MeilisearchProductDocument {
   isActive: boolean
   shopId: string
   shopSlug: string
+  /** Searchable: buyers look for products by the shop that makes them. */
+  shopName: string
   categoryId: string | null
   categorySlug: string | null
+  /** Searchable: "earrings" should match a listing only categorised as such. */
+  categoryName: string | null
+  stockCount: number
+  inStock: boolean
+  /** 1 when in stock, 0 otherwise. Custom ranking rules require a number. */
+  inStockRank: number
+  ratingAverage: number
+  reviewCount: number
+  popularityScore: number
   createdAt: string
 }
 
@@ -58,7 +121,10 @@ export async function configureProductsIndex(): Promise<void> {
 
   const index = meilisearch.index(PRODUCTS_INDEX)
   await index.updateSettings({
-    searchableAttributes: ['name', 'description'],
+    // Order is significant: the `attribute` ranking rule weights earlier
+    // attributes more heavily, so a query matching a product name outranks the
+    // same query matching a description.
+    searchableAttributes: ['name', 'shopName', 'categoryName', 'description'],
     filterableAttributes: [
       'categoryId',
       'shopId',
@@ -66,14 +132,37 @@ export async function configureProductsIndex(): Promise<void> {
       'isActive',
       'shopSlug',
       'categorySlug',
+      'inStock',
+      'stockCount',
     ],
-    sortableAttributes: ['priceCents', 'createdAt'],
-    rankingRules: ['words', 'typo', 'proximity', 'attribute', 'sort', 'exactness'],
+    sortableAttributes: ['priceCents', 'createdAt', 'popularityScore', 'ratingAverage'],
+    // Custom rules come last so they break ties between equally relevant
+    // matches rather than overriding text relevance: in-stock first, then the
+    // better-reviewed product.
+    rankingRules: [
+      'words',
+      'typo',
+      'proximity',
+      'attribute',
+      'sort',
+      'exactness',
+      'inStockRank:desc',
+      'popularityScore:desc',
+    ],
     typoTolerance: {
       enabled: true,
       minWordSizeForTypos: { oneTypo: 4, twoTypos: 8 },
     },
     pagination: { maxTotalHits: MAX_TOTAL_HITS },
+    synonyms: PRODUCT_SYNONYMS,
+    // Listings are written in either language, so both tokenizers apply to
+    // every text field rather than defaulting to English segmentation.
+    localizedAttributes: [
+      {
+        locales: ['eng', 'nld'],
+        attributePatterns: ['name', 'description', 'categoryName', 'shopName'],
+      },
+    ],
   })
 }
 
@@ -94,7 +183,12 @@ export async function syncProductToMeilisearch(productData: {
   if (!meilisearch) return
   try {
     const [shopRow] = await db
-      .select({ isSuspended: shop.isSuspended, slug: shop.slug, status: shop.status })
+      .select({
+        isSuspended: shop.isSuspended,
+        slug: shop.slug,
+        name: shop.name,
+        status: shop.status,
+      })
       .from(shop)
       .where(eq(shop.id, productData.shopId))
       .limit(1)
@@ -109,9 +203,16 @@ export async function syncProductToMeilisearch(productData: {
       return
     }
 
-    const categoryRow = productData.categoryId
-      ? await db.select().from(categories).where(eq(categories.id, productData.categoryId)).limit(1)
-      : []
+    const [categoryRow, aggregates] = await Promise.all([
+      productData.categoryId
+        ? db
+            .select({ slug: categories.slug, name: categories.name })
+            .from(categories)
+            .where(eq(categories.id, productData.categoryId))
+            .limit(1)
+        : Promise.resolve([]),
+      fetchReviewAggregates([productData.id]),
+    ])
 
     const doc: MeilisearchProductDocument = {
       id: productData.id,
@@ -122,8 +223,14 @@ export async function syncProductToMeilisearch(productData: {
       isActive: productData.isActive,
       shopId: productData.shopId,
       shopSlug: shopRow?.slug ?? '',
+      shopName: shopRow?.name ?? '',
       categoryId: productData.categoryId,
       categorySlug: categoryRow[0]?.slug ?? null,
+      categoryName: categoryRow[0]?.name ?? null,
+      ...buildRelevanceFields(
+        productData.stockCount,
+        aggregates.get(productData.id) ?? EMPTY_AGGREGATE,
+      ),
       createdAt: productData.createdAt.toISOString(),
     }
 
@@ -155,6 +262,24 @@ export async function removeShopProductsFromMeilisearch(shopId: string): Promise
     // index remains publicly searchable, which must never fail silently.
     logger.error('Failed to remove shop products from Meilisearch', err)
     throw err
+  }
+}
+
+/**
+ * Normalise Meilisearch's facet payload into the shape the UI consumes.
+ *
+ * Counts describe the whole filtered result set, not the current page, which is
+ * what makes them usable as "23 in Pottery" hints next to each filter option.
+ */
+function extractFacets(
+  distribution: Record<string, Record<string, number>> | undefined,
+  stats: Record<string, { min: number; max: number }> | undefined,
+): SearchFacets {
+  const priceStats = stats?.priceCents
+  return {
+    categorySlug: distribution?.categorySlug ?? {},
+    inStock: distribution?.inStock ?? {},
+    priceCents: priceStats ? { min: priceStats.min, max: priceStats.max } : null,
   }
 }
 
@@ -217,19 +342,22 @@ export async function populateProductsIndex(
         products.map((row) => row.product.categoryId).filter((id): id is string => id != null),
       ),
     ]
-    const categoryRows =
+    const [categoryRows, aggregates] = await Promise.all([
       categoryIds.length > 0
-        ? await db
-            .select({ id: categories.id, slug: categories.slug })
+        ? db
+            .select({ id: categories.id, slug: categories.slug, name: categories.name })
             .from(categories)
             .where(inArray(categories.id, categoryIds))
-        : []
-    const categorySlugById = new Map(categoryRows.map((c) => [c.id, c.slug]))
+        : Promise.resolve([]),
+      fetchReviewAggregates(products.map((row) => row.product.id)),
+    ])
+    const categoryById = new Map(categoryRows.map((c) => [c.id, c]))
 
     const docs: MeilisearchProductDocument[] = []
     for (const row of products) {
       try {
         const prod = row.product
+        const category = prod.categoryId ? categoryById.get(prod.categoryId) : undefined
 
         docs.push({
           id: prod.id,
@@ -240,8 +368,11 @@ export async function populateProductsIndex(
           isActive: prod.isActive,
           shopId: prod.shopId,
           shopSlug: row.shop.slug,
+          shopName: row.shop.name,
           categoryId: prod.categoryId,
-          categorySlug: prod.categoryId ? (categorySlugById.get(prod.categoryId) ?? null) : null,
+          categorySlug: category?.slug ?? null,
+          categoryName: category?.name ?? null,
+          ...buildRelevanceFields(prod.stockCount, aggregates.get(prod.id) ?? EMPTY_AGGREGATE),
           createdAt: prod.createdAt.toISOString(),
         })
       } catch {
@@ -290,6 +421,10 @@ export async function searchProductsMeilisearch(
     meiliFilters.push(`priceCents <= ${filters.maxPriceCents}`)
   }
 
+  if (filters.inStockOnly) {
+    meiliFilters.push('inStock = true')
+  }
+
   const meiliSort: string[] = []
   switch (sort) {
     case 'price_asc':
@@ -315,10 +450,12 @@ export async function searchProductsMeilisearch(
       page,
       hitsPerPage: pageSize,
       attributesToRetrieve: ['id'],
+      facets: ['categorySlug', 'inStock', 'priceCents'],
     })
 
     const hits = result.hits as Array<{ id: string }>
     const reportedTotal = typeof result.totalHits === 'number' ? result.totalHits : hits.length
+    const facets = extractFacets(result.facetDistribution, result.facetStats)
 
     if (hits.length === 0) {
       return {
@@ -327,6 +464,7 @@ export async function searchProductsMeilisearch(
         page,
         pageSize,
         totalPages: Math.ceil(reportedTotal / pageSize),
+        facets,
       }
     }
 
@@ -403,6 +541,7 @@ export async function searchProductsMeilisearch(
       page,
       pageSize,
       totalPages: Math.ceil(total / pageSize),
+      facets,
     }
   } catch (err) {
     logger.error('Meilisearch search failed, falling back to PostgreSQL', err)

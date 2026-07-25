@@ -1,9 +1,34 @@
 import { and, count, desc, eq, inArray, ne, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { orderItem, platformOrder, product, review, shop, shopOrder, user } from '#/db/schema'
+import {
+  meilisearchSyncQueue,
+  orderItem,
+  platformOrder,
+  product,
+  review,
+  shop,
+  shopOrder,
+  user,
+} from '#/db/schema'
+import { logger } from '../logger.server'
 import { assertUserRateLimit } from '../rate-limit.server'
 import { containsProfanity } from '../profanity'
 import { sanitizeRichText } from '../xss'
+
+/**
+ * Approved-review totals drive a product's `popularityScore` in the search
+ * index, so any change to them must be reflected there.
+ *
+ * Enqueued rather than synced inline: ranking freshness within one poll
+ * interval is ample, and a Meilisearch outage must never fail a review write.
+ */
+async function enqueueSearchReindex(productId: string): Promise<void> {
+  try {
+    await db.insert(meilisearchSyncQueue).values({ productId, action: 'index' })
+  } catch (err) {
+    logger.error('Failed to enqueue product reindex after review change', err, { productId })
+  }
+}
 
 import type {
   AdminReviewsResult,
@@ -212,6 +237,8 @@ export async function createReviewQuery(
     throw err
   }
 
+  await enqueueSearchReindex(productId)
+
   // Notify seller after the review creation so errors don't break the transaction
   try {
     const [{ createNotification }, [shopRecord], [productRecord]] = await Promise.all([
@@ -330,6 +357,8 @@ export async function reportReviewQuery(reviewId: string, reporterUserId: string
 
   if (reviewRecord.moderationStatus === 'approved') {
     await db.update(review).set({ moderationStatus: 'flagged' }).where(eq(review.id, reviewId))
+    // The review no longer counts towards the product's ranking signals.
+    await enqueueSearchReindex(reviewRecord.productId)
   }
 }
 
@@ -391,4 +420,9 @@ export async function updateReviewModerationStatusQuery(
   }
 
   await db.update(review).set({ moderationStatus: status }).where(eq(review.id, reviewId))
+
+  if (reviewRecord.moderationStatus !== status) {
+    // Moving in or out of `approved` changes the product's ranking signals.
+    await enqueueSearchReindex(reviewRecord.productId)
+  }
 }

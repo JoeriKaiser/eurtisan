@@ -62,6 +62,18 @@ export type SearchFilters = {
   shopSlug?: string
   minPriceCents?: number
   maxPriceCents?: number
+  inStockOnly?: boolean
+}
+
+/**
+ * Result counts per facet value, as returned by the search engine. Absent when
+ * a search is served by the PostgreSQL fallback, which cannot produce counts
+ * cheaply — consumers must degrade gracefully rather than assume presence.
+ */
+export type SearchFacets = {
+  categorySlug: Record<string, number>
+  inStock: Record<string, number>
+  priceCents: { min: number; max: number } | null
 }
 
 export type PaginatedProducts = {
@@ -70,6 +82,7 @@ export type PaginatedProducts = {
   page: number
   pageSize: number
   totalPages: number
+  facets?: SearchFacets
 }
 export type ShopSummary = {
   id: string

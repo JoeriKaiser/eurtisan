@@ -1,12 +1,14 @@
 import { Link } from '@tanstack/react-router'
 import { ChevronDown, SlidersHorizontal, X } from 'lucide-react'
 import { Input } from '#/components/ui/input'
+import type { SearchFacets } from '#/lib/products/types'
 import { m } from '#/paraglide/messages'
 
 export function SearchFilters({
   filters,
   setFilters,
   categories,
+  facets,
   navigateWithParams,
   hasActiveFilters,
   showCategory = true,
@@ -17,14 +19,25 @@ export function SearchFilters({
     shop: string
     minPrice: string
     maxPrice: string
+    inStock: string
     sort: string
   }
   setFilters: React.Dispatch<React.SetStateAction<typeof filters>>
   categories: Array<{ id: string; name: string; slug: string }>
+  /** Absent when the PostgreSQL fallback served the search; counts are hidden. */
+  facets?: SearchFacets
   navigateWithParams: (overrides: Record<string, string | number | undefined>) => void
   hasActiveFilters: boolean
   showCategory?: boolean
 }) {
+  const categoryCounts = facets?.categorySlug
+  const inStockCount = facets?.inStock.true
+
+  const categoryLabel = (name: string, slug: string): string => {
+    const count = categoryCounts?.[slug]
+    return count === undefined ? name : `${name} (${count})`
+  }
+
   return (
     <aside>
       <details className='group rounded-xl border border-border-default bg-surface-default'>
@@ -72,7 +85,7 @@ export function SearchFilters({
                   <option value=''>{m.search_filter_category_all()}</option>
                   {categories.map((category) => (
                     <option key={category.id} value={category.slug}>
-                      {category.name}
+                      {categoryLabel(category.name, category.slug)}
                     </option>
                   ))}
                 </select>
@@ -144,6 +157,25 @@ export function SearchFilters({
               </div>
             </div>
           </div>
+
+          <label className='mt-4 flex min-h-11 w-fit cursor-pointer items-center gap-2 text-sm text-text-primary'>
+            <input
+              type='checkbox'
+              checked={filters.inStock === 'true'}
+              onChange={(event) => {
+                const next = event.target.checked ? 'true' : ''
+                setFilters((previous) => ({ ...previous, inStock: next }))
+                navigateWithParams({ inStock: next || undefined, page: 1 })
+              }}
+              className='size-4 rounded border-border-default text-accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
+            />
+            <span>
+              {m.search_filter_in_stock_only()}
+              {inStockCount === undefined ? null : (
+                <span className='text-text-muted'> ({inStockCount})</span>
+              )}
+            </span>
+          </label>
 
           {hasActiveFilters ? (
             <Link

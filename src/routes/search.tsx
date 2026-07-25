@@ -17,12 +17,13 @@ const searchRouteSchema = z.object({
   shop: z.string().optional(),
   minPrice: z.union([z.string(), z.number()]).optional(),
   maxPrice: z.union([z.string(), z.number()]).optional(),
+  inStock: z.union([z.string(), z.boolean()]).optional(),
   sort: z.string().optional(),
 })
 
 export const Route = createFileRoute('/search')({
   validateSearch: searchRouteSchema,
-  loaderDeps: ({ search: { q, page, category, shop, minPrice, maxPrice, sort } }) => ({
+  loaderDeps: ({ search: { q, page, category, shop, minPrice, maxPrice, inStock, sort } }) => ({
     query: typeof q === 'string' ? q.trim() : undefined,
     page:
       typeof page === 'number'
@@ -44,10 +45,12 @@ export const Route = createFileRoute('/search')({
       const parsed = Number.parseInt(value, 10)
       return Number.isNaN(parsed) ? undefined : parsed
     })(),
+    inStockOnly: inStock === true || inStock === 'true' || inStock === '1',
     sort: typeof sort === 'string' ? sort : 'relevance',
   }),
   loader: async ({ context, deps }) => {
-    const { query, page, categorySlug, shopSlug, minPriceCents, maxPriceCents, sort } = deps
+    const { query, page, categorySlug, shopSlug, minPriceCents, maxPriceCents, inStockOnly, sort } =
+      deps
 
     const [categories, products] = await Promise.all([
       listCategoriesWithCounts(),
@@ -60,6 +63,7 @@ export const Route = createFileRoute('/search')({
           shopSlug,
           minPriceCents,
           maxPriceCents,
+          inStockOnly,
           sort: sort as 'relevance' | 'price_asc' | 'price_desc' | 'newest',
         },
       }),
@@ -76,6 +80,7 @@ export const Route = createFileRoute('/search')({
       shopSlug,
       minPriceCents,
       maxPriceCents,
+      inStockOnly,
       sort,
     }
   },

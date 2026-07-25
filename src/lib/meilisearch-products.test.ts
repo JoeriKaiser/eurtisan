@@ -5,7 +5,15 @@ import { db } from '#/db/index'
 import { meilisearchSyncQueue, product, shop } from '#/db/schema'
 
 import { clearTestTables } from '#/test/cleanup'
-import { createCategory, createProduct, createShop, createUser } from '#/test/factories'
+import {
+  createCategory,
+  createPlatformOrder,
+  createProduct,
+  createReview,
+  createShop,
+  createShopOrder,
+  createUser,
+} from '#/test/factories'
 
 import {
   configureProductsIndex,
@@ -80,24 +88,56 @@ describe('configureProductsIndex', () => {
     expect(meilisearch?.createIndex).toHaveBeenCalledWith(PRODUCTS_INDEX, { primaryKey: 'id' })
     expect(meilisearch?.index).toHaveBeenCalledWith(PRODUCTS_INDEX)
     const index = meilisearch?.index(PRODUCTS_INDEX)
-    expect(index?.updateSettings).toHaveBeenCalledWith({
-      searchableAttributes: ['name', 'description'],
-      filterableAttributes: [
-        'categoryId',
-        'shopId',
-        'priceCents',
-        'isActive',
-        'shopSlug',
-        'categorySlug',
-      ],
-      sortableAttributes: ['priceCents', 'createdAt'],
-      rankingRules: ['words', 'typo', 'proximity', 'attribute', 'sort', 'exactness'],
-      typoTolerance: {
-        enabled: true,
-        minWordSizeForTypos: { oneTypo: 4, twoTypos: 8 },
-      },
-      pagination: { maxTotalHits: 10_000 },
-    })
+    expect(index?.updateSettings).toHaveBeenCalledWith(
+      expect.objectContaining({
+        // Name first so a title match outranks a description match.
+        searchableAttributes: ['name', 'shopName', 'categoryName', 'description'],
+        filterableAttributes: [
+          'categoryId',
+          'shopId',
+          'priceCents',
+          'isActive',
+          'shopSlug',
+          'categorySlug',
+          'inStock',
+          'stockCount',
+        ],
+        sortableAttributes: ['priceCents', 'createdAt', 'popularityScore', 'ratingAverage'],
+        // Custom rules trail the built-ins so they only break relevance ties.
+        rankingRules: [
+          'words',
+          'typo',
+          'proximity',
+          'attribute',
+          'sort',
+          'exactness',
+          'inStockRank:desc',
+          'popularityScore:desc',
+        ],
+        typoTolerance: {
+          enabled: true,
+          minWordSizeForTypos: { oneTypo: 4, twoTypos: 8 },
+        },
+        pagination: { maxTotalHits: 10_000 },
+        localizedAttributes: [
+          {
+            locales: ['eng', 'nld'],
+            attributePatterns: ['name', 'description', 'categoryName', 'shopName'],
+          },
+        ],
+      }),
+    )
+  })
+
+  it('registers bidirectional English/Dutch synonyms', async () => {
+    await configureProductsIndex()
+
+    const settings = mockUpdateSettings.mock.calls[0][0] as {
+      synonyms: Record<string, string[]>
+    }
+
+    expect(settings.synonyms.mug).toContain('mok')
+    expect(settings.synonyms.mok).toContain('mug')
   })
 
   it('attempts to update index primary key if creation fails', async () => {
@@ -201,6 +241,66 @@ describe('syncProductToMeilisearch', () => {
     const doc = mockAddDocuments.mock.calls[0][0][0]
     expect(doc.categoryId).toBeNull()
     expect(doc.categorySlug).toBeNull()
+    expect(doc.categoryName).toBeNull()
+  })
+
+  it('indexes shop and category names so they are searchable', async () => {
+    const { product: p } = await seedShopAndProduct({
+      categoryId: '550e8400-e29b-41d4-a716-446655440001',
+    })
+
+    await syncProductToMeilisearch(p)
+
+    const doc = mockAddDocuments.mock.calls[0][0][0]
+    expect(doc.shopName).toBe('Test Shop')
+    expect(doc.categoryName).toBe('Pottery')
+  })
+
+  it('indexes stock so out-of-stock products can be filtered and deboosted', async () => {
+    const { product: p } = await seedShopAndProduct()
+
+    await syncProductToMeilisearch({ ...p, stockCount: 0 })
+
+    const doc = mockAddDocuments.mock.calls[0][0][0]
+    expect(doc.stockCount).toBe(0)
+    expect(doc.inStock).toBe(false)
+    expect(doc.inStockRank).toBe(0)
+  })
+
+  it('scores an unreviewed product from the rating prior', async () => {
+    const { product: p } = await seedShopAndProduct()
+
+    await syncProductToMeilisearch(p)
+
+    const doc = mockAddDocuments.mock.calls[0][0][0]
+    expect(doc.reviewCount).toBe(0)
+    expect(doc.ratingAverage).toBe(0)
+    expect(doc.popularityScore).toBe(70)
+  })
+
+  it('folds approved reviews into the popularity score and ignores hidden ones', async () => {
+    const { shop: s, product: p } = await seedShopAndProduct()
+    const buyer = await createUser({
+      id: 'buyer-1',
+      name: 'Buyer',
+      email: 'buyer@example.com',
+      emailVerified: true,
+    })
+    const platformOrder = await createPlatformOrder(buyer)
+
+    const approved = await createShopOrder(platformOrder, s)
+    await createReview(approved, p, buyer, { rating: 5 })
+
+    const hidden = await createShopOrder(platformOrder, s)
+    await createReview(hidden, p, buyer, { rating: 1, moderationStatus: 'hidden' })
+
+    await syncProductToMeilisearch(p)
+
+    const doc = mockAddDocuments.mock.calls[0][0][0]
+    // Only the approved five-star review counts.
+    expect(doc.reviewCount).toBe(1)
+    expect(doc.ratingAverage).toBe(5)
+    expect(doc.popularityScore).toBeGreaterThan(70)
   })
 })
 
