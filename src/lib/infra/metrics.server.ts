@@ -214,6 +214,12 @@ export const searchQueriesTotal = new Counter({
   registers: [metricsRegistry],
 })
 
+export const searchResultClicksTotal = new Counter({
+  name: 'eurtisan_search_result_clicks_total',
+  help: 'Search results opened by buyers',
+  registers: [metricsRegistry],
+})
+
 export const emailSuppressedSkipsTotal = new Counter({
   name: 'eurtisan_email_suppressed_skips_total',
   help: 'Transactional emails skipped due to suppression list',

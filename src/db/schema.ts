@@ -1078,6 +1078,52 @@ export const auditLog = pgTable(
   ],
 )
 
+export const searchEventTypeEnum = pgEnum('search_event_type', ['search', 'click'])
+
+/**
+ * Search telemetry: what buyers looked for, how many results they got, and
+ * which result they opened.
+ *
+ * This is the feedback loop that makes relevance tuning measurable — zero-result
+ * queries reveal demand the catalogue does not serve, and click position
+ * reveals whether ranking puts the right product first.
+ *
+ * Queries are user-typed free text and count as personal data, so rows carry no
+ * user id and are purged on a retention schedule (see jobs/search-event-cleanup).
+ */
+export const searchEvent = pgTable(
+  'search_event',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    eventType: searchEventTypeEnum('event_type').notNull(),
+    /** Trimmed and lowercased so aggregate reporting groups variants together. */
+    normalizedQuery: text('normalized_query').notNull(),
+    resultCount: integer('result_count'),
+    /** Which engine answered: 'meilisearch' or 'postgres'. */
+    source: text('source'),
+    locale: text('locale'),
+    /** Set on click events: the product opened and its 1-based rank. */
+    clickedProductId: text('clicked_product_id').references(() => product.id, {
+      onDelete: 'set null',
+    }),
+    clickedPosition: integer('clicked_position'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    index('search_event_created_at_idx').on(table.createdAt),
+    index('search_event_type_created_at_idx').on(table.eventType, table.createdAt),
+    index('search_event_query_idx').on(table.normalizedQuery),
+    // Supports the "which queries return nothing" report directly.
+    index('search_event_zero_results_idx')
+      .on(table.normalizedQuery)
+      .where(sql`${table.resultCount} = 0`),
+    check(
+      'search_event_position_positive',
+      sql`${table.clickedPosition} IS NULL OR ${table.clickedPosition} > 0`,
+    ),
+  ],
+)
+
 export const rateLimit = pgTable(
   'rate_limit',
   {

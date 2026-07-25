@@ -18,6 +18,7 @@ import { categories, product, productImage, shop } from '#/db/schema'
 import { getDescendantCategoryIds } from '../categories.server'
 import { logger } from '../logger.server'
 import { searchQueriesTotal } from '../metrics.server'
+import { recordSearchEvent } from '../search/analytics.server'
 import { sanitizeRichText, validatePlainText } from '../xss'
 import { withServerCache } from '../server-cache.server'
 import type {
@@ -528,11 +529,11 @@ export async function searchProductsQuery(
   })
   if (meiliResult) {
     if (trimmedQuery) {
-      searchQueriesTotal.inc({ has_results: meiliResult.products.length > 0 ? 'true' : 'false' })
-      logger.info('[search] query executed', {
+      searchQueriesTotal.inc({ has_results: meiliResult.total > 0 ? 'true' : 'false' })
+      await recordSearchEvent({
         query: trimmedQuery,
-        results: meiliResult.products.length,
-        total: meiliResult.total,
+        resultCount: meiliResult.total,
+        source: 'meilisearch',
       })
     }
     return meiliResult
@@ -627,12 +628,8 @@ export async function searchProductsQuery(
   })()
 
   if (trimmedQuery) {
-    searchQueriesTotal.inc({ has_results: products.length > 0 ? 'true' : 'false' })
-    logger.info('[search] query executed', {
-      query: trimmedQuery,
-      results: products.length,
-      total: total,
-    })
+    searchQueriesTotal.inc({ has_results: total > 0 ? 'true' : 'false' })
+    await recordSearchEvent({ query: trimmedQuery, resultCount: total, source: 'postgres' })
   }
 
   const imageUrls = await fetchFirstImageUrls(products.map((p) => p.id))

@@ -37,7 +37,7 @@
     set -euo pipefail
     for service in \
       inventory-cleanup session-cleanup cart-cleanup verification-cleanup \
-      meilisearch-sync audit-log-cleanup sendcloud-reconciliation \
+      meilisearch-sync audit-log-cleanup search-event-cleanup sendcloud-reconciliation \
       mollie-payment-reconciliation payout-reconciliation \
       payout-reconciliation-log-cleanup email-outbox-worker \
       email-suppression-cleanup email-retention-cleanup \

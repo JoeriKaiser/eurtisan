@@ -1,18 +1,17 @@
+import { useQuery } from '@tanstack/react-query'
 import { Link, useRouter } from '@tanstack/react-router'
 import { Clock, Sparkles, Tag, TrendingUp, X } from 'lucide-react'
 import { useRecentSearches } from '#/hooks/useRecentSearches'
 import { cn } from '#/lib/cn'
 import { m } from '#/paraglide/messages'
+import { listTrendingSearches } from '#/lib/products'
 import { formatPriceEUR } from '#/lib/pricing'
 
-const TRENDING_SEARCHES = [
-  'Ceramic mugs',
-  'Handmade jewelry',
-  'Wool scarves',
-  'Wooden bowls',
-  'Leather wallets',
-  'Linen napkins',
-]
+/**
+ * Shown until search telemetry has accumulated enough real queries to rank.
+ * Deliberately generic so it reads sensibly in either supported locale.
+ */
+const FALLBACK_TRENDING_SEARCHES = ['ceramic', 'jewelry', 'wool', 'wood', 'leather', 'linen']
 
 const FEATURED_COLLECTIONS = [
   {
@@ -36,6 +35,16 @@ interface SearchEmptyStateProps {
 export default function SearchEmptyState({ onSelectQuery }: SearchEmptyStateProps) {
   const { searches, removeSearch, clearSearches } = useRecentSearches()
   const router = useRouter()
+
+  // Real queries when telemetry has any, the curated list otherwise.
+  const { data: popularQueries } = useQuery({
+    queryKey: ['search-trending'],
+    queryFn: () => listTrendingSearches(),
+    staleTime: 10 * 60_000,
+    gcTime: 30 * 60_000,
+  })
+  const trendingSearches =
+    popularQueries && popularQueries.length > 0 ? popularQueries : FALLBACK_TRENDING_SEARCHES
 
   return (
     <div className='flex flex-col gap-6 p-4 sm:p-6'>
@@ -77,7 +86,7 @@ export default function SearchEmptyState({ onSelectQuery }: SearchEmptyStateProp
                   type='button'
                   onClick={() => removeSearch(query)}
                   className='inline-flex rounded-full p-0.5 text-text-muted transition-colors hover:bg-bg-inset hover:text-text-primary'
-                  aria-label={`Remove ${query} from recent searches`}
+                  aria-label={m.search_recent_remove({ query })}
                 >
                   <X size={12} aria-hidden='true' />
                 </button>
@@ -94,7 +103,7 @@ export default function SearchEmptyState({ onSelectQuery }: SearchEmptyStateProp
           {m.search_trending()}
         </h3>
         <ul className='flex flex-wrap gap-2'>
-          {TRENDING_SEARCHES.map((query) => (
+          {trendingSearches.map((query) => (
             <li key={query}>
               <button
                 type='button'

@@ -1,15 +1,17 @@
 import { useNavigate } from '@tanstack/react-router'
 import { Skeleton } from '#/components/ui/skeleton'
-import type { PublicProduct } from '#/lib/products'
+import type { OverlayProduct } from '#/hooks/useSearchOverlayResults'
 import { m } from '#/paraglide/messages'
 import SearchResultCard from './SearchResultCard'
 
 interface SearchResultsPanelProps {
-  products: PublicProduct[]
+  products: OverlayProduct[]
   total: number
   query: string
   isLoading: boolean
   isError: boolean
+  /** Called with the 1-based rank of the opened result, for click analytics. */
+  onSelectResult?: (product: OverlayProduct, position: number) => void
 }
 
 export default function SearchResultsPanel({
@@ -18,6 +20,7 @@ export default function SearchResultsPanel({
   query,
   isLoading,
   isError,
+  onSelectResult,
 }: SearchResultsPanelProps) {
   const navigate = useNavigate()
 
@@ -49,7 +52,7 @@ export default function SearchResultsPanel({
   if (isError) {
     return (
       <div className='p-4 text-sm text-text-secondary sm:p-6'>
-        <p>Failed to load results. Please try again.</p>
+        <p>{m.search_results_error()}</p>
       </div>
     )
   }
@@ -57,7 +60,7 @@ export default function SearchResultsPanel({
   if (products.length === 0) {
     return (
       <div className='p-4 text-sm text-text-secondary sm:p-6'>
-        <p>No products found for &ldquo;{query}&rdquo;</p>
+        <p>{m.search_no_products_found({ query })}</p>
       </div>
     )
   }
@@ -65,7 +68,10 @@ export default function SearchResultsPanel({
   return (
     <div className='p-4 sm:p-6'>
       <div className='mb-3 flex items-center justify-between'>
-        <p className='text-xs font-semibold uppercase tracking-wide text-text-muted'>
+        <p
+          className='text-xs font-semibold uppercase tracking-wide text-text-muted'
+          aria-live='polite'
+        >
           {m.search_results_count({ count: total })}
         </p>
         <button
@@ -78,15 +84,17 @@ export default function SearchResultsPanel({
           }
           className='text-xs font-medium text-accent-secondary hover:text-accent-secondary-hover'
         >
-          View all →
+          {m.search_view_all()}
         </button>
       </div>
       <div className='grid gap-2 sm:grid-cols-2'>
-        {products.map((product) => (
+        {products.map((product, index) => (
           <SearchResultCard
             key={product.id}
             product={product}
-            imageUrl={product.imageUrl ?? null}
+            imageUrl={product.imageUrl}
+            formattedName={product.formattedName}
+            onSelect={() => onSelectResult?.(product, index + 1)}
           />
         ))}
       </div>

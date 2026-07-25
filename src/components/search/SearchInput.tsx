@@ -1,9 +1,8 @@
 import { Command, Search, X } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Input } from '#/components/ui/input'
+import { m } from '#/paraglide/messages'
 import { cn } from '#/lib/cn'
-
-const PLACEHOLDER_OPTIONS = ['vintage lamp', 'ceramic mug', 'handmade earrings']
 
 interface SearchInputProps {
   value: string
@@ -12,6 +11,12 @@ interface SearchInputProps {
   onClear: () => void
   inputRef?: React.RefObject<HTMLInputElement | null>
   autoFocus?: boolean
+  /** Id of the suggestion listbox this input controls. */
+  listboxId?: string
+  /** Id of the currently highlighted option, for aria-activedescendant. */
+  activeOptionId?: string
+  /** Whether the suggestion listbox is currently showing options. */
+  isExpanded?: boolean
 }
 
 export default function SearchInput({
@@ -21,12 +26,15 @@ export default function SearchInput({
   onClear,
   inputRef: externalRef,
   autoFocus = false,
+  listboxId,
+  activeOptionId,
+  isExpanded = false,
 }: SearchInputProps) {
   const internalRef = useRef<HTMLInputElement>(null)
   const inputRef = externalRef ?? internalRef
   const [isFocused, setIsFocused] = useState(false)
 
-  const placeholder = value.trim().length > 0 ? '' : `Search for "${PLACEHOLDER_OPTIONS[0]}"...`
+  const placeholder = value.trim().length > 0 ? '' : m.search_input_placeholder()
 
   return (
     <div className='relative'>
@@ -40,6 +48,12 @@ export default function SearchInput({
       <Input
         ref={inputRef}
         type='search'
+        role='combobox'
+        aria-expanded={isExpanded}
+        aria-controls={listboxId}
+        aria-activedescendant={activeOptionId}
+        aria-autocomplete='list'
+        aria-label={m.search_input_placeholder()}
         autoFocus={autoFocus}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -64,7 +78,7 @@ export default function SearchInput({
             type='button'
             onClick={onClear}
             className='rounded-md p-1 text-text-muted transition-colors hover:bg-bg-inset hover:text-text-primary'
-            aria-label='Clear search'
+            aria-label={m.search_clear_input()}
           >
             <X size={16} aria-hidden='true' />
           </button>

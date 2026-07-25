@@ -27,6 +27,7 @@
     "job:verification-cleanup": "bun run scripts/run-validated-job.ts src/jobs/verification-cleanup.ts",
     "job:meilisearch-sync": "bun run scripts/run-validated-job.ts src/jobs/meilisearch-sync.ts",
     "job:audit-log-cleanup": "bun run scripts/run-validated-job.ts src/jobs/audit-log-cleanup.ts",
+    "job:search-event-cleanup": "bun run scripts/run-validated-job.ts src/jobs/search-event-cleanup.ts",
     "job:sendcloud-reconciliation": "bun run scripts/run-validated-job.ts src/jobs/sendcloud-reconciliation.ts",
     "job:mollie-payment-reconciliation": "bun run scripts/run-validated-job.ts src/jobs/mollie-payment-reconciliation.ts",
     "job:payout-reconciliation": "bun run scripts/run-validated-job.ts src/jobs/payout-reconciliation.ts",

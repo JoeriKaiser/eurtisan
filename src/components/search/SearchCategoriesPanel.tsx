@@ -4,7 +4,7 @@ import { cn } from '#/lib/cn'
 import { m } from '#/paraglide/messages'
 
 interface SearchCategoriesPanelProps {
-  categories: Array<{ id: string; name: string; slug: string }>
+  categories: Array<{ id: string; name: string; slug: string; count?: number }>
   isLoading: boolean
   query: string
 }
@@ -31,7 +31,9 @@ export default function SearchCategoriesPanel({
     return null
   }
 
-  const title = query.trim() ? `Categories matching "${query}"` : m.search_browse_categories()
+  const title = query.trim()
+    ? m.search_categories_matching({ query })
+    : m.search_browse_categories()
 
   return (
     <div className='px-4 pb-2 pt-3 sm:px-6'>
@@ -52,6 +54,9 @@ export default function SearchCategoriesPanel({
               )}
             >
               {category.name}
+              {category.count === undefined ? null : (
+                <span className='ml-1.5 text-xs text-text-muted'>{category.count}</span>
+              )}
             </Link>
           </li>
         ))}

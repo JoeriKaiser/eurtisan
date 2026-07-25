@@ -121,6 +121,20 @@ export function highlightMatches(text: string, query: string): string {
   return text.replace(pattern, '<mark>$1</mark>')
 }
 
+/** Upper bound on a stored analytics query, matching the search input limit. */
+const MAX_ANALYTICS_QUERY_LENGTH = 100
+
+/**
+ * Canonical form of a search query for analytics grouping.
+ *
+ * Collapses case and whitespace so "Ceramic  Mug" and "ceramic mug" aggregate
+ * into one row, and truncates so a pathological query cannot bloat the table.
+ * Returns an empty string for queries not worth recording.
+ */
+export function normalizeQueryForAnalytics(query: string): string {
+  return query.trim().toLowerCase().replace(/\s+/g, ' ').slice(0, MAX_ANALYTICS_QUERY_LENGTH)
+}
+
 /**
  * Parse a Meilisearch price range filter string back into min/max cents.
  * Returns nulls when the range is unbounded.

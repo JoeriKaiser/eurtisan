@@ -28,6 +28,7 @@ const LOCK_IDS: Record<string, number> = {
   'payout-reconciliation-log-cleanup': 1013,
   'mollie-payment-reconciliation': 1014,
   'financial-totals-reconciliation': 1015,
+  'search-event-cleanup': 1016,
 }
 
 export type JobName = keyof typeof LOCK_IDS

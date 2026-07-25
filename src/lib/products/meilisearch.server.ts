@@ -91,6 +91,12 @@ export interface MeilisearchProductDocument {
   ratingAverage: number
   reviewCount: number
   popularityScore: number
+  /**
+   * Primary thumbnail, so the search overlay can render a complete result card
+   * from the index alone. Images only change through product create/update,
+   * both of which already enqueue a reindex.
+   */
+  imageUrl: string | null
   createdAt: string
 }
 
@@ -203,7 +209,7 @@ export async function syncProductToMeilisearch(productData: {
       return
     }
 
-    const [categoryRow, aggregates] = await Promise.all([
+    const [categoryRow, aggregates, imageUrls] = await Promise.all([
       productData.categoryId
         ? db
             .select({ slug: categories.slug, name: categories.name })
@@ -212,6 +218,7 @@ export async function syncProductToMeilisearch(productData: {
             .limit(1)
         : Promise.resolve([]),
       fetchReviewAggregates([productData.id]),
+      fetchFirstImageUrls([productData.id]),
     ])
 
     const doc: MeilisearchProductDocument = {
@@ -231,6 +238,7 @@ export async function syncProductToMeilisearch(productData: {
         productData.stockCount,
         aggregates.get(productData.id) ?? EMPTY_AGGREGATE,
       ),
+      imageUrl: imageUrls.get(productData.id) ?? null,
       createdAt: productData.createdAt.toISOString(),
     }
 
@@ -342,7 +350,7 @@ export async function populateProductsIndex(
         products.map((row) => row.product.categoryId).filter((id): id is string => id != null),
       ),
     ]
-    const [categoryRows, aggregates] = await Promise.all([
+    const [categoryRows, aggregates, imageUrls] = await Promise.all([
       categoryIds.length > 0
         ? db
             .select({ id: categories.id, slug: categories.slug, name: categories.name })
@@ -350,6 +358,7 @@ export async function populateProductsIndex(
             .where(inArray(categories.id, categoryIds))
         : Promise.resolve([]),
       fetchReviewAggregates(products.map((row) => row.product.id)),
+      fetchFirstImageUrls(products.map((row) => row.product.id)),
     ])
     const categoryById = new Map(categoryRows.map((c) => [c.id, c]))
 
@@ -373,6 +382,7 @@ export async function populateProductsIndex(
           categorySlug: category?.slug ?? null,
           categoryName: category?.name ?? null,
           ...buildRelevanceFields(prod.stockCount, aggregates.get(prod.id) ?? EMPTY_AGGREGATE),
+          imageUrl: imageUrls.get(prod.id) ?? null,
           createdAt: prod.createdAt.toISOString(),
         })
       } catch {
