@@ -5,6 +5,7 @@
 import { randomBytes, randomUUID, scryptSync } from 'node:crypto'
 import { and, eq, isNotNull } from 'drizzle-orm'
 import * as schema from '../../src/db/schema'
+import { decryptJsonb, encryptJsonb } from '../../src/lib/encryption.server'
 import { db } from '../db'
 import { E2E_CUSTOMER } from './auth'
 
@@ -106,12 +107,31 @@ export async function getCreatorShop() {
     .limit(1)
   if (!shop[0]) throw new Error('Seed creator shop not found')
 
-  const origin = (shop[0].shippingOrigin ?? {}) as Record<string, unknown>
+  // The column is encrypted at rest on every application write path, so it must
+  // be decrypted before inspection and re-encrypted before storage. Reading it
+  // as a plain object silently sees ciphertext, fails every field comparison,
+  // and rewrites the row as plaintext on each run.
+  const origin = (decryptJsonb<Record<string, unknown>>(shop[0].shippingOrigin) ?? {}) as Record<
+    string,
+    unknown
+  >
   const completeOrigin = {
     street: typeof origin.street === 'string' ? origin.street : '42 Rue de Rivoli',
     city: typeof origin.city === 'string' ? origin.city : 'Paris',
     postalCode: typeof origin.postalCode === 'string' ? origin.postalCode : '75001',
-    country: typeof origin.country === 'string' ? origin.country : 'France',
+    // ISO-3166-1 alpha-2, matching both write paths. A country *name* here is
+    // rejected by the storefront's origin parser, which hides the dispatch
+    // facts for the shop these fixtures point every other spec at.
+    country:
+      typeof origin.country === 'string' && /^[A-Z]{2}$/.test(origin.country)
+        ? origin.country
+        : 'FR',
+    processingTimeDays:
+      typeof origin.processingTimeDays === 'object' && origin.processingTimeDays !== null
+        ? origin.processingTimeDays
+        : { min: 2, max: 5 },
+    shipsInternational:
+      typeof origin.shipsInternational === 'boolean' ? origin.shipsInternational : true,
   }
 
   if (
@@ -122,7 +142,7 @@ export async function getCreatorShop() {
   ) {
     await db
       .update(schema.shop)
-      .set({ shippingOrigin: completeOrigin })
+      .set({ shippingOrigin: encryptJsonb(completeOrigin) })
       .where(eq(schema.shop.id, shop[0].id))
     return { ...shop[0], shippingOrigin: completeOrigin }
   }

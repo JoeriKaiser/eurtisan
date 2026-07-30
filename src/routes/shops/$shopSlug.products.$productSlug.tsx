@@ -1,11 +1,11 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { NotFoundPage } from '#/components/NotFoundPage'
-import { ProductDetailPage } from '#/route-components/shops/$shopSlug.products.$productSlug'
+import { SUPPORTED_CURRENCY } from '#/lib/currency'
 import { getProductBySlug } from '#/lib/products'
 import { createPageMeta } from '#/lib/seo'
 import { generateProductJsonLd } from '#/lib/seo-structured-data'
-import { SUPPORTED_CURRENCY } from '#/lib/currency'
 import { m } from '#/paraglide/messages'
+import { ProductDetailPage } from '#/route-components/shops/$shopSlug.products.$productSlug'
 
 export const Route = createFileRoute('/shops/$shopSlug/products/$productSlug')({
   loader: async ({ params }) => {

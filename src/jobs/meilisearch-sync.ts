@@ -13,7 +13,7 @@
 import { withJobLock } from '#/lib/job-lock.server'
 import { logger } from '#/lib/logger.server'
 import { processMeilisearchSyncQueue } from '#/lib/meilisearch-products.server'
-import { withJobMetrics } from '#/lib/with-job-metrics.server'
+import { declareJobInterval, withJobMetrics } from '#/lib/with-job-metrics.server'
 
 const INTERVAL_MS = Number.parseInt(process.env.MEILISEARCH_SYNC_INTERVAL_MS ?? '5000', 10)
 const BATCH_SIZE = Number.parseInt(process.env.MEILISEARCH_SYNC_BATCH_SIZE ?? '50', 10)
@@ -38,6 +38,9 @@ async function run(): Promise<void> {
     intervalMs: INTERVAL_MS,
     batchSize: BATCH_SIZE,
   })
+
+  // Declares the cadence EurtisanJobStale measures this job against.
+  declareJobInterval(JOB_NAME, INTERVAL_MS)
 
   // Run immediately on start, then on every interval.
   await withJobMetrics(JOB_NAME, tick)

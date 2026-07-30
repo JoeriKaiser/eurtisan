@@ -53,17 +53,27 @@ export const alertLogTotal = new Counter({
   registers: [metricsRegistry],
 })
 
+/**
+ * Background-job series are labelled `job_name`, **not** `job`.
+ *
+ * `job` is reserved: Prometheus sets it from the scrape target's `job_name`, and
+ * with the default `honor_labels: false` a metric that carries its own `job`
+ * label has it renamed to `exported_job` on ingest. These series were previously
+ * labelled `job`, so every alert rule matching `job="<a background job>"` was
+ * matching the scrape target name (`eurtisan`) instead — silently selecting
+ * everything or nothing. Do not reintroduce a `job` label here.
+ */
 export const jobRunsTotal = new Counter({
   name: 'eurtisan_job_runs_total',
   help: 'Total number of job tick executions',
-  labelNames: ['job', 'status'] as const,
+  labelNames: ['job_name', 'status'] as const,
   registers: [metricsRegistry],
 })
 
 export const jobRunDurationSeconds = new Histogram({
   name: 'eurtisan_job_run_duration_seconds',
   help: 'Job tick duration in seconds',
-  labelNames: ['job'] as const,
+  labelNames: ['job_name'] as const,
   buckets: [0.1, 0.5, 1, 2, 5, 10, 30, 60],
   registers: [metricsRegistry],
 })
@@ -71,14 +81,29 @@ export const jobRunDurationSeconds = new Histogram({
 export const jobLastSuccessTimestamp = new Gauge({
   name: 'eurtisan_job_last_success_timestamp',
   help: 'Unix timestamp of the last successful job tick',
-  labelNames: ['job'] as const,
+  labelNames: ['job_name'] as const,
   registers: [metricsRegistry],
 })
 
 export const jobLockContentionTotal = new Counter({
   name: 'eurtisan_job_lock_contention_total',
   help: 'Background job starts that could not acquire their singleton advisory lock',
-  labelNames: ['job'] as const,
+  labelNames: ['job_name'] as const,
+  registers: [metricsRegistry],
+})
+
+/**
+ * Each job's own tick cadence, so staleness can be judged against what the job
+ * actually promises rather than against one global threshold.
+ *
+ * This is what lets `EurtisanJobStale` cover a 60-second poller and a daily
+ * cleanup with a single rule. Excluding slow jobs from the alert — the previous
+ * approach — does not fix them, it removes their monitoring entirely.
+ */
+export const jobIntervalSeconds = new Gauge({
+  name: 'eurtisan_job_interval_seconds',
+  help: 'Configured tick interval for a background job, in seconds',
+  labelNames: ['job_name'] as const,
   registers: [metricsRegistry],
 })
 
@@ -271,6 +296,36 @@ export const backupSuccessTotal = new Counter({
 export const backupFailuresTotal = new Counter({
   name: 'eurtisan_backup_failures_total',
   help: 'Number of failed nightly backups',
+  registers: [metricsRegistry],
+})
+
+/**
+ * Storefront reach.
+ *
+ * **Unlabelled, deliberately.** A shop id or slug label would make the
+ * cardinality of this series grow with the marketplace, which is the classic way
+ * to take down a Prometheus instance. Per-shop view counts are a product feature
+ * with its own retention and privacy questions; they belong in the database, not
+ * in a metric label.
+ */
+export const shopProfileViewsTotal = new Counter({
+  name: 'eurtisan_shop_profile_views_total',
+  help: 'Public shop storefront renders',
+  registers: [metricsRegistry],
+})
+
+/**
+ * How completely sellers fill in their public profile, as a fraction of the
+ * publishable fields (0–1), sampled across active shops by a periodic job.
+ *
+ * The creator dashboard has nagged sellers to add a banner, socials, and an
+ * announcement with no way to tell whether it works. Now that the storefront
+ * actually renders those fields, this closes the loop.
+ */
+export const shopProfileCompleteness = new Histogram({
+  name: 'eurtisan_shop_profile_completeness',
+  help: 'Fraction of publishable profile fields populated, per active shop',
+  buckets: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1],
   registers: [metricsRegistry],
 })
 

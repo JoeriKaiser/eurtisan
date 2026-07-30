@@ -41,7 +41,7 @@ import {
 import { withJobLock } from '#/lib/job-lock.server'
 import { logger } from '#/lib/logger.server'
 import { emailFailedTotal, emailSentTotal, emailSuppressedSkipsTotal } from '#/lib/metrics.server'
-import { withJobMetrics } from '#/lib/with-job-metrics.server'
+import { declareJobInterval, withJobMetrics } from '#/lib/with-job-metrics.server'
 
 const INTERVAL_MS = getEmailOutboxWorkerIntervalMs()
 const BATCH_SIZE = getEmailOutboxWorkerBatchSize()
@@ -237,6 +237,9 @@ async function run(): Promise<void> {
       maxRetries: MAX_RETRIES,
     },
   )
+
+  // Declares the cadence EurtisanJobStale measures this job against.
+  declareJobInterval(JOB_NAME, INTERVAL_MS)
 
   // Run immediately on start, then on every interval.
   await withJobMetrics(JOB_NAME, tick)

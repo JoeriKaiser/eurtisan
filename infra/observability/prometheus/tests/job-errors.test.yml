@@ -1,0 +1,71 @@
+# Unit tests for the background-job alert rules.
+#
+# These exist because the rules they cover were previously wrong in a way that
+# was invisible: `EurtisanJobStale` matched on `job`, a label Prometheus
+# reserves for the scrape target, so its exclusion list never excluded anything
+# and its message named the scrape job rather than the background job. A rule
+# that silently selects the wrong series looks identical to a healthy one.
+#
+# Run with `make promtool-test`.
+rule_files:
+  - ../rules/job-errors.yml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    name: staleness scales to each job's declared cadence
+    input_series:
+      # A fast poller: 60s cadence, last success at t=0.
+      - series: 'eurtisan_job_last_success_timestamp{job_name="cart-cleanup"}'
+        values: '0x30'
+      - series: 'eurtisan_job_interval_seconds{job_name="cart-cleanup"}'
+        values: '60x30'
+      # A daily cleanup: 24h cadence, also last successful at t=0. Ten minutes
+      # without a tick is entirely normal for this one.
+      - series: 'eurtisan_job_last_success_timestamp{job_name="audit-log-cleanup"}'
+        values: '0x30'
+      - series: 'eurtisan_job_interval_seconds{job_name="audit-log-cleanup"}'
+        values: '86400x30'
+
+    alert_rule_test:
+      # At 10 minutes the fast poller has missed ten intervals; the daily job has
+      # missed none. Under the old fixed 600s threshold both would have fired,
+      # which is exactly why six daily jobs sat in permanent critical alert.
+      - eval_time: 10m
+        alertname: EurtisanJobStale
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job_name: cart-cleanup
+            exp_annotations:
+              summary: "Background job cart-cleanup has not succeeded recently"
+              description: "No successful tick for cart-cleanup in more than three of its configured intervals."
+
+      # Neither job is stale one minute in, so nothing fires at all.
+      - eval_time: 1m
+        alertname: EurtisanJobStale
+        exp_alerts: []
+
+  - interval: 1m
+    name: a job that never declared its cadence is reported, not silently unmonitored
+    input_series:
+      - series: 'eurtisan_job_last_success_timestamp{job_name="undeclared-job"}'
+        values: '0x30'
+
+    alert_rule_test:
+      # Excluded from the staleness rule, because there is no cadence to measure
+      # it against...
+      - eval_time: 20m
+        alertname: EurtisanJobStale
+        exp_alerts: []
+      # ...but surfaced by its own alert rather than disappearing.
+      - eval_time: 20m
+        alertname: EurtisanJobMissingInterval
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job_name: undeclared-job
+            exp_annotations:
+              summary: "Background job undeclared-job has no declared interval"
+              description: "undeclared-job reports successful ticks but never called declareJobInterval, so EurtisanJobStale cannot monitor it."

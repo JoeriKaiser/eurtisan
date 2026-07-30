@@ -27,6 +27,7 @@ Before substantial work:
 | Deployment and infrastructure | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) and [`infrastructure/README.md`](infrastructure/README.md) |
 | Operational procedures | [`docs/runbooks/README.md`](docs/runbooks/README.md) |
 | Known defects and open findings | [`docs/audits/production-readiness-reconciliation.md`](docs/audits/production-readiness-reconciliation.md) |
+| Surfaces that are shallow relative to the platform | [`docs/plans/feature-depth-backlog.md`](docs/plans/feature-depth-backlog.md) |
 | Data retention and deletion exceptions | [`docs/DATA_RETENTION.md`](docs/DATA_RETENTION.md) |
 | Company profile and French tax rules | `BUSINESS.md` (local, intentionally untracked) |
 | Agent/browser/integration tooling | [`docs/DEVELOPER_TOOLING.md`](docs/DEVELOPER_TOOLING.md) |
@@ -59,6 +60,22 @@ Ask for clarification before proceeding when requirements are ambiguous or when 
 - Verify library APIs against the installed version; do not invent or assume framework behavior.
 - Do not hide blockers or incomplete behavior. If safe completion is impossible, leave the repository in a correct state and explain the blocker.
 - Mention meaningful out-of-scope findings separately; fix them only when they block security, correctness, maintainability, performance, or safe completion.
+
+## Research depth before planning or changing a subsystem
+
+Tracing a feature along its read path is not sufficient research. This is a
+production system: fields are encrypted at rest, some JSONB is validated and some
+is not, placement is prescribed, and several quality bars are enforced by
+harnesses rather than left to judgment. Surfaces that look purely cosmetic still
+sit on PII, GDPR, suspension-propagation, and money-path constraints.
+
+Before proposing a plan or writing code that reads, publishes, or moves a field:
+
+- **Read its write path**, not only its read path. Encryption (`encryptJsonb`), sanitization, and validation live where the value is stored. A column that reads as plain JSONB may be ciphertext on every row written since the encryption change. For `shop.shippingOrigin` and `shop.businessAddress` this is now enforced by `src/test/encrypted-column-reads.test.ts`, after ten read sites shipped undecrypted — `decryptJsonb` passes legacy plaintext through, so a missed decryption fails silently rather than throwing.
+- **Read the canonical document, not its headings.** `DESIGN.md`, `docs/ARCHITECTURE.md`, and `docs/ACCESSIBILITY_ASSURANCE.md` carry tokens, placement rules, and enforced gates that no summary reproduces.
+- **Check whether a sibling feature already defines the term you are about to define** — "in stock", "approved review", "publicly visible". Match the existing definition or change both. Never introduce a second one.
+- **Assume a formal gate exists before assuming a principle.** Accessibility (`make test-accessibility`, the OKLCH contrast table, the critical-flow matrix), `messages/*.json` key parity, the migration procedure, and the Vitest DB/browser split are all enforced.
+- **Resolve unknowns before presenting a plan.** A plan that defers a dependency as "confirm before committing to this shape" is unfinished; verify it and state the decision.
 
 ## Non-negotiable engineering rules
 
@@ -190,6 +207,8 @@ Add tests at the lowest level that proves the behavior:
 Tests must be deterministic and must not call external networks; mock providers explicitly and avoid snapshot-heavy coverage.
 
 The Vitest gate classifies runtime database dependencies. DB-backed unit files remain serial; pure unit and browser files run in bounded parallel workers. Browser tests and their browser-runtime dependency graphs must remain database-free; keep database-sensitive coverage in `*.test.ts` files.
+
+Three databases, none shared: `eurtisan` (development, seeded), `eurtisan_test` (Playwright, seeded by `make db-seed-e2e`), and `eurtisan_unit` (Vitest, schema only). DB-backed tests call `clearTestTables()`, which truncates — so Vitest must never point at a seeded database. `vitest.config.ts` pins the URL and `make test` depends on `make db-migrate-unit`; do not repoint it at development to avoid creating the database.
 
 Playwright E2E is a local/release gate, not a GitHub Actions gate. Use the documented Compose E2E overlay for individual specs. Better Auth rate-limits repeated auth setup, so reuse generated auth state when possible.
 

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { db } from '#/db/index'
 import * as schema from '#/db/schema'
+import { encryptJsonb } from '#/lib/encryption.server'
 import type { UserLike } from '#/test/helpers'
 
 function uuidSuffix(): string {
@@ -41,9 +42,34 @@ export async function createShop(
       status: 'active',
       currency: 'EUR',
       ...overrides,
+      // Written the way production writes them. Tests pass these as plain
+      // objects, which `decryptJsonb` would hand back unchanged via its legacy
+      // passthrough — so a read site that forgot to decrypt would still pass.
+      // That is precisely how four checkout and invoicing sites shipped broken.
+      ...encryptedAddressColumns(overrides),
     })
     .returning()
   return row
+}
+
+/**
+ * Encrypts the two jsonb columns that production stores encrypted.
+ *
+ * An absent override stays absent, so callers that never set them are
+ * unaffected. A **string** is passed through untouched: it is either already
+ * ciphertext from a caller that encrypted deliberately, or a row a test wants
+ * stored raw. Only plain objects are encrypted here.
+ */
+function encryptedAddressColumns(
+  overrides?: Partial<typeof schema.shop.$inferInsert>,
+): Partial<typeof schema.shop.$inferInsert> {
+  const encrypted: Record<string, unknown> = {}
+  for (const column of ['shippingOrigin', 'businessAddress'] as const) {
+    const value = overrides?.[column]
+    if (value === undefined || value === null || typeof value === 'string') continue
+    encrypted[column] = encryptJsonb(value)
+  }
+  return encrypted as Partial<typeof schema.shop.$inferInsert>
 }
 
 export async function createCategory(

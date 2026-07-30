@@ -22,7 +22,7 @@ import {
   reconcilePayouts,
   releaseHeldPayouts,
 } from '#/lib/payout-reconciliation.server'
-import { withJobMetrics } from '#/lib/with-job-metrics.server'
+import { declareJobInterval, withJobMetrics } from '#/lib/with-job-metrics.server'
 
 assertMockPayoutsNotProduction()
 
@@ -73,6 +73,9 @@ async function run(): Promise<void> {
     job: JOB_NAME,
     intervalMs: INTERVAL_MS,
   })
+
+  // Declares the cadence EurtisanJobStale measures this job against.
+  declareJobInterval(JOB_NAME, INTERVAL_MS)
 
   // Run immediately on start, then on every interval.
   await withJobMetrics(JOB_NAME, tick)

@@ -1,21 +1,8 @@
-import {
-  and,
-  asc,
-  count,
-  countDistinct,
-  desc,
-  eq,
-  gt,
-  gte,
-  ilike,
-  inArray,
-  lte,
-  or,
-  sql,
-} from 'drizzle-orm'
+import { and, asc, count, desc, eq, gt, gte, ilike, inArray, lte, or, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { categories, product, productImage, shop } from '#/db/schema'
 import { getDescendantCategoryIds } from '../categories.server'
+import { decryptJsonb } from '../encryption.server'
 import { logger } from '../logger.server'
 import { searchQueriesTotal } from '../metrics.server'
 import { recordSearchEvent } from '../search/analytics.server'
@@ -31,6 +18,8 @@ import type {
   RecentProduct,
   SearchFilters,
   SearchSortOption,
+  ShopProductCategory,
+  ShopProductsOptions,
   ShopSummary,
   SortOption,
 } from './types'
@@ -98,6 +87,22 @@ function buildProductWhere(filters: ListProductsFilters) {
 
   if (filters.maxPriceCents !== undefined) {
     conditions.push(lte(product.priceCents, filters.maxPriceCents))
+  }
+
+  if (filters.search !== undefined && filters.search.trim().length > 0) {
+    conditions.push(ilike(product.name, `%${filters.search.trim()}%`))
+  }
+
+  if (filters.inStockOnly) {
+    // Deliberately identical to search's definition (`searchProductsQuery`
+    // below, and `meilisearch.server.ts`): stock on the product row only.
+    // `productVariant.stockCount` is an independent column that nothing
+    // aggregates back into `product.stockCount`, so a variant product with
+    // stock on every variant and zero on its parent row counts as out of stock
+    // here — exactly as it already does in search. Fixing that belongs to the
+    // catalog domain; two disagreeing definitions of "in stock" would be worse
+    // than one consistent limitation.
+    conditions.push(gt(product.stockCount, 0))
   }
 
   return and(...conditions)
@@ -248,12 +253,19 @@ export async function getShopBySlugQuery(slug: string): Promise<ShopSummary | nu
   return summary
 }
 
-export async function getShopProductsQuery(
-  shopSlug: string,
-  search?: string,
-  pagination: Pagination = { page: 1, pageSize: 20 },
-): Promise<PaginatedProducts> {
-  const [shopRow] = await db.select().from(shop).where(eq(shop.slug, shopSlug)).limit(1)
+/**
+ * Throws a 404 unless the shop exists and is publicly visible.
+ *
+ * A missing shop and a suspended shop are deliberately indistinguishable to the
+ * caller, matching `getShopBySlugQuery` and the search index, so suspension is
+ * not observable from outside.
+ */
+async function assertShopIsPubliclyVisible(shopSlug: string): Promise<void> {
+  const [shopRow] = await db
+    .select({ isSuspended: shop.isSuspended, status: shop.status })
+    .from(shop)
+    .where(eq(shop.slug, shopSlug))
+    .limit(1)
 
   if (!shopRow || shopRow.isSuspended || shopRow.status !== 'active') {
     throw new Response(
@@ -261,55 +273,62 @@ export async function getShopProductsQuery(
       { status: 404, headers: { 'Content-Type': 'application/json' } },
     )
   }
+}
 
-  const page = Math.max(1, pagination.page)
-  const pageSize = Math.min(100, Math.max(1, pagination.pageSize))
-  const offset = (page - 1) * pageSize
+export async function getShopProductsQuery(
+  shopSlug: string,
+  options: ShopProductsOptions = {},
+): Promise<PaginatedProducts> {
+  // An unknown shop must 404 rather than render as an empty storefront, so the
+  // existence check stays separate from the listing, which returns no rows.
+  await assertShopIsPubliclyVisible(shopSlug)
 
-  const conditions = [
-    eq(shop.isSuspended, false),
-    eq(product.status, 'published'),
-    eq(product.isActive, true),
-    eq(shop.slug, shopSlug),
-  ]
+  return listProductsQuery(
+    {
+      shopSlug,
+      search: options.search,
+      categorySlug: options.categorySlug,
+      inStockOnly: options.inStockOnly,
+    },
+    options.pagination ?? { page: 1, pageSize: 20 },
+    options.sort ?? 'newest',
+  )
+}
 
-  if (search !== undefined && search.trim().length > 0) {
-    conditions.push(ilike(product.name, `%${search.trim()}%`))
-  }
-
-  const where = and(...conditions)
-
-  const [totalResult] = await db
-    .select({ total: count() })
+/**
+ * Categories that actually occur in this shop's publicly visible products.
+ *
+ * Offering the full marketplace taxonomy on a storefront would be mostly dead
+ * options, so the filter is built from the shop's own catalogue — the same
+ * principle as search's facet counts, cheap here because the set is one shop.
+ *
+ * Deliberately independent of the current search and filter state: a category
+ * list that shrank to the selected value would strand the buyer with no way
+ * back. Suspended and inactive shops return nothing rather than 404 — callers
+ * reach this only after `getShopProfile` has already gated on visibility.
+ */
+export async function getShopProductCategoriesQuery(
+  shopSlug: string,
+): Promise<ShopProductCategory[]> {
+  return db
+    .selectDistinct({
+      id: categories.id,
+      name: categories.name,
+      slug: categories.slug,
+    })
     .from(product)
     .innerJoin(shop, eq(product.shopId, shop.id))
-    .leftJoin(categories, eq(product.categoryId, categories.id))
-    .where(where)
-
-  const total = totalResult?.total ?? 0
-
-  const products = await db
-    .select(publicProductColumns)
-    .from(product)
-    .innerJoin(shop, eq(product.shopId, shop.id))
-    .leftJoin(categories, eq(product.categoryId, categories.id))
-    .where(where)
-    .orderBy(desc(product.createdAt))
-    .limit(pageSize)
-    .offset(offset)
-
-  const imageUrls = await fetchFirstImageUrls(products.map((p) => p.id))
-
-  return {
-    products: products.map((p) => ({
-      ...p,
-      imageUrl: imageUrls.get(p.id) ?? null,
-    })) as PublicProduct[],
-    total,
-    page,
-    pageSize,
-    totalPages: Math.ceil(total / pageSize),
-  }
+    .innerJoin(categories, eq(product.categoryId, categories.id))
+    .where(
+      and(
+        eq(shop.slug, shopSlug),
+        eq(shop.status, 'active'),
+        eq(shop.isSuspended, false),
+        eq(product.status, 'published'),
+        eq(product.isActive, true),
+      ),
+    )
+    .orderBy(asc(categories.name))
 }
 
 export async function listProductsByShopQuery(shopId: string, limit = 20, offset = 0) {
@@ -451,7 +470,7 @@ export async function getMarketplaceStatsQuery(): Promise<{
   countryCount: number
 }> {
   return withServerCache(MARKETPLACE_STATS_CACHE_KEY, MARKETPLACE_STATS_TTL_MS, async () => {
-    const [[shopResult], [productResult], [countryResult]] = await Promise.all([
+    const [[shopResult], [productResult], originRows] = await Promise.all([
       db
         .select({ count: count() })
         .from(shop)
@@ -460,24 +479,28 @@ export async function getMarketplaceStatsQuery(): Promise<{
         .select({ count: count() })
         .from(product)
         .where(and(eq(product.status, 'published'), eq(product.isActive, true))),
+      // `shippingOrigin` is encrypted at rest, so it is a JSON *string* in the
+      // column and `->>'country'` yields NULL for every row — this count was
+      // silently 0 on the homepage. SQL cannot see inside the ciphertext, so
+      // the distinct-count has to happen after decryption, in application code.
+      // Bounded by the number of active shops and cached for
+      // MARKETPLACE_STATS_TTL_MS.
       db
-        .select({
-          count: countDistinct(sql`lower(${shop.shippingOrigin}->>'country')`),
-        })
+        .select({ shippingOrigin: shop.shippingOrigin })
         .from(shop)
-        .where(
-          and(
-            eq(shop.status, 'active'),
-            eq(shop.isSuspended, false),
-            sql`${shop.shippingOrigin}->>'country' is not null`,
-          ),
-        ),
+        .where(and(eq(shop.status, 'active'), eq(shop.isSuspended, false))),
     ])
+
+    const countries = new Set<string>()
+    for (const row of originRows) {
+      const country = decryptJsonb<{ country?: string } | null>(row.shippingOrigin)?.country
+      if (country) countries.add(country.toLowerCase())
+    }
 
     return {
       sellerCount: Number(shopResult?.count ?? 0),
       productCount: Number(productResult?.count ?? 0),
-      countryCount: Number(countryResult?.count ?? 0),
+      countryCount: countries.size,
     }
   })
 }

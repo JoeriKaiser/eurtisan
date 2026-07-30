@@ -10,7 +10,7 @@ import {
 import { startJobMetricsServer } from '#/lib/jobs/job-metrics-server.server'
 import { logger } from '#/lib/logger.server'
 import { jobLockContentionTotal } from '#/lib/metrics.server'
-import { withJobMetrics } from '#/lib/with-job-metrics.server'
+import { declareJobInterval, withJobMetrics } from '#/lib/with-job-metrics.server'
 
 const INTERVAL_MS = getFinancialTotalsReconciliationIntervalMs()
 const BATCH_SIZE = getFinancialTotalsReconciliationBatchSize()
@@ -48,6 +48,10 @@ async function run(): Promise<number> {
     runOnce: RUN_ONCE,
   })
 
+  // Declares the cadence EurtisanJobStale measures this job against.
+  // `EurtisanFinancialReconciliationStale` keeps its own tighter rule on top.
+  declareJobInterval(FINANCIAL_TOTALS_JOB_NAME, INTERVAL_MS)
+
   let lastMismatchCount = 0
   do {
     await withJobMetrics(
@@ -76,7 +80,7 @@ async function main(): Promise<void> {
   try {
     const mismatchCount = await withJobLock(FINANCIAL_TOTALS_JOB_NAME, run)
     if (mismatchCount === undefined) {
-      jobLockContentionTotal.inc({ job: FINANCIAL_TOTALS_JOB_NAME })
+      jobLockContentionTotal.inc({ job_name: FINANCIAL_TOTALS_JOB_NAME })
       logger.warn('Financial totals reconciliation lock contention', {
         alert: true,
         job: FINANCIAL_TOTALS_JOB_NAME,

@@ -46,6 +46,25 @@ export type ListProductsFilters = {
   activeOnly?: boolean
   minPriceCents?: number
   maxPriceCents?: number
+  /** Case-insensitive partial match on the product name. */
+  search?: string
+  /** Same meaning as `SearchFilters.inStockOnly` — see `buildProductWhere`. */
+  inStockOnly?: boolean
+}
+
+/** Browsing state for a single shop's storefront. */
+export type ShopProductsOptions = {
+  search?: string
+  categorySlug?: string
+  inStockOnly?: boolean
+  sort?: SortOption
+  pagination?: Pagination
+}
+
+export type ShopProductCategory = {
+  id: string
+  name: string
+  slug: string
 }
 
 export type Pagination = {

@@ -316,7 +316,75 @@
   "shop_search_button": "Zoeken",
   "shop_no_search_results": "Geen producten gevonden voor deze zoekopdracht.",
   "shop_no_products": "Nog geen producten",
+  "shop_no_filter_results": "Geen producten komen overeen met deze filters.",
   "shop_browse_marketplace": "Blader door de marktplaats",
+  "shop_nav_about": "Over",
+  "shop_nav_policies": "Voorwaarden",
+  "shop_announcement_label": "Aankondiging",
+  "shop_about_heading": "Over de maker",
+  "shop_policies_heading": "Winkelvoorwaarden",
+  "shop_socials_heading": "Volg deze maker",
+  "shop_link_new_tab": "opent in een nieuw tabblad",
+  "shop_member_since": "Op Eurtisan sinds {date}",
+  "shop_production_handmade": "Handgemaakt",
+  "shop_production_vintage": "Vintage",
+  "shop_production_supplies": "Knutselmateriaal",
+  "shop_production_mixed": "Gemengd",
+  "shop_languages_label": "Spreekt",
+  "shop_production_partner_heading": "Gemaakt met een productiepartner",
+  "shop_ships_from": "Verzendt vanuit {country}",
+  "shop_processing_time": "Verzending binnen {min}–{max} werkdagen",
+  "shop_ships_international": "Verzendt internationaal",
+  "shop_ships_domestic_only": "Verzendt alleen binnen {country}",
+  "shop_returns_accepted": "Retour mogelijk binnen {days} dagen",
+  "shop_returns_accepted_no_window": "Retour mogelijk",
+  "shop_returns_not_accepted": "Geen retouren",
+  "shop_exchanges_accepted": "Ruilen mogelijk binnen {days} dagen",
+  "shop_exchanges_accepted_no_window": "Ruilen mogelijk",
+  "shop_exchanges_not_accepted": "Geen ruilingen",
+  "shop_custom_orders_accepted": "Neemt maatwerk aan",
+  "shop_custom_orders_not_accepted": "Geen maatwerk",
+  "shop_policies_additional": "Ook goed om te weten",
+  "shop_policies_statutory_rights": "Wat het beleid van een winkel ook zegt, je wettelijke rechten als EU-consument blijven gelden.",
+  "shop_rating_heading": "Beoordeling van kopers",
+  "shop_no_rating_yet": "Nog niet genoeg beoordelingen",
+  "shop_social_website": "Website",
+  "shop_social_instagram": "Instagram",
+  "shop_social_facebook": "Facebook",
+  "shop_social_twitter": "X",
+  "shop_social_tiktok": "TikTok",
+  "shop_social_pinterest": "Pinterest",
+  "shop_social_youtube": "YouTube",
+  "shop_review_count": [
+    {
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": [
+        "countPlural"
+      ],
+      "match": {
+        "countPlural=one": "{count} beoordeling",
+        "countPlural=other": "{count} beoordelingen"
+      }
+    }
+  ],
+  "shop_product_count": [
+    {
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": [
+        "countPlural"
+      ],
+      "match": {
+        "countPlural=one": "{count} product",
+        "countPlural=other": "{count} producten"
+      }
+    }
+  ],
   "search_kicker": "Zoeken",
   "search_title": "Vind handgemaakte producten",
   "search_explore_title": "Ontdek de markt",
@@ -541,6 +609,7 @@
   "review_modal_title": "Schrijf een beoordeling",
   "review_modal_description": "Deel je ervaring met dit product.",
   "review_modal_close": "Beoordelingsformulier sluiten",
+  "rating_out_of_five": "{rating} van de 5 sterren",
   "review_star_label": "Beoordeel {star} uit 5 sterren",
   "review_rating_prompt": "Klik op een ster om te beoordelen",
   "review_rating_selected": "Je beoordeelde {rating} uit 5",

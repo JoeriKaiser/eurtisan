@@ -20,6 +20,7 @@ import {
   configureProductsIndex,
   populateProductsIndex,
 } from '../lib/meilisearch-products.server.ts'
+import { encryptJsonb } from '../lib/encryption.server.ts'
 import { uploadImageFromUrl } from '../lib/image-storage.server.ts'
 import * as schema from './schema.ts'
 import { CATEGORY_DESCRIPTIONS, SUBCATEGORY_DESCRIPTIONS } from './seed-descriptions.ts'
@@ -670,7 +671,20 @@ async function seedShops(
   }
 
   if (shops.length > 0) {
-    await db.insert(schema.shop).values(shops).onConflictDoNothing({ target: schema.shop.slug })
+    // Encrypted at rest on every application write path, so it is encrypted
+    // here too — a plaintext staging row exercises `decryptJsonb`'s legacy
+    // passthrough instead of the real decrypt, which is the branch production
+    // never takes. Same reasoning as `seed.ts`.
+    await db
+      .insert(schema.shop)
+      .values(
+        shops.map((shop) => ({
+          ...shop,
+          shippingOrigin:
+            shop.shippingOrigin === undefined ? undefined : encryptJsonb(shop.shippingOrigin),
+        })),
+      )
+      .onConflictDoNothing({ target: schema.shop.slug })
   }
   console.log(`  → ${shops.length} new shops (${skippedShops} already existed)`)
 

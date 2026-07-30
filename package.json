@@ -38,6 +38,7 @@
     "job:email-suppression-cleanup": "bun run scripts/run-validated-job.ts src/jobs/email-suppression-cleanup.ts",
     "job:email-retention-cleanup": "bun run scripts/run-validated-job.ts src/jobs/email-retention-cleanup.ts",
     "job:financial-totals-reconciliation": "bun run scripts/run-validated-job.ts src/jobs/financial-totals-reconciliation.ts",
+    "job:shop-profile-completeness": "bun run scripts/run-validated-job.ts src/jobs/shop-profile-completeness.ts",
     "db:encrypt-sensitive-columns": "bun run src/db/migrate-encrypt-sensitive-columns.ts",
     "db:encrypt-jsonb-columns": "bun run src/db/migrate-encrypt-jsonb-columns.ts",
     "job:sendcloud-retention-cleanup": "bun run scripts/run-validated-job.ts src/jobs/sendcloud-retention-cleanup.ts",

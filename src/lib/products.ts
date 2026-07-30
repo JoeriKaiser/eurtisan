@@ -8,7 +8,9 @@ export type {
   PaginatedProducts,
   PublicProduct,
   RecentProduct,
+  ShopProductCategory,
   ShopSummary,
+  SortOption,
 } from './products.server'
 
 export const createProductSchema = z.object({
@@ -104,6 +106,9 @@ export const getShopBySlug = createServerFn({
 const getShopProductsSchema = z.object({
   shopSlug: z.string().min(1),
   search: z.string().min(1).max(255).optional(),
+  categorySlug: z.string().min(1).max(255).optional(),
+  inStockOnly: z.boolean().optional(),
+  sort: z.enum(['newest', 'price_asc', 'price_desc']).optional().default('newest'),
   page: z.coerce.number().int().min(1).optional().default(1),
   pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
 })
@@ -114,10 +119,22 @@ export const getShopProducts = createServerFn({
   .inputValidator(getShopProductsSchema)
   .handler(async ({ data }) => {
     const { getShopProductsQuery } = await import('./products.server')
-    return getShopProductsQuery(data.shopSlug, data.search, {
-      page: data.page,
-      pageSize: data.pageSize,
+    return getShopProductsQuery(data.shopSlug, {
+      search: data.search,
+      categorySlug: data.categorySlug,
+      inStockOnly: data.inStockOnly,
+      sort: data.sort,
+      pagination: { page: data.page, pageSize: data.pageSize },
     })
+  })
+
+export const getShopProductCategories = createServerFn({
+  method: 'GET',
+})
+  .inputValidator(z.object({ shopSlug: z.string().min(1) }))
+  .handler(async ({ data }) => {
+    const { getShopProductCategoriesQuery } = await import('./products.server')
+    return getShopProductCategoriesQuery(data.shopSlug)
   })
 
 const searchProductsSchema = z.object({

@@ -8,6 +8,8 @@ export type {
   RecentProduct,
   SearchFilters,
   SearchSortOption,
+  ShopProductCategory,
+  ShopProductsOptions,
   SortOption,
 } from './products/types'
 export type { ShopSummary } from './products/types'
@@ -19,6 +21,7 @@ export {
   getProductBySlugQuery,
   getProductsByShopSlugQuery,
   getShopBySlugQuery,
+  getShopProductCategoriesQuery,
   getShopProductsQuery,
   listProductsByCategorySlugQuery,
   listProductsByShopQuery,

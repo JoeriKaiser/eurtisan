@@ -18,7 +18,7 @@ import {
 } from '#/lib/email-retention-cleanup.server'
 import { withJobLock } from '#/lib/job-lock.server'
 import { logger } from '#/lib/logger.server'
-import { withJobMetrics } from '#/lib/with-job-metrics.server'
+import { declareJobInterval, withJobMetrics } from '#/lib/with-job-metrics.server'
 
 const INTERVAL_MS = Number.parseInt(
   process.env.EMAIL_RETENTION_CLEANUP_INTERVAL_MS ?? '86400000',
@@ -59,6 +59,9 @@ async function run(): Promise<void> {
       batchSize: BATCH_SIZE,
     },
   )
+
+  // Declares the cadence EurtisanJobStale measures this job against.
+  declareJobInterval(JOB_NAME, INTERVAL_MS)
 
   // Run immediately on start, then on every interval.
   await withJobMetrics(JOB_NAME, tick)

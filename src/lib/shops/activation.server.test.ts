@@ -2,15 +2,16 @@ import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '#/db/index'
 import { meilisearchSyncQueue, product, shop, user } from '#/db/schema'
+import { clearTestTables } from '#/test/cleanup'
 import { activateApprovedShopAndListing } from './activation.server'
 
 const LISTING_ID = 'listing-1'
 
 beforeEach(async () => {
-  await db.delete(meilisearchSyncQueue)
-  await db.delete(product)
-  await db.delete(shop)
-  await db.delete(user)
+  // Deleting `product` directly fails against any database that holds an
+  // `order_item`, which is every database a seed has touched. The shared helper
+  // clears in foreign-key-child-first order.
+  await clearTestTables()
   await db.insert(user).values({
     id: 'seller-1',
     name: 'Seller',

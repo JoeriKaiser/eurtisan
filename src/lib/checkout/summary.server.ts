@@ -165,7 +165,7 @@ export async function getCheckoutSummaryQuery(
   await Promise.all(
     shops.map(async (shopGroup) => {
       const shopRecord = shopRecordById.get(shopGroup.shopId)
-      const shopOrigin = shopRecord?.shippingOrigin as ProviderShippingAddress | null
+      const shopOrigin = decryptJsonb<ProviderShippingAddress | null>(shopRecord?.shippingOrigin)
       shopGroup.shippingOptions = await getShippingOptionsForShop(
         shopGroup.items,
         shippingAddress,
@@ -181,7 +181,11 @@ export async function getCheckoutSummaryQuery(
     const shopRecord = shopRecordById.get(shopGroup.shopId)
     if (!shopRecord) continue
 
-    const sellerCountry = (shopRecord.shippingOrigin as { country?: string } | null)?.country ?? ''
+    // Decrypted, like the reads at the top of this file. Left raw, the buyer
+    // saw VAT charged on a cross-border B2B order that qualifies for reverse
+    // charge — the quoted price, not just the stored order.
+    const sellerCountry =
+      decryptJsonb<{ country?: string } | null>(shopRecord.shippingOrigin)?.country ?? ''
     const buyerCountry = shippingAddress?.country ?? ''
     const reverseChargeApplies = isCrossBorderB2b(
       sellerCountry,

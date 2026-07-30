@@ -21,7 +21,7 @@ import {
 } from '#/lib/inventory.server'
 import { withJobLock } from '#/lib/job-lock.server'
 import { logger } from '#/lib/logger.server'
-import { withJobMetrics } from '#/lib/with-job-metrics.server'
+import { declareJobInterval, withJobMetrics } from '#/lib/with-job-metrics.server'
 
 const INTERVAL_MS = Number.parseInt(process.env.INVENTORY_CLEANUP_INTERVAL_MS ?? '60000', 10)
 
@@ -58,6 +58,9 @@ async function run(): Promise<void> {
     intervalMs: INTERVAL_MS,
     batchSize: BATCH_SIZE,
   })
+
+  // Declares the cadence EurtisanJobStale measures this job against.
+  declareJobInterval(JOB_NAME, INTERVAL_MS)
 
   // Run immediately on start, then on every interval.
   await withJobMetrics(JOB_NAME, tick)

@@ -21,6 +21,7 @@ import {
   getProductBySlugQuery,
   getProductsByShopSlugQuery,
   getShopBySlugQuery,
+  getShopProductCategoriesQuery,
   getShopProductsQuery,
   listProductsByCategorySlugQuery,
   listProductsByShopQuery,
@@ -730,7 +731,9 @@ describe('getShopProductsQuery', () => {
   it('returns paginated active products for a shop', async () => {
     await seedShopWithProducts()
 
-    const result = await getShopProductsQuery('test-shop', undefined, { page: 1, pageSize: 10 })
+    const result = await getShopProductsQuery('test-shop', {
+      pagination: { page: 1, pageSize: 10 },
+    })
     expect(result.products).toHaveLength(2)
     expect(result.total).toBe(2)
     expect(result.products.every((p) => p.shopSlug === 'test-shop')).toBe(true)
@@ -739,7 +742,10 @@ describe('getShopProductsQuery', () => {
   it('filters products by case-insensitive partial name search', async () => {
     await seedShopWithProducts()
 
-    const result = await getShopProductsQuery('test-shop', 'vase', { page: 1, pageSize: 10 })
+    const result = await getShopProductsQuery('test-shop', {
+      search: 'vase',
+      pagination: { page: 1, pageSize: 10 },
+    })
     expect(result.products).toHaveLength(1)
     expect(result.products[0].name).toBe('Ceramic Vase')
   })
@@ -747,11 +753,17 @@ describe('getShopProductsQuery', () => {
   it('search is case-insensitive', async () => {
     await seedShopWithProducts()
 
-    const lowerResult = await getShopProductsQuery('test-shop', 'bowl', { page: 1, pageSize: 10 })
+    const lowerResult = await getShopProductsQuery('test-shop', {
+      search: 'bowl',
+      pagination: { page: 1, pageSize: 10 },
+    })
     expect(lowerResult.products).toHaveLength(1)
     expect(lowerResult.products[0].name).toBe('Wooden Bowl')
 
-    const upperResult = await getShopProductsQuery('test-shop', 'BOWL', { page: 1, pageSize: 10 })
+    const upperResult = await getShopProductsQuery('test-shop', {
+      search: 'BOWL',
+      pagination: { page: 1, pageSize: 10 },
+    })
     expect(upperResult.products).toHaveLength(1)
     expect(upperResult.products[0].name).toBe('Wooden Bowl')
   })
@@ -759,7 +771,10 @@ describe('getShopProductsQuery', () => {
   it('search matches partial names', async () => {
     await seedShopWithProducts()
 
-    const result = await getShopProductsQuery('test-shop', 'cer', { page: 1, pageSize: 10 })
+    const result = await getShopProductsQuery('test-shop', {
+      search: 'cer',
+      pagination: { page: 1, pageSize: 10 },
+    })
     expect(result.products).toHaveLength(1)
     expect(result.products[0].name).toBe('Ceramic Vase')
   })
@@ -767,7 +782,10 @@ describe('getShopProductsQuery', () => {
   it('returns empty array when search matches nothing', async () => {
     await seedShopWithProducts()
 
-    const result = await getShopProductsQuery('test-shop', 'xyz', { page: 1, pageSize: 10 })
+    const result = await getShopProductsQuery('test-shop', {
+      search: 'xyz',
+      pagination: { page: 1, pageSize: 10 },
+    })
     expect(result.products).toHaveLength(0)
     expect(result.total).toBe(0)
   })
@@ -775,7 +793,9 @@ describe('getShopProductsQuery', () => {
   it('excludes inactive products', async () => {
     await seedShopWithProducts()
 
-    const result = await getShopProductsQuery('test-shop', undefined, { page: 1, pageSize: 10 })
+    const result = await getShopProductsQuery('test-shop', {
+      pagination: { page: 1, pageSize: 10 },
+    })
     expect(result.products.every((p) => p.name !== 'Glass Plate')).toBe(true)
   })
 
@@ -810,7 +830,7 @@ describe('getShopProductsQuery', () => {
   it('applies pagination correctly', async () => {
     await seedShopWithProducts()
 
-    const result = await getShopProductsQuery('test-shop', undefined, { page: 1, pageSize: 1 })
+    const result = await getShopProductsQuery('test-shop', { pagination: { page: 1, pageSize: 1 } })
     expect(result.products).toHaveLength(1)
     expect(result.total).toBe(2)
     expect(result.totalPages).toBe(2)
@@ -831,10 +851,177 @@ describe('getShopProductsQuery', () => {
       sortOrder: 0,
     })
 
-    const result = await getShopProductsQuery('test-shop', undefined, { page: 1, pageSize: 10 })
+    const result = await getShopProductsQuery('test-shop', {
+      pagination: { page: 1, pageSize: 10 },
+    })
     const product = result.products.find((p) => p.id === 'prod-img')
     expect(product).toBeDefined()
     expect(product?.imageUrl).toBe('https://example.com/shop-image.jpg')
+  })
+
+  describe('browsing filters', () => {
+    async function seedShopForBrowsing() {
+      const u = await createUser({ id: 'user-1' })
+      const s = await createShop(u, { id: 'shop-1', name: 'Test Shop', slug: 'test-shop' })
+      const ceramics = await createCategory({ name: 'Ceramics', slug: 'ceramics' })
+      const textiles = await createCategory({ name: 'Textiles', slug: 'textiles' })
+
+      await createProduct(s, {
+        id: 'prod-cheap',
+        name: 'Small Cup',
+        slug: 'small-cup',
+        priceCents: 900,
+        stockCount: 4,
+        categoryId: ceramics.id,
+      })
+      await createProduct(s, {
+        id: 'prod-dear',
+        name: 'Large Vase',
+        slug: 'large-vase',
+        priceCents: 8000,
+        stockCount: 0,
+        categoryId: ceramics.id,
+      })
+      await createProduct(s, {
+        id: 'prod-scarf',
+        name: 'Wool Scarf',
+        slug: 'wool-scarf',
+        priceCents: 3000,
+        stockCount: 2,
+        categoryId: textiles.id,
+      })
+
+      return { shop: s }
+    }
+
+    it('filters to a single category', async () => {
+      await seedShopForBrowsing()
+
+      const result = await getShopProductsQuery('test-shop', { categorySlug: 'textiles' })
+      expect(result.products.map((p) => p.id)).toEqual(['prod-scarf'])
+      expect(result.total).toBe(1)
+    })
+
+    it('filters to products with stock on the product row', async () => {
+      await seedShopForBrowsing()
+
+      const result = await getShopProductsQuery('test-shop', { inStockOnly: true })
+      expect(result.products.map((p) => p.id).sort()).toEqual(['prod-cheap', 'prod-scarf'])
+      expect(result.total).toBe(2)
+    })
+
+    it('uses the same in-stock definition as search', async () => {
+      await seedShopForBrowsing()
+
+      const [storefront, search] = await Promise.all([
+        getShopProductsQuery('test-shop', { inStockOnly: true }),
+        searchProductsQuery(undefined, { shopSlug: 'test-shop', inStockOnly: true }),
+      ])
+      expect(storefront.products.map((p) => p.id).sort()).toEqual(
+        search.products.map((p) => p.id).sort(),
+      )
+    })
+
+    it('sorts by price in both directions', async () => {
+      await seedShopForBrowsing()
+
+      const ascending = await getShopProductsQuery('test-shop', { sort: 'price_asc' })
+      expect(ascending.products.map((p) => p.priceCents)).toEqual([900, 3000, 8000])
+
+      const descending = await getShopProductsQuery('test-shop', { sort: 'price_desc' })
+      expect(descending.products.map((p) => p.priceCents)).toEqual([8000, 3000, 900])
+    })
+
+    it('combines a filter with a search term', async () => {
+      await seedShopForBrowsing()
+
+      const result = await getShopProductsQuery('test-shop', {
+        search: 'cup',
+        categorySlug: 'ceramics',
+        inStockOnly: true,
+      })
+      expect(result.products.map((p) => p.id)).toEqual(['prod-cheap'])
+    })
+
+    it('counts the filtered total, not the whole catalogue', async () => {
+      await seedShopForBrowsing()
+
+      const result = await getShopProductsQuery('test-shop', {
+        categorySlug: 'ceramics',
+        pagination: { page: 1, pageSize: 1 },
+      })
+      expect(result.total).toBe(2)
+      expect(result.totalPages).toBe(2)
+      expect(result.products).toHaveLength(1)
+    })
+  })
+})
+
+describe('getShopProductCategoriesQuery', () => {
+  it('returns only the categories the shop actually uses, sorted by name', async () => {
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, { id: 'shop-1', name: 'Test Shop', slug: 'test-shop' })
+    const textiles = await createCategory({ name: 'Textiles', slug: 'textiles' })
+    const ceramics = await createCategory({ name: 'Ceramics', slug: 'ceramics' })
+    await createCategory({ name: 'Unused', slug: 'unused' })
+
+    await createProduct(s, { slug: 'a', categoryId: textiles.id })
+    await createProduct(s, { slug: 'b', categoryId: ceramics.id })
+    await createProduct(s, { slug: 'c', categoryId: ceramics.id })
+
+    const result = await getShopProductCategoriesQuery('test-shop')
+    expect(result.map((c) => c.slug)).toEqual(['ceramics', 'textiles'])
+  })
+
+  it('ignores another shop’s categories', async () => {
+    const u = await createUser({ id: 'user-1' })
+    const mine = await createShop(u, { id: 'shop-1', name: 'Mine', slug: 'test-shop' })
+    const theirs = await createShop(u, { id: 'shop-2', name: 'Theirs', slug: 'other-shop' })
+    const ceramics = await createCategory({ name: 'Ceramics', slug: 'ceramics' })
+    const textiles = await createCategory({ name: 'Textiles', slug: 'textiles' })
+
+    await createProduct(mine, { slug: 'a', categoryId: ceramics.id })
+    await createProduct(theirs, { slug: 'b', categoryId: textiles.id })
+
+    const result = await getShopProductCategoriesQuery('test-shop')
+    expect(result.map((c) => c.slug)).toEqual(['ceramics'])
+  })
+
+  it('ignores categories reachable only through hidden products', async () => {
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, { id: 'shop-1', name: 'Test Shop', slug: 'test-shop' })
+    const ceramics = await createCategory({ name: 'Ceramics', slug: 'ceramics' })
+    const drafts = await createCategory({ name: 'Drafts', slug: 'drafts' })
+    const archived = await createCategory({ name: 'Archived', slug: 'archived' })
+
+    await createProduct(s, { slug: 'a', categoryId: ceramics.id })
+    await createProduct(s, { slug: 'b', categoryId: drafts.id, status: 'draft' })
+    await createProduct(s, { slug: 'c', categoryId: archived.id, isActive: false })
+
+    const result = await getShopProductCategoriesQuery('test-shop')
+    expect(result.map((c) => c.slug)).toEqual(['ceramics'])
+  })
+
+  it('returns nothing for a suspended shop', async () => {
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, {
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      isSuspended: true,
+    })
+    const ceramics = await createCategory({ name: 'Ceramics', slug: 'ceramics' })
+    await createProduct(s, { slug: 'a', categoryId: ceramics.id })
+
+    expect(await getShopProductCategoriesQuery('test-shop')).toEqual([])
+  })
+
+  it('returns nothing for a shop with no categorised products', async () => {
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, { id: 'shop-1', name: 'Test Shop', slug: 'test-shop' })
+    await createProduct(s, { slug: 'a' })
+
+    expect(await getShopProductCategoriesQuery('test-shop')).toEqual([])
   })
 })
 

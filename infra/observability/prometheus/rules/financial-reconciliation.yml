@@ -11,7 +11,7 @@ groups:
           description: "The latest read-only reconciliation found {{ $value }} invariant mismatch(es). Follow the financial reconciliation runbook and do not repair records automatically."
 
       - alert: EurtisanFinancialReconciliationFailed
-        expr: increase(eurtisan_job_runs_total{job="financial-totals-reconciliation",status="failure"}[7h]) > 0
+        expr: increase(eurtisan_job_runs_total{job_name="financial-totals-reconciliation",status="failure"}[7h]) > 0
         for: 1m
         labels:
           severity: critical
@@ -20,7 +20,7 @@ groups:
           description: "The scheduled read-only reconciliation failed during the last cadence window."
 
       - alert: EurtisanFinancialReconciliationStale
-        expr: (time() - eurtisan_job_last_success_timestamp{job="financial-totals-reconciliation"} > 25200) or absent(eurtisan_job_last_success_timestamp{job="financial-totals-reconciliation"})
+        expr: (time() - eurtisan_job_last_success_timestamp{job_name="financial-totals-reconciliation"} > 25200) or absent(eurtisan_job_last_success_timestamp{job_name="financial-totals-reconciliation"})
         for: 30m
         labels:
           severity: critical
@@ -29,7 +29,7 @@ groups:
           description: "No successful read-only reconciliation has been observed within the six-hour cadence plus one-hour grace period."
 
       - alert: EurtisanFinancialReconciliationLockContention
-        expr: increase(eurtisan_job_lock_contention_total{job="financial-totals-reconciliation"}[24h]) >= 3
+        expr: increase(eurtisan_job_lock_contention_total{job_name="financial-totals-reconciliation"}[24h]) >= 3
         for: 5m
         labels:
           severity: warning

@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { shippingLabel, shop } from '#/db/schema'
 import { getShippingProvider } from '#/integrations/shipping'
+import { decryptJsonb } from '../encryption.server'
 import { getCarrierTrackingUrl } from '../shipping'
 import { calculatePackageFromItems } from '../shipping-estimate'
 import { getShopOrderQuery, markShopOrderShippedQuery } from './operations.server'
@@ -31,12 +32,15 @@ export async function createShippingLabelForOrderQuery(
     })
   }
 
-  const origin = shopRecord.shippingOrigin as {
+  // Encrypted at rest. Read raw, this is a base64 string: the `!origin` guard
+  // below would pass and the carrier would receive a label request whose sender
+  // street, city, postcode, and country are all `undefined`.
+  const origin = decryptJsonb<{
     street: string
     city: string
     postalCode: string
     country: string
-  } | null
+  } | null>(shopRecord.shippingOrigin)
 
   if (!origin) {
     throw new Response(

@@ -316,7 +316,75 @@
   "shop_search_button": "Search",
   "shop_no_search_results": "No products match your search.",
   "shop_no_products": "No products yet",
+  "shop_no_filter_results": "No products match these filters.",
   "shop_browse_marketplace": "Browse the marketplace",
+  "shop_nav_about": "About",
+  "shop_nav_policies": "Policies",
+  "shop_announcement_label": "Announcement",
+  "shop_about_heading": "About the maker",
+  "shop_policies_heading": "Shop policies",
+  "shop_socials_heading": "Find this maker",
+  "shop_link_new_tab": "opens in a new tab",
+  "shop_member_since": "On Eurtisan since {date}",
+  "shop_production_handmade": "Handmade",
+  "shop_production_vintage": "Vintage",
+  "shop_production_supplies": "Craft supplies",
+  "shop_production_mixed": "Mixed",
+  "shop_languages_label": "Speaks",
+  "shop_production_partner_heading": "Made with a production partner",
+  "shop_ships_from": "Ships from {country}",
+  "shop_processing_time": "Dispatches in {min}–{max} business days",
+  "shop_ships_international": "Ships internationally",
+  "shop_ships_domestic_only": "Ships within {country} only",
+  "shop_returns_accepted": "Returns accepted within {days} days",
+  "shop_returns_accepted_no_window": "Returns accepted",
+  "shop_returns_not_accepted": "No returns offered",
+  "shop_exchanges_accepted": "Exchanges accepted within {days} days",
+  "shop_exchanges_accepted_no_window": "Exchanges accepted",
+  "shop_exchanges_not_accepted": "No exchanges offered",
+  "shop_custom_orders_accepted": "Takes custom orders",
+  "shop_custom_orders_not_accepted": "No custom orders",
+  "shop_policies_additional": "Also good to know",
+  "shop_policies_statutory_rights": "Whatever a shop's own policy says, your statutory rights as an EU consumer still apply.",
+  "shop_rating_heading": "Buyer rating",
+  "shop_no_rating_yet": "Not enough reviews yet",
+  "shop_social_website": "Website",
+  "shop_social_instagram": "Instagram",
+  "shop_social_facebook": "Facebook",
+  "shop_social_twitter": "X",
+  "shop_social_tiktok": "TikTok",
+  "shop_social_pinterest": "Pinterest",
+  "shop_social_youtube": "YouTube",
+  "shop_review_count": [
+    {
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": [
+        "countPlural"
+      ],
+      "match": {
+        "countPlural=one": "{count} review",
+        "countPlural=other": "{count} reviews"
+      }
+    }
+  ],
+  "shop_product_count": [
+    {
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": [
+        "countPlural"
+      ],
+      "match": {
+        "countPlural=one": "{count} product",
+        "countPlural=other": "{count} products"
+      }
+    }
+  ],
   "search_kicker": "Search",
   "search_title": "Find handmade products",
   "search_explore_title": "Explore the market",
@@ -541,6 +609,7 @@
   "review_modal_title": "Write a review",
   "review_modal_description": "Share your experience with this product.",
   "review_modal_close": "Close review form",
+  "rating_out_of_five": "{rating} out of 5 stars",
   "review_star_label": "Rate {star} out of 5 stars",
   "review_rating_prompt": "Click a star to rate",
   "review_rating_selected": "You rated {rating} out of 5",

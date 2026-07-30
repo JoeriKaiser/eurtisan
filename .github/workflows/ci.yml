@@ -157,3 +157,6 @@ jobs:
 
       - name: Check Prometheus rules
         run: make promtool-check
+
+      - name: Test Prometheus alert rules
+        run: make promtool-test

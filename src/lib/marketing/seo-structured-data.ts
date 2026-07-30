@@ -96,10 +96,33 @@ export interface StoreJsonLdInput {
   canonicalPath: string
   /** Banner / logo image URL. */
   image?: string | null
+  /** Avatar, published as `logo` when present. */
+  logo?: string | null
+  /**
+   * Validated profile URLs for this shop. Already scheme-checked by
+   * `publicSocialSchema`; anything not `http(s)` is dropped again here.
+   */
+  sameAs?: string[]
+  /**
+   * ISO-3166-1 alpha-2 country. Country only, never the street-level fields —
+   * see the storefront plan §4.3: the rest of that column is seller PII.
+   */
+  addressCountry?: string | null
+  /**
+   * Shop-level rating. Pass it **only** above the display threshold
+   * (`SHOP_RATING_MIN_REVIEWS`); `ShopProfile.rating` is already null below it.
+   * An `aggregateRating` built from one review is a structured-data violation
+   * and risks a manual action.
+   */
+  aggregateRating?: { ratingValue: number; reviewCount: number } | null
 }
 
 /**
  * Generates a Schema.org Store JSON-LD object.
+ *
+ * Every optional property is omitted rather than emitted empty: a `sameAs: []`
+ * or a zero-review `aggregateRating` is worse than silence, because it asserts
+ * something false about the shop.
  *
  * @see https://schema.org/Store
  */
@@ -121,6 +144,33 @@ export function generateStoreJsonLd(input: StoreJsonLdInput): Record<string, unk
 
   if (input.image) {
     jsonLd.image = input.image
+  }
+
+  if (input.logo) {
+    jsonLd.logo = input.logo
+  }
+
+  // Second scheme check. `publicSocialSchema` already filtered at read, but a
+  // stored `javascript:` URL is an XSS vector and this value is serialised into
+  // a <script> tag, so it is validated at both ends.
+  const profiles = (input.sameAs ?? []).filter((url) => /^https?:\/\//i.test(url))
+  if (profiles.length > 0) {
+    jsonLd.sameAs = profiles
+  }
+
+  if (input.addressCountry) {
+    jsonLd.address = {
+      '@type': 'PostalAddress',
+      addressCountry: input.addressCountry,
+    }
+  }
+
+  if (input.aggregateRating && input.aggregateRating.reviewCount > 0) {
+    jsonLd.aggregateRating = {
+      '@type': 'AggregateRating',
+      ratingValue: input.aggregateRating.ratingValue,
+      reviewCount: input.aggregateRating.reviewCount,
+    }
   }
 
   return jsonLd

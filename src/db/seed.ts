@@ -44,6 +44,7 @@ import { generateOrderNumber } from '../lib/order-numbers.ts'
 import { calculateVat } from '../lib/vat.server.ts'
 import { recalcPlatformOrderTree } from '../lib/financial-totals.server.ts'
 import { PLATFORM_FEE_PERCENT } from '../lib/platform-constants.ts'
+import { encryptJsonb } from '../lib/encryption.server.ts'
 import { uploadImageFromFile, uploadImageFromUrl } from '../lib/image-storage.server.ts'
 // =============================================================================
 // Configuration
@@ -84,6 +85,14 @@ function hashPassword(password: string): string {
 const PRODUCTS_UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'products')
 const SHOPS_UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'shops')
 const IMAGE_UPLOAD_CONCURRENCY = 8
+/**
+ * Fixed IDs for the two curated storefronts, so tests and manual checks can
+ * address them without guessing a generated slug. See where they are pushed for
+ * why they exist.
+ */
+export const CURATED_COMPLETE_SHOP_ID = 'shop-curated-complete'
+export const CURATED_SPARSE_SHOP_ID = 'shop-curated-sparse'
+
 const E2E_SHOP_IMAGE_FIXTURE = join(process.cwd(), 'e2e', 'fixtures', 'seed-shop.jpg')
 const E2E_PRODUCT_IMAGE_FIXTURE = join(process.cwd(), 'e2e', 'fixtures', 'seed-product.jpg')
 
@@ -511,6 +520,16 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
           city: locale.locale.location.city(),
           postalCode: locale.locale.location.zipCode(),
           country: locale.country,
+          // Onboarding makes both mandatory, so a shop without them is not a
+          // shape production can produce — and the storefront hides its
+          // dispatch facts when they are missing.
+          processingTimeDays: faker.helpers.arrayElement([
+            { min: 1, max: 3 },
+            { min: 2, max: 5 },
+            { min: 3, max: 7 },
+            { min: 5, max: 10 },
+          ]),
+          shipsInternational: faker.datatype.boolean(0.8),
         },
         isSuspended: faker.datatype.boolean(0.03),
         status,
@@ -545,7 +564,9 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
         street: 'Rue Royale 1',
         city: 'Brussels',
         postalCode: '1000',
-        country: 'Belgium',
+        country: 'BE',
+        processingTimeDays: { min: 2, max: 4 },
+        shipsInternational: true,
       },
       isSuspended: false,
       status: 'active',
@@ -562,7 +583,7 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
         street: 'Rue Royale 1',
         city: 'Brussels',
         postalCode: '1000',
-        country: 'Belgium',
+        country: 'BE',
       },
     })
   }
@@ -702,7 +723,9 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
         street: 'Mitropoleos 12',
         city: 'Athens',
         postalCode: '10557',
-        country: 'Greece',
+        country: 'GR',
+        processingTimeDays: { min: 3, max: 6 },
+        shipsInternational: true,
       },
       currency: 'EUR',
       status: 'active',
@@ -719,8 +742,111 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
         street: 'Mitropoleos 12',
         city: 'Athens',
         postalCode: '10557',
-        country: 'Greece',
+        country: 'GR',
       },
+    })
+
+    // 5 and 6. The two ends of the storefront range, both publicly visible.
+    //
+    // Every other seeded shop lands somewhere in the middle, which is the least
+    // useful place to look: a storefront bug usually shows up either when every
+    // panel renders at once or when none of them do. These two exist so both
+    // states can be opened in a browser and asserted in E2E without hand-editing
+    // the database first. Keep them `active` and unsuspended.
+    const completeSlug = uniqueSlug('Atelier Verrier', shopSlugs)
+    shops.push({
+      id: CURATED_COMPLETE_SHOP_ID,
+      ownerId: knownCreator.id,
+      name: 'Atelier Verrier',
+      slug: completeSlug,
+      tagline: 'Mouth-blown glass from the Vosges',
+      description:
+        'Every piece leaves the furnace shaped by hand and by breath, never by mould. We work with soda-lime glass from a family supplier two valleys away, and the colour comes from metal oxides rather than applied coatings, so it will not wear off with use.',
+      category: 'home_living',
+      productionType: 'handmade',
+      tags: ['glass', 'blown-glass', 'handmade', 'france', 'tableware'],
+      languages: ['en', 'fr', 'de'],
+      image: shopImageUrl(completeSlug),
+      bannerImage: shopImageUrl(`${completeSlug}-banner`),
+      announcement: 'The furnace is down for its annual reline. Orders resume from 12 August.',
+      shippingOrigin: {
+        street: 'Rue de la Verrerie 8',
+        city: 'Saint-Louis',
+        postalCode: '68300',
+        country: 'FR',
+        processingTimeDays: { min: 2, max: 5 },
+        shipsInternational: true,
+      },
+      currency: 'EUR',
+      policies: {
+        returns: {
+          accepted: true,
+          windowDays: 14,
+          conditions: 'Unused and in its original packaging.',
+        },
+        exchanges: { accepted: true, windowDays: 30, conditions: 'Subject to what is in stock.' },
+        customOrders: {
+          accepted: true,
+          details: 'Commissions start at six pieces. Ask for a quote.',
+        },
+        paymentMethods: ['card', 'ideal'],
+        additionalInfo:
+          'Each piece varies slightly in size and tone. That is the process, not a flaw.',
+      },
+      status: 'active',
+      onboardingStep: 8,
+      // Exercises the production-partner disclosure, which is a DSA-adjacent
+      // statement rather than decoration — it must be visible somewhere.
+      hasProductionPartner: true,
+      productionPartnerDetails:
+        'Annealing is done by a partner workshop in Meisenthal that runs a larger kiln than ours.',
+      isSuspended: false,
+      resubmissionCount: 0,
+      paymentConnected: true,
+      mollieAccountId: 'acct_verrier01',
+      isVatRegistered: true,
+      vatId: 'FR12345678901',
+      legalEntityType: 'business',
+      dateOfBirth: '1979-03-22',
+      taxId: '9876543210',
+      businessRegistrationNumber: '84312765400019',
+      businessAddress: {
+        street: 'Rue de la Verrerie 8',
+        city: 'Saint-Louis',
+        postalCode: '68300',
+        country: 'FR',
+      },
+    })
+
+    // The sparse counterpart: a real seller who finished onboarding and wrote
+    // nothing optional. No tagline, banner, announcement, policies, socials,
+    // languages, or production type. The storefront must still read as a
+    // deliberate page rather than a broken one.
+    const sparseSlug = uniqueSlug('Quiet Bindery', shopSlugs)
+    shops.push({
+      id: CURATED_SPARSE_SHOP_ID,
+      ownerId: knownCreator.id,
+      name: 'Quiet Bindery',
+      slug: sparseSlug,
+      description: 'Hand-bound notebooks.',
+      image: null,
+      shippingOrigin: {
+        street: 'Lange Straat 4',
+        city: 'Utrecht',
+        postalCode: '3511',
+        country: 'NL',
+        processingTimeDays: { min: 5, max: 10 },
+        shipsInternational: false,
+      },
+      currency: 'EUR',
+      status: 'active',
+      onboardingStep: 8,
+      hasProductionPartner: false,
+      isSuspended: false,
+      resubmissionCount: 0,
+      paymentConnected: true,
+      mollieAccountId: 'acct_bindery01',
+      isVatRegistered: false,
     })
   }
 
@@ -749,7 +875,48 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
   }
 
   if (shops.length > 0) {
-    await db.insert(schema.shop).values(shops).onConflictDoNothing({ target: schema.shop.slug })
+    // Encrypt here rather than at each `shops.push`, so a shop added later
+    // cannot be seeded in a shape the application would never write. Both
+    // columns are encrypted at rest on every real write path
+    // (`onboarding.server.ts`, `settings.server.ts`, `account-data.server.ts`);
+    // seeding them as plaintext leaves the decrypt path untested and lets a
+    // reader assume the column is readable.
+    await db
+      .insert(schema.shop)
+      .values(
+        shops.map((shop) => ({
+          ...shop,
+          shippingOrigin:
+            shop.shippingOrigin === undefined ? undefined : encryptJsonb(shop.shippingOrigin),
+          businessAddress:
+            shop.businessAddress === undefined ? undefined : encryptJsonb(shop.businessAddress),
+        })),
+      )
+      .onConflictDoNothing({ target: schema.shop.slug })
+  }
+
+  // `shop_socials` was truncated by this script but never populated, so the
+  // storefront's "Find this maker" panel could not appear in any seeded
+  // environment — including E2E. Only the complete shop gets links; the sparse
+  // one is deliberately left without.
+  if (shops.some((s) => s.id === CURATED_COMPLETE_SHOP_ID)) {
+    await db
+      .insert(schema.shopSocials)
+      .values([
+        {
+          id: crypto.randomUUID(),
+          shopId: CURATED_COMPLETE_SHOP_ID,
+          platform: 'website' as const,
+          url: 'https://atelier-verrier.example',
+        },
+        {
+          id: crypto.randomUUID(),
+          shopId: CURATED_COMPLETE_SHOP_ID,
+          platform: 'instagram' as const,
+          url: 'https://instagram.example/atelierverrier',
+        },
+      ])
+      .onConflictDoNothing()
   }
 
   console.log(`  ${shops.length} shops`)

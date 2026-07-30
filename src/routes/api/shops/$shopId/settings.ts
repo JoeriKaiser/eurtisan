@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { authPipelinePrivileged, requireRole, requireShopOwnership } from '#/lib/authz'
+import { decryptJsonb } from '#/lib/encryption.server'
 import { updateShopSchema } from '#/lib/shop-settings'
 import { getCreatorShopQuery } from '#/lib/creator-dashboard.server'
 import { SlugCollisionError, updateShopInternal } from '#/lib/shop-settings.server'
@@ -50,13 +51,15 @@ export const Route = createFileRoute('/api/shops/$shopId/settings')({
                 description: record.description,
                 image: record.image,
                 ownerId: record.ownerId,
+                // Encrypted at rest by `updateShopInternal`; returning it raw
+                // would put a ciphertext string in the API response body.
                 shippingOrigin:
-                  (record.shippingOrigin as {
+                  decryptJsonb<{
                     street: string
                     city: string
                     postalCode: string
                     country: string
-                  } | null) ?? null,
+                  } | null>(record.shippingOrigin) ?? null,
                 isVatRegistered: record.isVatRegistered,
                 vatId: record.vatId,
                 createdAt: record.createdAt,

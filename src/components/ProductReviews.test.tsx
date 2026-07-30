@@ -17,6 +17,7 @@ vi.mock('#/lib/reviews', () => ({
 
 vi.mock('#/paraglide/messages', () => ({
   m: {
+    rating_out_of_five: ({ rating }: { rating: number }) => `${rating} out of 5 stars`,
     reviews_title: () => 'Reviews',
     reviews_empty_title: () => 'No reviews yet',
     reviews_empty_description: () => 'Be the first to share your experience.',

@@ -1,4 +1,4 @@
-.PHONY: up down stop logs dev build preview start install lint format format-fix check bundle-check test test-related test-accessibility shell auth-secret db-generate db-check db-migrate db-migrate-fresh db-push db-studio i18n-compile init db-seed meili-setup promtool-check audit-production production-image-smoke compose-check ci-workflow-check shell-syntax ansible-check ansible-syntax ansible-preflight-staging ansible-preflight-production staging-smoke staging-evidence-create staging-evidence-validate staging-evidence-final load-staging FORCE
+.PHONY: db-migrate-unit up down stop logs dev build preview start install lint format format-fix check bundle-check test test-related test-accessibility shell auth-secret db-generate db-check db-migrate db-migrate-fresh db-push db-studio i18n-compile init db-seed meili-setup promtool-check promtool-test audit-production production-image-smoke compose-check ci-workflow-check shell-syntax ansible-check ansible-syntax ansible-preflight-staging ansible-preflight-production staging-smoke staging-evidence-create staging-evidence-validate staging-evidence-final load-staging FORCE
 
 # Docker Compose lifecycle
 up:
@@ -110,6 +110,17 @@ promtool-check:
 	  /rules/payment-webhook-errors.yml \
 	  /rules/payout-stale-pending.yml
 
+# Behavioural tests for alert rules. `promtool-check` only proves the PromQL
+# parses; these prove it selects the series and fires when it should. The
+# background-job rules had a parsing-clean expression that silently matched the
+# wrong label for a long time, which is what these guard against.
+promtool-test:
+	docker run --rm -v "$(PWD)/infra/observability/prometheus:/p:ro" \
+	  --entrypoint promtool \
+	  $(PROMETHEUS_IMAGE) \
+	  test rules \
+	  /p/tests/job-errors.test.yml
+
 # Backup validation (rendered templates; requires ansible to render Jinja)
 backup-dry-run:
 	@echo "Backup script is an Ansible Jinja template. Render it with:"
@@ -153,6 +164,16 @@ obs-status:
 
 E2E_DATABASE_URL ?= postgresql://eurtisan:eurtisan@db-test:5432/eurtisan_test
 
+# Vitest's own database, separate from both seeded ones. DB-backed unit tests
+# truncate tables, so they must not share with development or E2E. Lives on the
+# db-test container because it is already throwaway.
+UNIT_DATABASE_URL ?= postgresql://eurtisan:eurtisan@db-test:5432/eurtisan_unit
+
+db-migrate-unit: ensure-up
+	@docker compose up -d db-test
+	@docker compose exec -T db-test createdb -U eurtisan eurtisan_unit 2>/dev/null || true
+	@docker compose exec -T -e DATABASE_URL=$(UNIT_DATABASE_URL) app bun run db:migrate
+
 # Ensure the isolated E2E database is up before migrating/seeding.
 # Using the e2e compose overlay for these commands guarantees the correct
 # DATABASE_URL, E2E_TEST flag, and other e2e-only env vars are in scope.
@@ -169,7 +190,7 @@ db-seed-e2e: db-migrate-e2e
 # heap because Vitest keeps Vite transforms in memory across ~40 test files.
 BUN_JSC_FORCE_RAM_SIZE ?= 30000000000
 
-test: ensure-up
+test: ensure-up db-migrate-unit
 	@if [ -z "$(filter-out test,$(MAKECMDGOALS))" ]; then \
 		docker compose exec -T -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) app \
 		  bun run scripts/run-checked-command.ts test -- bun run scripts/run-vitest-suite.ts; \
@@ -181,7 +202,7 @@ test-related: ensure-up
 	docker compose exec app bunx vitest related $(filter-out test-related,$(MAKECMDGOALS)) --run
 
 # Focused rendered accessibility scans and static theme/reflow contracts.
-test-accessibility: ensure-up
+test-accessibility: ensure-up db-migrate-unit
 	docker compose exec -T -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) app bun run test -- \
 	  src/lib/accessibility/contrast.test.ts \
 	  src/components/ui/accessibility.test.tsx \
@@ -192,7 +213,8 @@ test-accessibility: ensure-up
 	  src/components/ProductDetail.test.tsx \
 	  src/components/CartPage.test.tsx \
 	  src/components/CheckoutPage.test.tsx \
-	  src/components/DisputeThreadPage.test.tsx
+	  src/components/DisputeThreadPage.test.tsx \
+	  src/route-components/shops/ShopStorefront.test.tsx
 
 e2e-install: up
 	docker compose exec app bunx playwright install --with-deps chromium

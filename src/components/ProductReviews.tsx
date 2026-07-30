@@ -1,10 +1,11 @@
-import { ChevronLeft, ChevronRight, MessageSquare, Star, Flag } from 'lucide-react'
-import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { ChevronLeft, ChevronRight, Flag, MessageSquare, Star } from 'lucide-react'
+import { useState } from 'react'
+import { StarRating } from '#/components/ui/StarRating'
+import { useAuth } from '#/lib/auth-hooks'
 import { getProductReviews, reportReview } from '#/lib/reviews'
 import type { ProductReviewsResult } from '#/lib/reviews.server'
 import { m } from '#/paraglide/messages'
-import { useAuth } from '#/lib/auth-hooks'
 
 export interface ProductReviewsProps {
   productId: string
@@ -16,24 +17,6 @@ function formatReviewDate(date: Date): string {
     month: 'long',
     day: 'numeric',
   })
-}
-
-function StarRating({ rating }: { rating: number }) {
-  return (
-    <span className='flex items-center gap-0.5'>
-      <span className='sr-only'>{rating} out of 5 stars</span>
-      {[1, 2, 3, 4, 5].map((star) => (
-        <Star
-          key={star}
-          size={14}
-          className={
-            star <= rating ? 'fill-warning text-warning' : 'text-[var(--ds-border-strong)]'
-          }
-          aria-hidden='true'
-        />
-      ))}
-    </span>
-  )
 }
 
 function DistributionBar({

@@ -13,7 +13,7 @@ import {
 import { withJobLock } from '#/lib/job-lock.server'
 import { logger } from '#/lib/logger.server'
 import { reconcilePendingMolliePayments } from '#/lib/payments/mollie-reconciliation.server'
-import { withJobMetrics } from '#/lib/with-job-metrics.server'
+import { declareJobInterval, withJobMetrics } from '#/lib/with-job-metrics.server'
 
 const JOB_NAME = 'mollie-payment-reconciliation'
 const INTERVAL_MS = getMolliePaymentReconciliationIntervalMs()
@@ -50,6 +50,10 @@ async function run(): Promise<void> {
       batchSize: BATCH_SIZE,
     },
   )
+
+  // Declares the cadence EurtisanJobStale measures this job against.
+
+  declareJobInterval(JOB_NAME, INTERVAL_MS)
 
   await withJobMetrics(JOB_NAME, tick)
 

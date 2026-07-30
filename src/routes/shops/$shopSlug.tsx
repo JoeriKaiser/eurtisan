@@ -39,9 +39,9 @@ export const Route = createFileRoute('/shops/$shopSlug')({
             </div>
           </header>
         )}
-        <main>
-          <Outlet />
-        </main>
+        {/* No <main> here: every child route renders its own, and nested main
+            landmarks break assistive navigation. */}
+        <Outlet />
       </div>
     )
   },

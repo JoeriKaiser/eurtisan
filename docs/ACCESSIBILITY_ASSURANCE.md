@@ -16,6 +16,7 @@ Current exceptions: **none**. A future exception is invalid unless it names the 
 |---|---|---|---|
 | Sign-up, sign-in, 2FA | Sign-in, sign-up validation, and 2FA rendered-state axe scans; names, errors, status announcements, and focus styling | `not-run` | Accessibility owner runs authentication checklist with NVDA or VoiceOver. |
 | Search and product detail | Product detail purchasable-state scan; gallery/quantity keyboard tests; search labels and live results tests | `not-run` | Verify result-count announcement, filters, gallery order, and localized search. |
+| Shop storefront | Populated, sparse, and filtered-empty axe scans; browsing-control naming and sort pressed-state tests | `not-run` | Verify the in-page section nav, category/sort/in-stock controls, and the three distinct empty states with a screen reader. Confirm the banner and avatar are treated as decorative and the shop name is reached as the page heading. |
 | Cart and checkout | Cart populated/empty axe scans; initial checkout scan; validation/error focus tests | `not-run` | Complete cart, address, shipping, service-point dialog, payment redirect, and failure recovery. |
 | Account settings | Existing settings component behavior; shared form/error/status gate | `not-run` | Verify profile and security forms, password management, 2FA, deletion dialog, and saved status. |
 | Orders and disputes | Dispute page/loading/error scans; order and status component tests | `not-run` | Verify order list/detail, tracking, dispute creation/thread, attachment-free messaging, and refund status. |
@@ -34,7 +35,8 @@ Focused tests cover:
 - upload input naming, error association, keyboard-operable trigger, progress count, upload status, and icon-only controls;
 - dialog focus placement, Escape dismissal, and trigger-focus restoration;
 - menu keyboard opening, item focus, Escape dismissal, and trigger-focus restoration;
-- representative authentication, product detail, cart, checkout, dispute, loading, empty, success, and error states;
+- representative authentication, product detail, shop storefront, cart, checkout, dispute, loading, empty, success, and error states;
+- grouped multi-button choices exposed as a named group with `aria-pressed`, so the active option is not conveyed by colour alone;
 - localized English/Dutch labels used by scanned controls and static key parity through i18n compilation;
 - light/dark semantic-token contrast at 4.5:1 for normal text and 3:1 for focus/UI indicators;
 - zoom-enabled viewport configuration, narrow-layout wrapping/overflow assumptions, reduced motion, forced-colors focus, and skip navigation.

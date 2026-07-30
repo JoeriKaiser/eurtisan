@@ -18,7 +18,7 @@
 import { withJobLock } from '#/lib/job-lock.server'
 import { logger } from '#/lib/logger.server'
 import { purgeOldSearchEvents } from '#/lib/search/analytics.server'
-import { withJobMetrics } from '#/lib/with-job-metrics.server'
+import { declareJobInterval, withJobMetrics } from '#/lib/with-job-metrics.server'
 
 const INTERVAL_MS = Number.parseInt(process.env.SEARCH_EVENT_CLEANUP_INTERVAL_MS ?? '86400000', 10)
 const RETENTION_DAYS = Number.parseInt(process.env.SEARCH_EVENT_RETENTION_DAYS ?? '180', 10)
@@ -46,6 +46,9 @@ async function run(): Promise<void> {
       retentionDays: RETENTION_DAYS,
     },
   )
+
+  // Declares the cadence EurtisanJobStale measures this job against.
+  declareJobInterval(JOB_NAME, INTERVAL_MS)
 
   // Run immediately on start, then on every interval.
   await withJobMetrics(JOB_NAME, tick)

@@ -173,6 +173,72 @@ describe('generateStoreJsonLd', () => {
 
     expect(result.image).toBeUndefined()
   })
+
+  it('publishes the avatar as logo and validated profiles as sameAs', () => {
+    const result = generateStoreJsonLd({
+      ...baseStoreInput,
+      logo: '/uploads/shop-avatar.jpg',
+      sameAs: ['https://instagram.com/clayandkiln', 'http://example.com/shop'],
+    })
+
+    expect(result.logo).toBe('/uploads/shop-avatar.jpg')
+    expect(result.sameAs).toEqual(['https://instagram.com/clayandkiln', 'http://example.com/shop'])
+  })
+
+  it('drops a non-http profile URL rather than serialising it into the script tag', () => {
+    const result = generateStoreJsonLd({
+      ...baseStoreInput,
+      sameAs: ['javascript:alert(1)', 'https://instagram.com/clayandkiln'],
+    })
+
+    expect(result.sameAs).toEqual(['https://instagram.com/clayandkiln'])
+  })
+
+  it('omits sameAs entirely when no profile survives validation', () => {
+    const result = generateStoreJsonLd({ ...baseStoreInput, sameAs: ['javascript:alert(1)'] })
+
+    expect(result.sameAs).toBeUndefined()
+  })
+
+  it('publishes country only, never a street-level address', () => {
+    const result = generateStoreJsonLd({ ...baseStoreInput, addressCountry: 'ES' })
+
+    expect(result.address).toEqual({ '@type': 'PostalAddress', addressCountry: 'ES' })
+  })
+
+  it('omits address when the shop has no published origin', () => {
+    const result = generateStoreJsonLd({ ...baseStoreInput, addressCountry: null })
+
+    expect(result.address).toBeUndefined()
+  })
+
+  it('emits aggregateRating when one is supplied', () => {
+    const result = generateStoreJsonLd({
+      ...baseStoreInput,
+      aggregateRating: { ratingValue: 4.7, reviewCount: 12 },
+    })
+
+    expect(result.aggregateRating).toEqual({
+      '@type': 'AggregateRating',
+      ratingValue: 4.7,
+      reviewCount: 12,
+    })
+  })
+
+  it('omits aggregateRating below the display threshold, where rating is null', () => {
+    const result = generateStoreJsonLd({ ...baseStoreInput, aggregateRating: null })
+
+    expect(result.aggregateRating).toBeUndefined()
+  })
+
+  it('never emits a zero-review aggregateRating', () => {
+    const result = generateStoreJsonLd({
+      ...baseStoreInput,
+      aggregateRating: { ratingValue: 0, reviewCount: 0 },
+    })
+
+    expect(result.aggregateRating).toBeUndefined()
+  })
 })
 
 describe('generateWebSiteJsonLd', () => {

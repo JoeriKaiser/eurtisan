@@ -11,6 +11,7 @@ import {
 } from '#/db/schema'
 import { molliePaymentProvider } from '#/integrations/mollie'
 import type { ShippingAddress as ProviderShippingAddress } from '#/integrations/shipping'
+import { decryptJsonb } from '../encryption.server'
 import { ordersCreatedTotal } from '../metrics.server'
 import { logOrderCreated } from '../order-logger'
 import type { PaymentProvider } from '../payment-provider'
@@ -135,7 +136,10 @@ export async function createCheckoutWithProvider(
     shopIds.length > 0 ? await db.select().from(shop).where(inArray(shop.id, shopIds)) : []
   const originByShopId = new Map<string, ProviderShippingAddress | undefined>()
   for (const shopRecord of shopRecords) {
-    const origin = shopRecord.shippingOrigin as ProviderShippingAddress | null
+    // Encrypted at rest (`settings.server.ts` writes it with `encryptJsonb`).
+    // A raw cast yields a base64 string here, which is truthy — so the guard
+    // below passes and every address field reads `undefined`.
+    const origin = decryptJsonb<ProviderShippingAddress | null>(shopRecord.shippingOrigin)
     if (origin) {
       originByShopId.set(shopRecord.id, origin)
     }

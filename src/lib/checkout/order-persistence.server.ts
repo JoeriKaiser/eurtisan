@@ -157,8 +157,12 @@ export async function persistCheckoutOrder(
       const shopRecord = row.shopRecord
       if (!productRecord || !shopRecord) continue
 
+      // Must be decrypted: an undecrypted read yields `''` here, which makes
+      // `isCrossBorderB2b` return false unconditionally (`normalizeCountryCode('')`
+      // is falsy), so reverse charge could never apply. The same column is read
+      // correctly further down this loop — keep the two in step.
       const sellerCountry =
-        (shopRecord.shippingOrigin as { country?: string } | null)?.country ?? ''
+        decryptJsonb<{ country?: string } | null>(shopRecord.shippingOrigin)?.country ?? ''
       const reverseChargeApplies = isCrossBorderB2b(
         sellerCountry,
         input.billingAddress.country,

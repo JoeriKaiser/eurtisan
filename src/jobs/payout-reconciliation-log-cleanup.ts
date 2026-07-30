@@ -18,7 +18,7 @@ import { getPayoutReconciliationLogRetentionDays } from '#/lib/env.server'
 import { withJobLock } from '#/lib/job-lock.server'
 import { logger } from '#/lib/logger.server'
 import { cleanupPayoutReconciliationLog } from '#/lib/payout-reconciliation-log-cleanup.server'
-import { withJobMetrics } from '#/lib/with-job-metrics.server'
+import { declareJobInterval, withJobMetrics } from '#/lib/with-job-metrics.server'
 
 const INTERVAL_MS = Number.parseInt(
   process.env.PAYOUT_RECONCILIATION_LOG_CLEANUP_INTERVAL_MS ?? '86400000',
@@ -55,6 +55,9 @@ async function run(): Promise<void> {
       retentionDays: RETENTION_DAYS,
     },
   )
+
+  // Declares the cadence EurtisanJobStale measures this job against.
+  declareJobInterval(JOB_NAME, INTERVAL_MS)
 
   // Run immediately on start, then on every interval.
   await withJobMetrics(JOB_NAME, tick)

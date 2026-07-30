@@ -45,14 +45,16 @@ describe('withJobMetrics', () => {
     })
     const after = Date.now() / 1000
 
-    expect(getMetricValue('eurtisan_job_runs_total', { job: 'test-job', status: 'success' })).toBe(
-      1,
-    )
-    expect(getMetricValue('eurtisan_job_runs_total', { job: 'test-job', status: 'failure' })).toBe(
-      0,
-    )
+    expect(
+      getMetricValue('eurtisan_job_runs_total', { job_name: 'test-job', status: 'success' }),
+    ).toBe(1)
+    expect(
+      getMetricValue('eurtisan_job_runs_total', { job_name: 'test-job', status: 'failure' }),
+    ).toBe(0)
 
-    const lastSuccess = getMetricValue('eurtisan_job_last_success_timestamp', { job: 'test-job' })
+    const lastSuccess = getMetricValue('eurtisan_job_last_success_timestamp', {
+      job_name: 'test-job',
+    })
     expect(lastSuccess).toBeGreaterThanOrEqual(before)
     expect(lastSuccess).toBeLessThanOrEqual(after)
 
@@ -66,12 +68,12 @@ describe('withJobMetrics', () => {
       throw error
     })
 
-    expect(getMetricValue('eurtisan_job_runs_total', { job: 'test-job', status: 'success' })).toBe(
-      0,
-    )
-    expect(getMetricValue('eurtisan_job_runs_total', { job: 'test-job', status: 'failure' })).toBe(
-      1,
-    )
+    expect(
+      getMetricValue('eurtisan_job_runs_total', { job_name: 'test-job', status: 'success' }),
+    ).toBe(0)
+    expect(
+      getMetricValue('eurtisan_job_runs_total', { job_name: 'test-job', status: 'failure' }),
+    ).toBe(1)
     expect(logger.error).toHaveBeenCalledWith('Job tick failed: test-job', error, {
       alert: true,
       job: 'test-job',
@@ -96,8 +98,8 @@ describe('withJobMetrics', () => {
         { rethrow: true },
       ),
     ).rejects.toThrow('expected one-shot failure')
-    expect(getMetricValue('eurtisan_job_runs_total', { job: 'test-job', status: 'failure' })).toBe(
-      1,
-    )
+    expect(
+      getMetricValue('eurtisan_job_runs_total', { job_name: 'test-job', status: 'failure' }),
+    ).toBe(1)
   })
 })

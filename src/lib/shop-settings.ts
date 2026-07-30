@@ -177,6 +177,9 @@ export const updateShop = createServerFn({ method: 'POST' })
     requirePrivileged2FA(context.user as SafeUser)
 
     const { updateShopInternal, SlugCollisionError } = await import('./shop-settings.server')
+    // Dynamic, like every other server-only import in this handler: this module
+    // is reachable from the browser graph and `encryption.server` must not be.
+    const { decryptJsonb } = await import('./encryption.server')
     const { db } = await import('#/db/index')
     const { shopSocials } = await import('#/db/schema')
     const { eq } = await import('drizzle-orm')
@@ -213,18 +216,21 @@ export const updateShop = createServerFn({ method: 'POST' })
         announcement: record.announcement,
         createdAt: record.createdAt,
         updatedAt: record.updatedAt,
-        shippingOrigin: record.shippingOrigin as {
+        // Both columns are encrypted at rest by `updateShopInternal`. Read raw,
+        // the settings form renders empty address fields for a seller who has an
+        // address stored.
+        shippingOrigin: decryptJsonb<{
           street: string
           city: string
           postalCode: string
           country: string
-        } | null,
-        businessAddress: record.businessAddress as {
+        } | null>(record.shippingOrigin),
+        businessAddress: decryptJsonb<{
           street: string
           city: string
           postalCode: string
           country: string
-        } | null,
+        } | null>(record.businessAddress),
         isVatRegistered: record.isVatRegistered,
         vatId: record.vatId,
         legalEntityType: record.legalEntityType as 'individual' | 'business' | null,

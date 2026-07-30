@@ -27,7 +27,7 @@ describe('job metrics endpoint', () => {
   })
 
   it('exports lock contention without high-cardinality labels', async () => {
-    jobLockContentionTotal.inc({ job: 'financial-totals-reconciliation' })
+    jobLockContentionTotal.inc({ job_name: 'financial-totals-reconciliation' })
     const response = await getJobMetricsResponse(
       new Request(`http://job.internal/metrics?token=${TOKEN}`),
       TOKEN,
@@ -35,7 +35,7 @@ describe('job metrics endpoint', () => {
     const body = await response.text()
 
     expect(body).toContain(
-      'eurtisan_job_lock_contention_total{job="financial-totals-reconciliation"} 1',
+      'eurtisan_job_lock_contention_total{job_name="financial-totals-reconciliation"} 1',
     )
     expect(body).not.toContain('entityId')
   })
