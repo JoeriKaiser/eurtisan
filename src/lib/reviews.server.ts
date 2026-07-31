@@ -7,6 +7,7 @@ export type {
   ReviewableItem,
   ReviewDistribution,
   ReviewEligibilityResult,
+  ReviewReportReason,
 } from './reviews/types'
 
 export {
@@ -14,6 +15,7 @@ export {
   getAdminReviewsQuery,
   getProductReviewsQuery,
   getReviewableItemsQuery,
+  getReviewReportsQuery,
   reportReviewQuery,
   updateReviewModerationStatusQuery,
 } from './reviews/operations.server'

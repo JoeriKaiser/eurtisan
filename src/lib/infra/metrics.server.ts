@@ -329,6 +329,27 @@ export const shopProfileCompleteness = new Histogram({
   registers: [metricsRegistry],
 })
 
+/**
+ * Category browsing reach.
+ *
+ * **Labelled by category slug, deliberately** — the opposite of
+ * `eurtisan_shop_profile_views_total`. Categories are a curated, bounded set
+ * (36 at time of writing) that grows only when an admin adds one, so the series
+ * count is knowable in advance. Shop slugs are unbounded and user-created,
+ * which is why that counter carries no label.
+ *
+ * Note this is *not* `searchEvent`: that table exists because query text is
+ * personal data on a GDPR purge schedule, and its `normalized_query` column is
+ * NOT NULL. A category browse is neither free text nor personal data, so
+ * recording it there would misrepresent both.
+ */
+export const categoryViewsTotal = new Counter({
+  name: 'eurtisan_category_views_total',
+  help: 'Category page renders, by category',
+  labelNames: ['category_slug'] as const,
+  registers: [metricsRegistry],
+})
+
 export async function getMetricsBody(): Promise<string> {
   return metricsRegistry.metrics()
 }

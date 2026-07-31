@@ -17,6 +17,7 @@ import { createProductSchema } from './products'
 import {
   createProductInternal,
   getFeaturedShopsQuery,
+  getMoreFromShopQuery,
   getMarketplaceStatsQuery,
   getProductBySlugQuery,
   getProductsByShopSlugQuery,
@@ -267,6 +268,125 @@ describe('listProductsByCategorySlugQuery', () => {
     expect(result.products[0].name).toBe('Descendant Vase')
     expect(result.products[0].imageUrl).toBe('https://example.com/category.jpg')
     expect(result.total).toBe(1)
+  })
+
+  describe('browsing options', () => {
+    async function seedPricedCategory() {
+      const u = await createUser({ id: 'user-cat-opts' })
+      const s = await createShop(u, { id: 'shop-cat-opts', slug: 'shop-cat-opts' })
+      const parent = await createCategory({ name: 'Opts', slug: 'opts-parent' })
+      const child = await createCategory({
+        name: 'Opts Child',
+        slug: 'opts-child',
+        parentId: parent.id,
+      })
+      // Cheapest sits in the child category, so sorting and descendant
+      // inclusion are exercised by the same fixture.
+      await createProduct(s, {
+        id: 'prod-opts-cheap',
+        name: 'Cheap',
+        slug: 'opts-cheap',
+        priceCents: 1000,
+        stockCount: 5,
+        categoryId: child.id,
+      })
+      await createProduct(s, {
+        id: 'prod-opts-mid',
+        name: 'Mid',
+        slug: 'opts-mid',
+        priceCents: 5000,
+        stockCount: 0,
+        categoryId: parent.id,
+      })
+      await createProduct(s, {
+        id: 'prod-opts-dear',
+        name: 'Dear',
+        slug: 'opts-dear',
+        priceCents: 9000,
+        stockCount: 2,
+        categoryId: parent.id,
+      })
+    }
+
+    it('sorts by price ascending and descending', async () => {
+      await seedPricedCategory()
+
+      const asc = await listProductsByCategorySlugQuery(
+        'opts-parent',
+        { page: 1, pageSize: 20 },
+        { sort: 'price_asc' },
+      )
+      expect(asc.products.map((p) => p.name)).toEqual(['Cheap', 'Mid', 'Dear'])
+
+      const desc = await listProductsByCategorySlugQuery(
+        'opts-parent',
+        { page: 1, pageSize: 20 },
+        { sort: 'price_desc' },
+      )
+      expect(desc.products.map((p) => p.name)).toEqual(['Dear', 'Mid', 'Cheap'])
+    })
+
+    it('orders deterministically by default, so paging cannot repeat or skip', async () => {
+      await seedPricedCategory()
+
+      // The previous implementation issued no ORDER BY at all, leaving row
+      // order up to PostgreSQL. Two identical reads must agree.
+      const first = await listProductsByCategorySlugQuery('opts-parent')
+      const second = await listProductsByCategorySlugQuery('opts-parent')
+
+      expect(first.products.map((p) => p.id)).toEqual(second.products.map((p) => p.id))
+
+      const pageOne = await listProductsByCategorySlugQuery('opts-parent', {
+        page: 1,
+        pageSize: 2,
+      })
+      const pageTwo = await listProductsByCategorySlugQuery('opts-parent', {
+        page: 2,
+        pageSize: 2,
+      })
+      const seen = [...pageOne.products, ...pageTwo.products].map((p) => p.id)
+      expect(new Set(seen).size).toBe(3)
+    })
+
+    it('filters by price bounds', async () => {
+      await seedPricedCategory()
+
+      const result = await listProductsByCategorySlugQuery(
+        'opts-parent',
+        { page: 1, pageSize: 20 },
+        { minPriceCents: 2000, maxPriceCents: 8000 },
+      )
+
+      expect(result.products.map((p) => p.name)).toEqual(['Mid'])
+      expect(result.total).toBe(1)
+    })
+
+    it('filters out-of-stock products, matching search semantics', async () => {
+      await seedPricedCategory()
+
+      const result = await listProductsByCategorySlugQuery(
+        'opts-parent',
+        { page: 1, pageSize: 20 },
+        { inStockOnly: true },
+      )
+
+      expect(result.products.map((p) => p.name).sort()).toEqual(['Cheap', 'Dear'])
+    })
+
+    it('keeps descendant products under every filter combination', async () => {
+      await seedPricedCategory()
+
+      // The regression that consolidation could have introduced: routing this
+      // through `buildProductWhere`'s exact-match `categorySlug` filter would
+      // silently drop the child-category product.
+      const result = await listProductsByCategorySlugQuery(
+        'opts-parent',
+        { page: 1, pageSize: 20 },
+        { sort: 'price_asc', inStockOnly: true },
+      )
+
+      expect(result.products.map((p) => p.name)).toEqual(['Cheap', 'Dear'])
+    })
   })
 })
 
@@ -1721,5 +1841,53 @@ describe('getMarketplaceStatsQuery', () => {
     expect(stats.sellerCount).toBe(2)
     expect(stats.productCount).toBe(2)
     expect(stats.countryCount).toBe(2)
+  })
+})
+
+describe('getMoreFromShopQuery', () => {
+  it('excludes the product the buyer is already looking at', async () => {
+    const u = await createUser({ id: 'user-rail' })
+    const s = await createShop(u, { id: 'shop-rail', name: 'Rail', slug: 'shop-rail' })
+    const current = await createProduct(s, { id: 'prod-rail-current' })
+    await createProduct(s, { id: 'prod-rail-other' })
+
+    const result = await getMoreFromShopQuery('shop-rail', current.id)
+
+    expect(result.map((p) => p.id)).toEqual(['prod-rail-other'])
+  })
+
+  it('returns nothing when the shop has only this product', async () => {
+    const u = await createUser({ id: 'user-rail-solo' })
+    const s = await createShop(u, { id: 'shop-rail-solo', name: 'Solo', slug: 'shop-rail-solo' })
+    const only = await createProduct(s, { id: 'prod-rail-solo' })
+
+    expect(await getMoreFromShopQuery('shop-rail-solo', only.id)).toEqual([])
+  })
+
+  it('never offers a draft or deactivated product', async () => {
+    // Inherited from `listProductsQuery` rather than reimplemented, which is the
+    // point of routing through it — the category page's hand-rolled query is
+    // what got these wrong.
+    const u = await createUser({ id: 'user-rail-hidden' })
+    const s = await createShop(u, { id: 'shop-rail-hidden', name: 'H', slug: 'shop-rail-hidden' })
+    const current = await createProduct(s, { id: 'prod-rail-h-current' })
+    await createProduct(s, { id: 'prod-rail-h-draft', status: 'draft' })
+    await createProduct(s, { id: 'prod-rail-h-inactive', isActive: false })
+    await createProduct(s, { id: 'prod-rail-h-ok' })
+
+    const result = await getMoreFromShopQuery('shop-rail-hidden', current.id)
+
+    expect(result.map((p) => p.id)).toEqual(['prod-rail-h-ok'])
+  })
+
+  it('caps the rail at the requested size', async () => {
+    const u = await createUser({ id: 'user-rail-cap' })
+    const s = await createShop(u, { id: 'shop-rail-cap', name: 'Cap', slug: 'shop-rail-cap' })
+    const current = await createProduct(s, { id: 'prod-rail-cap-current' })
+    for (let i = 0; i < 6; i++) {
+      await createProduct(s, { id: `prod-rail-cap-${i}` })
+    }
+
+    expect(await getMoreFromShopQuery('shop-rail-cap', current.id, 4)).toHaveLength(4)
   })
 })

@@ -36,3 +36,6 @@ skills-lock.json
 .playwright-cli/
 
 
+
+# Agent worktrees and local scratch
+.claude/

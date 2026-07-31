@@ -44,6 +44,10 @@ export async function renderTemplate(
       return renderAccountSecurityAlert(data, to)
     case 'shop_moderation_update':
       return renderShopModerationUpdate(data, to)
+    case 'seller_alert':
+      return renderSellerAlert(data, to)
+    case 'statement_of_reasons':
+      return renderStatementOfReasons(data, to)
     default: {
       // Exhaustiveness check — should never happen at runtime with correct types.
       const _exhaustive: never = template
@@ -554,6 +558,124 @@ ${m.email_shop_moderation_body({ status: statusLabel })}${note ? `\n\n${note}` :
 ${m.email_shop_moderation_cta()}: ${statusUrl}
 
 ${await renderEmailLegalFooterText(to)}`
+  return { subject, html: wrapInEmailTemplate(subject, contentHtml), text }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              Seller Alert                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One template for the consequential seller events that used to be in-app only:
+ * a chargeback, a DAC7 threshold warning, and a payout.
+ *
+ * Shared rather than three near-identical templates because the shape is the
+ * same — headline, one line of detail, one link — and three copies would drift.
+ * The wording per event comes from the caller's `headline` and `body`, which are
+ * already localized message calls at the point the notification is created.
+ */
+async function renderSellerAlert(
+  data: Record<string, unknown>,
+  to?: string,
+): Promise<RenderedEmail> {
+  const headline = String(data.headline ?? m.email_seller_alert_fallback_headline())
+  const body = String(data.body ?? '')
+  const actionUrl = data.actionUrl ? String(data.actionUrl) : ''
+  const subject = m.email_seller_alert_subject({ headline })
+
+  const ctaHtml = actionUrl
+    ? `<p><a href="${escapeHtml(actionUrl)}">${escapeHtml(m.email_seller_alert_cta())}</a></p>`
+    : ''
+
+  const contentHtml = `<h1 style="margin: 0 0 16px; font-size: 24px;">${escapeHtml(headline)}</h1>
+  <p>${escapeHtml(body)}</p>
+  ${ctaHtml}
+  ${await renderEmailLegalFooterHtml(to)}`
+
+  const text = `${headline}
+
+${body}
+${actionUrl ? `\n${m.email_seller_alert_cta()}: ${actionUrl}` : ''}
+
+${await renderEmailLegalFooterText(to)}`
+
+  return { subject, html: wrapInEmailTemplate(subject, contentHtml), text }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                          Statement of Reasons                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The DSA Article 17(3) statement of reasons, mirroring what
+ * `components/notifications/StatementOfReasons.tsx` shows in the app.
+ *
+ * The in-app copy is what satisfies Article 17(1); this exists so the statement
+ * does not depend on the recipient returning to the site. Both render the same
+ * six elements from the same payload — `src/test/statement-of-reasons.test.ts`
+ * fails if either drops one.
+ */
+async function renderStatementOfReasons(
+  data: Record<string, unknown>,
+  to?: string,
+): Promise<RenderedEmail> {
+  const restriction = String(data.restriction ?? '')
+  const explanation = String(data.explanation ?? '')
+  const ground = data.ground === 'illegal' ? 'illegal' : 'terms'
+  const redress = Array.isArray(data.redress) ? data.redress.map(String) : []
+
+  const what =
+    restriction === 'hidden'
+      ? m.statement_of_reasons_what_hidden()
+      : m.statement_of_reasons_what_restricted()
+  const groundText =
+    ground === 'illegal'
+      ? m.statement_of_reasons_ground_illegal()
+      : m.statement_of_reasons_ground_terms()
+  const prompted =
+    data.promptedByNotice === true
+      ? m.statement_of_reasons_prompted_by_report()
+      : m.statement_of_reasons_prompted_by_review()
+  const automated =
+    data.automatedMeans === true
+      ? m.statement_of_reasons_automated_yes()
+      : m.statement_of_reasons_automated_no()
+
+  const redressLines: string[] = []
+  if (redress.includes('contact_support')) {
+    redressLines.push(m.statement_of_reasons_redress_support({ email: 'support@eurtisan.eu' }))
+  }
+  if (redress.includes('judicial_remedy')) {
+    redressLines.push(m.statement_of_reasons_redress_judicial())
+  }
+
+  const subject = m.statement_of_reasons_title()
+
+  const contentHtml = `<h1 style="margin: 0 0 16px; font-size: 24px;">${escapeHtml(subject)}</h1>
+  <p><strong>${escapeHtml(m.statement_of_reasons_what_label())}</strong><br />${escapeHtml(what)} ${escapeHtml(m.statement_of_reasons_scope())}</p>
+  <p><strong>${escapeHtml(m.statement_of_reasons_why_label())}</strong><br />${escapeHtml(explanation)}<br />${escapeHtml(groundText)}<br />${escapeHtml(prompted)}</p>
+  <p><strong>${escapeHtml(m.statement_of_reasons_automated_label())}</strong><br />${escapeHtml(automated)}</p>
+  <p><strong>${escapeHtml(m.statement_of_reasons_redress_label())}</strong><br />${redressLines.map(escapeHtml).join('<br />')}</p>
+  ${await renderEmailLegalFooterHtml(to)}`
+
+  const text = `${subject}
+
+${m.statement_of_reasons_what_label()}
+${what} ${m.statement_of_reasons_scope()}
+
+${m.statement_of_reasons_why_label()}
+${explanation}
+${groundText}
+${prompted}
+
+${m.statement_of_reasons_automated_label()}
+${automated}
+
+${m.statement_of_reasons_redress_label()}
+${redressLines.join('\n')}
+
+${await renderEmailLegalFooterText(to)}`
+
   return { subject, html: wrapInEmailTemplate(subject, contentHtml), text }
 }
 

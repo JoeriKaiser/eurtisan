@@ -243,10 +243,14 @@ export async function openDisputeQuery(
       notificationRecipients.set(admin.id, `/admin/disputes/${created.id}`)
     }
 
+    // Inserted directly rather than through `createNotification` because this
+    // has to be in the dispute's transaction. `type` is now constrained by the
+    // column, which is how this bypass became visible at all — it was untyped
+    // for as long as the column was `text`.
     await tx.insert(notification).values(
       Array.from(notificationRecipients, ([userId, targetPath]) => ({
         userId,
-        type: 'dispute_opened',
+        type: 'dispute_opened' as const,
         data: {
           disputeId: created.id,
           platformOrderId: shopOrderRecord.platformOrderId,

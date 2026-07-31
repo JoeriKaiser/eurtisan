@@ -1,19 +1,32 @@
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { db } from '#/db/index'
-import { orderItem, platformOrder, product, review, shop, shopOrder, user } from '#/db/schema'
+import {
+  notification,
+  orderItem,
+  platformOrder,
+  product,
+  review,
+  reviewReport,
+  shop,
+  shopOrder,
+  user,
+} from '#/db/schema'
 
+import type { NotificationType } from './notifications.server'
 import {
   createReviewQuery,
   getProductReviewsQuery,
   getReviewableItemsQuery,
+  getReviewReportsQuery,
   reportReviewQuery,
   getAdminReviewsQuery,
   updateReviewModerationStatusQuery,
 } from './reviews.server'
 
 beforeEach(async () => {
+  await db.delete(notification)
   await db.delete(review)
   await db.delete(orderItem)
   await db.delete(shopOrder)
@@ -24,6 +37,7 @@ beforeEach(async () => {
 })
 
 afterAll(async () => {
+  await db.delete(notification)
   await db.delete(review)
   await db.delete(orderItem)
   await db.delete(shopOrder)
@@ -1115,28 +1129,24 @@ describe('getProductReviewsQuery', () => {
 })
 
 describe('review moderation and flagging', () => {
-  it('reports a review successfully setting status to flagged', async () => {
+  /** A delivered order with one review on it, ready to be reported. */
+  async function seedReview(rating = 5) {
     const buyer = await seedUser()
     const s = await seedShop()
     const p = await seedProduct()
+    const address = {
+      name: 'Alice',
+      street: 'St',
+      city: 'City',
+      postalCode: '12345',
+      country: 'DE',
+    }
     const [order] = await db
       .insert(platformOrder)
       .values({
         userId: buyer.id,
-        shippingAddress: {
-          name: 'Alice',
-          street: 'St',
-          city: 'City',
-          postalCode: '12345',
-          country: 'DE',
-        },
-        billingAddress: {
-          name: 'Alice',
-          street: 'St',
-          city: 'City',
-          postalCode: '12345',
-          country: 'DE',
-        },
+        shippingAddress: address,
+        billingAddress: address,
         totalCents: 1000,
       })
       .returning()
@@ -1158,17 +1168,89 @@ describe('review moderation and flagging', () => {
         shopOrderId: so.id,
         productId: p.id,
         buyerUserId: buyer.id,
-        rating: 5,
+        rating,
         comment: 'Excellent!',
       })
       .returning()
 
+    return { buyer, shop: s, product: p, review: r }
+  }
+
+  /** A user other than the review's author, since authors cannot report. */
+  async function seedReporter(suffix: string) {
+    return seedUser({ id: `reporter-${suffix}`, email: `reporter-${suffix}@example.com` })
+  }
+
+  it('records a report without touching the review', async () => {
+    // The regression that matters: reporting used to set `flagged`, which
+    // silently removed the review from the product's `popularityScore` while
+    // leaving it on the page. One click moved search ranking.
+    const { review: r } = await seedReview()
+    const reporter = await seedReporter('a')
+
     expect(r.moderationStatus).toBe('approved')
 
-    await reportReviewQuery(r.id, buyer.id)
+    const result = await reportReviewQuery(r.id, reporter.id, 'not_authentic', null)
+    expect(result.alreadyReported).toBe(false)
 
-    const [updated] = await db.select().from(review).where(eq(review.id, r.id))
-    expect(updated.moderationStatus).toBe('flagged')
+    const [unchanged] = await db.select().from(review).where(eq(review.id, r.id))
+    expect(unchanged.moderationStatus).toBe('approved')
+
+    const reports = await db.select().from(reviewReport).where(eq(reviewReport.reviewId, r.id))
+    expect(reports).toHaveLength(1)
+    expect(reports[0].reason).toBe('not_authentic')
+    expect(reports[0].status).toBe('open')
+  })
+
+  it('keeps one notice per person rather than erroring', async () => {
+    const { review: r } = await seedReview()
+    const reporter = await seedReporter('a')
+
+    await reportReviewQuery(r.id, reporter.id, 'spam', null)
+    const second = await reportReviewQuery(r.id, reporter.id, 'offensive', 'again')
+
+    expect(second.alreadyReported).toBe(true)
+    const reports = await db.select().from(reviewReport).where(eq(reviewReport.reviewId, r.id))
+    expect(reports).toHaveLength(1)
+    // The first notice stands; a repeat does not overwrite its ground.
+    expect(reports[0].reason).toBe('spam')
+  })
+
+  it('counts notices from different people separately', async () => {
+    const { review: r } = await seedReview()
+    const [first, second] = [await seedReporter('a'), await seedReporter('b')]
+
+    await reportReviewQuery(r.id, first.id, 'not_authentic', null)
+    await reportReviewQuery(r.id, second.id, 'not_authentic', null)
+
+    const counts = await getReviewReportsQuery([r.id])
+    expect(counts.get(r.id)).toBe(2)
+  })
+
+  it('refuses to let an author report their own review', async () => {
+    const { review: r, buyer } = await seedReview()
+
+    await expect(reportReviewQuery(r.id, buyer.id, 'other', 'x')).rejects.toMatchObject({
+      status: 403,
+    })
+  })
+
+  it('rejects a report for a review that does not exist', async () => {
+    const reporter = await seedReporter('a')
+    await expect(
+      reportReviewQuery('00000000-0000-0000-0000-000000000000', reporter.id, 'spam', null),
+    ).rejects.toMatchObject({ status: 404 })
+  })
+
+  it('shows the moderation queue how many notices a review has', async () => {
+    // Admins previously saw `flagged` with no record of who reported it or why.
+    const { review: r } = await seedReview()
+    const reporter = await seedReporter('a')
+    await reportReviewQuery(r.id, reporter.id, 'personal_data', 'contains an address')
+
+    const result = await getAdminReviewsQuery('all', 1, 100)
+    const row = result.reviews.find((entry) => entry.id === r.id)
+    expect(row?.openReports).toBe(1)
   })
 
   it('filters out hidden reviews from product reviews', async () => {
@@ -1323,8 +1405,139 @@ describe('review moderation and flagging', () => {
     expect(flaggedResult.reviews).toHaveLength(1)
     expect(flaggedResult.reviews[0].id).toBe(r.id)
 
-    await updateReviewModerationStatusQuery(r.id, 'hidden')
+    await updateReviewModerationStatusQuery(r.id, 'hidden', {
+      ground: 'terms',
+      explanation: 'Off-topic',
+      actorUserId: buyer.id,
+    })
     const [updated] = await db.select().from(review).where(eq(review.id, r.id))
     expect(updated.moderationStatus).toBe('hidden')
+  })
+})
+
+describe('moderation decisions notify the people entitled to know', () => {
+  /** A review by `author`, reported by `reporter`, ready to be decided on. */
+  async function seedReportedReview() {
+    const author = await seedUser()
+    const s = await seedShop()
+    const p = await seedProduct()
+    const address = { name: 'A', street: 'St', city: 'City', postalCode: '1', country: 'DE' }
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: author.id,
+        shippingAddress: address,
+        billingAddress: address,
+        totalCents: 1000,
+      })
+      .returning()
+    const [so] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: s.id,
+        shippingMethod: 'standard',
+        shippingCostCents: 500,
+        subtotalCents: 1000,
+        status: 'delivered',
+        deliveredAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+      })
+      .returning()
+    const [r] = await db
+      .insert(review)
+      .values({ shopOrderId: so.id, productId: p.id, buyerUserId: author.id, rating: 1 })
+      .returning()
+
+    const reporter = await seedUser({ id: 'reporter-1', email: 'reporter-1@example.com' })
+    const admin = await seedUser({ id: 'admin-1', email: 'admin-1@example.com', role: 'admin' })
+    await reportReviewQuery(r.id, reporter.id, 'not_authentic', 'suspicious')
+
+    return { author, reporter, admin, review: r }
+  }
+
+  async function notificationsFor(userId: string, type: NotificationType) {
+    return db
+      .select()
+      .from(notification)
+      .where(and(eq(notification.userId, userId), eq(notification.type, type)))
+  }
+
+  it('sends the author a statement of reasons carrying the Article 17(3) elements', async () => {
+    const { author, admin, review: r } = await seedReportedReview()
+
+    await updateReviewModerationStatusQuery(r.id, 'hidden', {
+      ground: 'terms',
+      explanation: 'Names another customer.',
+      actorUserId: admin.id,
+    })
+
+    const [sent] = await notificationsFor(author.id, 'review_moderated')
+    expect(sent).toBeDefined()
+    const data = sent.data as Record<string, unknown>
+    // (a) what, where, how long — (b) the facts and whether a notice prompted it
+    expect(data.restriction).toBe('hidden')
+    expect(data.territorialScope).toBe('all')
+    expect(data.duration).toBe('indefinite')
+    expect(data.explanation).toBe('Names another customer.')
+    expect(data.promptedByNotice).toBe(true)
+    // (c) automated means, (d)/(e) the ground, (f) redress
+    expect(data.automatedMeans).toBe(false)
+    expect(data.ground).toBe('terms')
+    expect(data.redress).toEqual(['contact_support', 'judicial_remedy'])
+  })
+
+  it('tells the reporter the outcome and resolves their notice', async () => {
+    const { reporter, admin, review: r } = await seedReportedReview()
+
+    await updateReviewModerationStatusQuery(r.id, 'hidden', {
+      ground: 'illegal',
+      explanation: 'Defamatory.',
+      actorUserId: admin.id,
+    })
+
+    const [sent] = await notificationsFor(reporter.id, 'review_report_resolved')
+    expect((sent.data as Record<string, unknown>).outcome).toBe('upheld')
+
+    const [report] = await db.select().from(reviewReport).where(eq(reviewReport.reviewId, r.id))
+    expect(report.status).toBe('upheld')
+    expect(report.resolvedByUserId).toBe(admin.id)
+    expect(report.resolvedAt).not.toBeNull()
+  })
+
+  it('dismisses the notice when the review is left up', async () => {
+    const { author, reporter, admin, review: r } = await seedReportedReview()
+
+    await updateReviewModerationStatusQuery(r.id, 'approved', {
+      ground: 'terms',
+      explanation: 'Checked; it stands.',
+      actorUserId: admin.id,
+    })
+
+    const [report] = await db.select().from(reviewReport).where(eq(reviewReport.reviewId, r.id))
+    expect(report.status).toBe('dismissed')
+
+    const [sent] = await notificationsFor(reporter.id, 'review_report_resolved')
+    expect((sent.data as Record<string, unknown>).outcome).toBe('dismissed')
+
+    // Nothing changed for the author — the review was already approved — so
+    // there is no restriction to state reasons for.
+    expect(await notificationsFor(author.id, 'review_moderated')).toHaveLength(0)
+  })
+
+  it('does not restate reasons when the status is unchanged', async () => {
+    const { author, admin, review: r } = await seedReportedReview()
+
+    await updateReviewModerationStatusQuery(r.id, 'hidden', {
+      ground: 'terms',
+      explanation: 'First decision.',
+      actorUserId: admin.id,
+    })
+    await updateReviewModerationStatusQuery(r.id, 'hidden', {
+      ground: 'terms',
+      explanation: 'Same again.',
+      actorUserId: admin.id,
+    })
+
+    expect(await notificationsFor(author.id, 'review_moderated')).toHaveLength(1)
   })
 })

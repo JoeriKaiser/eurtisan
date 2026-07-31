@@ -1,8 +1,9 @@
-import { and, asc, count, eq, ne, sql } from 'drizzle-orm'
+import { and, asc, count, eq, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { product, review, shop, shopSocials } from '#/db/schema'
 import { decryptJsonb } from '../infra/encryption.server'
 import { shopProfileViewsTotal } from '../infra/metrics.server'
+import { PUBLIC_REVIEW_FILTER } from '../reviews/visibility.server'
 import { computeRatingAverage } from '../search/relevance'
 import {
   isPublishableProductionType,
@@ -63,11 +64,9 @@ async function getProductCount(shopId: string): Promise<number> {
 /**
  * Aggregate rating across every product in the shop.
  *
- * Counts everything not `hidden`, matching the display convention in
- * `getProductReviewsQuery` (`src/lib/reviews/operations.server.ts`). Note that
- * search's `popularityScore` (`src/lib/products/meilisearch.server.ts`) counts
- * approved reviews only — the two conventions already differ, and this
- * deliberately does not introduce a third.
+ * Shares `PUBLIC_REVIEW_FILTER` with the product page and the search index, so
+ * the storefront's trust signal cannot disagree with either. The three used to
+ * differ; see that constant for why they converged on `approved`.
  */
 async function getRatingSummary(shopId: string): Promise<ShopRatingSummary | null> {
   const [row] = await db
@@ -77,7 +76,7 @@ async function getRatingSummary(shopId: string): Promise<ShopRatingSummary | nul
     })
     .from(review)
     .innerJoin(product, eq(review.productId, product.id))
-    .where(and(eq(product.shopId, shopId), ne(review.moderationStatus, 'hidden')))
+    .where(and(eq(product.shopId, shopId), PUBLIC_REVIEW_FILTER))
 
   const reviewCount = row?.reviewCount ?? 0
   if (reviewCount < SHOP_RATING_MIN_REVIEWS) return null

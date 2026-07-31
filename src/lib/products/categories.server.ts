@@ -1,11 +1,12 @@
-import { count, eq, inArray, isNull, sql } from 'drizzle-orm'
+import { and, count, eq, inArray, isNull, sql } from 'drizzle-orm'
 import type { z } from 'zod'
 import { db } from '#/db/index'
-import { categories, product } from '#/db/schema'
+import { categories, product, shop } from '#/db/schema'
 import { buildCategoryTree, sanitizeSlug } from './categories-tree'
 import type { deleteCategorySchema, updateCategorySchema } from '../categories'
 import type { SafeUser } from '../server-auth'
 import { isPostgresUniqueViolation } from '../db-errors'
+import { categoryViewsTotal } from '../metrics.server'
 import { withServerCache } from '../server-cache.server'
 import { sanitizeRichText, validatePlainText } from '../xss'
 
@@ -121,18 +122,88 @@ export async function getCategoryBreadcrumbs(
   return rows.reverse()
 }
 
+/**
+ * A category's direct children, each with the number of products a buyer can
+ * actually reach beneath it — its own plus every descendant's.
+ *
+ * One recursive query rather than a count per child: the subcategory grid is on
+ * a hot anonymous page, and the number of children is not bounded.
+ *
+ * `COUNT(s.id)` rather than `COUNT(p.id)`: the shop join carries the visibility
+ * predicate, so counting the product side would include products whose shop was
+ * filtered out.
+ */
+export async function getChildCategoriesWithCounts(parentId: string) {
+  const result = await db.execute(sql`
+    WITH RECURSIVE child_tree AS (
+      SELECT id, id AS root_id FROM category WHERE parent_id = ${parentId}
+      UNION ALL
+      SELECT c.id, ct.root_id
+      FROM category c
+      INNER JOIN child_tree ct ON c.parent_id = ct.id
+    )
+    SELECT
+      cat.id,
+      cat.name,
+      cat.slug,
+      cat.description,
+      cat.parent_id AS "parentId",
+      cat.created_at AS "createdAt",
+      COUNT(s.id)::int AS "productCount"
+    FROM category cat
+    LEFT JOIN child_tree ct ON ct.root_id = cat.id
+    LEFT JOIN product p
+      ON p.category_id = ct.id AND p.status = 'published' AND p.is_active = true
+    LEFT JOIN shop s
+      ON s.id = p.shop_id AND s.status = 'active' AND s.is_suspended = false
+    WHERE cat.parent_id = ${parentId}
+    GROUP BY cat.id, cat.name, cat.slug, cat.description, cat.parent_id, cat.created_at
+    ORDER BY cat.name
+  `)
+
+  return result.rows as {
+    id: string
+    name: string
+    slug: string
+    description: string | null
+    parentId: string | null
+    createdAt: Date | null
+    productCount: number
+  }[]
+}
+
 export async function getCategoryBySlugQuery(slug: string) {
   const [category] = await db.select().from(categories).where(eq(categories.slug, slug))
   if (!category) return null
 
+  // Counted here rather than in the route loader: this is server-only, so a
+  // client-side navigation cannot inflate it, and a miss is not a view. The
+  // label is the resolved slug from the database, never the raw URL segment,
+  // so an unknown slug cannot mint a new series.
+  categoryViewsTotal.inc({ category_slug: category.slug })
+
   const [children, descendantIds] = await Promise.all([
-    db.select().from(categories).where(eq(categories.parentId, category.id)),
+    getChildCategoriesWithCounts(category.id),
     getDescendantCategoryIds(category.id),
   ])
+
+  // Counts only what a buyer can actually reach. Without the publication and
+  // shop-visibility filters this counted drafts, deactivated products, and
+  // products belonging to suspended shops — so the heading claimed more
+  // products than the grid below it could ever show.
   const productCountResult = await db
     .select({ count: count() })
     .from(product)
-    .where(inArray(product.categoryId, descendantIds))
+    .innerJoin(shop, eq(product.shopId, shop.id))
+    .where(
+      and(
+        inArray(product.categoryId, descendantIds),
+        eq(product.status, 'published'),
+        eq(product.isActive, true),
+        eq(shop.status, 'active'),
+        eq(shop.isSuspended, false),
+      ),
+    )
 
   const productCount = productCountResult[0]?.count ?? 0
   const breadcrumbs = await getCategoryBreadcrumbs(category.id)

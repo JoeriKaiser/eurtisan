@@ -15,21 +15,30 @@ vi.mock('#/lib/reviews', () => ({
   getProductReviews: mockGetProductReviews,
 }))
 
-vi.mock('#/paraglide/messages', () => ({
-  m: {
+vi.mock('#/paraglide/messages', () => {
+  // Explicit entries are the ones this file asserts on. Everything else — keys
+  // reached through the report dialog and its primitives — falls back to its own
+  // name, so an unrelated component adding a message cannot break these tests
+  // with a TypeError.
+  const explicit: Record<string, unknown> = {
     rating_out_of_five: ({ rating }: { rating: number }) => `${rating} out of 5 stars`,
     reviews_title: () => 'Reviews',
     reviews_empty_title: () => 'No reviews yet',
     reviews_empty_description: () => 'Be the first to share your experience.',
-    reviews_count: ({ count }: { count: string }) => `${count} reviews`,
-    reviews_count_single: () => '1 review',
+    reviews_count: ({ count }: { count: number }) => `${count} review${count === 1 ? '' : 's'}`,
     reviews_load_error: () => 'Failed to load reviews.',
     pagination_previous: () => 'Previous',
     pagination_next: () => 'Next',
     pagination_page_of: ({ page, totalPages }: { page: string; totalPages: string }) =>
       `Page ${page} of ${totalPages}`,
-  },
-}))
+  }
+
+  return {
+    m: new Proxy(explicit, {
+      get: (target, key: string) => target[key] ?? (() => key),
+    }),
+  }
+})
 
 function createTestQueryClient() {
   return new QueryClient({
@@ -118,7 +127,7 @@ describe('ProductReviews', () => {
     expect(screen.getByText('3 reviews')).toBeDefined()
   })
 
-  it('uses singular review count label for exactly one review', async () => {
+  it('pluralises the review count through the message format', async () => {
     mockGetProductReviews.mockResolvedValue(
       makeReviewsResult({
         total: 1,

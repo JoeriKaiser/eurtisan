@@ -23,7 +23,6 @@
   "home_categories_title": "Blader op categorie",
   "home_categories_subtitle": "Vind precies wat je zoekt",
   "home_category_spotlight_image_alt": "Een collectie handgemaakt keramiek",
-  "home_shops_title": "Uitgelichte winkels",
   "home_shops_subtitle": "Ontdek getalenteerde makers uit heel Europa",
   "home_shops_empty_title": "Wees de eerste maker",
   "home_shops_empty_desc": "Er zijn nog geen winkels geopend. Begin vandaag nog met het verkopen van je handgemaakte producten.",
@@ -251,6 +250,17 @@
   "admin_reviews_action_hide": "Verbergen",
   "admin_reviews_action_flag": "Markeren",
   "admin_reviews_no_reviews": "Geen beoordelingen gevonden.",
+  "admin_reviews_open_reports": "Meldingen",
+  "admin_reviews_decision_title_restrict": "Deze beoordeling beperken",
+  "admin_reviews_decision_title_restore": "Deze beoordeling herstellen",
+  "admin_reviews_decision_description": "De auteur krijgt te horen wat er is besloten en waarom, zoals de Digitaledienstenverordening vereist. Openstaande meldingen over deze beoordeling worden afgehandeld en de melders geïnformeerd.",
+  "admin_reviews_decision_ground_label": "Grond",
+  "admin_reviews_decision_ground_terms": "In strijd met onze voorwaarden",
+  "admin_reviews_decision_ground_illegal": "Illegale inhoud",
+  "admin_reviews_decision_explanation_label": "Reden",
+  "admin_reviews_decision_explanation_hint": "Wordt woordelijk naar de auteur gestuurd. Schrijf het voor hen, niet voor het team.",
+  "admin_reviews_decision_submit": "Toepassen en melden",
+  "admin_reviews_decision_error": "We konden dit besluit niet toepassen. Probeer het opnieuw.",
   "admin_reviews_product": "Product",
   "admin_reviews_buyer": "Koper",
   "admin_reviews_rating": "Beoordeling",
@@ -260,6 +270,18 @@
   "admin_layout_breadcrumb_reviews": "Beoordelingen",
   "reviews_report_button": "Beoordeling rapporteren",
   "reviews_report_success": "Beoordeling gerapporteerd",
+  "review_report_title": "Deze beoordeling rapporteren",
+  "review_report_description": "Vertel ons wat er mis is met deze beoordeling. Een moderator bekijkt elke melding en beslist; een melding op zichzelf verwijdert of verlaagt een beoordeling niet.",
+  "review_report_reason_label": "Reden",
+  "review_report_reason_not_authentic": "Ik betwijfel of dit van een echte koper komt",
+  "review_report_reason_offensive": "Beledigend of kwetsend",
+  "review_report_reason_spam": "Spam of reclame",
+  "review_report_reason_personal_data": "Bevat persoonsgegevens van iemand",
+  "review_report_reason_other": "Iets anders",
+  "review_report_details_label": "Wat is er mis?",
+  "review_report_details_placeholder": "Voeg toe wat de moderator helpt beslissen.",
+  "review_report_submit": "Melding versturen",
+  "review_report_error": "We konden je melding niet versturen. Probeer het opnieuw.",
   "admin_stats_total_users": "Totaal aantal gebruikers",
   "admin_stats_active_shops": "Actieve winkels",
   "admin_stats_open_disputes": "Openstaande geschillen",
@@ -285,11 +307,81 @@
   "admin_nav_shops_desc": "Recensie en moderatie van winkels.",
   "category_kicker": "Categorie",
   "category_description": "Blader door producten in de categorie {name}.",
+  "category_subcategories": "Subcategorieën",
+  "category_products_heading": "Producten",
+  "category_no_products": "Nog geen producten in deze categorie.",
+  "category_no_filter_results": "Geen producten komen overeen met deze filters.",
+  "category_product_count": [
+    {
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": [
+        "countPlural"
+      ],
+      "match": {
+        "countPlural=one": "{count} product",
+        "countPlural=other": "{count} producten"
+      }
+    }
+  ],
+  "ranking_disclosure_title": "Hoe resultaten worden gerangschikt",
+  "ranking_disclosure_no_payment": "Verkopers kunnen niet betalen voor een hogere positie. Geen enkele aanbieding op Eurtisan is gesponsord of gepromoot in ruil voor betaling.",
+  "ranking_disclosure_category_body": "Producten worden getoond in de volgorde die je kiest met de sorteerknop. Standaard staan de nieuwste aanbiedingen bovenaan. Filters verwijderen alleen producten uit de lijst; ze veranderen nooit de volgorde van de overige.",
+  "ranking_disclosure_search_body": "Bij zoeken worden resultaten gerangschikt op hoe goed ze bij je woorden passen, in deze volgorde van belang:",
+  "ranking_disclosure_search_1": "Hoeveel van je zoekwoorden een aanbieding bevat.",
+  "ranking_disclosure_search_2": "Hoe nauwkeurig de woorden gespeld zijn — een aanbieding zonder typefouten staat boven een die gecorrigeerd moest worden.",
+  "ranking_disclosure_search_3": "Hoe dicht je woorden bij elkaar staan in de aanbieding.",
+  "ranking_disclosure_search_4": "Welk deel van de aanbieding overeenkwam, in deze volgorde: productnaam, winkelnaam, categorie, dan beschrijving.",
+  "ranking_disclosure_search_5": "De sortering die je koos, als je die van Relevantie hebt gewijzigd.",
+  "ranking_disclosure_search_6": "Of de overeenkomst exact is in plaats van gedeeltelijk.",
+  "ranking_disclosure_search_7": "Of het product op voorraad is — producten op voorraad staan bovenaan.",
+  "ranking_disclosure_search_8": "De beoordelingsscore van het product, gewogen naar het aantal beoordelingen, zodat een goed beoordeeld product boven een onbewezen product staat.",
+  "ranking_disclosure_search_note": "Spellingcorrectie en synoniemen worden op je woorden toegepast, en zowel Engels als Nederlands worden herkend. Recentheid maakt bewust geen deel uit van de beoordelingsscore — gebruik daarvoor de sortering Nieuwste.",
+  "home_shops_title_recent": "Nieuwste makers",
   "sidebar_search_placeholder": "Producten zoeken...",
   "sidebar_categories_title": "Categorieën",
   "sidebar_no_categories": "Nog geen categorieën.",
   "product_card_label": "Product: {name}",
   "product_no_image": "Geen afbeelding beschikbaar",
+  "product_stock_available": "Op voorraad",
+  "product_stock_low": [
+    {
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": [
+        "countPlural"
+      ],
+      "match": {
+        "countPlural=one": "Nog maar {count} over",
+        "countPlural=other": "Nog maar {count} over"
+      }
+    }
+  ],
+  "product_dispatch_window": "Meestal verzonden binnen {min}–{max} werkdagen",
+  "product_delivery_at_checkout": "Verzendkosten en levertijd worden bij het afrekenen berekend, zodra je je adres invult.",
+  "product_rating_summary": [
+    {
+      "declarations": [
+        "input average",
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": [
+        "countPlural"
+      ],
+      "match": {
+        "countPlural=one": "{average} van de 5 · {count} beoordeling",
+        "countPlural=other": "{average} van de 5 · {count} beoordelingen"
+      }
+    }
+  ],
+  "product_more_from_shop": "Meer van {shopName}",
+  "product_more_from_shop_generic": "Meer van deze maker",
+  "product_view_all_from_shop": "Bekijk de hele winkel",
   "product_out_of_stock": "Niet op voorraad",
   "product_unknown_shop": "Onbekende winkel",
   "product_uncategorized": "Niet gecategoriseerd",
@@ -622,9 +714,35 @@
   "reviews_title": "Beoordelingen",
   "reviews_empty_title": "Nog geen beoordelingen",
   "reviews_empty_description": "Deel als eerste je ervaring met dit product.",
-  "reviews_count": "{count} beoordelingen",
-  "reviews_count_single": "1 beoordeling",
+  "reviews_count": [
+    {
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": [
+        "countPlural"
+      ],
+      "match": {
+        "countPlural=one": "{count} beoordeling",
+        "countPlural=other": "{count} beoordelingen"
+      }
+    }
+  ],
   "reviews_load_error": "Kan beoordelingen niet laden. Probeer het opnieuw.",
+  "reviews_anonymous_buyer": "Eurtisan-koper",
+  "reviews_experienced_at": "Ontvangen op {date}",
+  "review_disclosure_title": "Hoe wij met beoordelingen omgaan",
+  "review_disclosure_verified_body": "Elke beoordeling op Eurtisan komt van iemand die het product hier heeft gekocht. Dat controleren we automatisch, voordat een beoordeling geschreven kan worden:",
+  "review_disclosure_check_purchase": "Het account van de beoordelaar heeft de bestelling met dit product geplaatst.",
+  "review_disclosure_check_delivered": "De bestelling is als bezorgd gemarkeerd en er zijn 14 dagen verstreken — zo gaat de beoordeling over het gebruik, niet over het uitpakken.",
+  "review_disclosure_check_once": "Eén beoordeling per product per bestelling, zodat één aankoop niet twee keer beoordeeld kan worden.",
+  "review_disclosure_check_own": "Makers kunnen producten uit hun eigen winkel niet beoordelen.",
+  "review_disclosure_order": "Beoordelingen staan op volgorde van nieuw naar oud. Er is geen andere volgorde en geen beoordeling krijgt voorrang.",
+  "review_disclosure_dates": "Bij elke beoordeling staat de datum van publicatie en de datum waarop de koper het product ontving.",
+  "review_disclosure_moderation": "Wij bewerken beoordelingen niet. Iedereen kan er een melden, waarna een moderator ernaar kijkt — melden alleen verandert niets. Een moderator kan een beoordeling verbergen die illegaal is of in strijd met onze voorwaarden, en de auteur hoort altijd wat er is besloten en waarom.",
+  "review_disclosure_retention": "We bewaren beoordelingen zolang het product te koop staat. Verwijdert een maker het product, of sluit je je account, dan verdwijnt de beoordeling mee.",
+  "review_disclosure_no_payment": "Niemand wordt betaald of beloond voor het schrijven van een beoordeling, en makers kunnen niet betalen om er een te laten verwijderen.",
   "notifications_title": "Meldingen",
   "notifications_empty": "Je hebt nog geen meldingen.",
   "notifications_error": "Kan meldingen niet laden. Probeer het opnieuw.",
@@ -1487,7 +1605,7 @@
   "terms_section_10_title": "Intellectueel eigendom",
   "terms_section_10_text": "Verkopers behouden alle eigendomsrechten op hun producten, aanbiedingen en gerelateerde inhoud. Door Inhoud op het Platform te plaatsen, verleent u Eurtisan een niet-exclusieve, wereldwijde, royaltyvrije licentie om uw Inhoud te gebruiken, weer te geven, te reproduceren en te distribueren, uitsluitend met het doel het Platform te exploiteren en te promoten.\n\nKopers ontvangen uitsluitend de rechten die uitdrukkelijk door de Verkoper worden verleend bij aankoop van een product. U mag zonder toestemming geen afgeleide werken van Platforminhoud kopiëren, wijzigen, distribueren of creëren.",
   "terms_section_11_title": "Verboden gedrag",
-  "terms_section_11_text": "U mag het Platform niet gebruiken om:\n\n- Vermeld of verkoop nagemaakte, gestolen, illegale of gevaarlijke goederen.\n- Andere gebruikers lastigvallen, bedreigen of discrimineren.\n- Platformkosten of -beleid omzeilen of proberen te omzeilen.\n- Deelnemen aan frauduleuze activiteiten, waaronder betalingsfraude of misbruik van terugboekingen.\n- Upload kwaadaardige code of virussen of interfereer met de platformbeveiliging.\n- Inbreuk maken op intellectuele eigendomsrechten of toepasselijke wetgeving schenden.\n- Verzamel of verzamel persoonlijke gegevens van andere gebruikers zonder toestemming.",
+  "terms_section_11_text": "U mag het Platform niet gebruiken om:\n\n- Vermeld of verkoop nagemaakte, gestolen, illegale of gevaarlijke goederen.\n- Vermeld of verkoop voedsel, drank of andere producten bestemd voor consumptie. Eurtisan is niet ingericht om de informatie over ingrediënten, allergenen en herkomst te tonen die de EU-levensmiddelenwetgeving vóór een aankoop vereist.\n- Andere gebruikers lastigvallen, bedreigen of discrimineren.\n- Platformkosten of -beleid omzeilen of proberen te omzeilen.\n- Deelnemen aan frauduleuze activiteiten, waaronder betalingsfraude of misbruik van terugboekingen.\n- Upload kwaadaardige code of virussen of interfereer met de platformbeveiliging.\n- Inbreuk maken op intellectuele eigendomsrechten of toepasselijke wetgeving schenden.\n- Verzamel of verzamel persoonlijke gegevens van andere gebruikers zonder toestemming.",
   "terms_section_12_title": "Geschillenbeslechting",
   "terms_section_12_text": "Wij moedigen kopers en verkopers aan om geschillen direct en in der minne op te lossen. Eurtisan biedt een intern geschillenbeslechtingsproces dat kan worden gebruikt om onopgeloste problemen te escaleren. Wij zijn echter niet verplicht om bij geschillen te bemiddelen en aanvaarden geen aansprakelijkheid voor de uitkomst ervan.\n\nWe behouden ons het recht voor om accounts die betrokken zijn bij herhaalde geschillen, fraude of schendingen van deze Voorwaarden op te schorten of te beëindigen. Niets in deze sectie weerhoudt u ervan rechtsmiddelen via de rechtbank te zoeken.",
   "terms_section_13_title": "Beperking van aansprakelijkheid",
@@ -2092,6 +2210,34 @@
   "notification_shop_changes_requested": "Wijzigingen gevraagd voor {shopName}",
   "notification_shop_approved": "{shopName} is goedgekeurd",
   "notification_shop_active": "{shopName} is live",
+  "email_chargeback_body": "Een betaling voor een van je bestellingen is teruggedraaid door de bank van de koper. Het bedrag is ingehouden op je saldo. Open de bestelling voor de details en je vervolgstappen.",
+  "email_dac7_body": "EU-regels (DAC7) verplichten ons verkopers te melden die een omzetdrempel passeren. Je zit daar dichtbij of eroverheen, en we hebben je fiscaal identificatienummer nog niet. Vul het in bij je instellingen, zodat je uitbetalingen niet worden onderbroken.",
+  "email_payout_body": "Je uitbetaling is onderweg naar je bankrekening. Meestal staat het bedrag er binnen een paar werkdagen op.",
+  "email_seller_alert_subject": "Eurtisan: {headline}",
+  "email_seller_alert_fallback_headline": "Er is iets dat je aandacht nodig heeft",
+  "email_seller_alert_cta": "Open je studio",
+  "statement_of_reasons_title": "Waarom dit besluit is genomen",
+  "statement_of_reasons_what_label": "Wat we hebben gedaan",
+  "statement_of_reasons_what_hidden": "We hebben je beoordeling verborgen, zodat die niet meer op de productpagina staat.",
+  "statement_of_reasons_what_restricted": "We hebben je beoordeling beperkt, zodat die niet meer meetelt voor de beoordelingsscore of de positie in zoekresultaten.",
+  "statement_of_reasons_scope": "Dit geldt overal op Eurtisan en blijft van kracht tot wij anders besluiten.",
+  "statement_of_reasons_why_label": "Waarom",
+  "statement_of_reasons_ground_illegal": "De grond is dat de inhoud in strijd is met de wet.",
+  "statement_of_reasons_ground_terms": "De grond is dat de inhoud in strijd is met de voorwaarden van Eurtisan.",
+  "statement_of_reasons_prompted_by_report": "Iemand heeft je beoordeling gemeld, waarna een moderator heeft beslist.",
+  "statement_of_reasons_prompted_by_review": "Een moderator heeft dit besloten zonder dat iemand het meldde.",
+  "statement_of_reasons_automated_label": "Ging dit automatisch?",
+  "statement_of_reasons_automated_yes": "Ja, bij dit besluit zijn geautomatiseerde hulpmiddelen gebruikt.",
+  "statement_of_reasons_automated_no": "Nee. Een mens heeft dit besluit genomen; hier is niets geautomatiseerd.",
+  "statement_of_reasons_redress_label": "Als je het er niet mee eens bent",
+  "statement_of_reasons_redress_support": "Mail {email} en we kijken er opnieuw naar.",
+  "statement_of_reasons_redress_judicial": "Je kunt de zaak ook voorleggen aan een rechter in je eigen land. Niets hier beperkt dat recht.",
+  "notification_generic": "Je hebt een update",
+  "notification_review_hidden": "Je beoordeling is verborgen — bekijk waarom",
+  "notification_review_flagged": "Je beoordeling is beperkt — bekijk waarom",
+  "notification_review_restored": "Je beoordeling is weer zichtbaar",
+  "notification_review_report_upheld": "We hebben iets gedaan met de beoordeling die je meldde",
+  "notification_review_report_dismissed": "We hebben je melding bekeken en de beoordeling laten staan",
   "notification_shop_rejected": "{shopName} is niet goedgekeurd",
   "onboarding_status_review_feedback": "Feedback op de beoordeling",
   "onboarding_status_requested_section": "Onderdeel om aan te passen:",

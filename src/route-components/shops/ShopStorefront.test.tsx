@@ -215,10 +215,13 @@ function resolveNavigateSearch(previous: Record<string, unknown> = {}) {
   const call = mockNavigate.mock.calls.at(-1)?.[0] as {
     to: string
     search: (previous: Record<string, unknown>) => Record<string, unknown>
-    replace: boolean
+    replace?: boolean
   }
   expect(call.to).toBe('.')
-  expect(call.replace).toBe(true)
+  // Pushes rather than replaces: paging and filtering are steps a buyer expects
+  // the back button to undo. Applied to search, storefront, and category
+  // together so browsing history behaves the same on all three.
+  expect(call.replace).toBeUndefined()
   return call.search(previous)
 }
 

@@ -212,7 +212,9 @@ describe('markNotificationReadQuery', () => {
     }
   })
 
-  it('throws 403 when notification belongs to another user', async () => {
+  it("does not reveal that another user's notification exists", async () => {
+    // Previously 403 here and 404 for a missing id, which told a caller whether
+    // an id they do not own is real. Both are 404 now.
     const u1 = await seedUser()
     const u2 = await seedUser({ name: 'Other' })
 
@@ -223,7 +225,7 @@ describe('markNotificationReadQuery', () => {
       expect.fail('Should have thrown')
     } catch (err) {
       expect(err instanceof Response).toBe(true)
-      expect((err as Response).status).toBe(403)
+      expect((err as Response).status).toBe(404)
     }
   })
 

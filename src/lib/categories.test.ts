@@ -325,6 +325,9 @@ describe('listCategoriesWithCountsQuery', () => {
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
+        // Visible to buyers: the product count reflects what the grid below it
+        // can actually show, so draft shops and drafts do not contribute.
+        status: 'active',
       })
       .returning()
 
@@ -345,6 +348,8 @@ describe('listCategoriesWithCountsQuery', () => {
       priceCents: 2999,
       shopId: s.id,
       categoryId: root.id,
+      status: 'published',
+      isActive: true,
     })
 
     await db.insert(product).values({
@@ -354,6 +359,8 @@ describe('listCategoriesWithCountsQuery', () => {
       priceCents: 3999,
       shopId: s.id,
       categoryId: child.id,
+      status: 'published',
+      isActive: true,
     })
 
     const result = await listCategoriesWithCountsQuery()
@@ -449,6 +456,9 @@ describe('getCategoryBySlugQuery', () => {
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
+        // Visible to buyers: the product count reflects what the grid below it
+        // can actually show, so draft shops and drafts do not contribute.
+        status: 'active',
       })
       .returning()
 
@@ -464,6 +474,8 @@ describe('getCategoryBySlugQuery', () => {
       priceCents: 2999,
       shopId: s.id,
       categoryId: cat.id,
+      status: 'published',
+      isActive: true,
     })
 
     await db.insert(product).values({
@@ -473,6 +485,8 @@ describe('getCategoryBySlugQuery', () => {
       priceCents: 1999,
       shopId: s.id,
       categoryId: cat.id,
+      status: 'published',
+      isActive: true,
     })
 
     const result = await getCategoryBySlugQuery('pottery')
@@ -480,6 +494,89 @@ describe('getCategoryBySlugQuery', () => {
     expect(result).not.toBeNull()
     if (!result) throw new Error('result is null')
     expect(result.productCount).toBe(2)
+  })
+
+  it('counts only products a buyer can reach', async () => {
+    // Before this was filtered, the heading claimed more products than the grid
+    // beneath it could ever show: drafts, deactivated products, and products
+    // belonging to suspended shops all counted.
+    const [u] = await db
+      .insert(user)
+      .values({ id: 'user-vis', name: 'Test', email: 'vis@example.com', emailVerified: true })
+      .returning()
+
+    const [visibleShop] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-visible',
+        name: 'Visible',
+        slug: 'visible-shop',
+        ownerId: u.id,
+        status: 'active',
+      })
+      .returning()
+
+    const [suspendedShop] = await db
+      .insert(shop)
+      .values({
+        id: 'shop-suspended',
+        name: 'Suspended',
+        slug: 'suspended-shop',
+        ownerId: u.id,
+        status: 'active',
+        isSuspended: true,
+      })
+      .returning()
+
+    const [cat] = await db
+      .insert(categories)
+      .values({ name: 'Pottery', slug: 'pottery' })
+      .returning()
+
+    await db.insert(product).values({
+      id: 'prod-visible',
+      name: 'Visible',
+      slug: 'visible',
+      priceCents: 1000,
+      shopId: visibleShop.id,
+      categoryId: cat.id,
+      status: 'published',
+      isActive: true,
+    })
+    await db.insert(product).values({
+      id: 'prod-draft',
+      name: 'Draft',
+      slug: 'draft',
+      priceCents: 1000,
+      shopId: visibleShop.id,
+      categoryId: cat.id,
+      status: 'draft',
+      isActive: true,
+    })
+    await db.insert(product).values({
+      id: 'prod-inactive',
+      name: 'Inactive',
+      slug: 'inactive',
+      priceCents: 1000,
+      shopId: visibleShop.id,
+      categoryId: cat.id,
+      status: 'published',
+      isActive: false,
+    })
+    await db.insert(product).values({
+      id: 'prod-suspended-shop',
+      name: 'Suspended shop product',
+      slug: 'suspended-shop-product',
+      priceCents: 1000,
+      shopId: suspendedShop.id,
+      categoryId: cat.id,
+      status: 'published',
+      isActive: true,
+    })
+
+    const result = await getCategoryBySlugQuery('pottery')
+
+    expect(result?.productCount).toBe(1)
   })
 
   it('counts products recursively in descendant categories', async () => {
@@ -500,6 +597,9 @@ describe('getCategoryBySlugQuery', () => {
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
+        // Visible to buyers: the product count reflects what the grid below it
+        // can actually show, so draft shops and drafts do not contribute.
+        status: 'active',
       })
       .returning()
 
@@ -520,6 +620,8 @@ describe('getCategoryBySlugQuery', () => {
       priceCents: 2999,
       shopId: s.id,
       categoryId: parent.id,
+      status: 'published',
+      isActive: true,
     })
 
     await db.insert(product).values({
@@ -529,6 +631,8 @@ describe('getCategoryBySlugQuery', () => {
       priceCents: 3999,
       shopId: s.id,
       categoryId: child.id,
+      status: 'published',
+      isActive: true,
     })
 
     const result = await getCategoryBySlugQuery('pottery')
@@ -772,6 +876,9 @@ describe('category delete operations', () => {
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
+        // Visible to buyers: the product count reflects what the grid below it
+        // can actually show, so draft shops and drafts do not contribute.
+        status: 'active',
       })
       .returning()
 
@@ -787,6 +894,8 @@ describe('category delete operations', () => {
       priceCents: 2999,
       shopId: s.id,
       categoryId: cat.id,
+      status: 'published',
+      isActive: true,
     })
 
     const descendantIds = await getDescendantCategoryIds(cat.id)
@@ -817,6 +926,9 @@ describe('category delete operations', () => {
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
+        // Visible to buyers: the product count reflects what the grid below it
+        // can actually show, so draft shops and drafts do not contribute.
+        status: 'active',
       })
       .returning()
 
@@ -837,6 +949,8 @@ describe('category delete operations', () => {
       priceCents: 2999,
       shopId: s.id,
       categoryId: child.id,
+      status: 'published',
+      isActive: true,
     })
 
     const descendantIds = await getDescendantCategoryIds(parent.id)
@@ -867,6 +981,9 @@ describe('category delete operations', () => {
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
+        // Visible to buyers: the product count reflects what the grid below it
+        // can actually show, so draft shops and drafts do not contribute.
+        status: 'active',
       })
       .returning()
 
@@ -882,6 +999,8 @@ describe('category delete operations', () => {
       priceCents: 2999,
       shopId: s.id,
       categoryId: cat.id,
+      status: 'published',
+      isActive: true,
     })
 
     // Reassign product out of category
@@ -1063,6 +1182,9 @@ describe('deleteCategoryInternal', () => {
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
+        // Visible to buyers: the product count reflects what the grid below it
+        // can actually show, so draft shops and drafts do not contribute.
+        status: 'active',
       })
       .returning()
 
@@ -1078,6 +1200,8 @@ describe('deleteCategoryInternal', () => {
       priceCents: 2999,
       shopId: s.id,
       categoryId: cat.id,
+      status: 'published',
+      isActive: true,
     })
 
     try {
@@ -1107,6 +1231,9 @@ describe('deleteCategoryInternal', () => {
         name: 'Test Shop',
         slug: 'test-shop',
         ownerId: u.id,
+        // Visible to buyers: the product count reflects what the grid below it
+        // can actually show, so draft shops and drafts do not contribute.
+        status: 'active',
       })
       .returning()
 
@@ -1127,6 +1254,8 @@ describe('deleteCategoryInternal', () => {
       priceCents: 2999,
       shopId: s.id,
       categoryId: child.id,
+      status: 'published',
+      isActive: true,
     })
 
     try {

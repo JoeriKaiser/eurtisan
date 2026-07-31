@@ -18,6 +18,7 @@ export {
   fetchFirstImageUrls,
   getFeaturedShopsQuery,
   getMarketplaceStatsQuery,
+  getMoreFromShopQuery,
   getProductBySlugQuery,
   getProductsByShopSlugQuery,
   getShopBySlugQuery,

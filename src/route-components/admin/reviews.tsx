@@ -5,6 +5,7 @@ import { Card, CardContent } from '#/components/ui/card'
 import { Button } from '#/components/ui/button'
 import type { AdminReviewsResult } from '#/lib/reviews.server'
 import { updateReviewModerationStatus } from '#/lib/reviews'
+import { ModerationDecisionDialog, type ModerationStatus } from './reviews/ModerationDecisionDialog'
 import { m } from '#/paraglide/messages'
 import { cn } from '#/lib/cn'
 import { formatDateMedium } from '#/lib/format-date'
@@ -70,20 +71,36 @@ function AdminReviewsContent() {
     [navigate, search],
   )
 
-  const handleUpdateStatus = async (
-    reviewId: string,
-    status: 'approved' | 'flagged' | 'hidden',
-  ) => {
+  // The decision is staged rather than applied on click: it cannot be sent
+  // until a ground and an explanation exist, because the DSA Article 17
+  // statement of reasons is built from them.
+  const [pending, setPending] = useState<{ reviewId: string; status: ModerationStatus } | null>(
+    null,
+  )
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleConfirmDecision = async (ground: 'illegal' | 'terms', explanation: string) => {
+    if (!pending) return
+    setBusy(true)
+    setError(null)
     try {
-      await updateReviewModerationStatus({ data: { reviewId, status } })
+      await updateReviewModerationStatus({
+        data: { reviewId: pending.reviewId, status: pending.status, ground, explanation },
+      })
       setReviewsData((prev) => ({
         ...prev,
         reviews: prev.reviews.map((r) =>
-          r.id === reviewId ? { ...r, moderationStatus: status } : r,
+          r.id === pending.reviewId
+            ? { ...r, moderationStatus: pending.status, openReports: 0 }
+            : r,
         ),
       }))
-    } catch (err) {
-      console.error('Failed to update review status:', err)
+      setPending(null)
+    } catch {
+      setError(m.admin_reviews_decision_error())
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -152,6 +169,9 @@ function AdminReviewsContent() {
                 <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
                   {m.admin_reviews_moderation_status()}
                 </th>
+                <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
+                  {m.admin_reviews_open_reports()}
+                </th>
                 <th scope='col' className='pb-3 text-right font-semibold text-text-secondary'>
                   {m.admin_reviews_actions()}
                 </th>
@@ -191,13 +211,25 @@ function AdminReviewsContent() {
                           : m.admin_reviews_status_hidden()}
                     </span>
                   </td>
+                  <td className='py-3 pr-4 tabular-nums text-text-secondary'>
+                    {review.openReports > 0 ? (
+                      <span className='inline-flex items-center rounded-full border border-warning/20 bg-warning-subtle px-2.5 py-0.5 text-xs font-semibold text-warning'>
+                        {review.openReports}
+                      </span>
+                    ) : (
+                      <span className='text-text-muted'>0</span>
+                    )}
+                  </td>
                   <td className='py-3 text-right whitespace-nowrap'>
                     <div className='flex items-center justify-end gap-2'>
                       {review.moderationStatus !== 'approved' && (
                         <Button
                           variant='secondary'
                           size='sm'
-                          onClick={() => handleUpdateStatus(review.id, 'approved')}
+                          onClick={() => {
+                            setError(null)
+                            setPending({ reviewId: review.id, status: 'approved' })
+                          }}
                           className='inline-flex items-center gap-1'
                         >
                           <Check size={14} />
@@ -208,7 +240,10 @@ function AdminReviewsContent() {
                         <Button
                           variant='danger'
                           size='sm'
-                          onClick={() => handleUpdateStatus(review.id, 'hidden')}
+                          onClick={() => {
+                            setError(null)
+                            setPending({ reviewId: review.id, status: 'hidden' })
+                          }}
                           className='inline-flex items-center gap-1'
                         >
                           <EyeOff size={14} />
@@ -219,7 +254,10 @@ function AdminReviewsContent() {
                         <Button
                           variant='secondary'
                           size='sm'
-                          onClick={() => handleUpdateStatus(review.id, 'flagged')}
+                          onClick={() => {
+                            setError(null)
+                            setPending({ reviewId: review.id, status: 'flagged' })
+                          }}
                           className='inline-flex items-center gap-1'
                         >
                           <Flag size={14} />
@@ -234,6 +272,17 @@ function AdminReviewsContent() {
           </table>
         </div>
       )}
+
+      <ModerationDecisionDialog
+        open={pending !== null}
+        status={pending?.status ?? null}
+        busy={busy}
+        error={error}
+        onOpenChange={(open) => {
+          if (!open) setPending(null)
+        }}
+        onConfirm={handleConfirmDecision}
+      />
 
       {/* Pagination */}
       {reviewsData.totalPages > 1 && (

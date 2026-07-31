@@ -35,6 +35,66 @@ Before substantial work:
 
 If documentation and implementation disagree, inspect the implementation and correct the relevant canonical document as part of the change.
 
+## Next steps
+
+The feature-depth register ([`docs/plans/feature-depth-backlog.md`](docs/plans/feature-depth-backlog.md))
+is closed: all five entries have been through the benchmark. Each has a plan
+document in `docs/plans/` recording what was found, what was built, and what was
+deliberately left. **Read the relevant plan before reopening any of these** — the
+reasoning behind a deferral is usually the useful part.
+
+What remains, roughly in the order I would take it:
+
+1. **CRD Art. 6a(1)(b) trader / non-trader declaration.** The oldest open item,
+   blocked since the storefront phase. `ShopIdentityHeader` reserves the position
+   and documents the dependency. The declaration is **not** collected at
+   onboarding and **must not** be inferred from `legalEntityType`, which is a
+   DAC7 tax field answering a different question. Needs an onboarding step, a
+   column, and a backfill decision for existing shops.
+2. **Editing a shop's shipping origin destroys its processing times.** The
+   settings write path validates a narrower object and replaces the stored value
+   wholesale. Small, real, and now load-bearing in two places: the storefront
+   policies panel and the product page's dispatch line, both of which degrade to
+   showing nothing. Filed under "Filed from research, not yet planned" in the
+   register.
+3. **Reviews depth** — seller replies, helpfulness voting, sort/filter by rating.
+   Deferred deliberately: the integrity hole came first. Seller replies are their
+   own moderation surface and inherit the DSA Article 16/17 machinery already
+   built rather than reusing it for free.
+4. **Notifications depth** — grouping/digesting and per-type in-app preferences.
+   Preferences should follow `lib/notifications/delivery.ts`, not precede it:
+   they toggle exactly what that table declares.
+5. **Unit pricing (Directive 98/6/EC)** and a lawyer's read on **cosmetics
+   labelling** for Soap & Bath. Both are flagged in
+   [`docs/plans/product-detail-overhaul.md`](docs/plans/product-detail-overhaul.md)
+   §1.1 and neither is claimed as settled.
+
+Two standing constraints that shaped all of the above and should keep doing so:
+
+- **Legal work is scoped to what is actually required.** Where an obligation was
+  uncertain, it was verified against the legislative text rather than recalled —
+  and where it did not apply, that was recorded rather than padded. DSA Art. 19
+  exempts micro and small enterprises from Section 3 (Arts 20–28) **only**;
+  Arts 16 and 17 apply at any size.
+- **Eurtisan does not sell food.** The categories were removed and the terms say
+  so. Do not re-add a food category without building the Regulation (EU)
+  1169/2011 Art. 14 fields first — ingredients, allergens, net quantity, storage
+  conditions, and the food business operator's address, all required on the
+  listing *before* purchase.
+
+Where a disclosure's accuracy is legally load-bearing, it is pinned to the code
+it describes by a test rather than left to review: see
+`src/test/ranking-disclosure-accuracy.test.ts`,
+`src/test/review-disclosure-accuracy.test.ts`, and
+`src/test/review-visibility.test.ts`. Follow that pattern for new ones — a
+drifted disclosure is an inaccurate statement, which is the failure these
+articles penalise.
+
+**The E2E suite has not been run across any of this work.** Four phases of
+changes are covered by unit, component, and accessibility gates only. There were
+18 pre-existing unrelated failures at the start; run `make e2e` before release
+and reconcile against that baseline.
+
 ## Decision order
 
 When requirements conflict, prioritize:

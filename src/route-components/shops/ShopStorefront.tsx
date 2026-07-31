@@ -1,6 +1,7 @@
 import { Link, useRouter } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
 import { useCallback, useRef } from 'react'
+import { BrowseFilters } from '#/components/browse/BrowseFilters'
 import ProductGrid from '#/components/ProductGrid'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
@@ -11,7 +12,6 @@ import { ShopAnnouncement } from './storefront/ShopAnnouncement'
 import { ShopBanner } from './storefront/ShopBanner'
 import { ShopIdentityHeader } from './storefront/ShopIdentityHeader'
 import { ShopPoliciesPanel } from './storefront/ShopPoliciesPanel'
-import { ShopProductFilters } from './storefront/ShopProductFilters'
 import { ShopSocialLinks } from './storefront/ShopSocialLinks'
 import { ShopStoryPanel } from './storefront/ShopStoryPanel'
 
@@ -85,6 +85,9 @@ export default function ShopStorefront({
         )
       }
 
+      // `push`, not `replace`: paging and filtering are steps a buyer expects
+      // the back button to undo. Applied to search, storefront, and category
+      // together so browsing history behaves the same on all three.
       router.navigate({
         to: '.',
         // `to: '.'` widens the router's search type to the union of every route
@@ -92,7 +95,6 @@ export default function ShopStorefront({
         // page actually produces is `StorefrontSearchParams`, validated on
         // arrival by `shopSearchSchema`.
         search: reduce as never,
-        replace: true,
       })
     },
     [router],
@@ -198,7 +200,7 @@ export default function ShopStorefront({
         {/* An empty shop gets no controls: sorting nothing three ways reads as
             a broken page rather than an unstocked one. */}
         {(shop.productCount > 0 || hasActiveFilters) && (
-          <ShopProductFilters
+          <BrowseFilters
             categories={categories}
             categorySlug={categorySlug}
             inStockOnly={inStockOnly}

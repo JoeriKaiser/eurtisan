@@ -471,7 +471,7 @@ describe('deleteUserAccount', () => {
     await createSession(u, { expiresAt: new Date(Date.now() + 86_400_000) })
     await createAccount(u, { accountId: 'acc', providerId: 'email' })
     await createTwoFactor(u, { secret: 'secret', backupCodes: 'codes' })
-    await createNotification(u, { type: 'welcome', data: {} })
+    await createNotification(u, { type: 'order_placed', data: {} })
     const cartRecord = await createCart(u)
     await createCartItem(cartRecord, p, { quantity: 1 })
     await createReview(so, p, u, { rating: 5, comment: 'Great!' })

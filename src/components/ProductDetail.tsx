@@ -8,24 +8,30 @@ import {
   Plus,
   ShoppingCart,
   Store,
+  Truck,
 } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { useCart } from '#/components/CartProvider'
+import { MoreFromShop } from '#/components/product/MoreFromShop'
 import ProductReviews from '#/components/ProductReviews'
+import { StarRating } from '#/components/ui/StarRating'
 import { useAddToCart } from '#/lib/cart-hooks'
 import { formatPriceEUR } from '#/lib/pricing'
-import type { ProductDetail as ProductDetailType } from '#/lib/products.server'
+import { resolveAvailability } from '#/lib/products/availability'
+import type { ProductDetail as ProductDetailType, PublicProduct } from '#/lib/products.server'
 import { getProductImageTransitionName } from '#/lib/view-transitions'
 import { ResponsiveImage } from '#/lib/responsive-image'
 import { m } from '#/paraglide/messages'
 
 export interface ProductDetailProps {
+  /** Other products from the same shop. Empty when the shop has none. */
+  moreFromShop?: PublicProduct[]
   product: ProductDetailType
 }
 
 type AddStatus = 'idle' | 'success' | 'error' | 'capped'
 
-export default function ProductDetail({ product }: ProductDetailProps) {
+export default function ProductDetail({ product, moreFromShop = [] }: ProductDetailProps) {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0)
   const [quantity, setQuantity] = useState(1)
   const [isAdding, setIsAdding] = useState(false)
@@ -35,6 +41,7 @@ export default function ProductDetail({ product }: ProductDetailProps) {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const isOutOfStock = product.stockCount <= 0
+  const availability = resolveAvailability(product.stockCount, product.lowStockThreshold)
   const images = product.images ?? []
   const selectedImage = images[selectedImageIndex]
 
@@ -170,18 +177,59 @@ export default function ProductDetail({ product }: ProductDetailProps) {
               {product.shopIsVatRegistered ? m.vat_included() : m.vat_exempt_short()}
             </p>
 
+            {/* The aggregate is already computed for the summary at the bottom
+                of the page; buyers look for it beside the price. */}
+            {product.rating && (
+              <a
+                href='#product-reviews'
+                className='mb-3 inline-flex items-center gap-2 text-sm text-text-secondary no-underline hover:text-text-primary hover:underline'
+              >
+                <StarRating rating={Math.round(product.rating.average)} />
+                <span>
+                  {m.product_rating_summary({
+                    average: product.rating.average.toFixed(1),
+                    count: product.rating.reviewCount,
+                  })}
+                </span>
+              </a>
+            )}
+
+            {/* Availability language follows the seller's own threshold, not a
+                number picked here. `resolveAvailability` documents why. */}
             <div className='mb-4 flex items-center gap-2 text-sm text-text-secondary'>
-              {isOutOfStock ? (
+              {availability.kind === 'out_of_stock' && (
                 <span className='inline-flex items-center gap-1 text-red-600 dark:text-red-400'>
                   <PackageX size={14} aria-hidden='true' />
                   {m.product_out_of_stock()}
                 </span>
-              ) : (
-                <span className='inline-flex items-center gap-1 text-success'>
+              )}
+              {availability.kind === 'low_stock' && (
+                <span className='inline-flex items-center gap-1 text-warning'>
                   <PackageCheck size={14} aria-hidden='true' />
-                  {m.product_in_stock({ count: product.stockCount })}
+                  {m.product_stock_low({ count: availability.count })}
                 </span>
               )}
+              {availability.kind === 'in_stock' && (
+                <span className='inline-flex items-center gap-1 text-success'>
+                  <PackageCheck size={14} aria-hidden='true' />
+                  {m.product_stock_available()}
+                </span>
+              )}
+            </div>
+
+            {/* Dispatch only. Transit time needs a destination, and a delivery
+                date that changes at checkout costs more trust than it wins. */}
+            <div className='mb-4 space-y-1 text-sm text-text-secondary'>
+              {product.dispatchDays && (
+                <p className='m-0 inline-flex items-center gap-1.5'>
+                  <Truck size={14} aria-hidden='true' />
+                  {m.product_dispatch_window({
+                    min: product.dispatchDays.min,
+                    max: product.dispatchDays.max,
+                  })}
+                </p>
+              )}
+              <p className='m-0 text-xs text-text-muted'>{m.product_delivery_at_checkout()}</p>
             </div>
 
             {product.description && (
@@ -304,8 +352,16 @@ export default function ProductDetail({ product }: ProductDetailProps) {
         </div>
       </div>
 
+      {moreFromShop.length > 0 && product.shopSlug && (
+        <MoreFromShop
+          products={moreFromShop}
+          shopSlug={product.shopSlug}
+          shopName={product.shopName}
+        />
+      )}
+
       {/* Reviews */}
-      <div className='mt-8'>
+      <div className='mt-8' id='product-reviews'>
         <ProductReviews productId={product.id} />
       </div>
     </main>

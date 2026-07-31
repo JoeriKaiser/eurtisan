@@ -3,18 +3,29 @@ import {
   AlertTriangle,
   Banknote,
   Bell,
+  Flag,
   Package,
   PackageMinus,
   Star,
   Truck,
+  ShieldAlert,
   Undo2,
   Store,
 } from 'lucide-react'
+import { StatementOfReasons } from '#/components/notifications/StatementOfReasons'
 import { formatDateShort } from '#/lib/format-date'
 import type { NotificationItem, NotificationType } from '#/lib/notifications.server'
 import { useMarkAllNotificationsRead, useMarkNotificationRead } from '#/lib/notifications-hooks'
 import { m } from '#/paraglide/messages'
 import { Button } from './ui/button'
+
+/**
+ * Shown for a type this build does not know — a row written before a type was
+ * retired, or by a newer deploy during a rollout. Without it the icon slot
+ * renders `undefined` and the row becomes a button with no icon and no text,
+ * announced as a bare timestamp.
+ */
+const FALLBACK_ICON = <Bell size={18} aria-hidden='true' />
 
 const TYPE_ICONS: Record<NotificationType, React.ReactNode> = {
   order_placed: <Package size={18} aria-hidden='true' />,
@@ -28,6 +39,8 @@ const TYPE_ICONS: Record<NotificationType, React.ReactNode> = {
   dac7_warning_limit: <AlertTriangle size={18} aria-hidden='true' />,
   low_stock: <PackageMinus size={18} aria-hidden='true' />,
   shop_moderation_update: <Store size={18} aria-hidden='true' />,
+  review_moderated: <ShieldAlert size={18} aria-hidden='true' />,
+  review_report_resolved: <Flag size={18} aria-hidden='true' />,
 }
 
 function formatRelativeTime(date: Date): string {
@@ -93,6 +106,14 @@ function resolveDeepLink(item: NotificationItem): string | null {
       if (shopId) return `/sell/status/${shopId}`
       break
     }
+    // Both review notifications deep-link to the review's product, which is
+    // where the recipient can see the outcome for themselves.
+    case 'review_moderated':
+    case 'review_report_resolved': {
+      const productSlug = data.productSlug ?? data.productId
+      if (productSlug) return `/shops/${data.shopSlug ?? 'unknown'}/products/${productSlug}`
+      break
+    }
   }
   return null
 }
@@ -154,9 +175,49 @@ function notificationPreview(item: NotificationItem): string {
           })
       }
     }
+    case 'review_moderated':
+      // The preview names the decision so the row is recognisable in the list;
+      // the full Article 17(3) statement is rendered beside it by
+      // `StatementOfReasons`.
+      return data.restriction === 'hidden'
+        ? m.notification_review_hidden()
+        : data.restriction === 'flagged'
+          ? m.notification_review_flagged()
+          : m.notification_review_restored()
+    case 'review_report_resolved':
+      return data.outcome === 'upheld'
+        ? m.notification_review_report_upheld()
+        : m.notification_review_report_dismissed()
     default:
-      return ''
+      // Not silently empty: an unknown type still has to say something, or the
+      // row is a button a screen reader announces as a relative time and
+      // nothing else.
+      return m.notification_generic()
   }
+}
+
+/**
+ * The human-written prose a notification carries, if any.
+ *
+ * Two types carry an explanation someone typed, under different keys — the key
+ * names differ because the things differ, and flattening them to one would lose
+ * that. What was wrong before was not the two keys but that the mapping lived
+ * inline in the JSX for exactly one of them, so the other rendered nothing.
+ */
+function notificationDetail(item: NotificationItem): string | null {
+  const data = item.data as Record<string, string | undefined>
+
+  const prose =
+    item.type === 'shop_moderation_update'
+      ? data.note
+      : item.type === 'review_moderated'
+        ? data.explanation
+        : // Any future type can opt in by setting `detail`, rather than by
+          // adding a branch here.
+          data.detail
+
+  const trimmed = prose?.trim()
+  return trimmed ? trimmed : null
 }
 
 export interface NotificationsPageProps {
@@ -232,13 +293,9 @@ export function NotificationsPage({
             <ul className='space-y-3' aria-label={m.notifications_title()}>
               {notifications.map((item) => {
                 const isUnread = !item.readAt
-                const data = item.data as Record<string, string | undefined>
-                const moderationDetail =
-                  item.type === 'shop_moderation_update' && data.note?.trim()
-                    ? data.note.trim()
-                    : null
+                const detail = notificationDetail(item)
                 const describedBy = [
-                  moderationDetail ? `notif-detail-${item.id}` : null,
+                  detail ? `notif-detail-${item.id}` : null,
                   isUnread ? `notif-status-${item.id}` : null,
                 ]
                   .filter(Boolean)
@@ -264,7 +321,7 @@ export function NotificationsPage({
                             : 'bg-surface-inset text-text-muted'
                         }`}
                       >
-                        {TYPE_ICONS[item.type]}
+                        {TYPE_ICONS[item.type] ?? FALLBACK_ICON}
                       </div>
                       <div className='min-w-0 flex-1'>
                         <p
@@ -275,12 +332,12 @@ export function NotificationsPage({
                         >
                           {notificationPreview(item)}
                         </p>
-                        {moderationDetail && (
+                        {detail && (
                           <p
                             id={`notif-detail-${item.id}`}
                             className='mt-1 line-clamp-2 text-sm leading-relaxed text-text-secondary'
                           >
-                            {moderationDetail}
+                            {detail}
                           </p>
                         )}
                         <p id={`notif-time-${item.id}`} className='mt-1 text-xs text-text-muted'>
@@ -299,6 +356,11 @@ export function NotificationsPage({
                         </>
                       )}
                     </button>
+
+                    {/* Beside the button, never inside it: the statement carries
+                        a redress link, and a link nested in a button is invalid
+                        and unreachable by keyboard. */}
+                    {item.type === 'review_moderated' && <StatementOfReasons item={item} />}
                   </li>
                 )
               })}

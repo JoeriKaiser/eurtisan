@@ -115,7 +115,7 @@ describe('HomePage', () => {
     const shops = [makeShop('shop-1'), makeShop('shop-2')]
     render(<HomePage categories={[]} products={[]} shops={shops} />)
     const featuredShopsSection = screen
-      .getByRole('heading', { name: 'Featured shops' })
+      .getByRole('heading', { name: 'Newest makers' })
       .closest('section') as HTMLElement
     expect(featuredShopsSection).toBeDefined()
     expect(within(featuredShopsSection).getByText('Shop shop-1')).toBeDefined()
@@ -145,7 +145,7 @@ describe('HomePage', () => {
     const shops = [makeShop('shop-1', { productCount: 1 })]
     render(<HomePage categories={[]} products={[]} shops={shops} />)
     const featuredShopsSection = screen
-      .getByRole('heading', { name: 'Featured shops' })
+      .getByRole('heading', { name: 'Newest makers' })
       .closest('section') as HTMLElement
     expect(within(featuredShopsSection).getByText('1 product')).toBeDefined()
   })
@@ -219,7 +219,7 @@ describe('HomePage', () => {
 
   it('does not show featured shops heading when shops array is empty', () => {
     render(<HomePage categories={[]} products={[]} shops={[]} />)
-    expect(screen.queryByText('Featured shops')).toBeNull()
+    expect(screen.queryByText('Newest makers')).toBeNull()
   })
 
   it('has accessible search input with aria-invalid on error', () => {
@@ -235,7 +235,7 @@ describe('HomePage', () => {
     const shops = [makeShop('shop-1', { slug: 'artisan-studio' })]
     render(<HomePage categories={[]} products={[]} shops={shops} />)
     const featuredShopsSection = screen
-      .getByRole('heading', { name: 'Featured shops' })
+      .getByRole('heading', { name: 'Newest makers' })
       .closest('section') as HTMLElement
     const link = within(featuredShopsSection).getByText('Shop shop-1').closest('a')
     expect(link?.getAttribute('href')).toBe('/shops/$shopSlug')

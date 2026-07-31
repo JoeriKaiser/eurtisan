@@ -51,7 +51,11 @@ export function HomeFeaturedShops({ shops }: HomeFeaturedShopsProps) {
             id='shops-heading'
             className='display-title text-3xl font-bold tracking-tight text-text-primary sm:text-4xl'
           >
-            {m.home_shops_title()}
+            {/* "Newest makers", not "Featured shops": `getFeaturedShopsQuery`
+                orders purely by `shop.createdAt`. Presenting recency as
+                editorial selection is the kind of ranking claim C. consom.
+                L.111-7 targets, and no shop pays or is chosen for this slot. */}
+            {m.home_shops_title_recent()}
           </h2>
           <p className='mt-1.5 text-xs sm:text-sm text-text-secondary font-sans'>
             {m.home_shops_subtitle()}

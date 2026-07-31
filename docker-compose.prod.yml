@@ -462,6 +462,33 @@ services:
     command: >
       sh -c "bun run job:search-event-cleanup"
 
+  notification-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-notification-cleanup
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:notification-cleanup"
+
   payout-reconciliation-log-cleanup:
     image: eurtisan-app:${IMAGE_TAG:-latest}
     container_name: eurtisan-payout-reconciliation-log-cleanup

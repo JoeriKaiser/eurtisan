@@ -19,6 +19,7 @@ Summary for GDPR and operations. Align `/privacy` if customer-facing text must m
 | Brevo webhook events | 30 days | `job:email-retention-cleanup` |
 | Sendcloud webhook events | 30 days | `job:sendcloud-retention-cleanup` |
 | Payout reconciliation logs | 365 days (configurable) | `job:payout-reconciliation-log-cleanup`; set `PAYOUT_RECONCILIATION_LOG_RETENTION_DAYS` |
+| In-app notifications | 365 days after being **read** (configurable) | `job:notification-cleanup`; set `NOTIFICATION_RETENTION_DAYS`. Unread notifications are never purged — they are undelivered information, and age is not consent to forget. The clock runs from `read_at`, not creation |
 | S3 uploads | Until entity deleted | Optional bucket lifecycle rules |
 | DB backups | 30 days local, 90 days off-site | `infrastructure/README.md`; configure `BACKUP_RETENTION_DAYS` and `BACKUP_OFFSITE_RETENTION_DAYS` |
 

@@ -181,7 +181,6 @@ export function SearchFilters({
             <Link
               to='/search'
               search={{}}
-              replace
               className='mt-4 inline-flex min-h-11 items-center gap-1.5 py-2 text-sm font-semibold text-text-secondary no-underline transition-colors hover:text-text-primary'
             >
               <X size={15} aria-hidden='true' />

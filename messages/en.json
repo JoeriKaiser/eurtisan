@@ -23,7 +23,6 @@
   "home_categories_title": "Browse by category",
   "home_categories_subtitle": "Find exactly what you are looking for",
   "home_category_spotlight_image_alt": "A collection of handmade ceramics",
-  "home_shops_title": "Featured shops",
   "home_shops_subtitle": "Discover talented makers from across Europe",
   "home_shops_empty_title": "Be the first creator",
   "home_shops_empty_desc": "No shops have opened yet. Start selling your handmade goods today.",
@@ -251,6 +250,17 @@
   "admin_reviews_action_hide": "Hide",
   "admin_reviews_action_flag": "Flag",
   "admin_reviews_no_reviews": "No reviews found.",
+  "admin_reviews_open_reports": "Reports",
+  "admin_reviews_decision_title_restrict": "Restrict this review",
+  "admin_reviews_decision_title_restore": "Restore this review",
+  "admin_reviews_decision_description": "The author is told what was decided and why, as the Digital Services Act requires. Any open reports on this review are resolved and their reporters notified.",
+  "admin_reviews_decision_ground_label": "Ground",
+  "admin_reviews_decision_ground_terms": "Breaks our terms",
+  "admin_reviews_decision_ground_illegal": "Illegal content",
+  "admin_reviews_decision_explanation_label": "Reason",
+  "admin_reviews_decision_explanation_hint": "Sent to the author word for word. Write it for them, not for the team.",
+  "admin_reviews_decision_submit": "Apply and notify",
+  "admin_reviews_decision_error": "We could not apply this decision. Please try again.",
   "admin_reviews_product": "Product",
   "admin_reviews_buyer": "Buyer",
   "admin_reviews_rating": "Rating",
@@ -260,6 +270,18 @@
   "admin_layout_breadcrumb_reviews": "Reviews",
   "reviews_report_button": "Report review",
   "reviews_report_success": "Review reported",
+  "review_report_title": "Report this review",
+  "review_report_description": "Tell us what is wrong with this review. A moderator reviews every report and decides; reporting on its own does not remove or demote a review.",
+  "review_report_reason_label": "Reason",
+  "review_report_reason_not_authentic": "I doubt this is from a real buyer",
+  "review_report_reason_offensive": "Offensive or abusive",
+  "review_report_reason_spam": "Spam or advertising",
+  "review_report_reason_personal_data": "Contains someone's personal details",
+  "review_report_reason_other": "Something else",
+  "review_report_details_label": "What is wrong?",
+  "review_report_details_placeholder": "Add anything that helps the moderator decide.",
+  "review_report_submit": "Send report",
+  "review_report_error": "We could not send your report. Please try again.",
   "admin_stats_total_users": "Total Users",
   "admin_stats_active_shops": "Active Shops",
   "admin_stats_open_disputes": "Open Disputes",
@@ -285,11 +307,81 @@
   "admin_nav_shops_desc": "Review and moderate shops.",
   "category_kicker": "Category",
   "category_description": "Browse products in the {name} category.",
+  "category_subcategories": "Subcategories",
+  "category_products_heading": "Products",
+  "category_no_products": "No products in this category yet.",
+  "category_no_filter_results": "No products match these filters.",
+  "category_product_count": [
+    {
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": [
+        "countPlural"
+      ],
+      "match": {
+        "countPlural=one": "{count} product",
+        "countPlural=other": "{count} products"
+      }
+    }
+  ],
+  "ranking_disclosure_title": "How results are ordered",
+  "ranking_disclosure_no_payment": "Sellers cannot pay to rank higher. No listing on Eurtisan is sponsored or promoted in exchange for payment.",
+  "ranking_disclosure_category_body": "Products are shown in the order you choose with the sort control. By default the newest listings come first. Filters only remove products from the list; they never change the order of the ones that remain.",
+  "ranking_disclosure_search_body": "When you search, results are ordered by how well they match your words, in this order of importance:",
+  "ranking_disclosure_search_1": "How many of your search words a listing matches.",
+  "ranking_disclosure_search_2": "How closely the words are spelled — a listing matching without typos ranks above one that needed a correction.",
+  "ranking_disclosure_search_3": "How close your words appear to each other in the listing.",
+  "ranking_disclosure_search_4": "Which part of the listing matched, in this order: product name, shop name, category, then description.",
+  "ranking_disclosure_search_5": "The sort you chose, if you changed it from Relevance.",
+  "ranking_disclosure_search_6": "Whether the match is exact rather than partial.",
+  "ranking_disclosure_search_7": "Whether the product is in stock — in-stock products come first.",
+  "ranking_disclosure_search_8": "The product's review score, weighted by how many reviews back it up, so a well-reviewed product outranks an unproven one.",
+  "ranking_disclosure_search_note": "Spelling correction and synonyms are applied to your words, and both English and Dutch are recognised. Recency is deliberately not part of the review score — use the Newest sort for that.",
+  "home_shops_title_recent": "Newest makers",
   "sidebar_search_placeholder": "Search products...",
   "sidebar_categories_title": "Categories",
   "sidebar_no_categories": "No categories yet.",
   "product_card_label": "Product: {name}",
   "product_no_image": "No image available",
+  "product_stock_available": "In stock",
+  "product_stock_low": [
+    {
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": [
+        "countPlural"
+      ],
+      "match": {
+        "countPlural=one": "Only {count} left",
+        "countPlural=other": "Only {count} left"
+      }
+    }
+  ],
+  "product_dispatch_window": "Usually dispatched in {min}–{max} business days",
+  "product_delivery_at_checkout": "Delivery cost and time are calculated at checkout, once you enter your address.",
+  "product_rating_summary": [
+    {
+      "declarations": [
+        "input average",
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": [
+        "countPlural"
+      ],
+      "match": {
+        "countPlural=one": "{average} out of 5 · {count} review",
+        "countPlural=other": "{average} out of 5 · {count} reviews"
+      }
+    }
+  ],
+  "product_more_from_shop": "More from {shopName}",
+  "product_more_from_shop_generic": "More from this maker",
+  "product_view_all_from_shop": "View the whole shop",
   "product_out_of_stock": "Out of stock",
   "product_unknown_shop": "Unknown shop",
   "product_uncategorized": "Uncategorized",
@@ -622,9 +714,35 @@
   "reviews_title": "Reviews",
   "reviews_empty_title": "No reviews yet",
   "reviews_empty_description": "Be the first to share your experience with this product.",
-  "reviews_count": "{count} reviews",
-  "reviews_count_single": "1 review",
+  "reviews_count": [
+    {
+      "declarations": [
+        "input count",
+        "local countPlural = count: plural"
+      ],
+      "selectors": [
+        "countPlural"
+      ],
+      "match": {
+        "countPlural=one": "{count} review",
+        "countPlural=other": "{count} reviews"
+      }
+    }
+  ],
   "reviews_load_error": "Failed to load reviews. Please try again.",
+  "reviews_anonymous_buyer": "Eurtisan buyer",
+  "reviews_experienced_at": "Received {date}",
+  "review_disclosure_title": "How we handle reviews",
+  "review_disclosure_verified_body": "Every review on Eurtisan comes from someone who bought the product here. We check this automatically, before a review can be written:",
+  "review_disclosure_check_purchase": "The reviewer's account placed the order that contains the product.",
+  "review_disclosure_check_delivered": "The order was marked delivered, and 14 days have passed since — so the review reflects living with the product, not unboxing it.",
+  "review_disclosure_check_once": "One review per product per order, so a single purchase cannot be reviewed twice.",
+  "review_disclosure_check_own": "Makers cannot review products from their own shop.",
+  "review_disclosure_order": "Reviews are shown newest first. There is no other ordering, and no review is promoted above another.",
+  "review_disclosure_dates": "Each review shows the date it was published and the date the buyer received the product.",
+  "review_disclosure_moderation": "We do not edit reviews. Anyone can report one, which sends it to a moderator — reporting alone changes nothing. A moderator can hide a review that is illegal or breaks our terms, and the author is always told what was decided and why.",
+  "review_disclosure_retention": "We keep reviews for as long as the product is listed. If a maker removes the product, or you close your account, the review goes with it.",
+  "review_disclosure_no_payment": "Nobody is paid or rewarded for writing a review, and makers cannot pay to have one removed.",
   "notifications_title": "Notifications",
   "notifications_empty": "You have no notifications yet.",
   "notifications_error": "Failed to load notifications. Please try again.",
@@ -1487,7 +1605,7 @@
   "terms_section_10_title": "Intellectual Property",
   "terms_section_10_text": "Sellers retain all ownership rights to their products, listings, and related content. By submitting Content to the Platform, you grant Eurtisan a non-exclusive, worldwide, royalty-free license to use, display, reproduce, and distribute your Content solely for the purpose of operating and promoting the Platform.\n\nBuyers receive only the rights explicitly granted by the Seller upon purchase of a product. You may not copy, modify, distribute, or create derivative works from Platform Content without authorization.",
   "terms_section_11_title": "Prohibited Conduct",
-  "terms_section_11_text": "You may not use the Platform to:\n\n- List or sell counterfeit, stolen, illegal, or dangerous goods.\n- Harass, threaten, or discriminate against other users.\n- Circumvent or attempt to circumvent Platform fees or policies.\n- Engage in fraudulent activities, including payment fraud or chargeback abuse.\n- Upload malicious code, viruses, or interfere with Platform security.\n- Infringe intellectual property rights or violate any applicable law.\n- Collect or harvest personal data of other users without consent.",
+  "terms_section_11_text": "You may not use the Platform to:\n\n- List or sell counterfeit, stolen, illegal, or dangerous goods.\n- List or sell food, drink, or any other product intended for consumption. Eurtisan is not set up to carry the ingredient, allergen, and origin information that EU food law requires listings to show before a purchase is made.\n- Harass, threaten, or discriminate against other users.\n- Circumvent or attempt to circumvent Platform fees or policies.\n- Engage in fraudulent activities, including payment fraud or chargeback abuse.\n- Upload malicious code, viruses, or interfere with Platform security.\n- Infringe intellectual property rights or violate any applicable law.\n- Collect or harvest personal data of other users without consent.",
   "terms_section_12_title": "Dispute Resolution",
   "terms_section_12_text": "We encourage Buyers and Sellers to resolve disputes directly and amicably. Eurtisan provides an internal dispute resolution process that may be used to escalate unresolved issues. However, we are under no obligation to mediate disputes and assume no liability for the outcome.\n\nWe reserve the right to suspend or terminate accounts involved in repeated disputes, fraud, or violations of these Terms. Nothing in this section prevents you from seeking remedies through the courts.",
   "terms_section_13_title": "Limitation of Liability",
@@ -2092,6 +2210,34 @@
   "notification_shop_changes_requested": "Changes requested for {shopName}",
   "notification_shop_approved": "{shopName} was approved",
   "notification_shop_active": "{shopName} is live",
+  "email_chargeback_body": "A payment for one of your orders has been reversed by the buyer's bank. Funds have been withheld from your balance. Open the order to see the details and what you can do next.",
+  "email_dac7_body": "EU rules (DAC7) require us to report sellers who pass a sales threshold. You are close to it, or past it, and we do not have your tax identification number yet. Add it in your settings so your payouts are not interrupted.",
+  "email_payout_body": "Your payout is on its way to your bank account. It usually arrives within a few working days.",
+  "email_seller_alert_subject": "Eurtisan: {headline}",
+  "email_seller_alert_fallback_headline": "Something needs your attention",
+  "email_seller_alert_cta": "Open your studio",
+  "statement_of_reasons_title": "Why this decision was made",
+  "statement_of_reasons_what_label": "What we did",
+  "statement_of_reasons_what_hidden": "We hid your review, so it is no longer shown on the product page.",
+  "statement_of_reasons_what_restricted": "We restricted your review, so it no longer counts towards the product's rating or its position in search.",
+  "statement_of_reasons_scope": "This applies everywhere on Eurtisan, and stays in place until we decide otherwise.",
+  "statement_of_reasons_why_label": "Why",
+  "statement_of_reasons_ground_illegal": "The ground is that the content is against the law.",
+  "statement_of_reasons_ground_terms": "The ground is that the content breaks the Eurtisan terms.",
+  "statement_of_reasons_prompted_by_report": "Someone reported your review, and a moderator then decided.",
+  "statement_of_reasons_prompted_by_review": "A moderator decided this without anyone reporting it.",
+  "statement_of_reasons_automated_label": "Was this automated?",
+  "statement_of_reasons_automated_yes": "Yes, automated tools were used in reaching this decision.",
+  "statement_of_reasons_automated_no": "No. A person made this decision; nothing here was automated.",
+  "statement_of_reasons_redress_label": "If you disagree",
+  "statement_of_reasons_redress_support": "Email {email} and we will look again.",
+  "statement_of_reasons_redress_judicial": "You can also take the matter to a court in your country. Nothing here limits that right.",
+  "notification_generic": "You have an update",
+  "notification_review_hidden": "Your review was hidden — see why",
+  "notification_review_flagged": "Your review was restricted — see why",
+  "notification_review_restored": "Your review is visible again",
+  "notification_review_report_upheld": "We acted on the review you reported",
+  "notification_review_report_dismissed": "We reviewed your report and left the review up",
   "notification_shop_rejected": "{shopName} was not approved",
   "onboarding_status_review_feedback": "Review feedback",
   "onboarding_status_requested_section": "Section to update:",

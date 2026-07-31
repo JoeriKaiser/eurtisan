@@ -29,14 +29,24 @@ export const listProductsByCategorySlug = createServerFn({
       slug: z.string().min(1),
       page: z.coerce.number().int().min(1).optional().default(1),
       pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
+      sort: z.enum(['newest', 'price_asc', 'price_desc']).optional(),
+      inStockOnly: z.boolean().optional(),
+      minPriceCents: z.coerce.number().int().min(0).optional(),
+      maxPriceCents: z.coerce.number().int().min(0).optional(),
     }),
   )
   .handler(async ({ data }) => {
     const { listProductsByCategorySlugQuery } = await import('./products.server')
-    return listProductsByCategorySlugQuery(data.slug, {
-      page: data.page,
-      pageSize: data.pageSize,
-    })
+    return listProductsByCategorySlugQuery(
+      data.slug,
+      { page: data.page, pageSize: data.pageSize },
+      {
+        sort: data.sort,
+        inStockOnly: data.inStockOnly,
+        minPriceCents: data.minPriceCents,
+        maxPriceCents: data.maxPriceCents,
+      },
+    )
   })
 
 export const listRecentProducts = createServerFn({
@@ -74,14 +84,18 @@ export const getProductBySlug = createServerFn({
 })
   .inputValidator(getProductBySlugSchema)
   .handler(async ({ data }) => {
-    const { getProductBySlugQuery } = await import('./products.server')
+    const { getProductBySlugQuery, getMoreFromShopQuery } = await import('./products.server')
     const result = await getProductBySlugQuery(data.shopSlug, data.productSlug)
 
     if (!result) {
       throw notFound()
     }
 
-    return result
+    // Fetched with the product rather than on the client: the rail is above the
+    // fold on a conversion page, and a second round trip would render it late.
+    const moreFromShop = await getMoreFromShopQuery(data.shopSlug, result.id)
+
+    return { ...result, moreFromShop }
   })
 
 const getShopBySlugSchema = z.object({

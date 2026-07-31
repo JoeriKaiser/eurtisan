@@ -6,6 +6,7 @@ import { meilisearchSyncQueueFailedTotal } from '../metrics.server'
 import { isMeilisearchConfigured, meilisearch } from '../meilisearch.server'
 import type { ReviewAggregate } from '../search/relevance'
 import { computePopularityScore, computeRatingAverage } from '../search/relevance'
+import { PUBLIC_REVIEW_FILTER } from '../reviews/visibility.server'
 import { PRODUCT_SYNONYMS } from '../search/synonyms'
 import { escapeFilterValue } from '../search/utils'
 import { fetchFirstImageUrls } from './operations.server'
@@ -21,7 +22,9 @@ const EMPTY_AGGREGATE: ReviewAggregate = { reviewCount: 0, ratingSum: 0 }
 
 /**
  * Approved-review totals per product. Flagged and hidden reviews must not
- * influence ranking, so they are excluded here rather than at read time.
+ * influence ranking, so they are excluded here rather than at read time —
+ * through the same `PUBLIC_REVIEW_FILTER` the product page and the shop
+ * aggregate use, which is what stops the three drifting apart again.
  */
 async function fetchReviewAggregates(productIds: string[]): Promise<Map<string, ReviewAggregate>> {
   if (productIds.length === 0) return new Map()
@@ -33,7 +36,7 @@ async function fetchReviewAggregates(productIds: string[]): Promise<Map<string, 
       ratingSum: sum(review.rating),
     })
     .from(review)
-    .where(and(eq(review.moderationStatus, 'approved'), inArray(review.productId, productIds)))
+    .where(and(PUBLIC_REVIEW_FILTER, inArray(review.productId, productIds)))
     .groupBy(review.productId)
 
   return new Map(
@@ -204,6 +207,11 @@ export async function configureProductsIndex(indexUid: string = PRODUCTS_INDEX):
     // Custom rules come last so they break ties between equally relevant
     // matches rather than overriding text relevance: in-stock first, then the
     // better-reviewed product.
+    //
+    // Disclosed to buyers by `components/browse/RankingDisclosure.tsx` under
+    // CRD 6a(1)(a) / C. consom. L.111-7. Changing this array without changing
+    // that text fails `src/test/ranking-disclosure-accuracy.test.ts` — update
+    // the disclosure in both locales first.
     rankingRules: [
       'words',
       'typo',

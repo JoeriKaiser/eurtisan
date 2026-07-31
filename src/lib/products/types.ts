@@ -38,11 +38,45 @@ export type ProductDetail = PublicProduct & {
   shopDescription: string | null
   categoryId: string | null
   shopIsVatRegistered: boolean
+  /**
+   * How long the maker takes to dispatch, in business days, from the shop's
+   * `shippingOrigin`. Null when the shop never set it, or lost it — editing the
+   * shipping origin in settings replaces the stored object wholesale and drops
+   * the processing times (see `shops/public-profile.ts`).
+   *
+   * Transit time is deliberately absent: it needs a carrier quote against a
+   * destination, and a delivery date that turns out wrong at checkout costs more
+   * trust than it wins.
+   */
+  dispatchDays: { min: number; max: number } | null
+  /**
+   * The seller's own low-stock threshold, so availability language follows what
+   * they consider scarce rather than a number hardcoded in the UI.
+   */
+  lowStockThreshold: number
+  /**
+   * Approved-review aggregate, or null when the product has none. Shares
+   * `PUBLIC_REVIEW_FILTER` with the review list and the search index — the three
+   * disagreeing is exactly what the reviews phase fixed.
+   */
+  rating: { average: number; reviewCount: number } | null
 }
 
 export type ListProductsFilters = {
   shopSlug?: string
+  /**
+   * Exact category match. A parent slug matches **only** products assigned
+   * directly to that parent — use `categoryIds` when subcategories must be
+   * included. Correct for the shop storefront, whose filter list is built from
+   * categories that actually occur on that shop's products.
+   */
   categorySlug?: string
+  /**
+   * Descendant-aware category match, from `getDescendantCategoryIds`. This is
+   * what category browsing needs: browsing "Ceramics" must show everything
+   * under it, not just products pinned to the parent node itself.
+   */
+  categoryIds?: string[]
   activeOnly?: boolean
   minPriceCents?: number
   maxPriceCents?: number
@@ -50,6 +84,19 @@ export type ListProductsFilters = {
   search?: string
   /** Same meaning as `SearchFilters.inStockOnly` — see `buildProductWhere`. */
   inStockOnly?: boolean
+  /**
+   * Product to leave out. Exists for the "more from this shop" rail, which must
+   * not offer the product the buyer is already looking at.
+   */
+  excludeProductId?: string
+}
+
+/** Browsing state for one category page, mirroring `ShopProductsOptions`. */
+export type CategoryProductsOptions = {
+  minPriceCents?: number
+  maxPriceCents?: number
+  inStockOnly?: boolean
+  sort?: SortOption
 }
 
 /** Browsing state for a single shop's storefront. */

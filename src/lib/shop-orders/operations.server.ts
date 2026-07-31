@@ -35,6 +35,7 @@ import { validatePlainText, validateTrackingUrl } from '../xss'
 import type { OrderStatus } from '../order-status'
 import { derivePlatformStatus, isValidStatusTransition } from './lifecycle'
 import type { ShopOrderDetail, ShopOrderListItem } from './types'
+import { m } from '#/paraglide/messages'
 
 function addDisputeWindow(date = new Date()): Date {
   const d = new Date(date)
@@ -523,12 +524,17 @@ export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<
 
           if (shopRecord && !shopRecord.taxId) {
             const { createNotification } = await import('../notifications.server')
+            const limitType = dac7Status.exceededLimit ? 'exceeded' : 'approaching'
             await createNotification(shopRecord.ownerId, 'dac7_warning_limit', {
               shopId: updatedShopOrder.shopId,
               shopName: shopRecord.name,
               transactionCount: dac7Status.transactionCount,
               grossSalesCents: dac7Status.grossSalesCents,
-              limitType: dac7Status.exceededLimit ? 'exceeded' : 'approaching',
+              limitType,
+              // Feeds the seller-alert email; see `NOTIFICATION_DELIVERY`.
+              headline: m.notification_dac7_warning({ shopName: shopRecord.name, limitType }),
+              body: m.email_dac7_body(),
+              actionUrl: `/studio/${updatedShopOrder.shopId}/settings`,
             })
           }
         }

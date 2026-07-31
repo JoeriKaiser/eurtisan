@@ -17,6 +17,10 @@ export type EmailTemplate =
   | 'password_reset'
   | 'account_security_alert'
   | 'shop_moderation_update'
+  /** Consequential seller events that were previously in-app only. */
+  | 'seller_alert'
+  /** The DSA Article 17 statement of reasons, out of band from the app. */
+  | 'statement_of_reasons'
 
 /** Provider identifiers. */
 export type EmailProviderName = 'brevo' | 'smtp' | 'mock'

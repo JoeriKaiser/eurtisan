@@ -65,6 +65,17 @@ vi.mock('#/paraglide/messages', () => ({
     cart_add_loading: () => 'Adding...',
     vat_included: () => 'incl. VAT',
     vat_exempt_short: () => 'VAT exempt',
+    product_stock_available: () => 'In stock',
+    product_stock_low: ({ count }: { count: number }) => `Only ${count} left`,
+    product_dispatch_window: ({ min, max }: { min: number; max: number }) =>
+      `Usually dispatched in ${min}\u2013${max} business days`,
+    product_delivery_at_checkout: () => 'Delivery cost and time are calculated at checkout.',
+    product_rating_summary: ({ average, count }: { average: string; count: number }) =>
+      `${average} out of 5 \u00b7 ${count} reviews`,
+    product_more_from_shop: ({ shopName }: { shopName: string }) => `More from ${shopName}`,
+    product_more_from_shop_generic: () => 'More from this maker',
+    product_view_all_from_shop: () => 'View the whole shop',
+    rating_out_of_five: ({ rating }: { rating: number }) => `${rating} out of 5 stars`,
   },
 }))
 
@@ -88,6 +99,9 @@ function makeProduct(overrides?: Partial<ProductDetailType>): ProductDetailType 
     shopIsVatRegistered: false,
     shopDescription: 'Handcrafted goods from local artisans.',
     categoryId: 'cat-1',
+    lowStockThreshold: 5,
+    dispatchDays: { min: 1, max: 3 },
+    rating: null,
     imageUrl: null,
     images: [
       { id: 'img-1', url: 'http://example.com/1.jpg', altText: 'Front view', sortOrder: 0 },
@@ -123,9 +137,40 @@ describe('ProductDetail', () => {
     expect(screen.getByText('A beautiful ceramic vase crafted by artisans.')).toBeDefined()
   })
 
-  it('renders stock count when in stock', () => {
-    render(<ProductDetail product={makeProduct({ stockCount: 5 })} />)
-    expect(screen.getByText('5 in stock')).toBeDefined()
+  it('says a healthy stock level is available without naming a number', () => {
+    // A raw count is only useful when it is low; above the threshold it just
+    // invites the buyer to wonder whether 40 is a lot.
+    render(<ProductDetail product={makeProduct({ stockCount: 40, lowStockThreshold: 5 })} />)
+    expect(screen.getByText('In stock')).toBeDefined()
+  })
+
+  it("shows the exact count once it reaches the seller's own threshold", () => {
+    render(<ProductDetail product={makeProduct({ stockCount: 5, lowStockThreshold: 5 })} />)
+    expect(screen.getByText('Only 5 left')).toBeDefined()
+  })
+
+  it('states the dispatch window but promises no delivery date', () => {
+    render(<ProductDetail product={makeProduct({ dispatchDays: { min: 2, max: 4 } })} />)
+    expect(screen.getByText(/Usually dispatched in 2.4 business days/)).toBeDefined()
+    expect(screen.getByText(/calculated at checkout/)).toBeDefined()
+  })
+
+  it('omits the dispatch line when the shop has no processing times', () => {
+    // The settings write path drops them; the page must not render a blank claim.
+    render(<ProductDetail product={makeProduct({ dispatchDays: null })} />)
+    expect(screen.queryByText(/Usually dispatched/)).toBeNull()
+    expect(screen.getByText(/calculated at checkout/)).toBeDefined()
+  })
+
+  it('links the rating beside the price down to the reviews', () => {
+    render(<ProductDetail product={makeProduct({ rating: { average: 4.5, reviewCount: 12 } })} />)
+    const link = screen.getByRole('link', { name: /4.5 out of 5/ })
+    expect(link.getAttribute('href')).toBe('#product-reviews')
+  })
+
+  it('shows no rating line for a product with no approved reviews', () => {
+    render(<ProductDetail product={makeProduct({ rating: null })} />)
+    expect(screen.queryByText(/out of 5 ·/)).toBeNull()
   })
 
   it('shows out-of-stock message when stock is zero', () => {

@@ -4,6 +4,7 @@ import { platformOrder, shop, shopOrder } from '#/db/schema'
 import { scheduleBackgroundWork } from '../background-work.server'
 import { createCreditNoteForShopOrder } from '../invoices.server'
 import { restoreShopOrderStockInTx } from '../inventory.server'
+import { m } from '#/paraglide/messages'
 import { logger } from '../logger.server'
 import { ordersCancelledTotal } from '../metrics.server'
 import { reversePayoutForRefund } from '../payouts.server'
@@ -40,6 +41,7 @@ export async function handleChargeback(
   const [order] = await database
     .select({
       id: platformOrder.id,
+      orderNumber: platformOrder.orderNumber,
       status: platformOrder.status,
       totalCents: platformOrder.totalCents,
     })
@@ -63,6 +65,7 @@ export async function handleChargeback(
     const [lockedOrder] = await tx
       .select({
         id: platformOrder.id,
+        orderNumber: platformOrder.orderNumber,
         status: platformOrder.status,
         totalCents: platformOrder.totalCents,
       })
@@ -145,9 +148,15 @@ export async function handleChargeback(
         .where(eq(shop.id, so.shopId))
         .limit(1)
       if (shopRecord) {
+        // `headline`/`body`/`actionUrl` feed the seller-alert email that
+        // `NOTIFICATION_DELIVERY` now sends for this type. Localized here, where
+        // the request locale is still in scope.
         await createNotification(shopRecord.ownerId, 'order_chargeback', {
           platformOrderId: order.id,
           shopOrderId: so.id,
+          headline: m.notification_order_chargeback({ orderNumber: order.orderNumber }),
+          body: m.email_chargeback_body(),
+          actionUrl: `/studio/${so.shopId}/orders`,
         })
       }
     }

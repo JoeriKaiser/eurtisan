@@ -214,7 +214,8 @@ test-accessibility: ensure-up db-migrate-unit
 	  src/components/CartPage.test.tsx \
 	  src/components/CheckoutPage.test.tsx \
 	  src/components/DisputeThreadPage.test.tsx \
-	  src/route-components/shops/ShopStorefront.test.tsx
+	  src/route-components/shops/ShopStorefront.test.tsx \
+	  'src/route-components/category/$$slug.test.tsx'
 
 e2e-install: up
 	docker compose exec app bunx playwright install --with-deps chromium

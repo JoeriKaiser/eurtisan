@@ -14,6 +14,7 @@ import { signMollieState } from '../auth-utils.server'
 import { disconnectMollieConnect } from '../mollie-connect.server'
 import type { AuditActor } from '../audit-logger'
 import { logger } from '../logger.server'
+import { m } from '#/paraglide/messages'
 import { PLATFORM_FEE_PERCENT } from '../platform-constants'
 import { isValidPayoutTransition, PayoutError } from './lifecycle'
 import type { PayoutStatus } from './lifecycle'
@@ -388,10 +389,15 @@ export async function executePayoutQuery(payoutId: string): Promise<ExecutePayou
     try {
       const { createNotification } = await import('../notifications.server')
       if (shopRecord.ownerId) {
+        const amount = String(payoutRecord.amountCents / 100)
         await createNotification(shopRecord.ownerId, 'payout_sent', {
           payoutId,
           shopId: payoutRecord.shopId,
-          amount: String(payoutRecord.amountCents / 100),
+          amount,
+          // Feeds the seller-alert email; see `NOTIFICATION_DELIVERY`.
+          headline: m.notification_payout_sent({ amount }),
+          body: m.email_payout_body(),
+          actionUrl: `/studio/${payoutRecord.shopId}`,
         })
       }
     } catch (notifyErr) {

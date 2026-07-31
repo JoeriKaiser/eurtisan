@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react'
 import ProductGrid from '#/components/ProductGrid'
 import { m } from '#/paraglide/messages'
 import { DiscoveryWall } from './search/DiscoveryWall'
+import { RankingDisclosure } from '#/components/browse/RankingDisclosure'
 import { SearchFilters } from './search/SearchFilters'
 
 export function SearchPage() {
@@ -93,7 +94,6 @@ function SearchPageContent() {
       router.navigate({
         to: '/search',
         search: buildSearchParams(overrides),
-        replace: true,
       })
     },
     [router, buildSearchParams],
@@ -143,7 +143,6 @@ function SearchPageContent() {
             <Link
               to='/search'
               search={{}}
-              replace
               className='inline-flex min-h-11 items-center gap-2 py-2 text-sm font-semibold text-text-primary no-underline transition-colors hover:text-accent-primary'
             >
               <ArrowLeft size={16} aria-hidden='true' />
@@ -161,7 +160,6 @@ function SearchPageContent() {
           <Link
             to='/search'
             search={(previous) => ({ ...previous, category: undefined, page: undefined })}
-            replace
             className={`inline-flex min-h-10 shrink-0 items-center rounded-full px-4 py-2 text-sm font-semibold no-underline transition-colors ${
               filters.category
                 ? 'bg-surface-inset text-text-secondary hover:text-text-primary'
@@ -182,7 +180,6 @@ function SearchPageContent() {
                   category: category.slug,
                   page: undefined,
                 })}
-                replace
                 className={`inline-flex min-h-10 shrink-0 items-center rounded-full px-4 py-2 text-sm font-semibold no-underline transition-colors ${
                   isSelected
                     ? 'bg-accent-primary text-text-on-primary'
@@ -223,7 +220,6 @@ function SearchPageContent() {
                   sort: option.value === 'relevance' ? undefined : option.value,
                   page: undefined,
                 })}
-                replace
                 className={`shrink-0 rounded-lg px-3 py-2 text-sm no-underline ${
                   filters.sort === option.value
                     ? 'bg-accent-primary text-text-on-primary'
@@ -236,6 +232,8 @@ function SearchPageContent() {
             ))}
           </nav>
         </div>
+
+        <RankingDisclosure variant='search' />
 
         <div className='mt-4'>
           <SearchFilters
@@ -264,7 +262,6 @@ function SearchPageContent() {
               <Link
                 to='/search'
                 search={{}}
-                replace
                 className='inline-flex min-h-11 items-center rounded-xl bg-accent-primary px-6 py-3 text-sm font-semibold text-text-on-primary no-underline transition-colors hover:bg-accent-primary-hover active:bg-accent-primary-active'
               >
                 {m.search_clear_filters()}

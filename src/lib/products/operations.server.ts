@@ -1,14 +1,17 @@
-import { and, asc, count, desc, eq, gt, gte, ilike, inArray, lte, or, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, gt, gte, ilike, inArray, lte, ne, or, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { categories, product, productImage, shop } from '#/db/schema'
+import { categories, product, productImage, review, shop } from '#/db/schema'
 import { getDescendantCategoryIds } from '../categories.server'
 import { decryptJsonb } from '../encryption.server'
+import { PUBLIC_REVIEW_FILTER } from '../reviews/visibility.server'
+import { computeRatingAverage } from '../search/relevance'
 import { logger } from '../logger.server'
 import { searchQueriesTotal } from '../metrics.server'
 import { recordSearchEvent } from '../search/analytics.server'
 import { sanitizeRichText, validatePlainText } from '../xss'
 import { withServerCache } from '../server-cache.server'
 import type {
+  CategoryProductsOptions,
   FeaturedShop,
   ListProductsFilters,
   PaginatedProducts,
@@ -79,6 +82,18 @@ function buildProductWhere(filters: ListProductsFilters) {
 
   if (filters.categorySlug) {
     conditions.push(eq(categories.slug, filters.categorySlug))
+  }
+
+  // Deliberately separate from `categorySlug` rather than folded into it: the
+  // two have different semantics (exact vs. descendant-aware), and silently
+  // making the slug filter recursive would change what the shop storefront
+  // shows. See the field docs on `ListProductsFilters`.
+  if (filters.categoryIds && filters.categoryIds.length > 0) {
+    conditions.push(inArray(product.categoryId, filters.categoryIds))
+  }
+
+  if (filters.excludeProductId) {
+    conditions.push(ne(product.id, filters.excludeProductId))
   }
 
   if (filters.minPriceCents !== undefined) {
@@ -173,6 +188,9 @@ export async function getProductBySlugQuery(
       shopDescription: shop.description,
       categoryId: product.categoryId,
       shopIsVatRegistered: shop.isVatRegistered,
+      lowStockThreshold: product.lowStockThreshold,
+      // Encrypted at rest, so it is decrypted below rather than read in SQL.
+      shippingOrigin: shop.shippingOrigin,
     })
     .from(product)
     .innerJoin(shop, eq(product.shopId, shop.id))
@@ -204,6 +222,39 @@ export async function getProductBySlugQuery(
 
   const primaryImage = images.find((img) => img.sortOrder === 0) ?? images[0] ?? null
 
+  // Same filter as the review list and the search index, so the compact rating
+  // by the price cannot disagree with the full summary further down the page.
+  const [ratingRow] = await db
+    .select({
+      reviewCount: count(review.id),
+      ratingSum: sql<string>`coalesce(sum(${review.rating}), 0)`,
+    })
+    .from(review)
+    .where(and(eq(review.productId, result.id), PUBLIC_REVIEW_FILTER))
+
+  const reviewCount = ratingRow?.reviewCount ?? 0
+  const rating =
+    reviewCount > 0
+      ? {
+          reviewCount,
+          average: computeRatingAverage({
+            reviewCount,
+            ratingSum: Number(ratingRow?.ratingSum ?? 0),
+          }),
+        }
+      : null
+
+  // Only the dispatch window is taken off the origin. The rest of that object
+  // is the shop's dispatch address, which must not reach a public page.
+  const origin = decryptJsonb<{ processingTimeDays?: { min?: number; max?: number } } | null>(
+    result.shippingOrigin,
+  )
+  const processing = origin?.processingTimeDays
+  const dispatchDays =
+    typeof processing?.min === 'number' && typeof processing?.max === 'number'
+      ? { min: processing.min, max: processing.max }
+      : null
+
   return {
     ...(result as unknown as PublicProduct),
     imageUrl: primaryImage?.url ?? null,
@@ -211,6 +262,9 @@ export async function getProductBySlugQuery(
     shopDescription: result.shopDescription,
     categoryId: result.categoryId,
     shopIsVatRegistered: result.shopIsVatRegistered,
+    lowStockThreshold: result.lowStockThreshold,
+    dispatchDays,
+    rating,
   }
 }
 
@@ -228,6 +282,30 @@ export async function getProductsByShopSlugQuery(
   }
 
   return listProductsQuery({ shopSlug }, pagination, 'newest')
+}
+
+/**
+ * Other products from the same shop, for the product page's rail.
+ *
+ * Routed through `listProductsQuery` rather than hand-rolled, so it inherits
+ * every visibility filter and a deterministic `ORDER BY` — the two things the
+ * category page turned out to be missing when it hand-rolled its own.
+ *
+ * Deliberately not "related products". There is no recommender in this codebase,
+ * and inventing one from category adjacency produces a rail of things that
+ * merely share a label.
+ */
+export async function getMoreFromShopQuery(
+  shopSlug: string,
+  excludeProductId: string,
+  limit = 4,
+): Promise<PublicProduct[]> {
+  const result = await listProductsQuery(
+    { shopSlug, excludeProductId },
+    { page: 1, pageSize: limit },
+    'newest',
+  )
+  return result.products
 }
 
 export async function getShopBySlugQuery(slug: string): Promise<ShopSummary | null> {
@@ -342,60 +420,46 @@ export async function listProductsByShopQuery(shopId: string, limit = 20, offset
     .offset(boundedOffset)
 }
 
+/**
+ * Products in a category, including everything beneath it in the tree.
+ *
+ * Routed through `listProductsQuery` so visibility rules, price and stock
+ * filters, and ordering come from one place. The category match is by id via
+ * `getDescendantCategoryIds`, **not** by slug: `buildProductWhere`'s slug filter
+ * is an exact match, and using it here would drop every subcategory product the
+ * moment a buyer browsed a parent.
+ *
+ * The previous implementation also issued no `ORDER BY`, so PostgreSQL was free
+ * to return rows in any order and a buyer paging through a category could see
+ * the same product twice or miss one entirely.
+ */
 export async function listProductsByCategorySlugQuery(
   slug: string,
   pagination: Pagination = { page: 1, pageSize: 20 },
+  options: CategoryProductsOptions = {},
 ): Promise<PaginatedProducts> {
-  const category = await db.select().from(categories).where(eq(categories.slug, slug)).limit(1)
+  const [category] = await db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(eq(categories.slug, slug))
+    .limit(1)
 
-  if (category.length === 0) {
-    return { products: [], total: 0, page: 1, pageSize: 20, totalPages: 0 }
+  if (!category) {
+    return { products: [], total: 0, page: 1, pageSize: pagination.pageSize, totalPages: 0 }
   }
 
-  const page = Math.max(1, pagination.page)
-  const pageSize = Math.min(100, Math.max(1, pagination.pageSize))
-  const offset = (page - 1) * pageSize
+  const categoryIds = await getDescendantCategoryIds(category.id)
 
-  const descendantIds = await getDescendantCategoryIds(category[0].id)
-
-  const where = and(
-    inArray(product.categoryId, descendantIds),
-    eq(shop.status, 'active'),
-    eq(shop.isSuspended, false),
-    eq(product.status, 'published'),
-    eq(product.isActive, true),
+  return listProductsQuery(
+    {
+      categoryIds,
+      minPriceCents: options.minPriceCents,
+      maxPriceCents: options.maxPriceCents,
+      inStockOnly: options.inStockOnly,
+    },
+    pagination,
+    options.sort ?? 'newest',
   )
-
-  const [totalResult] = await db
-    .select({ total: count() })
-    .from(product)
-    .innerJoin(categories, eq(product.categoryId, categories.id))
-    .innerJoin(shop, eq(product.shopId, shop.id))
-    .where(where)
-
-  const total = totalResult?.total ?? 0
-
-  const products = await db
-    .select(publicProductColumns)
-    .from(product)
-    .innerJoin(categories, eq(product.categoryId, categories.id))
-    .innerJoin(shop, eq(product.shopId, shop.id))
-    .where(where)
-    .limit(pageSize)
-    .offset(offset)
-
-  const imageUrls = await fetchFirstImageUrls(products.map((p) => p.id))
-
-  return {
-    products: products.map((p) => ({
-      ...p,
-      imageUrl: imageUrls.get(p.id) ?? null,
-    })) as PublicProduct[],
-    total,
-    page,
-    pageSize,
-    totalPages: Math.ceil(total / pageSize),
-  }
 }
 
 export async function listRecentProductsQuery(limit = 8): Promise<RecentProduct[]> {

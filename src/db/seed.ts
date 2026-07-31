@@ -943,7 +943,12 @@ async function seedCategories() {
     { name: 'Candles', subs: ['Soy Candles', 'Beeswax', 'Aromatherapy'] },
     { name: 'Furniture', subs: ['Chairs', 'Tables', 'Storage'] },
     { name: 'Soap & Bath', subs: ['Bar Soap', 'Bath Bombs', 'Skincare'] },
-    { name: 'Food & Drink', subs: ['Preserves', 'Honey', 'Spices'] },
+    // No food categories, deliberately. Regulation (EU) 1169/2011 Article
+    // 14(1)(a) requires every mandatory particular — ingredients, allergens, net
+    // quantity, storage conditions, the food business operator's address — to be
+    // on the listing *before the purchase is concluded*, and the product model
+    // has nowhere to put any of it. Eurtisan does not sell food; the terms say
+    // so, and migration 0081 removed the categories that implied otherwise.
     { name: 'Musical Instruments', subs: ['Flutes', 'Percussion', 'Strings'] },
   ]
 

@@ -84,6 +84,11 @@ export const reportReview = createServerFn({ method: 'POST' })
   .inputValidator(
     z.object({
       reviewId: z.string().uuid(),
+      // DSA Article 16(2) requires a notice to carry a substantiated
+      // explanation, so a ground is mandatory rather than optional. `details`
+      // is where the substantiation goes when the ground alone is not enough.
+      reason: z.enum(['not_authentic', 'offensive', 'spam', 'personal_data', 'other']),
+      details: z.string().max(2000).nullable().optional(),
     }),
   )
   .handler(async ({ context, data }) => {
@@ -95,8 +100,7 @@ export const reportReview = createServerFn({ method: 'POST' })
     }
 
     const { reportReviewQuery } = await import('./reviews.server')
-    await reportReviewQuery(data.reviewId, context.user.id)
-    return { success: true }
+    return reportReviewQuery(data.reviewId, context.user.id, data.reason, data.details ?? null)
   })
 
 export const getAdminReviews = createServerFn({ method: 'GET' })
@@ -145,6 +149,11 @@ export const updateReviewModerationStatus = createServerFn({ method: 'POST' })
     z.object({
       reviewId: z.string().uuid(),
       status: z.enum(['approved', 'flagged', 'hidden']),
+      // Required, not optional: without a ground and an explanation the DSA
+      // Article 17(3) statement of reasons cannot be produced, and the decision
+      // would go out with nothing to justify it.
+      ground: z.enum(['illegal', 'terms']),
+      explanation: z.string().min(1).max(2000),
     }),
   )
   .handler(async ({ context, data }) => {
@@ -166,10 +175,15 @@ export const updateReviewModerationStatus = createServerFn({ method: 'POST' })
       import('./reviews.server'),
       import('./audit-log.server'),
     ])
-    await updateReviewModerationStatusQuery(data.reviewId, data.status)
+    await updateReviewModerationStatusQuery(data.reviewId, data.status, {
+      ground: data.ground,
+      explanation: data.explanation,
+      actorUserId: context.user.id,
+    })
 
     await emitAuditEvent(context.user, 'review.moderate', 'review', data.reviewId, {
       status: data.status,
+      ground: data.ground,
     })
 
     return { success: true }
