@@ -62,6 +62,8 @@ export interface FormValues {
   lengthCm: string
   widthCm: string
   heightCm: string
+  soldBy: '' | 'weight' | 'volume'
+  volumeMl: string
 }
 
 interface FormState {
@@ -96,6 +98,8 @@ function createInitialFormState(initialShops: CreatorShop[]): FormState {
       lengthCm: '',
       widthCm: '',
       heightCm: '',
+      soldBy: '',
+      volumeMl: '',
     },
     fieldErrors: {},
     slugError: null,
@@ -160,6 +164,8 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
     formState.values.widthCm !== '' ||
     formState.values.heightCm !== '' ||
     formState.values.categoryId !== '' ||
+    formState.values.soldBy !== '' ||
+    formState.values.volumeMl !== '' ||
     images.length > 0
 
   /* ------------------------ Slug auto-generation --------------------------- */
@@ -298,6 +304,10 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
       heightCm: formState.values.heightCm
         ? Number.parseInt(formState.values.heightCm, 10)
         : undefined,
+      soldBy: formState.values.soldBy || undefined,
+      volumeMl: formState.values.volumeMl
+        ? Number.parseInt(formState.values.volumeMl, 10)
+        : undefined,
       images: images.flatMap((img) =>
         !img.error && !img.uploading && img.key
           ? [{ key: img.key, altText: img.altText || undefined }]
@@ -431,6 +441,10 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
               ? [{ key: img.key, altText: img.altText || undefined }]
               : [],
           ),
+          soldBy: formState.values.soldBy || undefined,
+          volumeMl: formState.values.volumeMl
+            ? Number.parseInt(formState.values.volumeMl, 10)
+            : undefined,
         },
       })
 
@@ -454,6 +468,11 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
           dispatchForm({
             type: 'mergeFieldErrors',
             errors: { categoryId: m.creator_product_new_category_invalid() },
+          })
+        } else if (err.message === 'UNIT_PRICE_REQUIRED') {
+          dispatchForm({
+            type: 'mergeFieldErrors',
+            errors: { soldBy: m.unit_price_error() },
           })
         } else if (
           err.message.includes('Invalid') ||

@@ -46,6 +46,8 @@ interface OnboardingListingData {
   lengthCm: number | null
   widthCm: number | null
   heightCm: number | null
+  volumeMl: number | null
+  soldBy: 'weight' | 'volume' | null
   images: Array<{ key: string; altText: string | null; sortOrder: number }>
 }
 
@@ -90,6 +92,7 @@ export function OnboardingProvider({ draft, listing, onSaveStateChange, children
       dateOfBirth: draft.dateOfBirth ?? '',
       taxId: draft.taxId ?? '',
       businessRegistrationNumber: draft.businessRegistrationNumber ?? '',
+      traderStatus: draft.traderStatus ?? '',
     },
     3: {
       productId: listing?.id,
@@ -107,6 +110,8 @@ export function OnboardingProvider({ draft, listing, onSaveStateChange, children
       lengthCm: listing?.lengthCm ? String(listing.lengthCm) : '',
       widthCm: listing?.widthCm ? String(listing.widthCm) : '',
       heightCm: listing?.heightCm ? String(listing.heightCm) : '',
+      soldBy: listing?.soldBy ?? '',
+      volumeMl: listing?.volumeMl ? String(listing.volumeMl) : '',
       images:
         listing?.images.map((image) => ({
           key: image.key,

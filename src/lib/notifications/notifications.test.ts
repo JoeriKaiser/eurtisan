@@ -2,14 +2,14 @@ import { eq } from 'drizzle-orm'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { db } from '#/db/index'
-import { notification, user } from '#/db/schema'
+import { notification, user, userNotificationPreference } from '#/db/schema'
 
 import {
   createNotification,
   getNotificationsQuery,
   getUnreadNotificationCountQuery,
   markAllNotificationsReadQuery,
-  markNotificationReadQuery,
+  markNotificationsReadQuery,
 } from '../notifications.server'
 
 beforeEach(async () => {
@@ -99,52 +99,157 @@ describe('createNotification', () => {
 })
 
 describe('getNotificationsQuery', () => {
-  it('returns empty result when no notifications exist', async () => {
+  it('returns empty groups when no notifications exist', async () => {
     const u = await seedUser()
 
     const result = await getNotificationsQuery(u.id, 1, 10)
-    expect(result.notifications).toEqual([])
+    expect(result.groups).toEqual([])
     expect(result.total).toBe(0)
     expect(result.page).toBe(1)
     expect(result.pageSize).toBe(10)
     expect(result.totalPages).toBe(0)
   })
 
-  it('returns notifications ordered by created_at desc', async () => {
+  it('groups daily rows, preserves single rows, and splits adjacent UTC days', async () => {
     const u = await seedUser()
+    const dayOneKey = 'daily:review_received:2026-08-01'
+    const dayTwoKey = 'daily:review_received:2026-08-02'
 
-    await createNotification(u.id, 'order_placed')
-    await new Promise((r) => setTimeout(r, 10))
-    await createNotification(u.id, 'order_shipped')
-    await new Promise((r) => setTimeout(r, 10))
-    await createNotification(u.id, 'review_received')
+    await db.insert(notification).values([
+      {
+        userId: u.id,
+        type: 'review_received',
+        groupKey: dayOneKey,
+        data: { index: 1 },
+        createdAt: new Date('2026-08-01T12:00:00.000Z'),
+      },
+      {
+        userId: u.id,
+        type: 'review_received',
+        groupKey: dayOneKey,
+        data: { index: 2 },
+        createdAt: new Date('2026-08-01T13:00:00.000Z'),
+      },
+      {
+        userId: u.id,
+        type: 'review_received',
+        groupKey: dayTwoKey,
+        data: { index: 3 },
+        createdAt: new Date('2026-08-02T12:00:00.000Z'),
+      },
+      {
+        userId: u.id,
+        type: 'seller_reply_received',
+        data: { index: 4 },
+        createdAt: new Date('2026-08-02T13:00:00.000Z'),
+      },
+      {
+        userId: u.id,
+        type: 'seller_reply_received',
+        data: { index: 5 },
+        createdAt: new Date('2026-08-02T14:00:00.000Z'),
+      },
+    ])
 
     const result = await getNotificationsQuery(u.id, 1, 10)
-    expect(result.notifications).toHaveLength(3)
-    expect(result.notifications[0].type).toBe('review_received')
-    expect(result.notifications[1].type).toBe('order_shipped')
-    expect(result.notifications[2].type).toBe('order_placed')
+
+    expect(result.total).toBe(4)
+    expect(result.groups.map((group) => group.key)).toEqual([
+      expect.any(String),
+      expect.any(String),
+      dayTwoKey,
+      dayOneKey,
+    ])
+    expect(result.groups[3]).toMatchObject({
+      key: dayOneKey,
+      count: 2,
+      unreadCount: 2,
+      type: 'review_received',
+    })
+    expect(result.groups[3].items.map((item) => item.data.index)).toEqual([2, 1])
+    expect(result.groups.find((group) => group.key === dayTwoKey)?.createdAt.toISOString()).toBe(
+      '2026-08-02T12:00:00.000Z',
+    )
+    expect(result.groups[0].count).toBe(1)
+    expect(result.groups[1].count).toBe(1)
+    expect(result.groups[0].key).not.toBe(result.groups[1].key)
   })
 
-  it('paginates results correctly', async () => {
+  it('paginates complete groups with deterministic latest/key tie ordering', async () => {
     const u = await seedUser()
+    const createdAt = new Date('2026-08-02T12:00:00.000Z')
+    const reviewKey = 'daily:review_received:2026-08-02'
+    const stockKey = 'daily:low_stock:2026-08-02'
 
-    for (let i = 0; i < 12; i++) {
-      await createNotification(u.id, 'order_placed', { index: i })
-    }
+    await db.insert(notification).values([
+      {
+        userId: u.id,
+        type: 'review_received',
+        groupKey: reviewKey,
+        data: { index: 1 },
+        createdAt,
+      },
+      {
+        userId: u.id,
+        type: 'review_received',
+        groupKey: reviewKey,
+        data: { index: 2 },
+        createdAt: new Date('2026-08-02T11:00:00.000Z'),
+      },
+      {
+        userId: u.id,
+        type: 'low_stock',
+        groupKey: stockKey,
+        data: { index: 3 },
+        createdAt,
+      },
+    ])
 
-    const page1 = await getNotificationsQuery(u.id, 1, 10)
-    expect(page1.notifications).toHaveLength(10)
-    expect(page1.total).toBe(12)
-    expect(page1.totalPages).toBe(2)
-    expect(page1.page).toBe(1)
+    const pageOne = await getNotificationsQuery(u.id, 1, 1)
+    const pageTwo = await getNotificationsQuery(u.id, 2, 1)
 
-    const page2 = await getNotificationsQuery(u.id, 2, 10)
-    expect(page2.notifications).toHaveLength(2)
-    expect(page2.page).toBe(2)
+    expect(pageOne.total).toBe(2)
+    expect(pageOne.totalPages).toBe(2)
+    expect(pageOne.groups).toHaveLength(1)
+    expect(pageOne.groups[0]).toMatchObject({ key: reviewKey, count: 2 })
+    expect(pageOne.groups[0].items.map((item) => item.data.index)).toEqual([1, 2])
+    expect(pageTwo.groups).toHaveLength(1)
+    expect(pageTwo.groups[0]).toMatchObject({ key: stockKey, count: 1 })
   })
 
-  it('does not return notifications for other users', async () => {
+  it('caps returned items per group while counting the full group in SQL', async () => {
+    const u = await seedUser()
+    const stockKey = 'daily:low_stock:2026-08-02'
+
+    await db.insert(notification).values(
+      Array.from({ length: 25 }, (_, index) => ({
+        userId: u.id,
+        type: 'low_stock' as const,
+        groupKey: stockKey,
+        data: { index: index + 1 },
+        createdAt: new Date(`2026-08-02T10:00:00.000Z`),
+      })),
+    )
+    const [firstRow] = await db
+      .select({ id: notification.id })
+      .from(notification)
+      .where(eq(notification.userId, u.id))
+      .limit(1)
+    await db
+      .update(notification)
+      .set({ readAt: new Date() })
+      .where(eq(notification.id, firstRow.id))
+
+    const result = await getNotificationsQuery(u.id, 1, 10)
+
+    expect(result.groups).toHaveLength(1)
+    const group = result.groups[0]
+    expect(group.count).toBe(25)
+    expect(group.unreadCount).toBe(24)
+    expect(group.items).toHaveLength(20)
+  })
+
+  it('does not return groups for other users', async () => {
     const u1 = await seedUser()
     const u2 = await seedUser({ name: 'Other' })
 
@@ -152,8 +257,27 @@ describe('getNotificationsQuery', () => {
     await createNotification(u2.id, 'review_received')
 
     const result = await getNotificationsQuery(u1.id, 1, 10)
-    expect(result.notifications).toHaveLength(1)
-    expect(result.notifications[0].type).toBe('order_placed')
+    expect(result.groups).toHaveLength(1)
+    expect(result.groups[0].type).toBe('order_placed')
+  })
+
+  it('excludes disabled optional types from groups and the unread badge', async () => {
+    const u = await seedUser()
+    await db.insert(userNotificationPreference).values({
+      userId: u.id,
+      type: 'review_received',
+      enabled: false,
+    })
+    await createNotification(u.id, 'review_received')
+    await createNotification(u.id, 'order_placed')
+
+    const [result, unread] = await Promise.all([
+      getNotificationsQuery(u.id, 1, 10),
+      getUnreadNotificationCountQuery(u.id),
+    ])
+
+    expect(result.groups.map((group) => group.type)).toEqual(['order_placed'])
+    expect(unread.count).toBe(1)
   })
 
   it('validates page and pageSize boundaries', async () => {
@@ -199,60 +323,31 @@ describe('getUnreadNotificationCountQuery', () => {
   })
 })
 
-describe('markNotificationReadQuery', () => {
-  it('throws 404 for nonexistent notification', async () => {
-    const u = await seedUser()
+describe('markNotificationsReadQuery', () => {
+  it('marks only owned requested notifications and does not disclose foreign or missing IDs', async () => {
+    const owner = await seedUser()
+    const otherUser = await seedUser({ name: 'Other' })
+    const owned = await createNotification(owner.id, 'order_placed')
+    const other = await createNotification(otherUser.id, 'order_shipped')
+    const missing = '550e8400-e29b-41d4-a716-446655440000'
 
-    try {
-      await markNotificationReadQuery('550e8400-e29b-41d4-a716-446655440000', u.id)
-      expect.fail('Should have thrown')
-    } catch (err) {
-      expect(err instanceof Response).toBe(true)
-      expect((err as Response).status).toBe(404)
-    }
+    const result = await markNotificationsReadQuery([owned.id, other.id, missing], owner.id)
+
+    expect(result).toEqual({ success: true })
+    const [ownedRow] = await db.select().from(notification).where(eq(notification.id, owned.id))
+    const [otherRow] = await db.select().from(notification).where(eq(notification.id, other.id))
+    expect(ownedRow.readAt).not.toBeNull()
+    expect(otherRow.readAt).toBeNull()
   })
 
-  it("does not reveal that another user's notification exists", async () => {
-    // Previously 403 here and 404 for a missing id, which told a caller whether
-    // an id they do not own is real. Both are 404 now.
-    const u1 = await seedUser()
-    const u2 = await seedUser({ name: 'Other' })
-
-    const n = await createNotification(u2.id, 'order_placed')
-
-    try {
-      await markNotificationReadQuery(n.id, u1.id)
-      expect.fail('Should have thrown')
-    } catch (err) {
-      expect(err instanceof Response).toBe(true)
-      expect((err as Response).status).toBe(404)
-    }
-  })
-
-  it('marks a notification as read', async () => {
+  it('is idempotent for already-read notifications', async () => {
     const u = await seedUser()
-
     const n = await createNotification(u.id, 'order_placed')
-    expect(n.readAt).toBeNull()
 
-    const result = await markNotificationReadQuery(n.id, u.id)
-    expect(result.success).toBe(true)
+    await markNotificationsReadQuery([n.id], u.id)
+    const result = await markNotificationsReadQuery([n.id], u.id)
 
-    const dbRow = await db.select().from(notification).where(eq(notification.id, n.id))
-    expect(dbRow[0].readAt).not.toBeNull()
-  })
-
-  it('is idempotent when already read', async () => {
-    const u = await seedUser()
-
-    const n = await createNotification(u.id, 'order_placed')
-    await markNotificationReadQuery(n.id, u.id)
-
-    const result = await markNotificationReadQuery(n.id, u.id)
-    expect(result.success).toBe(true)
-
-    const dbRow = await db.select().from(notification).where(eq(notification.id, n.id))
-    expect(dbRow[0].readAt).not.toBeNull()
+    expect(result).toEqual({ success: true })
   })
 })
 

@@ -39,6 +39,8 @@ const shop: CheckoutShippingShop = {
       lengthCm: 20,
       widthCm: 15,
       heightCm: 5,
+      volumeMl: null,
+      soldBy: null,
     } satisfies CheckoutItem,
   ],
 }

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { useCart } from '#/components/CartProvider'
+import { UnitPriceNote } from '#/components/product/UnitPriceNote'
 import { authClient } from '#/lib/auth-client'
 import type { CartDetail, CartItemDetail, CartShopGroup } from '#/lib/cart.server'
 import { useRemoveCartItem, useUpdateCartItem } from '#/lib/cart-hooks'
@@ -406,9 +407,17 @@ function CartItemRow({
             )}
 
             {product && !item.unavailable && (
-              <p className='mt-0.5 text-sm font-medium text-text-primary'>
-                {formatPriceEUR(product.priceCents)}
-              </p>
+              <>
+                <p className='mt-0.5 text-sm font-medium text-text-primary'>
+                  {formatPriceEUR(product.priceCents)}
+                </p>
+                <UnitPriceNote
+                  priceCents={product.priceCents}
+                  soldBy={product.soldBy}
+                  weightGrams={product.weightGrams}
+                  volumeMl={product.volumeMl}
+                />
+              </>
             )}
           </div>
 

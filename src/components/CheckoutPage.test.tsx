@@ -111,6 +111,12 @@ vi.mock('#/paraglide/messages', () => ({
     checkout_terms_notice_and: () => 'and',
     footer_legal_terms: () => 'Terms of Service',
     footer_legal_privacy: () => 'Privacy Policy',
+    trader_status_trader: () => 'This seller has declared that they are a trader.',
+    trader_status_non_trader: () => 'This seller has declared that they are not a trader.',
+    trader_status_non_trader_rights_notice: () =>
+      'Consumer rights stemming from EU consumer protection law do not apply to the contract.',
+    trader_status_undeclared: () =>
+      'This seller has not declared whether they are a trader. Purchases are unavailable until the declaration is provided.',
   },
 }))
 
@@ -119,6 +125,7 @@ const defaultSellerLegal = {
   contactEmail: 'seller@example.com',
   vatId: null,
   address: { street: '1 Rue Test', city: 'Paris', postalCode: '75001', country: 'FR' },
+  traderStatus: 'trader',
 } as const
 
 function makeSummary(overrides?: Partial<Parameters<typeof CheckoutPage>[0]['summary']>) {
@@ -138,6 +145,8 @@ function makeSummary(overrides?: Partial<Parameters<typeof CheckoutPage>[0]['sum
             quantity: 2,
             imageUrl: 'http://example.com/vase.jpg',
             weightGrams: null,
+            volumeMl: null,
+            soldBy: null,
             lengthCm: null,
             widthCm: null,
             heightCm: null,
@@ -285,6 +294,66 @@ describe('CheckoutPage', () => {
     render(<CheckoutPage summary={makeSummary()} cartId='cart-1' />)
     expect(screen.getByText('Order summary')).toBeDefined()
     expect(screen.getAllByText('Grand total').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('renders the declared trader status for each seller, including the non-trader consequence', () => {
+    const firstShop = makeSummary().shops[0]
+    render(
+      <CheckoutPage
+        summary={makeSummary({
+          shops: [
+            firstShop,
+            {
+              ...firstShop,
+              shopId: 'shop-2',
+              shopName: 'Private Maker',
+              shopSlug: 'private-maker',
+              sellerLegal: {
+                ...defaultSellerLegal,
+                tradeName: 'Private Maker',
+                traderStatus: 'non_trader',
+              },
+            },
+          ],
+        })}
+        cartId='cart-1'
+      />,
+    )
+
+    expect(screen.getByText('This seller has declared that they are a trader.')).toBeDefined()
+    expect(screen.getByText('This seller has declared that they are not a trader.')).toBeDefined()
+    expect(
+      screen.getByText(
+        'Consumer rights stemming from EU consumer protection law do not apply to the contract.',
+      ),
+    ).toBeDefined()
+  })
+
+  it('explains an undeclared seller status and disables checkout actions', () => {
+    render(
+      <CheckoutPage
+        summary={makeSummary({
+          shops: [
+            {
+              ...makeSummary().shops[0],
+              sellerLegal: { ...defaultSellerLegal, traderStatus: null },
+            },
+          ],
+        })}
+        cartId='cart-1'
+      />,
+    )
+
+    expect(
+      screen.getByText(
+        'This seller has not declared whether they are a trader. Purchases are unavailable until the declaration is provided.',
+      ),
+    ).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Confirm purchase' })).toHaveProperty(
+      'disabled',
+      true,
+    )
+    expect(screen.getByRole('button', { name: 'Pay €25.00' })).toHaveProperty('disabled', true)
   })
 
   it('shows validation errors for empty required fields on submit', async () => {
@@ -503,6 +572,8 @@ describe('CheckoutPage', () => {
               quantity: 1,
               imageUrl: null,
               weightGrams: null,
+              volumeMl: null,
+              soldBy: null,
               lengthCm: null,
               widthCm: null,
               heightCm: null,
@@ -537,6 +608,8 @@ describe('CheckoutPage', () => {
               quantity: 1,
               imageUrl: null,
               weightGrams: null,
+              volumeMl: null,
+              soldBy: null,
               lengthCm: null,
               widthCm: null,
               heightCm: null,
@@ -582,6 +655,8 @@ describe('CheckoutPage', () => {
               quantity: 1,
               imageUrl: null,
               weightGrams: null,
+              volumeMl: null,
+              soldBy: null,
               lengthCm: null,
               widthCm: null,
               heightCm: null,
@@ -622,6 +697,8 @@ describe('CheckoutPage', () => {
               quantity: 1,
               imageUrl: null,
               weightGrams: null,
+              volumeMl: null,
+              soldBy: null,
               lengthCm: null,
               widthCm: null,
               heightCm: null,
@@ -666,6 +743,8 @@ describe('CheckoutPage', () => {
               quantity: 1,
               imageUrl: null,
               weightGrams: null,
+              volumeMl: null,
+              soldBy: null,
               lengthCm: null,
               widthCm: null,
               heightCm: null,

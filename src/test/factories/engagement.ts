@@ -59,6 +59,25 @@ export async function createReview(
   return row
 }
 
+export async function createSellerReply(
+  review: { id: string } | string,
+  author: UserLike | string,
+  overrides?: Partial<typeof schema.sellerReply.$inferInsert>,
+): Promise<typeof schema.sellerReply.$inferSelect> {
+  const reviewId = typeof review === 'string' ? review : review.id
+  const authorUserId = typeof author === 'string' ? author : author.id
+  const [row] = await db
+    .insert(schema.sellerReply)
+    .values({
+      reviewId,
+      authorUserId,
+      body: 'Thank you for your review.',
+      ...overrides,
+    })
+    .returning()
+  return row
+}
+
 export async function createDispute(
   shopOrder: ShopOrderLike | string,
   buyer: UserLike | string,

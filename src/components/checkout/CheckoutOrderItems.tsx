@@ -1,4 +1,5 @@
 import { Package } from 'lucide-react'
+import { UnitPriceNote } from '#/components/product/UnitPriceNote'
 import type { CheckoutSummary } from '#/lib/checkout.server'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
@@ -42,6 +43,12 @@ export function CheckoutOrderItems({ currentSummary }: CheckoutOrderItemsProps) 
                     <span className='text-xs text-text-secondary'>
                       {m.checkout_quantity_label({ count: String(item.quantity) })}
                     </span>
+                    <UnitPriceNote
+                      priceCents={item.priceCents}
+                      soldBy={item.soldBy}
+                      weightGrams={item.weightGrams}
+                      volumeMl={item.volumeMl}
+                    />
                   </div>
                   <span className='text-sm font-medium text-text-primary'>
                     {formatPriceEUR(item.priceCents * item.quantity)}

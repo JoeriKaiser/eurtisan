@@ -575,6 +575,34 @@
       "when": 1785530477036,
       "tag": "0081_remove_food_categories",
       "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1785750009766,
+      "tag": "0082_gray_scourge",
+      "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1785766290842,
+      "tag": "0083_aspiring_expediter",
+      "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1785770958056,
+      "tag": "0084_puzzling_robin_chapel",
+      "breakpoints": true
+    },
+    {
+      "idx": 85,
+      "version": "7",
+      "when": 1785836658371,
+      "tag": "0085_burly_dazzler",
+      "breakpoints": true
     }
   ]
 }

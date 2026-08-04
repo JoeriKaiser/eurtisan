@@ -19,6 +19,7 @@ import {
   twoFactor,
   user,
   userEmailPreference,
+  userNotificationPreference,
 } from '#/db/schema'
 import { hashEmail } from '#/lib/customers.server'
 
@@ -196,6 +197,11 @@ describe('exportUserData', () => {
       category: 'seller_updates',
       enabled: true,
     })
+    await db.insert(userNotificationPreference).values({
+      userId: u.id,
+      type: 'review_received',
+      enabled: false,
+    })
 
     const data = await exportUserData(u.id)
 
@@ -205,6 +211,11 @@ describe('exportUserData', () => {
     expect(data.emailPreferences).toHaveLength(1)
     expect(data.emailPreferences[0]?.category).toBe('seller_updates')
     expect(data.emailPreferences[0]?.enabled).toBe(true)
+    expect(data.notificationPreferences).toHaveLength(1)
+    expect(data.notificationPreferences[0]).toMatchObject({
+      type: 'review_received',
+      enabled: false,
+    })
   })
 
   it('includes customer notes and tags by email hash', async () => {
@@ -539,6 +550,23 @@ describe('deleteUserAccount', () => {
       .select()
       .from(userEmailPreference)
       .where(eq(userEmailPreference.userId, u.id))
+    expect(preferences).toHaveLength(0)
+  })
+
+  it('deletes user notification preferences on deletion', async () => {
+    const u = await createUser()
+    await db.insert(userNotificationPreference).values({
+      userId: u.id,
+      type: 'low_stock',
+      enabled: false,
+    })
+
+    await deleteUserAccount(u.id)
+
+    const preferences = await db
+      .select()
+      .from(userNotificationPreference)
+      .where(eq(userNotificationPreference.userId, u.id))
     expect(preferences).toHaveLength(0)
   })
 })

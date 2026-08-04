@@ -80,9 +80,9 @@ describe('createCheckoutQuery notifications', () => {
 
     await flushAll()
     const buyerNotifications = await getNotificationsQuery(buyer.id, 1, 10)
-    expect(buyerNotifications.notifications).toHaveLength(1)
-    expect(buyerNotifications.notifications[0].type).toBe('order_placed')
-    expect(buyerNotifications.notifications[0].data).toMatchObject({
+    expect(buyerNotifications.groups).toHaveLength(1)
+    expect(buyerNotifications.groups[0].items[0].type).toBe('order_placed')
+    expect(buyerNotifications.groups[0].items[0].data).toMatchObject({
       platformOrderId: result.platformOrderId,
     })
   })
@@ -120,12 +120,12 @@ describe('createCheckoutQuery notifications', () => {
 
     await flushAll()
     const sellerNotifications = await getNotificationsQuery(seller.id, 1, 10)
-    expect(sellerNotifications.notifications).toHaveLength(1)
-    expect(sellerNotifications.notifications[0].type).toBe('order_placed')
-    expect(sellerNotifications.notifications[0].data).toMatchObject({
+    expect(sellerNotifications.groups).toHaveLength(1)
+    expect(sellerNotifications.groups[0].items[0].type).toBe('order_placed')
+    expect(sellerNotifications.groups[0].items[0].data).toMatchObject({
       platformOrderId: result.platformOrderId,
     })
-    expect(sellerNotifications.notifications[0].data.shopOrderId).toBeDefined()
+    expect(sellerNotifications.groups[0].items[0].data.shopOrderId).toBeDefined()
   })
 })
 
@@ -147,9 +147,9 @@ describe('markShopOrderShippedQuery notification', () => {
 
     await flushAll()
     const buyerNotifications = await getNotificationsQuery(buyer.id, 1, 10)
-    expect(buyerNotifications.notifications).toHaveLength(1)
-    expect(buyerNotifications.notifications[0].type).toBe('order_shipped')
-    expect(buyerNotifications.notifications[0].data).toMatchObject({
+    expect(buyerNotifications.groups).toHaveLength(1)
+    expect(buyerNotifications.groups[0].items[0].type).toBe('order_shipped')
+    expect(buyerNotifications.groups[0].items[0].data).toMatchObject({
       platformOrderId: order.id,
       shopOrderId: so.id,
     })
@@ -176,7 +176,7 @@ describe('markShopOrderShippedQuery notification', () => {
 
     await flushAll()
     const buyerNotifications = await getNotificationsQuery(buyer.id, 1, 10)
-    expect(buyerNotifications.notifications).toHaveLength(1)
+    expect(buyerNotifications.groups).toHaveLength(1)
   })
 })
 
@@ -201,9 +201,9 @@ describe('createReviewQuery notification', () => {
 
     await flushAll()
     const sellerNotifications = await getNotificationsQuery(seller.id, 1, 10)
-    expect(sellerNotifications.notifications).toHaveLength(1)
-    expect(sellerNotifications.notifications[0].type).toBe('review_received')
-    expect(sellerNotifications.notifications[0].data).toMatchObject({
+    expect(sellerNotifications.groups).toHaveLength(1)
+    expect(sellerNotifications.groups[0].items[0].type).toBe('review_received')
+    expect(sellerNotifications.groups[0].items[0].data).toMatchObject({
       shopOrderId: so.id,
       productId: product.id,
       reviewId: result.id,
@@ -230,9 +230,9 @@ describe('updateShopOrderStatusQuery dispute notification', () => {
 
     await flushAll()
     const buyerNotifications = await getNotificationsQuery(buyer.id, 1, 10)
-    expect(buyerNotifications.notifications).toHaveLength(1)
-    expect(buyerNotifications.notifications[0].type).toBe('dispute_opened')
-    expect(buyerNotifications.notifications[0].data).toMatchObject({
+    expect(buyerNotifications.groups).toHaveLength(1)
+    expect(buyerNotifications.groups[0].items[0].type).toBe('dispute_opened')
+    expect(buyerNotifications.groups[0].items[0].data).toMatchObject({
       platformOrderId: order.id,
       shopOrderId: so.id,
     })
@@ -601,9 +601,9 @@ describe('markPayoutSentQuery notification', () => {
 
     await flushAll()
     const sellerNotifications = await getNotificationsQuery(seller.id, 1, 10)
-    expect(sellerNotifications.notifications).toHaveLength(1)
-    expect(sellerNotifications.notifications[0].type).toBe('payout_sent')
-    expect(sellerNotifications.notifications[0].data).toMatchObject({
+    expect(sellerNotifications.groups).toHaveLength(1)
+    expect(sellerNotifications.groups[0].items[0].type).toBe('payout_sent')
+    expect(sellerNotifications.groups[0].items[0].data).toMatchObject({
       payoutId: p.id,
       shopId: shop.id,
       amount: '50',
@@ -642,6 +642,6 @@ describe('markPayoutSentQuery notification', () => {
 
     await flushAll()
     const sellerNotifications = await getNotificationsQuery(seller.id, 1, 10)
-    expect(sellerNotifications.notifications).toHaveLength(0)
+    expect(sellerNotifications.groups).toHaveLength(0)
   })
 })

@@ -19,6 +19,8 @@ import { isPostgresUniqueViolation } from '../db-errors'
 import { sanitizeRichText, validatePlainText } from '../xss'
 import { writeAuditLog, type AuditActor } from '../audit-logger'
 import { createNotification } from '../notifications.server'
+import { getCategoryChainSlugs } from './categories.server'
+import { isUnitPricingScoped, unitPricingMissing } from './unit-pricing'
 
 export {
   createProductSchema,
@@ -31,7 +33,6 @@ export {
 /* -------------------------------------------------------------------------- */
 /*                                   Helpers                                  */
 /* -------------------------------------------------------------------------- */
-
 export async function verifyProductOwnership(productId: string, userId: string) {
   const [productRecord] = await db
     .select({
@@ -44,16 +45,18 @@ export async function verifyProductOwnership(productId: string, userId: string) 
       isActive: product.isActive,
       status: product.status,
       publishedAt: product.publishedAt,
-      vatRateCategory: product.vatRateCategory,
-      returnPolicy: product.returnPolicy,
-      shopId: product.shopId,
       categoryId: product.categoryId,
       weightGrams: product.weightGrams,
       lengthCm: product.lengthCm,
       widthCm: product.widthCm,
       heightCm: product.heightCm,
+      volumeMl: product.volumeMl,
+      soldBy: product.soldBy,
+      vatRateCategory: product.vatRateCategory,
+      returnPolicy: product.returnPolicy,
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
+      shopId: product.shopId,
       shopOwnerId: shop.ownerId,
     })
     .from(product)
@@ -94,6 +97,53 @@ export async function validateCategory(categoryId: string | undefined) {
     .where(eq(categories.id, categoryId))
     .limit(1)
   return !!categoryRecord
+}
+
+/**
+ * Directive 98/6/EC / arrêté of 16 November 1999: scoped categories must carry
+ * a sold-by declaration with the matching quantity before the product can be
+ * saved. Unscoped products never keep a basis, so a stale value cannot render
+ * a unit price the law does not ask for.
+ */
+async function assertUnitPricingComplete(options: {
+  categoryId: string | null
+  soldBy: 'weight' | 'volume' | null | undefined
+  weightGrams: number | null | undefined
+  volumeMl: number | null | undefined
+}): Promise<boolean> {
+  const scoped = isUnitPricingScoped(await getCategoryChainSlugs(options.categoryId))
+  if (
+    scoped &&
+    unitPricingMissing({
+      scoped,
+      soldBy: options.soldBy,
+      weightGrams: options.weightGrams,
+      volumeMl: options.volumeMl,
+    })
+  ) {
+    throw new Error('UNIT_PRICE_REQUIRED')
+  }
+  return scoped
+}
+
+async function unitPricingScopeByCategoryId(categoryIds: (string | null)[]) {
+  const distinct = [...new Set(categoryIds.filter((id): id is string => id !== null))]
+  const scoped = new Map<string, boolean>()
+  if (distinct.length === 0) return scoped
+  const rows = await db
+    .select({ id: categories.id, slug: categories.slug, parentId: categories.parentId })
+    .from(categories)
+  const byId = new Map(rows.map((row) => [row.id, row]))
+  for (const id of distinct) {
+    const slugs: string[] = []
+    let current = byId.get(id)
+    while (current) {
+      slugs.push(current.slug)
+      current = current.parentId ? byId.get(current.parentId) : undefined
+    }
+    scoped.set(id, isUnitPricingScoped(slugs))
+  }
+  return scoped
 }
 
 async function insertProductImages(
@@ -178,6 +228,8 @@ export async function createProductInternal(
     lengthCm?: number
     widthCm?: number
     heightCm?: number
+    volumeMl?: number
+    soldBy?: 'weight' | 'volume'
     images?: ProductImageInput[]
   },
   actor?: AuditActor,
@@ -186,6 +238,13 @@ export async function createProductInternal(
   if (!categoryValid) {
     throw new Error('Invalid category_id')
   }
+
+  const scoped = await assertUnitPricingComplete({
+    categoryId: data.categoryId ?? null,
+    soldBy: data.soldBy,
+    weightGrams: data.weightGrams,
+    volumeMl: data.volumeMl,
+  })
 
   let newProduct: typeof product.$inferSelect
   try {
@@ -213,6 +272,8 @@ export async function createProductInternal(
           lengthCm: data.lengthCm ?? null,
           widthCm: data.widthCm ?? null,
           heightCm: data.heightCm ?? null,
+          volumeMl: scoped ? (data.volumeMl ?? null) : null,
+          soldBy: scoped ? (data.soldBy ?? null) : null,
         })
         .returning()
 
@@ -287,6 +348,8 @@ export async function updateProductInternal(
     lengthCm?: number
     widthCm?: number
     heightCm?: number
+    volumeMl?: number
+    soldBy?: 'weight' | 'volume'
     images?: ProductImageInput[]
   },
   actor?: AuditActor,
@@ -302,6 +365,14 @@ export async function updateProductInternal(
   if (!categoryValid) {
     throw new Error('Invalid category_id')
   }
+
+  const finalCategoryId = data.categoryId !== undefined ? data.categoryId : productRecord.categoryId
+  const scoped = await assertUnitPricingComplete({
+    categoryId: finalCategoryId,
+    soldBy: data.soldBy !== undefined ? data.soldBy : productRecord.soldBy,
+    weightGrams: data.weightGrams !== undefined ? data.weightGrams : productRecord.weightGrams,
+    volumeMl: data.volumeMl !== undefined ? data.volumeMl : productRecord.volumeMl,
+  })
 
   const updateData: Record<string, unknown> = {
     updatedAt: new Date(),
@@ -326,6 +397,13 @@ export async function updateProductInternal(
   if (data.lengthCm !== undefined) updateData.lengthCm = data.lengthCm ?? null
   if (data.widthCm !== undefined) updateData.widthCm = data.widthCm ?? null
   if (data.heightCm !== undefined) updateData.heightCm = data.heightCm ?? null
+  if (scoped) {
+    if (data.volumeMl !== undefined) updateData.volumeMl = data.volumeMl ?? null
+    if (data.soldBy !== undefined) updateData.soldBy = data.soldBy ?? null
+  } else {
+    updateData.volumeMl = null
+    updateData.soldBy = null
+  }
 
   // Remember old image keys so we can clean them up from S3 after a successful commit
   let oldImageKeys: string[] = []
@@ -820,6 +898,9 @@ export async function listCreatorProductsInternal(data: {
       categoryId: product.categoryId,
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
+      weightGrams: product.weightGrams,
+      volumeMl: product.volumeMl,
+      soldBy: product.soldBy,
       imageCount: count(productImage.id),
     })
     .from(product)
@@ -843,12 +924,24 @@ export async function listCreatorProductsInternal(data: {
     }
   }
 
+  const scopeByCategory = await unitPricingScopeByCategoryId(products.map((p) => p.categoryId))
+
   return {
-    products: products.map((p) => ({
-      ...p,
-      imageCount: Number(p.imageCount),
-      thumbnailUrl: thumbnailMap.get(p.id) ?? null,
-    })),
+    products: products.map((p) => {
+      const scoped = p.categoryId ? (scopeByCategory.get(p.categoryId) ?? false) : false
+      return {
+        ...p,
+        imageCount: Number(p.imageCount),
+        thumbnailUrl: thumbnailMap.get(p.id) ?? null,
+        unitPriceScoped: scoped,
+        unitPriceMissing: unitPricingMissing({
+          scoped,
+          soldBy: p.soldBy,
+          weightGrams: p.weightGrams,
+          volumeMl: p.volumeMl,
+        }),
+      }
+    }),
     total,
     page,
     pageSize,
@@ -875,7 +968,18 @@ export async function getCreatorProductDetailInternal(productId: string, userId:
       .orderBy(productImage.sortOrder),
   ])
 
-  return { ...productRecord, images }
+  const scoped = isUnitPricingScoped(await getCategoryChainSlugs(productRecord.categoryId))
+  return {
+    ...productRecord,
+    images,
+    unitPriceScoped: scoped,
+    unitPriceMissing: unitPricingMissing({
+      scoped,
+      soldBy: productRecord.soldBy,
+      weightGrams: productRecord.weightGrams,
+      volumeMl: productRecord.volumeMl,
+    }),
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -992,6 +1096,8 @@ export async function bulkToggleProductActiveInternal(
       lengthCm: product.lengthCm,
       widthCm: product.widthCm,
       heightCm: product.heightCm,
+      volumeMl: product.volumeMl,
+      soldBy: product.soldBy,
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
     })

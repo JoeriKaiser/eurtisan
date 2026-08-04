@@ -13,7 +13,8 @@ vi.mock('#/paraglide/messages', () => {
     review_disclosure_check_delivered: () => 'Delivered, and 14 days have passed.',
     review_disclosure_check_once: () => 'One review per product per order.',
     review_disclosure_check_own: () => 'Makers cannot review their own products.',
-    review_disclosure_order: () => 'Reviews are shown newest first.',
+    review_disclosure_order: () =>
+      'Reviews are shown newest first by default. You can also order them by highest rating, lowest rating, or the number of people who marked them helpful.',
     review_disclosure_dates: () => 'Both the publication and experience dates are shown.',
     review_disclosure_moderation: () => 'Reporting alone changes nothing.',
     review_disclosure_retention: () => 'Kept while the product is listed.',
@@ -43,7 +44,11 @@ describe('ReviewDisclosure', () => {
 
   it('covers the four things L.111-7-2 asks for beyond verification', () => {
     render(<ReviewDisclosure />)
-    expect(screen.getByText('Reviews are shown newest first.')).toBeDefined()
+    expect(
+      screen.getByText(
+        'Reviews are shown newest first by default. You can also order them by highest rating, lowest rating, or the number of people who marked them helpful.',
+      ),
+    ).toBeDefined()
     expect(screen.getByText('Both the publication and experience dates are shown.')).toBeDefined()
     expect(screen.getByText('Reporting alone changes nothing.')).toBeDefined()
     expect(screen.getByText('Kept while the product is listed.')).toBeDefined()

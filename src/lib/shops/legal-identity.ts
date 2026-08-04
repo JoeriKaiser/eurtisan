@@ -1,3 +1,5 @@
+import type { TraderStatus } from './trader-status'
+
 /**
  * Seller legal identity shown at checkout and in order emails (EU trader information).
  */
@@ -14,6 +16,7 @@ export interface ShopLegalIdentity {
   contactEmail: string
   vatId: string | null
   address: PostalAddress | null
+  traderStatus: TraderStatus | null
 }
 
 export function resolveShopAddress(
@@ -61,11 +64,13 @@ export function buildShopLegalIdentity(input: {
   vatId: string | null
   businessAddress: unknown
   shippingOrigin: unknown
+  traderStatus: TraderStatus | null
 }): ShopLegalIdentity {
   return {
     tradeName: input.shopName,
     contactEmail: input.ownerEmail,
     vatId: input.vatId,
     address: resolveShopAddress(input.businessAddress, input.shippingOrigin),
+    traderStatus: input.traderStatus,
   }
 }

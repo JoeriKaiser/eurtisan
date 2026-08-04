@@ -76,6 +76,13 @@ vi.mock('#/paraglide/messages', () => ({
     product_more_from_shop_generic: () => 'More from this maker',
     product_view_all_from_shop: () => 'View the whole shop',
     rating_out_of_five: ({ rating }: { rating: number }) => `${rating} out of 5 stars`,
+    trader_status_trader: () => 'This seller has declared that they are a trader.',
+    trader_status_non_trader: () => 'This seller has declared that they are not a trader.',
+    trader_status_non_trader_rights_notice: () =>
+      'Consumer rights stemming from EU consumer protection law do not apply to the contract.',
+    trader_status_undeclared: () =>
+      'This seller has not declared whether they are a trader. Purchases are unavailable until the declaration is provided.',
+    product_purchase_unavailable: () => 'Purchase unavailable',
   },
 }))
 
@@ -97,12 +104,16 @@ function makeProduct(overrides?: Partial<ProductDetailType>): ProductDetailType 
     shopName: 'Artisan Studio',
     shopSlug: 'artisan-studio',
     shopIsVatRegistered: false,
+    traderStatus: 'trader',
     shopDescription: 'Handcrafted goods from local artisans.',
     categoryId: 'cat-1',
     lowStockThreshold: 5,
     dispatchDays: { min: 1, max: 3 },
     rating: null,
     imageUrl: null,
+    weightGrams: null,
+    volumeMl: null,
+    soldBy: null,
     images: [
       { id: 'img-1', url: 'http://example.com/1.jpg', altText: 'Front view', sortOrder: 0 },
       { id: 'img-2', url: 'http://example.com/2.jpg', altText: 'Side view', sortOrder: 1 },
@@ -125,6 +136,49 @@ describe('ProductDetail', () => {
   it('renders product name', () => {
     render(<ProductDetail product={makeProduct()} />)
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Handmade Vase')
+  })
+
+  it('discloses trader and non-trader seller declarations accurately', () => {
+    const { rerender } = render(<ProductDetail product={makeProduct({ traderStatus: 'trader' })} />)
+
+    expect(screen.getByText('This seller has declared that they are a trader.')).toBeDefined()
+    expect(
+      screen.queryByText(
+        'Consumer rights stemming from EU consumer protection law do not apply to the contract.',
+      ),
+    ).toBeNull()
+
+    rerender(<ProductDetail product={makeProduct({ traderStatus: 'non_trader' })} />)
+
+    expect(screen.getByText('This seller has declared that they are not a trader.')).toBeDefined()
+    expect(
+      screen.getByText(
+        'Consumer rights stemming from EU consumer protection law do not apply to the contract.',
+      ),
+    ).toBeDefined()
+  })
+
+  it('explains an undeclared seller status and disables every purchase control', () => {
+    render(<ProductDetail product={makeProduct({ traderStatus: null })} />)
+
+    expect(
+      screen.getByText(
+        'This seller has not declared whether they are a trader. Purchases are unavailable until the declaration is provided.',
+      ),
+    ).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Purchase unavailable' })).toHaveProperty(
+      'disabled',
+      true,
+    )
+    expect(screen.getByRole('button', { name: 'Decrease quantity' })).toHaveProperty(
+      'disabled',
+      true,
+    )
+    expect(screen.getByRole('button', { name: 'Increase quantity' })).toHaveProperty(
+      'disabled',
+      true,
+    )
+    expect(screen.getByRole('spinbutton', { name: 'Quantity' })).toHaveProperty('disabled', true)
   })
 
   it('renders price in EUR format', () => {
@@ -156,7 +210,7 @@ describe('ProductDetail', () => {
   })
 
   it('omits the dispatch line when the shop has no processing times', () => {
-    // The settings write path drops them; the page must not render a blank claim.
+    // Legacy or previously damaged origins can lack this optional projection.
     render(<ProductDetail product={makeProduct({ dispatchDays: null })} />)
     expect(screen.queryByText(/Usually dispatched/)).toBeNull()
     expect(screen.getByText(/calculated at checkout/)).toBeDefined()

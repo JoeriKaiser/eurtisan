@@ -52,6 +52,9 @@ const publicProductColumns = {
   shopName: shop.name,
   shopSlug: shop.slug,
   shopIsVatRegistered: shop.isVatRegistered,
+  weightGrams: product.weightGrams,
+  volumeMl: product.volumeMl,
+  soldBy: product.soldBy,
 }
 
 export async function fetchFirstImageUrls(productIds: string[]): Promise<Map<string, string>> {
@@ -186,8 +189,8 @@ export async function getProductBySlugQuery(
     .select({
       ...publicProductColumns,
       shopDescription: shop.description,
+      traderStatus: shop.traderStatus,
       categoryId: product.categoryId,
-      shopIsVatRegistered: shop.isVatRegistered,
       lowStockThreshold: product.lowStockThreshold,
       // Encrypted at rest, so it is decrypted below rather than read in SQL.
       shippingOrigin: shop.shippingOrigin,
@@ -256,12 +259,30 @@ export async function getProductBySlugQuery(
       : null
 
   return {
-    ...(result as unknown as PublicProduct),
+    id: result.id,
+    name: result.name,
+    description: result.description,
+    slug: result.slug,
+    priceCents: result.priceCents,
+    stockCount: result.stockCount,
+    isActive: result.isActive,
+    status: result.status,
+    publishedAt: result.publishedAt,
+    createdAt: result.createdAt,
+    updatedAt: result.updatedAt,
+    categoryName: result.categoryName,
+    categorySlug: result.categorySlug,
+    shopName: result.shopName,
+    shopSlug: result.shopSlug,
+    shopIsVatRegistered: result.shopIsVatRegistered,
+    weightGrams: result.weightGrams,
+    volumeMl: result.volumeMl,
+    soldBy: result.soldBy,
     imageUrl: primaryImage?.url ?? null,
     images,
     shopDescription: result.shopDescription,
+    traderStatus: result.traderStatus,
     categoryId: result.categoryId,
-    shopIsVatRegistered: result.shopIsVatRegistered,
     lowStockThreshold: result.lowStockThreshold,
     dispatchDays,
     rating,

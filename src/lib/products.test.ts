@@ -12,7 +12,9 @@ import {
   createUser,
 } from '#/test/factories'
 import { logger } from './logger.server'
+import { encryptJsonb } from './infra/encryption.server'
 import { syncProductToMeilisearch } from './meilisearch-products.server'
+import { updateShopInternal } from './shops/settings.server'
 import { createProductSchema } from './products'
 import {
   createProductInternal,
@@ -427,6 +429,42 @@ describe('getProductBySlugQuery', () => {
     expect(result?.images[0].sortOrder).toBe(0)
     expect(result?.images[1].sortOrder).toBe(1)
     expect(result?.imageUrl).toBe('http://example.com/2.jpg')
+  })
+
+  it('retains dispatch days after an address-only settings update', async () => {
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, {
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      shippingOrigin: encryptJsonb({
+        street: '1 Old Lane',
+        city: 'Lyon',
+        postalCode: '69001',
+        country: 'FR',
+        processingTimeDays: { min: 2, max: 4 },
+        shipsInternational: true,
+      }),
+    })
+    await createProduct(s, {
+      id: 'prod-1',
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 2999,
+    })
+
+    await updateShopInternal(s.id, {
+      shippingOrigin: {
+        street: '2 New Lane',
+        city: 'Paris',
+        postalCode: '75001',
+        country: 'FR',
+      },
+    })
+
+    const result = await getProductBySlugQuery('test-shop', 'vase')
+
+    expect(result?.dispatchDays).toEqual({ min: 2, max: 4 })
   })
 
   it('returns null for nonexistent product', async () => {

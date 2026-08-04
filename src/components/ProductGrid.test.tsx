@@ -41,6 +41,9 @@ function makeProduct(id: string, overrides?: Partial<PublicProduct>): PublicProd
     shopSlug: 'test-shop',
     shopIsVatRegistered: false,
     imageUrl: `https://example.com/${id}.jpg`,
+    weightGrams: null,
+    volumeMl: null,
+    soldBy: null,
     ...overrides,
   }
 }

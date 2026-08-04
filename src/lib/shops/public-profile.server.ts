@@ -24,6 +24,8 @@ import {
  * `businessAddress`, `vatId`, `taxId`, `dateOfBirth`,
  * `businessRegistrationNumber`, `legalEntityType`, every `mollie*` column, the
  * moderation trail, and `ownerId`, which is a `user.id`.
+ * `traderStatus` is the seller's separate CRD declaration and is the only legal
+ * classification published.
  *
  * Never replace this with `select()`.
  */
@@ -43,6 +45,7 @@ const publicShopColumns = {
   productionPartnerDetails: shop.productionPartnerDetails,
   languages: shop.languages,
   isVatRegistered: shop.isVatRegistered,
+  traderStatus: shop.traderStatus,
   createdAt: shop.createdAt,
   shippingOrigin: shop.shippingOrigin,
   policies: shop.policies,
@@ -148,6 +151,7 @@ export async function getShopProfileQuery(slug: string): Promise<ShopProfile | n
     productionPartnerDetails: row.productionPartnerDetails,
     languages: row.languages ?? [],
     isVatRegistered: row.isVatRegistered,
+    traderStatus: row.traderStatus,
     createdAt: row.createdAt,
     policies: parsePublicPolicies(row.policies),
     origin,

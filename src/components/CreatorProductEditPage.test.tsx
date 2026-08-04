@@ -221,6 +221,10 @@ interface ProductDetail {
   lengthCm: number | null
   widthCm: number | null
   heightCm: number | null
+  volumeMl: null
+  soldBy: null
+  unitPriceScoped: false
+  unitPriceMissing: false
   images: ProductImageRecord[]
 }
 
@@ -264,6 +268,10 @@ function makeProduct(overrides?: Partial<ProductDetail>): ProductDetail {
     lengthCm: null,
     widthCm: null,
     heightCm: null,
+    volumeMl: null,
+    soldBy: null,
+    unitPriceScoped: false,
+    unitPriceMissing: false,
     images: [
       {
         id: 'img-1',
@@ -652,6 +660,8 @@ describe('CreatorProductEditPage', () => {
       lengthCm: null,
       widthCm: null,
       heightCm: null,
+      volumeMl: null,
+      soldBy: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     })
@@ -755,6 +765,8 @@ describe('CreatorProductEditPage', () => {
       lengthCm: null,
       widthCm: null,
       heightCm: null,
+      volumeMl: null,
+      soldBy: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     })

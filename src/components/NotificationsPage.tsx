@@ -3,8 +3,10 @@ import {
   AlertTriangle,
   Banknote,
   Bell,
+  ChevronDown,
   Flag,
   Package,
+  MessageSquare,
   PackageMinus,
   Star,
   Truck,
@@ -12,13 +14,13 @@ import {
   Undo2,
   Store,
 } from 'lucide-react'
+import { useState } from 'react'
 import { StatementOfReasons } from '#/components/notifications/StatementOfReasons'
 import { formatDateShort } from '#/lib/format-date'
 import type { NotificationItem, NotificationType } from '#/lib/notifications.server'
-import { useMarkAllNotificationsRead, useMarkNotificationRead } from '#/lib/notifications-hooks'
+import { useMarkAllNotificationsRead, useMarkNotificationsRead } from '#/lib/notifications-hooks'
 import { m } from '#/paraglide/messages'
 import { Button } from './ui/button'
-
 /**
  * Shown for a type this build does not know — a row written before a type was
  * retired, or by a newer deploy during a rollout. Without it the icon slot
@@ -41,6 +43,9 @@ const TYPE_ICONS: Record<NotificationType, React.ReactNode> = {
   shop_moderation_update: <Store size={18} aria-hidden='true' />,
   review_moderated: <ShieldAlert size={18} aria-hidden='true' />,
   review_report_resolved: <Flag size={18} aria-hidden='true' />,
+  seller_reply_received: <MessageSquare size={18} aria-hidden='true' />,
+  seller_reply_moderated: <ShieldAlert size={18} aria-hidden='true' />,
+  seller_reply_report_resolved: <Flag size={18} aria-hidden='true' />,
 }
 
 function formatRelativeTime(date: Date): string {
@@ -58,9 +63,24 @@ function formatRelativeTime(date: Date): string {
   return formatDateShort(new Date(date))
 }
 
+function productDeepLink(data: Record<string, string | undefined>): string | null {
+  const shopSlug = data.shopSlug
+  const productSlug = data.productSlug ?? data.productId
+
+  if (!shopSlug || !productSlug) return null
+
+  return `/shops/${encodeURIComponent(shopSlug)}/products/${encodeURIComponent(productSlug)}`
+}
+
 function resolveDeepLink(item: NotificationItem): string | null {
   const data = item.data as Record<string, string | undefined>
-  if (data.targetPath?.startsWith('/') && !data.targetPath.startsWith('//')) {
+  // Seller-reply links must always resolve from their stable product context;
+  // never let an optional caller-supplied path bypass segment encoding.
+  if (
+    !item.type.startsWith('seller_reply_') &&
+    data.targetPath?.startsWith('/') &&
+    !data.targetPath.startsWith('//')
+  ) {
     return data.targetPath
   }
 
@@ -77,6 +97,9 @@ function resolveDeepLink(item: NotificationItem): string | null {
       const productSlug = data.productSlug ?? data.productId
       if (productSlug) return `/shops/${data.shopSlug ?? 'unknown'}/products/${productSlug}`
       break
+    }
+    case 'seller_reply_received': {
+      return productDeepLink(data)
     }
     case 'dispute_opened':
     case 'dispute_resolved': {
@@ -114,6 +137,12 @@ function resolveDeepLink(item: NotificationItem): string | null {
       if (productSlug) return `/shops/${data.shopSlug ?? 'unknown'}/products/${productSlug}`
       break
     }
+    // Seller-reply payload data is always encoded as path segments; unlike the
+    // legacy review links it never constructs a route from unescaped values.
+    case 'seller_reply_moderated':
+    case 'seller_reply_report_resolved': {
+      return productDeepLink(data)
+    }
   }
   return null
 }
@@ -140,6 +169,8 @@ function notificationPreview(item: NotificationItem): string {
       })
     case 'review_received':
       return m.notification_review_received({ productName: data.productName ?? '' })
+    case 'seller_reply_received':
+      return m.notification_seller_reply_received({ productName: data.productName ?? '' })
     case 'dispute_opened':
       return m.notification_dispute_opened({
         orderNumber: data.orderNumber ?? data.orderId ?? data.platformOrderId ?? '',
@@ -184,6 +215,16 @@ function notificationPreview(item: NotificationItem): string {
         : data.restriction === 'flagged'
           ? m.notification_review_flagged()
           : m.notification_review_restored()
+    case 'seller_reply_moderated':
+      return data.restriction === 'hidden'
+        ? m.notification_seller_reply_hidden()
+        : data.restriction === 'flagged'
+          ? m.notification_seller_reply_flagged()
+          : m.notification_seller_reply_restored()
+    case 'seller_reply_report_resolved':
+      return data.outcome === 'upheld'
+        ? m.notification_seller_reply_report_upheld()
+        : m.notification_seller_reply_report_dismissed()
     case 'review_report_resolved':
       return data.outcome === 'upheld'
         ? m.notification_review_report_upheld()
@@ -210,7 +251,7 @@ function notificationDetail(item: NotificationItem): string | null {
   const prose =
     item.type === 'shop_moderation_update'
       ? data.note
-      : item.type === 'review_moderated'
+      : item.type === 'review_moderated' || item.type === 'seller_reply_moderated'
         ? data.explanation
         : // Any future type can opt in by setting `detail`, rather than by
           // adding a branch here.
@@ -220,8 +261,17 @@ function notificationDetail(item: NotificationItem): string | null {
   return trimmed ? trimmed : null
 }
 
+export interface NotificationGroup {
+  key: string
+  type: NotificationType
+  items: NotificationItem[]
+  count: number
+  unreadCount: number
+  createdAt: Date
+}
+
 export interface NotificationsPageProps {
-  notifications: NotificationItem[]
+  groups: NotificationGroup[]
   total: number
   page: number
   totalPages: number
@@ -229,27 +279,45 @@ export interface NotificationsPageProps {
   isNavigating: boolean
 }
 
+function groupPreview(group: NotificationGroup): string {
+  if (group.items.length === 1 || group.count === 1) {
+    return notificationPreview(group.items[0])
+  }
+  if (group.type === 'low_stock') {
+    return m.notification_group_low_stock({ count: String(group.count) })
+  }
+  if (group.type === 'review_received') {
+    return m.notification_group_review_received({ count: String(group.count) })
+  }
+  return notificationPreview(group.items[0])
+}
+
 export function NotificationsPage({
-  notifications,
+  groups,
   page,
   totalPages,
   onPageChange,
   isNavigating,
 }: NotificationsPageProps) {
   const router = useRouter()
-  const markRead = useMarkNotificationRead()
+  const markRead = useMarkNotificationsRead()
   const markAllRead = useMarkAllNotificationsRead()
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({})
 
+  const effectiveGroups = groups
   const handleMarkAllRead = async () => {
     await markAllRead.mutateAsync()
-    // Loader-backed route data is not subscribed to the notifications query key,
-    // so reload the route loader to reflect the updated read state.
     await router.invalidate()
   }
 
-  const handleItemClick = (item: NotificationItem) => {
+  const markItemsReadAndRefresh = async (notificationIds: string[]) => {
+    await markRead.mutateAsync(notificationIds)
+    await router.invalidate()
+  }
+
+  const handleSingleItemClick = (item: NotificationItem) => {
     if (!item.readAt) {
-      void markRead.mutateAsync(item.id)
+      void markItemsReadAndRefresh([item.id])
     }
     const link = resolveDeepLink(item)
     if (link) {
@@ -257,7 +325,21 @@ export function NotificationsPage({
     }
   }
 
-  const hasUnread = notifications.some((item) => !item.readAt)
+  const handleGroupToggle = (group: NotificationGroup) => {
+    const isCurrentlyExpanded = Boolean(expandedGroups[group.key])
+    const nextExpanded = !isCurrentlyExpanded
+
+    setExpandedGroups((prev) => ({ ...prev, [group.key]: nextExpanded }))
+
+    if (nextExpanded && group.unreadCount > 0) {
+      const unreadIds = group.items.filter((item) => !item.readAt).map((item) => item.id)
+      if (unreadIds.length > 0) {
+        void markItemsReadAndRefresh(unreadIds)
+      }
+    }
+  }
+
+  const hasUnread = effectiveGroups.some((group) => group.unreadCount > 0)
 
   const goToPage = (newPage: number) => {
     if (newPage < 1 || newPage > totalPages || newPage === page) return
@@ -271,7 +353,7 @@ export function NotificationsPage({
           <h1 className='display-title text-3xl font-semibold text-text-primary'>
             {m.notifications_title()}
           </h1>
-          {notifications.length > 0 && hasUnread && (
+          {effectiveGroups.length > 0 && hasUnread && (
             <Button
               variant='secondary'
               size='sm'
@@ -283,7 +365,7 @@ export function NotificationsPage({
           )}
         </div>
 
-        {notifications.length === 0 ? (
+        {effectiveGroups.length === 0 ? (
           <div className='py-12 text-center'>
             <Bell size={40} className='mx-auto mb-4 text-text-muted' aria-hidden='true' />
             <p className='text-text-secondary'>{m.notifications_empty()}</p>
@@ -291,76 +373,211 @@ export function NotificationsPage({
         ) : (
           <>
             <ul className='space-y-3' aria-label={m.notifications_title()}>
-              {notifications.map((item) => {
-                const isUnread = !item.readAt
-                const detail = notificationDetail(item)
-                const describedBy = [
-                  detail ? `notif-detail-${item.id}` : null,
-                  isUnread ? `notif-status-${item.id}` : null,
-                ]
-                  .filter(Boolean)
-                  .join(' ')
+              {effectiveGroups.map((group) => {
+                const isMultiItem = group.items.length > 1 || group.count > 1
+                if (!isMultiItem) {
+                  const item = group.items[0]
+                  const isUnread = !item.readAt
+                  const detail = notificationDetail(item)
+                  const describedBy = [
+                    detail ? `notif-detail-${item.id}` : null,
+                    isUnread ? `notif-status-${item.id}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' ')
+
+                  return (
+                    <li key={group.key}>
+                      <button
+                        type='button'
+                        onClick={() => handleSingleItemClick(item)}
+                        aria-labelledby={`notif-preview-${item.id} notif-time-${item.id}`}
+                        aria-describedby={describedBy || undefined}
+                        className={`flex w-full items-start gap-3 rounded-xl border p-4 text-left transition no-underline ${
+                          isUnread
+                            ? 'border-border-strong bg-surface-default shadow-sm hover:bg-bg-inset hover:shadow-md'
+                            : 'border-border-default bg-bg-inset hover:bg-surface-default'
+                        }`}
+                      >
+                        <div
+                          className={`flex size-9 flex-shrink-0 items-center justify-center rounded-full ${
+                            isUnread
+                              ? 'bg-accent-primary/10 text-accent-primary'
+                              : 'bg-surface-inset text-text-muted'
+                          }`}
+                        >
+                          {TYPE_ICONS[item.type] ?? FALLBACK_ICON}
+                        </div>
+                        <div className='min-w-0 flex-1'>
+                          <p
+                            id={`notif-preview-${item.id}`}
+                            className={`text-sm font-medium ${
+                              isUnread ? 'text-text-primary' : 'text-text-secondary'
+                            }`}
+                          >
+                            {notificationPreview(item)}
+                          </p>
+                          {detail && (
+                            <p
+                              id={`notif-detail-${item.id}`}
+                              className='mt-1 line-clamp-2 text-sm leading-relaxed text-text-secondary'
+                            >
+                              {detail}
+                            </p>
+                          )}
+                          <p id={`notif-time-${item.id}`} className='mt-1 text-xs text-text-muted'>
+                            {formatRelativeTime(item.createdAt)}
+                          </p>
+                        </div>
+                        {isUnread && (
+                          <>
+                            <span id={`notif-status-${item.id}`} className='sr-only'>
+                              {m.notifications_status_unread()}
+                            </span>
+                            <span
+                              className='mt-2 size-2 flex-shrink-0 rounded-full bg-accent-primary'
+                              aria-hidden='true'
+                            />
+                          </>
+                        )}
+                      </button>
+
+                      {(item.type === 'review_moderated' ||
+                        item.type === 'seller_reply_moderated') && (
+                        <StatementOfReasons item={item} />
+                      )}
+                    </li>
+                  )
+                }
+
+                // Multi-item group
+                const isExpanded = Boolean(expandedGroups[group.key])
+                const isGroupUnread = group.unreadCount > 0
 
                 return (
-                  <li key={item.id}>
+                  <li
+                    key={group.key}
+                    className='rounded-xl border border-border-default bg-bg-inset p-1.5'
+                  >
                     <button
                       type='button'
-                      onClick={() => handleItemClick(item)}
-                      aria-labelledby={`notif-preview-${item.id} notif-time-${item.id}`}
-                      aria-describedby={describedBy || undefined}
-                      className={`flex w-full items-start gap-3 rounded-xl border p-4 text-left transition no-underline ${
-                        isUnread
-                          ? 'border-border-strong border-l-4 border-l-accent-primary bg-surface-default shadow-sm hover:bg-bg-inset hover:shadow-md'
-                          : 'border-border-default border-l-4 border-l-transparent bg-bg-inset hover:bg-surface-default'
+                      aria-expanded={isExpanded}
+                      aria-controls={`group-items-${group.key}`}
+                      onClick={() => handleGroupToggle(group)}
+                      className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition ${
+                        isGroupUnread
+                          ? 'border-border-strong bg-surface-default shadow-sm hover:bg-bg-inset'
+                          : 'border-border-default bg-bg-inset hover:bg-surface-default'
                       }`}
                     >
                       <div
                         className={`flex size-9 flex-shrink-0 items-center justify-center rounded-full ${
-                          isUnread
+                          isGroupUnread
                             ? 'bg-accent-primary/10 text-accent-primary'
                             : 'bg-surface-inset text-text-muted'
                         }`}
                       >
-                        {TYPE_ICONS[item.type] ?? FALLBACK_ICON}
+                        {TYPE_ICONS[group.type] ?? FALLBACK_ICON}
                       </div>
                       <div className='min-w-0 flex-1'>
-                        <p
-                          id={`notif-preview-${item.id}`}
-                          className={`text-sm font-medium ${
-                            isUnread ? 'text-text-primary' : 'text-text-secondary'
-                          }`}
-                        >
-                          {notificationPreview(item)}
-                        </p>
-                        {detail && (
+                        <div className='flex items-center gap-2'>
                           <p
-                            id={`notif-detail-${item.id}`}
-                            className='mt-1 line-clamp-2 text-sm leading-relaxed text-text-secondary'
+                            className={`text-sm font-medium ${
+                              isGroupUnread
+                                ? 'text-text-primary font-semibold'
+                                : 'text-text-secondary'
+                            }`}
                           >
-                            {detail}
+                            {groupPreview(group)}
                           </p>
-                        )}
-                        <p id={`notif-time-${item.id}`} className='mt-1 text-xs text-text-muted'>
-                          {formatRelativeTime(item.createdAt)}
+                          {isGroupUnread && (
+                            <span className='inline-flex items-center gap-1 rounded-full bg-accent-primary/10 px-2 py-0.5 text-xs font-semibold text-accent-primary'>
+                              <span
+                                className='size-1.5 rounded-full bg-accent-primary'
+                                aria-hidden='true'
+                              />
+                              {m.notifications_group_unread_badge({
+                                count: String(group.unreadCount),
+                              })}
+                            </span>
+                          )}
+                        </div>
+                        <p className='mt-0.5 text-xs text-text-muted'>
+                          {formatRelativeTime(group.createdAt)}
                         </p>
                       </div>
-                      {isUnread && (
-                        <>
-                          <span id={`notif-status-${item.id}`} className='sr-only'>
-                            {m.notifications_status_unread()}
-                          </span>
-                          <span
-                            className='mt-2 size-2 flex-shrink-0 rounded-full bg-accent-primary'
-                            aria-hidden='true'
-                          />
-                        </>
-                      )}
+                      <ChevronDown
+                        size={18}
+                        className={`flex-shrink-0 text-text-muted transition-transform ${
+                          isExpanded ? 'rotate-180' : ''
+                        }`}
+                        aria-hidden='true'
+                      />
                     </button>
 
-                    {/* Beside the button, never inside it: the statement carries
-                        a redress link, and a link nested in a button is invalid
-                        and unreachable by keyboard. */}
-                    {item.type === 'review_moderated' && <StatementOfReasons item={item} />}
+                    {isExpanded && (
+                      <div
+                        id={`group-items-${group.key}`}
+                        className='mt-2 space-y-2 border-t border-border-default pt-2 px-2 pb-1'
+                      >
+                        <ul className='space-y-2' aria-label={groupPreview(group)}>
+                          {group.items.map((item) => {
+                            const isChildUnread = !item.readAt
+                            const detail = notificationDetail(item)
+                            return (
+                              <li key={item.id}>
+                                <button
+                                  type='button'
+                                  onClick={() => handleSingleItemClick(item)}
+                                  className={`flex w-full items-start gap-3 rounded-lg border p-3 text-left transition ${
+                                    isChildUnread
+                                      ? 'border-border-strong bg-surface-default'
+                                      : 'border-border-default bg-surface-inset hover:bg-surface-default'
+                                  }`}
+                                >
+                                  <div className='min-w-0 flex-1'>
+                                    <p
+                                      className={`text-sm font-medium ${
+                                        isChildUnread ? 'text-text-primary' : 'text-text-secondary'
+                                      }`}
+                                    >
+                                      {notificationPreview(item)}
+                                    </p>
+                                    {detail && (
+                                      <p className='mt-1 line-clamp-2 text-xs leading-relaxed text-text-secondary'>
+                                        {detail}
+                                      </p>
+                                    )}
+                                    <p className='mt-1 text-xs text-text-muted'>
+                                      {formatRelativeTime(item.createdAt)}
+                                    </p>
+                                  </div>
+                                  {isChildUnread && (
+                                    <span
+                                      className='mt-1.5 size-2 flex-shrink-0 rounded-full bg-accent-primary'
+                                      aria-hidden='true'
+                                    />
+                                  )}
+                                </button>
+
+                                {(item.type === 'review_moderated' ||
+                                  item.type === 'seller_reply_moderated') && (
+                                  <StatementOfReasons item={item} />
+                                )}
+                              </li>
+                            )
+                          })}
+                        </ul>
+                        {group.count > group.items.length && (
+                          <p className='px-1 pb-1 text-xs text-text-muted'>
+                            {m.notifications_group_items_capped({
+                              shown: String(group.items.length),
+                              count: String(group.count),
+                            })}
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </li>
                 )
               })}

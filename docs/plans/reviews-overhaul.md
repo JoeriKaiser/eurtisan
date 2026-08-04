@@ -3,7 +3,7 @@
 **Opened:** 2026-07-31
 **Register entry:** #3 in [`feature-depth-backlog.md`](./feature-depth-backlog.md)
 **Reference standard:** the search overhaul in `6fac0a6` (PR #15)
-**Status:** approved 2026-07-31; §1–§6 built
+**Status:** approved 2026-07-31; §1–§6 and the depth follow-up built 2026-08-03
 
 > Untracked by convention, like the other plan docs — kept on disk as a working
 > record, not committed.
@@ -334,9 +334,62 @@ pre-check above it hid this in tests. Both sites now use the repo's existing
 
 ---
 
-## 10. Deferred
+## 10. Deferred at the close of the first pass
 
 Seller replies, helpfulness voting, and sort/filter by rating, as proposed in §7
 and approved. Seller replies are their own moderation surface: a reply is
 user-generated content by a trader, so it inherits the Article 16/17 machinery
 built here rather than reusing it for free.
+
+---
+
+## 11. Depth follow-up — **built 2026-08-03**
+
+The deferred seller replies, helpfulness voting, and rating sort/filter were built
+as one cohesive follow-up. The implementation order was:
+
+1. **Schema and migration.** Migration `0083` adds one official
+   `seller_reply` per review, private `review_helpful_vote` rows unique on
+   `(reviewId, userId)`, dedicated `seller_reply_report` notices, and the
+   notification enum values required for reply creation and moderation outcomes.
+2. **Authorization and moderation.** Seller reply create, edit, and delete paths
+   require the current shop owner, an active account, privileged 2FA, an active
+   unsuspended shop, an approved review, and a published active product. Admin
+   moderation independently requires privileged 2FA, records an audit event,
+   resolves open notices, and sends the Article 17 statement of reasons to the
+   reply author. Reports never alter visibility.
+3. **Helpful votes.** A composite primary key makes votes idempotent; the mutation
+   serializes the user's row, rejects self-votes and seller votes on their own
+   shop, and only accepts currently public reviews. Public queries expose the
+   aggregate and the current viewer's boolean state, never voter identities.
+4. **Public query controls.** Reviews support newest, highest, lowest, and most
+   helpful ordering plus all/1–5-star filtering. Every ordering has deterministic
+   tie-breakers. Pagination, aggregates, and empty filtered states use the same
+   approved-only visibility definition. Only approved seller replies project,
+   attributed to the public shop name rather than the owner's account name.
+5. **Buyer and admin UI.** `ProductReviews` gained restrained accessible controls,
+   inline owner create/edit/delete flows, report and helpful actions, stable
+   pagination, focus recovery, and responsive layouts. The admin queue switches
+   explicitly between reviews and seller replies while preserving moderation
+   status filters and required statement-of-reasons fields.
+6. **Accuracy pins.** Focused database, component, notification, disclosure, and
+   accessibility coverage now exercises authorization, concurrency, visibility,
+   moderation, query ordering, localized copy, keyboard/focus behavior, and the
+   seller-reply disclosure.
+
+### 11.1 Verification
+
+- The repository-wide Biome format/lint gates and TypeScript `--noEmit` passed.
+- Drizzle schema consistency passed, and the full migration chain through `0083`
+  applied successfully to a fresh temporary PostgreSQL database.
+- Focused database tests: **36/36**.
+- Focused disclosure, notification, and Article 17 tests: **36/36**.
+- Focused review browser/component tests: **56/56**.
+- Focused accessibility contract tests: **5/5**.
+- A seeded product page was exercised in Chromium at desktop and mobile widths:
+  the approved official reply rendered, lowest-rating sort moved the one-star
+  review first, five-star filtering returned only the five-star review, and the
+  mobile review header no longer collides with its publication/experience dates.
+- Full `make test` and Playwright E2E were not run on the holiday laptop; release
+  still requires reconciling the documented E2E baseline.
+

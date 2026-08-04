@@ -48,6 +48,8 @@ export async function renderTemplate(
       return renderSellerAlert(data, to)
     case 'statement_of_reasons':
       return renderStatementOfReasons(data, to)
+    case 'notification_digest':
+      return renderNotificationDigest(data, to)
     default: {
       // Exhaustiveness check — should never happen at runtime with correct types.
       const _exhaustive: never = template
@@ -623,23 +625,38 @@ async function renderStatementOfReasons(
   const explanation = String(data.explanation ?? '')
   const ground = data.ground === 'illegal' ? 'illegal' : 'terms'
   const redress = Array.isArray(data.redress) ? data.redress.map(String) : []
+  const legalBasis = typeof data.legalBasis === 'string' ? data.legalBasis.trim() : ''
+  const isSellerReply = data.contentType === 'seller_reply'
 
   const what =
     restriction === 'hidden'
-      ? m.statement_of_reasons_what_hidden()
-      : m.statement_of_reasons_what_restricted()
+      ? isSellerReply
+        ? m.statement_of_reasons_what_hidden_seller_reply()
+        : m.statement_of_reasons_what_hidden()
+      : restriction === 'flagged'
+        ? isSellerReply
+          ? m.statement_of_reasons_what_restricted_seller_reply()
+          : m.statement_of_reasons_what_restricted()
+        : isSellerReply
+          ? m.statement_of_reasons_what_restored_seller_reply()
+          : m.statement_of_reasons_what_restored()
   const groundText =
     ground === 'illegal'
       ? m.statement_of_reasons_ground_illegal()
       : m.statement_of_reasons_ground_terms()
   const prompted =
     data.promptedByNotice === true
-      ? m.statement_of_reasons_prompted_by_report()
+      ? isSellerReply
+        ? m.statement_of_reasons_prompted_by_report_seller_reply()
+        : m.statement_of_reasons_prompted_by_report()
       : m.statement_of_reasons_prompted_by_review()
   const automated =
     data.automatedMeans === true
       ? m.statement_of_reasons_automated_yes()
       : m.statement_of_reasons_automated_no()
+  const legalBasisLine = legalBasis
+    ? `${m.statement_of_reasons_legal_basis_label()}: ${legalBasis}`
+    : ''
 
   const redressLines: string[] = []
   if (redress.includes('contact_support')) {
@@ -653,7 +670,7 @@ async function renderStatementOfReasons(
 
   const contentHtml = `<h1 style="margin: 0 0 16px; font-size: 24px;">${escapeHtml(subject)}</h1>
   <p><strong>${escapeHtml(m.statement_of_reasons_what_label())}</strong><br />${escapeHtml(what)} ${escapeHtml(m.statement_of_reasons_scope())}</p>
-  <p><strong>${escapeHtml(m.statement_of_reasons_why_label())}</strong><br />${escapeHtml(explanation)}<br />${escapeHtml(groundText)}<br />${escapeHtml(prompted)}</p>
+  <p><strong>${escapeHtml(m.statement_of_reasons_why_label())}</strong><br />${escapeHtml(explanation)}<br />${escapeHtml(groundText)}${legalBasisLine ? `<br />${escapeHtml(legalBasisLine)}` : ''}<br />${escapeHtml(prompted)}</p>
   <p><strong>${escapeHtml(m.statement_of_reasons_automated_label())}</strong><br />${escapeHtml(automated)}</p>
   <p><strong>${escapeHtml(m.statement_of_reasons_redress_label())}</strong><br />${redressLines.map(escapeHtml).join('<br />')}</p>
   ${await renderEmailLegalFooterHtml(to)}`
@@ -665,7 +682,7 @@ ${what} ${m.statement_of_reasons_scope()}
 
 ${m.statement_of_reasons_why_label()}
 ${explanation}
-${groundText}
+${groundText}${legalBasisLine ? `\n${legalBasisLine}` : ''}
 ${prompted}
 
 ${m.statement_of_reasons_automated_label()}
@@ -677,6 +694,96 @@ ${redressLines.join('\n')}
 ${await renderEmailLegalFooterText(to)}`
 
   return { subject, html: wrapInEmailTemplate(subject, contentHtml), text }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                         Daily notification digest                          */
+/* -------------------------------------------------------------------------- */
+
+type DigestLocale = 'en' | 'nl'
+
+function renderDigestSection(label: string, names: string[], none: string): string {
+  const list = names.length
+    ? `<ul style="margin: 8px 0 16px; padding-left: 20px;">${names
+        .map((name) => `<li>${escapeHtml(name)}</li>`)
+        .join('')}</ul>`
+    : `<p style="margin: 8px 0 16px;">${escapeHtml(none)}</p>`
+  return `<h2 style="margin: 24px 0 8px; font-size: 18px;">${escapeHtml(label)}</h2>${list}`
+}
+
+async function renderNotificationDigest(
+  data: Record<string, unknown>,
+  to?: string,
+): Promise<RenderedEmail> {
+  const sellerName = String(data.sellerName ?? m.email_default_name())
+  const date = String(data.date ?? '')
+  const locale: DigestLocale =
+    typeof data.locale === 'string' && data.locale.toLowerCase().startsWith('nl') ? 'nl' : 'en'
+  const messageOptions = { locale } as const
+  const subject = m.email_notification_digest_subject({ date }, messageOptions)
+  const title = m.email_notification_digest_title(undefined, messageOptions)
+  const greeting = m.email_notification_digest_greeting({ name: sellerName }, messageOptions)
+  const intro = m.email_notification_digest_intro({ date }, messageOptions)
+  const none = m.email_notification_digest_empty(undefined, messageOptions)
+  const cta = m.email_notification_digest_cta(undefined, messageOptions)
+  const lowStockCount =
+    typeof data.lowStockCount === 'number' &&
+    Number.isSafeInteger(data.lowStockCount) &&
+    data.lowStockCount >= 0
+      ? data.lowStockCount
+      : 0
+  const reviewCount =
+    typeof data.reviewCount === 'number' &&
+    Number.isSafeInteger(data.reviewCount) &&
+    data.reviewCount >= 0
+      ? data.reviewCount
+      : 0
+  const lowStockProductNames = Array.isArray(data.lowStockProductNames)
+    ? data.lowStockProductNames
+        .filter((name): name is string => typeof name === 'string' && name.trim().length > 0)
+        .map((name) => name.trim())
+        .slice(0, 5)
+    : []
+  const reviewProductNames = Array.isArray(data.reviewProductNames)
+    ? data.reviewProductNames
+        .filter((name): name is string => typeof name === 'string' && name.trim().length > 0)
+        .map((name) => name.trim())
+        .slice(0, 5)
+    : []
+  const notificationsUrl = String(data.notificationsUrl ?? '')
+  const lowStockLabel = m.email_notification_digest_low_stock(
+    { count: String(lowStockCount) },
+    messageOptions,
+  )
+  const reviewsLabel = m.email_notification_digest_reviews(
+    { count: String(reviewCount) },
+    messageOptions,
+  )
+
+  const contentHtml = `<h1 style="margin: 0 0 16px; font-size: 24px;">${escapeHtml(title)}</h1>
+  <p>${escapeHtml(greeting)}</p>
+  <p>${escapeHtml(intro)}</p>
+  ${renderDigestSection(lowStockLabel, lowStockProductNames, none)}
+  ${renderDigestSection(reviewsLabel, reviewProductNames, none)}
+  <p><a href="${escapeHtml(notificationsUrl)}">${escapeHtml(cta)}</a></p>
+  ${await renderEmailLegalFooterHtml(to, locale)}`
+  const text = `${title}
+
+${greeting}
+
+${intro}
+
+${lowStockLabel}
+${lowStockProductNames.length ? lowStockProductNames.map((name) => `- ${name}`).join('\n') : none}
+
+${reviewsLabel}
+${reviewProductNames.length ? reviewProductNames.map((name) => `- ${name}`).join('\n') : none}
+
+${cta}: ${notificationsUrl}
+
+${await renderEmailLegalFooterText(to, locale)}`
+
+  return { subject, html: wrapInEmailTemplate(subject, contentHtml, locale), text }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -692,9 +799,9 @@ function escapeHtml(input: string): string {
     .replace(/'/g, '&#39;')
 }
 
-function wrapInEmailTemplate(title: string, contentHtml: string): string {
+function wrapInEmailTemplate(title: string, contentHtml: string, locale = getLocale()): string {
   return `<!DOCTYPE html>
-<html lang="${escapeHtml(getLocale())}">
+<html lang="${escapeHtml(locale)}">
 <head>
   <meta charset="UTF-8">
   <title>${escapeHtml(title)}</title>

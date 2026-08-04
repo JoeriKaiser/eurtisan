@@ -27,10 +27,24 @@ import type { NotificationType } from './operations.server'
  *   notification does not carry (order lines, tracking numbers, refund totals).
  *   Named so the split is visible here rather than discovered by grepping.
  */
+export type InAppNotificationPolicy = 'required' | 'optional'
+
 export type NotificationDelivery =
-  | { mode: 'in_app' }
-  | { mode: 'auto_email'; template: EmailTemplate; category: EmailCategory }
-  | { mode: 'caller_email'; template: EmailTemplate; sentBy: string }
+  | ({ mode: 'in_app' } & { inApp: InAppNotificationPolicy })
+  | ({ mode: 'auto_email'; template: EmailTemplate; category: EmailCategory } & {
+      inApp: InAppNotificationPolicy
+    })
+  | ({ mode: 'caller_email'; template: EmailTemplate; sentBy: string } & {
+      inApp: InAppNotificationPolicy
+    })
+
+export const OPTIONAL_IN_APP_NOTIFICATION_TYPES = [
+  'low_stock',
+  'review_received',
+  'seller_reply_received',
+] as const satisfies readonly NotificationType[]
+
+export type OptionalInAppNotificationType = (typeof OPTIONAL_IN_APP_NOTIFICATION_TYPES)[number]
 
 export const NOTIFICATION_DELIVERY: Record<NotificationType, NotificationDelivery> = {
   /* Sent by the flow that has the order detail the template needs. */
@@ -38,31 +52,37 @@ export const NOTIFICATION_DELIVERY: Record<NotificationType, NotificationDeliver
     mode: 'caller_email',
     template: 'order_confirmation',
     sentBy: 'lib/checkout/notifications.server.ts',
+    inApp: 'required',
   },
   order_shipped: {
     mode: 'caller_email',
     template: 'shipping_notification',
     sentBy: 'lib/shop-orders/operations.server.ts',
+    inApp: 'required',
   },
   order_refunded: {
     mode: 'caller_email',
     template: 'order_refunded',
     sentBy: 'lib/shop-orders/operations.server.ts',
+    inApp: 'required',
   },
   dispute_opened: {
     mode: 'caller_email',
     template: 'dispute_update',
     sentBy: 'lib/disputes/operations.server.ts',
+    inApp: 'required',
   },
   dispute_resolved: {
     mode: 'caller_email',
     template: 'dispute_update',
     sentBy: 'lib/disputes/operations.server.ts',
+    inApp: 'required',
   },
   shop_moderation_update: {
     mode: 'caller_email',
     template: 'shop_moderation_update',
     sentBy: 'lib/shops/onboarding.server.ts',
+    inApp: 'required',
   },
 
   /* Added this phase: consequential, and previously invisible until next login. */
@@ -72,18 +92,21 @@ export const NOTIFICATION_DELIVERY: Record<NotificationType, NotificationDeliver
     mode: 'auto_email',
     template: 'seller_alert',
     category: 'transactional',
+    inApp: 'required',
   },
   /** Crossing the threshold creates a DAC7 reporting obligation. */
   dac7_warning_limit: {
     mode: 'auto_email',
     template: 'seller_alert',
     category: 'transactional',
+    inApp: 'required',
   },
   /** A payment receipt; the seller reconciles against it. */
   payout_sent: {
     mode: 'auto_email',
     template: 'seller_alert',
     category: 'transactional',
+    inApp: 'required',
   },
   /**
    * The DSA Article 17 statement of reasons. Delivered in-app as well, which is
@@ -94,10 +117,21 @@ export const NOTIFICATION_DELIVERY: Record<NotificationType, NotificationDeliver
     mode: 'auto_email',
     template: 'statement_of_reasons',
     category: 'transactional',
+    inApp: 'required',
+  },
+
+  /** Seller-authored UGC needs the same durable DSA Article 17 delivery. */
+  seller_reply_moderated: {
+    mode: 'auto_email',
+    template: 'statement_of_reasons',
+    category: 'transactional',
+    inApp: 'required',
   },
 
   /* Routine and frequent — an email each would be noise. */
-  low_stock: { mode: 'in_app' },
-  review_received: { mode: 'in_app' },
-  review_report_resolved: { mode: 'in_app' },
+  low_stock: { mode: 'in_app', inApp: 'optional' },
+  review_received: { mode: 'in_app', inApp: 'optional' },
+  review_report_resolved: { mode: 'in_app', inApp: 'required' },
+  seller_reply_received: { mode: 'in_app', inApp: 'optional' },
+  seller_reply_report_resolved: { mode: 'in_app', inApp: 'required' },
 }

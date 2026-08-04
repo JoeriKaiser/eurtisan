@@ -6,6 +6,7 @@ import { checkShopSlug, updateShop } from '#/lib/shop-settings'
 import { useImageUpload } from '#/hooks/useImageUpload'
 import { getImageUrl } from '#/lib/image-url'
 import type { Policies, SocialRow } from '#/lib/sell-onboarding'
+import type { TraderStatus } from '#/lib/shops/trader-status'
 import { m } from '#/paraglide/messages'
 import { useCallback, useReducer, useRef, useState } from 'react'
 import { ShopSelector } from './ShopSelector'
@@ -19,6 +20,7 @@ import { ShopSettingsAnnouncement } from './ShopSettingsAnnouncement'
 import { ShopSettingsSocials } from './ShopSettingsSocials'
 import { ShopSettingsPolicies } from './ShopSettingsPolicies'
 import { ShopSettingsLifecycle } from './ShopSettingsLifecycle'
+import { ShopSettingsTraderStatus } from './ShopSettingsTraderStatus'
 
 /* -------------------------------------------------------------------------- */
 /*                                    Types                                   */
@@ -56,6 +58,7 @@ export interface FormValues {
   isVatRegistered: boolean
   vatId: string
   legalEntityType: 'individual' | 'business' | ''
+  traderStatus: TraderStatus | ''
   dateOfBirth: string
   taxId: string
   businessRegistrationNumber: string
@@ -67,6 +70,7 @@ interface FormState {
   nameError: string | null
   descriptionError: string | null
   vatIdError: string | null
+  traderStatusError: string | null
   taxIdError: string | null
   dateOfBirthError: string | null
   businessRegistrationNumberError: string | null
@@ -80,6 +84,7 @@ type FormAction =
   | { type: 'setNameError'; error: string | null }
   | { type: 'setDescriptionError'; error: string | null }
   | { type: 'setVatIdError'; error: string | null }
+  | { type: 'setTraderStatusError'; error: string | null }
   | { type: 'setTaxIdError'; error: string | null }
   | { type: 'setDateOfBirthError'; error: string | null }
   | { type: 'setBusinessRegistrationNumberError'; error: string | null }
@@ -105,6 +110,7 @@ function createInitialFormState(shop: CreatorShopDetail): FormState {
       isVatRegistered: shop.isVatRegistered,
       vatId: shop.vatId ?? '',
       legalEntityType: shop.legalEntityType ?? '',
+      traderStatus: shop.traderStatus ?? '',
       dateOfBirth: shop.dateOfBirth ?? '',
       taxId: shop.taxId ?? '',
       businessRegistrationNumber: shop.businessRegistrationNumber ?? '',
@@ -113,6 +119,7 @@ function createInitialFormState(shop: CreatorShopDetail): FormState {
     nameError: null,
     descriptionError: null,
     vatIdError: null,
+    traderStatusError: null,
     taxIdError: null,
     dateOfBirthError: null,
     businessRegistrationNumberError: null,
@@ -132,6 +139,8 @@ function formReducer(state: FormState, action: FormAction): FormState {
       return { ...state, descriptionError: action.error }
     case 'setVatIdError':
       return { ...state, vatIdError: action.error }
+    case 'setTraderStatusError':
+      return { ...state, traderStatusError: action.error }
     case 'setTaxIdError':
       return { ...state, taxIdError: action.error }
     case 'setDateOfBirthError':
@@ -224,6 +233,7 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
   const vatChanged =
     formState.values.isVatRegistered !== initialShop.isVatRegistered ||
     formState.values.vatId !== (initialShop.vatId ?? '')
+  const traderStatusChanged = formState.values.traderStatus !== (initialShop.traderStatus ?? '')
   const taxIdentityChanged =
     formState.values.legalEntityType !== (initialShop.legalEntityType ?? '') ||
     formState.values.dateOfBirth !== (initialShop.dateOfBirth ?? '') ||
@@ -243,6 +253,7 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
     originChanged ||
     businessAddressChanged ||
     vatChanged ||
+    traderStatusChanged ||
     taxIdentityChanged ||
     announcementChanged ||
     socialsChanged ||
@@ -406,6 +417,7 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
     dispatchForm({ type: 'setNameError', error: null })
     dispatchForm({ type: 'setSlugError', error: null })
     dispatchForm({ type: 'setDescriptionError', error: null })
+    dispatchForm({ type: 'setTraderStatusError', error: null })
     dispatchForm({ type: 'setTaxIdError', error: null })
     dispatchForm({ type: 'setDateOfBirthError', error: null })
     dispatchForm({ type: 'setBusinessRegistrationNumberError', error: null })
@@ -422,6 +434,12 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
 
     if (formState.values.description.length > 2000) {
       dispatchForm({ type: 'setDescriptionError', error: m.creator_shop_description_too_long() })
+      return
+    }
+
+    if (!formState.values.traderStatus) {
+      dispatchForm({ type: 'setTraderStatusError', error: m.trader_status_required_error() })
+      document.getElementById('shop-trader-status-trader')?.focus()
       return
     }
 
@@ -482,6 +500,7 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
         isVatRegistered?: boolean
         vatId?: string | null
         legalEntityType?: 'individual' | 'business' | null
+        traderStatus?: TraderStatus
         dateOfBirth?: string | null
         taxId?: string | null
         businessRegistrationNumber?: string | null
@@ -546,6 +565,10 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
         updatePayload.taxId = formState.values.taxId.trim() || null
         updatePayload.businessRegistrationNumber =
           formState.values.businessRegistrationNumber.trim() || null
+      }
+
+      if (traderStatusChanged && formState.values.traderStatus) {
+        updatePayload.traderStatus = formState.values.traderStatus
       }
 
       if (imageChanged) {
@@ -712,6 +735,16 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
               <ShopSettingsSocials socials={socials} onChange={setSocials} />
 
               <ShopSettingsPolicies policies={policies} onChange={setPolicies} />
+
+              <ShopSettingsTraderStatus
+                traderStatus={formState.values.traderStatus}
+                error={formState.traderStatusError}
+                onChange={(value) => {
+                  dispatchForm({ type: 'setField', field: 'traderStatus', value })
+                  if (formState.traderStatusError)
+                    dispatchForm({ type: 'setTraderStatusError', error: null })
+                }}
+              />
 
               <ShopSettingsVatSettings
                 isVatRegistered={formState.values.isVatRegistered}

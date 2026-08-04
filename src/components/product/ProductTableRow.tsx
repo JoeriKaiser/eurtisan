@@ -16,6 +16,7 @@ export interface CreatorProduct {
   createdAt: Date
   updatedAt: Date
   thumbnailUrl: string | null
+  unitPriceMissing?: boolean
 }
 
 interface ProductTableRowProps {
@@ -77,6 +78,9 @@ export function ProductTableRow({
               <span className='mx-1.5'>·</span>
               {m.creator_products_stock_count({ count: product.stockCount })}
             </p>
+            {product.unitPriceMissing && (
+              <Badge variant='error'>{m.unit_price_missing_flag()}</Badge>
+            )}
           </div>
         </div>
       </td>

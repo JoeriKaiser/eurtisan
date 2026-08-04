@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { PackageX, Store } from 'lucide-react'
 import { formatPriceEUR } from '#/lib/pricing'
+import { UnitPriceNote } from '#/components/product/UnitPriceNote'
 import type { PublicProduct } from '#/lib/products'
 import { getProductImageTransitionName } from '#/lib/view-transitions'
 import { ResponsiveImage } from '#/lib/responsive-image'
@@ -68,6 +69,12 @@ export default function ProductCard({ product, imageUrl }: ProductCardProps) {
             <span className='text-[10px] text-text-muted'>
               {product.shopIsVatRegistered ? m.vat_included() : m.vat_exempt_short()}
             </span>
+            <UnitPriceNote
+              priceCents={product.priceCents}
+              soldBy={product.soldBy}
+              weightGrams={product.weightGrams}
+              volumeMl={product.volumeMl}
+            />
           </div>
 
           <span className='inline-flex items-center gap-1 rounded-full bg-surface-inset px-2 py-1 text-xs text-text-secondary border border-border-default'>

@@ -6,7 +6,8 @@ import { sanitizeRichText, validatePlainText } from '../xss'
 import { isPostgresUniqueViolation } from '../db-errors'
 import { validateVatId } from '../vat'
 import { validateSocialUrl } from './onboarding.server'
-import { encryptJsonb } from '../encryption.server'
+import { decryptJsonb, encryptJsonb } from '../encryption.server'
+import type { TraderStatus } from './trader-status'
 
 export { ImageValidationError } from '../image-utils'
 
@@ -61,6 +62,10 @@ export interface ShippingOrigin {
   country: string
 }
 
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 export type UpdateShopInput = {
   /** Shop display name (1–255 characters). */
   name?: string
@@ -78,6 +83,8 @@ export type UpdateShopInput = {
   vatId?: string | null
   /** Legal form of the seller: individual or business (DAC7 tax identity). */
   legalEntityType?: 'individual' | 'business' | null
+  /** Seller-declared status under CRD Article 6a; independent of DAC7 identity. */
+  traderStatus?: TraderStatus
   /** Seller date of birth in YYYY-MM-DD format (individual sellers, DAC7). */
   dateOfBirth?: string | null
   /** Tax identification number (DAC7). */
@@ -177,7 +184,22 @@ export async function updateShopInternal(
   }
 
   if (input.shippingOrigin !== undefined) {
-    updateData.shippingOrigin = encryptJsonb(input.shippingOrigin)
+    if (input.shippingOrigin === null) {
+      updateData.shippingOrigin = null
+    } else {
+      const storedOrigin = decryptJsonb<unknown>(shopRecord.shippingOrigin)
+      const shippingOrigin = isObjectRecord(storedOrigin)
+        ? {
+            ...storedOrigin,
+            street: input.shippingOrigin.street,
+            city: input.shippingOrigin.city,
+            postalCode: input.shippingOrigin.postalCode,
+            country: input.shippingOrigin.country,
+          }
+        : input.shippingOrigin
+
+      updateData.shippingOrigin = encryptJsonb(shippingOrigin)
+    }
   }
 
   if (input.businessAddress !== undefined) {
@@ -194,6 +216,10 @@ export async function updateShopInternal(
 
   if (input.legalEntityType !== undefined) {
     updateData.legalEntityType = input.legalEntityType
+  }
+
+  if (input.traderStatus !== undefined) {
+    updateData.traderStatus = input.traderStatus
   }
 
   if (input.dateOfBirth !== undefined) {

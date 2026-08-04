@@ -48,6 +48,7 @@ const draft = {
   onboardingStep: 1,
   resubmissionCount: 0,
   paymentConnected: false,
+  traderStatus: null,
   socials: [],
 } as unknown as ShopDraft
 

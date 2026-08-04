@@ -131,6 +131,51 @@ describe('renderTemplate — dispute_update', () => {
   })
 })
 
+describe('renderTemplate — statement_of_reasons', () => {
+  it('identifies seller replies and preserves every Article 17 element in HTML and text', async () => {
+    const result = await renderTemplate('statement_of_reasons', {
+      contentType: 'seller_reply',
+      restriction: 'hidden',
+      explanation: 'The reply contains another customer’s address.',
+      ground: 'terms',
+      legalBasis: 'Eurtisan Terms, section 4.2',
+      promptedByNotice: true,
+      automatedMeans: false,
+      redress: ['contact_support', 'judicial_remedy'],
+    })
+
+    for (const rendered of [result.html, result.text]) {
+      expect(rendered).toContain('seller reply')
+      expect(rendered).toContain('another customer')
+      expect(rendered).toContain('breaks the Eurtisan terms')
+      expect(rendered).toContain('Someone reported your seller reply')
+      expect(rendered).toContain('No. A person made this decision')
+      expect(rendered).toContain('support@eurtisan.eu')
+      expect(rendered).toContain('court in your country')
+      expect(rendered).toContain('Specific legal or contractual basis: Eurtisan Terms, section 4.2')
+    }
+  })
+
+  it('describes restored review and seller-reply decisions accurately', async () => {
+    const [review, sellerReply] = await Promise.all([
+      renderTemplate('statement_of_reasons', { restriction: 'approved' }),
+      renderTemplate('statement_of_reasons', {
+        contentType: 'seller_reply',
+        restriction: 'approved',
+      }),
+    ])
+
+    for (const rendered of [review.html, review.text]) {
+      expect(rendered).toContain('We restored your review')
+      expect(rendered).not.toContain('Specific legal or contractual basis')
+    }
+    for (const rendered of [sellerReply.html, sellerReply.text]) {
+      expect(rendered).toContain('We restored your seller reply')
+      expect(rendered).not.toContain('Specific legal or contractual basis')
+    }
+  })
+})
+
 describe('renderFallbackPlainText', () => {
   it('returns a safe plain-text fallback for order_confirmation', () => {
     const result = renderFallbackPlainText('order_confirmation', { orderNumber: '1' })
@@ -223,5 +268,44 @@ describe('renderFallbackPlainText — account_security_alert', () => {
 
     expect(result.subject).toBe('[Eurtisan] account security alert')
     expect(result.text).toContain('account security alert')
+  })
+})
+
+describe('renderTemplate — notification_digest', () => {
+  it('renders an escaped English digest with bounded product names', async () => {
+    const result = await renderTemplate('notification_digest', {
+      sellerName: '<seller>',
+      date: '2026-06-01',
+      lowStockCount: 2,
+      reviewCount: 1,
+      lowStockProductNames: ['<script>alert(1)</script>', 'Vase'],
+      reviewProductNames: ['Cup'],
+      notificationsUrl: 'https://eurtisan.example.com/notifications',
+      locale: 'en',
+    })
+
+    expect(result.subject).toBe('Your daily seller update — 2026-06-01')
+    expect(result.html).toContain('&lt;seller&gt;')
+    expect(result.html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
+    expect(result.html).not.toContain('<script>alert(1)</script>')
+    expect(result.text).toContain('Low-stock products: 2')
+    expect(result.text).toContain('New reviews: 1')
+  })
+
+  it('renders meaningful Dutch prose', async () => {
+    const result = await renderTemplate('notification_digest', {
+      sellerName: 'Maaike',
+      date: '2026-06-01',
+      lowStockCount: 0,
+      reviewCount: 0,
+      lowStockProductNames: [],
+      reviewProductNames: [],
+      notificationsUrl: 'https://eurtisan.example.com/notifications',
+      locale: 'nl',
+    })
+
+    expect(result.subject).toBe('Je dagelijkse verkopersupdate — 2026-06-01')
+    expect(result.html).toContain('Geen updates.')
+    expect(result.text).toContain('Bekijk je meldingen')
   })
 })

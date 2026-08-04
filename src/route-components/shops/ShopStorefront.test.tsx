@@ -93,6 +93,12 @@ vi.mock('#/paraglide/messages', () => ({
     product_unknown_shop: () => 'Unknown shop',
     vat_included: () => 'VAT incl.',
     vat_exempt_short: () => 'VAT exempt',
+    trader_status_trader: () => 'This seller has declared that they are a trader.',
+    trader_status_non_trader: () => 'This seller has declared that they are not a trader.',
+    trader_status_non_trader_rights_notice: () =>
+      'Consumer rights stemming from EU consumer protection law do not apply to the contract.',
+    trader_status_undeclared: () =>
+      'This seller has not declared whether they are a trader. Purchases are unavailable until the declaration is provided.',
   },
 }))
 
@@ -114,6 +120,7 @@ function makeShop(overrides?: Partial<ShopProfile>): ShopProfile {
     productionPartnerDetails: null,
     languages: [],
     isVatRegistered: false,
+    traderStatus: 'trader',
     createdAt: new Date('2026-01-15T00:00:00Z'),
     policies: null,
     origin: null,
@@ -176,6 +183,9 @@ function makeProduct(id: string, overrides?: Partial<PublicProduct>): PublicProd
     shopSlug: 'test-shop',
     shopIsVatRegistered: false,
     imageUrl: null,
+    weightGrams: null,
+    volumeMl: null,
+    soldBy: null,
     ...overrides,
   }
 }
@@ -237,6 +247,28 @@ describe('ShopStorefront', () => {
       renderShop(makeShop({ description: null }))
       expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Test Shop')
       expect(screen.queryByText('A test shop description')).toBeNull()
+    })
+
+    it('discloses a trader declaration from the public shop profile', () => {
+      renderShop(makeShop({ traderStatus: 'trader' }))
+
+      expect(screen.getByText('This seller has declared that they are a trader.')).toBeDefined()
+      expect(
+        screen.queryByText(
+          'Consumer rights stemming from EU consumer protection law do not apply to the contract.',
+        ),
+      ).toBeNull()
+    })
+
+    it('discloses a non-trader declaration and its scoped consumer-rights consequence', () => {
+      renderShop(makeShop({ traderStatus: 'non_trader' }))
+
+      expect(screen.getByText('This seller has declared that they are not a trader.')).toBeDefined()
+      expect(
+        screen.getByText(
+          'Consumer rights stemming from EU consumer protection law do not apply to the contract.',
+        ),
+      ).toBeDefined()
     })
 
     it('renders the shop avatar with the featured-card shared-element name', () => {

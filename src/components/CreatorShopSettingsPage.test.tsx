@@ -112,6 +112,15 @@ vi.mock('#/paraglide/messages', () => ({
     shop_settings_date_of_birth_label: () => 'Date of birth',
     shop_settings_business_registration_number_label: () => 'Business registration number',
     shop_settings_business_registration_number_placeholder: () => 'e.g., 123456789',
+    trader_status_label: () => 'Consumer-law status',
+    trader_status_description: () => 'Declare whether you act as a trader.',
+    trader_status_separate_from_tax: () => 'Separate from DAC7 tax identity.',
+    trader_status_trader_label: () => 'I am a trader',
+    trader_status_trader_description: () => 'Buyers will see that you are a trader.',
+    trader_status_non_trader_label: () => 'I am not a trader',
+    trader_status_non_trader_description: () =>
+      'Union consumer-protection rights do not apply to the contract.',
+    trader_status_required_error: () => 'Choose whether you are a trader or non-trader.',
     creator_shop_save: () => 'Save changes',
     creator_shop_saving: () => 'Saving…',
     creator_shop_save_success: () => 'Shop settings saved successfully.',
@@ -160,6 +169,7 @@ function makeShop(overrides?: Record<string, unknown>) {
     isVatRegistered: false,
     vatId: null,
     legalEntityType: null,
+    traderStatus: null,
     dateOfBirth: null,
     taxId: null,
     businessRegistrationNumber: null,
@@ -217,6 +227,27 @@ describe('CreatorShopSettingsPage', () => {
 
     const saveButton = screen.getByRole('button', { name: 'Save changes' })
     expect((saveButton as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('lets a legacy null declaration be explicitly changed to either trader status', () => {
+    const shop = makeShop({ traderStatus: null })
+    render(<CreatorShopSettingsPage shop={shop} allShops={[{ id: shop.id, name: shop.name }]} />)
+
+    const trader = screen.getByRole('radio', { name: 'I am a trader' }) as HTMLInputElement
+    const nonTrader = screen.getByRole('radio', {
+      name: 'I am not a trader',
+    }) as HTMLInputElement
+    expect(trader.checked).toBe(false)
+    expect(nonTrader.checked).toBe(false)
+
+    fireEvent.click(trader)
+    expect(trader.checked).toBe(true)
+    expect(
+      (screen.getByRole('button', { name: 'Save changes' }) as HTMLButtonElement).disabled,
+    ).toBe(false)
+
+    fireEvent.click(nonTrader)
+    expect(nonTrader.checked).toBe(true)
   })
 
   it('enables save button when name is changed', () => {

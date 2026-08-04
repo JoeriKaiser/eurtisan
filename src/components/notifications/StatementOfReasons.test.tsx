@@ -12,11 +12,18 @@ vi.mock('#/paraglide/messages', () => {
     statement_of_reasons_what_label: () => 'What we did',
     statement_of_reasons_what_hidden: () => 'We hid your review.',
     statement_of_reasons_what_restricted: () => 'We restricted your review.',
+    statement_of_reasons_what_hidden_seller_reply: () => 'We hid your seller reply.',
+    statement_of_reasons_what_restricted_seller_reply: () => 'We restricted your seller reply.',
+    statement_of_reasons_what_restored: () => 'We restored your review.',
+    statement_of_reasons_what_restored_seller_reply: () => 'We restored your seller reply.',
     statement_of_reasons_scope: () => 'This applies everywhere, indefinitely.',
     statement_of_reasons_why_label: () => 'Why',
     statement_of_reasons_ground_illegal: () => 'The ground is that it is against the law.',
     statement_of_reasons_ground_terms: () => 'The ground is that it breaks the terms.',
     statement_of_reasons_prompted_by_report: () => 'Someone reported your review.',
+    statement_of_reasons_prompted_by_report_seller_reply: () =>
+      'Someone reported your seller reply.',
+    statement_of_reasons_legal_basis_label: () => 'Specific legal or contractual basis',
     statement_of_reasons_prompted_by_review: () => 'A moderator decided without a report.',
     statement_of_reasons_automated_label: () => 'Was this automated?',
     statement_of_reasons_automated_yes: () => 'Yes, automated tools were used.',
@@ -91,6 +98,49 @@ describe('StatementOfReasons', () => {
   it('says so when no report prompted the decision', () => {
     render(<StatementOfReasons item={makeItem({ promptedByNotice: false })} />)
     expect(screen.getByText('A moderator decided without a report.')).toBeDefined()
+  })
+
+  it('identifies seller replies in the full statement without changing review copy', () => {
+    render(
+      <StatementOfReasons
+        item={
+          makeItem({
+            contentType: 'seller_reply',
+            promptedByNotice: true,
+          }) as NotificationItem
+        }
+      />,
+    )
+
+    expect(screen.getByText('We hid your seller reply.', { exact: false })).toBeDefined()
+    expect(screen.getByText('Someone reported your seller reply.')).toBeDefined()
+    expect(screen.queryByText('We hid your review.', { exact: false })).toBeNull()
+  })
+
+  it('renders a supplied specific legal basis while omitting it when absent', () => {
+    const { rerender } = render(
+      <StatementOfReasons item={makeItem({ legalBasis: 'Eurtisan Terms, section 4.2' })} />,
+    )
+    expect(screen.getByText('Specific legal or contractual basis:')).toBeDefined()
+    expect(screen.getByText('Eurtisan Terms, section 4.2')).toBeDefined()
+
+    rerender(<StatementOfReasons item={makeItem()} />)
+    expect(screen.queryByText('Specific legal or contractual basis:')).toBeNull()
+  })
+
+  it('describes restored review and seller-reply decisions accurately', () => {
+    const { rerender } = render(<StatementOfReasons item={makeItem({ restriction: 'approved' })} />)
+    expect(screen.getByText('We restored your review.', { exact: false })).toBeDefined()
+
+    rerender(
+      <StatementOfReasons
+        item={makeItem({
+          restriction: 'approved',
+          contentType: 'seller_reply',
+        })}
+      />,
+    )
+    expect(screen.getByText('We restored your seller reply.', { exact: false })).toBeDefined()
   })
 
   it('offers appeal by email with the notification referenced', () => {

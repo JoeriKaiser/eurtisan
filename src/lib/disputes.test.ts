@@ -1266,9 +1266,9 @@ describe('resolveDisputeQuery', () => {
 
     const { getNotificationsQuery } = await import('./notifications.server')
     const buyerNotifications = await getNotificationsQuery('user-1', 1, 10)
-    const resolvedNotifications = buyerNotifications.notifications.filter(
-      (n) => n.type === 'dispute_resolved',
-    )
+    const resolvedNotifications = buyerNotifications.groups
+      .flatMap((group) => group.items)
+      .filter((n) => n.type === 'dispute_resolved')
     expect(resolvedNotifications).toHaveLength(1)
     expect(resolvedNotifications[0].type).toBe('dispute_resolved')
     expect(resolvedNotifications[0].data).toMatchObject({
@@ -1298,9 +1298,9 @@ describe('resolveDisputeQuery', () => {
 
     const { getNotificationsQuery } = await import('./notifications.server')
     const sellerNotifications = await getNotificationsQuery(seller.id, 1, 10)
-    const resolvedNotifications = sellerNotifications.notifications.filter(
-      (notification) => notification.type === 'dispute_resolved',
-    )
+    const resolvedNotifications = sellerNotifications.groups
+      .flatMap((group) => group.items)
+      .filter((notification) => notification.type === 'dispute_resolved')
     expect(resolvedNotifications).toHaveLength(1)
     expect(resolvedNotifications[0].data).toMatchObject({
       disputeId: d.id,
@@ -1333,18 +1333,18 @@ describe('resolveDisputeQuery', () => {
 
     const { getNotificationsQuery } = await import('./notifications.server')
     const buyerNotifications = await getNotificationsQuery('user-1', 1, 10)
-    const buyerResolved = buyerNotifications.notifications.filter(
-      (n) => n.type === 'dispute_resolved',
-    )
+    const buyerResolved = buyerNotifications.groups
+      .flatMap((group) => group.items)
+      .filter((n) => n.type === 'dispute_resolved')
     expect(buyerResolved[0].data).toMatchObject({
       resolution: 'full_refund',
       refundCents: 2500,
     })
 
     const sellerNotifications = await getNotificationsQuery(seller.id, 1, 10)
-    const sellerResolved = sellerNotifications.notifications.filter(
-      (n) => n.type === 'dispute_resolved',
-    )
+    const sellerResolved = sellerNotifications.groups
+      .flatMap((group) => group.items)
+      .filter((n) => n.type === 'dispute_resolved')
     expect(sellerResolved).toHaveLength(1)
     expect(sellerResolved[0].type).toBe('dispute_resolved')
   })
@@ -1372,9 +1372,9 @@ describe('resolveDisputeQuery', () => {
 
     const { getNotificationsQuery } = await import('./notifications.server')
     const buyerNotifications = await getNotificationsQuery('user-1', 1, 10)
-    const buyerResolved = buyerNotifications.notifications.filter(
-      (n) => n.type === 'dispute_resolved',
-    )
+    const buyerResolved = buyerNotifications.groups
+      .flatMap((group) => group.items)
+      .filter((n) => n.type === 'dispute_resolved')
     expect(buyerResolved[0].data).toMatchObject({
       resolution: 'partial_refund',
       refundCents: 500,

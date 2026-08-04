@@ -1,6 +1,7 @@
 import z from 'zod'
 
 import { extractKeyFromUrl, isExternalImageUrl } from '../image-url'
+import { unitPriceBasisSchema } from './unit-pricing'
 
 const imageKeyRegex = /^(products|shops)\/[^/]+\.(jpg|jpeg|png|webp)$/
 
@@ -38,6 +39,8 @@ export const createProductSchema = z.object({
   lengthCm: z.coerce.number().int().positive().optional(),
   widthCm: z.coerce.number().int().positive().optional(),
   heightCm: z.coerce.number().int().positive().optional(),
+  volumeMl: z.coerce.number().int().positive().optional(),
+  soldBy: unitPriceBasisSchema.optional(),
   images: z.array(productImageInputSchema).max(10).optional().default([]),
   status: z.enum(['draft', 'published']).default('draft'),
 })

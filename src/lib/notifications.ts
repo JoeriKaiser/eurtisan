@@ -4,6 +4,7 @@ import { authMiddleware } from './auth-middleware'
 
 export type {
   MarkReadResult,
+  NotificationGroup,
   NotificationItem,
   NotificationsResult,
   NotificationType,
@@ -26,6 +27,7 @@ export const getNotifications = createServerFn({ method: 'GET' })
       )
     }
 
+    // Keep the database-backed implementation out of the browser bundle.
     const { getNotificationsQuery } = await import('./notifications.server')
     return getNotificationsQuery(context.user.id, data.page, data.pageSize)
   })
@@ -40,13 +42,14 @@ export const getUnreadNotificationCount = createServerFn({ method: 'GET' })
       )
     }
 
+    // Keep the database-backed implementation out of the browser bundle.
     const { getUnreadNotificationCountQuery } = await import('./notifications.server')
     return getUnreadNotificationCountQuery(context.user.id)
   })
 
-export const markNotificationRead = createServerFn({ method: 'POST' })
+export const markNotificationsRead = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ notificationId: z.string().uuid() }))
+  .inputValidator(z.object({ notificationIds: z.array(z.string().uuid()).min(1).max(100) }))
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
@@ -55,8 +58,9 @@ export const markNotificationRead = createServerFn({ method: 'POST' })
       )
     }
 
-    const { markNotificationReadQuery } = await import('./notifications.server')
-    return markNotificationReadQuery(data.notificationId, context.user.id)
+    // Keep the database-backed implementation out of the browser bundle.
+    const { markNotificationsReadQuery } = await import('./notifications.server')
+    return markNotificationsReadQuery(data.notificationIds, context.user.id)
   })
 
 export const markAllNotificationsRead = createServerFn({ method: 'POST' })
@@ -69,6 +73,7 @@ export const markAllNotificationsRead = createServerFn({ method: 'POST' })
       )
     }
 
+    // Keep the database-backed implementation out of the browser bundle.
     const { markAllNotificationsReadQuery } = await import('./notifications.server')
     return markAllNotificationsReadQuery(context.user.id)
   })

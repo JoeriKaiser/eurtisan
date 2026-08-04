@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { NOTIFICATION_DELIVERY } from './delivery'
+import { NOTIFICATION_DELIVERY, OPTIONAL_IN_APP_NOTIFICATION_TYPES } from './delivery'
 import { notificationTypeEnum } from './operations.server'
 
 /**
@@ -16,21 +16,46 @@ describe('notification delivery', () => {
     )
   })
 
+  it('makes only the three routine types optional in-app', () => {
+    expect(OPTIONAL_IN_APP_NOTIFICATION_TYPES).toEqual([
+      'low_stock',
+      'review_received',
+      'seller_reply_received',
+    ])
+
+    for (const [type, delivery] of Object.entries(NOTIFICATION_DELIVERY)) {
+      expect(delivery.inApp).toBe(
+        OPTIONAL_IN_APP_NOTIFICATION_TYPES.includes(
+          type as (typeof OPTIONAL_IN_APP_NOTIFICATION_TYPES)[number],
+        )
+          ? 'optional'
+          : 'required',
+      )
+    }
+  })
+
   it('sends the consequential seller events by email', () => {
-    // These four were in-app only, so a chargeback or a DAC7 warning waited for
-    // the seller to happen to open the site.
+    // These consequential events should not wait for the recipient to happen
+    // to open the site.
     for (const type of [
       'order_chargeback',
       'dac7_warning_limit',
       'payout_sent',
       'review_moderated',
+      'seller_reply_moderated',
     ] as const) {
       expect(NOTIFICATION_DELIVERY[type].mode).toBe('auto_email')
     }
   })
 
   it('leaves routine, high-frequency events in-app', () => {
-    for (const type of ['low_stock', 'review_received'] as const) {
+    for (const type of [
+      'low_stock',
+      'review_received',
+      'review_report_resolved',
+      'seller_reply_received',
+      'seller_reply_report_resolved',
+    ] as const) {
       expect(NOTIFICATION_DELIVERY[type].mode).toBe('in_app')
     }
   })

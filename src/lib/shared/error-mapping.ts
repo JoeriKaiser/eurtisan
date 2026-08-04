@@ -23,6 +23,8 @@ export function getLocalizedErrorMessage(codeOrMessage: string | null | undefine
       return m.error_non_delivery_not_eligible()
     case 'SHIPPING_UNSUPPORTED':
       return m.error_shipping_unsupported()
+    case 'SHOP_TRADER_STATUS_UNDECLARED':
+      return m.error_shop_trader_status_undeclared()
   }
 
   // Fallback / Normalized matching by English message string

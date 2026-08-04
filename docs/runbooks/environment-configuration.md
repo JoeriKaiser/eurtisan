@@ -49,6 +49,14 @@ between five minutes and 24 hours) and `FINANCIAL_TOTALS_RECONCILIATION_BATCH_SI
 the deployed Git commit so runtime telemetry and compiled assets identify the same
 release.
 
+`NOTIFICATION_DIGEST_INTERVAL_MS` controls the advisory-locked seller digest poller
+(default 3,600,000 ms; accepted range one minute through 24 hours).
+`NOTIFICATION_DIGEST_RECIPIENT_BATCH_SIZE` controls its bounded recipient query batches
+(default 100; maximum 500). The worker always aggregates the previous completed UTC
+day, so changing these values affects recovery latency and database work, never the
+digest window. Recreate `notification-digest` after changing either value and confirm
+its Prometheus job-success and stale-job series after rollout.
+
 Validate before promotion:
 
 ```bash

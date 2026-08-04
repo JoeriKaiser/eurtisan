@@ -3,6 +3,8 @@ import {
   assertMockPayoutsNotProduction,
   getFinancialTotalsReconciliationBatchSize,
   getFinancialTotalsReconciliationIntervalMs,
+  getNotificationDigestIntervalMs,
+  getNotificationDigestRecipientBatchSize,
   getHealthDiskThresholdBytes,
   getMolliePaymentReconciliationBatchSize,
   getMolliePaymentReconciliationIntervalMs,
@@ -117,6 +119,28 @@ describe('financial totals reconciliation configuration', () => {
     process.env[batchName] = '99999'
     expect(getFinancialTotalsReconciliationIntervalMs()).toBe(300_000)
     expect(getFinancialTotalsReconciliationBatchSize()).toBe(5_000)
+  })
+})
+
+describe('notification digest configuration', () => {
+  const intervalName = 'NOTIFICATION_DIGEST_INTERVAL_MS'
+  const batchName = 'NOTIFICATION_DIGEST_RECIPIENT_BATCH_SIZE'
+  const originalInterval = process.env[intervalName]
+  const originalBatch = process.env[batchName]
+
+  afterEach(() => {
+    if (originalInterval === undefined) delete process.env[intervalName]
+    else process.env[intervalName] = originalInterval
+    if (originalBatch === undefined) delete process.env[batchName]
+    else process.env[batchName] = originalBatch
+  })
+
+  it('uses safe defaults and caps recipient batch size', () => {
+    delete process.env[intervalName]
+    process.env[batchName] = '999'
+
+    expect(getNotificationDigestIntervalMs()).toBe(3_600_000)
+    expect(getNotificationDigestRecipientBatchSize()).toBe(500)
   })
 })
 

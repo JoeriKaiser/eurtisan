@@ -21,6 +21,7 @@ import {
   createCartItem,
   createInventoryReservation,
   createPlatformOrder,
+  createShopOrder,
   createProduct,
   createShop,
   createUser,
@@ -110,6 +111,7 @@ describe.sequential('checkout', () => {
       name: 'Test Shop',
       slug: 'test-shop',
       status: 'active',
+      traderStatus: 'trader',
       ...overrides,
     })
   }
@@ -547,6 +549,62 @@ describe.sequential('checkout', () => {
         expect(err instanceof Response).toBe(true)
         expect((err as Response).status).toBe(409)
       }
+    })
+
+    it('rejects an undeclared seller before creating an order or invoking the payment provider', async () => {
+      await seedUser()
+      await seedShop({ legalEntityType: 'business', traderStatus: null })
+      const c = await createCart('user-1')
+      const p = await seedProduct()
+      await createCartItem(c.id, p.id, { quantity: 1 })
+      const provider = createStubPaymentProvider()
+      const createPayment = vi.spyOn(provider, 'createPayment')
+
+      try {
+        await createCheckoutWithProvider(makeInput(c.id), 'user-1', provider)
+        expect.fail('Should have rejected the undeclared seller')
+      } catch (err) {
+        expect(err).toBeInstanceOf(Response)
+        expect((err as Response).status).toBe(409)
+        await expect((err as Response).json()).resolves.toMatchObject({
+          code: 'SHOP_TRADER_STATUS_UNDECLARED',
+        })
+      }
+
+      expect(createPayment).not.toHaveBeenCalled()
+      expect(await db.select().from(platformOrder)).toHaveLength(0)
+      expect(await db.select().from(shopOrder)).toHaveLength(0)
+    })
+
+    it('rejects an undeclared seller before retrying an existing checkout payment', async () => {
+      const buyer = await seedUser()
+      const seller = await seedShop({ traderStatus: null })
+      const checkoutAttemptId = crypto.randomUUID()
+      const existingOrder = await createPlatformOrder(buyer, {
+        checkoutAttemptId,
+        status: 'pending_payment',
+        totalCents: 1000,
+      })
+      await createShopOrder(existingOrder, seller, { status: 'pending_payment' })
+      const provider = createStubPaymentProvider()
+      const createPayment = vi.spyOn(provider, 'createPayment')
+
+      try {
+        await createCheckoutWithProvider(
+          makeInput(crypto.randomUUID(), { checkoutAttemptId }),
+          buyer.id,
+          provider,
+        )
+        expect.fail('Should have rejected the undeclared seller retry')
+      } catch (err) {
+        expect(err).toBeInstanceOf(Response)
+        expect((err as Response).status).toBe(409)
+        await expect((err as Response).json()).resolves.toMatchObject({
+          code: 'SHOP_TRADER_STATUS_UNDECLARED',
+        })
+      }
+
+      expect(createPayment).not.toHaveBeenCalled()
     })
 
     it('throws 409 with productIds when stock is exhausted', async () => {

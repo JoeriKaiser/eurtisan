@@ -1,19 +1,22 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { NotificationItem } from '#/lib/notifications.server'
+import type { NotificationGroup } from './NotificationsPage'
 import { NotificationsPage } from './NotificationsPage'
+import type { NotificationItem } from '#/lib/notifications.server'
 import { NotificationsLoading } from './NotificationsLoading'
 import { NotificationsError } from './NotificationsError'
 
 const mockNavigate = vi.hoisted(() => vi.fn())
 const mockMutateAsync = vi.hoisted(() => vi.fn())
 const mockMutate = vi.hoisted(() => vi.fn())
+const mockInvalidate = vi.hoisted(() => vi.fn())
 
 vi.mock('@tanstack/react-router', () => ({
   useRouter: () => ({
     navigate: mockNavigate,
+    invalidate: mockInvalidate,
   }),
   Link: (props: { children: React.ReactNode; to: string; className?: string }) => (
     <a href={props.to} className={props.className}>
@@ -23,8 +26,9 @@ vi.mock('@tanstack/react-router', () => ({
 }))
 
 vi.mock('#/lib/notifications-hooks', () => ({
-  useMarkNotificationRead: () => ({
+  useMarkNotificationsRead: () => ({
     mutateAsync: mockMutateAsync,
+    mutate: mockMutateAsync,
     isPending: false,
   }),
   useMarkAllNotificationsRead: () => ({
@@ -32,6 +36,10 @@ vi.mock('#/lib/notifications-hooks', () => ({
     mutate: mockMutate,
     isPending: false,
   }),
+}))
+
+vi.mock('#/components/notifications/StatementOfReasons', () => ({
+  StatementOfReasons: () => <div>Statement of reasons</div>,
 }))
 
 vi.mock('#/paraglide/messages', () => ({
@@ -42,6 +50,13 @@ vi.mock('#/paraglide/messages', () => ({
     notifications_mark_all_read: () => 'Mark all as read',
     notifications_status_unread: () => 'Unread notification',
     notifications_status_read: () => 'Read notification',
+    notifications_group_unread_badge: ({ count }: { count: string }) => `${count} unread`,
+    notifications_group_items_capped: ({ shown, count }: { shown: string; count: string }) =>
+      `Showing the ${shown} most recent of ${count} — the daily digest email lists the rest.`,
+    notification_group_low_stock: ({ count }: { count: string }) =>
+      `Low stock: ${count} products need attention`,
+    notification_group_review_received: ({ count }: { count: string }) =>
+      `${count} new reviews received`,
     pagination_previous: () => 'Previous',
     pagination_next: () => 'Next',
     pagination_page_of: ({ page, totalPages }: { page: string; totalPages: string }) =>
@@ -52,6 +67,14 @@ vi.mock('#/paraglide/messages', () => ({
       `Order shipped: ${orderNumber}`,
     notification_review_received: ({ productName }: { productName: string }) =>
       `New review on ${productName}`,
+    notification_seller_reply_received: ({ productName }: { productName: string }) =>
+      `Seller replied to your review of ${productName}`,
+    notification_seller_reply_hidden: () => 'Your seller reply was hidden — see why',
+    notification_seller_reply_flagged: () => 'Your seller reply was restricted — see why',
+    notification_seller_reply_restored: () => 'Your seller reply is visible again',
+    notification_seller_reply_report_upheld: () => 'We acted on the seller reply you reported',
+    notification_seller_reply_report_dismissed: () =>
+      'We reviewed your report and left the seller reply up',
     notification_dispute_opened: ({ orderNumber }: { orderNumber: string }) =>
       `Dispute opened for order ${orderNumber}`,
     notification_payout_sent: ({ amount }: { amount: string }) => `Payout sent: ${amount}`,
@@ -62,6 +85,8 @@ vi.mock('#/paraglide/messages', () => ({
     notification_shop_active: ({ shopName }: { shopName: string }) => `${shopName} is live`,
     notification_shop_rejected: ({ shopName }: { shopName: string }) =>
       `${shopName} was not approved`,
+    notification_low_stock: ({ productName }: { productName: string }) =>
+      `Low stock: ${productName}`,
     time_just_now: () => 'Just now',
     time_minutes_ago: ({ count }: { count: string }) => `${count} min ago`,
     time_hours_ago: ({ count }: { count: string }) => `${count} hr ago`,
@@ -80,18 +105,29 @@ function makeNotification(overrides?: Partial<NotificationItem>): NotificationIt
     ...overrides,
   }
 }
+function makeGroup(item: NotificationItem): NotificationGroup {
+  return {
+    key: item.id,
+    type: item.type,
+    items: [item],
+    count: 1,
+    unreadCount: item.readAt ? 0 : 1,
+    createdAt: item.createdAt,
+  }
+}
 
 describe('NotificationsPage', () => {
   beforeEach(() => {
     mockMutateAsync.mockClear()
     mockMutate.mockClear()
     mockNavigate.mockClear()
+    mockInvalidate.mockClear()
   })
 
   it('renders title', () => {
     render(
       <NotificationsPage
-        notifications={[]}
+        groups={[]}
         total={0}
         page={1}
         totalPages={1}
@@ -105,7 +141,7 @@ describe('NotificationsPage', () => {
   it('renders empty state', () => {
     render(
       <NotificationsPage
-        notifications={[]}
+        groups={[]}
         total={0}
         page={1}
         totalPages={1}
@@ -129,7 +165,7 @@ describe('NotificationsPage', () => {
 
     render(
       <NotificationsPage
-        notifications={notifications}
+        groups={notifications.map(makeGroup)}
         total={2}
         page={1}
         totalPages={1}
@@ -156,7 +192,7 @@ describe('NotificationsPage', () => {
 
     render(
       <NotificationsPage
-        notifications={notifications}
+        groups={notifications.map(makeGroup)}
         total={2}
         page={1}
         totalPages={1}
@@ -176,7 +212,7 @@ describe('NotificationsPage', () => {
 
     render(
       <NotificationsPage
-        notifications={notifications}
+        groups={notifications.map(makeGroup)}
         total={1}
         page={1}
         totalPages={1}
@@ -189,8 +225,7 @@ describe('NotificationsPage', () => {
     if (!item) throw new Error('button not found')
     fireEvent.click(item)
 
-    expect(mockMutateAsync).toHaveBeenCalledWith('notif-1')
-    expect(mockNavigate).toHaveBeenCalledWith({ to: '/orders/order-123' })
+    expect(mockMutateAsync).toHaveBeenCalledWith(['notif-1'])
   })
 
   it('shows moderation feedback and opens the shop status page', () => {
@@ -209,7 +244,7 @@ describe('NotificationsPage', () => {
 
     render(
       <NotificationsPage
-        notifications={notifications}
+        groups={notifications.map(makeGroup)}
         total={1}
         page={1}
         totalPages={1}
@@ -224,12 +259,66 @@ describe('NotificationsPage', () => {
     expect(mockNavigate).toHaveBeenCalledWith({ to: '/sell/status/shop-1' })
   })
 
+  it('renders and safely links each seller-reply notification', () => {
+    const notificationData = {
+      shopSlug: 'clay/studio',
+      productSlug: 'vase/one',
+      productName: 'Vase',
+      targetPath: '//attacker.test/not-used',
+    }
+    const notifications = [
+      makeNotification({
+        id: 'reply-received',
+        type: 'seller_reply_received',
+        data: notificationData,
+      }),
+      makeNotification({
+        id: 'reply-moderated',
+        type: 'seller_reply_moderated',
+        data: { ...notificationData, restriction: 'hidden' },
+      }),
+      makeNotification({
+        id: 'reply-report-resolved',
+        type: 'seller_reply_report_resolved',
+        data: { ...notificationData, outcome: 'upheld' },
+      }),
+    ]
+
+    render(
+      <NotificationsPage
+        groups={notifications.map(makeGroup)}
+        total={3}
+        page={1}
+        totalPages={1}
+        onPageChange={() => {}}
+        isNavigating={false}
+      />,
+    )
+
+    expect(screen.getByText('Seller replied to your review of Vase')).toBeDefined()
+    expect(screen.getByText('Your seller reply was hidden — see why')).toBeDefined()
+    expect(screen.getByText('We acted on the seller reply you reported')).toBeDefined()
+
+    for (const preview of [
+      'Seller replied to your review of Vase',
+      'Your seller reply was hidden — see why',
+      'We acted on the seller reply you reported',
+    ]) {
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(preview) }))
+    }
+
+    expect(mockNavigate).toHaveBeenLastCalledWith({
+      to: '/shops/clay%2Fstudio/products/vase%2Fone',
+    })
+    expect(mockNavigate).toHaveBeenCalledTimes(3)
+  })
+
   it('does not mark read if already read', () => {
     const notifications = [makeNotification({ readAt: new Date(), data: { orderId: 'order-123' } })]
 
     render(
       <NotificationsPage
-        notifications={notifications}
+        groups={notifications.map(makeGroup)}
         total={1}
         page={1}
         totalPages={1}
@@ -250,7 +339,7 @@ describe('NotificationsPage', () => {
 
     render(
       <NotificationsPage
-        notifications={notifications}
+        groups={notifications.map(makeGroup)}
         total={1}
         page={1}
         totalPages={1}
@@ -265,7 +354,7 @@ describe('NotificationsPage', () => {
   it('hides mark all read button when empty', () => {
     render(
       <NotificationsPage
-        notifications={[]}
+        groups={[]}
         total={0}
         page={1}
         totalPages={1}
@@ -282,7 +371,7 @@ describe('NotificationsPage', () => {
 
     render(
       <NotificationsPage
-        notifications={notifications}
+        groups={notifications.map(makeGroup)}
         total={1}
         page={1}
         totalPages={1}
@@ -299,7 +388,7 @@ describe('NotificationsPage', () => {
 
     render(
       <NotificationsPage
-        notifications={[makeNotification()]}
+        groups={[makeGroup(makeNotification())]}
         total={30}
         page={1}
         totalPages={2}
@@ -311,8 +400,99 @@ describe('NotificationsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' }))
     expect(onPageChange).toHaveBeenCalledWith(2)
   })
-})
 
+  it('renders multi-item groups with aggregate title and bulk-reads on expand', async () => {
+    const groups = [
+      {
+        key: 'daily:low_stock:2026-08-03',
+        type: 'low_stock' as const,
+        items: [
+          makeNotification({
+            id: 'stock-1',
+            type: 'low_stock',
+            data: { productId: 'p1', productName: 'Mug' },
+            readAt: null,
+          }),
+          makeNotification({
+            id: 'stock-2',
+            type: 'low_stock',
+            data: { productId: 'p2', productName: 'Plate' },
+            readAt: null,
+          }),
+        ],
+        count: 2,
+        unreadCount: 2,
+        createdAt: new Date(),
+      },
+    ]
+
+    render(
+      <NotificationsPage
+        groups={groups}
+        total={1}
+        page={1}
+        totalPages={1}
+        onPageChange={() => {}}
+        isNavigating={false}
+      />,
+    )
+
+    expect(screen.getByText('Low stock: 2 products need attention')).toBeDefined()
+    expect(screen.getByText('2 unread')).toBeDefined()
+
+    const toggleButton = screen.getByRole('button', {
+      name: /Low stock: 2 products need attention/i,
+    })
+    expect(toggleButton.getAttribute('aria-expanded')).toBe('false')
+
+    fireEvent.click(toggleButton)
+
+    expect(toggleButton.getAttribute('aria-expanded')).toBe('true')
+    expect(mockMutateAsync).toHaveBeenCalledWith(['stock-1', 'stock-2'])
+    await waitFor(() => expect(mockInvalidate).toHaveBeenCalled())
+
+    expect(screen.getByText('Low stock: Mug')).toBeDefined()
+    expect(screen.getByText('Low stock: Plate')).toBeDefined()
+  })
+
+  it('notes when a group shows fewer items than its full count', () => {
+    const items = Array.from({ length: 2 }, (_, index) =>
+      makeNotification({
+        id: `stock-${index + 1}`,
+        type: 'low_stock',
+        data: { productId: `p${index + 1}`, productName: `Product ${index + 1}` },
+        readAt: null,
+      }),
+    )
+    const groups = [
+      {
+        key: 'daily:low_stock:2026-08-03',
+        type: 'low_stock' as const,
+        items,
+        count: 25,
+        unreadCount: 25,
+        createdAt: new Date(),
+      },
+    ]
+
+    render(
+      <NotificationsPage
+        groups={groups}
+        total={1}
+        page={1}
+        totalPages={1}
+        onPageChange={() => {}}
+        isNavigating={false}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Low stock: 25 products need attention/i }))
+
+    expect(
+      screen.getByText('Showing the 2 most recent of 25 — the daily digest email lists the rest.'),
+    ).toBeDefined()
+  })
+})
 describe('NotificationsLoading', () => {
   it('renders skeleton loaders', () => {
     render(<NotificationsLoading />)

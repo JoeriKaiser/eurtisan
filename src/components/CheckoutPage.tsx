@@ -190,6 +190,10 @@ export default function CheckoutPage({
     rateError: null as string | null,
     quoteFresh: false,
   })
+
+  const hasUndeclaredShop = currentSummary.shops.some(
+    (shop) => shop.sellerLegal.traderStatus === null,
+  )
   const fetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastFetchedAddressRef = useRef<string>('')
   const rateRequestSequenceRef = useRef(0)
@@ -1307,6 +1311,7 @@ export default function CheckoutPage({
                   isSubmitting ||
                   status.isFetchingRates ||
                   !status.quoteFresh ||
+                  hasUndeclaredShop ||
                   (hasServicePointSelection && !selectedPickupPoint)
                 return (
                   <>
@@ -1367,6 +1372,7 @@ export default function CheckoutPage({
                   isSubmitting ||
                   status.isFetchingRates ||
                   !status.quoteFresh ||
+                  hasUndeclaredShop ||
                   (hasServicePointSelection && !selectedPickupPoint)
                 }
               >

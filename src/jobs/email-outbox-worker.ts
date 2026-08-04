@@ -118,7 +118,7 @@ async function sendOutboxRow(row: EmailOutboxRow): Promise<void> {
   await markOutboxSending(row.id)
 
   try {
-    const templateData = { ...row.data } as Record<string, unknown>
+    const templateData = { ...row.data, locale: row.locale } as Record<string, unknown>
     if (row.template === 'guest_order_access') {
       const encryptedAccessToken = templateData.encryptedAccessToken
       if (typeof encryptedAccessToken !== 'string') {

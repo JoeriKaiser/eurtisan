@@ -503,6 +503,7 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
       const legalEntityType = paymentConnected
         ? faker.helpers.arrayElement(['individual', 'business'])
         : undefined
+      const traderStatus = faker.helpers.arrayElement(['trader', 'non_trader'] as const)
       const dateOfBirth = paymentConnected ? '1980-01-01' : undefined
       const taxId = paymentConnected ? faker.string.numeric(10) : undefined
       const businessRegistrationNumber =
@@ -540,6 +541,7 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
         vatId,
         businessAddress,
         legalEntityType,
+        traderStatus,
         dateOfBirth,
         taxId,
         businessRegistrationNumber,
@@ -576,6 +578,7 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
       isVatRegistered: true,
       vatId: 'BE0123456789',
       legalEntityType: 'business',
+      traderStatus: 'trader',
       dateOfBirth: '1980-01-01',
       taxId: '1234567890',
       businessRegistrationNumber: '0123456789',
@@ -620,6 +623,7 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
       isSuspended: false,
       resubmissionCount: 0,
       paymentConnected: false,
+      traderStatus: 'trader',
     })
 
     // 2. Pending Review — completed onboarding, submitted for admin review
@@ -660,6 +664,7 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
       isSuspended: false,
       resubmissionCount: 0,
       paymentConnected: false,
+      traderStatus: 'trader',
     })
 
     // 3. Approved — admin approved, waiting for Mollie Connect
@@ -702,6 +707,7 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
       isSuspended: false,
       resubmissionCount: 0,
       paymentConnected: false,
+      traderStatus: 'trader',
     })
 
     // 4. Aegean Crafts — Greek Shop for testing Greek VAT ID prefix ("EL" prefix)
@@ -735,6 +741,7 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
       isVatRegistered: true,
       vatId: 'EL999999999', // Greek VAT prefix is EL
       legalEntityType: 'business',
+      traderStatus: 'trader',
       dateOfBirth: '1985-06-15',
       taxId: '123456789',
       businessRegistrationNumber: '987654321',
@@ -810,6 +817,7 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
       dateOfBirth: '1979-03-22',
       taxId: '9876543210',
       businessRegistrationNumber: '84312765400019',
+      traderStatus: 'trader',
       businessAddress: {
         street: 'Rue de la Verrerie 8',
         city: 'Saint-Louis',
@@ -847,6 +855,7 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
       paymentConnected: true,
       mollieAccountId: 'acct_bindery01',
       isVatRegistered: false,
+      traderStatus: 'non_trader',
     })
   }
 

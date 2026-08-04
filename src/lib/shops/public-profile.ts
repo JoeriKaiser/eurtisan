@@ -10,6 +10,7 @@
 
 import z from 'zod'
 import { PRODUCTION_TYPES, policiesSchema, SOCIAL_PLATFORMS } from '../sell-onboarding'
+import type { TraderStatus } from './trader-status'
 
 /**
  * Minimum number of reviews before a shop-level rating is shown at all.
@@ -42,13 +43,11 @@ export type ShopPolicySummary = z.infer<typeof publicPoliciesSchema>
  * write-path country enum so that a legacy or out-of-list value degrades to a
  * hidden field instead of discarding the processing times alongside it.
  *
- * Only `country` is required. Onboarding always collects the other two
- * (`sell-onboarding.ts` makes both mandatory), but the settings write path
- * (`shop-settings.ts`) validates a narrower object — street, city, postal code,
- * country — and replaces the stored value wholesale, so a seller who edits
- * their dispatch address loses the processing times. Requiring them here would
- * turn that upstream data loss into a storefront where the whole origin line
- * silently disappears; the country alone is still true and still useful.
+ * Only `country` is required. Current onboarding always collects the other two
+ * fields, and settings address edits preserve them by merging into the decrypted
+ * origin. They remain optional here for legacy and previously damaged rows:
+ * unavailable values cannot be reconstructed, while the country alone is still
+ * true and useful.
  */
 export const publicOriginSchema = z.object({
   country: z.string().regex(/^[A-Z]{2}$/),
@@ -117,6 +116,8 @@ export interface ShopProfile {
   productionPartnerDetails: string | null
   languages: string[]
   isVatRegistered: boolean
+  /** Seller-declared CRD status. Null only for a legacy shop awaiting declaration. */
+  traderStatus: TraderStatus | null
   createdAt: Date
   /** Null when absent or when the stored value fails validation. */
   policies: ShopPolicySummary | null

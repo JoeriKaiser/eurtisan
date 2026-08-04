@@ -33,6 +33,9 @@ function makeProduct(id: string, overrides?: Partial<PublicProduct>): PublicProd
     shopSlug: 'atelier-noord',
     shopIsVatRegistered: true,
     imageUrl: null,
+    weightGrams: null,
+    volumeMl: null,
+    soldBy: null,
     ...overrides,
   }
 }

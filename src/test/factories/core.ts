@@ -41,6 +41,7 @@ export async function createShop(
       ownerId,
       status: 'active',
       currency: 'EUR',
+      traderStatus: 'trader',
       ...overrides,
       // Written the way production writes them. Tests pass these as plain
       // objects, which `decryptJsonb` would hand back unchanged via its legacy

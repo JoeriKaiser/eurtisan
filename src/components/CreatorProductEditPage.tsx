@@ -26,6 +26,10 @@ interface ProductDetail {
   lengthCm: number | null
   widthCm: number | null
   heightCm: number | null
+  volumeMl: number | null
+  soldBy: 'weight' | 'volume' | null
+  unitPriceScoped: boolean
+  unitPriceMissing: boolean
   images: ProductImageRecord[]
 }
 

@@ -3,6 +3,7 @@ import '@tanstack/react-start/server-only'
 import { m } from '#/paraglide/messages'
 import { getBaseUrl } from '../env.server'
 import { getOrCreateUnsubscribeToken } from './preferences.server'
+type EmailLocale = 'en' | 'nl'
 
 function escapeHtml(input: string): string {
   return input
@@ -29,37 +30,51 @@ async function buildUnsubscribeUrl(to?: string): Promise<string | null> {
 }
 
 /** EU-required business sender block + notification preferences link for all transactional emails. */
-export async function renderEmailLegalFooterHtml(to?: string): Promise<string> {
+export async function renderEmailLegalFooterHtml(
+  to?: string,
+  locale?: EmailLocale,
+): Promise<string> {
   const settingsUrl = `${getBaseUrl()}/account/settings`
   const unsubscribeUrl = await buildUnsubscribeUrl(to)
+  const messageOptions = locale ? { locale } : undefined
 
   return `<div style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
     <p style="margin: 0 0 8px;">${escapeHtml(
-      m.email_legal_sender_block({
-        name: m.legal_operator_name(),
-        address: m.legal_operator_address(),
-        vat: m.legal_vat_number(),
-        email: m.legal_contact_email(),
-      }),
+      m.email_legal_sender_block(
+        {
+          name: m.legal_operator_name(undefined, messageOptions),
+          address: m.legal_operator_address(undefined, messageOptions),
+          vat: m.legal_vat_number(undefined, messageOptions),
+          email: m.legal_contact_email(undefined, messageOptions),
+        },
+        messageOptions,
+      ),
     )}</p>
-    <p style="margin: 0 0 8px;">${escapeHtml(m.email_footer())}</p>
-    <p style="margin: 0 0 8px;"><a href="${escapeHtml(settingsUrl)}" style="color: #2563eb; text-decoration: underline;">${escapeHtml(m.email_manage_notifications())}</a></p>
-    ${unsubscribeUrl ? `<p style="margin: 0;"><a href="${escapeHtml(unsubscribeUrl)}" style="color: #2563eb; text-decoration: underline;">${escapeHtml(m.email_unsubscribe_one_click())}</a></p>` : '<p style="margin: 0;"></p>'}
+    <p style="margin: 0 0 8px;">${escapeHtml(m.email_footer(undefined, messageOptions))}</p>
+    <p style="margin: 0 0 8px;"><a href="${escapeHtml(settingsUrl)}" style="color: #2563eb; text-decoration: underline;">${escapeHtml(m.email_manage_notifications(undefined, messageOptions))}</a></p>
+    ${unsubscribeUrl ? `<p style="margin: 0;"><a href="${escapeHtml(unsubscribeUrl)}" style="color: #2563eb; text-decoration: underline;">${escapeHtml(m.email_unsubscribe_one_click(undefined, messageOptions))}</a></p>` : '<p style="margin: 0;"></p>'}
   </div>`
 }
 
-export async function renderEmailLegalFooterText(to?: string): Promise<string> {
+export async function renderEmailLegalFooterText(
+  to?: string,
+  locale?: EmailLocale,
+): Promise<string> {
   const settingsUrl = `${getBaseUrl()}/account/settings`
   const unsubscribeUrl = await buildUnsubscribeUrl(to)
+  const messageOptions = locale ? { locale } : undefined
 
-  return `${m.email_legal_sender_block({
-    name: m.legal_operator_name(),
-    address: m.legal_operator_address(),
-    vat: m.legal_vat_number(),
-    email: m.legal_contact_email(),
-  })}
+  return `${m.email_legal_sender_block(
+    {
+      name: m.legal_operator_name(undefined, messageOptions),
+      address: m.legal_operator_address(undefined, messageOptions),
+      vat: m.legal_vat_number(undefined, messageOptions),
+      email: m.legal_contact_email(undefined, messageOptions),
+    },
+    messageOptions,
+  )}
 
-${m.email_footer()}
+${m.email_footer(undefined, messageOptions)}
 
-${m.email_manage_notifications()}: ${settingsUrl}${unsubscribeUrl ? `\n${m.email_unsubscribe_one_click()}: ${unsubscribeUrl}` : ''}`
+${m.email_manage_notifications(undefined, messageOptions)}: ${settingsUrl}${unsubscribeUrl ? `\n${m.email_unsubscribe_one_click(undefined, messageOptions)}: ${unsubscribeUrl}` : ''}`
 }

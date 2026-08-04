@@ -570,6 +570,35 @@ services:
     command: >
       sh -c "bun run job:email-outbox-worker"
 
+  notification-digest:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-notification-digest
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - NOTIFICATION_DIGEST_INTERVAL_MS=${NOTIFICATION_DIGEST_INTERVAL_MS:-3600000}
+      - NOTIFICATION_DIGEST_RECIPIENT_BATCH_SIZE=${NOTIFICATION_DIGEST_RECIPIENT_BATCH_SIZE:-100}
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:notification-digest"
+
   email-suppression-cleanup:
     image: eurtisan-app:${IMAGE_TAG:-latest}
     container_name: eurtisan-email-suppression-cleanup

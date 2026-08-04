@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { Store } from 'lucide-react'
 import ProductImagePlaceholder from '#/components/ProductImagePlaceholder'
+import { UnitPriceNote } from '#/components/product/UnitPriceNote'
 import { cn } from '#/lib/cn'
 import { getImageUrl } from '#/lib/image-url'
 import { formatPriceEUR } from '#/lib/pricing'
@@ -19,6 +20,9 @@ export interface SearchResultCardProduct {
   shopName?: string | null
   priceCents: number
   stockCount: number
+  weightGrams: number | null
+  volumeMl: number | null
+  soldBy: 'weight' | 'volume' | null
 }
 
 interface SearchResultCardProps {
@@ -84,6 +88,12 @@ export default function SearchResultCard({
             <span className='text-xs font-medium text-text-muted'>{m.search_out_of_stock()}</span>
           ) : null}
         </div>
+        <UnitPriceNote
+          priceCents={product.priceCents}
+          soldBy={product.soldBy}
+          weightGrams={product.weightGrams}
+          volumeMl={product.volumeMl}
+        />
       </div>
     </Link>
   )

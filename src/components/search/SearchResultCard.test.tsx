@@ -41,6 +41,9 @@ function makeProduct(overrides?: Partial<PublicProduct>): PublicProduct {
     shopSlug: 'test-shop',
     shopIsVatRegistered: false,
     imageUrl: null,
+    weightGrams: null,
+    volumeMl: null,
+    soldBy: null,
     ...overrides,
   }
 }

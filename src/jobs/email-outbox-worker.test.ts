@@ -110,6 +110,7 @@ describe('processOutboxBatch', () => {
       'guest_order_access',
       {
         orderNumber: 'GUEST-42',
+        locale: 'en',
         accessUrl: expect.stringContaining(`token=${encodeURIComponent(token)}`),
       },
       expect.any(Object),

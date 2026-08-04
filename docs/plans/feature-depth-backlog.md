@@ -29,30 +29,29 @@ merely looks better.
 
 | # | Surface | Status | Plan |
 |---|---|---|---|
-| 1 | Shop storefront / maker profile | **Done, one gap** | [`shop-storefront-overhaul.md`](./shop-storefront-overhaul.md) |
+| 1 | Shop storefront / maker profile | **Done** | [`shop-storefront-overhaul.md`](./shop-storefront-overhaul.md) |
 | 2 | Category browsing | **Done** | [`category-browsing-overhaul.md`](./category-browsing-overhaul.md) |
 | 3 | Reviews | **Done, depth deferred** | [`reviews-overhaul.md`](./reviews-overhaul.md) |
-| 4 | Notifications | **Done, depth deferred** | [`notifications-overhaul.md`](./notifications-overhaul.md) |
+| 4 | Notifications | **Done** | [`notifications-overhaul.md`](./notifications-overhaul.md) |
 | 5 | Product detail | **Done** | [`product-detail-overhaul.md`](./product-detail-overhaul.md) |
 
 ---
 
-### 1. Shop storefront / maker profile — *done, with one known gap*
+### 1. Shop storefront / maker profile — *done*
 
 The strongest gap between intent and surface in the codebase. Onboarding
 collects a full maker profile; the public storefront rendered a name, a
 description, and a product grid.
 
-All six benchmark dimensions are now covered: the allowlisted public projection
+All six benchmark dimensions are covered: the allowlisted public projection
 with decryption and read-time validation; the storefront panels; browsing parity
 with search; structured data; view and completeness telemetry; and unit,
 component, E2E, and accessibility coverage at en/nl parity.
 
-**The one gap is deliberate and blocked**: the CRD Art. 6a(1)(b) trader /
-non-trader disclosure. `ShopIdentityHeader` reserves the position and documents
-the dependency, but the declaration is not collected at onboarding and **must
-not** be inferred from `legalEntityType`, which is a DAC7 tax field. See
-"Regulatory gaps" below.
+The final CRD Art. 6a(1)(b)/(c) gap closed on 2026-08-03. Onboarding and shop
+settings now collect a seller's explicit trader declaration independently from
+DAC7 tax identity, and the storefront, product page, and checkout disclose it.
+An undeclared legacy shop cannot complete checkout.
 
 See [`shop-storefront-overhaul.md`](./shop-storefront-overhaul.md) for the full
 evidence and plan.
@@ -106,50 +105,33 @@ that exists for GDPR purging.
 
 ---
 
-### 3. Reviews — *integrity and disclosure done; depth deferred*
+### 3. Reviews — *done*
 
-Reviews became load-bearing when search started ranking on them, but the model
-underneath is still rating + comment.
+Reviews became load-bearing when search started ranking on them. The first pass
+therefore closed an integrity hole before adding depth: a single report had
+silently changed ranking, flagged reviews were counted differently across
+surfaces, moderation notified nobody, and required CRD 6a(1)(c), UCPD Annex I
+23b, French L.111-7-2, and DSA Article 16/17 disclosures were missing. See
+[`reviews-overhaul.md`](./reviews-overhaul.md) §1–§10.
 
-**Evidence**
+The deferred depth follow-up is now built:
 
-- `review` (`src/db/schema.ts:712`) holds `rating`, `comment`,
-  `moderationStatus`. No seller reply, no helpfulness signal, no photos.
-- `src/components/ProductReviews.tsx` renders a distribution bar and pagination
-  but offers no sort or filter by rating.
-- No shop-level rating aggregate exists anywhere, so the storefront has no trust
-  signal to display even though the data supports one. (The storefront plan adds
-  the aggregate; the review experience itself stays shallow.)
-- Aggregation conventions disagree: `getProductReviewsQuery`
-  (`src/lib/reviews/operations.server.ts:306`) averages everything not `hidden`,
-  while search's `popularityScore` counts approved reviews only
-  (`src/lib/products/meilisearch.server.ts:118`). Both are defensible; they
-  should not silently differ.
+- one official seller reply per review, with owner/2FA authorization, its own
+  notice and moderation path, admin audit events, approved-only projection, and
+  Article 17 statements of reasons;
+- private, idempotent helpful votes with self-vote and own-shop-vote prevention;
+- deterministic newest, highest, lowest, and most-helpful sorting plus 1–5-star
+  filtering, consistent approved-only counts, aggregates, and pagination;
+- accessible, localized buyer and admin interactions with focused database,
+  component, disclosure-accuracy, notification, and accessibility coverage.
 
-**Rough shape:** seller replies (new table, moderated on the same path);
-helpfulness voting; sort/filter by rating; reconcile the two aggregation
-conventions and document which is canonical.
-
-**Built — but not what the evidence above predicted.** See
-[`reviews-overhaul.md`](./reviews-overhaul.md). Reading the code found an
-integrity hole under the depth gap: **a single report by any signed-in user
-silently changed search ranking.** Flagged reviews still displayed but left
-`popularityScore`, so reporting your own one-star reviews raised your ranking
-with nothing visible on the page. Reporting now records a notice and changes no
-state.
-
-That pulled three legal gaps in with it, all closed: the DSA Article 17 statement
-of reasons (Article 19 exempts micro enterprises from Section 3 only — Articles
-16 and 17 apply at any size), the CRD 6a(1)(c) verification disclosure, and the
-L.111-7-2 review modalities. The two aggregation conventions converged on
-`approved`, which §1 made defensible rather than arbitrary.
-
-**Deferred to a follow-up:** seller replies, helpfulness voting, sort/filter by
-rating. Depth on a surface whose integrity is now sound.
+The public reply attribution uses the shop's published name, not the account
+owner's personal name. Reporting either a review or reply records a notice and
+does not itself change visibility or ranking.
 
 ---
 
-### 4. Notifications — *correctness and delivery done; depth deferred*
+### 4. Notifications — *done*
 
 **Evidence**
 
@@ -188,8 +170,9 @@ Also closed: `notification` was the only personal-data table with no retention
 rule. `job:notification-cleanup` purges **read** notifications only — an unread
 one is undelivered information, and age is not consent to forget it.
 
-**Deferred to a follow-up:** grouping/digesting and per-type in-app preferences.
-Preferences should follow the delivery table, not precede it.
+**Depth closed 2026-08-04.** Grouping/digesting and per-type in-app preferences
+are built; see [`notifications-overhaul.md`](./notifications-overhaul.md) §11.
+Preferences toggle exactly what the delivery table declares optional.
 
 ---
 
@@ -230,10 +213,10 @@ being the part that survives an admin re-adding a category.
 Delivery estimates landed as **dispatch time only**. Transit needs a carrier
 quote against a destination, and a delivery date that changes at checkout costs
 more trust than it wins.
-
-**Still open from this research:** unit pricing under Directive 98/6/EC, and a
-lawyer's read on cosmetics labelling for Soap & Bath. Neither is claimed as
-settled.
+**Still open from this research:** unit pricing under Directive 98/6/EC is now
+planned in [`unit-pricing-overhaul.md`](./unit-pricing-overhaul.md) (2026-08-04),
+and the lawyer's read on cosmetics labelling for Soap & Bath remains open;
+neither is claimed as settled here.
 
 ---
 
@@ -256,22 +239,24 @@ and lapses 12 months after outgrowing small-enterprise status.
 
 The three items below have **no such exemption**.
 
-### No trader / non-trader declaration is collected
+### Trader / non-trader declaration — **closed 2026-08-03**
 
 CRD Article 6a(1)(b) (Omnibus, in force 2022-05-28) obliges the marketplace to
 tell the consumer, before they are bound, whether the seller is a trader, based
 on the seller's own declaration. Where the seller is not a trader, Article
-6a(1)(c) obliges the marketplace to state that EU consumer protection law does
-not apply to that contract.
+6a(1)(c) requires the marketplace to state that consumer rights stemming from
+Union consumer protection law do not apply to that contract.
 
-Eurtisan never asks. `shop.legalEntityType` (`individual` | `business`) is a
-DAC7 **tax** field and is not a trader declaration — a French micro-entrepreneur
-is `individual` for tax and a trader in consumer law. Using it as a proxy would
-misclassify precisely the hobbyist-to-professional span this marketplace
-targets.
+Eurtisan now stores the explicit declaration as `shop.traderStatus`
+(`trader` | `non_trader`). It remains independent from `shop.legalEntityType`,
+the DAC7 tax field: no production path derives one from the other.
 
-Needs an onboarding step capturing the declaration, then a disclosure on the
-storefront, product page, and checkout. Blocks §5.8 of the storefront plan.
+The declaration is required in seller onboarding and in readiness checks.
+Existing rows receive no synthetic backfill; `null` means the seller has not
+declared. Owners can correct that state in shop settings, while product and
+checkout controls fail closed until they do. The storefront, product page, and
+checkout all render the declaration, including the Article 6a(1)(c) consequence
+for non-traders.
 
 ### Ranking parameters are not disclosed — **closed 2026-07-31**
 
@@ -383,19 +368,22 @@ the defect into 12 failing checkout tests. Two guards were added:
 and both callers pass already-decrypted values. It is listed in the guard's
 allowlist with that reason.
 
-### Editing shipping origin in settings destroys the processing times
+### Editing shipping origin in settings destroyed the processing times — **fixed 2026-08-03**
 
 `sell-onboarding.ts` collects `processingTimeDays` and `shipsInternational` and
-makes both mandatory. `shop-settings.ts` validates a *narrower* object — street,
-city, postal code, country — and `settings.server.ts:180` writes it with
-`encryptJsonb(input.shippingOrigin)`, replacing the stored value wholesale. A
-seller who edits their dispatch address therefore silently loses both fields,
-and nothing tells them.
+makes both mandatory. `shop-settings.ts` intentionally accepts a narrower
+address object — street, city, postal code, country — because those are the
+fields that surface exposes.
 
-The storefront now degrades rather than disappearing: `publicOriginSchema` marks
-both optional, so "Ships from France" survives and only the dispatch estimate
-goes. That is damage limitation on the read side, not a fix. The write path
-should merge rather than replace, or collect the full object.
+The former write path encrypted that narrower input and replaced the complete
+stored origin, silently deleting both dispatch fields. `settings.server.ts` now
+decrypts the current value, merges only the submitted address fields, and
+re-encrypts the complete object. It supports encrypted and legacy plaintext
+rows, does not invent absent dispatch data, and stores SQL `NULL` when the seller
+explicitly clears the complete origin. Focused persistence tests pin all four
+cases. Values lost before the fix cannot be backfilled because their contents
+are no longer recoverable; the tolerant public read remains necessary for those
+rows.
 
 ### "In stock" has no agreed definition for variant products
 

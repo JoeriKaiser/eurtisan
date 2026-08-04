@@ -105,6 +105,9 @@ async function buildProductDocuments(
       categoryName: category?.name ?? null,
       ...buildRelevanceFields(prod.stockCount, aggregates.get(prod.id) ?? EMPTY_AGGREGATE),
       imageUrl: imageUrls.get(prod.id) ?? null,
+      weightGrams: prod.weightGrams,
+      volumeMl: prod.volumeMl,
+      soldBy: prod.soldBy,
       createdAt: prod.createdAt.toISOString(),
     }
   })
@@ -158,6 +161,9 @@ export interface MeilisearchProductDocument {
    * from the index alone. Images only change through product create/update,
    * both of which already enqueue a reindex.
    */
+  weightGrams: number | null
+  volumeMl: number | null
+  soldBy: 'weight' | 'volume' | null
   imageUrl: string | null
   createdAt: string
 }
@@ -250,6 +256,9 @@ export async function syncProductToMeilisearch(productData: {
   status: 'draft' | 'published' | 'archived'
   shopId: string
   categoryId: string | null
+  weightGrams: number | null
+  volumeMl: number | null
+  soldBy: 'weight' | 'volume' | null
   createdAt: Date
   updatedAt: Date
 }): Promise<void> {
@@ -306,6 +315,9 @@ export async function syncProductToMeilisearch(productData: {
         aggregates.get(productData.id) ?? EMPTY_AGGREGATE,
       ),
       imageUrl: imageUrls.get(productData.id) ?? null,
+      weightGrams: productData.weightGrams,
+      volumeMl: productData.volumeMl,
+      soldBy: productData.soldBy,
       createdAt: productData.createdAt.toISOString(),
     }
 
@@ -581,6 +593,9 @@ export async function searchProductsMeilisearch(
         shopName: shop.name,
         shopSlug: shop.slug,
         shopIsVatRegistered: shop.isVatRegistered,
+        weightGrams: product.weightGrams,
+        volumeMl: product.volumeMl,
+        soldBy: product.soldBy,
       })
       .from(product)
       .innerJoin(shop, eq(product.shopId, shop.id))

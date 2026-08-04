@@ -3,7 +3,7 @@
 **Opened:** 2026-07-31
 **Register entry:** #4 in [`feature-depth-backlog.md`](./feature-depth-backlog.md)
 **Reference standard:** the search overhaul in `6fac0a6` (PR #15)
-**Status:** approved 2026-07-31; §0–§4 and §6 built
+**Status:** approved 2026-07-31; §0–§4 and §6 built; depth phase built 2026-08-04 (§11)
 
 > Untracked by convention, like the other plan docs — kept on disk as a working
 > record, not committed.
@@ -291,3 +291,37 @@ created two years ago but read yesterday is one day into its retention.
 Grouping and digesting, and per-type in-app preferences, as proposed in §7 and
 approved. Preferences should follow the delivery table rather than precede it —
 they toggle exactly what it declares.
+
+
+---
+
+## 11. Depth phase — grouping, preferences, digest (2026-08-04)
+
+The deferred follow-up from §7/§10, built in the order the register demanded:
+preferences follow the delivery table.
+
+- **Per-type in-app preferences.** `user_notification_preference` rows exist
+  only for the three types the delivery table declares `inApp: 'optional'`
+  (`low_stock`, `review_received`, `seller_reply_received`); required types are
+  not representable as mutable, enforced in the server function and pinned by
+  tests. Enabled by default; disabling marks existing unread rows read in the
+  same transaction, and the list/unread queries filter disabled types in SQL.
+  Settings renders them with the shared `Switch` primitive.
+- **Grouping.** `createNotification` stamps `group_key = daily:<type>:<utc day>`
+  for the two burst types; the list query pages groups, aggregates
+  `count`/`unreadCount` in SQL, and caps returned `items` to the twenty most
+  recent per group so a burst day cannot bloat the payload. Expanding a group
+  bulk-reads it; a note names the cap and points at the digest.
+- **Digest.** `job:notification-digest` (advisory-locked, wired into prod and
+  staging Compose, the Ansible rollout, and Prometheus alerts) enqueues at most
+  one `seller_updates` email per seller per completed UTC day, idempotent per
+  user/day, skipped when the seller disabled `seller_updates` email.
+- **A defect the depth introduced, fixed here.** The preference serialization
+  lock (`FOR UPDATE` on the recipient's user row inside `createNotification`)
+  deadlocked `resolveDisputeQuery`, which created notifications inside a
+  transaction that already held `FOR KEY SHARE` on the same rows through its
+  order/payout updates. Dispute notifications now run after the commit.
+
+Gates: full unit (2,413 tests) and browser (687 tests) suites green via the
+local podman Postgres; `tsc`, lint, format clean; en/nl parity holds. E2E not
+run — same call as every prior phase, per the standing holiday-laptop note.

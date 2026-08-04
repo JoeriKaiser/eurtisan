@@ -40,6 +40,7 @@ const sellerDetails = {
   isVatRegistered: false,
   vatId: '',
   legalEntityType: 'individual',
+  traderStatus: 'trader',
   dateOfBirth: '1990-05-15',
   taxId: 'FRTIN12345',
   businessRegistrationNumber: '',
@@ -107,6 +108,33 @@ describe('five-stage onboarding schemas', () => {
 
   it('accepts complete dispatch, legal identity, and tax details', () => {
     expect(step4LocationSchema.safeParse(sellerDetails).success).toBe(true)
+  })
+
+  it.each([
+    ['trader', 'individual'],
+    ['non_trader', 'individual'],
+    ['trader', 'business'],
+    ['non_trader', 'business'],
+  ] as const)('accepts the explicit %s declaration independently of the DAC7 %s identity', (traderStatus, legalEntityType) => {
+    expect(
+      step4LocationSchema.safeParse({
+        ...sellerDetails,
+        traderStatus,
+        legalEntityType,
+        dateOfBirth: legalEntityType === 'individual' ? '1990-05-15' : '',
+        businessRegistrationNumber: legalEntityType === 'business' ? 'RCS PARIS 123 456 789' : '',
+      }).success,
+    ).toBe(true)
+  })
+
+  it('rejects omitted or null trader status rather than inferring it from DAC7 identity', () => {
+    const withoutTraderStatus: Record<string, unknown> = { ...sellerDetails }
+    delete withoutTraderStatus.traderStatus
+
+    expect(step4LocationSchema.safeParse(withoutTraderStatus).success).toBe(false)
+    expect(step4LocationSchema.safeParse({ ...sellerDetails, traderStatus: null }).success).toBe(
+      false,
+    )
   })
 
   it('requires a legal street address and valid processing range', () => {

@@ -38,6 +38,8 @@ export interface CheckoutItem {
   lengthCm: number | null
   widthCm: number | null
   heightCm: number | null
+  volumeMl: number | null
+  soldBy: 'weight' | 'volume' | null
 }
 
 export interface CheckoutShopGroup {

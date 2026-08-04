@@ -43,31 +43,35 @@ document in `docs/plans/` recording what was found, what was built, and what was
 deliberately left. **Read the relevant plan before reopening any of these** — the
 reasoning behind a deferral is usually the useful part.
 
-What remains, roughly in the order I would take it:
+The CRD Art. 6a(1)(b)/(c) trader declaration closed on 2026-08-03. It is
+collected explicitly, never inferred from DAC7 `legalEntityType`, disclosed on
+storefront, product, and checkout, and fails closed for undeclared legacy rows.
+The shipping-origin integrity defect closed the same day: settings address edits
+now merge into the decrypted origin and preserve processing times and shipping
+reach. Reviews depth also closed that day: seller replies have their own
+Article 16/17 notice and moderation surface, helpful votes are private and
+idempotent, and public reviews support deterministic rating filters and sorting.
 
-1. **CRD Art. 6a(1)(b) trader / non-trader declaration.** The oldest open item,
-   blocked since the storefront phase. `ShopIdentityHeader` reserves the position
-   and documents the dependency. The declaration is **not** collected at
-   onboarding and **must not** be inferred from `legalEntityType`, which is a
-   DAC7 tax field answering a different question. Needs an onboarding step, a
-   column, and a backfill decision for existing shops.
-2. **Editing a shop's shipping origin destroys its processing times.** The
-   settings write path validates a narrower object and replaces the stored value
-   wholesale. Small, real, and now load-bearing in two places: the storefront
-   policies panel and the product page's dispatch line, both of which degrade to
-   showing nothing. Filed under "Filed from research, not yet planned" in the
-   register.
-3. **Reviews depth** — seller replies, helpfulness voting, sort/filter by rating.
-   Deferred deliberately: the integrity hole came first. Seller replies are their
-   own moderation surface and inherit the DSA Article 16/17 machinery already
-   built rather than reusing it for free.
-4. **Notifications depth** — grouping/digesting and per-type in-app preferences.
-   Preferences should follow `lib/notifications/delivery.ts`, not precede it:
-   they toggle exactly what that table declares.
-5. **Unit pricing (Directive 98/6/EC)** and a lawyer's read on **cosmetics
-   labelling** for Soap & Bath. Both are flagged in
-   [`docs/plans/product-detail-overhaul.md`](docs/plans/product-detail-overhaul.md)
-   §1.1 and neither is claimed as settled.
+Notifications depth closed on 2026-08-04: daily grouping for the burst types,
+per-type in-app preferences that toggle exactly what
+`lib/notifications/delivery.ts` declares optional, a group list whose payload
+is bounded while counts stay exact, and a durable prior-UTC-day seller digest
+email. The phase also fixed the self-deadlock the preference row-lock
+introduced into dispute refunds: notification inserts moved out of the resolve
+transaction, matching the checkout flow's post-commit convention.
+
+Unit pricing (Directive 98/6/EC) closed on 2026-08-04: scoped categories
+(Soap & Bath, per the French arrêté of 16 November 1999 Annex II) carry a
+`sold_by` + `volume_ml` declaration, validated at write time and stripped
+outside the Annex II list; the five buyer price surfaces render the TTC
+per-kg/per-litre note, with the Art. 6 waiver at exactly one kg/L; legacy
+scoped rows fail closed with a studio completeness flag. Details in
+[`docs/plans/unit-pricing-overhaul.md`](docs/plans/unit-pricing-overhaul.md).
+
+What remains is legal review, not code:
+
+1. **Cosmetics labelling** for Soap & Bath still wants a lawyer's read and is
+   not claimed as settled.
 
 Two standing constraints that shaped all of the above and should keep doing so:
 

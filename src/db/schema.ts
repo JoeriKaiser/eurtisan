@@ -14,6 +14,7 @@ import {
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
+import { TRADER_STATUSES } from '#/lib/shops/trader-status'
 import { generateOrderNumber } from '#/lib/order-numbers'
 
 export const userRoleEnum = pgEnum('user_role', ['customer', 'creator', 'admin'])
@@ -31,6 +32,8 @@ export const shopStatusEnum = pgEnum('shop_status', [
   'rejected',
   'suspended',
 ])
+
+export const traderStatusEnum = pgEnum('trader_status', TRADER_STATUSES)
 
 export const user = pgTable(
   'user',
@@ -177,6 +180,9 @@ export const shop = pgTable(
     taxId: text('tax_id'),
     businessRegistrationNumber: text('business_registration_number'),
 
+    // Consumer Rights Directive Article 6a seller declaration
+    traderStatus: traderStatusEnum('trader_status'),
+
     // Policies
     policies: jsonb('policies'),
 
@@ -276,6 +282,13 @@ export const categories = pgTable(
   ],
 )
 
+/**
+ * What a product is sold by, for Directive 98/6/EC unit pricing. Set only for
+ * categories whose French transposition (arrêté of 16 November 1999, Annex II)
+ * requires a price per unit of measurement; see `lib/products/unit-pricing.ts`.
+ */
+export const unitPriceBasisEnum = pgEnum('unit_price_basis', ['weight', 'volume'])
+
 export const product = pgTable(
   'product',
   {
@@ -299,6 +312,8 @@ export const product = pgTable(
     lengthCm: integer('length_cm'),
     widthCm: integer('width_cm'),
     heightCm: integer('height_cm'),
+    volumeMl: integer('volume_ml'),
+    soldBy: unitPriceBasisEnum('sold_by'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
     updatedAt: timestamp('updated_at').notNull().defaultNow(),
   },
@@ -333,6 +348,7 @@ export const product = pgTable(
     check('product_length_cm_positive', sql`${table.lengthCm} IS NULL OR ${table.lengthCm} > 0`),
     check('product_width_cm_positive', sql`${table.widthCm} IS NULL OR ${table.widthCm} > 0`),
     check('product_height_cm_positive', sql`${table.heightCm} IS NULL OR ${table.heightCm} > 0`),
+    check('product_volume_ml_positive', sql`${table.volumeMl} IS NULL OR ${table.volumeMl} > 0`),
   ],
 )
 
@@ -636,6 +652,8 @@ export const orderItem = pgTable(
     lengthCm: integer('length_cm'),
     widthCm: integer('width_cm'),
     heightCm: integer('height_cm'),
+    volumeMl: integer('volume_ml'),
+    soldBy: unitPriceBasisEnum('sold_by'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (table) => [
@@ -736,6 +754,47 @@ export const review = pgTable(
     check('rating_range', sql`${table.rating} BETWEEN 1 AND 5`),
   ],
 )
+export const sellerReply = pgTable(
+  'seller_reply',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    reviewId: uuid('review_id')
+      .notNull()
+      .references(() => review.id, { onDelete: 'cascade' }),
+    authorUserId: text('author_user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    body: text().notNull(),
+    moderationStatus: moderationStatusEnum('moderation_status').notNull().default('approved'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('seller_reply_review_unique').on(table.reviewId),
+    index('seller_reply_author_user_id_idx').on(table.authorUserId),
+    index('seller_reply_moderation_status_created_at_idx').on(
+      table.moderationStatus,
+      table.createdAt,
+    ),
+  ],
+)
+
+export const reviewHelpfulVote = pgTable(
+  'review_helpful_vote',
+  {
+    reviewId: uuid('review_id')
+      .notNull()
+      .references(() => review.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.reviewId, table.userId] }),
+    index('review_helpful_vote_user_id_idx').on(table.userId),
+  ],
+)
 
 export const reviewReportReasonEnum = pgEnum('review_report_reason', [
   /** Doubt about authenticity — the ground C. consom. L.111-7-2 requires a free reporting route for. */
@@ -797,6 +856,35 @@ export const reviewReport = pgTable(
     index('review_report_review_id_idx').on(table.reviewId),
     index('review_report_status_idx').on(table.status),
     index('review_report_created_at_idx').on(table.createdAt),
+  ],
+)
+export const sellerReplyReport = pgTable(
+  'seller_reply_report',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sellerReplyId: uuid('seller_reply_id')
+      .notNull()
+      .references(() => sellerReply.id, { onDelete: 'cascade' }),
+    reporterUserId: text('reporter_user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    reason: reviewReportReasonEnum('reason').notNull(),
+    details: text(),
+    status: reviewReportStatusEnum('status').notNull().default('open'),
+    resolvedAt: timestamp('resolved_at'),
+    resolvedByUserId: text('resolved_by_user_id').references(() => user.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('seller_reply_report_reply_reporter_unique').on(
+      table.sellerReplyId,
+      table.reporterUserId,
+    ),
+    index('seller_reply_report_reply_id_idx').on(table.sellerReplyId),
+    index('seller_reply_report_status_idx').on(table.status),
+    index('seller_reply_report_created_at_idx').on(table.createdAt),
   ],
 )
 
@@ -870,6 +958,9 @@ export const notificationTypePgEnum = pgEnum('notification_type', [
   'shop_moderation_update',
   'review_moderated',
   'review_report_resolved',
+  'seller_reply_received',
+  'seller_reply_moderated',
+  'seller_reply_report_resolved',
 ])
 
 export const notification = pgTable(
@@ -882,11 +973,17 @@ export const notification = pgTable(
     type: notificationTypePgEnum().notNull(),
     data: jsonb('data').notNull().default(sql`'{}'::jsonb`),
     readAt: timestamp('read_at'),
+    groupKey: text('group_key'),
     createdAt: timestamp('created_at').notNull().defaultNow(),
   },
   (table) => [
     index('notification_user_id_read_at_idx').on(table.userId, table.readAt),
     index('notification_user_id_created_at_idx').on(table.userId, table.createdAt),
+    index('notification_user_group_created_at_idx').on(
+      table.userId,
+      table.groupKey,
+      table.createdAt,
+    ),
   ],
 )
 
@@ -1357,6 +1454,24 @@ export const userEmailPreference = pgTable(
   (table) => [
     uniqueIndex('user_email_preference_user_category_idx').on(table.userId, table.category),
     index('user_email_preference_user_idx').on(table.userId),
+  ],
+)
+
+export const userNotificationPreference = pgTable(
+  'user_notification_preference',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    type: notificationTypePgEnum('type').notNull(),
+    enabled: boolean().notNull().default(true),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('user_notification_preference_user_type_idx').on(table.userId, table.type),
+    index('user_notification_preference_user_idx').on(table.userId),
   ],
 )
 

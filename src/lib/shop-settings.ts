@@ -5,6 +5,7 @@ import { requirePrivileged2FA } from './server-auth'
 import type { SafeUser } from './server-auth'
 import { validateVatId } from './vat'
 import { policiesSchema, socialRowSchema, type Policies, type SocialRow } from './sell-onboarding'
+import { traderStatusSchema, type TraderStatus } from './shops/trader-status'
 
 export type { ShopRecord, UpdateShopInput } from './shop-settings.server'
 
@@ -59,6 +60,7 @@ export const updateShopSchema = z
     isVatRegistered: z.boolean().optional(),
     vatId: z.string().optional().nullable(),
     legalEntityType: z.enum(['individual', 'business']).optional().nullable(),
+    traderStatus: traderStatusSchema.optional(),
     dateOfBirth: dateStringSchema,
     taxId: z.string().optional().nullable(),
     businessRegistrationNumber: z.string().optional().nullable(),
@@ -203,6 +205,12 @@ export const updateShop = createServerFn({ method: 'POST' })
         })
       }
 
+      if (input.traderStatus !== undefined) {
+        emitAuditEvent(context.user as SafeUser, 'shop_trader_status_updated', 'shop', shopId, {
+          traderStatus: input.traderStatus,
+        })
+      }
+
       const socials = await db.select().from(shopSocials).where(eq(shopSocials.shopId, shopId))
       return {
         id: record.id,
@@ -234,6 +242,7 @@ export const updateShop = createServerFn({ method: 'POST' })
         isVatRegistered: record.isVatRegistered,
         vatId: record.vatId,
         legalEntityType: record.legalEntityType as 'individual' | 'business' | null,
+        traderStatus: record.traderStatus as TraderStatus | null,
         dateOfBirth: record.dateOfBirth,
         taxId: record.taxId,
         businessRegistrationNumber: record.businessRegistrationNumber,

@@ -11,6 +11,7 @@ import {
   user,
 } from '#/db/schema'
 import { SELLER_TERMS_VERSION } from '../sell-onboarding'
+import type { TraderStatus } from './trader-status'
 import type {
   BusinessAddressData,
   PoliciesData,
@@ -129,6 +130,7 @@ export async function getShopDraftQuery(
     isVatRegistered: record.isVatRegistered,
     vatId: record.vatId,
     legalEntityType: record.legalEntityType,
+    traderStatus: record.traderStatus,
     dateOfBirth: record.dateOfBirth,
     taxId: record.taxId,
     businessRegistrationNumber: record.businessRegistrationNumber,
@@ -243,6 +245,7 @@ export async function saveOnboardingStepInternal(
   if (d.vatId !== undefined) updateData.vatId = d.vatId ? String(d.vatId).trim() : null
   if (d.legalEntityType !== undefined)
     updateData.legalEntityType = d.legalEntityType ? String(d.legalEntityType) : null
+  if (d.traderStatus !== undefined) updateData.traderStatus = d.traderStatus as TraderStatus
   if (d.dateOfBirth !== undefined)
     updateData.dateOfBirth = d.dateOfBirth ? String(d.dateOfBirth).trim() : null
   if (d.taxId !== undefined) updateData.taxId = d.taxId ? String(d.taxId).trim() : null
@@ -343,6 +346,8 @@ export async function saveDraftListingInternal(
     lengthCm: data.lengthCm,
     widthCm: data.widthCm,
     heightCm: data.heightCm,
+    volumeMl: data.volumeMl,
+    soldBy: data.soldBy,
     images: data.images,
   }
 
@@ -446,7 +451,8 @@ export async function getOnboardingReadinessInternal(shopId: string) {
       address.city &&
       address.postalCode &&
       address.country &&
-      hasValidIdentity,
+      hasValidIdentity &&
+      record.traderStatus,
   )
   const isProductComplete = Boolean(
     listing &&

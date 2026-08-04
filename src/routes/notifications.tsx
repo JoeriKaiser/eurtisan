@@ -4,12 +4,11 @@ import { AccountShell } from '#/components/AccountShell'
 import { NotificationsLoading } from '#/components/NotificationsLoading'
 import { NotificationsError } from '#/components/NotificationsError'
 import { NotificationsRouteComponent } from '#/route-components/notifications'
-import { getNotifications } from '#/lib/notifications'
+import { getNotifications, type NotificationsResult } from '#/lib/notifications'
 import { guardAuth } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
 import { hydrateQueryData } from '#/lib/hydrate-query'
 import { queryKeys } from '#/lib/query-keys'
-import type { NotificationsResult } from '#/lib/notifications.server'
 
 const notificationsSearchSchema = z.object({
   page: z.coerce.number().int().min(1).optional().catch(1),

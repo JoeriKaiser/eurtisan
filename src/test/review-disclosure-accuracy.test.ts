@@ -33,6 +33,7 @@ function readMessages(locale: 'en' | 'nl'): Record<string, string> {
 const operations = readSource('src/lib/reviews/operations.server.ts')
 const component = readSource('src/components/reviews/ReviewDisclosure.tsx')
 const visibility = readSource('src/lib/reviews/visibility.server.ts')
+const reviewRpc = readSource('src/lib/reviews.ts')
 const schema = readSource('src/db/schema.ts')
 const messages = { en: readMessages('en'), nl: readMessages('nl') }
 const LOCALES = ['en', 'nl'] as const
@@ -81,11 +82,22 @@ describe('review disclosure', () => {
     expect(schema).toContain('review_shop_order_product_unique')
   })
 
-  it('describes the order reviews are actually returned in', () => {
-    // The disclosure says newest first and nothing else. `orderBy` on the public
-    // query has to agree.
-    expect(operations).toContain('.orderBy(desc(review.createdAt))')
-    expect(messages.en.review_disclosure_order.toLowerCase()).toContain('newest first')
+  it('describes every order the public review query supports', () => {
+    // The default and each selectable criterion must stay in lockstep with the
+    // public RPC. This deliberately pins the complete set, not just recency.
+    expect(reviewRpc).toContain("z.enum(['newest', 'highest', 'lowest', 'helpful'])")
+    expect(operations).toContain("case 'newest':")
+    expect(operations).toContain("case 'highest':")
+    expect(operations).toContain("case 'lowest':")
+    expect(operations).toContain("case 'helpful':")
+    expect(operations).toContain('desc(review.createdAt), desc(review.id)')
+
+    expect(messages.en.review_disclosure_order.toLowerCase()).toMatch(
+      /newest first.*highest rating.*lowest rating.*helpful/,
+    )
+    expect(messages.nl.review_disclosure_order.toLowerCase()).toMatch(
+      /nieuw naar oud.*hoogste beoordeling.*laagste beoordeling.*nuttige stemmen/,
+    )
   })
 
   it('only claims both dates while both are returned', () => {

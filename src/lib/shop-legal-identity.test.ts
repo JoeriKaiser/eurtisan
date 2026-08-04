@@ -45,9 +45,11 @@ describe('buildShopLegalIdentity', () => {
       vatId: 'FR123',
       businessAddress: { street: '1 Rue', city: 'Lyon', country: 'FR' },
       shippingOrigin: null,
+      traderStatus: 'trader',
     })
     expect(identity.tradeName).toBe('Atelier Demo')
     expect(identity.contactEmail).toBe('seller@example.com')
     expect(identity.vatId).toBe('FR123')
+    expect(identity.traderStatus).toBe('trader')
   })
 })

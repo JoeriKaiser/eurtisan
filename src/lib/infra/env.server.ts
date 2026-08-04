@@ -501,6 +501,19 @@ export function getEmailOutboxWorkerBatchSize(): number {
 }
 
 /**
+ * Interval between completed-UTC-day seller digest runs. Defaults to one hour,
+ * which makes missed deploy windows recover without sending a current-day digest.
+ */
+export function getNotificationDigestIntervalMs(): number {
+  return getPositiveIntegerEnv('NOTIFICATION_DIGEST_INTERVAL_MS', 60 * 60 * 1000)
+}
+
+/** Maximum recipient IDs examined in one seller-digest query batch. */
+export function getNotificationDigestRecipientBatchSize(): number {
+  return Math.min(500, getPositiveIntegerEnv('NOTIFICATION_DIGEST_RECIPIENT_BATCH_SIZE', 100))
+}
+
+/**
  * Default max retries for outbox emails.
  * Defaults to 3.
  */

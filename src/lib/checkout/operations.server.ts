@@ -7,6 +7,7 @@ import {
   platformOrder,
   product,
   shop,
+  shopOrder,
   user,
 } from '#/db/schema'
 import { molliePaymentProvider } from '#/integrations/mollie'
@@ -20,6 +21,17 @@ import { persistCheckoutOrder } from './order-persistence.server'
 import { initiateCheckoutPayment, retryPayment } from './payment.server'
 import { validateCheckoutShippingSelectionDetails } from './shipping.server'
 import type { CheckoutInput, CheckoutItem, CreateCheckoutResult } from './types'
+
+function throwUndeclaredSellerStatus(): never {
+  throw new Response(
+    JSON.stringify({
+      error: 'Conflict',
+      message: 'Seller declaration is required before purchase',
+      code: 'SHOP_TRADER_STATUS_UNDECLARED',
+    }),
+    { status: 409, headers: { 'Content-Type': 'application/json' } },
+  )
+}
 
 /**
  * Create a checkout using the production payment provider. Browser-callable
@@ -69,6 +81,18 @@ export async function createCheckoutWithProvider(
         headers: { 'Content-Type': 'application/json' },
       })
     }
+    const existingOrderShops = await db
+      .select({ traderStatus: shop.traderStatus })
+      .from(shopOrder)
+      .innerJoin(shop, eq(shopOrder.shopId, shop.id))
+      .where(eq(shopOrder.platformOrderId, existingOrder.id))
+    if (
+      existingOrderShops.length === 0 ||
+      existingOrderShops.some((shopRecord) => shopRecord.traderStatus === null)
+    ) {
+      throwUndeclaredSellerStatus()
+    }
+
     const [reservation] = await db
       .select({ expiresAt: inventoryReservation.expiresAt })
       .from(inventoryReservation)
@@ -127,6 +151,8 @@ export async function createCheckoutWithProvider(
       lengthCm: row.product.lengthCm,
       widthCm: row.product.widthCm,
       heightCm: row.product.heightCm,
+      volumeMl: row.product.volumeMl,
+      soldBy: row.product.soldBy,
     })
     shopItemsMap.set(row.product.shopId, items)
   }
@@ -134,6 +160,16 @@ export async function createCheckoutWithProvider(
   const shopIds = Array.from(shopItemsMap.keys())
   const shopRecords =
     shopIds.length > 0 ? await db.select().from(shop).where(inArray(shop.id, shopIds)) : []
+
+  // Article 6a(1) requires a seller declaration. A missing declaration is
+  // deliberately fail-closed before shipping quotes, order persistence,
+  // inventory reservation, or a payment-provider call.
+  if (
+    shopRecords.length !== shopIds.length ||
+    shopRecords.some((shopRecord) => shopRecord.traderStatus === null)
+  ) {
+    throwUndeclaredSellerStatus()
+  }
   const originByShopId = new Map<string, ProviderShippingAddress | undefined>()
   for (const shopRecord of shopRecords) {
     // Encrypted at rest (`settings.server.ts` writes it with `encryptJsonb`).

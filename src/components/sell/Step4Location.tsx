@@ -7,6 +7,7 @@ import {
   type BusinessAddressData,
   type ShippingOriginData,
 } from '#/lib/sell-onboarding'
+import type { TraderStatus } from '#/lib/shops/trader-status'
 import { getLocale } from '#/paraglide/runtime'
 import { m } from '#/paraglide/messages'
 import { Input } from '../ui/input'
@@ -23,6 +24,7 @@ interface SellerData {
   isVatRegistered: boolean
   vatId: string
   legalEntityType: 'individual' | 'business'
+  traderStatus: TraderStatus | ''
   dateOfBirth: string
   taxId: string
   businessRegistrationNumber: string
@@ -38,6 +40,7 @@ function focusFirstError(errors: Record<string, string>) {
     'businessAddress.postalCode': 'business-postal',
     'businessAddress.country': 'business-country',
     legalEntityType: 'legal-entity-type',
+    traderStatus: 'trader-status-trader',
     taxId: 'tax-id',
     dateOfBirth: 'date-of-birth',
     businessRegistrationNumber: 'business-registration-number',
@@ -63,6 +66,15 @@ export function Step4Location() {
   }
   const updateAddress = (fields: Partial<BusinessAddressData>) => {
     updateField(2, 'businessAddress', { ...form.businessAddress, ...fields })
+  }
+  const updateTraderStatus = (traderStatus: TraderStatus) => {
+    updateField(2, 'traderStatus', traderStatus)
+    setErrors((previous) => {
+      if (!previous.traderStatus) return previous
+      const next = { ...previous }
+      delete next.traderStatus
+      return next
+    })
   }
 
   const validate = useCallback(() => {
@@ -297,6 +309,122 @@ export function Step4Location() {
             </p>
           )}
         </div>
+      </section>
+
+      <section
+        className='border-t border-border-default pt-8'
+        aria-labelledby='trader-status-title'
+      >
+        <fieldset
+          aria-describedby={`trader-status-description trader-status-separation${
+            errors.traderStatus ? ' trader-status-error' : ''
+          }`}
+          aria-invalid={errors.traderStatus ? 'true' : undefined}
+        >
+          <legend id='trader-status-title' className='text-lg font-semibold text-text-primary'>
+            {m.trader_status_label()}
+            <span className='text-error' aria-hidden='true'>
+              {' '}
+              *
+            </span>
+          </legend>
+          <p id='trader-status-description' className='mt-1 text-sm text-text-secondary'>
+            {m.trader_status_description()}
+          </p>
+          <p id='trader-status-separation' className='mt-2 text-sm text-text-muted'>
+            {m.trader_status_separate_from_tax()}
+          </p>
+
+          <div className='mt-5 grid gap-3'>
+            <label
+              className={`flex cursor-pointer gap-3 rounded-lg border p-4 transition-colors ${
+                form.traderStatus === 'trader'
+                  ? 'border-accent-primary bg-accent-primary/10'
+                  : errors.traderStatus
+                    ? 'border-error'
+                    : 'border-border-default hover:border-border-strong'
+              }`}
+            >
+              <input
+                id='trader-status-trader'
+                type='radio'
+                name='traderStatus'
+                value='trader'
+                checked={form.traderStatus === 'trader'}
+                onChange={() => updateTraderStatus('trader')}
+                required
+                aria-labelledby='trader-status-trader-label'
+                aria-invalid={errors.traderStatus ? 'true' : undefined}
+                aria-describedby={`trader-status-trader-description${
+                  errors.traderStatus ? ' trader-status-error' : ''
+                }`}
+                aria-errormessage={errors.traderStatus ? 'trader-status-error' : undefined}
+                className='mt-0.5 size-4 shrink-0 accent-accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
+              />
+              <span>
+                <span
+                  id='trader-status-trader-label'
+                  className='block text-sm font-semibold text-text-primary'
+                >
+                  {m.trader_status_trader_label()}
+                </span>
+                <span
+                  id='trader-status-trader-description'
+                  className='mt-1 block text-sm text-text-secondary'
+                >
+                  {m.trader_status_trader_description()}
+                </span>
+              </span>
+            </label>
+
+            <label
+              className={`flex cursor-pointer gap-3 rounded-lg border p-4 transition-colors ${
+                form.traderStatus === 'non_trader'
+                  ? 'border-accent-primary bg-accent-primary/10'
+                  : errors.traderStatus
+                    ? 'border-error'
+                    : 'border-border-default hover:border-border-strong'
+              }`}
+            >
+              <input
+                id='trader-status-non-trader'
+                type='radio'
+                name='traderStatus'
+                value='non_trader'
+                checked={form.traderStatus === 'non_trader'}
+                onChange={() => updateTraderStatus('non_trader')}
+                required
+                aria-labelledby='trader-status-non-trader-label'
+                aria-invalid={errors.traderStatus ? 'true' : undefined}
+                aria-describedby={`trader-status-non-trader-description${
+                  errors.traderStatus ? ' trader-status-error' : ''
+                }`}
+                aria-errormessage={errors.traderStatus ? 'trader-status-error' : undefined}
+                className='mt-0.5 size-4 shrink-0 accent-accent-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
+              />
+              <span>
+                <span
+                  id='trader-status-non-trader-label'
+                  className='block text-sm font-semibold text-text-primary'
+                >
+                  {m.trader_status_non_trader_label()}
+                </span>
+                <span
+                  id='trader-status-non-trader-description'
+                  className='mt-1 block text-sm text-text-secondary'
+                >
+                  {m.trader_status_non_trader_description()}
+                </span>
+              </span>
+            </label>
+          </div>
+
+          {errors.traderStatus && (
+            <p id='trader-status-error' role='alert' className='mt-3 text-sm text-error'>
+              {m.trader_status_required_error()}
+            </p>
+          )}
+        </fieldset>
       </section>
 
       <section

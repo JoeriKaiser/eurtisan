@@ -312,6 +312,8 @@ export async function persistCheckoutOrder(
               lengthCm: lineItem.product.lengthCm,
               widthCm: lineItem.product.widthCm,
               heightCm: lineItem.product.heightCm,
+              volumeMl: lineItem.product.volumeMl,
+              soldBy: lineItem.product.soldBy,
             }),
           ),
         )

@@ -14,6 +14,7 @@ import {
   user,
 } from '#/db/schema'
 import { molliePaymentProvider } from '#/integrations/mollie'
+import { createNotification } from '../notifications.server'
 import { DISPUTE_WINDOW_DAYS } from '../constants'
 import { getBaseUrl } from '../env.server'
 import { logger } from '../logger.server'
@@ -898,33 +899,6 @@ export async function resolveDisputeQuery(
 
     await recalcPlatformOrderStatus(tx, lockedShopOrder.platformOrderId)
 
-    const notificationData = {
-      disputeId,
-      shopOrderId: lockedDispute.shopOrderId,
-      platformOrderId: lockedShopOrder.platformOrderId,
-      orderNumber: platformOrderRecord?.orderNumber ?? '',
-      resolution: input.resolution,
-      refundCents,
-    }
-
-    // Notify buyer
-    try {
-      const { createNotification } = await import('../notifications.server')
-      await createNotification(lockedDispute.buyerUserId, 'dispute_resolved', notificationData)
-    } catch {
-      // Notification errors must not break the primary business transaction
-    }
-
-    // Notify creator (shop owner)
-    if (creatorUserId) {
-      try {
-        const { createNotification } = await import('../notifications.server')
-        await createNotification(creatorUserId, 'dispute_resolved', notificationData)
-      } catch {
-        // Notification errors must not break the primary business transaction
-      }
-    }
-
     return {
       disputeRecord: lockedDispute,
       shopOrderRecord: lockedShopOrder,
@@ -940,6 +914,36 @@ export async function resolveDisputeQuery(
       shopOrderRefundIncrement,
     }
   })
+
+  // Notifications run after the commit, never inside this transaction:
+  // `createNotification` locks the recipient's user row (preference
+  // serialization), and this transaction already holds a conflicting
+  // `FOR KEY SHARE` on it through its order/payout updates — a nested call
+  // deadlocks against its own outer transaction.
+  const notificationData = {
+    disputeId,
+    shopOrderId: result.disputeRecord.shopOrderId,
+    platformOrderId: result.shopOrderRecord.platformOrderId,
+    orderNumber: platformOrderRecord?.orderNumber ?? '',
+    resolution: input.resolution,
+    refundCents,
+  }
+
+  // Notify buyer
+  try {
+    await createNotification(result.disputeRecord.buyerUserId, 'dispute_resolved', notificationData)
+  } catch {
+    // Notification errors must not break the primary business flow
+  }
+
+  // Notify creator (shop owner)
+  if (result.creatorUserId) {
+    try {
+      await createNotification(result.creatorUserId, 'dispute_resolved', notificationData)
+    } catch {
+      // Notification errors must not break the primary business flow
+    }
+  }
 
   // Step 2: for refund resolutions, call Mollie after the intent is durable.
   if (input.resolution !== 'close' && result.shopOrderRefundIncrement > 0 && molliePaymentId) {

@@ -23,6 +23,15 @@ groups:
           summary: "Background job {{ $labels.job_name }} failed a tick"
           description: "Job {{ $labels.job_name }} reported at least one failed tick in the last 5 minutes."
 
+      - alert: EurtisanNotificationDigestFailure
+        expr: increase(eurtisan_job_runs_total{job_name="notification-digest",status="failure"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Seller notification digest failed a tick"
+          description: "The production-critical notification-digest job failed in the last 5 minutes."
+
       # Staleness is judged against each job's own declared cadence rather than
       # one global window, so a 60-second poller and a daily cleanup are both
       # covered by this single rule and neither needs an exclusion. Three missed

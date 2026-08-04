@@ -6,6 +6,7 @@ const mockUseQueryClient = vi.hoisted(() =>
 )
 const mockUseQuery = vi.hoisted(() => vi.fn())
 const mockUseMutation = vi.hoisted(() => vi.fn())
+const mockMarkNotificationsRead = vi.hoisted(() => vi.fn())
 
 vi.mock('@tanstack/react-query', () => ({
   useQuery: mockUseQuery,
@@ -16,13 +17,13 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('../notifications', () => ({
   getNotifications: vi.fn(),
   getUnreadNotificationCount: vi.fn(),
-  markNotificationRead: vi.fn(),
+  markNotificationsRead: mockMarkNotificationsRead,
   markAllNotificationsRead: vi.fn(),
 }))
 
 import {
   useMarkAllNotificationsRead,
-  useMarkNotificationRead,
+  useMarkNotificationsRead,
   useNotifications,
   useUnreadNotificationCount,
 } from '../notifications-hooks'
@@ -69,12 +70,12 @@ describe('useUnreadNotificationCount', () => {
   })
 })
 
-describe('useMarkNotificationRead', () => {
+describe('useMarkNotificationsRead', () => {
   it('calls useMutation with correct mutationFn', () => {
     const mutateMock = vi.fn()
     mockUseMutation.mockReturnValue({ mutate: mutateMock, isPending: false })
 
-    const result = useMarkNotificationRead()
+    const result = useMarkNotificationsRead()
 
     expect(mockUseMutation).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -83,8 +84,27 @@ describe('useMarkNotificationRead', () => {
       }),
     )
 
-    result.mutate('notif-1')
-    expect(mutateMock).toHaveBeenCalledWith('notif-1')
+    result.mutate(['notif-1', 'notif-2'])
+    expect(mutateMock).toHaveBeenCalledWith(['notif-1', 'notif-2'])
+  })
+
+  it('chunks groups larger than the RPC limit', async () => {
+    mockMarkNotificationsRead.mockResolvedValue({ success: true })
+    useMarkNotificationsRead()
+    const captured = mockUseMutation.mock.calls.at(-1)?.[0] as {
+      mutationFn: (notificationIds: string[]) => Promise<{ success: true }>
+    }
+    const notificationIds = Array.from(
+      { length: 201 },
+      (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`,
+    )
+
+    await captured.mutationFn(notificationIds)
+
+    expect(mockMarkNotificationsRead).toHaveBeenCalledTimes(3)
+    expect(
+      mockMarkNotificationsRead.mock.calls.map(([call]) => call.data.notificationIds.length),
+    ).toEqual([100, 100, 1])
   })
 
   it('invalidates caches on success', () => {

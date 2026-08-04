@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import { TraderStatusDisclosure } from '#/components/TraderStatusDisclosure'
 import type { CheckoutShopGroup } from '#/lib/checkout.server'
 import { formatPostalAddress } from '#/lib/shop-legal-identity'
 import { m } from '#/paraglide/messages'
@@ -19,6 +20,16 @@ export function CheckoutLegalDisclosures({ shops }: CheckoutLegalDisclosuresProp
       <p className='mt-2 text-sm leading-relaxed text-text-secondary'>
         {m.checkout_rights_summary()}
       </p>
+      <div className='mt-4 space-y-3'>
+        {shops.map((shop) => (
+          <div key={shop.shopId}>
+            <p className='mb-1 text-sm font-semibold text-text-primary'>
+              {shop.sellerLegal.tradeName}
+            </p>
+            <TraderStatusDisclosure traderStatus={shop.sellerLegal.traderStatus} />
+          </div>
+        ))}
+      </div>
 
       <details className='group mt-4 rounded-xl border border-border-subtle bg-surface-inset/40 open:bg-surface-inset'>
         <summary className='flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-semibold text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-secondary'>

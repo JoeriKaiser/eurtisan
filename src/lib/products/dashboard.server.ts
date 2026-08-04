@@ -4,6 +4,7 @@ import { platformOrder, product, review, shop, shopOrder, shopSocials, user } fr
 import { decryptJsonb } from '#/lib/encryption.server'
 import { PLATFORM_FEE_PERCENT } from '#/lib/platform-constants'
 import type { Policies, SocialRow } from '#/lib/sell-onboarding'
+import type { TraderStatus } from '#/lib/shops/trader-status'
 
 export interface CreatorShop {
   id: string
@@ -41,6 +42,7 @@ export interface CreatorShopDetail {
   isVatRegistered: boolean
   vatId: string | null
   legalEntityType: 'individual' | 'business' | null
+  traderStatus: TraderStatus | null
   dateOfBirth: string | null
   taxId: string | null
   businessRegistrationNumber: string | null
@@ -296,6 +298,7 @@ export async function getCreatorShopQuery(
     isVatRegistered: record.isVatRegistered,
     vatId: record.vatId,
     legalEntityType: record.legalEntityType as 'individual' | 'business' | null,
+    traderStatus: record.traderStatus as TraderStatus | null,
     dateOfBirth: record.dateOfBirth,
     taxId: record.taxId,
     businessRegistrationNumber: record.businessRegistrationNumber,

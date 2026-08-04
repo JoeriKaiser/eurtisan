@@ -126,12 +126,12 @@ is available with no address at all, and half is not:
 data already on the shop, and say plainly that delivery cost and time are
 calculated at checkout. Not a fake delivery date.
 
-Note the upstream defect this inherits, already recorded in
-`public-profile.ts`: editing the shipping origin in settings **destroys the
-processing times**, because that write path validates a narrower object and
-replaces the value wholesale. The product page would then show nothing where it
-used to show a dispatch time. That bug is filed in the register under "Filed from
-research, not yet planned" and should probably be fixed first — it is small.
+The upstream settings defect was fixed on 2026-08-03. Address edits now decrypt
+the current shipping origin, merge only the submitted address fields, and
+re-encrypt the complete object, preserving `processingTimeDays` and
+`shipsInternational`. Rows that lost those values before the fix cannot be
+backfilled because the original values are unrecoverable, so the product
+projection remains tolerant of missing processing times.
 
 ---
 
@@ -230,10 +230,9 @@ server-side, with **only** the processing window taken off it, because the rest
 of that object is the maker's dispatch address.
 
 The page states the dispatch window and says plainly that delivery cost and time
-are calculated at checkout. No invented delivery date. When a shop has lost its
-processing times — the settings write path replaces the origin wholesale and
-drops them — the line is omitted rather than rendered blank, and there is a test
-for that case.
+are calculated at checkout. No invented delivery date. Legacy or previously
+damaged rows can still lack processing times; in that case the line is omitted
+rather than rendered blank, and a test pins that degradation.
 
 ### 8.4 Availability
 
@@ -270,8 +269,12 @@ figure cannot disagree with the full one.
 
 ## 10. Not done
 
-- **Unit pricing (98/6/EC)** — flagged in §1.1, not proposed, still open.
+- **Unit pricing (98/6/EC)** — planned 2026-08-04 in
+  [`unit-pricing-overhaul.md`](./unit-pricing-overhaul.md): Soap & Bath is on
+  the French Annex II list, candles are not; scope, schema, and disclosure
+  design settled there.
 - **Cosmetics** — §1.1 explains why I am not claiming it; worth a lawyer's read.
-- The upstream bug where editing shipping origin destroys the processing times.
-  The product page now degrades gracefully when it happens, which makes the bug
-  less visible but no less real. Still filed in the register.
+
+The former upstream shipping-origin replacement bug was fixed on 2026-08-03.
+Settings address edits now preserve processing times; no recovery backfill is
+possible for values already lost.

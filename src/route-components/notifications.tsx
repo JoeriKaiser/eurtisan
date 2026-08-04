@@ -8,10 +8,13 @@ const PAGE_SIZE = 20
 export function NotificationsRouteComponent() {
   const loaderData = useLoaderData({ from: '/notifications' })
   const query = useNotifications(loaderData.page, PAGE_SIZE)
-  const { notifications, total, page } = query.data ?? loaderData
+  const data = query.data ?? loaderData
+  const groups = data.groups
+  const total = data.total ?? 0
+  const page = data.page ?? loaderData.page ?? 1
   const routerNavigate = useNavigate()
   const [isNavigating, setIsNavigating] = useState(false)
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+  const totalPages = Math.max(1, data.totalPages)
 
   const goToPage = (newPage: number) => {
     if (newPage < 1 || newPage > totalPages || newPage === page) return
@@ -23,7 +26,7 @@ export function NotificationsRouteComponent() {
 
   return (
     <NotificationsPage
-      notifications={notifications}
+      groups={groups}
       total={total}
       page={page}
       totalPages={totalPages}

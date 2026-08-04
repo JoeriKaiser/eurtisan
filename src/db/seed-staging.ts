@@ -398,6 +398,7 @@ interface ShopDef {
   languages: string[]
   shippingOrigin: Record<string, unknown>
   status: (typeof schema.shopStatusEnum.enumValues)[number]
+  traderStatus: (typeof schema.traderStatusEnum.enumValues)[number]
   onboardingStep: number
   policies?: Record<string, unknown>
   isSuspended?: boolean
@@ -438,6 +439,7 @@ const SHOP_DEFS: ShopDef[] = [
     status: 'active',
     onboardingStep: 8,
     paymentConnected: true,
+    traderStatus: 'trader',
   },
   // ── Draft shop (mid-onboarding) ──────────────────────────────────
   {
@@ -460,6 +462,7 @@ const SHOP_DEFS: ShopDef[] = [
     },
     status: 'draft',
     onboardingStep: 3,
+    traderStatus: 'trader',
   },
   // ── Pending review shop ──────────────────────────────────────────
   {
@@ -488,6 +491,7 @@ const SHOP_DEFS: ShopDef[] = [
     },
     status: 'pending_review',
     onboardingStep: 8,
+    traderStatus: 'trader',
   },
   // ── Approved (awaiting Mollie Connect) ───────────────────────────
   {
@@ -516,6 +520,7 @@ const SHOP_DEFS: ShopDef[] = [
     },
     status: 'approved',
     onboardingStep: 8,
+    traderStatus: 'trader',
     paymentConnected: false,
     hasProductionPartner: true,
   },
@@ -550,6 +555,7 @@ const SHOP_DEFS: ShopDef[] = [
     },
     status: 'active',
     onboardingStep: 8,
+    traderStatus: 'trader',
     paymentConnected: true,
   },
   // ── Suspended shop (moderation) ──────────────────────────────────
@@ -573,6 +579,7 @@ const SHOP_DEFS: ShopDef[] = [
     status: 'suspended',
     onboardingStep: 1,
     isSuspended: true,
+    traderStatus: 'non_trader',
   },
 ]
 
@@ -625,6 +632,7 @@ async function seedShops(
       currency: 'EUR',
       policies: def.policies,
       status,
+      traderStatus: def.traderStatus,
       onboardingStep: def.onboardingStep,
       onboardingCompletedAt: status === 'active' ? daysAgo(30) : undefined,
       isSuspended: def.isSuspended ?? false,

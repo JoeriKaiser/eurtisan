@@ -57,6 +57,13 @@ const serverEnvironmentSchema = z
       .min(1)
       .max(5_000)
       .default(500),
+    NOTIFICATION_DIGEST_INTERVAL_MS: z.coerce
+      .number()
+      .int()
+      .min(60 * 1000)
+      .max(24 * 60 * 60 * 1000)
+      .default(60 * 60 * 1000),
+    NOTIFICATION_DIGEST_RECIPIENT_BATCH_SIZE: z.coerce.number().int().min(1).max(500).default(100),
     SENDCLOUD_ENABLED: explicitBoolean,
     SENDCLOUD_PUBLIC_KEY: requiredString,
     SENDCLOUD_SECRET_KEY: secretString,

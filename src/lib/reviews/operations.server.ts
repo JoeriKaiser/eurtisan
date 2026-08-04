@@ -1,4 +1,5 @@
-import { and, count, desc, eq, inArray, sql } from 'drizzle-orm'
+import { and, asc, count, desc, eq, inArray, sql } from 'drizzle-orm'
+import { alias } from 'drizzle-orm/pg-core'
 import { db } from '#/db/index'
 import {
   meilisearchSyncQueue,
@@ -7,6 +8,9 @@ import {
   product,
   review,
   reviewReport,
+  reviewHelpfulVote,
+  sellerReply,
+  sellerReplyReport,
   shop,
   shopOrder,
   user,
@@ -17,7 +21,7 @@ import { assertUserRateLimit } from '../rate-limit.server'
 import { formatReviewerName } from './display-name'
 import { PUBLIC_REVIEW_FILTER } from './visibility.server'
 import { containsProfanity } from '../profanity'
-import { sanitizeRichText } from '../xss'
+import { sanitizeRichText, validatePlainText } from '../xss'
 
 /**
  * Approved-review totals drive a product's `popularityScore` in the search
@@ -35,6 +39,7 @@ async function enqueueSearchReindex(productId: string): Promise<void> {
 }
 
 import type {
+  AdminSellerRepliesResult,
   AdminReviewsResult,
   CreatedReview,
   ProductReviewsResult,
@@ -42,7 +47,11 @@ import type {
   ReviewDistribution,
   ReviewEligibilityResult,
   ReviewReportReason,
+  ReviewSort,
+  SellerReplyModerationDecision,
 } from './types'
+const sellerReplyAuthor = alias(user, 'seller_reply_author')
+const sellerReplyReviewBuyer = alias(user, 'seller_reply_review_buyer')
 
 const ELIGIBILITY_DAYS = 14
 const MS_PER_DAY = 24 * 60 * 60 * 1000
@@ -278,18 +287,43 @@ export async function createReviewQuery(
   }
 }
 
+function getProductReviewOrder(sort: ReviewSort, helpfulCount: ReturnType<typeof sql>) {
+  switch (sort) {
+    case 'highest':
+      return [desc(review.rating), desc(review.createdAt), desc(review.id)]
+    case 'lowest':
+      return [asc(review.rating), desc(review.createdAt), desc(review.id)]
+    case 'helpful':
+      return [desc(helpfulCount), desc(review.createdAt), desc(review.id)]
+    case 'newest':
+      return [desc(review.createdAt), desc(review.id)]
+  }
+}
+
 export async function getProductReviewsQuery(
   productId: string,
   page: number,
   pageSize: number,
+  sort: ReviewSort = 'newest',
+  rating?: number,
+  viewerUserId?: string,
 ): Promise<ProductReviewsResult> {
   const validatedPageSize = Math.min(100, Math.max(1, pageSize))
+  const ratingFilter = rating ?? null
+  const reviewFilter = and(
+    eq(review.productId, productId),
+    PUBLIC_REVIEW_FILTER,
+    ratingFilter === null ? undefined : eq(review.rating, ratingFilter),
+  )
+  // Totals, average, and the histogram all use this same predicate, so a
+  // selected rating describes the entire result rather than only its page.
+  const helpfulCount = sql<number>`(select count(*) from ${reviewHelpfulVote} where ${reviewHelpfulVote.reviewId} = ${review.id})`
+  const viewerHasMarkedHelpful = viewerUserId
+    ? sql<boolean>`exists(select 1 from ${reviewHelpfulVote} where ${reviewHelpfulVote.reviewId} = ${review.id} and ${reviewHelpfulVote.userId} = ${viewerUserId})`
+    : sql<boolean>`false`
+  const hasSellerReply = sql<boolean>`exists(select 1 from ${sellerReply} where ${sellerReply.reviewId} = ${review.id})`
 
-  const [totalResult] = await db
-    .select({ total: count() })
-    .from(review)
-    .where(and(eq(review.productId, productId), PUBLIC_REVIEW_FILTER))
-
+  const [totalResult] = await db.select({ total: count() }).from(review).where(reviewFilter)
   const total = totalResult?.total ?? 0
   const totalPages = Math.ceil(total / validatedPageSize)
   const validatedPage = totalPages > 0 ? Math.min(Math.max(1, page), totalPages) : Math.max(1, page)
@@ -299,34 +333,51 @@ export async function getProductReviewsQuery(
     db
       .select({
         id: review.id,
+        buyerUserId: review.buyerUserId,
         buyerName: user.name,
         rating: review.rating,
         comment: review.comment,
         createdAt: review.createdAt,
-        // C. consom. L.111-7-2 requires the date of the consumer's experience
-        // alongside the date of publication. Delivery is that date here: it is
-        // when the buyer first had the product, and it is what the review
-        // eligibility window is measured from.
         experiencedAt: shopOrder.deliveredAt,
+        helpfulCount,
+        viewerHasMarkedHelpful,
+        hasSellerReply,
+        productStatus: product.status,
+        productIsActive: product.isActive,
+        shopOwnerId: shop.ownerId,
+        shopStatus: shop.status,
+        shopIsSuspended: shop.isSuspended,
+        sellerReplyId: sellerReply.id,
+        sellerReplyAuthorUserId: sellerReply.authorUserId,
+        sellerReplyBody: sellerReply.body,
+        sellerReplyCreatedAt: sellerReply.createdAt,
+        sellerReplyUpdatedAt: sellerReply.updatedAt,
+        sellerName: shop.name,
       })
       .from(review)
       .innerJoin(user, eq(review.buyerUserId, user.id))
       .innerJoin(shopOrder, eq(review.shopOrderId, shopOrder.id))
-      .where(and(eq(review.productId, productId), PUBLIC_REVIEW_FILTER))
-      .orderBy(desc(review.createdAt))
+      .innerJoin(product, eq(review.productId, product.id))
+      .innerJoin(shop, eq(product.shopId, shop.id))
+      .leftJoin(
+        sellerReply,
+        and(eq(sellerReply.reviewId, review.id), eq(sellerReply.moderationStatus, 'approved')),
+      )
+      .where(reviewFilter)
+      .orderBy(...getProductReviewOrder(sort, helpfulCount))
       .limit(validatedPageSize)
       .offset(offset),
     db
       .select({ average: sql<number | null>`round(avg(${review.rating})::numeric, 1)` })
       .from(review)
-      .where(and(eq(review.productId, productId), PUBLIC_REVIEW_FILTER)),
+      .where(reviewFilter),
     db
       .select({
         rating: review.rating,
         count: count(),
       })
       .from(review)
-      .where(and(eq(review.productId, productId), PUBLIC_REVIEW_FILTER))
+      .where(reviewFilter)
       .groupBy(review.rating),
   ])
 
@@ -341,20 +392,137 @@ export async function getProductReviewsQuery(
   }
 
   return {
-    reviews: reviewsResult.map((r) => ({
-      id: r.id,
-      buyerName: formatReviewerName(r.buyerName),
-      rating: r.rating,
-      comment: r.comment,
-      createdAt: r.createdAt,
-      experiencedAt: r.experiencedAt,
-    })),
+    reviews: reviewsResult.map((r) => {
+      const isPublicContent =
+        r.productStatus === 'published' &&
+        r.productIsActive &&
+        r.shopStatus === 'active' &&
+        !r.shopIsSuspended
+      const publicSellerReply =
+        r.sellerReplyId &&
+        r.sellerReplyBody !== null &&
+        r.sellerReplyCreatedAt !== null &&
+        r.sellerReplyUpdatedAt !== null
+          ? {
+              id: r.sellerReplyId,
+              body: r.sellerReplyBody,
+              sellerName: r.sellerName ?? '',
+              createdAt: r.sellerReplyCreatedAt,
+              updatedAt: r.sellerReplyUpdatedAt,
+              canManage: viewerUserId === r.shopOwnerId,
+              canReport: !!viewerUserId && viewerUserId !== r.sellerReplyAuthorUserId,
+            }
+          : null
+      return {
+        id: r.id,
+        buyerName: formatReviewerName(r.buyerName),
+        rating: r.rating,
+        comment: r.comment,
+        createdAt: r.createdAt,
+        experiencedAt: r.experiencedAt,
+        helpfulCount: Number(r.helpfulCount),
+        viewerHasMarkedHelpful: r.viewerHasMarkedHelpful,
+        canMarkHelpful:
+          !!viewerUserId &&
+          isPublicContent &&
+          viewerUserId !== r.buyerUserId &&
+          viewerUserId !== r.shopOwnerId,
+        canReply:
+          !!viewerUserId && viewerUserId === r.shopOwnerId && isPublicContent && !r.hasSellerReply,
+        sellerReply: publicSellerReply,
+      }
+    }),
     total,
     averageRating: avgResult?.average != null ? Number(avgResult.average) : null,
     distribution,
     page: validatedPage,
     pageSize: validatedPageSize,
-    totalPages: Math.ceil(total / validatedPageSize),
+    totalPages,
+    sort,
+    ratingFilter,
+  }
+}
+
+export async function setReviewHelpfulQuery(
+  reviewId: string,
+  voterUserId: string,
+  helpful: boolean,
+): Promise<{ helpfulCount: number; viewerHasMarkedHelpful: boolean }> {
+  const [reviewRecord] = await db
+    .select({
+      id: review.id,
+      buyerUserId: review.buyerUserId,
+      shopOwnerId: shop.ownerId,
+      productStatus: product.status,
+      productIsActive: product.isActive,
+      shopStatus: shop.status,
+      shopIsSuspended: shop.isSuspended,
+      moderationStatus: review.moderationStatus,
+    })
+    .from(review)
+    .innerJoin(product, eq(review.productId, product.id))
+    .innerJoin(shop, eq(product.shopId, shop.id))
+    .where(eq(review.id, reviewId))
+    .limit(1)
+
+  if (!reviewRecord) {
+    throw new Response(JSON.stringify({ error: 'Not Found', message: 'Review not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  if (reviewRecord.buyerUserId === voterUserId || reviewRecord.shopOwnerId === voterUserId) {
+    throw new Response(
+      JSON.stringify({ error: 'Forbidden', message: 'You cannot mark this review helpful' }),
+      { status: 403, headers: { 'Content-Type': 'application/json' } },
+    )
+  }
+
+  const isPublicContent =
+    reviewRecord.moderationStatus === 'approved' &&
+    reviewRecord.productStatus === 'published' &&
+    reviewRecord.productIsActive &&
+    reviewRecord.shopStatus === 'active' &&
+    !reviewRecord.shopIsSuspended
+
+  if (helpful && !isPublicContent) {
+    throw new Response(JSON.stringify({ error: 'Not Found', message: 'Review not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  if (helpful) {
+    await db
+      .insert(reviewHelpfulVote)
+      .values({ reviewId, userId: voterUserId })
+      .onConflictDoNothing()
+  } else {
+    await db
+      .delete(reviewHelpfulVote)
+      .where(
+        and(eq(reviewHelpfulVote.reviewId, reviewId), eq(reviewHelpfulVote.userId, voterUserId)),
+      )
+  }
+
+  const [[totalResult], [viewerVote]] = await Promise.all([
+    db
+      .select({ total: count() })
+      .from(reviewHelpfulVote)
+      .where(eq(reviewHelpfulVote.reviewId, reviewId)),
+    db
+      .select({ reviewId: reviewHelpfulVote.reviewId })
+      .from(reviewHelpfulVote)
+      .where(
+        and(eq(reviewHelpfulVote.reviewId, reviewId), eq(reviewHelpfulVote.userId, voterUserId)),
+      )
+      .limit(1),
+  ])
+
+  return {
+    helpfulCount: Number(totalResult?.total ?? 0),
+    viewerHasMarkedHelpful: !!viewerVote,
   }
 }
 
@@ -590,5 +758,348 @@ export async function updateReviewModerationStatusQuery(
     // Logged rather than swallowed: a missing statement of reasons is a
     // compliance failure, not a cosmetic one, and needs to be visible.
     logger.error('Failed to send review moderation notifications', err, { reviewId, status })
+  }
+}
+
+function replyBadRequest(message: string): never {
+  throw new Response(JSON.stringify({ error: 'Bad Request', message }), {
+    status: 400,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
+function sellerReplyNotFound(): never {
+  throw new Response(JSON.stringify({ error: 'Not Found', message: 'Seller reply not found' }), {
+    status: 404,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
+function sellerReplyForbidden(message: string): never {
+  throw new Response(JSON.stringify({ error: 'Forbidden', message }), {
+    status: 403,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
+function validateSellerReplyBody(body: string): string {
+  const plainBody = validatePlainText(body, 'Seller reply')
+  if (plainBody.length === 0 || plainBody.length > 2000) {
+    replyBadRequest('Seller reply must be between 1 and 2000 characters')
+  }
+  return plainBody
+}
+
+async function getReviewSellerContext(reviewId: string) {
+  const [context] = await db
+    .select({
+      reviewId: review.id,
+      reviewStatus: review.moderationStatus,
+      reviewAuthorUserId: review.buyerUserId,
+      productId: product.id,
+      productName: product.name,
+      productSlug: product.slug,
+      shopSlug: shop.slug,
+      shopOwnerId: shop.ownerId,
+      shopStatus: shop.status,
+      shopSuspended: shop.isSuspended,
+    })
+    .from(review)
+    .innerJoin(shopOrder, eq(review.shopOrderId, shopOrder.id))
+    .innerJoin(shop, eq(shopOrder.shopId, shop.id))
+    .innerJoin(product, eq(review.productId, product.id))
+    .where(eq(review.id, reviewId))
+    .limit(1)
+  return context
+}
+
+async function getSellerReplyContext(replyId: string) {
+  const [context] = await db
+    .select({
+      replyId: sellerReply.id,
+      replyAuthorUserId: sellerReply.authorUserId,
+      replyStatus: sellerReply.moderationStatus,
+      reviewId: review.id,
+      reviewStatus: review.moderationStatus,
+      reviewAuthorUserId: review.buyerUserId,
+      productId: product.id,
+      productName: product.name,
+      productSlug: product.slug,
+      shopSlug: shop.slug,
+      shopOwnerId: shop.ownerId,
+      shopStatus: shop.status,
+      shopSuspended: shop.isSuspended,
+    })
+    .from(sellerReply)
+    .innerJoin(review, eq(sellerReply.reviewId, review.id))
+    .innerJoin(shopOrder, eq(review.shopOrderId, shopOrder.id))
+    .innerJoin(shop, eq(shopOrder.shopId, shop.id))
+    .innerJoin(product, eq(review.productId, product.id))
+    .where(eq(sellerReply.id, replyId))
+    .limit(1)
+  return context
+}
+
+function assertCurrentShopOwner(
+  context: Awaited<ReturnType<typeof getReviewSellerContext>>,
+  sellerUserId: string,
+  requireActiveShop: boolean,
+): asserts context {
+  if (!context || context.shopOwnerId !== sellerUserId) {
+    sellerReplyForbidden('Current shop ownership is required')
+  }
+  if (
+    requireActiveShop &&
+    (context.shopStatus !== 'active' ||
+      context.shopSuspended ||
+      context.reviewStatus !== 'approved')
+  ) {
+    sellerReplyForbidden('An active, unsuspended shop may reply only to approved reviews')
+  }
+}
+
+export async function createSellerReplyQuery(reviewId: string, sellerUserId: string, body: string) {
+  const replyBody = validateSellerReplyBody(body)
+  const context = await getReviewSellerContext(reviewId)
+  if (!context) {
+    throw new Response(JSON.stringify({ error: 'Not Found', message: 'Review not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+  assertCurrentShopOwner(context, sellerUserId, true)
+
+  let created: typeof sellerReply.$inferSelect
+  try {
+    ;[created] = await db
+      .insert(sellerReply)
+      .values({ reviewId, authorUserId: sellerUserId, body: replyBody })
+      .returning()
+  } catch (err) {
+    if (isPostgresUniqueViolation(err, 'seller_reply_review_unique')) {
+      throw new Response(
+        JSON.stringify({ error: 'Conflict', message: 'A seller reply already exists' }),
+        {
+          status: 409,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      )
+    }
+    throw err
+  }
+
+  try {
+    const { createNotification } = await import('../notifications.server')
+    await createNotification(context.reviewAuthorUserId, 'seller_reply_received', {
+      contentType: 'seller_reply',
+      replyId: created.id,
+      reviewId,
+      productId: context.productId,
+      productName: context.productName,
+      productSlug: context.productSlug,
+      shopSlug: context.shopSlug,
+    })
+  } catch (err) {
+    logger.error('Failed to send seller reply creation notification', err, {
+      replyId: created.id,
+      reviewId,
+    })
+  }
+  return created
+}
+
+export async function updateSellerReplyQuery(replyId: string, sellerUserId: string, body: string) {
+  const replyBody = validateSellerReplyBody(body)
+  const context = await getSellerReplyContext(replyId)
+  if (!context) sellerReplyNotFound()
+  assertCurrentShopOwner(context, sellerUserId, true)
+  const [updated] = await db
+    .update(sellerReply)
+    .set({ body: replyBody, updatedAt: new Date() })
+    .where(eq(sellerReply.id, replyId))
+    .returning()
+  if (!updated) sellerReplyNotFound()
+  return updated
+}
+
+export async function deleteSellerReplyQuery(replyId: string, sellerUserId: string): Promise<void> {
+  const context = await getSellerReplyContext(replyId)
+  if (!context) sellerReplyNotFound()
+  assertCurrentShopOwner(context, sellerUserId, false)
+  const deleted = await db.delete(sellerReply).where(eq(sellerReply.id, replyId)).returning({
+    id: sellerReply.id,
+  })
+  if (deleted.length === 0) sellerReplyNotFound()
+}
+
+export async function reportSellerReplyQuery(
+  replyId: string,
+  reporterUserId: string,
+  reason: ReviewReportReason,
+  details: string | null,
+): Promise<{ alreadyReported: boolean }> {
+  await assertUserRateLimit(reporterUserId, 10, 15 * 60 * 1000)
+  const context = await getSellerReplyContext(replyId)
+  if (!context) sellerReplyNotFound()
+  if (context.replyAuthorUserId === reporterUserId) {
+    sellerReplyForbidden('You cannot report your own seller reply')
+  }
+  try {
+    await db.insert(sellerReplyReport).values({
+      sellerReplyId: replyId,
+      reporterUserId,
+      reason,
+      details: details ? sanitizeRichText(details) : null,
+    })
+  } catch (err) {
+    if (isPostgresUniqueViolation(err, 'seller_reply_report_reply_reporter_unique')) {
+      return { alreadyReported: true }
+    }
+    throw err
+  }
+  return { alreadyReported: false }
+}
+
+export async function getSellerReplyReportsQuery(replyIds: string[]): Promise<Map<string, number>> {
+  if (replyIds.length === 0) return new Map()
+  const rows = await db
+    .select({ replyId: sellerReplyReport.sellerReplyId, openReports: count() })
+    .from(sellerReplyReport)
+    .where(
+      and(inArray(sellerReplyReport.sellerReplyId, replyIds), eq(sellerReplyReport.status, 'open')),
+    )
+    .groupBy(sellerReplyReport.sellerReplyId)
+  return new Map(rows.map((row) => [row.replyId, Number(row.openReports)]))
+}
+
+export async function getAdminSellerRepliesQuery(
+  status: 'all' | 'approved' | 'flagged' | 'hidden',
+  page: number,
+  pageSize: number,
+): Promise<AdminSellerRepliesResult> {
+  const validatedPageSize = Math.min(100, Math.max(1, pageSize))
+  const whereClause = status === 'all' ? undefined : eq(sellerReply.moderationStatus, status)
+  const [totalResult] = await db.select({ total: count() }).from(sellerReply).where(whereClause)
+  const total = totalResult?.total ?? 0
+  const totalPages = Math.ceil(total / validatedPageSize)
+  const validatedPage = totalPages > 0 ? Math.min(Math.max(1, page), totalPages) : Math.max(1, page)
+  const offset = (validatedPage - 1) * validatedPageSize
+
+  const replies = await db
+    .select({
+      id: sellerReply.id,
+      reviewId: review.id,
+      reviewRating: review.rating,
+      reviewComment: review.comment,
+      buyerName: sellerReplyReviewBuyer.name,
+      productId: product.id,
+      productName: product.name,
+      shopName: shop.name,
+      shopSlug: shop.slug,
+      sellerName: sellerReplyAuthor.name,
+      body: sellerReply.body,
+      moderationStatus: sellerReply.moderationStatus,
+      createdAt: sellerReply.createdAt,
+      updatedAt: sellerReply.updatedAt,
+    })
+    .from(sellerReply)
+    .innerJoin(review, eq(sellerReply.reviewId, review.id))
+    .innerJoin(product, eq(review.productId, product.id))
+    .innerJoin(shopOrder, eq(review.shopOrderId, shopOrder.id))
+    .innerJoin(shop, eq(shopOrder.shopId, shop.id))
+    .innerJoin(sellerReplyAuthor, eq(sellerReply.authorUserId, sellerReplyAuthor.id))
+    .innerJoin(sellerReplyReviewBuyer, eq(review.buyerUserId, sellerReplyReviewBuyer.id))
+    .where(whereClause)
+    .orderBy(desc(sellerReply.createdAt), desc(sellerReply.id))
+    .limit(validatedPageSize)
+    .offset(offset)
+
+  const reportCounts = await getSellerReplyReportsQuery(replies.map((reply) => reply.id))
+  return {
+    sellerReplies: replies.map((reply) => ({
+      ...reply,
+      openReports: reportCounts.get(reply.id) ?? 0,
+    })),
+    total,
+    page: validatedPage,
+    pageSize: validatedPageSize,
+    totalPages,
+  }
+}
+
+export async function updateSellerReplyModerationStatusQuery(
+  replyId: string,
+  status: 'approved' | 'flagged' | 'hidden',
+  decision: SellerReplyModerationDecision,
+): Promise<void> {
+  const context = await getSellerReplyContext(replyId)
+  if (!context) sellerReplyNotFound()
+
+  const unchanged = context.replyStatus === status
+  await db
+    .update(sellerReply)
+    .set({ moderationStatus: status, updatedAt: new Date() })
+    .where(eq(sellerReply.id, replyId))
+
+  const restricting = RESTRICTING_STATUSES.has(status)
+  const openReports = await db
+    .select({
+      reporterUserId: sellerReplyReport.reporterUserId,
+      reason: sellerReplyReport.reason,
+      details: sellerReplyReport.details,
+    })
+    .from(sellerReplyReport)
+    .where(and(eq(sellerReplyReport.sellerReplyId, replyId), eq(sellerReplyReport.status, 'open')))
+
+  if (openReports.length > 0) {
+    await db
+      .update(sellerReplyReport)
+      .set({
+        status: restricting ? 'upheld' : 'dismissed',
+        resolvedAt: new Date(),
+        resolvedByUserId: decision.actorUserId,
+      })
+      .where(
+        and(eq(sellerReplyReport.sellerReplyId, replyId), eq(sellerReplyReport.status, 'open')),
+      )
+  }
+
+  try {
+    const { createNotification } = await import('../notifications.server')
+    const content = {
+      contentType: 'seller_reply',
+      replyId,
+      reviewId: context.reviewId,
+      productId: context.productId,
+      productName: context.productName,
+      productSlug: context.productSlug,
+      shopSlug: context.shopSlug,
+    } as const
+
+    if (!unchanged) {
+      await createNotification(context.replyAuthorUserId, 'seller_reply_moderated', {
+        ...content,
+        restriction: status,
+        territorialScope: 'all',
+        duration: 'indefinite',
+        ground: decision.ground,
+        legalBasis: decision.legalBasis,
+        explanation: decision.explanation,
+        promptedByNotice: openReports.length > 0,
+        automatedMeans: false,
+        redress: ['contact_support', 'judicial_remedy'],
+      })
+    }
+    for (const report of openReports) {
+      await createNotification(report.reporterUserId, 'seller_reply_report_resolved', {
+        ...content,
+        outcome: restricting ? 'upheld' : 'dismissed',
+        reason: report.reason,
+        details: report.details,
+        redress: ['contact_support', 'judicial_remedy'],
+      })
+    }
+  } catch (err) {
+    logger.error('Failed to send seller reply moderation notifications', err, { replyId, status })
   }
 }

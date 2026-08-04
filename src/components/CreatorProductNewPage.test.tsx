@@ -509,6 +509,8 @@ describe('CreatorProductNewPage', () => {
       lengthCm: null,
       widthCm: null,
       heightCm: null,
+      volumeMl: null,
+      soldBy: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     })
@@ -585,6 +587,8 @@ describe('CreatorProductNewPage', () => {
         lengthCm: null,
         widthCm: null,
         heightCm: null,
+        volumeMl: null,
+        soldBy: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       })

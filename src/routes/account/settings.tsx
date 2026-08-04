@@ -3,6 +3,7 @@ import { AccountSettings } from '#/route-components/account/settings'
 import { AccountShell } from '#/components/AccountShell'
 import { guardAuth } from '#/lib/route-guards'
 import { getCurrentUser } from '#/lib/server-auth'
+import { getMyInAppNotificationPreferences } from '#/lib/notifications/preferences'
 import { m } from '#/paraglide/messages'
 
 export const Route = createFileRoute('/account/settings')({
@@ -12,8 +13,11 @@ export const Route = createFileRoute('/account/settings')({
       import('#/lib/account-email-preferences'),
       getCurrentUser().catch(() => null),
     ])
-    const preferences = await getMyEmailPreferences()
-    return { preferences, user }
+    const [preferences, inAppPreferences] = await Promise.all([
+      getMyEmailPreferences().catch(() => []),
+      getMyInAppNotificationPreferences(),
+    ])
+    return { preferences, inAppPreferences, user }
   },
   head: () => ({
     meta: [

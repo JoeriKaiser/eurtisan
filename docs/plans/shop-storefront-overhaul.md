@@ -418,28 +418,26 @@ Hide the shop rating below a small threshold (start at 3 reviews). A "5.0" from
 one review is not information, and the codebase already encodes this caution in
 `computeBayesianRating`'s prior. Below threshold, show the product count instead.
 
-### 5.8 Trader-status disclosure
+### 5.8 Trader-status disclosure — RESOLVED 2026-08-03
 
 CRD Article 6a(1)(b), added by the Omnibus Directive and in force since
 2022-05-28, obliges the marketplace to tell the consumer — **before** they are
 bound — whether the seller is a trader, "on the basis of the declaration of that
-third party". Where the seller is not a trader, Article 6a(1)(c) obliges the
-marketplace to state that EU consumer protection law does not apply to the
-contract. **There is no micro/small exemption for this**, unlike DSA Article 30.
+third party". Where the seller is not a trader, Article 6a(1)(c) requires the
+marketplace to state that consumer rights stemming from Union consumer
+protection law do not apply to the contract. **There is no micro/small exemption
+for this**, unlike DSA Article 30.
 
-The storefront is one of the surfaces where that disclosure belongs, alongside
-the product page and checkout.
+The declaration is now collected in onboarding and remains editable in shop
+settings. `shop.traderStatus` is deliberately independent from
+`shop.legalEntityType`: the latter is a DAC7 tax field, and a French
+micro-entrepreneur is `individual` for tax purposes while still being a trader
+in consumer law.
 
-It cannot be built yet: **Eurtisan does not collect a trader declaration.**
-`shop.legalEntityType` is `individual | business`, a DAC7 tax field — a French
-micro-entrepreneur is `individual` for tax purposes and a trader in consumer law.
-Using it as a proxy would produce wrong disclosures in exactly the population
-this marketplace targets.
-
-So this plan does **not** implement the disclosure. It reserves the position for
-it in `ShopIdentityHeader` and records the dependency; collecting the declaration
-is an onboarding change tracked in the backlog. Do not fake it from
-`legalEntityType`.
+`ShopIdentityHeader`, product detail, and checkout render the declared status.
+Non-trader disclosures include the Article 6a(1)(c) consequence. Existing rows
+are not assigned a synthetic declaration; a legacy `null` state is visible to
+the owner and fails closed before purchase.
 
 ### 5.6 Design
 
@@ -834,6 +832,8 @@ Steps 1–2 are the foundation and land together. Steps 6 and 7 are independent 
       processing time / international, and proven by a round-trip test.
 - [x] `policies` is Zod-parsed at read and degrades to absent on failure.
 - [x] Trader-identity disclosure decision (§4.4) recorded in this document.
+- [x] Seller-declared trader status is collected independently from DAC7 identity,
+      disclosed on storefront, product, and checkout, and fails closed when absent.
 - [x] Banner, tagline, announcement, story, production-partner disclosure,
       policies with statutory-rights statement, languages, origin country,
       socials, member-since, and rating all render — and are all absent, cleanly,

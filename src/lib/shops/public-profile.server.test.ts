@@ -9,6 +9,7 @@ import { createProduct, createReview, createShop, createUser } from '#/test/fact
 import { createPaidOrder } from '#/test/scenarios'
 import { encryptJsonb } from '../infra/encryption.server'
 import { getShopProfileCompletenessSamples, getShopProfileQuery } from './public-profile.server'
+import { updateShopInternal } from './settings.server'
 
 /**
  * Every key a buyer may receive. This list is the publishing decision.
@@ -39,9 +40,11 @@ const EXPECTED_PROFILE_KEYS = [
   'socials',
   'tagline',
   'tags',
+  'traderStatus',
 ].sort()
 
 const VALID_ORIGIN = {
+  street: 'Rue des Tourneurs 4',
   country: 'FR',
   state: 'Occitanie',
   city: 'Toulouse',
@@ -150,6 +153,18 @@ describe('getShopProfileQuery', () => {
         expect(serialized).not.toContain(secret)
       }
     })
+
+    it('projects the seller declaration without deriving it from DAC7 legal entity data', async () => {
+      await createPublishedShop({
+        legalEntityType: 'business',
+        traderStatus: 'non_trader',
+      })
+
+      const profile = await getShopProfileQuery('atelier-test')
+
+      expect(profile?.traderStatus).toBe('non_trader')
+      expect(profile).not.toHaveProperty('legalEntityType')
+    })
   })
 
   describe('shipping origin', () => {
@@ -163,6 +178,35 @@ describe('getShopProfileQuery', () => {
         processingTimeDays: { min: 2, max: 5 },
         shipsInternational: true,
       })
+    })
+
+    it('retains public dispatch settings without publishing address PII after a settings update', async () => {
+      const created = await createPublishedShop({ shippingOrigin: encryptJsonb(VALID_ORIGIN) })
+      const updatedAddress = {
+        street: 'Rue du Pont Neuf 8',
+        city: 'Montpellier',
+        postalCode: '34000',
+        country: 'FR',
+      }
+
+      await updateShopInternal(created.id, { shippingOrigin: updatedAddress })
+
+      const profile = await getShopProfileQuery('atelier-test')
+
+      expect(profile?.origin).toEqual({
+        country: 'FR',
+        processingTimeDays: { min: 2, max: 5 },
+        shipsInternational: true,
+      })
+      const serialized = JSON.stringify(profile)
+      for (const addressValue of [
+        updatedAddress.street,
+        updatedAddress.city,
+        updatedAddress.postalCode,
+        VALID_ORIGIN.state,
+      ]) {
+        expect(serialized).not.toContain(addressValue)
+      }
     })
 
     it('never publishes the street-level fields', async () => {
@@ -198,11 +242,10 @@ describe('getShopProfileQuery', () => {
       expect(profile?.origin).toBeNull()
     })
 
-    it('keeps the country when a settings edit dropped the dispatch fields', async () => {
-      // Exactly what `shop-settings.ts` stores: its schema has no
-      // `processingTimeDays` or `shipsInternational`, and the write replaces the
-      // whole object. Requiring them here would blank the origin entirely for
-      // any seller who has ever edited their dispatch address.
+    it('keeps the country for a legacy origin without dispatch fields', async () => {
+      // Legacy and previously damaged rows cannot recover unavailable dispatch
+      // values. The tolerant projection still publishes the true country
+      // without exposing the stored address.
       await createPublishedShop({
         shippingOrigin: encryptJsonb({
           street: 'Rue des Tourneurs 4',

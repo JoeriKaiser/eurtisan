@@ -80,6 +80,7 @@ export function scheduleCheckoutPostOrderNotifications(input: CheckoutNotificati
                 vatId: orderShops[0].vatId,
                 businessAddress: decryptJsonb(orderShops[0].businessAddress),
                 shippingOrigin: decryptJsonb(orderShops[0].shippingOrigin),
+                traderStatus: orderShops[0].traderStatus,
               }),
             )
           : {}
@@ -135,6 +136,7 @@ export function scheduleCheckoutPostOrderNotifications(input: CheckoutNotificati
               vatId: shopRecord.vatId,
               businessAddress: decryptJsonb(shopRecord.businessAddress),
               shippingOrigin: decryptJsonb(shopRecord.shippingOrigin),
+              traderStatus: shopRecord.traderStatus,
             }),
           )
 

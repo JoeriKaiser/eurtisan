@@ -2,6 +2,7 @@ import { Check } from 'lucide-react'
 import type { CreatorShop } from '#/lib/creator-dashboard'
 import { m } from '#/paraglide/messages'
 import { Input } from '#/components/ui/input'
+import { isUnitPricingScoped } from '#/lib/products/unit-pricing'
 import { Switch } from '#/components/ui/switch'
 
 export interface FormValues {
@@ -19,11 +20,15 @@ export interface FormValues {
   lengthCm: string
   widthCm: string
   heightCm: string
+  soldBy: '' | 'weight' | 'volume'
+  volumeMl: string
 }
 
 interface ProductEditFormFieldsProps {
   shops: CreatorShop[]
   categories: Array<{ id: string; name: string; slug: string }>
+  unitPriceScoped: boolean
+  unitPriceMissing: boolean
   values: FormValues
   fieldErrors: Record<string, string>
   slugError: string | null
@@ -35,6 +40,8 @@ interface ProductEditFormFieldsProps {
 export function ProductEditFormFields({
   shops,
   categories,
+  unitPriceScoped,
+  unitPriceMissing,
   values,
   fieldErrors,
   slugError,
@@ -302,6 +309,63 @@ export function ProductEditFormFields({
           </div>
         </div>
         <p className='mt-1.5 text-xs text-text-muted'>{m.product_shipping_dimensions_hint()}</p>
+        {(unitPriceScoped ||
+          isUnitPricingScoped([
+            categories.find((c) => c.id === values.categoryId)?.slug ?? null,
+          ])) && (
+          <div>
+            <div className='mb-2 flex items-center justify-between'>
+              <span className='block text-sm font-medium text-text-primary'>
+                {m.unit_price_sold_by_label()}
+              </span>
+            </div>
+            <p className='mb-2 text-xs text-text-muted'>{m.unit_price_hint()}</p>
+            {unitPriceMissing && (
+              <p className='mb-2 text-sm text-error'>{m.unit_price_missing_flag()}</p>
+            )}
+            <div className='grid gap-4 sm:grid-cols-2'>
+              <div>
+                <label
+                  htmlFor='product-sold-by'
+                  className='mb-1 block text-xs font-medium text-text-secondary'
+                >
+                  {m.unit_price_sold_by_label()}
+                </label>
+                <select
+                  id='product-sold-by'
+                  value={values.soldBy}
+                  onChange={(e) => onFieldChange('soldBy', e.target.value)}
+                  className='w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary focus:border-accent-primary focus:outline-none'
+                >
+                  <option value=''>{m.creator_product_new_category_none()}</option>
+                  <option value='weight'>{m.unit_price_basis_weight()}</option>
+                  <option value='volume'>{m.unit_price_basis_volume()}</option>
+                </select>
+                {fieldErrors.soldBy && (
+                  <p className='mt-1 text-sm text-error'>{fieldErrors.soldBy}</p>
+                )}
+              </div>
+              <div>
+                <label
+                  htmlFor='product-volume-ml'
+                  className='mb-1 block text-xs font-medium text-text-secondary'
+                >
+                  {m.unit_price_volume_label()}
+                </label>
+                <Input
+                  id='product-volume-ml'
+                  type='number'
+                  value={values.volumeMl}
+                  onChange={(e) => onFieldChange('volumeMl', e.target.value)}
+                  error={fieldErrors.volumeMl}
+                  placeholder='300'
+                  min='1'
+                  step='1'
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Category selector */}

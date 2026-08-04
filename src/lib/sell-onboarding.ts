@@ -5,6 +5,8 @@ import type { SafeUser } from './server-auth'
 import { requirePrivileged2FA } from './server-auth'
 import { validateVatId } from './vat'
 import { SUPPORTED_CURRENCY } from './currency'
+import { traderStatusSchema, type TraderStatus } from './shops/trader-status'
+import { unitPriceBasisSchema } from './products/unit-pricing'
 
 /* -------------------------------------------------------------------------- */
 /*                                 Constants                                  */
@@ -181,6 +183,7 @@ export const step4LocationSchema = z
     dateOfBirth: z.string().optional().or(z.literal('')),
     taxId: z.string().trim().min(3, 'Enter your Tax Identification Number'),
     businessRegistrationNumber: z.string().optional().or(z.literal('')),
+    traderStatus: traderStatusSchema,
   })
   .superRefine((data, ctx) => {
     if (data.isVatRegistered) {
@@ -286,6 +289,8 @@ export const step7ListingSchema = z.object({
   lengthCm: z.number().int().min(1).max(1_000),
   widthCm: z.number().int().min(1).max(1_000),
   heightCm: z.number().int().min(1).max(1_000),
+  volumeMl: z.number().int().min(1).max(1_000_000).optional(),
+  soldBy: unitPriceBasisSchema.optional(),
   images: z.array(listingImageSchema).min(1).max(5),
 })
 
@@ -373,6 +378,7 @@ export interface ShopDraft {
   currency: string
   isVatRegistered: boolean
   vatId: string | null
+  traderStatus: TraderStatus | null
   legalEntityType: string | null
   dateOfBirth: string | null
   taxId: string | null

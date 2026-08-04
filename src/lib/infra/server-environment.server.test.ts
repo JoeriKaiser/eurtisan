@@ -172,6 +172,22 @@ describe('parseServerEnvironment', () => {
     )
   })
 
+  it('defaults and bounds notification-digest polling configuration', () => {
+    const defaults = parseServerEnvironment(validServerEnvironment())
+    expect(defaults.NOTIFICATION_DIGEST_INTERVAL_MS).toBe(3_600_000)
+    expect(defaults.NOTIFICATION_DIGEST_RECIPIENT_BATCH_SIZE).toBe(100)
+
+    const tooFrequent = validServerEnvironment()
+    tooFrequent.NOTIFICATION_DIGEST_INTERVAL_MS = '59999'
+    expect(() => parseServerEnvironment(tooFrequent)).toThrow('NOTIFICATION_DIGEST_INTERVAL_MS')
+
+    const oversizedBatch = validServerEnvironment()
+    oversizedBatch.NOTIFICATION_DIGEST_RECIPIENT_BATCH_SIZE = '501'
+    expect(() => parseServerEnvironment(oversizedBatch)).toThrow(
+      'NOTIFICATION_DIGEST_RECIPIENT_BATCH_SIZE',
+    )
+  })
+
   it('rejects SMTP and Brevo configuration mixed together', () => {
     const environment = validServerEnvironment()
     environment.EMAIL_SMTP_HOST = 'mailpit'

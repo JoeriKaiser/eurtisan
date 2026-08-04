@@ -2,6 +2,7 @@ import { useLoaderData } from '@tanstack/react-router'
 import { ArrowLeft, ArrowRight, ImagePlus, X } from 'lucide-react'
 import { useCallback, useRef, useState } from 'react'
 import { useImageUpload } from '#/hooks/useImageUpload'
+import { isUnitPricingScoped } from '#/lib/products/unit-pricing'
 import { getImageUrl } from '#/lib/image-url'
 import { formatPriceEUR } from '#/lib/pricing'
 import { saveDraftListing, slugify, step7ListingSchema } from '#/lib/sell-onboarding'
@@ -31,6 +32,8 @@ interface ListingData {
   lengthCm: string
   widthCm: string
   heightCm: string
+  soldBy: '' | 'weight' | 'volume'
+  volumeMl: string
   images: ListingImage[]
 }
 
@@ -105,6 +108,8 @@ export function Step7Listing() {
       lengthCm: Number.parseInt(form.lengthCm, 10),
       widthCm: Number.parseInt(form.widthCm, 10),
       heightCm: Number.parseInt(form.heightCm, 10),
+      soldBy: form.soldBy || undefined,
+      volumeMl: form.volumeMl ? Number.parseInt(form.volumeMl, 10) : undefined,
       images: form.images,
     })
     if (result.success) {
@@ -135,6 +140,8 @@ export function Step7Listing() {
           lengthCm: Number.parseInt(form.lengthCm, 10),
           widthCm: Number.parseInt(form.widthCm, 10),
           heightCm: Number.parseInt(form.heightCm, 10),
+          soldBy: form.soldBy || undefined,
+          volumeMl: form.volumeMl ? Number.parseInt(form.volumeMl, 10) : undefined,
           images: form.images,
         },
       }),
@@ -512,6 +519,41 @@ export function Step7Listing() {
               {errors[field]}
             </p>
           ) : null,
+        )}
+        {isUnitPricingScoped([
+          categories.find(
+            (category: { id: string; slug?: string }) => category.id === form.categoryId,
+          )?.slug ?? null,
+        ]) && (
+          <div className='grid gap-4 sm:grid-cols-2'>
+            <div>
+              <Label htmlFor='listing-sold-by'>{m.unit_price_sold_by_label()}</Label>
+              <select
+                id='listing-sold-by'
+                value={form.soldBy}
+                onChange={(event) => updateField(3, 'soldBy', event.target.value)}
+                className='mt-1 w-full rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary focus:border-accent-primary focus:outline-none'
+              >
+                <option value=''>{m.creator_product_new_category_none()}</option>
+                <option value='weight'>{m.unit_price_basis_weight()}</option>
+                <option value='volume'>{m.unit_price_basis_volume()}</option>
+              </select>
+            </div>
+            <div>
+              <Label htmlFor='listing-volume-ml'>{m.unit_price_volume_label()}</Label>
+              <Input
+                id='listing-volume-ml'
+                type='number'
+                min={1}
+                inputMode='numeric'
+                value={form.volumeMl}
+                onChange={(event) => updateField(3, 'volumeMl', event.target.value)}
+                className='mt-1'
+                error={errors.volumeMl}
+              />
+            </div>
+            <p className='text-xs text-text-muted sm:col-span-2'>{m.unit_price_hint()}</p>
+          </div>
         )}
       </section>
     </div>

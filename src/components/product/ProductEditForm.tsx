@@ -49,6 +49,10 @@ interface ProductDetail {
   lengthCm: number | null
   widthCm: number | null
   heightCm: number | null
+  volumeMl: number | null
+  soldBy: 'weight' | 'volume' | null
+  unitPriceScoped: boolean
+  unitPriceMissing: boolean
   images: ProductImageRecord[]
 }
 
@@ -96,6 +100,8 @@ export interface FormValues {
   lengthCm: string
   widthCm: string
   heightCm: string
+  soldBy: '' | 'weight' | 'volume'
+  volumeMl: string
 }
 
 interface FormState {
@@ -129,6 +135,8 @@ function createInitialFormState(product: ProductDetail): FormState {
       lengthCm: product.lengthCm != null ? String(product.lengthCm) : '',
       widthCm: product.widthCm != null ? String(product.widthCm) : '',
       heightCm: product.heightCm != null ? String(product.heightCm) : '',
+      soldBy: product.soldBy ?? '',
+      volumeMl: product.volumeMl != null ? String(product.volumeMl) : '',
     },
     fieldErrors: {},
     slugError: null,
@@ -220,6 +228,8 @@ export function ProductEditForm({
     lengthCm: product.lengthCm != null ? String(product.lengthCm) : '',
     widthCm: product.widthCm != null ? String(product.widthCm) : '',
     heightCm: product.heightCm != null ? String(product.heightCm) : '',
+    soldBy: product.soldBy ?? '',
+    volumeMl: product.volumeMl != null ? String(product.volumeMl) : '',
     imageOrder: product.images.map((i) => i.id).join(','),
   }
 
@@ -237,6 +247,8 @@ export function ProductEditForm({
     formState.values.lengthCm !== originalState.lengthCm ||
     formState.values.widthCm !== originalState.widthCm ||
     formState.values.heightCm !== originalState.heightCm ||
+    formState.values.soldBy !== originalState.soldBy ||
+    formState.values.volumeMl !== originalState.volumeMl ||
     images.map((i) => i.id).join(',') !== originalState.imageOrder ||
     images.some((i) => i.isNew)
 
@@ -441,6 +453,10 @@ export function ProductEditForm({
           heightCm: formState.values.heightCm
             ? Number.parseInt(formState.values.heightCm, 10)
             : undefined,
+          soldBy: formState.values.soldBy || undefined,
+          volumeMl: formState.values.volumeMl
+            ? Number.parseInt(formState.values.volumeMl, 10)
+            : undefined,
           images: images.flatMap((img) =>
             !img.error && !img.uploading && img.key
               ? [{ key: img.key, altText: img.altText || undefined }]
@@ -467,6 +483,11 @@ export function ProductEditForm({
           dispatchForm({
             type: 'mergeFieldErrors',
             errors: { categoryId: m.creator_product_new_category_invalid() },
+          })
+        } else if (err.message === 'UNIT_PRICE_REQUIRED') {
+          dispatchForm({
+            type: 'mergeFieldErrors',
+            errors: { soldBy: m.unit_price_error() },
           })
         } else if (
           err.message.includes('Invalid') ||
@@ -659,6 +680,8 @@ export function ProductEditForm({
             <ProductEditFormFields
               shops={shops}
               categories={categories}
+              unitPriceScoped={product.unitPriceScoped}
+              unitPriceMissing={product.unitPriceMissing}
               values={formState.values}
               fieldErrors={formState.fieldErrors}
               slugError={formState.slugError}

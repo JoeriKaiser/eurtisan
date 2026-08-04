@@ -2,13 +2,36 @@ import { Link, useLoaderData } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
+import { Switch } from '#/components/ui/switch'
 import { deleteMyAccount, exportMyData } from '#/lib/account-data'
 import { updateMyEmailPreference } from '#/lib/account-email-preferences'
+import {
+  updateMyInAppNotificationPreference,
+  type InAppNotificationPreference,
+  type OptionalInAppNotificationType,
+} from '#/lib/notifications/preferences'
 import { m } from '#/paraglide/messages'
 
 export function AccountSettings() {
-  const { preferences: initialPreferences, user } = useLoaderData({ from: '/account/settings' })
+  const {
+    preferences: initialPreferences,
+    inAppPreferences: initialInApp,
+    user,
+  } = useLoaderData({
+    from: '/account/settings',
+  }) as {
+    preferences: Array<{
+      category: string
+      enabled: boolean
+      labelKey: string
+      descriptionKey: string
+    }>
+    inAppPreferences: InAppNotificationPreference[]
+    user?: { role?: string }
+  }
   const [preferences, setPreferences] = useState(initialPreferences)
+  const [inAppPreferences, setInAppPreferences] =
+    useState<InAppNotificationPreference[]>(initialInApp)
 
   const visiblePreferences = preferences.filter(
     (preference) =>
@@ -16,6 +39,9 @@ export function AccountSettings() {
       !(preference.category === 'seller_updates' && user?.role === 'customer'),
   )
   const [preferenceStatus, setPreferenceStatus] = useState<
+    Record<string, 'idle' | 'saving' | 'saved' | 'error'>
+  >({})
+  const [inAppStatus, setInAppStatus] = useState<
     Record<string, 'idle' | 'saving' | 'saved' | 'error'>
   >({})
   const [exportStatus, setExportStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
@@ -80,6 +106,31 @@ export function AccountSettings() {
       )
     }
   }
+  async function handleInAppPreferenceChange(
+    type: OptionalInAppNotificationType,
+    enabled: boolean,
+  ) {
+    setInAppStatus((prev) => ({ ...prev, [type]: 'saving' }))
+    setInAppPreferences((prev) => prev.map((p) => (p.type === type ? { ...p, enabled } : p)))
+
+    try {
+      await updateMyInAppNotificationPreference({
+        data: {
+          type,
+          enabled,
+        },
+      })
+      setInAppStatus((prev) => ({ ...prev, [type]: 'saved' }))
+      window.setTimeout(() => {
+        setInAppStatus((prev) => ({ ...prev, [type]: 'idle' }))
+      }, 2000)
+    } catch {
+      setInAppStatus((prev) => ({ ...prev, [type]: 'error' }))
+      setInAppPreferences((prev) =>
+        prev.map((p) => (p.type === type ? { ...p, enabled: !enabled } : p)),
+      )
+    }
+  }
 
   return (
     <main className='page-wrap px-4 py-12'>
@@ -140,7 +191,7 @@ export function AccountSettings() {
                     return (
                       <div
                         key={preference.category}
-                        className='flex items-start justify-between gap-4'
+                        className='flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4'
                       >
                         <div className='flex-1'>
                           <label
@@ -151,27 +202,16 @@ export function AccountSettings() {
                           </label>
                           <p className='text-sm text-text-secondary'>{description}</p>
                         </div>
-                        <div className='flex min-w-[120px] flex-col items-end gap-1'>
-                          <button
+                        <div className='flex min-h-11 w-full flex-row-reverse items-center justify-between gap-2 sm:min-h-0 sm:w-auto sm:min-w-[120px] sm:flex-col sm:items-end sm:justify-start sm:gap-1'>
+                          <Switch
                             id={`preference-${preference.category}`}
-                            type='button'
-                            role='switch'
-                            aria-checked={preference.enabled}
+                            checked={preference.enabled}
                             aria-label={label}
                             disabled={status === 'saving'}
-                            onClick={() =>
-                              handlePreferenceChange(preference.category, !preference.enabled)
+                            onCheckedChange={(enabled) =>
+                              handlePreferenceChange(preference.category, enabled)
                             }
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-primary focus-visible:ring-offset-2 ${
-                              preference.enabled ? 'bg-accent-primary' : 'bg-gray-300'
-                            } ${status === 'saving' ? 'opacity-70' : ''}`}
-                          >
-                            <span
-                              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                preference.enabled ? 'translate-x-6' : 'translate-x-1'
-                              }`}
-                            />
-                          </button>
+                          />
                           <span className='h-4 text-xs'>
                             {status === 'saved' && (
                               <span className='text-success'>
@@ -191,6 +231,66 @@ export function AccountSettings() {
                 </div>
               </div>
             )}
+            <div className='border-t border-border-default pt-6'>
+              <h2 className='text-lg font-semibold text-text-primary'>
+                {m.account_in_app_preferences_title()}
+              </h2>
+              <p className='mt-1 text-sm text-text-secondary'>
+                {m.account_in_app_preferences_description()}
+              </p>
+              <div className='mt-3 rounded-xl border border-border-default bg-bg-inset p-3.5 text-xs leading-relaxed text-text-secondary'>
+                {m.account_in_app_preferences_mandatory_note()}
+              </div>
+              <div className='mt-4 space-y-4' aria-live='polite'>
+                {inAppPreferences.map((preference) => {
+                  const status = inAppStatus[preference.type]
+                  const getMessage = (key: string) =>
+                    (m as unknown as Record<string, () => string>)[key]?.() ?? key
+                  const label = getMessage(preference.labelKey)
+                  const description = getMessage(preference.descriptionKey)
+
+                  return (
+                    <div
+                      key={preference.type}
+                      className='flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4'
+                    >
+                      <div className='flex-1'>
+                        <label
+                          htmlFor={`in-app-pref-${preference.type}`}
+                          className='block text-sm font-medium text-text-primary'
+                        >
+                          {label}
+                        </label>
+                        <p className='text-sm text-text-secondary'>{description}</p>
+                      </div>
+                      <div className='flex min-h-11 w-full flex-row-reverse items-center justify-between gap-2 sm:min-h-0 sm:w-auto sm:min-w-[120px] sm:flex-col sm:items-end sm:justify-start sm:gap-1'>
+                        <Switch
+                          id={`in-app-pref-${preference.type}`}
+                          checked={preference.enabled}
+                          aria-label={label}
+                          disabled={status === 'saving'}
+                          onCheckedChange={(enabled) =>
+                            handleInAppPreferenceChange(preference.type, enabled)
+                          }
+                        />
+                        <span className='h-4 text-xs'>
+                          {status === 'saved' && (
+                            <span className='text-success' role='status'>
+                              {m.account_in_app_preference_saved()}
+                            </span>
+                          )}
+                          {status === 'error' && (
+                            <span className='text-error' role='alert'>
+                              {m.account_in_app_preference_error()}
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
 
             <div className='border-t border-border-default pt-6'>
               <h2 className='text-lg font-semibold text-error'>{m.account_delete_account()}</h2>

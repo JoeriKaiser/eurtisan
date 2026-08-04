@@ -141,6 +141,9 @@ async function buildCartDetail(cartRecord: typeof cart.$inferSelect): Promise<Ca
             priceCents: productRecord.priceCents,
             stockCount: availableStock,
             imageUrl: productRecord ? (imageByProduct.get(productRecord.id) ?? null) : null,
+            weightGrams: productRecord.weightGrams,
+            volumeMl: productRecord.volumeMl,
+            soldBy: productRecord.soldBy,
           }
         : null,
       unavailable: isUnavailable,

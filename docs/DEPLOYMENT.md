@@ -263,6 +263,8 @@ Then open `http://localhost:8025`.
 
 Staging email is hardcoded to Mailpit in `docker-compose.staging.yml` (`EMAIL_SMTP_HOST=mailpit`, `EMAIL_SMTP_PORT=1025`). These compose-level environment variables override any accidental `.env` value, so staging can never send real email even if a production `.env` is copied in by mistake. `BREVO_API_KEY` must never be set in staging `.env`.
 
+**Seller notification digest:** `notification-digest` is a production-critical, advisory-locked worker in both Compose stacks. It retries the previous completed UTC day on its hourly poll, creates at most one `seller_updates` outbox row per seller/day, and staging deliveries remain visible only in Mailpit. Confirm the worker is running after rollout and investigate a stale `notification-digest` job metric or failed tick before the next UTC day closes.
+
 **Payments (Mollie):** Use Mollie's **test API key** in staging. No real money is charged. Set in `secrets.yml`:
 
 ```yaml

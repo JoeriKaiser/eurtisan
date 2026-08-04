@@ -5,6 +5,9 @@ export interface CartProductDetail {
   priceCents: number
   stockCount: number
   imageUrl: string | null
+  weightGrams: number | null
+  volumeMl: number | null
+  soldBy: 'weight' | 'volume' | null
 }
 
 export interface CartItemDetail {

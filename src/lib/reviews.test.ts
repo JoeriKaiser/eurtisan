@@ -8,7 +8,10 @@ import {
   platformOrder,
   product,
   review,
+  reviewHelpfulVote,
   reviewReport,
+  sellerReply,
+  sellerReplyReport,
   shop,
   shopOrder,
   user,
@@ -17,16 +20,23 @@ import {
 import type { NotificationType } from './notifications.server'
 import {
   createReviewQuery,
+  createSellerReplyQuery,
+  getAdminReviewsQuery,
+  getAdminSellerRepliesQuery,
   getProductReviewsQuery,
   getReviewableItemsQuery,
   getReviewReportsQuery,
+  getSellerReplyReportsQuery,
   reportReviewQuery,
-  getAdminReviewsQuery,
+  reportSellerReplyQuery,
+  setReviewHelpfulQuery,
   updateReviewModerationStatusQuery,
+  updateSellerReplyModerationStatusQuery,
+  updateSellerReplyQuery,
 } from './reviews.server'
-
 beforeEach(async () => {
   await db.delete(notification)
+  await db.delete(reviewHelpfulVote)
   await db.delete(review)
   await db.delete(orderItem)
   await db.delete(shopOrder)
@@ -38,6 +48,7 @@ beforeEach(async () => {
 
 afterAll(async () => {
   await db.delete(notification)
+  await db.delete(reviewHelpfulVote)
   await db.delete(review)
   await db.delete(orderItem)
   await db.delete(shopOrder)
@@ -1126,6 +1137,151 @@ describe('getProductReviewsQuery', () => {
     expect(result.pageSize).toBe(1)
     expect(result.totalPages).toBe(0)
   })
+
+  it('orders deterministically, filters aggregate totals, and keeps helpful votes private', async () => {
+    const address = {
+      name: 'Buyer',
+      street: 'Street',
+      city: 'City',
+      postalCode: '12345',
+      country: 'DE',
+    }
+    await db.insert(user).values([
+      { id: 'owner', name: 'Owner', email: 'owner@example.com', emailVerified: true },
+      { id: 'buyer-a', name: 'A', email: 'a@example.com', emailVerified: true },
+      { id: 'buyer-b', name: 'B', email: 'b@example.com', emailVerified: true },
+      { id: 'buyer-c', name: 'C', email: 'c@example.com', emailVerified: true },
+      { id: 'buyer-d', name: 'D', email: 'd@example.com', emailVerified: true },
+      { id: 'viewer', name: 'Viewer', email: 'viewer@example.com', emailVerified: true },
+      { id: 'voter-2', name: 'Voter 2', email: 'voter2@example.com', emailVerified: true },
+      { id: 'voter-3', name: 'Voter 3', email: 'voter3@example.com', emailVerified: true },
+    ])
+    await db.insert(shop).values({
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      ownerId: 'owner',
+      status: 'active',
+    })
+    await db.insert(product).values({
+      id: 'prod-1',
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 1000,
+      shopId: 'shop-1',
+      status: 'published',
+      isActive: true,
+    })
+
+    async function addReview(id: string, buyerUserId: string, rating: number, createdAt: Date) {
+      const [order] = await db
+        .insert(platformOrder)
+        .values({
+          userId: buyerUserId,
+          shippingAddress: address,
+          billingAddress: address,
+          totalCents: 1000,
+        })
+        .returning()
+      const [shopOrderRecord] = await db
+        .insert(shopOrder)
+        .values({
+          platformOrderId: order.id,
+          shopId: 'shop-1',
+          shippingMethod: 'standard',
+          shippingCostCents: 500,
+          subtotalCents: 1000,
+          status: 'delivered',
+          deliveredAt: new Date('2025-12-01T00:00:00Z'),
+        })
+        .returning()
+      await db.insert(review).values({
+        id,
+        shopOrderId: shopOrderRecord.id,
+        productId: 'prod-1',
+        buyerUserId,
+        rating,
+        createdAt,
+      })
+    }
+
+    const first = '00000000-0000-4000-8000-000000000001'
+    const second = '00000000-0000-4000-8000-000000000002'
+    const third = '00000000-0000-4000-8000-000000000003'
+    const fourth = '00000000-0000-4000-8000-000000000004'
+    await addReview(first, 'buyer-a', 3, new Date('2026-01-01T00:00:00Z'))
+    await addReview(second, 'buyer-b', 5, new Date('2026-01-02T00:00:00Z'))
+    await addReview(third, 'buyer-c', 5, new Date('2026-01-02T00:00:00Z'))
+    await addReview(fourth, 'buyer-d', 1, new Date('2026-01-03T00:00:00Z'))
+
+    await setReviewHelpfulQuery(first, 'viewer', true)
+    await setReviewHelpfulQuery(first, 'voter-2', true)
+    await setReviewHelpfulQuery(first, 'voter-3', true)
+    await setReviewHelpfulQuery(second, 'voter-2', true)
+
+    const newest = await getProductReviewsQuery('prod-1', 1, 10, 'newest', undefined, 'viewer')
+    expect(newest.reviews.map((r) => r.id)).toEqual([fourth, third, second, first])
+    expect(newest.sort).toBe('newest')
+    expect(newest.ratingFilter).toBeNull()
+    expect(newest.reviews.find((r) => r.id === first)).toMatchObject({
+      helpfulCount: 3,
+      viewerHasMarkedHelpful: true,
+      canMarkHelpful: true,
+    })
+    expect(newest.reviews.every((r) => !('voterUserId' in r))).toBe(true)
+
+    const highest = await getProductReviewsQuery('prod-1', 1, 10, 'highest')
+    expect(highest.reviews.map((r) => r.id)).toEqual([third, second, first, fourth])
+    const lowest = await getProductReviewsQuery('prod-1', 1, 10, 'lowest')
+    expect(lowest.reviews.map((r) => r.id)).toEqual([fourth, first, third, second])
+    const helpful = await getProductReviewsQuery('prod-1', 1, 10, 'helpful')
+    expect(helpful.reviews.map((r) => r.id)).toEqual([first, second, fourth, third])
+
+    const filteredPageOne = await getProductReviewsQuery('prod-1', 1, 1, 'highest', 5)
+    expect(filteredPageOne).toMatchObject({
+      total: 2,
+      totalPages: 2,
+      page: 1,
+      ratingFilter: 5,
+      averageRating: 5,
+      distribution: [
+        { rating: 5, count: 2 },
+        { rating: 4, count: 0 },
+        { rating: 3, count: 0 },
+        { rating: 2, count: 0 },
+        { rating: 1, count: 0 },
+      ],
+    })
+    expect(filteredPageOne.reviews.map((r) => r.id)).toEqual([third])
+    const filteredPageTwo = await getProductReviewsQuery('prod-1', 2, 1, 'highest', 5)
+    expect(filteredPageTwo.reviews.map((r) => r.id)).toEqual([second])
+
+    expect(await setReviewHelpfulQuery(second, 'viewer', true)).toEqual({
+      helpfulCount: 2,
+      viewerHasMarkedHelpful: true,
+    })
+    expect(await setReviewHelpfulQuery(second, 'viewer', true)).toEqual({
+      helpfulCount: 2,
+      viewerHasMarkedHelpful: true,
+    })
+    expect(await setReviewHelpfulQuery(second, 'viewer', false)).toEqual({
+      helpfulCount: 1,
+      viewerHasMarkedHelpful: false,
+    })
+    expect(await setReviewHelpfulQuery(second, 'viewer', false)).toEqual({
+      helpfulCount: 1,
+      viewerHasMarkedHelpful: false,
+    })
+    await expect(setReviewHelpfulQuery(first, 'buyer-a', true)).rejects.toMatchObject({
+      status: 403,
+    })
+    await expect(setReviewHelpfulQuery(first, 'owner', true)).rejects.toMatchObject({ status: 403 })
+
+    await db.update(product).set({ isActive: false }).where(eq(product.id, 'prod-1'))
+    await expect(setReviewHelpfulQuery(third, 'viewer', true)).rejects.toMatchObject({
+      status: 404,
+    })
+  })
 })
 
 describe('review moderation and flagging', () => {
@@ -1539,5 +1695,163 @@ describe('moderation decisions notify the people entitled to know', () => {
     })
 
     expect(await notificationsFor(author.id, 'review_moderated')).toHaveLength(1)
+  })
+})
+
+describe('seller replies', () => {
+  async function seedReplyableReview() {
+    const seller = await seedUser({
+      id: 'seller-1',
+      email: 'seller-1@example.com',
+      role: 'creator',
+    })
+    const buyer = await seedUser({ id: 'buyer-1', email: 'buyer-1@example.com' })
+    const s = await seedShop({ ownerId: seller.id, status: 'active', isSuspended: false })
+    const p = await seedProduct()
+    const address = {
+      name: 'Buyer',
+      street: 'St',
+      city: 'City',
+      postalCode: '12345',
+      country: 'DE',
+    }
+    const [order] = await db
+      .insert(platformOrder)
+      .values({
+        userId: buyer.id,
+        shippingAddress: address,
+        billingAddress: address,
+        totalCents: 1000,
+      })
+      .returning()
+    const [shopOrderRecord] = await db
+      .insert(shopOrder)
+      .values({
+        platformOrderId: order.id,
+        shopId: s.id,
+        shippingMethod: 'standard',
+        shippingCostCents: 500,
+        subtotalCents: 1000,
+        status: 'delivered',
+        deliveredAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000),
+      })
+      .returning()
+    const [reviewRecord] = await db
+      .insert(review)
+      .values({
+        shopOrderId: shopOrderRecord.id,
+        productId: p.id,
+        buyerUserId: buyer.id,
+        rating: 4,
+        comment: 'Lovely work',
+      })
+      .returning()
+    return { seller, buyer, product: p, review: reviewRecord }
+  }
+
+  it('requires current shop ownership and permits exactly one trimmed reply', async () => {
+    const { seller, buyer, review: reviewRecord } = await seedReplyableReview()
+    await expect(createSellerReplyQuery(reviewRecord.id, buyer.id, 'Nope')).rejects.toMatchObject({
+      status: 403,
+    })
+    const created = await createSellerReplyQuery(reviewRecord.id, seller.id, '  Thank you!  ')
+    expect(created.body).toBe('Thank you!')
+    await expect(updateSellerReplyQuery(created.id, buyer.id, 'Edited')).rejects.toMatchObject({
+      status: 403,
+    })
+    expect((await updateSellerReplyQuery(created.id, seller.id, '  Edited reply  ')).body).toBe(
+      'Edited reply',
+    )
+    await expect(
+      createSellerReplyQuery(reviewRecord.id, seller.id, 'A second reply'),
+    ).rejects.toMatchObject({
+      status: 409,
+    })
+    expect(
+      await db.select().from(sellerReply).where(eq(sellerReply.reviewId, reviewRecord.id)),
+    ).toHaveLength(1)
+    const [notificationRecord] = await db
+      .select()
+      .from(notification)
+      .where(and(eq(notification.userId, buyer.id), eq(notification.type, 'seller_reply_received')))
+    expect((notificationRecord.data as Record<string, unknown>).replyId).toBe(created.id)
+  })
+
+  it('records idempotent reports without changing seller-reply visibility', async () => {
+    const { seller, review: reviewRecord } = await seedReplyableReview()
+    const reporter = await seedUser({
+      id: 'reply-reporter-1',
+      email: 'reply-reporter-1@example.com',
+    })
+    const created = await createSellerReplyQuery(reviewRecord.id, seller.id, 'Thank you')
+    expect(await reportSellerReplyQuery(created.id, reporter.id, 'spam', null)).toEqual({
+      alreadyReported: false,
+    })
+    expect(await reportSellerReplyQuery(created.id, reporter.id, 'offensive', 'again')).toEqual({
+      alreadyReported: true,
+    })
+    const [unchanged] = await db.select().from(sellerReply).where(eq(sellerReply.id, created.id))
+    expect(unchanged.moderationStatus).toBe('approved')
+    expect(await getSellerReplyReportsQuery([created.id])).toEqual(new Map([[created.id, 1]]))
+  })
+
+  it('projects only approved replies and resolves reports on moderation', async () => {
+    const { seller, product: p, review: reviewRecord } = await seedReplyableReview()
+    const reporter = await seedUser({
+      id: 'reply-reporter-2',
+      email: 'reply-reporter-2@example.com',
+    })
+    const admin = await seedUser({
+      id: 'reply-admin-1',
+      email: 'reply-admin-1@example.com',
+      role: 'admin',
+    })
+    const created = await createSellerReplyQuery(
+      reviewRecord.id,
+      seller.id,
+      'Thank you for your review',
+    )
+    const publicReviews = await getProductReviewsQuery(p.id, 1, 10)
+    expect(publicReviews.reviews[0].sellerReply).toMatchObject({
+      id: created.id,
+      sellerName: 'Test Shop',
+    })
+    expect(publicReviews.reviews[0].sellerReply?.sellerName).not.toBe(seller.name)
+
+    await reportSellerReplyQuery(created.id, reporter.id, 'personal_data', 'Names a buyer')
+    await updateSellerReplyModerationStatusQuery(created.id, 'hidden', {
+      ground: 'terms',
+      legalBasis: 'Community guidelines',
+      explanation: 'Contains personal information.',
+      actorUserId: admin.id,
+    })
+    expect((await getProductReviewsQuery(p.id, 1, 10)).reviews[0].sellerReply).toBeNull()
+
+    const [report] = await db
+      .select()
+      .from(sellerReplyReport)
+      .where(eq(sellerReplyReport.sellerReplyId, created.id))
+    expect(report).toMatchObject({ status: 'upheld', resolvedByUserId: admin.id })
+    expect((await getAdminSellerRepliesQuery('hidden', 1, 10)).sellerReplies[0]).toMatchObject({
+      id: created.id,
+      openReports: 0,
+    })
+    const [authorNotice] = await db
+      .select()
+      .from(notification)
+      .where(
+        and(eq(notification.userId, seller.id), eq(notification.type, 'seller_reply_moderated')),
+      )
+    expect((authorNotice.data as Record<string, unknown>).legalBasis).toBe('Community guidelines')
+    const [reporterNotice] = await db
+      .select()
+      .from(notification)
+      .where(
+        and(
+          eq(notification.userId, reporter.id),
+          eq(notification.type, 'seller_reply_report_resolved'),
+        ),
+      )
+    expect((reporterNotice.data as Record<string, unknown>).outcome).toBe('upheld')
   })
 })

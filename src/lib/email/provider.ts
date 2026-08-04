@@ -21,6 +21,8 @@ export type EmailTemplate =
   | 'seller_alert'
   /** The DSA Article 17 statement of reasons, out of band from the app. */
   | 'statement_of_reasons'
+  /** Daily seller summary for routine stock and review events. */
+  | 'notification_digest'
 
 /** Provider identifiers. */
 export type EmailProviderName = 'brevo' | 'smtp' | 'mock'

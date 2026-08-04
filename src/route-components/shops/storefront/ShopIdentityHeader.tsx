@@ -1,4 +1,5 @@
 import { Globe, MapPin, Package } from 'lucide-react'
+import { TraderStatusDisclosure } from '#/components/TraderStatusDisclosure'
 import { formatDateLong } from '#/lib/format-date'
 import type { ShopProfile } from '#/lib/shop-profile'
 import { m } from '#/paraglide/messages'
@@ -25,10 +26,8 @@ function Fact({ icon, children }: { icon: React.ReactNode; children: React.React
  *
  * Carries the page's only `<h1>`.
  *
- * NOTE: the trader / non-trader disclosure required by CRD Art. 6a(1)(b)
- * belongs here, but the declaration is not collected yet and must not be
- * inferred from `legalEntityType`, which is a DAC7 tax field. See
- * `docs/plans/shop-storefront-overhaul.md` §5.8.
+ * The seller's own CRD trader-status declaration is shown beside this identity
+ * and is never inferred from the separate DAC7 tax classification.
  */
 export function ShopIdentityHeader({ shop }: ShopIdentityHeaderProps) {
   const languages = languageNames(shop.languages)
@@ -52,6 +51,7 @@ export function ShopIdentityHeader({ shop }: ShopIdentityHeaderProps) {
         )}
         <ShopRatingSummary rating={shop.rating} productCount={shop.productCount} />
       </div>
+      <TraderStatusDisclosure traderStatus={shop.traderStatus} className='mb-5 max-w-2xl' />
 
       <ul className='flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-x-6'>
         {shop.origin && (

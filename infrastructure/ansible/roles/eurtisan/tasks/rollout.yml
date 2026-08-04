@@ -39,7 +39,7 @@
       inventory-cleanup session-cleanup cart-cleanup verification-cleanup \
       meilisearch-sync audit-log-cleanup search-event-cleanup notification-cleanup sendcloud-reconciliation \
       mollie-payment-reconciliation payout-reconciliation \
-      payout-reconciliation-log-cleanup email-outbox-worker \
+      payout-reconciliation-log-cleanup email-outbox-worker notification-digest \
       email-suppression-cleanup email-retention-cleanup \
       financial-totals-reconciliation sendcloud-retention-cleanup
     do

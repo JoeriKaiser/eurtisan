@@ -79,6 +79,7 @@ async function seedShop(overrides?: Partial<typeof shop.$inferInsert>) {
         country: 'FR',
       },
       legalEntityType: 'individual',
+      traderStatus: 'trader',
       dateOfBirth: '1990-05-15',
       taxId: 'FRTIN12345',
       policies: completePolicies,
@@ -195,6 +196,7 @@ describe('sell onboarding server', () => {
         isVatRegistered: false,
         vatId: '',
         legalEntityType: 'individual',
+        traderStatus: 'non_trader',
         dateOfBirth: '1990-05-15',
         taxId: 'FRTIN12345',
         businessRegistrationNumber: '',
@@ -205,6 +207,7 @@ describe('sell onboarding server', () => {
     expect(draft.shippingOrigin?.city).toBe('Lyon')
     expect(draft.businessAddress?.street).toBe('4 Rue Mercière')
     expect(draft.taxId).toBe('FRTIN12345')
+    expect(draft.traderStatus).toBe('non_trader')
     expect(draft.onboardingStep).toBe(3)
   })
 
@@ -301,10 +304,27 @@ describe('sell onboarding server', () => {
     ).rejects.toThrow('INCOMPLETE_ONBOARDING:profile')
   })
 
-  it('stores terms acceptance, promotes the seller, and submits a complete shop', async () => {
+  it('keeps a complete legacy shop unready and unsubmitable until it declares trader status', async () => {
     await seedUser()
     await seedCategory()
-    await seedShop()
+    await seedShop({ traderStatus: null })
+    await seedCompleteProduct()
+
+    const readiness = await getOnboardingReadinessInternal('shop-1')
+    expect(readiness.ready).toBe(false)
+    expect(readiness.items.find((item) => item.id === 'seller')?.complete).toBe(false)
+    await expect(
+      submitShopForReviewInternal('user-1', 'customer', 'shop-1', acceptedTerms),
+    ).rejects.toThrow('INCOMPLETE_ONBOARDING:seller')
+  })
+
+  it.each([
+    'trader',
+    'non_trader',
+  ] as const)('stores terms acceptance, promotes the seller, and submits a complete shop with an explicit %s declaration', async (traderStatus) => {
+    await seedUser()
+    await seedCategory()
+    await seedShop({ traderStatus })
     await seedCompleteProduct()
 
     const result = await submitShopForReviewInternal('user-1', 'customer', 'shop-1', acceptedTerms)
@@ -313,6 +333,7 @@ describe('sell onboarding server', () => {
     const [record] = await db.select().from(shop).where(eq(shop.id, 'shop-1'))
     const [seller] = await db.select().from(user).where(eq(user.id, 'user-1'))
     expect(record.status).toBe('pending_review')
+    expect(record.traderStatus).toBe(traderStatus)
     expect(record.onboardingCompletedAt).toBeInstanceOf(Date)
     expect(record.sellerTermsAcceptedAt).toBeInstanceOf(Date)
     expect(record.sellerTermsVersion).toBe(SELLER_TERMS_VERSION)

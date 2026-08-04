@@ -89,6 +89,8 @@ export async function getCheckoutSummaryQuery(
       quantity,
       imageUrl: imageByProduct.get(productRecord.id) ?? null,
       weightGrams: productRecord.weightGrams ?? null,
+      volumeMl: productRecord.volumeMl ?? null,
+      soldBy: productRecord.soldBy ?? null,
       lengthCm: productRecord.lengthCm ?? null,
       widthCm: productRecord.widthCm ?? null,
       heightCm: productRecord.heightCm ?? null,
@@ -113,6 +115,7 @@ export async function getCheckoutSummaryQuery(
           vatId: shopRecord.vatId,
           businessAddress: decryptJsonb(shopRecord.businessAddress),
           shippingOrigin: decryptJsonb(shopRecord.shippingOrigin),
+          traderStatus: shopRecord.traderStatus,
         }),
       })
     }
@@ -153,12 +156,14 @@ export async function getCheckoutSummaryQuery(
           vatId: shopRecord.vatId,
           businessAddress: decryptJsonb(shopRecord.businessAddress),
           shippingOrigin: decryptJsonb(shopRecord.shippingOrigin),
+          traderStatus: shopRecord.traderStatus,
         })
       : {
           tradeName: shopGroup.shopName,
           contactEmail: ownerEmail,
           vatId: null,
           address: null,
+          traderStatus: null,
         }
   }
 

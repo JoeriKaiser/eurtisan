@@ -1,3 +1,5 @@
+import type { TraderStatus } from '../shops/trader-status'
+
 export type PublicProduct = {
   id: string
   name: string
@@ -15,6 +17,10 @@ export type PublicProduct = {
   shopName: string | null
   shopSlug: string | null
   shopIsVatRegistered: boolean
+  /** Unit-pricing declaration (Directive 98/6/EC); null when not declared. */
+  weightGrams: number | null
+  volumeMl: number | null
+  soldBy: 'weight' | 'volume' | null
   imageUrl: string | null
 }
 
@@ -36,13 +42,15 @@ export type FeaturedShop = {
 export type ProductDetail = PublicProduct & {
   images: { id: string; url: string; altText: string | null; sortOrder: number }[]
   shopDescription: string | null
+  /** Seller-declared CRD status. Null only for a legacy shop awaiting declaration. */
+  traderStatus: TraderStatus | null
   categoryId: string | null
   shopIsVatRegistered: boolean
   /**
    * How long the maker takes to dispatch, in business days, from the shop's
-   * `shippingOrigin`. Null when the shop never set it, or lost it — editing the
-   * shipping origin in settings replaces the stored object wholesale and drops
-   * the processing times (see `shops/public-profile.ts`).
+   * `shippingOrigin`. Null when the shop never set it or a legacy row lacks it.
+   * Settings address edits preserve this value by merging into the decrypted
+   * origin rather than replacing it.
    *
    * Transit time is deliberately absent: it needs a carrier quote against a
    * destination, and a delivery date that turns out wrong at checkout costs more

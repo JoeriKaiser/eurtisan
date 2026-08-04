@@ -5,6 +5,7 @@ import { decryptJsonb } from '#/lib/encryption.server'
 import { updateShopSchema } from '#/lib/shop-settings'
 import { getCreatorShopQuery } from '#/lib/creator-dashboard.server'
 import { SlugCollisionError, updateShopInternal } from '#/lib/shop-settings.server'
+import { emitAuditEvent } from '#/lib/audit-log.server'
 
 export const Route = createFileRoute('/api/shops/$shopId/settings')({
   server: {
@@ -31,7 +32,7 @@ export const Route = createFileRoute('/api/shops/$shopId/settings')({
         authPipelinePrivileged(
           request,
           [requireRole('creator'), (ctx) => requireShopOwnership(ctx, params.shopId)],
-          async () => {
+          async (ctx) => {
             const raw = await request.json().catch(() => ({}))
             const parsed = updateShopSchema.safeParse({ ...raw, shopId: params.shopId })
             if (!parsed.success) {
@@ -44,6 +45,12 @@ export const Route = createFileRoute('/api/shops/$shopId/settings')({
             try {
               const { shopId, ...input } = parsed.data
               const record = await updateShopInternal(shopId, input)
+              if (input.traderStatus !== undefined) {
+                await emitAuditEvent(ctx.user, 'shop_trader_status_updated', 'shop', shopId, {
+                  traderStatus: input.traderStatus,
+                })
+              }
+
               const response = {
                 id: record.id,
                 name: record.name,
@@ -63,6 +70,7 @@ export const Route = createFileRoute('/api/shops/$shopId/settings')({
                 isVatRegistered: record.isVatRegistered,
                 vatId: record.vatId,
                 createdAt: record.createdAt,
+                traderStatus: record.traderStatus,
                 updatedAt: record.updatedAt,
               }
               return new Response(JSON.stringify(response), {

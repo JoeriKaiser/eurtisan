@@ -123,6 +123,27 @@ export async function getCategoryBreadcrumbs(
 }
 
 /**
+ * Every slug on the path from a category to its root, leaf included. Unit
+ * pricing scope is decided against this chain at write time.
+ */
+export async function getCategoryChainSlugs(categoryId: string | null): Promise<string[]> {
+  if (!categoryId) return []
+  const result = await db.execute(sql`
+    WITH RECURSIVE ancestors AS (
+      SELECT id, slug, parent_id
+      FROM category
+      WHERE id = ${categoryId}
+      UNION ALL
+      SELECT c.id, c.slug, c.parent_id
+      FROM category c
+      INNER JOIN ancestors a ON c.id = a.parent_id
+    )
+    SELECT slug FROM ancestors
+  `)
+  return (result.rows as { slug: string }[]).map((row) => row.slug)
+}
+
+/**
  * A category's direct children, each with the number of products a buyer can
  * actually reach beneath it — its own plus every descendant's.
  *

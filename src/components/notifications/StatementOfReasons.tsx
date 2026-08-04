@@ -39,6 +39,26 @@ export function StatementOfReasons({ item }: { item: NotificationItem }) {
   const explanation = typeof data.explanation === 'string' ? data.explanation : ''
   const ground = data.ground === 'illegal' ? 'illegal' : 'terms'
   const redress = Array.isArray(data.redress) ? data.redress.map(String) : []
+  const legalBasis = typeof data.legalBasis === 'string' ? data.legalBasis.trim() : ''
+  const isSellerReply = data.contentType === 'seller_reply'
+  const what =
+    restriction === 'hidden'
+      ? isSellerReply
+        ? m.statement_of_reasons_what_hidden_seller_reply()
+        : m.statement_of_reasons_what_hidden()
+      : restriction === 'flagged'
+        ? isSellerReply
+          ? m.statement_of_reasons_what_restricted_seller_reply()
+          : m.statement_of_reasons_what_restricted()
+        : isSellerReply
+          ? m.statement_of_reasons_what_restored_seller_reply()
+          : m.statement_of_reasons_what_restored()
+  const prompted =
+    data.promptedByNotice === true
+      ? isSellerReply
+        ? m.statement_of_reasons_prompted_by_report_seller_reply()
+        : m.statement_of_reasons_prompted_by_report()
+      : m.statement_of_reasons_prompted_by_review()
 
   return (
     <details className='mt-2 rounded-xl border border-border-default bg-surface-default'>
@@ -52,10 +72,7 @@ export function StatementOfReasons({ item }: { item: NotificationItem }) {
           <div>
             <dt className='font-medium text-text-primary'>{m.statement_of_reasons_what_label()}</dt>
             <dd className='m-0'>
-              {restriction === 'hidden'
-                ? m.statement_of_reasons_what_hidden()
-                : m.statement_of_reasons_what_restricted()}{' '}
-              {m.statement_of_reasons_scope()}
+              {what} {m.statement_of_reasons_scope()}
             </dd>
           </div>
 
@@ -69,11 +86,15 @@ export function StatementOfReasons({ item }: { item: NotificationItem }) {
                 ? m.statement_of_reasons_ground_illegal()
                 : m.statement_of_reasons_ground_terms()}
             </dd>
-            <dd className='m-0 mt-1'>
-              {data.promptedByNotice === true
-                ? m.statement_of_reasons_prompted_by_report()
-                : m.statement_of_reasons_prompted_by_review()}
-            </dd>
+            {legalBasis && (
+              <dd className='m-0 mt-1'>
+                <span className='font-medium text-text-primary'>
+                  {m.statement_of_reasons_legal_basis_label()}:
+                </span>{' '}
+                {legalBasis}
+              </dd>
+            )}
+            <dd className='m-0 mt-1'>{prompted}</dd>
           </div>
 
           <div>
@@ -100,7 +121,9 @@ export function StatementOfReasons({ item }: { item: NotificationItem }) {
                   naming the address that does. */}
               {redress.includes('contact_support') && (
                 <a
-                  href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(`Review moderation appeal (${item.id})`)}`}
+                  href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+                    `${isSellerReply ? 'Seller reply' : 'Review'} moderation appeal (${item.id})`,
+                  )}`}
                   className='underline hover:text-text-primary'
                 >
                   {m.statement_of_reasons_redress_support({ email: SUPPORT_EMAIL })}

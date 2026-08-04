@@ -20,6 +20,9 @@ export interface OverlayProduct {
   categoryName: string | null
   priceCents: number
   stockCount: number
+  weightGrams: number | null
+  volumeMl: number | null
+  soldBy: 'weight' | 'volume' | null
   imageUrl: string | null
 }
 
@@ -49,6 +52,9 @@ const RETRIEVED_ATTRIBUTES = [
   'priceCents',
   'stockCount',
   'imageUrl',
+  'weightGrams',
+  'volumeMl',
+  'soldBy',
 ]
 
 function readString(value: unknown): string | null {
@@ -104,6 +110,9 @@ async function fetchOverlayResults(query: string): Promise<OverlayResults> {
           priceCents: Number(doc.priceCents ?? 0),
           stockCount: Number(doc.stockCount ?? 0),
           imageUrl: readString(doc.imageUrl),
+          weightGrams: typeof doc.weightGrams === 'number' ? doc.weightGrams : null,
+          volumeMl: typeof doc.volumeMl === 'number' ? doc.volumeMl : null,
+          soldBy: doc.soldBy === 'weight' || doc.soldBy === 'volume' ? doc.soldBy : null,
         }
       })
 
@@ -152,6 +161,9 @@ async function fetchOverlayResults(query: string): Promise<OverlayResults> {
       priceCents: p.priceCents,
       stockCount: p.stockCount,
       imageUrl: p.imageUrl,
+      weightGrams: p.weightGrams,
+      volumeMl: p.volumeMl,
+      soldBy: p.soldBy,
     }))
 
     const counts = new Map<string, { name: string; count: number }>()

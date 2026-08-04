@@ -29,6 +29,7 @@ import {
   twoFactor,
   user,
   userEmailPreference,
+  userNotificationPreference,
 } from '#/db/schema'
 import { hashEmail } from '#/lib/customers.server'
 import { deletePendingOutboxRowsForUser } from '#/lib/email-outbox.server'
@@ -148,6 +149,7 @@ export interface UserDataExport {
     id: string
     type: string
     data: SerializableValue
+    groupKey: string | null
     readAt: string | null
     createdAt: string
   }>
@@ -162,6 +164,13 @@ export interface UserDataExport {
   emailPreferences: Array<{
     id: string
     category: string
+    enabled: boolean
+    createdAt: string
+    updatedAt: string
+  }>
+  notificationPreferences: Array<{
+    id: string
+    type: string
     enabled: boolean
     createdAt: string
     updatedAt: string
@@ -270,6 +279,7 @@ export async function exportUserData(userId: string): Promise<UserDataExport> {
     disputeMessages,
     auditLogsRows,
     emailPreferences,
+    notificationPreferences,
     customerNotes,
     customerTags,
     invoicesAsBuyer,
@@ -340,6 +350,10 @@ export async function exportUserData(userId: string): Promise<UserDataExport> {
       .from(auditLog)
       .where(eq(auditLog.actorId, userId)),
     db.select().from(userEmailPreference).where(eq(userEmailPreference.userId, userId)),
+    db
+      .select()
+      .from(userNotificationPreference)
+      .where(eq(userNotificationPreference.userId, userId)),
     db.select().from(customerNote).where(eq(customerNote.customerEmailHash, emailHash)),
     db.select().from(customerTag).where(eq(customerTag.customerEmailHash, emailHash)),
     db
@@ -554,6 +568,7 @@ export async function exportUserData(userId: string): Promise<UserDataExport> {
       id: n.id,
       type: n.type,
       data: n.data as SerializableValue,
+      groupKey: n.groupKey,
       readAt: n.readAt?.toISOString() ?? null,
       createdAt: n.createdAt.toISOString(),
     })),
@@ -568,6 +583,13 @@ export async function exportUserData(userId: string): Promise<UserDataExport> {
     emailPreferences: emailPreferences.map((preference) => ({
       id: preference.id,
       category: preference.category,
+      enabled: preference.enabled,
+      createdAt: preference.createdAt.toISOString(),
+      updatedAt: preference.updatedAt.toISOString(),
+    })),
+    notificationPreferences: notificationPreferences.map((preference) => ({
+      id: preference.id,
+      type: preference.type,
       enabled: preference.enabled,
       createdAt: preference.createdAt.toISOString(),
       updatedAt: preference.updatedAt.toISOString(),
@@ -766,6 +788,7 @@ export async function deleteUserAccount(userId: string): Promise<void> {
     await tx.delete(account).where(eq(account.userId, userId))
     await tx.delete(twoFactor).where(eq(twoFactor.userId, userId))
     await tx.delete(userEmailPreference).where(eq(userEmailPreference.userId, userId))
+    await tx.delete(userNotificationPreference).where(eq(userNotificationPreference.userId, userId))
 
     // Delete pending emails before anonymizing the address. The CASCADE on
     // userId would remove them after the update, but explicit deletion is
