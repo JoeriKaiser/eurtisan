@@ -177,8 +177,15 @@ db-migrate-unit: ensure-up
 # Ensure the isolated E2E database is up before migrating/seeding.
 # Using the e2e compose overlay for these commands guarantees the correct
 # DATABASE_URL, E2E_TEST flag, and other e2e-only env vars are in scope.
+# The E2E database is disposable (seed data only, never shared), so it is
+# recreated on every run: migrations must always apply to a pristine schema.
+# In-place migration deadlocks when a fail-closed data migration collides with
+# stale seed data (e.g. 0081_remove_food_categories against pre-removal
+# seeded products), because seeding -- which would clear that data -- only
+# runs after migration succeeds.
 db-migrate-e2e: up
 	docker compose -f docker-compose.yml -f docker-compose.e2e.yml up -d db-test
+	docker compose -f docker-compose.yml -f docker-compose.e2e.yml exec -T db-test psql -U eurtisan -d postgres -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS eurtisan_test WITH (FORCE)" -c "CREATE DATABASE eurtisan_test"
 	docker compose -f docker-compose.yml -f docker-compose.e2e.yml run --rm app bun run db:migrate
 
 db-seed-e2e: db-migrate-e2e

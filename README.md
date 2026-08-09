@@ -2,7 +2,8 @@
 
 A European-centered online marketplace for creatives, artisans, and makers.
 
-**Status:** Hardened, Nearing Production Launch (P0/P1 production-readiness blockers resolved, final staging & operability verification in progress).  
+**Status:** Pre-launch — application remediation and the signed staging deployment channel are operational; release qualification and production approval remain in progress. See [`docs/LAUNCH_STATUS.md`](docs/LAUNCH_STATUS.md).
+
 **Contributions:** Not currently accepted — issues are reviewed and welcome.
 
 ---
@@ -242,7 +243,7 @@ make e2e
 
 ## Deployment
 
-Staging and production deploy via **Ansible** onto Ubuntu VPS instances with Docker Compose and Caddy.
+Staging and production deploy via **Ansible** onto Ubuntu VPS instances with Docker Compose and the environment-owned reverse proxy (Caddy for standalone hosts or the existing Traefik proxy on shared staging).
 
 ```bash
 # One-time: initialize inventory from examples
@@ -270,7 +271,7 @@ For deeper architectural, compliance, and operational details, refer to:
 - **GDPR & Privacy:** [`docs/DATA_RETENTION.md`](docs/DATA_RETENTION.md) (Data portability exports, deletion/erasure rules, and anonymization pipelines).
 - **Security Audit Logs:** [`docs/AUDIT_LOG_POLICY.md`](docs/AUDIT_LOG_POLICY.md) (Standard fields, events, and persistence rules).
 - **User Flows:** [`docs/user_flow.md`](docs/user_flow.md) (Detailed product workflows for shopper, seller, and administrator personas).
-- **Production Readiness:** [`docs/audits/production-readiness-reconciliation.md`](docs/audits/production-readiness-reconciliation.md) (open findings and what has been verified fixed).
+- **Launch Status:** [`docs/LAUNCH_STATUS.md`](docs/LAUNCH_STATUS.md) (current go-live gates and open findings).
 
 ---
 

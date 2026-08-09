@@ -26,8 +26,7 @@ Before substantial work:
 | Build/runtime configuration and secret ownership | [`docs/runbooks/environment-configuration.md`](docs/runbooks/environment-configuration.md) |
 | Deployment and infrastructure | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) and [`infrastructure/README.md`](infrastructure/README.md) |
 | Operational procedures | [`docs/runbooks/README.md`](docs/runbooks/README.md) |
-| Known defects and open findings | [`docs/audits/production-readiness-reconciliation.md`](docs/audits/production-readiness-reconciliation.md) |
-| Surfaces that are shallow relative to the platform | [`docs/plans/feature-depth-backlog.md`](docs/plans/feature-depth-backlog.md) |
+| Current launch gates and open findings | [`docs/LAUNCH_STATUS.md`](docs/LAUNCH_STATUS.md) |
 | Data retention and deletion exceptions | [`docs/DATA_RETENTION.md`](docs/DATA_RETENTION.md) |
 | Company profile and French tax rules | `BUSINESS.md` (local, intentionally untracked) |
 | Agent/browser/integration tooling | [`docs/DEVELOPER_TOOLING.md`](docs/DEVELOPER_TOOLING.md) |
@@ -37,49 +36,22 @@ If documentation and implementation disagree, inspect the implementation and cor
 
 ## Next steps
 
-The feature-depth register ([`docs/plans/feature-depth-backlog.md`](docs/plans/feature-depth-backlog.md))
-is closed: all five entries have been through the benchmark. Each has a plan
-document in `docs/plans/` recording what was found, what was built, and what was
-deliberately left. **Read the relevant plan before reopening any of these** — the
-reasoning behind a deferral is usually the useful part.
+Current release, operations, accessibility, provider, legal, and approval gates
+live in [`docs/LAUNCH_STATUS.md`](docs/LAUNCH_STATUS.md). Do not infer production
+approval from passing CI or a successful staging deployment.
 
-The CRD Art. 6a(1)(b)/(c) trader declaration closed on 2026-08-03. It is
-collected explicitly, never inferred from DAC7 `legalEntityType`, disclosed on
-storefront, product, and checkout, and fails closed for undeclared legacy rows.
-The shipping-origin integrity defect closed the same day: settings address edits
-now merge into the decrypted origin and preserve processing times and shipping
-reach. Reviews depth also closed that day: seller replies have their own
-Article 16/17 notice and moderation surface, helpful votes are private and
-idempotent, and public reviews support deterministic rating filters and sorting.
-
-Notifications depth closed on 2026-08-04: daily grouping for the burst types,
-per-type in-app preferences that toggle exactly what
-`lib/notifications/delivery.ts` declares optional, a group list whose payload
-is bounded while counts stay exact, and a durable prior-UTC-day seller digest
-email. The phase also fixed the self-deadlock the preference row-lock
-introduced into dispute refunds: notification inserts moved out of the resolve
-transaction, matching the checkout flow's post-commit convention.
-
-Unit pricing (Directive 98/6/EC) closed on 2026-08-04: scoped categories
-(Soap & Bath, per the French arrêté of 16 November 1999 Annex II) carry a
-`sold_by` + `volume_ml` declaration, validated at write time and stripped
-outside the Annex II list; the five buyer price surfaces render the TTC
-per-kg/per-litre note, with the Art. 6 waiver at exactly one kg/L; legacy
-scoped rows fail closed with a studio completeness flag. Details in
-[`docs/plans/unit-pricing-overhaul.md`](docs/plans/unit-pricing-overhaul.md).
-
-What remains is legal review, not code:
-
-1. **Cosmetics labelling** for Soap & Bath still wants a lawyer's read and is
-   not claimed as settled.
-
-Two standing constraints that shaped all of the above and should keep doing so:
+## Standing constraints
 
 - **Legal work is scoped to what is actually required.** Where an obligation was
   uncertain, it was verified against the legislative text rather than recalled —
   and where it did not apply, that was recorded rather than padded. DSA Art. 19
   exempts micro and small enterprises from Section 3 (Arts 20–28) **only**;
   Arts 16 and 17 apply at any size.
+- **Trader status is explicit.** The CRD Art. 6a(1)(b)/(c) declaration must never
+  be inferred from DAC7 `legalEntityType`; undeclared legacy shops fail closed.
+- **Soap & Bath unit pricing is legally scoped.** Applicable products carry a
+  `sold_by` and volume declaration and render the TTC per-litre note; keep the
+  exact one-litre waiver and legacy completeness guard aligned with the tests.
 - **Eurtisan does not sell food.** The categories were removed and the terms say
   so. Do not re-add a food category without building the Regulation (EU)
   1169/2011 Art. 14 fields first — ingredients, allergens, net quantity, storage
@@ -94,10 +66,9 @@ it describes by a test rather than left to review: see
 drifted disclosure is an inaccurate statement, which is the failure these
 articles penalise.
 
-**The E2E suite has not been run across any of this work.** Four phases of
-changes are covered by unit, component, and accessibility gates only. There were
-18 pre-existing unrelated failures at the start; run `make e2e` before release
-and reconcile against that baseline.
+Run `make e2e` against the selected release-candidate SHA before production
+approval. Focused component, accessibility, CI, and live-browser verification do
+not replace a current full-suite run.
 
 ## Decision order
 

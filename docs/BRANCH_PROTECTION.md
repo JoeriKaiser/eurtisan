@@ -17,8 +17,8 @@ Configure on the repository **Settings → Branches → Branch protection rules*
 
 ## CODEOWNERS
 
-Replace `@eurtisan-maintainers` in `.github/CODEOWNERS` with your real `@org/team` or `@username`.
+`.github/CODEOWNERS` currently assigns ownership to `@JoeriKaiser`. Update that file and the required-review rule together if repository ownership changes.
 
-Production deploys: only from reviewed `main` or release tags via `deploy.sh` on the VPS.
+Production deploys only from reviewed `main` or release tags through the Ansible-managed signed release channel. The retained VPS `deploy.sh` is for emergency recovery, not normal publication or rollout.
 
 Branch protection is external owner-managed state. After changing CI job names, an owner must update the required checks and record that verification; repository-local validation cannot prove the GitHub ruleset is active.
