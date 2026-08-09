@@ -39,12 +39,30 @@ function TestDialog() {
   )
 }
 
-function TestMenu({ onChoose = vi.fn() }: { onChoose?: () => void }) {
+function TestTopDialog() {
+  return (
+    <Dialog open>
+      <DialogPortal>
+        <DialogPopup placement='top'>
+          <DialogTitle>Search</DialogTitle>
+        </DialogPopup>
+      </DialogPortal>
+    </Dialog>
+  )
+}
+
+function TestMenu({
+  compact = false,
+  onChoose = vi.fn(),
+}: {
+  compact?: boolean
+  onChoose?: () => void
+}) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger>Open actions</DropdownMenuTrigger>
       <DropdownMenuPortal>
-        <DropdownMenuPopup>
+        <DropdownMenuPopup size={compact ? 'compact' : 'default'}>
           <DropdownMenuItem onClick={onChoose}>Edit product</DropdownMenuItem>
           <DropdownMenuItem>Archive product</DropdownMenuItem>
         </DropdownMenuPopup>
@@ -70,6 +88,15 @@ describe('accessible interaction primitives', () => {
     expect(document.activeElement).toBe(trigger)
   })
 
+  it('positions top-aligned dialogs without inheriting centered translation', async () => {
+    render(<TestTopDialog />)
+    const dialog = await screen.findByRole('dialog', { name: 'Search' })
+
+    expect(dialog.className).toContain('sm:top-[10dvh]')
+    expect(dialog.className).not.toContain('top-1/2')
+    expect(dialog.className).not.toContain('-translate-y-1/2')
+  })
+
   it('operates menus by keyboard and restores focus when dismissed', async () => {
     render(<TestMenu />)
     const trigger = screen.getByRole('button', { name: 'Open actions' })
@@ -83,5 +110,14 @@ describe('accessible interaction primitives', () => {
     fireEvent.keyDown(document.activeElement ?? menu, { key: 'Escape' })
     await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
     expect(document.activeElement).toBe(trigger)
+  })
+
+  it('uses one non-conflicting width class for compact menus', async () => {
+    render(<TestMenu compact />)
+    fireEvent.click(screen.getByRole('button', { name: 'Open actions' }))
+    const menu = await screen.findByRole('menu')
+
+    expect(menu.className).toContain('w-40')
+    expect(menu.className).not.toContain('w-56')
   })
 })

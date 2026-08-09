@@ -10,16 +10,23 @@ export const DropdownMenuGroup = Menu.Group
 export const DropdownMenuGroupLabel = Menu.GroupLabel
 
 export function DropdownMenuPopup({
+  align = 'start',
   className,
   ref,
+  size = 'default',
   ...props
-}: React.HTMLAttributes<HTMLDivElement> & { ref?: React.Ref<HTMLDivElement> }) {
+}: React.HTMLAttributes<HTMLDivElement> & {
+  align?: 'start' | 'center' | 'end'
+  ref?: React.Ref<HTMLDivElement>
+  size?: 'default' | 'compact'
+}) {
   return (
-    <Menu.Positioner className='z-sticky' sideOffset={6}>
+    <Menu.Positioner className='z-sticky' sideOffset={6} align={align}>
       <Menu.Popup
         ref={ref}
         className={cn(
-          'w-56 rounded-xl border border-border-default bg-surface-default p-1.5 shadow-lg',
+          size === 'compact' ? 'w-40' : 'w-56',
+          'rounded-xl border border-border-default bg-surface-default p-1.5 shadow-lg',
           'outline-none',
           'transition-all duration-fast ease-out',
           'data-[ending-style]:opacity-0 data-[ending-style]:scale-95',

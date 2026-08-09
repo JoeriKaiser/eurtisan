@@ -1,4 +1,5 @@
-import { Globe } from 'lucide-react'
+import { Check, Globe } from 'lucide-react'
+import { m } from '#/paraglide/messages'
 import { getLocale, locales, setLocale } from '#/paraglide/runtime'
 import {
   DropdownMenu,
@@ -8,14 +9,19 @@ import {
   DropdownMenuTrigger,
 } from './ui/primitives/dropdown-menu'
 
+const LOCALE_LABELS: Record<string, string> = {
+  en: 'English',
+  nl: 'Nederlands',
+}
+
 export default function LocaleDropdown() {
   const currentLocale = getLocale()
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger
         className='flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm text-text-primary transition-colors duration-fast ease-out hover:bg-bg-inset focus-visible:bg-bg-inset outline-none'
-        aria-label='Select language'
+        aria-label={m.mobile_nav_language()}
       >
         <Globe size={18} aria-hidden='true' />
         <span className='uppercase font-semibold tracking-wide text-xs sm:inline'>
@@ -24,24 +30,18 @@ export default function LocaleDropdown() {
       </DropdownMenuTrigger>
 
       <DropdownMenuPortal>
-        <DropdownMenuPopup className='w-24 min-w-[6rem] p-1'>
+        <DropdownMenuPopup size='compact' align='end' className='p-1'>
           {locales.map((locale) => {
             const isActive = locale === currentLocale
             return (
               <DropdownMenuItem
                 key={locale}
                 onClick={() => setLocale(locale)}
-                data-active={isActive}
-                className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-semibold uppercase tracking-wide transition-colors duration-fast ease-out ${
-                  isActive
-                    ? 'bg-text-primary text-text-on-primary hover:bg-text-primary hover:text-text-on-primary'
-                    : 'text-text-secondary hover:bg-bg-inset hover:text-text-primary'
-                }`}
+                data-active={isActive ? '' : undefined}
+                className='justify-between px-3 py-2 text-sm data-[active]:bg-accent-primary-subtle data-[active]:text-accent-primary data-[active]:hover:bg-accent-primary-subtle'
               >
-                <span>{locale}</span>
-                {isActive && (
-                  <span className='size-1.5 rounded-full bg-accent-primary' aria-hidden='true' />
-                )}
+                <span>{LOCALE_LABELS[locale] ?? locale.toUpperCase()}</span>
+                {isActive && <Check size={15} strokeWidth={2.25} aria-hidden='true' />}
               </DropdownMenuItem>
             )
           })}

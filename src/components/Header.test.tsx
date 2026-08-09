@@ -89,6 +89,12 @@ vi.mock('#/paraglide/messages', () => ({
     mobile_nav_account: () => 'Your account',
     mobile_nav_language: () => 'Language',
     mobile_nav_theme: () => 'Theme',
+    megamenu_ceramics_title: () => 'Ceramics',
+    megamenu_ceramics_desc: () => 'Ceramic work',
+    megamenu_default_title: () => 'Handmade work',
+    megamenu_default_desc: () => 'Explore this craft',
+    megamenu_spotlight_title: () => 'Spotlight',
+    megamenu_spotlight_explore: () => 'Explore',
     search_header_placeholder: () => 'Search products...',
     search_header_button: () => 'Search',
     search_overlay_title: () => 'Search',
@@ -175,6 +181,7 @@ vi.mock('./search/SearchOverlay', () => ({
 
 describe('Header', () => {
   beforeEach(() => {
+    document.body.style.overflow = ''
     mockNavigate.mockClear()
     mockListCategories.mockReturnValue(Promise.resolve([]))
     mockUseLoaderData.mockReturnValue({ categories: [], user: null })
@@ -390,6 +397,29 @@ describe('Header', () => {
     await waitFor(() => {
       expect(screen.getByText('Categories')).toBeDefined()
     })
+  })
+
+  it('keeps page scrolling available while the categories menu is open', async () => {
+    mockUseLoaderData.mockReturnValue({
+      categories: [{ id: 'cat-1', name: 'Ceramics', slug: 'ceramics' }],
+      user: null,
+    })
+
+    renderWithProviders(<Header />)
+    fireEvent.click(screen.getByRole('button', { name: 'Categories' }))
+    await screen.findByRole('menu')
+
+    expect(document.body.style.overflow).not.toBe('hidden')
+  })
+
+  it('uses theme-safe selected styling in the language menu', async () => {
+    renderWithProviders(<Header />)
+    fireEvent.click(screen.getByRole('button', { name: 'Language' }))
+    const english = await screen.findByRole('menuitem', { name: 'English' })
+
+    expect(english.hasAttribute('data-active')).toBe(true)
+    expect(english.className).toContain('data-[active]:bg-accent-primary-subtle')
+    expect(english.className).not.toContain('bg-text-primary')
   })
 
   it('renders mobile menu trigger button and opens drawer on click', async () => {

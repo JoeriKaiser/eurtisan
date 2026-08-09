@@ -186,9 +186,10 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
         <DialogBackdrop />
         <DialogPopup
           ref={popupOwnerRef}
+          placement='top'
           onKeyDown={handleContainerKeyDown}
           className={cn(
-            'top-0 max-h-full w-full max-w-none -translate-y-0 sm:top-[10vh] sm:w-[640px] sm:max-w-[90vw]',
+            'max-h-[100dvh] w-full max-w-none sm:max-h-[80dvh] sm:w-[640px] sm:max-w-[90vw]',
             'flex flex-col overflow-hidden rounded-b-2xl p-0 sm:rounded-2xl',
           )}
         >
@@ -209,7 +210,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
           </div>
 
           {/* Results area */}
-          <div className='max-h-[60vh] overflow-y-auto'>
+          <div className='min-h-0 flex-1 overflow-y-auto'>
             {hasQuery ? (
               <>
                 <SearchSuggestions
@@ -260,7 +261,7 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
           </div>
 
           {/* Footer hint */}
-          <div className='flex items-center justify-between border-t border-border-default bg-surface-inset px-4 py-2 text-xs text-text-muted'>
+          <div className='hidden items-center justify-between border-t border-border-default bg-surface-inset px-4 py-2 text-xs text-text-muted sm:flex'>
             <div className='flex items-center gap-3'>
               <span className='flex items-center gap-1'>
                 <kbd className='rounded border border-border-default bg-surface-default px-1 py-0.5 text-[10px]'>

@@ -84,10 +84,10 @@ export function CategoryPage() {
   const hasActiveFilters = sort !== 'newest' || inStockOnly || minPrice !== '' || maxPrice !== ''
 
   return (
-    <main className='page-wrap px-2 pb-8 pt-14 md:px-4'>
-      <section className='island-shell rounded-2xl px-6 py-10 sm:px-10 sm:py-14'>
-        <p className='island-kicker mb-3'>{m.category_kicker()}</p>
-        <h1 className='display-title mb-5 text-4xl font-semibold text-text-primary sm:text-5xl'>
+    <main className='page-wrap px-4 pb-12 pt-8'>
+      <section className='island-shell rounded-2xl px-6 py-8 sm:px-8 sm:py-10'>
+        <p className='island-kicker mb-2'>{m.category_kicker()}</p>
+        <h1 className='display-title mb-4 text-3xl font-semibold text-text-primary sm:text-4xl'>
           {category.name}
         </h1>
 
@@ -118,7 +118,7 @@ export function CategoryPage() {
         <p className='m-0 max-w-2xl text-base text-text-secondary'>
           {m.category_description({ name: category.name })}
         </p>
-        <p className='mt-2 text-sm text-text-secondary'>
+        <p className='mt-3 text-sm font-medium text-text-secondary'>
           {/* Pluralised through the message format, not a ternary: Dutch plural
               rules differ from English and a ternary hardcodes one of them. */}
           {m.category_product_count({ count: category.productCount })}
@@ -127,10 +127,10 @@ export function CategoryPage() {
 
       {category.children.length > 0 && (
         <section className='mt-8'>
-          <h2 className='mb-4 text-xl font-semibold text-text-primary'>
+          <h2 className='mb-3 text-xl font-semibold text-text-primary'>
             {m.category_subcategories()}
           </h2>
-          <div className='grid gap-3 sm:grid-cols-2'>
+          <div className='grid gap-3 sm:grid-cols-2 lg:grid-cols-3'>
             {category.children.map((child) => (
               <CategoryCard
                 key={child.id}
@@ -144,8 +144,8 @@ export function CategoryPage() {
         </section>
       )}
 
-      <section className='mt-8'>
-        <h2 className='mb-4 text-xl font-semibold text-text-primary'>
+      <section className='mt-10'>
+        <h2 className='mb-3 text-xl font-semibold text-text-primary'>
           {m.category_products_heading()}
         </h2>
 
