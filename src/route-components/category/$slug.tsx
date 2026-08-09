@@ -164,15 +164,17 @@ export function CategoryPage() {
 
         <RankingDisclosure variant='category' />
 
-        <ProductGrid
-          products={products.products}
-          page={page}
-          totalPages={products.totalPages}
-          onPageChange={handlePageChange}
-          emptyMessage={
-            hasActiveFilters ? m.category_no_filter_results() : m.category_no_products()
-          }
-        />
+        <div className='mt-4'>
+          <ProductGrid
+            products={products.products}
+            page={page}
+            totalPages={products.totalPages}
+            onPageChange={handlePageChange}
+            emptyMessage={
+              hasActiveFilters ? m.category_no_filter_results() : m.category_no_products()
+            }
+          />
+        </div>
       </section>
     </main>
   )

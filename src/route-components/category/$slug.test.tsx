@@ -276,6 +276,13 @@ describe('CategoryPage', () => {
       expect(screen.getByText('How results are ordered')).toBeDefined()
     })
 
+    it('separates the disclosure from the product cards', () => {
+      render(<CategoryPage />)
+      const firstProduct = screen.getByRole('heading', { name: 'Vase' }).closest('a')
+
+      expect(firstProduct?.closest('.mt-4')).not.toBeNull()
+    })
+
     it('states that ranking cannot be bought', () => {
       // Required by CRD 6a(1)(a) / C. consom. L.111-7, which has no micro or
       // small enterprise exemption.
