@@ -1,12 +1,12 @@
 # Signed release promotion and rollback
 
-Eurtisan publishes environment-qualified application images to a private Scaleway Container Registry in `fr-par`. Ansible deploys only an immutable digest whose offline Cosign signature it has verified. GitHub Actions remains validation-only and receives no registry, signing, Vault, or VPS credential.
+Eurtisan publishes environment-qualified application images to private registries. Staging uses the registry on the existing EU staging VPS at `registry-staging.eurtisan.eu`; production uses Scaleway Container Registry in `fr-par`. Ansible deploys only an immutable digest whose offline Cosign signature it has verified. GitHub Actions remains validation-only and receives no registry, signing, Vault, or VPS credential.
 
 ## One-time registry and signing setup
 
-1. Create the private `eurtisan/app` repository in `rg.fr-par.scw.cloud` and confirm its region is `fr-par`.
-2. Configure provider retention so at least two known-good generations are always retained. The launch policy is to retain all release digests for 30 days and never delete either digest named by `/opt/eurtisan/releases/current.env` or `previous.env`. Provider configuration is operational evidence; the repository cannot prove it.
-3. Create separate IAM credentials:
+1. Ensure wildcard DNS routes `registry-staging.eurtisan.eu` to the staging VPS. Ansible provisions the persistent registry under `/opt/eurtisan-release-registry`, exposes only `/v2/` through Traefik, and creates separate controller and target credentials. Nginx accepts the target credential for GET/HEAD only and requires the controller credential for every mutating Registry API method. Staging retains every published release generation; monitor host disk capacity and never remove either digest named by `/opt/eurtisan/releases/current.env` or `previous.env`.
+2. Before production, create the private `eurtisan/app` repository in `rg.fr-par.scw.cloud`, confirm its region is `fr-par`, and configure provider retention for at least 30 days and at least two known-good generations.
+3. Create separate production IAM credentials:
    - controller credential: push and pull only for `eurtisan/app`;
    - target credential: pull only for `eurtisan/app`.
 4. Generate an encrypted offline key on the trusted Ansible controller:
@@ -22,9 +22,9 @@ Eurtisan publishes environment-qualified application images to a private Scalewa
    ```
 
    Store the encrypted private key and password in separate protected backups. Do not commit either key. A future key rotation must keep the previous public key available until every retained rollback generation has expired.
-5. Add `registry_push_*`, `registry_pull_*`, and `cosign_password` to encrypted Ansible Vault. Production also requires `promoted_staging_image_digest`, copied from approved staging qualification evidence.
+5. Add `staging_registry_push_*`, `staging_registry_pull_*`, `staging_registry_http_secret`, and `cosign_password` to encrypted Ansible Vault. Add the production `registry_push_*` and `registry_pull_*` IAM credentials before production deployment. Production also requires `promoted_staging_image_digest`, copied from approved staging qualification evidence.
 
-The trusted controller requires Docker and Cosign. The VPS does not receive the signing key or Cosign binary.
+The trusted controller requires Docker and Cosign. The VPS does not receive the signing key or Cosign binary. Back up the encrypted Cosign private key separately from its password and Vault password.
 
 ## Publish and deploy
 
@@ -38,7 +38,7 @@ Ansible:
 
 1. checks out the exact remote SHA in an isolated worktree;
 2. builds the environment-qualified image with the staging public configuration;
-3. pushes `staging-<full-sha>` to the private registry;
+3. pushes `staging-<full-sha>` to the self-hosted staging registry;
 4. resolves the immutable repository digest, signs it, and verifies the signature;
 5. pulls that exact digest with the target's pull-only credential;
 6. verifies the local digest and OCI revision before migrations;

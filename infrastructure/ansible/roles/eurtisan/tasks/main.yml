@@ -213,6 +213,11 @@
       when: coexist_with_proxy | default(false)
   tags: [observability]
 
+- name: Provision the staging release registry
+  ansible.builtin.include_tasks: self-hosted-registry.yml
+  when: release_registry_self_hosted | bool
+  tags: [registry]
+
 - name: Publish, sign, verify, and pull the immutable application image
   block:
     - name: Create isolated controller build directory

@@ -4,11 +4,16 @@ repository_url: "git@github.com:JoeriKaiser/eurtisan.git"
 repository_deploy_key_path: "/root/.ssh/eurtisan_github_deploy"
 
 # ── Signed release channel ───────────────────────────────────────────────
-# Private Scaleway Container Registry keeps release artifacts in fr-par.
+# Production keeps release artifacts in Scaleway's private fr-par registry.
+# Staging overrides this with a private registry on the existing staging VPS.
 # Registry credentials and the Cosign key password belong in Ansible Vault.
+release_registry_self_hosted: false
 release_registry: "rg.fr-par.scw.cloud"
 release_image_repository: "rg.fr-par.scw.cloud/eurtisan/app"
 release_registry_minimum_retained_generations: 2
+release_registry_retention_days: 30
+release_registry_root: "/opt/eurtisan-release-registry"
+release_registry_data_path: "{{ release_registry_root }}/data"
 release_signing_private_key_path: "{{ lookup('env', 'HOME') }}/.config/eurtisan/cosign.key"
 release_signing_public_key_path: "{{ lookup('env', 'HOME') }}/.config/eurtisan/cosign.pub"
 
@@ -67,10 +72,15 @@ email_smtp_port: "587"
 #   sendcloud_public_key: "provider public key"
 #   sendcloud_secret_key: "provider secret key"
 #   sendcloud_webhook_secret: "dedicated webhook secret"
-#   registry_push_access_key_id: "controller-only registry push IAM access key"
-#   registry_push_secret_key: "controller-only registry push IAM secret key"
-#   registry_pull_access_key_id: "target registry pull-only IAM access key"
-#   registry_pull_secret_key: "target registry pull-only IAM secret key"
+#   staging_registry_push_username: "controller-only staging registry username"
+#   staging_registry_push_password: "controller-only staging registry password"
+#   staging_registry_pull_username: "staging VPS pull-only registry username"
+#   staging_registry_pull_password: "staging VPS pull-only registry password"
+#   staging_registry_http_secret: "staging registry internal HTTP secret"
+#   registry_push_access_key_id: "production controller registry IAM access key"
+#   registry_push_secret_key: "production controller registry IAM secret key"
+#   registry_pull_access_key_id: "production target pull-only IAM access key"
+#   registry_pull_secret_key: "production target pull-only secret key"
 #   cosign_password: "password protecting the offline Cosign private key"
 #   promoted_staging_image_digest: "sha256:<qualified-staging-digest>" # production only
 #

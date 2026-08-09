@@ -11,13 +11,20 @@
 - name: Validate signed release channel policy
   ansible.builtin.assert:
     that:
-      - release_registry == 'rg.fr-par.scw.cloud'
-      - release_image_repository is match('^rg\.fr-par\.scw\.cloud/[a-z0-9._/-]+$')
+      - >-
+        (deployment_environment == 'staging' and (release_registry_self_hosted | bool)
+        and release_registry == 'registry-staging.eurtisan.eu'
+        and release_image_repository == release_registry ~ '/eurtisan/app')
+        or
+        (deployment_environment == 'production' and not (release_registry_self_hosted | bool)
+        and release_registry == 'rg.fr-par.scw.cloud'
+        and release_image_repository is match('^rg\.fr-par\.scw\.cloud/[a-z0-9._/-]+$'))
       - release_registry_minimum_retained_generations | int >= 2
+      - release_registry_retention_days | int >= 30
       - release_signing_private_key_path | length > 5
       - release_signing_public_key_path | length > 5
       - deployment_environment != 'production' or promoted_staging_image_digest | default('') is match('^sha256:[a-f0-9]{64}$')
-    fail_msg: "The private EU release registry, signing paths, retention, or production promotion digest is invalid"
+    fail_msg: "The environment registry, signing paths, retention, or production promotion digest is invalid"
   tags: [always, preflight]
 
 - name: Validate launch-required integrations are explicitly enabled
@@ -68,6 +75,16 @@
     - cosign_password
   loop_control:
     label: "{{ item }}"
+  tags: [always, preflight]
+
+- name: Validate the self-hosted registry secret
+  ansible.builtin.assert:
+    that:
+      - registry_http_secret | default('') is match('^[A-Za-z0-9_-]{32,}$')
+      - registry_http_secret != registry_push_secret_key
+      - registry_http_secret != registry_pull_secret_key
+    fail_msg: "registry_http_secret must be a distinct secret of at least 32 characters"
+  when: release_registry_self_hosted | bool
   tags: [always, preflight]
 
 - name: Validate staging Garage secrets
@@ -131,6 +148,8 @@
       - meilisearch_search_key != meilisearch_api_key
       - mollie_api_key is match('^(live|test)_[A-Za-z0-9_-]{20,}$')
       - sendcloud_webhook_secret != sendcloud_secret_key
+      - registry_push_access_key_id is match('^[A-Za-z0-9][A-Za-z0-9._-]{15,63}$')
+      - registry_pull_access_key_id is match('^[A-Za-z0-9][A-Za-z0-9._-]{15,63}$')
       - registry_push_access_key_id != registry_pull_access_key_id
       - registry_push_secret_key != registry_pull_secret_key
       - registry_pull_access_key_id != s3_access_key_id

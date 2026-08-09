@@ -1,4 +1,12 @@
 deployment_environment: staging
+release_registry_self_hosted: true
+release_registry: registry-staging.eurtisan.eu
+release_image_repository: registry-staging.eurtisan.eu/eurtisan/app
+registry_push_access_key_id: "{{ staging_registry_push_username }}"
+registry_push_secret_key: "{{ staging_registry_push_password }}"
+registry_pull_access_key_id: "{{ staging_registry_pull_username }}"
+registry_pull_secret_key: "{{ staging_registry_pull_password }}"
+registry_http_secret: "{{ staging_registry_http_secret }}"
 garage_enabled: true
 garage_public_domain: s3-staging.eurtisan.eu
 s3_endpoint: http://garage:3900
