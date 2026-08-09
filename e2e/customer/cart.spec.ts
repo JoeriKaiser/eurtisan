@@ -13,7 +13,7 @@ test.describe('Cart', () => {
     await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: /your cart/i })).toBeVisible()
-    await expect(page.getByRole('link', { name: /proceed to checkout/i })).toBeVisible()
+    await expect(page.getByRole('button', { name: /proceed to checkout/i })).toBeVisible()
 
     // Increase quantity.
     await page.getByRole('button', { name: /increase quantity/i }).click()

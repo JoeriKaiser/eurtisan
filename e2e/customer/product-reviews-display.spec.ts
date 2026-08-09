@@ -48,6 +48,9 @@ test.describe('Authenticated review actions', () => {
     const reportButton = firstReview.getByRole('button', { name: /report review/i })
     await expect(reportButton).toBeVisible()
     await reportButton.click()
+    const reportDialog = page.getByRole('dialog', { name: /report this review/i })
+    await expect(reportDialog).toBeVisible()
+    await reportDialog.getByRole('button', { name: /send report/i }).click()
 
     await expect(firstReview.getByRole('button', { name: /review reported/i })).toBeVisible()
     await expect(firstReview.getByRole('button', { name: /report review/i })).not.toBeVisible()

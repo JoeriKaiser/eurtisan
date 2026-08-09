@@ -23,10 +23,9 @@ test.describe('Checkout validation', () => {
     await page.goto('/checkout')
     await waitForAppHydration(page)
 
-    // Attempt submit without filling address.
-    await page.getByRole('button', { name: /confirm purchase/i }).click()
-
-    await expect(page.getByText(/name is required|full name is required/i)).toBeVisible()
+    // Submission remains unavailable until the required address is complete.
+    await expect(page.getByRole('button', { name: /confirm purchase/i })).toBeDisabled()
+    await expect(page.getByText(/enter a complete delivery address/i).last()).toBeVisible()
     await expect(page).toHaveURL(/\/checkout/)
   })
 })

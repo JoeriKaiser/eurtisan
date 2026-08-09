@@ -97,6 +97,7 @@ test.describe('onboarding changes-requested and resubmission', () => {
     await page.fill('#business-city', 'Lyon')
     await page.fill('#business-postal', '69001')
     await page.selectOption('#business-country', 'FR')
+    await page.getByRole('radio', { name: /^I am a trader/ }).check()
     await page.fill('#tax-id', 'FRTIN123456')
     await page.fill('#date-of-birth', '1990-01-01')
 

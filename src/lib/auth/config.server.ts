@@ -59,7 +59,7 @@ const ENCRYPTED_ACCOUNT_FIELDS = ['accessToken', 'refreshToken', 'idToken', 'pas
 const ENCRYPTED_TWO_FACTOR_FIELDS = ['secret', 'backupCodes'] as const
 
 function encryptModelData(model: string, data: Record<string, unknown>): Record<string, unknown> {
-  if (model !== 'account' && model !== 'two_factor') return data
+  if (model !== 'account' && model !== 'twoFactor') return data
   const fields = model === 'account' ? ENCRYPTED_ACCOUNT_FIELDS : ENCRYPTED_TWO_FACTOR_FIELDS
   const encrypted: Record<string, unknown> = { ...data }
   for (const field of fields) {
@@ -81,7 +81,7 @@ function decryptModelResult(
       string,
       unknown
     >
-  if (model === 'two_factor')
+  if (model === 'twoFactor')
     return decryptTwoFactorSecrets(
       result as Parameters<typeof decryptTwoFactorSecrets>[0],
     ) as Record<string, unknown>
@@ -109,7 +109,7 @@ export function wrapAdapter(adapter: DBAdapter<BetterAuthOptions>): DBAdapter<Be
         })) as Record<string, unknown>
         return { ...result, token: originalToken } as unknown as typeof result
       }
-      if ((model === 'account' || model === 'two_factor') && data && typeof data === 'object') {
+      if ((model === 'account' || model === 'twoFactor') && data && typeof data === 'object') {
         const encrypted = encryptModelData(model, data as Record<string, unknown>)
         const result = (await adapter.create({
           model,
@@ -130,7 +130,7 @@ export function wrapAdapter(adapter: DBAdapter<BetterAuthOptions>): DBAdapter<Be
           tokenMap,
         ) as unknown as typeof result
       }
-      if ((model === 'account' || model === 'two_factor') && where) {
+      if ((model === 'account' || model === 'twoFactor') && where) {
         const result = await adapter.findOne({ model, where, select, join })
         return decryptModelResult(
           model,
@@ -147,7 +147,7 @@ export function wrapAdapter(adapter: DBAdapter<BetterAuthOptions>): DBAdapter<Be
           .map((r) => injectToken(r as Record<string, unknown>, tokenMap))
           .filter((r): r is NonNullable<typeof r> => r !== null) as unknown as typeof results
       }
-      if (model === 'account' || model === 'two_factor') {
+      if (model === 'account' || model === 'twoFactor') {
         const results = await adapter.findMany({ model, where, ...rest })
         return results
           .map((r) => decryptModelResult(model, r as Record<string, unknown>))
@@ -164,7 +164,7 @@ export function wrapAdapter(adapter: DBAdapter<BetterAuthOptions>): DBAdapter<Be
           tokenMap,
         ) as unknown as typeof result
       }
-      if ((model === 'account' || model === 'two_factor') && where) {
+      if ((model === 'account' || model === 'twoFactor') && where) {
         const encryptedUpdate = encryptModelData(model, update as Record<string, unknown>)
         const result = await adapter.update({
           model,
@@ -184,7 +184,7 @@ export function wrapAdapter(adapter: DBAdapter<BetterAuthOptions>): DBAdapter<Be
         const { newWhere } = transformSessionWhere(where)
         return adapter.updateMany({ model, where: newWhere, update, ...rest })
       }
-      if (model === 'account' || model === 'two_factor') {
+      if (model === 'account' || model === 'twoFactor') {
         const encryptedUpdate = encryptModelData(model, update as Record<string, unknown>)
         return adapter.updateMany({ model, where, update: encryptedUpdate, ...rest })
       }
@@ -344,10 +344,12 @@ export const betterAuthOptions = {
         })
       },
     }),
-    tanstackStartCookies(),
     twoFactor({
       issuer: 'Eurtisan',
     }),
+    // Cookie integration must run after plugins whose hooks set or clear auth
+    // cookies, including the two-factor sign-in challenge.
+    tanstackStartCookies(),
   ],
   databaseHooks: {
     session: {

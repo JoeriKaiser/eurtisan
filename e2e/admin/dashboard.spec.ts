@@ -28,20 +28,20 @@ test.describe('admin dashboard', () => {
     const sidebar = page.locator('aside')
 
     const links = [
-      { label: 'Dashboard', href: '/admin' },
-      { label: 'Users', href: '/admin/users' },
-      { label: 'Categories', href: '/admin/categories' },
-      { label: 'Products', href: '/admin/products' },
-      { label: 'Shops', href: '/admin/shops' },
-      { label: 'Orders', href: '/admin/orders' },
-      { label: 'Disputes', href: '/admin/disputes' },
-      { label: 'Payouts', href: '/admin/payouts' },
-      { label: 'Reviews', href: '/admin/reviews' },
-      { label: 'Audit Log', href: '/admin/audit-log' },
+      { name: /^Dashboard$/, href: /^\/admin$/ },
+      { name: /^Users$/, href: /^\/admin\/users$/ },
+      { name: /^Categories$/, href: /^\/admin\/categories$/ },
+      { name: /^Products$/, href: /^\/admin\/products$/ },
+      { name: /^Shops(?:\s|$)/, href: /^\/admin\/shops(?:\?|$)/ },
+      { name: /^Orders$/, href: /^\/admin\/orders$/ },
+      { name: /^Disputes$/, href: /^\/admin\/disputes$/ },
+      { name: /^Payouts$/, href: /^\/admin\/payouts$/ },
+      { name: /^Reviews$/, href: /^\/admin\/reviews$/ },
+      { name: /^Audit Log$/, href: /^\/admin\/audit-log$/ },
     ]
 
-    for (const { label, href } of links) {
-      const link = sidebar.getByRole('link', { name: label, exact: true })
+    for (const { name, href } of links) {
+      const link = sidebar.getByRole('link', { name })
       await expect(link).toBeVisible()
       await expect(link).toHaveAttribute('href', href)
     }

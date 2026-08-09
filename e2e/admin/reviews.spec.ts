@@ -58,6 +58,14 @@ test.describe('admin review moderation', () => {
     return page.locator('table tbody tr').filter({ hasText: comment })
   }
 
+  async function confirmModerationDecision(page: Page): Promise<void> {
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    await dialog.getByRole('textbox', { name: /reason/i }).fill('E2E moderation decision.')
+    await dialog.getByRole('button', { name: 'Apply and notify' }).click()
+    await expect(dialog).toBeHidden()
+  }
+
   test('admin reviews list renders', async ({ page }) => {
     await page.goto('/admin/reviews')
     await waitForAppHydration(page)
@@ -99,6 +107,7 @@ test.describe('admin review moderation', () => {
     await expect(row).toBeVisible()
 
     await row.getByRole('button', { name: 'Flag' }).click()
+    await confirmModerationDecision(page)
 
     await expect(row.locator('span').filter({ hasText: 'Flagged' })).toBeVisible()
     await expect(row.getByRole('button', { name: 'Flag' })).toHaveCount(0)
@@ -114,6 +123,7 @@ test.describe('admin review moderation', () => {
     await expect(row).toBeVisible()
 
     await row.getByRole('button', { name: 'Hide' }).click()
+    await confirmModerationDecision(page)
 
     await expect(row.locator('span').filter({ hasText: 'Hidden' })).toBeVisible()
     await expect(row.getByRole('button', { name: 'Hide' })).toHaveCount(0)
@@ -129,6 +139,7 @@ test.describe('admin review moderation', () => {
     await expect(row).toBeVisible()
 
     await row.getByRole('button', { name: 'Approve' }).click()
+    await confirmModerationDecision(page)
 
     await expect(row.locator('span').filter({ hasText: 'Approved' })).toBeVisible()
     await expect(row.getByRole('button', { name: 'Approve' })).toHaveCount(0)

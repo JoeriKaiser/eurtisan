@@ -480,7 +480,6 @@ services:
       - NODE_ENV=production
     networks:
       - eurtisan
-      - db-internal
     depends_on:
       db:
         condition: service_healthy

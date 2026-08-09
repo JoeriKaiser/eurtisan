@@ -110,14 +110,16 @@ test.describe('creator customer CRM full', () => {
     await expect(page.getByText(updatedNote)).toBeVisible()
     await expect(page.getByText(initialNote)).not.toBeVisible()
 
-    // 7. Delete the note and assert it is removed.
-    page.once('dialog', async (dialog) => await dialog.accept())
+    // 7. Delete the note through the app's confirmation dialog.
     await page
       .getByRole('listitem')
       .filter({ hasText: updatedNote })
-      .getByRole('button')
-      .filter({ hasNotText: 'Edit' })
+      .getByRole('button', { name: 'Delete note' })
       .click()
+    const deleteDialog = page.getByRole('dialog', { name: /delete this note/i })
+    await expect(deleteDialog).toBeVisible()
+    await deleteDialog.getByRole('button', { name: 'Delete note' }).click()
+    await expect(deleteDialog).toBeHidden()
     await expect(page.getByText(updatedNote)).not.toBeVisible()
 
     // 8. Add a tag.

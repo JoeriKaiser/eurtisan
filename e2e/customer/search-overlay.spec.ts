@@ -9,7 +9,7 @@ import { test, expect, type Page } from '@playwright/test'
 
 test.describe('Search overlay', () => {
   function getOverlaySearchbox(page: Page) {
-    return page.getByRole('dialog', { name: 'Search' }).getByRole('searchbox')
+    return page.getByRole('dialog', { name: 'Search' }).getByRole('combobox')
   }
 
   test('opens from the header, shows suggestions, and navigates on submit', async ({ page }) => {
@@ -21,19 +21,20 @@ test.describe('Search overlay', () => {
     const searchbox = getOverlaySearchbox(page)
     await expect(searchbox).toBeFocused()
 
+    await page.mouse.move(0, 0)
     await searchbox.fill('ceramic')
 
     // Suggestions panel should populate.
-    const suggestionsList = page.getByRole('dialog', { name: 'Search' }).getByRole('list', {
-      name: /search suggestions/i,
-    })
+    const suggestionsList = page
+      .getByRole('dialog', { name: 'Search' })
+      .getByRole('listbox', { name: /search suggestions/i })
     await expect(suggestionsList).toBeVisible({ timeout: 10000 })
-    await expect(suggestionsList.getByRole('listitem').first()).toBeVisible()
+    await expect(suggestionsList.getByRole('option').first()).toBeVisible()
 
     // Submitting navigates to the search page.
     await searchbox.press('Enter')
     await page.waitForURL(/\/search\?.*q=ceramic/)
-    await expect(page.getByRole('heading', { name: /find handmade products/i })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1, name: /ceramic/i })).toBeVisible()
   })
 
   test('remembers recent searches', async ({ page }) => {

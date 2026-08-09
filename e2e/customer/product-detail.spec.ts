@@ -8,7 +8,8 @@ test.describe('Product detail', () => {
 
     const productLink = page.getByLabel(/^Product:/).first()
     await expect(productLink).toBeVisible()
-    const productName = await productLink.locator('h3').textContent()
+    const productLabel = await productLink.getAttribute('aria-label')
+    const productName = productLabel?.replace(/^Product:\s*/, '').trim()
     if (!productName) throw new Error('Product name not found')
 
     await productLink.click()
@@ -16,7 +17,7 @@ test.describe('Product detail', () => {
     await page.waitForURL(/\/shops\/[^/]+\/products\/[^/]+/)
     await expect(page.getByRole('heading', { level: 1, name: productName.trim() })).toBeVisible()
 
-    await expect(page.getByText(/€/)).toBeVisible()
+    await expect(page.getByText(/€/).first()).toBeVisible()
     await expect(page.getByRole('button', { name: /add to cart/i })).toBeVisible()
 
     // Increase quantity and add to cart.

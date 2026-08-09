@@ -264,6 +264,30 @@ describe('wrapAdapter', () => {
     expect(updated?.token).toBe('upd-token')
   })
 
+  it('encrypts Better Auth two-factor secrets at the adapter boundary', async () => {
+    const adapter = makeMockAdapter()
+    const wrapped = wrapAdapter(adapter)
+    const result = (await wrapped.create({
+      model: 'twoFactor',
+      data: {
+        secret: 'better-auth-encrypted-secret',
+        backupCodes: 'better-auth-encrypted-backup-codes',
+        userId: 'user-1',
+        verified: false,
+        failedVerificationCount: 0,
+        lockedUntil: null,
+      },
+    })) as Record<string, unknown>
+
+    const createInput = vi.mocked(adapter.create).mock.calls[0]?.[0] as {
+      data: Record<string, unknown>
+    }
+    expect(createInput.data.secret).not.toBe('better-auth-encrypted-secret')
+    expect(createInput.data.backupCodes).not.toBe('better-auth-encrypted-backup-codes')
+    expect(result.secret).toBe('better-auth-encrypted-secret')
+    expect(result.backupCodes).toBe('better-auth-encrypted-backup-codes')
+  })
+
   it('passes through non-session operations unchanged', async () => {
     const adapter = makeMockAdapter()
     const wrapped = wrapAdapter(adapter)
