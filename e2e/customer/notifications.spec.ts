@@ -45,7 +45,7 @@ test.describe('Notifications', () => {
       await firstButton.click()
 
       // Should navigate to a deep-linked page (order, product, etc.).
-      await page.waitForURL(/\/(orders|shops|account|studio|creator)\//)
+      await page.waitForURL(/\/(orders|shops|account|studio|creator|disputes)(?:\/|$)/)
     } else {
       test.skip(true, 'No seeded notifications available for deep-link test')
     }

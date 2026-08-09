@@ -4,8 +4,8 @@ import type { Page } from '@playwright/test'
 /**
  * Add the first product from the search page to the cart.
  *
- * Product cards expose the product name in an internal <h3>, so this helper
- * extracts the name from there rather than from the whole card text.
+ * Product cards expose their name through the link's accessible label. Read
+ * that stable contract instead of depending on the card's internal markup.
  */
 export async function addFirstProductToCart(page: Page): Promise<string> {
   await page.goto('/search')
@@ -13,7 +13,8 @@ export async function addFirstProductToCart(page: Page): Promise<string> {
 
   const productLink = page.getByLabel(/^Product:/).first()
   await productLink.waitFor({ state: 'visible' })
-  const productName = await productLink.locator('h3').textContent()
+  const productLabel = await productLink.getAttribute('aria-label')
+  const productName = productLabel?.replace(/^Product:\s*/, '').trim()
   if (!productName) throw new Error('First product name not found on search page')
 
   await productLink.click()

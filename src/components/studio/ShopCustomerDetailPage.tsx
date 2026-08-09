@@ -1,4 +1,3 @@
-import { useRouter } from '@tanstack/react-router'
 import ConfirmDialog from '#/components/ui/ConfirmDialog'
 import { getOrderStatusLabel } from '#/lib/orders-ui'
 import { Download, Mail, Plus, Trash2, X } from 'lucide-react'
@@ -28,7 +27,6 @@ interface ShopCustomerDetailPageProps {
 }
 
 export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailPageProps) {
-  const router = useRouter()
   const [localCustomer, setLocalCustomer] = useState(customer)
   const [pendingNoteDelete, setPendingNoteDelete] = useState<string | null>(null)
   const [loading, setLoading] = useState({
@@ -58,10 +56,6 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
     setFeedback({ type, message })
   }
 
-  const refresh = async () => {
-    await router.invalidate()
-  }
-
   const handleAddNote = async () => {
     const content = newNote.trim()
     if (!content) return
@@ -73,7 +67,6 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
       setLocalCustomer((prev) => ({ ...prev, notes: [note, ...prev.notes] }))
       setNewNote('')
       showFeedback('success', m.studio_customer_note_added())
-      void refresh()
     } catch {
       showFeedback('error', m.studio_customer_note_error())
     } finally {
@@ -100,7 +93,6 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
       setEditingNoteId(null)
       setEditNoteContent('')
       showFeedback('success', m.studio_customer_note_updated())
-      void refresh()
     } catch {
       showFeedback('error', m.studio_customer_note_error())
     } finally {
@@ -120,7 +112,6 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
         notes: prev.notes.filter((note) => note.id !== noteId),
       }))
       showFeedback('success', m.studio_customer_note_deleted())
-      void refresh()
     } catch {
       showFeedback('error', m.studio_customer_note_error())
     } finally {
@@ -142,7 +133,6 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
       }))
       setNewTag('')
       showFeedback('success', m.studio_customer_tag_added())
-      void refresh()
     } catch {
       showFeedback('error', m.studio_customer_tag_error())
     } finally {
@@ -159,7 +149,6 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
         tags: prev.tags.filter((t) => t !== tag),
       }))
       showFeedback('success', m.studio_customer_tag_removed())
-      void refresh()
     } catch {
       showFeedback('error', m.studio_customer_tag_error())
     } finally {
@@ -391,6 +380,7 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
                             </button>
                             <button
                               type='button'
+                              aria-label={m.studio_customer_note_delete()}
                               onClick={() => setPendingNoteDelete(note.id)}
                               className='text-error hover:text-error-hover'
                             >

@@ -82,6 +82,9 @@ test.describe('Search', () => {
       .click()
 
     const input = page.getByRole('combobox')
+    // Keep the pointer away from the suggestions so hover does not choose an
+    // option before this keyboard-only interaction starts.
+    await page.mouse.move(0, 0)
     await input.fill('ceramic')
     await expect(page.getByRole('listbox')).toBeVisible()
 
@@ -97,6 +100,6 @@ test.describe('Search', () => {
     await page.goto('/search?q=zzzzznotathing')
     await waitForAppHydration(page)
 
-    await expect(page.getByText(/no products|geen producten/i).first()).toBeVisible()
+    await expect(page.getByRole('heading', { name: /no results found/i })).toBeVisible()
   })
 })

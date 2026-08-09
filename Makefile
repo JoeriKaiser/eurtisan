@@ -170,8 +170,8 @@ E2E_DATABASE_URL ?= postgresql://eurtisan:eurtisan@db-test:5432/eurtisan_test
 UNIT_DATABASE_URL ?= postgresql://eurtisan:eurtisan@db-test:5432/eurtisan_unit
 
 db-migrate-unit: ensure-up
-	@docker compose up -d db-test
-	@docker compose exec -T db-test createdb -U eurtisan eurtisan_unit 2>/dev/null || true
+	@docker compose up -d --wait db-test
+	@docker compose exec -T db-test psql -U eurtisan -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = 'eurtisan_unit'" | grep -q 1 || docker compose exec -T db-test createdb -U eurtisan eurtisan_unit
 	@docker compose exec -T -e DATABASE_URL=$(UNIT_DATABASE_URL) app bun run db:migrate
 
 # Ensure the isolated E2E database is up before migrating/seeding.

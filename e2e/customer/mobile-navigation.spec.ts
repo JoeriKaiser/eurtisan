@@ -57,6 +57,6 @@ test.describe('Mobile navigation', () => {
     await expect(navigation).toBeHidden()
     const searchDialog = page.getByRole('dialog', { name: 'Search' })
     await expect(searchDialog).toBeVisible()
-    await expect(searchDialog.getByRole('searchbox')).toBeFocused()
+    await expect(searchDialog.getByRole('combobox')).toBeFocused()
   })
 })
