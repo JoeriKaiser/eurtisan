@@ -28,7 +28,7 @@ export default function Logo({
 
   const textColor =
     variant === 'default'
-      ? 'text-brand'
+      ? 'text-text-brand'
       : variant === 'minimal'
         ? 'text-text-primary'
         : 'text-current'

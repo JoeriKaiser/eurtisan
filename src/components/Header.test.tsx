@@ -201,9 +201,13 @@ describe('Header', () => {
     })
   })
 
-  it('renders logo and navigation links', () => {
+  it('renders a unified brand-colour logo and navigation links', () => {
     renderWithProviders(<Header />)
-    expect(screen.getByText('Eurtisan')).toBeDefined()
+    const wordmark = screen.getByText('Eurtisan')
+    const mark = wordmark.closest('a')?.querySelector('rect')
+
+    expect(wordmark.className).toContain('text-text-brand')
+    expect(mark?.getAttribute('fill')).toBe('var(--ds-text-brand)')
     expect(screen.getByText('Home')).toBeDefined()
     expect(screen.getByText('About')).toBeDefined()
   })

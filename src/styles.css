@@ -99,7 +99,7 @@
   --ds-text-secondary: var(--palette-walnut-600);
   --ds-text-muted: var(--palette-walnut-600);
   --ds-text-placeholder: var(--palette-walnut-600);
-  --ds-text-brand: var(--ds-accent-primary);
+  --ds-text-brand: var(--ds-accent-secondary);
   --ds-text-on-accent: var(--palette-walnut-50);
   --ds-text-on-primary: var(--palette-walnut-50);
 
@@ -214,7 +214,7 @@
   --ds-text-secondary: var(--palette-walnut-300);
   --ds-text-muted: var(--palette-walnut-400);
   --ds-text-placeholder: var(--palette-walnut-300);
-  --ds-text-brand: var(--palette-moss-300);
+  --ds-text-brand: var(--palette-sage-400);
   --ds-text-on-accent: var(--palette-walnut-950);
   --ds-text-on-primary: var(--palette-walnut-950);
 
@@ -287,7 +287,7 @@
     --ds-text-secondary: var(--palette-walnut-300);
     --ds-text-muted: var(--palette-walnut-400);
     --ds-text-placeholder: var(--palette-walnut-300);
-    --ds-text-brand: var(--palette-moss-300);
+    --ds-text-brand: var(--palette-sage-400);
     --ds-text-on-accent: var(--palette-walnut-950);
     --ds-text-on-primary: var(--palette-walnut-950);
 

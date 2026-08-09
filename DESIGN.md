@@ -127,8 +127,8 @@ The palette is built in OKLCH for perceptual uniformity. Every neutral is tinted
 - **Moss Light** (`oklch(62% 0.09 145)`): Dark mode primary, hover states.
 
 ### Secondary
-- **Warm Sage** (`oklch(58% 0.1 175)`): Links, secondary accents, focus rings. Fresh and European.
-- **Sage Light** (`oklch(72% 0.09 175)`): Dark mode links, subtle accents.
+- **Warm Sage** (`oklch(58% 0.1 175)`): Brand lockup, links, secondary accents, and focus rings. Fresh and European.
+- **Sage Light** (`oklch(72% 0.09 175)`): Dark mode brand lockup, links, and subtle accents.
 
 ### Neutral
 - **Walnut 900** (`oklch(18% 0.014 75)`): Light mode text primary. Warm, not black.
@@ -144,6 +144,8 @@ The palette is built in OKLCH for perceptual uniformity. Every neutral is tinted
 
 ### Named Rules
 **The 10% Rule.** The primary accent (moss green) appears on ≤10% of any product UI screen. Its rarity is the point. Brand surfaces may exceed this in hero moments.
+
+**The Unified Lockup Rule.** The Eurtisan mark and wordmark use the same semantic brand token: warm sage in light mode and sage light in dark mode. Never colour the two parts independently.
 
 **The No-Purple-No-Orange Rule.** These hues are explicitly excluded from the palette. They are not used anywhere in the system.
 
