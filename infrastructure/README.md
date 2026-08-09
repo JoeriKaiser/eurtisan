@@ -93,7 +93,7 @@ The playbook will:
 3. Install rclone for off-site backups
 4. Validate that at least one Alertmanager receiver is configured in production
 5. Clone the repository to `/opt/eurtisan`
-6. Build the environment-qualified release in a clean controller worktree, publish it to the private `fr-par` registry, and sign its digest
+6. Build the environment-qualified release in a clean controller worktree, publish it to the environment's private registry, and sign its digest
 7. Verify the signature, repository digest, and OCI revision before writing runtime configuration
 8. Run migrations and start all services
 9. Set up nightly database backups with off-site upload when configured
@@ -104,6 +104,7 @@ The playbook will:
 Set an A record for your domain/subdomain pointing to the VPS IP:
 - `staging.eurtisan.eu` → staging VPS IP
 - `s3-staging.eurtisan.eu` → staging VPS IP (Garage S3 API)
+- `registry-staging.eurtisan.eu` → staging VPS IP (authenticated release registry)
 - `eurtisan.eu` + `www.eurtisan.eu` → production VPS IP
 
 Caddy will automatically provision Let's Encrypt certificates on first request.
@@ -120,8 +121,10 @@ make infra-setup-production
 ```
 
 Ansible builds from a clean worktree at the exact checked-out release, publishes and
-signs the environment-qualified digest in the private Scaleway `fr-par` registry,
-then makes the target pull only that verified digest. The VPS `deploy.sh` only accepts
+signs the environment-qualified digest in the environment's private registry, then
+makes the target pull only that verified digest. Staging's registry runs persistently
+under `/opt/eurtisan-release-registry` on the existing staging VPS; production uses
+Scaleway Container Registry in `fr-par`. The VPS `deploy.sh` only accepts
 a local digest matching Ansible-managed repository and revision metadata and never
 compiles source on the target. See
 [`docs/runbooks/release-promotion-and-rollback.md`](../docs/runbooks/release-promotion-and-rollback.md).

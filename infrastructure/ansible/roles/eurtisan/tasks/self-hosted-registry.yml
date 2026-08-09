@@ -1,0 +1,138 @@
+---
+- name: Require the existing staging proxy for the self-hosted registry
+  ansible.builtin.assert:
+    that:
+      - deployment_environment == 'staging'
+      - coexist_with_proxy | default(false) | bool
+    fail_msg: "The self-hosted release registry requires staging's existing HTTPS proxy"
+
+- name: Install password hashing support for registry authentication
+  ansible.builtin.apt:
+    name: python3-passlib
+    state: present
+    update_cache: true
+
+- name: Create self-hosted release registry directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: "{{ item.group | default('root') }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - path: "{{ release_registry_root }}"
+      mode: "0700"
+    - path: "{{ release_registry_root }}/auth"
+      group: "101"
+      mode: "0750"
+    - path: "{{ release_registry_data_path }}"
+      mode: "0700"
+
+- name: Write the controller-only registry credential
+  community.general.htpasswd:
+    path: "{{ release_registry_root }}/auth/registry-push.htpasswd"
+    name: "{{ registry_push_access_key_id }}"
+    password: "{{ registry_push_secret_key }}"
+    crypt_scheme: bcrypt
+    owner: root
+    group: "101"
+    mode: "0640"
+  no_log: true
+
+- name: Add the controller credential to the registry reader file
+  community.general.htpasswd:
+    path: "{{ release_registry_root }}/auth/registry-users.htpasswd"
+    name: "{{ registry_push_access_key_id }}"
+    password: "{{ registry_push_secret_key }}"
+    crypt_scheme: bcrypt
+    owner: root
+    group: "101"
+    mode: "0640"
+  no_log: true
+
+- name: Add the target pull-only registry credential
+  community.general.htpasswd:
+    path: "{{ release_registry_root }}/auth/registry-users.htpasswd"
+    name: "{{ registry_pull_access_key_id }}"
+    password: "{{ registry_pull_secret_key }}"
+    crypt_scheme: bcrypt
+    owner: root
+    group: "101"
+    mode: "0640"
+  no_log: true
+
+- name: Render the registry reverse-proxy configuration
+  ansible.builtin.template:
+    src: release-registry-nginx.conf.j2
+    dest: "{{ release_registry_root }}/nginx.conf"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Install the registry Compose project
+  ansible.builtin.copy:
+    src: release-registry-compose.yml
+    dest: "{{ release_registry_root }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Render the registry Compose environment
+  ansible.builtin.template:
+    src: release-registry.env.j2
+    dest: "{{ release_registry_root }}/.env"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Publish the registry's HTTPS route through Traefik
+  ansible.builtin.template:
+    src: release-registry-traefik.yml.j2
+    dest: /data/coolify/proxy/dynamic/eurtisan-release-registry.yml
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Start the persistent release registry backend
+  ansible.builtin.command: docker compose up -d --wait registry
+  args:
+    chdir: "{{ release_registry_root }}"
+  changed_when: true
+
+- name: Recreate the registry authentication proxy
+  ansible.builtin.command: docker compose up -d --wait --force-recreate registry-proxy
+  args:
+    chdir: "{{ release_registry_root }}"
+  changed_when: true
+
+- name: Wait for the authenticated registry endpoint
+  ansible.builtin.uri:
+    url: "https://{{ release_registry }}/v2/"
+    method: GET
+    url_username: "{{ registry_pull_access_key_id }}"
+    url_password: "{{ registry_pull_secret_key }}"
+    force_basic_auth: true
+    status_code: 200
+    validate_certs: true
+  delegate_to: localhost
+  become: false
+  register: self_hosted_registry_ready
+  until: self_hosted_registry_ready.status | default(0) == 200
+  retries: 30
+  delay: 2
+  no_log: true
+
+- name: Prove the target credential cannot start an upload
+  ansible.builtin.uri:
+    url: "https://{{ release_registry }}/v2/eurtisan/access-probe/blobs/uploads/"
+    method: POST
+    url_username: "{{ registry_pull_access_key_id }}"
+    url_password: "{{ registry_pull_secret_key }}"
+    force_basic_auth: true
+    status_code: 401
+    validate_certs: true
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  no_log: true

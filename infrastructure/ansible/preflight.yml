@@ -4,7 +4,7 @@
   gather_facts: false
   connection: local
   vars:
-    ansible_python_interpreter: /usr/local/bin/python3.12
+    ansible_python_interpreter: "{{ ansible_playbook_python }}"
     release_version: "0000000000000000000000000000000000000000"
     image_tag: "000000000000"
 
@@ -29,3 +29,17 @@
         mode: "0600"
       check_mode: true
       changed_when: false
+
+    - name: Render self-hosted registry templates without writing them
+      ansible.builtin.template:
+        src: "roles/eurtisan/templates/{{ item }}"
+        dest: "/tmp/eurtisan-{{ inventory_hostname }}-{{ item | regex_replace('\\.j2$', '') }}"
+        mode: "0600"
+      loop:
+        - release-registry.env.j2
+        - release-registry-nginx.conf.j2
+        - release-registry-traefik.yml.j2
+      when: release_registry_self_hosted | bool
+      check_mode: true
+      changed_when: false
+      no_log: true

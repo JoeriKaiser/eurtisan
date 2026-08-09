@@ -36,6 +36,11 @@ registry_push_access_key_id: ci-validation-registry-push-access
 registry_push_secret_key: ci-validation-registry-push-secret
 registry_pull_access_key_id: ci-validation-registry-pull-access
 registry_pull_secret_key: ci-validation-registry-pull-secret
+staging_registry_push_username: ci-validation-staging-push-user
+staging_registry_push_password: ci-validation-staging-push-password
+staging_registry_pull_username: ci-validation-staging-pull-user
+staging_registry_pull_password: ci-validation-staging-pull-password
+staging_registry_http_secret: ci-validation-registry-http-secret-0001
 cosign_password: ci-validation-cosign-password
 promoted_staging_image_digest: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 brevo_api_key: ci-validation-brevo-api-key

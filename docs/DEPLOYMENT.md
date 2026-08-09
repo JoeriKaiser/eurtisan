@@ -7,7 +7,7 @@ Deploy Eurtisan to staging and production using Ansible and Docker.
 ## Prerequisites
 
 - **Ansible** installed locally: `pip install ansible`
-- **Docker and Cosign** on the trusted Ansible controller; release images are built there from a clean Git worktree, signed, and published to the private `fr-par` registry
+- **Docker and Cosign** on the trusted Ansible controller; release images are built there from a clean Git worktree, signed, and published to the environment's private registry
 - **Two VPSes** (or one for staging + one for production):
   - Ubuntu 24.04 LTS
   - Staging: 2 vCPU / 4GB RAM minimum
@@ -107,6 +107,7 @@ Add A records:
 | Record | Target |
 |--------|--------|
 | `staging.eurtisan.eu` | Staging VPS IP |
+| `registry-staging.eurtisan.eu` | Staging VPS IP (required for the self-hosted registry) |
 | `eurtisan.eu` | Production VPS IP |
 | `www.eurtisan.eu` | Production VPS IP (optional) |
 
@@ -131,12 +132,14 @@ make infra-setup-production
 ```
 
 The controller checks out the exact remote Git SHA into a clean temporary worktree,
-builds the environment-qualified variant, publishes it to the private Scaleway
-`fr-par` registry, signs the immutable digest with the protected offline Cosign key,
-and verifies the signature before the target pulls that digest. The target verifies
-the repository digest and OCI revision before migrations. No production image
-compilation occurs on a VPS. Production additionally requires the qualified staging
-digest as an explicit promotion input; see
+builds the environment-qualified variant, and publishes it to the environment's
+private registry. Staging uses the authenticated registry on the existing staging
+VPS at `registry-staging.eurtisan.eu`; production uses Scaleway Container Registry
+in `fr-par`. The controller signs the immutable digest with the protected offline
+Cosign key and verifies the signature before the target pulls that digest. The
+target verifies the repository digest and OCI revision before migrations. No
+application image compilation occurs on a VPS. Production additionally requires
+the qualified staging digest as an explicit promotion input; see
 [Signed release promotion and rollback](./runbooks/release-promotion-and-rollback.md).
 
 `/opt/eurtisan/deploy.sh` is retained for controlled recovery of an image digest that

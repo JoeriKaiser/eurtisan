@@ -13,7 +13,7 @@ A qualification is tied to all four values below:
 - SHA-256 digest of the compiled `client-config.json`;
 - EU staging region.
 
-The host must run the recorded image digest; a mutable tag is not qualification evidence. Ansible publishes the environment-qualified staging variant to the private `fr-par` registry, signs its digest, verifies it, and reports it for this record. Because browser-visible configuration remains immutable build input, production is a separately built and signed variant of the approved Git SHA rather than the same bytes. Production preflight requires this qualified staging digest as the explicit promotion input. See [Signed release promotion and rollback](./release-promotion-and-rollback.md).
+The host must run the recorded image digest; a mutable tag is not qualification evidence. Ansible publishes the environment-qualified staging variant to the authenticated registry on the EU staging VPS, signs its digest, verifies it, and reports it for this record. Because browser-visible configuration remains immutable build input, production is a separately built and signed variant of the approved Git SHA rather than the same bytes. Production preflight requires this qualified staging digest as the explicit promotion input. See [Signed release promotion and rollback](./release-promotion-and-rollback.md).
 
 ## Evidence lifecycle
 

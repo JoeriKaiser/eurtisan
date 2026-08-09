@@ -73,6 +73,13 @@ done
 
 validate docker-compose.prod.yml production
 validate docker-compose.staging.yml staging
+env \
+  REGISTRY_HTTP_SECRET=compose-validation-registry-secret \
+  RELEASE_REGISTRY_DATA_PATH=/tmp/eurtisan-registry-validation \
+  docker compose \
+    -f infrastructure/ansible/roles/eurtisan/files/release-registry-compose.yml \
+    config --quiet
 docker compose -f docker-compose.yml -f docker-compose.ci.yml config --quiet
+bash scripts/validate-release-registry-access.sh
 
-echo "Production, staging, and CI Compose configuration is valid"
+echo "Production, staging, registry, and CI Compose configuration is valid"
