@@ -73,7 +73,7 @@ export function BrowseFilters({
   }
 
   return (
-    <div className='mb-6 flex flex-wrap items-end gap-x-6 gap-y-4'>
+    <div className='mb-4 flex flex-wrap items-end gap-x-5 gap-y-4 rounded-xl border border-border-default bg-surface-inset/60 px-4 py-4'>
       {showCategory && (
         <div>
           <label
@@ -99,48 +99,52 @@ export function BrowseFilters({
       )}
 
       {price && (
-        <div>
+        <div className='w-full sm:w-auto'>
           <span className='mb-1.5 block text-xs font-medium text-text-secondary'>
             {m.search_filter_price_eur()}
           </span>
-          <div className='flex items-center gap-2'>
-            <Input
-              type='number'
-              min={0}
-              step='0.01'
-              placeholder={m.search_filter_min_price()}
-              defaultValue={price.min}
-              // Committed on blur and Enter rather than on every keystroke: a
-              // navigation per digit would make the field unusable.
-              onBlur={(event) => onChange({ minPrice: event.target.value || undefined })}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault()
-                  onChange({ minPrice: event.currentTarget.value || undefined })
-                }
-              }}
-              className='h-10 w-28 text-sm'
-              aria-label={m.search_filter_min_price()}
-            />
+          <div className='grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:w-auto'>
+            <div className='min-w-0 sm:w-36'>
+              <Input
+                type='number'
+                min={0}
+                step='0.01'
+                placeholder={m.search_filter_min_price()}
+                defaultValue={price.min}
+                // Committed on blur and Enter rather than on every keystroke: a
+                // navigation per digit would make the field unusable.
+                onBlur={(event) => onChange({ minPrice: event.target.value || undefined })}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    onChange({ minPrice: event.currentTarget.value || undefined })
+                  }
+                }}
+                className='text-sm'
+                aria-label={m.search_filter_min_price()}
+              />
+            </div>
             <span className='text-text-muted' aria-hidden='true'>
               -
             </span>
-            <Input
-              type='number'
-              min={0}
-              step='0.01'
-              placeholder={m.search_filter_max_price()}
-              defaultValue={price.max}
-              onBlur={(event) => onChange({ maxPrice: event.target.value || undefined })}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault()
-                  onChange({ maxPrice: event.currentTarget.value || undefined })
-                }
-              }}
-              className='h-10 w-28 text-sm'
-              aria-label={m.search_filter_max_price()}
-            />
+            <div className='min-w-0 sm:w-36'>
+              <Input
+                type='number'
+                min={0}
+                step='0.01'
+                placeholder={m.search_filter_max_price()}
+                defaultValue={price.max}
+                onBlur={(event) => onChange({ maxPrice: event.target.value || undefined })}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    onChange({ maxPrice: event.currentTarget.value || undefined })
+                  }
+                }}
+                className='text-sm'
+                aria-label={m.search_filter_max_price()}
+              />
+            </div>
           </div>
         </div>
       )}
@@ -161,10 +165,10 @@ export function BrowseFilters({
                 onChange({ sort: option.value === 'newest' ? undefined : option.value })
               }
               aria-pressed={sort === option.value}
-              className={`min-h-10 rounded-lg px-3 py-2 text-sm transition-colors ${
+              className={`min-h-11 rounded-lg border px-3 py-2 text-sm transition-colors ${
                 sort === option.value
-                  ? 'bg-accent-primary text-text-on-primary'
-                  : 'bg-surface-inset text-text-secondary hover:text-text-primary'
+                  ? 'border-accent-primary bg-accent-primary text-text-on-primary'
+                  : 'border-border-default bg-surface-default text-text-secondary hover:border-border-strong hover:text-text-primary'
               }`}
             >
               {option.label}
@@ -173,7 +177,7 @@ export function BrowseFilters({
         </div>
       </fieldset>
 
-      <label className='flex min-h-10 cursor-pointer items-center gap-2 text-sm text-text-primary'>
+      <label className='flex min-h-11 cursor-pointer items-center gap-2 text-sm text-text-primary'>
         <input
           type='checkbox'
           checked={inStockOnly}

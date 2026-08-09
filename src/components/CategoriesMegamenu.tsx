@@ -118,7 +118,7 @@ export default function CategoriesMegamenu({ categories }: CategoriesMegamenuPro
         />
       )}
 
-      <Menu.Root open={isOpen} onOpenChange={handleOpenChange}>
+      <Menu.Root open={isOpen} onOpenChange={handleOpenChange} modal={false}>
         <Menu.Trigger
           className='nav-link inline-flex cursor-pointer items-center gap-0.5 bg-transparent outline-none group border-none py-1'
           aria-haspopup='menu'
@@ -152,8 +152,7 @@ export default function CategoriesMegamenu({ categories }: CategoriesMegamenuPro
                       className={cn(
                         'flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-semibold transition-all duration-fast text-text-secondary outline-none',
                         'hover:bg-bg-inset focus-visible:bg-bg-inset hover:text-text-primary focus-visible:text-text-primary',
-                        isActive &&
-                          'bg-bg-inset text-text-primary border-l-2 border-accent-primary pl-2.5 rounded-l-none',
+                        isActive && 'bg-accent-primary-subtle text-accent-primary',
                       )}
                       onMouseEnter={() => handleParentHover(cat)}
                       onClick={() => handleNavigate(`/category/${cat.slug}`)}

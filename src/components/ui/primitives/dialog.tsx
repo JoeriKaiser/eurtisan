@@ -28,14 +28,19 @@ export function DialogBackdrop({
 
 export function DialogPopup({
   className,
+  placement = 'center',
   ref,
   ...props
-}: React.HTMLAttributes<HTMLDivElement> & { ref?: React.Ref<HTMLDivElement> }) {
+}: React.HTMLAttributes<HTMLDivElement> & {
+  placement?: 'center' | 'top'
+  ref?: React.Ref<HTMLDivElement>
+}) {
   return (
     <BaseDialog.Popup
       ref={ref}
       className={cn(
-        'fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2',
+        'fixed left-1/2 -translate-x-1/2',
+        placement === 'center' ? 'top-1/2 -translate-y-1/2' : 'top-0 sm:top-[10dvh]',
         'z-modal w-full max-w-lg rounded-xl border border-border-default bg-surface-default p-6 shadow-xl',
         'transition-all duration-fast ease-out',
         'data-[ending-style]:opacity-0 data-[ending-style]:scale-95',
