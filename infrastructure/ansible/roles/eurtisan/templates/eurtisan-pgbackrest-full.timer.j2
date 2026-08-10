@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the Eurtisan weekly full physical database backup
+
+[Timer]
+OnCalendar=Sun *-*-* 01:00:00 UTC
+Persistent=true
+AccuracySec=1m
+Unit=eurtisan-pgbackrest-backup@full.service
+
+[Install]
+WantedBy=timers.target

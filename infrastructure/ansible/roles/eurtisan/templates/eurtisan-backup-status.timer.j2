@@ -1,0 +1,11 @@
+[Unit]
+Description=Report Eurtisan backup and WAL status every five minutes
+
+[Timer]
+OnBootSec=5m
+OnUnitActiveSec=5m
+AccuracySec=30s
+Unit=eurtisan-backup-status.service
+
+[Install]
+WantedBy=timers.target

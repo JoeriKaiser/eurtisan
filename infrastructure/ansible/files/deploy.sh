@@ -12,6 +12,10 @@ set -euo pipefail
 
 APP_DIR="/opt/eurtisan"
 COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
+COMPOSE_FILES=(-f "$COMPOSE_FILE")
+if [ -f "$APP_DIR/docker-compose.wal-archive.yml" ]; then
+  COMPOSE_FILES+=(-f "$APP_DIR/docker-compose.wal-archive.yml")
+fi
 
 # Load environment variables from the Ansible-managed .env so the script can
 # reach services and alert endpoints without duplicating configuration.
@@ -64,7 +68,7 @@ poll_endpoint() {
   local delay="${3:-5}"
 
   for i in $(seq 1 "$max_attempts"); do
-    if docker compose -f "$COMPOSE_FILE" exec -T app \
+    if docker compose "${COMPOSE_FILES[@]}" exec -T app \
       curl -fsS "${SMOKE_TEST_BASE}${path}" >/dev/null 2>&1; then
       return 0
     fi
@@ -153,7 +157,7 @@ run_canary() {
 }
 
 echo "==> Tagging current app image for rollback..."
-CURRENT_CONTAINER=$(docker compose -f "$COMPOSE_FILE" ps -q app 2>/dev/null || true)
+CURRENT_CONTAINER=$(docker compose "${COMPOSE_FILES[@]}" ps -q app 2>/dev/null || true)
 if [ -n "$CURRENT_CONTAINER" ]; then
   CURRENT_IMAGE=$(docker inspect --format='{{.Image}}' "$CURRENT_CONTAINER" 2>/dev/null || true)
   if [ -n "$CURRENT_IMAGE" ]; then
@@ -180,7 +184,7 @@ sed -i -E "s/^IMAGE_TAG=.*/IMAGE_TAG=${IMAGE_TAG}/" "$APP_DIR/.env"
 sed -i -E "s/^VITE_APP_VERSION=.*/VITE_APP_VERSION=${RELEASE_VERSION}/" "$APP_DIR/.env"
 
 # Compose interpolation must succeed before any application container starts.
-docker compose -f "$COMPOSE_FILE" config >/dev/null
+docker compose "${COMPOSE_FILES[@]}" config >/dev/null
 
 echo "==> Verifying Ansible-qualified application image (tag: ${IMAGE_TAG})..."
 if ! docker image inspect "eurtisan-app:${IMAGE_TAG}" >/dev/null 2>&1; then
@@ -209,10 +213,10 @@ echo "==> Validating compiled browser configuration..."
 docker run --rm --env-file "$APP_DIR/.env" "eurtisan-app:${IMAGE_TAG}" bun run smoke:client-config
 
 echo "==> Validating server environment contract..."
-docker compose -f "$COMPOSE_FILE" run --rm --no-deps app bun run validate:server-env
+docker compose "${COMPOSE_FILES[@]}" run --rm --no-deps app bun run validate:server-env
 
 echo "==> Running database migrations..."
-if docker compose -f "$COMPOSE_FILE" run --rm --no-deps app bun run db:migrate; then
+if docker compose "${COMPOSE_FILES[@]}" run --rm --no-deps app bun run db:migrate; then
   echo "==> Migration succeeded"
 
   if [ "$CANARY" = true ]; then
@@ -223,7 +227,7 @@ if docker compose -f "$COMPOSE_FILE" run --rm --no-deps app bun run db:migrate; 
   fi
 
   echo "==> Restarting services..."
-  docker compose -f "$COMPOSE_FILE" up -d
+  docker compose "${COMPOSE_FILES[@]}" up -d
 
   if [ "$SKIP_SMOKE_TEST" = false ]; then
     if ! run_smoke_tests; then
@@ -231,7 +235,7 @@ if docker compose -f "$COMPOSE_FILE" run --rm --no-deps app bun run db:migrate; 
       send_alert "🚨 Eurtisan deploy FAILED on $(hostname): smoke tests failed for ${GIT_REF}. Rolling back."
 
       echo "==> Ensuring old containers are running with rollback image..."
-      IMAGE_TAG=rollback-before-deploy docker compose -f "$COMPOSE_FILE" up -d
+      IMAGE_TAG=rollback-before-deploy docker compose "${COMPOSE_FILES[@]}" up -d
 
       # Re-run smoke tests against the rollback image so we confirm the site is up.
       if run_smoke_tests; then
@@ -253,7 +257,7 @@ else
   send_alert "🚨 Eurtisan deploy FAILED on $(hostname): database migration failed for ${GIT_REF}. Rolling back."
 
   echo "==> Ensuring old containers are running with rollback image..."
-  IMAGE_TAG=rollback-before-deploy docker compose -f "$COMPOSE_FILE" up -d
+  IMAGE_TAG=rollback-before-deploy docker compose "${COMPOSE_FILES[@]}" up -d
   exit 1
 fi
 

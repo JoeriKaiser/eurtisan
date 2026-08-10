@@ -83,6 +83,15 @@ email_smtp_port: "587"
 #   registry_pull_secret_key: "production target pull-only secret key"
 #   cosign_password: "password protecting the offline Cosign private key"
 #   promoted_staging_image_digest: "sha256:<qualified-staging-digest>" # production only
+#   pgbackrest_repo_cipher_pass: "generate with: openssl rand -base64 48"
+#   backup_logical_cipher_pass: "generate with: openssl rand -base64 48"
+#   backup_logical_s3_access_key: "off-site logical-backup writer key"
+#   backup_logical_s3_secret_key: "off-site logical-backup writer secret"
+#   backup_primary_uploads_access_key: "primary uploads read-only key"
+#   backup_primary_uploads_secret_key: "primary uploads read-only secret"
+#   backup_rclone_crypt_password: "generate with: rclone obscure '<random passphrase>'"
+#   pgbackrest_s3_access_key: "off-site pgBackRest repository key"
+#   pgbackrest_s3_secret_key: "off-site pgBackRest repository secret"
 #
 # Optional — webhook URL for backup failure alerts (e.g. Slack, Discord, OpsGenie).
 #   backup_alert_webhook: "https://hooks.slack.com/services/..."
@@ -100,39 +109,55 @@ email_smtp_port: "587"
 #   umami_host_url: "https://analytics.example.com"
 
 # ── Backups ──────────────────────────────────────────────────────────────
-# Local retention for nightly PostgreSQL dumps and Meilisearch dumps.
+# Logical dumps are portable recovery artifacts independent of pgBackRest.
+backup_directory: "/opt/eurtisan/backups/logical"
+backup_state_directory: "/opt/eurtisan/backups/state"
 backup_retention_days: 30
-
-# Off-site retention (days) for rclone-backed backups. Prefer bucket lifecycle
-# rules when available; the backup script falls back to `rclone delete`.
 backup_offsite_retention_days: 90
+postgres_verify_image: "postgres:16-alpine@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229"
+
+# Off-site upload stays disabled in staging until a real independent destination
+# exists. Production overrides this to true and preflight then requires every
+# repository and credential value below.
+backup_offsite_enabled: false
+backup_logical_cipher_pass: ""
+backup_offsite_rclone_remote: "backupoffsite:database"
+backup_primary_uploads_rclone_remote: "primaryuploads:{{ s3_uploads_bucket }}"
+backup_offsite_uploads_rclone_remote: "backupoffsite:uploads"
+backup_object_storage_endpoint: ""
+backup_object_storage_region: ""
+backup_logical_s3_bucket: ""
+backup_logical_s3_access_key: ""
+backup_logical_s3_secret_key: ""
+backup_primary_uploads_access_key: ""
+backup_primary_uploads_secret_key: ""
+backup_rclone_crypt_password: ""
+
+# Token used by backup scripts to report success, failure, and freshness. The
+# metrics token is used when this dedicated value is empty.
+backup_report_token: ""
+
+# pgBackRest owns physical base backups and WAL retention. Staging enables a
+# local encrypted repository; production requires an S3 repository.
+postgres_wal_archive_enabled: false
+postgres_pgbackrest_image: "eurtisan-postgres:16-pgbackrest-2.57.0"
+postgres_archive_timeout_seconds: 900
+pgbackrest_stanza: "eurtisan"
+pgbackrest_repository_type: "posix"
+pgbackrest_repository_host_path: "/opt/eurtisan/backups/pgbackrest"
+pgbackrest_repository_container_path: "/var/lib/pgbackrest"
+pgbackrest_repository_path: "/eurtisan"
+pgbackrest_spool_host_path: "/opt/eurtisan/backups/pgbackrest-spool"
+pgbackrest_spool_container_path: "/var/spool/pgbackrest"
+pgbackrest_retention_full: 4
+pgbackrest_retention_diff: 14
+pgbackrest_process_max: 2
+pgbackrest_repo_cipher_pass: ""
+pgbackrest_s3_bucket: ""
+pgbackrest_s3_access_key: ""
+pgbackrest_s3_secret_key: ""
 
 # Webhook posted to when a rollout finishes, so a failed deploy is not silent.
 # Any endpoint accepting a JSON POST (Slack/Discord/Alertmanager). Empty
 # disables notification entirely.
 deploy_notification_webhook: ""
-
-# rclone remote for off-site backups, e.g. "eurtisan-backups:eurtisan"
-backup_offsite_rclone_remote: ""
-
-# rclone remote/path for S3 uploads secondary sync, e.g. "eurtisan-backups:uploads"
-backup_s3_uploads_rclone_remote: ""
-
-# Token used by the backup script to report success/failure to /api/backup-report.
-# Override in secrets.yml.
-backup_report_token: ""
-
-# PostgreSQL WAL archiving (enable for production PITR — see docs/DEPLOYMENT.md)
-postgres_wal_archive_enabled: false
-
-# Local or object-storage path for WAL segments. For object storage, use
-# rclone/wal-g/pgbackrest; the default local path is only suitable for testing.
-postgres_wal_archive_path: "/opt/eurtisan/backups/wal"
-
-# Optional S3-compatible destination for WAL archives. When these are set,
-# Ansible configures PostgreSQL to ship WAL segments to the bucket via aws s3 cp.
-postgres_wal_archive_s3_bucket: ""
-postgres_wal_archive_s3_endpoint: ""
-postgres_wal_archive_s3_region: ""
-postgres_wal_archive_s3_access_key: ""
-postgres_wal_archive_s3_secret_key: ""

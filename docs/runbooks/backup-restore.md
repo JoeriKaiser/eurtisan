@@ -1,89 +1,175 @@
-# Backup Restore
+# Backup and point-in-time recovery
 
-## Application encryption key
+## Recovery model
 
-Sensitive columns (`account.accessToken`, `account.refreshToken`, `account.idToken`,
-`account.password`, `two_factor.secret`, `two_factor.backupCodes`,
-`shop.mollieAccessToken`, `shop.mollieRefreshToken`) are encrypted at rest with
-AES-256-GCM using `DATABASE_ENCRYPTION_KEY`.
+Eurtisan keeps two independent PostgreSQL recovery formats:
 
-- The key must be a 256-bit value encoded as base64 (32 bytes when decoded).
-- Generate with: `openssl rand -base64 32`
-- Store the key in the deployment secrets (Ansible `secrets.yml`), not in the
-  repository or plain `.env` files.
-- Backups contain ciphertext; they are safe to retain, but **losing the key makes
-  the encrypted data unrecoverable**. Keep an off-site, access-controlled copy
-  of the key separate from the database backups.
-- When restoring a backup, ensure `DATABASE_ENCRYPTION_KEY` is set to the exact
-  key that was active when the backup was taken. If the key has been rotated
-  since the backup, you may need to re-encrypt after restore.
+1. A nightly GPG-encrypted custom-format logical dump in
+   `/opt/eurtisan/backups/logical/eurtisan-YYYYMMDD-HHMMSS.dump.gpg`. It is
+   decrypted as a stream, restored into a disposable PostgreSQL 16 container,
+   and checked for critical tables before it is considered successful.
+2. Encrypted pgBackRest physical backups plus continuous WAL archiving. Staging
+   uses an encrypted local repository to exercise the mechanism. Production is
+   blocked by Ansible preflight unless pgBackRest and logical/upload replication
+   point at configured S3-compatible off-site storage.
 
-## Nightly backups
+Logical dumps provide portability. pgBackRest is the source for point-in-time
+recovery (PITR). PostgreSQL WAL cannot be applied to a logical `pg_dump`.
 
-- Location: `/opt/eurtisan/backups/eurtisan-YYYYMMDD-HHMMSS.sql.gz`
-- Schedule: 03:00 UTC (see Ansible cron)
-- Local retention: 30 days (`BACKUP_RETENTION_DAYS`)
-- Off-site retention: 90 days (`BACKUP_OFFSITE_RETENTION_DAYS`) when `BACKUP_OFFSITE_RCLONE_REMOTE` is configured
-- Verification: every backup is restored into a temporary container and checked for expected tables
+## Recovery keys
 
-## Restore procedure
+Sensitive database columns are encrypted with `DATABASE_ENCRYPTION_KEY`. Logical
+dumps use `backup_logical_cipher_pass`, the pgBackRest repository has a separate
+`pgbackrest_repo_cipher_pass`, and off-site filenames/content receive an additional
+rclone crypt layer using `backup_rclone_crypt_password`.
 
-```bash
-ssh ubuntu@PROD_HOST
-cd /opt/eurtisan
-docker compose -f docker-compose.prod.yml stop app
-gunzip -c backups/eurtisan-YYYYMMDD-HHMMSS.sql.gz | \
-  docker compose -f docker-compose.prod.yml exec -T db psql -U eurtisan -d eurtisan
-docker compose -f docker-compose.prod.yml start app
-```
+- Keep protected recovery copies of all four values outside the database host.
+- Losing `DATABASE_ENCRYPTION_KEY` makes encrypted application columns
+  unrecoverable even when PostgreSQL restores successfully.
+- Losing a backup encryption passphrase makes the corresponding backup format
+  unrecoverable.
+- Never store a repository passphrase in the same bucket as its encrypted data.
 
-After restore, run the deploy smoke tests manually:
+## Schedule and retention
 
-```bash
-docker compose -f docker-compose.prod.yml exec -T app curl -fsS http://localhost:3000/api/health/ready
-docker compose -f docker-compose.prod.yml exec -T app curl -fsS http://localhost:3000/api/health/live
-docker compose -f docker-compose.prod.yml exec -T app curl -fsS http://localhost:3000/api/health
-```
+| Artifact | Schedule | Default retention |
+| --- | --- | --- |
+| Logical custom-format dump | Daily, 03:00 UTC | 30 days local, 90 days off-site |
+| pgBackRest differential | Daily, 02:00 UTC | 14 differential backups |
+| pgBackRest full | Sunday, 01:00 UTC | 4 full backup sets |
+| WAL | Continuous; inactive segments switch after 15 minutes | Owned by pgBackRest backup retention |
 
-## Point-in-time recovery (WAL)
-
-When WAL archiving is enabled (`POSTGRES_WAL_ARCHIVE_ENABLED=true`), WAL segments are copied to the configured archive path. For S3-compatible object storage, use `wal-g` or `pgbackrest`; for the default local path, replay WAL manually:
+Systemd timers are persistent, so a missed run starts after the host returns.
+Inspect them with:
 
 ```bash
-# Stop the app and the existing DB container
-docker compose -f docker-compose.prod.yml stop app db
-
-# Start a recovery container with the base backup and WAL archive mounted
-docker run --rm -it \
-  -v eurtisan_postgres_data:/var/lib/postgresql/data \
-  -v /opt/eurtisan/backups/wal:/wal:ro \
-  -e POSTGRES_USER=eurtisan \
-  -e POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
-  -e POSTGRES_DB=eurtisan \
-  postgres:16-alpine \
-  postgres -c recovery_target_time='YYYY-MM-DD HH:MM:SS UTC' \
-           -c restore_command='cp /wal/%f %p'
+systemctl list-timers 'eurtisan-*backup*'
+systemctl status eurtisan-logical-backup.timer
+systemctl status eurtisan-pgbackrest-diff.timer
+journalctl -u eurtisan-logical-backup.service
 ```
 
-For exact object-storage commands, see your provider's `wal-g`/`pgbackrest` runbook. Test this procedure quarterly on a staging clone.
+The combined structured log remains at `/var/log/eurtisan-backup.log`.
 
-## Backup metrics
+## Manual backup operations
 
-The backup script reports success/failure to `POST /api/backup-report`. The endpoint is protected by `BACKUP_REPORT_TOKEN` (falls back to `METRICS_TOKEN`). Prometheus exposes:
+```bash
+# Verified logical dump
+sudo systemctl start eurtisan-logical-backup.service
 
-- `eurtisan_backup_success_total` — successful backup reports
-- `eurtisan_backup_failures_total` — failed backup reports
+# Physical backups when pgBackRest is enabled
+sudo -u eurtisan-backup /opt/eurtisan/pgbackrest-backup.sh diff
+sudo -u eurtisan-backup /opt/eurtisan/pgbackrest-backup.sh full
 
-If the backup script cannot reach `/api/backup-report`, the failure is still logged and alerted via `BACKUP_ALERT_WEBHOOK`/`DEPLOY_ALERT_WEBHOOK`, but the Prometheus counters will not update.
+# Repository and WAL checks
+docker exec --user postgres eurtisan-db-staging \
+  pgbackrest --stanza=eurtisan info
+docker exec --user postgres eurtisan-db-staging \
+  pgbackrest --stanza=eurtisan check
+docker exec eurtisan-db-staging psql -U eurtisan -d eurtisan -x -c \
+  'SELECT * FROM pg_stat_archiver;'
+```
 
-## Verification
+Use `eurtisan-db` instead of `eurtisan-db-staging` in production.
 
-- Row counts for `user`, `platform_order`, `shop`
-- Disk free space after restore
-- Smoke test checkout on staging clone before production cutover
-- `eurtisan_backup_success_total` increments after a successful nightly run
+## Logical restore verification
 
-## Meilisearch & S3 uploads recovery
+Never pipe a dump into the existing production database. Restore into a new,
+isolated PostgreSQL 16 instance first:
 
-- Meilisearch dumps are stored alongside database backups (`/opt/eurtisan/backups/meilisearch-YYYYMMDD-HHMMSS/`). Recreate indexes from a dump with `meilisearch --import-dump <path>`.
-- S3 uploads are synced off-site when `BACKUP_S3_UPLOADS_RCLONE_REMOTE` is configured. Restore from the off-site copy using `rclone sync` back to the primary bucket.
+```bash
+set -a
+source /etc/eurtisan/backup.env
+set +a
+BACKUP=/opt/eurtisan/backups/logical/eurtisan-YYYYMMDD-HHMMSS.dump.gpg
+sha256sum --check "$BACKUP.sha256"
+
+docker run -d --rm --name eurtisan-logical-restore \
+  --network none \
+  -e POSTGRES_USER=verify \
+  -e POSTGRES_PASSWORD=verify-only \
+  -e POSTGRES_DB=verify_restore \
+  postgres:16-alpine@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229
+
+until docker exec eurtisan-logical-restore \
+  pg_isready -U verify -d verify_restore; do sleep 2; done
+
+gpg --batch --quiet --pinentry-mode loopback --passphrase-fd 3 \
+  --decrypt "$BACKUP" 3<<<"$BACKUP_LOGICAL_CIPHER_PASS" | \
+  docker exec -i eurtisan-logical-restore pg_restore \
+    -U verify -d verify_restore --exit-on-error --no-owner --no-privileges
+
+docker exec eurtisan-logical-restore psql -U verify -d verify_restore -c \
+  'SELECT COUNT(*) FROM "user"; SELECT COUNT(*) FROM shop; SELECT COUNT(*) FROM platform_order;'
+```
+
+Destroy the isolated container after recording non-sensitive verification
+results. A production cutover requires a new database volume and an approved
+maintenance window; preserve the old volume until the restored service is
+qualified.
+
+## Point-in-time recovery drill
+
+`make pgbackrest-check` performs a disposable full-backup/WAL/PITR integration
+test locally. Release qualification additionally requires a real staging drill:
+
+1. Record the immutable release and backup set shown by `pgbackrest info`.
+2. Create a uniquely identified marker row and force a WAL switch with
+   `SELECT pg_switch_wal()`.
+3. Record a UTC recovery target after the marker commit.
+4. Make a second distinguishable change and force another WAL switch.
+5. Stop application writers and PostgreSQL.
+6. Restore into a **new empty volume**, never over the source volume.
+7. Start the restored database in isolation and verify that the first change is
+   present and the second is absent.
+8. Start the application with the exact `DATABASE_ENCRYPTION_KEY` used by the
+   backup and verify authorized encrypted-column reads.
+9. Record measured RPO/RTO and destroy the clone.
+
+The core restore command, run with the database stopped and an empty PGDATA, is:
+
+```bash
+pgbackrest --stanza=eurtisan \
+  --type=time \
+  --target='YYYY-MM-DD HH:MM:SS.US+00' \
+  --target-action=promote \
+  restore
+```
+
+Use the Ansible-managed pgBackRest image, configuration, repository mounts, and
+`/etc/eurtisan/pgbackrest.env`. Do not improvise a restore against the live
+Compose volume. The validated disposable orchestration is implemented in
+`scripts/validate-pgbackrest.sh` and should be adapted with an explicitly named
+new volume for the staging drill.
+
+## Monitoring
+
+`eurtisan-backup-status.timer` reports persisted completion timestamps and
+PostgreSQL archive status every five minutes. Prometheus alerts cover:
+
+- missing five-minute backup status reports;
+- any reported backup failure;
+- logical backup older than 26 hours;
+- differential physical backup older than 30 hours;
+- full physical backup older than eight days;
+- increases in `pg_stat_archiver.failed_count`;
+- completed WAL files waiting more than 20 minutes.
+
+A successful script with no received report is not sufficient evidence. Confirm
+metrics and the accountable alert destination during staging qualification.
+
+## Uploads and search recovery
+
+When off-site backup is configured, rclone reads the primary uploads bucket with
+a dedicated read-only credential and writes an encrypted replica without deleting
+destination objects. Destination versioning/Object Lock preserves overwritten
+versions, source-deleted objects remain until lifecycle expiration, and provider
+lifecycle rules own the 90-day retention.
+
+PostgreSQL remains the source of truth for search. Rebuild Meilisearch after a
+database restore rather than treating an asynchronously requested dump as a
+verified backup:
+
+```bash
+docker compose -f docker-compose.prod.yml run --rm app bun run search:reindex
+```

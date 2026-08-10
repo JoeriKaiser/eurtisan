@@ -1,0 +1,22 @@
+[Unit]
+Description=Eurtisan verified logical database backup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=eurtisan-backup
+Group=eurtisan-backup
+UMask=0027
+ExecStart=/opt/eurtisan/backup.sh
+TimeoutStartSec=2h
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths={{ backup_directory }} {{ backup_state_directory }} /var/log
+StandardOutput=append:/var/log/eurtisan-backup.log
+StandardError=append:/var/log/eurtisan-backup.log

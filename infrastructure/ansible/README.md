@@ -131,41 +131,36 @@ inventory/
 
 ## Backup Verification
 
-A nightly cron job (`/opt/eurtisan/backup.sh`) performs the following steps:
+Systemd timers replace the old cron job. A nightly logical backup writes a
+PostgreSQL custom-format dump, records a checksum, restores it into a disposable
+PostgreSQL 16 container, and checks critical tables before retention or upload.
+Encrypted pgBackRest full/differential backups provide the physical base backups
+required for continuous WAL/PITR.
 
-1. **Dump** the production database via `pg_dump` and compress it with `gzip`.
-2. **Test restore** the backup into a temporary PostgreSQL container.
-3. **Verify integrity** by checking that critical tables (`user`, `session`, `account`, `verification`, `shop`, `category`) exist in the restored database.
-4. **Prune** backups older than 7 days.
+Staging uses `pgbackrest_repository_type: posix` to exercise local PITR. Production
+uses `s3` and preflight rejects missing remote repository, rclone encryption, or
+least-privilege credential values. The controller builds the pinned pgBackRest
+database image from the clean release worktree and transfers it over Ansible; the
+VPS does not build it.
 
-Logs are written to `/var/log/eurtisan-backup.log` as structured JSON (one object per line) compatible with Loki and other log aggregators.
+Logs are written to `/var/log/eurtisan-backup.log`. Backup status is reported every
+five minutes so Prometheus can alert on stale backups, WAL failures, and archive
+backlog as well as explicit job failures.
 
-### Failure Alerting
-
-If any step fails, the script:
-
-- Emits a structured `error` log line.
-- Optionally sends a JSON payload to a webhook (e.g. Slack, Discord, PagerDuty).
-
-Set the webhook URL in `secrets.yml`:
-
-```yaml
-backup_alert_webhook: "https://hooks.slack.com/services/..."
-```
-
-### Manual Verification
-
-You can run the backup script manually to verify it works:
+Manual verification:
 
 ```bash
-ssh root@STAGING_IP /opt/eurtisan/backup.sh
+sudo systemctl start eurtisan-logical-backup.service
+sudo -u eurtisan-backup /opt/eurtisan/pgbackrest-backup.sh diff
+docker exec --user postgres eurtisan-db-staging pgbackrest --stanza=eurtisan check
+systemctl list-timers 'eurtisan-*backup*'
+tail -n 20 /var/log/eurtisan-backup.log
 ```
 
-Then inspect the latest log entry:
-
-```bash
-ssh root@STAGING_IP tail -n 1 /var/log/eurtisan-backup.log | jq .
-```
+Use `make pgbackrest-check` for a disposable full backup, WAL archive, and
+time-targeted restore. Follow
+[`../../docs/runbooks/backup-restore.md`](../../docs/runbooks/backup-restore.md) for
+the real staging qualification drill.
 
 ## Group Variables
 
@@ -178,4 +173,4 @@ group_vars/
 
 Non-secret job policy lives in `group_vars/all.yml`; this includes the six-hour read-only financial reconciliation cadence and 500-record query batch. The role renders both values and Compose starts the singleton `financial-totals-reconciliation` service automatically.
 
-Secrets always live in **`secrets.yml`** (encrypted). Never put real secrets in `group_vars/*.yml`. Required launch secrets include database/auth encryption keys, Meilisearch master and restricted search keys, S3 and imgproxy credentials, separate staging registry push/pull credentials plus its internal HTTP secret, the Cosign key password, Mollie Payments/Connect credentials, Sendcloud credentials and a dedicated webhook secret, metrics/Grafana credentials, and Brevo credentials in production. Production additionally needs separate registry IAM credentials and records the approved staging digest in Vault.
+Secrets always live in **`secrets.yml`** (encrypted). Never put real secrets in `group_vars/*.yml`. Required launch secrets include database/auth encryption keys, Meilisearch master and restricted search keys, S3 and imgproxy credentials, separate staging registry push/pull credentials plus its internal HTTP secret, the Cosign key password, Mollie Payments/Connect credentials, Sendcloud credentials and a dedicated webhook secret, metrics/Grafana credentials, and Brevo credentials in production. Backup secrets include the pgBackRest repository cipher passphrase, rclone crypt password, separate pgBackRest/logical-backup writers, and a read-only primary-uploads replication key. Production additionally needs separate registry IAM credentials and records the approved staging digest in Vault.

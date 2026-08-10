@@ -356,65 +356,54 @@ docker compose -f docker-compose.prod.yml restart caddy
 
 ## 7. Backups
 
-Database backups run automatically every night at 03:00 UTC. Backups are stored in `/opt/eurtisan/backups/` and retained for **30 days** (`BACKUP_RETENTION_DAYS`).
+Ansible manages three complementary recovery paths:
 
-Every backup is:
+1. A verified PostgreSQL custom-format logical dump at 03:00 UTC.
+2. An encrypted pgBackRest differential backup at 02:00 UTC and full backup on Sunday at 01:00 UTC.
+3. Continuous pgBackRest WAL archiving with a 15-minute `archive_timeout`.
 
-1. Dumped with `pg_dump` and compressed with `gzip`.
-2. Restored into a temporary PostgreSQL container to verify integrity and expected tables.
-3. Optionally uploaded off-site via `rclone` when `BACKUP_OFFSITE_RCLONE_REMOTE` is configured.
-4. Pruned locally and off-site according to retention policies.
+Staging uses a local encrypted pgBackRest repository so backup and PITR behavior can
+be exercised before remote storage exists. This does not protect against loss of the
+staging host. Production preflight requires both encrypted rclone replication and an
+S3-compatible pgBackRest repository, so production cannot deploy with the local-only
+configuration.
 
-When off-site upload is configured, the backup script sends a warning alert if the upload fails but exits non-zero, so the failure is surfaced even though the local backup is valid.
+Systemd owns scheduling, persistence after missed runs, execution timeouts, and
+journald state. Structured backup logs are also appended to
+`/var/log/eurtisan-backup.log`. The backup scripts and protected configuration are
+readable only by root and the `eurtisan-backup` operator.
 
-### Meilisearch & S3 uploads
+Logical dumps are written under `/opt/eurtisan/backups/logical`, checksummed, restored
+into a disposable PostgreSQL 16 container, and checked for critical tables before
+being retained or uploaded. Off-site logical backups and upload replicas are encrypted
+with rclone crypt. Upload replication uses copy-only credentials; destination
+versioning/Object Lock and lifecycle retain overwritten or source-deleted objects.
+The VPS is not granted broad deletion solely to implement retention.
 
-The backup script also creates a Meilisearch dump and, when `BACKUP_S3_UPLOADS_RCLONE_REMOTE` is set, syncs the S3 uploads bucket off-site. These are best-effort: failures are logged and alerted but do not fail the database backup.
-
-### Configure off-site upload
-
-1. Install and configure an rclone remote on the VPS:
-
-   ```bash
-   ssh ubuntu@PROD_IP
-   rclone config
-   ```
-
-2. Set in `infrastructure/ansible/secrets.yml` or `group_vars/all.yml`:
-
-   ```yaml
-   backup_offsite_rclone_remote: "s3:eurtisan-backups/database"
-   backup_s3_uploads_rclone_remote: "s3:eurtisan-backups/uploads"
-   ```
-
-3. Re-run the playbook to render the updated backup script:
-
-   ```bash
-   make infra-setup-production
-   ```
-
-### Manual backup
+Do not run interactive `rclone config` on the VPS. Ansible renders rclone remotes from
+Vault-backed values for the scheduled operator. Remote bootstrap still requires an
+EU object-storage endpoint, buckets, lifecycle/Object Lock policy, and least-privilege
+credentials. Once available, add the values documented in
+`infrastructure/ansible/group_vars/all.yml` to encrypted `secrets.yml`, then run:
 
 ```bash
-ssh -i ~/.ssh/server_id_rsa_1 ubuntu@VPS_IP '/opt/eurtisan/backup.sh'
+make infra-setup-staging
+make infra-setup-production
 ```
 
-### Restore from backup
+Manual operations:
 
 ```bash
-ssh -i ~/.ssh/server_id_rsa_1 ubuntu@VPS_IP
-cd /opt/eurtisan
-
-# Stop the app
-docker compose -f docker-compose.prod.yml stop app
-
-# Restore
-gunzip -c backups/eurtisan-YYYYMMDD-HHMMSS.sql.gz | \
-  docker compose -f docker-compose.prod.yml exec -T db psql -U eurtisan -d eurtisan
-
-# Restart the app
-docker compose -f docker-compose.prod.yml start app
+sudo systemctl start eurtisan-logical-backup.service
+sudo -u eurtisan-backup /opt/eurtisan/pgbackrest-backup.sh diff
+sudo -u eurtisan-backup /opt/eurtisan/pgbackrest-backup.sh full
+systemctl list-timers 'eurtisan-*backup*'
 ```
+
+Never restore a dump over the existing production database. Follow
+[Backup and point-in-time recovery](./runbooks/backup-restore.md) to restore into a
+fresh isolated PostgreSQL instance or volume, verify it, and perform an approved
+cutover.
 
 ---
 
@@ -444,40 +433,34 @@ infrastructure/
 
 | Objective | Target | Notes |
 |-----------|--------|-------|
-| **RPO** (max data loss) | **< 1 hour** with WAL archiving to object storage; **< 24 hours** with nightly backups only | Nightly dump at 03:00 UTC; enable WAL for production |
+| **RPO** (max data loss) | **< 1 hour** with remote WAL archiving; **< 24 hours** with nightly logical backups only | 15-minute WAL segment timeout plus transfer time; nightly verified logical dump |
 | **RTO** (max downtime) | **< 4 hours** | Restore DB from backup + redeploy app; communicate via status channel |
 
 ## WAL archiving (PostgreSQL PITR)
 
-Production should enable continuous archiving. The default Ansible configuration writes WAL segments to a local host path mounted into the container:
+`Dockerfile.postgres` adds a pinned pgBackRest client to the pinned PostgreSQL 16
+image. Ansible builds this infrastructure image in a clean release worktree on
+the trusted controller, verifies both versions, transfers it over the protected
+Ansible channel, and never compiles it on the VPS.
 
-```yaml
-# infrastructure/ansible/group_vars/all.yml
-postgres_wal_archive_enabled: true
-postgres_wal_archive_path: "/opt/eurtisan/backups/wal"
+When `postgres_wal_archive_enabled` is true, the managed Compose override configures:
+
+```text
+archive_mode=on
+archive_command=pgbackrest --stanza=eurtisan archive-push %p
+archive_timeout=900s
 ```
 
-This path is mounted into the `db` service via `docker-compose.wal-archive.yml` and `archive_command` copies each completed WAL segment there.
+The pgBackRest repository is encrypted independently of application column
+encryption. Staging uses `pgbackrest_repository_type: posix`; production preflight
+requires `pgbackrest_repository_type: s3`, HTTPS object storage, a repository bucket,
+and dedicated credentials. pgBackRest owns WAL expiration relative to retained base
+backups—WAL files are never pruned independently by file age.
 
-For S3-compatible object storage, set the S3 variables in `secrets.yml` or `group_vars/all.yml`:
-
-```yaml
-postgres_wal_archive_s3_bucket: "eurtisan-backups"
-postgres_wal_archive_s3_endpoint: "https://s3.fr-par.scw.cloud"
-postgres_wal_archive_s3_region: "fr-par"
-postgres_wal_archive_s3_access_key: "your-access-key"
-postgres_wal_archive_s3_secret_key: "your-secret-key"
-```
-
-When the S3 bucket is configured, Ansible installs the AWS CLI in the DB container and uses `aws s3 cp` as the `archive_command`. Do **not** enable `archive_mode` without a working archive path, or PostgreSQL will stall.
-
-Quarterly restore tests (including PITR) are required — see [docs/runbooks/backup-restore.md](./runbooks/backup-restore.md).
-
-Ansible variables (see `infrastructure/ansible/group_vars/all.yml`):
-
-- `postgres_wal_archive_enabled: true`
-- `postgres_wal_archive_path` — local path for WAL files
-- `postgres_wal_archive_s3_*` — optional S3 destination for WAL segments
+Run `make pgbackrest-check` to exercise a disposable full backup, WAL archive, and
+time-targeted restore. A real isolated staging restore, encrypted-column verification,
+and measured RPO/RTO remain mandatory before production approval. See
+[Backup and point-in-time recovery](./runbooks/backup-restore.md).
 
 ## Transactional email DNS
 
@@ -537,12 +520,20 @@ make promtool-check
 
 ### Backup metrics
 
-The backup script reports the outcome of every nightly run to `POST /api/backup-report` using `BACKUP_REPORT_TOKEN` (falls back to `METRICS_TOKEN`). This exposes two Prometheus counters:
+Logical and physical jobs report results to `POST /api/backup-report` using
+`BACKUP_REPORT_TOKEN` (falling back to `METRICS_TOKEN`). A five-minute status timer
+re-publishes persisted completion times and PostgreSQL archive state after app
+restarts. Prometheus exposes:
 
 - `eurtisan_backup_success_total`
 - `eurtisan_backup_failures_total`
+- `eurtisan_backup_last_success_timestamp_seconds{backup_type=...}`
+- `eurtisan_postgres_wal_archive_failed_count`
+- `eurtisan_postgres_wal_archive_pending_files`
 
-The alert rule `EurtisanBackupFailed` fires when `eurtisan_backup_failures_total` increases. See [docs/runbooks/backup-restore.md](./runbooks/backup-restore.md) for restore procedures.
+The backup alert group covers explicit failures, stale logical/full/differential
+backups, WAL failures, and a WAL backlog that does not drain. See
+[Backup and point-in-time recovery](./runbooks/backup-restore.md).
 
 ## Local observability stack
 

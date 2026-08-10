@@ -289,13 +289,32 @@ export const emailOutboxBacklog = new Gauge({
 
 export const backupSuccessTotal = new Counter({
   name: 'eurtisan_backup_success_total',
-  help: 'Number of successful nightly backups',
+  help: 'Number of successful backup operations',
   registers: [metricsRegistry],
 })
 
 export const backupFailuresTotal = new Counter({
   name: 'eurtisan_backup_failures_total',
-  help: 'Number of failed nightly backups',
+  help: 'Number of failed backup operations',
+  registers: [metricsRegistry],
+})
+
+export const backupLastSuccessTimestamp = new Gauge({
+  name: 'eurtisan_backup_last_success_timestamp_seconds',
+  help: 'Unix timestamp of the latest successful backup or WAL archive operation',
+  labelNames: ['backup_type'] as const,
+  registers: [metricsRegistry],
+})
+
+export const postgresWalArchiveFailedCount = new Gauge({
+  name: 'eurtisan_postgres_wal_archive_failed_count',
+  help: 'PostgreSQL pg_stat_archiver failed_count reported by the backup status timer',
+  registers: [metricsRegistry],
+})
+
+export const postgresWalArchivePendingFiles = new Gauge({
+  name: 'eurtisan_postgres_wal_archive_pending_files',
+  help: 'Completed WAL files waiting to be archived',
   registers: [metricsRegistry],
 })
 

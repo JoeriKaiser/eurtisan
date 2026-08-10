@@ -1,0 +1,15 @@
+[Unit]
+Description=Report Eurtisan backup and WAL archive freshness
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=eurtisan-backup
+Group=eurtisan-backup
+ExecStart=/opt/eurtisan/backup-status.sh
+TimeoutStartSec=5m
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict

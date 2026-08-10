@@ -30,6 +30,41 @@
       check_mode: true
       changed_when: false
 
+    - name: Render backup templates without writing them
+      ansible.builtin.template:
+        src: "roles/eurtisan/templates/{{ item }}"
+        dest: "/tmp/eurtisan-{{ inventory_hostname }}-{{ item | regex_replace('\\.j2$', '') }}"
+        mode: "0600"
+      loop:
+        - backup.env.j2
+        - backup.sh.j2
+        - pgbackrest-backup.sh.j2
+        - backup-status.sh.j2
+        - eurtisan-logical-backup.service.j2
+        - eurtisan-logical-backup.timer.j2
+        - eurtisan-pgbackrest-backup@.service.j2
+        - eurtisan-pgbackrest-full.timer.j2
+        - eurtisan-pgbackrest-diff.timer.j2
+        - eurtisan-backup-status.service.j2
+        - eurtisan-backup-status.timer.j2
+      check_mode: true
+      changed_when: false
+      no_log: true
+
+    - name: Render pgBackRest templates without writing them
+      ansible.builtin.template:
+        src: "roles/eurtisan/templates/{{ item }}"
+        dest: "/tmp/eurtisan-{{ inventory_hostname }}-{{ item | regex_replace('\\.j2$', '') }}"
+        mode: "0600"
+      loop:
+        - docker-compose.wal-archive.yml.j2
+        - pgbackrest.conf.j2
+        - pgbackrest.env.j2
+      when: postgres_wal_archive_enabled | bool
+      check_mode: true
+      changed_when: false
+      no_log: true
+
     - name: Render self-hosted registry templates without writing them
       ansible.builtin.template:
         src: "roles/eurtisan/templates/{{ item }}"

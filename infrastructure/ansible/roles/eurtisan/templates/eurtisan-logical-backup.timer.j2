@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the Eurtisan logical database backup nightly
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 UTC
+Persistent=true
+AccuracySec=1m
+Unit=eurtisan-logical-backup.service
+
+[Install]
+WantedBy=timers.target

@@ -125,6 +125,7 @@ Eurtisan connects European makers with European buyers. It is built as a product
 ├── docker-compose.yml    # Local dev services (app, postgres, search, mail)
 ├── docker-compose.staging.yml
 ├── docker-compose.prod.yml
+├── Dockerfile.postgres   # Pinned PostgreSQL 16 + pgBackRest runtime
 ├── Makefile              # Standardized workflows
 └── Caddyfile             # Production reverse proxy
 ```
@@ -171,6 +172,7 @@ The app is available at `http://localhost:3000`.
 | `make production-image-smoke` | Build and validate the production image/configuration |
 | `make compose-check` | Validate production and staging Compose models |
 | `make ansible-check` | Validate Ansible syntax, preflight, and templates |
+| `make pgbackrest-check` | Exercise a disposable physical backup, WAL archive, and PITR restore |
 | `make e2e` | Run Playwright E2E tests |
 | `make shell` | Open a shell in the app container |
 

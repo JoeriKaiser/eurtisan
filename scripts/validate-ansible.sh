@@ -47,12 +47,27 @@ brevo_api_key: ci-validation-brevo-api-key
 brevo_webhook_token: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 s3_bucket: ci-validation-uploads
 alertmanager_webhook_url: https://alerts.invalid/ci-validation
+pgbackrest_repo_cipher_pass: ci-validation-pgbackrest-cipher-passphrase-0001
+backup_logical_cipher_pass: ci-validation-logical-cipher-passphrase-0001
+backup_object_storage_endpoint: https://backup.eu.invalid
+backup_object_storage_region: eu-test-1
+backup_logical_s3_bucket: eurtisan-ci-logical
+backup_logical_s3_access_key: ci-validation-logical-access
+backup_logical_s3_secret_key: ci-validation-logical-secret-value
+backup_primary_uploads_access_key: ci-validation-uploads-read
+backup_primary_uploads_secret_key: ci-validation-uploads-read-secret
+backup_rclone_crypt_password: ci-validation-rclone-obscured-password
+pgbackrest_s3_bucket: eurtisan-ci-pgbackrest
+pgbackrest_s3_access_key: ci-validation-pgbackrest-access
+pgbackrest_s3_secret_key: ci-validation-pgbackrest-secret-value
 EOF
   chmod 600 "$output"
 }
 
 write_vars "$TEMP_DIR/staging.yml" "test_ci_validation_mollie_key_0001"
 write_vars "$TEMP_DIR/production.yml" "live_ci_validation_mollie_key_0001"
+grep -v '^backup_object_storage_endpoint:' "$TEMP_DIR/production.yml" \
+  >"$TEMP_DIR/production-missing-backup.yml"
 
 set +e
 docker run --rm \
@@ -65,7 +80,11 @@ docker run --rm \
     ansible-playbook -i infrastructure/ansible/inventory/staging.example.yml infrastructure/ansible/playbook.yml --syntax-check && \
     ansible-playbook -i infrastructure/ansible/inventory/production.example.yml infrastructure/ansible/playbook.yml --syntax-check && \
     ansible-playbook -i infrastructure/ansible/inventory/staging.example.yml infrastructure/ansible/preflight.yml -e @/validation/staging.yml && \
-    ansible-playbook -i infrastructure/ansible/inventory/production.example.yml infrastructure/ansible/preflight.yml -e @/validation/production.yml" \
+    ansible-playbook -i infrastructure/ansible/inventory/production.example.yml infrastructure/ansible/preflight.yml -e @/validation/production.yml && \
+    if ansible-playbook -i infrastructure/ansible/inventory/production.example.yml infrastructure/ansible/preflight.yml -e @/validation/production-missing-backup.yml >/tmp/expected-backup-preflight-failure.log 2>&1; then \
+      echo 'Production preflight unexpectedly accepted missing backup storage' >&2; exit 1; \
+    fi && \
+    grep -q 'The pgBackRest S3 endpoint, region, bucket, or least-privilege credentials are missing' /tmp/expected-backup-preflight-failure.log" \
   2>&1 | tee "$LOG_FILE"
 command_status=${PIPESTATUS[0]}
 set -e

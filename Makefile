@@ -1,4 +1,4 @@
-.PHONY: db-migrate-unit up down stop logs dev build preview start install lint format format-fix check bundle-check test test-related test-accessibility shell auth-secret db-generate db-check db-migrate db-migrate-fresh db-push db-studio i18n-compile init db-seed meili-setup promtool-check promtool-test audit-production production-image-smoke compose-check ci-workflow-check shell-syntax ansible-check ansible-syntax ansible-preflight-staging ansible-preflight-production staging-smoke staging-evidence-create staging-evidence-validate staging-evidence-final load-staging FORCE
+.PHONY: db-migrate-unit up down stop logs dev build preview start install lint format format-fix check bundle-check test test-related test-accessibility shell auth-secret db-generate db-check db-migrate db-migrate-fresh db-push db-studio i18n-compile init db-seed meili-setup promtool-check promtool-test pgbackrest-check audit-production production-image-smoke compose-check ci-workflow-check shell-syntax ansible-check ansible-syntax ansible-preflight-staging ansible-preflight-production staging-smoke staging-evidence-create staging-evidence-validate staging-evidence-final load-staging FORCE
 
 # Docker Compose lifecycle
 up:
@@ -119,12 +119,15 @@ promtool-test:
 	  --entrypoint promtool \
 	  $(PROMETHEUS_IMAGE) \
 	  test rules \
-	  /p/tests/job-errors.test.yml
+	  /p/tests/job-errors.test.yml \
+	  /p/tests/backup-failure.test.yml
 
-# Backup validation (rendered templates; requires ansible to render Jinja)
+# Backup validation
 backup-dry-run:
-	@echo "Backup script is an Ansible Jinja template. Render it with:"
-	@echo "  ansible-playbook -i infrastructure/ansible/inventory/staging.example.yml infrastructure/ansible/playbook.yml --syntax-check"
+	@echo "Backup templates and deployment policy are validated by: make ansible-check"
+
+pgbackrest-check:
+	bash scripts/validate-pgbackrest.sh
 
 SMOKE_TEST_BASE ?= http://localhost:3000
 SMOKE_TEST_TIMEOUT_SECONDS ?= 120
@@ -402,6 +405,8 @@ infra-secrets:
 	@echo "imgproxy_key: $$(openssl rand -hex 32)"
 	@echo "imgproxy_salt: $$(openssl rand -hex 32)"
 	@echo "metrics_token: $$(openssl rand -base64 32 | tr '+/' '-_')"
+	@echo "pgbackrest_repo_cipher_pass: $$(openssl rand -base64 48)"
+	@echo "backup_logical_cipher_pass: $$(openssl rand -base64 48)"
 
 # Catch-all rule to allow passing arbitrary arguments (like file paths) to test/other commands without Make complaining
 %: FORCE
