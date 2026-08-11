@@ -22,16 +22,15 @@ Production and staging use same-origin routes already owned by the deployment pr
 | Public route | Private upstream |
 |---|---|
 | `/uploads/*` | `imgproxy:8080` |
-| `/meilisearch/*` | `meilisearch:7700` |
 | `/collect*` | Grafana Alloy Faro receiver |
 | `https://s3-staging.eurtisan.eu/*` (staging only) | Garage authenticated S3 API |
 
-Caddy and the Ansible-managed staging Traefik configuration strip the first two
-prefixes before proxying. Staging uses `http://garage:3900` internally while presigned
+Caddy and the Ansible-managed staging Traefik configuration strip the uploads
+prefix before proxying. Staging uses `http://garage:3900` internally while presigned
 browser uploads use the dedicated HTTPS Garage domain; production uses Scaleway for
-both S3 endpoints. Browser search uses only a Meilisearch key restricted to
-`actions=["search"]` and `indexes=["products"]`. The Meilisearch master key remains
-server-only.
+both S3 endpoints. Browser search never reaches Meilisearch directly: every query
+goes through the app's rate-limited server functions, so `MEILISEARCH_API_KEY` and
+all storage and imgproxy signing secrets remain server-only.
 
 ## Rebuild versus restart
 
@@ -85,8 +84,8 @@ docker compose -f docker-compose.prod.yml run --rm --no-deps app bun run validat
 
 1. Create the replacement credential in the provider or secret manager.
 2. Update Ansible Vault without printing the value in command output or logs.
-3. For `VITE_MEILISEARCH_SEARCH_KEY`, rebuild the image; for server-only credentials,
-   recreate every consuming service.
+3. For immutable `VITE_*` build inputs, rebuild the image and roll it out; for
+   server-only credentials, recreate every consuming service.
 4. Run server validation, image configuration smoke tests, health checks, and one
    provider-specific staging transaction.
 5. Revoke the old credential only after the replacement is verified.

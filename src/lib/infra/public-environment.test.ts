@@ -15,8 +15,6 @@ function validPublicEnvironment(): Record<string, string> {
     VITE_FARO_APP_NAME: 'eurtisan',
     VITE_FARO_SAMPLE_RATE: '0.1',
     VITE_IMGPROXY_BASE_URL: 'https://eurtisan.test/uploads',
-    VITE_MEILISEARCH_HOST: 'https://eurtisan.test/meilisearch',
-    VITE_MEILISEARCH_SEARCH_KEY: 'searchrestrictedvalue000000000001',
     VITE_PUBLIC_URL: 'https://eurtisan.test',
     VITE_S3_BUCKET: 'eurtisan-uploads',
     VITE_UMAMI_ENABLED: 'false',
@@ -49,7 +47,7 @@ describe('parsePublicBuildEnvironment', () => {
 
   it('rejects placeholder public keys', () => {
     const environment = validPublicEnvironment()
-    environment.VITE_MEILISEARCH_SEARCH_KEY = 'change-me-search-key'
+    environment.VITE_PUBLIC_URL = 'https://change-me.example'
 
     expect(() => parsePublicBuildEnvironment(environment)).toThrow('placeholder value')
   })
@@ -81,7 +79,7 @@ describe('parsePublicBuildEnvironment', () => {
 
   it('rejects a public value equal to a server secret', () => {
     const environment = validPublicEnvironment()
-    environment.MEILISEARCH_API_KEY = environment.VITE_MEILISEARCH_SEARCH_KEY
+    environment.MEILISEARCH_API_KEY = environment.VITE_PUBLIC_URL
 
     expect(() => parsePublicBuildEnvironment(environment)).toThrow('MEILISEARCH_API_KEY')
   })

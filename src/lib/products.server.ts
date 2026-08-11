@@ -13,6 +13,11 @@ export type {
   SortOption,
 } from './products/types'
 export type { ShopSummary } from './products/types'
+export type {
+  OverlayCategory,
+  OverlayProduct,
+  OverlayResults,
+} from './products/search-overlay.server'
 export {
   createProductInternal,
   fetchFirstImageUrls,

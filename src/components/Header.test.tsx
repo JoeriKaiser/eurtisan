@@ -145,16 +145,6 @@ vi.mock('#/lib/categories', () => ({
   listCategories: () => mockListCategories(),
 }))
 
-vi.mock('meilisearch', () => ({
-  Meilisearch: vi.fn(),
-}))
-
-vi.mock('#/lib/meilisearch-client', () => ({
-  meilisearchClient: null,
-  isMeilisearchClientConfigured: () => false,
-  PRODUCTS_INDEX: 'products',
-}))
-
 vi.mock('./search', () => ({
   SearchOverlay: ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) =>
     isOpen ? (

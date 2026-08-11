@@ -483,10 +483,6 @@
           - --build-arg
           - "PUBLIC_IMGPROXY_BASE_URL=https://{{ caddy_domain }}/uploads"
           - --build-arg
-          - "PUBLIC_MEILISEARCH_HOST=https://{{ caddy_domain }}/meilisearch"
-          - --build-arg
-          - PUBLIC_MEILISEARCH_VALUE
-          - --build-arg
           - "PUBLIC_SITE_URL=https://{{ caddy_domain }}"
           - --build-arg
           - "PUBLIC_S3_BUCKET={{ s3_bucket }}"
@@ -505,7 +501,6 @@
         chdir: "{{ controller_build_directory.path }}/source"
       environment:
         DOCKER_BUILDKIT: "1"
-        PUBLIC_MEILISEARCH_VALUE: "{{ meilisearch_search_key }}"
       delegate_to: localhost
       become: false
       no_log: true
@@ -1041,18 +1036,6 @@
                 middlewares:
                   - eurtisan-staging-strip-uploads
 
-              # Browser search uses only the restricted search-only key.
-              eurtisan-staging-meilisearch:
-                rule: "Host(`staging.eurtisan.eu`) && PathPrefix(`/meilisearch/`)"
-                priority: 10
-                entrypoints:
-                  - https
-                tls:
-                  certResolver: letsencrypt
-                service: eurtisan-staging-meilisearch
-                middlewares:
-                  - eurtisan-staging-strip-meilisearch
-
               # Garage exposes only its authenticated S3 API on a dedicated host.
               # Browser uploads are authorized by short-lived presigned URLs.
               eurtisan-staging-s3-http:
@@ -1119,11 +1102,6 @@
                   prefixes:
                     - "/uploads"
 
-              eurtisan-staging-strip-meilisearch:
-                stripPrefix:
-                  prefixes:
-                    - "/meilisearch"
-
           {% if allowed_ips is defined %}
               eurtisan-staging-whitelist:
                 ipWhiteList:
@@ -1153,11 +1131,6 @@
                 loadBalancer:
                   servers:
                     - url: "http://eurtisan-garage-staging:3900"
-
-              eurtisan-staging-meilisearch:
-                loadBalancer:
-                  servers:
-                    - url: "http://eurtisan-meilisearch-staging:7700"
 
               eurtisan-staging-grafana:
                 loadBalancer:

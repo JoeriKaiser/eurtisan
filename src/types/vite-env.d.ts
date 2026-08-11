@@ -29,16 +29,6 @@ interface ImportMetaEnv {
    */
   readonly VITE_UMAMI_SCRIPT_INTEGRITY?: string
 
-  /** Meilisearch host URL exposed to the browser (e.g. https://search.example.com) */
-  readonly VITE_MEILISEARCH_HOST?: string
-
-  /**
-   * Meilisearch search-only API key exposed to the browser.
-   * Must have restricted permissions (search only, specific indexes).
-   * Never use the master key here.
-   */
-  readonly VITE_MEILISEARCH_SEARCH_KEY?: string
-
   /** Grafana Faro collector/beacon URL (same-origin path or full URL) */
   readonly VITE_FARO_ENABLED: 'true' | 'false'
   readonly VITE_FARO_COLLECTOR_URL: string

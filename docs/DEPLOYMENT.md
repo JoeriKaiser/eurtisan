@@ -46,31 +46,28 @@ If staging shares a VPS with Coolify or another reverse proxy, set:
 coexist_with_proxy: true
 ```
 
-This skips Caddy and UFW configuration. The app exposes an optional SSH fallback at `127.0.0.1:3002`; the existing proxy handles SSL and routes to the container over the shared Docker network.
+This skips Caddy and UFW configuration. The app exposes an optional HTTP fallback at `127.0.0.1:3002`; the existing proxy handles SSL and routes to the container over the shared Docker network.
 
 ---
 
 ## 2. Set Secrets
 
-Create `infrastructure/ansible/secrets.yml` (never commit this file):
+Create `infrastructure/ansible/secrets.yml` (never commit this file). One
+encrypted Vault serves both environments: staging values carry a `_staging`
+suffix, production owns the canonical names, and `group_vars/staging.yml`
+maps the suffixed keys to the canonical ones the role consumes. That keeps
+colliding credentials (database password, Meilisearch keys, Mollie test/live
+API keys, storage keys) separate in a single file.
 
-```yaml
-postgres_password: "your-very-strong-db-password"
-better_auth_secret: "$(openssl rand -base64 32)"
-meilisearch_api_key: "$(openssl rand -base64 32)"
-
-# Optional — restrict standalone staging to specific IPs (comma-separated)
-# Not used when coexist_with_proxy is true (configure whitelist in your proxy instead)
-allowed_ips: ""
-```
+Staging keys: `postgres_password_staging`, `meilisearch_api_key_staging`, …
+Production keys: start from `infrastructure/ansible/secrets.production.example.yml`,
+which lists every launch-required key with its source and generation command.
 
 Generate secrets quickly:
 
 ```bash
 make infra-secrets
 ```
-
-Add optional secrets (Mollie, Brevo, Grafana) to the same file as needed.
 
 ---
 
@@ -470,23 +467,17 @@ Before sending live mail, complete SPF, DKIM, and DMARC per [docs/EMAIL_DNS.md](
 
 Product and shop images use **S3-compatible storage** (Garage locally and on staging, Scaleway in production) with presigned uploads — see `.env.example` (`S3_*`, `IMGPROXY_*`). Staging exposes Garage's authenticated S3 API at `s3-staging.eurtisan.eu`; the Garage admin API remains private. This allows horizontal scaling without shared local disk.
 
-Shared environments expose imgproxy at the same-origin `/uploads` route and expose
-Meilisearch at `/meilisearch`. Caddy and the Ansible-managed staging Traefik route
-strip these prefixes before forwarding to private containers. Browser image elements
-use `/api/image` with bounded object-key and resize parameters; that server endpoint
-redirects to a signed `/uploads/...` path. This preserves responsive images without
-shipping the imgproxy key or permitting unsigned open-proxy requests. The browser
-receives only the restricted Meilisearch search key; `MEILISEARCH_API_KEY` and all
-storage and imgproxy signing secrets remain server-only.
+Shared environments expose imgproxy at the same-origin `/uploads` route. Caddy and
+the Ansible-managed staging Traefik route strip this prefix before forwarding to
+the private container. Browser image elements use `/api/image` with bounded
+object-key and resize parameters; that server endpoint redirects to a signed
+`/uploads/...` path. This preserves responsive images without shipping the
+imgproxy key or permitting unsigned open-proxy requests.
 
-Caddy restricts `/meilisearch` to the search endpoints and rate-limits it, since the
-search key is public by design. **The Ansible-managed staging Traefik route does not
-yet apply the same restriction** — mirror it there before staging is exposed beyond
-IP-whitelisted access.
-
-Provision or rotate the browser search key with `bun run search:provision-key`; the
-value is baked into the client bundle at build time, so rotating requires a rebuild
-and prompt redeploy. See the [Meilisearch runbook](runbooks/meilisearch-failure.md).
+Search runs through the app: overlay suggestions and search results go through
+rate-limited server functions that query Meilisearch with the server-only master
+key. No Meilisearch route is exposed at the edge, and no search credential ships
+in the client bundle. See the [Meilisearch runbook](runbooks/meilisearch-failure.md).
 
 ### Reindexing after a deploy
 

@@ -46,8 +46,6 @@ build: up
 	  -e VITE_FARO_APP_NAME=eurtisan \
 	  -e VITE_FARO_SAMPLE_RATE=0.1 \
 	  -e VITE_IMGPROXY_BASE_URL=https://build-smoke.eurtisan.test/uploads \
-	  -e VITE_MEILISEARCH_HOST=https://build-smoke.eurtisan.test/meilisearch \
-	  -e VITE_MEILISEARCH_SEARCH_KEY=searchrestrictedbuildvalue000000000001 \
 	  -e VITE_PUBLIC_URL=https://build-smoke.eurtisan.test \
 	  -e VITE_S3_BUCKET=eurtisan-build-smoke \
 	  -e VITE_UMAMI_ENABLED=false \

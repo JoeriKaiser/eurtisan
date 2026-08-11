@@ -52,22 +52,12 @@ staleness across many queries means the sync queue is not draining — check the
 `meilisearch-sync` container and the `meilisearch_sync_queue` table for rows with
 `status = 'failed'`.
 
-## Search key rotation
+## Search credentials
 
-The browser bundle ships a **search-only** key scoped to the `products` index.
-The master key must never be exposed to the client.
-
-```
-MEILISEARCH_HOST=... MEILISEARCH_API_KEY=<master key> \
-  bun run search:provision-key --rotate
-```
-
-Copy the printed value into `VITE_MEILISEARCH_SEARCH_KEY` and **rebuild the app**
-— the value is baked into the client bundle at build time. Rotating invalidates
-the key in already-deployed bundles, so deploy promptly after rotating.
-
-The build refuses to start if `VITE_MEILISEARCH_SEARCH_KEY` matches any server
-secret (including `MEILI_MASTER_KEY`), which catches the worst misconfiguration.
+The browser no longer talks to Meilisearch: overlay and search-page queries run
+through the app's rate-limited server functions, which use the server-only master
+key (`MEILISEARCH_API_KEY`). There is no browser search key to provision or
+rotate. Rotate the master key via Ansible Vault like any other server credential.
 
 ## Search telemetry
 

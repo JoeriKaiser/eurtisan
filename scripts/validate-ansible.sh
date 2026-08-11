@@ -9,22 +9,55 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-write_vars() {
+# Staging Vault keys carry a `_staging` suffix; group_vars/staging.yml maps
+# them to the canonical names the role consumes.
+write_staging_vars() {
   local output="$1"
-  local mollie_key="$2"
+  cat >"$output" <<EOF
+postgres_password_staging: ci-validation-postgres-password
+better_auth_secret_staging: ci-validation-auth-secret-value-0001
+database_encryption_key_staging: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+meilisearch_api_key_staging: ci-validation-meili-master-key
+s3_access_key_id_staging: GKaaaaaaaaaaaaaaaaaaaaaaaa
+s3_secret_access_key_staging: dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+garage_rpc_secret: eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+garage_admin_token: ci-validation-garage-admin-token-0001
+imgproxy_key_staging: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+imgproxy_salt_staging: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+mollie_api_key_staging: test_ci_validation_mollie_key_0001
+mollie_client_id_staging: ci-validation-mollie-client-id
+mollie_client_secret_staging: ci-validation-mollie-client-secret
+sendcloud_public_key_staging: ci-validation-sendcloud-public
+sendcloud_secret_key_staging: ci-validation-sendcloud-secret
+sendcloud_webhook_secret_staging: ci-validation-sendcloud-webhook
+metrics_token_staging: ci-validation-metrics-token
+grafana_admin_password_staging: ci-validation-grafana-password
+backup_report_token_staging: ci-validation-backup-report-token
+backup_logical_cipher_pass_staging: ci-validation-logical-cipher-passphrase-0001
+pgbackrest_repo_cipher_pass_staging: ci-validation-pgbackrest-cipher-passphrase-0001
+staging_registry_push_username: ci-validation-staging-push-user
+staging_registry_push_password: ci-validation-staging-push-password
+staging_registry_pull_username: ci-validation-staging-pull-user
+staging_registry_pull_password: ci-validation-staging-pull-password
+staging_registry_http_secret: ci-validation-registry-http-secret-0001
+cosign_password: ci-validation-cosign-password
+EOF
+  chmod 600 "$output"
+}
+
+# Production owns the canonical Vault key names directly.
+write_production_vars() {
+  local output="$1"
   cat >"$output" <<EOF
 postgres_password: ci-validation-postgres-password
 better_auth_secret: ci-validation-auth-secret-value-0001
 database_encryption_key: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
 meilisearch_api_key: ci-validation-meili-master-key
-meilisearch_search_key: ci-validation-meili-search-key
-s3_access_key_id: GKaaaaaaaaaaaaaaaaaaaaaaaa
+s3_access_key_id: ci-validation-uploads-access-key
 s3_secret_access_key: dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
-garage_rpc_secret: eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
-garage_admin_token: ci-validation-garage-admin-token-0001
 imgproxy_key: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 imgproxy_salt: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
-mollie_api_key: $mollie_key
+mollie_api_key: live_ci_validation_mollie_key_0001
 mollie_client_id: ci-validation-mollie-client-id
 mollie_client_secret: ci-validation-mollie-client-secret
 sendcloud_public_key: ci-validation-sendcloud-public
@@ -32,20 +65,15 @@ sendcloud_secret_key: ci-validation-sendcloud-secret
 sendcloud_webhook_secret: ci-validation-sendcloud-webhook
 metrics_token: ci-validation-metrics-token
 grafana_admin_password: ci-validation-grafana-password
+grafana_admin_ips: 203.0.113.5/32
 registry_push_access_key_id: ci-validation-registry-push-access
 registry_push_secret_key: ci-validation-registry-push-secret
 registry_pull_access_key_id: ci-validation-registry-pull-access
 registry_pull_secret_key: ci-validation-registry-pull-secret
-staging_registry_push_username: ci-validation-staging-push-user
-staging_registry_push_password: ci-validation-staging-push-password
-staging_registry_pull_username: ci-validation-staging-pull-user
-staging_registry_pull_password: ci-validation-staging-pull-password
-staging_registry_http_secret: ci-validation-registry-http-secret-0001
 cosign_password: ci-validation-cosign-password
 promoted_staging_image_digest: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 brevo_api_key: ci-validation-brevo-api-key
 brevo_webhook_token: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-s3_bucket: ci-validation-uploads
 alertmanager_webhook_url: https://alerts.invalid/ci-validation
 pgbackrest_repo_cipher_pass: ci-validation-pgbackrest-cipher-passphrase-0001
 backup_logical_cipher_pass: ci-validation-logical-cipher-passphrase-0001
@@ -64,8 +92,8 @@ EOF
   chmod 600 "$output"
 }
 
-write_vars "$TEMP_DIR/staging.yml" "test_ci_validation_mollie_key_0001"
-write_vars "$TEMP_DIR/production.yml" "live_ci_validation_mollie_key_0001"
+write_staging_vars "$TEMP_DIR/staging.yml"
+write_production_vars "$TEMP_DIR/production.yml"
 grep -v '^backup_object_storage_endpoint:' "$TEMP_DIR/production.yml" \
   >"$TEMP_DIR/production-missing-backup.yml"
 

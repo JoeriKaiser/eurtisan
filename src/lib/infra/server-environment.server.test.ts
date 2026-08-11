@@ -61,8 +61,6 @@ function validServerEnvironment(): Record<string, string> {
     VITE_FARO_APP_NAME: 'eurtisan',
     VITE_FARO_SAMPLE_RATE: '0.1',
     VITE_IMGPROXY_BASE_URL: 'https://eurtisan.test/uploads',
-    VITE_MEILISEARCH_HOST: 'https://eurtisan.test/meilisearch',
-    VITE_MEILISEARCH_SEARCH_KEY: 'searchrestrictedvalue000000000001',
     VITE_PUBLIC_URL: 'https://eurtisan.test',
     VITE_S3_BUCKET: 'eurtisan-uploads',
     VITE_UMAMI_ENABLED: 'false',
@@ -142,13 +140,6 @@ describe('parseServerEnvironment', () => {
     environment.VITE_S3_BUCKET = 'another-bucket'
 
     expect(() => parseServerEnvironment(environment)).toThrow('VITE_S3_BUCKET')
-  })
-
-  it('rejects a browser search key equal to the master key', () => {
-    const environment = validServerEnvironment()
-    environment.VITE_MEILISEARCH_SEARCH_KEY = environment.MEILISEARCH_API_KEY
-
-    expect(() => parseServerEnvironment(environment)).toThrow('VITE_MEILISEARCH_SEARCH_KEY')
   })
 
   it('rejects disabled launch-required integrations', () => {

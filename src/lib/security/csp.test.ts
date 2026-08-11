@@ -61,14 +61,6 @@ describe('buildCspHeader', () => {
     expect(csp).toContain("form-action 'self'")
   })
 
-  it('adds the public Meilisearch origin when VITE_MEILISEARCH_HOST is set', () => {
-    const original = process.env.VITE_MEILISEARCH_HOST
-    process.env.VITE_MEILISEARCH_HOST = 'https://search.eurtisan.eu'
-    const csp = buildCspHeader()
-    expect(csp).toContain('https://search.eurtisan.eu')
-    process.env.VITE_MEILISEARCH_HOST = original
-  })
-
   it('adds the public storage origin for browser uploads', () => {
     const original = process.env.S3_PUBLIC_ENDPOINT
     process.env.S3_PUBLIC_ENDPOINT = 'https://s3-staging.eurtisan.eu/path'
@@ -78,12 +70,9 @@ describe('buildCspHeader', () => {
   })
 
   it('does not add undefined origins when env vars are missing', () => {
-    const originalMeili = process.env.VITE_MEILISEARCH_HOST
-    process.env.VITE_MEILISEARCH_HOST = ''
     const csp = buildCspHeader()
     expect(csp).not.toContain('undefined')
     expect(csp).not.toContain('null')
-    process.env.VITE_MEILISEARCH_HOST = originalMeili
   })
 
   it('adds Umami script origin to script-src and connect-src when VITE_UMAMI_SCRIPT_URL is set', () => {

@@ -4,7 +4,6 @@ set -eu
 IMAGE_NAME="${PRODUCTION_SMOKE_IMAGE:-eurtisan-app:config-smoke}"
 PUBLIC_ORIGIN="${PRODUCTION_SMOKE_ORIGIN:-https://build-smoke.eurtisan.test}"
 RELEASE_VERSION="${PRODUCTION_SMOKE_VERSION:-$(git rev-parse HEAD)}"
-SEARCH_VALUE="searchrestrictedbuildvalue000000000001"
 SERVER_ENV_FILE="$(mktemp)"
 APP_CONTAINER=""
 cleanup() {
@@ -25,8 +24,6 @@ build_image() {
     --build-arg PUBLIC_FARO_APP_NAME=eurtisan \
     --build-arg PUBLIC_FARO_SAMPLE_RATE=0.1 \
     --build-arg PUBLIC_IMGPROXY_BASE_URL="$PUBLIC_ORIGIN/uploads" \
-    --build-arg PUBLIC_MEILISEARCH_HOST="$PUBLIC_ORIGIN/meilisearch" \
-    --build-arg PUBLIC_MEILISEARCH_VALUE="$SEARCH_VALUE" \
     --build-arg PUBLIC_SITE_URL="$PUBLIC_ORIGIN" \
     --build-arg PUBLIC_S3_BUCKET=eurtisan-build-smoke \
     --build-arg PUBLIC_UMAMI_ENABLED=false \
@@ -69,8 +66,6 @@ docker run --rm \
   -e VITE_FARO_APP_NAME=eurtisan \
   -e VITE_FARO_SAMPLE_RATE=0.1 \
   -e VITE_IMGPROXY_BASE_URL="$PUBLIC_ORIGIN/uploads" \
-  -e VITE_MEILISEARCH_HOST="$PUBLIC_ORIGIN/meilisearch" \
-  -e VITE_MEILISEARCH_SEARCH_KEY="$SEARCH_VALUE" \
   -e VITE_PUBLIC_URL="$PUBLIC_ORIGIN" \
   -e VITE_S3_BUCKET=eurtisan-build-smoke \
   -e VITE_UMAMI_ENABLED=false \
@@ -135,8 +130,6 @@ VITE_FARO_ENABLED=true
 VITE_FARO_APP_NAME=eurtisan
 VITE_FARO_SAMPLE_RATE=0.1
 VITE_IMGPROXY_BASE_URL=$PUBLIC_ORIGIN/uploads
-VITE_MEILISEARCH_HOST=$PUBLIC_ORIGIN/meilisearch
-VITE_MEILISEARCH_SEARCH_KEY=$SEARCH_VALUE
 VITE_PUBLIC_URL=$PUBLIC_ORIGIN
 VITE_S3_BUCKET=eurtisan-build-smoke
 VITE_UMAMI_ENABLED=false

@@ -14,7 +14,7 @@ services:
     # No host ports exposed. The app reaches Alloy via the eurtisan Docker network.
     networks:
       - eurtisan
-    restart: unless-stopped
+    restart: "no"
 
   grafana:
     image: grafana/grafana:11.2.0
@@ -36,7 +36,7 @@ services:
       - "127.0.0.1:3001:3000"
     networks:
       - eurtisan
-    restart: unless-stopped
+    restart: "no"
     depends_on:
       - loki
       - tempo
@@ -53,7 +53,7 @@ services:
       - "127.0.0.1:3100:3100"
     networks:
       - eurtisan
-    restart: unless-stopped
+    restart: "no"
 
   tempo:
     image: grafana/tempo:2.6.0
@@ -67,7 +67,7 @@ services:
       - "127.0.0.1:3200:3200"
     networks:
       - eurtisan
-    restart: unless-stopped
+    restart: "no"
 
   prometheus:
     image: prom/prometheus:v2.55.0
@@ -81,7 +81,7 @@ services:
       - "127.0.0.1:9090:9090"
     networks:
       - eurtisan
-    restart: unless-stopped
+    restart: "no"
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=15d'
@@ -98,7 +98,7 @@ services:
       - "127.0.0.1:9093:9093"
     networks:
       - eurtisan
-    restart: unless-stopped
+    restart: "no"
     environment:
       - ALERTMANAGER_DEFAULT_RECEIVER=${ALERTMANAGER_DEFAULT_RECEIVER:-null}
       - ALERTMANAGER_SMTP_HOST=${ALERTMANAGER_SMTP_HOST:-}

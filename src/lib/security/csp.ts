@@ -38,17 +38,6 @@ const DEFAULT_CONNECT_SRC = ["'self'", 'https://api.mollie.com', 'https://api.br
 /** External origins the frontend legitimately loads scripts from. */
 const DEFAULT_SCRIPT_SRC = ["'self'"]
 
-function getMeilisearchOrigin(): string | null {
-  const host = process.env.VITE_MEILISEARCH_HOST
-  if (!host) return null
-  try {
-    const url = new URL(host)
-    return `${url.protocol}//${url.host}`
-  } catch {
-    return null
-  }
-}
-
 function getStorageOrigin(): string | null {
   const endpoint = process.env.S3_PUBLIC_ENDPOINT
   if (!endpoint) return null
@@ -97,9 +86,6 @@ export function buildCspHeader(options: BuildCspHeaderOptions = {}): string {
   } else {
     scriptSrc.add("'unsafe-inline'")
   }
-
-  const meilisearch = getMeilisearchOrigin()
-  if (meilisearch) connectSrc.add(meilisearch)
 
   const storage = getStorageOrigin()
   if (storage) connectSrc.add(storage)

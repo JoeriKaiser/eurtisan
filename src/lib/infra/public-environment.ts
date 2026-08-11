@@ -9,8 +9,6 @@ const PUBLIC_ENVIRONMENT_NAMES = [
   'VITE_FARO_APP_NAME',
   'VITE_FARO_SAMPLE_RATE',
   'VITE_IMGPROXY_BASE_URL',
-  'VITE_MEILISEARCH_HOST',
-  'VITE_MEILISEARCH_SEARCH_KEY',
   'VITE_PUBLIC_URL',
   'VITE_S3_BUCKET',
   'VITE_UMAMI_ENABLED',
@@ -59,8 +57,6 @@ const publicEnvironmentSchema = z
     VITE_FARO_APP_NAME: requiredString,
     VITE_FARO_SAMPLE_RATE: z.coerce.number().min(0).max(1),
     VITE_IMGPROXY_BASE_URL: requiredString,
-    VITE_MEILISEARCH_HOST: requiredString,
-    VITE_MEILISEARCH_SEARCH_KEY: requiredString,
     VITE_PUBLIC_URL: requiredString,
     VITE_S3_BUCKET: requiredString,
     VITE_UMAMI_ENABLED: explicitBoolean,
@@ -84,23 +80,11 @@ const publicEnvironmentSchema = z
       environment.VITE_IMGPROXY_BASE_URL,
       context,
     )
-    const meilisearchUrl = validatePublicHttpsUrl(
-      'VITE_MEILISEARCH_HOST',
-      environment.VITE_MEILISEARCH_HOST,
-      context,
-    )
 
     if (publicUrl && imgproxyUrl) {
       requireSameOrigin('VITE_IMGPROXY_BASE_URL', publicUrl, imgproxyUrl, context)
       if (normalizePath(imgproxyUrl.pathname) !== '/uploads') {
         addIssue(context, 'VITE_IMGPROXY_BASE_URL', 'must use the public /uploads route')
-      }
-    }
-
-    if (publicUrl && meilisearchUrl) {
-      requireSameOrigin('VITE_MEILISEARCH_HOST', publicUrl, meilisearchUrl, context)
-      if (normalizePath(meilisearchUrl.pathname) !== '/meilisearch') {
-        addIssue(context, 'VITE_MEILISEARCH_HOST', 'must use the public /meilisearch route')
       }
     }
 
@@ -125,9 +109,6 @@ const publicEnvironmentSchema = z
     }
     if (!/^[a-z0-9][a-z0-9.-]{2,62}$/.test(environment.VITE_S3_BUCKET)) {
       addIssue(context, 'VITE_S3_BUCKET', 'must be a valid S3 bucket name')
-    }
-    if (environment.VITE_MEILISEARCH_SEARCH_KEY.length < 16) {
-      addIssue(context, 'VITE_MEILISEARCH_SEARCH_KEY', 'must be a restricted search-only key')
     }
 
     for (const name of PUBLIC_ENVIRONMENT_NAMES) {

@@ -212,7 +212,6 @@ Copy `.env.example` to `.env.local` and fill in the values. Key variables:
 | `BETTER_AUTH_SECRET` | Session signing secret |
 | `BETTER_AUTH_URL` | Public auth endpoint base URL |
 | `MEILISEARCH_HOST` / `MEILISEARCH_API_KEY` | Private search index and master key |
-| `VITE_MEILISEARCH_HOST` / `VITE_MEILISEARCH_SEARCH_KEY` | Public same-origin search route and restricted search-only key |
 | `S3_*` / `IMGPROXY_*` | Object storage and signed image delivery |
 | `MOLLIE_API_KEY` | Payment provider |
 | `SENDCLOUD_PUBLIC_KEY` / `SENDCLOUD_SECRET_KEY` | Sendcloud shipping integration credentials |

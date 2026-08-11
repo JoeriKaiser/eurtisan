@@ -48,8 +48,6 @@ validate() {
     VITE_FARO_APP_NAME="eurtisan" \
     VITE_FARO_SAMPLE_RATE="0.1" \
     VITE_IMGPROXY_BASE_URL="$origin/uploads" \
-    VITE_MEILISEARCH_HOST="$origin/meilisearch" \
-    VITE_MEILISEARCH_SEARCH_KEY="compose-validation-search-key" \
     VITE_PUBLIC_URL="$origin" \
     VITE_S3_BUCKET="eurtisan-compose-validation" \
     VITE_UMAMI_ENABLED="false" \

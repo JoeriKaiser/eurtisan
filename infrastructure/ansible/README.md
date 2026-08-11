@@ -96,9 +96,10 @@ The playbook builds the exact release SHA in a clean temporary worktree on the t
 controller and publishes the environment-qualified variant to the environment's
 private registry. Staging uses the authenticated registry that Ansible manages on the
 existing staging VPS; production uses Scaleway Container Registry in `fr-par`.
-Ansible signs the immutable digest and verifies it before the target pulls that digest.
 The VPS never compiles application source and receives only a pull-only registry
-credential during deployment. Production preflight requires the approved
+credential during deployment. The edge proxy is a stock digest-pinned
+`caddy:2-alpine` image (the Caddyfile uses core directives only, so no custom
+proxy build exists). Production preflight requires the approved
 staging digest. Follow
 [`../../docs/runbooks/release-promotion-and-rollback.md`](../../docs/runbooks/release-promotion-and-rollback.md)
 for registry retention, signing-key setup, promotion, and rollback rehearsal.
@@ -173,4 +174,4 @@ group_vars/
 
 Non-secret job policy lives in `group_vars/all.yml`; this includes the six-hour read-only financial reconciliation cadence and 500-record query batch. The role renders both values and Compose starts the singleton `financial-totals-reconciliation` service automatically.
 
-Secrets always live in **`secrets.yml`** (encrypted). Never put real secrets in `group_vars/*.yml`. Required launch secrets include database/auth encryption keys, Meilisearch master and restricted search keys, S3 and imgproxy credentials, separate staging registry push/pull credentials plus its internal HTTP secret, the Cosign key password, Mollie Payments/Connect credentials, Sendcloud credentials and a dedicated webhook secret, metrics/Grafana credentials, and Brevo credentials in production. Backup secrets include the pgBackRest repository cipher passphrase, rclone crypt password, separate pgBackRest/logical-backup writers, and a read-only primary-uploads replication key. Production additionally needs separate registry IAM credentials and records the approved staging digest in Vault.
+Secrets always live in **`secrets.yml`** (encrypted). Never put real secrets in `group_vars/*.yml`. One Vault serves both environments: staging values carry a `_staging` suffix and `group_vars/staging.yml` maps them to the canonical names, while production owns the canonical names directly. Start production from `secrets.production.example.yml`. Required launch secrets include database/auth encryption keys, Meilisearch master and restricted search keys, S3 and imgproxy credentials, separate staging registry push/pull credentials plus its internal HTTP secret, the Cosign key password, Mollie Payments/Connect credentials, Sendcloud credentials and a dedicated webhook secret, metrics/Grafana credentials, and Brevo credentials in production. Backup secrets include the pgBackRest repository cipher passphrase, rclone crypt password, separate pgBackRest/logical-backup writers, and a read-only primary-uploads replication key. Production additionally needs separate registry IAM credentials, alert receiver credentials, and records the approved staging digest in Vault.

@@ -2,7 +2,7 @@ services:
   db-test:
     image: postgres:16-alpine@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229
     container_name: eurtisan-postgres-test
-    restart: unless-stopped
+    restart: "no"
     ports:
       - "127.0.0.1:5439:5432"
     environment:
@@ -20,7 +20,7 @@ services:
   db:
     image: postgres:16-alpine@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229
     container_name: eurtisan-postgres
-    restart: unless-stopped
+    restart: "no"
     ports:
       - "127.0.0.1:5432:5432"
     environment:
@@ -40,7 +40,7 @@ services:
   meilisearch:
     image: getmeili/meilisearch:v1.43.0@sha256:5d4e1353927785744486fe317d263f442710ab5b27b1983aa1b719dfe2c665b6
     container_name: eurtisan-meilisearch
-    restart: unless-stopped
+    restart: "no"
     ports:
       - "127.0.0.1:7700:7700"
     environment:
@@ -58,7 +58,7 @@ services:
   mailpit:
     image: axllent/mailpit:v1.30.4@sha256:5a49a77c5bdbe7c5474450b4f46348d09949df3695257729c93a30369382d4f6
     container_name: eurtisan-mailpit
-    restart: unless-stopped
+    restart: "no"
     ports:
       - "1025:1025"
       - "8025:8025"
@@ -74,7 +74,7 @@ services:
   garage:
     image: dxflrs/garage:v2.3.0@sha256:866bd13ed2038ba7e7190e840482bc27234c4afaf77be8cfa439ae088c1e4690
     container_name: eurtisan-garage
-    restart: unless-stopped
+    restart: "no"
     ports:
       - "3900:3900"
       - "3901:3901"
@@ -96,7 +96,7 @@ services:
   imgproxy:
     image: darthsim/imgproxy:v3@sha256:419f92ee3a3137ddc2552a92ae2f46a97e9b8c22e03f8a6efa0cb217d8db7f45
     container_name: eurtisan-imgproxy
-    restart: unless-stopped
+    restart: "no"
     ports:
       - "8080:8080"
     env_file:
@@ -121,7 +121,7 @@ services:
   app:
     build: .
     container_name: eurtisan-app
-    restart: unless-stopped
+    restart: "no"
     ports:
       - "3000:3000"
     env_file:
@@ -163,7 +163,7 @@ services:
   email-outbox-worker:
     build: .
     container_name: eurtisan-email-outbox-worker-dev
-    restart: unless-stopped
+    restart: "no"
     env_file:
       - .env.garage
     environment:

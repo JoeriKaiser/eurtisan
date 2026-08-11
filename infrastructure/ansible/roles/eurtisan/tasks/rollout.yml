@@ -19,7 +19,7 @@
     IMAGE_TAG: "{{ image_tag }}"
 
 - name: Start application and runtime dependencies
-  ansible.builtin.command: "{{ docker_compose }} up -d{{ ' mailpit' if (coexist_with_proxy | default(false)) else '' }} imgproxy app"
+  ansible.builtin.command: "{{ docker_compose }} up -d{{ ' mailpit' if (coexist_with_proxy | default(false)) else ' caddy' }} imgproxy app"
   args:
     chdir: /opt/eurtisan
   environment:

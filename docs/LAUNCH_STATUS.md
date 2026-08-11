@@ -29,7 +29,6 @@ This document records current go-live gates. Procedures and detailed evidence re
 
 - [ ] Complete the sandbox/provider checks for Mollie Payments, Mollie Connect, Sendcloud, Brevo/email DNS and deliverability, VIES, Meilisearch, and S3/imgproxy.
 - [ ] Complete the manual keyboard, screen-reader, reflow/zoom, forced-colors, theme, and critical-flow record in [Accessibility assurance](./ACCESSIBILITY_ASSURANCE.md). Automated axe and contrast gates are regression evidence, not manual conformance evidence.
-- [ ] Mirror Caddy's Meilisearch endpoint/method restrictions in the staging Traefik route before staging is exposed beyond its IP allowlist.
 - [ ] Review cookie attributes, CSRF, rate limits, trusted proxy headers, and direct-path spoofing against the deployed production image.
 
 ### Production environment and approval

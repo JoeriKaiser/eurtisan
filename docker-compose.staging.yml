@@ -24,8 +24,6 @@ services:
         PUBLIC_FARO_APP_NAME: ${VITE_FARO_APP_NAME:?required public build value}
         PUBLIC_FARO_SAMPLE_RATE: ${VITE_FARO_SAMPLE_RATE:?required public build value}
         PUBLIC_IMGPROXY_BASE_URL: ${VITE_IMGPROXY_BASE_URL:?required public build value}
-        PUBLIC_MEILISEARCH_HOST: ${VITE_MEILISEARCH_HOST:?required public build value}
-        PUBLIC_MEILISEARCH_VALUE: ${VITE_MEILISEARCH_SEARCH_KEY:?required public build value}
         PUBLIC_SITE_URL: ${VITE_PUBLIC_URL:?required public build value}
         PUBLIC_S3_BUCKET: ${VITE_S3_BUCKET:?required public build value}
         PUBLIC_UMAMI_ENABLED: ${VITE_UMAMI_ENABLED:?required public build value}

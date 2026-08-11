@@ -89,8 +89,6 @@ const serverEnvironmentSchema = z
     VITE_FARO_APP_NAME: requiredString,
     VITE_FARO_SAMPLE_RATE: requiredString,
     VITE_IMGPROXY_BASE_URL: requiredString,
-    VITE_MEILISEARCH_HOST: requiredString,
-    VITE_MEILISEARCH_SEARCH_KEY: requiredString,
     VITE_PUBLIC_URL: requiredString,
     VITE_S3_BUCKET: requiredString,
     VITE_UMAMI_ENABLED: explicitBoolean,
@@ -144,9 +142,6 @@ const serverEnvironmentSchema = z
     }
     if (environment.MEILISEARCH_API_KEY !== environment.MEILI_MASTER_KEY) {
       addIssue(context, 'MEILI_MASTER_KEY', 'must match MEILISEARCH_API_KEY')
-    }
-    if (environment.VITE_MEILISEARCH_SEARCH_KEY === environment.MEILISEARCH_API_KEY) {
-      addIssue(context, 'VITE_MEILISEARCH_SEARCH_KEY', 'must not equal the Meilisearch master key')
     }
     if (environment.IMGPROXY_HEALTH_URL !== 'http://imgproxy:8080/health') {
       addIssue(context, 'IMGPROXY_HEALTH_URL', 'must use the private imgproxy health endpoint')

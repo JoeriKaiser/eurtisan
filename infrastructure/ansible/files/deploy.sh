@@ -121,10 +121,11 @@ poll_canary_health() {
 
 run_canary() {
   echo "==> Starting canary container on port ${CANARY_PORT}..."
+  # The legacy eurtisan network is a plain bridge with no aliases, so the app
+  # and DB containers resolve by their container names from the canary as well.
   docker run -d --rm \
     --name eurtisan-app-canary \
     --network eurtisan \
-    --network db-internal \
     --env-file "$APP_DIR/.env" \
     -e NODE_ENV=production \
     -e PORT="$CANARY_PORT" \

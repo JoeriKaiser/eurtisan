@@ -56,17 +56,21 @@ vi infrastructure/ansible/inventory/production.yml
 ```
 
 **Staging on an existing VPS (e.g. with Coolify):**
-Set `coexist_with_proxy: true` in `inventory/staging.yml`. This skips Caddy and UFW so the existing reverse proxy owns ports 80/443. The app also exposes an optional SSH fallback on `127.0.0.1:3002`; the proxy routes to the container over the shared Docker network.
+Set `coexist_with_proxy: true` in `inventory/staging.yml`. This skips Caddy and UFW so the existing reverse proxy owns ports 80/443. The app also exposes an optional HTTP fallback on `127.0.0.1:3002`; the proxy routes to the container over the shared Docker network.
 
 ### 2. Set Secrets
 
-Secrets are passed at runtime (never committed). Create a secrets file:
+Secrets are passed at runtime (never committed). One encrypted Vault serves
+both environments: staging values carry a `_staging` suffix and production
+owns the canonical names (`group_vars/staging.yml` maps the suffixed keys).
+For production, start from `secrets.production.example.yml`.
 
 ```yaml
-# secrets.yml
-postgres_password: "your-very-strong-db-password"
+# secrets.yml (excerpt)
+postgres_password_staging: "staging db password"
+postgres_password: "production db password"
 better_auth_secret: "$(openssl rand -base64 32)"
-meilisearch_api_key: "$(openssl rand -base64 32)"
+meilisearch_api_key_staging: "$(openssl rand -base64 32)"
 ```
 
 ### 3. Run the Playbook
@@ -205,7 +209,7 @@ See `docs/DEPLOYMENT.md` for WAL/RPO targets when `postgres_wal_archive_enabled`
 
 ## Staging Access Control
 
-When `coexist_with_proxy: true`, Traefik reaches the app over the shared Docker network and the optional SSH fallback binds to `127.0.0.1:3002`.
+When `coexist_with_proxy: true`, Traefik reaches the app over the shared Docker network and the optional HTTP fallback binds to `127.0.0.1:3002`.
 
 **Access options:**
 

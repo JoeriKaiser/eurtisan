@@ -25,44 +25,9 @@
 		reverse_proxy imgproxy:8080
 	}
 
-	# Browser search uses a restricted search-only key. The master key remains
-	# server-only; handle_path strips the public prefix before Meilisearch.
-	#
-	# The search key is public by design (it ships in the JS bundle), so this
-	# route is defended at the edge as well: only the search endpoints are
-	# reachable, and the rate limit bounds scraping and query floods. Paths are
-	# matched after handle_path has stripped the /meilisearch prefix.
-	handle_path /meilisearch/* {
-		@search_endpoints {
-			method POST
-			path /indexes/products/search /indexes/products/facet-search /multi-search
-		}
-		handle @search_endpoints {
-			rate_limit {
-				zone search {
-					key {remote_host}
-					events 120
-					window 1m
-				}
-			}
-			reverse_proxy meilisearch:7700
-		}
-		# Everything else on the Meilisearch API (documents, keys, tasks, dumps,
-		# stats, settings) is never needed by a browser.
-		handle {
-			respond "Forbidden" 403
-		}
-	}
-
-	# Edge rate limiting for authentication endpoints
+	# Flood control happens in the app: better-auth's production rate limiter
+	# and the DB-backed email throttle (stock Caddy ships no rate_limit module).
 	handle /api/auth* {
-		rate_limit {
-			zone auth {
-				key {remote_host}
-				events 20
-				window 1m
-			}
-		}
 		reverse_proxy app:3000 {
 			header_up X-Forwarded-Proto {scheme}
 			header_up X-Forwarded-Host {host}
