@@ -18,8 +18,8 @@ This document records current go-live gates. Procedures and detailed evidence re
 ### Recovery and operations
 
 - [ ] Rehearse automatic application rollback to the verified previous digest, including a forced readiness failure and recovery after removing the mutable local tag.
-- [ ] Configure production off-site database and object-storage backups. `backup_offsite_rclone_remote` and `backup_s3_uploads_rclone_remote` are empty by default.
-- [ ] Configure production PostgreSQL WAL archiving/PITR. `postgres_wal_archive_enabled` is false by default.
+- [ ] Create the independent EU backup buckets, lifecycle/Object Lock policy, and least-privilege logical-backup and uploads-replication credentials required by `backup_offsite_enabled`.
+- [ ] Configure the production S3 pgBackRest repository and credentials. Production preflight enables WAL/PITR but fails closed while these owner-supplied values are absent.
 - [ ] Restore a real staging backup into an isolated database, verify critical data and encrypted-column decryption, and record RPO/RTO.
 - [ ] Trigger and confirm representative application, database, disk, backup, job, webhook, reconciliation, and deployment alerts reach the accountable on-call destination and resolve correctly.
 - [ ] Complete the controlled financial-discrepancy detection exercise described in [Financial reconciliation](./runbooks/financial-reconciliation.md).

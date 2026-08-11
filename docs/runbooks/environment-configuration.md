@@ -76,6 +76,10 @@ docker compose -f docker-compose.prod.yml run --rm --no-deps app bun run validat
   truth and must not be committed.
 - Browser search-key restrictions are owned in Meilisearch. Creating a random key
   without assigning search-only actions is insufficient.
+- Logical-backup, rclone crypt, and pgBackRest credentials/passphrases are rendered
+  into dedicated root-owned backup/pgBackRest environment files, not the application
+  environment. Production uses separate logical-backup, pgBackRest, and
+  primary-uploads read credentials; do not reuse the application storage key.
 
 ## Rotation
 

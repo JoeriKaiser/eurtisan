@@ -161,28 +161,38 @@ infrastructure/
 
 ## Backup & Recovery
 
-Database backups run nightly at 03:00 UTC and are stored in `/opt/eurtisan/backups/`.
-Backups older than **30 days** are automatically pruned locally (override with `backup_retention_days` in Ansible).
+Ansible installs persistent systemd timers for:
 
-Every backup is verified by restoring it into a temporary container before it is retained or uploaded.
+- nightly verified custom-format logical dumps (03:00 UTC);
+- daily pgBackRest differential backups (02:00 UTC);
+- weekly pgBackRest full backups (Sunday 01:00 UTC);
+- five-minute backup and WAL status reporting.
 
-### Off-site backups (recommended)
+Staging enables encrypted pgBackRest physical backups and continuous WAL archiving
+to a local repository under `/opt/eurtisan/backups/`. This validates PITR but does
+not protect against host loss. Production preflight requires an independent HTTPS
+S3-compatible pgBackRest repository plus encrypted rclone logical and upload
+replication. Production therefore remains fail-closed until the owner creates the
+remote buckets and least-privilege credentials.
 
-Configure an [rclone](https://rclone.org/) remote on the VPS and set in `secrets.yml` or group vars:
+There is no interactive `rclone config` step. Ansible provides protected rclone
+environment configuration to the restricted backup operator. Logical dumps are
+checksummed and test-restored before upload. Upload replication never deletes from
+the destination; versioning/Object Lock and lifecycle preserve prior or source-deleted
+objects for the 90-day retention window.
 
-```yaml
-backup_offsite_rclone_remote: "eurtisan-backups:eurtisan"
-backup_offsite_retention_days: 90
+Manual operations:
+
+```bash
+sudo systemctl start eurtisan-logical-backup.service
+sudo -u eurtisan-backup /opt/eurtisan/pgbackrest-backup.sh diff
+sudo -u eurtisan-backup /opt/eurtisan/pgbackrest-backup.sh full
+systemctl list-timers 'eurtisan-*backup*'
 ```
 
-Nightly `backup.sh` uploads each verified `.sql.gz` to that remote. Off-site backups older than `backup_offsite_retention_days` are pruned (or rely on a bucket lifecycle rule).
-
-### Meilisearch & S3 uploads
-
-- Meilisearch dumps are created alongside each database backup.
-- S3 uploads can be synced off-site by setting `backup_s3_uploads_rclone_remote`.
-
-Both are best-effort: failures are logged and alerted but do not fail the database backup.
+Run `make pgbackrest-check` for the disposable local full-backup/WAL/PITR test. Never
+restore over the live database volume; use a fresh isolated instance and follow
+[`docs/runbooks/backup-restore.md`](../docs/runbooks/backup-restore.md).
 
 ### Hot standby / managed database (production)
 
@@ -192,23 +202,6 @@ The default layout is a **single VPS** with Docker PostgreSQL. For lower RTO:
 2. **Streaming replication** — standby on a second VPS; promote manually on primary failure (document failover in your runbook).
 
 See `docs/DEPLOYMENT.md` for WAL/RPO targets when `postgres_wal_archive_enabled` is enabled.
-
-### Manual backup
-```bash
-ssh root@VPS_IP '/opt/eurtisan/backup.sh'
-```
-
-### Restore from backup
-```bash
-ssh root@VPS_IP
-cd /opt/eurtisan
-# Stop app
-docker compose -f docker-compose.prod.yml stop app
-# Restore
-gunzip -c backups/eurtisan-YYYYMMDD-HHMMSS.sql.gz | docker compose -f docker-compose.prod.yml exec -T db psql -U eurtisan -d eurtisan
-# Restart app
-docker compose -f docker-compose.prod.yml start app
-```
 
 ## Staging Access Control
 

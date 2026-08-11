@@ -45,6 +45,136 @@
     release_version: "{{ repository_checkout.after }}"
     image_tag: "{{ repository_checkout.after[:12] }}"
 
+- name: Build and transfer the pinned pgBackRest database image from the trusted controller
+  when: postgres_wal_archive_enabled | bool
+  block:
+    - name: Create isolated controller pgBackRest build directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: -eurtisan-pgbackrest
+      delegate_to: localhost
+      become: false
+      register: pgbackrest_controller_build_directory
+
+    - name: Create clean pgBackRest release worktree on the controller
+      ansible.builtin.command:
+        argv:
+          - git
+          - worktree
+          - add
+          - --detach
+          - "{{ pgbackrest_controller_build_directory.path }}/source"
+          - "{{ release_version }}"
+      args:
+        chdir: "{{ playbook_dir }}/../.."
+      delegate_to: localhost
+      become: false
+
+    - name: Build the pinned pgBackRest database image on the controller
+      ansible.builtin.command:
+        argv:
+          - docker
+          - build
+          - --file
+          - Dockerfile.postgres
+          - --tag
+          - "{{ postgres_pgbackrest_image }}"
+          - .
+      args:
+        chdir: "{{ pgbackrest_controller_build_directory.path }}/source"
+      environment:
+        DOCKER_BUILDKIT: "1"
+      delegate_to: localhost
+      become: false
+
+    - name: Verify PostgreSQL and pgBackRest versions in the controller image
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - "{{ postgres_pgbackrest_image }}"
+          - sh
+          - -ec
+          - >-
+            test "$(postgres --version)" = "postgres (PostgreSQL) 16.14";
+            test "$(pgbackrest version)" = "pgBackRest 2.57.0"
+      delegate_to: localhost
+      become: false
+      changed_when: false
+
+    - name: Export the pgBackRest database image for the target
+      ansible.builtin.shell: >-
+        set -euo pipefail;
+        docker save {{ postgres_pgbackrest_image | quote }} |
+        gzip -1 > {{ (pgbackrest_controller_build_directory.path ~ '/postgres-pgbackrest.tar.gz') | quote }}
+      args:
+        executable: /bin/bash
+      delegate_to: localhost
+      become: false
+
+    - name: Transfer the pgBackRest database image over the protected Ansible channel
+      ansible.builtin.copy:
+        src: "{{ pgbackrest_controller_build_directory.path }}/postgres-pgbackrest.tar.gz"
+        dest: /tmp/eurtisan-postgres-pgbackrest.tar.gz
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Load the pgBackRest database image on the target
+      ansible.builtin.shell: >-
+        set -euo pipefail;
+        gzip -dc /tmp/eurtisan-postgres-pgbackrest.tar.gz | docker load
+      args:
+        executable: /bin/bash
+
+    - name: Verify the transferred pgBackRest database image
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - "{{ postgres_pgbackrest_image }}"
+          - sh
+          - -ec
+          - >-
+            test "$(postgres --version)" = "postgres (PostgreSQL) 16.14";
+            test "$(pgbackrest version)" = "pgBackRest 2.57.0"
+      changed_when: false
+  always:
+    - name: Remove transferred pgBackRest image archive
+      ansible.builtin.file:
+        path: /tmp/eurtisan-postgres-pgbackrest.tar.gz
+        state: absent
+
+    - name: Remove pgBackRest release worktree from the controller
+      ansible.builtin.command:
+        argv:
+          - git
+          - worktree
+          - remove
+          - --force
+          - "{{ pgbackrest_controller_build_directory.path | default('/tmp/eurtisan-pgbackrest-not-created') }}/source"
+      args:
+        chdir: "{{ playbook_dir }}/../.."
+      delegate_to: localhost
+      become: false
+      failed_when: false
+      when:
+        - pgbackrest_controller_build_directory is defined
+        - pgbackrest_controller_build_directory.path is defined
+
+    - name: Remove controller pgBackRest build directory
+      ansible.builtin.file:
+        path: "{{ pgbackrest_controller_build_directory.path | default('/tmp/eurtisan-pgbackrest-not-created') }}"
+        state: absent
+      delegate_to: localhost
+      become: false
+      when:
+        - pgbackrest_controller_build_directory is defined
+        - pgbackrest_controller_build_directory.path is defined
+  tags: [backup, wal]
+
 - name: Write production environment file
   template:
     src: .env.j2
@@ -64,96 +194,173 @@
     dest: /opt/eurtisan/deploy.sh
     mode: "0755"
 
-- name: Write database backup script
-  template:
-    src: backup.sh.j2
-    dest: /opt/eurtisan/backup.sh
-    mode: "0755"
-
-- name: Create eurtisan-backup user
-  user:
+- name: Create the restricted backup operator
+  ansible.builtin.user:
     name: eurtisan-backup
-    system: yes
-    shell: /bin/false
+    system: true
+    shell: /usr/sbin/nologin
     groups: docker
-    append: yes
+    append: true
+  tags: [backup]
 
-- name: Ensure backup directory exists and is writable
-  file:
-    path: /opt/eurtisan/backups
+- name: Create protected backup configuration directory
+  ansible.builtin.file:
+    path: /etc/eurtisan
+    state: directory
+    owner: root
+    group: eurtisan-backup
+    mode: "0750"
+  tags: [backup]
+
+- name: Create logical backup and state directories
+  ansible.builtin.file:
+    path: "{{ item }}"
     state: directory
     owner: eurtisan-backup
     group: eurtisan-backup
-    mode: "0755"
-
-- name: Ensure backup log file is writable
-  file:
-    path: /var/log/eurtisan-backup.log
-    state: touch
-    owner: eurtisan-backup
-    group: eurtisan-backup
-    mode: "0644"
-
-- name: Install rclone for off-site backups
-  ansible.builtin.apt:
-    name: rclone
-    state: present
-    update_cache: true
+    mode: "0750"
+  loop:
+    - "{{ backup_directory }}"
+    - "{{ backup_state_directory }}"
   tags: [backup]
 
-- name: Ensure WAL archive directory exists
-  when: postgres_wal_archive_enabled | default(false)
-  file:
-    path: "{{ postgres_wal_archive_path }}"
+- name: Create pgBackRest repository and spool directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "70"
+    group: "70"
+    mode: "0750"
+  loop:
+    - "{{ pgbackrest_repository_host_path }}"
+    - "{{ pgbackrest_spool_host_path }}"
+  when: postgres_wal_archive_enabled | bool
+  tags: [backup, wal]
+
+- name: Create pgBackRest configuration directory
+  ansible.builtin.file:
+    path: /opt/eurtisan/pgbackrest
     state: directory
     owner: root
     group: root
     mode: "0755"
+  when: postgres_wal_archive_enabled | bool
   tags: [backup, wal]
 
-- name: Render WAL archive command wrapper
-  when: postgres_wal_archive_enabled | default(false)
-  template:
-    src: wal-archive.sh.j2
-    dest: /opt/eurtisan/wal-archive.sh
-    mode: "0755"
+- name: Render protected backup runtime configuration
+  ansible.builtin.template:
+    src: backup.env.j2
+    dest: /etc/eurtisan/backup.env
+    owner: root
+    group: eurtisan-backup
+    mode: "0640"
+  no_log: true
+  tags: [backup]
+
+- name: Render pgBackRest configuration
+  ansible.builtin.template:
+    src: pgbackrest.conf.j2
+    dest: /opt/eurtisan/pgbackrest/pgbackrest.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: postgres_wal_archive_enabled | bool
   tags: [backup, wal]
 
-- name: Install AWS CLI when WAL S3 archiving is configured
-  when:
-    - postgres_wal_archive_enabled | default(false)
-    - postgres_wal_archive_s3_bucket | default('') | length > 0
-  apt:
-    name: awscli
+- name: Render protected pgBackRest process environment
+  ansible.builtin.template:
+    src: pgbackrest.env.j2
+    dest: /etc/eurtisan/pgbackrest.env
+    owner: root
+    group: root
+    mode: "0600"
+  when: postgres_wal_archive_enabled | bool
+  no_log: true
+  tags: [backup, wal]
+
+- name: Remove pgBackRest process environment when disabled
+  ansible.builtin.file:
+    path: /etc/eurtisan/pgbackrest.env
+    state: absent
+  when: not (postgres_wal_archive_enabled | bool)
+  tags: [backup, wal]
+
+- name: Install backup operation scripts
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: eurtisan-backup
+    mode: "0750"
+  loop:
+    - src: backup.sh.j2
+      dest: /opt/eurtisan/backup.sh
+    - src: pgbackrest-backup.sh.j2
+      dest: /opt/eurtisan/pgbackrest-backup.sh
+    - src: backup-status.sh.j2
+      dest: /opt/eurtisan/backup-status.sh
+  tags: [backup]
+
+- name: Ensure backup log file is writable
+  ansible.builtin.file:
+    path: /var/log/eurtisan-backup.log
+    state: touch
+    owner: eurtisan-backup
+    group: eurtisan-backup
+    mode: "0640"
+  tags: [backup]
+
+- name: Install backup transfer and locking tools
+  ansible.builtin.apt:
+    name:
+      - gnupg
+      - rclone
+      - util-linux
     state: present
     update_cache: true
-  tags: [backup, wal]
+  tags: [backup]
 
-- name: Write WAL archiving Compose override
-  when: postgres_wal_archive_enabled | default(false)
-  copy:
-    dest: /opt/eurtisan/docker-compose.wal-archive.yml
-    content: |
-      services:
-        db:
-          command: >
-            postgres
-            -c wal_level=replica
-            -c archive_mode=on
-            -c archive_command='/opt/eurtisan/wal-archive.sh %f %p'
-            -c max_wal_senders=3
-          volumes:
-            - "/opt/eurtisan/wal-archive.sh:/opt/eurtisan/wal-archive.sh:ro"
-            - "{{ postgres_wal_archive_path }}:{{ postgres_wal_archive_path }}"
-  tags: [backup, wal]
+- name: Install backup systemd units
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - eurtisan-logical-backup.service
+    - eurtisan-logical-backup.timer
+    - eurtisan-pgbackrest-backup@.service
+    - eurtisan-pgbackrest-full.timer
+    - eurtisan-pgbackrest-diff.timer
+    - eurtisan-backup-status.service
+    - eurtisan-backup-status.timer
+  notify: Reload systemd
+  tags: [backup]
 
-- name: Schedule nightly database backups
-  cron:
+- name: Remove the superseded backup cron entry
+  ansible.builtin.cron:
     name: "Eurtisan database backup"
-    minute: "0"
-    hour: "3"
-    job: "/opt/eurtisan/backup.sh >> /var/log/eurtisan-backup.log 2>&1"
+    state: absent
     user: eurtisan-backup
+  tags: [backup]
+
+- name: Write pgBackRest Compose override
+  ansible.builtin.template:
+    src: docker-compose.wal-archive.yml.j2
+    dest: /opt/eurtisan/docker-compose.wal-archive.yml
+    owner: root
+    group: root
+    mode: "0600"
+  when: postgres_wal_archive_enabled | bool
+  tags: [backup, wal]
+
+- name: Remove pgBackRest Compose override when disabled
+  ansible.builtin.file:
+    path: /opt/eurtisan/docker-compose.wal-archive.yml
+    state: absent
+  when: not (postgres_wal_archive_enabled | bool)
+  tags: [backup, wal]
 
 - name: Schedule nightly Docker dangling-image cleanup
   cron:
@@ -607,14 +814,49 @@
   args:
     chdir: /opt/eurtisan
 
-- name: Wait for PostgreSQL to be ready
-  shell: "{{ docker_compose }} exec -T db pg_isready -U {{ postgres_user }}"
+- name: Wait for the configured PostgreSQL database and role to be ready
+  ansible.builtin.shell: >-
+    {{ docker_compose }} exec -T db
+    psql -U {{ postgres_user | quote }} -d {{ postgres_db | quote }} -tAc 'SELECT 1;'
   args:
     chdir: /opt/eurtisan
   register: pg_ready
-  until: pg_ready.rc == 0
+  until:
+    - pg_ready.rc == 0
+    - pg_ready.stdout | trim == '1'
   retries: 15
   delay: 2
+
+- name: Initialize the pgBackRest stanza
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - --user
+      - postgres
+      - "{{ db_container_name }}"
+      - pgbackrest
+      - "--stanza={{ pgbackrest_stanza }}"
+      - stanza-create
+  when: postgres_wal_archive_enabled | bool
+  register: pgbackrest_stanza_create
+  changed_when: "'stanza-create command end: completed successfully' in pgbackrest_stanza_create.stdout"
+  tags: [backup, wal]
+
+- name: Verify pgBackRest can archive and retrieve WAL
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - --user
+      - postgres
+      - "{{ db_container_name }}"
+      - pgbackrest
+      - "--stanza={{ pgbackrest_stanza }}"
+      - check
+  when: postgres_wal_archive_enabled | bool
+  changed_when: false
+  tags: [backup, wal]
 
 - name: Initialize staging Garage layout, bucket, and access key
   when: garage_enabled | bool
@@ -702,6 +944,59 @@
           Release {{ release_image_reference }} failed rollout and was rolled back to
           {{ rollback_image_reference }}. Database migrations are not reversed; inspect
           migration state before retrying.
+
+- name: Reload systemd before activating backup timers
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  tags: [backup]
+
+- name: Check whether an initial full physical backup completed
+  ansible.builtin.stat:
+    path: "{{ backup_state_directory }}/physical-full.last-success"
+  register: initial_physical_backup_marker
+  when: postgres_wal_archive_enabled | bool
+  tags: [backup, wal]
+
+- name: Create the initial full physical backup
+  ansible.builtin.command: /opt/eurtisan/pgbackrest-backup.sh full
+  become: true
+  become_user: eurtisan-backup
+  when:
+    - postgres_wal_archive_enabled | bool
+    - not initial_physical_backup_marker.stat.exists
+  tags: [backup, wal]
+
+- name: Enable logical backup and freshness timers
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - eurtisan-logical-backup.timer
+    - eurtisan-backup-status.timer
+  tags: [backup]
+
+- name: Enable pgBackRest physical backup timers
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - eurtisan-pgbackrest-full.timer
+    - eurtisan-pgbackrest-diff.timer
+  when: postgres_wal_archive_enabled | bool
+  tags: [backup, wal]
+
+- name: Disable pgBackRest physical backup timers when PITR is disabled
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: false
+    state: stopped
+  loop:
+    - eurtisan-pgbackrest-full.timer
+    - eurtisan-pgbackrest-diff.timer
+  when: not (postgres_wal_archive_enabled | bool)
+  tags: [backup, wal]
 
 - name: Write Traefik dynamic config for staging route
   when: coexist_with_proxy | default(false)

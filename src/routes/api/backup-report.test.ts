@@ -15,12 +15,18 @@ vi.mock('#/lib/logger.server', () => ({
   },
 }))
 
-const getMetricValue = (name: string) => {
+const getMetricValue = (name: string, labels: Record<string, string> = {}) => {
   const metric = metricsRegistry.getSingleMetric(name)
   if (!metric) return 0
-  const hashMap = (metric as unknown as { hashMap: Record<string, { value: number }> }).hashMap
-  const defaultEntry = hashMap['valueWithExemplarLabelNotSupported,']
-  return defaultEntry?.value ?? 0
+  const hashMap = (
+    metric as unknown as {
+      hashMap: Record<string, { value: number; labels: Record<string, string> }>
+    }
+  ).hashMap
+  const match = Object.values(hashMap).find((entry) =>
+    Object.entries(labels).every(([key, value]) => entry.labels[key] === value),
+  )
+  return match?.value ?? 0
 }
 
 const createRequest = (body: unknown, token?: string): Request => {
@@ -66,7 +72,7 @@ describe('POST /api/backup-report', () => {
   it('increments success counter on valid success report', async () => {
     if (!handler) return
     const request = createRequest(
-      { status: 'success', file: '/backups/test.sql.gz' },
+      { status: 'success', file: '/backups/test.dump' },
       'test-backup-token',
     )
     const response = await handler({ request })
@@ -74,7 +80,8 @@ describe('POST /api/backup-report', () => {
     expect(getMetricValue('eurtisan_backup_success_total')).toBe(1)
     expect(getMetricValue('eurtisan_backup_failures_total')).toBe(0)
     expect(logger.info).toHaveBeenCalledWith('Backup reported as successful', {
-      file: '/backups/test.sql.gz',
+      file: '/backups/test.dump',
+      operation: 'logical',
     })
   })
 
@@ -93,6 +100,33 @@ describe('POST /api/backup-report', () => {
       expect.any(Error),
       expect.objectContaining({ alert: true, error: 'upload failed' }),
     )
+  })
+
+  it('records status observations without incrementing result counters', async () => {
+    if (!handler) return
+    const request = createRequest(
+      {
+        status: 'success',
+        reportType: 'status',
+        operation: 'wal-archive',
+        lastSuccessEpoch: 1_700_000_000,
+        walArchiveFailedCount: 2,
+        walPendingFiles: 3,
+      },
+      'test-backup-token',
+    )
+    const response = await handler({ request })
+    expect(response.status).toBe(200)
+    expect(getMetricValue('eurtisan_backup_success_total')).toBe(0)
+    expect(getMetricValue('eurtisan_backup_failures_total')).toBe(0)
+    expect(
+      getMetricValue('eurtisan_backup_last_success_timestamp_seconds', {
+        backup_type: 'wal-archive',
+      }),
+    ).toBe(1_700_000_000)
+    expect(getMetricValue('eurtisan_postgres_wal_archive_failed_count')).toBe(2)
+    expect(getMetricValue('eurtisan_postgres_wal_archive_pending_files')).toBe(3)
+    expect(logger.info).not.toHaveBeenCalled()
   })
 
   it('falls back to METRICS_TOKEN when BACKUP_REPORT_TOKEN is unset', async () => {

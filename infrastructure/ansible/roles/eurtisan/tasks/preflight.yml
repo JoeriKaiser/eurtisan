@@ -167,6 +167,78 @@
     fail_msg: "Mollie, Sendcloud, or email mode is inconsistent with deployment_environment"
   tags: [always, preflight]
 
+- name: Validate backup retention and runtime policy
+  ansible.builtin.assert:
+    that:
+      - backup_retention_days | int >= 7
+      - backup_offsite_retention_days | int >= backup_retention_days | int
+      - postgres_archive_timeout_seconds | int >= 60
+      - postgres_archive_timeout_seconds | int <= 3600
+      - pgbackrest_retention_full | int >= 2
+      - pgbackrest_retention_diff | int >= 2
+      - pgbackrest_process_max | int >= 1
+      - pgbackrest_process_max | int <= 8
+      - backup_logical_cipher_pass | default('') | string | length >= 32
+      - pgbackrest_repository_type in ['posix', 's3']
+      - postgres_verify_image is match('^postgres:16-alpine@sha256:[a-f0-9]{64}$')
+    fail_msg: "Backup retention, logical encryption, archive timeout, repository type, process count, or verification image is invalid"
+  tags: [always, preflight, backup]
+
+- name: Validate pgBackRest encryption and repository configuration
+  ansible.builtin.assert:
+    that:
+      - pgbackrest_repo_cipher_pass | default('') | string | length >= 32
+      - pgbackrest_stanza is match('^[a-z][a-z0-9-]{2,31}$')
+      - pgbackrest_repository_host_path is match('^/opt/eurtisan/backups/[a-z0-9-]+$')
+      - pgbackrest_repository_path is match('^/[a-z0-9/_-]+$')
+      - pgbackrest_spool_host_path is match('^/opt/eurtisan/backups/[a-z0-9-]+$')
+      - deployment_environment != 'production' or pgbackrest_repository_type == 's3'
+    fail_msg: "Enabled pgBackRest requires a protected cipher passphrase and production requires an S3 repository"
+  when: postgres_wal_archive_enabled | bool
+  tags: [always, preflight, backup]
+
+- name: Validate S3-compatible pgBackRest repository credentials
+  ansible.builtin.assert:
+    that:
+      - backup_object_storage_endpoint | default('') is match('^https://[A-Za-z0-9.-]+(?::[0-9]+)?$')
+      - backup_object_storage_region | default('') is match('^[A-Za-z0-9-]{2,32}$')
+      - pgbackrest_s3_bucket | default('') is match('^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$')
+      - pgbackrest_s3_access_key | default('') | string | length >= 16
+      - pgbackrest_s3_secret_key | default('') | string | length >= 20
+    fail_msg: "The pgBackRest S3 endpoint, region, bucket, or least-privilege credentials are missing"
+  when:
+    - postgres_wal_archive_enabled | bool
+    - pgbackrest_repository_type == 's3'
+  tags: [always, preflight, backup]
+
+- name: Validate encrypted off-site logical and uploads backup configuration
+  ansible.builtin.assert:
+    that:
+      - backup_object_storage_endpoint | default('') is match('^https://[A-Za-z0-9.-]+(?::[0-9]+)?$')
+      - backup_object_storage_region | default('') is match('^[A-Za-z0-9-]{2,32}$')
+      - backup_logical_s3_bucket | default('') is match('^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$')
+      - backup_logical_s3_access_key | default('') | string | length >= 16
+      - backup_logical_s3_secret_key | default('') | string | length >= 20
+      - backup_primary_uploads_access_key | default('') | string | length >= 16
+      - backup_primary_uploads_secret_key | default('') | string | length >= 20
+      - backup_rclone_crypt_password | default('') | string | length >= 16
+      - backup_offsite_rclone_remote is match('^backupoffsite:[A-Za-z0-9._/-]+$')
+      - backup_primary_uploads_rclone_remote is match('^primaryuploads:[A-Za-z0-9._/-]+$')
+      - backup_offsite_uploads_rclone_remote is match('^backupoffsite:[A-Za-z0-9._/-]+$')
+    fail_msg: "Enabled off-site backups require encrypted rclone storage and separate source-read credentials"
+  when: backup_offsite_enabled | bool
+  tags: [always, preflight, backup]
+
+- name: Require off-site logical backups and PITR before production deployment
+  ansible.builtin.assert:
+    that:
+      - backup_offsite_enabled | bool
+      - postgres_wal_archive_enabled | bool
+      - pgbackrest_repository_type == 's3'
+    fail_msg: "Production deployment is blocked until encrypted off-site backups and S3-backed pgBackRest PITR are configured"
+  when: deployment_environment == 'production'
+  tags: [always, preflight, backup]
+
 - name: Validate alertmanager receiver configuration in production
   ansible.builtin.assert:
     that:

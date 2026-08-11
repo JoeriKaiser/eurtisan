@@ -2,12 +2,30 @@ import { createFileRoute } from '@tanstack/react-router'
 import z from 'zod'
 
 import { logger } from '#/lib/logger.server'
-import { backupFailuresTotal, backupSuccessTotal } from '#/lib/metrics.server'
+import {
+  backupFailuresTotal,
+  backupLastSuccessTimestamp,
+  backupSuccessTotal,
+  postgresWalArchiveFailedCount,
+  postgresWalArchivePendingFiles,
+} from '#/lib/metrics.server'
 
 const reportSchema = z.object({
   status: z.enum(['success', 'failure']),
-  file: z.string().optional(),
-  error: z.string().optional(),
+  reportType: z.enum(['result', 'status']).default('result'),
+  operation: z
+    .enum(['logical', 'physical-full', 'physical-diff', 'wal-archive'])
+    .default('logical'),
+  file: z.string().max(512).optional(),
+  error: z.string().max(512).optional(),
+  lastSuccessEpoch: z
+    .number()
+    .int()
+    .nonnegative()
+    .refine((value) => value <= Math.floor(Date.now() / 1000) + 300)
+    .optional(),
+  walArchiveFailedCount: z.number().int().nonnegative().max(1_000_000_000).optional(),
+  walPendingFiles: z.number().int().nonnegative().max(1_000_000).optional(),
 })
 
 function isAuthorized(request: Request): boolean {
@@ -53,18 +71,42 @@ export const Route = createFileRoute('/api/backup-report')({
           })
         }
 
-        const { status, file, error } = parseResult.data
+        const {
+          status,
+          reportType,
+          operation,
+          file,
+          error,
+          lastSuccessEpoch,
+          walArchiveFailedCount,
+          walPendingFiles,
+        } = parseResult.data
 
-        if (status === 'success') {
-          backupSuccessTotal.inc()
-          logger.info('Backup reported as successful', { file })
-        } else {
-          backupFailuresTotal.inc()
-          logger.error('Backup reported as failed', error ? new Error(error) : undefined, {
-            alert: true,
-            file,
-            error,
-          })
+        if (lastSuccessEpoch !== undefined) {
+          backupLastSuccessTimestamp.set({ backup_type: operation }, lastSuccessEpoch)
+        }
+        if (operation === 'wal-archive') {
+          if (walArchiveFailedCount !== undefined) {
+            postgresWalArchiveFailedCount.set(walArchiveFailedCount)
+          }
+          if (walPendingFiles !== undefined) {
+            postgresWalArchivePendingFiles.set(walPendingFiles)
+          }
+        }
+
+        if (reportType === 'result') {
+          if (status === 'success') {
+            backupSuccessTotal.inc()
+            logger.info('Backup reported as successful', { file, operation })
+          } else {
+            backupFailuresTotal.inc()
+            logger.error('Backup reported as failed', error ? new Error(error) : undefined, {
+              alert: true,
+              file,
+              error,
+              operation,
+            })
+          }
         }
 
         return new Response(JSON.stringify({ received: true }), {

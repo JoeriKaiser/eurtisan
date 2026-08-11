@@ -1,20 +1,22 @@
 #!/bin/bash
 set -euo pipefail
+umask 0027
 
-COMPOSE_FILE="{{ compose_file }}"
-BACKUP_DIR="/opt/eurtisan/backups"
-BACKUP_RETENTION_DAYS="{{ backup_retention_days | default(30) }}"
-BACKUP_OFFSITE_RETENTION_DAYS="{{ backup_offsite_retention_days | default(90) }}"
-OFFSITE_REMOTE="{{ backup_offsite_rclone_remote | default('') }}"
-POSTGRES_USER="{{ postgres_user }}"
-POSTGRES_DB="{{ postgres_db }}"
-WEBHOOK_URL="{{ backup_alert_webhook | default('') }}"
-BACKUP_REPORT_TOKEN="{{ backup_report_token | default('') }}"
-MEILISEARCH_HOST="{{ meilisearch_host | default('http://meilisearch:7700') }}"
-MEILISEARCH_API_KEY="{{ meilisearch_api_key | default('') }}"
-S3_UPLOADS_BUCKET="{{ s3_uploads_bucket | default('') }}"
-S3_UPLOADS_REMOTE="{{ backup_s3_uploads_rclone_remote | default('') }}"
-WAL_ARCHIVE_PATH="{{ postgres_wal_archive_path | default('/opt/eurtisan/backups/wal') }}"
+BACKUP_ENV_FILE="${BACKUP_ENV_FILE:-/etc/eurtisan/backup.env}"
+if [[ ! -r "$BACKUP_ENV_FILE" ]]; then
+  echo "Backup configuration is not readable: $BACKUP_ENV_FILE" >&2
+  exit 1
+fi
+set -a
+# shellcheck disable=SC1090
+source "$BACKUP_ENV_FILE"
+set +a
+
+mkdir -p "$BACKUP_DIR" "$BACKUP_STATE_DIR"
+BACKUP_FILE=""
+BACKUP_FAILED=false
+BACKUP_ERROR=""
+VERIFY_CONTAINER="eurtisan-backup-verify"
 
 json_log() {
   local level="$1"
@@ -26,222 +28,198 @@ json_log() {
 
 send_alert() {
   local message="$1"
-  if [[ -n "$WEBHOOK_URL" ]]; then
-    curl -fsSL -X POST -H "Content-Type: application/json" \
-      -d "{\"text\":\"$message\"}" "$WEBHOOK_URL" >/dev/null 2>&1 || true
+  if [[ -n "$BACKUP_ALERT_WEBHOOK" ]]; then
+    curl -fsSL --max-time 15 -X POST -H "Content-Type: application/json" \
+      -d "{\"text\":\"$message\"}" "$BACKUP_ALERT_WEBHOOK" >/dev/null 2>&1 || true
   fi
 }
 
-BACKUP_FAILED=false
-BACKUP_ERROR=""
+post_report() {
+  local status="$1"
+  local error="$2"
+  [[ -n "$BACKUP_REPORT_TOKEN" ]] || return 0
+  docker inspect "$APP_CONTAINER" >/dev/null 2>&1 || return 0
 
-report_backup() {
-  if [[ -z "$BACKUP_REPORT_TOKEN" ]]; then
-    return 0
-  fi
-
-  local status="success"
-  if [[ "$BACKUP_FAILED" == "true" ]]; then
-    status="failure"
-  fi
-
-  curl -fsS -X POST \
-    -H "Content-Type: application/json" \
-    -H "Authorization: Bearer $BACKUP_REPORT_TOKEN" \
-    -d "{\"status\":\"$status\",\"file\":\"$BACKUP_FILE\",\"error\":\"$BACKUP_ERROR\"}" \
-    "http://app:3000/api/backup-report" >/dev/null 2>&1 || true
+  printf '{"status":"%s","operation":"logical","file":"%s","error":"%s","lastSuccessEpoch":%s}\n' \
+    "$status" "$BACKUP_FILE" "$error" \
+    "$([[ "$status" == "success" ]] && date +%s || printf '0')" |
+    docker exec -i -e EURTISAN_BACKUP_REPORT_TOKEN="$BACKUP_REPORT_TOKEN" "$APP_CONTAINER" \
+      sh -c 'curl -fsS --max-time 10 -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $EURTISAN_BACKUP_REPORT_TOKEN" --data-binary @- http://localhost:3000/api/backup-report' \
+      >/dev/null 2>&1 || true
 }
 
 cleanup() {
-  docker rm -f eurtisan-backup-verify 2>/dev/null || true
-  docker network rm eurtisan-backup-verify-net 2>/dev/null || true
+  docker rm -f "$VERIFY_CONTAINER" >/dev/null 2>&1 || true
 }
-trap cleanup EXIT
-trap report_backup EXIT
 
-mkdir -p "$BACKUP_DIR"
-BACKUP_FILE="$BACKUP_DIR/eurtisan-$(date +%Y%m%d-%H%M%S).sql.gz"
-DUMP_DATE_PREFIX="$(date +%Y%m%d-%H%M%S)"
+on_exit() {
+  local exit_code=$?
+  trap - EXIT
+  if [[ "$exit_code" -ne 0 && "$BACKUP_FAILED" != "true" ]]; then
+    BACKUP_FAILED=true
+    BACKUP_ERROR="Unexpected backup job failure"
+    json_log "error" "$BACKUP_ERROR" "{}"
+    send_alert "Eurtisan logical backup failed on $(hostname): $BACKUP_ERROR"
+  fi
+  cleanup
+  if [[ "$BACKUP_FAILED" == "true" ]]; then
+    post_report "failure" "$BACKUP_ERROR"
+  else
+    post_report "success" ""
+  fi
+  exit "$exit_code"
+}
+trap on_exit EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
-json_log "info" "Backup job started" "{\"file\":\"$BACKUP_FILE\"}"
-
-# 1. Create backup
-if ! docker compose -f "/opt/eurtisan/$COMPOSE_FILE" exec -T db pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip > "$BACKUP_FILE"; then
+exec 9>"$BACKUP_STATE_DIR/database-backup.lock"
+if ! flock -n 9; then
   BACKUP_FAILED=true
-  BACKUP_ERROR="Backup creation failed"
+  BACKUP_ERROR="Another database backup is already running"
+  json_log "error" "$BACKUP_ERROR" "{}"
+  exit 75
+fi
+
+cleanup
+BACKUP_FILE="$BACKUP_DIR/eurtisan-$(date -u +%Y%m%d-%H%M%S).dump.gpg"
+CHECKSUM_FILE="$BACKUP_FILE.sha256"
+json_log "info" "Encrypted logical backup started" "{\"file\":\"$BACKUP_FILE\"}"
+
+if ! docker exec "$DB_CONTAINER" pg_dump \
+  --username "$POSTGRES_USER" \
+  --dbname "$POSTGRES_DB" \
+  --format custom \
+  --compress 9 |
+  gpg --batch --yes --quiet --pinentry-mode loopback \
+    --passphrase-fd 3 --symmetric --cipher-algo AES256 \
+    --output "$BACKUP_FILE" 3<<<"$BACKUP_LOGICAL_CIPHER_PASS"; then
+  BACKUP_FAILED=true
+  BACKUP_ERROR="Encrypted pg_dump failed"
   json_log "error" "$BACKUP_ERROR" "{\"file\":\"$BACKUP_FILE\"}"
-  send_alert "🚨 Eurtisan backup FAILED on $(hostname): $BACKUP_ERROR"
+  send_alert "Eurtisan logical backup failed on $(hostname): $BACKUP_ERROR"
   exit 1
 fi
 
-BACKUP_SIZE=$(stat -c%s "$BACKUP_FILE" 2>/dev/null || echo "0")
-json_log "info" "Backup created" "{\"file\":\"$BACKUP_FILE\",\"size_bytes\":$BACKUP_SIZE}"
+if [[ ! -s "$BACKUP_FILE" ]]; then
+  BACKUP_FAILED=true
+  BACKUP_ERROR="Encrypted pg_dump produced an empty file"
+  json_log "error" "$BACKUP_ERROR" "{\"file\":\"$BACKUP_FILE\"}"
+  exit 1
+fi
+(
+  cd "$BACKUP_DIR"
+  sha256sum "$(basename "$BACKUP_FILE")" >"$(basename "$CHECKSUM_FILE")"
+)
+json_log "info" "Logical backup created" \
+  "{\"file\":\"$BACKUP_FILE\",\"size_bytes\":$(stat -c%s "$BACKUP_FILE")}"
 
-# 2. Verify backup integrity (test restore)
-VERIFY_DB="verify_$(date +%s)"
-VERIFY_CONTAINER="eurtisan-backup-verify"
-VERIFY_NET="eurtisan-backup-verify-net"
-
-docker network create "$VERIFY_NET" 2>/dev/null || true
-
-if ! docker run -d --name "$VERIFY_CONTAINER" \
-  --network "$VERIFY_NET" \
+if ! docker run -d --rm --name "$VERIFY_CONTAINER" \
+  --network none \
   -e POSTGRES_USER=verify \
-  -e POSTGRES_PASSWORD=verify \
-  -e POSTGRES_DB="$VERIFY_DB" \
-  --health-cmd="pg_isready -U verify" \
-  --health-interval=2s \
-  --health-timeout=5s \
-  --health-retries=15 \
-  postgres:16-alpine >/dev/null; then
+  -e POSTGRES_PASSWORD=verify-only \
+  -e POSTGRES_DB=verify_backup \
+  "$POSTGRES_VERIFY_IMAGE" >/dev/null; then
   BACKUP_FAILED=true
-  BACKUP_ERROR="Could not start verification container"
-  json_log "error" "$BACKUP_ERROR" "{\"file\":\"$BACKUP_FILE\"}"
-  send_alert "🚨 Eurtisan backup FAILED on $(hostname): $BACKUP_ERROR"
+  BACKUP_ERROR="Could not start backup verification database"
+  json_log "error" "$BACKUP_ERROR" "{}"
   exit 1
 fi
 
-# Wait for PostgreSQL to be ready (up to 60s)
-READY=0
-for i in $(seq 1 30); do
-  if docker exec "$VERIFY_CONTAINER" pg_isready -U verify >/dev/null 2>&1; then
-    READY=1
+ready=false
+for _ in $(seq 1 30); do
+  if docker exec "$VERIFY_CONTAINER" psql -U verify -d verify_backup -tAc 'SELECT 1;' \
+    2>/dev/null | grep -qx 1; then
+    ready=true
     break
   fi
   sleep 2
 done
-
-if [[ "$READY" -ne 1 ]]; then
+if [[ "$ready" != "true" ]]; then
   BACKUP_FAILED=true
-  BACKUP_ERROR="Verification container timeout"
-  json_log "error" "$BACKUP_ERROR" "{\"file\":\"$BACKUP_FILE\"}"
-  send_alert "🚨 Eurtisan backup FAILED on $(hostname): $BACKUP_ERROR"
+  BACKUP_ERROR="Backup verification database did not become ready"
+  json_log "error" "$BACKUP_ERROR" "{}"
   exit 1
 fi
 
-# Restore the backup
-if ! gunzip -c "$BACKUP_FILE" | docker exec -i "$VERIFY_CONTAINER" psql -U verify -d "$VERIFY_DB" >/dev/null 2>&1; then
+if ! gpg --batch --quiet --pinentry-mode loopback --passphrase-fd 3 \
+  --decrypt "$BACKUP_FILE" 3<<<"$BACKUP_LOGICAL_CIPHER_PASS" |
+  docker exec -i "$VERIFY_CONTAINER" pg_restore \
+    --username verify \
+    --dbname verify_backup \
+    --exit-on-error \
+    --no-owner \
+    --no-privileges >/dev/null; then
   BACKUP_FAILED=true
   BACKUP_ERROR="Test restore failed"
   json_log "error" "$BACKUP_ERROR" "{\"file\":\"$BACKUP_FILE\"}"
-  send_alert "🚨 Eurtisan backup FAILED on $(hostname): $BACKUP_ERROR"
+  send_alert "Eurtisan logical backup failed on $(hostname): $BACKUP_ERROR"
   exit 1
 fi
 
-json_log "info" "Test restore succeeded" "{\"file\":\"$BACKUP_FILE\"}"
-
-# 3. Verify expected tables exist
-EXPECTED_TABLES=("user" "session" "account" "verification" "shop" "category")
-MISSING=()
+EXPECTED_TABLES=(user session account verification shop category platform_order)
+MISSING_TABLES=()
 for table in "${EXPECTED_TABLES[@]}"; do
-  COUNT=$(docker exec "$VERIFY_CONTAINER" psql -U verify -d "$VERIFY_DB" -tAc \
-    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='$table';" 2>/dev/null || echo "0")
-  if [[ "$COUNT" -eq 0 ]]; then
-    MISSING+=("$table")
+  present="$(docker exec "$VERIFY_CONTAINER" psql -U verify -d verify_backup -tAc \
+    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='$table';")"
+  if [[ "$present" != "1" ]]; then
+    MISSING_TABLES+=("$table")
   fi
 done
-
-TOTAL_TABLES=$(docker exec "$VERIFY_CONTAINER" psql -U verify -d "$VERIFY_DB" -tAc \
-  "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';" 2>/dev/null || echo "0")
-
-if [[ {{ '${#' }}MISSING[@]} -gt 0 ]]; then
-  MISSING_STR=$(printf '%s,' "${MISSING[@]}")
-  MISSING_STR="${MISSING_STR%,}"
+if [[ "{% raw %}${#MISSING_TABLES[@]}{% endraw %}" -gt 0 ]]; then
   BACKUP_FAILED=true
-  BACKUP_ERROR="Missing expected tables: $MISSING_STR"
-  json_log "error" "Backup verification failed: missing expected tables" "{\"missing_tables\":\"$MISSING_STR\",\"total_tables\":$TOTAL_TABLES,\"file\":\"$BACKUP_FILE\"}"
-  send_alert "🚨 Eurtisan backup FAILED on $(hostname): $BACKUP_ERROR"
+  BACKUP_ERROR="Test restore is missing expected tables"
+  json_log "error" "$BACKUP_ERROR" \
+    "{\"missing_tables\":\"$(IFS=,; printf '%s' "${MISSING_TABLES[*]}")\"}"
+  send_alert "Eurtisan logical backup failed on $(hostname): $BACKUP_ERROR"
   exit 1
 fi
+json_log "info" "Logical backup test restore succeeded" "{\"file\":\"$BACKUP_FILE\"}"
 
-if [[ "$TOTAL_TABLES" -eq 0 ]]; then
-  BACKUP_FAILED=true
-  BACKUP_ERROR="Restored database is empty"
-  json_log "error" "Backup verification failed: no tables in restored database" "{\"file\":\"$BACKUP_FILE\"}"
-  send_alert "🚨 Eurtisan backup FAILED on $(hostname): $BACKUP_ERROR"
-  exit 1
-fi
-
-json_log "info" "Backup verification completed successfully" "{\"file\":\"$BACKUP_FILE\",\"total_tables\":$TOTAL_TABLES}"
-
-# 4. Meilisearch dump
-if [[ -n "$MEILISEARCH_API_KEY" ]]; then
-  MEILI_DUMP_DIR="$BACKUP_DIR/meilisearch-$DUMP_DATE_PREFIX"
-  mkdir -p "$MEILI_DUMP_DIR"
-
-  json_log "info" "Starting Meilisearch dump" "{\"host\":\"$MEILISEARCH_HOST\"}"
-
-  # Trigger a dump; Meilisearch returns a task UID we could poll, but the dump
-  # endpoint is synchronous enough for our needs. A Meilisearch dump failure is
-  # now considered a backup failure because search indexes are part of the
-  # recoverable dataset.
-  if curl -fsS -X POST "$MEILISEARCH_HOST/dumps" \
-    -H "Authorization: Bearer $MEILISEARCH_API_KEY" \
-    -o "$MEILI_DUMP_DIR/dump-response.json" 2>/dev/null; then
-
-    DUMP_UID=$(python3 -c "import json,sys; print(json.load(open('$MEILI_DUMP_DIR/dump-response.json')).get('taskUid',''))" 2>/dev/null || true)
-    if [[ -n "$DUMP_UID" ]]; then
-      json_log "info" "Meilisearch dump task created" "{\"taskUid\":$DUMP_UID}"
-    else
-      # Meilisearch < v1.8 returns the dump file path directly.
-      json_log "info" "Meilisearch dump response saved" "{}"
-    fi
-  else
+if [[ "$BACKUP_OFFSITE_ENABLED" == "true" ]]; then
+  if [[ -z "$BACKUP_OFFSITE_REMOTE" ]]; then
     BACKUP_FAILED=true
-    BACKUP_ERROR="Meilisearch dump failed"
+    BACKUP_ERROR="Off-site backup is enabled without a destination"
     json_log "error" "$BACKUP_ERROR" "{}"
-    send_alert "🚨 Eurtisan backup FAILED on $(hostname): $BACKUP_ERROR"
     exit 1
   fi
-fi
 
-# 5. Off-site upload
-if [[ -n "$OFFSITE_REMOTE" ]]; then
-  json_log "info" "Uploading database backup off-site" "{\"remote\":\"$OFFSITE_REMOTE\",\"file\":\"$BACKUP_FILE\"}"
-
-  if ! rclone copyto "$BACKUP_FILE" "${OFFSITE_REMOTE}/$(basename "$BACKUP_FILE")"; then
+  if ! rclone copyto "$BACKUP_FILE" "$BACKUP_OFFSITE_REMOTE/$(basename "$BACKUP_FILE")" \
+    --checkers 4 --transfers 2; then
     BACKUP_FAILED=true
-    BACKUP_ERROR="Off-site backup upload failed"
-    json_log "error" "$BACKUP_ERROR" "{\"file\":\"$BACKUP_FILE\",\"remote\":\"$OFFSITE_REMOTE\"}"
-    send_alert "🚨 Eurtisan backup WARNING on $(hostname): local backup OK, but $BACKUP_ERROR"
+    BACKUP_ERROR="Encrypted off-site database upload failed"
+    json_log "error" "$BACKUP_ERROR" "{\"remote\":\"$BACKUP_OFFSITE_REMOTE\"}"
+    send_alert "Eurtisan logical backup failed on $(hostname): $BACKUP_ERROR"
     exit 1
   fi
+  if ! rclone copyto "$CHECKSUM_FILE" "$BACKUP_OFFSITE_REMOTE/$(basename "$CHECKSUM_FILE")" \
+    --checkers 4 --transfers 2; then
+    BACKUP_FAILED=true
+    BACKUP_ERROR="Off-site checksum upload failed"
+    json_log "error" "$BACKUP_ERROR" "{\"remote\":\"$BACKUP_OFFSITE_REMOTE\"}"
+    send_alert "Eurtisan logical backup failed on $(hostname): $BACKUP_ERROR"
+    exit 1
+  fi
+  json_log "info" "Encrypted off-site database upload succeeded" \
+    "{\"remote\":\"$BACKUP_OFFSITE_REMOTE\",\"file\":\"$BACKUP_FILE\"}"
 
-  json_log "info" "Off-site backup upload succeeded" "{\"file\":\"$BACKUP_FILE\",\"remote\":\"$OFFSITE_REMOTE\"}"
-
-  # Prune off-site backups older than the configured retention. Best-effort:
-  # failures are logged but do not fail the job, because the local backup is
-  # still valid and a bucket lifecycle rule (preferred) may already handle this.
-  if rclone lsf "$OFFSITE_REMOTE" >/dev/null 2>&1; then
-    rclone delete --min-age "${BACKUP_OFFSITE_RETENTION_DAYS}d" "$OFFSITE_REMOTE" >/dev/null 2>&1 || true
-    json_log "info" "Pruned off-site backups older than ${BACKUP_OFFSITE_RETENTION_DAYS} days" "{\"remote\":\"$OFFSITE_REMOTE\"}"
+  if [[ -n "$BACKUP_PRIMARY_UPLOADS_REMOTE" && -n "$BACKUP_OFFSITE_UPLOADS_REMOTE" ]]; then
+    # Copy without delete permission. Destination versioning/Object Lock retains
+    # overwritten objects, while source deletions remain until lifecycle expiry.
+    if ! rclone copy "$BACKUP_PRIMARY_UPLOADS_REMOTE" "$BACKUP_OFFSITE_UPLOADS_REMOTE/current" \
+      --checkers 8 --transfers 4; then
+      BACKUP_FAILED=true
+      BACKUP_ERROR="Off-site uploads replication failed"
+      json_log "error" "$BACKUP_ERROR" "{\"source\":\"$BACKUP_PRIMARY_UPLOADS_REMOTE\"}"
+      send_alert "Eurtisan uploads replication failed on $(hostname)"
+      exit 1
+    fi
+    json_log "info" "Off-site uploads replication succeeded" \
+      "{\"destination\":\"$BACKUP_OFFSITE_UPLOADS_REMOTE\"}"
   fi
 fi
 
-# 6. S3 uploads sync (secondary copy)
-if [[ -n "$S3_UPLOADS_REMOTE" && -n "$OFFSITE_REMOTE" ]]; then
-  json_log "info" "Syncing S3 uploads bucket off-site" "{\"remote\":\"$S3_UPLOADS_REMOTE\"}"
-
-  if ! rclone sync "$S3_UPLOADS_REMOTE" "${OFFSITE_REMOTE}/uploads-${DUMP_DATE_PREFIX}"; then
-    json_log "warn" "S3 uploads off-site sync failed" "{\"remote\":\"$S3_UPLOADS_REMOTE\"}"
-    send_alert "⚠️ Eurtisan backup warning on $(hostname): S3 uploads off-site sync failed"
-  else
-    json_log "info" "S3 uploads off-site sync completed" "{\"remote\":\"$S3_UPLOADS_REMOTE\"}"
-  fi
-fi
-
-# 7. Cleanup old local backups
-DELETED=$(find "$BACKUP_DIR" -name "*.sql.gz" -mtime +"$BACKUP_RETENTION_DAYS" -print -delete 2>/dev/null | wc -l)
-json_log "info" "Pruned old backups" "{\"deleted\":$DELETED,\"retention_days\":$BACKUP_RETENTION_DAYS}"
-
-# Cleanup old local Meilisearch dumps
-MEILI_DELETED=$(find "$BACKUP_DIR" -maxdepth 1 -type d -name "meilisearch-*" -mtime +"$BACKUP_RETENTION_DAYS" -print -delete 2>/dev/null | wc -l)
-json_log "info" "Pruned old Meilisearch dumps" "{\"deleted\":$MEILI_DELETED,\"retention_days\":$BACKUP_RETENTION_DAYS}"
-
-# Cleanup old local WAL segments
-if [[ -d "$WAL_ARCHIVE_PATH" ]]; then
-  WAL_DELETED=$(find "$WAL_ARCHIVE_PATH" -type f -mtime +"$BACKUP_RETENTION_DAYS" -print -delete 2>/dev/null | wc -l)
-  json_log "info" "Pruned old WAL segments" "{\"deleted\":$WAL_DELETED,\"retention_days\":$BACKUP_RETENTION_DAYS,\"path\":\"$WAL_ARCHIVE_PATH\"}"
-fi
-
-json_log "info" "Backup job completed successfully" "{\"file\":\"$BACKUP_FILE\"}"
+date +%s >"$BACKUP_STATE_DIR/logical.last-success"
+find "$BACKUP_DIR" -maxdepth 1 -type f \( -name '*.dump.gpg' -o -name '*.dump.gpg.sha256' \) \
+  -mtime "+$BACKUP_RETENTION_DAYS" -delete
+json_log "info" "Logical backup completed successfully" "{\"file\":\"$BACKUP_FILE\"}"

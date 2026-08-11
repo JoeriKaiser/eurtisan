@@ -1,0 +1,64 @@
+#!/bin/bash
+set -euo pipefail
+
+BACKUP_ENV_FILE="${BACKUP_ENV_FILE:-/etc/eurtisan/backup.env}"
+if [[ ! -r "$BACKUP_ENV_FILE" ]]; then
+  echo "Backup configuration is not readable: $BACKUP_ENV_FILE" >&2
+  exit 1
+fi
+set -a
+# shellcheck disable=SC1090
+source "$BACKUP_ENV_FILE"
+set +a
+
+[[ -n "$BACKUP_REPORT_TOKEN" ]] || exit 0
+docker inspect "$APP_CONTAINER" >/dev/null 2>&1 || exit 0
+
+post_payload() {
+  docker exec -i -e EURTISAN_BACKUP_REPORT_TOKEN="$BACKUP_REPORT_TOKEN" "$APP_CONTAINER" \
+    sh -c 'curl -fsS --max-time 10 -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $EURTISAN_BACKUP_REPORT_TOKEN" --data-binary @- http://localhost:3000/api/backup-report' \
+    >/dev/null
+}
+
+read_epoch() {
+  local file="$1"
+  local value=0
+  if [[ -r "$file" ]]; then
+    value="$(<"$file")"
+  fi
+  if [[ ! "$value" =~ ^[0-9]+$ ]]; then
+    value=0
+  fi
+  printf '%s' "$value"
+}
+
+logical_epoch="$(read_epoch "$BACKUP_STATE_DIR/logical.last-success")"
+printf '{"status":"success","reportType":"status","operation":"logical","lastSuccessEpoch":%s}\n' \
+  "$logical_epoch" | post_payload
+
+if [[ "$PGBACKREST_ENABLED" != "true" ]]; then
+  exit 0
+fi
+
+full_epoch="$(read_epoch "$BACKUP_STATE_DIR/physical-full.last-success")"
+diff_epoch="$(read_epoch "$BACKUP_STATE_DIR/physical-diff.last-success")"
+printf '{"status":"success","reportType":"status","operation":"physical-full","lastSuccessEpoch":%s}\n' \
+  "$full_epoch" | post_payload
+printf '{"status":"success","reportType":"status","operation":"physical-diff","lastSuccessEpoch":%s}\n' \
+  "$diff_epoch" | post_payload
+
+archiver_status="$(docker exec "$DB_CONTAINER" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -AtF '|' -c \
+  "SELECT COALESCE(EXTRACT(EPOCH FROM last_archived_time)::bigint, 0), failed_count FROM pg_stat_archiver;")"
+IFS='|' read -r last_archived_epoch failed_count <<<"$archiver_status"
+pending_files="$(docker exec "$DB_CONTAINER" sh -c \
+  'find "$PGDATA/pg_wal/archive_status" -maxdepth 1 -type f -name "*.ready" 2>/dev/null | wc -l')"
+
+for value in "$last_archived_epoch" "$failed_count" "$pending_files"; do
+  [[ "$value" =~ ^[0-9]+$ ]] || {
+    echo "PostgreSQL returned an invalid WAL archive status" >&2
+    exit 1
+  }
+done
+
+printf '{"status":"success","reportType":"status","operation":"wal-archive","lastSuccessEpoch":%s,"walArchiveFailedCount":%s,"walPendingFiles":%s}\n' \
+  "$last_archived_epoch" "$failed_count" "$pending_files" | post_payload

@@ -20,4 +20,9 @@ email_smtp_host: mailpit
 email_smtp_port: "1025"
 email_from_address: noreply@staging.eurtisan.eu
 app_container_name: eurtisan-app-staging
+db_container_name: eurtisan-db-staging
+# Exercise encrypted physical backups and WAL/PITR locally before a remote
+# repository is available. This does not satisfy the off-site production gate.
+postgres_wal_archive_enabled: true
+pgbackrest_repository_type: posix
 faro_sample_rate: "1"
