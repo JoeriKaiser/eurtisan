@@ -1,0 +1,1 @@
+ALTER TABLE "shop" ADD COLUMN "moderation_note" text;

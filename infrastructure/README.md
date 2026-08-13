@@ -1,0 +1,288 @@
+# Eurtisan Infrastructure
+
+Provider-agnostic IaC for deploying Eurtisan on any VPS.
+
+## What's Included
+
+| Tool | Purpose |
+|------|---------|
+| **Ansible** | Server hardening, Docker installation, app deployment |
+| **Caddy** | Reverse proxy with automatic HTTPS (Let's Encrypt) |
+| **Docker Compose** | Container orchestration (app, PostgreSQL, Meilisearch, jobs) |
+| **Prometheus + Alertmanager** | Metrics and alerting |
+| **Grafana + Alloy + Loki + Tempo** | Observability stack |
+| **GitHub Actions** | Validation-only CI for GitHub pull requests and `main` |
+
+## Prerequisites
+
+1. **A VPS** running Ubuntu 24.04 (or any Debian-based distro)
+   - Staging: 2 vCPU / 4GB RAM minimum
+   - Production: 4 vCPU / 8GB RAM recommended
+2. **Ansible, Docker, and Cosign** installed on the trusted controller:
+   ```bash
+   pip install ansible
+   docker info
+   cosign version
+   ```
+3. **SSH access** to the VPS as root (for initial provisioning)
+4. A **read-only GitHub deploy key** at `/root/.ssh/eurtisan_github_deploy` on each VPS, registered for the private canonical repository
+
+## Repository source and mirror
+
+GitHub is the canonical repository for Eurtisan:
+
+```txt
+https://github.com/JoeriKaiser/eurtisan
+```
+
+Codeberg is a source mirror. GitHub Actions runs validation only; it never
+deploys to staging or production. VPS deployments remain manual and pull from
+the private canonical GitHub repository using a host-specific read-only deploy key.
+
+## Quick Start
+
+### 1. Configure Inventory
+
+Inventory files contain your VPS IPs and are **not committed**. Copy the examples and fill in your real values:
+
+```bash
+# One-time setup
+cp infrastructure/ansible/inventory/staging.example.yml infrastructure/ansible/inventory/staging.yml
+cp infrastructure/ansible/inventory/production.example.yml infrastructure/ansible/inventory/production.yml
+
+# Edit with your actual IPs
+vi infrastructure/ansible/inventory/staging.yml
+vi infrastructure/ansible/inventory/production.yml
+```
+
+**Staging on an existing VPS (e.g. with Coolify):**
+Set `coexist_with_proxy: true` in `inventory/staging.yml`. This skips Caddy and UFW so the existing reverse proxy owns ports 80/443. The app also exposes an optional HTTP fallback on `127.0.0.1:3002`; the proxy routes to the container over the shared Docker network.
+
+### 2. Set Secrets
+
+Secrets are passed at runtime (never committed). One encrypted Vault serves
+both environments: staging values carry a `_staging` suffix and production
+owns the canonical names (`group_vars/staging.yml` maps the suffixed keys).
+For production, start from `secrets.production.example.yml`.
+
+```yaml
+# secrets.yml (excerpt)
+postgres_password_staging: "staging db password"
+postgres_password: "production db password"
+better_auth_secret: "$(openssl rand -base64 32)"
+meilisearch_api_key_staging: "$(openssl rand -base64 32)"
+```
+
+### 3. Run the Playbook
+
+**Staging:**
+```bash
+cd infrastructure/ansible
+ansible-playbook -i inventory/staging.yml playbook.yml -e @secrets.yml
+```
+
+**Production:**
+```bash
+cd infrastructure/ansible
+ansible-playbook -i inventory/production.yml playbook.yml -e @secrets.yml
+```
+
+The staging playbook also runs a private single-node Garage service, initializes its
+layout and bucket, and exposes only the authenticated S3 API through
+`s3-staging.eurtisan.eu`. Production continues to use Scaleway Object Storage.
+
+The playbook will:
+1. Harden the server (UFW, fail2ban, auto-updates)
+2. Install Docker + Docker Compose plugin
+3. Install rclone for off-site backups
+4. Validate that at least one Alertmanager receiver is configured in production
+5. Clone the repository to `/opt/eurtisan`
+6. Build the environment-qualified release in a clean controller worktree, publish it to the environment's private registry, and sign its digest
+7. Verify the signature, repository digest, and OCI revision before writing runtime configuration
+8. Run migrations and start all services
+9. Set up nightly database backups with off-site upload when configured
+10. Configure PostgreSQL WAL archiving when enabled
+
+### 4. Point DNS
+
+Set an A record for your domain/subdomain pointing to the VPS IP:
+- `staging.eurtisan.eu` → staging VPS IP
+- `s3-staging.eurtisan.eu` → staging VPS IP (Garage S3 API)
+- `registry-staging.eurtisan.eu` → staging VPS IP (authenticated release registry)
+- `eurtisan.eu` + `www.eurtisan.eu` → production VPS IP
+
+Caddy will automatically provision Let's Encrypt certificates on first request.
+
+## Deployment
+
+### Manual Deploy
+
+Run the canonical Ansible workflow from the trusted controller:
+
+```bash
+make infra-setup-staging
+make infra-setup-production
+```
+
+Ansible builds from a clean worktree at the exact checked-out release, publishes and
+signs the environment-qualified digest in the environment's private registry, then
+makes the target pull only that verified digest. Staging's registry runs persistently
+under `/opt/eurtisan-release-registry` on the existing staging VPS; production uses
+Scaleway Container Registry in `fr-par`. The VPS `deploy.sh` only accepts
+a local digest matching Ansible-managed repository and revision metadata and never
+compiles source on the target. See
+[`docs/runbooks/release-promotion-and-rollback.md`](../docs/runbooks/release-promotion-and-rollback.md).
+
+### Automated Deploy
+
+GitHub Actions remains validation-only. It does not access Vault, connect to a VPS,
+or deploy staging/production. This avoids introducing long-lived deployment or
+registry credentials into GitHub.
+
+## Directory Structure
+
+```
+infrastructure/
+├── ansible/
+│   ├── ansible.cfg
+│   ├── inventory/
+│   │   ├── staging.yml              # Your real staging IP (gitignored)
+│   │   ├── staging.example.yml      # Example template (committed)
+│   │   ├── production.yml           # Your real production IP (gitignored)
+│   │   └── production.example.yml   # Example template (committed)
+│   ├── group_vars/
+│   │   ├── all.yml                  # Shared variables
+│   │   ├── staging.yml              # Staging overrides
+│   │   └── production.yml           # Production overrides
+│   ├── playbook.yml
+│   ├── roles/
+│   │   ├── common/                  # Server hardening + Docker
+│   │   └── eurtisan/                # App deployment
+│   └── files/
+│       └── deploy.sh                # VPS deploy script
+└── README.md
+```
+
+## Backup & Recovery
+
+Ansible installs persistent systemd timers for:
+
+- nightly verified custom-format logical dumps (03:00 UTC);
+- daily pgBackRest differential backups (02:00 UTC);
+- weekly pgBackRest full backups (Sunday 01:00 UTC);
+- five-minute backup and WAL status reporting.
+
+Staging enables encrypted pgBackRest physical backups and continuous WAL archiving
+to a local repository under `/opt/eurtisan/backups/`. This validates PITR but does
+not protect against host loss. Production preflight requires an independent HTTPS
+S3-compatible pgBackRest repository plus encrypted rclone logical and upload
+replication. Production therefore remains fail-closed until the owner creates the
+remote buckets and least-privilege credentials.
+
+There is no interactive `rclone config` step. Ansible provides protected rclone
+environment configuration to the restricted backup operator. Logical dumps are
+checksummed and test-restored before upload. Upload replication never deletes from
+the destination; versioning/Object Lock and lifecycle preserve prior or source-deleted
+objects for the 90-day retention window.
+
+Manual operations:
+
+```bash
+sudo systemctl start eurtisan-logical-backup.service
+sudo -u eurtisan-backup /opt/eurtisan/pgbackrest-backup.sh diff
+sudo -u eurtisan-backup /opt/eurtisan/pgbackrest-backup.sh full
+systemctl list-timers 'eurtisan-*backup*'
+```
+
+Run `make pgbackrest-check` for the disposable local full-backup/WAL/PITR test. Never
+restore over the live database volume; use a fresh isolated instance and follow
+[`docs/runbooks/backup-restore.md`](../docs/runbooks/backup-restore.md).
+
+### Hot standby / managed database (production)
+
+The default layout is a **single VPS** with Docker PostgreSQL. For lower RTO:
+
+1. **Managed Postgres** (OVH, Scaleway, RDS) — point `DATABASE_URL` at the provider; keep app on VPS.
+2. **Streaming replication** — standby on a second VPS; promote manually on primary failure (document failover in your runbook).
+
+See `docs/DEPLOYMENT.md` for WAL/RPO targets when `postgres_wal_archive_enabled` is enabled.
+
+## Staging Access Control
+
+When `coexist_with_proxy: true`, Traefik reaches the app over the shared Docker network and the optional HTTP fallback binds to `127.0.0.1:3002`.
+
+**Access options:**
+
+1. **SSH Tunnel (most secure):**
+   ```bash
+   ssh -i ~/.ssh/key -L 3002:127.0.0.1:3002 user@STAGING_IP -N
+   # Then open http://localhost:3002
+   ```
+
+2. **Direct access with IP whitelist:**
+   Add to `secrets.yml`:
+   ```yaml
+   app_access_ips: "YOUR_PUBLIC_IP"
+   ```
+   Re-run the playbook. UFW will open port 3002 for your IP only.
+
+3. **Coolify proxy (proper way):**
+   Use the Ansible-managed Traefik route from `staging.eurtisan.eu` to `eurtisan-app-staging:3000` on the shared Coolify network.
+   Then configure Traefik labels for IP whitelisting.
+
+See `docs/DEPLOYMENT.md` for full details.
+
+## Staging Seed Data
+
+After the initial deployment, inject permanent curated demo data. The seed is idempotent —
+safe to re-run; existing records are skipped.
+
+### Run on staging (via Coolify proxy)
+
+```bash
+ssh root@STAGING_IP 'cd /opt/eurtisan && docker compose -f docker-compose.staging.yml run --rm app bun run db:staging-seed'
+```
+
+### Run on production
+
+```bash
+ssh root@PROD_IP 'cd /opt/eurtisan && docker compose -f docker-compose.prod.yml run --rm app bun run db:staging-seed'
+```
+
+### What it creates
+
+| Resource | Details |
+|---|---|
+| Users | admin, moderator, creator, creator2, customer (@eurtisan.local) |
+| Shops | The Forge (active), Ceramic Dreams (draft), Nordic Knits (pending review), Rustic Woodworks (approved), Silver & Stone (active), Quick Print Co (suspended) |
+| Categories | 15 categories with 45 subcategories |
+| Products | 10 curated products across active shops |
+| Orders | 7 sample orders covering all statuses (delivered, completed, shipped, processing, paid, cancelled, disputed) |
+| Reviews | Product reviews on delivered/completed orders |
+| Disputes | 1 open dispute with message thread |
+
+The seed also populates the Meilisearch product index.
+
+## Adding OpenTofu Later
+
+If you move to an API-driven cloud provider (Hetzner Cloud, AWS, DigitalOcean, etc.),
+you can add an `infrastructure/tofu/` directory to provision VMs, managed databases,
+or object storage. Ansible remains the configuration layer regardless of how the
+VPS is provisioned.
+
+## Security Notes
+
+- The playbook uses SSH key authentication (password auth should be disabled manually)
+- UFW allows only 22, 80, and 443 (skipped when `coexist_with_proxy: true`)
+- fail2ban bans IPs after 5 failed SSH attempts
+- Unattended upgrades apply security patches automatically
+- `.env` file has `0600` permissions
+- App runs as a non-root user inside the container
+
+
+## Recovery objectives
+
+- **RPO:** < 1 hour with WAL archiving; < 24 hours with nightly backups only
+- **RTO:** < 4 hours for full service restoration
+
+Details: [docs/DEPLOYMENT.md](../docs/DEPLOYMENT.md#recovery-objectives-rto--rpo)

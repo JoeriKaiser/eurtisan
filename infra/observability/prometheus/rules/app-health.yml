@@ -1,0 +1,11 @@
+groups:
+  - name: app_health
+    rules:
+      - alert: EurtisanAppDown
+        expr: up{job="eurtisan"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Eurtisan app is not reachable by Prometheus
+          description: The eurtisan-app container has been down for more than 1 minute.

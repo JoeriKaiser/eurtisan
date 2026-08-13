@@ -1,0 +1,37 @@
+groups:
+  - name: email
+    rules:
+      - alert: EmailSendFailureRateHigh
+        expr: |
+          (
+            sum(rate(eurtisan_email_failed_total[5m]))
+            /
+            sum(rate(eurtisan_email_sent_total[5m]) + rate(eurtisan_email_failed_total[5m]))
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Email failure rate is above 10%
+
+      - alert: EmailOutboxBacklogGrowing
+        expr: |
+          eurtisan_email_queued_total - eurtisan_email_sent_total > 1000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Email outbox backlog is growing
+
+      - alert: EmailBounceRateHigh
+        expr: |
+          (
+            sum(rate(eurtisan_email_bounced_total[1h]))
+            /
+            sum(rate(eurtisan_email_sent_total[1h]))
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Email bounce rate is above 5%

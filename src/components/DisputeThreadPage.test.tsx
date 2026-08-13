@@ -1,0 +1,215 @@
+// @vitest-environment jsdom
+
+import { fireEvent, render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import { axe } from 'vitest-axe'
+import type { DisputeDetail } from '#/lib/disputes.server'
+import { addDisputeMessage } from '#/lib/disputes'
+import DisputeThreadPage, { DisputeThreadError, DisputeThreadLoading } from './DisputeThreadPage'
+
+vi.mock('@tanstack/react-router', () => ({
+  Link: (props: {
+    children: React.ReactNode
+    to: string
+    className?: string
+    params?: Record<string, string>
+  }) => (
+    <a href={props.to} className={props.className}>
+      {props.children}
+    </a>
+  ),
+  useRouter: () => ({ invalidate: vi.fn() }),
+}))
+
+vi.mock('#/paraglide/messages', () => ({
+  m: {
+    dispute_back_to_order: () => 'Back to order',
+    dispute_title: () => 'Dispute',
+    dispute_loading: () => 'Loading dispute details…',
+    dispute_status: () => 'Status',
+    dispute_status_open: () => 'Open',
+    dispute_status_resolved: () => 'Resolved',
+    dispute_status_closed: () => 'Closed',
+    dispute_reason: () => 'Reason',
+    dispute_reason_item_not_received: () => 'Item not received',
+    dispute_reason_not_as_described: () => 'Not as described',
+    dispute_reason_damaged: () => 'Damaged',
+    dispute_reason_other: () => 'Other',
+    dispute_resolution_close: () => 'Close (no action)',
+    dispute_resolution_partial_refund: () => 'Partial refund',
+    dispute_resolution_full_refund: () => 'Full refund',
+    dispute_order_info: () => 'Order information',
+    dispute_shop: () => 'Shop',
+    dispute_order_total: () => 'Order total',
+    dispute_messages_title: () => 'Messages',
+    dispute_messages_empty: () => 'No messages yet.',
+    dispute_message_placeholder: () => 'Write a message...',
+    dispute_message_submit: () => 'Send',
+    dispute_error_load: () => 'Failed to load dispute. Please try again.',
+    dispute_error_send: () => 'Failed to send message.',
+    dispute_forbidden: () => 'You do not have permission to view this dispute.',
+    dispute_not_found: () => 'Dispute not found.',
+    dispute_description_label: () => 'Description',
+    orders_back_to_list: () => 'Back to orders',
+    error_not_found_description: () => 'The page you are looking for does not exist.',
+    error_cart_empty: () => 'Cart is empty',
+    error_out_of_stock: () => 'Some items are out of stock',
+    error_dispute_window_expired: () => 'Dispute window has expired (30 days)',
+    error_unexpected: () => 'An unexpected error occurred',
+  },
+}))
+
+vi.mock('#/lib/disputes', () => ({
+  addDisputeMessage: vi.fn(),
+}))
+
+function makeDisputeDetail(overrides?: Partial<DisputeDetail>): DisputeDetail {
+  return {
+    id: 'd1234567-89ab-cdef-0123-456789abcdef',
+    shopOrderId: 'so-1',
+    buyerUserId: 'buyer-1',
+    reason: 'damaged',
+    description: 'The item arrived broken.',
+    status: 'open',
+    resolution: null,
+    refundCents: null,
+    createdAt: new Date('2026-05-01T12:00:00Z'),
+    updatedAt: new Date('2026-05-01T12:00:00Z'),
+    buyer: { id: 'buyer-1', name: 'Test Buyer', email: 'buyer@example.com' },
+    shop: { id: 'owner-1', name: 'Test Owner', email: 'owner@example.com' },
+    order: {
+      id: 'so-1',
+      platformOrderId: 'order-123',
+      platformOrderNumber: 'EUR-123456',
+      shopId: 'shop-1',
+      shopName: 'Test Shop',
+      status: 'disputed',
+      subtotalCents: 2000,
+      shippingCostCents: 500,
+      totalCents: 2500,
+      createdAt: new Date('2026-05-01T12:00:00Z'),
+      items: [],
+    },
+    messages: [],
+    ...overrides,
+  }
+}
+
+describe('DisputeThreadPage', () => {
+  it('has no automated accessibility violations in empty-message state', async () => {
+    const { container } = render(<DisputeThreadPage dispute={makeDisputeDetail()} />)
+    expect(await axe(container)).toHaveNoViolations()
+  })
+
+  it('renders dispute summary', () => {
+    const dispute = makeDisputeDetail()
+    render(<DisputeThreadPage dispute={dispute} />)
+    expect(screen.getByRole('heading', { name: 'Dispute' })).toBeDefined()
+    expect(screen.getByText('#d1234567')).toBeDefined()
+    expect(screen.getByText('Damaged')).toBeDefined()
+    expect(screen.getAllByText('Open').length).toBeGreaterThanOrEqual(2)
+    expect(screen.getByText('Test Shop')).toBeDefined()
+    expect(screen.getByText('€25.00')).toBeDefined()
+    expect(screen.getByText('The item arrived broken.')).toBeDefined()
+  })
+
+  it('renders message list', () => {
+    const dispute = makeDisputeDetail({
+      messages: [
+        {
+          id: 'msg-1',
+          senderUserId: 'buyer-1',
+          senderName: 'Test Buyer',
+          message: 'Hello, the vase is broken.',
+          createdAt: new Date('2026-05-01T12:00:00Z'),
+        },
+        {
+          id: 'msg-2',
+          senderUserId: 'owner-1',
+          senderName: 'Test Owner',
+          message: 'Sorry to hear that. We will investigate.',
+          createdAt: new Date('2026-05-01T13:00:00Z'),
+        },
+      ],
+    })
+    render(<DisputeThreadPage dispute={dispute} />)
+    expect(screen.getByRole('list')).toBeDefined()
+    expect(screen.getByText('Hello, the vase is broken.')).toBeDefined()
+    expect(screen.getByText('Sorry to hear that. We will investigate.')).toBeDefined()
+  })
+
+  it('shows empty state when no messages', () => {
+    const dispute = makeDisputeDetail({ messages: [] })
+    render(<DisputeThreadPage dispute={dispute} />)
+    expect(screen.getByText('No messages yet.')).toBeDefined()
+  })
+
+  it('shows message input for open disputes', () => {
+    const dispute = makeDisputeDetail({ status: 'open' })
+    render(<DisputeThreadPage dispute={dispute} />)
+    expect(screen.getByPlaceholderText('Write a message...')).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDefined()
+  })
+
+  it('hides message input for resolved disputes', () => {
+    const dispute = makeDisputeDetail({ status: 'resolved', resolution: 'close' })
+    render(<DisputeThreadPage dispute={dispute} />)
+    expect(screen.queryByPlaceholderText('Write a message...')).toBeNull()
+  })
+
+  it('adds the sent message to the thread immediately', async () => {
+    const dispute = makeDisputeDetail({ status: 'open', messages: [] })
+    vi.mocked(addDisputeMessage).mockResolvedValueOnce({
+      id: 'msg-new',
+      disputeId: dispute.id,
+      senderUserId: 'owner-1',
+      senderName: 'Test Owner',
+      message: 'We are checking this for you.',
+      createdAt: new Date('2026-05-01T14:00:00Z'),
+    })
+
+    render(<DisputeThreadPage dispute={dispute} />)
+
+    fireEvent.change(screen.getByPlaceholderText('Write a message...'), {
+      target: { value: 'We are checking this for you.' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+
+    expect(await screen.findByText('We are checking this for you.')).toBeDefined()
+    expect(screen.getByText('Test Owner')).toBeDefined()
+  })
+})
+
+describe('DisputeThreadLoading', () => {
+  it('renders an accessible loading state', async () => {
+    const { container } = render(<DisputeThreadLoading />)
+    expect(await axe(container)).toHaveNoViolations()
+  })
+
+  it('renders loading skeleton', () => {
+    render(<DisputeThreadLoading />)
+    expect(document.querySelectorAll('[aria-hidden="true"]').length).toBeGreaterThan(0)
+  })
+})
+
+describe('DisputeThreadError', () => {
+  it('renders an accessible error state', async () => {
+    const { container } = render(<DisputeThreadError error={new Error('load failed')} />)
+    expect(await axe(container)).toHaveNoViolations()
+  })
+
+  it('renders not found error', () => {
+    render(<DisputeThreadError error={new Error('Not Found')} />)
+    expect(screen.getByText('Dispute not found.')).toBeDefined()
+  })
+
+  it('renders forbidden error', () => {
+    render(<DisputeThreadError error={new Error('Forbidden: permission denied')} />)
+    expect(screen.getByText('You do not have permission to view this dispute.')).toBeDefined()
+  })
+
+  it('renders generic load error', () => {
+    render(<DisputeThreadError error={new Error('Network error')} />)
+    expect(screen.getByText('Failed to load dispute. Please try again.')).toBeDefined()
+  })
+})

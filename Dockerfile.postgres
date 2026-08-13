@@ -1,0 +1,17 @@
+# syntax=docker/dockerfile:1
+# PostgreSQL 16 with the pgBackRest client required by archive_command and
+# physical backup/restore operations. The base image and package version are
+# pinned so the trusted Ansible controller builds a reproducible runtime image.
+FROM postgres:16-alpine@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229
+
+ARG PGBACKREST_PACKAGE_VERSION=2.57.0-r0
+
+RUN apk add --no-cache "pgbackrest=${PGBACKREST_PACKAGE_VERSION}" \
+    && test "$(pgbackrest version)" = "pgBackRest 2.57.0" \
+    && test "$(postgres --version)" = "postgres (PostgreSQL) 16.14"
+
+LABEL app=eurtisan-postgres \
+      org.opencontainers.image.title="Eurtisan PostgreSQL with pgBackRest" \
+      org.opencontainers.image.version="16-pgbackrest-2.57.0" \
+      org.opencontainers.image.base.name="postgres:16-alpine" \
+      io.eurtisan.pgbackrest.version="2.57.0"

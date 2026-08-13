@@ -1,0 +1,31 @@
+import type { SelectHTMLAttributes } from 'react'
+import { cn } from '#/lib/cn'
+
+export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
+  error?: string
+  ref?: React.Ref<HTMLSelectElement>
+}
+
+export function Select({ className, error, children, ref, ...props }: SelectProps) {
+  return (
+    <select
+      ref={ref}
+      className={cn(
+        'h-10 w-full cursor-pointer rounded-lg border bg-surface-default px-3 text-sm text-text-primary',
+        'transition-colors duration-fast ease-out',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+        'disabled:cursor-not-allowed disabled:opacity-50',
+        error
+          ? 'border-error focus-visible:ring-error'
+          : 'border-border-default hover:border-border-strong focus-visible:ring-accent-secondary',
+        className,
+      )}
+      aria-invalid={error ? 'true' : undefined}
+      aria-describedby={error && props.id ? `${props.id}-error` : undefined}
+      aria-errormessage={error && props.id ? `${props.id}-error` : undefined}
+      {...props}
+    >
+      {children}
+    </select>
+  )
+}

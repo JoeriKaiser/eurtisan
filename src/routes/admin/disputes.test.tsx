@@ -1,0 +1,240 @@
+// @vitest-environment jsdom
+
+import { render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+const mockNavigate = vi.fn()
+
+// Shared mutable state for loader data
+let mockLoaderData: {
+  disputes: Array<{
+    id: string
+    shopOrderId: string
+    buyerName: string
+    creatorName: string
+    reason: string
+    status: string
+    createdAt: string
+    orderTotalCents: number
+  }>
+  total: number
+  page: number
+  pageSize: number
+} = {
+  disputes: [
+    {
+      id: 'd1',
+      shopOrderId: 'so1',
+      buyerName: 'Alice',
+      creatorName: 'CeramicAdam',
+      reason: 'damaged',
+      status: 'open',
+      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      orderTotalCents: 2500,
+    },
+    {
+      id: 'd2',
+      shopOrderId: 'so2',
+      buyerName: 'Bob',
+      creatorName: 'WoodWendy',
+      reason: 'not_as_described',
+      status: 'open',
+      createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+      orderTotalCents: 5000,
+    },
+  ],
+  total: 2,
+  page: 1,
+  pageSize: 20,
+}
+
+let mockSearch: Record<string, unknown> = { page: 1, status: 'open', query: '' }
+
+vi.mock('#/lib/disputes', () => ({
+  listOpenDisputes: vi.fn(),
+}))
+
+vi.mock('@tanstack/react-router', () => ({
+  useLoaderData: () => mockLoaderData,
+  useSearch: () => mockSearch,
+  useNavigate: () => mockNavigate,
+  createFileRoute: () => (options: { component?: unknown }) => ({
+    options,
+    useLoaderData: () => mockLoaderData,
+    useSearch: () => mockSearch,
+    useNavigate: () => mockNavigate,
+  }),
+  Link: (props: {
+    children: React.ReactNode
+    to: string
+    params?: Record<string, string>
+    className?: string
+    search?: Record<string, unknown>
+    disabled?: boolean
+    'aria-label'?: string
+    'aria-disabled'?: boolean
+  }) => (
+    <a
+      href={`${props.to}${props.search ? `?page=${props.search.page}` : ''}`}
+      className={props.className}
+      aria-label={props['aria-label']}
+      aria-disabled={props['aria-disabled']}
+    >
+      {props.children}
+    </a>
+  ),
+}))
+
+vi.mock('#/paraglide/messages', () => ({
+  m: {
+    admin_disputes_title: () => 'Dispute Queue',
+    admin_disputes_description: () => 'Review and resolve buyer disputes.',
+    admin_disputes_tab_open: () => 'Open',
+    admin_disputes_tab_resolved: () => 'Resolved',
+    admin_disputes_tab_all: () => 'All',
+    admin_disputes_search_placeholder: () => 'Search by buyer, creator, or order ID…',
+    admin_orders_clear_search: () => 'Clear search',
+    admin_common_search: () => 'Search',
+    admin_common_filter: () => 'Filter',
+    admin_disputes_col_date: () => 'Date',
+    admin_disputes_col_dispute_id: () => 'Dispute ID',
+    admin_disputes_col_buyer: () => 'Buyer',
+    admin_disputes_col_creator: () => 'Creator',
+    admin_disputes_col_reason: () => 'Reason',
+    admin_disputes_col_status: () => 'Status',
+    admin_disputes_col_amount: () => 'Amount',
+    admin_common_actions: () => 'Actions',
+    admin_disputes_view: () => 'View',
+    admin_shops_showing: ({ from, to, total }: { from: number; to: number; total: number }) =>
+      `Showing ${from}–${to} of ${total}`,
+    pagination_previous: () => 'Previous',
+    pagination_next: () => 'Next',
+    pagination_page_of: ({ page, totalPages }: { page: number; totalPages: number }) =>
+      `Page ${page} of ${totalPages}`,
+  },
+}))
+
+import { Route } from './disputes.index'
+
+const AdminDisputesPage = Route.options.component
+if (!AdminDisputesPage) {
+  throw new Error('Route component is not defined')
+}
+
+describe('AdminDisputesPage', () => {
+  beforeEach(() => {
+    // Reset to default mock state
+    mockLoaderData = {
+      disputes: [
+        {
+          id: 'd1',
+          shopOrderId: 'so1',
+          buyerName: 'Alice',
+          creatorName: 'CeramicAdam',
+          reason: 'damaged',
+          status: 'open',
+          createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+          orderTotalCents: 2500,
+        },
+        {
+          id: 'd2',
+          shopOrderId: 'so2',
+          buyerName: 'Bob',
+          creatorName: 'WoodWendy',
+          reason: 'not_as_described',
+          status: 'open',
+          createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
+          orderTotalCents: 5000,
+        },
+      ],
+      total: 2,
+      page: 1,
+      pageSize: 20,
+    }
+    mockSearch = { page: 1, status: 'open', query: '' }
+  })
+
+  it('renders dispute queue with correct columns', () => {
+    render(<AdminDisputesPage />)
+
+    expect(screen.getByText('Dispute Queue')).toBeDefined()
+    expect(screen.getByText('Alice')).toBeDefined()
+    expect(screen.getByText('Bob')).toBeDefined()
+    expect(screen.getByText('CeramicAdam')).toBeDefined()
+    expect(screen.getByText('WoodWendy')).toBeDefined()
+    // Use getAllByText since "Open" appears in both the table header badge and row badges
+    expect(screen.getAllByText('Open').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('renders links to dispute detail pages', () => {
+    render(<AdminDisputesPage />)
+
+    const links = screen.getAllByRole('link')
+    // 2 dispute rows, no pagination links
+    expect(links.length).toBeGreaterThanOrEqual(2)
+
+    const detailLinks = links.filter((l) => l.getAttribute('href')?.includes('/admin/disputes/'))
+    expect(detailLinks.length).toBe(2)
+  })
+
+  it('shows empty state when no open disputes', () => {
+    mockLoaderData = {
+      disputes: [],
+      total: 0,
+      page: 1,
+      pageSize: 20,
+    }
+
+    render(<AdminDisputesPage />)
+
+    expect(screen.getByRole('heading', { name: 'Dispute Queue' })).toBeDefined()
+    expect(screen.getByText('When buyers open disputes, they will appear here.')).toBeDefined()
+  })
+
+  it('renders pagination when multiple pages exist', () => {
+    mockLoaderData = {
+      disputes: Array.from({ length: 20 }, (_, i) => ({
+        id: `d${i}`,
+        shopOrderId: `so${i}`,
+        buyerName: `Buyer ${i}`,
+        creatorName: `Creator ${i}`,
+        reason: 'damaged',
+        status: 'open',
+        createdAt: new Date().toISOString(),
+        orderTotalCents: 1000,
+      })),
+      total: 50,
+      page: 1,
+      pageSize: 20,
+    }
+
+    render(<AdminDisputesPage />)
+
+    expect(screen.getByText('Page 1 of 3')).toBeDefined()
+    expect(screen.getByLabelText('Next')).toBeDefined()
+  })
+
+  it('renders previous page link as disabled on first page', () => {
+    mockLoaderData = {
+      disputes: Array.from({ length: 20 }, (_, i) => ({
+        id: `d${i}`,
+        shopOrderId: `so${i}`,
+        buyerName: `Buyer ${i}`,
+        creatorName: `Creator ${i}`,
+        reason: 'damaged',
+        status: 'open',
+        createdAt: new Date().toISOString(),
+        orderTotalCents: 1000,
+      })),
+      total: 50,
+      page: 1,
+      pageSize: 20,
+    }
+
+    render(<AdminDisputesPage />)
+
+    const prevButton = screen.getByLabelText('Previous')
+    expect(prevButton).toBeDefined()
+    expect(prevButton.hasAttribute('disabled')).toBe(true)
+  })
+})

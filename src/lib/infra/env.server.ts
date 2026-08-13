@@ -1,0 +1,680 @@
+/**
+ * Shared environment utilities for server-side code.
+ */
+
+function getPositiveIntegerEnv(name: string, fallback: number): number {
+  if (typeof process === 'undefined') return fallback
+  const raw = process.env[name]
+  if (!raw) return fallback
+  const parsed = Number.parseInt(raw, 10)
+  return Number.isNaN(parsed) || parsed <= 0 ? fallback : parsed
+}
+
+/**
+ * Base URL for absolute references.
+ * Uses PUBLIC_URL env var when set, otherwise falls back to localhost.
+ */
+export function getBaseUrl(): string {
+  if (typeof process !== 'undefined') {
+    const publicUrl = process.env.PUBLIC_URL
+    if (publicUrl) {
+      return publicUrl.replace(/\/+$/, '')
+    }
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('PUBLIC_URL environment variable is required in production')
+    }
+  }
+  return 'http://localhost:3000'
+}
+
+/**
+ * Mollie API key (server-only).
+ * Required in production for live Mollie integration.
+ * When absent and MOCK_PAYMENTS_ENABLED is not set to 'true', the constructor
+ * will throw in production. In non-production environments the mock provider
+ * is used as a fallback.
+ */
+export function getMollieApiKey(): string | undefined {
+  if (typeof process !== 'undefined') {
+    return process.env.MOLLIE_API_KEY
+  }
+  return undefined
+}
+
+/**
+ * Check if mock payments are explicitly enabled (server-only).
+ * Configurable in production. When set to 'true' the mock payment provider
+ * is used even when MOLLIE_API_KEY is missing, which is useful for staging
+ * or demonstration environments.
+ */
+export function getMockPaymentsEnabled(): boolean {
+  if (typeof process !== 'undefined') {
+    return process.env.MOCK_PAYMENTS_ENABLED === 'true'
+  }
+  return false
+}
+
+/**
+ * Mollie Connect OAuth client ID (server-only).
+ * Required for seller onboarding via Mollie Connect.
+ */
+export function getMollieClientId(): string | undefined {
+  if (typeof process !== 'undefined') {
+    return process.env.MOLLIE_CLIENT_ID
+  }
+  return undefined
+}
+
+/**
+ * Mollie Connect OAuth client secret (server-only).
+ * Required for exchanging the OAuth authorization code for tokens.
+ */
+export function getMollieClientSecret(): string | undefined {
+  if (typeof process !== 'undefined') {
+    return process.env.MOLLIE_CLIENT_SECRET
+  }
+  return undefined
+}
+
+/**
+ * When true, all Mollie API calls use test mode (no real money movement).
+ * Defaults to true outside production, false in production.
+ */
+export function getMollieTestMode(): boolean {
+  if (typeof process !== 'undefined') {
+    if (process.env.MOLLIE_TEST_MODE !== undefined) {
+      return process.env.MOLLIE_TEST_MODE === 'true'
+    }
+    return process.env.NODE_ENV !== 'production'
+  }
+  return true
+}
+
+/**
+ * When true, payout route creation is mocked (no external HTTP calls).
+ * Useful for local development when MOLLIE_API_KEY is not configured.
+ *
+ * Disallowed in production. Use {@link assertMockPayoutsNotProduction} at
+ * process startup to enforce this.
+ */
+export function getMockPayoutsEnabled(): boolean {
+  if (typeof process !== 'undefined') {
+    return process.env.MOCK_PAYOUTS_ENABLED === 'true'
+  }
+  return false
+}
+
+/**
+ * Throws if MOCK_PAYOUTS_ENABLED is true while running in production.
+ *
+ * Call this in every process startup path (app server and background jobs).
+ */
+export function assertMockPayoutsNotProduction(): void {
+  if (process.env.NODE_ENV === 'production' && process.env.MOCK_PAYOUTS_ENABLED === 'true') {
+    throw new Error('MOCK_PAYOUTS_ENABLED=true is not allowed in production')
+  }
+}
+
+/**
+ * Interval between pending Mollie payment reconciliation runs.
+ * Defaults to 2 minutes.
+ */
+export function getMolliePaymentReconciliationIntervalMs(): number {
+  return getPositiveIntegerEnv('MOLLIE_PAYMENT_RECONCILIATION_INTERVAL_MS', 2 * 60 * 1000)
+}
+
+/**
+ * Minimum age of a pending order before it is reconciled with Mollie.
+ * Defaults to 1 minute to avoid racing a normal webhook delivery.
+ */
+export function getMolliePaymentReconciliationMinAgeMs(): number {
+  return getPositiveIntegerEnv('MOLLIE_PAYMENT_RECONCILIATION_MIN_AGE_MS', 60 * 1000)
+}
+
+/** Maximum pending Mollie payments processed per reconciliation tick. */
+export function getMolliePaymentReconciliationBatchSize(): number {
+  return getPositiveIntegerEnv('MOLLIE_PAYMENT_RECONCILIATION_BATCH_SIZE', 100)
+}
+
+/**
+ * Interval between read-only financial totals reconciliation runs.
+ * Defaults to 6 hours, with a minimum accepted cadence of 5 minutes.
+ */
+export function getFinancialTotalsReconciliationIntervalMs(): number {
+  return Math.max(
+    5 * 60 * 1000,
+    getPositiveIntegerEnv('FINANCIAL_TOTALS_RECONCILIATION_INTERVAL_MS', 6 * 60 * 60 * 1000),
+  )
+}
+
+/** Maximum records fetched per financial reconciliation query batch. */
+export function getFinancialTotalsReconciliationBatchSize(): number {
+  return Math.min(5_000, getPositiveIntegerEnv('FINANCIAL_TOTALS_RECONCILIATION_BATCH_SIZE', 500))
+}
+
+/**
+ * Interval between payout reconciliation job runs (milliseconds).
+ * Defaults to 6 hours.
+ */
+export function getPayoutReconciliationIntervalMs(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.PAYOUT_RECONCILIATION_INTERVAL_MS
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed
+      }
+    }
+  }
+  return 6 * 60 * 60 * 1000
+}
+
+/**
+ * Retention period for payout reconciliation log entries (days).
+ * Defaults to 365 days. Minimum 1 day.
+ */
+export function getPayoutReconciliationLogRetentionDays(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.PAYOUT_RECONCILIATION_LOG_RETENTION_DAYS
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed >= 1) {
+        return parsed
+      }
+    }
+  }
+  return 365
+}
+
+/**
+ * Interval between Sendcloud shipment reconciliation job runs (milliseconds).
+ * Defaults to 6 hours.
+ */
+export function getSendcloudReconciliationIntervalMs(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.SENDCLOUD_RECONCILIATION_INTERVAL_MS
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed
+      }
+    }
+  }
+  return 6 * 60 * 60 * 1000
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Sendcloud Shipping                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Sendcloud public key (API username) for HTTP Basic Auth.
+ * Required in production for real label generation and tracking.
+ */
+export function getSendcloudPublicKey(): string | undefined {
+  if (typeof process !== 'undefined') {
+    return process.env.SENDCLOUD_PUBLIC_KEY
+  }
+  return undefined
+}
+
+/**
+ * Sendcloud secret key (API password) for HTTP Basic Auth and webhook HMAC.
+ * Required in production.
+ */
+export function getSendcloudSecretKey(): string | undefined {
+  if (typeof process !== 'undefined') {
+    return process.env.SENDCLOUD_SECRET_KEY
+  }
+  return undefined
+}
+
+/**
+ * Separate secret used for webhook HMAC-SHA256 verification.
+ * Defaults to the Sendcloud secret key if not set.
+ */
+export function getSendcloudWebhookSecret(): string | undefined {
+  if (typeof process !== 'undefined') {
+    return process.env.SENDCLOUD_WEBHOOK_SECRET?.trim() || process.env.SENDCLOUD_SECRET_KEY
+  }
+  return undefined
+}
+
+/**
+ * Explicit Unstamped letter shipping method ID for dev/staging.
+ * If unset, the provider discovers it at runtime via GET /shipping_methods.
+ */
+export function getSendcloudUnstampedLetterMethodId(): number | undefined {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.SENDCLOUD_UNSTAMPED_LETTER_METHOD_ID
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed
+      }
+    }
+  }
+  return undefined
+}
+
+/**
+ * Number of days to retain Sendcloud webhook event rows before cleanup.
+ * Defaults to 30, minimum 1.
+ */
+export function getSendcloudWebhookRetentionDays(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.SENDCLOUD_WEBHOOK_RETENTION_DAYS
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed)) {
+        return Math.max(1, parsed)
+      }
+    }
+  }
+  return 30
+}
+
+/**
+ * When true, all label creation is forced to the Unstamped letter method.
+ * Defaults to true outside production to avoid paid labels in dev/staging.
+ * Can be explicitly disabled by setting SENDCLOUD_FORCE_UNSTAMPED_LETTER=false.
+ */
+export function getSendcloudForceUnstampedLetter(): boolean {
+  if (typeof process !== 'undefined') {
+    if (process.env.SENDCLOUD_FORCE_UNSTAMPED_LETTER !== undefined) {
+      return process.env.SENDCLOUD_FORCE_UNSTAMPED_LETTER === 'true'
+    }
+    return process.env.NODE_ENV !== 'production'
+  }
+  return true
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Email (Brevo)                                                           */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Brevo API key for transactional email delivery (server-only).
+ * Required in production when email sending is enabled.
+ */
+export function getBrevoApiKey(): string | undefined {
+  if (typeof process !== 'undefined') {
+    return process.env.BREVO_API_KEY
+  }
+  return undefined
+}
+
+/**
+ * From address for transactional emails (server-only).
+ */
+
+/**
+ * Shared secret for Brevo webhook authentication (server-only).
+ * Pass as ?token= or X-Brevo-Token header. Required in production.
+ */
+export function getBrevoWebhookToken(): string | undefined {
+  return process.env.BREVO_WEBHOOK_TOKEN?.trim() || undefined
+}
+
+export function getEmailFromAddress(): string {
+  if (typeof process !== 'undefined') {
+    return process.env.EMAIL_FROM_ADDRESS ?? 'support@eurtisan.eu'
+  }
+  return 'support@eurtisan.eu'
+}
+
+/**
+ * Reply-To address for transactional emails (server-only).
+ */
+export function getEmailReplyToAddress(): string {
+  if (typeof process !== 'undefined') {
+    return process.env.EMAIL_REPLY_TO_ADDRESS ?? 'support@eurtisan.eu'
+  }
+  return 'support@eurtisan.eu'
+}
+
+/**
+ * From name for transactional emails (server-only).
+ */
+export function getEmailFromName(): string {
+  if (typeof process !== 'undefined') {
+    return process.env.EMAIL_FROM_NAME ?? 'Eurtisan'
+  }
+  return 'Eurtisan'
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Email (SMTP / Mailpit dev)                                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * SMTP host for local development mail capture (e.g. mailpit).
+ * When set the SMTP provider is used instead of Brevo.
+ * Required in production when email sending is enabled.
+ */
+export function getEmailSmtpHost(): string | undefined {
+  if (typeof process !== 'undefined') {
+    return process.env.EMAIL_SMTP_HOST
+  }
+  return undefined
+}
+
+/**
+ * SMTP port for local development mail capture.
+ * Defaults to 1025 (mailpit default).
+ */
+export function getEmailSmtpPort(): number {
+  if (typeof process !== 'undefined') {
+    const port = process.env.EMAIL_SMTP_PORT
+    if (port) {
+      const parsed = Number.parseInt(port, 10)
+      if (!Number.isNaN(parsed)) {
+        return parsed
+      }
+    }
+  }
+  return 1025
+}
+
+/**
+ * Minimum free bytes on HEALTH_DISK_PATH for the /api/health/ready probe to
+ * report healthy. Defaults to 500 MB.
+ */
+export function getHealthDiskThresholdBytes(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.HEALTH_DISK_THRESHOLD_BYTES
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed
+      }
+    }
+  }
+  return 500 * 1024 * 1024
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Tax / VAT                                                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * When true, cross-border EU B2B VAT IDs are verified with the European
+ * Commission's VIES service. When false or unset, only offline format checks
+ * are performed. Defaults to false.
+ */
+export function getEnableViesValidation(): boolean {
+  if (typeof process !== 'undefined') {
+    return process.env.ENABLE_VIES_VALIDATION === 'true'
+  }
+  return false
+}
+
+/**
+ * VIES API request timeout (milliseconds).
+ * Defaults to 10 seconds.
+ */
+export function getViesTimeoutMs(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.VIES_TIMEOUT_MS
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed
+      }
+    }
+  }
+  return 10_000
+}
+
+/**
+ * When true, Eurtisan is treated as VAT liable for platform fee invoices and
+ * charges VAT according to EU B2B/B2C rules. When false, the platform operates
+ * under the French "Franchise en base de TVA" regime and does not charge VAT.
+ * Defaults to true for safety.
+ */
+export function getPlatformVatLiable(): boolean {
+  if (typeof process !== 'undefined') {
+    if (process.env.PLATFORM_VAT_LIABLE !== undefined) {
+      return process.env.PLATFORM_VAT_LIABLE !== 'false'
+    }
+  }
+  return true
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Rate limit                                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Number of days to retain rate-limit rows before cleanup.
+ * Defaults to 30, minimum 1.
+ */
+export function getRateLimitRetentionDays(): number {
+  if (typeof process !== 'undefined') {
+    const days = process.env.RATE_LIMIT_RETENTION_DAYS
+    if (days) {
+      const parsed = Number.parseInt(days, 10)
+      if (!Number.isNaN(parsed)) {
+        return Math.max(1, parsed)
+      }
+    }
+  }
+  return 30
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Email outbox & pipeline                                                   */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Polling interval for the email outbox worker (milliseconds).
+ * Defaults to 10 seconds.
+ */
+export function getEmailOutboxWorkerIntervalMs(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.EMAIL_OUTBOX_WORKER_INTERVAL_MS
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed
+      }
+    }
+  }
+  return 10_000
+}
+
+/**
+ * Max rows to process per outbox worker tick.
+ * Defaults to 50.
+ */
+export function getEmailOutboxWorkerBatchSize(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.EMAIL_OUTBOX_WORKER_BATCH_SIZE
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed
+      }
+    }
+  }
+  return 50
+}
+
+/**
+ * Interval between completed-UTC-day seller digest runs. Defaults to one hour,
+ * which makes missed deploy windows recover without sending a current-day digest.
+ */
+export function getNotificationDigestIntervalMs(): number {
+  return getPositiveIntegerEnv('NOTIFICATION_DIGEST_INTERVAL_MS', 60 * 60 * 1000)
+}
+
+/** Maximum recipient IDs examined in one seller-digest query batch. */
+export function getNotificationDigestRecipientBatchSize(): number {
+  return Math.min(500, getPositiveIntegerEnv('NOTIFICATION_DIGEST_RECIPIENT_BATCH_SIZE', 100))
+}
+
+/**
+ * Default max retries for outbox emails.
+ * Defaults to 3.
+ */
+export function getEmailMaxRetries(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.EMAIL_MAX_RETRIES
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed >= 0) {
+        return parsed
+      }
+    }
+  }
+  return 3
+}
+
+/**
+ * Daily per-email limit for password reset emails.
+ * Defaults to 5.
+ */
+export function getEmailRateLimitPasswordResetPerEmailDay(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.EMAIL_RATE_LIMIT_PASSWORD_RESET_PER_EMAIL_DAY
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed
+      }
+    }
+  }
+  return 5
+}
+
+/**
+ * Daily per-email limit for email verification emails.
+ * Defaults to 5.
+ */
+export function getEmailRateLimitVerificationPerEmailDay(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.EMAIL_RATE_LIMIT_VERIFICATION_PER_EMAIL_DAY
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed
+      }
+    }
+  }
+  return 5
+}
+
+/**
+ * Hourly per-email limit for account security alert emails.
+ * Defaults to 10.
+ */
+export function getEmailRateLimitSecurityAlertPerEmailHour(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.EMAIL_RATE_LIMIT_SECURITY_ALERT_PER_EMAIL_HOUR
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed
+      }
+    }
+  }
+  return 10
+}
+
+/**
+ * Number of days to retain soft-bounce suppressions before automatic cleanup.
+ * Defaults to 30.
+ */
+export function getEmailSuppressionSoftBounceRetentionDays(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.EMAIL_SUPPRESSION_SOFT_BOUNCE_RETENTION_DAYS
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed
+      }
+    }
+  }
+  return 30
+}
+
+/**
+ * Number of days to retain email_send_log rows before cleanup.
+ * Defaults to 90.
+ */
+export function getEmailSendLogRetentionDays(): number {
+  if (typeof process !== 'undefined') {
+    const raw = process.env.EMAIL_SEND_LOG_RETENTION_DAYS
+    if (raw) {
+      const parsed = Number.parseInt(raw, 10)
+      if (!Number.isNaN(parsed) && parsed > 0) {
+        return parsed
+      }
+    }
+  }
+  return 90
+}
+
+/** Legal operator / entity name. Defaults to 'Eurtisan Platform'. */
+export function getOperatorLegalName(): string {
+  if (typeof process !== 'undefined' && process.env.OPERATOR_LEGAL_NAME?.trim()) {
+    return process.env.OPERATOR_LEGAL_NAME.trim()
+  }
+  return 'Eurtisan Platform'
+}
+
+/** Legal contact email. Defaults to 'legal@eurtisan.eu'. */
+export function getOperatorLegalEmail(): string {
+  if (typeof process !== 'undefined' && process.env.OPERATOR_LEGAL_EMAIL?.trim()) {
+    return process.env.OPERATOR_LEGAL_EMAIL.trim()
+  }
+  return 'legal@eurtisan.eu'
+}
+
+/** Billing contact email. Defaults to 'billing@eurtisan.eu'. */
+export function getOperatorBillingEmail(): string {
+  if (typeof process !== 'undefined' && process.env.OPERATOR_BILLING_EMAIL?.trim()) {
+    return process.env.OPERATOR_BILLING_EMAIL.trim()
+  }
+  return 'billing@eurtisan.eu'
+}
+
+/** Intra-community VAT ID or tax identifier. Defaults to 'FR00000000000'. */
+export function getOperatorVatId(): string {
+  if (typeof process !== 'undefined' && process.env.OPERATOR_VAT_ID?.trim()) {
+    return process.env.OPERATOR_VAT_ID.trim()
+  }
+  return 'FR00000000000'
+}
+
+/** Operator registered street address. Defaults to '1 Place de la République'. */
+export function getOperatorStreet(): string {
+  if (typeof process !== 'undefined' && process.env.OPERATOR_STREET?.trim()) {
+    return process.env.OPERATOR_STREET.trim()
+  }
+  return '1 Place de la République'
+}
+
+/** Operator registered city. Defaults to 'Paris'. */
+export function getOperatorCity(): string {
+  if (typeof process !== 'undefined' && process.env.OPERATOR_CITY?.trim()) {
+    return process.env.OPERATOR_CITY.trim()
+  }
+  return 'Paris'
+}
+
+/** Operator postal code. Defaults to '75001'. */
+export function getOperatorPostalCode(): string {
+  if (typeof process !== 'undefined' && process.env.OPERATOR_POSTAL_CODE?.trim()) {
+    return process.env.OPERATOR_POSTAL_CODE.trim()
+  }
+  return '75001'
+}
+
+/** Operator country code. Defaults to 'FR'. */
+export function getOperatorCountry(): string {
+  if (typeof process !== 'undefined' && process.env.OPERATOR_COUNTRY?.trim()) {
+    return process.env.OPERATOR_COUNTRY.trim().toUpperCase()
+  }
+  return 'FR'
+}

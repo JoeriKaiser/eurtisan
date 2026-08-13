@@ -1,0 +1,15 @@
+import { waitForAppHydration } from '../fixtures/hydration'
+import { test, expect } from '@playwright/test'
+
+test.use({ storageState: 'e2e/.auth/customer.json' })
+
+test.describe('Account hub', () => {
+  test('renders links to orders and settings', async ({ page }) => {
+    await page.goto('/account')
+    await waitForAppHydration(page)
+
+    await expect(page.getByRole('heading', { name: /account/i })).toBeVisible()
+    await expect(page.getByRole('link', { name: /orders/i }).first()).toBeVisible()
+    await expect(page.getByRole('link', { name: /settings/i }).first()).toBeVisible()
+  })
+})

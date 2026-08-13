@@ -1,0 +1,89 @@
+import { useQuery } from '@tanstack/react-query'
+import { Link, useRouter } from '@tanstack/react-router'
+import { Search } from 'lucide-react'
+import { useState } from 'react'
+import { listCategories } from '#/lib/categories'
+import { m } from '#/paraglide/messages'
+import { queryKeys } from '#/lib/query-keys'
+import { Input } from './ui/input'
+import { Skeleton } from './ui/skeleton'
+
+export default function SearchSidebar() {
+  const router = useRouter()
+  const [query, setQuery] = useState('')
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const trimmed = query.trim()
+    if (trimmed) {
+      router.navigate({
+        to: '/search',
+        search: { q: trimmed },
+      })
+    }
+  }
+
+  return (
+    <aside className='island-shell p-5 sm:p-6'>
+      <form onSubmit={handleSubmit} className='mb-5'>
+        <div className='relative'>
+          <Search className='absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-muted' />
+          <Input
+            type='search'
+            placeholder={m.sidebar_search_placeholder()}
+            className='pl-9'
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            aria-label={m.sidebar_search_placeholder()}
+          />
+        </div>
+      </form>
+
+      <div>
+        <h3 className='mb-3 text-sm font-semibold text-text-primary'>
+          {m.sidebar_categories_title()}
+        </h3>
+        <CategoryLinks />
+      </div>
+    </aside>
+  )
+}
+
+function CategoryLinks() {
+  const { data: categoryList = [], isLoading } = useQuery({
+    queryKey: queryKeys.categoriesList,
+    queryFn: () => listCategories({ data: {} }),
+    staleTime: 5 * 60_000,
+  })
+
+  if (isLoading) {
+    return (
+      <div className='space-y-2'>
+        {Array.from({ length: 4 }).map((_, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton placeholders
+          <Skeleton key={`skeleton-${i}`} className='h-6' />
+        ))}
+      </div>
+    )
+  }
+
+  if (categoryList.length === 0) {
+    return <p className='text-sm text-text-secondary'>{m.sidebar_no_categories()}</p>
+  }
+
+  return (
+    <ul className='space-y-1'>
+      {categoryList.map((category) => (
+        <li key={category.id}>
+          <Link
+            to='/category/$slug'
+            params={{ slug: category.slug }}
+            className='block rounded-lg px-3 py-2 text-sm text-text-secondary no-underline transition-colors duration-fast ease-out hover:bg-bg-inset hover:text-text-primary'
+          >
+            {category.name}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  )
+}

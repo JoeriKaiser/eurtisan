@@ -1,0 +1,29 @@
+http:
+  routers:
+    eurtisan-release-registry-http:
+      rule: "Host(`{{ release_registry }}`)"
+      entrypoints:
+        - http
+      middlewares:
+        - eurtisan-release-registry-redirect
+      service: noop@internal
+
+    eurtisan-release-registry:
+      rule: "Host(`{{ release_registry }}`) && PathPrefix(`/v2/`)"
+      entrypoints:
+        - https
+      tls:
+        certResolver: letsencrypt
+      service: eurtisan-release-registry
+
+  middlewares:
+    eurtisan-release-registry-redirect:
+      redirectScheme:
+        scheme: https
+        permanent: true
+
+  services:
+    eurtisan-release-registry:
+      loadBalancer:
+        servers:
+          - url: "http://eurtisan-release-registry-proxy:8080"

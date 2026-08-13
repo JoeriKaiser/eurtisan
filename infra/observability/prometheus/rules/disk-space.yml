@@ -1,0 +1,20 @@
+groups:
+  - name: disk_space
+    rules:
+      - alert: EurtisanDiskUnhealthy
+        expr: eurtisan_health_disk_healthy == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Eurtisan disk health check reports low space
+          description: The health-checked mount has fallen below the configured threshold.
+
+      - alert: EurtisanDiskSpaceLow
+        expr: eurtisan_disk_available_bytes < 1073741824
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Less than 1 GB free on the health-checked mount
+          description: The health-checked mount has less than 1 GB available.

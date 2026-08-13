@@ -1,0 +1,1182 @@
+---
+- name: Validate deployment configuration before changing the host
+  ansible.builtin.import_tasks: preflight.yml
+
+- name: Determine compose file
+  set_fact:
+    compose_file: "{{ 'docker-compose.staging.yml' if (coexist_with_proxy | default(false)) else 'docker-compose.prod.yml' }}"
+
+- name: Determine if direct port access override is needed
+  set_fact:
+    use_port_override: "{{ (coexist_with_proxy | default(false)) and (app_access_ips is defined) }}"
+
+- name: Write Docker Compose override for direct port access
+  when: use_port_override
+  copy:
+    dest: /opt/eurtisan/docker-compose.override.yml
+    content: |
+      services:
+        app:
+          ports:
+            - "0.0.0.0:3002:3000"
+
+- name: Determine Docker Compose command
+  set_fact:
+    docker_compose: "docker compose -f {{ compose_file }}{% if use_port_override %} -f docker-compose.override.yml{% endif %}{% if postgres_wal_archive_enabled | default(false) %} -f docker-compose.wal-archive.yml{% endif %}"
+
+- name: Create application directory
+  file:
+    path: /opt/eurtisan
+    state: directory
+    mode: "0755"
+
+- name: Clone canonical repository
+  git:
+    repo: "{{ repository_url }}"
+    dest: /opt/eurtisan
+    version: "{{ git_branch | default('main') }}"
+    key_file: "{{ repository_deploy_key_path }}"
+    accept_newhostkey: true
+    force: yes
+  register: repository_checkout
+
+- name: Set immutable release and image identifiers
+  set_fact:
+    release_version: "{{ repository_checkout.after }}"
+    image_tag: "{{ repository_checkout.after[:12] }}"
+
+- name: Build and transfer the pinned pgBackRest database image from the trusted controller
+  when: postgres_wal_archive_enabled | bool
+  block:
+    - name: Create isolated controller pgBackRest build directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: -eurtisan-pgbackrest
+      delegate_to: localhost
+      become: false
+      register: pgbackrest_controller_build_directory
+
+    - name: Create clean pgBackRest release worktree on the controller
+      ansible.builtin.command:
+        argv:
+          - git
+          - worktree
+          - add
+          - --detach
+          - "{{ pgbackrest_controller_build_directory.path }}/source"
+          - "{{ release_version }}"
+      args:
+        chdir: "{{ playbook_dir }}/../.."
+      delegate_to: localhost
+      become: false
+
+    - name: Build the pinned pgBackRest database image on the controller
+      ansible.builtin.command:
+        argv:
+          - docker
+          - build
+          - --file
+          - Dockerfile.postgres
+          - --tag
+          - "{{ postgres_pgbackrest_image }}"
+          - .
+      args:
+        chdir: "{{ pgbackrest_controller_build_directory.path }}/source"
+      environment:
+        DOCKER_BUILDKIT: "1"
+      delegate_to: localhost
+      become: false
+
+    - name: Verify PostgreSQL and pgBackRest versions in the controller image
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - "{{ postgres_pgbackrest_image }}"
+          - sh
+          - -ec
+          - >-
+            test "$(postgres --version)" = "postgres (PostgreSQL) 16.14";
+            test "$(pgbackrest version)" = "pgBackRest 2.57.0"
+      delegate_to: localhost
+      become: false
+      changed_when: false
+
+    - name: Export the pgBackRest database image for the target
+      ansible.builtin.shell: >-
+        set -euo pipefail;
+        docker save {{ postgres_pgbackrest_image | quote }} |
+        gzip -1 > {{ (pgbackrest_controller_build_directory.path ~ '/postgres-pgbackrest.tar.gz') | quote }}
+      args:
+        executable: /bin/bash
+      delegate_to: localhost
+      become: false
+
+    - name: Transfer the pgBackRest database image over the protected Ansible channel
+      ansible.builtin.copy:
+        src: "{{ pgbackrest_controller_build_directory.path }}/postgres-pgbackrest.tar.gz"
+        dest: /tmp/eurtisan-postgres-pgbackrest.tar.gz
+        owner: root
+        group: root
+        mode: "0600"
+
+    - name: Load the pgBackRest database image on the target
+      ansible.builtin.shell: >-
+        set -euo pipefail;
+        gzip -dc /tmp/eurtisan-postgres-pgbackrest.tar.gz | docker load
+      args:
+        executable: /bin/bash
+
+    - name: Verify the transferred pgBackRest database image
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - "{{ postgres_pgbackrest_image }}"
+          - sh
+          - -ec
+          - >-
+            test "$(postgres --version)" = "postgres (PostgreSQL) 16.14";
+            test "$(pgbackrest version)" = "pgBackRest 2.57.0"
+      changed_when: false
+  always:
+    - name: Remove transferred pgBackRest image archive
+      ansible.builtin.file:
+        path: /tmp/eurtisan-postgres-pgbackrest.tar.gz
+        state: absent
+
+    - name: Remove pgBackRest release worktree from the controller
+      ansible.builtin.command:
+        argv:
+          - git
+          - worktree
+          - remove
+          - --force
+          - "{{ pgbackrest_controller_build_directory.path | default('/tmp/eurtisan-pgbackrest-not-created') }}/source"
+      args:
+        chdir: "{{ playbook_dir }}/../.."
+      delegate_to: localhost
+      become: false
+      failed_when: false
+      when:
+        - pgbackrest_controller_build_directory is defined
+        - pgbackrest_controller_build_directory.path is defined
+
+    - name: Remove controller pgBackRest build directory
+      ansible.builtin.file:
+        path: "{{ pgbackrest_controller_build_directory.path | default('/tmp/eurtisan-pgbackrest-not-created') }}"
+        state: absent
+      delegate_to: localhost
+      become: false
+      when:
+        - pgbackrest_controller_build_directory is defined
+        - pgbackrest_controller_build_directory.path is defined
+  tags: [backup, wal]
+
+- name: Write production environment file
+  template:
+    src: .env.j2
+    dest: /opt/eurtisan/.env
+    mode: "0600"
+
+- name: Render staging Garage configuration
+  when: garage_enabled | bool
+  template:
+    src: garage.toml.j2
+    dest: /opt/eurtisan/garage.staging.toml
+    mode: "0600"
+
+- name: Write deploy script
+  copy:
+    src: deploy.sh
+    dest: /opt/eurtisan/deploy.sh
+    mode: "0755"
+
+- name: Create the restricted backup operator
+  ansible.builtin.user:
+    name: eurtisan-backup
+    system: true
+    shell: /usr/sbin/nologin
+    groups: docker
+    append: true
+  tags: [backup]
+
+- name: Create protected backup configuration directory
+  ansible.builtin.file:
+    path: /etc/eurtisan
+    state: directory
+    owner: root
+    group: eurtisan-backup
+    mode: "0750"
+  tags: [backup]
+
+- name: Create logical backup and state directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: eurtisan-backup
+    group: eurtisan-backup
+    mode: "0750"
+  loop:
+    - "{{ backup_directory }}"
+    - "{{ backup_state_directory }}"
+  tags: [backup]
+
+- name: Create pgBackRest repository and spool directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "70"
+    group: "70"
+    mode: "0750"
+  loop:
+    - "{{ pgbackrest_repository_host_path }}"
+    - "{{ pgbackrest_spool_host_path }}"
+  when: postgres_wal_archive_enabled | bool
+  tags: [backup, wal]
+
+- name: Create pgBackRest configuration directory
+  ansible.builtin.file:
+    path: /opt/eurtisan/pgbackrest
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: postgres_wal_archive_enabled | bool
+  tags: [backup, wal]
+
+- name: Render protected backup runtime configuration
+  ansible.builtin.template:
+    src: backup.env.j2
+    dest: /etc/eurtisan/backup.env
+    owner: root
+    group: eurtisan-backup
+    mode: "0640"
+  no_log: true
+  tags: [backup]
+
+- name: Render pgBackRest configuration
+  ansible.builtin.template:
+    src: pgbackrest.conf.j2
+    dest: /opt/eurtisan/pgbackrest/pgbackrest.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: postgres_wal_archive_enabled | bool
+  tags: [backup, wal]
+
+- name: Render protected pgBackRest process environment
+  ansible.builtin.template:
+    src: pgbackrest.env.j2
+    dest: /etc/eurtisan/pgbackrest.env
+    owner: root
+    group: root
+    mode: "0600"
+  when: postgres_wal_archive_enabled | bool
+  no_log: true
+  tags: [backup, wal]
+
+- name: Remove pgBackRest process environment when disabled
+  ansible.builtin.file:
+    path: /etc/eurtisan/pgbackrest.env
+    state: absent
+  when: not (postgres_wal_archive_enabled | bool)
+  tags: [backup, wal]
+
+- name: Install backup operation scripts
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: eurtisan-backup
+    mode: "0750"
+  loop:
+    - src: backup.sh.j2
+      dest: /opt/eurtisan/backup.sh
+    - src: pgbackrest-backup.sh.j2
+      dest: /opt/eurtisan/pgbackrest-backup.sh
+    - src: backup-status.sh.j2
+      dest: /opt/eurtisan/backup-status.sh
+  tags: [backup]
+
+- name: Ensure backup log file is writable
+  ansible.builtin.file:
+    path: /var/log/eurtisan-backup.log
+    state: touch
+    owner: eurtisan-backup
+    group: eurtisan-backup
+    mode: "0640"
+  tags: [backup]
+
+- name: Install backup transfer and locking tools
+  ansible.builtin.apt:
+    name:
+      - gnupg
+      - rclone
+      - util-linux
+    state: present
+    update_cache: true
+  tags: [backup]
+
+- name: Install backup systemd units
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - eurtisan-logical-backup.service
+    - eurtisan-logical-backup.timer
+    - eurtisan-pgbackrest-backup@.service
+    - eurtisan-pgbackrest-full.timer
+    - eurtisan-pgbackrest-diff.timer
+    - eurtisan-backup-status.service
+    - eurtisan-backup-status.timer
+  notify: Reload systemd
+  tags: [backup]
+
+- name: Remove the superseded backup cron entry
+  ansible.builtin.cron:
+    name: "Eurtisan database backup"
+    state: absent
+    user: eurtisan-backup
+  tags: [backup]
+
+- name: Write pgBackRest Compose override
+  ansible.builtin.template:
+    src: docker-compose.wal-archive.yml.j2
+    dest: /opt/eurtisan/docker-compose.wal-archive.yml
+    owner: root
+    group: root
+    mode: "0600"
+  when: postgres_wal_archive_enabled | bool
+  tags: [backup, wal]
+
+- name: Remove pgBackRest Compose override when disabled
+  ansible.builtin.file:
+    path: /opt/eurtisan/docker-compose.wal-archive.yml
+    state: absent
+  when: not (postgres_wal_archive_enabled | bool)
+  tags: [backup, wal]
+
+- name: Schedule nightly Docker dangling-image cleanup
+  cron:
+    name: "Eurtisan Docker cleanup"
+    minute: "0"
+    hour: "4"
+    job: "docker image prune -f > /dev/null 2>&1"
+    user: root
+
+- name: Start observability stack
+  block:
+    - name: Ensure eurtisan Docker network exists
+      command: docker network create eurtisan
+      failed_when: false
+      register: network_result
+      changed_when: network_result.rc == 0
+
+    - name: Create observability directory
+      file:
+        path: /opt/eurtisan/observability
+        state: directory
+        mode: "0755"
+
+    - name: Sync observability compose and configs
+      synchronize:
+        src: "{{ playbook_dir }}/../../infra/observability/"
+        dest: /opt/eurtisan/observability/
+        delete: yes
+        rsync_opts:
+          - "--exclude=.git"
+          - "--exclude=prometheus/prometheus.yml"
+
+    - name: Render Prometheus scrape config with metrics token
+      template:
+        src: "{{ playbook_dir }}/../../infra/observability/prometheus/prometheus.yml"
+        dest: /opt/eurtisan/observability/prometheus/prometheus.yml
+        mode: "0644"
+
+    - name: Render environment-specific Alertmanager configuration
+      template:
+        src: alertmanager.yml.j2
+        dest: /opt/eurtisan/observability/alertmanager/alertmanager.yml
+        mode: "0644"
+
+    - name: Ensure observability stack is running
+      command: "docker compose -f /opt/eurtisan/observability/docker-compose.observability.yml --env-file /opt/eurtisan/.env up -d --force-recreate"
+      args:
+        chdir: /opt/eurtisan/observability
+
+    - name: Connect proxy-facing observability services to Coolify network
+      community.docker.docker_network:
+        name: coolify
+        connected:
+          - eurtisan-alloy
+          - eurtisan-grafana
+        appends: true
+      when: coexist_with_proxy | default(false)
+  tags: [observability]
+
+- name: Provision the staging release registry
+  ansible.builtin.include_tasks: self-hosted-registry.yml
+  when: release_registry_self_hosted | bool
+  tags: [registry]
+
+- name: Publish, sign, verify, and pull the immutable application image
+  block:
+    - name: Create isolated controller build directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: -eurtisan-image
+      delegate_to: localhost
+      become: false
+      register: controller_build_directory
+
+    - name: Create isolated controller registry credential directory
+      ansible.builtin.file:
+        path: "{{ controller_build_directory.path }}/registry-auth"
+        state: directory
+        mode: "0700"
+      delegate_to: localhost
+      become: false
+
+    - name: Create clean release worktree on the controller
+      ansible.builtin.command:
+        argv:
+          - git
+          - worktree
+          - add
+          - --detach
+          - "{{ controller_build_directory.path }}/source"
+          - "{{ release_version }}"
+      args:
+        chdir: "{{ playbook_dir }}/../.."
+      delegate_to: localhost
+      become: false
+
+    - name: Build immutable release image on the controller
+      ansible.builtin.command:
+        argv:
+          - docker
+          - build
+          - --file
+          - Dockerfile.prod
+          - --tag
+          - "eurtisan-app:{{ image_tag }}"
+          - --build-arg
+          - "PUBLIC_ANALYTICS_CONSENT_REQUIRED=true"
+          - --build-arg
+          - "PUBLIC_APP_ENV={{ deployment_environment }}"
+          - --build-arg
+          - "PUBLIC_APP_VERSION={{ release_version }}"
+          - --build-arg
+          - "PUBLIC_FARO_COLLECTOR_URL=/collect"
+          - --build-arg
+          - "PUBLIC_FARO_ENABLED={{ faro_enabled | bool | lower }}"
+          - --build-arg
+          - "PUBLIC_FARO_APP_NAME=eurtisan"
+          - --build-arg
+          - "PUBLIC_FARO_SAMPLE_RATE={{ faro_sample_rate }}"
+          - --build-arg
+          - "PUBLIC_IMGPROXY_BASE_URL=https://{{ caddy_domain }}/uploads"
+          - --build-arg
+          - "PUBLIC_SITE_URL=https://{{ caddy_domain }}"
+          - --build-arg
+          - "PUBLIC_S3_BUCKET={{ s3_bucket }}"
+          - --build-arg
+          - "PUBLIC_UMAMI_ENABLED={{ umami_enabled | bool | lower }}"
+          - --build-arg
+          - "PUBLIC_UMAMI_HOST_URL={{ umami_host_url | default('') }}"
+          - --build-arg
+          - "PUBLIC_UMAMI_SCRIPT_INTEGRITY={{ umami_script_integrity | default('') }}"
+          - --build-arg
+          - "PUBLIC_UMAMI_SCRIPT_URL={{ umami_script_url | default('') }}"
+          - --build-arg
+          - "PUBLIC_UMAMI_WEBSITE_ID={{ umami_website_id | default('') }}"
+          - .
+      args:
+        chdir: "{{ controller_build_directory.path }}/source"
+      environment:
+        DOCKER_BUILDKIT: "1"
+      delegate_to: localhost
+      become: false
+      no_log: true
+
+    - name: Check the controller signing key files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ release_signing_private_key_path }}"
+        - "{{ release_signing_public_key_path }}"
+      delegate_to: localhost
+      become: false
+      register: release_signing_key_files
+
+    - name: Require protected signing keys on the controller
+      ansible.builtin.assert:
+        that:
+          - release_signing_key_files.results | map(attribute='stat.exists') | min
+          - release_signing_key_files.results | map(attribute='stat.isreg') | min
+        fail_msg: "Generate the protected offline Cosign key pair at the configured controller paths"
+
+    - name: Require Cosign on the trusted controller
+      ansible.builtin.command: cosign version
+      delegate_to: localhost
+      become: false
+      changed_when: false
+
+    - name: Log the controller in to the private release registry
+      ansible.builtin.command:
+        argv:
+          - docker
+          - login
+          - "{{ release_registry }}"
+          - --username
+          - "{{ registry_push_access_key_id }}"
+          - --password-stdin
+        stdin: "{{ registry_push_secret_key }}"
+      environment:
+        DOCKER_CONFIG: "{{ controller_build_directory.path }}/registry-auth"
+      delegate_to: localhost
+      become: false
+      no_log: true
+
+    - name: Tag the environment-qualified release image
+      ansible.builtin.command: >-
+        docker tag eurtisan-app:{{ image_tag }}
+        {{ release_image_repository }}:{{ deployment_environment }}-{{ release_version }}
+      delegate_to: localhost
+      become: false
+
+    - name: Publish the immutable release image
+      ansible.builtin.command: >-
+        docker push {{ release_image_repository }}:{{ deployment_environment }}-{{ release_version }}
+      environment:
+        DOCKER_CONFIG: "{{ controller_build_directory.path }}/registry-auth"
+      delegate_to: localhost
+      become: false
+      register: release_image_push
+      changed_when: true
+
+    - name: Inspect the published image digest
+      ansible.builtin.command: >-
+        docker image inspect
+        {{ release_image_repository }}:{{ deployment_environment }}-{{ release_version }}
+      delegate_to: localhost
+      become: false
+      register: published_image
+      changed_when: false
+
+    - name: Select the immutable repository digest
+      ansible.builtin.set_fact:
+        release_image_reference: >-
+          {{
+            ((published_image.stdout | from_json)[0].RepoDigests
+              | select('match', '^' ~ release_image_repository ~ '@sha256:')
+              | list
+              | first)
+          }}
+
+    - name: Validate the published digest identity
+      ansible.builtin.assert:
+        that:
+          - release_image_reference is match('^' ~ release_image_repository ~ '@sha256:[a-f0-9]{64}$')
+          - (published_image.stdout | from_json)[0].Config.Labels['org.opencontainers.image.revision'] == release_version
+        fail_msg: "Published release digest or OCI revision does not match the intended release"
+
+    - name: Sign the immutable release digest
+      ansible.builtin.command:
+        argv:
+          - cosign
+          - sign
+          - --yes
+          - --key
+          - "{{ release_signing_private_key_path }}"
+          - "{{ release_image_reference }}"
+      environment:
+        COSIGN_PASSWORD: "{{ cosign_password }}"
+        DOCKER_CONFIG: "{{ controller_build_directory.path }}/registry-auth"
+      delegate_to: localhost
+      become: false
+      no_log: true
+
+    - name: Verify the release signature before deployment
+      ansible.builtin.command:
+        argv:
+          - cosign
+          - verify
+          - --key
+          - "{{ release_signing_public_key_path }}"
+          - "{{ release_image_reference }}"
+      environment:
+        DOCKER_CONFIG: "{{ controller_build_directory.path }}/registry-auth"
+      delegate_to: localhost
+      become: false
+      register: release_signature_verification
+      changed_when: false
+      no_log: true
+
+    - name: Set the qualified release digest
+      ansible.builtin.set_fact:
+        release_image_digest: "{{ release_image_reference.split('@')[1] }}"
+
+    - name: Create isolated target registry credential directory
+      ansible.builtin.tempfile:
+        state: directory
+        suffix: -eurtisan-registry-auth
+      register: target_registry_auth_directory
+
+    - name: Protect the target registry credential directory
+      ansible.builtin.file:
+        path: "{{ target_registry_auth_directory.path }}"
+        state: directory
+        mode: "0700"
+
+    - name: Log the target in to the private release registry
+      ansible.builtin.command:
+        argv:
+          - docker
+          - login
+          - "{{ release_registry }}"
+          - --username
+          - "{{ registry_pull_access_key_id }}"
+          - --password-stdin
+        stdin: "{{ registry_pull_secret_key }}"
+      environment:
+        DOCKER_CONFIG: "{{ target_registry_auth_directory.path }}"
+      no_log: true
+
+    - name: Pull only the verified immutable digest
+      ansible.builtin.command: "docker pull {{ release_image_reference }}"
+      environment:
+        DOCKER_CONFIG: "{{ target_registry_auth_directory.path }}"
+      register: release_image_pull
+      changed_when: "'Downloaded newer image' in release_image_pull.stdout"
+
+    - name: Tag the verified digest for Compose
+      ansible.builtin.command: >-
+        docker tag {{ release_image_reference }} eurtisan-app:{{ image_tag }}
+
+    - name: Inspect the pulled application image
+      ansible.builtin.command: "docker image inspect eurtisan-app:{{ image_tag }}"
+      register: pulled_image
+      changed_when: false
+
+    - name: Verify the pulled digest and release identity
+      ansible.builtin.assert:
+        that:
+          - release_image_reference in (pulled_image.stdout | from_json)[0].RepoDigests
+          - (pulled_image.stdout | from_json)[0].Config.Labels['org.opencontainers.image.revision'] == release_version
+        fail_msg: "Pulled application image identity does not match the signed release digest"
+
+    - name: Inspect the currently running application image for rollback
+      ansible.builtin.shell: |
+        set -euo pipefail
+        container_id="$({{ docker_compose }} ps -q app)"
+        if [ -n "$container_id" ]; then
+          image_id="$(docker inspect --format='{% raw %}{{.Image}}{% endraw %}' "$container_id")"
+          docker image inspect "$image_id"
+        fi
+      args:
+        chdir: /opt/eurtisan
+        executable: /bin/bash
+      register: current_application_image
+      changed_when: false
+
+    - name: Select the current verified rollback digest
+      ansible.builtin.set_fact:
+        rollback_image_reference: >-
+          {{
+            (((current_application_image.stdout | from_json)[0].RepoDigests
+              | select('match', '^' ~ release_image_repository ~ '@sha256:')
+              | list
+              | first
+              | default(''))
+              if current_application_image.stdout | trim | length > 0 else '')
+          }}
+        rollback_release_version: >-
+          {{
+            ((current_application_image.stdout | from_json)[0].Config.Labels['org.opencontainers.image.revision']
+              if current_application_image.stdout | trim | length > 0 else '')
+          }}
+
+    - name: Verify the rollback digest signature
+      ansible.builtin.command:
+        argv:
+          - cosign
+          - verify
+          - --key
+          - "{{ release_signing_public_key_path }}"
+          - "{{ rollback_image_reference }}"
+      environment:
+        DOCKER_CONFIG: "{{ controller_build_directory.path }}/registry-auth"
+      delegate_to: localhost
+      become: false
+      changed_when: false
+      no_log: true
+      when: rollback_image_reference | length > 0
+
+    - name: Retain the verified rollback digest locally
+      ansible.builtin.command: >-
+        docker tag {{ rollback_image_reference }} eurtisan-app:rollback-before-deploy
+      when: rollback_image_reference | length > 0
+
+    - name: Rewrite the managed environment with the qualified digest
+      ansible.builtin.template:
+        src: .env.j2
+        dest: /opt/eurtisan/.env
+        mode: "0600"
+
+    - name: Report the qualified release identity
+      ansible.builtin.debug:
+        msg: "Qualified {{ deployment_environment }} release {{ release_version }} as {{ release_image_reference }}"
+  always:
+    - name: Log the controller out of the private release registry
+      ansible.builtin.command: "docker logout {{ release_registry }}"
+      environment:
+        DOCKER_CONFIG: "{{ controller_build_directory.path | default('/tmp/eurtisan-build-not-created') }}/registry-auth"
+      delegate_to: localhost
+      become: false
+      changed_when: false
+      failed_when: false
+      when:
+        - controller_build_directory is defined
+        - controller_build_directory.path is defined
+
+    - name: Log the target out of the private release registry
+      ansible.builtin.command: "docker logout {{ release_registry }}"
+      environment:
+        DOCKER_CONFIG: "{{ target_registry_auth_directory.path | default('/tmp/eurtisan-registry-auth-not-created') }}"
+      changed_when: false
+      failed_when: false
+      when:
+        - target_registry_auth_directory is defined
+        - target_registry_auth_directory.path is defined
+
+    - name: Remove target registry credential directory
+      ansible.builtin.file:
+        path: "{{ target_registry_auth_directory.path | default('/tmp/eurtisan-registry-auth-not-created') }}"
+        state: absent
+      when:
+        - target_registry_auth_directory is defined
+        - target_registry_auth_directory.path is defined
+
+    - name: Remove clean release worktree from the controller
+      ansible.builtin.command:
+        argv:
+          - git
+          - worktree
+          - remove
+          - --force
+          - "{{ controller_build_directory.path | default('/tmp/eurtisan-build-not-created') }}/source"
+      args:
+        chdir: "{{ playbook_dir }}/../.."
+      delegate_to: localhost
+      become: false
+      failed_when: false
+      when:
+        - controller_build_directory is defined
+        - controller_build_directory.path is defined
+
+    - name: Remove controller build directory
+      ansible.builtin.file:
+        path: "{{ controller_build_directory.path | default('/tmp/eurtisan-build-not-created') }}"
+        state: absent
+      delegate_to: localhost
+      become: false
+      when:
+        - controller_build_directory is defined
+        - controller_build_directory.path is defined
+
+- name: Stop stateless application services before rollout
+  command: >-
+    {{ docker_compose }} stop
+    app imgproxy
+    inventory-cleanup session-cleanup cart-cleanup verification-cleanup
+    meilisearch-sync audit-log-cleanup search-event-cleanup notification-cleanup sendcloud-reconciliation
+    mollie-payment-reconciliation payout-reconciliation
+    payout-reconciliation-log-cleanup email-outbox-worker notification-digest
+    email-suppression-cleanup email-retention-cleanup
+    financial-totals-reconciliation sendcloud-retention-cleanup
+  args:
+    chdir: /opt/eurtisan
+
+- name: Start stateful dependencies first
+  command: "{{ docker_compose }} up -d db meilisearch{{ ' garage' if (garage_enabled | bool) else '' }}"
+  args:
+    chdir: /opt/eurtisan
+
+- name: Wait for the configured PostgreSQL database and role to be ready
+  ansible.builtin.shell: >-
+    {{ docker_compose }} exec -T db
+    psql -U {{ postgres_user | quote }} -d {{ postgres_db | quote }} -tAc 'SELECT 1;'
+  args:
+    chdir: /opt/eurtisan
+  register: pg_ready
+  until:
+    - pg_ready.rc == 0
+    - pg_ready.stdout | trim == '1'
+  retries: 15
+  delay: 2
+
+- name: Initialize the pgBackRest stanza
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - --user
+      - postgres
+      - "{{ db_container_name }}"
+      - pgbackrest
+      - "--stanza={{ pgbackrest_stanza }}"
+      - stanza-create
+  when: postgres_wal_archive_enabled | bool
+  register: pgbackrest_stanza_create
+  changed_when: "'stanza-create command end: completed successfully' in pgbackrest_stanza_create.stdout"
+  tags: [backup, wal]
+
+- name: Verify pgBackRest can archive and retrieve WAL
+  ansible.builtin.command:
+    argv:
+      - docker
+      - exec
+      - --user
+      - postgres
+      - "{{ db_container_name }}"
+      - pgbackrest
+      - "--stanza={{ pgbackrest_stanza }}"
+      - check
+  when: postgres_wal_archive_enabled | bool
+  changed_when: false
+  tags: [backup, wal]
+
+- name: Initialize staging Garage layout, bucket, and access key
+  when: garage_enabled | bool
+  ansible.builtin.shell: |
+    set -euo pipefail
+    garage() {
+      {{ docker_compose }} exec -T garage /garage "$@"
+    }
+
+    status="$(garage status)"
+    node_id="$(printf '%s\n' "$status" | awk '/^[a-f0-9]{16}/ { print $1; exit }')"
+    test -n "$node_id"
+
+    if printf '%s\n' "$status" | grep -q 'NO ROLE ASSIGNED'; then
+      current_version="$(garage layout show | awk '/Current cluster layout version:/ { print $NF; exit }')"
+      garage layout assign "$node_id" -z staging-eu -c 1TB >/dev/null
+      garage layout apply --version "$((current_version + 1))" >/dev/null
+    fi
+
+    if ! garage bucket list | grep -Fq '{{ s3_bucket }}'; then
+      garage bucket create '{{ s3_bucket }}' >/dev/null
+    fi
+
+    if ! garage key list | grep -Fq '{{ s3_access_key_id }}'; then
+      garage key import --yes -n staging-app '{{ s3_access_key_id }}' '{{ s3_secret_access_key }}' >/dev/null
+    fi
+
+    garage bucket allow '{{ s3_bucket }}' --key '{{ s3_access_key_id }}' --read --write --owner >/dev/null
+  args:
+    chdir: /opt/eurtisan
+    executable: /bin/bash
+  no_log: true
+
+- name: Configure staging Garage upload CORS
+  when: garage_enabled | bool
+  command: "{{ docker_compose }} run --rm --no-deps app bun run scripts/setup-garage-cors.ts"
+  args:
+    chdir: /opt/eurtisan
+  environment:
+    IMAGE_TAG: "{{ image_tag }}"
+
+- name: Roll out the verified digest with automatic application rollback
+  block:
+    - name: Run the qualified release rollout
+      ansible.builtin.import_tasks: rollout.yml
+  rescue:
+    - name: Require a verified rollback generation
+      ansible.builtin.assert:
+        that:
+          - rollback_image_reference | default('') | length > 0
+          - rollback_release_version | default('') is match('^[a-f0-9]{40}$')
+        fail_msg: "Rollout failed and no previously verified digest is available; manual recovery is required"
+
+    - name: Restore rollback release metadata
+      ansible.builtin.lineinfile:
+        path: /opt/eurtisan/.env
+        regexp: "^{{ item.key }}="
+        line: "{{ item.key }}={{ item.value }}"
+        mode: "0600"
+      loop:
+        - key: IMAGE_TAG
+          value: rollback-before-deploy
+        - key: IMAGE_DIGEST
+          value: "{{ rollback_image_reference.split('@')[1] }}"
+        - key: VITE_APP_VERSION
+          value: "{{ rollback_release_version }}"
+
+    - name: Restart every application service on the verified rollback digest
+      ansible.builtin.command: "{{ docker_compose }} up -d"
+      args:
+        chdir: /opt/eurtisan
+      environment:
+        IMAGE_TAG: rollback-before-deploy
+
+    - name: Verify rollback readiness
+      ansible.builtin.command: "{{ docker_compose }} up -d --wait app"
+      args:
+        chdir: /opt/eurtisan
+      environment:
+        IMAGE_TAG: rollback-before-deploy
+
+    - name: Stop after a successful automatic rollback
+      ansible.builtin.fail:
+        msg: >-
+          Release {{ release_image_reference }} failed rollout and was rolled back to
+          {{ rollback_image_reference }}. Database migrations are not reversed; inspect
+          migration state before retrying.
+
+- name: Reload systemd before activating backup timers
+  ansible.builtin.systemd_service:
+    daemon_reload: true
+  tags: [backup]
+
+- name: Check whether an initial full physical backup completed
+  ansible.builtin.stat:
+    path: "{{ backup_state_directory }}/physical-full.last-success"
+  register: initial_physical_backup_marker
+  when: postgres_wal_archive_enabled | bool
+  tags: [backup, wal]
+
+- name: Create the initial full physical backup
+  ansible.builtin.command: /opt/eurtisan/pgbackrest-backup.sh full
+  become: true
+  become_user: eurtisan-backup
+  when:
+    - postgres_wal_archive_enabled | bool
+    - not initial_physical_backup_marker.stat.exists
+  tags: [backup, wal]
+
+- name: Enable logical backup and freshness timers
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - eurtisan-logical-backup.timer
+    - eurtisan-backup-status.timer
+  tags: [backup]
+
+- name: Enable pgBackRest physical backup timers
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: true
+    state: started
+  loop:
+    - eurtisan-pgbackrest-full.timer
+    - eurtisan-pgbackrest-diff.timer
+  when: postgres_wal_archive_enabled | bool
+  tags: [backup, wal]
+
+- name: Disable pgBackRest physical backup timers when PITR is disabled
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: false
+    state: stopped
+  loop:
+    - eurtisan-pgbackrest-full.timer
+    - eurtisan-pgbackrest-diff.timer
+  when: not (postgres_wal_archive_enabled | bool)
+  tags: [backup, wal]
+
+- name: Write Traefik dynamic config for staging route
+  when: coexist_with_proxy | default(false)
+  block:
+    - name: Write Traefik router, service, and whitelist config (single atomic file)
+      copy:
+        dest: /data/coolify/proxy/dynamic/eurtisan-staging.yml
+        content: |
+          http:
+            routers:
+              eurtisan-staging-http:
+                rule: "Host(`staging.eurtisan.eu`)"
+                entrypoints:
+                  - http
+                middlewares:
+                  - eurtisan-staging-redirect
+                service: noop@internal
+
+              # Faro collector — must be public (receives client beacons from all IPs)
+              # Higher priority so it matches before the catch-all app route.
+              eurtisan-staging-collect:
+                rule: "Host(`staging.eurtisan.eu`) && PathPrefix(`/collect`)"
+                priority: 10
+                entrypoints:
+                  - https
+                tls:
+                  certResolver: letsencrypt
+                service: eurtisan-staging-collect
+                middlewares:
+                  - eurtisan-staging-strip-collect
+
+              # Public image delivery through imgproxy. The prefix is stripped
+              # so imgproxy receives its native signed/insecure path.
+              eurtisan-staging-uploads:
+                rule: "Host(`staging.eurtisan.eu`) && PathPrefix(`/uploads/`)"
+                priority: 10
+                entrypoints:
+                  - https
+                tls:
+                  certResolver: letsencrypt
+                service: eurtisan-staging-imgproxy
+                middlewares:
+                  - eurtisan-staging-strip-uploads
+
+              # Garage exposes only its authenticated S3 API on a dedicated host.
+              # Browser uploads are authorized by short-lived presigned URLs.
+              eurtisan-staging-s3-http:
+                rule: "Host(`{{ garage_public_domain }}`)"
+                entrypoints:
+                  - http
+                middlewares:
+                  - eurtisan-staging-redirect
+                service: eurtisan-staging-garage
+
+              eurtisan-staging-s3:
+                rule: "Host(`{{ garage_public_domain }}`)"
+                entrypoints:
+                  - https
+                tls:
+                  certResolver: letsencrypt
+                service: eurtisan-staging-garage
+
+              # Grafana UI — behind the same IP whitelist as the app.
+              # Higher priority so it matches before the catch-all app route.
+              # DO NOT strip /grafana — Grafana with serve_from_sub_path=true
+              # expects to receive the full subpath and strips it internally.
+              eurtisan-staging-grafana:
+                rule: "Host(`staging.eurtisan.eu`) && PathPrefix(`/grafana`)"
+                priority: 10
+                entrypoints:
+                  - https
+                tls:
+                  certResolver: letsencrypt
+                service: eurtisan-staging-grafana
+          {% if allowed_ips is defined %}
+                middlewares:
+                  - eurtisan-staging-whitelist
+          {% endif %}
+
+              # Main app — catch-all for everything else.
+              # Lower priority so /collect and /grafana match first.
+              eurtisan-staging-app:
+                rule: "Host(`staging.eurtisan.eu`)"
+                priority: 1
+                entrypoints:
+                  - https
+                tls:
+                  certResolver: letsencrypt
+                service: eurtisan-staging-app
+          {% if allowed_ips is defined %}
+                middlewares:
+                  - eurtisan-staging-whitelist
+          {% endif %}
+
+            middlewares:
+              eurtisan-staging-redirect:
+                redirectScheme:
+                  scheme: https
+                  permanent: true
+
+              eurtisan-staging-strip-collect:
+                stripPrefix:
+                  prefixes:
+                    - "/collect"
+
+              eurtisan-staging-strip-uploads:
+                stripPrefix:
+                  prefixes:
+                    - "/uploads"
+
+          {% if allowed_ips is defined %}
+              eurtisan-staging-whitelist:
+                ipWhiteList:
+                  sourceRange:
+          {% for ip in allowed_ips.split(',') %}
+                    - "{{ ip }}/32"
+          {% endfor %}
+          {% endif %}
+
+            services:
+              eurtisan-staging-app:
+                loadBalancer:
+                  servers:
+                    - url: "http://eurtisan-app-staging:3000"
+
+              eurtisan-staging-collect:
+                loadBalancer:
+                  servers:
+                    - url: "http://eurtisan-alloy:8027"
+
+              eurtisan-staging-imgproxy:
+                loadBalancer:
+                  servers:
+                    - url: "http://eurtisan-imgproxy-staging:8080"
+
+              eurtisan-staging-garage:
+                loadBalancer:
+                  servers:
+                    - url: "http://eurtisan-garage-staging:3900"
+
+              eurtisan-staging-grafana:
+                loadBalancer:
+                  servers:
+                    - url: "http://eurtisan-grafana:3000"
+
+    - name: Remove old separate whitelist file (if any)
+      file:
+        path: /data/coolify/proxy/dynamic/eurtisan-staging-whitelist.yml
+        state: absent
+      ignore_errors: true
+
+    - name: Restart app and wait for readiness before reloading Traefik
+      command: "{{ docker_compose }} up -d --wait app"
+      args:
+        chdir: /opt/eurtisan
+      environment:
+        IMAGE_TAG: "{{ image_tag }}"
+
+    - name: Reload Traefik routing after the app rollout
+      file:
+        path: /data/coolify/proxy/dynamic/eurtisan-staging.yml
+        state: touch
+        access_time: preserve
+
+- name: Expose app port directly (optional, when app_access_ips is set)
+  when:
+    - coexist_with_proxy | default(false)
+    - app_access_ips is defined
+  block:
+    - name: Allow app port from whitelisted IPs via UFW
+      ufw:
+        rule: allow
+        from_ip: "{{ item }}"
+        port: "3002"
+        proto: tcp
+      loop: "{{ app_access_ips.split(',') }}"
+
+    - name: Enable UFW
+      ufw:
+        state: enabled
+        policy: deny
+
+    - name: Restart app with override binding
+      command: "{{ docker_compose }} up -d app"
+      args:
+        chdir: /opt/eurtisan
+      environment:
+        IMAGE_TAG: "{{ image_tag }}"

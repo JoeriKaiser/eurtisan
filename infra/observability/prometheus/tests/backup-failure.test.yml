@@ -1,0 +1,60 @@
+rule_files:
+  - ../rules/backup-failure.yml
+
+evaluation_interval: 1m
+
+tests:
+  - interval: 1m
+    name: stale logical backups fire after the 26 hour objective and grace period
+    input_series:
+      - series: 'eurtisan_backup_last_success_timestamp_seconds{backup_type="logical"}'
+        values: '0x1680'
+
+    alert_rule_test:
+      - eval_time: 25h
+        alertname: EurtisanLogicalBackupStale
+        exp_alerts: []
+      - eval_time: 28h
+        alertname: EurtisanLogicalBackupStale
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              backup_type: logical
+            exp_annotations:
+              summary: "Eurtisan logical database backup is stale"
+              description: "No successful verified logical database backup has completed in more than 26 hours."
+
+  - interval: 1m
+    name: missing backup status reporting is surfaced
+    alert_rule_test:
+      - eval_time: 20m
+        alertname: EurtisanBackupStatusMissing
+        exp_alerts: []
+      - eval_time: 35m
+        alertname: EurtisanBackupStatusMissing
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              backup_type: logical
+            exp_annotations:
+              summary: "Eurtisan backup status reporting is missing"
+              description: "The five-minute backup status timer has not published the logical backup timestamp."
+
+  - interval: 1m
+    name: a WAL archive backlog must persist before paging
+    input_series:
+      - series: 'eurtisan_postgres_wal_archive_pending_files'
+        values: '1x30'
+
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: EurtisanWalArchiveBacklog
+        exp_alerts: []
+      - eval_time: 25m
+        alertname: EurtisanWalArchiveBacklog
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: "PostgreSQL WAL archive backlog is not draining"
+              description: "At least one completed WAL segment has remained pending for more than 20 minutes."

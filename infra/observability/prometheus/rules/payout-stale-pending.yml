@@ -1,0 +1,11 @@
+groups:
+  - name: payout_stale_pending
+    rules:
+      - alert: EurtisanPayoutStalePending
+        expr: increase(eurtisan_payout_stale_pending_total[1h]) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Stale pending payouts detected"
+          description: "One or more payouts are pending and approaching the 90-day Mollie routing window."

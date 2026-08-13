@@ -1,0 +1,266 @@
+#!/bin/bash
+# Eurtisan deploy script
+# Run on the VPS to recover an immutable digest already pulled and verified by Ansible.
+# Usage: ./deploy.sh [--skip-smoke-test] [--canary] [git-ref]
+#   --skip-smoke-test — bypass post-deploy smoke tests (emergency manual use only)
+#   --canary — run a single canary container before full rollout
+#   git-ref — branch or tag to deploy (default: main)
+#
+# Set COMPOSE_FILE env var to override (default: docker-compose.prod.yml)
+
+set -euo pipefail
+
+APP_DIR="/opt/eurtisan"
+COMPOSE_FILE="${COMPOSE_FILE:-docker-compose.prod.yml}"
+COMPOSE_FILES=(-f "$COMPOSE_FILE")
+if [ -f "$APP_DIR/docker-compose.wal-archive.yml" ]; then
+  COMPOSE_FILES+=(-f "$APP_DIR/docker-compose.wal-archive.yml")
+fi
+
+# Load environment variables from the Ansible-managed .env so the script can
+# reach services and alert endpoints without duplicating configuration.
+set -a
+if [ -f "$APP_DIR/.env" ]; then
+  source "$APP_DIR/.env"
+fi
+set +a
+
+SKIP_SMOKE_TEST=false
+if [ "${1:-}" = "--skip-smoke-test" ]; then
+  SKIP_SMOKE_TEST=true
+  shift
+fi
+
+CANARY=false
+if [ "${1:-}" = "--canary" ]; then
+  CANARY=true
+  shift
+fi
+
+GIT_REF="${1:-main}"
+
+if [ -z "${PUBLIC_URL:-}" ]; then
+  echo "==> CONFIGURATION FAILED: PUBLIC_URL is required"
+  exit 1
+fi
+if [ -z "${IMAGE_REPOSITORY:-}" ] || [ -z "${IMAGE_DIGEST:-}" ]; then
+  echo "==> CONFIGURATION FAILED: Ansible-managed IMAGE_REPOSITORY and IMAGE_DIGEST are required"
+  exit 1
+fi
+SMOKE_TEST_BASE="${SMOKE_TEST_BASE:-http://app:3000}"
+DEPLOY_ALERT_WEBHOOK="${DEPLOY_ALERT_WEBHOOK:-${BACKUP_ALERT_WEBHOOK:-}}"
+CANARY_PORT="${CANARY_PORT:-3001}"
+CANARY_STABILIZE_SECONDS="${CANARY_STABILIZE_SECONDS:-300}"
+
+cd "$APP_DIR"
+
+send_alert() {
+  local message="$1"
+  if [ -n "$DEPLOY_ALERT_WEBHOOK" ]; then
+    curl -fsSL -X POST -H "Content-Type: application/json" \
+      -d "{\"text\":\"$message\"}" "$DEPLOY_ALERT_WEBHOOK" >/dev/null 2>&1 || true
+  fi
+}
+
+poll_endpoint() {
+  local path="$1"
+  local max_attempts="${2:-24}"
+  local delay="${3:-5}"
+
+  for i in $(seq 1 "$max_attempts"); do
+    if docker compose "${COMPOSE_FILES[@]}" exec -T app \
+      curl -fsS "${SMOKE_TEST_BASE}${path}" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep "$delay"
+  done
+  return 1
+}
+
+run_smoke_tests() {
+  echo "==> Running post-deploy smoke tests..."
+
+  if ! poll_endpoint "/api/health/ready"; then
+    echo "==> SMOKE TEST FAILED: /api/health/ready did not return 200 within timeout"
+    return 1
+  fi
+  echo "    /api/health/ready OK"
+
+  if ! poll_endpoint "/api/health/live"; then
+    echo "==> SMOKE TEST FAILED: /api/health/live did not return 200 within timeout"
+    return 1
+  fi
+  echo "    /api/health/live OK"
+
+  if ! poll_endpoint "/api/health"; then
+    echo "==> SMOKE TEST FAILED: /api/health did not return 200 within timeout"
+    return 1
+  fi
+  echo "    /api/health OK"
+
+  if ! poll_endpoint "/api/health/deps"; then
+    echo "==> SMOKE TEST FAILED: /api/health/deps did not return 200 within timeout"
+    return 1
+  fi
+  echo "    /api/health/deps OK"
+
+  return 0
+}
+
+poll_canary_health() {
+  local max_attempts=30
+  local delay=2
+  for i in $(seq 1 "$max_attempts"); do
+    if curl -fsS "http://127.0.0.1:${CANARY_PORT}/api/health/ready" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep "$delay"
+  done
+  return 1
+}
+
+run_canary() {
+  echo "==> Starting canary container on port ${CANARY_PORT}..."
+  # The legacy eurtisan network is a plain bridge with no aliases, so the app
+  # and DB containers resolve by their container names from the canary as well.
+  docker run -d --rm \
+    --name eurtisan-app-canary \
+    --network eurtisan \
+    --env-file "$APP_DIR/.env" \
+    -e NODE_ENV=production \
+    -e PORT="$CANARY_PORT" \
+    -p "127.0.0.1:${CANARY_PORT}:${CANARY_PORT}" \
+    "eurtisan-app:${IMAGE_TAG}" \
+    bun --import ./dist/server/instrument.server.mjs ./dist/server/server-entry.mjs
+
+  echo "==> Waiting for canary health..."
+  if ! poll_canary_health; then
+    echo "==> CANARY HEALTH CHECK FAILED"
+    docker stop eurtisan-app-canary >/dev/null 2>&1 || true
+    return 1
+  fi
+
+  echo "==> Canary healthy; observing for ${CANARY_STABILIZE_SECONDS}s..."
+  local elapsed=0
+  while [ "$elapsed" -lt "$CANARY_STABILIZE_SECONDS" ]; do
+    sleep 30
+    elapsed=$((elapsed + 30))
+    if ! poll_canary_health; then
+      echo "==> CANARY FAILED during stabilization at ${elapsed}s"
+      docker stop eurtisan-app-canary >/dev/null 2>&1 || true
+      return 1
+    fi
+  done
+
+  echo "==> Canary stable; removing canary container before full rollout..."
+  docker stop eurtisan-app-canary >/dev/null 2>&1 || true
+  return 0
+}
+
+echo "==> Tagging current app image for rollback..."
+CURRENT_CONTAINER=$(docker compose "${COMPOSE_FILES[@]}" ps -q app 2>/dev/null || true)
+if [ -n "$CURRENT_CONTAINER" ]; then
+  CURRENT_IMAGE=$(docker inspect --format='{{.Image}}' "$CURRENT_CONTAINER" 2>/dev/null || true)
+  if [ -n "$CURRENT_IMAGE" ]; then
+    docker tag "$CURRENT_IMAGE" eurtisan-app:rollback-before-deploy
+    echo "    Tagged rollback image: ${CURRENT_IMAGE}"
+  fi
+fi
+
+echo "==> Fetching code from origin..."
+git fetch origin
+
+echo "==> Checking out ${GIT_REF}..."
+git checkout "${GIT_REF}"
+git pull origin "${GIT_REF}"
+
+RELEASE_VERSION="$(git rev-parse HEAD)"
+IMAGE_TAG="${RELEASE_VERSION:0:12}"
+VITE_APP_VERSION="$RELEASE_VERSION"
+export IMAGE_TAG VITE_APP_VERSION
+
+# Keep runtime observability metadata aligned with the immutable build input.
+# These are public values; Ansible remains the owner of every secret in .env.
+sed -i -E "s/^IMAGE_TAG=.*/IMAGE_TAG=${IMAGE_TAG}/" "$APP_DIR/.env"
+sed -i -E "s/^VITE_APP_VERSION=.*/VITE_APP_VERSION=${RELEASE_VERSION}/" "$APP_DIR/.env"
+
+# Compose interpolation must succeed before any application container starts.
+docker compose "${COMPOSE_FILES[@]}" config >/dev/null
+
+echo "==> Verifying Ansible-qualified application image (tag: ${IMAGE_TAG})..."
+if ! docker image inspect "eurtisan-app:${IMAGE_TAG}" >/dev/null 2>&1; then
+  echo "==> IMAGE NOT FOUND: run Ansible to pull and verify ${IMAGE_REPOSITORY}@${IMAGE_DIGEST}"
+  exit 1
+fi
+IMAGE_RELEASE=$(docker image inspect \
+  --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' \
+  "eurtisan-app:${IMAGE_TAG}")
+if [ "$IMAGE_RELEASE" != "$RELEASE_VERSION" ]; then
+  echo "==> IMAGE VERIFICATION FAILED: release label does not match checked-out source"
+  exit 1
+fi
+IMAGE_REPO_DIGESTS=$(docker image inspect \
+  --format '{{ json .RepoDigests }}' \
+  "eurtisan-app:${IMAGE_TAG}")
+case "$IMAGE_REPO_DIGESTS" in
+  *\"${IMAGE_REPOSITORY}@${IMAGE_DIGEST}\"*) ;;
+  *)
+    echo "==> IMAGE VERIFICATION FAILED: local tag is not backed by the Ansible-qualified digest"
+    exit 1
+    ;;
+esac
+
+echo "==> Validating compiled browser configuration..."
+docker run --rm --env-file "$APP_DIR/.env" "eurtisan-app:${IMAGE_TAG}" bun run smoke:client-config
+
+echo "==> Validating server environment contract..."
+docker compose "${COMPOSE_FILES[@]}" run --rm --no-deps app bun run validate:server-env
+
+echo "==> Running database migrations..."
+if docker compose "${COMPOSE_FILES[@]}" run --rm --no-deps app bun run db:migrate; then
+  echo "==> Migration succeeded"
+
+  if [ "$CANARY" = true ]; then
+    if ! run_canary; then
+      send_alert "🚨 Eurtisan canary FAILED on $(hostname) for ${GIT_REF}. Full rollout aborted."
+      exit 1
+    fi
+  fi
+
+  echo "==> Restarting services..."
+  docker compose "${COMPOSE_FILES[@]}" up -d
+
+  if [ "$SKIP_SMOKE_TEST" = false ]; then
+    if ! run_smoke_tests; then
+      echo "==> SMOKE TEST FAILED — rolling back to previous image"
+      send_alert "🚨 Eurtisan deploy FAILED on $(hostname): smoke tests failed for ${GIT_REF}. Rolling back."
+
+      echo "==> Ensuring old containers are running with rollback image..."
+      IMAGE_TAG=rollback-before-deploy docker compose "${COMPOSE_FILES[@]}" up -d
+
+      # Re-run smoke tests against the rollback image so we confirm the site is up.
+      if run_smoke_tests; then
+        echo "==> Rollback smoke tests passed"
+      else
+        echo "==> ROLLBACK SMOKE TESTS ALSO FAILED — manual intervention required"
+        send_alert "🚨🚨 Eurtisan rollback ALSO failed on $(hostname) for ${GIT_REF}. Manual intervention required."
+      fi
+      exit 1
+    fi
+  else
+    echo "==> Skipping smoke tests (--skip-smoke-test)"
+  fi
+
+  echo "==> Tagging deployed image as latest..."
+  docker tag "eurtisan-app:${IMAGE_TAG}" eurtisan-app:latest
+else
+  echo "==> MIGRATION FAILED — rolling back to previous image"
+  send_alert "🚨 Eurtisan deploy FAILED on $(hostname): database migration failed for ${GIT_REF}. Rolling back."
+
+  echo "==> Ensuring old containers are running with rollback image..."
+  IMAGE_TAG=rollback-before-deploy docker compose "${COMPOSE_FILES[@]}" up -d
+  exit 1
+fi
+
+echo "==> Deploy complete: ${GIT_REF} (image: eurtisan-app:${IMAGE_TAG})"
+send_alert "✅ Eurtisan deploy succeeded on $(hostname): ${GIT_REF} (image: eurtisan-app:${IMAGE_TAG})"

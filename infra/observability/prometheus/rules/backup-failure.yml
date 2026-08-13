@@ -1,0 +1,63 @@
+groups:
+  - name: backup_failure
+    rules:
+      - alert: EurtisanBackupFailed
+        expr: increase(eurtisan_backup_failures_total[1d]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "Eurtisan database backup failed"
+          description: "A logical or physical backup operation reported a failure in the last 24 hours."
+
+      - alert: EurtisanBackupStatusMissing
+        expr: absent(eurtisan_backup_last_success_timestamp_seconds{backup_type="logical"})
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Eurtisan backup status reporting is missing"
+          description: "The five-minute backup status timer has not published the logical backup timestamp."
+
+      - alert: EurtisanLogicalBackupStale
+        expr: time() - eurtisan_backup_last_success_timestamp_seconds{backup_type="logical"} > 93600
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Eurtisan logical database backup is stale"
+          description: "No successful verified logical database backup has completed in more than 26 hours."
+
+      - alert: EurtisanPhysicalDifferentialBackupStale
+        expr: time() - eurtisan_backup_last_success_timestamp_seconds{backup_type="physical-diff"} > 108000
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Eurtisan differential physical backup is stale"
+          description: "No successful pgBackRest differential backup has completed in more than 30 hours."
+
+      - alert: EurtisanPhysicalFullBackupStale
+        expr: time() - eurtisan_backup_last_success_timestamp_seconds{backup_type="physical-full"} > 691200
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Eurtisan full physical backup is stale"
+          description: "No successful pgBackRest full backup has completed in more than eight days."
+
+      - alert: EurtisanWalArchiveFailures
+        expr: increase(eurtisan_postgres_wal_archive_failed_count[15m]) > 0
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL WAL archiving is failing"
+          description: "PostgreSQL pg_stat_archiver.failed_count increased during the last 15 minutes."
+
+      - alert: EurtisanWalArchiveBacklog
+        expr: eurtisan_postgres_wal_archive_pending_files > 0
+        for: 20m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL WAL archive backlog is not draining"
+          description: "At least one completed WAL segment has remained pending for more than 20 minutes."

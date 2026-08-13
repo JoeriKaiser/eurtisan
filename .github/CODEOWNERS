@@ -1,0 +1,15 @@
+# CODEOWNERS — replace @JoeriKaiser with your GitHub org/team if ownership changes.
+# See docs/BRANCH_PROTECTION.md for required branch protection settings.
+
+* @JoeriKaiser
+
+/drizzle/ @JoeriKaiser
+/drizzle.config.ts @JoeriKaiser
+/infrastructure/ @JoeriKaiser
+/docker-compose.prod.yml @JoeriKaiser
+/Caddyfile @JoeriKaiser
+/Dockerfile.prod @JoeriKaiser
+/src/lib/auth.ts @JoeriKaiser
+/src/lib/auth-middleware.ts @JoeriKaiser
+/src/routes/api/webhooks/ @JoeriKaiser
+/src/integrations/payments/ @JoeriKaiser

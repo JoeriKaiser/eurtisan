@@ -1,0 +1,123 @@
+services:
+  alloy:
+    image: grafana/alloy:v1.5.0
+    container_name: eurtisan-alloy
+    environment:
+      - APP_CONTAINER_NAME=${APP_CONTAINER_NAME:-eurtisan-app}
+      - ALLOY_FARO_CORS_ORIGINS=${ALLOY_FARO_CORS_ORIGINS:-https://eurtisan.eu,https://staging.eurtisan.eu}
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - alloy_data:/var/lib/alloy
+    command: run --server.http.listen-addr=127.0.0.1:12345 --storage.path=/var/lib/alloy /etc/alloy/config.alloy
+    # No host ports exposed. The app reaches Alloy via the eurtisan Docker network.
+    networks:
+      - eurtisan
+    restart: "no"
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: eurtisan-grafana
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_SERVER_ROOT_URL=${GRAFANA_ROOT_URL:-https://eurtisan.eu/grafana}
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      - GF_SECURITY_DISABLE_GRAVATAR=true
+      - GF_SECURITY_ANGULAR_SUPPORT_ENABLED=false
+    # Localhost-only for development access. Caddy reaches Grafana via the eurtisan
+    # Docker network in production/staging.
+    ports:
+      - "127.0.0.1:3001:3000"
+    networks:
+      - eurtisan
+    restart: "no"
+    depends_on:
+      - loki
+      - tempo
+      - prometheus
+
+  loki:
+    image: grafana/loki:3.1.0
+    container_name: eurtisan-loki
+    volumes:
+      - ./loki/loki.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    # Localhost-only for SSH tunnel debugging. Not exposed publicly.
+    ports:
+      - "127.0.0.1:3100:3100"
+    networks:
+      - eurtisan
+    restart: "no"
+
+  tempo:
+    image: grafana/tempo:2.6.0
+    container_name: eurtisan-tempo
+    volumes:
+      - ./tempo/tempo.yml:/etc/tempo/tempo.yaml:ro
+      - tempo_data:/var/tempo
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    # Localhost-only for SSH tunnel debugging. Not exposed publicly.
+    ports:
+      - "127.0.0.1:3200:3200"
+    networks:
+      - eurtisan
+    restart: "no"
+
+  prometheus:
+    image: prom/prometheus:v2.55.0
+    container_name: eurtisan-prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus
+    # Localhost-only for SSH tunnel debugging. Not exposed publicly.
+    ports:
+      - "127.0.0.1:9090:9090"
+    networks:
+      - eurtisan
+    restart: "no"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=15d'
+      - '--storage.tsdb.path=/prometheus'
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: eurtisan-alertmanager
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_data:/alertmanager
+    # Localhost-only for SSH tunnel debugging. Not exposed publicly.
+    ports:
+      - "127.0.0.1:9093:9093"
+    networks:
+      - eurtisan
+    restart: "no"
+    environment:
+      - ALERTMANAGER_DEFAULT_RECEIVER=${ALERTMANAGER_DEFAULT_RECEIVER:-null}
+      - ALERTMANAGER_SMTP_HOST=${ALERTMANAGER_SMTP_HOST:-}
+      - ALERTMANAGER_SMTP_PORT=${ALERTMANAGER_SMTP_PORT:-587}
+      - ALERTMANAGER_SMTP_FROM=${ALERTMANAGER_SMTP_FROM:-}
+      - ALERTMANAGER_SMTP_TO=${ALERTMANAGER_SMTP_TO:-}
+      - ALERTMANAGER_WEBHOOK_URL=${ALERTMANAGER_WEBHOOK_URL:-}
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+
+volumes:
+  alloy_data:
+  grafana_data:
+  loki_data:
+  tempo_data:
+  prometheus_data:
+  alertmanager_data:
+
+networks:
+  eurtisan:
+    external: true

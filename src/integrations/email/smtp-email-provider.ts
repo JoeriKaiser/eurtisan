@@ -1,0 +1,205 @@
+import '@tanstack/react-start/server-only'
+
+/**
+ * SMTP email provider for local development.
+ *
+ * Routes transactional emails through an SMTP relay (e.g. mailpit) so
+ * developers can inspect messages without hitting external APIs.
+ *
+ * When SMTP is not configured the provider falls back to mock mode.
+ */
+
+import nodemailer from 'nodemailer'
+import type { EmailProvider, EmailSendResult, EmailTemplate } from '#/lib/email-provider'
+import { renderFallbackPlainText, renderTemplate } from '#/lib/email-templates'
+import { logger } from '#/lib/logger.server'
+import {
+  getEmailFromAddress,
+  getEmailFromName,
+  getEmailReplyToAddress,
+  getEmailSmtpHost,
+  getEmailSmtpPort,
+} from '#/lib/env.server'
+import { emailFailedTotal, emailSentTotal } from '#/lib/metrics.server'
+import { retryWithBackoff } from '#/lib/retry.server'
+
+let mockCounter = 0
+
+function nextMockMessageId(): string {
+  mockCounter += 1
+  return `msg_smtp_mock_${String(mockCounter).padStart(6, '0')}`
+}
+
+/** Reset the mock counter so tests are deterministic. */
+export function resetSmtpMockEmailCounter(): void {
+  mockCounter = 0
+}
+
+/** Returns true when SMTP is configured. */
+function isSmtpConfigured(): boolean {
+  return !!getEmailSmtpHost()
+}
+
+export class SmtpEmailProvider implements EmailProvider {
+  readonly name = 'smtp' as const
+  private readonly mockMode: boolean
+  private readonly transporter: nodemailer.Transporter | undefined
+  private readonly senderEmail: string
+  private readonly senderName: string
+  private readonly replyTo: string
+
+  constructor(options?: { mock?: boolean }) {
+    this.mockMode = options?.mock ?? !isSmtpConfigured()
+    this.senderEmail = getEmailFromAddress()
+    this.senderName = getEmailFromName()
+    this.replyTo = getEmailReplyToAddress()
+
+    if (!this.mockMode) {
+      const host = getEmailSmtpHost()
+      if (!host) {
+        throw new Error('SMTP host is not configured')
+      }
+      const isDevServer = host === 'mailpit' || host === 'localhost' || host === '127.0.0.1'
+      const skipTlsVerify = process.env.NODE_ENV !== 'production' || isDevServer
+
+      this.transporter = nodemailer.createTransport({
+        host,
+        port: getEmailSmtpPort(),
+        secure: false,
+        tls: skipTlsVerify ? { rejectUnauthorized: false } : undefined,
+      })
+    }
+  }
+
+  async sendTransactional(
+    to: string,
+    template: EmailTemplate,
+    data: Record<string, unknown>,
+    headers?: Record<string, string>,
+  ): Promise<EmailSendResult> {
+    if (this.mockMode) {
+      return this.sendMock(to, template, data)
+    }
+
+    return this.sendReal(to, template, data, headers)
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  Mock / no-op                                                       */
+  /* ------------------------------------------------------------------ */
+
+  private async sendMock(
+    to: string,
+    template: EmailTemplate,
+    data: Record<string, unknown>,
+  ): Promise<EmailSendResult> {
+    await delay(20)
+
+    try {
+      await renderTemplate(template, data, to)
+    } catch (err) {
+      renderFallbackPlainText(template, data)
+      logger.error('[SmtpEmailProvider] Template render error (mock)', err)
+    }
+
+    const messageId = nextMockMessageId()
+
+    logger.info('[MockEmail] message sent', {
+      messageId,
+      to: '[REDACTED]',
+    })
+
+    return { messageId, accepted: true, provider: 'smtp' }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  Real SMTP                                                         */
+  /* ------------------------------------------------------------------ */
+
+  private async sendReal(
+    to: string,
+    template: EmailTemplate,
+    data: Record<string, unknown>,
+    headers?: Record<string, string>,
+  ): Promise<EmailSendResult> {
+    if (!this.transporter) {
+      throw new Error('SMTP transporter is not initialised')
+    }
+
+    let subject = ''
+    let htmlBody: string | undefined
+    let textBody = ''
+
+    try {
+      const rendered = await renderTemplate(template, data, to)
+      subject = rendered.subject
+      htmlBody = rendered.html
+      textBody = rendered.text
+    } catch (err) {
+      const fallback = renderFallbackPlainText(template, data)
+      subject = fallback.subject
+      textBody = fallback.text
+      logger.error('[SmtpEmailProvider] Template render error (real)', err)
+    }
+
+    const mailOptions: nodemailer.SendMailOptions = {
+      from: { name: this.senderName, address: this.senderEmail },
+      to,
+      subject,
+      text: textBody,
+      html: htmlBody,
+      replyTo: this.replyTo,
+    }
+
+    if (headers && Object.keys(headers).length > 0) {
+      mailOptions.headers = Object.entries(headers).map(([key, value]) => ({ key, value }))
+    }
+
+    try {
+      const info = await retryWithBackoff(
+        async () => this.transporter?.sendMail(mailOptions),
+        (err) => {
+          if (!(err instanceof Error)) return false
+          const code = (err as NodeJS.ErrnoException).code
+          const message = err.message.toLowerCase()
+          // Retry transient network errors and 5xx SMTP responses.
+          if (
+            code === 'ECONNREFUSED' ||
+            code === 'ETIMEDOUT' ||
+            code === 'ECONNRESET' ||
+            message.includes('5xx') ||
+            message.includes('5.')
+          ) {
+            return true
+          }
+          // Do not retry auth errors or invalid recipients.
+          if (code === 'EAUTH' || message.includes('recipient')) {
+            return false
+          }
+          return false
+        },
+      )
+
+      emailSentTotal.inc({ template })
+      return {
+        messageId: info.messageId ?? `smtp_${Date.now()}`,
+        accepted: true,
+        provider: 'smtp',
+      }
+    } catch (err) {
+      emailFailedTotal.inc({ template })
+      throw err
+    }
+  }
+}
+
+/** Default SMTP email provider instance used by the application. */
+export const smtpEmailProvider = new SmtpEmailProvider()
+
+/* -------------------------------------------------------------------------- */
+/*  Internal helpers                                                          */
+/* -------------------------------------------------------------------------- */
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}

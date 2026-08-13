@@ -1,0 +1,22 @@
+[global]
+repo1-type={{ pgbackrest_repository_type }}
+repo1-path={{ pgbackrest_repository_container_path if pgbackrest_repository_type == 'posix' else pgbackrest_repository_path }}
+repo1-cipher-type=aes-256-cbc
+repo1-retention-full={{ pgbackrest_retention_full }}
+repo1-retention-diff={{ pgbackrest_retention_diff }}
+archive-async=y
+spool-path={{ pgbackrest_spool_container_path }}
+start-fast=y
+process-max={{ pgbackrest_process_max }}
+log-level-console=info
+
+{% if pgbackrest_repository_type == 's3' %}
+repo1-s3-bucket={{ pgbackrest_s3_bucket }}
+repo1-s3-endpoint={{ backup_object_storage_endpoint | regex_replace('^https?://', '') }}
+repo1-s3-region={{ backup_object_storage_region }}
+repo1-s3-uri-style=path
+repo1-storage-verify-tls=y
+{% endif %}
+[{{ pgbackrest_stanza }}]
+pg1-path=/var/lib/postgresql/data
+pg1-user={{ postgres_user }}

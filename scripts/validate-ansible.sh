@@ -1,0 +1,129 @@
+#!/bin/bash
+set -euo pipefail
+
+ANSIBLE_IMAGE="${ANSIBLE_VALIDATION_IMAGE:-python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf}"
+TEMP_DIR="$(mktemp -d)"
+LOG_FILE="$TEMP_DIR/ansible.log"
+cleanup() {
+  rm -rf "$TEMP_DIR"
+}
+trap cleanup EXIT INT TERM
+
+# Staging Vault keys carry a `_staging` suffix; group_vars/staging.yml maps
+# them to the canonical names the role consumes.
+write_staging_vars() {
+  local output="$1"
+  cat >"$output" <<EOF
+postgres_password_staging: ci-validation-postgres-password
+better_auth_secret_staging: ci-validation-auth-secret-value-0001
+database_encryption_key_staging: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+meilisearch_api_key_staging: ci-validation-meili-master-key
+s3_access_key_id_staging: GKaaaaaaaaaaaaaaaaaaaaaaaa
+s3_secret_access_key_staging: dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+garage_rpc_secret: eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
+garage_admin_token: ci-validation-garage-admin-token-0001
+imgproxy_key_staging: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+imgproxy_salt_staging: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+mollie_api_key_staging: test_ci_validation_mollie_key_0001
+mollie_client_id_staging: ci-validation-mollie-client-id
+mollie_client_secret_staging: ci-validation-mollie-client-secret
+sendcloud_public_key_staging: ci-validation-sendcloud-public
+sendcloud_secret_key_staging: ci-validation-sendcloud-secret
+sendcloud_webhook_secret_staging: ci-validation-sendcloud-webhook
+metrics_token_staging: ci-validation-metrics-token
+grafana_admin_password_staging: ci-validation-grafana-password
+backup_report_token_staging: ci-validation-backup-report-token
+backup_logical_cipher_pass_staging: ci-validation-logical-cipher-passphrase-0001
+pgbackrest_repo_cipher_pass_staging: ci-validation-pgbackrest-cipher-passphrase-0001
+staging_registry_push_username: ci-validation-staging-push-user
+staging_registry_push_password: ci-validation-staging-push-password
+staging_registry_pull_username: ci-validation-staging-pull-user
+staging_registry_pull_password: ci-validation-staging-pull-password
+staging_registry_http_secret: ci-validation-registry-http-secret-0001
+cosign_password: ci-validation-cosign-password
+EOF
+  chmod 600 "$output"
+}
+
+# Production owns the canonical Vault key names directly.
+write_production_vars() {
+  local output="$1"
+  cat >"$output" <<EOF
+postgres_password: ci-validation-postgres-password
+better_auth_secret: ci-validation-auth-secret-value-0001
+database_encryption_key: MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=
+meilisearch_api_key: ci-validation-meili-master-key
+s3_access_key_id: ci-validation-uploads-access-key
+s3_secret_access_key: dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+imgproxy_key: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+imgproxy_salt: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+mollie_api_key: live_ci_validation_mollie_key_0001
+mollie_client_id: ci-validation-mollie-client-id
+mollie_client_secret: ci-validation-mollie-client-secret
+sendcloud_public_key: ci-validation-sendcloud-public
+sendcloud_secret_key: ci-validation-sendcloud-secret
+sendcloud_webhook_secret: ci-validation-sendcloud-webhook
+metrics_token: ci-validation-metrics-token
+grafana_admin_password: ci-validation-grafana-password
+grafana_admin_ips: 203.0.113.5/32
+registry_push_access_key_id: ci-validation-registry-push-access
+registry_push_secret_key: ci-validation-registry-push-secret
+registry_pull_access_key_id: ci-validation-registry-pull-access
+registry_pull_secret_key: ci-validation-registry-pull-secret
+cosign_password: ci-validation-cosign-password
+promoted_staging_image_digest: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+brevo_api_key: ci-validation-brevo-api-key
+brevo_webhook_token: cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+alertmanager_webhook_url: https://alerts.invalid/ci-validation
+pgbackrest_repo_cipher_pass: ci-validation-pgbackrest-cipher-passphrase-0001
+backup_logical_cipher_pass: ci-validation-logical-cipher-passphrase-0001
+backup_object_storage_endpoint: https://backup.eu.invalid
+backup_object_storage_region: eu-test-1
+backup_logical_s3_bucket: eurtisan-ci-logical
+backup_logical_s3_access_key: ci-validation-logical-access
+backup_logical_s3_secret_key: ci-validation-logical-secret-value
+backup_primary_uploads_access_key: ci-validation-uploads-read
+backup_primary_uploads_secret_key: ci-validation-uploads-read-secret
+backup_rclone_crypt_password: ci-validation-rclone-obscured-password
+pgbackrest_s3_bucket: eurtisan-ci-pgbackrest
+pgbackrest_s3_access_key: ci-validation-pgbackrest-access
+pgbackrest_s3_secret_key: ci-validation-pgbackrest-secret-value
+EOF
+  chmod 600 "$output"
+}
+
+write_staging_vars "$TEMP_DIR/staging.yml"
+write_production_vars "$TEMP_DIR/production.yml"
+grep -v '^backup_object_storage_endpoint:' "$TEMP_DIR/production.yml" \
+  >"$TEMP_DIR/production-missing-backup.yml"
+
+set +e
+docker run --rm \
+  -e ANSIBLE_DEPRECATION_WARNINGS=True \
+  -v "$PWD:/workspace:ro" \
+  -v "$TEMP_DIR:/validation:ro" \
+  -w /workspace \
+  "$ANSIBLE_IMAGE" \
+  sh -c "PIP_ROOT_USER_ACTION=ignore pip install --disable-pip-version-check --quiet ansible==14.1.0 && \
+    ansible-playbook -i infrastructure/ansible/inventory/staging.example.yml infrastructure/ansible/playbook.yml --syntax-check && \
+    ansible-playbook -i infrastructure/ansible/inventory/production.example.yml infrastructure/ansible/playbook.yml --syntax-check && \
+    ansible-playbook -i infrastructure/ansible/inventory/staging.example.yml infrastructure/ansible/preflight.yml -e @/validation/staging.yml && \
+    ansible-playbook -i infrastructure/ansible/inventory/production.example.yml infrastructure/ansible/preflight.yml -e @/validation/production.yml && \
+    if ansible-playbook -i infrastructure/ansible/inventory/production.example.yml infrastructure/ansible/preflight.yml -e @/validation/production-missing-backup.yml >/tmp/expected-backup-preflight-failure.log 2>&1; then \
+      echo 'Production preflight unexpectedly accepted missing backup storage' >&2; exit 1; \
+    fi && \
+    grep -q 'The pgBackRest S3 endpoint, region, bucket, or least-privilege credentials are missing' /tmp/expected-backup-preflight-failure.log" \
+  2>&1 | tee "$LOG_FILE"
+command_status=${PIPESTATUS[0]}
+set -e
+
+if [[ "$command_status" -ne 0 ]]; then
+  exit "$command_status"
+fi
+
+if grep -Eq '^\[(WARNING|DEPRECATION WARNING)\]:' "$LOG_FILE"; then
+  echo "Ansible emitted a warning; infrastructure validation must remain warning-free" >&2
+  exit 1
+fi
+
+echo "Ansible syntax, preflight, and template validation passed without warnings"

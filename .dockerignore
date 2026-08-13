@@ -1,0 +1,66 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+
+# Git
+.git
+.gitignore
+
+# Environment files (never include real secrets)
+.env*
+
+# Development / IDE
+.vscode
+.idea
+.agents
+*.swp
+*.swo
+
+# Testing
+e2e/.auth
+e2e/playwright-report
+e2e/report
+e2e/screenshots
+e2e/test-results
+coverage
+
+# Logs
+*.log
+logs
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation (not needed at runtime)
+README.md
+DESIGN.md
+PRODUCT.md
+docs
+
+# Infrastructure and host orchestration (not needed inside the image)
+infrastructure
+infra
+docker-compose*.yml
+Caddyfile
+garage.toml
+Makefile
+
+# CI configs (not needed at runtime)
+.github
+
+# Uploaded files (dev / local only)
+public/uploads
+
+# Temporary files
+scratch
+*.tmp
+
+# Generated local caches
+project.inlang/cache
+.tanstack
+
+# Load tests (not needed at runtime)
+load-tests

@@ -1,0 +1,14 @@
+deployment_environment: production
+s3_bucket: eurtisan-uploads
+mollie_test_mode: false
+sendcloud_force_unstamped_letter: false
+email_delivery_provider: brevo
+email_smtp_host: ""
+app_container_name: eurtisan-app
+db_container_name: eurtisan-db
+
+# Production remains deliberately undeployable until independent EU object
+# storage and least-privilege credentials are supplied through Ansible Vault.
+backup_offsite_enabled: true
+postgres_wal_archive_enabled: true
+pgbackrest_repository_type: s3

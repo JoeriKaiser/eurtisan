@@ -1,0 +1,31 @@
+{
+  "rationale": "Measured from the 2026-08-09 clean Docker production build after the reviews, notification grouping and digest, trader-declaration, shipping-origin integrity, and scoped unit-pricing work. The aggregate and initial JavaScript growth is reviewed feature code accumulated since the 2026-07-25 baseline rather than a regression in this E2E repair; the largest async chunk is unchanged and the largest initial chunk remains within the prior gzip ceiling. JavaScript ceilings restore fixed binary headroom for review, while CSS retains its 144 KiB raw / 24 KiB gzip global caps and tighter 8 KiB raw / 1.5 KiB gzip increase from this baseline.",
+  "baseline": {
+    "javascriptBytes": 2680541,
+    "javascriptGzipBytes": 782134,
+    "largestJavaScriptBytes": 928352,
+    "largestJavaScriptGzipBytes": 269614,
+    "initialJavaScriptBytes": 1450781,
+    "initialJavaScriptGzipBytes": 406129,
+    "largestAsyncJavaScriptBytes": 341804,
+    "largestAsyncJavaScriptGzipBytes": 101985,
+    "cssBytes": 139161,
+    "cssGzipBytes": 22873
+  },
+  "maximum": {
+    "javascriptBytes": 2746368,
+    "javascriptGzipBytes": 799744,
+    "largestJavaScriptBytes": 945152,
+    "largestJavaScriptGzipBytes": 274432,
+    "initialJavaScriptBytes": 1467392,
+    "initialJavaScriptGzipBytes": 410624,
+    "largestAsyncJavaScriptBytes": 348160,
+    "largestAsyncJavaScriptGzipBytes": 106496,
+    "cssBytes": 147456,
+    "cssGzipBytes": 24576
+  },
+  "incrementalMaximum": {
+    "cssBytes": 8192,
+    "cssGzipBytes": 1536
+  }
+}

@@ -1,0 +1,21 @@
+services:
+  db:
+    image: {{ postgres_pgbackrest_image }}
+    env_file:
+      - /etc/eurtisan/pgbackrest.env
+    command:
+      - postgres
+      - -c
+      - wal_level=replica
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command=pgbackrest --stanza={{ pgbackrest_stanza }} archive-push %p
+      - -c
+      - archive_timeout={{ postgres_archive_timeout_seconds }}s
+      - -c
+      - max_wal_senders=3
+    volumes:
+      - /opt/eurtisan/pgbackrest/pgbackrest.conf:/etc/pgbackrest/pgbackrest.conf:ro
+      - {{ pgbackrest_repository_host_path }}:{{ pgbackrest_repository_container_path }}
+      - {{ pgbackrest_spool_host_path }}:{{ pgbackrest_spool_container_path }}

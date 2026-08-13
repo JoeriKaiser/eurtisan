@@ -1,0 +1,106 @@
+#!/bin/bash
+set -euo pipefail
+umask 0027
+
+BACKUP_ENV_FILE="${BACKUP_ENV_FILE:-/etc/eurtisan/backup.env}"
+if [[ ! -r "$BACKUP_ENV_FILE" ]]; then
+  echo "Backup configuration is not readable: $BACKUP_ENV_FILE" >&2
+  exit 1
+fi
+set -a
+# shellcheck disable=SC1090
+source "$BACKUP_ENV_FILE"
+set +a
+
+BACKUP_TYPE="${1:-}"
+case "$BACKUP_TYPE" in
+  full|diff) ;;
+  *) echo "Usage: $0 full|diff" >&2; exit 64 ;;
+esac
+if [[ "$PGBACKREST_ENABLED" != "true" ]]; then
+  echo "pgBackRest is not enabled for this environment" >&2
+  exit 1
+fi
+
+mkdir -p "$BACKUP_STATE_DIR"
+BACKUP_FAILED=false
+BACKUP_ERROR=""
+
+json_log() {
+  local level="$1"
+  local message="$2"
+  local meta="${3:-{}}"
+  printf '{"timestamp":"%s","level":"%s","service":"eurtisan-pgbackrest","message":"%s","meta":%s}\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$level" "$message" "$meta"
+}
+
+send_alert() {
+  local message="$1"
+  if [[ -n "$BACKUP_ALERT_WEBHOOK" ]]; then
+    curl -fsSL --max-time 15 -X POST -H "Content-Type: application/json" \
+      -d "{\"text\":\"$message\"}" "$BACKUP_ALERT_WEBHOOK" >/dev/null 2>&1 || true
+  fi
+}
+
+post_report() {
+  local status="$1"
+  local error="$2"
+  [[ -n "$BACKUP_REPORT_TOKEN" ]] || return 0
+  docker inspect "$APP_CONTAINER" >/dev/null 2>&1 || return 0
+
+  printf '{"status":"%s","operation":"physical-%s","error":"%s","lastSuccessEpoch":%s}\n' \
+    "$status" "$BACKUP_TYPE" "$error" \
+    "$([[ "$status" == "success" ]] && date +%s || printf '0')" |
+    docker exec -i -e EURTISAN_BACKUP_REPORT_TOKEN="$BACKUP_REPORT_TOKEN" "$APP_CONTAINER" \
+      sh -c 'curl -fsS --max-time 10 -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $EURTISAN_BACKUP_REPORT_TOKEN" --data-binary @- http://localhost:3000/api/backup-report' \
+      >/dev/null 2>&1 || true
+}
+
+on_exit() {
+  local exit_code=$?
+  trap - EXIT
+  if [[ "$exit_code" -ne 0 && "$BACKUP_FAILED" != "true" ]]; then
+    BACKUP_FAILED=true
+    BACKUP_ERROR="Unexpected pgBackRest backup failure"
+    json_log "error" "$BACKUP_ERROR" "{\"type\":\"$BACKUP_TYPE\"}"
+    send_alert "Eurtisan pgBackRest backup failed on $(hostname): $BACKUP_ERROR"
+  fi
+  if [[ "$BACKUP_FAILED" == "true" ]]; then
+    post_report "failure" "$BACKUP_ERROR"
+  else
+    post_report "success" ""
+  fi
+  exit "$exit_code"
+}
+trap on_exit EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+exec 9>"$BACKUP_STATE_DIR/database-backup.lock"
+if ! flock -n 9; then
+  BACKUP_FAILED=true
+  BACKUP_ERROR="Another database backup is already running"
+  json_log "error" "$BACKUP_ERROR" "{}"
+  exit 75
+fi
+
+json_log "info" "pgBackRest backup started" "{\"type\":\"$BACKUP_TYPE\"}"
+if ! docker exec --user postgres "$DB_CONTAINER" pgbackrest \
+  --stanza="$PGBACKREST_STANZA" --type="$BACKUP_TYPE" backup; then
+  BACKUP_FAILED=true
+  BACKUP_ERROR="pgBackRest $BACKUP_TYPE backup failed"
+  json_log "error" "$BACKUP_ERROR" "{}"
+  send_alert "Eurtisan pgBackRest backup failed on $(hostname): $BACKUP_ERROR"
+  exit 1
+fi
+if ! docker exec --user postgres "$DB_CONTAINER" pgbackrest \
+  --stanza="$PGBACKREST_STANZA" check; then
+  BACKUP_FAILED=true
+  BACKUP_ERROR="pgBackRest repository check failed after backup"
+  json_log "error" "$BACKUP_ERROR" "{}"
+  send_alert "Eurtisan pgBackRest repository check failed on $(hostname)"
+  exit 1
+fi
+
+date +%s >"$BACKUP_STATE_DIR/physical-$BACKUP_TYPE.last-success"
+json_log "info" "pgBackRest backup completed successfully" "{\"type\":\"$BACKUP_TYPE\"}"

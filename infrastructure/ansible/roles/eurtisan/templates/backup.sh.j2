@@ -1,0 +1,225 @@
+#!/bin/bash
+set -euo pipefail
+umask 0027
+
+BACKUP_ENV_FILE="${BACKUP_ENV_FILE:-/etc/eurtisan/backup.env}"
+if [[ ! -r "$BACKUP_ENV_FILE" ]]; then
+  echo "Backup configuration is not readable: $BACKUP_ENV_FILE" >&2
+  exit 1
+fi
+set -a
+# shellcheck disable=SC1090
+source "$BACKUP_ENV_FILE"
+set +a
+
+mkdir -p "$BACKUP_DIR" "$BACKUP_STATE_DIR"
+BACKUP_FILE=""
+BACKUP_FAILED=false
+BACKUP_ERROR=""
+VERIFY_CONTAINER="eurtisan-backup-verify"
+
+json_log() {
+  local level="$1"
+  local message="$2"
+  local meta="${3:-{}}"
+  printf '{"timestamp":"%s","level":"%s","service":"eurtisan-backup","message":"%s","meta":%s}\n' \
+    "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$level" "$message" "$meta"
+}
+
+send_alert() {
+  local message="$1"
+  if [[ -n "$BACKUP_ALERT_WEBHOOK" ]]; then
+    curl -fsSL --max-time 15 -X POST -H "Content-Type: application/json" \
+      -d "{\"text\":\"$message\"}" "$BACKUP_ALERT_WEBHOOK" >/dev/null 2>&1 || true
+  fi
+}
+
+post_report() {
+  local status="$1"
+  local error="$2"
+  [[ -n "$BACKUP_REPORT_TOKEN" ]] || return 0
+  docker inspect "$APP_CONTAINER" >/dev/null 2>&1 || return 0
+
+  printf '{"status":"%s","operation":"logical","file":"%s","error":"%s","lastSuccessEpoch":%s}\n' \
+    "$status" "$BACKUP_FILE" "$error" \
+    "$([[ "$status" == "success" ]] && date +%s || printf '0')" |
+    docker exec -i -e EURTISAN_BACKUP_REPORT_TOKEN="$BACKUP_REPORT_TOKEN" "$APP_CONTAINER" \
+      sh -c 'curl -fsS --max-time 10 -X POST -H "Content-Type: application/json" -H "Authorization: Bearer $EURTISAN_BACKUP_REPORT_TOKEN" --data-binary @- http://localhost:3000/api/backup-report' \
+      >/dev/null 2>&1 || true
+}
+
+cleanup() {
+  docker rm -f "$VERIFY_CONTAINER" >/dev/null 2>&1 || true
+}
+
+on_exit() {
+  local exit_code=$?
+  trap - EXIT
+  if [[ "$exit_code" -ne 0 && "$BACKUP_FAILED" != "true" ]]; then
+    BACKUP_FAILED=true
+    BACKUP_ERROR="Unexpected backup job failure"
+    json_log "error" "$BACKUP_ERROR" "{}"
+    send_alert "Eurtisan logical backup failed on $(hostname): $BACKUP_ERROR"
+  fi
+  cleanup
+  if [[ "$BACKUP_FAILED" == "true" ]]; then
+    post_report "failure" "$BACKUP_ERROR"
+  else
+    post_report "success" ""
+  fi
+  exit "$exit_code"
+}
+trap on_exit EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+exec 9>"$BACKUP_STATE_DIR/database-backup.lock"
+if ! flock -n 9; then
+  BACKUP_FAILED=true
+  BACKUP_ERROR="Another database backup is already running"
+  json_log "error" "$BACKUP_ERROR" "{}"
+  exit 75
+fi
+
+cleanup
+BACKUP_FILE="$BACKUP_DIR/eurtisan-$(date -u +%Y%m%d-%H%M%S).dump.gpg"
+CHECKSUM_FILE="$BACKUP_FILE.sha256"
+json_log "info" "Encrypted logical backup started" "{\"file\":\"$BACKUP_FILE\"}"
+
+if ! docker exec "$DB_CONTAINER" pg_dump \
+  --username "$POSTGRES_USER" \
+  --dbname "$POSTGRES_DB" \
+  --format custom \
+  --compress 9 |
+  gpg --batch --yes --quiet --pinentry-mode loopback \
+    --passphrase-fd 3 --symmetric --cipher-algo AES256 \
+    --output "$BACKUP_FILE" 3<<<"$BACKUP_LOGICAL_CIPHER_PASS"; then
+  BACKUP_FAILED=true
+  BACKUP_ERROR="Encrypted pg_dump failed"
+  json_log "error" "$BACKUP_ERROR" "{\"file\":\"$BACKUP_FILE\"}"
+  send_alert "Eurtisan logical backup failed on $(hostname): $BACKUP_ERROR"
+  exit 1
+fi
+
+if [[ ! -s "$BACKUP_FILE" ]]; then
+  BACKUP_FAILED=true
+  BACKUP_ERROR="Encrypted pg_dump produced an empty file"
+  json_log "error" "$BACKUP_ERROR" "{\"file\":\"$BACKUP_FILE\"}"
+  exit 1
+fi
+(
+  cd "$BACKUP_DIR"
+  sha256sum "$(basename "$BACKUP_FILE")" >"$(basename "$CHECKSUM_FILE")"
+)
+json_log "info" "Logical backup created" \
+  "{\"file\":\"$BACKUP_FILE\",\"size_bytes\":$(stat -c%s "$BACKUP_FILE")}"
+
+if ! docker run -d --rm --name "$VERIFY_CONTAINER" \
+  --network none \
+  -e POSTGRES_USER=verify \
+  -e POSTGRES_PASSWORD=verify-only \
+  -e POSTGRES_DB=verify_backup \
+  "$POSTGRES_VERIFY_IMAGE" >/dev/null; then
+  BACKUP_FAILED=true
+  BACKUP_ERROR="Could not start backup verification database"
+  json_log "error" "$BACKUP_ERROR" "{}"
+  exit 1
+fi
+
+ready=false
+for _ in $(seq 1 30); do
+  if docker exec "$VERIFY_CONTAINER" psql -U verify -d verify_backup -tAc 'SELECT 1;' \
+    2>/dev/null | grep -qx 1; then
+    ready=true
+    break
+  fi
+  sleep 2
+done
+if [[ "$ready" != "true" ]]; then
+  BACKUP_FAILED=true
+  BACKUP_ERROR="Backup verification database did not become ready"
+  json_log "error" "$BACKUP_ERROR" "{}"
+  exit 1
+fi
+
+if ! gpg --batch --quiet --pinentry-mode loopback --passphrase-fd 3 \
+  --decrypt "$BACKUP_FILE" 3<<<"$BACKUP_LOGICAL_CIPHER_PASS" |
+  docker exec -i "$VERIFY_CONTAINER" pg_restore \
+    --username verify \
+    --dbname verify_backup \
+    --exit-on-error \
+    --no-owner \
+    --no-privileges >/dev/null; then
+  BACKUP_FAILED=true
+  BACKUP_ERROR="Test restore failed"
+  json_log "error" "$BACKUP_ERROR" "{\"file\":\"$BACKUP_FILE\"}"
+  send_alert "Eurtisan logical backup failed on $(hostname): $BACKUP_ERROR"
+  exit 1
+fi
+
+EXPECTED_TABLES=(user session account verification shop category platform_order)
+MISSING_TABLES=()
+for table in "${EXPECTED_TABLES[@]}"; do
+  present="$(docker exec "$VERIFY_CONTAINER" psql -U verify -d verify_backup -tAc \
+    "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='$table';")"
+  if [[ "$present" != "1" ]]; then
+    MISSING_TABLES+=("$table")
+  fi
+done
+if [[ "{% raw %}${#MISSING_TABLES[@]}{% endraw %}" -gt 0 ]]; then
+  BACKUP_FAILED=true
+  BACKUP_ERROR="Test restore is missing expected tables"
+  json_log "error" "$BACKUP_ERROR" \
+    "{\"missing_tables\":\"$(IFS=,; printf '%s' "${MISSING_TABLES[*]}")\"}"
+  send_alert "Eurtisan logical backup failed on $(hostname): $BACKUP_ERROR"
+  exit 1
+fi
+json_log "info" "Logical backup test restore succeeded" "{\"file\":\"$BACKUP_FILE\"}"
+
+if [[ "$BACKUP_OFFSITE_ENABLED" == "true" ]]; then
+  if [[ -z "$BACKUP_OFFSITE_REMOTE" ]]; then
+    BACKUP_FAILED=true
+    BACKUP_ERROR="Off-site backup is enabled without a destination"
+    json_log "error" "$BACKUP_ERROR" "{}"
+    exit 1
+  fi
+
+  if ! rclone copyto "$BACKUP_FILE" "$BACKUP_OFFSITE_REMOTE/$(basename "$BACKUP_FILE")" \
+    --checkers 4 --transfers 2; then
+    BACKUP_FAILED=true
+    BACKUP_ERROR="Encrypted off-site database upload failed"
+    json_log "error" "$BACKUP_ERROR" "{\"remote\":\"$BACKUP_OFFSITE_REMOTE\"}"
+    send_alert "Eurtisan logical backup failed on $(hostname): $BACKUP_ERROR"
+    exit 1
+  fi
+  if ! rclone copyto "$CHECKSUM_FILE" "$BACKUP_OFFSITE_REMOTE/$(basename "$CHECKSUM_FILE")" \
+    --checkers 4 --transfers 2; then
+    BACKUP_FAILED=true
+    BACKUP_ERROR="Off-site checksum upload failed"
+    json_log "error" "$BACKUP_ERROR" "{\"remote\":\"$BACKUP_OFFSITE_REMOTE\"}"
+    send_alert "Eurtisan logical backup failed on $(hostname): $BACKUP_ERROR"
+    exit 1
+  fi
+  json_log "info" "Encrypted off-site database upload succeeded" \
+    "{\"remote\":\"$BACKUP_OFFSITE_REMOTE\",\"file\":\"$BACKUP_FILE\"}"
+
+  if [[ -n "$BACKUP_PRIMARY_UPLOADS_REMOTE" && -n "$BACKUP_OFFSITE_UPLOADS_REMOTE" ]]; then
+    # Copy without delete permission. Destination versioning/Object Lock retains
+    # overwritten objects, while source deletions remain until lifecycle expiry.
+    if ! rclone copy "$BACKUP_PRIMARY_UPLOADS_REMOTE" "$BACKUP_OFFSITE_UPLOADS_REMOTE/current" \
+      --checkers 8 --transfers 4; then
+      BACKUP_FAILED=true
+      BACKUP_ERROR="Off-site uploads replication failed"
+      json_log "error" "$BACKUP_ERROR" "{\"source\":\"$BACKUP_PRIMARY_UPLOADS_REMOTE\"}"
+      send_alert "Eurtisan uploads replication failed on $(hostname)"
+      exit 1
+    fi
+    json_log "info" "Off-site uploads replication succeeded" \
+      "{\"destination\":\"$BACKUP_OFFSITE_UPLOADS_REMOTE\"}"
+  fi
+fi
+
+date +%s >"$BACKUP_STATE_DIR/logical.last-success"
+find "$BACKUP_DIR" -maxdepth 1 -type f \( -name '*.dump.gpg' -o -name '*.dump.gpg.sha256' \) \
+  -mtime "+$BACKUP_RETENTION_DAYS" -delete
+json_log "info" "Logical backup completed successfully" "{\"file\":\"$BACKUP_FILE\"}"

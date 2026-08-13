@@ -1,0 +1,32 @@
+services:
+  db-test:
+    profiles: [ci-unused]
+
+  meilisearch:
+    profiles: [ci-unused]
+
+  mailpit:
+    profiles: [ci-unused]
+
+  garage:
+    profiles: [ci-unused]
+
+  imgproxy:
+    profiles: [ci-unused]
+
+  app:
+    image: eurtisan-app:ci
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    command: ["sleep", "infinity"]
+    environment:
+      S3_ACCESS_KEY_ID: ci-placeholder
+      S3_SECRET_ACCESS_KEY: ci-placeholder
+    depends_on: !override
+      db:
+        condition: service_healthy
+
+  email-outbox-worker:
+    profiles: [ci-unused]

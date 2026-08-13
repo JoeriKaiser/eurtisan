@@ -1,0 +1,54 @@
+import { createFileRoute, Link } from '@tanstack/react-router'
+import { Package, Settings } from 'lucide-react'
+import { AccountShell } from '#/components/AccountShell'
+import { guardAuth } from '#/lib/route-guards'
+import { m } from '#/paraglide/messages'
+
+export const Route = createFileRoute('/account/')({
+  beforeLoad: async () => guardAuth(),
+  head: () => ({
+    meta: [
+      { title: `${m.account_title()} | Eurtisan` },
+      { name: 'description', content: m.account_hub_description() },
+    ],
+  }),
+  component: Account,
+})
+
+function Account() {
+  return (
+    <AccountShell breadcrumbs={[{ label: m.nav_home(), to: '/' }, { label: m.account_title() }]}>
+      <section className='island-shell rounded-2xl p-6 sm:p-8'>
+        <h1 className='display-title mb-6 text-3xl font-semibold text-text-primary'>
+          {m.account_title()}
+        </h1>
+
+        <div className='grid gap-4 sm:grid-cols-2'>
+          <Link
+            to='/account/orders'
+            className='island-shell flex items-center gap-4 rounded-xl p-5 transition hover:bg-bg-inset'
+          >
+            <div className='flex size-10 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800'>
+              <Package size={20} />
+            </div>
+            <div>
+              <h2 className='text-base font-semibold text-text-primary'>{m.account_orders()}</h2>
+            </div>
+          </Link>
+
+          <Link
+            to='/account/settings'
+            className='island-shell flex items-center gap-4 rounded-xl p-5 transition hover:bg-bg-inset'
+          >
+            <div className='flex size-10 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800'>
+              <Settings size={20} />
+            </div>
+            <div>
+              <h2 className='text-base font-semibold text-text-primary'>{m.account_settings()}</h2>
+            </div>
+          </Link>
+        </div>
+      </section>
+    </AccountShell>
+  )
+}

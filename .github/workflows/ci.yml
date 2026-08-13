@@ -1,0 +1,162 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Validation only. No job deploys, accesses Vault, or contacts staging/provider accounts.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality, Migrations, Tests & Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    env:
+      COMPOSE_FILE: docker-compose.yml:docker-compose.ci.yml
+      SKIP_DOCKER_ENSURE_UP: "true"
+      SKIP_GARAGE_INIT: "true"
+      VITEST_PARALLEL_WORKERS: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
+      - name: Prepare safe local-only CI environment
+        run: cp .env.example .env.local
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Build cached CI application image
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: Dockerfile
+          target: runtime
+          load: true
+          tags: eurtisan-app:ci
+          cache-from: type=gha,scope=eurtisan-ci-app
+          cache-to: type=gha,mode=max,scope=eurtisan-ci-app
+
+      - name: Start Docker services
+        run: make up
+
+      - name: Install locked dependencies
+        run: make install
+
+      - name: Compile i18n messages
+        run: make i18n-compile
+
+      - name: Check formatting
+        run: make format
+
+      - name: Lint
+        run: make lint
+
+      - name: Type check
+        run: make check
+
+      - name: Audit production dependencies
+        run: make audit-production
+
+      - name: Validate migration chain
+        run: make db-check
+
+      - name: Apply full migration chain to a fresh isolated database
+        run: make db-migrate-fresh
+
+      - name: Apply migrations to the CI test database
+        run: make db-migrate
+
+      - name: Run unit and browser tests with warning gate
+        run: make test
+
+      - name: Build production application with warning gate
+        run: make build
+
+      - name: Enforce measured client bundle budgets
+        run: make bundle-check
+
+      # Production route generation intentionally excludes the development-only
+      # Mollie mock route. Restore the committed development manifest after the
+      # production artifacts and bundle budgets have been validated.
+      - name: Restore development route tree
+        run: git restore --source=HEAD -- src/routeTree.gen.ts
+
+      - name: Verify validation did not mutate tracked files
+        run: |
+          git diff --exit-code
+          test -z "$(git status --porcelain --untracked-files=no)"
+
+      - name: Stop Docker services
+        if: always()
+        run: docker compose down -v --remove-orphans
+
+  production-image:
+    name: Production Image Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
+      - name: Build and smoke-test production image configuration
+        run: PRODUCTION_SMOKE_IMAGE=eurtisan-app:ci make production-image-smoke
+
+  infrastructure:
+    name: Compose, Workflow, Shell & Ansible
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
+      - name: Validate production and staging Compose models
+        run: make compose-check
+
+      - name: Validate GitHub Actions semantics
+        run: make ci-workflow-check
+
+      - name: Validate shell syntax
+        run: make shell-syntax
+
+      - name: Validate Ansible syntax, preflight, and templates
+        run: make ansible-check
+
+  prometheus-rules:
+    name: Prometheus Rules
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
+      - name: Check Prometheus rules
+        run: make promtool-check
+
+      - name: Test Prometheus alert rules
+        run: make promtool-test

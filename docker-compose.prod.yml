@@ -1,0 +1,691 @@
+# Production Docker Compose for Eurtisan
+# Run on the VPS with: docker compose -f docker-compose.prod.yml up -d
+#
+# Image Pinning Policy:
+# All third-party images are pinned to an immutable SHA256 digest to ensure
+# reproducible deployments and prevent supply-chain drift from floating tags.
+# When upgrading an image, update both the tag and the digest:
+#   docker buildx imagetools inspect <image>:<tag> --format '{{.Manifest.Digest}}'
+
+services:
+  caddy:
+    # Stock Caddy pinned to an immutable digest (see the pinning policy above).
+    # The Caddyfile uses only core directives, so no custom proxy build exists.
+    image: caddy:2-alpine@sha256:86deaf5e3d3408a6ccec08fbb79989783dd26e206ae10bcf78a801dc8c9ab794
+    container_name: eurtisan-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      - CADDY_DOMAIN=${CADDY_DOMAIN:?required public domain}
+      - GRAFANA_ADMIN_IPS=${GRAFANA_ADMIN_IPS:-0.0.0.0/32}
+    networks:
+      - eurtisan
+    depends_on:
+      app:
+        condition: service_healthy
+      imgproxy:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+
+  app:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+      args:
+        PUBLIC_ANALYTICS_CONSENT_REQUIRED: ${VITE_ANALYTICS_CONSENT_REQUIRED:?required public build value}
+        PUBLIC_APP_ENV: ${VITE_APP_ENV:?required public build value}
+        PUBLIC_APP_VERSION: ${VITE_APP_VERSION:?immutable release version required}
+        PUBLIC_FARO_COLLECTOR_URL: ${VITE_FARO_COLLECTOR_URL:?required public build value}
+        PUBLIC_FARO_ENABLED: ${VITE_FARO_ENABLED:?required public build value}
+        PUBLIC_FARO_APP_NAME: ${VITE_FARO_APP_NAME:?required public build value}
+        PUBLIC_FARO_SAMPLE_RATE: ${VITE_FARO_SAMPLE_RATE:?required public build value}
+        PUBLIC_IMGPROXY_BASE_URL: ${VITE_IMGPROXY_BASE_URL:?required public build value}
+        PUBLIC_SITE_URL: ${VITE_PUBLIC_URL:?required public build value}
+        PUBLIC_S3_BUCKET: ${VITE_S3_BUCKET:?required public build value}
+        PUBLIC_UMAMI_ENABLED: ${VITE_UMAMI_ENABLED:?required public build value}
+        PUBLIC_UMAMI_HOST_URL: ${VITE_UMAMI_HOST_URL:-}
+        PUBLIC_UMAMI_SCRIPT_INTEGRITY: ${VITE_UMAMI_SCRIPT_INTEGRITY:-}
+        PUBLIC_UMAMI_SCRIPT_URL: ${VITE_UMAMI_SCRIPT_URL:-}
+        PUBLIC_UMAMI_WEBSITE_ID: ${VITE_UMAMI_WEBSITE_ID:-}
+    container_name: eurtisan-app
+    restart: unless-stopped
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/api/health/ready | grep -q '\"status\":\"ok\"'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2g
+
+  db:
+    # Pinned digest for postgres:16-alpine
+    image: postgres:16-alpine@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229
+    container_name: eurtisan-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:?required database user}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?required database password}
+      - POSTGRES_DB=${POSTGRES_DB:?required database name}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - db-internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 4g
+
+  meilisearch:
+    # Pinned digest for getmeili/meilisearch:v1.43.0
+    image: getmeili/meilisearch:v1.43.0@sha256:5d4e1353927785744486fe317d263f442710ab5b27b1983aa1b719dfe2c665b6
+    container_name: eurtisan-meilisearch
+    restart: unless-stopped
+    environment:
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:?required Meilisearch master key}
+      # Without MEILI_ENV=production Meilisearch serves the search-preview UI
+      # and enables vendor telemetry by default. Production mode also enforces a
+      # master key of at least 16 bytes — a shorter key makes the service refuse
+      # to start.
+      - MEILI_ENV=production
+      - MEILI_NO_ANALYTICS=true
+    volumes:
+      - meilisearch_data:/meili_data
+    networks:
+      - eurtisan
+      - db-internal
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 2g
+
+  imgproxy:
+    # Pinned digest for darthsim/imgproxy:v3
+    image: darthsim/imgproxy:v3@sha256:419f92ee3a3137ddc2552a92ae2f46a97e9b8c22e03f8a6efa0cb217d8db7f45
+    container_name: eurtisan-imgproxy
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      IMGPROXY_USE_S3: "true"
+      IMGPROXY_S3_ENDPOINT: ${S3_ENDPOINT:?required storage endpoint}
+      IMGPROXY_S3_ENDPOINT_USE_PATH_STYLE: "true"
+      IMGPROXY_S3_REGION: ${S3_REGION:?required storage region}
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?required storage access key}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?required storage secret key}
+      IMGPROXY_KEY: ${IMGPROXY_KEY:?required imgproxy signing key}
+      IMGPROXY_SALT: ${IMGPROXY_SALT:?required imgproxy signing salt}
+      IMGPROXY_LOCAL_FILESYSTEM_ROOT: ""
+      IMGPROXY_MAX_SRC_RESOLUTION: 50
+      IMGPROXY_MAX_ANIMATION_FRAMES: 1
+    networks:
+      - eurtisan
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bash",
+          "-c",
+          "exec 3<>/dev/tcp/127.0.0.1/8080; printf 'GET /health HTTP/1.0\\r\\n\\r\\n' >&3; grep -q '200 OK' <&3",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1g
+
+  inventory-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-inventory-cleanup
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:inventory-cleanup"
+
+  meilisearch-sync:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-meilisearch-sync
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:meilisearch-sync"
+
+  payout-reconciliation:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-payout-reconciliation
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:payout-reconciliation"
+
+  financial-totals-reconciliation:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-financial-totals-reconciliation
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - FINANCIAL_TOTALS_RECONCILIATION_INTERVAL_MS=${FINANCIAL_TOTALS_RECONCILIATION_INTERVAL_MS:-21600000}
+      - FINANCIAL_TOTALS_RECONCILIATION_BATCH_SIZE=${FINANCIAL_TOTALS_RECONCILIATION_BATCH_SIZE:-500}
+    expose:
+      - "3001"
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:financial-totals-reconciliation"
+
+  mollie-payment-reconciliation:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-mollie-payment-reconciliation
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:mollie-payment-reconciliation"
+
+  sendcloud-reconciliation:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-sendcloud-reconciliation
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:sendcloud-reconciliation"
+
+  session-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-session-cleanup
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:session-cleanup"
+
+  cart-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-cart-cleanup
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:cart-cleanup"
+
+  audit-log-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-audit-log-cleanup
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:audit-log-cleanup"
+
+  search-event-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-search-event-cleanup
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:search-event-cleanup"
+
+  notification-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-notification-cleanup
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:notification-cleanup"
+
+  payout-reconciliation-log-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-payout-reconciliation-log-cleanup
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:payout-reconciliation-log-cleanup"
+
+  verification-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-verification-cleanup
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:verification-cleanup"
+
+  email-outbox-worker:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-email-outbox-worker
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:email-outbox-worker"
+
+  notification-digest:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-notification-digest
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - NOTIFICATION_DIGEST_INTERVAL_MS=${NOTIFICATION_DIGEST_INTERVAL_MS:-3600000}
+      - NOTIFICATION_DIGEST_RECIPIENT_BATCH_SIZE=${NOTIFICATION_DIGEST_RECIPIENT_BATCH_SIZE:-100}
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:notification-digest"
+
+  email-suppression-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-email-suppression-cleanup
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:email-suppression-cleanup"
+
+  email-retention-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-email-retention-cleanup
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:email-retention-cleanup"
+
+  sendcloud-retention-cleanup:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-sendcloud-retention-cleanup
+    user: "1000:1000"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    networks:
+      - eurtisan
+      - db-internal
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512m
+    command: >
+      sh -c "bun run job:sendcloud-retention-cleanup"
+
+volumes:
+  postgres_data:
+  meilisearch_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  # Stable, unprefixed name so Ansible's `docker network create eurtisan` and
+  # the observability stack (external: true) attach to the same network.
+  eurtisan:
+    name: eurtisan
+    driver: bridge
+  db-internal:
+    driver: bridge
+    internal: true

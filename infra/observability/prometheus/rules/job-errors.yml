@@ -1,0 +1,71 @@
+groups:
+  - name: job_errors
+    rules:
+      - alert: EurtisanJobAlertLog
+        expr: increase(eurtisan_alert_log_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: A background job or service emitted an alert log line
+          description: "Logs containing `alert: true` were observed in the last 5 minutes."
+
+      # `job_name`, not `job`. Prometheus sets `job` from the scrape target, so a
+      # metric carrying its own `job` label has it renamed to `exported_job` on
+      # ingest (honor_labels is not set). Matching on `job` here would select the
+      # scrape target name, never the background job.
+      - alert: EurtisanJobTickFailure
+        expr: increase(eurtisan_job_runs_total{status="failure"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Background job {{ $labels.job_name }} failed a tick"
+          description: "Job {{ $labels.job_name }} reported at least one failed tick in the last 5 minutes."
+
+      - alert: EurtisanNotificationDigestFailure
+        expr: increase(eurtisan_job_runs_total{job_name="notification-digest",status="failure"}[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Seller notification digest failed a tick"
+          description: "The production-critical notification-digest job failed in the last 5 minutes."
+
+      # Staleness is judged against each job's own declared cadence rather than
+      # one global window, so a 60-second poller and a daily cleanup are both
+      # covered by this single rule and neither needs an exclusion. Three missed
+      # intervals is the trigger — one late tick is not an incident.
+      #
+      # `unless on(job_name) ... == 0` is not a guard against absence: a job that
+      # never calls `declareJobInterval` simply has no interval series, so the
+      # `*` join drops it and it is left unmonitored. That is deliberate and
+      # visible — an absent interval series is greppable, whereas a job silently
+      # measured against a wrong threshold is not.
+      - alert: EurtisanJobStale
+        expr: >-
+          (time() - eurtisan_job_last_success_timestamp)
+            > on(job_name) (3 * eurtisan_job_interval_seconds)
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Background job {{ $labels.job_name }} has not succeeded recently"
+          description: >-
+            No successful tick for {{ $labels.job_name }} in more than three of
+            its configured intervals.
+
+      # Catches the failure mode the rule above cannot: a job that runs but never
+      # declared its cadence, so nothing is watching its staleness.
+      - alert: EurtisanJobMissingInterval
+        expr: >-
+          eurtisan_job_last_success_timestamp
+            unless on(job_name) eurtisan_job_interval_seconds
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Background job {{ $labels.job_name }} has no declared interval"
+          description: >-
+            {{ $labels.job_name }} reports successful ticks but never called
+            declareJobInterval, so EurtisanJobStale cannot monitor it.

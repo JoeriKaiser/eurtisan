@@ -1,0 +1,1 @@
+ALTER TABLE "shop" ADD COLUMN "production_partner_details" text;

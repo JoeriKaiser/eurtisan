@@ -1,0 +1,35 @@
+import { createFileRoute } from '@tanstack/react-router'
+import {
+  CreatorProductEditError,
+  CreatorProductEditLoading,
+} from '#/components/CreatorProductEditPage'
+import { CreatorProductEditRouteComponent } from '#/route-components/creator/products/$productId/edit'
+import { listCategories } from '#/lib/categories'
+import { getCreatorShops } from '#/lib/creator-dashboard'
+import { getCreatorProductDetail } from '#/lib/creator-products'
+import { getProductVariantMatrix } from '#/lib/product-variants'
+import { guardPrivilegedRole } from '#/lib/route-guards'
+import { m } from '#/paraglide/messages'
+
+export const Route = createFileRoute('/creator/products/$productId/edit')({
+  beforeLoad: async () => guardPrivilegedRole('creator'),
+  loader: async ({ params }) => {
+    const [shops, categories, product, variantMatrix] = await Promise.all([
+      getCreatorShops(),
+      listCategories({ data: { tree: false } }),
+      getCreatorProductDetail({ data: { productId: params.productId } }),
+      getProductVariantMatrix({ data: { productId: params.productId } }),
+    ])
+
+    return { shops, categories, product, variantMatrix }
+  },
+  head: () => ({
+    meta: [
+      { title: `${m.creator_product_edit_title()} | Eurtisan` },
+      { name: 'description', content: m.creator_product_edit_description() },
+    ],
+  }),
+  component: CreatorProductEditRouteComponent,
+  pendingComponent: CreatorProductEditLoading,
+  errorComponent: CreatorProductEditError,
+})

@@ -1,0 +1,162 @@
+# ── Repository / Git ────────────────────────────────────────────────────
+# GitHub is the canonical source. Codeberg is maintained as a mirror.
+repository_url: "git@github.com:JoeriKaiser/eurtisan.git"
+repository_deploy_key_path: "/root/.ssh/eurtisan_github_deploy"
+
+# ── Signed release channel ───────────────────────────────────────────────
+# Production keeps release artifacts in Scaleway's private fr-par registry.
+# Staging overrides this with a private registry on the existing staging VPS.
+# Registry credentials and the Cosign key password belong in Ansible Vault.
+release_registry_self_hosted: false
+release_registry: "rg.fr-par.scw.cloud"
+release_image_repository: "rg.fr-par.scw.cloud/eurtisan/app"
+release_registry_minimum_retained_generations: 2
+release_registry_retention_days: 30
+release_registry_root: "/opt/eurtisan-release-registry"
+release_registry_data_path: "{{ release_registry_root }}/data"
+release_signing_private_key_path: "{{ lookup('env', 'HOME') }}/.config/eurtisan/cosign.key"
+release_signing_public_key_path: "{{ lookup('env', 'HOME') }}/.config/eurtisan/cosign.pub"
+
+# ── Database ─────────────────────────────────────────────────────────────
+postgres_user: eurtisan
+postgres_db: eurtisan
+
+# ── Launch integration contract ─────────────────────────────────────────
+meilisearch_enabled: true
+s3_storage_enabled: true
+garage_enabled: false
+imgproxy_enabled: true
+mollie_payments_enabled: true
+mollie_connect_enabled: true
+sendcloud_enabled: true
+faro_enabled: true
+umami_enabled: false
+enable_vies_validation: false
+platform_vat_liable: true
+financial_totals_reconciliation_interval_ms: "21600000"
+financial_totals_reconciliation_batch_size: "500"
+
+# Production uses Scaleway S3-compatible object storage. Staging overrides
+# these values with its private Garage service and dedicated public S3 domain.
+s3_endpoint: "https://s3.fr-par.scw.cloud"
+s3_public_endpoint: "https://s3.fr-par.scw.cloud"
+s3_region: "fr-par"
+s3_uploads_bucket: "{{ s3_bucket }}"
+faro_sample_rate: "0.1"
+
+# ── Email ────────────────────────────────────────────────────────────────
+# Production should use the dedicated transactional subdomain once it is
+# verified in Brevo (see docs/EMAIL_DNS.md). Until then, keep the root domain.
+email_from_address: noreply@mail.eurtisan.eu
+email_from_name: Eurtisan
+email_reply_to_address: support@eurtisan.eu
+email_smtp_port: "587"
+
+# ── Secrets ──────────────────────────────────────────────────────────────
+# DO NOT PUT REAL SECRETS HERE.
+# Override these at runtime with: ansible-playbook ... -e @secrets.yml
+#
+# Example secrets.yml:
+#   postgres_password: "your-strong-password"
+#   better_auth_secret: "$(openssl rand -base64 32)"
+#   meilisearch_api_key: "$(openssl rand -base64 32)"
+#   database_encryption_key: "generate with: openssl rand -base64 32"
+#   s3_access_key_id: "storage access key"
+#   s3_secret_access_key: "storage secret key"
+#   imgproxy_key: "generate with: openssl rand -hex 32"
+#   imgproxy_salt: "generate with: openssl rand -hex 32"
+#   mollie_api_key: "provider key"
+#   mollie_client_id: "provider application id"
+#   mollie_client_secret: "provider application secret"
+#   sendcloud_public_key: "provider public key"
+#   sendcloud_secret_key: "provider secret key"
+#   sendcloud_webhook_secret: "dedicated webhook secret"
+#   staging_registry_push_username: "controller-only staging registry username"
+#   staging_registry_push_password: "controller-only staging registry password"
+#   staging_registry_pull_username: "staging VPS pull-only registry username"
+#   staging_registry_pull_password: "staging VPS pull-only registry password"
+#   staging_registry_http_secret: "staging registry internal HTTP secret"
+#   registry_push_access_key_id: "production controller registry IAM access key"
+#   registry_push_secret_key: "production controller registry IAM secret key"
+#   registry_pull_access_key_id: "production target pull-only IAM access key"
+#   registry_pull_secret_key: "production target pull-only secret key"
+#   cosign_password: "password protecting the offline Cosign private key"
+#   promoted_staging_image_digest: "sha256:<qualified-staging-digest>" # production only
+#   pgbackrest_repo_cipher_pass: "generate with: openssl rand -base64 48"
+#   backup_logical_cipher_pass: "generate with: openssl rand -base64 48"
+#   backup_logical_s3_access_key: "off-site logical-backup writer key"
+#   backup_logical_s3_secret_key: "off-site logical-backup writer secret"
+#   backup_primary_uploads_access_key: "primary uploads read-only key"
+#   backup_primary_uploads_secret_key: "primary uploads read-only secret"
+#   backup_rclone_crypt_password: "generate with: rclone obscure '<random passphrase>'"
+#   pgbackrest_s3_access_key: "off-site pgBackRest repository key"
+#   pgbackrest_s3_secret_key: "off-site pgBackRest repository secret"
+#
+# Optional — webhook URL for backup failure alerts (e.g. Slack, Discord, OpsGenie).
+#   backup_alert_webhook: "https://hooks.slack.com/services/..."
+#
+# Optional — webhook URL for deploy failure/success alerts.
+#   deploy_alert_webhook: "https://hooks.slack.com/services/..."
+#
+# Optional — restrict staging access to specific IPs (comma-separated).
+# Only used when coexist_with_proxy is false (standalone staging).
+#   allowed_ips: "REDACTED.1,REDACTED.2"
+#
+# Optional — Umami cookie-less analytics.
+#   umami_script_url: "https://analytics.example.com/script.js"
+#   umami_website_id: "your-website-uuid"
+#   umami_host_url: "https://analytics.example.com"
+
+# ── Backups ──────────────────────────────────────────────────────────────
+# Logical dumps are portable recovery artifacts independent of pgBackRest.
+backup_directory: "/opt/eurtisan/backups/logical"
+backup_state_directory: "/opt/eurtisan/backups/state"
+backup_retention_days: 30
+backup_offsite_retention_days: 90
+postgres_verify_image: "postgres:16-alpine@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229"
+
+# Off-site upload stays disabled in staging until a real independent destination
+# exists. Production overrides this to true and preflight then requires every
+# repository and credential value below.
+backup_offsite_enabled: false
+backup_logical_cipher_pass: ""
+backup_offsite_rclone_remote: "backupoffsite:database"
+backup_primary_uploads_rclone_remote: "primaryuploads:{{ s3_uploads_bucket }}"
+backup_offsite_uploads_rclone_remote: "backupoffsite:uploads"
+backup_object_storage_endpoint: ""
+backup_object_storage_region: ""
+backup_logical_s3_bucket: ""
+backup_logical_s3_access_key: ""
+backup_logical_s3_secret_key: ""
+backup_primary_uploads_access_key: ""
+backup_primary_uploads_secret_key: ""
+backup_rclone_crypt_password: ""
+
+# Token used by backup scripts to report success, failure, and freshness. The
+# metrics token is used when this dedicated value is empty.
+backup_report_token: ""
+
+# pgBackRest owns physical base backups and WAL retention. Staging enables a
+# local encrypted repository; production requires an S3 repository.
+postgres_wal_archive_enabled: false
+postgres_pgbackrest_image: "eurtisan-postgres:16-pgbackrest-2.57.0"
+postgres_archive_timeout_seconds: 900
+pgbackrest_stanza: "eurtisan"
+pgbackrest_repository_type: "posix"
+pgbackrest_repository_host_path: "/opt/eurtisan/backups/pgbackrest"
+pgbackrest_repository_container_path: "/var/lib/pgbackrest"
+pgbackrest_repository_path: "/eurtisan"
+pgbackrest_spool_host_path: "/opt/eurtisan/backups/pgbackrest-spool"
+pgbackrest_spool_container_path: "/var/spool/pgbackrest"
+pgbackrest_retention_full: 4
+pgbackrest_retention_diff: 14
+pgbackrest_process_max: 2
+pgbackrest_repo_cipher_pass: ""
+pgbackrest_s3_bucket: ""
+pgbackrest_s3_access_key: ""
+pgbackrest_s3_secret_key: ""
+
+# Webhook posted to when a rollout finishes, so a failed deploy is not silent.
+# Any endpoint accepting a JSON POST (Slack/Discord/Alertmanager). Empty
+# disables notification entirely.
+deploy_notification_webhook: ""

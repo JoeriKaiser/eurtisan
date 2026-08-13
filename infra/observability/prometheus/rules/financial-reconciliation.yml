@@ -1,0 +1,38 @@
+groups:
+  - name: financial_reconciliation
+    rules:
+      - alert: EurtisanFinancialReconciliationMismatch
+        expr: sum(eurtisan_financial_reconciliation_last_run_mismatches) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Financial totals reconciliation detected drift
+          description: "The latest read-only reconciliation found {{ $value }} invariant mismatch(es). Follow the financial reconciliation runbook and do not repair records automatically."
+
+      - alert: EurtisanFinancialReconciliationFailed
+        expr: increase(eurtisan_job_runs_total{job_name="financial-totals-reconciliation",status="failure"}[7h]) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Financial totals reconciliation failed
+          description: "The scheduled read-only reconciliation failed during the last cadence window."
+
+      - alert: EurtisanFinancialReconciliationStale
+        expr: (time() - eurtisan_job_last_success_timestamp{job_name="financial-totals-reconciliation"} > 25200) or absent(eurtisan_job_last_success_timestamp{job_name="financial-totals-reconciliation"})
+        for: 30m
+        labels:
+          severity: critical
+        annotations:
+          summary: Financial totals reconciliation is stale or missing
+          description: "No successful read-only reconciliation has been observed within the six-hour cadence plus one-hour grace period."
+
+      - alert: EurtisanFinancialReconciliationLockContention
+        expr: increase(eurtisan_job_lock_contention_total{job_name="financial-totals-reconciliation"}[24h]) >= 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Repeated financial reconciliation lock contention
+          description: "At least three starts could not acquire the singleton lock in 24 hours. Check duplicate services, restart loops, and replica scheduling."

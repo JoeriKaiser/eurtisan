@@ -1,0 +1,65 @@
+# Managed by Ansible. Local edits are overwritten.
+{% set smtp_enabled = alertmanager_smtp_host | default('') | length > 0 %}
+{% set webhook_enabled = alertmanager_webhook_url | default('') | length > 0 %}
+{% if smtp_enabled %}
+global:
+  smtp_smarthost: {{ ((alertmanager_smtp_host | string) ~ ':' ~ (alertmanager_smtp_port | default('587') | string)) | to_json }}
+  smtp_from: {{ alertmanager_smtp_from | to_json }}
+  smtp_require_tls: true
+
+{% endif %}
+route:
+  group_by: ['alertname', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+{% if smtp_enabled or webhook_enabled %}
+  receiver: default
+  routes:
+    - match:
+        severity: critical
+      receiver: critical
+      continue: true
+{% else %}
+  receiver: 'null'
+{% endif %}
+
+receivers:
+{% if smtp_enabled or webhook_enabled %}
+  - name: default
+{% if smtp_enabled %}
+    email_configs:
+      - to: {{ alertmanager_smtp_to | to_json }}
+        send_resolved: true
+        headers:
+          Subject: 'Eurtisan alert: {% raw %}{{ .GroupLabels.alertname }}{% endraw %}'
+{% endif %}
+{% if webhook_enabled %}
+    webhook_configs:
+      - url: {{ alertmanager_webhook_url | to_json }}
+        send_resolved: true
+{% endif %}
+
+  - name: critical
+{% if smtp_enabled %}
+    email_configs:
+      - to: {{ alertmanager_smtp_to | to_json }}
+        send_resolved: true
+        headers:
+          Subject: 'Eurtisan CRITICAL alert: {% raw %}{{ .GroupLabels.alertname }}{% endraw %}'
+{% endif %}
+{% if webhook_enabled %}
+    webhook_configs:
+      - url: {{ alertmanager_webhook_url | to_json }}
+        send_resolved: true
+{% endif %}
+{% else %}
+  - name: 'null'
+{% endif %}
+
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname']

@@ -1,0 +1,254 @@
+---
+- name: Validate deployment environment classification
+  ansible.builtin.assert:
+    that:
+      - deployment_environment in ['staging', 'production']
+      - caddy_domain is defined
+      - caddy_domain | length > 3
+    fail_msg: "deployment_environment and caddy_domain must identify staging or production"
+  tags: [always, preflight]
+
+- name: Validate signed release channel policy
+  ansible.builtin.assert:
+    that:
+      - >-
+        (deployment_environment == 'staging' and (release_registry_self_hosted | bool)
+        and release_registry == 'registry-staging.eurtisan.eu'
+        and release_image_repository == release_registry ~ '/eurtisan/app')
+        or
+        (deployment_environment == 'production' and not (release_registry_self_hosted | bool)
+        and release_registry == 'rg.fr-par.scw.cloud'
+        and release_image_repository is match('^rg\.fr-par\.scw\.cloud/[a-z0-9._/-]+$'))
+      - release_registry_minimum_retained_generations | int >= 2
+      - release_registry_retention_days | int >= 30
+      - release_signing_private_key_path | length > 5
+      - release_signing_public_key_path | length > 5
+      - deployment_environment != 'production' or promoted_staging_image_digest | default('') is match('^sha256:[a-f0-9]{64}$')
+    fail_msg: "The environment registry, signing paths, retention, or production promotion digest is invalid"
+  tags: [always, preflight]
+
+- name: Validate launch-required integrations are explicitly enabled
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.vars', item, default='false') | bool
+    fail_msg: "{{ item }} is launch-required and must be explicitly true"
+  loop:
+    - meilisearch_enabled
+    - s3_storage_enabled
+    - imgproxy_enabled
+    - mollie_payments_enabled
+    - mollie_connect_enabled
+    - sendcloud_enabled
+    - faro_enabled
+  loop_control:
+    label: "{{ item }}"
+  tags: [always, preflight]
+
+- name: Validate required secret variables are present
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.vars', item, default='') | string | trim | length >= 16
+      - not (lookup('ansible.builtin.vars', item, default='') | string | lower is search('change.?me|placeholder|replace.?me|dummy'))
+    fail_msg: "{{ item }} is missing, too short, or contains a placeholder value"
+  loop:
+    - postgres_password
+    - better_auth_secret
+    - database_encryption_key
+    - meilisearch_api_key
+    - s3_access_key_id
+    - s3_secret_access_key
+    - imgproxy_key
+    - imgproxy_salt
+    - mollie_api_key
+    - mollie_client_id
+    - mollie_client_secret
+    - sendcloud_public_key
+    - sendcloud_secret_key
+    - sendcloud_webhook_secret
+    - metrics_token
+    - grafana_admin_password
+    - registry_push_access_key_id
+    - registry_push_secret_key
+    - registry_pull_access_key_id
+    - registry_pull_secret_key
+    - cosign_password
+  loop_control:
+    label: "{{ item }}"
+  tags: [always, preflight]
+
+- name: Validate the self-hosted registry secret
+  ansible.builtin.assert:
+    that:
+      - registry_http_secret | default('') is match('^[A-Za-z0-9_-]{32,}$')
+      - registry_http_secret != registry_push_secret_key
+      - registry_http_secret != registry_pull_secret_key
+    fail_msg: "registry_http_secret must be a distinct secret of at least 32 characters"
+  when: release_registry_self_hosted | bool
+  tags: [always, preflight]
+
+- name: Validate staging Garage secrets
+  ansible.builtin.assert:
+    that:
+      - garage_rpc_secret is match('^[A-Fa-f0-9]{64}$')
+      - garage_admin_token | string | trim | length >= 32
+      - s3_access_key_id is match('^GK[A-Fa-f0-9]{24}$')
+      - s3_secret_access_key is match('^[A-Fa-f0-9]{64}$')
+    fail_msg: "Garage RPC, admin, and S3 credentials must use the required formats"
+  when: garage_enabled | bool
+  tags: [always, preflight]
+
+- name: Validate environment storage ownership
+  ansible.builtin.assert:
+    that:
+      - (deployment_environment == 'staging' and (garage_enabled | bool) and s3_endpoint == 'http://garage:3900' and s3_public_endpoint == 'https://' ~ garage_public_domain and s3_region == 'garage') or (deployment_environment == 'production' and not (garage_enabled | bool) and s3_endpoint is match('^https://s3\\.[a-z0-9-]+\\.scw\\.cloud$') and s3_public_endpoint == s3_endpoint)
+    fail_msg: "Staging must use private Garage with its public S3 domain; production must use Scaleway S3"
+  tags: [always, preflight]
+
+- name: Validate optional Umami configuration when enabled
+  ansible.builtin.assert:
+    that:
+      - umami_script_url is defined
+      - umami_script_url is match('^https://')
+      - umami_website_id is defined
+      - umami_website_id | length > 0
+    fail_msg: "umami_script_url and umami_website_id are required when umami_enabled=true"
+  when: umami_enabled | bool
+  tags: [always, preflight]
+
+- name: Validate optional Grafana admin CIDRs
+  ansible.builtin.assert:
+    that:
+      - grafana_admin_ips.split() | reject('match', '^[0-9]{1,3}(\.[0-9]{1,3}){3}(/[0-9]{1,2})?$') | list | length == 0
+    fail_msg: "grafana_admin_ips must be space-separated IPv4 addresses or CIDRs (e.g. '203.0.113.5/32')"
+  when: grafana_admin_ips | default('') | string | length > 0
+  tags: [always, preflight]
+
+- name: Validate production email secrets are present
+  ansible.builtin.assert:
+    that:
+      - lookup('ansible.builtin.vars', item, default='') | string | trim | length >= 20
+    fail_msg: "{{ item }} is required when EMAIL_DELIVERY_PROVIDER=brevo"
+  loop:
+    - brevo_api_key
+  loop_control:
+    label: "{{ item }}"
+  when: email_delivery_provider == 'brevo'
+  tags: [always, preflight]
+
+- name: Validate production email webhook token length
+  ansible.builtin.assert:
+    that:
+      - brevo_webhook_token is defined
+      - brevo_webhook_token | length >= 64
+    fail_msg: "brevo_webhook_token must contain at least 64 characters"
+  when: email_delivery_provider == 'brevo'
+  tags: [always, preflight]
+
+- name: Validate secret formats and separation
+  ansible.builtin.assert:
+    that:
+      # Canonical base64 for 32 bytes is exactly 43 base64 characters plus '='.
+      # Do not use Jinja's text-oriented b64decode filter for random binary data.
+      - database_encryption_key is match('^[A-Za-z0-9+/]{43}=$')
+      - imgproxy_key is match('^[A-Fa-f0-9]{64,}$')
+      - imgproxy_salt is match('^[A-Fa-f0-9]{64,}$')
+      - mollie_api_key is match('^(live|test)_[A-Za-z0-9_-]{20,}$')
+      - sendcloud_webhook_secret != sendcloud_secret_key
+      - registry_push_access_key_id is match('^[A-Za-z0-9][A-Za-z0-9._-]{15,63}$')
+      - registry_pull_access_key_id is match('^[A-Za-z0-9][A-Za-z0-9._-]{15,63}$')
+      - registry_push_access_key_id != registry_pull_access_key_id
+      - registry_push_secret_key != registry_pull_secret_key
+      - registry_pull_access_key_id != s3_access_key_id
+      - registry_pull_secret_key != s3_secret_access_key
+      - cosign_password != registry_push_secret_key
+    fail_msg: "Encryption, signing, registry, imgproxy, Meilisearch, Mollie, or webhook secret formats are invalid"
+  tags: [always, preflight]
+
+- name: Validate environment-specific provider safety
+  ansible.builtin.assert:
+    that:
+      - (deployment_environment == 'production' and not (mollie_test_mode | bool)) or (deployment_environment == 'staging' and (mollie_test_mode | bool))
+      - (deployment_environment == 'production' and not (sendcloud_force_unstamped_letter | bool)) or (deployment_environment == 'staging' and (sendcloud_force_unstamped_letter | bool))
+      - (deployment_environment == 'production' and email_delivery_provider == 'brevo') or (deployment_environment == 'staging' and email_delivery_provider == 'smtp')
+    fail_msg: "Mollie, Sendcloud, or email mode is inconsistent with deployment_environment"
+  tags: [always, preflight]
+
+- name: Validate backup retention and runtime policy
+  ansible.builtin.assert:
+    that:
+      - backup_retention_days | int >= 7
+      - backup_offsite_retention_days | int >= backup_retention_days | int
+      - postgres_archive_timeout_seconds | int >= 60
+      - postgres_archive_timeout_seconds | int <= 3600
+      - pgbackrest_retention_full | int >= 2
+      - pgbackrest_retention_diff | int >= 2
+      - pgbackrest_process_max | int >= 1
+      - pgbackrest_process_max | int <= 8
+      - backup_logical_cipher_pass | default('') | string | length >= 32
+      - pgbackrest_repository_type in ['posix', 's3']
+      - postgres_verify_image is match('^postgres:16-alpine@sha256:[a-f0-9]{64}$')
+    fail_msg: "Backup retention, logical encryption, archive timeout, repository type, process count, or verification image is invalid"
+  tags: [always, preflight, backup]
+
+- name: Validate pgBackRest encryption and repository configuration
+  ansible.builtin.assert:
+    that:
+      - pgbackrest_repo_cipher_pass | default('') | string | length >= 32
+      - pgbackrest_stanza is match('^[a-z][a-z0-9-]{2,31}$')
+      - pgbackrest_repository_host_path is match('^/opt/eurtisan/backups/[a-z0-9-]+$')
+      - pgbackrest_repository_path is match('^/[a-z0-9/_-]+$')
+      - pgbackrest_spool_host_path is match('^/opt/eurtisan/backups/[a-z0-9-]+$')
+      - deployment_environment != 'production' or pgbackrest_repository_type == 's3'
+    fail_msg: "Enabled pgBackRest requires a protected cipher passphrase and production requires an S3 repository"
+  when: postgres_wal_archive_enabled | bool
+  tags: [always, preflight, backup]
+
+- name: Validate S3-compatible pgBackRest repository credentials
+  ansible.builtin.assert:
+    that:
+      - backup_object_storage_endpoint | default('') is match('^https://[A-Za-z0-9.-]+(?::[0-9]+)?$')
+      - backup_object_storage_region | default('') is match('^[A-Za-z0-9-]{2,32}$')
+      - pgbackrest_s3_bucket | default('') is match('^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$')
+      - pgbackrest_s3_access_key | default('') | string | length >= 16
+      - pgbackrest_s3_secret_key | default('') | string | length >= 20
+    fail_msg: "The pgBackRest S3 endpoint, region, bucket, or least-privilege credentials are missing"
+  when:
+    - postgres_wal_archive_enabled | bool
+    - pgbackrest_repository_type == 's3'
+  tags: [always, preflight, backup]
+
+- name: Validate encrypted off-site logical and uploads backup configuration
+  ansible.builtin.assert:
+    that:
+      - backup_object_storage_endpoint | default('') is match('^https://[A-Za-z0-9.-]+(?::[0-9]+)?$')
+      - backup_object_storage_region | default('') is match('^[A-Za-z0-9-]{2,32}$')
+      - backup_logical_s3_bucket | default('') is match('^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$')
+      - backup_logical_s3_access_key | default('') | string | length >= 16
+      - backup_logical_s3_secret_key | default('') | string | length >= 20
+      - backup_primary_uploads_access_key | default('') | string | length >= 16
+      - backup_primary_uploads_secret_key | default('') | string | length >= 20
+      - backup_rclone_crypt_password | default('') | string | length >= 16
+      - backup_offsite_rclone_remote is match('^backupoffsite:[A-Za-z0-9._/-]+$')
+      - backup_primary_uploads_rclone_remote is match('^primaryuploads:[A-Za-z0-9._/-]+$')
+      - backup_offsite_uploads_rclone_remote is match('^backupoffsite:[A-Za-z0-9._/-]+$')
+    fail_msg: "Enabled off-site backups require encrypted rclone storage and separate source-read credentials"
+  when: backup_offsite_enabled | bool
+  tags: [always, preflight, backup]
+
+- name: Require off-site logical backups and PITR before production deployment
+  ansible.builtin.assert:
+    that:
+      - backup_offsite_enabled | bool
+      - postgres_wal_archive_enabled | bool
+      - pgbackrest_repository_type == 's3'
+    fail_msg: "Production deployment is blocked until encrypted off-site backups and S3-backed pgBackRest PITR are configured"
+  when: deployment_environment == 'production'
+  tags: [always, preflight, backup]
+
+- name: Validate alertmanager receiver configuration in production
+  ansible.builtin.assert:
+    that:
+      - (alertmanager_smtp_to | default('') | length > 0 and alertmanager_smtp_host | default('') | length > 0 and alertmanager_smtp_from | default('') | length > 0) or alertmanager_webhook_url | default('') | length > 0
+    fail_msg: "Production requires alertmanager_smtp_* or alertmanager_webhook_url"
+  when: deployment_environment == 'production'
+  tags: [always, preflight]

@@ -1,0 +1,15 @@
+# Gitleaks configuration for Eurtisan
+# Extends default secret scanning rules with allowlists for mock test fixtures and dev seeds.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allow mock test fixtures, example environment files, and local seed secrets"
+paths = [
+  '''^\.env\..*\.example$''',
+  '''^\.env\.example$''',
+  '''^scripts/validate-ansible\.sh$''',
+  '''^src/db/seed\.ts$''',
+  '''^garage\.toml$''',
+]

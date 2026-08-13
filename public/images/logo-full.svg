@@ -1,0 +1,19 @@
+<svg viewBox='0 0 230 48' fill='none' xmlns='http://www.w3.org/2000/svg'>
+  {/* Monogram in solid primary green, centered vertically and horizontally */}
+  <g transform='translate(8, 8)'>
+    {/* Top horizontal brick */}
+    <rect x='6' y='1.75' width='20' height='4.5' fill='#217c4b' rx='0.75' />
+    {/* Upper vertical connector brick */}
+    <rect x='6' y='7.25' width='5.5' height='5.5' fill='#217c4b' rx='0.75' />
+    {/* Middle horizontal brick */}
+    <rect x='6' y='13.75' width='16' height='4.5' fill='#217c4b' rx='0.75' />
+    {/* Lower vertical connector brick */}
+    <rect x='6' y='19.25' width='5.5' height='5.5' fill='#217c4b' rx='0.75' />
+    {/* Bottom horizontal brick */}
+    <rect x='6' y='25.75' width='20' height='4.5' fill='#217c4b' rx='0.75' />
+  </g>
+
+  {/* Brand Text in solid primary green, and tagline in off-black */}
+  <text x='50' y='25' font-family="'Fraunces', Georgia, serif" font-size='20' font-weight='700' fill='#217c4b'>Eurtisan</text>
+  <text x='50' y='35' font-family="'Manrope', 'Helvetica Neue', sans-serif" font-size='6.5' font-weight='600' letter-spacing='0.12em' fill='#1c1917'>EUROPEAN ARTISAN MARKETPLACE</text>
+</svg>

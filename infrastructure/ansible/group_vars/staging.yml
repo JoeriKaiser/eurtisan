@@ -1,0 +1,51 @@
+deployment_environment: staging
+release_registry_self_hosted: true
+release_registry: registry-staging.eurtisan.eu
+release_image_repository: registry-staging.eurtisan.eu/eurtisan/app
+registry_push_access_key_id: "{{ staging_registry_push_username }}"
+registry_push_secret_key: "{{ staging_registry_push_password }}"
+registry_pull_access_key_id: "{{ staging_registry_pull_username }}"
+registry_pull_secret_key: "{{ staging_registry_pull_password }}"
+registry_http_secret: "{{ staging_registry_http_secret }}"
+garage_enabled: true
+garage_public_domain: s3-staging.eurtisan.eu
+s3_endpoint: http://garage:3900
+s3_public_endpoint: https://s3-staging.eurtisan.eu
+s3_region: garage
+s3_bucket: eurtisan-staging-uploads
+mollie_test_mode: true
+sendcloud_force_unstamped_letter: true
+email_delivery_provider: smtp
+email_smtp_host: mailpit
+email_smtp_port: "1025"
+email_from_address: noreply@staging.eurtisan.eu
+app_container_name: eurtisan-app-staging
+db_container_name: eurtisan-db-staging
+
+# Environment-scoped secrets: one shared Vault holds staging values under a
+# `_staging` suffix so production can own the canonical names. Follow the same
+# pattern as the registry credentials above when adding staging-only secrets.
+postgres_password: "{{ postgres_password_staging }}"
+better_auth_secret: "{{ better_auth_secret_staging }}"
+database_encryption_key: "{{ database_encryption_key_staging }}"
+meilisearch_api_key: "{{ meilisearch_api_key_staging }}"
+s3_access_key_id: "{{ s3_access_key_id_staging }}"
+s3_secret_access_key: "{{ s3_secret_access_key_staging }}"
+imgproxy_key: "{{ imgproxy_key_staging }}"
+imgproxy_salt: "{{ imgproxy_salt_staging }}"
+mollie_api_key: "{{ mollie_api_key_staging }}"
+mollie_client_id: "{{ mollie_client_id_staging }}"
+mollie_client_secret: "{{ mollie_client_secret_staging }}"
+sendcloud_public_key: "{{ sendcloud_public_key_staging }}"
+sendcloud_secret_key: "{{ sendcloud_secret_key_staging }}"
+sendcloud_webhook_secret: "{{ sendcloud_webhook_secret_staging }}"
+metrics_token: "{{ metrics_token_staging }}"
+grafana_admin_password: "{{ grafana_admin_password_staging }}"
+backup_report_token: "{{ backup_report_token_staging }}"
+backup_logical_cipher_pass: "{{ backup_logical_cipher_pass_staging }}"
+pgbackrest_repo_cipher_pass: "{{ pgbackrest_repo_cipher_pass_staging }}"
+# Exercise encrypted physical backups and WAL/PITR locally before a remote
+# repository is available. This does not satisfy the off-site production gate.
+postgres_wal_archive_enabled: true
+pgbackrest_repository_type: posix
+faro_sample_rate: "1"

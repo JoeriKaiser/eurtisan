@@ -1,0 +1,133 @@
+// ============================================================
+// Grafana Alloy Configuration — Eurtisan Staging
+// ============================================================
+
+// --- Discovery: Find all Docker containers ---
+discovery.docker "eurtisan" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// --- Relabel: Keep all Eurtisan containers; tag logs with container_name ---
+discovery.relabel "eurtisan" {
+  targets = discovery.docker.eurtisan.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/eurtisan-.*"
+    action        = "keep"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(eurtisan-[^/]+)"
+    target_label  = "container_name"
+    replacement   = "${1}"
+  }
+
+  rule {
+    source_labels = ["container_name"]
+    regex         = "eurtisan-(.+)"
+    target_label  = "service_name"
+    replacement   = "${1}"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/eurtisan-.*"
+    target_label  = "job"
+    replacement   = "eurtisan"
+  }
+}
+
+// --- Faro Receiver (Frontend RUM & Errors) ---
+// Accepts beacon POSTs from @grafana/faro-web-sdk
+faro.receiver "eurtisan" {
+  server {
+    listen_address = "0.0.0.0"
+    listen_port    = 8027
+    // Comma-separated list of origins allowed to send Faro beacons.
+    // Configure via ALLOY_FARO_CORS_ORIGINS (default: production + staging).
+    cors_allowed_origins = split(env("ALLOY_FARO_CORS_ORIGINS"), ",")
+  }
+
+  output {
+    logs   = [loki.write.eurtisan.receiver]
+    traces = [otelcol.processor.batch.default.input]
+  }
+}
+
+// --- OTLP Receiver (Backend Traces) ---
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    traces = [otelcol.processor.batch.default.input]
+    logs   = [otelcol.exporter.otlphttp.loki.input]
+  }
+}
+
+// --- Batch Processor ---
+otelcol.processor.batch "default" {
+  output {
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+// --- Trace Exporter to Tempo ---
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo:4317"
+    tls { insecure = true }
+  }
+}
+
+// --- Log Exporter to Loki (OTLP→Loki) ---
+otelcol.exporter.otlphttp "loki" {
+  client {
+    endpoint = "http://loki:3100/otlp"
+    tls { insecure = true }
+    headers = {
+      "X-Scope-OrgID" = "eurtisan",
+    }
+  }
+}
+
+// --- Loki Write ---
+loki.write "eurtisan" {
+  endpoint {
+    name = "loki"
+    url  = "http://loki:3100/loki/api/v1/push"
+    headers = {
+      "X-Scope-OrgID" = "eurtisan",
+    }
+  }
+}
+
+// --- Docker Log Tailing (App stdout → Loki) ---
+loki.source.docker "eurtisan" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.eurtisan.output
+  forward_to = [loki.write.eurtisan.receiver]
+}
+
+// --- Prometheus Scraping (Alloy self-metrics only) ---
+prometheus.scrape "alloy" {
+  targets = [
+    {"__address__" = "localhost:12345", "job" = "alloy"},
+  ]
+  forward_to = [prometheus.remote_write.default.receiver]
+  scrape_interval = "15s"
+}
+
+prometheus.remote_write "default" {
+  endpoint {
+    name = "prometheus"
+    url  = "http://prometheus:9090/api/v1/write"
+    queue_config { }
+  }
+}

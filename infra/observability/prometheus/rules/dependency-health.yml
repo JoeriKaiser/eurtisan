@@ -1,0 +1,29 @@
+groups:
+  - name: dependency_health
+    rules:
+      - alert: EurtisanImgproxyDisconnected
+        expr: eurtisan_health_imgproxy_connected == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Eurtisan imgproxy health check failed
+          description: The imgproxy health endpoint has been unreachable for more than 1 minute.
+
+      - alert: EurtisanS3Disconnected
+        expr: eurtisan_health_s3_connected == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Eurtisan S3-compatible object storage check failed
+          description: The S3-compatible object storage health check has been failing for more than 1 minute.
+
+      - alert: EurtisanEmailOutboxBacklog
+        expr: eurtisan_email_outbox_backlog > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: Email outbox backlog is growing
+          description: More than 100 email_outbox rows are pending/sending and older than 5 minutes.
