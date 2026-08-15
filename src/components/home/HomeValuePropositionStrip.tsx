@@ -27,21 +27,18 @@ export function HomeValuePropositionStrip() {
 
   return (
     <section
-      className='border-y border-border-subtle bg-bg-base/40 py-7 lg:py-10'
+      className='border-y border-border-subtle bg-surface-default py-10 sm:py-12'
       aria-label='Value Proposition'
     >
-      <div className='mx-auto max-w-7xl px-6'>
-        <div className='flex gap-6 overflow-x-auto md:grid md:grid-cols-2 md:gap-8 lg:grid-cols-4 lg:divide-x lg:divide-border-subtle/70'>
+      <div className='mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
+        <div className='grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-border-subtle'>
           {values.map(({ Icon, title, description }) => (
-            <div
-              key={title}
-              className='flex min-w-[78vw] items-start gap-4 md:min-w-0 lg:pl-6 lg:first:pl-0'
-            >
-              <div className='shrink-0 rounded-2xl border border-accent-primary/10 bg-accent-primary-subtle p-2.5 text-accent-primary shadow-sm'>
+            <div key={title} className='flex items-start gap-4 lg:pl-6 lg:first:pl-0'>
+              <div className='shrink-0 rounded-lg bg-accent-primary/10 p-2.5 text-accent-primary'>
                 <Icon size={20} strokeWidth={1.5} aria-hidden='true' />
               </div>
               <div>
-                <h3 className='text-sm font-bold tracking-wide text-text-primary'>{title}</h3>
+                <h3 className='text-sm font-bold text-text-primary'>{title}</h3>
                 <p className='mt-1 text-xs leading-relaxed text-text-secondary'>{description}</p>
               </div>
             </div>

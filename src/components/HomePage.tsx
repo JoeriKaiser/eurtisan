@@ -66,23 +66,16 @@ export default function HomePage({
           {m.account_delete_success()}
         </div>
       )}
-      {/* Animation Styles */}
 
       <HomeHeroSection user={user} sellerShops={sellerShops} shops={shops} />
       <HomeStatsStrip stats={stats} />
 
-      <main>
-        <div className='mx-auto max-w-7xl px-6 pt-6 pb-16 md:pt-0 md:pb-24'>
-          <HomeFeaturedProducts products={products} />
-        </div>
-
+      <main className='mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 space-y-16 sm:space-y-20 py-12 sm:py-16'>
+        <HomeFeaturedProducts products={products} />
         <HomeValuePropositionStrip />
-
-        <div className='mx-auto max-w-7xl space-y-24 px-6 py-16'>
-          <HomeFeaturedShops shops={shops} />
-          <HomeCategoryDiscovery categories={categories} />
-          <HomePreFooterCTA user={user} sellerShops={sellerShops} />
-        </div>
+        <HomeFeaturedShops shops={shops} />
+        <HomeCategoryDiscovery categories={categories} />
+        <HomePreFooterCTA user={user} sellerShops={sellerShops} />
       </main>
     </div>
   )

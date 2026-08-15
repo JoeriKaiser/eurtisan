@@ -39,3 +39,6 @@ skills-lock.json
 
 # Agent worktrees and local scratch
 .claude/
+
+
+.agents

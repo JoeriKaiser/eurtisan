@@ -341,6 +341,75 @@ describe('HomePage', () => {
     const heroCtaLink = screen.getByText('Check Shop Status').closest('a')
     expect(heroCtaLink?.getAttribute('href')).toBe('/sell/status/shop-pending')
   })
+  it('renders auth-conditional CTAs for authenticated user with changes requested shop', () => {
+    const mockUser = {
+      id: 'usr-1',
+      name: 'John Doe',
+      email: 'john@example.com',
+      emailVerified: true,
+      image: null,
+      role: 'creator' as const,
+    }
+    const mockSellerShops = [
+      {
+        id: 'shop-changes',
+        name: 'My Craft Shop',
+        slug: 'my-craft-shop',
+        image: null,
+        status: 'changes_requested',
+        onboardingStep: 2,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        productCount: 0,
+      },
+    ]
+    render(
+      <HomePage
+        categories={[]}
+        products={[]}
+        shops={[]}
+        user={mockUser}
+        sellerShops={mockSellerShops}
+      />,
+    )
+    const heroCtaLink = screen.getByText('Continue Listing').closest('a')
+    expect(heroCtaLink?.getAttribute('href')).toBe('/sell/onboarding/shop-changes')
+  })
+
+  it('renders auth-conditional CTAs for authenticated user with paused shop', () => {
+    const mockUser = {
+      id: 'usr-1',
+      name: 'John Doe',
+      email: 'john@example.com',
+      emailVerified: true,
+      image: null,
+      role: 'creator' as const,
+    }
+    const mockSellerShops = [
+      {
+        id: 'shop-paused',
+        name: 'My Craft Shop',
+        slug: 'my-craft-shop',
+        image: null,
+        status: 'paused',
+        onboardingStep: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        productCount: 2,
+      },
+    ]
+    render(
+      <HomePage
+        categories={[]}
+        products={[]}
+        shops={[]}
+        user={mockUser}
+        sellerShops={mockSellerShops}
+      />,
+    )
+    const heroCtaLink = screen.getByText('Go to Dashboard').closest('a')
+    expect(heroCtaLink?.getAttribute('href')).toBe('/creator?shopId=shop-paused')
+  })
 
   it('renders auth-conditional CTAs for authenticated user with active shop', () => {
     const mockUser = {

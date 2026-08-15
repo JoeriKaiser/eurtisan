@@ -33,47 +33,53 @@ export function HomePreFooterCTA({
   const preFooterTitle = user ? m.home_pre_footer_title_auth() : m.home_pre_footer_title_guest()
   const preFooterDesc = user ? m.home_pre_footer_desc_auth() : m.home_pre_footer_desc_guest()
   const preFooterCtaText = user ? m.home_pre_footer_cta_auth() : m.home_pre_footer_cta_guest()
-  const preFooterCtaLink = user
-    ? sellerShops.length > 0
-      ? sellerShops[0].status === 'active'
-        ? `/creator?shopId=${sellerShops[0].id}`
-        : `/sell`
-      : `/sell`
-    : '/signin'
+  let preFooterCtaLink = '/signin'
+  if (user) {
+    if (sellerShops.length > 0) {
+      const activeShop = sellerShops.find((s) => s.status === 'active' || s.status === 'paused')
+      const draftShop = sellerShops.find(
+        (s) => s.status === 'draft' || s.status === 'changes_requested',
+      )
+      const pendingShop = sellerShops.find(
+        (s) => s.status === 'pending_review' || s.status === 'approved' || s.status === 'rejected',
+      )
+
+      if (activeShop) {
+        preFooterCtaLink = `/creator?shopId=${activeShop.id}`
+      } else if (draftShop) {
+        preFooterCtaLink = `/sell/onboarding/${draftShop.id}`
+      } else if (pendingShop) {
+        preFooterCtaLink = `/sell/status/${pendingShop.id}`
+      } else {
+        preFooterCtaLink = `/creator?shopId=${sellerShops[0].id}`
+      }
+    } else {
+      preFooterCtaLink = '/sell'
+    }
+  }
 
   return (
     <section
-      className='p-2 rounded-[3rem] bg-scrim-subtle border border-border-subtle shadow-xl w-full relative overflow-hidden animate-fade-in-up'
+      className='rounded-2xl border border-border-subtle bg-surface-default p-10 sm:p-16 text-center shadow-xs'
       aria-labelledby='pre-footer-heading'
     >
-      {/* Inner core */}
-      <div className='bg-bg-inset rounded-[calc(3rem-0.5rem)] px-6 py-16 sm:px-12 sm:py-24 text-center relative overflow-hidden shadow-inner'>
-        {/* Layered radial glow blobs */}
-        <div className='pointer-events-none absolute -left-20 -bottom-20 size-[320px] rounded-full opacity-40 radial-glow-moss-strong dark:opacity-25' />
-        <div className='pointer-events-none absolute -right-20 -top-20 size-[320px] rounded-full opacity-30 radial-glow-sage dark:opacity-20' />
-
-        <div className='relative max-w-xl mx-auto flex flex-col items-center'>
-          <h2
-            id='pre-footer-heading'
-            className='display-title mb-6 text-3xl font-bold tracking-tight text-text-primary sm:text-4xl leading-[1.15]'
-          >
-            {preFooterTitle}
-          </h2>
-          <p className='mb-8 text-base leading-relaxed text-text-secondary sm:text-lg font-sans max-w-md'>
-            {preFooterDesc}
-          </p>
-          <Link to={preFooterCtaLink} className='no-underline'>
-            <button
-              type='button'
-              className='group relative flex items-center justify-between gap-3 h-12 pl-6 pr-2 bg-accent-primary text-text-on-primary hover:bg-accent-primary-hover active:bg-accent-primary-active rounded-full font-semibold shadow-md active:scale-[0.98] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
-            >
-              <span>{preFooterCtaText}</span>
-              <span className='flex size-6 rounded-full bg-scrim-subtle group-hover:bg-scrim items-center justify-center transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-[1px]'>
-                <ArrowRight size={14} />
-              </span>
-            </button>
-          </Link>
-        </div>
+      <div className='max-w-xl mx-auto flex flex-col items-center'>
+        <h2
+          id='pre-footer-heading'
+          className='display-title mb-4 text-3xl sm:text-4xl font-bold tracking-tight text-text-primary leading-tight'
+        >
+          {preFooterTitle}
+        </h2>
+        <p className='mb-8 text-sm sm:text-base leading-relaxed text-text-secondary max-w-md font-sans'>
+          {preFooterDesc}
+        </p>
+        <Link
+          to={preFooterCtaLink}
+          className='inline-flex items-center gap-2 rounded-lg bg-accent-primary px-8 py-3 text-xs font-semibold text-text-on-primary hover:bg-accent-primary-hover active:bg-accent-primary-active transition-colors no-underline shadow-xs'
+        >
+          <span>{preFooterCtaText}</span>
+          <ArrowRight size={14} aria-hidden='true' />
+        </Link>
       </div>
     </section>
   )
