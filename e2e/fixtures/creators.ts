@@ -8,6 +8,7 @@
 import { randomBytes, randomUUID, scryptSync } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import * as schema from '../../src/db/schema'
+import { encryptJsonb } from '../../src/lib/encryption.server'
 import { db } from '../db'
 
 export interface TestCreator {
@@ -115,6 +116,24 @@ export async function createCreatorShop(
     slug,
     status: 'approved',
     ownerId: owner.id,
+    traderStatus: 'non_trader',
+    currency: 'EUR',
+    legalEntityType: 'individual',
+    dateOfBirth: '1985-06-15',
+    shippingOrigin: encryptJsonb({
+      street: '123 Test St',
+      city: 'Paris',
+      postalCode: '75001',
+      country: 'FR',
+      processingTimeDays: { min: 1, max: 3 },
+      shipsInternational: true,
+    }),
+    businessAddress: encryptJsonb({
+      street: '123 Test St',
+      city: 'Paris',
+      postalCode: '75001',
+      country: 'FR',
+    }),
   })
 
   return { id, slug, name }

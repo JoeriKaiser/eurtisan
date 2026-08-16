@@ -104,6 +104,7 @@ export async function getCreatorShop() {
         eq(schema.shop.isSuspended, false),
       ),
     )
+    .orderBy(schema.shop.id)
     .limit(1)
   if (!shop[0]) throw new Error('Seed creator shop not found')
 

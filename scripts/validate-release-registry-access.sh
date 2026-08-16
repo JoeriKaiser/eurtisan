@@ -10,7 +10,7 @@ SUFFIX="$$"
 PROJECT="eurtisan-registry-access-test-$SUFFIX"
 TEMP_DIR="$(mktemp -d)"
 CREATED_COOLIFY_NETWORK=false
-COMPOSE=(docker compose -p "$PROJECT" -f "$TEMP_DIR/docker-compose.yml" -f "$TEMP_DIR/docker-compose.override.yml")
+COMPOSE=(docker compose -p "$PROJECT" -f "$TEMP_DIR/docker-compose.yml")
 
 cleanup() {
   "${COMPOSE[@]}" down --volumes --remove-orphans >/dev/null 2>&1 || true
@@ -26,7 +26,6 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-command -v curl >/dev/null
 command -v openssl >/dev/null
 
 mkdir -p "$TEMP_DIR/auth" "$TEMP_DIR/data"
@@ -46,12 +45,6 @@ cat >"$TEMP_DIR/.env" <<EOF
 REGISTRY_HTTP_SECRET=registry-access-test-http-secret-0001
 RELEASE_REGISTRY_DATA_PATH=$TEMP_DIR/data
 EOF
-cat >"$TEMP_DIR/docker-compose.override.yml" <<'EOF'
-services:
-  registry-proxy:
-    ports:
-      - "127.0.0.1::8080"
-EOF
 
 if ! docker network inspect coolify >/dev/null 2>&1; then
   docker network create coolify >/dev/null
@@ -59,12 +52,10 @@ if ! docker network inspect coolify >/dev/null 2>&1; then
 fi
 
 "${COMPOSE[@]}" up -d --wait
-PORT="$(docker port eurtisan-release-registry-proxy 8080/tcp | awk -F: 'NR == 1 { print $NF }')"
-test -n "$PORT"
-BASE_URL="http://127.0.0.1:$PORT"
+BASE_URL="http://eurtisan-release-registry-proxy:8080"
 
 request_status() {
-  curl -sS -o /dev/null -w '%{http_code}' "$@"
+  docker run --rm --network coolify curlimages/curl:8.12.1 -sS -o /dev/null -w '%{http_code}' "$@"
 }
 
 unauthenticated_get="$(request_status "$BASE_URL/v2/")"

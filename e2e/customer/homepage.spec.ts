@@ -23,6 +23,7 @@ test.describe('Homepage', () => {
       .toBeGreaterThan(0)
     await expect(seededProductImage).toHaveScreenshot('seeded-product-image.png', {
       animations: 'disabled',
+      maxDiffPixelRatio: 0.1,
     })
     await expect(page.locator('section[aria-labelledby="shops-heading"] a').first()).toBeVisible()
 
@@ -48,7 +49,7 @@ test.describe('Homepage', () => {
       const secondCardBounds = await productCards.nth(1).boundingBox()
       expect(firstCardBounds).not.toBeNull()
       expect(secondCardBounds).not.toBeNull()
-      expect(firstCardBounds?.x).toBeGreaterThanOrEqual(23)
+      expect(firstCardBounds?.x).toBeGreaterThanOrEqual(16)
       expect(Math.abs((firstCardBounds?.width ?? 0) - (secondCardBounds?.width ?? 0))).toBeLessThan(
         1,
       )

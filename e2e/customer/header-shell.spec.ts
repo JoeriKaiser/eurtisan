@@ -1,7 +1,12 @@
-import { waitForAppHydration } from '../fixtures/hydration'
-import { expect, test } from '@playwright/test'
+import { randomUUID } from 'node:crypto'
+import { eq } from 'drizzle-orm'
+import * as schema from '../../src/db/schema'
+import { db } from '../db'
+import { E2E_CUSTOMER } from '../fixtures/auth'
 import { emptyCart } from '../fixtures/cart'
+import { waitForAppHydration } from '../fixtures/hydration'
 import { getCreatorShop, getTestProduct } from '../fixtures/orders'
+import { expect, test } from '@playwright/test'
 
 /**
  * Caveat: the locale-switch test is marked `test.fixme` because the router rewrite
@@ -36,12 +41,25 @@ test.describe('Header shell', () => {
   })
 
   test('shows the unread notifications badge for an authenticated user', async ({ page }) => {
+    const [customer] = await db
+      .select({ id: schema.user.id })
+      .from(schema.user)
+      .where(eq(schema.user.email, E2E_CUSTOMER.email))
+      .limit(1)
+    if (customer) {
+      await db.insert(schema.notification).values({
+        id: randomUUID(),
+        userId: customer.id,
+        type: 'order_placed',
+        data: { orderNumber: 'ORD-TEST123', orderId: randomUUID() },
+      })
+    }
+
     await page.goto('/')
     await waitForAppHydration(page)
 
     const notificationsLink = page.getByRole('link', { name: /notifications/i })
     await expect(notificationsLink).toBeVisible()
-    // The E2E seed creates unread notifications for the fixed customer account.
     await expect(notificationsLink.locator('output')).toBeVisible()
   })
 
@@ -50,7 +68,7 @@ test.describe('Header shell', () => {
     await waitForAppHydration(page)
 
     const header = page.locator('header')
-    const localeButton = header.getByRole('button', { name: /select language/i })
+    const localeButton = header.getByRole('button', { name: /language|taal/i })
     await expect(localeButton).toBeVisible()
 
     const currentLocale = (await localeButton.textContent())?.trim().toLowerCase() ?? 'en'
@@ -58,12 +76,14 @@ test.describe('Header shell', () => {
 
     await localeButton.click()
 
-    const targetMenuItem = page.getByRole('menuitem', { name: targetLocale.toUpperCase() })
+    const targetMenuItem = page.getByRole('menuitem', {
+      name: targetLocale === 'nl' ? /nederlands/i : /english/i,
+    })
     await expect(targetMenuItem).toBeVisible()
     await targetMenuItem.click({ force: true })
 
     await page.waitForLoadState('networkidle')
-    await expect(header.getByRole('button', { name: /select language/i })).toHaveText(
+    await expect(header.getByRole('button', { name: /language|taal/i })).toHaveText(
       new RegExp(`\\b${targetLocale}\\b`, 'i'),
     )
   })

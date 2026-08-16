@@ -2,7 +2,7 @@
 
 A European-centered online marketplace for creatives, artisans, and makers.
 
-**Status:** Pre-launch — application remediation and the signed staging deployment channel are operational; release qualification and production approval remain in progress. See [`docs/LAUNCH_STATUS.md`](docs/LAUNCH_STATUS.md).
+**Status:** Pre-launch — application remediation and the signed staging deployment channel are operational; release qualification and production approval remain in progress.
 
 **Contributions:** Not currently accepted — issues are reviewed and welcome.
 
@@ -272,7 +272,6 @@ For deeper architectural, compliance, and operational details, refer to:
 - **GDPR & Privacy:** [`docs/DATA_RETENTION.md`](docs/DATA_RETENTION.md) (Data portability exports, deletion/erasure rules, and anonymization pipelines).
 - **Security Audit Logs:** [`docs/AUDIT_LOG_POLICY.md`](docs/AUDIT_LOG_POLICY.md) (Standard fields, events, and persistence rules).
 - **User Flows:** [`docs/user_flow.md`](docs/user_flow.md) (Detailed product workflows for shopper, seller, and administrator personas).
-- **Launch Status:** [`docs/LAUNCH_STATUS.md`](docs/LAUNCH_STATUS.md) (current go-live gates and open findings).
 
 ---
 

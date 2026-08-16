@@ -1,11 +1,15 @@
+import { eq } from 'drizzle-orm'
+import * as schema from '../../src/db/schema'
+import { db } from '../db'
+import { createCreatorShop, deleteCreatorShop } from '../fixtures/creators'
 import { waitForAppHydration } from '../fixtures/hydration'
 import { expect, test } from '@playwright/test'
-import { getCreatorShop } from '../fixtures/orders'
 
 test.describe('creator shop settings', () => {
   test.use({ storageState: 'e2e/.auth/creator.json' })
 
   let dummyPngPath: string
+  let testShop: { id: string; slug: string; name: string }
 
   test.beforeAll(async () => {
     const fs = await import('node:fs')
@@ -18,17 +22,40 @@ test.describe('creator shop settings', () => {
     const base64Png =
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='
     fs.writeFileSync(dummyPngPath, Buffer.from(base64Png, 'base64'))
+
+    const [creatorUser] = await db
+      .select({ id: schema.user.id })
+      .from(schema.user)
+      .where(eq(schema.user.email, 'creator@eurtisan.local'))
+      .limit(1)
+    if (!creatorUser) throw new Error('Seed creator not found')
+
+    testShop = await createCreatorShop(
+      {
+        id: creatorUser.id,
+        email: 'creator@eurtisan.local',
+        name: 'Eurtisan Creator',
+        password: 'creator',
+      },
+      'settings',
+    )
+    await db.update(schema.shop).set({ status: 'active' }).where(eq(schema.shop.id, testShop.id))
+  })
+
+  test.afterAll(async () => {
+    if (testShop?.id) {
+      await deleteCreatorShop(testShop.id)
+    }
   })
 
   test('creator can update brand settings, upload image/banner, custom policies, and configure tax/VAT settings', async ({
     page,
   }) => {
-    const shop = await getCreatorShop()
     const uniqueSuffix = Date.now().toString()
     const testName = `Settings Name ${uniqueSuffix}`
     const testDesc = `This is a test description of the shop settings update ${uniqueSuffix}`
 
-    await page.goto(`/creator/shop?shopId=${shop.id}`)
+    await page.goto(`/creator/shop?shopId=${testShop.id}`)
     await waitForAppHydration(page)
 
     // 1. Edit brand details
@@ -65,12 +92,12 @@ test.describe('creator shop settings', () => {
     })
 
     // Verify on public shop page that it updated
-    await page.goto(`/shops/${shop.slug}`)
+    await page.goto(`/shops/${testShop.slug}`)
     await waitForAppHydration(page)
     await expect(page.getByRole('heading', { name: testName })).toBeVisible()
 
     // 7. Verify DAC7 Tax report page loads
-    await page.goto(`/studio/${shop.id}/settings/tax`)
+    await page.goto(`/studio/${testShop.id}/settings/tax`)
     await waitForAppHydration(page)
 
     // Verify DAC7 Tax Report page contents are rendered
@@ -79,8 +106,7 @@ test.describe('creator shop settings', () => {
   })
 
   test('creator can view DAC7 tax report page', async ({ page }) => {
-    const shop = await getCreatorShop()
-    await page.goto(`/studio/${shop.id}/settings/tax`)
+    await page.goto(`/studio/${testShop.id}/settings/tax`)
     await waitForAppHydration(page)
 
     // Verify DAC7 Tax Report page contents are rendered

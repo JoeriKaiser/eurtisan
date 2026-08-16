@@ -26,7 +26,6 @@ Before substantial work:
 | Build/runtime configuration and secret ownership | [`docs/runbooks/environment-configuration.md`](docs/runbooks/environment-configuration.md) |
 | Deployment and infrastructure | [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) and [`infrastructure/README.md`](infrastructure/README.md) |
 | Operational procedures | [`docs/runbooks/README.md`](docs/runbooks/README.md) |
-| Current launch gates and open findings | [`docs/LAUNCH_STATUS.md`](docs/LAUNCH_STATUS.md) |
 | Data retention and deletion exceptions | [`docs/DATA_RETENTION.md`](docs/DATA_RETENTION.md) |
 | Company profile and French tax rules | `BUSINESS.md` (local, intentionally untracked) |
 | Agent/browser/integration tooling | [`docs/DEVELOPER_TOOLING.md`](docs/DEVELOPER_TOOLING.md) |
@@ -36,9 +35,7 @@ If documentation and implementation disagree, inspect the implementation and cor
 
 ## Next steps
 
-Current release, operations, accessibility, provider, legal, and approval gates
-live in [`docs/LAUNCH_STATUS.md`](docs/LAUNCH_STATUS.md). Do not infer production
-approval from passing CI or a successful staging deployment.
+Procedures and qualification evidence live in [`docs/runbooks/`](docs/runbooks/). Do not infer production approval from passing CI or a successful staging deployment.
 
 ## Standing constraints
 

@@ -43,6 +43,8 @@
     "db:encrypt-sensitive-columns": "bun run src/db/migrate-encrypt-sensitive-columns.ts",
     "db:encrypt-jsonb-columns": "bun run src/db/migrate-encrypt-jsonb-columns.ts",
     "job:sendcloud-retention-cleanup": "bun run scripts/run-validated-job.ts src/jobs/sendcloud-retention-cleanup.ts",
+    "job:worker-daemon": "bun run scripts/run-validated-job.ts src/jobs/worker-daemon.ts",
+    "worker": "bun run scripts/run-validated-job.ts src/jobs/worker-daemon.ts",
     "db:studio": "drizzle-kit studio",
     "lint": "biome lint --error-on-warnings ./src ./scripts ./e2e ./*.ts",
     "format": "biome format ./src ./scripts ./e2e ./*.ts",
