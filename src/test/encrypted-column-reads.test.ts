@@ -21,14 +21,14 @@ import { describe, expect, it } from 'vitest'
  * no test of their own, which is exactly where the bugs were.
  */
 
-const ENCRYPTED_COLUMNS = ['shippingOrigin', 'businessAddress'] as const
+const ENCRYPTED_COLUMNS = ['shippingOrigin', 'businessAddress', 'billingDetails'] as const
 
 /** `x.shippingOrigin as SomeType` — a cast that skips decryption. */
 const RAW_CAST = new RegExp(`\\.(${ENCRYPTED_COLUMNS.join('|')})\\s+as\\s`, 'g')
 
 /** `shipping_origin->>'country'` — SQL cannot see inside the ciphertext. */
 const SQL_EXTRACTION =
-  /(shippingOrigin|shipping_origin|businessAddress|business_address)\s*}?\s*->>/g
+  /(shippingOrigin|shipping_origin|businessAddress|business_address|billingDetails|billing_details)\s*}?\s*->>/g
 
 /**
  * Files allowed to name these columns without decrypting.

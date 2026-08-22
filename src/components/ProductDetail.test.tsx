@@ -59,6 +59,7 @@ vi.mock('#/paraglide/messages', () => ({
     product_sold_by: () => 'Sold by',
     product_unknown_shop: () => 'Unknown shop',
     product_visit_shop: () => 'Visit shop',
+    reviews_report_button: () => 'Report review',
     cart_add_success: () => 'Added to cart',
     cart_add_stock_limit: () => 'Updated to available stock limit',
     cart_add_error: () => 'Could not add to cart. Please try again.',

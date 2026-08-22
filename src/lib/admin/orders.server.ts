@@ -2,6 +2,7 @@ import { and, count, desc, eq, gte, ilike, inArray, lte, or, sql } from 'drizzle
 import { db } from '#/db/index'
 import { orderItem, platformOrder, shippingLabel, shop, shopOrder, user } from '#/db/schema'
 import type { ShippingAddress } from '../checkout.server'
+import { decryptJsonb } from '../encryption.server'
 import type { OrderShopGroup, OrderStatus } from '../orders.server'
 
 /* -------------------------------------------------------------------------- */
@@ -284,8 +285,9 @@ export async function getPlatformOrderDetailQuery(
     createdAt: order.createdAt,
     cancelledAt: order.cancelledAt,
     cancellationReason: order.cancellationReason,
-    shippingAddress: order.shippingAddress as ShippingAddress,
-    billingAddress: (order.billingAddress ?? {}) as ShippingAddress,
+    shippingAddress:
+      decryptJsonb<ShippingAddress>(order.shippingAddress) ?? ({} as ShippingAddress),
+    billingAddress: decryptJsonb<ShippingAddress>(order.billingAddress) ?? ({} as ShippingAddress),
     molliePaymentId: order.molliePaymentId,
     shops,
   }

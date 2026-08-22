@@ -5,6 +5,8 @@ import { useImageUpload } from '#/hooks/useImageUpload'
 import { isUnitPricingScoped } from '#/lib/products/unit-pricing'
 import { getImageUrl } from '#/lib/image-url'
 import { formatPriceEUR } from '#/lib/pricing'
+import { parseDecimalCents } from '#/lib/currency'
+import { PLATFORM_FEE_PERCENT } from '#/lib/platform-constants'
 import { saveDraftListing, slugify, step7ListingSchema } from '#/lib/sell-onboarding'
 import { m } from '#/paraglide/messages'
 import { Input } from '../ui/input'
@@ -63,8 +65,8 @@ export function Step7Listing() {
   const inputRef = useRef<HTMLInputElement>(null)
   const { upload, uploading, error: uploadError } = useImageUpload({ onboardingDraftId: draft.id })
 
-  const priceCents = Math.round((Number.parseFloat(form.price) || 0) * 100)
-  const platformFee = Math.round(priceCents * 0.03)
+  const priceCents = parseDecimalCents(form.price)
+  const platformFee = Math.round(priceCents * (PLATFORM_FEE_PERCENT / 100))
   const paymentFee = Math.round(priceCents * 0.035 + 30)
   const net = Math.max(0, priceCents - platformFee - paymentFee)
 

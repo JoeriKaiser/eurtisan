@@ -80,15 +80,15 @@ describe('GET /api/health', () => {
     })
   })
 
-  it('returns 503 when Meilisearch is unreachable', async () => {
+  it('returns 200 when Meilisearch is unreachable because DB fallback is active', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ '?column?': 1 }] } as never)
     mockIsMeilisearchHealthy.mockResolvedValueOnce(false)
 
     const result = await checkHealth()
 
-    expect(result.status).toBe(503)
+    expect(result.status).toBe(200)
     expect(result.body).toMatchObject({
-      status: 'error',
+      status: 'ok',
       db: 'connected',
       meilisearch: 'disconnected',
       disk: { healthy: true },
@@ -174,15 +174,15 @@ describe('GET /api/health/ready', () => {
     })
   })
 
-  it('returns 503 when Meilisearch is unreachable', async () => {
+  it('returns 200 when Meilisearch is unreachable because DB fallback is active', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ '?column?': 1 }] } as never)
     mockIsMeilisearchHealthy.mockResolvedValueOnce(false)
 
     const result = await checkReady()
 
-    expect(result.status).toBe(503)
+    expect(result.status).toBe(200)
     expect(result.body).toMatchObject({
-      status: 'error',
+      status: 'ok',
       db: 'connected',
       meilisearch: 'disconnected',
       disk: { healthy: true },

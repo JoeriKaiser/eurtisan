@@ -4,9 +4,12 @@ import {
   getOperatorBillingEmail,
   getOperatorCity,
   getOperatorCountry,
+  getOperatorHostingProvider,
   getOperatorLegalEmail,
   getOperatorLegalName,
   getOperatorPostalCode,
+  getOperatorPublicationDirector,
+  getOperatorRegistrationNumber,
   getOperatorStreet,
   getOperatorVatId,
 } from '#/lib/infra/env.server'
@@ -17,6 +20,9 @@ export interface OperatorLegalProfile {
   email: string
   billingEmail: string
   vatId: string
+  registrationNumber: string
+  publicationDirector: string
+  hostingProvider: string
   address: {
     street: string
     city: string
@@ -36,6 +42,9 @@ export function getOperatorProfile(): OperatorLegalProfile {
   const email = getOperatorLegalEmail()
   const billingEmail = getOperatorBillingEmail()
   const vatId = getOperatorVatId()
+  const registrationNumber = getOperatorRegistrationNumber()
+  const publicationDirector = getOperatorPublicationDirector()
+  const hostingProvider = getOperatorHostingProvider()
   const street = getOperatorStreet()
   const city = getOperatorCity()
   const postalCode = getOperatorPostalCode()
@@ -49,6 +58,9 @@ export function getOperatorProfile(): OperatorLegalProfile {
     email,
     billingEmail,
     vatId,
+    registrationNumber,
+    publicationDirector,
+    hostingProvider,
     address: {
       street,
       city,

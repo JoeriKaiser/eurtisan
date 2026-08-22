@@ -65,9 +65,16 @@ export const updateProductOption = createServerFn({ method: 'POST' })
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
     }
+
+    const { requireRoleForUser } = await import('./authz')
+    requireRoleForUser('creator', context.user)
     requirePrivileged2FA(context.user as SafeUser)
 
-    const { updateProductOptionQuery } = await import('./product-variants.server')
+    const { verifyOptionOwnershipForVariants, updateProductOptionQuery } = await import(
+      './product-variants.server'
+    )
+    await verifyOptionOwnershipForVariants(data.optionId, context.user.id)
+
     return updateProductOptionQuery(
       data.optionId,
       { name: data.name, values: data.values },
@@ -82,9 +89,16 @@ export const deleteProductOption = createServerFn({ method: 'POST' })
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
     }
+
+    const { requireRoleForUser } = await import('./authz')
+    requireRoleForUser('creator', context.user)
     requirePrivileged2FA(context.user as SafeUser)
 
-    const { deleteProductOptionQuery } = await import('./product-variants.server')
+    const { verifyOptionOwnershipForVariants, deleteProductOptionQuery } = await import(
+      './product-variants.server'
+    )
+    await verifyOptionOwnershipForVariants(data.optionId, context.user.id)
+
     return deleteProductOptionQuery(data.optionId, { id: context.user.id, name: context.user.name })
   })
 
@@ -126,9 +140,16 @@ export const updateProductVariant = createServerFn({ method: 'POST' })
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
     }
+
+    const { requireRoleForUser } = await import('./authz')
+    requireRoleForUser('creator', context.user)
     requirePrivileged2FA(context.user as SafeUser)
 
-    const { updateProductVariantQuery } = await import('./product-variants.server')
+    const { verifyVariantOwnershipForVariants, updateProductVariantQuery } = await import(
+      './product-variants.server'
+    )
+    await verifyVariantOwnershipForVariants(data.variantId, context.user.id)
+
     return updateProductVariantQuery(
       data.variantId,
       {
@@ -150,9 +171,16 @@ export const deleteProductVariant = createServerFn({ method: 'POST' })
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
     }
+
+    const { requireRoleForUser } = await import('./authz')
+    requireRoleForUser('creator', context.user)
     requirePrivileged2FA(context.user as SafeUser)
 
-    const { deleteProductVariantQuery } = await import('./product-variants.server')
+    const { verifyVariantOwnershipForVariants, deleteProductVariantQuery } = await import(
+      './product-variants.server'
+    )
+    await verifyVariantOwnershipForVariants(data.variantId, context.user.id)
+
     return deleteProductVariantQuery(data.variantId, {
       id: context.user.id,
       name: context.user.name,

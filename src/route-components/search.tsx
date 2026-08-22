@@ -2,6 +2,7 @@ import { Link, useLoaderData, useRouter } from '@tanstack/react-router'
 import { ArrowLeft, ChevronLeft, ChevronRight, Search, Shuffle } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import ProductGrid from '#/components/ProductGrid'
+import { parseDecimalCents } from '#/lib/currency'
 import { m } from '#/paraglide/messages'
 import { DiscoveryWall } from './search/DiscoveryWall'
 import { RankingDisclosure } from '#/components/browse/RankingDisclosure'
@@ -63,16 +64,16 @@ function SearchPageContent() {
         ? String(overrides.minPrice ?? '')
         : filters.minPrice
       if (minPrice) {
-        const cents = Math.round(Number.parseFloat(minPrice) * 100)
-        if (!Number.isNaN(cents) && cents >= 0) params.minPrice = cents
+        const cents = parseDecimalCents(minPrice)
+        if (cents >= 0) params.minPrice = cents
       }
 
       const maxPrice = Object.hasOwn(overrides, 'maxPrice')
         ? String(overrides.maxPrice ?? '')
         : filters.maxPrice
       if (maxPrice) {
-        const cents = Math.round(Number.parseFloat(maxPrice) * 100)
-        if (!Number.isNaN(cents) && cents >= 0) params.maxPrice = cents
+        const cents = parseDecimalCents(maxPrice)
+        if (cents >= 0) params.maxPrice = cents
       }
 
       const inStock = Object.hasOwn(overrides, 'inStock') ? overrides.inStock : filters.inStock

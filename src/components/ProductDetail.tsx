@@ -281,6 +281,15 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
                 className='mt-4'
                 id='product-seller-trader-status'
               />
+              <div className='mt-2 text-right'>
+                <a
+                  href={`mailto:legal@eurtisan.eu?subject=DSA%20Notice%20-%20Listing%20Report%20(${encodeURIComponent(product.name)})&body=DSA%20Article%2016%20Notice%0AProduct%20ID:%20${product.id}%0AShop:%20${encodeURIComponent(product.shopName ?? '')}%0AReason:`}
+                  className='text-xs text-text-tertiary transition hover:text-text-secondary hover:underline'
+                  rel='nofollow'
+                >
+                  {m.reviews_report_button()}
+                </a>
+              </div>
             </div>
             {/* Add to cart form */}
             <form className='space-y-4' onSubmit={handleAddToCart}>

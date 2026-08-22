@@ -72,8 +72,10 @@ interface OrderItemRow {
 
 const DEFAULT_BATCH_SIZE = 500
 
-function vatFromBasisPoints(amountCents: number, basisPoints: number): number {
-  return Math.round((amountCents * basisPoints) / 10000)
+function inclusiveVatFromBasisPoints(inclusiveAmountCents: number, basisPoints: number): number {
+  if (basisPoints <= 0 || inclusiveAmountCents <= 0) return 0
+  const baseAmountCents = Math.round((inclusiveAmountCents * 10000) / (10000 + basisPoints))
+  return inclusiveAmountCents - baseAmountCents
 }
 
 function platformFeeCents(subtotalCents: number, vatAmountCents: number): number {
@@ -146,7 +148,7 @@ export async function recalcOrderItemTotal(
   if (!row) throw new Error(`Order item ${orderItemId} not found`)
 
   const totalCents = row.unitPriceCents * row.quantity
-  const vatAmountCents = vatFromBasisPoints(totalCents, row.vatRateBasisPoints)
+  const vatAmountCents = inclusiveVatFromBasisPoints(totalCents, row.vatRateBasisPoints)
 
   await tx
     .update(orderItem)
@@ -181,7 +183,7 @@ export async function recalcPlatformOrderTree(
 
     for (const item of itemRows) {
       const computedTotal = item.unitPriceCents * item.quantity
-      const computedVat = vatFromBasisPoints(computedTotal, item.vatRateBasisPoints)
+      const computedVat = inclusiveVatFromBasisPoints(computedTotal, item.vatRateBasisPoints)
       if (computedTotal !== item.totalCents || computedVat !== item.vatAmountCents) {
         await tx
           .update(orderItem)
@@ -284,7 +286,7 @@ async function scanFinancialTotals(
     for (const item of rows) {
       result.recordsChecked.order_item += 1
       const computedTotal = item.unitPriceCents * item.quantity
-      const computedVat = vatFromBasisPoints(computedTotal, item.vatRateBasisPoints)
+      const computedVat = inclusiveVatFromBasisPoints(computedTotal, item.vatRateBasisPoints)
       if (computedTotal !== item.totalCents) {
         await report(
           'order_item_total',

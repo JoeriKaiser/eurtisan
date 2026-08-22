@@ -4,6 +4,9 @@ export interface PublicOperatorProfile {
   name: string
   email: string
   vatId: string
+  registrationNumber: string
+  publicationDirector: string
+  hostingProvider: string
   formattedAddress: string
 }
 
@@ -18,6 +21,9 @@ export const getPublicOperatorProfile = createServerFn({ method: 'GET' }).handle
       name: op.name,
       email: op.email,
       vatId: op.vatId,
+      registrationNumber: op.registrationNumber,
+      publicationDirector: op.publicationDirector,
+      hostingProvider: op.hostingProvider,
       formattedAddress: op.formattedAddress,
     }
   },

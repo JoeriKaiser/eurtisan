@@ -65,6 +65,54 @@ export async function verifyProductOwnershipForVariants(productId: string, userI
   return record
 }
 
+export async function verifyOptionOwnershipForVariants(optionId: string, userId: string) {
+  const [record] = await db
+    .select({
+      optionId: productOption.id,
+      productId: productOption.productId,
+      shopOwnerId: shop.ownerId,
+    })
+    .from(productOption)
+    .innerJoin(product, eq(productOption.productId, product.id))
+    .innerJoin(shop, eq(product.shopId, shop.id))
+    .where(eq(productOption.id, optionId))
+    .limit(1)
+
+  if (!record) {
+    throw new Error('NOT_FOUND')
+  }
+
+  if (record.shopOwnerId !== userId) {
+    throw new Error('FORBIDDEN')
+  }
+
+  return record
+}
+
+export async function verifyVariantOwnershipForVariants(variantId: string, userId: string) {
+  const [record] = await db
+    .select({
+      variantId: productVariant.id,
+      productId: productVariant.productId,
+      shopOwnerId: shop.ownerId,
+    })
+    .from(productVariant)
+    .innerJoin(product, eq(productVariant.productId, product.id))
+    .innerJoin(shop, eq(product.shopId, shop.id))
+    .where(eq(productVariant.id, variantId))
+    .limit(1)
+
+  if (!record) {
+    throw new Error('NOT_FOUND')
+  }
+
+  if (record.shopOwnerId !== userId) {
+    throw new Error('FORBIDDEN')
+  }
+
+  return record
+}
+
 export async function getProductVariantMatrix(productId: string): Promise<ProductVariantMatrix> {
   const [options, variants] = await Promise.all([
     db
