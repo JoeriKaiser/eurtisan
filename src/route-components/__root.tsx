@@ -98,7 +98,7 @@ export function RootComponent() {
           </div>
           {!isOnboarding && !isAdminRoute && <Footer />}
           {!isAuthRoute && <AnalyticsConsentBanner />}
-          {Devtools && (
+          {Devtools && !navigator.webdriver && (
             <Suspense fallback={null}>
               <Devtools />
             </Suspense>
