@@ -164,7 +164,7 @@ graph TD
 ### Available Actions Right Now (Admin)
 *   **Moderation & Safety**:
     *   **Review Onboarding Applications**: The dashboard and admin shell show the pending-review count and link directly to the queue. Admins can inspect the complete application, approve or reject it, or request changes for a specific onboarding stage with feedback shown to the maker.
-    *   **Suspend Shops**: Instantly toggle suspensions on active shops, which hides their products from public search indices and storefronts.
+    *   **Suspend Shops**: Instantly toggle suspensions on active shops, which hides their products from public search indices and storefronts and holds the shop's payouts as `pending` (no payout is scheduled, released, or sent; lifting the suspension lets the next natural payout transition succeed). Refunds and clawbacks owed to buyers continue to flow while suspended.
     *   **Ban Users**: Permanently ban problematic buyers or sellers, blocking their authenticated sessions.
 *   **Catalog & Content Management**:
     *   **Category CRUD**: Create, edit, and delete marketplace categories. Reorder them via drag-and-drop ordering schemas.
