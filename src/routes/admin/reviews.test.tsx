@@ -46,10 +46,7 @@ vi.mock('#/lib/listing-reports/contract', () => ({
 vi.mock('@tanstack/react-router', () => ({
   // The route module builds its definition at import time; only the shape
   // `Route.options` is consumed below.
-  createFileRoute:
-    () =>
-    (options: Record<string, unknown>) =>
-      ({ options }),
+  createFileRoute: () => (options: Record<string, unknown>) => ({ options }),
   useLoaderData: () => mocks.state.loaderData,
   useSearch: () => mocks.state.search,
   useNavigate: () => mocks.navigate,

@@ -27,14 +27,15 @@ const SQL_PREDICATE = /moderation_status\s*(=|!=|<>|IN|NOT IN)/gi
  * Files allowed to name the column directly.
  *
  * `visibility.server.ts` defines the filter. `operations.server.ts` is the
- * moderation path itself — it reads and writes the column by definition, and
- * its public reads go through the shared filter. The admin queue filters by
- * status because that is its whole purpose. Anything else added here needs a
- * reason.
+ * moderation path itself — it reads and writes the column by definition.
+ * `queries.server.ts` holds the public reads (through the shared filter) and
+ * the admin queue, which filters by status because that is its whole purpose.
+ * Anything else added here needs a reason.
  */
 const ALLOWED = new Set([
   'src/lib/reviews/visibility.server.ts',
   'src/lib/reviews/operations.server.ts',
+  'src/lib/reviews/queries.server.ts',
   'src/db/schema.ts',
   'src/db/seed.ts',
   'src/test/review-visibility.test.ts',

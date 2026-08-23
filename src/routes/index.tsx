@@ -51,7 +51,6 @@ export const Route = createFileRoute('/')({
     ])
     const sellerShops = user ? await getSellerShops().catch(() => []) : []
     hydrateQueryData(context.queryClient, queryKeys.categoriesList, categories)
-    hydrateQueryData(context.queryClient, queryKeys.marketplaceStats, stats)
     return { categories, products, shops, user, sellerShops, stats }
   },
   head: () => {

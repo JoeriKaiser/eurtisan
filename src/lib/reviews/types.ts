@@ -109,6 +109,19 @@ export interface SellerReplyModerationDecision {
   actorUserId: string
 }
 
+export interface ModerationDecision {
+  /**
+   * Whether the ground is the law or the terms. DSA Article 17(3)(d) and (e)
+   * ask for different explanations, so the decision has to say which it is
+   * rather than leaving the recipient to guess.
+   */
+  ground: 'illegal' | 'terms'
+  /** The facts relied on, in the moderator's words — Article 17(3)(b). */
+  explanation: string
+  /** The admin deciding, recorded so the statement is not anonymous. */
+  actorUserId: string
+}
+
 export interface AdminReview {
   id: string
   productId: string

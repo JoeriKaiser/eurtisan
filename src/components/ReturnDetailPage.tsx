@@ -5,15 +5,11 @@ import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { Label } from '#/components/ui/label'
 import { useAuth } from '#/lib/auth/hooks'
+import { formatDateLong } from '#/lib/format-date'
+import { formatPriceEUR } from '#/lib/pricing'
 import { manageReturnRequest, updateReturnShipment } from '#/lib/returns'
 import type { ReturnRequestSummary } from '#/lib/returns'
 import { m } from '#/paraglide/messages'
-
-function formatCurrency(cents: number) {
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(
-    cents / 100,
-  )
-}
 
 function getReturnStatusLabel(status: ReturnRequestSummary['status']) {
   const labels = {
@@ -104,9 +100,7 @@ export function ReturnDetailPage({ request }: { request: ReturnRequestSummary })
           {['authorized', 'awaiting_shipment'].includes(request.status) && (
             <p className='mt-3 text-sm font-medium text-text-primary'>
               {m.return_ship_by({
-                date: new Intl.DateTimeFormat(undefined, { dateStyle: 'long' }).format(
-                  new Date(request.returnDeadline),
-                ),
+                date: formatDateLong(request.returnDeadline),
               })}
             </p>
           )}
@@ -131,13 +125,13 @@ export function ReturnDetailPage({ request }: { request: ReturnRequestSummary })
                     </p>
                   </div>
                   <p className='font-semibold text-text-primary'>
-                    {formatCurrency(item.refundCents)}
+                    {formatPriceEUR(item.refundCents)}
                   </p>
                 </div>
               ))}
               <div className='flex justify-between gap-4 p-4 text-sm font-semibold text-text-primary'>
                 <span>{m.return_refund_total()}</span>
-                <span>{formatCurrency(request.refundCents)}</span>
+                <span>{formatPriceEUR(request.refundCents)}</span>
               </div>
             </div>
           </section>

@@ -12,6 +12,7 @@ import {
 import { useCallback, useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
+import { formatDateMediumTime } from '#/lib/format-date'
 import { formatPriceEUR } from '#/lib/pricing'
 import { ResolutionForm } from './ResolutionForm'
 import { MessageThread } from './MessageThread'
@@ -135,7 +136,7 @@ export function AdminDisputeDetailPage() {
                 <div>
                   <p className='text-xs text-text-muted'>{m.admin_disputes_col_date()}</p>
                   <p className='text-sm text-text-primary'>
-                    {new Date(dispute.order.createdAt).toLocaleDateString()}
+                    {formatDateMediumTime(dispute.order.createdAt)}
                   </p>
                 </div>
                 <div>

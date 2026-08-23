@@ -19,16 +19,18 @@ export {
   createReviewQuery,
   createSellerReplyQuery,
   deleteSellerReplyQuery,
+  reportReviewQuery,
+  reportSellerReplyQuery,
+  setReviewHelpfulQuery,
+  updateReviewModerationStatusQuery,
+  updateSellerReplyModerationStatusQuery,
+  updateSellerReplyQuery,
+} from './reviews/operations.server'
+export {
   getAdminReviewsQuery,
   getAdminSellerRepliesQuery,
   getProductReviewsQuery,
   getReviewableItemsQuery,
   getReviewReportsQuery,
   getSellerReplyReportsQuery,
-  reportReviewQuery,
-  reportSellerReplyQuery,
-  setReviewHelpfulQuery,
-  updateReviewModerationStatusQuery,
-  updateSellerReplyQuery,
-  updateSellerReplyModerationStatusQuery,
-} from './reviews/operations.server'
+} from './reviews/queries.server'

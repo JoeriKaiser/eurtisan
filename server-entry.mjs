@@ -19,7 +19,7 @@ import { extname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { logger, requestIdStore } from '../../src/lib/logger.server.ts'
 import { buildCspHeader } from '../../src/lib/csp.ts'
-import { injectScriptNonces, runWithCspNonce } from '../../src/lib/csp-nonce.server.ts'
+import { injectScriptNonces } from '../../src/lib/csp-nonce.server.ts'
 import { assertMockPayoutsNotProduction } from '../../src/lib/env.server.ts'
 import { assertValidServerEnvironment } from '../../src/lib/infra/server-environment.server.ts'
 import { getSafeRequestPath } from '../../src/lib/request-path.server.ts'
@@ -279,9 +279,9 @@ const server = createServer(async (req, res) => {
       body: req.method !== 'GET' && req.method !== 'HEAD' ? body : undefined,
     })
 
-    // Delegate to TanStack Start (nonce scoped for CSP middleware)
-    const cspNonce = randomBytes(16).toString('base64')
-    const response = await runWithCspNonce(cspNonce, () => tanstackHandler(request))
+    // Delegate to TanStack Start. The nonce generated above is applied only
+    // at this outer boundary — see the ownership note before HTML transforms.
+    const response = await tanstackHandler(request)
 
     const responseHeaders = {}
     response.headers.forEach((value, key) => {
@@ -306,6 +306,15 @@ const server = createServer(async (req, res) => {
       responseHeaders['strict-transport-security'] = 'max-age=31536000; includeSubDomains'
     }
 
+    // CSP/nonce ownership: this Node boundary is the SINGLE owner of
+    // per-request script nonces and the production Content-Security-Policy.
+    // It generates the nonce above, strips any CSP set by inner layers,
+    // injects nonces into HTML exactly once here, and writes the final policy
+    // alongside the other transport security headers. Development runs under
+    // Vite without this wrapper and intentionally ships without a CSP (see
+    // src/lib/csp.ts), so src/start.ts request middleware carries no nonce
+    // rewriting; re-adding it there would double-buffer every SSR response
+    // and run this injection regex twice per document.
     const contentType = response.headers.get('content-type') || ''
     let transformedHtml = null
     if (process.env.NODE_ENV === 'production' && contentType.includes('text/html')) {

@@ -128,6 +128,48 @@ export function requireRole(minRole: UserRole) {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/*             Admin Gates for Thrown-Response Server Functions               */
+/* -------------------------------------------------------------------------- */
+
+type RequireAdminResponseContext = { user?: Pick<SafeUser, 'role'> | null }
+
+function assertAdminResponse(
+  context: RequireAdminResponseContext,
+  unauthenticatedMessage: string,
+): void {
+  if (!context.user) {
+    throw jsonError(401, 'Unauthorized', unauthenticatedMessage)
+  }
+  if (context.user.role !== 'admin') {
+    throw jsonError(403, 'Forbidden', 'Admin access required.')
+  }
+}
+
+/**
+ * Admin gate for browser-callable server functions whose handlers surface
+ * authorization failures as thrown JSON Responses (TanStack Start serializes
+ * thrown Responses with their status codes) instead of routing them through
+ * AuthError and withAuthz.
+ *
+ * Throws a 401 Response with body {"error":"Unauthorized","message":"Authentication required."}
+ * when unauthenticated, or a 403 Response with body
+ * {"error":"Forbidden","message":"Admin access required."} when authenticated
+ * without the admin role.
+ */
+export function requireAdminResponse(context: RequireAdminResponseContext): void {
+  assertAdminResponse(context, 'Authentication required.')
+}
+
+/**
+ * Variant of requireAdminResponse whose 401 message carries the sign-in prompt
+ * ("Authentication required. Please sign in."), matching requireAuth's wire
+ * format; the 403 body is identical.
+ */
+export function requireAdminSignInResponse(context: RequireAdminResponseContext): void {
+  assertAdminResponse(context, 'Authentication required. Please sign in.')
+}
+
 /**
  * Gate 3: Ownership check — verifies the authenticated user owns the requested shop.
  * Admin users bypass this check. Returns the context on success,

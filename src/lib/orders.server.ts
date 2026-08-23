@@ -8,11 +8,11 @@ export type {
   OrderShopGroup,
   ShippingLabelInfo,
 } from './orders/types'
+export { cancelOrderQuery } from './orders/operations.server'
 export {
-  cancelOrderQuery,
   getBuyerOrderDetailByOrderNumberQuery,
   getBuyerOrderDetailQuery,
-  getOrderOwnerId,
   getShopOrderPlatformOrderId,
+  getOrderOwnerId,
   listBuyerOrdersQuery,
-} from './orders/operations.server'
+} from './orders/queries.server'

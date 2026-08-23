@@ -87,4 +87,38 @@ describe('buildCspHeader', () => {
     process.env.VITE_UMAMI_SCRIPT_URL = originalScript
     process.env.VITE_UMAMI_HOST_URL = originalHost
   })
+
+  it('produces a valid policy string', () => {
+    const csp = buildCspHeader()
+    const directives = csp.split(';').map((d) => d.trim())
+
+    // Every directive should have a key and a non-empty value
+    for (const directive of directives) {
+      const parts = directive.split(' ')
+      expect(parts.length).toBeGreaterThanOrEqual(2)
+      expect(parts[0]).toBeTruthy()
+    }
+
+    // Required directives must be present
+    const directiveMap: Record<string, string> = {}
+    for (const directive of directives) {
+      const [key, ...values] = directive.split(' ')
+      directiveMap[key] = values.join(' ')
+    }
+
+    expect(directiveMap['default-src']).toBe("'self'")
+    expect(directiveMap['frame-ancestors']).toBe("'none'")
+    expect(directiveMap['base-uri']).toBe("'self'")
+    expect(directiveMap['form-action']).toBe("'self'")
+    expect(directiveMap['style-src']).toBe("'self'")
+    expect(directiveMap['script-src']).toBe("'self' 'unsafe-inline'")
+
+    const withNonce = buildCspHeader({ nonce: 'abc123' })
+    expect(withNonce).toContain("script-src 'self' 'nonce-abc123'")
+  })
+
+  it('does not contain eval-related unsafe directives', () => {
+    const csp = buildCspHeader()
+    expect(csp).not.toContain("'unsafe-eval'")
+  })
 })

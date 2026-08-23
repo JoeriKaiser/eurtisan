@@ -600,7 +600,7 @@ describe('AdminShopsPage — onboarding applications view', () => {
       expect(screen.getByText('Lovely handcrafted items')).toBeDefined()
       expect(screen.getByText('We make quality artisan items.')).toBeDefined()
       expect(screen.getByText('Cozy Wool Socks')).toBeDefined()
-      expect(screen.getByText(/15,00/)).toBeDefined()
+      expect(screen.getByText(/€15\.00/)).toBeDefined()
       expect(screen.getByRole('dialog').className).toContain('!max-w-7xl')
       expect(screen.getByText('admin_shops_review_decision_title')).toBeDefined()
     })

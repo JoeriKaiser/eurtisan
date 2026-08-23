@@ -1,29 +1,11 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
+import { requireAdminResponse } from './authz'
 import type { SafeUser } from './server-auth'
 import { requirePrivileged2FA } from './server-auth'
 
 export type { AdminProductListItem, PaginatedProducts } from './admin-products.server'
-
-/* -------------------------------------------------------------------------- */
-/*                                 Auth Guard                                 */
-/* -------------------------------------------------------------------------- */
-
-async function requireAdmin(context: { user?: SafeUser | null }) {
-  if (!context.user) {
-    throw new Response(
-      JSON.stringify({ error: 'Unauthorized', message: 'Authentication required.' }),
-      { status: 401, headers: { 'Content-Type': 'application/json' } },
-    )
-  }
-  if (context.user.role !== 'admin') {
-    throw new Response(JSON.stringify({ error: 'Forbidden', message: 'Admin access required.' }), {
-      status: 403,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
-}
 
 /* -------------------------------------------------------------------------- */
 /*                                 Validation                                 */
@@ -54,7 +36,7 @@ export const listAllProducts = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .inputValidator((data: unknown) => listAllProductsInputSchema.parse(data))
   .handler(async ({ context, data }) => {
-    await requireAdmin(context)
+    await requireAdminResponse(context)
     requirePrivileged2FA(context.user as SafeUser)
 
     const [{ listAllProductsQuery }, { emitAdminReadAudit }] = await Promise.all([
@@ -85,7 +67,7 @@ export const toggleProductActive = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => toggleProductActiveInputSchema.parse(data))
   .handler(async ({ context, data }) => {
     const modules = await Promise.all([
-      requireAdmin(context),
+      requireAdminResponse(context),
       import('./admin-products.server'),
       import('./audit-log.server'),
     ])

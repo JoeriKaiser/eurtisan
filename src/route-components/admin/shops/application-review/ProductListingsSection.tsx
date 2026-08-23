@@ -1,5 +1,5 @@
-import { SUPPORTED_CURRENCY } from '#/lib/currency'
 import { getImageUrl } from '#/lib/image-url'
+import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 
 interface AppListing {
@@ -10,15 +10,6 @@ interface AppListing {
   stockCount: number
   imageCount: number
   thumbnailUrl: string | null
-}
-
-const PRICE_FORMATTER = new Intl.NumberFormat('de-DE', {
-  style: 'currency',
-  currency: SUPPORTED_CURRENCY,
-})
-
-function formatPrice(cents: number): string {
-  return PRICE_FORMATTER.format(cents / 100)
 }
 
 interface ProductListingsSectionProps {
@@ -58,7 +49,7 @@ export function ProductListingsSection({ listings }: ProductListingsSectionProps
                     <span className='text-text-muted'>
                       {m.admin_shops_application_field_price()}:{' '}
                       <span className='font-mono font-semibold text-text-primary'>
-                        {formatPrice(listing.priceCents)}
+                        {formatPriceEUR(listing.priceCents)}
                       </span>
                     </span>
                     <span className='text-text-muted'>

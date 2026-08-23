@@ -14,6 +14,7 @@ import {
   createUser,
 } from '#/test/factories'
 
+import { flushBackgroundWorkForTests } from '../background-work.server'
 import { reconcileSendcloudShipments } from './sendcloud-reconciliation.server'
 
 vi.mock('#/integrations/shipping', () => ({
@@ -38,6 +39,17 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
+  // Invariant: every async side effect triggered by a test must settle before
+  // the next beforeEach(clearTestTables). Request paths exercised here detach
+  // post-commit work via `scheduleBackgroundWork`, which tracks chains under
+  // VITEST precisely so they can be awaited. A chain left running overlaps the
+  // next test's cleanup/fixtures: its backend interleaves with the DELETEs
+  // (TRUNCATE historically) clearing parents, producing FK "not present"
+  // failures on re-seeded ids (e.g. shop-1) and cross-backend lock cycles
+  // (child-insert FK KEY SHARE vs cleanup row/table locks). No-op when
+  // nothing was scheduled.
+  await flushBackgroundWorkForTests()
+
   await clearTestTables()
 })
 

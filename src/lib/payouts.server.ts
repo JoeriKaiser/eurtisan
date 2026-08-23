@@ -11,10 +11,12 @@ export {
   createPayoutForShopOrder,
   disconnectMollieQuery,
   executePayoutQuery,
+  markPayoutSentQuery,
+  reversePayoutForRefund,
+} from './payouts/operations.server'
+export {
   getMollieConnectUrlQuery,
   listCreatorPayoutsQuery,
   listPayoutHistoryQuery,
   listPendingPayoutsQuery,
-  markPayoutSentQuery,
-  reversePayoutForRefund,
-} from './payouts/operations.server'
+} from './payouts/queries.server'

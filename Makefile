@@ -220,7 +220,7 @@ test-accessibility: ensure-up db-migrate-unit
 	  src/route-components/signin.test.tsx \
 	  src/components/ProductDetail.test.tsx \
 	  src/components/CartPage.test.tsx \
-	  src/components/CheckoutPage.test.tsx \
+	  src/route-components/checkout/CheckoutPage.test.tsx \
 	  src/components/DisputeThreadPage.test.tsx \
 	  src/route-components/shops/ShopStorefront.test.tsx \
 	  'src/route-components/category/$$slug.test.tsx'

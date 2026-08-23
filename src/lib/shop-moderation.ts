@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 
 import { authMiddleware } from './auth-middleware'
+import { requireAdminSignInResponse } from './authz'
 import type { SafeUser } from './server-auth'
 import { requirePrivileged2FA } from './server-auth'
 
@@ -35,35 +36,6 @@ const moderateShopInputSchema = z.object({
 })
 
 /* -------------------------------------------------------------------------- */
-/*                                 Auth Guard                                 */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Shared admin auth guard — throws 401/403 if not authenticated or not admin.
- */
-async function requireAdmin(context: { user?: { id: string; role: string } | null }) {
-  if (!context.user) {
-    throw new Response(
-      JSON.stringify({
-        error: 'Unauthorized',
-        message: 'Authentication required. Please sign in.',
-      }),
-      { status: 401, headers: { 'Content-Type': 'application/json' } },
-    )
-  }
-
-  if (context.user.role !== 'admin') {
-    throw new Response(
-      JSON.stringify({
-        error: 'Forbidden',
-        message: 'Admin access required.',
-      }),
-      { status: 403, headers: { 'Content-Type': 'application/json' } },
-    )
-  }
-}
-
-/* -------------------------------------------------------------------------- */
 /*                             Server Functions                               */
 /* -------------------------------------------------------------------------- */
 
@@ -77,7 +49,7 @@ export const listAllShops = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .inputValidator((data: unknown) => listAllShopsInputSchema.parse(data))
   .handler(async ({ context, data }) => {
-    await requireAdmin(context)
+    await requireAdminSignInResponse(context)
     requirePrivileged2FA(context.user as SafeUser)
 
     const [{ listAllShopsQuery }, { emitAdminReadAudit }] = await Promise.all([
@@ -120,7 +92,7 @@ export const moderateShop = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => moderateShopInputSchema.parse(data))
   .handler(async ({ context, data }) => {
     const modules = await Promise.all([
-      requireAdmin(context),
+      requireAdminSignInResponse(context),
       import('./shop-moderation.server'),
       import('./audit-log.server'),
     ])

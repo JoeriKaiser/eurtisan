@@ -1,6 +1,7 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
+import { requireAdminSignInResponse } from './authz'
 import type { SafeUser } from './server-auth'
 import { requirePrivileged2FA } from './server-auth'
 
@@ -9,35 +10,6 @@ export type {
   AdminOrderListItem,
   PaginatedAdminOrders,
 } from './admin-orders.server'
-
-/* -------------------------------------------------------------------------- */
-/*                               Auth Guard                                   */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Shared admin auth guard — throws 401/403 if not authenticated or not admin.
- */
-async function requireAdmin(context: { user?: { id: string; role: string } | null }) {
-  if (!context.user) {
-    throw new Response(
-      JSON.stringify({
-        error: 'Unauthorized',
-        message: 'Authentication required. Please sign in.',
-      }),
-      { status: 401, headers: { 'Content-Type': 'application/json' } },
-    )
-  }
-
-  if (context.user.role !== 'admin') {
-    throw new Response(
-      JSON.stringify({
-        error: 'Forbidden',
-        message: 'Admin access required.',
-      }),
-      { status: 403, headers: { 'Content-Type': 'application/json' } },
-    )
-  }
-}
 
 /* -------------------------------------------------------------------------- */
 /*                           List All Platform Orders                         */
@@ -68,7 +40,7 @@ export const listAllPlatformOrders = createServerFn({ method: 'GET' })
     }),
   )
   .handler(async ({ context, data }) => {
-    await requireAdmin(context)
+    await requireAdminSignInResponse(context)
     requirePrivileged2FA(context.user as SafeUser)
 
     const [{ listAllPlatformOrdersQuery }, { emitAdminReadAudit }] = await Promise.all([
@@ -118,7 +90,7 @@ export const getPlatformOrderDetail = createServerFn({ method: 'GET' })
       import('./audit-log.server'),
     ])
     const [, result] = await Promise.all([
-      requireAdmin(context),
+      requireAdminSignInResponse(context),
       getPlatformOrderDetailQuery(data.orderId),
     ])
     requirePrivileged2FA(context.user as SafeUser)

@@ -2,6 +2,8 @@ export {
   AuthError,
   authPipeline,
   authPipelinePrivileged,
+  requireAdminResponse,
+  requireAdminSignInResponse,
   requireAuth,
   requireRole,
   requireRoleForUser,

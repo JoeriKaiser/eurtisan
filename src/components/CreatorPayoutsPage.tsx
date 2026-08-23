@@ -49,7 +49,6 @@ export interface CreatorPayoutsPageProps {
   initialStatus: 'all' | 'pending' | 'in_transit' | 'sent' | 'failed' | 'reversed'
 }
 
-// eslint-disable-next-line
 export function CreatorPayoutsPage({
   shops,
   payouts: initialPayouts,

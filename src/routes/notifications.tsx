@@ -38,4 +38,3 @@ export const Route = createFileRoute('/notifications')({
   pendingComponent: NotificationsLoading,
   errorComponent: NotificationsError,
 })
-

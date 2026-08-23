@@ -1,39 +1,11 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from '../auth-middleware'
+import { requireAdminSignInResponse } from '../authz'
 import type { SafeUser } from '../server-auth'
 import { requirePrivileged2FA } from '../server-auth'
 
 export type { AdminPayoutRow } from '../payouts.server'
-
-/* -------------------------------------------------------------------------- */
-/*                               Auth Guard                                    */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Shared admin auth guard — throws 401/403 if not authenticated or not admin.
- */
-async function requireAdmin(context: { user?: { id: string; role: string } | null }) {
-  if (!context.user) {
-    throw new Response(
-      JSON.stringify({
-        error: 'Unauthorized',
-        message: 'Authentication required. Please sign in.',
-      }),
-      { status: 401, headers: { 'Content-Type': 'application/json' } },
-    )
-  }
-
-  if (context.user.role !== 'admin') {
-    throw new Response(
-      JSON.stringify({
-        error: 'Forbidden',
-        message: 'Admin access required.',
-      }),
-      { status: 403, headers: { 'Content-Type': 'application/json' } },
-    )
-  }
-}
 
 /* -------------------------------------------------------------------------- */
 /*                          List Pending Payouts                               */
@@ -52,7 +24,7 @@ export const listPendingPayouts = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .inputValidator(listPendingPayoutsInputSchema)
   .handler(async ({ context, data }) => {
-    await requireAdmin(context)
+    await requireAdminSignInResponse(context)
     requirePrivileged2FA(context.user as SafeUser)
 
     const [{ listPendingPayoutsQuery }, { emitAdminReadAudit }] = await Promise.all([
@@ -88,7 +60,7 @@ export const executePayout = createServerFn({ method: 'POST' })
   .inputValidator(executePayoutInputSchema)
   .handler(async ({ context, data }) => {
     const modules = await Promise.all([
-      requireAdmin(context),
+      requireAdminSignInResponse(context),
       import('../payouts.server'),
       import('../audit-log.server'),
     ])
@@ -132,7 +104,7 @@ export const listPayoutHistory = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .inputValidator(listPayoutHistoryInputSchema)
   .handler(async ({ context, data }) => {
-    await requireAdmin(context)
+    await requireAdminSignInResponse(context)
     requirePrivileged2FA(context.user as SafeUser)
 
     const [{ listPayoutHistoryQuery }, { emitAdminReadAudit }] = await Promise.all([

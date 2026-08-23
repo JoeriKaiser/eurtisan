@@ -1,34 +1,10 @@
 import { createServerFn } from '@tanstack/react-start'
 import { authMiddleware } from './auth-middleware'
+import { requireAdminSignInResponse } from './authz'
 import type { SafeUser } from './server-auth'
 import { requirePrivileged2FA } from './server-auth'
 
 export type { AdminDashboardStats, RecentOrder, RecentSignup } from './admin-dashboard.server'
-
-/**
- * Shared admin auth guard — throws 401/403 if not authenticated or not admin.
- */
-async function requireAdmin(context: { user?: { id: string; role: string } | null }) {
-  if (!context.user) {
-    throw new Response(
-      JSON.stringify({
-        error: 'Unauthorized',
-        message: 'Authentication required. Please sign in.',
-      }),
-      { status: 401, headers: { 'Content-Type': 'application/json' } },
-    )
-  }
-
-  if (context.user.role !== 'admin') {
-    throw new Response(
-      JSON.stringify({
-        error: 'Forbidden',
-        message: 'Admin access required.',
-      }),
-      { status: 403, headers: { 'Content-Type': 'application/json' } },
-    )
-  }
-}
 
 /**
  * Returns the current number of seller applications awaiting review.
@@ -37,7 +13,7 @@ async function requireAdmin(context: { user?: { id: string; role: string } | nul
 export const getPendingShopReviewCount = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
-    await requireAdmin(context)
+    await requireAdminSignInResponse(context)
     requirePrivileged2FA(context.user as SafeUser)
 
     const { getPendingShopReviewCountQuery } = await import('./admin-dashboard.server')
@@ -51,7 +27,7 @@ export const getPendingShopReviewCount = createServerFn({ method: 'GET' })
 export const getAdminDashboardStats = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
-    await requireAdmin(context)
+    await requireAdminSignInResponse(context)
     requirePrivileged2FA(context.user as SafeUser)
 
     const [{ getAdminDashboardStatsQuery }, { emitAdminReadAudit }] = await Promise.all([
@@ -77,7 +53,7 @@ export const getAdminDashboardStats = createServerFn({ method: 'GET' })
 export const getRecentSignups = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
-    await requireAdmin(context)
+    await requireAdminSignInResponse(context)
     requirePrivileged2FA(context.user as SafeUser)
 
     const [{ getRecentSignupsQuery }, { emitAdminReadAudit }] = await Promise.all([
@@ -101,7 +77,7 @@ export const getRecentSignups = createServerFn({ method: 'GET' })
 export const getRecentOrders = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
-    await requireAdmin(context)
+    await requireAdminSignInResponse(context)
     requirePrivileged2FA(context.user as SafeUser)
 
     const [{ getRecentOrdersQuery }, { emitAdminReadAudit }] = await Promise.all([
@@ -125,7 +101,7 @@ export const getRecentOrders = createServerFn({ method: 'GET' })
 export const getDashboardTrends = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
-    await requireAdmin(context)
+    await requireAdminSignInResponse(context)
     requirePrivileged2FA(context.user as SafeUser)
 
     const [{ getDashboardTrendsQuery }, { emitAdminReadAudit }] = await Promise.all([
@@ -148,7 +124,7 @@ export const getDashboardTrends = createServerFn({ method: 'GET' })
 export const getRecentAuditEntries = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
-    await requireAdmin(context)
+    await requireAdminSignInResponse(context)
     requirePrivileged2FA(context.user as SafeUser)
 
     const [{ getRecentAuditEntriesQuery }, { emitAdminReadAudit }] = await Promise.all([

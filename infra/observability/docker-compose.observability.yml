@@ -1,6 +1,6 @@
 services:
   alloy:
-    image: grafana/alloy:v1.5.0
+    image: grafana/alloy:v1.5.0@sha256:c4973f4741573dd4bd657d3c9fba49bc096b68653ca18abb234e0f5faad13da4
     container_name: eurtisan-alloy
     environment:
       - APP_CONTAINER_NAME=${APP_CONTAINER_NAME:-eurtisan-app}
@@ -17,7 +17,7 @@ services:
     restart: "no"
 
   grafana:
-    image: grafana/grafana:11.2.0
+    image: grafana/grafana:11.2.0@sha256:408afb9726de5122b00a2576763a8a57a3c86d5b0eff5305bc994ceb3eb96c3f
     container_name: eurtisan-grafana
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
@@ -43,7 +43,7 @@ services:
       - prometheus
 
   loki:
-    image: grafana/loki:3.1.0
+    image: grafana/loki:3.1.0@sha256:d947e68a84d9e44915dfa08c3bec27e2124efd5ba6c83443eb53578101ec69e3
     container_name: eurtisan-loki
     volumes:
       - ./loki/loki.yml:/etc/loki/local-config.yaml:ro
@@ -56,7 +56,7 @@ services:
     restart: "no"
 
   tempo:
-    image: grafana/tempo:2.6.0
+    image: grafana/tempo:2.6.0@sha256:f55a8a1937fff0af3a760d376b476c8327fb30e432d5e7630d7938b67691e822
     container_name: eurtisan-tempo
     volumes:
       - ./tempo/tempo.yml:/etc/tempo/tempo.yaml:ro
@@ -70,7 +70,7 @@ services:
     restart: "no"
 
   prometheus:
-    image: prom/prometheus:v2.55.0
+    image: prom/prometheus:v2.55.0@sha256:378f4e03703557d1c6419e6caccf922f96e6d88a530f7431d66a4c4f4b1000fe
     container_name: eurtisan-prometheus
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
@@ -88,7 +88,7 @@ services:
       - '--storage.tsdb.path=/prometheus'
 
   alertmanager:
-    image: prom/alertmanager:v0.27.0
+    image: prom/alertmanager:v0.27.0@sha256:e13b6ed5cb929eeaee733479dce55e10eb3bc2e9c4586c705a4e8da41e5eacf5
     container_name: eurtisan-alertmanager
     volumes:
       - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro

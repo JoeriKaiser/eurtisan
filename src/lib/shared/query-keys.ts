@@ -2,8 +2,6 @@
 export const queryKeys = {
   cart: ['cart'] as const,
   categoriesList: ['categories-list'] as const,
-  categoriesTree: ['categories-tree'] as const,
-  marketplaceStats: ['marketplace-stats'] as const,
   notifications: ['notifications'] as const,
   unreadCount: ['notifications', 'unread-count'] as const,
   notificationsPage: (page: number, pageSize: number) =>

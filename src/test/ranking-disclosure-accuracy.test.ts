@@ -16,7 +16,8 @@ import { describe, expect, it } from 'vitest'
  * configured against Meilisearch at deploy time, and the disclosure is eight
  * translated strings — a change to one cannot fail the other's tests. So this
  * pins the mapping explicitly: every ranking rule names the message that
- * discloses it, in precedence order.
+ * discloses it, in precedence order, and each step keeps a distinctive phrase
+ * proving it still describes its rule.
  *
  * **If this test fails, the fix is not to update the expectation.** It is to
  * change the disclosure text — in both locales — to describe the new ranking,
@@ -33,15 +34,52 @@ const REPO_ROOT = join(import.meta.dirname, '../..')
  * The message numbering follows the rule order, which is why the component can
  * render them as a plain ordered list.
  */
-const DISCLOSED_RANKING_RULES: { rule: string; message: string }[] = [
-  { rule: 'words', message: 'ranking_disclosure_search_1' },
-  { rule: 'typo', message: 'ranking_disclosure_search_2' },
-  { rule: 'proximity', message: 'ranking_disclosure_search_3' },
-  { rule: 'attribute', message: 'ranking_disclosure_search_4' },
-  { rule: 'sort', message: 'ranking_disclosure_search_5' },
-  { rule: 'exactness', message: 'ranking_disclosure_search_6' },
-  { rule: 'inStockRank:desc', message: 'ranking_disclosure_search_7' },
-  { rule: 'popularityScore:desc', message: 'ranking_disclosure_search_8' },
+const DISCLOSED_RANKING_RULES: {
+  rule: string
+  message: string
+  /** Distinctive phrase each locale's step must keep — proof the step still describes this rule. */
+  phrases: { en: string; nl: string }
+}[] = [
+  {
+    rule: 'words',
+    message: 'ranking_disclosure_search_1',
+    phrases: { en: 'your search words', nl: 'je zoekwoorden' },
+  },
+  {
+    rule: 'typo',
+    message: 'ranking_disclosure_search_2',
+    phrases: { en: 'typos', nl: 'typefouten' },
+  },
+  {
+    rule: 'proximity',
+    message: 'ranking_disclosure_search_3',
+    phrases: { en: 'close your words', nl: 'bij elkaar' },
+  },
+  {
+    rule: 'attribute',
+    message: 'ranking_disclosure_search_4',
+    phrases: { en: 'product name', nl: 'productnaam' },
+  },
+  {
+    rule: 'sort',
+    message: 'ranking_disclosure_search_5',
+    phrases: { en: 'sort you chose', nl: 'sortering die je koos' },
+  },
+  {
+    rule: 'exactness',
+    message: 'ranking_disclosure_search_6',
+    phrases: { en: 'exact rather than partial', nl: 'gedeeltelijk' },
+  },
+  {
+    rule: 'inStockRank:desc',
+    message: 'ranking_disclosure_search_7',
+    phrases: { en: 'in stock', nl: 'voorraad' },
+  },
+  {
+    rule: 'popularityScore:desc',
+    message: 'ranking_disclosure_search_8',
+    phrases: { en: 'review score', nl: 'beoordelingsscore' },
+  },
 ]
 
 /**
@@ -102,6 +140,19 @@ describe('ranking disclosure', () => {
     expect([...rendered].sort()).toEqual(DISCLOSED_RANKING_RULES.map((e) => e.message).sort())
   })
 
+  it('says what each rule actually does, in both locales', () => {
+    // Key parity alone would let "step 7" silently stop describing stock status,
+    // or "step 8" stop naming the review score. Each step must keep the phrase
+    // that carries its rule's meaning.
+    for (const entry of DISCLOSED_RANKING_RULES) {
+      for (const locale of ['en', 'nl'] as const) {
+        const text = messages[locale][entry.message]?.toLowerCase()
+        expect(text, `${locale}:${entry.message} must exist`).toBeTruthy()
+        expect(text).toContain(entry.phrases[locale])
+      }
+    }
+  })
+
   it('names the searchable attributes in the order they are weighted', () => {
     expect(extractArrayLiteral(meilisearchSource, 'searchableAttributes')).toEqual(
       DISCLOSED_ATTRIBUTES.map((entry) => entry.attribute),
@@ -120,9 +171,18 @@ describe('ranking disclosure', () => {
     // Verified against the schema and lib: no sponsored, promoted, or boosted
     // placement mechanism exists. If one is ever added, this claim becomes false
     // and the disclosure must change before the feature ships.
-    for (const locale of ['en', 'nl'] as const) {
-      expect(messages[locale].ranking_disclosure_no_payment.length).toBeGreaterThan(0)
-    }
+    expect(messages.en.ranking_disclosure_no_payment.toLowerCase()).toContain(
+      'cannot pay to rank higher',
+    )
+    expect(messages.en.ranking_disclosure_no_payment.toLowerCase()).toContain(
+      'sponsored or promoted',
+    )
+    expect(messages.nl.ranking_disclosure_no_payment.toLowerCase()).toContain(
+      'niet betalen voor een hogere positie',
+    )
+    expect(messages.nl.ranking_disclosure_no_payment.toLowerCase()).toContain(
+      'gesponsord of gepromoot',
+    )
 
     const paidPlacement = /\b(sponsored|promoted|boostAmount|isSponsored|isPromoted)\b/i
     expect(paidPlacement.test(readSource('src/db/schema.ts'))).toBe(false)

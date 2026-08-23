@@ -31,6 +31,8 @@ function readMessages(locale: 'en' | 'nl'): Record<string, string> {
 }
 
 const operations = readSource('src/lib/reviews/operations.server.ts')
+const queries = readSource('src/lib/reviews/queries.server.ts')
+const lifecycle = readSource('src/lib/reviews/lifecycle.ts')
 const component = readSource('src/components/reviews/ReviewDisclosure.tsx')
 const visibility = readSource('src/lib/reviews/visibility.server.ts')
 const reviewRpc = readSource('src/lib/reviews.ts')
@@ -53,19 +55,79 @@ const DISCLOSED_MESSAGES = [
   'review_disclosure_no_payment',
 ]
 
+/**
+ * The phrases that carry each claim's legal weight, per locale. Non-empty alone
+ * proves nothing — "checked sometimes" would pass a length check — so every
+ * disclosed string must keep the words that make its claim true. Compared
+ * lower-cased so capitalisation alone cannot mask a loss.
+ */
+const REQUIRED_PHRASES: Record<
+  (typeof DISCLOSED_MESSAGES)[number],
+  Record<(typeof LOCALES)[number], string[]>
+> = {
+  review_disclosure_title: {
+    en: ['handle reviews'],
+    nl: ['met beoordelingen omgaan'],
+  },
+  review_disclosure_verified_body: {
+    en: ['comes from someone who bought the product here', 'we check this automatically'],
+    nl: ['komt van iemand die het product hier heeft gekocht', 'controleren we automatisch'],
+  },
+  review_disclosure_check_purchase: {
+    en: ["the reviewer's account placed the order"],
+    nl: ['heeft de bestelling met dit product geplaatst'],
+  },
+  review_disclosure_check_delivered: {
+    en: ['marked delivered'],
+    nl: ['als bezorgd gemarkeerd'],
+  },
+  review_disclosure_check_once: {
+    en: ['one review per product per order', 'cannot be reviewed twice'],
+    nl: ['per product per bestelling', 'niet twee keer beoordeeld'],
+  },
+  review_disclosure_check_own: {
+    en: ['own shop'],
+    nl: ['eigen winkel'],
+  },
+  review_disclosure_order: {
+    en: ['newest first'],
+    nl: ['nieuw naar oud'],
+  },
+  review_disclosure_dates: {
+    en: ['the date it was published', 'the date the buyer received the product'],
+    nl: ['de datum van publicatie', 'de datum waarop de koper het product ontving'],
+  },
+  review_disclosure_moderation: {
+    en: ['reporting alone changes nothing'],
+    nl: ['melden alleen verandert niets'],
+  },
+  review_disclosure_retention: {
+    en: ['as long as the product is listed'],
+    nl: ['zolang het product te koop staat'],
+  },
+  review_disclosure_no_payment: {
+    en: ['paid or rewarded'],
+    nl: ['betaald of beloond'],
+  },
+}
+
 describe('review disclosure', () => {
-  it('renders every claim, in both locales', () => {
+  it('renders every claim, with its legal substance, in both locales', () => {
     for (const key of DISCLOSED_MESSAGES) {
       expect(component).toContain(key)
       for (const locale of LOCALES) {
-        expect(messages[locale][key]?.length ?? 0).toBeGreaterThan(0)
+        const text = messages[locale][key]?.toLowerCase()
+        expect(text, `${locale}:${key} must exist`).toBeTruthy()
+        for (const phrase of REQUIRED_PHRASES[key][locale]) {
+          expect(text).toContain(phrase)
+        }
       }
     }
   })
 
   it('states the waiting period the code actually enforces', () => {
     // The disclosure names "14 days". If the constant moves, the sentence lies.
-    const match = operations.match(/const ELIGIBILITY_DAYS = (\d+)/)
+    const match = lifecycle.match(/const ELIGIBILITY_DAYS = (\d+)/)
     expect(match).not.toBeNull()
     const days = match?.[1]
 
@@ -86,11 +148,11 @@ describe('review disclosure', () => {
     // The default and each selectable criterion must stay in lockstep with the
     // public RPC. This deliberately pins the complete set, not just recency.
     expect(reviewRpc).toContain("z.enum(['newest', 'highest', 'lowest', 'helpful'])")
-    expect(operations).toContain("case 'newest':")
-    expect(operations).toContain("case 'highest':")
-    expect(operations).toContain("case 'lowest':")
-    expect(operations).toContain("case 'helpful':")
-    expect(operations).toContain('desc(review.createdAt), desc(review.id)')
+    expect(queries).toContain("case 'newest':")
+    expect(queries).toContain("case 'highest':")
+    expect(queries).toContain("case 'lowest':")
+    expect(queries).toContain("case 'helpful':")
+    expect(queries).toContain('desc(review.createdAt), desc(review.id)')
 
     expect(messages.en.review_disclosure_order.toLowerCase()).toMatch(
       /newest first.*highest rating.*lowest rating.*helpful/,
@@ -101,7 +163,7 @@ describe('review disclosure', () => {
   })
 
   it('only claims both dates while both are returned', () => {
-    expect(operations).toContain('experiencedAt: shopOrder.deliveredAt')
+    expect(queries).toContain('experiencedAt: shopOrder.deliveredAt')
   })
 
   it('describes moderation as it now works, not as it did', () => {
@@ -111,12 +173,17 @@ describe('review disclosure', () => {
     expect(messages.en.review_disclosure_moderation.toLowerCase()).toContain(
       'reporting alone changes nothing',
     )
+    expect(messages.en.review_disclosure_moderation.toLowerCase()).toContain('always told')
+    expect(messages.nl.review_disclosure_moderation.toLowerCase()).toContain(
+      'melden alleen verandert niets',
+    )
+    expect(messages.nl.review_disclosure_moderation.toLowerCase()).toContain('hoort altijd')
 
     // A report must not write `moderationStatus`. Scoped to the report function
     // so the admin path's legitimate write does not trip it.
     const reportFn = operations.slice(
       operations.indexOf('export async function reportReviewQuery'),
-      operations.indexOf('export async function getReviewReportsQuery'),
+      operations.indexOf('export async function updateReviewModerationStatusQuery'),
     )
     expect(reportFn.length).toBeGreaterThan(0)
     expect(reportFn).not.toContain('moderationStatus')
@@ -125,9 +192,6 @@ describe('review disclosure', () => {
   it('claims no paid or rewarded reviews only while none exist', () => {
     const incentive = /\b(reviewReward|reviewIncentive|sponsoredReview|paidReview)\b/i
     expect(incentive.test(schema)).toBe(false)
-    for (const locale of LOCALES) {
-      expect(messages[locale].review_disclosure_no_payment.length).toBeGreaterThan(0)
-    }
   })
 
   it('does not promise a retention period no job enforces', () => {

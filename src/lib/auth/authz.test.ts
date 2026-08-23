@@ -6,6 +6,8 @@ import {
   AuthError,
   authPipeline,
   authPipelinePrivileged,
+  requireAdminResponse,
+  requireAdminSignInResponse,
   requireAuth,
   requireRole,
   requireShopOwnership,
@@ -161,6 +163,82 @@ describe('requireRole', () => {
         body: { error: 'Forbidden', message: "Insufficient role. Required: 'creator' or higher." },
       }),
     )
+  })
+})
+
+describe('requireAdminResponse', () => {
+  it('throws a 401 JSON Response when unauthenticated', async () => {
+    try {
+      requireAdminResponse({ user: null })
+      expect.fail('should have thrown')
+    } catch (err) {
+      expect(err).toBeInstanceOf(Response)
+      const response = err as Response
+      expect(response.status).toBe(401)
+      expect(response.headers.get('Content-Type')).toBe('application/json')
+      expect(await response.json()).toEqual({
+        error: 'Unauthorized',
+        message: 'Authentication required.',
+      })
+    }
+  })
+
+  it('throws a 403 JSON Response for authenticated non-admin users', async () => {
+    for (const role of ['customer', 'creator'] as const) {
+      try {
+        requireAdminResponse({ user: makeUser(role) })
+        expect.fail('should have thrown')
+      } catch (err) {
+        expect(err).toBeInstanceOf(Response)
+        const response = err as Response
+        expect(response.status).toBe(403)
+        expect(await response.json()).toEqual({
+          error: 'Forbidden',
+          message: 'Admin access required.',
+        })
+      }
+    }
+  })
+
+  it('returns without throwing for admin users', () => {
+    expect(() => requireAdminResponse({ user: makeUser('admin') })).not.toThrow()
+  })
+})
+
+describe('requireAdminSignInResponse', () => {
+  it('throws a 401 JSON Response with sign-in prompt when unauthenticated', async () => {
+    try {
+      requireAdminSignInResponse({ user: null })
+      expect.fail('should have thrown')
+    } catch (err) {
+      expect(err).toBeInstanceOf(Response)
+      const response = err as Response
+      expect(response.status).toBe(401)
+      expect(response.headers.get('Content-Type')).toBe('application/json')
+      expect(await response.json()).toEqual({
+        error: 'Unauthorized',
+        message: 'Authentication required. Please sign in.',
+      })
+    }
+  })
+
+  it('throws the same 403 JSON Response as requireAdminResponse', async () => {
+    try {
+      requireAdminSignInResponse({ user: makeUser('creator') })
+      expect.fail('should have thrown')
+    } catch (err) {
+      expect(err).toBeInstanceOf(Response)
+      const response = err as Response
+      expect(response.status).toBe(403)
+      expect(await response.json()).toEqual({
+        error: 'Forbidden',
+        message: 'Admin access required.',
+      })
+    }
+  })
+
+  it('returns without throwing for admin users', () => {
+    expect(() => requireAdminSignInResponse({ user: makeUser('admin') })).not.toThrow()
   })
 })
 

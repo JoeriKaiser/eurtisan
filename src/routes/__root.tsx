@@ -21,7 +21,6 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       getCurrentUser().catch(() => null),
       listCategories({ data: { tree: true } }).catch(() => []),
     ])
-    hydrateQueryData(context.queryClient, queryKeys.categoriesTree, categories)
     if (user) {
       const unread = await getUnreadNotificationCount().catch(() => ({ count: 0 }))
       hydrateQueryData(context.queryClient, queryKeys.unreadCount, unread)

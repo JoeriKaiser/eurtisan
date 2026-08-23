@@ -20,8 +20,8 @@ import { toggleProductActive } from '#/lib/admin-products'
 import type { CategoryTreeNode } from '#/lib/categories'
 import { cn } from '#/lib/cn'
 import { downloadCSV, generateCSV } from '#/lib/csv-export'
-import { SUPPORTED_CURRENCY } from '#/lib/currency'
 import { getImageUrl } from '#/lib/image-url'
+import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 
 const PAGE_SIZES = [10, 20, 50] as const
@@ -65,25 +65,9 @@ function SortHeader({
 }
 
 /* -------------------------------------------------------------------------- */
-
-/* -------------------------------------------------------------------------- */
-/*                                   Helpers                                  */
-/* -------------------------------------------------------------------------- */
-
-const PRICE_FORMATTER = new Intl.NumberFormat('de-DE', {
-  style: 'currency',
-  currency: SUPPORTED_CURRENCY,
-})
-
-function formatPrice(cents: number): string {
-  return PRICE_FORMATTER.format(cents / 100)
-}
-
-/* -------------------------------------------------------------------------- */
 /*                               Main Component                               */
 /* -------------------------------------------------------------------------- */
 
-// eslint-disable-next-line
 export function AdminProductsPage() {
   const loaderData = useLoaderData({ from: '/admin/products' })
   const navigate = useNavigate()
@@ -579,7 +563,7 @@ export function AdminProductsPage() {
                     {p.categoryName ?? <span className='text-text-muted'>(none)</span>}
                   </td>
                   <td className='py-3 pr-4 font-medium text-text-primary tabular-nums'>
-                    {formatPrice(p.priceCents)}
+                    {formatPriceEUR(p.priceCents)}
                   </td>
                   <td className='py-3 pr-4 text-text-secondary hidden md:table-cell'>
                     {p.stockCount}

@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
 import { inventoryReservation, platformOrder, product } from '#/db/schema'
@@ -16,6 +16,7 @@ import {
 } from '#/test/factories'
 import { makeTestAddress } from '#/test/helpers'
 
+import { flushBackgroundWorkForTests } from './background-work.server'
 import {
   createShippingLabelForOrderQuery,
   derivePlatformStatus,
@@ -32,6 +33,19 @@ import {
 
 beforeEach(async () => {
   await clearTestTables()
+})
+
+afterEach(async () => {
+  // Invariant: every async side effect triggered by a test must settle before
+  // the next beforeEach(clearTestTables). Request paths exercised here detach
+  // post-commit work via `scheduleBackgroundWork`, which tracks chains under
+  // VITEST precisely so they can be awaited. A chain left running overlaps the
+  // next test's cleanup/fixtures: its backend interleaves with the DELETEs
+  // (TRUNCATE historically) clearing parents, producing FK "not present"
+  // failures on re-seeded ids (e.g. shop-1) and cross-backend lock cycles
+  // (child-insert FK KEY SHARE vs cleanup row/table locks). No-op when
+  // nothing was scheduled.
+  await flushBackgroundWorkForTests()
 })
 
 afterAll(async () => {

@@ -21,7 +21,6 @@ pool.on('error', (err) => {
     stack: err.stack,
     service: 'eurtisan-app',
   })
-  // eslint-disable-next-line no-console
   console.error(logLine)
 })
 

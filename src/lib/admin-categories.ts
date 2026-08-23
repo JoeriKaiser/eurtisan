@@ -1,29 +1,11 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { authMiddleware } from './auth-middleware'
+import { requireAdminResponse } from './authz'
 import type { SafeUser } from './server-auth'
 import { requirePrivileged2FA } from './server-auth'
 
 export type { AdminCategoryItem } from './admin-categories.server'
-
-/* -------------------------------------------------------------------------- */
-/*                                 Auth Guard                                 */
-/* -------------------------------------------------------------------------- */
-
-async function requireAdmin(context: { user?: SafeUser | null }) {
-  if (!context.user) {
-    throw new Response(
-      JSON.stringify({ error: 'Unauthorized', message: 'Authentication required.' }),
-      { status: 401, headers: { 'Content-Type': 'application/json' } },
-    )
-  }
-  if (context.user.role !== 'admin') {
-    throw new Response(JSON.stringify({ error: 'Forbidden', message: 'Admin access required.' }), {
-      status: 403,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
-}
 
 /* -------------------------------------------------------------------------- */
 /*                                 Validation                                 */
@@ -45,7 +27,7 @@ export const reorderCategoriesInputSchema = z.object({
 export const listCategoriesAdmin = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
-    await requireAdmin(context)
+    await requireAdminResponse(context)
     requirePrivileged2FA(context.user as SafeUser)
 
     const [{ listCategoriesAdminQuery }, { emitAdminReadAudit }] = await Promise.all([
@@ -66,7 +48,7 @@ export const moveCategory = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => moveCategoryInputSchema.parse(data))
   .handler(async ({ context, data }) => {
     const modules = await Promise.all([
-      requireAdmin(context),
+      requireAdminResponse(context),
       import('./admin-categories.server'),
       import('./audit-log.server'),
     ])
@@ -90,7 +72,7 @@ export const reorderCategories = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => reorderCategoriesInputSchema.parse(data))
   .handler(async ({ context, data }) => {
     const modules = await Promise.all([
-      requireAdmin(context),
+      requireAdminResponse(context),
       import('./admin-categories.server'),
       import('./audit-log.server'),
     ])

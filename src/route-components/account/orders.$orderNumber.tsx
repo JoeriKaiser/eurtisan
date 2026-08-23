@@ -1,4 +1,4 @@
-import BuyerOrderDetailPage from '#/components/BuyerOrderDetailPage'
+import BuyerOrderDetailPage from '#/route-components/account/orders/BuyerOrderDetailPage'
 import { useLoaderData } from '@tanstack/react-router'
 
 export function OrderDetailRouteComponent() {

@@ -9,11 +9,8 @@ import {
   createUser,
 } from '#/test/factories'
 
-import {
-  listPayoutHistoryQuery,
-  listPendingPayoutsQuery,
-  markPayoutSentQuery,
-} from '../payouts/operations.server'
+import { markPayoutSentQuery } from '../payouts/operations.server'
+import { listPayoutHistoryQuery, listPendingPayoutsQuery } from '../payouts/queries.server'
 
 // These tests share a single database; disable concurrent execution so
 // beforeEach cleanup doesn't race with seeding in other tests.

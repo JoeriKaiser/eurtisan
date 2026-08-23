@@ -31,7 +31,6 @@ export async function emptyCart(page: Page): Promise<void> {
   await page.goto('/cart')
   await waitForAppHydration(page)
 
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     const removeButton = page.getByRole('button', { name: /^remove$/i }).first()
     const visible = await removeButton.isVisible().catch(() => false)

@@ -8,7 +8,7 @@ Eurtisan is a single TanStack Start application with server rendering, file-base
 
 A typical request flows through these boundaries:
 
-1. `src/start.ts` applies request middleware such as locale handling and the production content-security policy.
+1. `src/start.ts` applies request middleware such as locale handling; the production Node entry point (`server-entry.mjs`) generates the per-request CSP nonce, injects it into HTML responses, and writes the final security headers.
 2. `src/router.tsx` creates the router and connects the generated route tree, localization URL rewriting, and TanStack Query.
 3. `src/routes/` declares pages and API endpoints. Route modules own loaders, search-parameter validation, metadata, guards, and server-route handlers.
 4. Route loaders and server functions call domain modules in `src/lib/`.
