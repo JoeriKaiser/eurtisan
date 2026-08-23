@@ -14,5 +14,7 @@ export {
   getProductVariantMatrix,
   updateProductOptionQuery,
   updateProductVariantQuery,
+  verifyOptionOwnershipForVariants,
   verifyProductOwnershipForVariants,
+  verifyVariantOwnershipForVariants,
 } from './products/variants.server'

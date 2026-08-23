@@ -19,6 +19,7 @@ import {
   createInvoicesForPlatformOrder,
   getInvoiceByIdQuery,
 } from './invoices.server'
+import { decryptJsonb } from './encryption.server'
 import { PLATFORM_FEE_PERCENT } from './platform-constants'
 
 describe('Invoicing VAT Engine', () => {
@@ -302,7 +303,7 @@ describe('Platform Order Invoices Lifecycle', () => {
     expect(custInvoice.vatAmountCents).toBe(880) // 800 + 80
     expect(custInvoice.subtotalCents).toBe(4620) // 5500 - 880
 
-    const custDetails = custInvoice.billingDetails as BillingDetails
+    const custDetails = decryptJsonb<BillingDetails>(custInvoice.billingDetails)
     expect(custDetails.from.name).toBe('Black Forest Woodworks')
     expect(custDetails.from.vatId).toBe('DE999999999')
     expect(custDetails.from.address.country).toBe('FR')
@@ -327,7 +328,7 @@ describe('Platform Order Invoices Lifecycle', () => {
     expect(feeInvoice.vatAmountCents).toBe(0)
     expect(feeInvoice.subtotalCents).toBe(expectedFee)
 
-    const feeDetails = feeInvoice.billingDetails as BillingDetails
+    const feeDetails = decryptJsonb<BillingDetails>(feeInvoice.billingDetails)
     expect(feeDetails.from.name).toBe('Eurtisan Platform')
     expect(feeDetails.to.name).toBe('Black Forest Woodworks (c/o Alice Artisan)')
     expect(feeDetails.to.address.country).toBe('FR')
@@ -435,7 +436,7 @@ describe('Platform Order Invoices Lifecycle', () => {
     expect(custInvoice.subtotalCents).toBe(1200)
     expect(custInvoice.totalCents).toBe(1200)
 
-    const custDetails = custInvoice.billingDetails as BillingDetails
+    const custDetails = decryptJsonb<BillingDetails>(custInvoice.billingDetails)
     expect(custDetails.from.vatId).toBe('FR12345678901')
     expect(custDetails.from.address.country).toBe('FR')
     expect(custDetails.to.vatId).toBe('DE999999999')
@@ -543,7 +544,7 @@ describe('Platform Order Invoices Lifecycle', () => {
     expect(custInvoice.subtotalCents).toBe(1200)
     expect(custInvoice.totalCents).toBe(1200)
 
-    const custDetails = custInvoice.billingDetails as BillingDetails
+    const custDetails = decryptJsonb<BillingDetails>(custInvoice.billingDetails)
     expect(custDetails.reverseCharge).toBe(true)
     expect(custDetails.items[0].vatAmountCents).toBe(0)
     expect(custDetails.shipping).toBeDefined()
@@ -684,11 +685,11 @@ describe('Platform Order Invoices Lifecycle', () => {
     expect(custInv1[0].type).toBe('customer')
     expect(custInv2[0].type).toBe('customer')
 
-    const details1 = custInv1[0].billingDetails as BillingDetails
+    const details1 = decryptJsonb<BillingDetails>(custInv1[0].billingDetails)
     expect(details1.from.name).toBe('Atelier Carlos')
     expect(details1.to.name).toBe('Multi Buyer')
 
-    const details2 = custInv2[0].billingDetails as BillingDetails
+    const details2 = decryptJsonb<BillingDetails>(custInv2[0].billingDetails)
     expect(details2.from.name).toBe('Studio Diana')
     expect(details2.to.name).toBe('Multi Buyer')
 

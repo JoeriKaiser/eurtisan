@@ -5,7 +5,7 @@ import { Input } from '#/components/ui/input'
 import { resolveDispute } from '#/lib/disputes'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
-import { SUPPORTED_CURRENCY } from '#/lib/currency'
+import { parseDecimalCents, SUPPORTED_CURRENCY } from '#/lib/currency'
 
 function centsToEuros(cents: number): string {
   return (cents / 100).toFixed(2)
@@ -36,9 +36,9 @@ export function ResolutionForm({
   })
 
   const refundCents = useMemo(() => {
-    const parsed = Number.parseFloat(form.refundInput)
-    if (Number.isNaN(parsed) || parsed < 0) return null
-    return Math.round(parsed * 100)
+    if (!form.refundInput.trim()) return null
+    const cents = parseDecimalCents(form.refundInput)
+    return cents >= 0 ? cents : null
   }, [form.refundInput])
 
   const validate = useCallback(() => {

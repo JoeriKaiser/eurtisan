@@ -11,6 +11,7 @@ import {
 } from '#/lib/creator-products'
 import { useImageUpload } from '#/hooks/useImageUpload'
 import { getImageUrl } from '#/lib/image-url'
+import { parseDecimalCents } from '#/lib/currency'
 import { m } from '#/paraglide/messages'
 import { Button } from '#/components/ui/button'
 import { FeedbackBanner } from '#/components/ui/FeedbackBanner'
@@ -393,10 +394,10 @@ export function ProductEditForm({
       errors.description = m.creator_product_new_description_too_long()
     }
 
-    const priceNum = Number.parseFloat(formState.values.price)
-    if (!formState.values.price || Number.isNaN(priceNum)) {
+    const priceCents = parseDecimalCents(formState.values.price)
+    if (!formState.values.price.trim()) {
       errors.price = m.creator_product_new_price_required()
-    } else if (priceNum <= 0) {
+    } else if (priceCents <= 0) {
       errors.price = m.creator_product_new_price_positive()
     }
 
@@ -426,7 +427,7 @@ export function ProductEditForm({
     }
 
     try {
-      const priceCents = Math.round(Number.parseFloat(formState.values.price) * 100)
+      const priceCents = parseDecimalCents(formState.values.price)
 
       await updateProduct({
         data: {

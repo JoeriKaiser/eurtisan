@@ -1,6 +1,7 @@
 import { and, count, desc, eq, ilike, or } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { meilisearchSyncQueue, product, shop, user } from '#/db/schema'
+import { createNotification } from '../notifications/operations.server'
 import { validatePlainText } from '../xss'
 
 /* -------------------------------------------------------------------------- */
@@ -151,7 +152,7 @@ export async function moderateShopQuery(
 
   // Verify the shop exists.
   const [shopRecord] = await db
-    .select({ id: shop.id, name: shop.name, isSuspended: shop.isSuspended })
+    .select({ id: shop.id, name: shop.name, ownerId: shop.ownerId, isSuspended: shop.isSuspended })
     .from(shop)
     .where(eq(shop.id, shopId))
     .limit(1)
@@ -205,6 +206,18 @@ export async function moderateShopQuery(
 
     return rows
   })
+
+  // DSA Article 17 Statement of Reasons notification to the shop owner
+  if (shopRecord.ownerId) {
+    await createNotification(shopRecord.ownerId, 'shop_moderation_update', {
+      shopId,
+      shopName: shopRecord.name,
+      action,
+      reason: note ?? (isSuspended ? 'Shop suspended by administration' : 'Shop suspension lifted'),
+      legalGrounds: 'DSA Article 17 Statement of Reasons / Terms of Service enforcement',
+      redress: 'You may appeal this decision by contacting moderation support within 6 months.',
+    })
+  }
 
   return updated
 }

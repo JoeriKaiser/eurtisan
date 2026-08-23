@@ -246,7 +246,7 @@ function buildResult(
   outboxBacklog: number | undefined,
   diskStatus: { healthy: boolean; availableBytes: number; totalBytes: number },
 ): HealthCheckResult {
-  const criticalHealthy = dbHealthy && meilisearchHealthy && diskStatus.healthy
+  const criticalHealthy = dbHealthy && diskStatus.healthy
   const result: HealthCheckResult = {
     status: criticalHealthy ? 'ok' : 'error',
     db: dbHealthy ? 'connected' : 'disconnected',
@@ -286,7 +286,7 @@ export async function checkHealth(): Promise<{
   status: number
 }> {
   const { dbHealthy, meilisearchHealthy, diskStatus } = await runCriticalChecks()
-  const criticalHealthy = dbHealthy && meilisearchHealthy && diskStatus.healthy
+  const criticalHealthy = dbHealthy && diskStatus.healthy
   const body = buildResult(
     dbHealthy,
     meilisearchHealthy,
@@ -301,14 +301,14 @@ export async function checkHealth(): Promise<{
 }
 
 /**
- * Readiness probe — 200 only if critical dependencies are up.
+ * Readiness probe — 200 only if critical dependencies (database and disk) are up.
  */
 export async function checkReady(): Promise<{
   body: HealthCheckResult
   status: number
 }> {
   const { dbHealthy, meilisearchHealthy, diskStatus } = await runCriticalChecks()
-  const criticalHealthy = dbHealthy && meilisearchHealthy && diskStatus.healthy
+  const criticalHealthy = dbHealthy && diskStatus.healthy
   const body = buildResult(
     dbHealthy,
     meilisearchHealthy,

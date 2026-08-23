@@ -779,6 +779,40 @@ export async function deleteUserAccount(userId: string): Promise<void> {
         .where(eq(payoutReconciliationLog.id, logRow.id))
     }
 
+    const emailHash = hashEmail(profile.email)
+
+    // Redact seller notes and tags referring to this user's email hash
+    await tx
+      .update(customerNote)
+      .set({ content: '[REDACTED]', updatedAt: new Date() })
+      .where(eq(customerNote.customerEmailHash, emailHash))
+
+    await tx.delete(customerTag).where(eq(customerTag.customerEmailHash, emailHash))
+
+    // Redact direct owner message threads and message bodies
+    const userThreads = await tx
+      .select({ id: ownerMessageThread.id })
+      .from(ownerMessageThread)
+      .where(
+        or(
+          eq(ownerMessageThread.customerEmailHash, emailHash),
+          eq(ownerMessageThread.customerUserId, userId),
+        ),
+      )
+
+    if (userThreads.length > 0) {
+      const threadIds = userThreads.map((t) => t.id)
+      await tx
+        .update(ownerMessage)
+        .set({ body: '[REDACTED]' })
+        .where(inArray(ownerMessage.threadId, threadIds))
+
+      await tx
+        .update(ownerMessageThread)
+        .set({ subject: '[REDACTED]', updatedAt: new Date() })
+        .where(inArray(ownerMessageThread.id, threadIds))
+    }
+
     await tx
       .update(auditLog)
       .set({ actorName: 'Deleted User', actorId: sql`NULL` })

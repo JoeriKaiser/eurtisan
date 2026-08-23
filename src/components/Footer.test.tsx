@@ -26,6 +26,7 @@ vi.mock('#/paraglide/messages', () => ({
     footer_legal_privacy: () => 'Privacy Policy',
     footer_legal_terms: () => 'Terms of Service',
     footer_legal_cookies: () => 'Cookie Policy',
+    footer_legal_imprint: () => 'Legal Notice (Imprint)',
   },
 }))
 

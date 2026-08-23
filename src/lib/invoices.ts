@@ -81,8 +81,10 @@ export const getInvoiceData = createServerFn({ method: 'GET' })
       userId = (await getOrderOwnerId(platformOrderId)) ?? undefined
     }
     if (!userId) throw new Response(null, { status: 403 })
+    const { decryptJsonb } = await import('./encryption.server')
     const invoice = await getInvoiceByIdQuery(data.invoiceNumber, userId, role)
-    const parsed = invoiceBillingDetailsSchema.safeParse(invoice.billingDetails)
+    const decryptedDetails = decryptJsonb<InvoiceBillingDetails>(invoice.billingDetails)
+    const parsed = invoiceBillingDetailsSchema.safeParse(decryptedDetails)
     if (!parsed.success) {
       throw new Response(
         JSON.stringify({ error: 'Internal Error', message: 'Invoice details are corrupted.' }),

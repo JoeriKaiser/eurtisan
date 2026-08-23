@@ -97,6 +97,14 @@ export default function Footer() {
                 {m.footer_legal_cookies()}
               </Link>
             </li>
+            <li>
+              <Link
+                to='/imprint'
+                className='text-sm text-text-secondary hover:text-text-primary no-underline transition-colors'
+              >
+                {m.footer_legal_imprint()}
+              </Link>
+            </li>
           </ul>
         </div>
       </div>

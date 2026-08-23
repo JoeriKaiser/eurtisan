@@ -678,3 +678,27 @@ export function getOperatorCountry(): string {
   }
   return 'FR'
 }
+
+/** French LCEN: Registration number (RCS / SIRET). */
+export function getOperatorRegistrationNumber(): string {
+  if (typeof process !== 'undefined' && process.env.OPERATOR_REGISTRATION_NUMBER?.trim()) {
+    return process.env.OPERATOR_REGISTRATION_NUMBER.trim()
+  }
+  return 'RCS Paris 000 000 000 / SIRET 00000000000000'
+}
+
+/** French LCEN: Publication Director (Directeur de la publication). */
+export function getOperatorPublicationDirector(): string {
+  if (typeof process !== 'undefined' && process.env.OPERATOR_PUBLICATION_DIRECTOR?.trim()) {
+    return process.env.OPERATOR_PUBLICATION_DIRECTOR.trim()
+  }
+  return 'Directeur de la publication'
+}
+
+/** French LCEN: Hosting provider identity and address. */
+export function getOperatorHostingProvider(): string {
+  if (typeof process !== 'undefined' && process.env.OPERATOR_HOSTING_PROVIDER?.trim()) {
+    return process.env.OPERATOR_HOSTING_PROVIDER.trim()
+  }
+  return 'Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen, Germany'
+}

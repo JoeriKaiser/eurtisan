@@ -241,17 +241,17 @@ export async function createInvoicesForPlatformOrder(
     .where(eq(user.id, orderRecord.userId))
     .limit(1)
 
-  const billingAddr = orderRecord.billingAddress as BillingAddress
+  const billingAddr = decryptJsonb<BillingAddress>(orderRecord.billingAddress)
   const buyerParty: BillingParty = {
-    name: billingAddr.name,
+    name: billingAddr?.name || buyerUser?.name || 'Customer',
     email: buyerUser?.email,
-    vatId: billingAddr.vatId,
-    isVatRegistered: !!billingAddr.vatId,
+    vatId: billingAddr?.vatId,
+    isVatRegistered: !!billingAddr?.vatId,
     address: {
-      street: billingAddr.street,
-      city: billingAddr.city,
-      postalCode: billingAddr.postalCode,
-      country: billingAddr.country,
+      street: billingAddr?.street,
+      city: billingAddr?.city,
+      postalCode: billingAddr?.postalCode,
+      country: billingAddr?.country || '',
     },
   }
 
@@ -407,7 +407,7 @@ export async function createInvoicesForPlatformOrder(
         vatAmountCents: finalVatAmount,
         totalCents: totalGross,
         vatRateBasisPoints: 0, // Mix of rates possible, detail is in items snapshot
-        billingDetails: customerBillingDetails,
+        billingDetails: encryptJsonb(customerBillingDetails),
       })
       .onConflictDoNothing() // Idempotency fallback
 
@@ -454,7 +454,7 @@ export async function createInvoicesForPlatformOrder(
         vatAmountCents: feeVatDetails.vatAmountCents,
         totalCents: feeVatDetails.totalCents,
         vatRateBasisPoints: feeVatDetails.vatRateBasisPoints,
-        billingDetails: platformBillingDetails,
+        billingDetails: encryptJsonb(platformBillingDetails),
       })
       .onConflictDoNothing() // Idempotency fallback
 

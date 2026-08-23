@@ -37,8 +37,8 @@ async function createBalancedFixture() {
     status: 'delivered',
     subtotalCents: 1000,
     shippingCostCents: 200,
-    vatAmountCents: 200,
-    shippingVatAmountCents: 40,
+    vatAmountCents: 167,
+    shippingVatAmountCents: 33,
     refundedCents: 0,
     refundPendingCents: 0,
   })
@@ -51,7 +51,7 @@ async function createBalancedFixture() {
       unitPriceCents: 1000,
       quantity: 1,
       vatRateBasisPoints: 2000,
-      vatAmountCents: 200,
+      vatAmountCents: 167,
       totalCents: 1000,
     })
     .returning()
@@ -61,8 +61,8 @@ async function createBalancedFixture() {
       invoiceNumber: `INV-${po.id}`,
       type: 'customer',
       shopOrderId: so.id,
-      subtotalCents: 960,
-      vatAmountCents: 240,
+      subtotalCents: 1000,
+      vatAmountCents: 200,
       totalCents: 1200,
       billingDetails: {},
     })
@@ -73,9 +73,9 @@ async function createBalancedFixture() {
       invoiceNumber: `INV-FEE-${po.id}`,
       type: 'platform_fee',
       shopOrderId: so.id,
-      subtotalCents: 80,
+      subtotalCents: 83,
       vatAmountCents: 0,
-      totalCents: 80,
+      totalCents: 83,
       billingDetails: {},
     })
     .returning()
@@ -84,7 +84,7 @@ async function createBalancedFixture() {
     .values({
       shopOrderId: so.id,
       shopId: shop.id,
-      amountCents: 920,
+      amountCents: 917,
       status: 'pending',
     })
     .returning()
@@ -131,7 +131,7 @@ describe('financial-totals.server', () => {
         .returning()
 
       const result = await db.transaction(async (tx) => recalcOrderItemTotal(tx, item.id))
-      expect(result).toEqual({ totalCents: 3000, vatAmountCents: 630 })
+      expect(result).toEqual({ totalCents: 3000, vatAmountCents: 521 })
     })
 
     it('sums order-item gross totals and VAT into the shop order', async () => {
@@ -142,7 +142,7 @@ describe('financial-totals.server', () => {
         .where(eq(shopOrder.id, fixture.so.id))
 
       const result = await db.transaction(async (tx) => recalcShopOrderSubtotal(tx, fixture.so.id))
-      expect(result).toEqual({ subtotalCents: 1000, vatAmountCents: 200 })
+      expect(result).toEqual({ subtotalCents: 1000, vatAmountCents: 167 })
     })
 
     it('does not add VAT twice when recomputing the platform order', async () => {
@@ -353,24 +353,24 @@ describe('financial-totals.server', () => {
         unitPriceCents: 100,
         quantity: 1,
         vatRateBasisPoints: 2000,
-        vatAmountCents: 20,
+        vatAmountCents: 17,
         totalCents: 100,
       }))
       await db.insert(orderItem).values(rows)
       await db
         .update(shopOrder)
-        .set({ subtotalCents: 60_000, vatAmountCents: 12_000, shippingCostCents: 0 })
+        .set({ subtotalCents: 60_000, vatAmountCents: 10_200, shippingCostCents: 0 })
         .where(eq(shopOrder.id, fixture.so.id))
       await db.update(platformOrder).set({ totalCents: 60_000 })
       await db
         .update(invoices)
-        .set({ subtotalCents: 48_000, vatAmountCents: 12_000, totalCents: 60_000 })
+        .set({ subtotalCents: 49_800, vatAmountCents: 10_200, totalCents: 60_000 })
         .where(eq(invoices.id, fixture.customerInvoice.id))
       await db
         .update(invoices)
-        .set({ subtotalCents: 4_800, totalCents: 4_800 })
+        .set({ subtotalCents: 4_980, totalCents: 4_980 })
         .where(eq(invoices.id, fixture.feeInvoice.id))
-      await db.update(payout).set({ amountCents: 55_200 })
+      await db.update(payout).set({ amountCents: 55_020 })
 
       const result = await reconcileFinancialTotals({ batchSize: 100 })
       expect(result.recordsChecked.order_item).toBe(600)

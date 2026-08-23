@@ -283,10 +283,16 @@ export async function executePayoutQuery(payoutId: string): Promise<ExecutePayou
         ownerId: shop.ownerId,
         mollieAccountId: shop.mollieAccountId,
         paymentConnected: shop.paymentConnected,
+        isSuspended: shop.isSuspended,
       })
       .from(shop)
       .where(eq(shop.id, payoutRecord.shopId))
       .limit(1)
+
+    if (shopRecord?.isSuspended) {
+      const reason = 'Payout cannot be executed while shop is suspended'
+      return { kind: 'error' as const, status: 409, message: reason }
+    }
 
     const molliePaymentId = platformOrderRecord?.molliePaymentId
     const mollieAccountId = shopRecord?.mollieAccountId

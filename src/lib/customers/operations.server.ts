@@ -1,7 +1,15 @@
 import { createHash } from 'node:crypto'
 import { and, count, desc, eq, ilike, inArray, sql, type SQL } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { customerNote, customerTag, orderItem, platformOrder, shopOrder, user } from '#/db/schema'
+import {
+  customerNote,
+  customerTag,
+  orderItem,
+  platformOrder,
+  shop,
+  shopOrder,
+  user,
+} from '#/db/schema'
 import { logger } from '../logger.server'
 import type { OrderStatus } from '../orders.server'
 import { writeAuditLog, type AuditActor } from '../audit-logger'
@@ -347,13 +355,19 @@ export async function updateCustomerNote(
       id: customerNote.id,
       shopId: customerNote.shopId,
       customerEmailHash: customerNote.customerEmailHash,
+      shopOwnerId: shop.ownerId,
     })
     .from(customerNote)
+    .innerJoin(shop, eq(customerNote.shopId, shop.id))
     .where(eq(customerNote.id, noteId))
     .limit(1)
 
   if (!existing[0]) {
     throw new Error('NOT_FOUND')
+  }
+
+  if (existing[0].shopOwnerId !== actor.id) {
+    throw new Error('FORBIDDEN')
   }
 
   const [updated] = await db
@@ -392,13 +406,19 @@ export async function deleteCustomerNote(noteId: string, actor: AuditActor) {
       id: customerNote.id,
       shopId: customerNote.shopId,
       customerEmailHash: customerNote.customerEmailHash,
+      shopOwnerId: shop.ownerId,
     })
     .from(customerNote)
+    .innerJoin(shop, eq(customerNote.shopId, shop.id))
     .where(eq(customerNote.id, noteId))
     .limit(1)
 
   if (!existing[0]) {
     throw new Error('NOT_FOUND')
+  }
+
+  if (existing[0].shopOwnerId !== actor.id) {
+    throw new Error('FORBIDDEN')
   }
 
   await db.delete(customerNote).where(eq(customerNote.id, noteId))

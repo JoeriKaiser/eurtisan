@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import * as React from 'react'
+import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import BuyerOrderDetailPage from '#/components/BuyerOrderDetailPage'
 import { OrdersPage } from '#/components/OrdersPage'
@@ -9,7 +9,7 @@ import type { BuyerOrderListItem, OrderDetail } from '#/lib/orders.server'
 
 vi.mock('@tanstack/react-router', () => ({
   Link: (props: {
-    children: React.ReactNode
+    children: ReactNode
     to: string
     className?: string
     params?: Record<string, string>
@@ -148,17 +148,12 @@ vi.mock('#/lib/disputes', () => ({
 }))
 
 vi.mock('#/components/ui/primitives/dialog', () => ({
-  Dialog: ({ open, children }: { open?: boolean; children: React.ReactNode }) =>
-    open ? React.createElement(React.Fragment, {}, children) : null,
+  Dialog: ({ open, children }: { open?: boolean; children: ReactNode }) => (open ? children : null),
   DialogBackdrop: () => null,
-  DialogDescription: ({ children }: { children: React.ReactNode }) =>
-    React.createElement('p', {}, children),
-  DialogPopup: ({ children }: { children: React.ReactNode }) =>
-    React.createElement('div', {}, children),
-  DialogPortal: ({ children }: { children: React.ReactNode }) =>
-    React.createElement(React.Fragment, {}, children),
-  DialogTitle: ({ children }: { children: React.ReactNode }) =>
-    React.createElement('h2', {}, children),
+  DialogDescription: ({ children }: { children: ReactNode }) => <p>{children}</p>,
+  DialogPopup: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DialogPortal: ({ children }: { children: ReactNode }) => children,
+  DialogTitle: ({ children }: { children: ReactNode }) => <h2>{children}</h2>,
 }))
 
 function makeOrderListItem(overrides?: Partial<BuyerOrderListItem>): BuyerOrderListItem {
