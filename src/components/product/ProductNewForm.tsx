@@ -8,6 +8,7 @@ import { useManagedTimeouts } from '#/hooks/useManagedTimeouts'
 import type { CreatorShop } from '#/lib/creator-dashboard'
 import { createProduct } from '#/lib/creator-products'
 import { createProductSchema } from '#/lib/creator-products.schema'
+import { parseEuroToCents } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 import { CancelConfirmationDialog } from './CancelConfirmationDialog'
 import { ProductNewFormFields } from './ProductNewFormFields'
@@ -281,7 +282,7 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
   /* ---------------------------- Form validation ---------------------------- */
 
   const validateForm = useCallback((): boolean => {
-    const priceCents = Math.round(Number.parseFloat(formState.values.price) * 100)
+    const priceCents = parseEuroToCents(formState.values.price) ?? Number.NaN
 
     const payload = {
       shopId: formState.values.shopId,
@@ -409,7 +410,7 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
     setSubmitting(true)
 
     try {
-      const priceCents = Math.round(Number.parseFloat(formState.values.price) * 100)
+      const priceCents = parseEuroToCents(formState.values.price) ?? Number.NaN
 
       await createProduct({
         data: {

@@ -72,8 +72,17 @@ interface OrderItemRow {
 
 const DEFAULT_BATCH_SIZE = 500
 
-function vatFromBasisPoints(amountCents: number, basisPoints: number): number {
-  return Math.round((amountCents * basisPoints) / 10000)
+/**
+ * Extract the VAT portion from a VAT-inclusive amount at the given rate.
+ *
+ * Prices are stored VAT-inclusive (see calculateVat in vat.server): recover the
+ * exclusive base first, then take VAT as the remainder. Applying the rate on top
+ * of an inclusive amount would overstate VAT. Parity with calculateVat is pinned
+ * by the inclusive VAT extraction tests in financial-totals.server.test.ts.
+ */
+export function vatFromBasisPoints(amountCents: number, basisPoints: number): number {
+  const baseAmountCents = Math.round((amountCents * 10000) / (10000 + basisPoints))
+  return amountCents - baseAmountCents
 }
 
 function platformFeeCents(subtotalCents: number, vatAmountCents: number): number {

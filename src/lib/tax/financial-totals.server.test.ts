@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import { db } from '#/db/index'
@@ -24,8 +24,10 @@ import {
   recalcShopOrderSubtotal,
   reconcileFinancialTotals,
   recordFinancialDiscrepancy,
+  vatFromBasisPoints,
   type FinancialMismatchCategory,
 } from './financial-totals.server'
+import { calculateVat } from './vat.server'
 
 async function createBalancedFixture() {
   const buyer = await createUser()
@@ -37,8 +39,8 @@ async function createBalancedFixture() {
     status: 'delivered',
     subtotalCents: 1000,
     shippingCostCents: 200,
-    vatAmountCents: 200,
-    shippingVatAmountCents: 40,
+    vatAmountCents: 167,
+    shippingVatAmountCents: 33,
     refundedCents: 0,
     refundPendingCents: 0,
   })
@@ -51,7 +53,7 @@ async function createBalancedFixture() {
       unitPriceCents: 1000,
       quantity: 1,
       vatRateBasisPoints: 2000,
-      vatAmountCents: 200,
+      vatAmountCents: 167,
       totalCents: 1000,
     })
     .returning()
@@ -61,8 +63,8 @@ async function createBalancedFixture() {
       invoiceNumber: `INV-${po.id}`,
       type: 'customer',
       shopOrderId: so.id,
-      subtotalCents: 960,
-      vatAmountCents: 240,
+      subtotalCents: 1000,
+      vatAmountCents: 200,
       totalCents: 1200,
       billingDetails: {},
     })
@@ -73,9 +75,9 @@ async function createBalancedFixture() {
       invoiceNumber: `INV-FEE-${po.id}`,
       type: 'platform_fee',
       shopOrderId: so.id,
-      subtotalCents: 80,
+      subtotalCents: 83,
       vatAmountCents: 0,
-      totalCents: 80,
+      totalCents: 83,
       billingDetails: {},
     })
     .returning()
@@ -84,7 +86,7 @@ async function createBalancedFixture() {
     .values({
       shopOrderId: so.id,
       shopId: shop.id,
-      amountCents: 920,
+      amountCents: 917,
       status: 'pending',
     })
     .returning()
@@ -131,7 +133,7 @@ describe('financial-totals.server', () => {
         .returning()
 
       const result = await db.transaction(async (tx) => recalcOrderItemTotal(tx, item.id))
-      expect(result).toEqual({ totalCents: 3000, vatAmountCents: 630 })
+      expect(result).toEqual({ totalCents: 3000, vatAmountCents: 521 })
     })
 
     it('sums order-item gross totals and VAT into the shop order', async () => {
@@ -142,7 +144,7 @@ describe('financial-totals.server', () => {
         .where(eq(shopOrder.id, fixture.so.id))
 
       const result = await db.transaction(async (tx) => recalcShopOrderSubtotal(tx, fixture.so.id))
-      expect(result).toEqual({ subtotalCents: 1000, vatAmountCents: 200 })
+      expect(result).toEqual({ subtotalCents: 1000, vatAmountCents: 167 })
     })
 
     it('does not add VAT twice when recomputing the platform order', async () => {
@@ -169,6 +171,63 @@ describe('financial-totals.server', () => {
         .from(platformOrder)
         .where(eq(platformOrder.id, fixture.po.id))
       expect(updatedOrder.totalCents).toBe(1200)
+    })
+
+    it('preserves item VAT already extracted inclusively from the price', async () => {
+      const buyer = await createUser()
+      const owner = await createUser()
+      const shop = await createShop(owner)
+      const productStandard = await createProduct(shop, { priceCents: 2400 })
+      const productReduced = await createProduct(shop, { priceCents: 2140 })
+      const po = await createPlatformOrder(buyer.id)
+      const so = await createShopOrder(po, shop)
+
+      // Mirror checkout: persist calculateVat output, then run the recalc tree.
+      const lines = [
+        { product: productStandard, unitPriceCents: 2400, quantity: 1, category: 'standard' },
+        { product: productReduced, unitPriceCents: 2140, quantity: 1, category: 'reduced' },
+      ] as const
+      for (const line of lines) {
+        const vat = calculateVat({
+          sellerCountry: 'FR',
+          buyerCountry: 'FR',
+          isVatRegistered: true,
+          vatRateCategory: line.category,
+          inclusiveAmountCents: line.unitPriceCents * line.quantity,
+        })
+        await db.insert(orderItem).values({
+          shopOrderId: so.id,
+          productId: line.product.id,
+          productName: line.product.name,
+          unitPriceCents: line.unitPriceCents,
+          quantity: line.quantity,
+          vatRateBasisPoints: vat.vatRateBasisPoints,
+          vatAmountCents: vat.vatAmountCents,
+          totalCents: line.unitPriceCents * line.quantity,
+        })
+      }
+
+      const before = await db
+        .select()
+        .from(orderItem)
+        .where(eq(orderItem.shopOrderId, so.id))
+        .orderBy(desc(orderItem.unitPriceCents))
+
+      await db.transaction(async (tx) => recalcPlatformOrderTree(tx, po.id))
+
+      const after = await db
+        .select()
+        .from(orderItem)
+        .where(eq(orderItem.shopOrderId, so.id))
+        .orderBy(desc(orderItem.unitPriceCents))
+      expect(after).toEqual(before)
+      expect(after.map((item) => item.vatAmountCents)).toEqual([400, 195])
+
+      const [updatedSo] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
+      expect(updatedSo.subtotalCents).toBe(4540)
+      expect(updatedSo.vatAmountCents).toBe(595)
+      const [updatedPo] = await db.select().from(platformOrder).where(eq(platformOrder.id, po.id))
+      expect(updatedPo.totalCents).toBe(5040)
     })
   })
 
@@ -353,24 +412,24 @@ describe('financial-totals.server', () => {
         unitPriceCents: 100,
         quantity: 1,
         vatRateBasisPoints: 2000,
-        vatAmountCents: 20,
+        vatAmountCents: 17,
         totalCents: 100,
       }))
       await db.insert(orderItem).values(rows)
       await db
         .update(shopOrder)
-        .set({ subtotalCents: 60_000, vatAmountCents: 12_000, shippingCostCents: 0 })
+        .set({ subtotalCents: 60_000, vatAmountCents: 10_200, shippingCostCents: 0 })
         .where(eq(shopOrder.id, fixture.so.id))
       await db.update(platformOrder).set({ totalCents: 60_000 })
       await db
         .update(invoices)
-        .set({ subtotalCents: 48_000, vatAmountCents: 12_000, totalCents: 60_000 })
+        .set({ subtotalCents: 49_800, vatAmountCents: 10_200, totalCents: 60_000 })
         .where(eq(invoices.id, fixture.customerInvoice.id))
       await db
         .update(invoices)
-        .set({ subtotalCents: 4_800, totalCents: 4_800 })
+        .set({ subtotalCents: 4_980, totalCents: 4_980 })
         .where(eq(invoices.id, fixture.feeInvoice.id))
-      await db.update(payout).set({ amountCents: 55_200 })
+      await db.update(payout).set({ amountCents: 55_020 })
 
       const result = await reconcileFinancialTotals({ batchSize: 100 })
       expect(result.recordsChecked.order_item).toBe(600)
@@ -394,5 +453,123 @@ describe('financial-totals.server', () => {
       expect(rows).toHaveLength(1)
       expect(rows[0]?.diffCents).toBe(100)
     })
+  })
+})
+
+describe('inclusive VAT extraction', () => {
+  it('extracts VAT from the inclusive price instead of adding the rate on top', () => {
+    // 120.00 EUR at 20% VAT contains 20.00 EUR of VAT, never 24.00 EUR.
+    expect(vatFromBasisPoints(12000, 2000)).toBe(2000)
+  })
+
+  it('matches calculateVat exactly for a reduced rate', () => {
+    const canonical = calculateVat({
+      sellerCountry: 'FR',
+      buyerCountry: 'FR',
+      isVatRegistered: true,
+      vatRateCategory: 'reduced',
+      inclusiveAmountCents: 12345,
+    })
+
+    expect(vatFromBasisPoints(12345, canonical.vatRateBasisPoints)).toBe(canonical.vatAmountCents)
+    expect(canonical.vatAmountCents).toBe(1122)
+  })
+
+  it('returns zero VAT at a zero rate', () => {
+    expect(vatFromBasisPoints(9999, 0)).toBe(0)
+    expect(vatFromBasisPoints(0, 2000)).toBe(0)
+  })
+
+  it.each<{
+    label: string
+    sellerCountry: string
+    buyerCountry: string
+    vatRateCategory: 'standard' | 'reduced' | 'exempt'
+    inclusiveAmountCents: number
+    expectedVatCents: number
+  }>([
+    {
+      label: 'FR standard 20 percent',
+      sellerCountry: 'FR',
+      buyerCountry: 'FR',
+      vatRateCategory: 'standard',
+      inclusiveAmountCents: 12000,
+      expectedVatCents: 2000,
+    },
+    {
+      label: 'FR reduced 10 percent',
+      sellerCountry: 'FR',
+      buyerCountry: 'FR',
+      vatRateCategory: 'reduced',
+      inclusiveAmountCents: 12345,
+      expectedVatCents: 1122,
+    },
+    {
+      label: 'HU reduced 5 percent odd cent',
+      sellerCountry: 'HU',
+      buyerCountry: 'HU',
+      vatRateCategory: 'reduced',
+      inclusiveAmountCents: 999,
+      expectedVatCents: 48,
+    },
+    {
+      label: 'LU standard 17 percent rounding boundary',
+      sellerCountry: 'LU',
+      buyerCountry: 'LU',
+      vatRateCategory: 'standard',
+      inclusiveAmountCents: 1001,
+      expectedVatCents: 145,
+    },
+    {
+      label: 'IE reduced 13.5 percent',
+      sellerCountry: 'IE',
+      buyerCountry: 'IE',
+      vatRateCategory: 'reduced',
+      inclusiveAmountCents: 777,
+      expectedVatCents: 92,
+    },
+    {
+      label: 'SI reduced 9.5 percent',
+      sellerCountry: 'SI',
+      buyerCountry: 'SI',
+      vatRateCategory: 'reduced',
+      inclusiveAmountCents: 640,
+      expectedVatCents: 56,
+    },
+    {
+      label: 'SE standard 25 percent smallest amount',
+      sellerCountry: 'SE',
+      buyerCountry: 'SE',
+      vatRateCategory: 'standard',
+      inclusiveAmountCents: 5,
+      expectedVatCents: 1,
+    },
+    {
+      label: 'exempt category extracts nothing',
+      sellerCountry: 'FR',
+      buyerCountry: 'FR',
+      vatRateCategory: 'exempt',
+      inclusiveAmountCents: 5000,
+      expectedVatCents: 0,
+    },
+  ])('agrees with calculateVat for $label on $inclusiveAmountCents cents', ({
+    sellerCountry,
+    buyerCountry,
+    vatRateCategory,
+    inclusiveAmountCents,
+    expectedVatCents,
+  }) => {
+    const canonical = calculateVat({
+      sellerCountry,
+      buyerCountry,
+      isVatRegistered: true,
+      vatRateCategory,
+      inclusiveAmountCents,
+    })
+
+    expect(vatFromBasisPoints(inclusiveAmountCents, canonical.vatRateBasisPoints)).toBe(
+      canonical.vatAmountCents,
+    )
+    expect(canonical.vatAmountCents).toBe(expectedVatCents)
   })
 })

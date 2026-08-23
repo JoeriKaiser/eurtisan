@@ -241,7 +241,9 @@ export async function createInvoicesForPlatformOrder(
     .where(eq(user.id, orderRecord.userId))
     .limit(1)
 
-  const billingAddr = orderRecord.billingAddress as BillingAddress
+  // Encrypted at rest for every order created through checkout. Read raw,
+  // every buyer field below comes out blank on those rows.
+  const billingAddr = decryptJsonb<BillingAddress>(orderRecord.billingAddress)
   const buyerParty: BillingParty = {
     name: billingAddr.name,
     email: buyerUser?.email,
@@ -407,7 +409,8 @@ export async function createInvoicesForPlatformOrder(
         vatAmountCents: finalVatAmount,
         totalCents: totalGross,
         vatRateBasisPoints: 0, // Mix of rates possible, detail is in items snapshot
-        billingDetails: customerBillingDetails,
+        // Encrypted at rest, matching the rows the encryption migration backfilled.
+        billingDetails: encryptJsonb(customerBillingDetails),
       })
       .onConflictDoNothing() // Idempotency fallback
 
@@ -454,7 +457,7 @@ export async function createInvoicesForPlatformOrder(
         vatAmountCents: feeVatDetails.vatAmountCents,
         totalCents: feeVatDetails.totalCents,
         vatRateBasisPoints: feeVatDetails.vatRateBasisPoints,
-        billingDetails: platformBillingDetails,
+        billingDetails: encryptJsonb(platformBillingDetails),
       })
       .onConflictDoNothing() // Idempotency fallback
 
@@ -577,9 +580,17 @@ export async function getInvoiceByIdQuery(
     })
   }
 
+  // billing_details is encrypted at rest; the browser contract Zod-parses
+  // this value and would reject ciphertext rows. decryptJsonb passes legacy
+  // plaintext through unchanged, so pre-encryption rows keep working.
+  const invoice: InvoiceRecord = {
+    ...invoiceRecord,
+    billingDetails: decryptJsonb<BillingDetails>(invoiceRecord.billingDetails),
+  }
+
   // Admin has access to all invoices
   if (userRole === 'admin') {
-    return invoiceRecord
+    return invoice
   }
 
   // Fetch shop order to verify relationships
@@ -615,7 +626,7 @@ export async function getInvoiceByIdQuery(
       })
     }
 
-    return invoiceRecord
+    return invoice
   }
 
   if (userRole === 'customer') {
@@ -641,7 +652,7 @@ export async function getInvoiceByIdQuery(
       })
     }
 
-    return invoiceRecord
+    return invoice
   }
 
   throw new Response(JSON.stringify({ error: 'Forbidden', message: 'Access denied.' }), {

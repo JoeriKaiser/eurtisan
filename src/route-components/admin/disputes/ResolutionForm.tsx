@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '#/components/ui/card'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
 import { resolveDispute } from '#/lib/disputes'
-import { formatPriceEUR } from '#/lib/pricing'
+import { formatPriceEUR, parseEuroToCents } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
 import { SUPPORTED_CURRENCY } from '#/lib/currency'
 
@@ -36,9 +36,9 @@ export function ResolutionForm({
   })
 
   const refundCents = useMemo(() => {
-    const parsed = Number.parseFloat(form.refundInput)
-    if (Number.isNaN(parsed) || parsed < 0) return null
-    return Math.round(parsed * 100)
+    const parsed = parseEuroToCents(form.refundInput)
+    if (parsed === null || parsed < 0) return null
+    return parsed
   }, [form.refundInput])
 
   const validate = useCallback(() => {

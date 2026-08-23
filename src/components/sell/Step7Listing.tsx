@@ -4,7 +4,8 @@ import { useCallback, useRef, useState } from 'react'
 import { useImageUpload } from '#/hooks/useImageUpload'
 import { isUnitPricingScoped } from '#/lib/products/unit-pricing'
 import { getImageUrl } from '#/lib/image-url'
-import { formatPriceEUR } from '#/lib/pricing'
+import { PLATFORM_FEE_PERCENT } from '#/lib/platform-constants'
+import { formatPriceEUR, parseEuroToCents } from '#/lib/pricing'
 import { saveDraftListing, slugify, step7ListingSchema } from '#/lib/sell-onboarding'
 import { m } from '#/paraglide/messages'
 import { Input } from '../ui/input'
@@ -63,10 +64,11 @@ export function Step7Listing() {
   const inputRef = useRef<HTMLInputElement>(null)
   const { upload, uploading, error: uploadError } = useImageUpload({ onboardingDraftId: draft.id })
 
-  const priceCents = Math.round((Number.parseFloat(form.price) || 0) * 100)
-  const platformFee = Math.round(priceCents * 0.03)
-  const paymentFee = Math.round(priceCents * 0.035 + 30)
-  const net = Math.max(0, priceCents - platformFee - paymentFee)
+  const priceCents = parseEuroToCents(form.price) ?? 0
+  // Matches the backend payout formula (fee on the sale subtotal); VAT on the
+  // fee base is not yet known at listing time.
+  const platformFee = Math.round(priceCents * (PLATFORM_FEE_PERCENT / 100))
+  const net = Math.max(0, priceCents - platformFee)
 
   const handleNameChange = (name: string) => {
     updateFields(3, {
@@ -425,18 +427,13 @@ export function Step7Listing() {
               <span>{formatPriceEUR(priceCents)}</span>
             </div>
             <div className='flex justify-between'>
-              <span>{m.onboarding_platform_fee()}</span>
+              <span>{m.onboarding_platform_fee({ percent: PLATFORM_FEE_PERCENT })}</span>
               <span>− {formatPriceEUR(platformFee)}</span>
-            </div>
-            <div className='flex justify-between'>
-              <span>{m.onboarding_payment_fee_estimate()}</span>
-              <span>− {formatPriceEUR(paymentFee)}</span>
             </div>
             <div className='flex justify-between border-t border-border-default pt-2 font-semibold text-text-primary'>
               <span>{m.onboarding_estimated_earnings()}</span>
               <span>{formatPriceEUR(net)}</span>
             </div>
-            <p className='text-xs text-text-muted'>{m.onboarding_fee_estimate_notice()}</p>
           </div>
         )}
       </section>
