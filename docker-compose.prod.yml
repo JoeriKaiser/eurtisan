@@ -192,9 +192,14 @@ services:
     environment:
       - NODE_ENV=production
       - DATABASE_POOL_MAX=10
+    expose:
+      - "3001"
     networks:
-      - eurtisan
-      - db-internal
+      eurtisan:
+        aliases:
+          - eurtisan-worker
+          - financial-totals-reconciliation
+      db-internal: null
     depends_on:
       db:
         condition: service_healthy

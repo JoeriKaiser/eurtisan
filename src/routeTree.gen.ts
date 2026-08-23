@@ -19,6 +19,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as OrdersRouteImport } from './routes/orders'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as MollieMockOauthRouteImport } from './routes/mollie-mock-oauth'
+import { Route as ImprintRouteImport } from './routes/imprint'
 import { Route as GuestOrderAccessRouteImport } from './routes/guest-order-access'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as ForbiddenRouteImport } from './routes/forbidden'
@@ -167,6 +168,11 @@ const NotificationsRoute = NotificationsRouteImport.update({
 const MollieMockOauthRoute = MollieMockOauthRouteImport.update({
   id: '/mollie-mock-oauth',
   path: '/mollie-mock-oauth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImprintRoute = ImprintRouteImport.update({
+  id: '/imprint',
+  path: '/imprint',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GuestOrderAccessRoute = GuestOrderAccessRouteImport.update({
@@ -699,6 +705,7 @@ export interface FileRoutesByFullPath {
   '/forbidden': typeof ForbiddenRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/guest-order-access': typeof GuestOrderAccessRoute
+  '/imprint': typeof ImprintRoute
   '/mollie-mock-oauth': typeof MollieMockOauthRoute
   '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRouteWithChildren
@@ -807,6 +814,7 @@ export interface FileRoutesByTo {
   '/forbidden': typeof ForbiddenRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/guest-order-access': typeof GuestOrderAccessRoute
+  '/imprint': typeof ImprintRoute
   '/mollie-mock-oauth': typeof MollieMockOauthRoute
   '/notifications': typeof NotificationsRoute
   '/privacy': typeof PrivacyRoute
@@ -908,6 +916,7 @@ export interface FileRoutesById {
   '/forbidden': typeof ForbiddenRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/guest-order-access': typeof GuestOrderAccessRoute
+  '/imprint': typeof ImprintRoute
   '/mollie-mock-oauth': typeof MollieMockOauthRoute
   '/notifications': typeof NotificationsRoute
   '/orders': typeof OrdersRouteWithChildren
@@ -1021,6 +1030,7 @@ export interface FileRouteTypes {
     | '/forbidden'
     | '/forgot-password'
     | '/guest-order-access'
+    | '/imprint'
     | '/mollie-mock-oauth'
     | '/notifications'
     | '/orders'
@@ -1129,6 +1139,7 @@ export interface FileRouteTypes {
     | '/forbidden'
     | '/forgot-password'
     | '/guest-order-access'
+    | '/imprint'
     | '/mollie-mock-oauth'
     | '/notifications'
     | '/privacy'
@@ -1229,6 +1240,7 @@ export interface FileRouteTypes {
     | '/forbidden'
     | '/forgot-password'
     | '/guest-order-access'
+    | '/imprint'
     | '/mollie-mock-oauth'
     | '/notifications'
     | '/orders'
@@ -1341,6 +1353,7 @@ export interface RootRouteChildren {
   ForbiddenRoute: typeof ForbiddenRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   GuestOrderAccessRoute: typeof GuestOrderAccessRoute
+  ImprintRoute: typeof ImprintRoute
   MollieMockOauthRoute: typeof MollieMockOauthRoute
   NotificationsRoute: typeof NotificationsRoute
   OrdersRoute: typeof OrdersRouteWithChildren
@@ -1456,6 +1469,13 @@ declare module '@tanstack/react-router' {
       path: '/mollie-mock-oauth'
       fullPath: '/mollie-mock-oauth'
       preLoaderRoute: typeof MollieMockOauthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/imprint': {
+      id: '/imprint'
+      path: '/imprint'
+      fullPath: '/imprint'
+      preLoaderRoute: typeof ImprintRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/guest-order-access': {
@@ -2457,6 +2477,7 @@ const rootRouteChildren: RootRouteChildren = {
   ForbiddenRoute: ForbiddenRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   GuestOrderAccessRoute: GuestOrderAccessRoute,
+  ImprintRoute: ImprintRoute,
   MollieMockOauthRoute: MollieMockOauthRoute,
   NotificationsRoute: NotificationsRoute,
   OrdersRoute: OrdersRouteWithChildren,

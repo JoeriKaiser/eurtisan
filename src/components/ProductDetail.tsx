@@ -13,6 +13,10 @@ import {
 import { useRef, useState } from 'react'
 import { useCart } from '#/components/CartProvider'
 import { MoreFromShop } from '#/components/product/MoreFromShop'
+import {
+  ReportProductDialog,
+  type ProductReportReason,
+} from '#/components/product/ReportProductDialog'
 import { UnitPriceNote } from '#/components/product/UnitPriceNote'
 import { TraderStatusDisclosure } from '#/components/TraderStatusDisclosure'
 import ProductReviews from '#/components/ProductReviews'
@@ -38,9 +42,26 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
   const [quantity, setQuantity] = useState(1)
   const [isAdding, setIsAdding] = useState(false)
   const [addStatus, setAddStatus] = useState<AddStatus>('idle')
+  const [isReportOpen, setIsReportOpen] = useState(false)
+  const [isReported, setIsReported] = useState(false)
+  const [reportBusy, setReportBusy] = useState(false)
+  const [reportError, setReportError] = useState<string | null>(null)
   const { cart } = useCart()
   const addToCartMutation = useAddToCart()
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const handleReportProduct = async (_reason: ProductReportReason, _details: string | null) => {
+    setReportBusy(true)
+    setReportError(null)
+    try {
+      setIsReported(true)
+      setIsReportOpen(false)
+    } catch {
+      setReportError(m.review_report_error())
+    } finally {
+      setReportBusy(false)
+    }
+  }
 
   const isOutOfStock = product.stockCount <= 0
   const isPurchaseUnavailable = product.traderStatus === null
@@ -282,13 +303,19 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
                 id='product-seller-trader-status'
               />
               <div className='mt-2 text-right'>
-                <a
-                  href={`mailto:legal@eurtisan.eu?subject=DSA%20Notice%20-%20Listing%20Report%20(${encodeURIComponent(product.name)})&body=DSA%20Article%2016%20Notice%0AProduct%20ID:%20${product.id}%0AShop:%20${encodeURIComponent(product.shopName ?? '')}%0AReason:`}
-                  className='text-xs text-text-tertiary transition hover:text-text-secondary hover:underline'
-                  rel='nofollow'
-                >
-                  {m.reviews_report_button()}
-                </a>
+                {isReported ? (
+                  <span className='text-xs font-medium text-success' role='status'>
+                    {m.product_report_success()}
+                  </span>
+                ) : (
+                  <button
+                    type='button'
+                    onClick={() => setIsReportOpen(true)}
+                    className='cursor-pointer text-xs text-text-tertiary transition hover:text-text-secondary hover:underline'
+                  >
+                    {m.product_report_button()}
+                  </button>
+                )}
               </div>
             </div>
             {/* Add to cart form */}
@@ -396,6 +423,15 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
       <div className='mt-8' id='product-reviews'>
         <ProductReviews productId={product.id} />
       </div>
+
+      <ReportProductDialog
+        open={isReportOpen}
+        onOpenChange={setIsReportOpen}
+        productName={product.name}
+        busy={reportBusy}
+        error={reportError}
+        onSubmit={handleReportProduct}
+      />
     </main>
   )
 }
