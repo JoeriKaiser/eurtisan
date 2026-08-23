@@ -201,6 +201,7 @@ export async function createProductOptionQuery(
 export async function updateProductOptionQuery(
   optionId: string,
   input: { name?: string; values?: string[] },
+  userId: string,
   actor?: AuditActor,
 ) {
   const existing = await db
@@ -212,6 +213,11 @@ export async function updateProductOptionQuery(
   if (!existing[0]) {
     throw new Error('NOT_FOUND')
   }
+
+  // Ownership is verified against the parent product resolved from the stored
+  // row — not from client input — so a caller cannot aim an option or variant
+  // id at another shop's resource while presenting their own product.
+  await verifyProductOwnershipForVariants(existing[0].productId, userId)
 
   const sanitizedName = input.name ? sanitizeOptionName(input.name) : undefined
 
@@ -252,7 +258,11 @@ export async function updateProductOptionQuery(
   return getProductVariantMatrix(existing[0].productId)
 }
 
-export async function deleteProductOptionQuery(optionId: string, actor?: AuditActor) {
+export async function deleteProductOptionQuery(
+  optionId: string,
+  userId: string,
+  actor?: AuditActor,
+) {
   const existing = await db
     .select({ id: productOption.id, productId: productOption.productId, name: productOption.name })
     .from(productOption)
@@ -262,6 +272,8 @@ export async function deleteProductOptionQuery(optionId: string, actor?: AuditAc
   if (!existing[0]) {
     throw new Error('NOT_FOUND')
   }
+
+  await verifyProductOwnershipForVariants(existing[0].productId, userId)
 
   const productId = existing[0].productId
 
@@ -373,6 +385,7 @@ export async function updateProductVariantQuery(
     isActive?: boolean
     optionValueIds?: string[]
   },
+  userId: string,
   actor?: AuditActor,
 ) {
   const existing = await db
@@ -384,6 +397,8 @@ export async function updateProductVariantQuery(
   if (!existing[0]) {
     throw new Error('NOT_FOUND')
   }
+
+  await verifyProductOwnershipForVariants(existing[0].productId, userId)
 
   const sanitizedName = input.name ? validatePlainText(input.name, 'Variant name') : undefined
   const sanitizedSku =
@@ -430,7 +445,11 @@ export async function updateProductVariantQuery(
   return getProductVariantMatrix(existing[0].productId)
 }
 
-export async function deleteProductVariantQuery(variantId: string, actor?: AuditActor) {
+export async function deleteProductVariantQuery(
+  variantId: string,
+  userId: string,
+  actor?: AuditActor,
+) {
   const existing = await db
     .select()
     .from(productVariant)
@@ -440,6 +459,8 @@ export async function deleteProductVariantQuery(variantId: string, actor?: Audit
   if (!existing[0]) {
     throw new Error('NOT_FOUND')
   }
+
+  await verifyProductOwnershipForVariants(existing[0].productId, userId)
 
   await db.delete(productVariant).where(eq(productVariant.id, variantId))
 

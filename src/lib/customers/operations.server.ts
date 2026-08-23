@@ -1,7 +1,15 @@
 import { createHash } from 'node:crypto'
 import { and, count, desc, eq, ilike, inArray, sql, type SQL } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { customerNote, customerTag, orderItem, platformOrder, shopOrder, user } from '#/db/schema'
+import {
+  customerNote,
+  customerTag,
+  orderItem,
+  platformOrder,
+  shop,
+  shopOrder,
+  user,
+} from '#/db/schema'
 import { logger } from '../logger.server'
 import type { OrderStatus } from '../orders.server'
 import { writeAuditLog, type AuditActor } from '../audit-logger'
@@ -337,6 +345,23 @@ export async function addCustomerNote(
   }
 }
 
+/**
+ * Mirrors the addCustomerNote contract gate: the caller must own the shop the
+ * note belongs to. Deny-by-default for every other caller, including admins,
+ * since customer notes are private seller CRM data.
+ */
+async function assertNoteShopOwnership(shopId: string, actor: AuditActor): Promise<void> {
+  const [shopRecord] = await db
+    .select({ ownerId: shop.ownerId })
+    .from(shop)
+    .where(eq(shop.id, shopId))
+    .limit(1)
+
+  if (!shopRecord || shopRecord.ownerId !== actor.id) {
+    throw new Error('FORBIDDEN')
+  }
+}
+
 export async function updateCustomerNote(
   noteId: string,
   content: string,
@@ -355,6 +380,8 @@ export async function updateCustomerNote(
   if (!existing[0]) {
     throw new Error('NOT_FOUND')
   }
+
+  await assertNoteShopOwnership(existing[0].shopId, actor)
 
   const [updated] = await db
     .update(customerNote)
@@ -400,6 +427,8 @@ export async function deleteCustomerNote(noteId: string, actor: AuditActor) {
   if (!existing[0]) {
     throw new Error('NOT_FOUND')
   }
+
+  await assertNoteShopOwnership(existing[0].shopId, actor)
 
   await db.delete(customerNote).where(eq(customerNote.id, noteId))
 
