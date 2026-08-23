@@ -42,3 +42,5 @@ skills-lock.json
 
 
 .agents
+# Local snapshot dirs used by diff tooling — never commit
+.tmp-base/
