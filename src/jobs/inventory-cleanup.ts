@@ -20,6 +20,7 @@ import {
   releaseExpiredReservations,
 } from '#/lib/inventory.server'
 import { withJobLock } from '#/lib/job-lock.server'
+import { startJobMetricsServerFromEnv } from '#/lib/jobs/job-metrics-server.server'
 import { logger } from '#/lib/logger.server'
 import { declareJobInterval, withJobMetrics } from '#/lib/with-job-metrics.server'
 
@@ -83,11 +84,16 @@ process.on('SIGINT', shutdown)
 process.on('SIGTERM', shutdown)
 
 async function main(): Promise<void> {
-  const result = await withJobLock(JOB_NAME, run)
-  if (result === undefined) {
-    logger.info('[inventory-cleanup] Another instance is already running; exiting cleanly.', {
-      job: JOB_NAME,
-    })
+  const metricsServer = await startJobMetricsServerFromEnv()
+  try {
+    const result = await withJobLock(JOB_NAME, run)
+    if (result === undefined) {
+      logger.info('[inventory-cleanup] Another instance is already running; exiting cleanly.', {
+        job: JOB_NAME,
+      })
+    }
+  } finally {
+    await metricsServer?.close()
   }
 }
 

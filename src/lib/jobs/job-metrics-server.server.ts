@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 
 import { getMetricsBody, metricsContentType } from '#/lib/metrics.server'
+import { logger } from '#/lib/logger.server'
 
 function tokensMatch(provided: string | null, expected: string): boolean {
   if (!provided) return false
@@ -58,4 +59,29 @@ export async function startJobMetricsServer(input: {
         server.close((error) => (error ? reject(error) : resolve()))
       }),
   }
+}
+
+const DEFAULT_JOB_METRICS_PORT = 3001
+
+/**
+ * Starts a job's Prometheus endpoint from environment defaults, with the same
+ * contract as worker-daemon.server.ts: METRICS_TOKEN gates the endpoint and
+ * METRICS_PORT (default 3001) selects the port. When METRICS_TOKEN is unset
+ * the endpoint is skipped with a warning so local runs and tests stay
+ * serverless; production .env always carries the token, and a skipped endpoint
+ * surfaces in Prometheus as a down scrape target rather than silent staleness.
+ *
+ * Long-running standalone job entrypoints call this once at start-up and close
+ * the returned handle on shutdown.
+ */
+export async function startJobMetricsServerFromEnv(): Promise<
+  { close: () => Promise<void> } | undefined
+> {
+  const token = process.env.METRICS_TOKEN
+  if (!token) {
+    logger.warn('METRICS_TOKEN is unset; skipping the job metrics endpoint')
+    return undefined
+  }
+  const port = Number.parseInt(process.env.METRICS_PORT ?? String(DEFAULT_JOB_METRICS_PORT), 10)
+  return startJobMetricsServer({ port, token })
 }

@@ -1,9 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import z from 'zod'
-import { AccountShell } from '#/components/AccountShell'
-import { NotificationsLoading } from '#/components/NotificationsLoading'
 import { NotificationsError } from '#/components/NotificationsError'
-import { NotificationsRouteComponent } from '#/route-components/notifications'
+import { NotificationsLoading } from '#/components/NotificationsLoading'
+import { NotificationsRouteWrapper } from '#/route-components/notifications'
 import { getNotifications, type NotificationsResult } from '#/lib/notifications'
 import { guardAuth } from '#/lib/route-guards'
 import { m } from '#/paraglide/messages'
@@ -40,16 +39,3 @@ export const Route = createFileRoute('/notifications')({
   errorComponent: NotificationsError,
 })
 
-function NotificationsRouteWrapper() {
-  return (
-    <AccountShell
-      breadcrumbs={[
-        { label: m.nav_home(), to: '/' },
-        { label: m.account_title(), to: '/account' },
-        { label: m.notifications_title() },
-      ]}
-    >
-      <NotificationsRouteComponent />
-    </AccountShell>
-  )
-}

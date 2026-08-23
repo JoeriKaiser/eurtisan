@@ -64,6 +64,61 @@ make production-image-smoke
 docker compose -f docker-compose.prod.yml run --rm --no-deps app bun run validate:server-env
 ```
 
+## Operator legal identity (LCEN imprint)
+
+French LCEN Article 6-III requires the `/imprint` page to disclose the
+publisher's registration identifiers and hosting provider details. These are
+plain server-runtime values (not secrets) rendered from the operator profile;
+they must be accurate and match the company registry.
+
+| Variable | Example (placeholder) | Requirement |
+|---|---|---|
+| `OPERATOR_LEGAL_FORM` | `SAS` | required in production |
+| `OPERATOR_SHARE_CAPITAL` | `10 000 euros` | optional everywhere |
+| `OPERATOR_SIREN` | `000000000` (9 digits) | required in production |
+| `OPERATOR_SIRET` | `00000000000000` (14 digits) | required in production |
+| `OPERATOR_RCS_CITY` | `Paris` | required in production |
+| `OPERATOR_PUBLICATION_DIRECTOR` | `First Last` | required in production |
+| `HOSTING_PROVIDER_NAME` | `Example VPS Provider` | required in production |
+| `HOSTING_PROVIDER_ADDRESS` | `1 Rue des Exemples, 75002 Paris, France` | required in production |
+| `HOSTING_PROVIDER_PHONE` | `+33 1 00 00 00 00` | required in production |
+
+Requirement semantics: all of these variables parse as optional strings so
+development and staging environments degrade gracefully (the page simply omits
+the missing rows instead of crashing). In production,
+`src/lib/infra/server-environment.server.ts` fails startup when any variable
+marked "required in production" is unset; `OPERATOR_SIREN` must be exactly
+nine digits and `OPERATOR_SIRET` exactly fourteen. Hosting provider refers to
+the provider operating the self-hosted VPS. None of these values is
+browser-visible at build time, so changing them requires only recreating the
+app service — no image rebuild.
+
+## Database connection pools and job metrics
+
+`DATABASE_POOL_MAX` is pinned per service class in both Compose stacks,
+overriding any `.env` value: the web app allows 10 connections and every
+background job 4. The `db` services raise Postgres to `max_connections=200`
+via command flags, mirrored in the WAL-archive compose overlay. Worst case,
+all pools saturate simultaneously: 10 + 18 × 4 = 82 client connections against
+200, leaving 118 for migrations, ad-hoc psql, and backup tooling. Treat pool
+sizes and `max_connections` as one budget — raise them together and recreate
+the affected services.
+
+Production-critical background jobs serve Prometheus metrics from their own
+container on port 3001 (`METRICS_TOKEN` required; `METRICS_PORT` overrides the
+default port): `notification-digest`, `email-outbox-worker`,
+`payout-reconciliation`, `mollie-payment-reconciliation`,
+`sendcloud-reconciliation`, `inventory-cleanup`, and
+`financial-totals-reconciliation`. Prometheus scrapes each as an
+`eurtisan-<job-name>` target rendered by Ansible. Housekeeping cleanup jobs
+(session, cart, audit-log, search-event, notification, payout-log,
+verification, and email retention cleanups) deliberately have no metrics
+endpoint: they are low-risk retention pollers without dedicated alerts; wire
+one with `startJobMetricsServerFromEnv`, an `expose: ["3001"]`, and a scrape
+entry when that changes. With `METRICS_TOKEN` unset the endpoint is skipped
+(local runs), which surfaces as a down scrape target rather than silent
+staleness.
+
 ## Ownership
 
 - Secret values are owned by the service/infrastructure owner and stored only in

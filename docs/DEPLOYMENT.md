@@ -12,6 +12,15 @@ Deploy Eurtisan to staging and production using Ansible and Docker.
   - Ubuntu 24.04 LTS
   - Staging: 2 vCPU / 4GB RAM minimum
   - Production: 4 vCPU / 8GB RAM recommended
+
+  Production memory budget on the 8 GB host. Compose `memory:` limits are
+  containment caps, not reservations — size against expected steady-state use:
+  db ~2.0 GB + app ~0.75 GB + meilisearch ~1.0 GB + imgproxy ~0.3 GB +
+  caddy ~0.05 GB + 18 background jobs × ~0.08 GB ≈ **5.5 GB steady-state**,
+  leaving ~2.5 GB for the OS, page cache, and backup jobs. Worst case the caps
+  sum to ~14 GB (db 4g, app 2g, meilisearch 2g, imgproxy 1g, caddy 512m, and
+  256m per background job); each cap keeps a single runaway container
+  OOM-contained before it can starve the host.
 - **SSH access** to the VPS as a user with passwordless `sudo` (or root)
 - A host-specific read-only GitHub deploy key at `/root/.ssh/eurtisan_github_deploy`, registered for the private repository
 - Domain **eurtisan.eu** with DNS management access
@@ -87,13 +96,17 @@ make infra-setup-production
 
 Ansible will:
 
-1. Harden the server (UFW, fail2ban, auto-updates) — skipped on staging if `coexist_with_proxy: true`
+1. Harden the server (UFW, fail2ban, auto-updates, Docker json-file log rotation at 50 MB × 3 files in `/etc/docker/daemon.json`) — skipped on staging if `coexist_with_proxy: true`
 2. Install Docker + Docker Compose plugin
 3. Clone the repository to `/opt/eurtisan`
 4. Build the exact release in an isolated controller worktree, publish and sign its immutable digest, then pull and verify that digest on the target
 5. Write the `.env` file with the qualified repository digest
 6. Run database migrations and start all services
 7. Schedule nightly database backups at 03:00 UTC
+
+Docker applies daemon log options when a container is **created**, so after
+changing `/etc/docker/daemon.json` run `docker compose up -d --force-recreate`
+once to retrofit the rotation settings onto existing services.
 
 ---
 
@@ -502,6 +515,14 @@ shorter.
 The app exposes `GET /api/metrics` for Prometheus. Optional protection: set `METRICS_TOKEN` and configure scrape `authorization: Bearer <token>`.
 
 Grafana Alloy/Prometheus should scrape `eurtisan-app:3000` with `metrics_path: /api/metrics`.
+
+Production-critical background jobs (`notification-digest`,
+`email-outbox-worker`, `payout-reconciliation`, `mollie-payment-reconciliation`,
+`sendcloud-reconciliation`, `inventory-cleanup`, and
+`financial-totals-reconciliation`) each serve token-gated Prometheus metrics on
+their own container port 3001 and are scraped as `eurtisan-<job-name>` targets;
+see [Environment configuration](./runbooks/environment-configuration.md) for the
+env contract and which jobs are deliberately excluded.
 
 Alert rules live in `infra/observability/prometheus/rules/` and cover app health, database connectivity, Meilisearch health, disk space, job alert logs, payment-webhook errors, and checkout failures. Validate them with:
 

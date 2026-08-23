@@ -8,6 +8,7 @@ import { setTimeout as sleep } from 'node:timers/promises'
 
 import { getNotificationDigestIntervalMs } from '#/lib/env.server'
 import { withJobLock } from '#/lib/job-lock.server'
+import { startJobMetricsServerFromEnv } from '#/lib/jobs/job-metrics-server.server'
 import { logger } from '#/lib/logger.server'
 import { enqueuePreviousUtcDayDigests } from '#/lib/notifications/digest.server'
 import { declareJobInterval, withJobMetrics } from '#/lib/with-job-metrics.server'
@@ -52,17 +53,23 @@ function shutdown(): void {
 process.on('SIGINT', shutdown)
 process.on('SIGTERM', shutdown)
 
+async function main(): Promise<void> {
+  const metricsServer = await startJobMetricsServerFromEnv()
+  try {
+    const result = await withJobLock(JOB_NAME, run)
+    if (result === undefined) {
+      logger.info('[notification-digest] Another instance is already running; exiting cleanly.', {
+        job: JOB_NAME,
+      })
+    }
+  } finally {
+    await metricsServer?.close()
+  }
+}
+
 if (!process.env.VITEST) {
-  withJobLock(JOB_NAME, run)
-    .then((result) => {
-      if (result === undefined) {
-        logger.info('[notification-digest] Another instance is already running; exiting cleanly.', {
-          job: JOB_NAME,
-        })
-      }
-    })
-    .catch((error) => {
-      logger.error('[notification-digest] Fatal error', error, { job: JOB_NAME })
-      process.exit(1)
-    })
+  main().catch((error) => {
+    logger.error('[notification-digest] Fatal error', error, { job: JOB_NAME })
+    process.exit(1)
+  })
 }

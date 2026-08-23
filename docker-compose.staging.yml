@@ -41,6 +41,9 @@ services:
       # even if a production .env is copied in by mistake.
       - EMAIL_SMTP_HOST=mailpit
       - EMAIL_SMTP_PORT=1025
+      # Bounded per service class so every pool stays under Postgres
+      # max_connections=200 (math in docs/runbooks/environment-configuration.md).
+      - DATABASE_POOL_MAX=10
     ports:
       # Direct access fallback (SSH tunnel or IP-whitelisted).
       # Traefik routes internally via the coolify network — this port is not required for that.
@@ -85,6 +88,12 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:?required database user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required database password}
       POSTGRES_DB: ${POSTGRES_DB:?required database name}
+    # Pool budget: app (10) + background jobs (4 each) cap at 82 client
+    # connections; headroom covers migrations, psql, and backup tooling.
+    command:
+      - postgres
+      - -c
+      - max_connections=200
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
@@ -219,85 +228,7 @@ services:
       - .env
     environment:
       - NODE_ENV=production
-    networks:
-      - eurtisan
-    depends_on:
-      db:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-        window: 120s
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512m
-    command: >
-      sh -c "bun run job:inventory-cleanup"
-
-  meilisearch-sync:
-    image: eurtisan-app:${IMAGE_TAG:-latest}
-    container_name: eurtisan-meilisearch-sync-staging
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-    networks:
-      - eurtisan
-    depends_on:
-      db:
-        condition: service_healthy
-      meilisearch:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-        window: 120s
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512m
-    command: >
-      sh -c "bun run job:meilisearch-sync"
-
-  payout-reconciliation:
-    image: eurtisan-app:${IMAGE_TAG:-latest}
-    container_name: eurtisan-payout-reconciliation-staging
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-    networks:
-      - eurtisan
-    depends_on:
-      db:
-        condition: service_healthy
-    deploy:
-      restart_policy:
-        condition: on-failure
-        delay: 10s
-        max_attempts: 5
-        window: 120s
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512m
-    command: >
-      sh -c "bun run job:payout-reconciliation"
-
-  financial-totals-reconciliation:
-    image: eurtisan-app:${IMAGE_TAG:-latest}
-    container_name: eurtisan-financial-totals-reconciliation-staging
-    env_file:
-      - .env
-    environment:
-      - NODE_ENV=production
-      - FINANCIAL_TOTALS_RECONCILIATION_INTERVAL_MS=${FINANCIAL_TOTALS_RECONCILIATION_INTERVAL_MS:-21600000}
-      - FINANCIAL_TOTALS_RECONCILIATION_BATCH_SIZE=${FINANCIAL_TOTALS_RECONCILIATION_BATCH_SIZE:-500}
+      - DATABASE_POOL_MAX=4
     expose:
       - "3001"
     networks:
@@ -314,7 +245,93 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 512m
+          memory: 256m
+    command: >
+      sh -c "bun run job:inventory-cleanup"
+
+  meilisearch-sync:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-meilisearch-sync-staging
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - DATABASE_POOL_MAX=4
+    networks:
+      - eurtisan
+    depends_on:
+      db:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256m
+    command: >
+      sh -c "bun run job:meilisearch-sync"
+
+  payout-reconciliation:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-payout-reconciliation-staging
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - DATABASE_POOL_MAX=4
+    expose:
+      - "3001"
+    networks:
+      - eurtisan
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256m
+    command: >
+      sh -c "bun run job:payout-reconciliation"
+
+  financial-totals-reconciliation:
+    image: eurtisan-app:${IMAGE_TAG:-latest}
+    container_name: eurtisan-financial-totals-reconciliation-staging
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - FINANCIAL_TOTALS_RECONCILIATION_INTERVAL_MS=${FINANCIAL_TOTALS_RECONCILIATION_INTERVAL_MS:-21600000}
+      - FINANCIAL_TOTALS_RECONCILIATION_BATCH_SIZE=${FINANCIAL_TOTALS_RECONCILIATION_BATCH_SIZE:-500}
+      - DATABASE_POOL_MAX=4
+    expose:
+      - "3001"
+    networks:
+      - eurtisan
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 10s
+        max_attempts: 5
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256m
     command: >
       sh -c "bun run job:financial-totals-reconciliation"
 
@@ -325,6 +342,9 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      - DATABASE_POOL_MAX=4
+    expose:
+      - "3001"
     networks:
       - eurtisan
     depends_on:
@@ -339,7 +359,7 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 512m
+          memory: 256m
     command: >
       sh -c "bun run job:mollie-payment-reconciliation"
 
@@ -350,6 +370,9 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      - DATABASE_POOL_MAX=4
+    expose:
+      - "3001"
     networks:
       - eurtisan
     depends_on:
@@ -364,7 +387,7 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 512m
+          memory: 256m
     command: >
       sh -c "bun run job:sendcloud-reconciliation"
 
@@ -375,6 +398,7 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      - DATABASE_POOL_MAX=4
     networks:
       - eurtisan
     depends_on:
@@ -389,7 +413,7 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 512m
+          memory: 256m
     command: >
       sh -c "bun run job:session-cleanup"
 
@@ -400,6 +424,7 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      - DATABASE_POOL_MAX=4
     networks:
       - eurtisan
     depends_on:
@@ -414,7 +439,7 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 512m
+          memory: 256m
     command: >
       sh -c "bun run job:cart-cleanup"
 
@@ -425,6 +450,7 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      - DATABASE_POOL_MAX=4
     networks:
       - eurtisan
     depends_on:
@@ -439,7 +465,7 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 512m
+          memory: 256m
     command: >
       sh -c "bun run job:audit-log-cleanup"
 
@@ -450,6 +476,7 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      - DATABASE_POOL_MAX=4
     networks:
       - eurtisan
     depends_on:
@@ -464,7 +491,7 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 512m
+          memory: 256m
     command: >
       sh -c "bun run job:search-event-cleanup"
 
@@ -476,6 +503,7 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      - DATABASE_POOL_MAX=4
     networks:
       - eurtisan
     depends_on:
@@ -490,7 +518,7 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 512m
+          memory: 256m
     command: >
       sh -c "bun run job:notification-cleanup"
 
@@ -501,6 +529,7 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      - DATABASE_POOL_MAX=4
     networks:
       - eurtisan
     depends_on:
@@ -515,7 +544,7 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 512m
+          memory: 256m
     command: >
       sh -c "bun run job:payout-reconciliation-log-cleanup"
 
@@ -526,6 +555,7 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      - DATABASE_POOL_MAX=4
     networks:
       - eurtisan
     depends_on:
@@ -540,7 +570,7 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 512m
+          memory: 256m
     command: >
       sh -c "bun run job:verification-cleanup"
 
@@ -551,6 +581,9 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      - DATABASE_POOL_MAX=4
+    expose:
+      - "3001"
     networks:
       - eurtisan
     depends_on:
@@ -565,7 +598,7 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 512m
+          memory: 256m
     command: >
       sh -c "bun run job:email-outbox-worker"
 
@@ -578,6 +611,9 @@ services:
       - NODE_ENV=production
       - NOTIFICATION_DIGEST_INTERVAL_MS=${NOTIFICATION_DIGEST_INTERVAL_MS:-3600000}
       - NOTIFICATION_DIGEST_RECIPIENT_BATCH_SIZE=${NOTIFICATION_DIGEST_RECIPIENT_BATCH_SIZE:-100}
+      - DATABASE_POOL_MAX=4
+    expose:
+      - "3001"
     networks:
       - eurtisan
     depends_on:
@@ -592,7 +628,7 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 512m
+          memory: 256m
     command: >
       sh -c "bun run job:notification-digest"
 
@@ -603,6 +639,7 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      - DATABASE_POOL_MAX=4
     networks:
       - eurtisan
     depends_on:
@@ -617,7 +654,7 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 512m
+          memory: 256m
     command: >
       sh -c "bun run job:email-suppression-cleanup"
 
@@ -628,6 +665,7 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      - DATABASE_POOL_MAX=4
     networks:
       - eurtisan
     depends_on:
@@ -642,7 +680,7 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 512m
+          memory: 256m
     command: >
       sh -c "bun run job:email-retention-cleanup"
 
@@ -653,6 +691,7 @@ services:
       - .env
     environment:
       - NODE_ENV=production
+      - DATABASE_POOL_MAX=4
     networks:
       - eurtisan
     depends_on:
@@ -667,7 +706,7 @@ services:
       resources:
         limits:
           cpus: '0.5'
-          memory: 512m
+          memory: 256m
     command: >
       sh -c "bun run job:sendcloud-retention-cleanup"
 

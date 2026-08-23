@@ -246,7 +246,7 @@ function buildResult(
   outboxBacklog: number | undefined,
   diskStatus: { healthy: boolean; availableBytes: number; totalBytes: number },
 ): HealthCheckResult {
-  const criticalHealthy = dbHealthy && meilisearchHealthy && diskStatus.healthy
+  const criticalHealthy = dbHealthy && diskStatus.healthy
   const result: HealthCheckResult = {
     status: criticalHealthy ? 'ok' : 'error',
     db: dbHealthy ? 'connected' : 'disconnected',
@@ -277,16 +277,17 @@ function buildResult(
 /**
  * Full health check (legacy /api/health endpoint).
  *
- * Limited to critical dependencies only; external provider status is available
- * at /api/health/deps so readiness/liveness probes are not affected by
- * third-party latency.
+ * Gated on the database and disk only: search degrades to its PostgreSQL
+ * fallback, so a disconnected Meilisearch must not take the app down.
+ * Meilisearch status is still reported in the body for monitoring. External
+ * provider status lives at /api/health/deps so readiness/liveness probes are
+ * not affected by third-party latency.
  */
 export async function checkHealth(): Promise<{
   body: HealthCheckResult
   status: number
 }> {
   const { dbHealthy, meilisearchHealthy, diskStatus } = await runCriticalChecks()
-  const criticalHealthy = dbHealthy && meilisearchHealthy && diskStatus.healthy
   const body = buildResult(
     dbHealthy,
     meilisearchHealthy,
@@ -297,18 +298,18 @@ export async function checkHealth(): Promise<{
     undefined,
     diskStatus,
   )
-  return { body, status: criticalHealthy ? 200 : 503 }
+  return { body, status: body.status === 'ok' ? 200 : 503 }
 }
 
 /**
- * Readiness probe — 200 only if critical dependencies are up.
+ * Readiness probe — 200 only while the app can serve traffic: database and
+ * disk healthy. Meilisearch is reported in the body but never gates readiness.
  */
 export async function checkReady(): Promise<{
   body: HealthCheckResult
   status: number
 }> {
   const { dbHealthy, meilisearchHealthy, diskStatus } = await runCriticalChecks()
-  const criticalHealthy = dbHealthy && meilisearchHealthy && diskStatus.healthy
   const body = buildResult(
     dbHealthy,
     meilisearchHealthy,
@@ -319,7 +320,7 @@ export async function checkReady(): Promise<{
     undefined,
     diskStatus,
   )
-  return { body, status: criticalHealthy ? 200 : 503 }
+  return { body, status: body.status === 'ok' ? 200 : 503 }
 }
 
 /**

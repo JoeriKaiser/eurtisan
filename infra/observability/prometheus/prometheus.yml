@@ -32,6 +32,52 @@ scrape_configs:
     static_configs:
       - targets: ['financial-totals-reconciliation:3001']
 
+  # Production-critical background jobs each serve token-gated metrics on
+  # their own container's port 3001 (METRICS_TOKEN / METRICS_PORT; see
+  # src/lib/jobs/job-metrics-server.server.ts). Housekeeping cleanup jobs are
+  # deliberately not scraped — see docs/runbooks/environment-configuration.md.
+  - job_name: 'eurtisan-notification-digest'
+    metrics_path: /metrics
+    params:
+      token: ["{{ metrics_token | default('') }}"]
+    static_configs:
+      - targets: ['notification-digest:3001']
+
+  - job_name: 'eurtisan-email-outbox-worker'
+    metrics_path: /metrics
+    params:
+      token: ["{{ metrics_token | default('') }}"]
+    static_configs:
+      - targets: ['email-outbox-worker:3001']
+
+  - job_name: 'eurtisan-payout-reconciliation'
+    metrics_path: /metrics
+    params:
+      token: ["{{ metrics_token | default('') }}"]
+    static_configs:
+      - targets: ['payout-reconciliation:3001']
+
+  - job_name: 'eurtisan-mollie-payment-reconciliation'
+    metrics_path: /metrics
+    params:
+      token: ["{{ metrics_token | default('') }}"]
+    static_configs:
+      - targets: ['mollie-payment-reconciliation:3001']
+
+  - job_name: 'eurtisan-sendcloud-reconciliation'
+    metrics_path: /metrics
+    params:
+      token: ["{{ metrics_token | default('') }}"]
+    static_configs:
+      - targets: ['sendcloud-reconciliation:3001']
+
+  - job_name: 'eurtisan-inventory-cleanup'
+    metrics_path: /metrics
+    params:
+      token: ["{{ metrics_token | default('') }}"]
+    static_configs:
+      - targets: ['inventory-cleanup:3001']
+
   - job_name: 'alloy'
     static_configs:
       - targets: ['eurtisan-alloy:12345']
