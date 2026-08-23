@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { StatementOfReasons } from '#/components/notifications/StatementOfReasons'
+import { ShopModerationNotice } from '#/components/notifications/ShopModerationNotice'
 import { formatDateShort } from '#/lib/format-date'
 import type { NotificationItem, NotificationType } from '#/lib/notifications.server'
 import { useMarkAllNotificationsRead, useMarkNotificationsRead } from '#/lib/notifications-hooks'
@@ -199,6 +200,11 @@ function notificationPreview(item: NotificationItem): string {
           return m.notification_shop_active({ shopName })
         case 'rejected':
           return m.notification_shop_rejected({ shopName })
+        // A suspension is a legal decision, not a routine status flip: it gets
+        // its own line, with the full statement rendered beside the row by
+        // `ShopModerationNotice`.
+        case 'suspended':
+          return m.sor_notification_suspended_title({ shopName })
         default:
           return m.notification_shop_moderation({
             shopName,
@@ -446,6 +452,9 @@ export function NotificationsPage({
                         item.type === 'seller_reply_moderated') && (
                         <StatementOfReasons item={item} />
                       )}
+                      {item.type === 'shop_moderation_update' && (
+                        <ShopModerationNotice item={item} />
+                      )}
                     </li>
                   )
                 }
@@ -563,6 +572,9 @@ export function NotificationsPage({
                                 {(item.type === 'review_moderated' ||
                                   item.type === 'seller_reply_moderated') && (
                                   <StatementOfReasons item={item} />
+                                )}
+                                {item.type === 'shop_moderation_update' && (
+                                  <ShopModerationNotice item={item} />
                                 )}
                               </li>
                             )

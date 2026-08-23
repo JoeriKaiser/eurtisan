@@ -225,7 +225,7 @@ export function AdminOrderDetailPage() {
                               rel='noopener noreferrer'
                               className='ml-1 text-xs text-text-muted hover:text-text-primary underline'
                             >
-                              (Label PDF)
+                              {m.admin_order_detail_label_pdf()}
                             </a>
                           )}
                         </span>
@@ -261,13 +261,17 @@ export function AdminOrderDetailPage() {
                 <table className='w-full text-left text-sm'>
                   <thead>
                     <tr className='border-b border-border-subtle'>
-                      <th className='pb-2 pr-4 font-medium text-text-secondary text-xs'>Product</th>
-                      <th className='pb-2 pr-4 font-medium text-text-secondary text-xs hidden sm:table-cell'>
-                        Price
+                      <th className='pb-2 pr-4 font-medium text-text-secondary text-xs'>
+                        {m.admin_products_col_product()}
                       </th>
-                      <th className='pb-2 pr-4 font-medium text-text-secondary text-xs'>Qty</th>
+                      <th className='pb-2 pr-4 font-medium text-text-secondary text-xs hidden sm:table-cell'>
+                        {m.admin_products_col_price()}
+                      </th>
+                      <th className='pb-2 pr-4 font-medium text-text-secondary text-xs'>
+                        {m.admin_order_detail_qty()}
+                      </th>
                       <th className='pb-2 font-medium text-text-secondary text-xs text-right'>
-                        Total
+                        {m.admin_orders_col_total()}
                       </th>
                     </tr>
                   </thead>

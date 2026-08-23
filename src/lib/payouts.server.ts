@@ -7,6 +7,7 @@ export type {
   PayoutReversalOptions,
 } from './payouts/types'
 export {
+  assertPayoutReleaseAllowed,
   createPayoutForShopOrder,
   disconnectMollieQuery,
   executePayoutQuery,

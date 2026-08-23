@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import {
+  Flag,
   ImageOff,
   Loader2,
   Minus,
@@ -16,11 +17,16 @@ import { MoreFromShop } from '#/components/product/MoreFromShop'
 import { UnitPriceNote } from '#/components/product/UnitPriceNote'
 import { TraderStatusDisclosure } from '#/components/TraderStatusDisclosure'
 import ProductReviews from '#/components/ProductReviews'
+import { ReportListingDialog } from '#/components/reviews/ReportListingDialog'
 import { StarRating } from '#/components/ui/StarRating'
+import { Button } from '#/components/ui/button'
 import { useAddToCart } from '#/lib/cart-hooks'
+import { useAuth } from '#/lib/auth-hooks'
+import { createProductReport } from '#/lib/listing-reports/contract'
+import type { ListingReportReason } from '#/lib/listing-reports/types'
 import { formatPriceEUR } from '#/lib/pricing'
-import { resolveAvailability } from '#/lib/products/availability'
 import type { ProductDetail as ProductDetailType, PublicProduct } from '#/lib/products.server'
+import { resolveAvailability } from '#/lib/products/availability'
 import { getProductImageTransitionName } from '#/lib/view-transitions'
 import { ResponsiveImage } from '#/lib/responsive-image'
 import { m } from '#/paraglide/messages'
@@ -41,6 +47,11 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
   const { cart } = useCart()
   const addToCartMutation = useAddToCart()
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const { user } = useAuth()
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reported, setReported] = useState(false)
+  const [reportBusy, setReportBusy] = useState(false)
+  const [reportError, setReportError] = useState<string | null>(null)
 
   const isOutOfStock = product.stockCount <= 0
   const isPurchaseUnavailable = product.traderStatus === null
@@ -81,6 +92,25 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
         clearTimeout(timeoutRef.current)
       }
       timeoutRef.current = setTimeout(() => setAddStatus('idle'), 3000)
+    }
+  }
+
+  /**
+   * The notice goes straight to the moderation queue; nothing about the
+   * listing changes here. `alreadyReported` is treated as success because the
+   * unique index means the person's notice is already on record.
+   */
+  const handleReport = async (reason: ListingReportReason, details: string | null) => {
+    setReportBusy(true)
+    setReportError(null)
+    try {
+      await createProductReport({ data: { productId: product.id, reason, details } })
+      setReported(true)
+      setReportOpen(false)
+    } catch {
+      setReportError(m.listing_report_error())
+    } finally {
+      setReportBusy(false)
     }
   }
 
@@ -371,6 +401,32 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
                 )}
               </div>
             </form>
+
+            {/* The notice route sits below the purchase controls: quiet, but on
+                the surface where a problem with the listing is discovered. */}
+            <div className='mt-5 border-t border-border-subtle pt-4'>
+              {reported ? (
+                <p className='flex items-center gap-2 text-sm text-text-secondary'>
+                  <Flag size={14} className='fill-error text-error' aria-hidden='true' />
+                  {m.listing_report_success_product()}
+                </p>
+              ) : (
+                user && (
+                  <Button
+                    type='button'
+                    variant='ghost'
+                    size='sm'
+                    onClick={() => {
+                      setReportError(null)
+                      setReportOpen(true)
+                    }}
+                  >
+                    <Flag size={14} aria-hidden='true' />
+                    {m.listing_report_button_product()}
+                  </Button>
+                )
+              )}
+            </div>
           </section>
         </div>
       </div>
@@ -387,6 +443,17 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
       <div className='mt-8' id='product-reviews'>
         <ProductReviews productId={product.id} />
       </div>
+
+      <ReportListingDialog
+        open={reportOpen}
+        targetType='product'
+        busy={reportBusy}
+        error={reportError}
+        onOpenChange={(open) => {
+          if (!open && !reportBusy) setReportOpen(false)
+        }}
+        onSubmit={(reason, details) => void handleReport(reason, details)}
+      />
     </main>
   )
 }

@@ -1,3 +1,4 @@
+import { m } from '#/paraglide/messages'
 import { Input } from '#/components/ui/input'
 
 interface ShopSettingsShippingOriginProps {
@@ -23,24 +24,22 @@ export function ShopSettingsShippingOrigin({
 }: ShopSettingsShippingOriginProps) {
   return (
     <div className='rounded-xl border border-border-subtle p-4'>
-      <h3 className='mb-3 text-sm font-semibold text-text-primary'>Shipping Origin Address</h3>
-      <p className='mb-3 text-xs text-text-muted'>
-        Used to generate shipping labels for your orders.
-      </p>
+      <h3 className='mb-3 text-sm font-semibold text-text-primary'>{m.shipping_origin_title()}</h3>
+      <p className='mb-3 text-xs text-text-muted'>{m.shipping_origin_description()}</p>
       <div className='space-y-3'>
         <div>
           <label
             htmlFor='origin-street'
             className='mb-1.5 block text-xs font-medium text-text-secondary'
           >
-            Street
+            {m.creator_shop_address_street_label()}
           </label>
           <Input
             id='origin-street'
             type='text'
             value={originStreet}
             onChange={(e) => onStreetChange(e.target.value)}
-            placeholder='123 Main St'
+            placeholder={m.creator_shop_address_street_placeholder()}
           />
         </div>
         <div className='grid grid-cols-2 gap-3'>
@@ -49,14 +48,14 @@ export function ShopSettingsShippingOrigin({
               htmlFor='origin-city'
               className='mb-1.5 block text-xs font-medium text-text-secondary'
             >
-              City
+              {m.creator_shop_address_city_label()}
             </label>
             <Input
               id='origin-city'
               type='text'
               value={originCity}
               onChange={(e) => onCityChange(e.target.value)}
-              placeholder='Berlin'
+              placeholder={m.shipping_origin_city_placeholder()}
             />
           </div>
           <div>
@@ -64,7 +63,7 @@ export function ShopSettingsShippingOrigin({
               htmlFor='origin-postal'
               className='mb-1.5 block text-xs font-medium text-text-secondary'
             >
-              Postal Code
+              {m.creator_shop_address_postal_label()}
             </label>
             <Input
               id='origin-postal'
@@ -80,7 +79,7 @@ export function ShopSettingsShippingOrigin({
             htmlFor='origin-country'
             className='mb-1.5 block text-xs font-medium text-text-secondary'
           >
-            Country (2-letter code)
+            {m.creator_shop_address_country_label()}
           </label>
           <Input
             id='origin-country'

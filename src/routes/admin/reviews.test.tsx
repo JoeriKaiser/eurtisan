@@ -9,29 +9,50 @@ const mocks = vi.hoisted(() => ({
   getAdminSellerReplies: vi.fn(),
   updateReviewModerationStatus: vi.fn(),
   updateSellerReplyModerationStatus: vi.fn(),
+  getAdminListingReports: vi.fn(),
+  resolveListingReport: vi.fn(),
   state: {
     search: {
-      content: 'seller_replies' as 'reviews' | 'seller_replies',
-      status: 'flagged' as 'all' | 'approved' | 'flagged' | 'hidden',
+      content: 'seller_replies' as 'reviews' | 'seller_replies' | 'listing_reports',
+      status: 'flagged' as
+        | 'all'
+        | 'approved'
+        | 'flagged'
+        | 'hidden'
+        | 'open'
+        | 'reviewed'
+        | 'actioned'
+        | 'dismissed',
       page: 3,
       pageSize: 20,
     },
     loaderData: {} as unknown,
   },
 }))
-
-vi.mock('@tanstack/react-router', () => ({
-  useLoaderData: () => mocks.state.loaderData,
-  useNavigate: () => mocks.navigate,
-  useSearch: () => mocks.state.search,
-  createFileRoute: () => (options: Record<string, unknown>) => ({ options }),
-}))
-
 vi.mock('#/lib/reviews', () => ({
   getAdminReviews: mocks.getAdminReviews,
   getAdminSellerReplies: mocks.getAdminSellerReplies,
   updateReviewModerationStatus: mocks.updateReviewModerationStatus,
   updateSellerReplyModerationStatus: mocks.updateSellerReplyModerationStatus,
+}))
+
+vi.mock('#/lib/listing-reports/contract', () => ({
+  getAdminListingReports: mocks.getAdminListingReports,
+  resolveListingReport: mocks.resolveListingReport,
+}))
+
+// The page hooks into the router for its loader data and search params; the
+// per-test shapes live in `mocks.state`, reset in `beforeEach`.
+vi.mock('@tanstack/react-router', () => ({
+  // The route module builds its definition at import time; only the shape
+  // `Route.options` is consumed below.
+  createFileRoute:
+    () =>
+    (options: Record<string, unknown>) =>
+      ({ options }),
+  useLoaderData: () => mocks.state.loaderData,
+  useSearch: () => mocks.state.search,
+  useNavigate: () => mocks.navigate,
 }))
 
 vi.mock('#/paraglide/messages', () => ({
@@ -53,8 +74,16 @@ import { Route, reviewsSearchSchema } from './reviews'
 const AdminReviewsPage = Route.options.component as React.ComponentType
 const routeLoader = Route.options.loader as (args: {
   deps: {
-    content: 'reviews' | 'seller_replies'
-    status: 'all' | 'approved' | 'flagged' | 'hidden'
+    content: 'reviews' | 'seller_replies' | 'listing_reports'
+    status:
+      | 'all'
+      | 'approved'
+      | 'flagged'
+      | 'hidden'
+      | 'open'
+      | 'reviewed'
+      | 'actioned'
+      | 'dismissed'
     page: number
     pageSize: number
   }
@@ -103,6 +132,14 @@ beforeEach(() => {
   mocks.getAdminSellerReplies.mockReset().mockResolvedValue(sellerReplyQueue().queue)
   mocks.updateReviewModerationStatus.mockReset().mockResolvedValue({ success: true })
   mocks.updateSellerReplyModerationStatus.mockReset().mockResolvedValue({ success: true })
+  mocks.getAdminListingReports.mockReset().mockResolvedValue({
+    reports: [],
+    total: 0,
+    page: 1,
+    pageSize: 20,
+    totalPages: 1,
+  })
+  mocks.resolveListingReport.mockReset().mockResolvedValue({ success: true })
   mocks.state.search = {
     content: 'seller_replies',
     status: 'flagged',
@@ -145,10 +182,42 @@ describe('admin review moderation search', () => {
     })
     expect(mocks.getAdminReviews).not.toHaveBeenCalled()
   })
+
+  it('routes listing_reports content to the merged report queue', async () => {
+    await routeLoader({
+      deps: { content: 'listing_reports', status: 'actioned', page: 2, pageSize: 50 },
+    })
+
+    expect(mocks.getAdminListingReports).toHaveBeenCalledWith({
+      data: { status: 'actioned', page: 2, pageSize: 50 },
+    })
+    expect(mocks.getAdminReviews).not.toHaveBeenCalled()
+    expect(mocks.getAdminSellerReplies).not.toHaveBeenCalled()
+  })
+
+  it('maps review-moderation statuses onto "All" for the report queue', async () => {
+    // The address bar is shared between queues; a stale `flagged` must not
+    // reach the report queue as a silently wrong filter.
+    await routeLoader({
+      deps: { content: 'listing_reports', status: 'flagged', page: 1, pageSize: 20 },
+    })
+
+    expect(mocks.getAdminListingReports).toHaveBeenCalledWith({
+      data: { status: 'all', page: 1, pageSize: 20 },
+    })
+  })
+
+  it('maps report statuses onto "All" for the review queues', async () => {
+    await routeLoader({ deps: { content: 'reviews', status: 'dismissed', page: 1, pageSize: 20 } })
+
+    expect(mocks.getAdminReviews).toHaveBeenCalledWith({
+      data: { status: 'all', page: 1, pageSize: 20 },
+    })
+  })
 })
 
 describe('AdminReviewsPage seller replies', () => {
-  it('switches content with a page reset while preserving the other search values', () => {
+  it('switches content with a page and filter reset, since the vocabularies differ', () => {
     render(<AdminReviewsPage />)
 
     const sellerRepliesButton = screen.getByRole('button', {
@@ -162,7 +231,7 @@ describe('AdminReviewsPage seller replies', () => {
       to: '/admin/reviews',
       search: {
         content: 'reviews',
-        status: 'flagged',
+        status: 'all',
         page: 1,
         pageSize: 20,
       },

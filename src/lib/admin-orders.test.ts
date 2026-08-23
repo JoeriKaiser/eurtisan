@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import { db } from '#/db/index'
 import { orderItem, platformOrder, product, shop, shopOrder, user } from '#/db/schema'
+import { encryptJsonb } from '#/lib/encryption.server'
 
 import { getPlatformOrderDetailQuery, listAllPlatformOrdersQuery } from './admin-orders.server'
 
@@ -409,5 +410,37 @@ describe('getPlatformOrderDetailQuery', () => {
     const ba = result.billingAddress
     expect(ba.name).toBe('Billing Person')
     expect(ba.city).toBe('Paris')
+  })
+
+  it('decrypts shipping and billing addresses stored encrypted at rest', async () => {
+    await seedUser()
+    const shippingFixture = {
+      name: 'Encrypted Buyer',
+      street: '789 Cipher Ct',
+      city: 'Vienna',
+      postalCode: '1010',
+      country: 'Austria',
+    }
+    const billingFixture = {
+      name: 'Billing Buyer',
+      street: '321 Ledger Ln',
+      city: 'Munich',
+      postalCode: '80331',
+      country: 'Germany',
+    }
+    const po = await seedPlatformOrder({
+      shippingAddress: encryptJsonb(shippingFixture),
+      billingAddress: encryptJsonb(billingFixture),
+    })
+
+    const result = await getPlatformOrderDetailQuery(po.id)
+    expect(result).not.toBeNull()
+    if (!result) return
+
+    // The write path persists encryptJsonb ciphertext (see
+    // checkout/order-persistence); the detail query must hand back the
+    // original readable objects, not the envelope strings.
+    expect(result.shippingAddress).toEqual(shippingFixture)
+    expect(result.billingAddress).toEqual(billingFixture)
   })
 })

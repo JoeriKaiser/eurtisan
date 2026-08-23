@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { NotificationGroup } from './NotificationsPage'
 import { NotificationsPage } from './NotificationsPage'
@@ -85,6 +85,22 @@ vi.mock('#/paraglide/messages', () => ({
     notification_shop_active: ({ shopName }: { shopName: string }) => `${shopName} is live`,
     notification_shop_rejected: ({ shopName }: { shopName: string }) =>
       `${shopName} was not approved`,
+    sor_notification_suspended_title: ({ shopName }: { shopName: string }) =>
+      `Your shop ${shopName} was suspended`,
+    sor_notification_summary: () => 'Statement of reasons for this decision',
+    sor_notification_measure_suspended_delisted: () =>
+      'Your shop is suspended and its listings are hidden.',
+    sor_notification_active_body: () =>
+      'Your shop is live and your listings are visible to buyers.',
+    sor_notification_status_link: () => 'View your shop status',
+    statement_of_reasons_what_label: () => 'What we did',
+    statement_of_reasons_why_label: () => 'Why',
+    statement_of_reasons_automated_label: () => 'Was this automated?',
+    statement_of_reasons_automated_no: () => 'No. A person made this decision.',
+    statement_of_reasons_redress_label: () => 'If you disagree',
+    statement_of_reasons_redress_support: ({ email }: { email: string }) => `Email ${email}.`,
+    statement_of_reasons_redress_judicial: () => 'You can also go to a court.',
+    dsa_sor_grounds_generic: () => 'A moderator found that the shop breaks the terms.',
     notification_low_stock: ({ productName }: { productName: string }) =>
       `Low stock: ${productName}`,
     time_just_now: () => 'Just now',
@@ -257,6 +273,134 @@ describe('NotificationsPage', () => {
     expect(screen.getByText('Add a clear photo of the product label.')).toBeDefined()
     fireEvent.click(screen.getByRole('button', { name: /Changes requested for Clay Studio/i }))
     expect(mockNavigate).toHaveBeenCalledWith({ to: '/sell/status/shop-1' })
+  })
+
+  it('renders the Article 17 suspension card with grounds, redress, and deep link', () => {
+    const notifications = [
+      makeNotification({
+        type: 'shop_moderation_update',
+        data: {
+          shopId: 'shop-1',
+          shopName: 'Clay Studio',
+          status: 'suspended',
+          statusLabel: 'suspended',
+          note: '',
+          targetPath: '/sell/status/shop-1',
+          measure: 'shop_suspended_listings_delisted',
+          groundsKind: 'generic',
+          groundsKey: 'dsa_sor_grounds_generic',
+          redressSupportEmail: 'support@eurtisan.eu',
+          judicialRemedyAvailable: true,
+          automatedMeans: false,
+        },
+      }),
+    ]
+
+    render(
+      <NotificationsPage
+        groups={notifications.map(makeGroup)}
+        total={1}
+        page={1}
+        totalPages={1}
+        onPageChange={() => {}}
+        isNavigating={false}
+      />,
+    )
+
+    expect(screen.getByText('Your shop Clay Studio was suspended')).toBeDefined()
+    expect(screen.getByText('Statement of reasons for this decision')).toBeDefined()
+    expect(screen.getByText('Your shop is suspended and its listings are hidden.')).toBeDefined()
+    expect(screen.getByText('A moderator found that the shop breaks the terms.')).toBeDefined()
+    expect(screen.getByText('No. A person made this decision.')).toBeDefined()
+    expect(screen.getByText('You can also go to a court.')).toBeDefined()
+    const support = screen.getByRole('link', { name: /Email support@eurtisan\.eu/ })
+    expect(support.getAttribute('href')).toContain('mailto:support@eurtisan.eu')
+    expect(screen.getByRole('link', { name: 'View your shop status' }).getAttribute('href')).toBe(
+      '/sell/status/shop-1',
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Your shop Clay Studio was suspended/ }))
+    expect(mockNavigate).toHaveBeenCalledWith({ to: '/sell/status/shop-1' })
+  })
+
+  it('shows the recorded note verbatim in the suspension card', () => {
+    const notifications = [
+      makeNotification({
+        type: 'shop_moderation_update',
+        data: {
+          shopId: 'shop-1',
+          shopName: 'Clay Studio',
+          status: 'suspended',
+          statusLabel: 'suspended',
+          note: 'Listings copied from another shop.',
+          targetPath: '/sell/status/shop-1',
+          measure: 'shop_suspended_listings_delisted',
+          groundsKind: 'note',
+          groundsKey: null,
+          redressSupportEmail: 'support@eurtisan.eu',
+          judicialRemedyAvailable: true,
+          automatedMeans: false,
+        },
+      }),
+    ]
+
+    render(
+      <NotificationsPage
+        groups={notifications.map(makeGroup)}
+        total={1}
+        page={1}
+        totalPages={1}
+        onPageChange={() => {}}
+        isNavigating={false}
+      />,
+    )
+
+    // The recorded note appears twice by design — as the row's detail prose
+    // and verbatim inside the Article 17 card — so scope each query.
+    const rowButton = screen.getByRole('button', {
+      name: /Your shop Clay Studio was suspended/,
+    })
+    expect(within(rowButton).getByText('Listings copied from another shop.')).toBeDefined()
+
+    const card = screen.getByText('Statement of reasons for this decision').closest('details')
+    expect(card).not.toBeNull()
+    if (!card) return
+    expect(within(card).getByText('Listings copied from another shop.')).toBeDefined()
+    // A note grounds replaces the generic grounds label everywhere.
+    expect(screen.queryByText('A moderator found that the shop breaks the terms.')).toBeNull()
+  })
+
+  it('renders a success card when a suspension is lifted', () => {
+    const notifications = [
+      makeNotification({
+        type: 'shop_moderation_update',
+        data: {
+          shopId: 'shop-1',
+          shopName: 'Clay Studio',
+          status: 'active',
+          statusLabel: 'active',
+          note: '',
+          targetPath: '/sell/status/shop-1',
+        },
+      }),
+    ]
+
+    render(
+      <NotificationsPage
+        groups={notifications.map(makeGroup)}
+        total={1}
+        page={1}
+        totalPages={1}
+        onPageChange={() => {}}
+        isNavigating={false}
+      />,
+    )
+
+    expect(screen.getByText('Clay Studio is live')).toBeDefined()
+    expect(
+      screen.getByText('Your shop is live and your listings are visible to buyers.'),
+    ).toBeDefined()
+    expect(screen.queryByText('Statement of reasons for this decision')).toBeNull()
   })
 
   it('renders and safely links each seller-reply notification', () => {

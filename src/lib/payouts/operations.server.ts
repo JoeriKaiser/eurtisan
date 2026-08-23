@@ -26,12 +26,56 @@ import type {
 } from './types'
 
 /* -------------------------------------------------------------------------- */
+/*                         Suspension Release Guard                            */
+/* -------------------------------------------------------------------------- */
+
+// Buyer protection wins over seller payout: flows that move money BACK toward
+// buyers or the platform (refunds, dispute resolutions, order cancellations,
+// reconciliation reversals) deliberately do NOT go through this guard and stay
+// available while a shop is suspended. Only seller-ward movement is gated.
+//
+// Suspension propagation contract: while `shop.isSuspended` is true, payouts
+// for that shop must not be scheduled, released, or sent; they remain (or are
+// created) held in `pending`. The ledger row is still written by
+// createPayoutForShopOrder so unsuspension restores normal flow without manual
+// data fixes — the next natural transition succeeds.
+
+/**
+ * Single shared gate for every code path that moves a payout forward toward a
+ * seller. Throws {@link PayoutError} with code `SHOP_SUSPENDED` when the shop
+ * is suspended; unknown shops are denied as well (fail closed).
+ *
+ * Takes the shop row FOR UPDATE inside the caller's transaction so release
+ * decisions serialize against concurrent suspend/unsuspend updates.
+ */
+export async function assertPayoutReleaseAllowed(
+  tx: Omit<typeof db, '$client'>,
+  shopId: string,
+): Promise<void> {
+  const [record] = await tx
+    .select({ isSuspended: shop.isSuspended })
+    .from(shop)
+    .where(eq(shop.id, shopId))
+    .for('update')
+    .limit(1)
+
+  if (!record || record.isSuspended) {
+    throw new PayoutError('SHOP_SUSPENDED', `Payout release blocked: shop ${shopId} is suspended`)
+  }
+}
+
+/* -------------------------------------------------------------------------- */
 /*                        Create Payout for Shop Order                         */
 /* -------------------------------------------------------------------------- */
 
 /**
  * Idempotently inserts a pending payout record for a shop order.
  * Uses ON CONFLICT DO NOTHING so duplicate calls are safe.
+ *
+ * Suspension: the row is intentionally still created (held at `pending`) for
+ * suspended shops so unsuspension restores the normal release flow without
+ * manual data fixes; forward movement is blocked by
+ * {@link assertPayoutReleaseAllowed}.
  *
  * Returns the id of the inserted or existing payout row.
  */
@@ -78,6 +122,9 @@ export async function createPayoutForShopOrder(
 
 /**
  * Reverses (or partially claws back) a routed payout for a refund.
+ *
+ * Not gated by shop suspension: refunds claw money back to the buyer, and
+ * buyer protection wins over seller payout.
  *
  * - If the refund amount covers the full payout, the payout is marked
  *   `reversed` and `reverseRouting: true` is returned for the Mollie refund.
@@ -187,6 +234,7 @@ async function insertPayoutReconciliationLog(
  * - If the payout is already `sent`, returns the existing route ID without side effects.
  * - If the payout is `failed`, retries the route creation.
  * - If the payout is `reversed`, returns an error (reversed payouts cannot be re-executed).
+ * - If the shop is suspended, the payout stays held `pending`: nothing executes.
  */
 export async function executePayoutQuery(payoutId: string): Promise<ExecutePayoutResult> {
   const txResult = await db.transaction(async (tx) => {
@@ -227,6 +275,19 @@ export async function executePayoutQuery(payoutId: string): Promise<ExecutePayou
         status: 409,
         message: `Payout cannot be executed from status '${payoutRecord.status}'`,
       }
+    }
+
+    // Suspension propagation: a suspended shop's payout stays held pending —
+    // no route is created and no status changes. Checked inside this
+    // transaction via the shared guard so admin executions, API executions,
+    // and the release sweep all serialize against suspend/unsuspend.
+    try {
+      await assertPayoutReleaseAllowed(tx, payoutRecord.shopId)
+    } catch (err) {
+      if (err instanceof PayoutError && err.code === 'SHOP_SUSPENDED') {
+        return { kind: 'error' as const, status: 409, message: err.message }
+      }
+      throw err
     }
 
     // Load the related order and shop to obtain Mollie IDs.

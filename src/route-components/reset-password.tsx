@@ -14,6 +14,9 @@ export function ResetPassword() {
   const [form, setForm] = useState({ password: '', confirmPassword: '' })
   const [visibility, setVisibility] = useState({ password: false, confirmPassword: false })
   const [status, setStatus] = useState({ loading: false, error: '', success: false })
+  const [fieldErrors, setFieldErrors] = useState<{ password?: string; confirmPassword?: string }>(
+    {},
+  )
 
   if (!token) {
     return (
@@ -49,14 +52,15 @@ export function ResetPassword() {
       .value
 
     setForm({ password: formPassword, confirmPassword: formConfirmPassword })
+    setFieldErrors({})
 
     if (formPassword.length < 8) {
-      setStatus({ loading: false, error: m.password_rule_length(), success: false })
+      setFieldErrors({ password: m.password_rule_length() })
       return
     }
 
     if (formPassword !== formConfirmPassword) {
-      setStatus({ loading: false, error: m.error_passwords_do_not_match(), success: false })
+      setFieldErrors({ confirmPassword: m.error_passwords_do_not_match() })
       return
     }
 
@@ -102,12 +106,13 @@ export function ResetPassword() {
                 value={form.password}
                 onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
                 required
+                error={fieldErrors.password}
                 className='pr-10 w-full'
               />
               <button
                 type='button'
                 onClick={() => setVisibility((prev) => ({ ...prev, password: !prev.password }))}
-                className='absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary focus:outline-none'
+                className='absolute right-3 top-1/2 -translate-y-1/2 rounded text-text-muted hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
                 aria-label={
                   visibility.password ? m.button_hide_password() : m.button_show_password()
                 }
@@ -115,6 +120,11 @@ export function ResetPassword() {
                 {visibility.password ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
+            {fieldErrors.password && (
+              <p id='password-error' role='alert' className='text-xs text-error'>
+                {fieldErrors.password}
+              </p>
+            )}
             <PasswordStrengthIndicator password={form.password} />
           </div>
 
@@ -131,6 +141,7 @@ export function ResetPassword() {
                 value={form.confirmPassword}
                 onChange={(e) => setForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
                 required
+                error={fieldErrors.confirmPassword}
                 className='pr-10 w-full'
               />
               <button
@@ -138,7 +149,7 @@ export function ResetPassword() {
                 onClick={() =>
                   setVisibility((prev) => ({ ...prev, confirmPassword: !prev.confirmPassword }))
                 }
-                className='absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary focus:outline-none'
+                className='absolute right-3 top-1/2 -translate-y-1/2 rounded text-text-muted hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
                 aria-label={
                   visibility.confirmPassword ? m.button_hide_password() : m.button_show_password()
                 }
@@ -146,6 +157,11 @@ export function ResetPassword() {
                 {visibility.confirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
+            {fieldErrors.confirmPassword && (
+              <p id='confirmPassword-error' role='alert' className='text-xs text-error'>
+                {fieldErrors.confirmPassword}
+              </p>
+            )}
           </div>
 
           <div className='min-h-12'>

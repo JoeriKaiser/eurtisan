@@ -48,6 +48,15 @@ function validServerEnvironment(): Record<string, string> {
     EMAIL_SMTP_PORT: '587',
     EMAIL_FROM_ADDRESS: 'noreply@eurtisan.test',
     EMAIL_REPLY_TO_ADDRESS: 'support@eurtisan.test',
+    OPERATOR_LEGAL_FORM: 'SAS',
+    OPERATOR_SHARE_CAPITAL: '10 000 euros',
+    OPERATOR_SIREN: '123456789',
+    OPERATOR_SIRET: '12345678901234',
+    OPERATOR_RCS_CITY: 'Paris',
+    OPERATOR_PUBLICATION_DIRECTOR: 'Jane Doe',
+    HOSTING_PROVIDER_NAME: 'Example VPS Provider',
+    HOSTING_PROVIDER_ADDRESS: '2 Rue des Exemples, 75002 Paris',
+    HOSTING_PROVIDER_PHONE: '+33 1 00 00 00 00',
     METRICS_TOKEN: 'metricsvalue00000000000000000000001',
     ENABLE_VIES_VALIDATION: 'false',
     PLATFORM_VAT_LIABLE: 'true',
@@ -205,5 +214,54 @@ describe('parseServerEnvironment', () => {
     expect(parsedCustom.OPERATOR_LEGAL_NAME).toBe('Custom SAS')
     expect(parsedCustom.OPERATOR_LEGAL_EMAIL).toBe('custom@example.com')
     expect(parsedCustom.OPERATOR_VAT_ID).toBe('FR11223344556')
+  })
+
+  it('requires LCEN imprint identifiers in production', () => {
+    const environment = validServerEnvironment()
+    delete environment.OPERATOR_SIREN
+    delete environment.HOSTING_PROVIDER_PHONE
+
+    expect(() => parseServerEnvironment(environment)).toThrow('OPERATOR_SIREN')
+    expect(() => parseServerEnvironment(environment)).toThrow('HOSTING_PROVIDER_PHONE')
+  })
+
+  it('treats LCEN imprint identifiers as optional outside production', () => {
+    const environment = validServerEnvironment()
+    environment.APP_ENV = 'staging'
+    environment.VITE_APP_ENV = 'staging'
+    environment.S3_ENDPOINT = 'http://garage:3900'
+    environment.S3_PUBLIC_ENDPOINT = 'https://s3-staging.eurtisan.test'
+    environment.S3_REGION = 'garage'
+    environment.MOLLIE_API_KEY = `test_${'x'.repeat(30)}`
+    environment.MOLLIE_TEST_MODE = 'true'
+    environment.SENDCLOUD_FORCE_UNSTAMPED_LETTER = 'true'
+    for (const name of [
+      'OPERATOR_LEGAL_FORM',
+      'OPERATOR_SIREN',
+      'OPERATOR_SIRET',
+      'OPERATOR_RCS_CITY',
+      'OPERATOR_PUBLICATION_DIRECTOR',
+      'HOSTING_PROVIDER_NAME',
+      'HOSTING_PROVIDER_ADDRESS',
+      'HOSTING_PROVIDER_PHONE',
+    ]) {
+      delete environment[name]
+    }
+
+    expect(parseServerEnvironment(environment).APP_ENV).toBe('staging')
+  })
+
+  it('keeps share capital optional and rejects malformed SIREN or SIRET values', () => {
+    const withoutCapital = validServerEnvironment()
+    delete withoutCapital.OPERATOR_SHARE_CAPITAL
+    expect(parseServerEnvironment(withoutCapital).OPERATOR_SHARE_CAPITAL).toBeUndefined()
+
+    const badSiren = validServerEnvironment()
+    badSiren.OPERATOR_SIREN = '12345'
+    expect(() => parseServerEnvironment(badSiren)).toThrow('OPERATOR_SIREN')
+
+    const badSiret = validServerEnvironment()
+    badSiret.OPERATOR_SIRET = '1234567890123'
+    expect(() => parseServerEnvironment(badSiret)).toThrow('OPERATOR_SIRET')
   })
 })

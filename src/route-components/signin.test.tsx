@@ -34,6 +34,7 @@ vi.mock('#/paraglide/messages', () => ({
     sign_in_title: () => 'Sign in',
     sign_in_description: () => 'Welcome back',
     field_name: () => 'Name',
+    auth_name_required: () => 'Name is required',
     field_email: () => 'Email',
     field_password: () => 'Password',
     field_confirm_password: () => 'Confirm password',
@@ -137,6 +138,13 @@ describe('SignIn', () => {
         'Password must be at least 8 characters',
       )
     })
+    const passwordField = screen.getByLabelText('Password')
+    expect(passwordField.getAttribute('aria-invalid')).toBe('true')
+    expect(passwordField.getAttribute('aria-describedby')).toBe('password-error')
+    expect(passwordField.getAttribute('aria-errormessage')).toBe('password-error')
+    expect(document.getElementById('password-error')?.textContent).toBe(
+      'Password must be at least 8 characters',
+    )
     expect(mockSignUpEmail).not.toHaveBeenCalled()
     expect(await axe(document.body)).toHaveNoViolations()
   })
@@ -278,6 +286,37 @@ describe('SignIn', () => {
     })
   })
 
+  it('keeps a visible keyboard focus indicator on the password reveal buttons', () => {
+    render(<SignIn />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Need an account? Sign up' }))
+
+    const toggles = screen.getAllByRole('button', { name: 'Show password' })
+    expect(toggles).toHaveLength(2)
+    for (const toggle of toggles) {
+      expect(toggle.className).not.toContain('focus:outline-none')
+      expect(toggle.className).toContain('focus-visible:ring-2')
+      expect(toggle.className).toContain('focus-visible:ring-accent-secondary')
+      expect(toggle.className).toContain('focus-visible:ring-offset-2')
+    }
+  })
+
+  it('announces and associates the required-name error on sign-up submit', async () => {
+    render(<SignIn />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Need an account? Sign up' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toBe('Name is required')
+    })
+    const nameField = screen.getByLabelText('Name')
+    expect(nameField.getAttribute('aria-invalid')).toBe('true')
+    expect(nameField.getAttribute('aria-describedby')).toBe('name-error')
+    expect(nameField.getAttribute('aria-errormessage')).toBe('name-error')
+    expect(mockSignUpEmail).not.toHaveBeenCalled()
+  })
+
   it('submits the two-factor code and navigates on success', async () => {
     mockSignInEmail.mockResolvedValue({ error: null, data: { twoFactorRedirect: true } })
     mockVerifyTotp.mockResolvedValue({ error: null, data: {} })
@@ -335,6 +374,13 @@ describe('SignIn', () => {
     await waitFor(() => {
       expect(screen.getByRole('alert').textContent).toContain('Passwords do not match')
     })
+    const confirmField = screen.getByLabelText('Confirm password')
+    expect(confirmField.getAttribute('aria-invalid')).toBe('true')
+    expect(confirmField.getAttribute('aria-describedby')).toBe('confirmPassword-error')
+    expect(confirmField.getAttribute('aria-errormessage')).toBe('confirmPassword-error')
+    expect(document.getElementById('confirmPassword-error')?.textContent).toBe(
+      'Passwords do not match',
+    )
     expect(mockSignUpEmail).not.toHaveBeenCalled()
   })
 })

@@ -1,30 +1,52 @@
 import { useLoaderData, useNavigate, useSearch } from '@tanstack/react-router'
-import { Check, EyeOff, Flag, Inbox } from 'lucide-react'
+import { Check, EyeOff, Flag, Inbox, Package, Store, X } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent } from '#/components/ui/card'
 import { StarRating } from '#/components/ui/StarRating'
 import { cn } from '#/lib/cn'
 import { formatDateMedium } from '#/lib/format-date'
+import { resolveListingReport } from '#/lib/listing-reports/contract'
+import type {
+  AdminListingReport,
+  AdminListingReportsResult,
+  ListingReportStatus,
+  ListingReportTargetType,
+} from '#/lib/listing-reports/types'
 import { updateReviewModerationStatus, updateSellerReplyModerationStatus } from '#/lib/reviews'
 import type { AdminReviewsResult, AdminSellerRepliesResult } from '#/lib/reviews.server'
 import { m } from '#/paraglide/messages'
 import { ModerationDecisionDialog, type ModerationStatus } from './reviews/ModerationDecisionDialog'
+import { ReportResolutionDialog } from './reviews/ReportResolutionDialog'
 
-type ModerationContent = 'reviews' | 'seller_replies'
+type ModerationContent = 'reviews' | 'seller_replies' | 'listing_reports'
 type ModerationFilter = 'all' | ModerationStatus
-const MODERATION_CONTENTS = ['reviews', 'seller_replies'] as const
+const MODERATION_CONTENTS = ['reviews', 'seller_replies', 'listing_reports'] as const
+
+/** The review queues' status vocabulary. */
 const MODERATION_FILTERS: readonly ModerationFilter[] = ['all', 'approved', 'flagged', 'hidden']
+/** The report queue's own vocabulary behind the same search key. */
+const REPORT_FILTERS = ['all', 'open', 'reviewed', 'actioned', 'dismissed'] as const
 
 type AdminModerationLoaderData =
   | { content: 'reviews'; queue: AdminReviewsResult }
   | { content: 'seller_replies'; queue: AdminSellerRepliesResult }
+  | { content: 'listing_reports'; queue: AdminListingReportsResult }
 
-type PendingDecision = {
-  content: ModerationContent
+type ReviewDecision = {
+  content: 'reviews' | 'seller_replies'
   id: string
   status: ModerationStatus
 }
+
+type ReportDecision = {
+  content: 'listing_reports'
+  id: string
+  targetType: ListingReportTargetType
+  outcome: 'actioned' | 'dismissed'
+}
+
+type PendingDecision = ReviewDecision | ReportDecision
 
 function StatusBadge({ status }: { status: ModerationStatus }) {
   return (
@@ -57,13 +79,178 @@ function ReportCount({ count }: { count: number }) {
   )
 }
 
+function ReportStatusBadge({ status }: { status: ListingReportStatus }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold',
+        status === 'open'
+          ? 'border-warning/20 bg-warning-subtle text-warning'
+          : status === 'reviewed'
+            ? 'border-accent-primary/20 bg-accent-primary-subtle text-accent-primary'
+            : status === 'actioned'
+              ? 'border-success/20 bg-success-subtle text-success'
+              : 'border-border-default bg-surface-inset text-text-muted',
+      )}
+    >
+      {status === 'open'
+        ? m.listing_report_admin_status_open()
+        : status === 'reviewed'
+          ? m.listing_report_admin_status_reviewed()
+          : status === 'actioned'
+            ? m.listing_report_admin_status_actioned()
+            : m.listing_report_admin_status_dismissed()}
+    </span>
+  )
+}
+
+function ReportReason({ reason }: { reason: AdminListingReport['reason'] }) {
+  return (
+    <span className='text-text-secondary'>
+      {reason === 'counterfeit'
+        ? m.listing_report_reason_counterfeit()
+        : reason === 'unsafe'
+          ? m.listing_report_reason_unsafe()
+          : reason === 'illegal_goods'
+            ? m.listing_report_reason_illegal_goods()
+            : reason === 'fraud'
+              ? m.listing_report_reason_fraud()
+              : m.listing_report_reason_other()}
+    </span>
+  )
+}
+
+function ReportActions({
+  id,
+  targetType,
+  status,
+  onSelect,
+}: {
+  id: string
+  targetType: ListingReportTargetType
+  status: ListingReportStatus
+  onSelect: (decision: PendingDecision) => void
+}) {
+  if (status === 'actioned' || status === 'dismissed') {
+    // A recorded decision is final; there is nothing left to do here.
+    return <span className='text-text-muted'>-</span>
+  }
+
+  return (
+    <div className='flex items-center justify-end gap-2'>
+      <Button
+        variant='danger'
+        size='sm'
+        onClick={() =>
+          onSelect({ content: 'listing_reports', id, targetType, outcome: 'actioned' })
+        }
+      >
+        <Check size={14} aria-hidden='true' />
+        {m.listing_report_admin_action_actioned()}
+      </Button>
+      <Button
+        variant='secondary'
+        size='sm'
+        onClick={() =>
+          onSelect({ content: 'listing_reports', id, targetType, outcome: 'dismissed' })
+        }
+      >
+        <X size={14} aria-hidden='true' />
+        {m.listing_report_admin_action_dismissed()}
+      </Button>
+    </div>
+  )
+}
+
+function ReportsTable({
+  data,
+  onSelect,
+}: {
+  data: AdminListingReportsResult
+  onSelect: (decision: PendingDecision) => void
+}) {
+  return (
+    <TableRegion label={m.listing_report_admin_tab()}>
+      <table className='w-full min-w-max text-left text-sm'>
+        <thead>
+          <tr className='border-b border-border-default'>
+            <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
+              {m.listing_report_admin_target()}
+            </th>
+            <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
+              {m.listing_report_admin_reporter()}
+            </th>
+            <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
+              {m.listing_report_reason_label()}
+            </th>
+            <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
+              {m.listing_report_admin_details()}
+            </th>
+            <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
+              {m.admin_reviews_created_at()}
+            </th>
+            <th scope='col' className='pb-3 pr-4 font-semibold text-text-secondary'>
+              {m.admin_reviews_moderation_status()}
+            </th>
+            <th scope='col' className='pb-3 text-right font-semibold text-text-secondary'>
+              {m.admin_reviews_actions()}
+            </th>
+          </tr>
+        </thead>
+        <tbody className='divide-y divide-border-subtle'>
+          {data.reports.map((report) => (
+            <tr key={report.id} className='group transition-colors hover:bg-bg-inset/40'>
+              <td className='max-w-52 py-3 pr-4'>
+                <span className='flex items-center gap-2 font-medium text-text-primary'>
+                  {report.targetType === 'product' ? (
+                    <Package size={14} aria-hidden='true' />
+                  ) : (
+                    <Store size={14} aria-hidden='true' />
+                  )}
+                  <span className='truncate'>{report.targetName}</span>
+                </span>
+                <span className='mt-0.5 block text-xs text-text-muted'>
+                  {report.targetType === 'product'
+                    ? `${m.listing_report_admin_type_product()} · ${report.shopName}`
+                    : m.listing_report_admin_type_shop()}
+                </span>
+              </td>
+              <td className='py-3 pr-4 text-text-primary'>{report.reporterName}</td>
+              <td className='py-3 pr-4'>
+                <ReportReason reason={report.reason} />
+              </td>
+              <td className='max-w-xs whitespace-pre-wrap py-3 pr-4 text-text-secondary'>
+                {report.details || <span className='italic text-text-muted'>-</span>}
+              </td>
+              <td className='py-3 pr-4 font-mono text-xs text-text-secondary'>
+                {formatDateMedium(new Date(report.createdAt))}
+              </td>
+              <td className='py-3 pr-4'>
+                <ReportStatusBadge status={report.status} />
+              </td>
+              <td className='whitespace-nowrap py-3 text-right'>
+                <ReportActions
+                  id={report.id}
+                  targetType={report.targetType}
+                  status={report.status}
+                  onSelect={onSelect}
+                />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </TableRegion>
+  )
+}
+
 function ModerationActions({
   content,
   id,
   status,
   onSelect,
 }: {
-  content: ModerationContent
+  content: 'reviews' | 'seller_replies'
   id: string
   status: ModerationStatus
   onSelect: (decision: PendingDecision) => void
@@ -287,9 +474,11 @@ export function AdminReviewsPage() {
       ? loaderData.queue.reviews
           .map((review) => `${review.id}:${review.moderationStatus}`)
           .join(',')
-      : loaderData.queue.sellerReplies
-          .map((reply) => `${reply.id}:${reply.moderationStatus}`)
-          .join(',')
+      : loaderData.content === 'seller_replies'
+        ? loaderData.queue.sellerReplies
+            .map((reply) => `${reply.id}:${reply.moderationStatus}`)
+            .join(',')
+        : loaderData.queue.reports.map((report) => `${report.id}:${report.status}`).join(',')
 
   return (
     <AdminReviewsContent
@@ -307,22 +496,25 @@ function AdminReviewsContent({ initialData }: { initialData: AdminModerationLoad
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  /** Switching queues resets the filter: the vocabularies are disjoint. */
   const handleContentChange = useCallback(
     (content: ModerationContent) => {
       navigate({
         to: '/admin/reviews',
-        search: { ...search, content, page: 1 },
+        search: { ...search, content, status: 'all', page: 1 },
         replace: true,
       })
     },
     [navigate, search],
   )
 
+  /** Status vocabularies do not overlap between queues, so switching queues
+      always lands on "All" rather than a filter the new queue cannot express. */
   const handleStatusChange = useCallback(
-    (status: ModerationFilter) => {
+    (status: string) => {
       navigate({
         to: '/admin/reviews',
-        search: { ...search, status, page: 1 },
+        search: { ...search, status: status as ModerationFilter, page: 1 },
         replace: true,
       })
     },
@@ -350,7 +542,7 @@ function AdminReviewsContent({ initialData }: { initialData: AdminModerationLoad
     explanation: string,
     legalBasis?: string,
   ) => {
-    if (!pending) return
+    if (!pending || pending.content === 'listing_reports') return
     setBusy(true)
     setError(null)
 
@@ -417,13 +609,76 @@ function AdminReviewsContent({ initialData }: { initialData: AdminModerationLoad
     }
   }
 
+  /** Records the decision on a notice and updates the open queue in place;
+      the resolution note is kept word for word on the report's record. */
+  const handleConfirmResolution = async (outcome: 'actioned' | 'dismissed', note: string) => {
+    if (!pending || pending.content !== 'listing_reports') return
+    setBusy(true)
+    setError(null)
+
+    try {
+      await resolveListingReport({
+        data: {
+          reportId: pending.id,
+          targetType: pending.targetType,
+          outcome,
+          note,
+        },
+      })
+      setQueueData((previous) =>
+        previous.content === 'listing_reports'
+          ? {
+              ...previous,
+              queue: {
+                ...previous.queue,
+                reports: previous.queue.reports.map((report) =>
+                  report.id === pending.id
+                    ? { ...report, status: outcome, resolutionNote: note, resolvedAt: new Date() }
+                    : report,
+                ),
+              },
+            }
+          : previous,
+      )
+      setPending(null)
+    } catch {
+      setError(m.listing_report_admin_resolve_error())
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const selectedContent = search.content ?? 'reviews'
   const selectedStatus = search.status ?? 'all'
   const totalPages = queueData.queue.totalPages
   const isEmpty =
     queueData.content === 'reviews'
       ? queueData.queue.reviews.length === 0
-      : queueData.queue.sellerReplies.length === 0
+      : queueData.content === 'seller_replies'
+        ? queueData.queue.sellerReplies.length === 0
+        : queueData.queue.reports.length === 0
+
+  /** Both vocabularies share this row; the switch keeps each label exact. */
+  const statusFilterLabel = (status: string): string => {
+    switch (status) {
+      case 'approved':
+        return m.admin_reviews_status_approved()
+      case 'flagged':
+        return m.admin_reviews_status_flagged()
+      case 'hidden':
+        return m.admin_reviews_status_hidden()
+      case 'open':
+        return m.listing_report_admin_status_open()
+      case 'reviewed':
+        return m.listing_report_admin_status_reviewed()
+      case 'actioned':
+        return m.listing_report_admin_status_actioned()
+      case 'dismissed':
+        return m.listing_report_admin_status_dismissed()
+      default:
+        return m.admin_reviews_status_all()
+    }
+  }
 
   return (
     <div className='space-y-6'>
@@ -453,7 +708,9 @@ function AdminReviewsContent({ initialData }: { initialData: AdminModerationLoad
             >
               {content === 'reviews'
                 ? m.admin_reviews_content_reviews()
-                : m.admin_reviews_content_seller_replies()}
+                : content === 'seller_replies'
+                  ? m.admin_reviews_content_seller_replies()
+                  : m.listing_report_admin_tab()}
             </button>
           )
         })}
@@ -461,32 +718,28 @@ function AdminReviewsContent({ initialData }: { initialData: AdminModerationLoad
 
       <fieldset className='flex max-w-full overflow-x-auto border-x-0 border-t-0 border-b border-border-default p-0'>
         <legend className='sr-only'>{m.admin_reviews_moderation_status()}</legend>
-        {MODERATION_FILTERS.map((status) => {
-          const selected = selectedStatus === status
-          return (
-            <button
-              key={status}
-              type='button'
-              aria-pressed={selected}
-              aria-controls='moderation-queue'
-              onClick={() => handleStatusChange(status)}
-              className={cn(
-                'h-11 whitespace-nowrap border-b-2 px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-inset',
-                selected
-                  ? 'border-accent-primary font-semibold text-accent-primary'
-                  : 'border-transparent text-text-secondary hover:border-border-default hover:text-text-primary',
-              )}
-            >
-              {status === 'all'
-                ? m.admin_reviews_status_all()
-                : status === 'approved'
-                  ? m.admin_reviews_status_approved()
-                  : status === 'flagged'
-                    ? m.admin_reviews_status_flagged()
-                    : m.admin_reviews_status_hidden()}
-            </button>
-          )
-        })}
+        {(selectedContent === 'listing_reports' ? REPORT_FILTERS : MODERATION_FILTERS).map(
+          (status) => {
+            const selected = selectedStatus === status
+            return (
+              <button
+                key={status}
+                type='button'
+                aria-pressed={selected}
+                aria-controls='moderation-queue'
+                onClick={() => handleStatusChange(status)}
+                className={cn(
+                  'h-11 whitespace-nowrap border-b-2 px-4 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-inset',
+                  selected
+                    ? 'border-accent-primary font-semibold text-accent-primary'
+                    : 'border-transparent text-text-secondary hover:border-border-default hover:text-text-primary',
+                )}
+              >
+                {statusFilterLabel(status)}
+              </button>
+            )
+          },
+        )}
       </fieldset>
 
       <section
@@ -494,7 +747,9 @@ function AdminReviewsContent({ initialData }: { initialData: AdminModerationLoad
         aria-label={
           selectedContent === 'reviews'
             ? m.admin_reviews_content_reviews()
-            : m.admin_reviews_content_seller_replies()
+            : selectedContent === 'seller_replies'
+              ? m.admin_reviews_content_seller_replies()
+              : m.listing_report_admin_tab()
         }
         aria-live='polite'
       >
@@ -505,32 +760,51 @@ function AdminReviewsContent({ initialData }: { initialData: AdminModerationLoad
               <p className='text-sm text-text-secondary'>
                 {queueData.content === 'reviews'
                   ? m.admin_reviews_no_reviews()
-                  : m.admin_seller_replies_no_replies()}
+                  : queueData.content === 'seller_replies'
+                    ? m.admin_seller_replies_no_replies()
+                    : m.listing_report_admin_empty()}
               </p>
             </CardContent>
           </Card>
         ) : queueData.content === 'reviews' ? (
           <ReviewsTable data={queueData.queue} onSelect={selectDecision} />
-        ) : (
+        ) : queueData.content === 'seller_replies' ? (
           <SellerRepliesTable data={queueData.queue} onSelect={selectDecision} />
+        ) : (
+          <ReportsTable data={queueData.queue} onSelect={selectDecision} />
         )}
       </section>
 
-      <ModerationDecisionDialog
-        key={
-          pending ? `${pending.content}:${pending.id}:${pending.status}` : 'closed-decision-dialog'
-        }
-        open={pending !== null}
-        status={pending?.status ?? null}
-        contentType={pending?.content === 'seller_replies' ? 'seller_reply' : 'review'}
-        busy={busy}
-        error={error}
-        onOpenChange={(open) => {
-          if (!open && !busy) setPending(null)
-        }}
-        onConfirm={handleConfirmDecision}
-      />
-
+      {pending && pending.content === 'listing_reports' ? (
+        <ReportResolutionDialog
+          key={`${pending.id}:${pending.outcome}`}
+          open
+          outcome={pending.outcome}
+          busy={busy}
+          error={error}
+          onOpenChange={(open) => {
+            if (!open && !busy) setPending(null)
+          }}
+          onConfirm={handleConfirmResolution}
+        />
+      ) : (
+        <ModerationDecisionDialog
+          key={
+            pending
+              ? `${pending.content}:${pending.id}:${pending.status}`
+              : 'closed-decision-dialog'
+          }
+          open={pending !== null}
+          status={pending?.status ?? null}
+          contentType={pending?.content === 'seller_replies' ? 'seller_reply' : 'review'}
+          busy={busy}
+          error={error}
+          onOpenChange={(open) => {
+            if (!open && !busy) setPending(null)
+          }}
+          onConfirm={handleConfirmDecision}
+        />
+      )}
       {totalPages > 1 && (
         <nav
           className='mt-6 flex items-center justify-between gap-4 border-t border-border-subtle pt-4'

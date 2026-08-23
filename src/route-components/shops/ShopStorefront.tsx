@@ -1,10 +1,14 @@
 import { Link, useRouter } from '@tanstack/react-router'
-import { Search } from 'lucide-react'
-import { useCallback, useRef } from 'react'
+import { Flag, Search } from 'lucide-react'
+import { useCallback, useRef, useState } from 'react'
 import { BrowseFilters } from '#/components/browse/BrowseFilters'
 import ProductGrid from '#/components/ProductGrid'
+import { ReportListingDialog } from '#/components/reviews/ReportListingDialog'
 import { Button } from '#/components/ui/button'
 import { Input } from '#/components/ui/input'
+import { useAuth } from '#/lib/auth-hooks'
+import { createShopReport } from '#/lib/listing-reports/contract'
+import type { ListingReportReason } from '#/lib/listing-reports/types'
 import type { PaginatedProducts, ShopProductCategory, SortOption } from '#/lib/products.server'
 import type { ShopProfile } from '#/lib/shop-profile'
 import { m } from '#/paraglide/messages'
@@ -60,6 +64,27 @@ export default function ShopStorefront({
   sort,
 }: ShopStorefrontProps) {
   const router = useRouter()
+  const { user } = useAuth()
+  const [reportOpen, setReportOpen] = useState(false)
+  const [reported, setReported] = useState(false)
+  const [reportBusy, setReportBusy] = useState(false)
+  const [reportError, setReportError] = useState<string | null>(null)
+
+  /** Same contract as the product notice: record it, change nothing here. */
+  const handleReport = async (reason: ListingReportReason, details: string | null) => {
+    setReportBusy(true)
+    setReportError(null)
+    try {
+      await createShopReport({ data: { shopId: shop.id, reason, details } })
+      setReported(true)
+      setReportOpen(false)
+    } catch {
+      setReportError(m.listing_report_error())
+    } finally {
+      setReportBusy(false)
+    }
+  }
+
   const inputRef = useRef<HTMLInputElement>(null)
 
   /**
@@ -141,6 +166,32 @@ export default function ShopStorefront({
       <section className='island-shell rounded-2xl px-6 py-8 sm:px-10 sm:py-10'>
         <ShopIdentityHeader shop={shop} />
         <ShopAnnouncement announcement={shop.announcement} />
+
+        {/* The identity card is where a visitor forms (or questions) trust in
+            this shop, so the notice route lives at its foot. */}
+        <div className='mt-6 border-t border-border-subtle pt-4'>
+          {reported ? (
+            <p className='flex items-center gap-2 text-sm text-text-secondary'>
+              <Flag size={14} className='fill-error text-error' aria-hidden='true' />
+              {m.listing_report_success_shop()}
+            </p>
+          ) : (
+            user && (
+              <Button
+                type='button'
+                variant='ghost'
+                size='sm'
+                onClick={() => {
+                  setReportError(null)
+                  setReportOpen(true)
+                }}
+              >
+                <Flag size={14} aria-hidden='true' />
+                {m.listing_report_button_shop()}
+              </Button>
+            )
+          )}
+        </div>
       </section>
 
       {/* In-page nav rather than links in the shared shop header: that header
@@ -233,6 +284,17 @@ export default function ShopStorefront({
 
       <ShopPoliciesPanel policies={shop.policies} origin={shop.origin} />
       <ShopSocialLinks socials={shop.socials} />
+
+      <ReportListingDialog
+        open={reportOpen}
+        targetType='shop'
+        busy={reportBusy}
+        error={reportError}
+        onOpenChange={(open) => {
+          if (!open && !reportBusy) setReportOpen(false)
+        }}
+        onSubmit={(reason, details) => void handleReport(reason, details)}
+      />
     </main>
   )
 }

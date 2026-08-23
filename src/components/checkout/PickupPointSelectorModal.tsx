@@ -62,7 +62,7 @@ export function PickupPointSelectorModal({
       })
       setPoints(results)
     } catch {
-      setError('Failed to load pick-up points. Please try again.')
+      setError(m.pickup_load_error())
       setPoints([])
     } finally {
       setHasSearched(true)
@@ -77,10 +77,10 @@ export function PickupPointSelectorModal({
           <DialogBackdrop />
           <DialogPopup className='w-full max-w-lg'>
             <DialogTitle className='text-lg font-semibold text-text-primary mb-2'>
-              Select Pick-up Point
+              {m.checkout_pickup_point_select()}
             </DialogTitle>
             <DialogDescription className='text-sm text-text-secondary mb-4'>
-              Search and select a convenient service point for delivery.
+              {m.pickup_description()}
             </DialogDescription>
 
             <form onSubmit={handleSearch} className='flex gap-3 mb-6'>
@@ -119,7 +119,7 @@ export function PickupPointSelectorModal({
               </div>
               <div className='flex items-end'>
                 <Button type='submit' isLoading={isSearching}>
-                  Search
+                  {m.search_button()}
                 </Button>
               </div>
             </form>
@@ -144,7 +144,7 @@ export function PickupPointSelectorModal({
                     </p>
                     {point.distance && (
                       <span className='inline-block text-[11px] font-medium bg-bg-inset text-text-secondary px-1.5 py-0.5 rounded mt-2'>
-                        {point.distance} away
+                        {m.pickup_distance_away({ distance: point.distance })}
                       </span>
                     )}
                   </div>
@@ -156,27 +156,27 @@ export function PickupPointSelectorModal({
                       onOpenChange(false)
                     }}
                   >
-                    Select
+                    {m.pickup_select_button()}
                   </Button>
                 </div>
               ))}
 
               {hasSearched && points.length === 0 && !error && (
                 <p className='text-sm text-text-muted italic text-center py-6'>
-                  No pick-up points found for this area.
+                  {m.pickup_empty_results()}
                 </p>
               )}
 
               {!hasSearched && (
                 <p className='text-sm text-text-muted italic text-center py-6'>
-                  Enter a postal code and click search.
+                  {m.pickup_search_hint()}
                 </p>
               )}
             </div>
 
             <div className='mt-6 flex justify-end'>
               <Button variant='ghost' onClick={() => onOpenChange(false)}>
-                Cancel
+                {m.confirm_dialog_cancel()}
               </Button>
             </div>
           </DialogPopup>

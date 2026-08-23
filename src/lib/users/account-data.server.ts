@@ -628,6 +628,8 @@ export async function deleteUserAccount(userId: string): Promise<void> {
   const ownedShopIds = ownedShops.map((s) => s.id)
   const anonymizedEmail = `deleted-${userId}@${ANONYMIZED_EMAIL_DOMAIN}`
   const redacted = redactedAddress()
+  // Derived while the real email is still readable; the update below replaces it.
+  const emailHash = hashEmail(profile.email)
 
   await db.transaction(async (tx) => {
     if (ownedShopIds.length > 0) {
@@ -717,6 +719,39 @@ export async function deleteUserAccount(userId: string): Promise<void> {
       .update(returnRequestMessage)
       .set({ message: '[message removed — account deleted]' })
       .where(eq(returnRequestMessage.senderUserId, userId))
+
+    // Shop-owner CRM records about this person. Free-text notes are pure
+    // buyer PII; tags carry no independent value once the person is gone.
+    await tx
+      .update(customerNote)
+      .set({ content: '[REDACTED]', updatedAt: new Date() })
+      .where(eq(customerNote.customerEmailHash, emailHash))
+
+    await tx.delete(customerTag).where(eq(customerTag.customerEmailHash, emailHash))
+
+    // Threads match either the account id or the pre-anonymization email
+    // hash, so guests who checked out without registering are covered too.
+    const customerThreadIds = await tx
+      .select({ id: ownerMessageThread.id })
+      .from(ownerMessageThread)
+      .where(
+        or(
+          eq(ownerMessageThread.customerUserId, userId),
+          eq(ownerMessageThread.customerEmailHash, emailHash),
+        ),
+      )
+
+    if (customerThreadIds.length > 0) {
+      const threadIds = customerThreadIds.map((t) => t.id)
+      await tx
+        .update(ownerMessage)
+        .set({ body: '[REDACTED]' })
+        .where(inArray(ownerMessage.threadId, threadIds))
+      await tx
+        .update(ownerMessageThread)
+        .set({ subject: '[REDACTED]', updatedAt: new Date() })
+        .where(inArray(ownerMessageThread.id, threadIds))
+    }
 
     const ownedShopInvoiceIds = await tx
       .select({ id: invoices.id })

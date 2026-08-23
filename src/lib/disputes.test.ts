@@ -26,6 +26,7 @@ import {
   createUser,
 } from '#/test/factories'
 
+import { flushBackgroundWorkForTests, scheduleBackgroundWork } from './background-work.server'
 import {
   addDisputeMessageQuery,
   getDisputeDetailQuery,
@@ -36,6 +37,19 @@ import {
 
 beforeEach(async () => {
   await clearTestTables()
+})
+
+afterEach(async () => {
+  // Invariant: every async side effect triggered by a test must settle before
+  // the next beforeEach(clearTestTables). Request paths exercised here detach
+  // post-commit work via `scheduleBackgroundWork`, which tracks chains under
+  // VITEST precisely so they can be awaited. A chain left running overlaps the
+  // next test's cleanup/fixtures: its backend interleaves with the DELETEs
+  // (TRUNCATE historically) clearing parents, producing FK "not present"
+  // failures on re-seeded ids (e.g. shop-1) and cross-backend lock cycles
+  // (child-insert FK KEY SHARE vs cleanup row/table locks). No-op when
+  // nothing was scheduled.
+  await flushBackgroundWorkForTests()
 })
 
 afterAll(async () => {
@@ -152,6 +166,12 @@ async function seedProductAndReservation(platformOrderId: string, shopOrderId: s
 /*                                openDisputeQuery                            */
 /* -------------------------------------------------------------------------- */
 
+// Async-leak mechanism: 'serializes a non-delivery report against a concurrent
+// delivery update' drives markShopOrderDeliveredQuery, which fires a detached
+// DAC7 threshold check through `scheduleBackgroundWork` after its transaction
+// commits. Unflushed, that chain kept executing into later tests' cleanup and
+// fixture window (intermittent FK shop-1 errors / deadlocks mid-file; green
+// solo). It is now awaited inline and guarded by the file-level afterEach.
 describe('openDisputeQuery', () => {
   it('throws 404 for nonexistent shop order', async () => {
     try {
@@ -395,6 +415,9 @@ describe('openDisputeQuery', () => {
     const [updated] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
     expect(updated.status).toBe('disputed')
     expect(await db.select().from(dispute).where(eq(dispute.shopOrderId, so.id))).toHaveLength(1)
+    // Settle the DAC7 background chain scheduled by markShopOrderDeliveredQuery
+    // so it cannot overlap the next test's table cleanup (see file afterEach).
+    await flushBackgroundWorkForTests()
   })
 
   it('throws 403 when order belongs to another user', async () => {
@@ -941,6 +964,13 @@ describe('getDisputeDetailQuery', () => {
 /*                             resolveDisputeQuery                            */
 /* -------------------------------------------------------------------------- */
 
+// Async-leak mechanism: 'preserves concurrent delivery evidence and releases
+// payout only after delivery reconciliation' calls markShopOrderDeliveredQuery,
+// which detaches post-commit DAC7 work via `scheduleBackgroundWork`. That
+// detached chain was observed running into subsequent tests' clearTestTables/
+// fixture window (cross-backend deadlock: child-insert FK KEY SHARE on shop vs
+// cleanup locks; FK 'Key (shop_id)=(shop-1) is not present'). It is now awaited
+// inline and the file-level afterEach enforces the invariant defensively.
 describe('resolveDisputeQuery', () => {
   afterEach(() => {
     // Clear call history without restoring original implementations. This
@@ -1168,6 +1198,9 @@ describe('resolveDisputeQuery', () => {
     expect(deliveredShopOrder.disputeWindowExpiresAt?.getTime() ?? 0).toBeGreaterThan(
       deliveredShopOrder.deliveredAt?.getTime() ?? 0,
     )
+    // Settle the DAC7 background chain scheduled by markShopOrderDeliveredQuery
+    // so it cannot overlap the next test's table cleanup (see file afterEach).
+    await flushBackgroundWorkForTests()
   })
 
   it('resolves with full_refund and transitions to refunded', async () => {
@@ -1921,5 +1954,55 @@ describe('resolveDisputeQuery', () => {
 
     expect(refundSpy).not.toHaveBeenCalled()
     refundSpy.mockRestore()
+  })
+})
+
+/* -------------------------------------------------------------------------- */
+/*              background-work detachment seam (regression guard)            */
+/* -------------------------------------------------------------------------- */
+
+// The whole suite depends on `scheduleBackgroundWork` tracking detached chains
+// under VITEST so `flushBackgroundWorkForTests` can drain them before table
+// cleanup. If that tracking ever regresses, the deadlock class documented atop
+// openDisputeQuery/resolveDisputeQuery returns silently. These tests pin the
+// seam contract database-free.
+describe('flushBackgroundWorkForTests seam', () => {
+  it('does not resolve while scheduled work is pending, then drains it', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    let flushed = false
+
+    try {
+      scheduleBackgroundWork('disputes-test-gated-work', async () => {
+        await gate
+      })
+
+      const flushPromise = flushBackgroundWorkForTests().then(() => {
+        flushed = true
+      })
+
+      // Give an untracked implementation every chance to resolve early: if the
+      // scheduler stopped recording work, flush would complete immediately.
+      for (let i = 0; i < 25; i++) {
+        await Promise.resolve()
+      }
+      expect(flushed).toBe(false)
+
+      release()
+      await flushPromise
+    } finally {
+      release()
+      await flushBackgroundWorkForTests()
+    }
+  })
+
+  it('resolves when scheduled work rejects instead of surfacing the rejection', async () => {
+    scheduleBackgroundWork('disputes-test-rejecting-work', async () => {
+      throw new Error('intentional background failure')
+    })
+
+    await expect(flushBackgroundWorkForTests()).resolves.toBeUndefined()
   })
 })

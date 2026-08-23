@@ -2,6 +2,9 @@ import LegalPageLayout from '#/components/LegalPageLayout'
 import { m } from '#/paraglide/messages'
 import type { PublicOperatorProfile } from '#/lib/legal/operator'
 
+/** Matches `OrderSuccessPage` and `StatementOfReasons`; the platform has no contact route. */
+const SUPPORT_EMAIL = 'support@eurtisan.eu'
+
 const LAST_UPDATED = '13 July 2026'
 
 export interface TermsPageProps {
@@ -33,6 +36,21 @@ export default function TermsPage({ operator }: TermsPageProps = {}) {
     {
       title: m.terms_section_15_title(),
       text: m.terms_section_15_text({ country: m.legal_governing_law() }),
+    },
+    {
+      title: m.dsa_terms_moderation_title(),
+      text: m.dsa_terms_moderation_text({ supportEmail: SUPPORT_EMAIL }),
+    },
+    {
+      title: m.dsa_terms_contacts_title(),
+      text: m.dsa_terms_contacts_text({
+        legalEmail: contactEmail,
+        supportEmail: SUPPORT_EMAIL,
+      }),
+    },
+    {
+      title: m.dsa_terms_micro_title(),
+      text: m.dsa_terms_micro_text(),
     },
     {
       title: m.terms_section_16_title(),

@@ -6,7 +6,8 @@ Summary for GDPR and operations. Align `/privacy` if customer-facing text must m
 |-----------|-----------|--------|
 | Orders, return records & invoices | 10 years (FR tax/transaction evidence) | Financial records and policy snapshots retained; direct PII is encrypted and redacted on account deletion where permitted |
 | Guest-order access tokens | 24 hours or until order claim | Only token/email hashes are stored in the access table; raw tokens exist only in email and the HttpOnly order-access cookie |
-| Audit log | ~2 years | `AUDIT_LOG_POLICY.md`, `job:audit-log-cleanup` |
+| Audit log | 365 days (configurable) | `AUDIT_LOG_POLICY.md`; `job:audit-log-cleanup`; set `AUDIT_LOG_RETENTION_DAYS` |
+| Search events (search/click telemetry) | 180 days (configurable) | Stored without user ids; `job:search-event-cleanup`; set `SEARCH_EVENT_RETENTION_DAYS` |
 | Application and consented Faro logs/errors (Loki) | 30 days | `retention_period: 720h` in `infra/observability/loki/loki.yml` |
 | Browser and server traces (Tempo) | 7 days | `block_retention: 168h` in `infra/observability/tempo/tempo.yml` |
 | Operational metrics (Prometheus) | 15 days | `--storage.tsdb.retention.time=15d` in the observability Compose model |
@@ -27,7 +28,7 @@ Review when adding PII or changing observability retention.
 
 ## Account deletion / right-to-erasure
 
-Self-service deletion is implemented in `src/lib/account-data.server.ts` (`deleteUserAccount`). The user row is anonymized (`name` → `'Deleted User'`, `email` → `deleted-<uuid>@anonymized.eurtisan.invalid`, `deletedAt` set) and the following retained data is redacted:
+Self-service deletion is implemented in `src/lib/users/account-data.server.ts` (`deleteUserAccount`). The user row is anonymized (`name` → `'Deleted User'`, `email` → `deleted-<uuid>@anonymized.eurtisan.invalid`, `deletedAt` set) and the following retained data is redacted:
 
 | Table | Columns retained | Redaction on deletion |
 |-------|------------------|-----------------------|
@@ -37,7 +38,7 @@ Self-service deletion is implemented in `src/lib/account-data.server.ts` (`delet
 | `invoices` | `invoiceNumber`, type, amounts, VAT, shop order link | `billingDetails` replaced with redacted address object for both seller invoices (shops owned by the user) and buyer invoices (orders placed by the user) |
 | `shop` (owned) | `id`, name, slug, status, financial/tax data | `businessAddress`, `shippingOrigin` replaced with redacted address object; status set to `archived` |
 | `payout_reconciliation_log` | Event metadata required for reconciliation | `payload` personal fields (`buyerName`, `buyerEmail`, `address`, `shippingAddress`, `billingAddress`, `name`, `email`) masked or replaced |
-| `audit_log` | `actorId`, action, resource, metadata | `actorName` set to `'Deleted User'`; `actorId` kept for traceability |
+| `audit_log` | action, resource, metadata | `actorName` set to `'Deleted User'`; `actorId` set to `null` |
 | `order_item` | Product snapshots, quantities, prices | No direct PII; retained for order history |
 | `review` | Rating, product link | `comment` set to `null` |
 | `dispute` | Reason, status, resolution | `description` redacted |
@@ -45,11 +46,11 @@ Self-service deletion is implemented in `src/lib/account-data.server.ts` (`delet
 | `return_request` | Status, item/refund totals, deadlines, policy version, shipping evidence | Free-text `reason` redacted; financial and lifecycle evidence retained |
 | `return_request_message` (sent by user) | Thread context | `message` replaced with `'[message removed — account deleted]'` |
 | `guest_order_access` | None | Rows for the user's orders are deleted and links stop authorizing access |
-| `owner_message_thread` | Thread metadata | `subject` set to `'[REDACTED]'` |
-| `owner_message` | Message thread context | `body` set to `'[REDACTED]'` |
-| `customer_note` | Shop owner notes | `content` set to `'[REDACTED]'` |
-| `customer_tag` | Shop owner tags | Rows for the deleted user removed |
-| `shipping_label` | Carrier/tracking record for the buyer's orders | `label_url` cleared; `carrier`, `tracking_number`, `external_parcel_id`, and `created_at` retained |
+| `owner_message_thread` | Thread metadata | Threads matched by `customer_user_id` or the pre-deletion email hash; `subject` set to `'[REDACTED]'` |
+| `owner_message` | Message thread context | `body` set to `'[REDACTED]'` on every message in those threads |
+| `customer_note` | Shop owner notes | `content` set to `'[REDACTED]'` on notes keyed by the pre-deletion email hash |
+| `customer_tag` | Shop owner tags | Rows keyed by the pre-deletion email hash are removed |
+| `shipping_label` | Carrier name and label creation date for the buyer's orders | `label_url`, `tracking_number`, and `external_parcel_id` cleared |
 
 Deleted rows in `session`, `account`, `twoFactor`, `notification`, `cart`, and `cart_item` are removed. `product` rows belonging to owned shops are deactivated (`isActive = false`).
 

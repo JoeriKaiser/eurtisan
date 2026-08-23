@@ -1,12 +1,12 @@
 import { and, eq, gte, inArray, isNotNull, lte, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { payout, payoutReconciliationLog, shopOrder } from '#/db/schema'
+import { payout, payoutReconciliationLog, shop, shopOrder } from '#/db/schema'
 import { getMollieRoute } from '#/integrations/mollie'
 import { getMollieApiKey, getMollieTestMode } from '../env.server'
 import { logger } from '../logger.server'
 import { payoutStalePendingTotal } from '../metrics.server'
 import { isValidPayoutTransition, PayoutError, type PayoutStatus } from './lifecycle'
-import { executePayoutQuery } from './operations.server'
+import { assertPayoutReleaseAllowed, executePayoutQuery } from './operations.server'
 
 /* -------------------------------------------------------------------------- */
 /*                                  Types                                     */
@@ -106,6 +106,9 @@ function attributeRefundsToShopOrder(
  * - Marks payouts as `returned` when their route was returned by Mollie.
  * - Marks payouts as `reversed` when their route no longer exists or when a
  *   refund has been created for this shop order's portion of the parent payment.
+ * - Reversals and returns move money back toward the buyer/platform and
+ *   intentionally ignore shop suspension: buyer protection wins over seller
+ *   payout.
  * - Emits reconciliation log entries for every state change.
  * - Logs alerts for unexpected discrepancies without mutating state.
  */
@@ -262,6 +265,9 @@ export async function reconcilePayouts(): Promise<ReconciliationResult> {
 /**
  * Alerts on payouts that are still pending and approaching the 90-day Mollie
  * routing window. Does not mutate state.
+ *
+ * Suspended shops are excluded: their payouts are intentionally held, not
+ * stalled, so they must not page operations.
  */
 export async function alertOnStalePendingPayouts(): Promise<number> {
   const staleThreshold = new Date(Date.now() - 80 * 24 * 60 * 60 * 1000)
@@ -269,9 +275,11 @@ export async function alertOnStalePendingPayouts(): Promise<number> {
   const stalePayouts = await db
     .select({ id: payout.id, createdAt: payout.createdAt })
     .from(payout)
+    .innerJoin(shop, eq(payout.shopId, shop.id))
     .where(
       and(
         eq(payout.status, 'pending'),
+        eq(shop.isSuspended, false),
         lte(payout.createdAt, staleThreshold),
         gte(payout.createdAt, sql`now() - interval '90 days'`),
       ),
@@ -296,6 +304,10 @@ export async function alertOnStalePendingPayouts(): Promise<number> {
  * for execution once the order's dispute window is over. This closes the
  * payout/dispute timing gap so sellers cannot be paid for orders that are
  * later disputed or refunded.
+ *
+ * Suspended shops are skipped without counting as errors: their payouts stay
+ * held `pending` until unsuspension, after which this sweep releases them
+ * naturally.
  */
 export async function releaseHeldPayouts(): Promise<{
   checked: number
@@ -306,6 +318,7 @@ export async function releaseHeldPayouts(): Promise<{
     .select({
       id: payout.id,
       shopOrderId: payout.shopOrderId,
+      shopId: payout.shopId,
     })
     .from(payout)
     .innerJoin(shopOrder, eq(payout.shopOrderId, shopOrder.id))
@@ -322,6 +335,16 @@ export async function releaseHeldPayouts(): Promise<{
 
   for (const record of heldPayouts) {
     try {
+      // Suspension propagation: skip suspended shops without counting an
+      // error — their payouts stay held pending until unsuspension, then this
+      // sweep releases them naturally. executePayoutQuery re-checks the same
+      // shared guard inside its transaction.
+      try {
+        await assertPayoutReleaseAllowed(db, record.shopId)
+      } catch (err) {
+        if (err instanceof PayoutError && err.code === 'SHOP_SUSPENDED') continue
+        throw err
+      }
       await executePayoutQuery(record.id)
       released += 1
       logger.info(`Released held payout ${record.id} for shop order ${record.shopOrderId}`, {

@@ -127,6 +127,13 @@ describe('ResetPassword', () => {
         'Password must be at least 8 characters',
       )
     })
+    const passwordField = screen.getByLabelText('New password')
+    expect(passwordField.getAttribute('aria-invalid')).toBe('true')
+    expect(passwordField.getAttribute('aria-describedby')).toBe('password-error')
+    expect(passwordField.getAttribute('aria-errormessage')).toBe('password-error')
+    expect(document.getElementById('password-error')?.textContent).toContain(
+      'Password must be at least 8 characters',
+    )
     expect(mockResetPassword).not.toHaveBeenCalled()
   })
 
@@ -140,6 +147,41 @@ describe('ResetPassword', () => {
     await waitFor(() => {
       expect(screen.getByRole('alert').textContent).toContain('Passwords do not match')
     })
+    const confirmField = screen.getByLabelText('Confirm password')
+    expect(confirmField.getAttribute('aria-invalid')).toBe('true')
+    expect(confirmField.getAttribute('aria-describedby')).toBe('confirmPassword-error')
+    expect(confirmField.getAttribute('aria-errormessage')).toBe('confirmPassword-error')
+    expect(document.getElementById('confirmPassword-error')?.textContent).toBe(
+      'Passwords do not match',
+    )
+    expect(mockResetPassword).not.toHaveBeenCalled()
+  })
+
+  it('keeps a visible keyboard focus indicator on the password reveal buttons', () => {
+    render(<ResetPassword />)
+
+    const toggles = screen.getAllByRole('button', { name: 'Show password' })
+    expect(toggles).toHaveLength(2)
+    for (const toggle of toggles) {
+      expect(toggle.className).not.toContain('focus:outline-none')
+      expect(toggle.className).toContain('focus-visible:ring-2')
+      expect(toggle.className).toContain('focus-visible:ring-accent-secondary')
+      expect(toggle.className).toContain('focus-visible:ring-offset-2')
+    }
+  })
+
+  it('announces field errors via alert role and marks inputs invalid on submit', async () => {
+    render(<ResetPassword />)
+
+    fireEvent.change(screen.getByLabelText('New password'), { target: { value: 'short' } })
+    fireEvent.change(screen.getByLabelText('Confirm password'), { target: { value: 'short' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Reset password' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeDefined()
+    })
+    const form = screen.getByRole('button', { name: 'Reset password' }).closest('form')
+    expect(form?.querySelector('#password-error')?.getAttribute('role')).toBe('alert')
     expect(mockResetPassword).not.toHaveBeenCalled()
   })
 

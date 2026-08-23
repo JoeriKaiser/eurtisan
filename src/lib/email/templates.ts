@@ -11,6 +11,7 @@ import { m } from '#/paraglide/messages'
 import { getLocale } from '#/paraglide/runtime'
 import type { EmailTemplate } from './provider'
 import { renderEmailLegalFooterHtml, renderEmailLegalFooterText } from './legal-footer'
+import { readShopModerationNotice, type ShopSuspensionSoR } from '#/lib/shops/moderation-notice'
 
 /** Result of rendering a template. */
 export interface RenderedEmail {
@@ -524,6 +525,15 @@ ${await renderEmailLegalFooterText(to)}`
   return { subject: m.email_security_alert_subject(), html, text }
 }
 
+/**
+ * Shop review outcomes from onboarding, plus the DSA Art. 17 suspension
+ * statement and reinstatement notice written by
+ * `lib/shops/moderation.server.ts`.
+ *
+ * Only a suspension carries the Article 17(3) payload; it is resolved by
+ * `readShopModerationNotice` so both surfaces present the same elements. Legacy
+ * review outcomes keep the bare note block they always had.
+ */
 async function renderShopModerationUpdate(
   data: Record<string, unknown>,
   to?: string,
@@ -538,16 +548,28 @@ async function renderShopModerationUpdate(
       ? m.seller_hub_status_approved()
       : status === 'changes_requested'
         ? m.seller_hub_status_changes()
-        : m.seller_hub_status_rejected()
+        : status === 'suspended'
+          ? m.seller_hub_status_suspended()
+          : status === 'active'
+            ? m.seller_hub_status_active()
+            : m.seller_hub_status_rejected()
   const subject = m.email_shop_moderation_subject({ shopName, status: statusLabel })
-  const noteHtml = note
-    ? `<p style="margin: 16px 0; padding: 12px; background: #f5f2ee; border-radius: 8px;">${escapeHtml(note)}</p>`
-    : ''
+
+  const notice = readShopModerationNotice(data)
+  const suspension = notice?.kind === 'suspension' ? notice.sor : null
+  // A suspension shows its grounds inside the statement; repeating them in the
+  // bare note block would print them twice.
+  const noteHtml =
+    !suspension && note
+      ? `<p style="margin: 16px 0; padding: 12px; background: #f5f2ee; border-radius: 8px;">${escapeHtml(note)}</p>`
+      : ''
+
   const contentHtml = `<h1 style="margin: 0 0 16px; font-size: 24px;">${escapeHtml(
     m.email_shop_moderation_title({ shopName }),
   )}</h1>
   <p>${escapeHtml(m.email_greeting({ name: creatorName }))}</p>
   <p>${escapeHtml(m.email_shop_moderation_body({ status: statusLabel }))}</p>
+  ${suspension ? renderSuspensionStatementHtml(suspension) : ''}
   ${noteHtml}
   <p><a href="${escapeHtml(statusUrl)}">${escapeHtml(m.email_shop_moderation_cta())}</a></p>
   ${await renderEmailLegalFooterHtml(to)}`
@@ -555,12 +577,82 @@ async function renderShopModerationUpdate(
 
 ${m.email_greeting({ name: creatorName })}
 
-${m.email_shop_moderation_body({ status: statusLabel })}${note ? `\n\n${note}` : ''}
+${m.email_shop_moderation_body({ status: statusLabel })}${suspension ? `\n\n${renderSuspensionStatementText(suspension)}` : ''}${!suspension && note ? `\n\n${note}` : ''}
 
 ${m.email_shop_moderation_cta()}: ${statusUrl}
 
 ${await renderEmailLegalFooterText(to)}`
   return { subject, html: wrapInEmailTemplate(subject, contentHtml), text }
+}
+
+/**
+ * The Article 17(3) statement for a suspension as email HTML, mirroring the
+ * structure of `renderStatementOfReasons`: labelled rows for what was done,
+ * why, whether it was automated, and how to contest it. Rows whose payload
+ * element is absent are omitted rather than printed empty.
+ */
+function renderSuspensionStatementHtml(sor: ShopSuspensionSoR): string {
+  const measure =
+    sor.measureKey === 'shop_suspended_listings_delisted'
+      ? m.sor_email_measure_suspended_delisted()
+      : ''
+  const automated = sor.automatedMeans
+    ? m.statement_of_reasons_automated_yes()
+    : m.statement_of_reasons_automated_no()
+
+  const redressHtml: string[] = []
+  if (sor.supportEmail) {
+    redressHtml.push(
+      `<a href="mailto:${escapeHtml(sor.supportEmail)}">${escapeHtml(
+        m.statement_of_reasons_redress_support({ email: sor.supportEmail }),
+      )}</a>`,
+    )
+  }
+  if (sor.judicialRemedyAvailable) {
+    redressHtml.push(escapeHtml(m.statement_of_reasons_redress_judicial()))
+  }
+
+  const rows = [
+    measure
+      ? `<p><strong>${escapeHtml(m.statement_of_reasons_what_label())}</strong><br />${escapeHtml(measure)}</p>`
+      : '',
+    sor.grounds
+      ? `<p><strong>${escapeHtml(m.statement_of_reasons_why_label())}</strong><br />${escapeHtml(sor.grounds)}</p>`
+      : '',
+    `<p><strong>${escapeHtml(m.statement_of_reasons_automated_label())}</strong><br />${escapeHtml(automated)}</p>`,
+    redressHtml.length > 0
+      ? `<p><strong>${escapeHtml(m.statement_of_reasons_redress_label())}</strong><br />${redressHtml.join('<br />')}</p>`
+      : '',
+  ].filter(Boolean)
+
+  return `<h2 style="margin: 24px 0 8px; font-size: 18px;">${escapeHtml(
+    m.sor_email_section_title(),
+  )}</h2>${rows.join('\n  ')}`
+}
+
+/** Plain-text counterpart of `renderSuspensionStatementHtml`. */
+function renderSuspensionStatementText(sor: ShopSuspensionSoR): string {
+  const measure =
+    sor.measureKey === 'shop_suspended_listings_delisted'
+      ? m.sor_email_measure_suspended_delisted()
+      : ''
+  const automated = sor.automatedMeans
+    ? m.statement_of_reasons_automated_yes()
+    : m.statement_of_reasons_automated_no()
+
+  const lines: string[] = [m.sor_email_section_title()]
+  if (measure) lines.push(`\n${m.statement_of_reasons_what_label()}\n${measure}`)
+  if (sor.grounds) lines.push(`\n${m.statement_of_reasons_why_label()}\n${sor.grounds}`)
+  lines.push(`\n${m.statement_of_reasons_automated_label()}\n${automated}`)
+  if (sor.supportEmail) {
+    lines.push(
+      `\n${m.statement_of_reasons_redress_label()}\n${m.statement_of_reasons_redress_support({ email: sor.supportEmail })}`,
+    )
+  }
+  if (sor.judicialRemedyAvailable) {
+    lines.push(m.statement_of_reasons_redress_judicial())
+  }
+  return lines.join('\n')
 }
 
 /* -------------------------------------------------------------------------- */

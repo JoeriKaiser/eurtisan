@@ -1,4 +1,5 @@
 import { useLoaderData, Link, useRouter } from '@tanstack/react-router'
+import { m } from '#/paraglide/messages'
 import {
   ArrowLeft,
   CheckCircle2,
@@ -17,19 +18,19 @@ import { MessageThread } from './MessageThread'
 import { AdminMessageInput } from './AdminMessageInput'
 function getReasonLabel(reason: string): string {
   const labels: Record<string, string> = {
-    item_not_received: 'Item not received',
-    not_as_described: 'Not as described',
-    damaged: 'Damaged',
-    other: 'Other',
+    item_not_received: m.dispute_reason_item_not_received(),
+    not_as_described: m.dispute_reason_not_as_described(),
+    damaged: m.dispute_reason_damaged(),
+    other: m.dispute_reason_other(),
   }
   return labels[reason] ?? reason
 }
 
 function getResolutionLabel(resolution: string): string {
   const labels: Record<string, string> = {
-    close: 'Closed — no action',
-    partial_refund: 'Partial refund',
-    full_refund: 'Full refund',
+    close: m.dispute_resolution_close(),
+    partial_refund: m.dispute_resolution_partial_refund(),
+    full_refund: m.dispute_resolution_full_refund(),
   }
   return labels[resolution] ?? resolution
 }
@@ -42,9 +43,11 @@ function getDisputeAge(createdAt: Date | string): string {
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
   const diffMinutes = Math.floor(diffMs / (1000 * 60))
 
-  if (diffDays > 0) return `${diffDays} day${diffDays > 1 ? 's' : ''}`
-  if (diffHours > 0) return `${diffHours} hour${diffHours > 1 ? 's' : ''}`
-  return `${diffMinutes} min`
+  if (diffDays > 0)
+    return m.admin_dispute_age_old({ age: m.admin_dispute_age_days({ count: diffDays }) })
+  if (diffHours > 0)
+    return m.admin_dispute_age_old({ age: m.admin_dispute_age_hours({ count: diffHours }) })
+  return m.admin_dispute_age_old({ age: m.admin_dispute_age_minutes({ count: diffMinutes }) })
 }
 
 /* -------------------------------------------------------------------------- */
@@ -87,22 +90,22 @@ export function AdminDisputeDetailPage() {
             className='inline-flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary'
           >
             <ArrowLeft size={16} aria-hidden='true' />
-            Back to queue
+            {m.admin_dispute_back_to_queue()}
           </Link>
           <Badge variant={isResolved ? 'success' : 'warning'}>
-            {isResolved ? 'Resolved' : 'Open'}
+            {isResolved ? m.dispute_status_resolved() : m.dispute_status_open()}
           </Badge>
         </div>
 
         {/* Title */}
         <div className='mb-8'>
           <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary'>
-            Dispute {getReasonLabel(dispute.reason)}
+            {m.admin_dispute_title({ reason: getReasonLabel(dispute.reason) })}
           </h1>
           <div className='flex flex-wrap items-center gap-4 text-sm text-text-secondary'>
             <span className='flex items-center gap-1.5'>
               <Clock size={14} aria-hidden='true' />
-              {getDisputeAge(dispute.createdAt)} old
+              {getDisputeAge(dispute.createdAt)}
             </span>
             <span className='font-mono text-text-muted'>{dispute.id.slice(0, 8)}…</span>
           </div>
@@ -114,41 +117,41 @@ export function AdminDisputeDetailPage() {
             <CardHeader>
               <CardTitle className='flex items-center gap-2'>
                 <Package size={18} aria-hidden='true' />
-                Order Summary
+                {m.admin_dispute_order_summary()}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className='grid gap-4 sm:grid-cols-2'>
                 <div>
-                  <p className='text-xs text-text-muted'>Shop</p>
+                  <p className='text-xs text-text-muted'>{m.dispute_shop()}</p>
                   <p className='text-sm font-medium text-text-primary'>{dispute.order.shopName}</p>
                 </div>
                 <div>
-                  <p className='text-xs text-text-muted'>Order ID</p>
+                  <p className='text-xs text-text-muted'>{m.admin_dispute_order_id()}</p>
                   <p className='font-mono text-sm text-text-primary'>
                     {dispute.order.id.slice(0, 8)}…
                   </p>
                 </div>
                 <div>
-                  <p className='text-xs text-text-muted'>Date</p>
+                  <p className='text-xs text-text-muted'>{m.admin_disputes_col_date()}</p>
                   <p className='text-sm text-text-primary'>
                     {new Date(dispute.order.createdAt).toLocaleDateString()}
                   </p>
                 </div>
                 <div>
-                  <p className='text-xs text-text-muted'>Status</p>
+                  <p className='text-xs text-text-muted'>{m.dispute_status()}</p>
                   <Badge variant='default' className='mt-1 capitalize'>
                     {dispute.order.status.replace('_', ' ')}
                   </Badge>
                 </div>
                 <div>
-                  <p className='text-xs text-text-muted'>Subtotal</p>
+                  <p className='text-xs text-text-muted'>{m.cart_shop_subtotal()}</p>
                   <p className='text-sm text-text-primary'>
                     {formatPriceEUR(dispute.order.subtotalCents)}
                   </p>
                 </div>
                 <div>
-                  <p className='text-xs text-text-muted'>Shipping</p>
+                  <p className='text-xs text-text-muted'>{m.checkout_shipping()}</p>
                   <p className='text-sm text-text-primary'>
                     {formatPriceEUR(dispute.order.shippingCostCents)}
                   </p>
@@ -160,7 +163,7 @@ export function AdminDisputeDetailPage() {
                 <div className='mt-6 border-t border-border-default pt-4'>
                   <h3 className='mb-3 flex items-center gap-2 text-sm font-medium text-text-secondary'>
                     <ShoppingBag size={14} aria-hidden='true' />
-                    Items Purchased
+                    {m.admin_dispute_items_purchased()}
                   </h3>
                   <div className='divide-y divide-border-default'>
                     {dispute.order.items.map((item) => (
@@ -179,7 +182,9 @@ export function AdminDisputeDetailPage() {
                   </div>
                   <div className='mt-2 flex justify-end border-t border-border-default pt-2'>
                     <p className='text-sm font-semibold text-text-primary'>
-                      Total: {formatPriceEUR(dispute.order.totalCents)}
+                      {m.admin_dispute_total({
+                        total: formatPriceEUR(dispute.order.totalCents),
+                      })}
                     </p>
                   </div>
                 </div>
@@ -192,13 +197,13 @@ export function AdminDisputeDetailPage() {
             <CardHeader>
               <CardTitle className='flex items-center gap-2'>
                 <ShieldCheck size={18} aria-hidden='true' />
-                Participants
+                {m.admin_dispute_participants()}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className='grid gap-4 sm:grid-cols-2'>
                 <div>
-                  <p className='text-xs text-text-muted'>Buyer</p>
+                  <p className='text-xs text-text-muted'>{m.admin_disputes_col_buyer()}</p>
                   <p className='text-sm font-medium text-text-primary'>{dispute.buyer.name}</p>
                   <p className='mt-1 flex items-center gap-1 text-xs text-text-muted'>
                     <Mail size={12} aria-hidden='true' />
@@ -206,7 +211,7 @@ export function AdminDisputeDetailPage() {
                   </p>
                 </div>
                 <div>
-                  <p className='text-xs text-text-muted'>Shop Owner</p>
+                  <p className='text-xs text-text-muted'>{m.admin_dispute_shop_owner()}</p>
                   <p className='text-sm font-medium text-text-primary'>{dispute.shop.name}</p>
                   <p className='mt-1 flex items-center gap-1 text-xs text-text-muted'>
                     <Mail size={12} aria-hidden='true' />
@@ -220,7 +225,7 @@ export function AdminDisputeDetailPage() {
           {/* Description */}
           <Card variant='default'>
             <CardHeader>
-              <CardTitle>Dispute Description</CardTitle>
+              <CardTitle>{m.admin_dispute_description_title()}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className='whitespace-pre-wrap text-sm text-text-secondary'>
@@ -231,7 +236,9 @@ export function AdminDisputeDetailPage() {
 
           {/* Message Thread */}
           <section>
-            <h2 className='mb-4 text-lg font-semibold text-text-primary'>Message Thread</h2>
+            <h2 className='mb-4 text-lg font-semibold text-text-primary'>
+              {m.admin_dispute_message_thread()}
+            </h2>
             <MessageThread messages={dispute.messages} />
             {!isResolved && (
               <AdminMessageInput disputeId={dispute.id} onMessageSent={handleMessageSent} />
@@ -244,17 +251,18 @@ export function AdminDisputeDetailPage() {
               <CardHeader>
                 <CardTitle className='flex items-center gap-2'>
                   <CheckCircle2 size={18} className='text-success' aria-hidden='true' />
-                  Resolution
+                  {m.dispute_resolution_label()}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className='space-y-2'>
                   <p className='text-sm text-text-primary'>
-                    <span className='font-medium'>Decision:</span> {getResolutionLabel(decision)}
+                    <span className='font-medium'>{m.admin_dispute_decision()}</span>{' '}
+                    {getResolutionLabel(decision)}
                   </p>
                   {displayRefundCents != null && displayRefundCents > 0 && (
                     <p className='text-sm text-text-primary'>
-                      <span className='font-medium'>Refund:</span>{' '}
+                      <span className='font-medium'>{m.admin_dispute_refund()}</span>{' '}
                       {formatPriceEUR(displayRefundCents)}
                     </p>
                   )}

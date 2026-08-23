@@ -678,3 +678,85 @@ export function getOperatorCountry(): string {
   }
   return 'FR'
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Operator legal identifiers & hosting (LCEN Art. 6-III imprint)           */
+/* -------------------------------------------------------------------------- */
+
+/** French legal form of the operator (e.g. 'SAS'). Optional; required in production. */
+export function getOperatorLegalForm(): string | undefined {
+  if (typeof process !== 'undefined' && process.env.OPERATOR_LEGAL_FORM?.trim()) {
+    return process.env.OPERATOR_LEGAL_FORM.trim()
+  }
+  return undefined
+}
+
+/**
+ * Share capital as declared on the imprint (e.g. '10 000 euros').
+ * Optional everywhere, including production.
+ */
+export function getOperatorShareCapital(): string | undefined {
+  if (typeof process !== 'undefined' && process.env.OPERATOR_SHARE_CAPITAL?.trim()) {
+    return process.env.OPERATOR_SHARE_CAPITAL.trim()
+  }
+  return undefined
+}
+
+/** SIREN identifier (9 digits). Optional; required in production. */
+export function getOperatorSiren(): string | undefined {
+  if (typeof process !== 'undefined' && process.env.OPERATOR_SIREN?.trim()) {
+    return process.env.OPERATOR_SIREN.trim()
+  }
+  return undefined
+}
+
+/** SIRET identifier (14 digits). Optional; required in production. */
+export function getOperatorSiret(): string | undefined {
+  if (typeof process !== 'undefined' && process.env.OPERATOR_SIRET?.trim()) {
+    return process.env.OPERATOR_SIRET.trim()
+  }
+  return undefined
+}
+
+/** City of RCS registration. Optional; required in production. */
+export function getOperatorRcsCity(): string | undefined {
+  if (typeof process !== 'undefined' && process.env.OPERATOR_RCS_CITY?.trim()) {
+    return process.env.OPERATOR_RCS_CITY.trim()
+  }
+  return undefined
+}
+
+/** Name of the publication director. Optional; required in production. */
+export function getOperatorPublicationDirector(): string | undefined {
+  if (typeof process !== 'undefined' && process.env.OPERATOR_PUBLICATION_DIRECTOR?.trim()) {
+    return process.env.OPERATOR_PUBLICATION_DIRECTOR.trim()
+  }
+  return undefined
+}
+
+/**
+ * Hosting provider name for the LCEN imprint. For self-hosted deployments this
+ * is the VPS provider operating the host. Optional; required in production.
+ */
+export function getHostingProviderName(): string | undefined {
+  if (typeof process !== 'undefined' && process.env.HOSTING_PROVIDER_NAME?.trim()) {
+    return process.env.HOSTING_PROVIDER_NAME.trim()
+  }
+  return undefined
+}
+
+/** Hosting provider postal address. Optional; required in production. */
+export function getHostingProviderAddress(): string | undefined {
+  if (typeof process !== 'undefined' && process.env.HOSTING_PROVIDER_ADDRESS?.trim()) {
+    return process.env.HOSTING_PROVIDER_ADDRESS.trim()
+  }
+  return undefined
+}
+
+/** Hosting provider phone number. Optional; required in production. */
+export function getHostingProviderPhone(): string | undefined {
+  if (typeof process !== 'undefined' && process.env.HOSTING_PROVIDER_PHONE?.trim()) {
+    return process.env.HOSTING_PROVIDER_PHONE.trim()
+  }
+  return undefined
+}

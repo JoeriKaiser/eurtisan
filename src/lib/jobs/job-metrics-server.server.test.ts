@@ -1,7 +1,7 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { jobLockContentionTotal, metricsRegistry } from '#/lib/metrics.server'
-import { getJobMetricsResponse } from './job-metrics-server.server'
+import { getJobMetricsResponse, startJobMetricsServerFromEnv } from './job-metrics-server.server'
 
 const TOKEN = 'test-job-metrics-token-value'
 
@@ -38,5 +38,38 @@ describe('job metrics endpoint', () => {
       'eurtisan_job_lock_contention_total{job_name="financial-totals-reconciliation"} 1',
     )
     expect(body).not.toContain('entityId')
+  })
+})
+
+describe('startJobMetricsServerFromEnv', () => {
+  const PORT = 39317
+
+  afterEach(() => {
+    delete process.env.METRICS_TOKEN
+    delete process.env.METRICS_PORT
+  })
+
+  it('skips the endpoint when METRICS_TOKEN is unset', async () => {
+    delete process.env.METRICS_TOKEN
+    await expect(startJobMetricsServerFromEnv()).resolves.toBeUndefined()
+  })
+
+  it('serves token-gated metrics on METRICS_PORT', async () => {
+    process.env.METRICS_TOKEN = TOKEN
+    process.env.METRICS_PORT = String(PORT)
+    const server = await startJobMetricsServerFromEnv()
+    if (!server) throw new Error('expected the metrics server to start')
+    try {
+      const unauthorized = await fetch(`http://127.0.0.1:${PORT}/metrics`)
+      expect(unauthorized.status).toBe(401)
+
+      const authorized = await fetch(`http://127.0.0.1:${PORT}/metrics`, {
+        headers: { Authorization: `Bearer ${TOKEN}` },
+      })
+      expect(authorized.status).toBe(200)
+      expect(await authorized.text()).toContain('# HELP')
+    } finally {
+      await server.close()
+    }
   })
 })

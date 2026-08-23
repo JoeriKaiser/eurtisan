@@ -26,6 +26,7 @@ vi.mock('#/paraglide/messages', () => ({
     footer_legal_privacy: () => 'Privacy Policy',
     footer_legal_terms: () => 'Terms of Service',
     footer_legal_cookies: () => 'Cookie Policy',
+    imprint_footer_link: () => 'Legal Notice',
   },
 }))
 
@@ -48,6 +49,8 @@ describe('Footer', () => {
     expect(screen.getByTestId('logo')).toBeDefined()
     expect(screen.getByText('European marketplace for makers')).toBeDefined()
     expect(screen.getByTestId('locale-dropdown')).toBeDefined()
+    const imprintLink = screen.getByRole('link', { name: 'Legal Notice' })
+    expect(imprintLink.getAttribute('href')).toBe('/imprint')
 
     expect(screen.queryByText('Follow Eurtisan on X')).toBeNull()
     expect(screen.queryByText('Go to Eurtisan GitHub')).toBeNull()

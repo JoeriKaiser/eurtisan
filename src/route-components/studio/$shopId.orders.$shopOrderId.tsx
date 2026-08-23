@@ -31,11 +31,11 @@ function parseResponseError(err: unknown): Promise<string> {
   if (err instanceof Response) {
     return err
       .json()
-      .then((body) => body.message || 'An error occurred')
-      .catch(() => 'An error occurred')
+      .then((body) => body.message || m.studio_order_error_generic())
+      .catch(() => m.studio_order_error_generic())
   }
   if (err instanceof Error) return Promise.resolve(err.message)
-  return Promise.resolve('An unexpected error occurred')
+  return Promise.resolve(m.error_unexpected())
 }
 
 export function ShopOrderDetailPage() {
@@ -175,12 +175,14 @@ export function ShopOrderDetailPage() {
             className='inline-flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary'
           >
             <ArrowLeft size={16} aria-hidden='true' />
-            Back to orders
+            {m.orders_back_to_list()}
           </Link>
         </div>
         <div className='mb-6 flex flex-wrap items-center justify-between gap-4'>
           <div>
-            <h1 className='display-title text-2xl font-semibold text-text-primary'>Order Detail</h1>
+            <h1 className='display-title text-2xl font-semibold text-text-primary'>
+              {m.studio_order_title()}
+            </h1>
             <p className='font-mono text-sm text-text-secondary'>{shopOrderId.slice(0, 8)}…</p>
           </div>
           <Badge
@@ -266,21 +268,23 @@ export function ShopOrderDetailPage() {
 
           {trackingForm.editing && (
             <div className='rounded-xl border border-border-subtle bg-surface-default p-4'>
-              <h3 className='mb-3 text-sm font-semibold text-text-primary'>Edit Tracking</h3>
+              <h3 className='mb-3 text-sm font-semibold text-text-primary'>
+                {m.order_action_edit_tracking()}
+              </h3>
               <div className='space-y-3'>
                 <div>
-                  <Label htmlFor='tracking-number'>Tracking number</Label>
+                  <Label htmlFor='tracking-number'>{m.return_tracking_number()}</Label>
                   <Input
                     id='tracking-number'
                     value={trackingForm.number}
                     onChange={(e) =>
                       setTrackingForm((prev) => ({ ...prev, number: e.target.value }))
                     }
-                    placeholder='Tracking number'
+                    placeholder={m.return_tracking_number()}
                   />
                 </div>
                 <div>
-                  <Label htmlFor='tracking-url'>Tracking URL</Label>
+                  <Label htmlFor='tracking-url'>{m.studio_order_tracking_url_label()}</Label>
                   <Input
                     id='tracking-url'
                     value={trackingForm.url}
@@ -294,7 +298,7 @@ export function ShopOrderDetailPage() {
                     isLoading={status.isEditingTracking}
                     onClick={handleSaveTracking}
                   >
-                    Save
+                    {m.studio_customer_note_save()}
                   </Button>
                   <Button
                     variant='ghost'
@@ -306,7 +310,7 @@ export function ShopOrderDetailPage() {
                       })
                     }
                   >
-                    Cancel
+                    {m.confirm_dialog_cancel()}
                   </Button>
                 </div>
               </div>
@@ -355,10 +359,10 @@ export function ShopOrderDetailPage() {
         >
           <div className='w-full max-w-md rounded-2xl bg-surface-default p-6 shadow-xl'>
             <h2 id='review-dialog-title' className='mb-2 text-lg font-semibold text-text-primary'>
-              Resolve Manual Review
+              {m.studio_order_review_title()}
             </h2>
             <p className='mb-4 text-sm text-text-secondary'>
-              Choose how to resolve this order that is under manual review.
+              {m.studio_order_review_description()}
             </p>
             <div className='mb-4 flex gap-3'>
               <Button
@@ -385,25 +389,25 @@ export function ShopOrderDetailPage() {
               </div>
             )}
             <div className='mb-6'>
-              <Label htmlFor='review-reason'>Reason (optional)</Label>
+              <Label htmlFor='review-reason'>{m.studio_order_reason_optional()}</Label>
               <Textarea
                 id='review-reason'
                 value={review.reason}
                 onChange={(e) => setReview((prev) => ({ ...prev, reason: e.target.value }))}
-                placeholder='Add a note about the decision...'
+                placeholder={m.studio_order_note_placeholder()}
                 rows={3}
               />
             </div>
             <div className='flex justify-end gap-3'>
               <Button variant='ghost' onClick={() => setReviewDialog(false)}>
-                Cancel
+                {m.confirm_dialog_cancel()}
               </Button>
               <Button
                 variant='primary'
                 isLoading={status.isResolvingReview}
                 onClick={handleResolveReview}
               >
-                Resolve
+                {m.studio_order_resolve()}
               </Button>
             </div>
           </div>

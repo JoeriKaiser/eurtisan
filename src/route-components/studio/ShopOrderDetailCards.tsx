@@ -190,7 +190,7 @@ export function BuyerInfoCard({ buyer }: BuyerInfoCardProps) {
       <CardHeader>
         <CardTitle className='flex items-center gap-2 text-sm'>
           <Package size={16} className='text-text-muted' aria-hidden='true' />
-          Buyer
+          {m.studio_order_card_buyer()}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -221,14 +221,16 @@ export function ShippingMethodCard({
       <CardHeader>
         <CardTitle className='flex items-center gap-2 text-sm'>
           <Truck size={16} className='text-text-muted' aria-hidden='true' />
-          Shipping Method
+          {m.studio_order_card_shipping_method()}
         </CardTitle>
       </CardHeader>
       <CardContent>
         <p className='capitalize text-text-primary'>{shippingMethod}</p>
         {trackingNumber && (
           <div className='mt-2 space-y-1'>
-            <p className='text-sm text-text-secondary'>Tracking: {trackingNumber}</p>
+            <p className='text-sm text-text-secondary'>
+              {m.order_detail_tracking()}: {trackingNumber}
+            </p>
             {trackingUrl ? (
               <a
                 href={trackingUrl}
@@ -236,7 +238,7 @@ export function ShippingMethodCard({
                 rel='noopener noreferrer'
                 className='inline-flex items-center gap-1 text-sm text-accent-primary hover:underline'
               >
-                Track shipment
+                {m.studio_order_track_shipment()}
                 <Truck size={14} aria-hidden='true' />
               </a>
             ) : (
@@ -265,7 +267,7 @@ export function ShippingLabelCard({ labels }: ShippingLabelCardProps) {
       <CardHeader>
         <CardTitle className='flex items-center gap-2 text-sm'>
           <FileText size={16} className='text-text-muted' aria-hidden='true' />
-          {labels.length === 1 ? 'Shipping Label' : `Shipping Labels (${labels.length})`}
+          {m.studio_order_shipping_labels({ count: labels.length })}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -273,14 +275,17 @@ export function ShippingLabelCard({ labels }: ShippingLabelCardProps) {
           {labels.map((label, index) => (
             <div key={label.trackingNumber ?? index} className='space-y-2'>
               {labels.length > 1 && (
-                <p className='text-xs font-medium text-text-muted'>Package {index + 1}</p>
+                <p className='text-xs font-medium text-text-muted'>
+                  {m.studio_order_package({ number: index + 1 })}
+                </p>
               )}
               <p className='text-sm text-text-secondary'>
-                Carrier: <span className='font-medium text-text-primary'>{label.carrier}</span>
+                {m.studio_order_carrier_label()}{' '}
+                <span className='font-medium text-text-primary'>{label.carrier}</span>
               </p>
               {label.trackingNumber && (
                 <p className='text-sm text-text-secondary'>
-                  Tracking:{' '}
+                  {m.order_detail_tracking()}:{' '}
                   <span className='font-medium text-text-primary'>{label.trackingNumber}</span>
                 </p>
               )}
@@ -291,7 +296,7 @@ export function ShippingLabelCard({ labels }: ShippingLabelCardProps) {
                   rel='noopener noreferrer'
                   className='inline-flex items-center gap-1 text-sm text-accent-primary hover:underline'
                 >
-                  Download / print label
+                  {m.studio_order_download_label()}
                   <FileText size={14} aria-hidden='true' />
                 </a>
               )}
@@ -319,7 +324,7 @@ export function ShippingAddressCard({ address }: ShippingAddressCardProps) {
       <CardHeader>
         <CardTitle className='flex items-center gap-2 text-sm'>
           <MapPin size={16} className='text-text-muted' aria-hidden='true' />
-          Shipping Address
+          {m.studio_order_card_shipping_address()}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -334,14 +339,14 @@ export function ShippingAddressCard({ address }: ShippingAddressCardProps) {
             {!countrySupported && (
               <span className='inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning'>
                 <AlertTriangle size={12} aria-hidden='true' />
-                Unsupported country
+                {m.studio_order_unsupported_country()}
               </span>
             )}
           </div>
           {address.pickupPoint && (
             <div className='mt-3 p-3 rounded-lg border border-accent-secondary/20 bg-surface-inset not-italic'>
               <p className='text-[10px] font-bold text-accent-primary uppercase tracking-wider mb-1'>
-                Pick-up Point
+                {m.checkout_pickup_point_label()}
               </p>
               <p className='font-semibold text-text-primary text-sm'>{address.pickupPoint.name}</p>
               <p className='text-xs text-text-secondary'>{address.pickupPoint.street}</p>
@@ -350,7 +355,7 @@ export function ShippingAddressCard({ address }: ShippingAddressCardProps) {
                 {address.pickupPoint.country}
               </p>
               <p className='text-[10px] text-text-muted mt-1.5 font-mono'>
-                ID: {address.pickupPoint.id}
+                {m.checkout_pickup_point_id({ id: address.pickupPoint.id })}
               </p>
             </div>
           )}
@@ -381,7 +386,7 @@ export function OrderItemsCard({ items, totals }: OrderItemsCardProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className='text-sm'>Items</CardTitle>
+        <CardTitle className='text-sm'>{m.order_detail_items()}</CardTitle>
       </CardHeader>
       <CardContent>
         <ul className='divide-y divide-border-subtle'>
@@ -397,8 +402,10 @@ export function OrderItemsCard({ items, totals }: OrderItemsCardProps) {
                 </p>
                 {item.vatRateBasisPoints > 0 && (
                   <p className='text-xs text-text-muted'>
-                    VAT {(item.vatRateBasisPoints / 100).toFixed(2).replace(/\.00$/, '')}%:{' '}
-                    {formatPriceEUR(item.vatAmountCents)}
+                    {m.studio_order_item_vat_rate({
+                      rate: (item.vatRateBasisPoints / 100).toFixed(2).replace(/\.00$/, ''),
+                      amount: formatPriceEUR(item.vatAmountCents),
+                    })}
                   </p>
                 )}
               </div>
@@ -410,36 +417,37 @@ export function OrderItemsCard({ items, totals }: OrderItemsCardProps) {
         </ul>
         <div className='mt-4 space-y-1 border-t border-border-default pt-4 text-sm'>
           <div className='flex justify-between text-text-secondary'>
-            <span>Subtotal</span>
+            <span>{m.cart_shop_subtotal()}</span>
             <span>{formatPriceEUR(subtotalCents)}</span>
           </div>
           <div className='flex justify-between text-text-secondary'>
-            <span>Shipping</span>
+            <span>{m.checkout_shipping()}</span>
             <span>{formatPriceEUR(shippingCostCents)}</span>
           </div>
           {vatAmountCents > 0 && (
             <div className='flex justify-between text-text-secondary'>
-              <span>Item VAT</span>
+              <span>{m.studio_order_item_vat()}</span>
               <span>{formatPriceEUR(vatAmountCents)}</span>
             </div>
           )}
           {shippingVatAmountCents > 0 && (
             <div className='flex justify-between text-text-secondary'>
               <span>
-                Shipping VAT ({(shippingVatRateBasisPoints / 100).toFixed(2).replace(/\.00$/, '')}
-                %)
+                {m.studio_order_shipping_vat_rate({
+                  rate: (shippingVatRateBasisPoints / 100).toFixed(2).replace(/\.00$/, ''),
+                })}
               </span>
               <span>{formatPriceEUR(shippingVatAmountCents)}</span>
             </div>
           )}
           {vatAmountCents > 0 || shippingVatAmountCents > 0 ? (
             <div className='flex justify-between text-text-secondary'>
-              <span>Total VAT</span>
+              <span>{m.studio_order_total_vat()}</span>
               <span>{formatPriceEUR(vatAmountCents + shippingVatAmountCents)}</span>
             </div>
           ) : null}
           <div className='flex justify-between pt-1 text-base font-semibold text-text-primary'>
-            <span>Total</span>
+            <span>{m.cart_total()}</span>
             <span>{formatPriceEUR(subtotalCents + shippingCostCents)}</span>
           </div>
         </div>

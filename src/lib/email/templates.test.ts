@@ -176,6 +176,96 @@ describe('renderTemplate — statement_of_reasons', () => {
   })
 })
 
+describe('renderTemplate — shop_moderation_update', () => {
+  /** Mirrors the payload `sendModerationNotice` writes for a suspension. */
+  const suspensionPayload = {
+    creatorName: 'Dana',
+    shopName: 'Clay Studio',
+    status: 'suspended',
+    statusLabel: 'suspended',
+    note: 'Repeated policy violations.',
+    statusUrl: 'https://eurtisan.example.com/sell/status/shop-1',
+    measure: 'shop_suspended_listings_delisted',
+    groundsKind: 'note',
+    groundsKey: null,
+    redressSupportEmail: 'support@eurtisan.eu',
+    judicialRemedyAvailable: true,
+    automatedMeans: false,
+  }
+
+  it('labels a suspension and renders every Article 17 element in HTML and text', async () => {
+    const result = await renderTemplate('shop_moderation_update', suspensionPayload)
+
+    expect(result.subject).toBe('Clay Studio: Suspended')
+    for (const rendered of [result.html, result.text]) {
+      // The measure taken
+      expect(rendered).toContain('We suspended your shop')
+      // The grounds, verbatim
+      expect(rendered).toContain('Repeated policy violations.')
+      // Not an automated decision
+      expect(rendered).toContain('A person made this decision')
+      // Redress: internal complaint plus judicial remedy
+      expect(rendered).toContain('support@eurtisan.eu')
+      expect(rendered).toContain('court in your country')
+    }
+    expect(result.html).toContain('mailto:support@eurtisan.eu')
+  })
+
+  it('resolves the neutral generic grounds when no moderator note was recorded', async () => {
+    const result = await renderTemplate('shop_moderation_update', {
+      ...suspensionPayload,
+      note: '',
+      groundsKind: 'generic',
+      groundsKey: 'dsa_sor_grounds_generic',
+    })
+
+    for (const rendered of [result.html, result.text]) {
+      expect(rendered).toContain('break the Eurtisan terms')
+    }
+    expect(result.text).not.toContain('Repeated policy violations.')
+  })
+
+  it('renders a reinstatement as live without a statement of reasons', async () => {
+    const result = await renderTemplate('shop_moderation_update', {
+      creatorName: 'Dana',
+      shopName: 'Clay Studio',
+      status: 'active',
+      statusLabel: 'active',
+      note: '',
+      statusUrl: 'https://eurtisan.example.com/sell/status/shop-1',
+    })
+
+    expect(result.subject).toBe('Clay Studio: Live')
+    expect(result.html).toBeTruthy()
+    expect(result.text).toBeTruthy()
+    expect(result.html).not.toContain('Statement of reasons for this decision')
+    expect(result.html).not.toContain('support@eurtisan.eu')
+    expect(result.text).not.toContain('support@eurtisan.eu')
+  })
+
+  it('keeps the legacy review-outcome labels and the bare note block', async () => {
+    const [approved, changes] = await Promise.all([
+      renderTemplate('shop_moderation_update', {
+        shopName: 'Clay Studio',
+        status: 'approved',
+        statusUrl: 'https://eurtisan.example.com/sell/status/shop-1',
+      }),
+      renderTemplate('shop_moderation_update', {
+        creatorName: 'Dana',
+        shopName: 'Clay Studio',
+        status: 'changes_requested',
+        note: 'Add photos of the product label.',
+        statusUrl: 'https://eurtisan.example.com/sell/status/shop-1',
+      }),
+    ])
+
+    expect(approved.subject).toBe('Clay Studio: Approved')
+    expect(changes.subject).toBe('Clay Studio: Changes requested')
+    expect(changes.html).toContain('Add photos of the product label.')
+    expect(changes.text).toContain('Add photos of the product label.')
+  })
+})
+
 describe('renderFallbackPlainText', () => {
   it('returns a safe plain-text fallback for order_confirmation', () => {
     const result = renderFallbackPlainText('order_confirmation', { orderNumber: '1' })

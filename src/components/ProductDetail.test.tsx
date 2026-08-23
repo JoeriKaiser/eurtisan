@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
 
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 import type { ProductDetail as ProductDetailType } from '#/lib/products.server'
 import ProductDetail from './ProductDetail'
 
 const mockRefreshCart = vi.fn()
 const mockAddToCart = vi.hoisted(() => vi.fn())
+const authState = vi.hoisted(() => ({ user: null as { id: string } | null }))
+const mockCreateProductReport = vi.hoisted(() => vi.fn())
 
 vi.mock('@tanstack/react-router', () => ({
   Link: (props: {
@@ -41,6 +43,37 @@ vi.mock('#/components/ProductReviews', () => ({
   default: ({ productId }: { productId: string }) => (
     <div data-testid='product-reviews' data-product-id={productId} />
   ),
+}))
+
+vi.mock('#/lib/auth-hooks', () => ({
+  useAuth: () => ({
+    user: authState.user,
+    isAuthenticated: authState.user !== null,
+    isPending: false,
+  }),
+}))
+
+vi.mock('#/lib/listing-reports/contract', () => ({
+  createProductReport: mockCreateProductReport,
+}))
+
+vi.mock('#/components/reviews/ReportListingDialog', () => ({
+  ReportListingDialog: (props: {
+    open: boolean
+    targetType: string
+    onOpenChange: (open: boolean) => void
+    onSubmit: (reason: string, details: string | null) => void
+  }) =>
+    props.open ? (
+      <div data-testid='report-listing-dialog' data-target-type={props.targetType}>
+        <button type='button' onClick={() => props.onSubmit('counterfeit', null)}>
+          submit-product-report
+        </button>
+        <button type='button' onClick={() => props.onOpenChange(false)}>
+          close-report-dialog
+        </button>
+      </div>
+    ) : null,
 }))
 
 vi.mock('#/paraglide/messages', () => ({
@@ -83,6 +116,9 @@ vi.mock('#/paraglide/messages', () => ({
     trader_status_undeclared: () =>
       'This seller has not declared whether they are a trader. Purchases are unavailable until the declaration is provided.',
     product_purchase_unavailable: () => 'Purchase unavailable',
+    listing_report_button_product: () => 'Report this product',
+    listing_report_success_product: () => 'Report sent. Our moderation team will take a look.',
+    listing_report_error: () => 'We could not send your report. Please try again.',
   },
 }))
 
@@ -426,6 +462,40 @@ describe('ProductDetail', () => {
 
     await act(async () => {
       resolve({ id: 'item-1', productId: 'prod-1', quantity: 1 })
+    })
+  })
+})
+
+describe('ProductDetail report notice route', () => {
+  afterEach(() => {
+    authState.user = null
+    mockCreateProductReport.mockReset()
+  })
+
+  it('hides the notice route from anonymous visitors', () => {
+    render(<ProductDetail product={makeProduct()} />)
+
+    expect(screen.queryByRole('button', { name: 'Report this product' })).toBeNull()
+  })
+
+  it('files a DSA notice against the product from its page', async () => {
+    authState.user = { id: 'buyer-1' }
+    mockCreateProductReport.mockResolvedValue({ alreadyReported: false })
+    render(<ProductDetail product={makeProduct()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Report this product' }))
+    const dialog = screen.getByTestId('report-listing-dialog')
+    expect(dialog.getAttribute('data-target-type')).toBe('product')
+
+    fireEvent.click(screen.getByRole('button', { name: 'submit-product-report' }))
+
+    await waitFor(() => {
+      expect(mockCreateProductReport).toHaveBeenCalledWith({
+        data: { productId: 'prod-1', reason: 'counterfeit', details: null },
+      })
+    })
+    await waitFor(() => {
+      expect(screen.getByText('Report sent. Our moderation team will take a look.')).toBeDefined()
     })
   })
 })

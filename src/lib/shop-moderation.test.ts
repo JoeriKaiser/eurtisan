@@ -2,7 +2,8 @@ import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
-import { meilisearchSyncQueue, product, shop, user } from '#/db/schema'
+import { emailOutbox, meilisearchSyncQueue, notification, product, shop, user } from '#/db/schema'
+import { decrypt } from '#/lib/encryption.server'
 import { listAllShopsQuery, moderateShopQuery } from './shop-moderation.server'
 
 vi.mock('./auth', () => ({
@@ -345,5 +346,105 @@ describe('moderateShopQuery', () => {
 
     expect(actual.isSuspended).toBe(true)
     expect(actual.moderationNote).toBe('Violation')
+  })
+
+  describe('DSA Art. 17 statement of reasons', () => {
+    it('notifies the owner in-app with measure, verbatim grounds, and redress on suspend', async () => {
+      await seedUser()
+      await seedShop()
+
+      await moderateShopQuery('shop-1', 'suspend', 'Contains prohibited items')
+
+      const rows = await db.select().from(notification).where(eq(notification.userId, 'user-1'))
+      expect(rows).toHaveLength(1)
+      const data = rows[0].data as Record<string, unknown>
+      // Article 17(3): (a) decision and measure — including the search
+      // delisting — (b) grounds in the moderator's own words, (c) redress.
+      expect(data.status).toBe('suspended')
+      expect(data.measure).toBe('shop_suspended_listings_delisted')
+      expect(data.note).toBe('Contains prohibited items')
+      expect(data.groundsKind).toBe('note')
+      expect(data.groundsKey).toBeNull()
+      expect(data.redressSupportEmail).toBe('support@eurtisan.eu')
+      expect(data.judicialRemedyAvailable).toBe(true)
+      expect(data.automatedMeans).toBe(false)
+      expect(data.targetPath).toBe('/sell/status/shop-1')
+    })
+
+    it('queues a transactional SoR email addressed to the owner email', async () => {
+      await seedUser()
+      await seedShop()
+
+      await moderateShopQuery('shop-1', 'suspend', 'Contains prohibited items')
+
+      const queued = await db.select().from(emailOutbox)
+      expect(queued).toHaveLength(1)
+      expect(queued[0].template).toBe('shop_moderation_update')
+      // Legally mandated correspondence: a seller_updates opt-out must not be
+      // able to suppress it.
+      expect(queued[0].category).toBe('transactional')
+      expect(queued[0].userId).toBe('user-1')
+      expect(decrypt(queued[0].recipientEmail as string)).toBe('test@example.com')
+      const data = queued[0].data as Record<string, unknown>
+      expect(data.status).toBe('suspended')
+      expect(data.note).toBe('Contains prohibited items')
+      expect(data.judicialRemedyAvailable).toBe(true)
+      expect(String(data.statusUrl)).toContain('/sell/status/shop-1')
+    })
+
+    it('falls back to the neutral generic grounds key when no note was recorded', async () => {
+      await seedUser()
+      await seedShop()
+
+      await moderateShopQuery('shop-1', 'suspend')
+
+      const rows = await db.select().from(notification).where(eq(notification.userId, 'user-1'))
+      expect(rows).toHaveLength(1)
+      const data = rows[0].data as Record<string, unknown>
+      expect(data.groundsKind).toBe('generic')
+      expect(data.groundsKey).toBe('dsa_sor_grounds_generic')
+      expect(data.note).toBe('')
+    })
+
+    it('notifies reinstatement without grounds on unsuspend', async () => {
+      await seedUser()
+      await seedShop({ isSuspended: true })
+
+      await moderateShopQuery('shop-1', 'unsuspend')
+
+      const rows = await db.select().from(notification).where(eq(notification.userId, 'user-1'))
+      expect(rows).toHaveLength(1)
+      const data = rows[0].data as Record<string, unknown>
+      expect(data.status).toBe('active')
+      expect(data.measure).toBeUndefined()
+      expect(await db.select().from(emailOutbox)).toHaveLength(1)
+    })
+
+    it('does not duplicate the notice when suspending an already-suspended shop', async () => {
+      await seedUser()
+      await seedShop()
+
+      await moderateShopQuery('shop-1', 'suspend', 'First notice')
+      await moderateShopQuery('shop-1', 'suspend', 'Second attempt')
+
+      // A repeated suspend succeeds silently: the unchanged decision is never
+      // restated, so the owner receives neither a second notification nor a
+      // second outbox email.
+      expect(await db.select().from(notification)).toHaveLength(1)
+      expect(await db.select().from(emailOutbox)).toHaveLength(1)
+      const rows = await db.select().from(notification)
+      const data = rows[0].data as Record<string, unknown>
+      expect(data.note).toBe('First notice')
+    })
+
+    it('stays silent when unsuspending an already-active shop', async () => {
+      await seedUser()
+      await seedShop()
+
+      await moderateShopQuery('shop-1', 'unsuspend')
+
+      expect(await db.select().from(notification)).toHaveLength(0)
+      expect(await db.select().from(emailOutbox)).toHaveLength(0)
+    })
   })
 })

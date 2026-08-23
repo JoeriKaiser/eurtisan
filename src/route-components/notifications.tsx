@@ -1,7 +1,10 @@
+import { useLoaderData, useNavigate } from '@tanstack/react-router'
+
+import { AccountShell } from '#/components/AccountShell'
 import { NotificationsPage } from '#/components/NotificationsPage'
+import { m } from '#/paraglide/messages'
 import { useNotifications } from '#/lib/notifications-hooks'
 import { useState } from 'react'
-import { useLoaderData, useNavigate } from '@tanstack/react-router'
 
 const PAGE_SIZE = 20
 
@@ -33,5 +36,24 @@ export function NotificationsRouteComponent() {
       onPageChange={goToPage}
       isNavigating={isNavigating}
     />
+  )
+}
+
+/**
+ * Route shell for /notifications. Lives here (not in the route file) so the
+ * code splitter keeps AccountShell and the notifications page subtree out of
+ * the eagerly loaded route-reference module.
+ */
+export function NotificationsRouteWrapper() {
+  return (
+    <AccountShell
+      breadcrumbs={[
+        { label: m.nav_home(), to: '/' },
+        { label: m.account_title(), to: '/account' },
+        { label: m.notifications_title() },
+      ]}
+    >
+      <NotificationsRouteComponent />
+    </AccountShell>
   )
 }

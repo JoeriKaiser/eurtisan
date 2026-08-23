@@ -63,10 +63,16 @@ export function SignIn() {
   const [needsTwoFactor, setNeedsTwoFactor] = useState(false)
   const [twoFactorCode, setTwoFactorCode] = useState('')
   const [status, setStatus] = useState({ error: '', info: '', loading: false })
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: string
+    password?: string
+    confirmPassword?: string
+  }>({})
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setStatus({ error: '', info: '', loading: false })
+    setFieldErrors({})
 
     const formEl = e.currentTarget
     const formEmail = (formEl.elements.namedItem('email') as HTMLInputElement).value.trim()
@@ -87,15 +93,15 @@ export function SignIn() {
 
     if (isSignUp) {
       if (!formName) {
-        setStatus({ error: m.error_unexpected(), info: '', loading: false })
+        setFieldErrors({ name: m.auth_name_required() })
         return
       }
       if (formPassword.length < 8) {
-        setStatus({ error: m.password_rule_length(), info: '', loading: false })
+        setFieldErrors({ password: m.password_rule_length() })
         return
       }
       if (formPassword !== formConfirmPassword) {
-        setStatus({ error: m.error_passwords_do_not_match(), info: '', loading: false })
+        setFieldErrors({ confirmPassword: m.error_passwords_do_not_match() })
         return
       }
     }
@@ -248,7 +254,7 @@ export function SignIn() {
           </button>
         </form>
       ) : (
-        <form onSubmit={handleSubmit} className='grid gap-3'>
+        <form onSubmit={handleSubmit} noValidate className='grid gap-3'>
           {isSignUp && (
             <div className='grid gap-1'>
               <label htmlFor='name' className='text-sm font-medium text-text-primary'>
@@ -262,8 +268,14 @@ export function SignIn() {
                 value={form.name}
                 onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
                 required
+                error={fieldErrors.name}
                 className='w-full'
               />
+              {fieldErrors.name && (
+                <p id='name-error' role='alert' className='text-xs text-error'>
+                  {fieldErrors.name}
+                </p>
+              )}
             </div>
           )}
 
@@ -306,12 +318,13 @@ export function SignIn() {
                 value={form.password}
                 onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
                 required
+                error={fieldErrors.password}
                 className='pr-10 w-full'
               />
               <button
                 type='button'
                 onClick={() => setVisibility((prev) => ({ ...prev, password: !prev.password }))}
-                className='absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary focus:outline-none'
+                className='absolute right-3 top-1/2 -translate-y-1/2 rounded text-text-muted hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
                 aria-label={
                   visibility.password ? m.button_hide_password() : m.button_show_password()
                 }
@@ -319,7 +332,11 @@ export function SignIn() {
                 {visibility.password ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
             </div>
-
+            {fieldErrors.password && (
+              <p id='password-error' role='alert' className='text-xs text-error'>
+                {fieldErrors.password}
+              </p>
+            )}
             {isSignUp && <PasswordStrengthIndicator password={form.password} />}
           </div>
 
@@ -339,6 +356,7 @@ export function SignIn() {
                     setForm((prev) => ({ ...prev, confirmPassword: e.target.value }))
                   }
                   required
+                  error={fieldErrors.confirmPassword}
                   className='pr-10 w-full'
                 />
                 <button
@@ -346,7 +364,7 @@ export function SignIn() {
                   onClick={() =>
                     setVisibility((prev) => ({ ...prev, confirmPassword: !prev.confirmPassword }))
                   }
-                  className='absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary focus:outline-none'
+                  className='absolute right-3 top-1/2 -translate-y-1/2 rounded text-text-muted hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
                   aria-label={
                     visibility.confirmPassword ? m.button_hide_password() : m.button_show_password()
                   }
@@ -354,6 +372,11 @@ export function SignIn() {
                   {visibility.confirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              {fieldErrors.confirmPassword && (
+                <p id='confirmPassword-error' role='alert' className='text-xs text-error'>
+                  {fieldErrors.confirmPassword}
+                </p>
+              )}
             </div>
           )}
 
@@ -375,6 +398,7 @@ export function SignIn() {
             onClick={() => {
               setIsSignUp(!isSignUp)
               setStatus({ error: '', info: '', loading: false })
+              setFieldErrors({})
             }}
             className='text-sm text-text-muted transition-colors duration-fast ease-out hover:text-text-primary font-medium'
           >

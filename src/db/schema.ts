@@ -890,6 +890,100 @@ export const sellerReplyReport = pgTable(
   ],
 )
 
+export const listingReportReasonEnum = pgEnum('listing_report_reason', [
+  /**
+   * Grounds scoped to marketplace-listing violations, in the order the report
+   * dialog offers them: the integrity grounds a buyer is most likely acting on
+   * lead, and `other` — which alone substantiates nothing (DSA Art. 16(2)) —
+   * closes the list.
+   */
+  'counterfeit',
+  'unsafe',
+  'illegal_goods',
+  'fraud',
+  'other',
+])
+
+export const listingReportStatusEnum = pgEnum('listing_report_status', [
+  'open',
+  /** Seen by an admin, no decision yet. */
+  'reviewed',
+  /** The violation was confirmed and acted on. */
+  'actioned',
+  'dismissed',
+])
+
+/**
+ * A DSA Article 16 notice that a product listing may be illegal or breach the
+ * terms, filed by any authenticated user — reporting does not change the
+ * product's visibility or search standing; only an admin decision does.
+ *
+ * Mirrors `review_report`: a substantiated ground plus free text (Art. 16(2)),
+ * one notice per person per product, and a recorded resolution (who, when,
+ * why) so the decision can be stated and audited later.
+ *
+ * Beta limitation: the reporter must be signed in (`reporter_user_id` is NOT
+ * NULL). Art. 16 does not oblige platforms to accept anonymous notices, but
+ * this does exclude logged-out visitors from the notice route.
+ */
+export const productReport = pgTable(
+  'product_report',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    productId: text('product_id')
+      .notNull()
+      .references(() => product.id, { onDelete: 'cascade' }),
+    reporterUserId: text('reporter_user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    reason: listingReportReasonEnum('reason').notNull(),
+    details: text(),
+    status: listingReportStatusEnum('status').notNull().default('open'),
+    /** The admin's own words: what was checked and what was decided. */
+    resolutionNote: text('resolution_note'),
+    resolvedAt: timestamp('resolved_at'),
+    resolvedByUserId: text('resolved_by_user_id').references(() => user.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('product_report_product_reporter_unique').on(table.productId, table.reporterUserId),
+    index('product_report_product_id_idx').on(table.productId),
+    index('product_report_status_idx').on(table.status),
+    index('product_report_created_at_idx').on(table.createdAt),
+  ],
+)
+
+/** The shop-level counterpart of `product_report`. See there for rationale. */
+export const shopReport = pgTable(
+  'shop_report',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    shopId: text('shop_id')
+      .notNull()
+      .references(() => shop.id, { onDelete: 'cascade' }),
+    reporterUserId: text('reporter_user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    reason: listingReportReasonEnum('reason').notNull(),
+    details: text(),
+    status: listingReportStatusEnum('status').notNull().default('open'),
+    resolutionNote: text('resolution_note'),
+    resolvedAt: timestamp('resolved_at'),
+    resolvedByUserId: text('resolved_by_user_id').references(() => user.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('shop_report_shop_reporter_unique').on(table.shopId, table.reporterUserId),
+    index('shop_report_shop_id_idx').on(table.shopId),
+    index('shop_report_status_idx').on(table.status),
+    index('shop_report_created_at_idx').on(table.createdAt),
+  ],
+)
+
 export const payoutStatusEnum = pgEnum('payout_status', [
   'pending',
   'in_transit',

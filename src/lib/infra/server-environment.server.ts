@@ -8,6 +8,7 @@ const emptyToUndefined = (value: unknown): unknown =>
   typeof value === 'string' && value.trim() === '' ? undefined : value
 const requiredString = z.preprocess(emptyToUndefined, z.string().trim().min(1))
 const secretString = z.preprocess(emptyToUndefined, z.string().trim().min(16))
+const optionalString = z.preprocess(emptyToUndefined, z.string().trim().optional())
 const explicitBoolean = z.enum(['true', 'false'])
 const forbiddenPlaceholderPattern =
   /(?:^|[^a-z])(?:change[-_ ]?me|your[-_ ]|replace[-_ ]?me|placeholder|example[-_ ]?(?:key|token|secret|id)|dummy|todo|changeme)(?=$|[^a-z])/i
@@ -84,6 +85,31 @@ const serverEnvironmentSchema = z
     OPERATOR_CITY: requiredString.default('Paris'),
     OPERATOR_POSTAL_CODE: requiredString.default('75001'),
     OPERATOR_COUNTRY: z.string().length(2).default('FR'),
+    // French LCEN Art. 6-III imprint identifiers. Optional at parse time so
+    // development degrades gracefully; required in production by superRefine.
+    OPERATOR_LEGAL_FORM: optionalString,
+    OPERATOR_SHARE_CAPITAL: optionalString,
+    OPERATOR_SIREN: z.preprocess(
+      emptyToUndefined,
+      z
+        .string()
+        .trim()
+        .regex(/^\d{9}$/, 'must be exactly 9 digits')
+        .optional(),
+    ),
+    OPERATOR_SIRET: z.preprocess(
+      emptyToUndefined,
+      z
+        .string()
+        .trim()
+        .regex(/^\d{14}$/, 'must be exactly 14 digits')
+        .optional(),
+    ),
+    OPERATOR_RCS_CITY: optionalString,
+    OPERATOR_PUBLICATION_DIRECTOR: optionalString,
+    HOSTING_PROVIDER_NAME: optionalString,
+    HOSTING_PROVIDER_ADDRESS: optionalString,
+    HOSTING_PROVIDER_PHONE: optionalString,
     METRICS_TOKEN: secretString,
     ENABLE_VIES_VALIDATION: explicitBoolean,
     PLATFORM_VAT_LIABLE: explicitBoolean,
@@ -214,6 +240,28 @@ const serverEnvironmentSchema = z
       }
       if (environment.BREVO_API_KEY || environment.BREVO_WEBHOOK_TOKEN) {
         addIssue(context, 'BREVO_API_KEY', 'must be unset when SMTP delivery is selected')
+      }
+    }
+
+    if (environment.APP_ENV === 'production') {
+      const lcenImprintFields: Array<[string, string | undefined]> = [
+        ['OPERATOR_LEGAL_FORM', environment.OPERATOR_LEGAL_FORM],
+        ['OPERATOR_SIREN', environment.OPERATOR_SIREN],
+        ['OPERATOR_SIRET', environment.OPERATOR_SIRET],
+        ['OPERATOR_RCS_CITY', environment.OPERATOR_RCS_CITY],
+        ['OPERATOR_PUBLICATION_DIRECTOR', environment.OPERATOR_PUBLICATION_DIRECTOR],
+        ['HOSTING_PROVIDER_NAME', environment.HOSTING_PROVIDER_NAME],
+        ['HOSTING_PROVIDER_ADDRESS', environment.HOSTING_PROVIDER_ADDRESS],
+        ['HOSTING_PROVIDER_PHONE', environment.HOSTING_PROVIDER_PHONE],
+      ]
+      for (const [name, value] of lcenImprintFields) {
+        if (!value) {
+          addIssue(
+            context,
+            name,
+            'is required in production for the French LCEN Article 6-III imprint',
+          )
+        }
       }
     }
 

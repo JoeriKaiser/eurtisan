@@ -6,10 +6,14 @@ import {
   account,
   auditLog,
   cart,
+  customerNote,
+  customerTag,
   dispute,
   disputeMessage,
   invoices,
   notification,
+  ownerMessage,
+  ownerMessageThread,
   payoutReconciliationLog,
   platformOrder,
   product,
@@ -568,5 +572,72 @@ describe('deleteUserAccount', () => {
       .from(userNotificationPreference)
       .where(eq(userNotificationPreference.userId, u.id))
     expect(preferences).toHaveLength(0)
+  })
+
+  it('redacts customer notes and owner messages and deletes customer tags', async () => {
+    const u = await createUser({ email: 'crm-buyer@example.com' })
+    const owner = await createUser({ role: 'creator', email: 'crm-owner@example.com' })
+    const s = await seedShop(owner.id)
+    const hash = hashEmail('crm-buyer@example.com')
+
+    const note = await createCustomerNote(s.id, owner.id, {
+      customerEmailHash: hash,
+      content: 'Prefers express shipping',
+    })
+    await createCustomerTag(s.id, { customerEmailHash: hash, tag: 'vip' })
+    // Thread reachable via the account id even though its stored email hash
+    // no longer matches, plus a guest thread reachable only via the hash.
+    const threadByAccount = await createOwnerMessageThread(s.id, {
+      customerUserId: u.id,
+      customerEmailHash: hashEmail('older-address@example.com'),
+      subject: 'Where is my order?',
+    })
+    const threadByGuestHash = await createOwnerMessageThread(s.id, {
+      customerEmailHash: hash,
+      subject: 'A question before checkout',
+    })
+    await createOwnerMessage(threadByAccount.id, { senderRole: 'buyer', body: 'Buyer question' })
+    await createOwnerMessage(threadByAccount.id, { senderRole: 'owner', body: 'Owner answer' })
+    await createOwnerMessage(threadByGuestHash.id, { senderRole: 'buyer', body: 'Guest question' })
+
+    const untouchedThread = await createOwnerMessageThread(s.id)
+    await createOwnerMessage(untouchedThread.id, { body: 'Unrelated conversation' })
+
+    await deleteUserAccount(u.id)
+
+    const notes = await db.select().from(customerNote).where(eq(customerNote.id, note.id))
+    expect(notes[0]?.content).toBe('[REDACTED]')
+
+    const remainingTags = await db
+      .select()
+      .from(customerTag)
+      .where(eq(customerTag.customerEmailHash, hash))
+    expect(remainingTags).toHaveLength(0)
+
+    const threads = await db
+      .select()
+      .from(ownerMessageThread)
+      .where(inArray(ownerMessageThread.id, [threadByAccount.id, threadByGuestHash.id]))
+    expect(threads.map((t) => t.subject)).toEqual(['[REDACTED]', '[REDACTED]'])
+
+    const messages = await db
+      .select()
+      .from(ownerMessage)
+      .where(inArray(ownerMessage.threadId, [threadByAccount.id, threadByGuestHash.id]))
+    expect(messages).toHaveLength(3)
+    for (const message of messages) {
+      expect(message.body).toBe('[REDACTED]')
+    }
+
+    const keptThreads = await db
+      .select()
+      .from(ownerMessageThread)
+      .where(eq(ownerMessageThread.id, untouchedThread.id))
+    expect(keptThreads[0]?.subject).toBe('Test subject')
+    const keptMessages = await db
+      .select()
+      .from(ownerMessage)
+      .where(eq(ownerMessage.threadId, untouchedThread.id))
+    expect(keptMessages[0]?.body).toBe('Unrelated conversation')
   })
 })

@@ -8,12 +8,24 @@ vi.mock('#/paraglide/messages', () => ({
   },
 }))
 
+// Keep Paraglide's real URL rewriting (localizeUrl) but pin the active locale,
+// mirroring how the router resolves it from the request URL.
+let mockLocale: 'en' | 'nl' = 'en'
+vi.mock('#/paraglide/runtime', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>()
+  return {
+    ...actual,
+    getLocale: () => mockLocale,
+  }
+})
+
 import { createPageMeta } from './seo'
 
 const configuredPublicUrl = process.env.PUBLIC_URL
 
 beforeEach(() => {
   delete process.env.PUBLIC_URL
+  mockLocale = 'en'
 })
 
 afterEach(() => {
@@ -235,6 +247,96 @@ describe('createPageMeta', () => {
       } else {
         process.env.PUBLIC_URL = previousPublicUrl
       }
+    }
+  })
+
+  it('emits unprefixed canonical, hreflang alternates, and en_US og:locale for the default locale', () => {
+    mockLocale = 'en'
+    const result = createPageMeta({
+      title: 'About | Eurtisan',
+      description: 'Learn about our marketplace.',
+      canonicalPath: '/about',
+    })
+
+    // Default locale canonical stays unprefixed
+    expect(result.links.find((link) => link.rel === 'canonical')?.href).toBe('/about')
+    expect(result.meta.find((tag) => tag.property === 'og:url')?.content).toBe('/about')
+
+    // One hreflang alternate per supported locale, no duplicates, plus
+    // x-default pointing at the default-locale URL of the same path.
+    const alternates = result.links.filter((link) => link.rel === 'alternate')
+    expect(alternates.map((link) => link.hreflang)).toEqual(['en', 'nl', 'x-default'])
+    expect(new Set(alternates.map((link) => link.hreflang)).size).toBe(alternates.length)
+    expect(alternates.find((link) => link.hreflang === 'en')?.href).toBe('/about')
+    expect(alternates.find((link) => link.hreflang === 'nl')?.href).toBe('/nl/about')
+    expect(alternates.find((link) => link.hreflang === 'x-default')?.href).toBe('/about')
+
+    // og:locale uses the underscore format; every other locale is an alternate
+    expect(result.meta.find((tag) => tag.property === 'og:locale')?.content).toBe('en_US')
+    const ogLocaleAlternates = result.meta.filter((tag) => tag.property === 'og:locale:alternate')
+    expect(ogLocaleAlternates.map((tag) => tag.content)).toEqual(['nl_NL'])
+  })
+
+  it('prefixes the /nl canonical and emits nl_NL og:locale for the Dutch locale', () => {
+    mockLocale = 'nl'
+    const result = createPageMeta({
+      title: 'Over | Eurtisan',
+      description: 'Leer onze marktplaats kennen.',
+      canonicalPath: '/about',
+    })
+
+    // Non-default locale canonical carries the /nl prefix
+    expect(result.links.find((link) => link.rel === 'canonical')?.href).toBe('/nl/about')
+    expect(result.meta.find((tag) => tag.property === 'og:url')?.content).toBe('/nl/about')
+
+    const alternates = result.links.filter((link) => link.rel === 'alternate')
+    expect(alternates.map((link) => link.hreflang)).toEqual(['en', 'nl', 'x-default'])
+    expect(new Set(alternates.map((link) => link.hreflang)).size).toBe(alternates.length)
+    expect(alternates.find((link) => link.hreflang === 'nl')?.href).toBe('/nl/about')
+    expect(alternates.find((link) => link.hreflang === 'en')?.href).toBe('/about')
+    expect(alternates.find((link) => link.hreflang === 'x-default')?.href).toBe('/about')
+
+    expect(result.meta.find((tag) => tag.property === 'og:locale')?.content).toBe('nl_NL')
+    const ogLocaleAlternates = result.meta.filter((tag) => tag.property === 'og:locale:alternate')
+    expect(ogLocaleAlternates.map((tag) => tag.content)).toEqual(['en_US'])
+  })
+
+  it('keeps the localized root path free of a trailing slash', () => {
+    mockLocale = 'nl'
+    const result = createPageMeta({
+      title: 'Eurtisan',
+      description: 'Handgemaakt in Europa.',
+      canonicalPath: '/',
+    })
+
+    // Mirrors router.tsx: Paraglide rewrites "/" to "/nl/" — canonical stays "/nl".
+    expect(result.links.find((link) => link.rel === 'canonical')?.href).toBe('/nl')
+    expect(result.links.find((link) => link.hreflang === 'nl')?.href).toBe('/nl')
+    expect(result.links.find((link) => link.hreflang === 'en')?.href).toBe('/')
+  })
+
+  it('localizes absolute canonical URLs when PUBLIC_URL is configured', () => {
+    mockLocale = 'nl'
+    process.env.PUBLIC_URL = 'https://eurtisan.example'
+
+    try {
+      const result = createPageMeta({
+        title: 'Over | Eurtisan',
+        description: 'Leer onze marktplaats kennen.',
+        canonicalPath: '/about',
+      })
+
+      expect(result.links.find((link) => link.rel === 'canonical')?.href).toBe(
+        'https://eurtisan.example/nl/about',
+      )
+      expect(result.links.find((link) => link.hreflang === 'nl')?.href).toBe(
+        'https://eurtisan.example/nl/about',
+      )
+      expect(result.links.find((link) => link.hreflang === 'en')?.href).toBe(
+        'https://eurtisan.example/about',
+      )
+    } finally {
+      delete process.env.PUBLIC_URL
     }
   })
 })

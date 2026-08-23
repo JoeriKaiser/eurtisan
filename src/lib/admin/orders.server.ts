@@ -1,6 +1,8 @@
 import { and, count, desc, eq, gte, ilike, inArray, lte, or, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { orderItem, platformOrder, shippingLabel, shop, shopOrder, user } from '#/db/schema'
+import { decryptJsonb } from '../encryption.server'
+import type { BillingAddress } from '../invoices/types'
 import type { ShippingAddress } from '../checkout.server'
 import type { OrderShopGroup, OrderStatus } from '../orders.server'
 
@@ -30,7 +32,7 @@ export interface AdminOrderDetail {
   cancelledAt: Date | null
   cancellationReason: string | null
   shippingAddress: ShippingAddress
-  billingAddress: ShippingAddress
+  billingAddress: BillingAddress
   molliePaymentId: string | null
   shops: OrderShopGroup[]
 }
@@ -284,8 +286,12 @@ export async function getPlatformOrderDetailQuery(
     createdAt: order.createdAt,
     cancelledAt: order.cancelledAt,
     cancellationReason: order.cancellationReason,
-    shippingAddress: order.shippingAddress as ShippingAddress,
-    billingAddress: (order.billingAddress ?? {}) as ShippingAddress,
+    // Both columns are encrypted at rest on every write path (see
+    // checkout/order-persistence). Read raw, they come back as ciphertext
+    // envelopes and the admin detail page renders blank addresses. Legacy
+    // plaintext rows pass through untouched.
+    shippingAddress: decryptJsonb<ShippingAddress>(order.shippingAddress),
+    billingAddress: decryptJsonb<BillingAddress>(order.billingAddress ?? {}),
     molliePaymentId: order.molliePaymentId,
     shops,
   }

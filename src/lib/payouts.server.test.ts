@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { db } from '#/db/index'
-import { payout, shopOrder } from '#/db/schema'
+import { payout, shop, shopOrder } from '#/db/schema'
 import {
   clearMockRouteFailure,
   resetMockRouteCounter,
@@ -11,11 +11,13 @@ import {
 import { clearTestTables } from '#/test/cleanup'
 import { createPlatformOrder, createShop, createShopOrder, createUser } from '#/test/factories'
 import {
+  assertPayoutReleaseAllowed,
   executePayoutQuery,
   isValidPayoutTransition,
   listCreatorPayoutsQuery,
   markPayoutSentQuery,
   PayoutError,
+  reversePayoutForRefund,
 } from './payouts.server'
 import { PLATFORM_FEE_PERCENT } from './platform-constants'
 import { markShopOrderDeliveredQuery, updateShopOrderStatusQuery } from './shop-orders.server'
@@ -452,6 +454,108 @@ describe('executePayoutQuery', () => {
     const [updated] = await db.select().from(payout).where(eq(payout.id, pending.id))
     expect(updated?.status).toBe('failed')
     expect(updated?.failureReason).toBe('Mollie API error')
+  })
+})
+
+describe('shop suspension propagation', () => {
+  beforeEach(() => {
+    resetMockRouteCounter()
+    clearMockRouteFailure()
+  })
+
+  async function seedSuspendedShopWithHeldPayout() {
+    await seedUser()
+    await seedShop({ isSuspended: true })
+    const platformOrd = await seedPlatformOrder()
+    const order = await seedShopOrder({
+      platformOrderId: platformOrd.id,
+      shopId: 'shop-1',
+      subtotalCents: 5000,
+      status: 'shipped',
+    })
+    await markShopOrderDeliveredQuery(order.id)
+    await expireDisputeWindow(order.id)
+    const [payoutRecord] = await db.select().from(payout).where(eq(payout.shopOrderId, order.id))
+    return { order, payoutRecord }
+  }
+
+  it('keeps a suspended shop delivered-order payout born-held pending', async () => {
+    const { order, payoutRecord } = await seedSuspendedShopWithHeldPayout()
+
+    const [orderRow] = await db.select().from(shopOrder).where(eq(shopOrder.id, order.id))
+    expect(orderRow?.status).toBe('delivered')
+
+    expect(payoutRecord).toBeDefined()
+    expect(payoutRecord?.status).toBe('pending')
+    expect(payoutRecord?.mollieRouteId).toBeNull()
+    expect(payoutRecord?.executedAt).toBeNull()
+  })
+
+  it('blocks executePayoutQuery for a suspended shop without touching the payout', async () => {
+    const { payoutRecord } = await seedSuspendedShopWithHeldPayout()
+
+    let caught: unknown
+    try {
+      await executePayoutQuery(payoutRecord.id)
+    } catch (err) {
+      caught = err
+    }
+    expect(caught).toBeInstanceOf(Response)
+    expect((caught as Response).status).toBe(409)
+    const body = (await (caught as Response).json()) as { message?: string }
+    expect(body.message).toContain('suspended')
+
+    const [after] = await db.select().from(payout).where(eq(payout.id, payoutRecord.id))
+    expect(after?.status).toBe('pending')
+    expect(after?.executedAt).toBeNull()
+    expect(after?.mollieRouteId).toBeNull()
+    expect(after?.failureReason).toBeNull()
+  })
+
+  it('releases the held payout on the next natural transition after unsuspension', async () => {
+    const { payoutRecord } = await seedSuspendedShopWithHeldPayout()
+    await expect(executePayoutQuery(payoutRecord.id)).rejects.toBeInstanceOf(Response)
+
+    await db.update(shop).set({ isSuspended: false }).where(eq(shop.id, 'shop-1'))
+
+    const result = await executePayoutQuery(payoutRecord.id)
+    expect(result.success).toBe(true)
+    expect(result.routeId).toMatch(/^crt_mock_/)
+
+    const [after] = await db.select().from(payout).where(eq(payout.id, payoutRecord.id))
+    expect(after?.status).toBe('sent')
+  })
+
+  it('does not block refund clawbacks while the shop is suspended', async () => {
+    const { payoutRecord } = await seedSuspendedShopWithHeldPayout()
+    await db
+      .update(payout)
+      .set({
+        status: 'sent',
+        molliePaymentId: 'tr_test',
+        mollieRouteId: 'crt_mock_1',
+        sentAt: new Date(),
+      })
+      .where(eq(payout.id, payoutRecord.id))
+
+    const options = await reversePayoutForRefund(db, payoutRecord.shopOrderId, 5000, 'buyer refund')
+
+    expect(options.reverseRouting).toBe(true)
+    const [after] = await db.select().from(payout).where(eq(payout.id, payoutRecord.id))
+    expect(after?.status).toBe('reversed')
+    expect(after?.reversalReason).toBe('buyer refund')
+  })
+
+  it('fails closed for unknown shops in the shared guard', async () => {
+    await expect(
+      assertPayoutReleaseAllowed(db, '00000000-0000-0000-0000-000000000000'),
+    ).rejects.toBeInstanceOf(PayoutError)
+  })
+
+  it('allows active shops through the shared guard', async () => {
+    await seedUser()
+    await seedShop({ isSuspended: false })
+    await expect(assertPayoutReleaseAllowed(db, 'shop-1')).resolves.toBeUndefined()
   })
 })
 

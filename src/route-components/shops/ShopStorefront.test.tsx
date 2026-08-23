@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { axe } from 'vitest-axe'
 import type { PaginatedProducts, PublicProduct } from '#/lib/products'
 import type { ShopProfile } from '#/lib/shop-profile'
 import ShopStorefront, { type ShopStorefrontProps } from './ShopStorefront'
 
 const mockNavigate = vi.hoisted(() => vi.fn())
+const authState = vi.hoisted(() => ({ user: null as { id: string } | null }))
+const mockCreateShopReport = vi.hoisted(() => vi.fn())
 
 vi.mock('@tanstack/react-router', () => ({
   Link: (props: { children: React.ReactNode; to: string; className?: string }) => (
@@ -19,6 +21,37 @@ vi.mock('@tanstack/react-router', () => ({
 }))
 
 vi.mock('#/paraglide/runtime', () => ({ getLocale: () => 'en' }))
+
+vi.mock('#/lib/auth-hooks', () => ({
+  useAuth: () => ({
+    user: authState.user,
+    isAuthenticated: authState.user !== null,
+    isPending: false,
+  }),
+}))
+
+vi.mock('#/lib/listing-reports/contract', () => ({
+  createShopReport: mockCreateShopReport,
+}))
+
+vi.mock('#/components/reviews/ReportListingDialog', () => ({
+  ReportListingDialog: (props: {
+    open: boolean
+    targetType: string
+    onOpenChange: (open: boolean) => void
+    onSubmit: (reason: string, details: string | null) => void
+  }) =>
+    props.open ? (
+      <div data-testid='report-listing-dialog' data-target-type={props.targetType}>
+        <button type='button' onClick={() => props.onSubmit('fraud', null)}>
+          submit-shop-report
+        </button>
+        <button type='button' onClick={() => props.onOpenChange(false)}>
+          close-report-dialog
+        </button>
+      </div>
+    ) : null,
+}))
 
 vi.mock('#/paraglide/messages', () => ({
   m: {
@@ -46,7 +79,6 @@ vi.mock('#/paraglide/messages', () => ({
     shop_socials_heading: () => 'Find this maker',
     shop_announcement_label: () => 'Announcement',
     shop_link_new_tab: () => 'opens in a new tab',
-    shop_member_since: ({ date }: { date: string }) => `On Eurtisan since ${date}`,
     shop_languages_label: () => 'Speaks',
     shop_production_handmade: () => 'Handmade',
     shop_production_vintage: () => 'Vintage',
@@ -99,6 +131,10 @@ vi.mock('#/paraglide/messages', () => ({
       'Consumer rights stemming from EU consumer protection law do not apply to the contract.',
     trader_status_undeclared: () =>
       'This seller has not declared whether they are a trader. Purchases are unavailable until the declaration is provided.',
+    shop_member_since: ({ date }: { date: string }) => `On Eurtisan since ${date}`,
+    listing_report_button_shop: () => 'Report this shop',
+    listing_report_success_shop: () => 'Report sent. Our moderation team will take a look.',
+    listing_report_error: () => 'We could not send your report. Please try again.',
   },
 }))
 
@@ -654,6 +690,45 @@ describe('ShopStorefront', () => {
     it('has section headings below the h1', () => {
       renderShop(makeCompleteShop())
       expect(screen.getAllByRole('heading', { level: 2 }).length).toBeGreaterThan(0)
+    })
+  })
+})
+
+describe('ShopStorefront report notice route', () => {
+  afterEach(() => {
+    authState.user = null
+    mockCreateShopReport.mockReset()
+  })
+
+  function renderSignedIn() {
+    authState.user = { id: 'buyer-1' }
+    mockCreateShopReport.mockResolvedValue({ alreadyReported: false })
+    return renderShop(makeShop())
+  }
+
+  it('hides the notice route from anonymous visitors', () => {
+    authState.user = null
+    renderShop(makeShop())
+
+    expect(screen.queryByRole('button', { name: 'Report this shop' })).toBeNull()
+  })
+
+  it('files a DSA notice against the shop from its storefront', async () => {
+    renderSignedIn()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Report this shop' }))
+    const dialog = screen.getByTestId('report-listing-dialog')
+    expect(dialog.getAttribute('data-target-type')).toBe('shop')
+
+    fireEvent.click(screen.getByRole('button', { name: 'submit-shop-report' }))
+
+    await waitFor(() => {
+      expect(mockCreateShopReport).toHaveBeenCalledWith({
+        data: { shopId: 'shop-1', reason: 'fraud', details: null },
+      })
+    })
+    await waitFor(() => {
+      expect(screen.getByText('Report sent. Our moderation team will take a look.')).toBeDefined()
     })
   })
 })
