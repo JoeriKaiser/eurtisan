@@ -70,15 +70,9 @@ export function ResponsiveImage({
   }, [])
 
   const imageRef = useCallback((node: HTMLImageElement | null) => {
-    if (!node?.complete) return
-
-    if (node.naturalWidth > 0) {
+    if (node?.complete && node.naturalWidth > 0) {
       setIsLoaded(true)
-      return
     }
-
-    setHasError(true)
-    setIsLoaded(true)
   }, [])
 
   if (!src) {
@@ -93,30 +87,30 @@ export function ResponsiveImage({
       {/* Zero-HTTP-request CSS shimmer skeleton */}
       {placeholder === 'blur' && !isLoaded && !hasError && (
         <div
-          className='absolute inset-0 h-full w-full bg-surface-inset animate-pulse'
+          className='absolute inset-0 h-full w-full bg-surface-inset animate-pulse pointer-events-none'
           aria-hidden='true'
         />
       )}
 
-      {hasError ? (
-        <div className='flex h-full w-full items-center justify-center bg-surface-inset'>
+      {hasError && (
+        <div className='absolute inset-0 flex h-full w-full items-center justify-center bg-surface-inset'>
           {fallback ?? <span className='sr-only'>{alt}</span>}
         </div>
-      ) : (
-        <img
-          ref={imageRef}
-          src={defaultUrl}
-          srcSet={srcset}
-          sizes={sizes}
-          alt={alt}
-          loading={loading}
-          onLoad={handleLoad}
-          onError={handleError}
-          className={`transition-opacity duration-500 ${
-            isLoaded ? 'opacity-100' : 'opacity-0'
-          } ${imgClassName ?? 'h-full w-full object-cover'}`}
-        />
       )}
+
+      <img
+        ref={imageRef}
+        src={defaultUrl}
+        srcSet={srcset}
+        sizes={sizes}
+        alt={alt}
+        loading={loading}
+        onLoad={handleLoad}
+        onError={handleError}
+        className={`transition-opacity duration-300 ${
+          isLoaded ? 'opacity-100' : 'opacity-0'
+        } ${imgClassName ?? 'h-full w-full object-cover'}`}
+      />
     </div>
   )
 }
