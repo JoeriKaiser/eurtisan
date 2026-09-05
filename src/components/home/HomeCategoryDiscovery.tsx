@@ -78,7 +78,7 @@ export function HomeCategoryDiscovery({ categories }: HomeCategoryDiscoveryProps
             {/* Right Visual Panel */}
             <div className='relative order-first h-48 w-full overflow-hidden bg-surface-inset md:order-none md:h-auto md:w-[42%] md:border-l md:border-border-subtle'>
               <img
-                src='/images/spotlight_ceramics.png'
+                src='/images/spotlight_ceramics.webp'
                 alt={m.home_category_spotlight_image_alt()}
                 className='h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]'
               />

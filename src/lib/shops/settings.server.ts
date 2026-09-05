@@ -186,8 +186,11 @@ export async function updateShopInternal(
   if (input.shippingOrigin !== undefined) {
     if (input.shippingOrigin === null) {
       updateData.shippingOrigin = null
+      updateData.processingTimeMinDays = null
+      updateData.processingTimeMaxDays = null
+      updateData.shipsInternational = false
     } else {
-      const storedOrigin = decryptJsonb<unknown>(shopRecord.shippingOrigin)
+      const storedOrigin = decryptJsonb<Record<string, unknown>>(shopRecord.shippingOrigin)
       const shippingOrigin = isObjectRecord(storedOrigin)
         ? {
             ...storedOrigin,
@@ -199,6 +202,22 @@ export async function updateShopInternal(
         : input.shippingOrigin
 
       updateData.shippingOrigin = encryptJsonb(shippingOrigin)
+
+      // if stored origin has processingTimeDays, populate integer columns
+      const originDays = isObjectRecord(storedOrigin?.processingTimeDays)
+        ? storedOrigin.processingTimeDays
+        : null
+      if (
+        originDays &&
+        typeof originDays.min === 'number' &&
+        typeof originDays.max === 'number'
+      ) {
+        updateData.processingTimeMinDays = originDays.min
+        updateData.processingTimeMaxDays = originDays.max
+      }
+      if (typeof storedOrigin?.shipsInternational === 'boolean') {
+        updateData.shipsInternational = storedOrigin.shipsInternational
+      }
     }
   }
 

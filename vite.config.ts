@@ -34,8 +34,12 @@ const config = defineConfig(({ mode }) => ({
           if (id.includes('/src/paraglide/')) return 'i18n-core'
           if (!id.includes('node_modules')) return
 
+          // Icons consolidation
+          if (id.includes('lucide-react')) return 'vendor-icons'
+
           // Core runtime: React + DOM (must stay together)
-          if (id.includes('react-dom') || id.includes('/react/')) return 'vendor-react'
+          if (id.includes('react-dom') || id.includes('/react/') || id.includes('react/'))
+            return 'vendor-react'
 
           // Router + Start client core
           if (id.includes('@tanstack/react-router') || id.includes('@tanstack/react-start'))

@@ -247,6 +247,8 @@ export async function getProductBySlugQuery(
       lowStockThreshold: product.lowStockThreshold,
       // Encrypted at rest, so it is decrypted below rather than read in SQL.
       shippingOrigin: shop.shippingOrigin,
+      processingTimeMinDays: shop.processingTimeMinDays,
+      processingTimeMaxDays: shop.processingTimeMaxDays,
     })
     .from(product)
     .innerJoin(shop, eq(product.shopId, shop.id))
@@ -302,7 +304,10 @@ export async function getProductBySlugQuery(
 
   // Only the dispatch window is taken off the origin. The rest of that object
   // is the shop's dispatch address, which must not reach a public page.
-  const dispatchDays = getCachedDispatchDays(result.shippingOrigin)
+  const dispatchDays =
+    typeof result.processingTimeMinDays === 'number' && typeof result.processingTimeMaxDays === 'number'
+      ? { min: result.processingTimeMinDays, max: result.processingTimeMaxDays }
+      : getCachedDispatchDays(result.shippingOrigin)
 
   return {
     id: result.id,

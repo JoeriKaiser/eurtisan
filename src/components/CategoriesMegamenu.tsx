@@ -54,17 +54,17 @@ const SHOWCASE_DATA: Record<
   }
 > = {
   ceramics: {
-    image: '/images/megamenu/ceramics.png',
+    image: '/images/megamenu/ceramics.webp',
     title: () => m.megamenu_ceramics_title(),
     description: () => m.megamenu_ceramics_desc(),
   },
   textiles: {
-    image: '/images/megamenu/textiles.png',
+    image: '/images/megamenu/textiles.webp',
     title: () => m.megamenu_textiles_title(),
     description: () => m.megamenu_textiles_desc(),
   },
   woodwork: {
-    image: '/images/megamenu/woodwork.png',
+    image: '/images/megamenu/woodwork.webp',
     title: () => m.megamenu_woodwork_title(),
     description: () => m.megamenu_woodwork_desc(),
   },
@@ -100,7 +100,7 @@ export default function CategoriesMegamenu({ categories }: CategoriesMegamenuPro
 
   const spotlight = activeCategory
     ? SHOWCASE_DATA[activeCategory.slug] || {
-        image: '/images/megamenu/ceramics.png',
+        image: '/images/megamenu/ceramics.webp',
         title: () => m.megamenu_default_title(),
         description: () => m.megamenu_default_desc(),
       }

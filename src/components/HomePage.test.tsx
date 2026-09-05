@@ -141,7 +141,7 @@ describe('HomePage', () => {
     expect(mobileHeroImage.style.backgroundImage).toContain(
       '/api/image?key=shops%2Fhero-shop.webp&width=960&format=webp',
     )
-    expect(mobileHeroImage.style.backgroundImage).toContain('/images/hero_artisan_goods.png')
+    expect(mobileHeroImage.style.backgroundImage).toContain('/images/hero_artisan_goods.webp')
   })
 
   it('shows singular product count for one product', () => {

@@ -99,8 +99,7 @@ export function HomeHeroSection({
   const featuredShop = shops[0]
   const featuredImageSrc = featuredShop?.image
     ? getImageUrl(featuredShop.image, { width: 960, format: 'webp' })
-    : '/images/hero_artisan_goods.png'
-
+    : '/images/hero_artisan_goods.webp'
   return (
     <section className='border-b border-border-subtle bg-bg-base py-10 sm:py-14 lg:py-20'>
       <div className='mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
@@ -118,7 +117,7 @@ export function HomeHeroSection({
                   aria-label={m.home_hero_image_alt()}
                   className='aspect-video w-full bg-cover bg-center sm:aspect-[5/4]'
                   style={{
-                    backgroundImage: `url("${featuredImageSrc}"), url("/images/hero_artisan_goods.png")`,
+                    backgroundImage: `url("${featuredImageSrc}"), url("/images/hero_artisan_goods.webp")`,
                   }}
                 />
               </Link>
@@ -210,7 +209,7 @@ export function HomeHeroSection({
               <div className='w-full rounded-2xl border border-border-subtle bg-surface-default p-4 shadow-sm'>
                 <div
                   className='relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-surface-inset bg-cover bg-center'
-                  style={{ backgroundImage: "url('/images/hero_artisan_goods.png')" }}
+                  style={{ backgroundImage: "url('/images/hero_artisan_goods.webp')" }}
                 >
                   <img
                     src={featuredImageSrc}

@@ -19,7 +19,7 @@ import { extname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { logger, requestIdStore } from '../../src/lib/logger.server.ts'
 import { buildCspHeader } from '../../src/lib/csp.ts'
-import { injectScriptNonces, runWithCspNonce } from '../../src/lib/csp-nonce.server.ts'
+import { runWithCspNonce } from '../../src/lib/csp-nonce.server.ts'
 import { assertMockPayoutsNotProduction } from '../../src/lib/env.server.ts'
 import { assertValidServerEnvironment } from '../../src/lib/infra/server-environment.server.ts'
 import { getSafeRequestPath } from '../../src/lib/request-path.server.ts'
@@ -325,9 +325,7 @@ const server = createServer(async (req, res) => {
     }
 
     const contentType = response.headers.get('content-type') || ''
-    let transformedHtml = null
     if (process.env.NODE_ENV === 'production' && contentType.includes('text/html')) {
-      transformedHtml = injectScriptNonces(await response.text(), cspNonce)
       setResponseHeader(
         responseHeaders,
         'content-security-policy',
@@ -355,12 +353,8 @@ const server = createServer(async (req, res) => {
 
     res.writeHead(response.status, response.statusText, responseHeaders)
 
-    if (transformedHtml !== null) {
-      if (req.method === 'HEAD') {
-        res.end()
-      } else {
-        res.end(transformedHtml)
-      }
+    if (req.method === 'HEAD') {
+      res.end()
       return
     }
 

@@ -171,6 +171,9 @@ export const shop = pgTable(
 
     // Location & Shipping
     shippingOrigin: jsonb('shipping_origin'),
+    processingTimeMinDays: integer('processing_time_min_days'),
+    processingTimeMaxDays: integer('processing_time_max_days'),
+    shipsInternational: boolean('ships_international').notNull().default(false),
     businessAddress: jsonb('business_address'),
     currency: text().notNull().default('EUR'),
     isVatRegistered: boolean('is_vat_registered').notNull().default(false),
@@ -231,6 +234,7 @@ export const shop = pgTable(
     index('shop_ownerId_idx').on(table.ownerId),
     index('shop_status_idx').on(table.status),
     index('shop_created_at_idx').on(table.createdAt),
+    index('shop_processing_time_idx').on(table.processingTimeMinDays, table.processingTimeMaxDays),
     uniqueIndex('shop_slug_unique').on(table.slug),
     check('shop_onboarding_step_bounds', sql`${table.onboardingStep} BETWEEN 1 AND 8`),
   ],
