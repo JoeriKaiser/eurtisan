@@ -39,7 +39,15 @@ export async function listCategoriesQuery() {
 
 export async function listCategoryTreeQuery() {
   return withServerCache(CATEGORY_TREE_CACHE_KEY, CATEGORY_CACHE_TTL_MS, async () => {
-    const all = await db.select().from(categories)
+    const all = await db
+      .select({
+        id: categories.id,
+        name: categories.name,
+        slug: categories.slug,
+        parentId: categories.parentId,
+      })
+      .from(categories)
+      .orderBy(categories.sortOrder)
     return buildCategoryTree(all)
   })
 }

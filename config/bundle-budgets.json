@@ -1,28 +1,28 @@
 {
-  "rationale": "Measured from the 2026-08-09 clean Docker production build after the reviews, notification grouping and digest, trader-declaration, shipping-origin integrity, and scoped unit-pricing work. The aggregate and initial JavaScript growth is reviewed feature code accumulated since the 2026-07-25 baseline rather than a regression in this E2E repair; the largest async chunk is unchanged and the largest initial chunk remains within the prior gzip ceiling. JavaScript ceilings restore fixed binary headroom for review, while CSS retains its 144 KiB raw / 24 KiB gzip global caps and tighter 8 KiB raw / 1.5 KiB gzip increase from this baseline.",
+  "rationale": "Updated following performance remediation: sealed Meilisearch client SDK leak, lazy-loaded mobile nav and user dialogs, pruned dead QueryClient category/stats hydration, pre-compressed static assets with Brotli/Gzip, and added CSS shimmer placeholders. Largest JavaScript chunk was reduced from 928 KB to 555 KB (raw) / 148 KB (gzip).",
   "baseline": {
-    "javascriptBytes": 2680541,
-    "javascriptGzipBytes": 782134,
-    "largestJavaScriptBytes": 928352,
-    "largestJavaScriptGzipBytes": 269614,
-    "initialJavaScriptBytes": 1450781,
-    "initialJavaScriptGzipBytes": 406129,
-    "largestAsyncJavaScriptBytes": 341804,
-    "largestAsyncJavaScriptGzipBytes": 101985,
-    "cssBytes": 139161,
-    "cssGzipBytes": 22873
+    "javascriptBytes": 2668010,
+    "javascriptGzipBytes": 780755,
+    "largestJavaScriptBytes": 555532,
+    "largestJavaScriptGzipBytes": 148962,
+    "initialJavaScriptBytes": 1443741,
+    "initialJavaScriptGzipBytes": 405193,
+    "largestAsyncJavaScriptBytes": 341820,
+    "largestAsyncJavaScriptGzipBytes": 101995,
+    "cssBytes": 133914,
+    "cssGzipBytes": 22305
   },
   "maximum": {
-    "javascriptBytes": 2746368,
-    "javascriptGzipBytes": 799744,
-    "largestJavaScriptBytes": 945152,
-    "largestJavaScriptGzipBytes": 274432,
-    "initialJavaScriptBytes": 1467392,
-    "initialJavaScriptGzipBytes": 410624,
+    "javascriptBytes": 2720000,
+    "javascriptGzipBytes": 790000,
+    "largestJavaScriptBytes": 600000,
+    "largestJavaScriptGzipBytes": 165000,
+    "initialJavaScriptBytes": 1450000,
+    "initialJavaScriptGzipBytes": 410000,
     "largestAsyncJavaScriptBytes": 348160,
-    "largestAsyncJavaScriptGzipBytes": 106496,
-    "cssBytes": 147456,
-    "cssGzipBytes": 24576
+    "largestAsyncJavaScriptGzipBytes": 105000,
+    "cssBytes": 144000,
+    "cssGzipBytes": 24000
   },
   "incrementalMaximum": {
     "cssBytes": 8192,

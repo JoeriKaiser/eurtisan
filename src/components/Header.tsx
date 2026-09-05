@@ -10,13 +10,13 @@ import { getCartDistinctItemCount } from '#/lib/cart-ui'
 import { m } from '#/paraglide/messages'
 import CategoriesMegamenu from './CategoriesMegamenu'
 import LocaleDropdown from './LocaleDropdown'
-import MobileNavDrawer from './MobileNavDrawer'
 import ThemeToggle from './ThemeToggle'
-import UserMenu from './UserMenu'
 import Logo from './Logo'
 
 const rootRoute = getRouteApi('__root__')
 const SearchOverlay = lazy(() => import('./search/SearchOverlay'))
+const MobileNavDrawer = lazy(() => import('./MobileNavDrawer'))
+const UserMenu = lazy(() => import('./UserMenu'))
 
 export default function Header() {
   const [searchOverlayOpen, setSearchOverlayOpen] = useState(false)
@@ -78,13 +78,15 @@ export default function Header() {
         className='page-wrap flex items-center gap-x-2 md:gap-x-4 px-2 md:px-4 py-2.5'
         aria-label={m.nav_main()}
       >
-        <MobileNavDrawer
-          categories={categories}
-          onOpenSearch={() => {
-            setSearchKey((key) => key + 1)
-            setSearchOverlayOpen(true)
-          }}
-        />
+        <Suspense fallback={<div className="md:hidden size-9" />}>
+          <MobileNavDrawer
+            categories={categories}
+            onOpenSearch={() => {
+              setSearchKey((key) => key + 1)
+              setSearchOverlayOpen(true)
+            }}
+          />
+        </Suspense>
 
         {/* Logo */}
         <Logo textClassName='hidden sm:inline' />
@@ -178,7 +180,9 @@ export default function Header() {
             </Link>
           </div>
           <div className='flex-shrink-0 flex items-center'>
-            <UserMenu />
+            <Suspense fallback={<div className="size-9" />}>
+              <UserMenu />
+            </Suspense>
           </div>
           <div className='hidden md:inline-flex flex-shrink-0'>
             <LocaleDropdown />

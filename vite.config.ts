@@ -29,18 +29,39 @@ const config = defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          if (id.includes('/src/paraglide/')) return 'i18n'
+          if (id.includes('/src/paraglide/messages/en.js')) return 'i18n-en'
+          if (id.includes('/src/paraglide/messages/nl.js')) return 'i18n-nl'
+          if (id.includes('/src/paraglide/')) return 'i18n-core'
           if (!id.includes('node_modules')) return
-          if (id.includes('react-dom') || id.includes('/react/')) return 'vendor'
+
+          // Core runtime: React + DOM (must stay together)
+          if (id.includes('react-dom') || id.includes('/react/')) return 'vendor-react'
+
+          // Router + Start client core
           if (id.includes('@tanstack/react-router') || id.includes('@tanstack/react-start'))
-            return 'router'
-          if (id.includes('@tanstack/react-query')) return 'query'
+            return 'vendor-router'
+
+          // UI primitives (Base UI, Floating UI)
+          if (id.includes('@base-ui-components') || id.includes('@floating-ui'))
+            return 'vendor-ui'
+
+          // Auth client
+          if (id.includes('better-auth')) return 'vendor-auth'
+
+          // TanStack Query
+          if (id.includes('@tanstack/react-query')) return 'vendor-query'
         },
       },
     },
   },
   ssr: {
-    external: ['zod', 'better-auth', '@better-auth/core', '@better-auth/drizzle-adapter'],
+    external: [
+      'zod',
+      'better-auth',
+      '@better-auth/core',
+      '@better-auth/drizzle-adapter',
+      'meilisearch',
+    ],
   },
   plugins: [
     {

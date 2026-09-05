@@ -24,6 +24,7 @@ import { DeleteObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { getS3Bucket, getS3PublicEndpoint, s3Client, s3PublicClient } from '../s3-client.server'
 import { extractKeyFromUrl, isExternalImageUrl } from '../image-url'
+import { setServerImageSigner } from './url'
 
 export { extractKeyFromUrl, isExternalImageUrl }
 
@@ -227,6 +228,8 @@ export function buildImgproxyUrl(key: string, options: ImgproxyOptions = {}): st
   const signedPath = signImgproxyPath(fullPath)
   return `${baseUrl}${signedPath}`
 }
+
+setServerImageSigner((key, options) => buildImgproxyUrl(key, options))
 
 /**
  * Builds a direct S3 URL for cases where imgproxy is not needed

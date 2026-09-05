@@ -57,6 +57,28 @@ const publicProductColumns = {
   soldBy: product.soldBy,
 }
 
+const listingProductColumns = {
+  id: product.id,
+  name: product.name,
+  description: sql<string | null>`SUBSTRING(${product.description} FROM 1 FOR 200)`,
+  slug: product.slug,
+  priceCents: product.priceCents,
+  stockCount: product.stockCount,
+  isActive: product.isActive,
+  status: product.status,
+  publishedAt: product.publishedAt,
+  createdAt: product.createdAt,
+  updatedAt: product.updatedAt,
+  categoryName: categories.name,
+  categorySlug: categories.slug,
+  shopName: shop.name,
+  shopSlug: shop.slug,
+  shopIsVatRegistered: shop.isVatRegistered,
+  weightGrams: product.weightGrams,
+  volumeMl: product.volumeMl,
+  soldBy: product.soldBy,
+}
+
 export async function fetchFirstImageUrls(productIds: string[]): Promise<Map<string, string>> {
   if (productIds.length === 0) return new Map()
 
@@ -158,7 +180,7 @@ export async function listProductsQuery(
   const total = totalResult?.total ?? 0
 
   const products = await db
-    .select(publicProductColumns)
+    .select(listingProductColumns)
     .from(product)
     .innerJoin(shop, eq(product.shopId, shop.id))
     .leftJoin(categories, eq(product.categoryId, categories.id))
@@ -179,6 +201,37 @@ export async function listProductsQuery(
     pageSize,
     totalPages: Math.ceil(total / pageSize),
   }
+}
+
+const shopDispatchDaysCache = new Map<string, { min: number; max: number } | null>()
+const MAX_DISPATCH_CACHE_SIZE = 1000
+
+function getCachedDispatchDays(
+  shippingOriginRaw: unknown,
+): { min: number; max: number } | null {
+  if (!shippingOriginRaw || typeof shippingOriginRaw !== 'string') {
+    return null
+  }
+  // Key by substring of ciphertext (unique per address version)
+  const cacheKey = shippingOriginRaw.slice(-32)
+  if (shopDispatchDaysCache.has(cacheKey)) {
+    return shopDispatchDaysCache.get(cacheKey) ?? null
+  }
+
+  const origin = decryptJsonb<{ processingTimeDays?: { min?: number; max?: number } } | null>(
+    shippingOriginRaw,
+  )
+  const processing = origin?.processingTimeDays
+  const dispatchDays =
+    typeof processing?.min === 'number' && typeof processing?.max === 'number'
+      ? { min: processing.min, max: processing.max }
+      : null
+
+  if (shopDispatchDaysCache.size >= MAX_DISPATCH_CACHE_SIZE) {
+    shopDispatchDaysCache.clear()
+  }
+  shopDispatchDaysCache.set(cacheKey, dispatchDays)
+  return dispatchDays
 }
 
 export async function getProductBySlugQuery(
@@ -249,14 +302,7 @@ export async function getProductBySlugQuery(
 
   // Only the dispatch window is taken off the origin. The rest of that object
   // is the shop's dispatch address, which must not reach a public page.
-  const origin = decryptJsonb<{ processingTimeDays?: { min?: number; max?: number } } | null>(
-    result.shippingOrigin,
-  )
-  const processing = origin?.processingTimeDays
-  const dispatchDays =
-    typeof processing?.min === 'number' && typeof processing?.max === 'number'
-      ? { min: processing.min, max: processing.max }
-      : null
+  const dispatchDays = getCachedDispatchDays(result.shippingOrigin)
 
   return {
     id: result.id,
@@ -547,7 +593,7 @@ export async function getFeaturedShopsQuery(limit: number): Promise<FeaturedShop
 }
 
 const MARKETPLACE_STATS_CACHE_KEY = 'cache:marketplace:stats'
-const MARKETPLACE_STATS_TTL_MS = 60_000
+const MARKETPLACE_STATS_TTL_MS = 3_600_000 // 1 hour TTL
 
 export async function getMarketplaceStatsQuery(): Promise<{
   sellerCount: number
@@ -717,7 +763,7 @@ export async function searchProductsQuery(
 
   const products = await (() => {
     const base = db
-      .select(publicProductColumns)
+      .select(listingProductColumns)
       .from(product)
       .innerJoin(shop, eq(product.shopId, shop.id))
       .leftJoin(categories, eq(product.categoryId, categories.id))

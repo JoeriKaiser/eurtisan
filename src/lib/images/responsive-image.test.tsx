@@ -37,4 +37,16 @@ describe('ResponsiveImage', () => {
     expect(image.classList.contains('opacity-100')).toBe(true)
     expect(image.classList.contains('opacity-0')).toBe(false)
   })
+
+  it('renders CSS shimmer placeholder when placeholder is blur and image is not loaded', () => {
+    const { container } = render(
+      <ResponsiveImage src='products/bowl.jpg' alt='Bowl' placeholder='blur' />
+    )
+    const shimmer = container.querySelector('.animate-pulse')
+    expect(shimmer).toBeDefined()
+    expect(shimmer?.getAttribute('aria-hidden')).toBe('true')
+    const images = container.querySelectorAll('img')
+    // Must only contain the main image, no secondary blur thumbnail img tag
+    expect(images.length).toBe(1)
+  })
 })

@@ -13,6 +13,14 @@ export interface ImageUrlOptions {
   format?: 'webp' | 'avif' | 'jpeg' | 'png'
 }
 
+export type ImageSigner = (key: string, options?: ImageUrlOptions) => string
+
+let serverImageSigner: ImageSigner | null = null
+
+export function setServerImageSigner(signer: ImageSigner | null): void {
+  serverImageSigner = signer
+}
+
 const imageKeyRegex = /^(products|shops)\/[^/]+\.(jpg|jpeg|png|webp)$/
 const imageUrlRegex = /^(https?:\/\/[^/]+|\/uploads\/).+\.(jpg|jpeg|png|webp)$/i
 
@@ -59,6 +67,15 @@ export function getImageUrl(key: string, options?: ImageUrlOptions): string {
   // If already a full URL or uploads path, return as-is
   if (key.startsWith('http') || key.startsWith('/uploads/')) {
     return key
+  }
+
+  if (typeof window === 'undefined' && serverImageSigner) {
+    try {
+      const signed = serverImageSigner(key, options)
+      if (signed) return signed
+    } catch {
+      // Fallback to delivery URL
+    }
   }
 
   return buildImageDeliveryUrl(key, options)

@@ -953,9 +953,9 @@
   tags: [backup, wal]
 
 - name: Create the initial full physical backup
-  ansible.builtin.command: /opt/eurtisan/pgbackrest-backup.sh full
-  become: true
-  become_user: eurtisan-backup
+  ansible.builtin.systemd_service:
+    name: eurtisan-pgbackrest-backup@full.service
+    state: started
   when:
     - postgres_wal_archive_enabled | bool
     - not initial_physical_backup_marker.stat.exists
@@ -1081,12 +1081,16 @@
                 tls:
                   certResolver: letsencrypt
                 service: eurtisan-staging-app
-          {% if allowed_ips is defined %}
                 middlewares:
+                  - eurtisan-staging-compress
+          {% if allowed_ips is defined %}
                   - eurtisan-staging-whitelist
           {% endif %}
 
             middlewares:
+              eurtisan-staging-compress:
+                compress: {}
+
               eurtisan-staging-redirect:
                 redirectScheme:
                   scheme: https

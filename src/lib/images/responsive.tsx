@@ -30,7 +30,7 @@ interface ResponsiveImageProps {
 
 const DEFAULT_WIDTHS = [400, 800, 1200]
 const DEFAULT_SIZES =
-  '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw'
+  '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 25vw, 286px'
 const DEFAULT_FORMAT = 'webp'
 
 /**
@@ -87,16 +87,13 @@ export function ResponsiveImage({
 
   const defaultUrl = getImageUrl(src, { format: DEFAULT_FORMAT })
   const srcset = buildSrcset(src, widths)
-  const blurUrl = getImageUrl(src, { width: 40, format: DEFAULT_FORMAT })
 
   return (
     <div className={`relative overflow-hidden ${className ?? ''}`}>
-      {/* Blur placeholder */}
+      {/* Zero-HTTP-request CSS shimmer skeleton */}
       {placeholder === 'blur' && !isLoaded && !hasError && (
-        <img
-          src={blurUrl}
-          alt=''
-          className='absolute inset-0 h-full w-full scale-105 object-cover blur-[10px]'
+        <div
+          className='absolute inset-0 h-full w-full bg-surface-inset animate-pulse'
           aria-hidden='true'
         />
       )}

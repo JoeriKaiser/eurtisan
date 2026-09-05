@@ -79,6 +79,7 @@ function isPublicRoute(url) {
   if (path === '/terms') return true
   if (path === '/privacy') return true
   if (path === '/cookies') return true
+  if (path === '/imprint') return true
   if (path === '/sitemap.xml') return true
   if (path === '/robots.txt') return true
   return false
@@ -105,7 +106,7 @@ function isPrivateRoute(url) {
 }
 
 // Try to serve a static file from the client build directory
-function serveStatic(urlPath) {
+function serveStatic(urlPath, acceptEncoding = '') {
   let cleanPath
   try {
     cleanPath = decodeURIComponent(urlPath.split('?')[0])
@@ -133,7 +134,19 @@ function serveStatic(urlPath) {
   const etag = `"${stat.mtimeMs.toString(16)}"`
   const lastModified = stat.mtime.toUTCString()
 
+  const encoding = typeof acceptEncoding === 'string' ? acceptEncoding : ''
+  const brPath = `${fsPath}.br`
+  const gzPath = `${fsPath}.gz`
+
   try {
+    if (encoding.includes('br') && existsSync(brPath)) {
+      const body = readFileSync(brPath)
+      return { body, mime, status: 200, etag, lastModified, contentEncoding: 'br' }
+    }
+    if ((encoding.includes('gzip') || encoding.includes('deflate')) && existsSync(gzPath)) {
+      const body = readFileSync(gzPath)
+      return { body, mime, status: 200, etag, lastModified, contentEncoding: 'gzip' }
+    }
     const body = readFileSync(fsPath)
     return { body, mime, status: 200, etag, lastModified }
   } catch (err) {
@@ -175,7 +188,7 @@ const server = createServer(async (req, res) => {
 
     // Try static file serving first (before the TanStack handler)
     if (req.method === 'GET' || req.method === 'HEAD') {
-      const staticResult = serveStatic(url)
+      const staticResult = serveStatic(url, req.headers['accept-encoding'] || '')
       if (staticResult.status === 200 && staticResult.body) {
         const ifNoneMatch = req.headers['if-none-match']
         const ifModifiedSince = req.headers['if-modified-since']
@@ -196,6 +209,11 @@ const server = createServer(async (req, res) => {
           'Last-Modified': staticResult.lastModified,
           'Cache-Control': cacheControl,
         }
+        if (staticResult.contentEncoding) {
+          headers['Content-Encoding'] = staticResult.contentEncoding
+          headers['Vary'] = 'Accept-Encoding'
+        }
+
 
         if (notModified) {
           res.writeHead(304, headers)
@@ -321,9 +339,15 @@ const server = createServer(async (req, res) => {
     // Add cache headers for public/private HTML routes
     if (req.method === 'GET' || req.method === 'HEAD') {
       if (contentType.includes('text/html')) {
-        if (isPublicRoute(url)) {
-          responseHeaders['cache-control'] = 'private, no-store'
-        } else if (isPrivateRoute(url)) {
+        const cookieHeader = req.headers.cookie || ''
+        const hasSession = cookieHeader.includes('better-auth.session_token')
+
+        if (isPublicRoute(url) && !hasSession) {
+          // Anonymous public browsing: safe to cache at edge and browser
+          responseHeaders['cache-control'] = 'public, max-age=60, s-maxage=300, stale-while-revalidate=600'
+          responseHeaders['vary'] = 'Accept-Encoding, Cookie'
+        } else {
+          // Authenticated or private routes: strictly no-store
           responseHeaders['cache-control'] = 'private, no-store'
         }
       }
