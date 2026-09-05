@@ -70,8 +70,33 @@ export function ResponsiveImage({
   }, [])
 
   const imageRef = useCallback((node: HTMLImageElement | null) => {
-    if (node?.complete && node.naturalWidth > 0) {
+    if (!node) return
+
+    if (node.complete) {
+      if (node.naturalWidth > 0) {
+        setIsLoaded(true)
+      } else {
+        setHasError(true)
+        setIsLoaded(true)
+      }
+      return
+    }
+
+    const onLoad = () => {
       setIsLoaded(true)
+    }
+
+    const onError = () => {
+      setHasError(true)
+      setIsLoaded(true)
+    }
+
+    node.addEventListener('load', onLoad, { once: true })
+    node.addEventListener('error', onError, { once: true })
+
+    return () => {
+      node.removeEventListener('load', onLoad)
+      node.removeEventListener('error', onError)
     }
   }, [])
 
