@@ -59,7 +59,9 @@ async function runProbes() {
       detail: `Vary: ${anonVary || 'NONE'}`,
     })
 
-    const hasBlurPreload = anonBody.includes('rel="preload"') && anonBody.includes('width=40')
+    const headMatch = anonBody.match(/<head[^>]*>([\s\S]*?)<\/head>/i)
+    const headContent = headMatch ? headMatch[1] : anonBody
+    const hasBlurPreload = /<link[^>]*rel=["']preload["'][^>]*width=40(?:&|["'])/i.test(headContent)
     results.push({
       name: 'Absence of 40px Blur Thumbnail Preload in <head>',
       passed: !hasBlurPreload,
