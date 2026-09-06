@@ -125,7 +125,7 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
                 loading='eager'
                 srcset={selectedImage.srcset}
                 fetchPriority='high'
-                sizes='(max-width: 768px) 100vw, 60vw'
+                sizes='(max-width: 768px) calc(100vw - 32px), 60vw'
                 className='h-full w-full'
                 imgClassName='h-full w-full object-cover'
               />
@@ -178,7 +178,7 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
                     src={image.url}
                     alt={image.altText ?? ''}
                     loading='lazy'
-                    srcset={image.srcset}
+                    srcset={image.thumbnailSrcset ?? image.srcset}
                     widths={[80, 160]}
                     sizes='64px'
                     placeholder='none'

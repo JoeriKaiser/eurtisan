@@ -40,7 +40,7 @@ export type FeaturedShop = {
 }
 
 export type ProductDetail = PublicProduct & {
-  images: { id: string; url: string; altText: string | null; sortOrder: number; srcset?: string }[]
+  images: { id: string; url: string; altText: string | null; sortOrder: number; srcset?: string; thumbnailSrcset?: string }[]
   shopDescription: string | null
   /** Seller-declared CRD status. Null only for a legacy shop awaiting declaration. */
   traderStatus: TraderStatus | null

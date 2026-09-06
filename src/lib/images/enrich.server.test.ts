@@ -45,6 +45,10 @@ describe('enrichImage', () => {
         'https://imgproxy.test/w:800/f:webp/products/ceramic-vase.jpg 800w, ' +
         'https://imgproxy.test/w:1200/f:webp/products/ceramic-vase.jpg 1200w',
     )
+    expect(enriched.thumbnailSrcset).toBe(
+      'https://imgproxy.test/w:80/f:webp/products/ceramic-vase.jpg 80w, ' +
+        'https://imgproxy.test/w:160/f:webp/products/ceramic-vase.jpg 160w',
+    )
   })
 
   it('enriches a raw S3 key with custom widths', () => {

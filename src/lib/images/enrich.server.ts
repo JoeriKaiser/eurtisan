@@ -1,11 +1,13 @@
 import { buildImgproxyUrl } from './storage.server'
 
 export const DEFAULT_PRODUCT_WIDTHS = [400, 800, 1200] as const
+export const THUMBNAIL_PRODUCT_WIDTHS = [80, 160] as const
 
 export interface EnrichedImage {
   id: string
   url: string
   srcset: string
+  thumbnailSrcset: string
   altText: string | null
   sortOrder: number
 }
@@ -13,6 +15,7 @@ export interface EnrichedImage {
 export function enrichImage(
   image: { id: string; url: string; altText: string | null; sortOrder: number },
   widths: readonly number[] = DEFAULT_PRODUCT_WIDTHS,
+  thumbnailWidths: readonly number[] = THUMBNAIL_PRODUCT_WIDTHS,
 ): EnrichedImage {
   if (
     image.url.startsWith('http://') ||
@@ -23,6 +26,7 @@ export function enrichImage(
       ...image,
       url: image.url,
       srcset: widths.map((w) => `${image.url} ${w}w`).join(', '),
+      thumbnailSrcset: thumbnailWidths.map((w) => `${image.url} ${w}w`).join(', '),
     }
   }
 
@@ -30,11 +34,15 @@ export function enrichImage(
   const srcset = widths
     .map((w) => `${buildImgproxyUrl(image.url, { width: w, format: 'webp' })} ${w}w`)
     .join(', ')
+  const thumbnailSrcset = thumbnailWidths
+    .map((w) => `${buildImgproxyUrl(image.url, { width: w, format: 'webp' })} ${w}w`)
+    .join(', ')
 
   return {
     ...image,
     url,
     srcset,
+    thumbnailSrcset,
   }
 }
 

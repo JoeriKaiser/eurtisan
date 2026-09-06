@@ -339,17 +339,11 @@ const server = createServer(async (req, res) => {
     // Add cache headers for public/private HTML routes
     if (req.method === 'GET' || req.method === 'HEAD') {
       if (contentType.includes('text/html')) {
-        const cookieHeader = req.headers.cookie || ''
-        const hasSession = cookieHeader.includes('better-auth.session_token')
-
-        if (isPublicRoute(url) && !hasSession) {
-          // Anonymous public browsing: safe to cache at edge and browser
-          responseHeaders['cache-control'] = 'public, max-age=60, s-maxage=300, stale-while-revalidate=600'
-          responseHeaders['vary'] = 'Accept-Encoding, Cookie'
-        } else {
-          // Authenticated or private routes: strictly no-store
-          responseHeaders['cache-control'] = 'private, no-store'
-        }
+        // Dynamic HTML responses contain per-request CSP nonces.
+        // Caching HTML at the edge causes nonce mismatch on replay.
+        // Static assets in /assets/ remain immutable with max-age=31536000.
+        responseHeaders['cache-control'] = 'private, no-cache, no-store'
+        responseHeaders['vary'] = 'Accept-Encoding, Cookie'
       }
     }
 

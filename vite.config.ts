@@ -54,6 +54,8 @@ const config = defineConfig(({ mode }) => ({
 
           // TanStack Query
           if (id.includes('@tanstack/react-query')) return 'vendor-query'
+          // Schema validation
+          if (id.includes('/zod/') || id.includes('node_modules/zod')) return 'vendor-zod'
         },
       },
     },
