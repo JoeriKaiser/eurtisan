@@ -1,33 +1,44 @@
 import { Link, useRouter } from '@tanstack/react-router'
 import { ArrowRight, Search } from 'lucide-react'
 import { useState } from 'react'
-import { getHomeHeroLcpUrl, HOME_HERO_FALLBACK_IMAGE } from '#/lib/images/home-hero'
+import {
+  getHomeHeroLcpSrcSet,
+  getHomeHeroLcpUrl,
+  HOME_HERO_FALLBACK_IMAGE,
+  HOME_HERO_LCP_SIZES,
+} from '#/lib/images/home-hero'
 import { m } from '#/paraglide/messages'
 
 function HomeHeroLcpImage({
   src,
+  srcSet,
   alt,
   className,
 }: {
   src: string
+  srcSet?: string
   alt: string
   className: string
 }) {
   return (
     <img
       src={src}
+      srcSet={srcSet}
+      sizes={srcSet ? HOME_HERO_LCP_SIZES : undefined}
       alt={alt}
       width={960}
       height={720}
       fetchPriority='high'
       loading='eager'
-      decoding='async'
+      decoding='sync'
       className={className}
       onError={(event) => {
         const image = event.currentTarget
         if (image.src.includes(HOME_HERO_FALLBACK_IMAGE)) {
           return
         }
+        image.removeAttribute('srcset')
+        image.removeAttribute('sizes')
         image.src = HOME_HERO_FALLBACK_IMAGE
       }}
     />
@@ -128,29 +139,66 @@ export function HomeHeroSection({
 
   const featuredShop = shops[0]
   const featuredImageSrc = getHomeHeroLcpUrl(featuredShop?.image)
+  const featuredImageSrcSet = getHomeHeroLcpSrcSet(featuredShop?.image)
   const featuredImageAlt = featuredShop ? featuredShop.name : m.home_hero_image_alt()
   return (
     <section className='border-b border-border-subtle bg-bg-base py-10 sm:py-14 lg:py-20'>
       <div className='mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
-        <div className='flex flex-col lg:flex-row lg:items-center lg:justify-between lg:gap-12'>
-          {/* Mobile maker window */}
-          <div className='lg:hidden mb-8'>
+        <div className='flex flex-col lg:flex-row-reverse lg:items-center lg:justify-between lg:gap-12'>
+          <div className='mb-8 lg:mb-0 lg:w-[42%]'>
             {featuredShop ? (
-              <Link
-                to='/shops/$shopSlug'
-                params={{ shopSlug: featuredShop.slug }}
-                className='block no-underline rounded-xl overflow-hidden border border-border-subtle shadow-xs'
-              >
-                <HomeHeroLcpImage
-                  src={featuredImageSrc}
-                  alt={featuredImageAlt}
-                  className='aspect-video w-full object-cover sm:aspect-[5/4]'
-                />
-              </Link>
+              <div className='overflow-hidden rounded-xl border border-border-subtle shadow-xs lg:rounded-2xl lg:bg-surface-default lg:p-4 lg:shadow-sm'>
+                <Link
+                  to='/shops/$shopSlug'
+                  params={{ shopSlug: featuredShop.slug }}
+                  className='relative block overflow-hidden no-underline lg:rounded-xl'
+                >
+                  <HomeHeroLcpImage
+                    src={featuredImageSrc}
+                    srcSet={featuredImageSrcSet}
+                    alt={featuredImageAlt}
+                    className='aspect-video w-full object-cover sm:aspect-[5/4] lg:aspect-[4/3] lg:transition-transform lg:duration-500 lg:ease-out lg:hover:scale-[1.02]'
+                  />
+                  <div className='absolute bottom-3 left-3 hidden rounded-lg bg-bg-base/90 px-3 py-1.5 text-xs font-semibold text-text-primary shadow-xs backdrop-blur-sm lg:block'>
+                    {m.home_hero_featured_maker()}
+                  </div>
+                </Link>
+                <div className='mt-4 hidden lg:block'>
+                  <div className='flex items-baseline justify-between'>
+                    <h3 className='display-title text-xl font-bold text-text-primary'>
+                      {featuredShop.name}
+                    </h3>
+                    <span className='text-xs font-medium text-text-secondary'>
+                      {featuredShop.productCount === 1
+                        ? m.home_hero_featured_maker_product_single()
+                        : m.home_hero_featured_maker_products({
+                            count: String(featuredShop.productCount),
+                          })}
+                    </span>
+                  </div>
+                  {featuredShop.tagline && (
+                    <p className='mt-1 line-clamp-2 text-xs leading-relaxed text-text-secondary'>
+                      {featuredShop.tagline}
+                    </p>
+                  )}
+                  <div className='mt-4 flex items-center justify-between border-t border-border-subtle pt-3'>
+                    <span className='text-xs text-text-muted'>{m.home_trust_direct()}</span>
+                    <Link
+                      to='/shops/$shopSlug'
+                      params={{ shopSlug: featuredShop.slug }}
+                      className='inline-flex items-center gap-1 text-xs font-semibold text-accent-primary hover:underline'
+                    >
+                      <span>{m.product_visit_shop()}</span>
+                      <span aria-hidden='true'>&rarr;</span>
+                    </Link>
+                  </div>
+                </div>
+              </div>
             ) : (
-              <div className='rounded-xl overflow-hidden border border-border-subtle shadow-xs'>
+              <div className='overflow-hidden rounded-xl border border-border-subtle shadow-xs'>
                 <HomeHeroLcpImage
                   src={featuredImageSrc}
+                  srcSet={featuredImageSrcSet}
                   alt={featuredImageAlt}
                   className='aspect-video w-full object-cover sm:aspect-[5/4]'
                 />
@@ -158,7 +206,6 @@ export function HomeHeroSection({
             )}
           </div>
 
-          {/* Primary hero content */}
           <div className='lg:w-[55%] flex flex-col justify-center'>
             <div className='mb-3 inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-wider text-accent-primary'>
               <span className='size-1.5 rounded-full bg-accent-primary' aria-hidden='true' />
@@ -228,54 +275,6 @@ export function HomeHeroSection({
               </Link>
             </div>
           </div>
-
-          {/* Right Visual Column */}
-          {featuredShop && (
-            <div className='hidden lg:flex lg:w-[42%]'>
-              <div className='w-full rounded-2xl border border-border-subtle bg-surface-default p-4 shadow-sm'>
-                <div className='relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-surface-inset'>
-                  <HomeHeroLcpImage
-                    src={featuredImageSrc}
-                    alt={featuredShop.name}
-                    className='h-full w-full object-cover transition-transform duration-500 ease-out hover:scale-[1.02]'
-                  />
-                  <div className='absolute bottom-3 left-3 rounded-lg bg-bg-base/90 backdrop-blur-sm px-3 py-1.5 text-xs font-semibold text-text-primary shadow-xs'>
-                    {m.home_hero_featured_maker()}
-                  </div>
-                </div>
-
-                <div className='mt-4 flex items-baseline justify-between'>
-                  <h3 className='display-title text-xl font-bold text-text-primary'>
-                    {featuredShop.name}
-                  </h3>
-                  <span className='text-xs font-medium text-text-secondary'>
-                    {featuredShop.productCount === 1
-                      ? m.home_hero_featured_maker_product_single()
-                      : m.home_hero_featured_maker_products({
-                          count: String(featuredShop.productCount),
-                        })}
-                  </span>
-                </div>
-                {featuredShop.tagline && (
-                  <p className='mt-1 text-xs text-text-secondary line-clamp-2 leading-relaxed'>
-                    {featuredShop.tagline}
-                  </p>
-                )}
-
-                <div className='mt-4 pt-3 border-t border-border-subtle flex items-center justify-between'>
-                  <span className='text-xs text-text-muted'>{m.home_trust_direct()}</span>
-                  <Link
-                    to='/shops/$shopSlug'
-                    params={{ shopSlug: featuredShop.slug }}
-                    className='text-xs font-semibold text-accent-primary hover:underline inline-flex items-center gap-1'
-                  >
-                    <span>{m.product_visit_shop()}</span>
-                    <span aria-hidden='true'>&rarr;</span>
-                  </Link>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </section>

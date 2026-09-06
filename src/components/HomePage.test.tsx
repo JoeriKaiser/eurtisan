@@ -139,13 +139,15 @@ describe('HomePage', () => {
     render(<HomePage categories={[]} products={[]} shops={shops} />)
 
     const heroImages = screen.getAllByRole('img', { name: 'Shop shop-1' }) as HTMLImageElement[]
-    expect(heroImages).toHaveLength(2)
-    for (const heroImage of heroImages) {
-      expect(heroImage.src).toContain('/api/image?key=shops%2Fhero-shop.webp&width=960&format=webp')
-      expect(heroImage.getAttribute('fetchpriority')).toBe('high')
-      expect(heroImage.getAttribute('loading')).toBe('eager')
-      expect(heroImage.style.backgroundImage).toBe('')
-    }
+    expect(heroImages).toHaveLength(1)
+    const heroImage = heroImages[0]
+    expect(heroImage.src).toContain('/api/image?key=shops%2Fhero-shop.webp&width=960&format=webp')
+    expect(heroImage.getAttribute('srcset')).toContain('width=480')
+    expect(heroImage.getAttribute('srcset')).toContain('width=960')
+    expect(heroImage.getAttribute('fetchpriority')).toBe('high')
+    expect(heroImage.getAttribute('loading')).toBe('eager')
+    expect(heroImage.getAttribute('decoding')).toBe('sync')
+    expect(heroImage.style.backgroundImage).toBe('')
   })
 
   it('renders the fallback hero image as an eager LCP img', () => {
@@ -154,8 +156,10 @@ describe('HomePage', () => {
       name: 'A maker arranging ceramics and textiles in a sunlit workshop',
     }) as HTMLImageElement
     expect(heroImage.src).toContain('/images/hero_artisan_goods.webp')
+    expect(heroImage.getAttribute('srcset')).toBeNull()
     expect(heroImage.getAttribute('fetchpriority')).toBe('high')
     expect(heroImage.getAttribute('loading')).toBe('eager')
+    expect(heroImage.getAttribute('decoding')).toBe('sync')
   })
 
   it('shows singular product count for one product', () => {
