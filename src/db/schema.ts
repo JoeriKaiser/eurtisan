@@ -338,16 +338,8 @@ export const product = pgTable(
       table.createdAt,
     ),
     index('product_created_at_idx').on(table.createdAt),
-    index('product_catalog_browse_idx').on(
-      table.status,
-      table.isActive,
-      table.createdAt,
-    ),
-    index('product_catalog_price_idx').on(
-      table.status,
-      table.isActive,
-      table.priceCents,
-    ),
+    index('product_catalog_browse_idx').on(table.status, table.isActive, table.createdAt),
+    index('product_catalog_price_idx').on(table.status, table.isActive, table.priceCents),
     uniqueIndex('product_shop_slug_published_unique')
       .on(table.shopId, table.slug)
       .where(sql`${table.status} = 'published'`),

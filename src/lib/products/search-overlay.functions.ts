@@ -2,11 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { createIpRateLimitMiddleware } from '../rate-limit'
 
-const searchOverlayRateLimitMiddleware = createIpRateLimitMiddleware(
-  120,
-  60_000,
-  'search-overlay',
-)
+const searchOverlayRateLimitMiddleware = createIpRateLimitMiddleware(120, 60_000, 'search-overlay')
 
 /**
  * Overlay suggestions: products, category facets, and engine highlighting in

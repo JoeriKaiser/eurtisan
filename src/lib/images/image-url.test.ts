@@ -29,5 +29,4 @@ describe('getImageUrl', () => {
   it('builds a same-origin delivery URL without options', () => {
     expect(getImageUrl('products/abc.jpg')).toBe('/api/image?key=products%2Fabc.jpg')
   })
-
 })

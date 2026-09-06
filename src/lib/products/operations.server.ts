@@ -206,9 +206,7 @@ export async function listProductsQuery(
 const shopDispatchDaysCache = new Map<string, { min: number; max: number } | null>()
 const MAX_DISPATCH_CACHE_SIZE = 1000
 
-function getCachedDispatchDays(
-  shippingOriginRaw: unknown,
-): { min: number; max: number } | null {
+function getCachedDispatchDays(shippingOriginRaw: unknown): { min: number; max: number } | null {
   if (!shippingOriginRaw || typeof shippingOriginRaw !== 'string') {
     return null
   }
@@ -305,7 +303,8 @@ export async function getProductBySlugQuery(
   // Only the dispatch window is taken off the origin. The rest of that object
   // is the shop's dispatch address, which must not reach a public page.
   const dispatchDays =
-    typeof result.processingTimeMinDays === 'number' && typeof result.processingTimeMaxDays === 'number'
+    typeof result.processingTimeMinDays === 'number' &&
+    typeof result.processingTimeMaxDays === 'number'
       ? { min: result.processingTimeMinDays, max: result.processingTimeMaxDays }
       : getCachedDispatchDays(result.shippingOrigin)
 

@@ -207,11 +207,7 @@ export async function updateShopInternal(
       const originDays = isObjectRecord(storedOrigin?.processingTimeDays)
         ? storedOrigin.processingTimeDays
         : null
-      if (
-        originDays &&
-        typeof originDays.min === 'number' &&
-        typeof originDays.max === 'number'
-      ) {
+      if (originDays && typeof originDays.min === 'number' && typeof originDays.max === 'number') {
         updateData.processingTimeMinDays = originDays.min
         updateData.processingTimeMaxDays = originDays.max
       }

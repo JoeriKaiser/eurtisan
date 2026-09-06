@@ -13,7 +13,6 @@ export interface ImageUrlOptions {
   format?: 'webp' | 'avif' | 'jpeg' | 'png'
 }
 
-
 const imageKeyRegex = /^(products|shops)\/[^/]+\.(jpg|jpeg|png|webp)$/
 const imageUrlRegex = /^(https?:\/\/[^/]+|\/uploads\/).+\.(jpg|jpeg|png|webp)$/i
 

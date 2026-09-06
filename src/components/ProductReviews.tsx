@@ -17,7 +17,6 @@ const ReportReviewDialog = lazy(() =>
   })),
 )
 
-
 export interface ProductReviewsProps {
   productId: string
 }

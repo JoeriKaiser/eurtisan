@@ -40,7 +40,7 @@ describe('ResponsiveImage', () => {
 
   it('renders CSS shimmer placeholder when placeholder is blur and image is not loaded', () => {
     const { container } = render(
-      <ResponsiveImage src='products/bowl.jpg' alt='Bowl' placeholder='blur' />
+      <ResponsiveImage src='products/bowl.jpg' alt='Bowl' placeholder='blur' />,
     )
     const shimmer = container.querySelector('.animate-pulse')
     expect(shimmer).toBeDefined()
@@ -51,27 +51,16 @@ describe('ResponsiveImage', () => {
   })
 
   it('uses explicitly provided srcset prop instead of calling buildSrcset', () => {
-    const customSrcset = 'https://cdn.example.com/custom-400.webp 400w, https://cdn.example.com/custom-800.webp 800w'
-    render(
-      <ResponsiveImage
-        src='products/vase.jpg'
-        alt='Custom vase'
-        srcset={customSrcset}
-      />
-    )
+    const customSrcset =
+      'https://cdn.example.com/custom-400.webp 400w, https://cdn.example.com/custom-800.webp 800w'
+    render(<ResponsiveImage src='products/vase.jpg' alt='Custom vase' srcset={customSrcset} />)
 
     const image = screen.getByAltText('Custom vase')
     expect(image.getAttribute('srcset')).toBe(customSrcset)
   })
 
   it('passes fetchPriority to the img element', () => {
-    render(
-      <ResponsiveImage
-        src='products/vase.jpg'
-        alt='Priority vase'
-        fetchPriority='high'
-      />
-    )
+    render(<ResponsiveImage src='products/vase.jpg' alt='Priority vase' fetchPriority='high' />)
 
     const image = screen.getByAltText('Priority vase')
     expect(image.getAttribute('fetchpriority')).toBe('high')

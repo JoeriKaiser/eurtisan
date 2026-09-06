@@ -46,8 +46,7 @@ const config = defineConfig(({ mode }) => ({
             return 'vendor-router'
 
           // UI primitives (Base UI, Floating UI)
-          if (id.includes('@base-ui-components') || id.includes('@floating-ui'))
-            return 'vendor-ui'
+          if (id.includes('@base-ui-components') || id.includes('@floating-ui')) return 'vendor-ui'
 
           // Auth client
           if (id.includes('better-auth')) return 'vendor-auth'

@@ -31,7 +31,6 @@ const ReportProductDialog = lazy(() =>
   })),
 )
 
-
 export interface ProductDetailProps {
   /** Other products from the same shop. Empty when the shop has none. */
   moreFromShop?: PublicProduct[]

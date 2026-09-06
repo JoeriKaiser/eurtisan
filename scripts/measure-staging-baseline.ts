@@ -5,7 +5,10 @@ const routes = [
   { name: 'Categories (/category/all)', path: '/category/all' },
   { name: 'Shop Front (/shops/silver-and-stone)', path: '/shops/silver-and-stone' },
   { name: 'Shop Paged (/shops/silver-and-stone?page=1)', path: '/shops/silver-and-stone?page=1' },
-  { name: 'Product (/shops/silver-and-stone/products/alpine-cascade-earrings)', path: '/shops/silver-and-stone/products/alpine-cascade-earrings' },
+  {
+    name: 'Product (/shops/silver-and-stone/products/alpine-cascade-earrings)',
+    path: '/shops/silver-and-stone/products/alpine-cascade-earrings',
+  },
   { name: 'API Health (/api/health/ready)', path: '/api/health/ready' },
 ]
 
