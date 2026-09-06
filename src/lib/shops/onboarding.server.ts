@@ -240,13 +240,13 @@ export async function saveOnboardingStepInternal(
     updateData.bannerImage = validateImageUrl(d.bannerImage, 'Shop banner image')
   if (d.shippingOrigin !== undefined) {
     updateData.shippingOrigin = encryptJsonb(d.shippingOrigin)
-    const shippingOrigin = d.shippingOrigin as Partial<ShippingOriginData> | null | undefined
-    if (shippingOrigin?.processingTimeDays) {
-      updateData.processingTimeMinDays = shippingOrigin.processingTimeDays.min
-      updateData.processingTimeMaxDays = shippingOrigin.processingTimeDays.max
+    const originPayload: Partial<ShippingOriginData> | null | undefined = d.shippingOrigin
+    if (originPayload?.processingTimeDays) {
+      updateData.processingTimeMinDays = originPayload.processingTimeDays.min
+      updateData.processingTimeMaxDays = originPayload.processingTimeDays.max
     }
-    if (typeof shippingOrigin?.shipsInternational === 'boolean') {
-      updateData.shipsInternational = shippingOrigin.shipsInternational
+    if (typeof originPayload?.shipsInternational === 'boolean') {
+      updateData.shipsInternational = originPayload.shipsInternational
     }
   }
   if (d.businessAddress !== undefined) updateData.businessAddress = encryptJsonb(d.businessAddress)
