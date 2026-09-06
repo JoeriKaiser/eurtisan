@@ -49,4 +49,31 @@ describe('ResponsiveImage', () => {
     // Must only contain the main image, no secondary blur thumbnail img tag
     expect(images.length).toBe(1)
   })
+
+  it('uses explicitly provided srcset prop instead of calling buildSrcset', () => {
+    const customSrcset = 'https://cdn.example.com/custom-400.webp 400w, https://cdn.example.com/custom-800.webp 800w'
+    render(
+      <ResponsiveImage
+        src='products/vase.jpg'
+        alt='Custom vase'
+        srcset={customSrcset}
+      />
+    )
+
+    const image = screen.getByAltText('Custom vase')
+    expect(image.getAttribute('srcset')).toBe(customSrcset)
+  })
+
+  it('passes fetchPriority to the img element', () => {
+    render(
+      <ResponsiveImage
+        src='products/vase.jpg'
+        alt='Priority vase'
+        fetchPriority='high'
+      />
+    )
+
+    const image = screen.getByAltText('Priority vase')
+    expect(image.getAttribute('fetchpriority')).toBe('high')
+  })
 })

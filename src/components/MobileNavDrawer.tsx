@@ -13,18 +13,41 @@ import { Dialog, DialogBackdrop, DialogPortal } from './ui/primitives/dialog'
 interface MobileNavDrawerProps {
   categories: Array<{ id: string; name: string; slug: string }>
   onOpenSearch: () => void
+  open?: boolean
+  onClose?: () => void
 }
 
 const VISIBLE_CATEGORY_COUNT = 8
 
-export default function MobileNavDrawer({ categories, onOpenSearch }: MobileNavDrawerProps) {
+export default function MobileNavDrawer({
+  categories,
+  onOpenSearch,
+  open,
+  onClose,
+}: MobileNavDrawerProps) {
   const router = useRouter()
   const { user } = useAuth()
-  const [isOpen, setIsOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = open !== undefined
+  const isOpen = isControlled ? open : internalOpen
   const visibleCategories = categories.slice(0, VISIBLE_CATEGORY_COUNT)
   const initials = user?.name?.charAt(0).toUpperCase() || 'U'
 
-  const closeNavigation = () => setIsOpen(false)
+  const closeNavigation = () => {
+    if (!isControlled) {
+      setInternalOpen(false)
+    }
+    onClose?.()
+  }
+
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (!isControlled) {
+      setInternalOpen(nextOpen)
+    }
+    if (!nextOpen) {
+      onClose?.()
+    }
+  }
   const markTriggerHydrated = useCallback((node: HTMLButtonElement | null) => {
     if (!node) return
 
@@ -39,14 +62,16 @@ export default function MobileNavDrawer({ categories, onOpenSearch }: MobileNavD
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <BaseDialog.Trigger
-        ref={markTriggerHydrated}
-        className='inline-flex shrink-0 items-center justify-center rounded-lg p-1.5 text-text-secondary outline-none transition-colors hover:bg-bg-inset hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2 md:hidden'
-        aria-label={m.mobile_nav_open()}
-      >
-        <Menu size={20} aria-hidden='true' />
-      </BaseDialog.Trigger>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      {!isControlled && (
+        <BaseDialog.Trigger
+          ref={markTriggerHydrated}
+          className='inline-flex shrink-0 items-center justify-center rounded-lg p-1.5 text-text-secondary outline-none transition-colors hover:bg-bg-inset hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2 md:hidden'
+          aria-label={m.mobile_nav_open()}
+        >
+          <Menu size={20} aria-hidden='true' />
+        </BaseDialog.Trigger>
+      )}
       <DialogPortal>
         <DialogBackdrop className='bg-bg-overlay/70' />
         <BaseDialog.Popup

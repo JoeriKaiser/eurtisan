@@ -95,7 +95,12 @@ export const getProductBySlug = createServerFn({
     // fold on a conversion page, and a second round trip would render it late.
     const moreFromShop = await getMoreFromShopQuery(data.shopSlug, result.id)
 
-    return { ...result, moreFromShop }
+    // Server-only module dynamically imported inside createServerFn handler to prevent leaking into client bundle
+    const { enrichProductImageUrls } = await import('./images/enrich.server')
+    const enrichedResult = enrichProductImageUrls(result)
+    const enrichedMoreFromShop = moreFromShop.map((p) => enrichProductImageUrls(p))
+
+    return { ...enrichedResult, moreFromShop: enrichedMoreFromShop }
   })
 
 const getShopBySlugSchema = z.object({

@@ -1,5 +1,5 @@
 import { getRouteApi, Link } from '@tanstack/react-router'
-import { Bell, Search, ShoppingCart } from 'lucide-react'
+import { Bell, Menu, Search, ShoppingCart } from 'lucide-react'
 import { lazy, Suspense, useCallback, useState, useSyncExternalStore } from 'react'
 import { useCart } from '#/components/CartProvider'
 import { useAuth } from '#/lib/auth-hooks'
@@ -12,13 +12,14 @@ import CategoriesMegamenu from './CategoriesMegamenu'
 import LocaleDropdown from './LocaleDropdown'
 import ThemeToggle from './ThemeToggle'
 import Logo from './Logo'
+import UserMenu from './UserMenu'
 
 const rootRoute = getRouteApi('__root__')
 const SearchOverlay = lazy(() => import('./search/SearchOverlay'))
 const MobileNavDrawer = lazy(() => import('./MobileNavDrawer'))
-const UserMenu = lazy(() => import('./UserMenu'))
 
 export default function Header() {
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false)
   const [searchOverlayOpen, setSearchOverlayOpen] = useState(false)
   const [searchKey, setSearchKey] = useState(0)
   const { cart, isLoading: cartLoading } = useCart()
@@ -78,15 +79,31 @@ export default function Header() {
         className='page-wrap flex items-center gap-x-2 md:gap-x-4 px-2 md:px-4 py-2.5'
         aria-label={m.nav_main()}
       >
-        <Suspense fallback={<div className="md:hidden size-9" />}>
-          <MobileNavDrawer
-            categories={categories}
-            onOpenSearch={() => {
-              setSearchKey((key) => key + 1)
-              setSearchOverlayOpen(true)
-            }}
-          />
-        </Suspense>
+        <button
+          type='button'
+          onClick={() => setIsMobileNavOpen(true)}
+          className='inline-flex shrink-0 items-center justify-center rounded-lg p-1.5 text-text-secondary outline-none transition-colors hover:bg-bg-inset hover:text-text-primary focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2 md:hidden'
+          aria-label={m.mobile_nav_open()}
+          aria-expanded={isMobileNavOpen}
+          data-mobile-nav-hydrated='true'
+        >
+          <Menu size={20} aria-hidden='true' />
+        </button>
+
+        {isMobileNavOpen && (
+          <Suspense fallback={null}>
+            <MobileNavDrawer
+              open={isMobileNavOpen}
+              onClose={() => setIsMobileNavOpen(false)}
+              categories={categories}
+              onOpenSearch={() => {
+                setIsMobileNavOpen(false)
+                setSearchKey((key) => key + 1)
+                setSearchOverlayOpen(true)
+              }}
+            />
+          </Suspense>
+        )}
 
         {/* Logo */}
         <Logo textClassName='hidden sm:inline' />
@@ -180,9 +197,7 @@ export default function Header() {
             </Link>
           </div>
           <div className='flex-shrink-0 flex items-center'>
-            <Suspense fallback={<div className="size-9" />}>
-              <UserMenu />
-            </Suspense>
+            <UserMenu />
           </div>
           <div className='hidden md:inline-flex flex-shrink-0'>
             <LocaleDropdown />

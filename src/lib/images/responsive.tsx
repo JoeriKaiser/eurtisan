@@ -9,15 +9,19 @@ import { getImageUrl } from '../image-url'
  * - Accessible alt text fallback
  */
 
-interface ResponsiveImageProps {
+export interface ResponsiveImageProps {
   src: string
   alt: string
+  /** Precomputed srcset string (bypasses buildSrcset). */
+  srcset?: string
   /** Widths to include in srcset, in pixels. Default: [400, 800, 1200] */
   widths?: number[]
   /** Sizes attribute for the browser to pick the right source. Default assumes full-width card grid. */
   sizes?: string
   /** Whether the image is above the fold (eager) or below (lazy). Default: lazy */
   loading?: 'lazy' | 'eager'
+  /** Browser resource prioritization hint. */
+  fetchPriority?: 'high' | 'low' | 'auto'
   /** CSS class for the wrapper */
   className?: string
   /** CSS class for the image element */
@@ -49,9 +53,11 @@ export function buildSrcset(key: string, widths: number[]): string {
 export function ResponsiveImage({
   src,
   alt,
+  srcset: srcsetProp,
   widths = DEFAULT_WIDTHS,
   sizes = DEFAULT_SIZES,
   loading = 'lazy',
+  fetchPriority,
   className,
   imgClassName,
   placeholder = 'blur',
@@ -105,7 +111,7 @@ export function ResponsiveImage({
   }
 
   const defaultUrl = getImageUrl(src, { format: DEFAULT_FORMAT })
-  const srcset = buildSrcset(src, widths)
+  const srcset = srcsetProp ?? buildSrcset(src, widths)
 
   return (
     <div className={`relative overflow-hidden ${className ?? ''}`}>
@@ -130,6 +136,7 @@ export function ResponsiveImage({
         sizes={sizes}
         alt={alt}
         loading={loading}
+        fetchPriority={fetchPriority}
         onLoad={handleLoad}
         onError={handleError}
         className={`transition-opacity duration-300 ${

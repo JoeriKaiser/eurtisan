@@ -66,7 +66,27 @@ export const Route = createFileRoute('/shops/$shopSlug/products/$productSlug')({
       jsonLd,
     })
 
-    return { meta, links, script }
+    const primaryImageObj = product.images?.[0] as { url: string; srcset?: string } | undefined
+
+    return {
+      meta,
+      links: [
+        ...links,
+        ...(primaryImageObj?.url
+          ? [
+              {
+                rel: 'preload' as const,
+                as: 'image' as const,
+                href: primaryImageObj.url,
+                imageSrcSet: primaryImageObj.srcset,
+                imageSizes: '(max-width: 768px) 100vw, 60vw',
+                fetchpriority: 'high',
+              },
+            ]
+          : []),
+      ],
+      script,
+    }
   },
   notFoundComponent: NotFoundPage,
   component: ProductDetailPage,
