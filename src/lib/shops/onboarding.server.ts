@@ -238,7 +238,17 @@ export async function saveOnboardingStepInternal(
   if (d.image !== undefined) updateData.image = validateImageUrl(d.image, 'Shop image')
   if (d.bannerImage !== undefined)
     updateData.bannerImage = validateImageUrl(d.bannerImage, 'Shop banner image')
-  if (d.shippingOrigin !== undefined) updateData.shippingOrigin = encryptJsonb(d.shippingOrigin)
+  if (d.shippingOrigin !== undefined) {
+    updateData.shippingOrigin = encryptJsonb(d.shippingOrigin)
+    const originPayload: Partial<ShippingOriginData> | null | undefined = d.shippingOrigin
+    if (originPayload?.processingTimeDays) {
+      updateData.processingTimeMinDays = originPayload.processingTimeDays.min
+      updateData.processingTimeMaxDays = originPayload.processingTimeDays.max
+    }
+    if (typeof originPayload?.shipsInternational === 'boolean') {
+      updateData.shipsInternational = originPayload.shipsInternational
+    }
+  }
   if (d.businessAddress !== undefined) updateData.businessAddress = encryptJsonb(d.businessAddress)
   if (d.currency !== undefined) updateData.currency = SUPPORTED_CURRENCY
   if (d.isVatRegistered !== undefined) updateData.isVatRegistered = Boolean(d.isVatRegistered)

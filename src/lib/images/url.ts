@@ -46,7 +46,6 @@ export function extractKeyFromUrl(url: string): string | null {
   // S3 object URL: http(s)://.../eurtisan-uploads/products/...
   const s3Match = url.match(/\/eurtisan-uploads\/(products\/[^/]+\.(jpg|jpeg|png|webp))$/)
   if (s3Match) return s3Match[1]
-
   const s3ShopMatch = url.match(/\/eurtisan-uploads\/(shops\/[^/]+\.(jpg|jpeg|png|webp))$/)
   if (s3ShopMatch) return s3ShopMatch[1]
 

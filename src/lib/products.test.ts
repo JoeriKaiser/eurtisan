@@ -467,6 +467,32 @@ describe('getProductBySlugQuery', () => {
     expect(result?.dispatchDays).toEqual({ min: 2, max: 4 })
   })
 
+  it('reads dispatch days from encrypted origin when processing time columns are null', async () => {
+    const u = await createUser({ id: 'user-1' })
+    const s = await createShop(u, {
+      id: 'shop-1',
+      name: 'Test Shop',
+      slug: 'test-shop',
+      shippingOrigin: encryptJsonb({
+        street: '1 Old Lane',
+        city: 'Lyon',
+        postalCode: '69001',
+        country: 'FR',
+        processingTimeDays: { min: 7, max: 14 },
+        shipsInternational: false,
+      }),
+    })
+    await createProduct(s, {
+      id: 'prod-1',
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 2999,
+    })
+
+    const result = await getProductBySlugQuery('test-shop', 'vase')
+    expect(result?.dispatchDays).toEqual({ min: 7, max: 14 })
+  })
+
   it('returns null for nonexistent product', async () => {
     const result = await getProductBySlugQuery('test-shop', 'nonexistent-slug')
     expect(result).toBeNull()

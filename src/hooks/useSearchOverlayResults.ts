@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 
-import { searchOverlay } from '#/lib/products'
+import { searchOverlay } from '#/lib/products/search-overlay.functions'
 import type { OverlayResults } from '#/lib/products.server'
 
 export type { OverlayCategory, OverlayProduct, OverlayResults } from '#/lib/products.server'

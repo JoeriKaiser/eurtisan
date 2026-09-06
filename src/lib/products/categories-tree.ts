@@ -3,8 +3,8 @@ export interface CategoryTreeNode {
   name: string
   slug: string
   parentId: string | null
-  createdAt: Date | null
-  description: string | null
+  createdAt?: Date | null
+  description?: string | null
   children: CategoryTreeNode[]
 }
 
@@ -14,14 +14,19 @@ export function buildCategoryTree(
     name: string
     slug: string
     parentId: string | null
-    createdAt: Date | null
-    description: string | null
+    createdAt?: Date | null
+    description?: string | null
   }[],
 ): CategoryTreeNode[] {
   const map = new Map<string, CategoryTreeNode>()
 
   for (const cat of flatCategories) {
-    map.set(cat.id, { ...cat, children: [] })
+    map.set(cat.id, {
+      ...cat,
+      createdAt: cat.createdAt ?? null,
+      description: cat.description ?? null,
+      children: [],
+    })
   }
 
   const roots: CategoryTreeNode[] = []

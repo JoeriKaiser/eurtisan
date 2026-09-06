@@ -10,13 +10,10 @@ import {
   Store,
   Truck,
 } from 'lucide-react'
-import { useRef, useState } from 'react'
+import { lazy, Suspense, useRef, useState } from 'react'
 import { useCart } from '#/components/CartProvider'
 import { MoreFromShop } from '#/components/product/MoreFromShop'
-import {
-  ReportProductDialog,
-  type ProductReportReason,
-} from '#/components/product/ReportProductDialog'
+import type { ProductReportReason } from '#/components/product/ReportProductDialog'
 import { UnitPriceNote } from '#/components/product/UnitPriceNote'
 import { TraderStatusDisclosure } from '#/components/TraderStatusDisclosure'
 import ProductReviews from '#/components/ProductReviews'
@@ -28,6 +25,11 @@ import type { ProductDetail as ProductDetailType, PublicProduct } from '#/lib/pr
 import { getProductImageTransitionName } from '#/lib/view-transitions'
 import { ResponsiveImage } from '#/lib/responsive-image'
 import { m } from '#/paraglide/messages'
+const ReportProductDialog = lazy(() =>
+  import('#/components/product/ReportProductDialog').then((m) => ({
+    default: m.ReportProductDialog,
+  })),
+)
 
 export interface ProductDetailProps {
   /** Other products from the same shop. Empty when the shop has none. */
@@ -120,7 +122,9 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
                 src={selectedImage.url}
                 alt={selectedImage.altText ?? product.name}
                 loading='eager'
-                sizes='(max-width: 768px) 100vw, 60vw'
+                srcset={selectedImage.srcset}
+                fetchPriority='high'
+                sizes='(max-width: 768px) calc(100vw - 32px), 60vw'
                 className='h-full w-full'
                 imgClassName='h-full w-full object-cover'
               />
@@ -173,7 +177,9 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
                     src={image.url}
                     alt={image.altText ?? ''}
                     loading='lazy'
-                    sizes='80px'
+                    srcset={image.thumbnailSrcset ?? image.srcset}
+                    widths={[80, 160]}
+                    sizes='64px'
                     placeholder='none'
                     className='h-full w-full'
                     imgClassName='h-full w-full object-cover'
@@ -424,14 +430,18 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
         <ProductReviews productId={product.id} />
       </div>
 
-      <ReportProductDialog
-        open={isReportOpen}
-        onOpenChange={setIsReportOpen}
-        productName={product.name}
-        busy={reportBusy}
-        error={reportError}
-        onSubmit={handleReportProduct}
-      />
+      {isReportOpen && (
+        <Suspense fallback={null}>
+          <ReportProductDialog
+            open={isReportOpen}
+            onOpenChange={setIsReportOpen}
+            productName={product.name}
+            busy={reportBusy}
+            error={reportError}
+            onSubmit={handleReportProduct}
+          />
+        </Suspense>
+      )}
     </main>
   )
 }

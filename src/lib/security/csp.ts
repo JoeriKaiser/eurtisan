@@ -83,6 +83,7 @@ export function buildCspHeader(options: BuildCspHeaderOptions = {}): string {
 
   if (options.nonce) {
     scriptSrc.add(`'nonce-${options.nonce}'`)
+    scriptSrc.add("'strict-dynamic'")
   } else {
     scriptSrc.add("'unsafe-inline'")
   }

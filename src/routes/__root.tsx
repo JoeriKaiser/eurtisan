@@ -5,11 +5,11 @@ import { listCategories } from '#/lib/categories'
 import { getUnreadNotificationCount } from '#/lib/notifications'
 import { queryKeys } from '#/lib/query-keys'
 import { getCurrentUser } from '#/lib/server-auth'
+import { m } from '#/paraglide/messages'
 import { RootComponent } from '#/route-components/__root'
 import { RootDocument } from '#/route-components/root/RootDocument'
 import { RootError } from '#/route-components/root/RootError'
 import '../styles.css'
-import { m } from '#/paraglide/messages'
 
 interface MyRouterContext {
   queryClient: QueryClient
@@ -21,7 +21,6 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       getCurrentUser().catch(() => null),
       listCategories({ data: { tree: true } }).catch(() => []),
     ])
-    hydrateQueryData(context.queryClient, queryKeys.categoriesTree, categories)
     if (user) {
       const unread = await getUnreadNotificationCount().catch(() => ({ count: 0 }))
       hydrateQueryData(context.queryClient, queryKeys.unreadCount, unread)

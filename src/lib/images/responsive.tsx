@@ -9,15 +9,19 @@ import { getImageUrl } from '../image-url'
  * - Accessible alt text fallback
  */
 
-interface ResponsiveImageProps {
+export interface ResponsiveImageProps {
   src: string
   alt: string
+  /** Precomputed srcset string (bypasses buildSrcset). */
+  srcset?: string
   /** Widths to include in srcset, in pixels. Default: [400, 800, 1200] */
   widths?: number[]
   /** Sizes attribute for the browser to pick the right source. Default assumes full-width card grid. */
   sizes?: string
   /** Whether the image is above the fold (eager) or below (lazy). Default: lazy */
   loading?: 'lazy' | 'eager'
+  /** Browser resource prioritization hint. */
+  fetchPriority?: 'high' | 'low' | 'auto'
   /** CSS class for the wrapper */
   className?: string
   /** CSS class for the image element */
@@ -30,7 +34,7 @@ interface ResponsiveImageProps {
 
 const DEFAULT_WIDTHS = [400, 800, 1200]
 const DEFAULT_SIZES =
-  '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw'
+  '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 25vw, 286px'
 const DEFAULT_FORMAT = 'webp'
 
 /**
@@ -49,9 +53,11 @@ export function buildSrcset(key: string, widths: number[]): string {
 export function ResponsiveImage({
   src,
   alt,
+  srcset: srcsetProp,
   widths = DEFAULT_WIDTHS,
   sizes = DEFAULT_SIZES,
   loading = 'lazy',
+  fetchPriority,
   className,
   imgClassName,
   placeholder = 'blur',
@@ -70,15 +76,34 @@ export function ResponsiveImage({
   }, [])
 
   const imageRef = useCallback((node: HTMLImageElement | null) => {
-    if (!node?.complete) return
+    if (!node) return
 
-    if (node.naturalWidth > 0) {
-      setIsLoaded(true)
+    if (node.complete) {
+      if (node.naturalWidth > 0) {
+        setIsLoaded(true)
+      } else {
+        setHasError(true)
+        setIsLoaded(true)
+      }
       return
     }
 
-    setHasError(true)
-    setIsLoaded(true)
+    const onLoad = () => {
+      setIsLoaded(true)
+    }
+
+    const onError = () => {
+      setHasError(true)
+      setIsLoaded(true)
+    }
+
+    node.addEventListener('load', onLoad, { once: true })
+    node.addEventListener('error', onError, { once: true })
+
+    return () => {
+      node.removeEventListener('load', onLoad)
+      node.removeEventListener('error', onError)
+    }
   }, [])
 
   if (!src) {
@@ -86,40 +111,38 @@ export function ResponsiveImage({
   }
 
   const defaultUrl = getImageUrl(src, { format: DEFAULT_FORMAT })
-  const srcset = buildSrcset(src, widths)
-  const blurUrl = getImageUrl(src, { width: 40, format: DEFAULT_FORMAT })
+  const srcset = srcsetProp ?? buildSrcset(src, widths)
 
   return (
     <div className={`relative overflow-hidden ${className ?? ''}`}>
-      {/* Blur placeholder */}
+      {/* Zero-HTTP-request CSS shimmer skeleton */}
       {placeholder === 'blur' && !isLoaded && !hasError && (
-        <img
-          src={blurUrl}
-          alt=''
-          className='absolute inset-0 h-full w-full scale-105 object-cover blur-[10px]'
+        <div
+          className='absolute inset-0 h-full w-full bg-surface-inset animate-pulse pointer-events-none'
           aria-hidden='true'
         />
       )}
 
-      {hasError ? (
-        <div className='flex h-full w-full items-center justify-center bg-surface-inset'>
+      {hasError && (
+        <div className='absolute inset-0 flex h-full w-full items-center justify-center bg-surface-inset'>
           {fallback ?? <span className='sr-only'>{alt}</span>}
         </div>
-      ) : (
-        <img
-          ref={imageRef}
-          src={defaultUrl}
-          srcSet={srcset}
-          sizes={sizes}
-          alt={alt}
-          loading={loading}
-          onLoad={handleLoad}
-          onError={handleError}
-          className={`transition-opacity duration-500 ${
-            isLoaded ? 'opacity-100' : 'opacity-0'
-          } ${imgClassName ?? 'h-full w-full object-cover'}`}
-        />
       )}
+
+      <img
+        ref={imageRef}
+        src={defaultUrl}
+        srcSet={srcset}
+        sizes={sizes}
+        alt={alt}
+        loading={loading}
+        fetchPriority={fetchPriority}
+        onLoad={handleLoad}
+        onError={handleError}
+        className={`transition-opacity duration-300 ${
+          isLoaded && !hasError ? 'opacity-100' : 'opacity-0'
+        } ${imgClassName ?? 'h-full w-full object-cover'}`}
+      />
     </div>
   )
 }

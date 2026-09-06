@@ -186,8 +186,11 @@ export async function updateShopInternal(
   if (input.shippingOrigin !== undefined) {
     if (input.shippingOrigin === null) {
       updateData.shippingOrigin = null
+      updateData.processingTimeMinDays = null
+      updateData.processingTimeMaxDays = null
+      updateData.shipsInternational = false
     } else {
-      const storedOrigin = decryptJsonb<unknown>(shopRecord.shippingOrigin)
+      const storedOrigin = decryptJsonb<Record<string, unknown>>(shopRecord.shippingOrigin)
       const shippingOrigin = isObjectRecord(storedOrigin)
         ? {
             ...storedOrigin,
@@ -199,6 +202,18 @@ export async function updateShopInternal(
         : input.shippingOrigin
 
       updateData.shippingOrigin = encryptJsonb(shippingOrigin)
+
+      const mergedOrigin = isObjectRecord(shippingOrigin) ? shippingOrigin : null
+      const originDays = isObjectRecord(mergedOrigin?.processingTimeDays)
+        ? mergedOrigin.processingTimeDays
+        : null
+      if (originDays && typeof originDays.min === 'number' && typeof originDays.max === 'number') {
+        updateData.processingTimeMinDays = originDays.min
+        updateData.processingTimeMaxDays = originDays.max
+      }
+      if (typeof mergedOrigin?.shipsInternational === 'boolean') {
+        updateData.shipsInternational = mergedOrigin.shipsInternational
+      }
     }
   }
 

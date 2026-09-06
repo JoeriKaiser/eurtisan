@@ -128,6 +128,17 @@ vi.mock('./ThemeToggle', () => ({
 vi.mock('./UserMenu', () => ({
   default: () => <button type='button'>User</button>,
 }))
+vi.mock('./MobileNavDrawer', () => ({
+  default: ({ open, onClose }: { open?: boolean; onClose?: () => void }) =>
+    open ? (
+      <div role='dialog' aria-label='Mobile navigation' data-testid='mobile-nav-drawer'>
+        <span>Mock Mobile Nav Drawer</span>
+        <button type='button' onClick={onClose} aria-label='Close navigation'>
+          Close navigation
+        </button>
+      </div>
+    ) : null,
+}))
 
 vi.mock('#/components/CartProvider', () => ({
   useCart: () => mockUseCart(),
@@ -424,7 +435,7 @@ describe('Header', () => {
 
     // Click trigger to open mobile drawer
     fireEvent.click(menuBtn)
-    expect(screen.getByRole('dialog', { name: 'Mobile navigation' })).toBeDefined()
+    expect(await screen.findByRole('dialog', { name: 'Mobile navigation' })).toBeDefined()
   })
 
   it('renders mobile search button and opens search overlay on click', async () => {

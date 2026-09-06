@@ -1035,6 +1035,7 @@
                 service: eurtisan-staging-imgproxy
                 middlewares:
                   - eurtisan-staging-strip-uploads
+                  - eurtisan-staging-uploads-headers
 
               # Garage exposes only its authenticated S3 API on a dedicated host.
               # Browser uploads are authorized by short-lived presigned URLs.
@@ -1081,12 +1082,16 @@
                 tls:
                   certResolver: letsencrypt
                 service: eurtisan-staging-app
-          {% if allowed_ips is defined %}
                 middlewares:
+                  - eurtisan-staging-compress
+          {% if allowed_ips is defined %}
                   - eurtisan-staging-whitelist
           {% endif %}
 
             middlewares:
+              eurtisan-staging-compress:
+                compress: {}
+
               eurtisan-staging-redirect:
                 redirectScheme:
                   scheme: https
@@ -1102,6 +1107,10 @@
                   prefixes:
                     - "/uploads"
 
+              eurtisan-staging-uploads-headers:
+                headers:
+                  customResponseHeaders:
+                    Cache-Control: "public, max-age=31536000, immutable"
           {% if allowed_ips is defined %}
               eurtisan-staging-whitelist:
                 ipWhiteList:

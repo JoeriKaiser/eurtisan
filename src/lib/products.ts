@@ -95,7 +95,12 @@ export const getProductBySlug = createServerFn({
     // fold on a conversion page, and a second round trip would render it late.
     const moreFromShop = await getMoreFromShopQuery(data.shopSlug, result.id)
 
-    return { ...result, moreFromShop }
+    // Server-only module dynamically imported inside createServerFn handler to prevent leaking into client bundle
+    const { enrichProductImageUrls } = await import('./images/enrich.server')
+    const enrichedResult = enrichProductImageUrls(result)
+    const enrichedMoreFromShop = moreFromShop.map((p) => enrichProductImageUrls(p))
+
+    return { ...enrichedResult, moreFromShop: enrichedMoreFromShop }
   })
 
 const getShopBySlugSchema = z.object({
@@ -216,24 +221,7 @@ export const searchSuggestionsFallback = createServerFn({
     return searchSuggestionsFallbackQuery(data.query)
   })
 
-// The overlay fires a request per debounced keystroke, so it gets its own
-// higher counter than full searches — matching the 120/min the edge limiter
-// used to enforce — instead of sharing the stricter full-search limit.
-const searchOverlayRateLimitMiddleware = createIpRateLimitMiddleware(120, 60_000, 'search-overlay')
-
-/**
- * Overlay suggestions: products, category facets, and engine highlighting in
- * one round trip. The Meilisearch credentials never reach the browser.
- */
-export const searchOverlay = createServerFn({
-  method: 'GET',
-})
-  .middleware([searchOverlayRateLimitMiddleware])
-  .inputValidator(z.object({ query: z.string().min(1).max(255) }))
-  .handler(async ({ data }) => {
-    const { searchOverlayQuery } = await import('./products/search-overlay.server')
-    return searchOverlayQuery(data.query)
-  })
+export { searchOverlay } from './products/search-overlay.functions'
 
 /**
  * Queries other buyers actually ran, for the overlay's trending list.

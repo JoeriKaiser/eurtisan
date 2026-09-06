@@ -1,7 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, Flag, MessageSquare, Star, ThumbsUp } from 'lucide-react'
-import { useId, useState } from 'react'
-import { ReportReviewDialog } from '#/components/reviews/ReportReviewDialog'
+import { lazy, Suspense, useId, useState } from 'react'
 import { ReviewDisclosure } from '#/components/reviews/ReviewDisclosure'
 import { SellerReplySection } from '#/components/reviews/SellerReplySection'
 import { Button } from '#/components/ui/button'
@@ -12,6 +11,11 @@ import { useAuth } from '#/lib/auth-hooks'
 import { getProductReviews, reportReview, setReviewHelpful } from '#/lib/reviews'
 import type { ProductReviewsResult, ReviewReportReason, ReviewSort } from '#/lib/reviews.server'
 import { m } from '#/paraglide/messages'
+const ReportReviewDialog = lazy(() =>
+  import('#/components/reviews/ReportReviewDialog').then((m) => ({
+    default: m.ReportReviewDialog,
+  })),
+)
 
 export interface ProductReviewsProps {
   productId: string
@@ -376,15 +380,19 @@ export default function ProductReviews({ productId }: ProductReviewsProps) {
         </div>
       )}
 
-      <ReportReviewDialog
-        open={reportingId !== null}
-        onOpenChange={(open) => {
-          if (!open) setReportingId(null)
-        }}
-        busy={reportBusy}
-        error={reportError}
-        onSubmit={(reason, details) => void handleReport(reason, details)}
-      />
+      {reportingId !== null && (
+        <Suspense fallback={null}>
+          <ReportReviewDialog
+            open={reportingId !== null}
+            onOpenChange={(open) => {
+              if (!open) setReportingId(null)
+            }}
+            busy={reportBusy}
+            error={reportError}
+            onSubmit={(reason, details) => void handleReport(reason, details)}
+          />
+        </Suspense>
+      )}
 
       {data.totalPages > 1 && (
         <nav

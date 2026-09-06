@@ -37,4 +37,50 @@ describe('ResponsiveImage', () => {
     expect(image.classList.contains('opacity-100')).toBe(true)
     expect(image.classList.contains('opacity-0')).toBe(false)
   })
+
+  it('renders CSS shimmer placeholder when placeholder is blur and image is not loaded', () => {
+    const { container } = render(
+      <ResponsiveImage src='products/bowl.jpg' alt='Bowl' placeholder='blur' />,
+    )
+    const shimmer = container.querySelector('.animate-pulse')
+    expect(shimmer).toBeDefined()
+    expect(shimmer?.getAttribute('aria-hidden')).toBe('true')
+    const images = container.querySelectorAll('img')
+    // Must only contain the main image, no secondary blur thumbnail img tag
+    expect(images.length).toBe(1)
+  })
+
+  it('uses explicitly provided srcset prop instead of calling buildSrcset', () => {
+    const customSrcset =
+      'https://cdn.example.com/custom-400.webp 400w, https://cdn.example.com/custom-800.webp 800w'
+    render(<ResponsiveImage src='products/vase.jpg' alt='Custom vase' srcset={customSrcset} />)
+
+    const image = screen.getByAltText('Custom vase')
+    expect(image.getAttribute('srcset')).toBe(customSrcset)
+  })
+
+  it('passes fetchPriority to the img element', () => {
+    render(<ResponsiveImage src='products/vase.jpg' alt='Priority vase' fetchPriority='high' />)
+
+    const image = screen.getByAltText('Priority vase')
+    expect(image.getAttribute('fetchpriority')).toBe('high')
+  })
+
+  it('keeps a broken image hidden behind the error fallback', () => {
+    vi.spyOn(HTMLImageElement.prototype, 'complete', 'get').mockReturnValue(true)
+    vi.spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get').mockReturnValue(0)
+
+    const { container } = render(
+      <ResponsiveImage
+        src='products/missing.jpg'
+        alt='Missing vase'
+        fallback={<span>Broken</span>}
+      />,
+    )
+
+    const image = screen.getByAltText('Missing vase')
+    expect(image.classList.contains('opacity-0')).toBe(true)
+    expect(image.classList.contains('opacity-100')).toBe(false)
+    expect(container.textContent).toContain('Broken')
+  })
 })

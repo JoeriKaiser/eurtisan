@@ -11,7 +11,7 @@ import { ShopError } from '#/route-components/shops/$shopSlug.error'
 import { ShopPending } from '#/route-components/shops/$shopSlug.pending'
 
 const shopSearchSchema = z.object({
-  page: z.coerce.number().int().min(1).optional().default(1),
+  page: z.coerce.number().int().min(1).optional().catch(undefined),
   search: z.string().max(255).optional(),
   // Every browsing filter lives in the URL, so a filtered storefront is
   // linkable and the back button works. Each one catches rather than throws: a
@@ -26,7 +26,7 @@ const shopSearchSchema = z.object({
 export const Route = createFileRoute('/shops/$shopSlug/')({
   validateSearch: shopSearchSchema,
   loaderDeps: ({ search: { page, search, sort, inStock, category } }) => ({
-    page,
+    page: page ?? 1,
     searchQuery: search ?? '',
     sort: sort ?? 'newest',
     inStockOnly: inStock === true || inStock === 'true',

@@ -65,7 +65,6 @@ export const Route = createFileRoute('/shops/$shopSlug/products/$productSlug')({
       productPrice: { amount: priceAmount, currency: SUPPORTED_CURRENCY },
       jsonLd,
     })
-
     return { meta, links, script }
   },
   notFoundComponent: NotFoundPage,
