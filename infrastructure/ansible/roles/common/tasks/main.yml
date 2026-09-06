@@ -164,26 +164,6 @@
     port: "443"
     proto: tcp
 
-- name: Allow HTTP/3 (QUIC) UDP from whitelisted IPs
-  when:
-    - not (coexist_with_proxy | default(false))
-    - allowed_ips is defined
-  ufw:
-    rule: allow
-    from_ip: "{{ item }}"
-    port: "443"
-    proto: udp
-  loop: "{{ allowed_ips.split(',') }}"
-
-- name: Allow HTTP/3 (QUIC) UDP through UFW (open access)
-  when:
-    - not (coexist_with_proxy | default(false))
-    - allowed_ips is not defined
-  ufw:
-    rule: allow
-    port: "443"
-    proto: udp
-
 - name: Enable UFW with default-deny policy
   when: not (coexist_with_proxy | default(false))
   ufw:

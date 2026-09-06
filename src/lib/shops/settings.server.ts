@@ -203,16 +203,16 @@ export async function updateShopInternal(
 
       updateData.shippingOrigin = encryptJsonb(shippingOrigin)
 
-      // if stored origin has processingTimeDays, populate integer columns
-      const originDays = isObjectRecord(storedOrigin?.processingTimeDays)
-        ? storedOrigin.processingTimeDays
+      const mergedOrigin = isObjectRecord(shippingOrigin) ? shippingOrigin : null
+      const originDays = isObjectRecord(mergedOrigin?.processingTimeDays)
+        ? mergedOrigin.processingTimeDays
         : null
       if (originDays && typeof originDays.min === 'number' && typeof originDays.max === 'number') {
         updateData.processingTimeMinDays = originDays.min
         updateData.processingTimeMaxDays = originDays.max
       }
-      if (typeof storedOrigin?.shipsInternational === 'boolean') {
-        updateData.shipsInternational = storedOrigin.shipsInternational
+      if (typeof mergedOrigin?.shipsInternational === 'boolean') {
+        updateData.shipsInternational = mergedOrigin.shipsInternational
       }
     }
   }

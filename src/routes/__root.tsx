@@ -5,6 +5,7 @@ import { listCategories } from '#/lib/categories'
 import { getUnreadNotificationCount } from '#/lib/notifications'
 import { queryKeys } from '#/lib/query-keys'
 import { getCurrentUser } from '#/lib/server-auth'
+import { m } from '#/paraglide/messages'
 import { RootComponent } from '#/route-components/__root'
 import { RootDocument } from '#/route-components/root/RootDocument'
 import { RootError } from '#/route-components/root/RootError'
@@ -36,7 +37,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'Eurtisan — European Creative Marketplace',
+        title: m.meta_title_default(),
       },
     ],
     links: [

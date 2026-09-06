@@ -65,4 +65,22 @@ describe('ResponsiveImage', () => {
     const image = screen.getByAltText('Priority vase')
     expect(image.getAttribute('fetchpriority')).toBe('high')
   })
+
+  it('keeps a broken image hidden behind the error fallback', () => {
+    vi.spyOn(HTMLImageElement.prototype, 'complete', 'get').mockReturnValue(true)
+    vi.spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get').mockReturnValue(0)
+
+    const { container } = render(
+      <ResponsiveImage
+        src='products/missing.jpg'
+        alt='Missing vase'
+        fallback={<span>Broken</span>}
+      />,
+    )
+
+    const image = screen.getByAltText('Missing vase')
+    expect(image.classList.contains('opacity-0')).toBe(true)
+    expect(image.classList.contains('opacity-100')).toBe(false)
+    expect(container.textContent).toContain('Broken')
+  })
 })

@@ -140,7 +140,7 @@ export function ResponsiveImage({
         onLoad={handleLoad}
         onError={handleError}
         className={`transition-opacity duration-300 ${
-          isLoaded ? 'opacity-100' : 'opacity-0'
+          isLoaded && !hasError ? 'opacity-100' : 'opacity-0'
         } ${imgClassName ?? 'h-full w-full object-cover'}`}
       />
     </div>
