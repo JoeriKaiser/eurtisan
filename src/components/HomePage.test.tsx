@@ -107,6 +107,11 @@ describe('HomePage', () => {
     render(<HomePage categories={categories} products={[]} shops={[]} />)
     expect(screen.getByText('Browse by category')).toBeDefined()
     expect(screen.getByText('Pottery')).toBeDefined()
+    const spotlightImage = screen.getByRole('img', {
+      name: 'A collection of handmade ceramics',
+    }) as HTMLImageElement
+    expect(spotlightImage.getAttribute('loading')).toBe('lazy')
+    expect(spotlightImage.src).toContain('/images/spotlight_ceramics.webp')
   })
 
   it('hides category section when no categories exist', () => {
@@ -133,15 +138,24 @@ describe('HomePage', () => {
     const shops = [makeShop('shop-1', { image: 'shops/hero-shop.webp' })]
     render(<HomePage categories={[]} products={[]} shops={shops} />)
 
-    const heroImage = screen.getByRole('img', { name: 'Shop shop-1' }) as HTMLImageElement
-    expect(heroImage.src).toContain('/api/image?key=shops%2Fhero-shop.webp&width=960&format=webp')
-    const mobileHeroImage = screen.getByRole('img', {
+    const heroImages = screen.getAllByRole('img', { name: 'Shop shop-1' }) as HTMLImageElement[]
+    expect(heroImages).toHaveLength(2)
+    for (const heroImage of heroImages) {
+      expect(heroImage.src).toContain('/api/image?key=shops%2Fhero-shop.webp&width=960&format=webp')
+      expect(heroImage.getAttribute('fetchpriority')).toBe('high')
+      expect(heroImage.getAttribute('loading')).toBe('eager')
+      expect(heroImage.style.backgroundImage).toBe('')
+    }
+  })
+
+  it('renders the fallback hero image as an eager LCP img', () => {
+    render(<HomePage categories={[]} products={[]} shops={[]} />)
+    const heroImage = screen.getByRole('img', {
       name: 'A maker arranging ceramics and textiles in a sunlit workshop',
-    }) as HTMLElement
-    expect(mobileHeroImage.style.backgroundImage).toContain(
-      '/api/image?key=shops%2Fhero-shop.webp&width=960&format=webp',
-    )
-    expect(mobileHeroImage.style.backgroundImage).toContain('/images/hero_artisan_goods.webp')
+    }) as HTMLImageElement
+    expect(heroImage.src).toContain('/images/hero_artisan_goods.webp')
+    expect(heroImage.getAttribute('fetchpriority')).toBe('high')
+    expect(heroImage.getAttribute('loading')).toBe('eager')
   })
 
   it('shows singular product count for one product', () => {

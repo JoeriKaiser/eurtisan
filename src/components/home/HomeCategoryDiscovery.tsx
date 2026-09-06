@@ -80,6 +80,10 @@ export function HomeCategoryDiscovery({ categories }: HomeCategoryDiscoveryProps
               <img
                 src='/images/spotlight_ceramics.webp'
                 alt={m.home_category_spotlight_image_alt()}
+                width={1024}
+                height={1024}
+                loading='lazy'
+                decoding='async'
                 className='h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]'
               />
             </div>

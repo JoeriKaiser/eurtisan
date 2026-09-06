@@ -1,8 +1,38 @@
 import { Link, useRouter } from '@tanstack/react-router'
 import { ArrowRight, Search } from 'lucide-react'
 import { useState } from 'react'
-import { getImageUrl } from '#/lib/image-url'
+import { getHomeHeroLcpUrl, HOME_HERO_FALLBACK_IMAGE } from '#/lib/images/home-hero'
 import { m } from '#/paraglide/messages'
+
+function HomeHeroLcpImage({
+  src,
+  alt,
+  className,
+}: {
+  src: string
+  alt: string
+  className: string
+}) {
+  return (
+    <img
+      src={src}
+      alt={alt}
+      width={960}
+      height={720}
+      fetchPriority='high'
+      loading='eager'
+      decoding='async'
+      className={className}
+      onError={(event) => {
+        const image = event.currentTarget
+        if (image.src.includes(HOME_HERO_FALLBACK_IMAGE)) {
+          return
+        }
+        image.src = HOME_HERO_FALLBACK_IMAGE
+      }}
+    />
+  )
+}
 
 interface FeaturedMakerShop {
   id: string
@@ -97,9 +127,8 @@ export function HomeHeroSection({
   }
 
   const featuredShop = shops[0]
-  const featuredImageSrc = featuredShop?.image
-    ? getImageUrl(featuredShop.image, { width: 960, format: 'webp' })
-    : '/images/hero_artisan_goods.webp'
+  const featuredImageSrc = getHomeHeroLcpUrl(featuredShop?.image)
+  const featuredImageAlt = featuredShop ? featuredShop.name : m.home_hero_image_alt()
   return (
     <section className='border-b border-border-subtle bg-bg-base py-10 sm:py-14 lg:py-20'>
       <div className='mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
@@ -112,20 +141,17 @@ export function HomeHeroSection({
                 params={{ shopSlug: featuredShop.slug }}
                 className='block no-underline rounded-xl overflow-hidden border border-border-subtle shadow-xs'
               >
-                <div
-                  role='img'
-                  aria-label={m.home_hero_image_alt()}
-                  className='aspect-video w-full bg-cover bg-center sm:aspect-[5/4]'
-                  style={{
-                    backgroundImage: `url("${featuredImageSrc}"), url("/images/hero_artisan_goods.webp")`,
-                  }}
+                <HomeHeroLcpImage
+                  src={featuredImageSrc}
+                  alt={featuredImageAlt}
+                  className='aspect-video w-full object-cover sm:aspect-[5/4]'
                 />
               </Link>
             ) : (
               <div className='rounded-xl overflow-hidden border border-border-subtle shadow-xs'>
-                <img
+                <HomeHeroLcpImage
                   src={featuredImageSrc}
-                  alt={m.home_hero_image_alt()}
+                  alt={featuredImageAlt}
                   className='aspect-video w-full object-cover sm:aspect-[5/4]'
                 />
               </div>
@@ -207,17 +233,11 @@ export function HomeHeroSection({
           {featuredShop && (
             <div className='hidden lg:flex lg:w-[42%]'>
               <div className='w-full rounded-2xl border border-border-subtle bg-surface-default p-4 shadow-sm'>
-                <div
-                  className='relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-surface-inset bg-cover bg-center'
-                  style={{ backgroundImage: "url('/images/hero_artisan_goods.webp')" }}
-                >
-                  <img
+                <div className='relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-surface-inset'>
+                  <HomeHeroLcpImage
                     src={featuredImageSrc}
                     alt={featuredShop.name}
                     className='h-full w-full object-cover transition-transform duration-500 ease-out hover:scale-[1.02]'
-                    onError={({ currentTarget }) => {
-                      currentTarget.style.display = 'none'
-                    }}
                   />
                   <div className='absolute bottom-3 left-3 rounded-lg bg-bg-base/90 backdrop-blur-sm px-3 py-1.5 text-xs font-semibold text-text-primary shadow-xs'>
                     {m.home_hero_featured_maker()}

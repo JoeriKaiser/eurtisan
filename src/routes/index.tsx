@@ -4,6 +4,7 @@ import HomePage from '#/components/HomePage'
 import { listCategories } from '#/lib/categories'
 import { getFeaturedShops, getMarketplaceStats, listRecentProducts } from '#/lib/products'
 import { getSellerShops } from '#/lib/sell-onboarding'
+import { getHomeHeroLcpUrl } from '#/lib/images/home-hero'
 import { createPageMeta } from '#/lib/seo'
 import { generateWebSiteJsonLd } from '#/lib/seo-structured-data'
 import { hydrateQueryData } from '#/lib/hydrate-query'
@@ -53,17 +54,27 @@ export const Route = createFileRoute('/')({
     hydrateQueryData(context.queryClient, queryKeys.categoriesList, categories)
     return { categories, products, shops, user, sellerShops, stats }
   },
-  head: () => {
-    // JSON-LD WebSite structured data
+  head: ({ loaderData }) => {
     const jsonLd = generateWebSiteJsonLd()
-
     const { meta, links, script } = createPageMeta({
       title: m.home_meta_title(),
       description: m.home_meta_description(),
       canonicalPath: '/',
       jsonLd,
     })
-    return { meta, links, script }
+    return {
+      meta,
+      script,
+      links: [
+        ...links,
+        {
+          rel: 'preload',
+          as: 'image',
+          href: getHomeHeroLcpUrl(loaderData?.shops?.[0]?.image),
+          fetchPriority: 'high',
+        },
+      ],
+    }
   },
   component: Home,
   errorComponent: HomeError,
