@@ -1,7 +1,7 @@
 ---
 - name: Configure Eurtisan VPS
   hosts: all
-  gather_facts: yes
+  gather_facts: no
   become: yes
 
   pre_tasks:
@@ -22,6 +22,10 @@
       delegate_to: localhost
       become: no
       tags: [always]
+    - name: Gather facts after verifying host key
+      ansible.builtin.setup:
+      tags: [always]
+
 
     - name: Validate deployment contract before provisioning
       ansible.builtin.include_role:
