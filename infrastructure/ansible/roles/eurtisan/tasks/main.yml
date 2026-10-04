@@ -24,11 +24,41 @@
   set_fact:
     docker_compose: "docker compose -f {{ compose_file }}{% if use_port_override %} -f docker-compose.override.yml{% endif %}{% if postgres_wal_archive_enabled | default(false) %} -f docker-compose.wal-archive.yml{% endif %}"
 
+- name: Determine background services for environment
+  set_fact:
+    background_services: >-
+      {{
+        ['worker']
+        if (deployment_environment == 'production')
+        else [
+          'inventory-cleanup', 'session-cleanup', 'cart-cleanup', 'verification-cleanup',
+          'meilisearch-sync', 'audit-log-cleanup', 'search-event-cleanup', 'notification-cleanup',
+          'sendcloud-reconciliation', 'mollie-payment-reconciliation', 'payout-reconciliation',
+          'payout-reconciliation-log-cleanup', 'email-outbox-worker', 'notification-digest',
+          'email-suppression-cleanup', 'email-retention-cleanup',
+          'financial-totals-reconciliation', 'sendcloud-retention-cleanup'
+        ]
+      }}
+
 - name: Create application directory
   file:
     path: /opt/eurtisan
     state: directory
     mode: "0755"
+
+- name: Verify repository deploy key exists on the target host
+  ansible.builtin.stat:
+    path: "{{ repository_deploy_key_path }}"
+  register: deploy_key_stat
+
+- name: Require readable deploy key on the target host
+  ansible.builtin.assert:
+    that:
+      - deploy_key_stat.stat.exists
+      - deploy_key_stat.stat.isreg
+    fail_msg: >-
+      Deploy key {{ repository_deploy_key_path }} is missing on {{ inventory_hostname }}.
+      Place the read-only GitHub deploy key at this path with mode 0600 before provisioning.
 
 - name: Clone canonical repository
   git:
@@ -318,6 +348,12 @@
       - util-linux
     state: present
     update_cache: true
+  tags: [backup]
+
+- name: Pre-pull PostgreSQL backup verification image on target host
+  ansible.builtin.command: "docker pull {{ postgres_verify_image }}"
+  register: verify_image_pull
+  changed_when: "'Downloaded newer image' in verify_image_pull.stdout"
   tags: [backup]
 
 - name: Install backup systemd units
@@ -795,12 +831,7 @@
   command: >-
     {{ docker_compose }} stop
     app imgproxy
-    inventory-cleanup session-cleanup cart-cleanup verification-cleanup
-    meilisearch-sync audit-log-cleanup search-event-cleanup notification-cleanup sendcloud-reconciliation
-    mollie-payment-reconciliation payout-reconciliation
-    payout-reconciliation-log-cleanup email-outbox-worker notification-digest
-    email-suppression-cleanup email-retention-cleanup
-    financial-totals-reconciliation sendcloud-retention-cleanup
+    {{ background_services | join(' ') }}
   args:
     chdir: /opt/eurtisan
 

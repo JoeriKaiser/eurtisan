@@ -10,11 +10,11 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - alloy_data:/var/lib/alloy
-    command: run --server.http.listen-addr=127.0.0.1:12345 --storage.path=/var/lib/alloy /etc/alloy/config.alloy
+    command: run --server.http.listen-addr=0.0.0.0:12345 --storage.path=/var/lib/alloy /etc/alloy/config.alloy
     # No host ports exposed. The app reaches Alloy via the eurtisan Docker network.
     networks:
       - eurtisan
-    restart: "no"
+    restart: unless-stopped
 
   grafana:
     image: grafana/grafana:11.2.0
@@ -36,7 +36,7 @@ services:
       - "127.0.0.1:3001:3000"
     networks:
       - eurtisan
-    restart: "no"
+    restart: unless-stopped
     depends_on:
       - loki
       - tempo
@@ -53,7 +53,7 @@ services:
       - "127.0.0.1:3100:3100"
     networks:
       - eurtisan
-    restart: "no"
+    restart: unless-stopped
 
   tempo:
     image: grafana/tempo:2.6.0
@@ -67,7 +67,7 @@ services:
       - "127.0.0.1:3200:3200"
     networks:
       - eurtisan
-    restart: "no"
+    restart: unless-stopped
 
   prometheus:
     image: prom/prometheus:v2.55.0
@@ -81,12 +81,12 @@ services:
       - "127.0.0.1:9090:9090"
     networks:
       - eurtisan
-    restart: "no"
+    restart: unless-stopped
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=15d'
       - '--storage.tsdb.path=/prometheus'
-
+      - '--web.enable-remote-write-receiver'
   alertmanager:
     image: prom/alertmanager:v0.27.0
     container_name: eurtisan-alertmanager
@@ -98,7 +98,7 @@ services:
       - "127.0.0.1:9093:9093"
     networks:
       - eurtisan
-    restart: "no"
+    restart: unless-stopped
     environment:
       - ALERTMANAGER_DEFAULT_RECEIVER=${ALERTMANAGER_DEFAULT_RECEIVER:-null}
       - ALERTMANAGER_SMTP_HOST=${ALERTMANAGER_SMTP_HOST:-}
