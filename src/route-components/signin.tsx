@@ -216,6 +216,8 @@ export function SignIn() {
               inputMode='numeric'
               autoComplete='one-time-code'
               autoFocus
+              aria-describedby={status.error ? 'auth-form-error' : undefined}
+              aria-invalid={Boolean(status.error)}
               minLength={6}
               maxLength={6}
               pattern='[0-9]{6}'
@@ -228,7 +230,9 @@ export function SignIn() {
           </div>
 
           <div className='min-h-12'>
-            {status.error && <FeedbackBanner type='error' message={status.error} size='sm' />}
+            {status.error && (
+              <FeedbackBanner id='auth-form-error' type='error' message={status.error} size='sm' />
+            )}
             {status.info && <FeedbackBanner type='info' message={status.info} size='sm' />}
           </div>
 
@@ -276,6 +280,8 @@ export function SignIn() {
               name='email'
               type='email'
               autoComplete='email'
+              aria-describedby={status.error ? 'auth-form-error' : undefined}
+              aria-invalid={Boolean(status.error)}
               value={form.email}
               onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
               required
@@ -303,6 +309,8 @@ export function SignIn() {
                 name='password'
                 type={visibility.password ? 'text' : 'password'}
                 autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                aria-describedby={status.error ? 'auth-form-error' : undefined}
+                aria-invalid={Boolean(status.error)}
                 value={form.password}
                 onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
                 required
@@ -311,7 +319,7 @@ export function SignIn() {
               <button
                 type='button'
                 onClick={() => setVisibility((prev) => ({ ...prev, password: !prev.password }))}
-                className='absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary focus:outline-none'
+                className='absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2 rounded'
                 aria-label={
                   visibility.password ? m.button_hide_password() : m.button_show_password()
                 }
@@ -334,6 +342,8 @@ export function SignIn() {
                   name='confirmPassword'
                   type={visibility.confirmPassword ? 'text' : 'password'}
                   autoComplete='new-password'
+                  aria-describedby={status.error ? 'auth-form-error' : undefined}
+                  aria-invalid={Boolean(status.error)}
                   value={form.confirmPassword}
                   onChange={(e) =>
                     setForm((prev) => ({ ...prev, confirmPassword: e.target.value }))
@@ -346,7 +356,7 @@ export function SignIn() {
                   onClick={() =>
                     setVisibility((prev) => ({ ...prev, confirmPassword: !prev.confirmPassword }))
                   }
-                  className='absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary focus:outline-none'
+                  className='absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2 rounded'
                   aria-label={
                     visibility.confirmPassword ? m.button_hide_password() : m.button_show_password()
                   }
@@ -358,7 +368,9 @@ export function SignIn() {
           )}
 
           <div className='min-h-[3.5rem]'>
-            {status.error && <FeedbackBanner type='error' message={status.error} size='sm' />}
+            {status.error && (
+              <FeedbackBanner id='auth-form-error' type='error' message={status.error} size='sm' />
+            )}
             {status.info && <FeedbackBanner type='info' message={status.info} size='sm' />}
           </div>
 

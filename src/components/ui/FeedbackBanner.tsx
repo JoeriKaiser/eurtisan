@@ -6,6 +6,7 @@ interface FeedbackBannerProps {
   message: string
   size?: 'sm' | 'md'
   icon?: LucideIcon
+  id?: string
 }
 
 const defaultIcons: Record<FeedbackBannerProps['type'], LucideIcon> = {
@@ -20,12 +21,13 @@ const typeStyles: Record<FeedbackBannerProps['type'], string> = {
   info: 'border-border-default bg-surface-inset text-text-secondary',
 }
 
-export function FeedbackBanner({ type, message, size = 'md', icon }: FeedbackBannerProps) {
+export function FeedbackBanner({ type, message, size = 'md', icon, id }: FeedbackBannerProps) {
   const Icon = icon ?? defaultIcons[type]
   const isError = type === 'error'
 
   return (
     <div
+      id={id}
       className={cn(
         'rounded-lg border',
         size === 'md' ? 'mb-6 p-4 text-sm' : 'p-3 text-xs',

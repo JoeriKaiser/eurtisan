@@ -14,7 +14,7 @@ Following an exhaustive, multi-agent cross-audit and line-by-line verification a
 
 Following remediation across PRs and commits (security hardening, financial calculation corrections, encryption alignment, DSA Articles 16 & 17, and payout freezing), all **6 Critical P0 Vulnerabilities & Accounting Bugs** alongside High-Priority (P1) items 1 through 9 have been resolved and verified with automated test coverage.
 
-The platform has passed all Week 1 regulatory and security gates. Outstanding work is isolated to Week 2 hardening, operational retention sync, and staging qualification drills.
+The platform has passed all Week 1 regulatory and security gates. The scheduled operational and regulatory hardening work (data-retention sync, log rotation, memory right-sizing, SEO internationalization, and auth-view accessibility) is now resolved. Outstanding work is isolated to Week 2 verification runs and staging qualification drills.
 
 ---
 
@@ -146,16 +146,16 @@ All automated gates were executed and verified on this machine:
 
 ## 5. P2 — Scheduled Operational & Compliance Debt
 
-1. **`docs/DATA_RETENTION.md` Synchronization:**
-   - Update documentation to match code: `actorId` set to NULL, `shipping_label` parcel ID cleared on erasure, audit log retention duration set to 365 days, and document `search_event` 180-day cleanup.
-2. **Docker Log Rotation:**
-   - Configure `max-size: "50m"` and `max-file: "3"` in `docker-compose.prod.yml` and Ansible roles to prevent VPS disk exhaustion.
-3. **Memory Sizing:**
-   - Right-size Compose aggregate container memory limits to align with the recommended 8 GB host target.
-4. **SEO & Internationalization:**
-   - Add `hreflang` tags and `og:locale` alternates; ensure canonical URLs preserve `/nl` prefixes in `src/lib/marketing/seo.ts:46-86`.
-5. **Accessibility Polish on Auth Views:**
-   - Ensure focus rings are visible on sign-in inputs and error messages are programmatically linked via `aria-describedby`.
+1. [RESOLVED] **`docs/DATA_RETENTION.md` Synchronization:**
+   - Documentation now matches `src/lib/users/account-data.server.ts`: `actorId` is set to `NULL` on erasure (the actor link is severed), `shipping_label.external_parcel_id` and `tracking_number` are cleared alongside `label_url`, audit-log retention is stated as 365 days (`job:audit-log-cleanup`, `purgeOldAuditLogs()` in `src/lib/audit-log.server.ts`), and the 180-day `search_event` cleanup (`job:search-event-cleanup`, `purgeOldSearchEvents()` in `src/lib/search/analytics.server.ts`) is documented.
+2. [RESOLVED] **Docker Log Rotation:**
+   - Every service in `docker-compose.prod.yml` and `docker-compose.staging.yml` now sets the `json-file` logging driver with `max-size: "50m"` and `max-file: "3"`, capping Docker's per-container log footprint at 150 MB to prevent host disk exhaustion.
+3. [RESOLVED] **Memory Sizing:**
+   - Production memory limits right-sized toward the 8 GB host target: `db` reduced from 4g to 2.5g and `meilisearch` from 2g to 1.5g. These are per-container hard ceilings, not reservations, so the aggregate remains a safe overcommit rather than a demand.
+4. [RESOLVED] **SEO & Internationalization:**
+   - `createPageMeta` in `src/lib/marketing/seo.ts` now emits `hreflang` alternatives (`en`, `nl`, `x-default`), `og:locale`/`og:locale:alternate`, and a locale-aware canonical that preserves the `/nl` prefix without duplicating slashes, covered by unit tests in `src/lib/marketing/seo.test.ts`.
+5. [RESOLVED] **Accessibility Polish on Auth Views:**
+   - Password-visibility toggles in `src/route-components/signin.tsx` now use visible `focus-visible` rings; the auth error banner carries `id="auth-form-error"` and the email, password, confirm-password, and two-factor inputs expose `aria-describedby`/`aria-invalid`, covered by tests in `src/route-components/signin.test.tsx`.
 
 ---
 
@@ -183,7 +183,7 @@ Week 1 (Days 1–7): Critical Fixes & Regulatory Compliance [COMPLETE]
 └── [x] Day 7: Fix P1-5 & P1-9 (Admin order decryption & French LCEN legal imprint)
 
 Week 2 (Days 8–14): Hardening, Verification & Staging Drills [PENDING]
-├── [ ] Day 8:   Sync `docs/DATA_RETENTION.md`, configure Docker log rotation & memory right-sizing
+├── [x] Day 8:   Sync `docs/DATA_RETENTION.md`, configure Docker log rotation & memory right-sizing
 ├── [ ] Day 9:   Triage test suite timing; ensure ≥3 consecutive green `make test` runs
 ├── [ ] Day 10:  Run complete automated gate suite: `make lint`, `make check`, `make test-accessibility`, `make test`
 ├── [ ] Day 11:  Execute staging disaster recovery & PITR restore drill (`docs/runbooks/backup-restore.md`)

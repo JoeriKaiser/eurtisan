@@ -8,12 +8,23 @@ vi.mock('#/paraglide/messages', () => ({
   },
 }))
 
+// Mutable locale so individual tests can switch the active locale.
+const localeState = vi.hoisted(() => ({ current: 'en' as 'en' | 'nl' }))
+vi.mock('#/paraglide/runtime', () => ({ getLocale: () => localeState.current }))
+
 import { createPageMeta } from './seo'
+
+type PageMeta = ReturnType<typeof createPageMeta>
+
+function alternateHref(result: PageMeta, hreflang: string): string | undefined {
+  return result.links.find((link) => link.rel === 'alternate' && link.hreflang === hreflang)?.href
+}
 
 const configuredPublicUrl = process.env.PUBLIC_URL
 
 beforeEach(() => {
   delete process.env.PUBLIC_URL
+  localeState.current = 'en'
 })
 
 afterEach(() => {
@@ -235,6 +246,177 @@ describe('createPageMeta', () => {
       } else {
         process.env.PUBLIC_URL = previousPublicUrl
       }
+    }
+  })
+
+  it('emits hreflang alternates for en, nl, and x-default on an English page', () => {
+    const result = createPageMeta({
+      title: 'About | Eurtisan',
+      description: 'Learn about our marketplace.',
+      canonicalPath: '/about',
+    })
+
+    expect(result.links.find((link) => link.rel === 'canonical')?.href).toBe('/about')
+    expect(alternateHref(result, 'en')).toBe('/about')
+    expect(alternateHref(result, 'nl')).toBe('/nl/about')
+    expect(alternateHref(result, 'x-default')).toBe('/about')
+
+    // Canonical first, then alternates in a stable order.
+    expect(result.links.map((link) => link.hreflang ?? link.rel)).toEqual([
+      'canonical',
+      'en',
+      'nl',
+      'x-default',
+    ])
+  })
+
+  it('joins a trailing-slash PUBLIC_URL without doubling the slash', () => {
+    process.env.PUBLIC_URL = 'https://eurtisan.example/'
+
+    const result = createPageMeta({
+      title: 'About | Eurtisan',
+      description: 'Learn about our marketplace.',
+      canonicalPath: '/about',
+    })
+
+    expect(result.links.find((link) => link.rel === 'canonical')?.href).toBe(
+      'https://eurtisan.example/about',
+    )
+    expect(alternateHref(result, 'en')).toBe('https://eurtisan.example/about')
+    expect(alternateHref(result, 'nl')).toBe('https://eurtisan.example/nl/about')
+    expect(alternateHref(result, 'x-default')).toBe('https://eurtisan.example/about')
+
+    for (const link of result.links) {
+      expect(link.href.replace(/^https?:\/\//, '')).not.toContain('//')
+    }
+  })
+
+  it('uses the Dutch canonical and og:locale when the active locale is nl', () => {
+    localeState.current = 'nl'
+
+    const result = createPageMeta({
+      title: 'Over | Eurtisan',
+      description: 'Meer over onze marktplaats.',
+      canonicalPath: '/about',
+    })
+
+    expect(result.links.find((link) => link.rel === 'canonical')?.href).toBe('/nl/about')
+    expect(result.meta.find((m) => m.property === 'og:url')?.content).toBe('/nl/about')
+    expect(alternateHref(result, 'en')).toBe('/about')
+    expect(alternateHref(result, 'nl')).toBe('/nl/about')
+    expect(alternateHref(result, 'x-default')).toBe('/about')
+    expect(result.meta.find((m) => m.property === 'og:locale')?.content).toBe('nl_NL')
+    expect(result.meta.find((m) => m.property === 'og:locale:alternate')?.content).toBe('en_US')
+  })
+
+  it('emits en_US og:locale with nl_NL alternate on an English page', () => {
+    const result = createPageMeta({
+      title: 'About | Eurtisan',
+      description: 'Learn about our marketplace.',
+      canonicalPath: '/about',
+    })
+
+    expect(result.meta.find((m) => m.property === 'og:locale')?.content).toBe('en_US')
+    expect(result.meta.find((m) => m.property === 'og:locale:alternate')?.content).toBe('nl_NL')
+  })
+
+  it('does not duplicate the locale prefix when given an already-localized path', () => {
+    const english = createPageMeta({
+      title: 'About | Eurtisan',
+      description: 'Learn about our marketplace.',
+      canonicalPath: '/nl/about',
+    })
+
+    expect(english.links.find((link) => link.rel === 'canonical')?.href).toBe('/about')
+    expect(alternateHref(english, 'en')).toBe('/about')
+    expect(alternateHref(english, 'nl')).toBe('/nl/about')
+    expect(alternateHref(english, 'x-default')).toBe('/about')
+
+    localeState.current = 'nl'
+
+    const dutch = createPageMeta({
+      title: 'Over | Eurtisan',
+      description: 'Meer over onze marktplaats.',
+      canonicalPath: '/nl/about',
+    })
+
+    expect(dutch.links.find((link) => link.rel === 'canonical')?.href).toBe('/nl/about')
+    expect(alternateHref(dutch, 'en')).toBe('/about')
+    expect(alternateHref(dutch, 'nl')).toBe('/nl/about')
+    expect(alternateHref(dutch, 'x-default')).toBe('/about')
+
+    for (const link of [...english.links, ...dutch.links]) {
+      expect(link.href).not.toContain('/nl/nl')
+    }
+  })
+
+  it('preserves the query string in canonical and alternates for both locales', () => {
+    const english = createPageMeta({
+      title: 'Search | Eurtisan',
+      description: 'Search results.',
+      canonicalPath: '/search?q=vase',
+    })
+
+    expect(english.links.find((link) => link.rel === 'canonical')?.href).toBe('/search?q=vase')
+    expect(alternateHref(english, 'en')).toBe('/search?q=vase')
+    expect(alternateHref(english, 'nl')).toBe('/nl/search?q=vase')
+    expect(alternateHref(english, 'x-default')).toBe('/search?q=vase')
+
+    localeState.current = 'nl'
+
+    const dutch = createPageMeta({
+      title: 'Zoeken | Eurtisan',
+      description: 'Zoekresultaten.',
+      canonicalPath: '/search?q=vase',
+    })
+
+    expect(dutch.links.find((link) => link.rel === 'canonical')?.href).toBe('/nl/search?q=vase')
+    expect(alternateHref(dutch, 'en')).toBe('/search?q=vase')
+    expect(alternateHref(dutch, 'nl')).toBe('/nl/search?q=vase')
+    expect(alternateHref(dutch, 'x-default')).toBe('/search?q=vase')
+  })
+
+  it('normalizes a localized root path with a query string', () => {
+    const english = createPageMeta({
+      title: 'Search | Eurtisan',
+      description: 'Search results.',
+      canonicalPath: '/nl?q=vase',
+    })
+
+    expect(english.links.find((link) => link.rel === 'canonical')?.href).toBe('/?q=vase')
+    expect(alternateHref(english, 'en')).toBe('/?q=vase')
+    expect(alternateHref(english, 'nl')).toBe('/nl/?q=vase')
+    expect(alternateHref(english, 'x-default')).toBe('/?q=vase')
+
+    localeState.current = 'nl'
+
+    const dutch = createPageMeta({
+      title: 'Zoeken | Eurtisan',
+      description: 'Zoekresultaten.',
+      canonicalPath: '/nl?q=vase',
+    })
+
+    expect(dutch.links.find((link) => link.rel === 'canonical')?.href).toBe('/nl/?q=vase')
+    expect(alternateHref(dutch, 'en')).toBe('/?q=vase')
+    expect(alternateHref(dutch, 'nl')).toBe('/nl/?q=vase')
+    expect(alternateHref(dutch, 'x-default')).toBe('/?q=vase')
+  })
+
+  it('collapses leading slashes so a doubled slash cannot re-introduce the locale prefix', () => {
+    const result = createPageMeta({
+      title: 'About | Eurtisan',
+      description: 'Learn about our marketplace.',
+      canonicalPath: '//nl/about',
+    })
+
+    expect(result.links.find((link) => link.rel === 'canonical')?.href).toBe('/about')
+    expect(alternateHref(result, 'en')).toBe('/about')
+    expect(alternateHref(result, 'nl')).toBe('/nl/about')
+    expect(alternateHref(result, 'x-default')).toBe('/about')
+
+    for (const link of result.links) {
+      expect(link.href).not.toContain('/nl/nl')
+      expect(link.href).not.toContain('//about')
     }
   })
 })

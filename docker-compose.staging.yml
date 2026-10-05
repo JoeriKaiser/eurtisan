@@ -32,6 +32,11 @@ services:
         PUBLIC_UMAMI_SCRIPT_URL: ${VITE_UMAMI_SCRIPT_URL:-}
         PUBLIC_UMAMI_WEBSITE_ID: ${VITE_UMAMI_WEBSITE_ID:-}
     container_name: eurtisan-app-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     restart: unless-stopped
     env_file:
       - .env
@@ -78,6 +83,11 @@ services:
   db:
     image: postgres:16-alpine@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229
     container_name: eurtisan-db-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     restart: unless-stopped
     env_file:
       - .env
@@ -103,6 +113,11 @@ services:
   meilisearch:
     image: getmeili/meilisearch:v1.43.0@sha256:5d4e1353927785744486fe317d263f442710ab5b27b1983aa1b719dfe2c665b6
     container_name: eurtisan-meilisearch-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     restart: unless-stopped
     env_file:
       - .env
@@ -134,6 +149,11 @@ services:
   garage:
     image: dxflrs/garage:v2.3.0@sha256:866bd13ed2038ba7e7190e840482bc27234c4afaf77be8cfa439ae088c1e4690
     container_name: eurtisan-garage-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     restart: unless-stopped
     volumes:
       - garage_meta:/var/lib/garage/meta
@@ -157,6 +177,11 @@ services:
   imgproxy:
     image: darthsim/imgproxy:v3@sha256:419f92ee3a3137ddc2552a92ae2f46a97e9b8c22e03f8a6efa0cb217d8db7f45
     container_name: eurtisan-imgproxy-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     restart: unless-stopped
     environment:
       IMGPROXY_USE_S3: "true"
@@ -200,6 +225,11 @@ services:
   mailpit:
     image: axllent/mailpit:v1.30.4@sha256:5a49a77c5bdbe7c5474450b4f46348d09949df3695257729c93a30369382d4f6
     container_name: eurtisan-mailpit-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     restart: unless-stopped
     ports:
       - "127.0.0.1:8025:8025"
@@ -218,6 +248,11 @@ services:
   inventory-cleanup:
     image: eurtisan-app:${IMAGE_TAG:-latest}
     container_name: eurtisan-inventory-cleanup-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     env_file:
       - .env
     environment:
@@ -243,6 +278,11 @@ services:
   meilisearch-sync:
     image: eurtisan-app:${IMAGE_TAG:-latest}
     container_name: eurtisan-meilisearch-sync-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     env_file:
       - .env
     environment:
@@ -270,6 +310,11 @@ services:
   payout-reconciliation:
     image: eurtisan-app:${IMAGE_TAG:-latest}
     container_name: eurtisan-payout-reconciliation-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     env_file:
       - .env
     environment:
@@ -295,6 +340,11 @@ services:
   financial-totals-reconciliation:
     image: eurtisan-app:${IMAGE_TAG:-latest}
     container_name: eurtisan-financial-totals-reconciliation-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     env_file:
       - .env
     environment:
@@ -324,6 +374,11 @@ services:
   mollie-payment-reconciliation:
     image: eurtisan-app:${IMAGE_TAG:-latest}
     container_name: eurtisan-mollie-payment-reconciliation-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     env_file:
       - .env
     environment:
@@ -349,6 +404,11 @@ services:
   sendcloud-reconciliation:
     image: eurtisan-app:${IMAGE_TAG:-latest}
     container_name: eurtisan-sendcloud-reconciliation-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     env_file:
       - .env
     environment:
@@ -374,6 +434,11 @@ services:
   session-cleanup:
     image: eurtisan-app:${IMAGE_TAG:-latest}
     container_name: eurtisan-session-cleanup-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     env_file:
       - .env
     environment:
@@ -399,6 +464,11 @@ services:
   cart-cleanup:
     image: eurtisan-app:${IMAGE_TAG:-latest}
     container_name: eurtisan-cart-cleanup-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     env_file:
       - .env
     environment:
@@ -424,6 +494,11 @@ services:
   audit-log-cleanup:
     image: eurtisan-app:${IMAGE_TAG:-latest}
     container_name: eurtisan-audit-log-cleanup-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     env_file:
       - .env
     environment:
@@ -449,6 +524,11 @@ services:
   search-event-cleanup:
     image: eurtisan-app:${IMAGE_TAG:-latest}
     container_name: eurtisan-search-event-cleanup-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     env_file:
       - .env
     environment:
@@ -474,6 +554,11 @@ services:
   notification-cleanup:
     image: eurtisan-app:${IMAGE_TAG:-latest}
     container_name: eurtisan-notification-cleanup-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     user: "1000:1000"
     env_file:
       - .env
@@ -500,6 +585,11 @@ services:
   payout-reconciliation-log-cleanup:
     image: eurtisan-app:${IMAGE_TAG:-latest}
     container_name: eurtisan-payout-reconciliation-log-cleanup-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     env_file:
       - .env
     environment:
@@ -525,6 +615,11 @@ services:
   verification-cleanup:
     image: eurtisan-app:${IMAGE_TAG:-latest}
     container_name: eurtisan-verification-cleanup-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     env_file:
       - .env
     environment:
@@ -550,6 +645,11 @@ services:
   email-outbox-worker:
     image: eurtisan-app:${IMAGE_TAG:-latest}
     container_name: eurtisan-email-outbox-worker-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     env_file:
       - .env
     environment:
@@ -575,6 +675,11 @@ services:
   notification-digest:
     image: eurtisan-app:${IMAGE_TAG:-latest}
     container_name: eurtisan-notification-digest-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     env_file:
       - .env
     environment:
@@ -602,6 +707,11 @@ services:
   email-suppression-cleanup:
     image: eurtisan-app:${IMAGE_TAG:-latest}
     container_name: eurtisan-email-suppression-cleanup-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     env_file:
       - .env
     environment:
@@ -627,6 +737,11 @@ services:
   email-retention-cleanup:
     image: eurtisan-app:${IMAGE_TAG:-latest}
     container_name: eurtisan-email-retention-cleanup-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     env_file:
       - .env
     environment:
@@ -652,6 +767,11 @@ services:
   sendcloud-retention-cleanup:
     image: eurtisan-app:${IMAGE_TAG:-latest}
     container_name: eurtisan-sendcloud-retention-cleanup-staging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     env_file:
       - .env
     environment:
