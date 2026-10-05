@@ -19,9 +19,7 @@ function Account() {
   return (
     <AccountShell breadcrumbs={[{ label: m.nav_home(), to: '/' }, { label: m.account_title() }]}>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
-        <h1 className='display-title mb-6 text-3xl font-semibold text-text-primary'>
-          {m.account_title()}
-        </h1>
+        <h1 className='mb-6 text-3xl font-semibold text-text-primary'>{m.account_title()}</h1>
 
         <div className='grid gap-4 sm:grid-cols-2'>
           <Link

@@ -238,6 +238,13 @@ const serverEnvironmentSchema = z
         addIssue(context, name, 'must not contain a placeholder value')
       }
     }
+
+    if (environment.OPERATOR_VAT_ID === 'FR00000000000') {
+      addIssue(context, 'OPERATOR_VAT_ID', 'must be the real operator VAT id')
+    }
+    if (environment.OPERATOR_STREET === '1 Place de la République') {
+      addIssue(context, 'OPERATOR_STREET', 'must be the real operator street address')
+    }
   })
 
 export type ServerEnvironment = z.infer<typeof serverEnvironmentSchema>

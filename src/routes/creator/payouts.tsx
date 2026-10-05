@@ -1,58 +1,29 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 import z from 'zod'
-import { CreatorPayoutsLoading } from '#/components/CreatorPayoutsLoading'
-import { CreatorPayoutsError } from '#/components/CreatorPayoutsError'
-import { CreatorPayoutsRouteComponent } from '#/route-components/creator/payouts'
 import { getCreatorShops } from '#/lib/creator-dashboard'
-import { listCreatorPayouts } from '#/lib/payouts'
-import { guardPrivilegedRole } from '#/lib/route-guards'
-import { m } from '#/paraglide/messages'
 
 const payoutSearchSchema = z.object({
   shopId: z.string().optional(),
-  status: z
-    .enum(['all', 'pending', 'in_transit', 'sent', 'failed', 'reversed'])
-    .optional()
-    .default('all'),
-  page: z.coerce.number().int().min(1).optional().default(1),
+  status: z.enum(['all', 'pending', 'in_transit', 'sent', 'failed', 'reversed']).optional(),
+  page: z.coerce.number().int().min(1).optional(),
 })
 
 export const Route = createFileRoute('/creator/payouts')({
   validateSearch: payoutSearchSchema,
-  loaderDeps: ({ search: { shopId, status, page } }) => ({ shopId, status, page }),
-  beforeLoad: async () => guardPrivilegedRole('creator'),
-  loader: async ({ deps }) => {
-    const shops = await getCreatorShops()
-    const targetShop = shops.find((s) => s.id === deps.shopId) ?? shops[0] ?? null
-
-    let payouts: Awaited<ReturnType<typeof listCreatorPayouts>> = {
-      payouts: [],
-      total: 0,
-      page: deps.page,
-      pageSize: 20,
-      totalPages: 0,
+  beforeLoad: async ({ search }) => {
+    const shopId = search.shopId ?? (await getCreatorShops())[0]?.id
+    if (!shopId) {
+      throw redirect({ to: '/studio', replace: true })
     }
 
-    if (targetShop) {
-      payouts = await listCreatorPayouts({
-        data: {
-          shopId: targetShop.id,
-          page: deps.page,
-          pageSize: 20,
-          status: deps.status,
-        },
-      })
-    }
-
-    return { shops, payouts, currentShopId: targetShop?.id ?? null }
+    throw redirect({
+      to: '/studio/$shopId/payouts',
+      params: { shopId },
+      search: {
+        status: search.status,
+        page: search.page,
+      },
+      replace: true,
+    })
   },
-  head: () => ({
-    meta: [
-      { title: `${m.creator_payouts_title()} | Eurtisan` },
-      { name: 'description', content: m.creator_payouts_description() },
-    ],
-  }),
-  component: CreatorPayoutsRouteComponent,
-  pendingComponent: CreatorPayoutsLoading,
-  errorComponent: CreatorPayoutsError,
 })

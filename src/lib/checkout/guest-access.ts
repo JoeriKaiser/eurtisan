@@ -1,9 +1,12 @@
 import { createServerFn } from '@tanstack/react-start'
 import z from 'zod'
 import { createIpRateLimitMiddleware } from '../rate-limit'
+import { csrfMiddleware } from '../security/csrf-middleware'
+
+const guestOrderAccessRateLimit = createIpRateLimitMiddleware(3, 15 * 60_000, 'guest-order-access')
 
 export const requestGuestOrderAccess = createServerFn({ method: 'POST' })
-  .middleware([createIpRateLimitMiddleware(3, 15 * 60_000, 'guest-order-access')])
+  .middleware([guestOrderAccessRateLimit, csrfMiddleware])
   .inputValidator(
     z.object({
       orderNumber: z.string().trim().min(3).max(100),
@@ -17,6 +20,7 @@ export const requestGuestOrderAccess = createServerFn({ method: 'POST' })
   })
 
 export const exchangeGuestOrderAccess = createServerFn({ method: 'POST' })
+  .middleware([guestOrderAccessRateLimit, csrfMiddleware])
   .inputValidator(z.object({ token: z.string().min(32).max(256) }))
   .handler(async ({ data }) => {
     const { exchangeGuestOrderAccessToken } = await import('./guest-access.server')

@@ -20,7 +20,7 @@ import type {
   Step7Listing,
 } from '../sell-onboarding'
 import { sanitizeRichText, validatePlainText } from '../xss'
-import { decryptJsonb, encryptJsonb } from '../encryption.server'
+import { decryptIfEncrypted, decryptJsonb, encrypt, encryptJsonb } from '../encryption.server'
 import { SUPPORTED_CURRENCY } from '../currency'
 import { logger } from '../logger.server'
 
@@ -131,8 +131,8 @@ export async function getShopDraftQuery(
     vatId: record.vatId,
     legalEntityType: record.legalEntityType,
     traderStatus: record.traderStatus,
-    dateOfBirth: record.dateOfBirth,
-    taxId: record.taxId,
+    dateOfBirth: decryptIfEncrypted(record.dateOfBirth),
+    taxId: decryptIfEncrypted(record.taxId),
     businessRegistrationNumber: record.businessRegistrationNumber,
     policies: (record.policies as PoliciesData | null) ?? null,
     announcement: record.announcement,
@@ -257,8 +257,8 @@ export async function saveOnboardingStepInternal(
     updateData.legalEntityType = d.legalEntityType ? String(d.legalEntityType) : null
   if (d.traderStatus !== undefined) updateData.traderStatus = d.traderStatus as TraderStatus
   if (d.dateOfBirth !== undefined)
-    updateData.dateOfBirth = d.dateOfBirth ? String(d.dateOfBirth).trim() : null
-  if (d.taxId !== undefined) updateData.taxId = d.taxId ? String(d.taxId).trim() : null
+    updateData.dateOfBirth = d.dateOfBirth ? encrypt(String(d.dateOfBirth).trim()) : null
+  if (d.taxId !== undefined) updateData.taxId = d.taxId ? encrypt(String(d.taxId).trim()) : null
   if (d.businessRegistrationNumber !== undefined)
     updateData.businessRegistrationNumber = d.businessRegistrationNumber
       ? String(d.businessRegistrationNumber).trim()
@@ -448,10 +448,12 @@ export async function getOnboardingReadinessInternal(shopId: string) {
       record.description.length >= 50 &&
       record.image,
   )
+  const taxId = decryptIfEncrypted(record.taxId)
+  const dateOfBirth = decryptIfEncrypted(record.dateOfBirth)
   const hasValidIdentity =
-    Boolean(record.taxId) &&
+    Boolean(taxId) &&
     (record.legalEntityType === 'individual'
-      ? Boolean(record.dateOfBirth && /^\d{4}-\d{2}-\d{2}$/.test(record.dateOfBirth))
+      ? Boolean(dateOfBirth && /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth))
       : Boolean(record.businessRegistrationNumber))
   const isSellerComplete = Boolean(
     origin?.country &&

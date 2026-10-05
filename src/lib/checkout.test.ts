@@ -64,7 +64,7 @@ describe.sequential('checkout', () => {
         paymentId: testPaymentId,
         checkoutUrl: testCheckoutUrl,
       }),
-      getPaymentStatus: async () => 'paid',
+      getPaymentStatus: async () => 'pending',
       getPaymentAmount: async () => 1000,
       refundPayment: async () => undefined,
       cancelPayment: async () => undefined,
@@ -1552,6 +1552,65 @@ describe.sequential('checkout', () => {
 
       expect(updated.molliePaymentId).not.toBe('old_payment_id')
       expect(updated.molliePaymentId).toMatch(/^test_payment_/)
+    })
+
+    it('cancels the previous provider payment before minting a new one', async () => {
+      await seedUser()
+      await seedShop()
+
+      const order = await createPlatformOrder('user-1', {
+        totalCents: 1000,
+        status: 'pending_payment',
+        molliePaymentId: 'old_payment_id',
+      })
+      await reserveOrder(order.id)
+
+      let cancelledId: string | undefined
+      const provider: PaymentProvider = {
+        createPayment: async () => ({
+          paymentId: 'test_payment_retry',
+          checkoutUrl: 'https://checkout.mollie.com/pay/test_payment_retry',
+        }),
+        getPaymentStatus: async () => 'pending',
+        getPaymentAmount: async () => 1000,
+        refundPayment: async () => undefined,
+        cancelPayment: async (paymentId) => {
+          cancelledId = paymentId
+        },
+      }
+
+      await retryPayment(order.id, 'user-1', provider)
+      expect(cancelledId).toBe('old_payment_id')
+    })
+
+    it('refuses retry when the previous provider payment is already captured', async () => {
+      await seedUser()
+      await seedShop()
+
+      const order = await createPlatformOrder('user-1', {
+        totalCents: 1000,
+        status: 'pending_payment',
+        molliePaymentId: 'paid_payment_id',
+      })
+      await reserveOrder(order.id)
+
+      const provider: PaymentProvider = {
+        createPayment: async () => {
+          throw new Error('should not create a second payment')
+        },
+        getPaymentStatus: async () => 'paid',
+        getPaymentAmount: async () => 1000,
+        refundPayment: async () => undefined,
+        cancelPayment: async () => undefined,
+      }
+
+      try {
+        await retryPayment(order.id, 'user-1', provider)
+        expect.fail('Should have thrown')
+      } catch (err) {
+        expect(err instanceof Response).toBe(true)
+        expect((err as Response).status).toBe(409)
+      }
     })
   })
 })

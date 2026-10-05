@@ -7,7 +7,7 @@ export function AdminOrderDetailError({ error, reset }: { error: Error; reset?: 
   return (
     <div className='pb-16 pt-8 text-center'>
       <AlertTriangle size={48} className='mx-auto mb-4 text-error' aria-hidden='true' />
-      <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary'>
+      <h1 className='mb-2 text-2xl font-semibold text-text-primary'>
         {m.admin_order_detail_error_load()}
       </h1>
       <p className='mb-6 text-text-secondary'>{error.message}</p>

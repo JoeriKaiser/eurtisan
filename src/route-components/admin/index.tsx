@@ -80,9 +80,7 @@ export function AdminDashboard() {
     <div className='space-y-8'>
       {/* Header */}
       <div>
-        <h1 className='display-title text-3xl font-semibold text-text-primary'>
-          {m.admin_title()}
-        </h1>
+        <h1 className='text-3xl font-semibold text-text-primary'>{m.admin_title()}</h1>
         <p className='mt-1 text-text-secondary'>{m.admin_description()}</p>
       </div>
 
@@ -355,9 +353,7 @@ export function AdminDashboardError({ error, reset }: { error: Error; reset?: ()
   return (
     <div className='text-center py-12'>
       <AlertTriangle size={48} className='mx-auto mb-4 text-error' aria-hidden='true' />
-      <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary'>
-        {m.admin_error_load()}
-      </h1>
+      <h1 className='mb-2 text-2xl font-semibold text-text-primary'>{m.admin_error_load()}</h1>
       <p className='mb-6 text-text-secondary'>{error.message}</p>
       {reset && (
         <Button variant='secondary' onClick={reset}>

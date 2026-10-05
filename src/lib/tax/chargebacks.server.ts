@@ -1,13 +1,14 @@
 import { eq } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { platformOrder, shop, shopOrder } from '#/db/schema'
+import { molliePaymentProvider } from '#/integrations/mollie'
 import { scheduleBackgroundWork } from '../background-work.server'
 import { createCreditNoteForShopOrder } from '../invoices.server'
 import { restoreShopOrderStockInTx } from '../inventory.server'
 import { m } from '#/paraglide/messages'
 import { logger } from '../logger.server'
 import { ordersCancelledTotal } from '../metrics.server'
-import { reversePayoutForRefund } from '../payouts.server'
+import { reversePayoutForRefund, type PayoutReversalOptions } from '../payouts.server'
 import { recalcPlatformOrderStatus } from '../shop-orders.server'
 import type { OrderStatus } from '../orders.server'
 
@@ -61,7 +62,8 @@ export async function handleChargeback(
     return { status: 'already_processed' }
   }
 
-  await database.transaction(async (tx) => {
+  const routingReversals = await database.transaction(async (tx) => {
+    const collected: Array<{ refundCents: number; options: PayoutReversalOptions }> = []
     const [lockedOrder] = await tx
       .select({
         id: platformOrder.id,
@@ -75,7 +77,7 @@ export async function handleChargeback(
       .limit(1)
 
     if (!lockedOrder || lockedOrder.status === 'chargeback') {
-      return
+      return collected
     }
 
     const shopOrders = await tx
@@ -95,7 +97,18 @@ export async function handleChargeback(
       const remainingRefundCents = Math.max(0, shopOrderTotal - so.refundedCents)
 
       if (remainingRefundCents > 0) {
-        await reversePayoutForRefund(tx, so.id, remainingRefundCents, 'chargeback')
+        const reversalOptions = await reversePayoutForRefund(
+          tx,
+          so.id,
+          remainingRefundCents,
+          'chargeback',
+        )
+        if (
+          reversalOptions.reverseRouting ||
+          (reversalOptions.routingReversals && reversalOptions.routingReversals.length > 0)
+        ) {
+          collected.push({ refundCents: remainingRefundCents, options: reversalOptions })
+        }
         await createCreditNoteForShopOrder(so.id, tx)
       }
 
@@ -123,7 +136,24 @@ export async function handleChargeback(
       .where(eq(platformOrder.id, lockedOrder.id))
 
     await recalcPlatformOrderStatus(tx, lockedOrder.id)
+    return collected
   })
+
+  for (const reversal of routingReversals) {
+    try {
+      await molliePaymentProvider.refundPayment(molliePaymentId, reversal.refundCents, {
+        ...reversal.options,
+        idempotencyKey: `chargeback-reverse:${order.id}:${reversal.refundCents}`,
+      })
+    } catch (err) {
+      logger.error('Mollie routing reverse failed after chargeback', err, {
+        alert: true,
+        platformOrderId: order.id,
+        molliePaymentId,
+        refundCents: reversal.refundCents,
+      })
+    }
+  }
 
   ordersCancelledTotal.inc()
   logger.error('Chargeback processed for platform order', undefined, {

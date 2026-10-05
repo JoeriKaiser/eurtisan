@@ -17,11 +17,17 @@ import { describe, expect, it } from 'vitest'
  */
 
 const REPO_ROOT = join(import.meta.dirname, '../..')
-const LOCALES = ['en', 'nl'] as const
 
 function readSource(path: string): string {
   return readFileSync(join(REPO_ROOT, path), 'utf8')
 }
+
+function readConfiguredLocales(): string[] {
+  const settings = JSON.parse(readSource('project.inlang/settings.json')) as { locales: string[] }
+  return settings.locales
+}
+
+const LOCALES = readConfiguredLocales()
 
 const traderStatusContract = readSource('src/lib/shops/trader-status.ts')
 const schema = readSource('src/db/schema.ts')
@@ -29,10 +35,12 @@ const publicProfile = readSource('src/lib/shops/public-profile.server.ts')
 const productProjection = readSource('src/lib/products/operations.server.ts')
 const checkoutSummary = readSource('src/lib/checkout/summary.server.ts')
 const disclosure = readSource('src/components/TraderStatusDisclosure.tsx')
-const messages: Record<(typeof LOCALES)[number], Record<string, string>> = {
-  en: JSON.parse(readSource('messages/en.json')) as Record<string, string>,
-  nl: JSON.parse(readSource('messages/nl.json')) as Record<string, string>,
-}
+const messages: Record<string, Record<string, string>> = Object.fromEntries(
+  LOCALES.map((locale) => [
+    locale,
+    JSON.parse(readSource(`messages/${locale}.json`)) as Record<string, string>,
+  ]),
+)
 
 const DECLARATION_MESSAGE_KEYS = [
   'trader_status_trader',
@@ -59,6 +67,9 @@ describe('trader-status disclosure accuracy', () => {
     )
     expect(messages.nl[NON_TRADER_CONSEQUENCE_KEY]).toBe(
       'De consumentenrechtenbescherming die uit het Unierecht voortvloeit, is niet van toepassing op de overeenkomst.',
+    )
+    expect(messages.fr[NON_TRADER_CONSEQUENCE_KEY]).toBe(
+      "Les droits des consommateurs découlant du droit de l'Union en matière de protection des consommateurs ne s'appliquent pas au contrat.",
     )
   })
 

@@ -55,7 +55,7 @@ test.describe('creator shop settings', () => {
     const testName = `Settings Name ${uniqueSuffix}`
     const testDesc = `This is a test description of the shop settings update ${uniqueSuffix}`
 
-    await page.goto(`/creator/shop?shopId=${testShop.id}`)
+    await page.goto(`/studio/${testShop.id}/settings`)
     await waitForAppHydration(page)
 
     // 1. Edit brand details

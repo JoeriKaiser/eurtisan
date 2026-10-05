@@ -124,6 +124,8 @@ vi.mock('#/paraglide/messages', () => ({
     orderStatus_cancelled: () => 'Cancelled',
     orderStatus_refunded: () => 'Refunded',
     orderStatus_disputed: () => 'Disputed',
+    studio_orders_title: () => 'Shop Orders',
+    studio_orders_back_to_dashboard: () => 'Back to dashboard',
   },
 }))
 

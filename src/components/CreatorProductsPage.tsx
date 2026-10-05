@@ -79,6 +79,8 @@ export function CreatorProductsPage({
 
   const navigateWithParams = useCallback(
     (overrides: Record<string, string | number | undefined>) => {
+      if (!currentShopId) return
+
       setToggleStates({})
       setSelectedIds(new Set())
       const params: Record<string, string | number> = {
@@ -89,12 +91,6 @@ export function CreatorProductsPage({
         ...overrides,
       }
 
-      // Include shopId only when it exists
-      if (currentShopId) {
-        params.shopId = currentShopId
-      }
-
-      // Only include search if non-empty
       const searchValue =
         overrides.search !== undefined ? String(overrides.search) : localSearchRef.current
       if (searchValue?.trim()) {
@@ -104,7 +100,8 @@ export function CreatorProductsPage({
       }
 
       router.navigate({
-        to: '/creator/products',
+        to: '/studio/$shopId/products',
+        params: { shopId: currentShopId },
         search: params,
         replace: true,
       })
@@ -164,9 +161,9 @@ export function CreatorProductsPage({
       setSelectedIds(new Set())
       setLocalSearch('')
       router.navigate({
-        to: '/creator/products',
+        to: '/studio/$shopId/products',
+        params: { shopId: newShopId },
         search: {
-          shopId: newShopId,
           page: 1,
           pageSize: initialSearch.pageSize,
           active: 'all',
@@ -301,19 +298,21 @@ export function CreatorProductsPage({
         {/* Header */}
         <div className='mb-2 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
           <div>
-            <h1 className='display-title text-3xl font-semibold text-text-primary'>
+            <h1 className='text-3xl font-semibold text-text-primary'>
               {m.creator_products_title()}
             </h1>
             <p className='mt-1 text-text-secondary'>{m.creator_products_description()}</p>
           </div>
-          <Link
-            to='/creator/products/new'
-            search={currentShopId ? { shopId: currentShopId } : undefined}
-            className='inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-accent-primary px-4 py-2.5 text-sm font-medium text-text-on-primary no-underline shadow-sm transition hover:bg-accent-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
-          >
-            <Plus size={16} aria-hidden='true' />
-            {m.creator_products_add_product()}
-          </Link>
+          {currentShopId ? (
+            <Link
+              to='/studio/$shopId/products/new'
+              params={{ shopId: currentShopId }}
+              className='inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-accent-primary px-4 py-2.5 text-sm font-medium text-text-on-primary no-underline shadow-sm transition hover:bg-accent-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
+            >
+              <Plus size={16} aria-hidden='true' />
+              {m.creator_products_add_product()}
+            </Link>
+          ) : null}
         </div>
 
         {/* Shop selector */}

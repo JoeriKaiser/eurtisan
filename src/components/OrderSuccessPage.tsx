@@ -277,18 +277,13 @@ export default function OrderSuccessPage({ order, onRetryPayment }: OrderSuccess
 
               {isCancelled && (
                 <>
-                  {onRetryPayment && (
-                    <Button
-                      size='lg'
-                      onClick={() => {
-                        void handleRetryPayment()
-                      }}
-                      isLoading={retryState.isLoading}
-                      disabled={retryState.isLoading}
-                    >
-                      {m.order_failed_retry_payment()}
-                    </Button>
-                  )}
+                  <Button
+                    size='lg'
+                    onClick={() => void handleRebuildCart()}
+                    isLoading={retryState.isLoading}
+                  >
+                    {m.order_failed_rebuild_cart()}
+                  </Button>
                   <Link to='/orders/$platformOrderId' params={{ platformOrderId: order.id }}>
                     <Button variant='secondary' size='lg'>
                       {m.order_failed_view_order()}

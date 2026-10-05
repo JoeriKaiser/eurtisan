@@ -428,9 +428,7 @@ function AdminReviewsContent({ initialData }: { initialData: AdminModerationLoad
   return (
     <div className='space-y-6'>
       <header>
-        <h1 className='display-title text-3xl font-semibold text-text-primary'>
-          {m.admin_reviews_title()}
-        </h1>
+        <h1 className='text-3xl font-semibold text-text-primary'>{m.admin_reviews_title()}</h1>
         <p className='mt-1 text-text-secondary'>{m.admin_reviews_description()}</p>
       </header>
 

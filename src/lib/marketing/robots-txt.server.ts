@@ -14,6 +14,7 @@ export function buildRobotsTxt(): string {
     'Disallow: /cart',
     'Disallow: /checkout',
     'Disallow: /creator',
+    'Disallow: /studio',
     'Disallow: /admin',
     'Disallow: /api',
     'Disallow: /orders',

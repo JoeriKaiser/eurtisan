@@ -159,7 +159,7 @@ export const Route = createFileRoute('/api/auth/mollie/callback')({
         return new Response(null, {
           status: 302,
           headers: {
-            Location: `/creator/payouts?shopId=${encodeURIComponent(shopId)}&${activationSearch}`,
+            Location: `/studio/${encodeURIComponent(shopId)}/payouts?${activationSearch}`,
           },
         })
       },

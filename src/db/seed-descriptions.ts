@@ -20,7 +20,6 @@ export const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   Candles: 'Hand-poured candles in soy, beeswax, and aromatherapy blends.',
   Furniture: 'Hand-built seating, tables, and storage for the home.',
   'Soap & Bath': 'Artisan soaps, bath treats, and natural skincare.',
-  'Food & Drink': 'Small-batch preserves, honey, spices, and edible gifts.',
   'Musical Instruments': 'Handcrafted flutes, percussion, and stringed instruments.',
 }
 
@@ -64,9 +63,6 @@ export const SUBCATEGORY_DESCRIPTIONS: Record<string, string> = {
   'Soap & Bath-Bar Soap': 'Cold-process and glycerin bar soaps.',
   'Soap & Bath-Bath Bombs': 'Fizzy, fragranced bath bombs.',
   'Soap & Bath-Skincare': 'Natural creams, serums, and balms.',
-  'Food & Drink-Preserves': 'Jams, chutneys, and jarred specialities.',
-  'Food & Drink-Honey': 'Raw and infused honeys from small apiaries.',
-  'Food & Drink-Spices': 'Whole and ground spice blends.',
   'Musical Instruments-Flutes': 'Handmade flutes in wood and bamboo.',
   'Musical Instruments-Percussion': 'Drums, shakers, and rhythm instruments.',
   'Musical Instruments-Strings': 'Hand-strung instruments and accessories.',

@@ -485,6 +485,7 @@ export async function cancelAbandonedPendingPaymentOrders(
           lt(platformOrder.createdAt, sql`now() - interval '30 minutes'`),
         ),
       )
+      .for('update', { skipLocked: true })
       .limit(batchSize)
 
     if (abandoned.length === 0) {
@@ -494,23 +495,31 @@ export async function cancelAbandonedPendingPaymentOrders(
     const ids = abandoned.map((o) => o.id)
     const now = new Date()
 
-    await tx
+    const cancelled = await tx
       .update(platformOrder)
       .set({
         status: 'cancelled',
         cancelledAt: now,
         cancellationReason: 'Abandoned: payment not received within 30 minutes',
       })
-      .where(inArray(platformOrder.id, ids))
+      .where(and(inArray(platformOrder.id, ids), eq(platformOrder.status, 'pending_payment')))
+      .returning({ id: platformOrder.id })
+
+    const cancelledIds = cancelled.map((row) => row.id)
+    if (cancelledIds.length === 0) {
+      return { cancelledCount: 0 }
+    }
 
     await tx
       .update(shopOrder)
       .set({ status: 'cancelled' })
-      .where(inArray(shopOrder.platformOrderId, ids))
+      .where(inArray(shopOrder.platformOrderId, cancelledIds))
 
-    await tx.delete(inventoryReservation).where(inArray(inventoryReservation.platformOrderId, ids))
+    await tx
+      .delete(inventoryReservation)
+      .where(inArray(inventoryReservation.platformOrderId, cancelledIds))
 
-    return { cancelledCount: abandoned.length }
+    return { cancelledCount: cancelledIds.length }
   })
 }
 

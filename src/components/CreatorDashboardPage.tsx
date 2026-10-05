@@ -51,9 +51,7 @@ export function CreatorDashboardPage({ stats, activity, shops }: CreatorDashboar
   return (
     <main className='page-wrap px-4 py-12'>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
-        <h1 className='display-title mb-2 text-3xl font-semibold text-text-primary'>
-          {m.creator_title()}
-        </h1>
+        <h1 className='mb-2 text-3xl font-semibold text-text-primary'>{m.creator_title()}</h1>
         <p className='mb-8 text-text-secondary'>{m.creator_description()}</p>
 
         {firstShop?.status === 'active' &&
@@ -74,8 +72,8 @@ export function CreatorDashboardPage({ stats, activity, shops }: CreatorDashboar
                   </p>
                 </div>
                 <Link
-                  to='/creator/shop'
-                  search={{ shopId: firstShop.id }}
+                  to='/studio/$shopId/settings'
+                  params={{ shopId: firstShop.id }}
                   className='inline-flex min-h-11 items-center text-sm font-semibold text-accent-primary hover:underline'
                 >
                   {m.creator_readiness_open_settings()}
@@ -141,7 +139,7 @@ export function CreatorDashboardPage({ stats, activity, shops }: CreatorDashboar
             <QuickActionButton
               label={m.creator_quick_products()}
               icon={<Package size={18} aria-hidden='true' />}
-              to={firstShop ? `/creator/products?shopId=${firstShop.id}` : '/creator/products'}
+              to={firstShop ? `/studio/${firstShop.id}/products` : '/studio'}
             />
             <QuickActionButton
               label={m.creator_quick_orders()}
@@ -151,7 +149,7 @@ export function CreatorDashboardPage({ stats, activity, shops }: CreatorDashboar
             <QuickActionButton
               label={m.creator_quick_settings()}
               icon={<Settings size={18} aria-hidden='true' />}
-              to={firstShop ? `/creator/shop?shopId=${firstShop.id}` : '/creator/shop'}
+              to={firstShop ? `/studio/${firstShop.id}/settings` : '/studio'}
             />
           </div>
         </div>

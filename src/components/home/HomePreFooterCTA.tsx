@@ -45,13 +45,13 @@ export function HomePreFooterCTA({
       )
 
       if (activeShop) {
-        preFooterCtaLink = `/creator?shopId=${activeShop.id}`
+        preFooterCtaLink = `/studio/${activeShop.id}`
       } else if (draftShop) {
         preFooterCtaLink = `/sell/onboarding/${draftShop.id}`
       } else if (pendingShop) {
         preFooterCtaLink = `/sell/status/${pendingShop.id}`
       } else {
-        preFooterCtaLink = `/creator?shopId=${sellerShops[0].id}`
+        preFooterCtaLink = `/studio/${sellerShops[0].id}`
       }
     } else {
       preFooterCtaLink = '/sell'

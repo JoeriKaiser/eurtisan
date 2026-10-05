@@ -40,7 +40,7 @@ test.describe('creator fulfillment and financial actions', () => {
     const shop = await getCreatorShop()
 
     // Navigate to Creator Payouts page
-    await page.goto(`/creator/payouts?shopId=${shop.id}`)
+    await page.goto(`/studio/${shop.id}/payouts`)
     await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: 'Payouts', exact: true })).toBeVisible()
@@ -68,7 +68,7 @@ test.describe('creator fulfillment and financial actions', () => {
     await page.getByRole('button', { name: /authorize access/i }).click()
 
     // Verify redirect back to Payouts page and connection status shows Connected
-    await page.waitForURL(/\/creator\/payouts/)
+    await page.waitForURL(/\/studio\/[^/]+\/payouts/)
     await waitForAppHydration(page)
     await expect(page.getByText('Connected').first()).toBeVisible({ timeout: 15000 })
   })

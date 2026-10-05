@@ -37,7 +37,7 @@ Self-service deletion is implemented in `src/lib/account-data.server.ts` (`delet
 | `invoices` | `invoiceNumber`, type, amounts, VAT, shop order link | `billingDetails` replaced with redacted address object for both seller invoices (shops owned by the user) and buyer invoices (orders placed by the user) |
 | `shop` (owned) | `id`, name, slug, status, financial/tax data | `businessAddress`, `shippingOrigin` replaced with redacted address object; status set to `archived` |
 | `payout_reconciliation_log` | Event metadata required for reconciliation | `payload` personal fields (`buyerName`, `buyerEmail`, `address`, `shippingAddress`, `billingAddress`, `name`, `email`) masked or replaced |
-| `audit_log` | `actorId`, action, resource, metadata | `actorName` set to `'Deleted User'`; `actorId` kept for traceability |
+| `audit_log` | action, resource, metadata | `actorName` set to `'Deleted User'`; `actorId` set to NULL |
 | `order_item` | Product snapshots, quantities, prices | No direct PII; retained for order history |
 | `review` | Rating, product link | `comment` set to `null` |
 | `dispute` | Reason, status, resolution | `description` redacted |
@@ -49,7 +49,7 @@ Self-service deletion is implemented in `src/lib/account-data.server.ts` (`delet
 | `owner_message` | Message thread context | `body` set to `'[REDACTED]'` |
 | `customer_note` | Shop owner notes | `content` set to `'[REDACTED]'` |
 | `customer_tag` | Shop owner tags | Rows for the deleted user removed |
-| `shipping_label` | Carrier/tracking record for the buyer's orders | `label_url` cleared; `carrier`, `tracking_number`, `external_parcel_id`, and `created_at` retained |
+| `shipping_label` | Carrier/tracking record for the buyer's orders | `label_url`, `tracking_number`, and `external_parcel_id` cleared; `carrier` and `created_at` retained |
 
 Deleted rows in `session`, `account`, `twoFactor`, `notification`, `cart`, and `cart_item` are removed. `product` rows belonging to owned shops are deactivated (`isActive = false`).
 

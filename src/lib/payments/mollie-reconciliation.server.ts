@@ -2,7 +2,14 @@ import '@tanstack/react-start/server-only'
 
 import { and, eq, isNotNull, lte, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { orderItem, platformOrder, product, productVariant, shopOrder } from '#/db/schema'
+import {
+  orderItem,
+  paymentAttempt,
+  platformOrder,
+  product,
+  productVariant,
+  shopOrder,
+} from '#/db/schema'
 import { molliePaymentProvider } from '#/integrations/mollie'
 import { handleChargeback } from '#/lib/chargebacks.server'
 import { decrementStockForPaidOrder } from '#/lib/inventory.server'
@@ -75,7 +82,7 @@ export async function reconcileMolliePayment(
   const database = options?.db ?? db
   const provider = options?.paymentProvider ?? molliePaymentProvider
 
-  const [order] = await database
+  let [order] = await database
     .select({
       id: platformOrder.id,
       status: platformOrder.status,
@@ -86,7 +93,59 @@ export async function reconcileMolliePayment(
     .limit(1)
 
   if (!order) {
-    return { status: 'unknown_payment' }
+    const [attempt] = await database
+      .select()
+      .from(paymentAttempt)
+      .where(eq(paymentAttempt.providerPaymentId, molliePaymentId))
+      .limit(1)
+
+    if (!attempt) {
+      logger.error('Mollie webhook for unknown payment', undefined, {
+        alert: true,
+        molliePaymentId,
+      })
+      return { status: 'unknown_payment' }
+    }
+
+    if (attempt.status === 'superseded') {
+      const supersededStatus = await provider.getPaymentStatus(molliePaymentId)
+      if (supersededStatus === 'paid') {
+        logger.error('Captured superseded Mollie payment', undefined, {
+          alert: true,
+          molliePaymentId,
+          platformOrderId: attempt.platformOrderId,
+        })
+        try {
+          await provider.refundPayment(molliePaymentId)
+        } catch (error) {
+          logger.error('Failed to refund superseded capture', error, {
+            alert: true,
+            molliePaymentId,
+          })
+        }
+      }
+      return { status: 'unknown_payment', platformOrderId: attempt.platformOrderId }
+    }
+
+    const [attemptOrder] = await database
+      .select({
+        id: platformOrder.id,
+        status: platformOrder.status,
+        totalCents: platformOrder.totalCents,
+      })
+      .from(platformOrder)
+      .where(eq(platformOrder.id, attempt.platformOrderId))
+      .limit(1)
+
+    if (!attemptOrder) {
+      logger.error('Mollie webhook for payment without order', undefined, {
+        alert: true,
+        molliePaymentId,
+      })
+      return { status: 'unknown_payment' }
+    }
+
+    order = attemptOrder
   }
 
   const chargebackEligible = CHARGEBACK_ELIGIBLE_STATUSES.has(order.status)

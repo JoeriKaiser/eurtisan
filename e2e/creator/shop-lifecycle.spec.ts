@@ -69,7 +69,7 @@ test.describe('creator shop lifecycle', () => {
   })
 
   async function goToShopSettings(page: Page): Promise<void> {
-    await page.goto(`/creator/shop?shopId=${shop.id}`)
+    await page.goto(`/studio/${shop.id}/settings`)
     await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
   }
@@ -138,9 +138,11 @@ test.describe('creator shop lifecycle', () => {
     await page.evaluate(() => {
       window.localStorage.setItem('eurtisan_analytics_consent', 'denied')
     })
-    await page.goto('/creator')
-    await page.waitForURL('/creator')
-    await expect(page.getByText("You don't have any shops yet.")).toBeVisible({
+    await page.goto('/studio')
+    await page.waitForURL(/\/studio\/?$/)
+    await expect(
+      page.getByText('You do not have any shops yet. Create your first shop to start selling.'),
+    ).toBeVisible({
       timeout: 15000,
     })
   })

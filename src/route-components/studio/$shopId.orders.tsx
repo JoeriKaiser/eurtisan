@@ -90,13 +90,13 @@ export function ShopOrdersPage() {
     <main className='page-wrap px-4 py-12'>
       <div className='mx-auto max-w-5xl'>
         <div className='mb-6 flex flex-wrap items-center justify-between gap-4'>
-          <h1 className='display-title text-2xl font-semibold text-text-primary'>Shop Orders</h1>
+          <h1 className='text-2xl font-semibold text-text-primary'>{m.studio_orders_title()}</h1>
           <Link
             to='/studio/$shopId'
             params={{ shopId }}
             className='text-sm text-text-secondary hover:text-text-primary'
           >
-            Back to dashboard
+            {m.studio_orders_back_to_dashboard()}
           </Link>
         </div>
 

@@ -103,17 +103,16 @@ export function CreatorPayoutsPage({
 
   const navigateWithParams = useCallback(
     (overrides: Record<string, string | number | undefined>) => {
+      if (!currentShopId) return
+
       const params: Record<string, string | number> = {
         status: statusFilter,
         ...overrides,
       }
 
-      if (currentShopId) {
-        params.shopId = currentShopId
-      }
-
       router.navigate({
-        to: '/creator/payouts',
+        to: '/studio/$shopId/payouts',
+        params: { shopId: currentShopId },
         search: params,
         replace: true,
       })
@@ -124,10 +123,12 @@ export function CreatorPayoutsPage({
   const handleStatusFilter = useCallback(
     (status: CreatorPayoutsPageProps['initialStatus']) => {
       setStatusFilter(status)
+      if (!currentShopId) return
+
       router.navigate({
-        to: '/creator/payouts',
+        to: '/studio/$shopId/payouts',
+        params: { shopId: currentShopId },
         search: {
-          shopId: currentShopId ?? undefined,
           status,
           page: 1,
         },
@@ -147,8 +148,9 @@ export function CreatorPayoutsPage({
   const handleShopChange = useCallback(
     (newShopId: string) => {
       router.navigate({
-        to: '/creator/payouts',
-        search: { shopId: newShopId, status: statusFilter, page: 1 },
+        to: '/studio/$shopId/payouts',
+        params: { shopId: newShopId },
+        search: { status: statusFilter, page: 1 },
         replace: true,
       })
     },
@@ -187,7 +189,7 @@ export function CreatorPayoutsPage({
     <main className='page-wrap px-4 py-12'>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
         {/* Header */}
-        <h1 className='display-title mb-2 text-3xl font-semibold text-text-primary'>
+        <h1 className='mb-2 text-3xl font-semibold text-text-primary'>
           {m.creator_payouts_title()}
         </h1>
         <p className='mb-6 text-text-secondary'>{m.creator_payouts_description()}</p>

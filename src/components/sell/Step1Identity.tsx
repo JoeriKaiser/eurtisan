@@ -183,9 +183,7 @@ export function Step1Identity() {
     <div ref={stepActionsRef} className='space-y-8'>
       <header>
         <p className='text-sm font-medium text-accent-primary'>{m.onboarding_time_estimate()}</p>
-        <h1 className='display-title mt-1 text-2xl text-text-primary'>
-          {m.onboarding_profile_title()}
-        </h1>
+        <h1 className='mt-1 text-2xl text-text-primary'>{m.onboarding_profile_title()}</h1>
         <p className='mt-2 max-w-[65ch] text-text-secondary'>
           {m.onboarding_profile_description()}
         </p>

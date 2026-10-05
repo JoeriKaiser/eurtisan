@@ -81,7 +81,7 @@ test.describe('creator advanced shop settings', () => {
     const newSocialUrl = 'https://instagram.com/e2e-advanced-shop'
     const newAnnouncement = 'Welcome to the advanced shop settings test run!'
 
-    await page.goto(`/creator/shop?shopId=${shopId}`)
+    await page.goto(`/studio/${shopId}/settings`)
     await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
     await page.waitForLoadState('networkidle')
@@ -122,7 +122,7 @@ test.describe('creator advanced shop settings', () => {
     })
 
     // Reload and verify values persisted.
-    await page.goto(`/creator/shop?shopId=${shopId}`)
+    await page.goto(`/studio/${shopId}/settings`)
     await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
     await page.waitForLoadState('networkidle')

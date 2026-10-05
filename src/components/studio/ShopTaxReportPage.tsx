@@ -181,7 +181,7 @@ export function ShopTaxReportPage({ initialReport }: ShopTaxReportPageProps) {
       <section ref={lifecycleOwnerRef} className='island-shell rounded-2xl p-6 sm:p-8'>
         <div className='mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
           <div>
-            <h1 className='display-title mb-2 text-3xl font-semibold text-text-primary'>
+            <h1 className='mb-2 text-3xl font-semibold text-text-primary'>
               {m.tax_report_title()}
             </h1>
             <p className='text-text-secondary'>{m.tax_report_description()}</p>
@@ -279,8 +279,8 @@ export function ShopTaxReportPage({ initialReport }: ShopTaxReportPageProps) {
                     <div className='rounded-lg border border-warning/20 bg-warning-subtle p-3'>
                       <p className='mb-2 text-sm text-warning'>{m.tax_report_dac7_incomplete()}</p>
                       <Link
-                        to='/creator/shop'
-                        search={{ shopId: report.shopId }}
+                        to='/studio/$shopId/settings'
+                        params={{ shopId: report.shopId }}
                         className='text-sm font-medium text-accent-secondary hover:underline'
                       >
                         {m.tax_report_dac7_settings_link()}

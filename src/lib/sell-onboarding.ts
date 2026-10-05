@@ -419,6 +419,7 @@ export const createShopDraft = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
   .handler(async ({ context }) => {
     if (!context.user) throw new Error('UNAUTHENTICATED')
+    requirePrivileged2FA(context.user)
     const { createShopDraftInternal } = await import('./sell-onboarding.server')
     return createShopDraftInternal(context.user)
   })
@@ -476,6 +477,7 @@ export const saveOnboardingStep = createServerFn({ method: 'POST' })
   )
   .handler(async ({ context, data }) => {
     if (!context.user) throw new Error('UNAUTHENTICATED')
+    requirePrivileged2FA(context.user)
 
     // Validate step data server-side before persisting
     validateOnboardingStepData(data.step, data.data)
@@ -532,6 +534,7 @@ export const submitShopForReview = createServerFn({ method: 'POST' })
   )
   .handler(async ({ context, data }) => {
     if (!context.user) throw new Error('UNAUTHENTICATED')
+    requirePrivileged2FA(context.user)
     const { submitShopForReviewInternal } = await import('./sell-onboarding.server')
     return submitShopForReviewInternal(context.user.id, context.user.role, data.draftId, {
       termsAgreed: data.termsAgreed,
@@ -623,6 +626,7 @@ export const saveDraftListing = createServerFn({ method: 'POST' })
   )
   .handler(async ({ context, data }) => {
     if (!context.user) throw new Error('UNAUTHENTICATED')
+    requirePrivileged2FA(context.user)
 
     const { saveDraftListingInternal } = await import('./sell-onboarding.server')
     return saveDraftListingInternal(context.user, data)

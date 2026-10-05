@@ -6,9 +6,7 @@ export function AdminDisputeDetailError({ error }: { error: Error }) {
     <div className='py-8'>
       <div className='mx-auto max-w-4xl text-center'>
         <AlertTriangle size={48} className='mx-auto mb-4 text-error' aria-hidden='true' />
-        <h1 className='display-title mb-4 text-2xl font-semibold text-text-primary'>
-          Failed to load dispute
-        </h1>
+        <h1 className='mb-4 text-2xl font-semibold text-text-primary'>Failed to load dispute</h1>
         <p className='mb-6 text-text-secondary'>{error.message}</p>
         <Link
           to='/admin/disputes'

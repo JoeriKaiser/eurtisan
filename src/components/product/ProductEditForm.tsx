@@ -526,13 +526,19 @@ export function ProductEditForm({
     if (hasChanges) {
       setShowCancelConfirm(true)
     } else {
-      router.navigate({ to: '/creator/products' })
+      router.navigate({
+        to: '/studio/$shopId/products',
+        params: { shopId: product.shopId },
+      })
     }
   }
 
   const handleConfirmCancel = () => {
     setShowCancelConfirm(false)
-    router.navigate({ to: '/creator/products' })
+    router.navigate({
+      to: '/studio/$shopId/products',
+      params: { shopId: product.shopId },
+    })
   }
 
   const handleDismissCancel = () => {
@@ -628,7 +634,10 @@ export function ProductEditForm({
           hard: false,
         },
       })
-      router.navigate({ to: '/creator/products' })
+      router.navigate({
+        to: '/studio/$shopId/products',
+        params: { shopId: product.shopId },
+      })
     } catch {
       setSubmissionState({
         submitting: false,
@@ -649,7 +658,7 @@ export function ProductEditForm({
         {/* Header */}
         <div className='mb-8 flex items-start justify-between gap-4'>
           <div>
-            <h1 className='display-title mb-2 text-3xl font-semibold text-text-primary'>
+            <h1 className='mb-2 text-3xl font-semibold text-text-primary'>
               {m.creator_product_edit_title()}
             </h1>
             <p className='text-text-secondary'>{m.creator_product_edit_description()}</p>

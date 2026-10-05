@@ -453,6 +453,73 @@ describe('executePayoutQuery', () => {
     expect(updated?.status).toBe('failed')
     expect(updated?.failureReason).toBe('Mollie API error')
   })
+
+  it('finalizes an in_transit payout that already has a route id without creating another', async () => {
+    await seedUser()
+    await seedShop()
+    const platformOrd = await seedPlatformOrder()
+    const order = await seedShopOrder({
+      platformOrderId: platformOrd.id,
+      shopId: 'shop-1',
+      subtotalCents: 5000,
+      status: 'delivered',
+    })
+
+    const [inTransit] = await db
+      .insert(payout)
+      .values({
+        shopOrderId: order.id,
+        shopId: 'shop-1',
+        amountCents: 4500,
+        status: 'in_transit',
+        molliePaymentId: 'tr_test',
+        mollieRouteId: 'crt_existing',
+      })
+      .returning()
+
+    const result = await executePayoutQuery(inTransit.id)
+    expect(result.routeId).toBe('crt_existing')
+
+    const [updated] = await db.select().from(payout).where(eq(payout.id, inTransit.id))
+    expect(updated?.status).toBe('sent')
+    expect(updated?.mollieRouteId).toBe('crt_existing')
+  })
+
+  it('retries in_transit without a route id using the payout id as the Mollie idempotency key', async () => {
+    await seedUser()
+    await seedShop()
+    const platformOrd = await seedPlatformOrder()
+    const order = await seedShopOrder({
+      platformOrderId: platformOrd.id,
+      shopId: 'shop-1',
+      subtotalCents: 5000,
+      status: 'delivered',
+    })
+
+    const [inTransit] = await db
+      .insert(payout)
+      .values({
+        shopOrderId: order.id,
+        shopId: 'shop-1',
+        amountCents: 4500,
+        status: 'in_transit',
+        molliePaymentId: 'tr_test',
+      })
+      .returning()
+
+    const first = await executePayoutQuery(inTransit.id)
+    await db
+      .update(payout)
+      .set({ status: 'in_transit', mollieRouteId: null, sentAt: null, executedAt: null })
+      .where(eq(payout.id, inTransit.id))
+
+    const second = await executePayoutQuery(inTransit.id)
+    expect(second.routeId).toBe(first.routeId)
+
+    const [updated] = await db.select().from(payout).where(eq(payout.id, inTransit.id))
+    expect(updated?.status).toBe('sent')
+    expect(updated?.mollieRouteId).toBe(first.routeId)
+  })
 })
 
 describe('listCreatorPayoutsQuery', () => {
