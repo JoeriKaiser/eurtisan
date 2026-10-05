@@ -1372,6 +1372,8 @@
   "admin_payouts_status_sent": "Verstuurd",
   "admin_payouts_status_failed": "Mislukt",
   "admin_payouts_status_reversed": "Teruggedraaid",
+  "admin_payouts_on_hold_suspended": "In de wacht (winkel geschorst)",
+  "admin_payouts_suspended_tooltip": "Uitbetaling kan niet worden uitgevoerd terwijl de winkel is geschorst",
   "admin_payouts_send_payout": "Uitbetaling verzenden",
   "admin_payouts_retry_payout": "Uitbetaling opnieuw proberen",
   "admin_payouts_send_payout_aria": "Uitbetaling verzenden voor {creator}",

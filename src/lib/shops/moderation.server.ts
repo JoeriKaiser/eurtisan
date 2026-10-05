@@ -152,11 +152,16 @@ export async function moderateShopQuery(
 
   // Verify the shop exists.
   const [shopRecord] = await db
-    .select({ id: shop.id, name: shop.name, ownerId: shop.ownerId, isSuspended: shop.isSuspended })
+    .select({
+      id: shop.id,
+      name: shop.name,
+      slug: shop.slug,
+      ownerId: shop.ownerId,
+      isSuspended: shop.isSuspended,
+    })
     .from(shop)
     .where(eq(shop.id, shopId))
     .limit(1)
-
   if (!shopRecord) {
     throw new Error(`Shop not found: ${shopId}`)
   }
@@ -209,14 +214,22 @@ export async function moderateShopQuery(
 
   // DSA Article 17 Statement of Reasons notification to the shop owner
   if (shopRecord.ownerId) {
-    await createNotification(shopRecord.ownerId, 'shop_moderation_update', {
+    const notificationData: Record<string, string | boolean | string[]> = {
       shopId,
-      shopName: shopRecord.name,
-      action,
-      reason: note ?? (isSuspended ? 'Shop suspended by administration' : 'Shop suspension lifted'),
-      legalGrounds: 'DSA Article 17 Statement of Reasons / Terms of Service enforcement',
-      redress: 'You may appeal this decision by contacting moderation support within 6 months.',
-    })
+      shopSlug: shopRecord.slug,
+      restriction: isSuspended ? 'suspended' : 'restored',
+      territorialScope: 'all',
+      explanation:
+        note ?? (isSuspended ? 'Shop suspended by administration' : 'Shop suspension lifted'),
+      promptedByNotice: false,
+      automatedMeans: false,
+      ground: 'terms',
+      redress: ['contact_support', 'judicial_remedy'],
+    }
+    if (isSuspended) {
+      notificationData.duration = 'indefinite'
+    }
+    await createNotification(shopRecord.ownerId, 'shop_moderated', notificationData)
   }
 
   return updated

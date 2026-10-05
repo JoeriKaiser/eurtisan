@@ -1372,6 +1372,8 @@
   "admin_payouts_status_sent": "Sent",
   "admin_payouts_status_failed": "Failed",
   "admin_payouts_status_reversed": "Reversed",
+  "admin_payouts_on_hold_suspended": "On hold (shop suspended)",
+  "admin_payouts_suspended_tooltip": "Payout cannot be executed while shop is suspended",
   "admin_payouts_send_payout": "Send Payout",
   "admin_payouts_retry_payout": "Retry Payout",
   "admin_payouts_send_payout_aria": "Send payout for {creator}",

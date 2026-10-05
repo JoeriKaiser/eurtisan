@@ -44,4 +44,5 @@ export interface AdminPayoutRow {
   creatorName: string
   creatorId: string
   failureReason: string | null
+  isSuspended: boolean
 }
