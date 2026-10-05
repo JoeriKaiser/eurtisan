@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { db } from '#/db/index'
+import { clearTestTables } from '#/test/cleanup'
 import {
   inventoryReservation,
   orderItem,
@@ -553,13 +554,11 @@ describe('restoreShopOrderStockInTx', () => {
 
 describe('decrementStockForPaidOrder oversell handling', () => {
   beforeEach(async () => {
-    await db.delete(orderItem)
-    await db.delete(inventoryReservation)
-    await db.delete(shopOrder)
-    await db.delete(platformOrder)
-    await db.delete(product)
-    await db.delete(shop)
-    await db.delete(user)
+    await clearTestTables()
+  })
+
+  afterAll(async () => {
+    await clearTestTables()
   })
 
   /** Seeds an order for `orderQuantity` units against `stockCount` in stock. */

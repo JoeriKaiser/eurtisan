@@ -131,4 +131,13 @@ describe('assertBrowserTestsDatabaseFree', () => {
 
     expect(() => assertBrowserTestsDatabaseFree(root)).not.toThrow()
   })
+
+  it('skips verification when verified environment flag is true', () => {
+    const root = createProject({
+      'src/db/index.ts': 'export const db = {}',
+      'src/components/Card.test.tsx': "import { db } from '#/db/index'\nvoid db",
+    })
+
+    expect(() => assertBrowserTestsDatabaseFree(root, 'true')).not.toThrow()
+  })
 })
