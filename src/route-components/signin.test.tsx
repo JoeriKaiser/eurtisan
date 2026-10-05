@@ -337,4 +337,110 @@ describe('SignIn', () => {
     })
     expect(mockSignUpEmail).not.toHaveBeenCalled()
   })
+
+  it('links the error banner to the email and password inputs after a failed sign-in', async () => {
+    mockSignInEmail.mockResolvedValue({ error: { message: 'Invalid credentials' }, data: null })
+
+    render(<SignIn />)
+
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'test@example.com' } })
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('Invalid credentials')
+    })
+
+    const banner = screen.getByRole('alert')
+    expect(banner.id).toBe('auth-form-error')
+
+    const email = screen.getByLabelText('Email')
+    const password = screen.getByLabelText('Password')
+    expect(email.getAttribute('aria-describedby')).toBe('auth-form-error')
+    expect(email.getAttribute('aria-invalid')).toBe('true')
+    expect(password.getAttribute('aria-describedby')).toBe('auth-form-error')
+    expect(password.getAttribute('aria-invalid')).toBe('true')
+  })
+
+  it('leaves the email and password inputs unlinked and valid when no error is present', () => {
+    render(<SignIn />)
+
+    const email = screen.getByLabelText('Email')
+    const password = screen.getByLabelText('Password')
+
+    expect(email.getAttribute('aria-describedby')).toBeNull()
+    expect(email.getAttribute('aria-invalid')).toBe('false')
+    expect(password.getAttribute('aria-describedby')).toBeNull()
+    expect(password.getAttribute('aria-invalid')).toBe('false')
+  })
+
+  it('links the authenticator code input to the error banner after a failed two-factor attempt', async () => {
+    mockSignInEmail.mockResolvedValue({ error: null, data: { twoFactorRedirect: true } })
+    mockVerifyTotp.mockResolvedValue({ error: { message: 'Invalid code' }, data: null })
+
+    render(<SignIn />)
+
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'test@example.com' } })
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }))
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Authenticator code')).toBeDefined()
+    })
+
+    const codeInput = screen.getByLabelText('Authenticator code')
+    expect(codeInput.getAttribute('aria-describedby')).toBeNull()
+
+    fireEvent.change(codeInput, { target: { value: '123456' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Verify and sign in' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('Invalid code')
+    })
+
+    const linkedCodeInput = screen.getByLabelText('Authenticator code')
+    expect(linkedCodeInput.getAttribute('aria-describedby')).toBe('auth-form-error')
+    expect(linkedCodeInput.getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByRole('alert').id).toBe('auth-form-error')
+  })
+
+  it('links the confirm-password input to the error banner on a mismatched-password sign-up', async () => {
+    render(<SignIn />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Need an account? Sign up' }))
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Test User' } })
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'test@example.com' } })
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'password123' } })
+    fireEvent.change(screen.getByLabelText('Confirm password'), {
+      target: { value: 'different123' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Create account' }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('Passwords do not match')
+    })
+
+    const confirmPassword = screen.getByLabelText('Confirm password')
+    expect(confirmPassword.getAttribute('aria-describedby')).toBe('auth-form-error')
+    expect(confirmPassword.getAttribute('aria-invalid')).toBe('true')
+    expect(screen.getByRole('alert').id).toBe('auth-form-error')
+  })
+
+  it('adds focus-visible ring classes to both password-visibility toggles', () => {
+    render(<SignIn />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Need an account? Sign up' }))
+
+    const toggles = screen.getAllByRole('button', { name: /password/i })
+    expect(toggles).toHaveLength(2)
+
+    for (const toggle of toggles) {
+      expect(toggle.getAttribute('aria-label')).toMatch(/^(Show|Hide) password$/)
+      expect(toggle.className).toContain('focus-visible:ring-2')
+      expect(toggle.className).toContain('focus-visible:ring-accent-secondary')
+      expect(toggle.className).toContain('focus-visible:ring-offset-2')
+      expect(toggle.className).toContain('rounded')
+      expect(toggle.classList.contains('focus:outline-none')).toBe(false)
+    }
+  })
 })

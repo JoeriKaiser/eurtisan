@@ -13,6 +13,11 @@ services:
     # The Caddyfile uses only core directives, so no custom proxy build exists.
     image: caddy:2-alpine@sha256:86deaf5e3d3408a6ccec08fbb79989783dd26e206ae10bcf78a801dc8c9ab794
     container_name: eurtisan-caddy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     restart: unless-stopped
     ports:
       - "80:80"
@@ -61,6 +66,11 @@ services:
         PUBLIC_UMAMI_SCRIPT_URL: ${VITE_UMAMI_SCRIPT_URL:-}
         PUBLIC_UMAMI_WEBSITE_ID: ${VITE_UMAMI_WEBSITE_ID:-}
     container_name: eurtisan-app
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     restart: unless-stopped
     user: "1000:1000"
     env_file:
@@ -92,6 +102,11 @@ services:
     # Pinned digest for postgres:16-alpine
     image: postgres:16-alpine@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229
     container_name: eurtisan-db
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     restart: unless-stopped
     command: ["postgres", "-c", "max_connections=200"]
     environment:
@@ -111,12 +126,17 @@ services:
       resources:
         limits:
           cpus: '2.0'
-          memory: 4g
+          memory: 2.5g
 
   meilisearch:
     # Pinned digest for getmeili/meilisearch:v1.43.0
     image: getmeili/meilisearch:v1.43.0@sha256:5d4e1353927785744486fe317d263f442710ab5b27b1983aa1b719dfe2c665b6
     container_name: eurtisan-meilisearch
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     restart: unless-stopped
     environment:
       - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:?required Meilisearch master key}
@@ -141,12 +161,17 @@ services:
       resources:
         limits:
           cpus: '1.5'
-          memory: 2g
+          memory: 1.5g
 
   imgproxy:
     # Pinned digest for darthsim/imgproxy:v3
     image: darthsim/imgproxy:v3@sha256:419f92ee3a3137ddc2552a92ae2f46a97e9b8c22e03f8a6efa0cb217d8db7f45
     container_name: eurtisan-imgproxy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     restart: unless-stopped
     env_file:
       - .env
@@ -188,6 +213,11 @@ services:
   worker:
     image: eurtisan-app:${IMAGE_TAG:-latest}
     container_name: eurtisan-worker
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "3"
     restart: unless-stopped
     user: "1000:1000"
     env_file:
