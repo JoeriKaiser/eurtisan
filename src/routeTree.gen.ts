@@ -59,6 +59,7 @@ import { Route as ApiBackupReportRouteImport } from './routes/api/backup-report'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminShopsRouteImport } from './routes/admin/shops'
 import { Route as AdminReviewsRouteImport } from './routes/admin/reviews'
+import { Route as AdminReportsRouteImport } from './routes/admin/reports'
 import { Route as AdminProductsRouteImport } from './routes/admin/products'
 import { Route as AdminPayoutsRouteImport } from './routes/admin/payouts'
 import { Route as AdminOrdersRouteImport } from './routes/admin/orders'
@@ -368,6 +369,11 @@ const AdminShopsRoute = AdminShopsRouteImport.update({
 const AdminReviewsRoute = AdminReviewsRouteImport.update({
   id: '/reviews',
   path: '/reviews',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminReportsRoute = AdminReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminProductsRoute = AdminProductsRouteImport.update({
@@ -725,6 +731,7 @@ export interface FileRoutesByFullPath {
   '/admin/orders': typeof AdminOrdersRouteWithChildren
   '/admin/payouts': typeof AdminPayoutsRoute
   '/admin/products': typeof AdminProductsRoute
+  '/admin/reports': typeof AdminReportsRoute
   '/admin/reviews': typeof AdminReviewsRoute
   '/admin/shops': typeof AdminShopsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -830,6 +837,7 @@ export interface FileRoutesByTo {
   '/admin/categories': typeof AdminCategoriesRoute
   '/admin/payouts': typeof AdminPayoutsRoute
   '/admin/products': typeof AdminProductsRoute
+  '/admin/reports': typeof AdminReportsRoute
   '/admin/reviews': typeof AdminReviewsRoute
   '/admin/shops': typeof AdminShopsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -936,6 +944,7 @@ export interface FileRoutesById {
   '/admin/orders': typeof AdminOrdersRouteWithChildren
   '/admin/payouts': typeof AdminPayoutsRoute
   '/admin/products': typeof AdminProductsRoute
+  '/admin/reports': typeof AdminReportsRoute
   '/admin/reviews': typeof AdminReviewsRoute
   '/admin/shops': typeof AdminShopsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -1050,6 +1059,7 @@ export interface FileRouteTypes {
     | '/admin/orders'
     | '/admin/payouts'
     | '/admin/products'
+    | '/admin/reports'
     | '/admin/reviews'
     | '/admin/shops'
     | '/admin/users'
@@ -1155,6 +1165,7 @@ export interface FileRouteTypes {
     | '/admin/categories'
     | '/admin/payouts'
     | '/admin/products'
+    | '/admin/reports'
     | '/admin/reviews'
     | '/admin/shops'
     | '/admin/users'
@@ -1260,6 +1271,7 @@ export interface FileRouteTypes {
     | '/admin/orders'
     | '/admin/payouts'
     | '/admin/products'
+    | '/admin/reports'
     | '/admin/reviews'
     | '/admin/shops'
     | '/admin/users'
@@ -1751,6 +1763,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminReviewsRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/reports': {
+      id: '/admin/reports'
+      path: '/reports'
+      fullPath: '/admin/reports'
+      preLoaderRoute: typeof AdminReportsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/products': {
       id: '/admin/products'
       path: '/products'
@@ -2209,6 +2228,7 @@ interface AdminRouteRouteChildren {
   AdminOrdersRoute: typeof AdminOrdersRouteWithChildren
   AdminPayoutsRoute: typeof AdminPayoutsRoute
   AdminProductsRoute: typeof AdminProductsRoute
+  AdminReportsRoute: typeof AdminReportsRoute
   AdminReviewsRoute: typeof AdminReviewsRoute
   AdminShopsRoute: typeof AdminShopsRoute
   AdminUsersRoute: typeof AdminUsersRoute
@@ -2222,6 +2242,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminOrdersRoute: AdminOrdersRouteWithChildren,
   AdminPayoutsRoute: AdminPayoutsRoute,
   AdminProductsRoute: AdminProductsRoute,
+  AdminReportsRoute: AdminReportsRoute,
   AdminReviewsRoute: AdminReviewsRoute,
   AdminShopsRoute: AdminShopsRoute,
   AdminUsersRoute: AdminUsersRoute,

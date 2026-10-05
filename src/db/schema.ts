@@ -899,6 +899,68 @@ export const sellerReplyReport = pgTable(
   ],
 )
 
+export const productReportReasonEnum = pgEnum('product_report_reason', [
+  'illegal',
+  'ip',
+  'fraud',
+  'offensive',
+  'other',
+])
+
+export const productReport = pgTable(
+  'product_report',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    productId: text('product_id')
+      .notNull()
+      .references(() => product.id, { onDelete: 'cascade' }),
+    reporterUserId: text('reporter_user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    reason: productReportReasonEnum('reason').notNull(),
+    details: text(),
+    status: reviewReportStatusEnum('status').notNull().default('open'),
+    resolvedAt: timestamp('resolved_at'),
+    resolvedByUserId: text('resolved_by_user_id').references(() => user.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('product_report_product_reporter_unique').on(table.productId, table.reporterUserId),
+    index('product_report_product_id_idx').on(table.productId),
+    index('product_report_status_idx').on(table.status),
+    index('product_report_created_at_idx').on(table.createdAt),
+  ],
+)
+
+export const shopReport = pgTable(
+  'shop_report',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    shopId: text('shop_id')
+      .notNull()
+      .references(() => shop.id, { onDelete: 'cascade' }),
+    reporterUserId: text('reporter_user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    reason: productReportReasonEnum('reason').notNull(),
+    details: text(),
+    status: reviewReportStatusEnum('status').notNull().default('open'),
+    resolvedAt: timestamp('resolved_at'),
+    resolvedByUserId: text('resolved_by_user_id').references(() => user.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('shop_report_shop_reporter_unique').on(table.shopId, table.reporterUserId),
+    index('shop_report_shop_id_idx').on(table.shopId),
+    index('shop_report_status_idx').on(table.status),
+    index('shop_report_created_at_idx').on(table.createdAt),
+  ],
+)
+
 export const payoutStatusEnum = pgEnum('payout_status', [
   'pending',
   'in_transit',
@@ -972,6 +1034,10 @@ export const notificationTypePgEnum = pgEnum('notification_type', [
   'seller_reply_received',
   'seller_reply_moderated',
   'seller_reply_report_resolved',
+  'product_moderated',
+  'product_report_resolved',
+  'shop_moderated',
+  'shop_report_resolved',
 ])
 
 export const notification = pgTable(
@@ -1519,6 +1585,12 @@ export const invoices = pgTable(
   (table) => [
     index('invoices_shop_order_id_idx').on(table.shopOrderId),
     index('invoices_type_idx').on(table.type),
+    uniqueIndex('invoices_shop_order_customer_unique')
+      .on(table.shopOrderId)
+      .where(sql`${table.type} = 'customer'`),
+    uniqueIndex('invoices_shop_order_platform_fee_unique')
+      .on(table.shopOrderId)
+      .where(sql`${table.type} = 'platform_fee'`),
     index('invoices_original_invoice_number_idx').on(table.originalInvoiceNumber),
     foreignKey({
       columns: [table.originalInvoiceNumber],

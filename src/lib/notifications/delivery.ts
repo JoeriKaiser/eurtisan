@@ -134,4 +134,18 @@ export const NOTIFICATION_DELIVERY: Record<NotificationType, NotificationDeliver
   review_report_resolved: { mode: 'in_app', inApp: 'required' },
   seller_reply_received: { mode: 'in_app', inApp: 'optional' },
   seller_reply_report_resolved: { mode: 'in_app', inApp: 'required' },
+  product_moderated: {
+    mode: 'auto_email',
+    template: 'statement_of_reasons',
+    category: 'transactional',
+    inApp: 'required',
+  },
+  product_report_resolved: { mode: 'in_app', inApp: 'required' },
+  shop_moderated: {
+    mode: 'auto_email',
+    template: 'statement_of_reasons',
+    category: 'transactional',
+    inApp: 'required',
+  },
+  shop_report_resolved: { mode: 'in_app', inApp: 'required' },
 }

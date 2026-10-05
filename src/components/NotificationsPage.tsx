@@ -46,6 +46,10 @@ const TYPE_ICONS: Record<NotificationType, React.ReactNode> = {
   seller_reply_received: <MessageSquare size={18} aria-hidden='true' />,
   seller_reply_moderated: <ShieldAlert size={18} aria-hidden='true' />,
   seller_reply_report_resolved: <Flag size={18} aria-hidden='true' />,
+  product_moderated: <ShieldAlert size={18} aria-hidden='true' />,
+  product_report_resolved: <Flag size={18} aria-hidden='true' />,
+  shop_moderated: <ShieldAlert size={18} aria-hidden='true' />,
+  shop_report_resolved: <Flag size={18} aria-hidden='true' />,
 }
 
 function formatRelativeTime(date: Date): string {
@@ -132,7 +136,9 @@ function resolveDeepLink(item: NotificationItem): string | null {
     // Both review notifications deep-link to the review's product, which is
     // where the recipient can see the outcome for themselves.
     case 'review_moderated':
-    case 'review_report_resolved': {
+    case 'review_report_resolved':
+    case 'product_moderated':
+    case 'product_report_resolved': {
       const productSlug = data.productSlug ?? data.productId
       if (productSlug) return `/shops/${data.shopSlug ?? 'unknown'}/products/${productSlug}`
       break
@@ -142,6 +148,12 @@ function resolveDeepLink(item: NotificationItem): string | null {
     case 'seller_reply_moderated':
     case 'seller_reply_report_resolved': {
       return productDeepLink(data)
+    }
+    case 'shop_moderated':
+    case 'shop_report_resolved': {
+      const shopSlug = data.shopSlug
+      if (shopSlug) return `/shops/${encodeURIComponent(shopSlug)}`
+      break
     }
   }
   return null
@@ -225,6 +237,22 @@ function notificationPreview(item: NotificationItem): string {
       return data.outcome === 'upheld'
         ? m.notification_seller_reply_report_upheld()
         : m.notification_seller_reply_report_dismissed()
+    case 'product_moderated':
+      return data.restriction === 'hidden'
+        ? m.notification_product_hidden()
+        : m.notification_product_restored()
+    case 'product_report_resolved':
+      return data.outcome === 'upheld'
+        ? m.notification_product_report_upheld()
+        : m.notification_product_report_dismissed()
+    case 'shop_moderated':
+      return data.restriction === 'suspended'
+        ? m.notification_shop_suspended_notice()
+        : m.notification_shop_restored()
+    case 'shop_report_resolved':
+      return data.outcome === 'upheld'
+        ? m.notification_shop_report_upheld()
+        : m.notification_shop_report_dismissed()
     case 'review_report_resolved':
       return data.outcome === 'upheld'
         ? m.notification_review_report_upheld()

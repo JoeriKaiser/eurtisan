@@ -37,6 +37,10 @@ export const notificationTypeEnum = z.enum([
   'seller_reply_moderated',
   /** The Article 16(5) decision notice, sent to whoever reported a seller reply. */
   'seller_reply_report_resolved',
+  'product_moderated',
+  'product_report_resolved',
+  'shop_moderated',
+  'shop_report_resolved',
 ])
 
 export type NotificationType = z.infer<typeof notificationTypeEnum>

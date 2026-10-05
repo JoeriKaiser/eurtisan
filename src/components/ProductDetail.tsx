@@ -19,6 +19,7 @@ import { TraderStatusDisclosure } from '#/components/TraderStatusDisclosure'
 import ProductReviews from '#/components/ProductReviews'
 import { StarRating } from '#/components/ui/StarRating'
 import { useAddToCart } from '#/lib/cart-hooks'
+import { reportProduct } from '#/lib/products'
 import { formatPriceEUR } from '#/lib/pricing'
 import { resolveAvailability } from '#/lib/products/availability'
 import type { ProductDetail as ProductDetailType, PublicProduct } from '#/lib/products.server'
@@ -52,10 +53,11 @@ export default function ProductDetail({ product, moreFromShop = [] }: ProductDet
   const addToCartMutation = useAddToCart()
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const handleReportProduct = async (_reason: ProductReportReason, _details: string | null) => {
+  const handleReportProduct = async (reason: ProductReportReason, details: string | null) => {
     setReportBusy(true)
     setReportError(null)
     try {
+      await reportProduct({ data: { productId: product.id, reason, details } })
       setIsReported(true)
       setIsReportOpen(false)
     } catch {

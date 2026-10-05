@@ -3,6 +3,7 @@ import {
   Banknote,
   ChevronRight,
   FileText,
+  Flag,
   FolderTree,
   Gavel,
   LayoutDashboard,
@@ -99,6 +100,11 @@ function useNavSections(pendingShopReviewCount = 0): NavSection[] {
             icon: <MessageSquare size={18} aria-hidden='true' />,
           },
           {
+            label: m.admin_layout_nav_reports(),
+            href: '/admin/reports',
+            icon: <Flag size={18} aria-hidden='true' />,
+          },
+          {
             label: m.admin_layout_nav_categories(),
             href: '/admin/categories',
             icon: <FolderTree size={18} aria-hidden='true' />,
@@ -169,6 +175,7 @@ function useBreadcrumbs(): Array<{ label: string; href?: string }> {
     if (path[1] === 'categories') crumbs.push({ label: m.admin_layout_breadcrumb_categories() })
     if (path[1] === 'products') crumbs.push({ label: m.admin_layout_breadcrumb_products() })
     if (path[1] === 'reviews') crumbs.push({ label: m.admin_layout_breadcrumb_reviews() })
+    if (path[1] === 'reports') crumbs.push({ label: m.admin_layout_breadcrumb_reports() })
     if (path[1] === 'audit-log') crumbs.push({ label: m.admin_audit_log_title() })
     return crumbs
   }, [location.pathname])

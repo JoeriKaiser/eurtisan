@@ -627,19 +627,27 @@ async function renderStatementOfReasons(
   const redress = Array.isArray(data.redress) ? data.redress.map(String) : []
   const legalBasis = typeof data.legalBasis === 'string' ? data.legalBasis.trim() : ''
   const isSellerReply = data.contentType === 'seller_reply'
+  const isProduct = typeof data.productId === 'string'
+  const isShop = typeof data.shopId === 'string'
 
   const what =
     restriction === 'hidden'
       ? isSellerReply
         ? m.statement_of_reasons_what_hidden_seller_reply()
-        : m.statement_of_reasons_what_hidden()
-      : restriction === 'flagged'
-        ? isSellerReply
-          ? m.statement_of_reasons_what_restricted_seller_reply()
+        : isProduct
+          ? m.statement_of_reasons_what_hidden_product()
+          : m.statement_of_reasons_what_hidden()
+      : restriction === 'suspended'
+        ? isShop
+          ? m.statement_of_reasons_what_suspended_shop()
           : m.statement_of_reasons_what_restricted()
-        : isSellerReply
-          ? m.statement_of_reasons_what_restored_seller_reply()
-          : m.statement_of_reasons_what_restored()
+        : restriction === 'flagged'
+          ? isSellerReply
+            ? m.statement_of_reasons_what_restricted_seller_reply()
+            : m.statement_of_reasons_what_restricted()
+          : isSellerReply
+            ? m.statement_of_reasons_what_restored_seller_reply()
+            : m.statement_of_reasons_what_restored()
   const groundText =
     ground === 'illegal'
       ? m.statement_of_reasons_ground_illegal()
@@ -648,7 +656,11 @@ async function renderStatementOfReasons(
     data.promptedByNotice === true
       ? isSellerReply
         ? m.statement_of_reasons_prompted_by_report_seller_reply()
-        : m.statement_of_reasons_prompted_by_report()
+        : isProduct
+          ? m.statement_of_reasons_prompted_by_report_product()
+          : isShop
+            ? m.statement_of_reasons_prompted_by_report_shop()
+            : m.statement_of_reasons_prompted_by_report()
       : m.statement_of_reasons_prompted_by_review()
   const automated =
     data.automatedMeans === true
