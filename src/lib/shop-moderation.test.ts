@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
-import { meilisearchSyncQueue, product, shop, user } from '#/db/schema'
+import { meilisearchSyncQueue, notification, product, shop, user } from '#/db/schema'
 import { listAllShopsQuery, moderateShopQuery } from './shop-moderation.server'
 
 vi.mock('./auth', () => ({
@@ -14,6 +14,7 @@ vi.mock('./auth', () => ({
 }))
 
 beforeEach(async () => {
+  await db.delete(notification)
   await db.delete(shop)
   await db.delete(user)
 })
@@ -345,5 +346,60 @@ describe('moderateShopQuery', () => {
 
     expect(actual.isSuspended).toBe(true)
     expect(actual.moderationNote).toBe('Violation')
+  })
+
+  describe('Article 17 notifications', () => {
+    it('creates a shop_moderated notification when suspending a shop', async () => {
+      await seedUser()
+      await seedShop()
+
+      await moderateShopQuery('shop-1', 'suspend', 'Violation of marketplace rules')
+
+      const notifications = await db
+        .select()
+        .from(notification)
+        .where(eq(notification.userId, 'user-1'))
+
+      expect(notifications).toHaveLength(1)
+      expect(notifications[0].type).toBe('shop_moderated')
+      expect(notifications[0].data).toMatchObject({
+        shopId: 'shop-1',
+        shopSlug: 'test-shop',
+        restriction: 'suspended',
+        territorialScope: 'all',
+        duration: 'indefinite',
+        explanation: 'Violation of marketplace rules',
+        promptedByNotice: false,
+        automatedMeans: false,
+        ground: 'terms',
+        redress: ['contact_support', 'judicial_remedy'],
+      })
+    })
+
+    it('creates a shop_moderated notification when unsuspending a shop', async () => {
+      await seedUser()
+      await seedShop({ isSuspended: true })
+
+      await moderateShopQuery('shop-1', 'unsuspend')
+
+      const notifications = await db
+        .select()
+        .from(notification)
+        .where(eq(notification.userId, 'user-1'))
+
+      expect(notifications).toHaveLength(1)
+      expect(notifications[0].type).toBe('shop_moderated')
+      expect(notifications[0].data).toMatchObject({
+        shopId: 'shop-1',
+        shopSlug: 'test-shop',
+        restriction: 'restored',
+        territorialScope: 'all',
+        explanation: 'Shop suspension lifted',
+        promptedByNotice: false,
+        automatedMeans: false,
+        ground: 'terms',
+        redress: ['contact_support', 'judicial_remedy'],
+      })
+    })
   })
 })

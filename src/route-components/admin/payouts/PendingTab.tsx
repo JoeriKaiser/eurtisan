@@ -14,6 +14,7 @@ interface PendingPayout {
   status: string
   failureReason: string | null
   createdAt: Date | string | null
+  isSuspended?: boolean
 }
 
 interface PendingTabProps {
@@ -130,6 +131,11 @@ export function PendingTab({
                           {payout.failureReason}
                         </span>
                       )}
+                      {payout.isSuspended && (
+                        <span className='inline-flex items-center rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-300'>
+                          {m.admin_payouts_on_hold_suspended()}
+                        </span>
+                      )}
                     </div>
                   </td>
 
@@ -144,7 +150,8 @@ export function PendingTab({
                       variant={isFailed ? 'danger' : 'primary'}
                       size='sm'
                       onClick={() => onMarkSent(payout.payoutId)}
-                      disabled={isProcessing}
+                      disabled={isProcessing || Boolean(payout.isSuspended)}
+                      title={payout.isSuspended ? m.admin_payouts_suspended_tooltip() : undefined}
                       isLoading={isProcessing}
                       aria-label={
                         isFailed

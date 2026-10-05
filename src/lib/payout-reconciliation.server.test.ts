@@ -1,14 +1,14 @@
 import { eq } from 'drizzle-orm'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { db } from '#/db/index'
-import { payout, payoutReconciliationLog } from '#/db/schema'
+import { payout, payoutReconciliationLog, shop } from '#/db/schema'
 import {
   resetMockRouteStatus,
   setMockRouteStatus,
 } from '#/integrations/mollie/mollie-routes-client'
 import { clearTestTables } from '#/test/cleanup'
 import { createPlatformOrder, createShop, createShopOrder, createUser } from '#/test/factories'
-import { reconcilePayouts } from './payout-reconciliation.server'
+import { reconcilePayouts, releaseHeldPayouts } from './payout-reconciliation.server'
 
 async function seedUser() {
   return createUser({ id: 'user-1' })
@@ -259,5 +259,139 @@ describe('reconcilePayouts', () => {
     expect(result.checked).toBe(1)
     expect(result.reversed).toBe(0)
     expect(result.errors).toBe(1)
+  })
+})
+
+describe('releaseHeldPayouts', () => {
+  const originalApiKey = process.env.MOLLIE_API_KEY
+  const originalMockPayouts = process.env.MOCK_PAYOUTS_ENABLED
+
+  beforeEach(async () => {
+    resetMockRouteStatus()
+    await clearTestTables()
+    process.env.MOLLIE_API_KEY = 'test_key'
+    process.env.MOCK_PAYOUTS_ENABLED = 'true'
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    process.env.MOLLIE_API_KEY = originalApiKey
+    process.env.MOCK_PAYOUTS_ENABLED = originalMockPayouts
+  })
+
+  it('successfully releases eligible pending payout when shop is active, shopOrder is delivered, and dispute window is in the past', async () => {
+    await seedUser()
+    await seedShop()
+    const po = await createPlatformOrder('user-1', { molliePaymentId: 'tr_test_platform' })
+    const pastDispute = new Date(Date.now() - 1000 * 60 * 60)
+    const so = await createShopOrder(po, 'shop-1', {
+      status: 'delivered',
+      disputeWindowExpiresAt: pastDispute,
+    })
+
+    const [payoutRecord] = await db
+      .insert(payout)
+      .values({
+        shopOrderId: so.id,
+        shopId: 'shop-1',
+        amountCents: 5000,
+        status: 'pending',
+      })
+      .returning()
+
+    const result = await releaseHeldPayouts()
+
+    expect(result.checked).toBe(1)
+    expect(result.released).toBe(1)
+    expect(result.errors).toBe(0)
+
+    const [updatedPayout] = await db.select().from(payout).where(eq(payout.id, payoutRecord.id))
+
+    expect(updatedPayout.status).toBe('sent')
+  })
+
+  it('freezes/skips pending payout when shop is suspended, returning checked: 0, released: 0, errors: 0 without erroring', async () => {
+    await seedUser()
+    await createShop('user-1', {
+      id: 'shop-1',
+      name: 'Suspended Shop',
+      slug: 'suspended-shop',
+      mollieAccountId: 'org_test',
+      paymentConnected: true,
+      isSuspended: true,
+    })
+    const po = await createPlatformOrder('user-1', { molliePaymentId: 'tr_test_platform' })
+    const pastDispute = new Date(Date.now() - 1000 * 60 * 60)
+    const so = await createShopOrder(po, 'shop-1', {
+      status: 'delivered',
+      disputeWindowExpiresAt: pastDispute,
+    })
+
+    const [payoutRecord] = await db
+      .insert(payout)
+      .values({
+        shopOrderId: so.id,
+        shopId: 'shop-1',
+        amountCents: 5000,
+        status: 'pending',
+      })
+      .returning()
+
+    const result = await releaseHeldPayouts()
+
+    expect(result.checked).toBe(0)
+    expect(result.released).toBe(0)
+    expect(result.errors).toBe(0)
+
+    const [unchangedPayout] = await db.select().from(payout).where(eq(payout.id, payoutRecord.id))
+
+    expect(unchangedPayout.status).toBe('pending')
+  })
+
+  it('releases payouts when the shop is subsequently unsuspended', async () => {
+    await seedUser()
+    const createdShop = await createShop('user-1', {
+      id: 'shop-1',
+      name: 'Temporarily Suspended Shop',
+      slug: 'temp-suspended-shop',
+      mollieAccountId: 'org_test',
+      paymentConnected: true,
+      isSuspended: true,
+    })
+    const po = await createPlatformOrder('user-1', { molliePaymentId: 'tr_test_platform' })
+    const pastDispute = new Date(Date.now() - 1000 * 60 * 60)
+    const so = await createShopOrder(po, 'shop-1', {
+      status: 'delivered',
+      disputeWindowExpiresAt: pastDispute,
+    })
+
+    const [payoutRecord] = await db
+      .insert(payout)
+      .values({
+        shopOrderId: so.id,
+        shopId: 'shop-1',
+        amountCents: 5000,
+        status: 'pending',
+      })
+      .returning()
+
+    // 1. While suspended: skipped
+    const initialResult = await releaseHeldPayouts()
+    expect(initialResult.checked).toBe(0)
+    expect(initialResult.released).toBe(0)
+    expect(initialResult.errors).toBe(0)
+
+    // 2. Unsuspend the shop
+    await db.update(shop).set({ isSuspended: false }).where(eq(shop.id, createdShop.id))
+
+    // 3. Now it should be checked and released
+    const secondResult = await releaseHeldPayouts()
+    expect(secondResult.checked).toBe(1)
+    expect(secondResult.released).toBe(1)
+    expect(secondResult.errors).toBe(0)
+
+    const [releasedPayout] = await db.select().from(payout).where(eq(payout.id, payoutRecord.id))
+
+    expect(releasedPayout.status).toBe('sent')
   })
 })

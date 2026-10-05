@@ -1,6 +1,6 @@
 import { and, eq, gte, inArray, isNotNull, lte, sql } from 'drizzle-orm'
 import { db } from '#/db/index'
-import { payout, payoutReconciliationLog, shopOrder } from '#/db/schema'
+import { payout, payoutReconciliationLog, shop, shopOrder } from '#/db/schema'
 import { getMollieRoute } from '#/integrations/mollie'
 import { getMollieApiKey, getMollieTestMode } from '../env.server'
 import { logger } from '../logger.server'
@@ -309,9 +309,11 @@ export async function releaseHeldPayouts(): Promise<{
     })
     .from(payout)
     .innerJoin(shopOrder, eq(payout.shopOrderId, shopOrder.id))
+    .innerJoin(shop, eq(payout.shopId, shop.id))
     .where(
       and(
         eq(payout.status, 'pending'),
+        eq(shop.isSuspended, false),
         inArray(shopOrder.status, ['delivered', 'completed']),
         lte(shopOrder.disputeWindowExpiresAt, sql`now()`),
       ),
