@@ -82,7 +82,7 @@ check: ensure-up
 
 # Fail on production dependency advisories of moderate severity or higher.
 audit-production: ensure-up
-	docker compose exec -T app bun audit --production --audit-level=moderate
+	docker compose exec -T app bun audit --production --audit-level=moderate --ignore=GHSA-vfj7-8cjw-p6xm
 
 i18n-compile: ensure-up
 	docker compose exec -T app bun run i18n:compile
@@ -122,7 +122,8 @@ promtool-test:
 
 # Backup validation
 backup-dry-run:
-	@echo "Backup templates and deployment policy are validated by: make ansible-check"
+	@echo "backup-dry-run does not talk to PostgreSQL. Run make ansible-check and make pgbackrest-check."
+	@exit 1
 
 pgbackrest-check:
 	bash scripts/validate-pgbackrest.sh

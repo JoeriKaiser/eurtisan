@@ -99,6 +99,21 @@ vi.mock('#/paraglide/messages', () => ({
       'Consumer rights stemming from EU consumer protection law do not apply to the contract.',
     trader_status_undeclared: () =>
       'This seller has not declared whether they are a trader. Purchases are unavailable until the declaration is provided.',
+    shop_report_button: () => 'Report this shop',
+    shop_report_success: () => 'Notice submitted.',
+    shop_report_title: () => 'Report this shop (DSA Notice)',
+    shop_report_description: () => 'Notify us of illegal content under DSA Article 16.',
+    shop_report_reason_label: () => 'Ground for notice',
+    shop_report_details_label: () => 'Explanation and substantiation',
+    shop_report_details_placeholder: () => 'Provide explanation...',
+    shop_report_submit: () => 'Submit Notice',
+    product_report_reason_illegal: () => 'Illegal or prohibited item',
+    product_report_reason_ip: () => 'Intellectual property infringement',
+    product_report_reason_fraud: () => 'Counterfeit, fraudulent, or deceptive listing',
+    product_report_reason_offensive: () => 'Offensive, hateful, or abusive content',
+    product_report_reason_other: () => 'Other legal violation',
+    confirm_dialog_cancel: () => 'Cancel',
+    review_report_error: () => 'Failed to submit report',
   },
 }))
 

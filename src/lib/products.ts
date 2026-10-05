@@ -1,7 +1,9 @@
 import { createServerFn } from '@tanstack/react-start'
 import { notFound } from '@tanstack/react-router'
 import z from 'zod'
+import { authMiddleware } from './auth-middleware'
 import { createIpRateLimitMiddleware } from './rate-limit'
+import { requirePrivileged2FA } from './server-auth'
 
 export type {
   FeaturedShop,
@@ -267,6 +269,65 @@ export const trackSearchClick = createServerFn({
       query: data.query,
       productId: data.productId,
       position: data.position,
+    })
+    return { ok: true as const }
+  })
+
+const productReportReasonSchema = z.enum(['illegal', 'ip', 'fraud', 'offensive', 'other'])
+
+export const reportProduct = createServerFn({ method: 'POST' })
+  .middleware([authMiddleware])
+  .inputValidator(
+    z.object({
+      productId: z.string().min(1),
+      reason: productReportReasonSchema,
+      details: z.string().max(2000).nullable().optional(),
+    }),
+  )
+  .handler(async ({ context, data }) => {
+    if (!context.user) {
+      throw new Response(
+        JSON.stringify({ error: 'Unauthorized', message: 'Authentication required' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+    const { reportProductQuery } = await import('./products/reports.server')
+    return reportProductQuery(data.productId, context.user.id, data.reason, data.details ?? null)
+  })
+
+export const getAdminProductReports = createServerFn({ method: 'GET' })
+  .middleware([authMiddleware])
+  .inputValidator(
+    z.object({
+      page: z.coerce.number().int().min(1).optional().default(1),
+      pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
+    }),
+  )
+  .handler(async ({ context, data }) => {
+    if (!context.user || context.user.role !== 'admin') throw new Error('FORBIDDEN')
+    requirePrivileged2FA(context.user)
+    const { listOpenProductReportsQuery } = await import('./products/reports.server')
+    return listOpenProductReportsQuery(data.page, data.pageSize)
+  })
+
+export const resolveProductReport = createServerFn({ method: 'POST' })
+  .middleware([authMiddleware])
+  .inputValidator(
+    z.object({
+      productId: z.string().min(1),
+      restrict: z.boolean(),
+      ground: z.enum(['illegal', 'terms']),
+      explanation: z.string().min(1).max(4000),
+    }),
+  )
+  .handler(async ({ context, data }) => {
+    if (!context.user || context.user.role !== 'admin') throw new Error('FORBIDDEN')
+    requirePrivileged2FA(context.user)
+    const { resolveProductReportQuery } = await import('./products/reports.server')
+    await resolveProductReportQuery(data.productId, data.restrict, {
+      ground: data.ground,
+      explanation: data.explanation,
+      actorUserId: context.user.id,
     })
     return { ok: true as const }
   })

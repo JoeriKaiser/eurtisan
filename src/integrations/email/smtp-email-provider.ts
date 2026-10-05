@@ -9,7 +9,7 @@ import '@tanstack/react-start/server-only'
  * When SMTP is not configured the provider falls back to mock mode.
  */
 
-import nodemailer from 'nodemailer'
+import nodemailer, { type SendMailOptions, type Transporter } from 'nodemailer'
 import type { EmailProvider, EmailSendResult, EmailTemplate } from '#/lib/email-provider'
 import { renderFallbackPlainText, renderTemplate } from '#/lib/email-templates'
 import { logger } from '#/lib/logger.server'
@@ -43,7 +43,7 @@ function isSmtpConfigured(): boolean {
 export class SmtpEmailProvider implements EmailProvider {
   readonly name = 'smtp' as const
   private readonly mockMode: boolean
-  private readonly transporter: nodemailer.Transporter | undefined
+  private readonly transporter: Transporter | undefined
   private readonly senderEmail: string
   private readonly senderName: string
   private readonly replyTo: string
@@ -142,7 +142,7 @@ export class SmtpEmailProvider implements EmailProvider {
       logger.error('[SmtpEmailProvider] Template render error (real)', err)
     }
 
-    const mailOptions: nodemailer.SendMailOptions = {
+    const mailOptions: SendMailOptions = {
       from: { name: this.senderName, address: this.senderEmail },
       to,
       subject,
@@ -182,7 +182,7 @@ export class SmtpEmailProvider implements EmailProvider {
 
       emailSentTotal.inc({ template })
       return {
-        messageId: info.messageId ?? `smtp_${Date.now()}`,
+        messageId: info?.messageId ?? `smtp_${Date.now()}`,
         accepted: true,
         provider: 'smtp',
       }

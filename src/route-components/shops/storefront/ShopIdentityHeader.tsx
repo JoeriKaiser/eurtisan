@@ -1,7 +1,10 @@
-import { Globe, MapPin, Package } from 'lucide-react'
+import { Flag, Globe, MapPin, Package } from 'lucide-react'
+import { useState } from 'react'
+import type { ProductReportReason } from '#/components/product/ReportProductDialog'
+import { ReportShopDialog } from '#/components/shop/ReportShopDialog'
 import { TraderStatusDisclosure } from '#/components/TraderStatusDisclosure'
 import { formatDateLong } from '#/lib/format-date'
-import type { ShopProfile } from '#/lib/shop-profile'
+import { reportShop, type ShopProfile } from '#/lib/shop-profile'
 import { m } from '#/paraglide/messages'
 import { countryName, languageNames, productionTypeLabel } from './labels'
 import { ShopRatingSummary } from './ShopRatingSummary'
@@ -31,6 +34,24 @@ function Fact({ icon, children }: { icon: React.ReactNode; children: React.React
  */
 export function ShopIdentityHeader({ shop }: ShopIdentityHeaderProps) {
   const languages = languageNames(shop.languages)
+  const [isReportOpen, setIsReportOpen] = useState(false)
+  const [isReported, setIsReported] = useState(false)
+  const [reportBusy, setReportBusy] = useState(false)
+  const [reportError, setReportError] = useState<string | null>(null)
+
+  const handleReportShop = async (reason: ProductReportReason, details: string | null) => {
+    setReportBusy(true)
+    setReportError(null)
+    try {
+      await reportShop({ data: { shopId: shop.id, reason, details } })
+      setIsReported(true)
+      setIsReportOpen(false)
+    } catch {
+      setReportError(m.review_report_error())
+    } finally {
+      setReportBusy(false)
+    }
+  }
 
   return (
     <header>
@@ -74,9 +95,39 @@ export function ShopIdentityHeader({ shop }: ShopIdentityHeaderProps) {
         )}
       </ul>
 
-      <p className='mt-4 text-sm text-text-muted'>
-        {m.shop_member_since({ date: formatDateLong(shop.createdAt) })}
-      </p>
+      <div className='mt-4 flex flex-wrap items-center justify-between gap-4'>
+        <p className='text-sm text-text-muted'>
+          {m.shop_member_since({ date: formatDateLong(shop.createdAt) })}
+        </p>
+
+        {isReported ? (
+          <span
+            className='inline-flex items-center gap-1.5 text-xs font-medium text-success'
+            role='status'
+          >
+            <Flag size={14} aria-hidden='true' />
+            {m.shop_report_success()}
+          </span>
+        ) : (
+          <button
+            type='button'
+            onClick={() => setIsReportOpen(true)}
+            className='inline-flex cursor-pointer items-center gap-1.5 text-xs text-text-tertiary transition hover:text-text-secondary hover:underline'
+          >
+            <Flag size={14} aria-hidden='true' />
+            {m.shop_report_button()}
+          </button>
+        )}
+      </div>
+
+      <ReportShopDialog
+        open={isReportOpen}
+        onOpenChange={setIsReportOpen}
+        shopName={shop.name}
+        busy={reportBusy}
+        error={reportError}
+        onSubmit={handleReportShop}
+      />
     </header>
   )
 }
