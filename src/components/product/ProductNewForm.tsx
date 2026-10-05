@@ -454,7 +454,10 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
       schedule(
         'post-create-navigation',
         () => {
-          router.navigate({ to: '/creator/products' })
+          router.navigate({
+            to: '/studio/$shopId/products',
+            params: { shopId: formState.values.shopId },
+          })
         },
         800,
       )
@@ -501,13 +504,19 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
     if (hasChanges) {
       setShowCancelConfirm(true)
     } else {
-      router.navigate({ to: '/creator/products' })
+      router.navigate({
+        to: '/studio/$shopId/products',
+        params: { shopId: formState.values.shopId },
+      })
     }
   }
 
   const handleConfirmCancel = () => {
     setShowCancelConfirm(false)
-    router.navigate({ to: '/creator/products' })
+    router.navigate({
+      to: '/studio/$shopId/products',
+      params: { shopId: formState.values.shopId },
+    })
   }
 
   const handleDismissCancel = () => {
@@ -521,7 +530,7 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
         {/* Header */}
         <div className='mb-8'>
-          <h1 className='display-title mb-2 text-3xl font-semibold text-text-primary'>
+          <h1 className='mb-2 text-3xl font-semibold text-text-primary'>
             {m.creator_product_new_title()}
           </h1>
           <p className='text-text-secondary'>{m.creator_product_new_description()}</p>

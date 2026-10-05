@@ -25,6 +25,7 @@ import { flushBackgroundWorkForTests } from './background-work.server'
 import { createInvoicesForPlatformOrder } from './invoices.server'
 import {
   cancelShopOrderQuery,
+  refundCancelledPlatformOrder,
   refundShopOrderQuery,
   resolveManualReviewQuery,
 } from './shop-orders.server'
@@ -574,5 +575,126 @@ describe.sequential('resolveManualReviewQuery', () => {
       .from(invoices)
       .where(and(eq(invoices.shopOrderId, so.id), eq(invoices.type, 'credit_note')))
     expect(creditNotes).toHaveLength(0)
+  })
+})
+
+describe.sequential('refundCancelledPlatformOrder', () => {
+  beforeEach(async () => {
+    await clearTestTables()
+  })
+
+  async function seedCancelledPaidWebhookFixture() {
+    const owner = await createUser({
+      name: 'Owner',
+      email: 'owner@example.com',
+      role: 'creator',
+      emailVerified: true,
+    })
+
+    const buyer = await createUser({
+      name: 'Buyer',
+      email: 'buyer@example.com',
+      role: 'customer',
+    })
+
+    const shopRecord = await createShop(owner, {
+      name: 'Test Shop',
+      slug: 'test-shop',
+      mollieAccountId: 'org_test',
+    })
+
+    const prod = await createProduct(shopRecord, {
+      name: 'Vase',
+      slug: 'vase',
+      priceCents: 1000,
+      stockCount: 3,
+    })
+
+    const po = await createPlatformOrder(buyer, {
+      shippingAddress: { name: 'Buyer', country: 'FR' },
+      billingAddress: { name: 'Buyer', country: 'FR' },
+      totalCents: 1200,
+      status: 'cancelled',
+      molliePaymentId: 'tr_mock_000001',
+    })
+
+    const so = await createShopOrder(po, shopRecord, {
+      shippingMethod: 'standard',
+      shippingCostCents: 200,
+      subtotalCents: 1000,
+      vatAmountCents: 0,
+      shippingVatRateBasisPoints: 0,
+      shippingVatAmountCents: 0,
+      status: 'cancelled',
+    })
+
+    await createOrderItem(so, prod, {
+      productName: 'Vase',
+      unitPriceCents: 1000,
+      quantity: 1,
+      totalCents: 1000,
+      vatRateBasisPoints: 0,
+      vatAmountCents: 0,
+    })
+
+    await createInvoicesForPlatformOrder(po.id)
+
+    await createPayout(shopRecord, {
+      shopOrderId: so.id,
+      amountCents: 900,
+      status: 'sent',
+      molliePaymentId: 'tr_mock_000001',
+    })
+
+    return { shop: shopRecord, product: prod, platformOrder: po, shopOrder: so }
+  }
+
+  it('records refund intent, refunds through Mollie, then marks shop orders refunded', async () => {
+    const {
+      product: prod,
+      platformOrder: po,
+      shopOrder: so,
+    } = await seedCancelledPaidWebhookFixture()
+
+    const refunded = await refundCancelledPlatformOrder(po.id, 'tr_mock_000001')
+    expect(refunded).toBe(1200)
+
+    const [updatedSo] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
+    expect(updatedSo.status).toBe('refunded')
+    expect(updatedSo.refundedCents).toBe(1200)
+    expect(updatedSo.refundPendingCents).toBe(0)
+
+    const [updatedPo] = await db.select().from(platformOrder).where(eq(platformOrder.id, po.id))
+    expect(updatedPo.refundedCents).toBe(1200)
+
+    const [payoutRecord] = await db.select().from(payout).where(eq(payout.shopOrderId, so.id))
+    expect(payoutRecord.status).toBe('reversed')
+
+    const [updatedProduct] = await db.select().from(product).where(eq(product.id, prod.id))
+    expect(updatedProduct.stockCount).toBe(4)
+
+    const creditNotes = await db
+      .select()
+      .from(invoices)
+      .where(and(eq(invoices.shopOrderId, so.id), eq(invoices.type, 'credit_note')))
+    expect(creditNotes).toHaveLength(1)
+  })
+
+  it('leaves refundPendingCents when Mollie fails after the intent is committed', async () => {
+    const { platformOrder: po, shopOrder: so } = await seedCancelledPaidWebhookFixture()
+    await db
+      .update(platformOrder)
+      .set({ molliePaymentId: 'bad' })
+      .where(eq(platformOrder.id, po.id))
+
+    await expect(refundCancelledPlatformOrder(po.id, 'bad')).rejects.toThrow()
+
+    const [updatedSo] = await db.select().from(shopOrder).where(eq(shopOrder.id, so.id))
+    expect(updatedSo.status).toBe('cancelled')
+    expect(updatedSo.refundPendingCents).toBe(1200)
+    expect(updatedSo.refundedCents).toBe(0)
+
+    const [payoutRecord] = await db.select().from(payout).where(eq(payout.shopOrderId, so.id))
+    expect(payoutRecord.status).toBe('reversed')
   })
 })

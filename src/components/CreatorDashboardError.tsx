@@ -8,9 +8,7 @@ export function CreatorDashboardError({ error }: { error: Error }) {
   return (
     <main className='page-wrap px-4 py-12'>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
-        <h1 className='display-title mb-6 text-3xl font-semibold text-text-primary'>
-          {m.creator_title()}
-        </h1>
+        <h1 className='mb-6 text-3xl font-semibold text-text-primary'>{m.creator_title()}</h1>
         <div className='py-12 text-center'>
           <p className='text-text-secondary'>{m.creator_error_load()}</p>
           <p className='mt-2 text-sm text-text-muted'>{error.message}</p>

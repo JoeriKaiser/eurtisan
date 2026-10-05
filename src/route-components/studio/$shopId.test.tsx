@@ -86,16 +86,16 @@ describe('ShopDashboard', () => {
     expect(ordersLink.getAttribute('data-params')).toBe(JSON.stringify({ shopId: 'shop-1' }))
 
     const productsLink = screen.getByRole('link', { name: /products/i })
-    expect(productsLink.getAttribute('href')).toBe('/creator/products')
-    expect(productsLink.getAttribute('data-search')).toBe(JSON.stringify({ shopId: 'shop-1' }))
+    expect(productsLink.getAttribute('href')).toBe('/studio/$shopId/products')
+    expect(productsLink.getAttribute('data-params')).toBe(JSON.stringify({ shopId: 'shop-1' }))
 
     const payoutsLink = screen.getByRole('link', { name: /payouts/i })
-    expect(payoutsLink.getAttribute('href')).toBe('/creator/payouts')
-    expect(payoutsLink.getAttribute('data-search')).toBe(JSON.stringify({ shopId: 'shop-1' }))
+    expect(payoutsLink.getAttribute('href')).toBe('/studio/$shopId/payouts')
+    expect(payoutsLink.getAttribute('data-params')).toBe(JSON.stringify({ shopId: 'shop-1' }))
 
     const settingsLink = screen.getByRole('link', { name: /settings/i })
-    expect(settingsLink.getAttribute('href')).toBe('/creator/shop')
-    expect(settingsLink.getAttribute('data-search')).toBe(JSON.stringify({ shopId: 'shop-1' }))
+    expect(settingsLink.getAttribute('href')).toBe('/studio/$shopId/settings')
+    expect(settingsLink.getAttribute('data-params')).toBe(JSON.stringify({ shopId: 'shop-1' }))
 
     const taxLink = screen.getByRole('link', { name: /tax/i })
     expect(taxLink.getAttribute('href')).toBe('/studio/$shopId/settings/tax')

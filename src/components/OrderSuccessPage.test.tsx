@@ -298,36 +298,17 @@ describe('OrderSuccessPage', () => {
       expect(button?.className.includes('bg-surface-default')).toBe(true)
     })
 
-    it('renders retry payment, contact support and view order buttons when cancelled', () => {
+    it('renders rebuild cart, contact support and view order buttons when cancelled', () => {
       render(
         <OrderSuccessPage
           order={makeOrder('cancelled')}
           onRetryPayment={vi.fn().mockResolvedValue({ checkoutUrl: 'https://checkout.test' })}
         />,
       )
-      expect(screen.getByRole('button', { name: 'Retry payment' })).toBeDefined()
+      expect(screen.getByRole('button', { name: 'Rebuild my cart' })).toBeDefined()
+      expect(screen.queryByRole('button', { name: 'Retry payment' })).toBeNull()
       expect(screen.getByRole('link', { name: 'Contact support' })).toBeDefined()
       expect(screen.getByRole('link', { name: 'View order details' })).toBeDefined()
-    })
-
-    it('redirects to checkout URL when retry payment succeeds from cancelled state', async () => {
-      const savedLocation = window.location
-      delete (window as { location?: unknown }).location
-      window.location = { ...savedLocation, href: '' } as Location & string
-
-      const checkoutUrl = 'https://checkout.mollie.com/pay/retry_001'
-      const onRetryPayment = vi.fn().mockResolvedValue({ checkoutUrl })
-
-      render(<OrderSuccessPage order={makeOrder('cancelled')} onRetryPayment={onRetryPayment} />)
-
-      fireEvent.click(screen.getByRole('button', { name: 'Retry payment' }))
-
-      await waitFor(() => {
-        expect(onRetryPayment).toHaveBeenCalledTimes(1)
-        expect(window.location.href).toBe(checkoutUrl)
-      })
-
-      window.location = savedLocation as Location & string
     })
   })
 })

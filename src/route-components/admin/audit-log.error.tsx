@@ -5,9 +5,7 @@ export function AdminAuditLogError({ error }: { error: Error }) {
   return (
     <div className='space-y-6'>
       <div>
-        <h1 className='display-title text-3xl font-semibold text-text-primary'>
-          {m.admin_audit_log_title()}
-        </h1>
+        <h1 className='text-3xl font-semibold text-text-primary'>{m.admin_audit_log_title()}</h1>
         <p className='mt-1 text-text-secondary'>{m.admin_audit_log_description()}</p>
       </div>
       <div

@@ -27,7 +27,7 @@ function Studio() {
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
         <div className='py-12 text-center'>
           <Store size={48} className='mx-auto mb-4 text-text-muted' aria-hidden='true' />
-          <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary sm:text-3xl'>
+          <h1 className='mb-2 text-2xl font-semibold text-text-primary sm:text-3xl'>
             {m.studio_no_shops_title()}
           </h1>
           <p className='mx-auto max-w-md text-text-secondary'>{m.studio_no_shops_description()}</p>

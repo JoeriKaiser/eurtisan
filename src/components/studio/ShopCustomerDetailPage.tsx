@@ -185,9 +185,7 @@ export function ShopCustomerDetailPage({ shopId, customer }: ShopCustomerDetailP
         {/* Header */}
         <div className='mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
           <div>
-            <h1 className='display-title mb-2 text-3xl font-semibold text-text-primary'>
-              {localCustomer.name}
-            </h1>
+            <h1 className='mb-2 text-3xl font-semibold text-text-primary'>{localCustomer.name}</h1>
             <p className='text-text-secondary'>{localCustomer.email}</p>
           </div>
           <div className='flex items-center gap-2'>

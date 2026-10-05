@@ -40,7 +40,7 @@ services:
           memory: 512m
 
   app:
-    image: eurtisan-app:${IMAGE_TAG:-latest}
+    image: eurtisan-app:${IMAGE_TAG:?IMAGE_TAG must be an immutable digest}
     build:
       context: .
       dockerfile: Dockerfile.prod
@@ -186,7 +186,7 @@ services:
           memory: 1g
 
   worker:
-    image: eurtisan-app:${IMAGE_TAG:-latest}
+    image: eurtisan-app:${IMAGE_TAG:?IMAGE_TAG must be an immutable digest}
     container_name: eurtisan-worker
     restart: unless-stopped
     user: "1000:1000"

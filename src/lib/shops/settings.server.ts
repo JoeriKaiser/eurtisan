@@ -6,7 +6,7 @@ import { sanitizeRichText, validatePlainText } from '../xss'
 import { isPostgresUniqueViolation } from '../db-errors'
 import { validateVatId } from '../vat'
 import { validateSocialUrl } from './onboarding.server'
-import { decryptJsonb, encryptJsonb } from '../encryption.server'
+import { decryptIfEncrypted, decryptJsonb, encrypt, encryptJsonb } from '../encryption.server'
 import type { TraderStatus } from './trader-status'
 
 export { ImageValidationError } from '../image-utils'
@@ -238,11 +238,11 @@ export async function updateShopInternal(
   }
 
   if (input.dateOfBirth !== undefined) {
-    updateData.dateOfBirth = input.dateOfBirth ? input.dateOfBirth.trim() : null
+    updateData.dateOfBirth = input.dateOfBirth ? encrypt(input.dateOfBirth.trim()) : null
   }
 
   if (input.taxId !== undefined) {
-    updateData.taxId = input.taxId ? input.taxId.trim() : null
+    updateData.taxId = input.taxId ? encrypt(input.taxId.trim()) : null
   }
 
   if (input.businessRegistrationNumber !== undefined) {
@@ -304,13 +304,13 @@ export async function updateShopInternal(
       ? input.taxId
         ? input.taxId.trim()
         : null
-      : (shopRecord.taxId ?? null)
+      : decryptIfEncrypted(shopRecord.taxId)
   const effectiveDateOfBirth =
     input.dateOfBirth !== undefined
       ? input.dateOfBirth
         ? input.dateOfBirth.trim()
         : null
-      : (shopRecord.dateOfBirth ?? null)
+      : decryptIfEncrypted(shopRecord.dateOfBirth)
   const effectiveBusinessReg =
     input.businessRegistrationNumber !== undefined
       ? input.businessRegistrationNumber
@@ -334,7 +334,11 @@ export async function updateShopInternal(
 
   try {
     const [updated] = await db.update(shop).set(updateData).where(eq(shop.id, shopId)).returning()
-    return updated
+    return {
+      ...updated,
+      dateOfBirth: decryptIfEncrypted(updated.dateOfBirth),
+      taxId: decryptIfEncrypted(updated.taxId),
+    }
   } catch (err) {
     if (isPostgresUniqueViolation(err, 'shop_slug_unique')) {
       const slug =

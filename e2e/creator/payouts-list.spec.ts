@@ -36,7 +36,7 @@ test.describe('creator payouts list', () => {
   })
 
   test('renders payouts page heading and table', async ({ page }) => {
-    await page.goto(`/creator/payouts?shopId=${shopId}`)
+    await page.goto(`/studio/${shopId}/payouts`)
     await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
 
@@ -48,7 +48,7 @@ test.describe('creator payouts list', () => {
   })
 
   test('status filter updates the list', async ({ page }) => {
-    await page.goto(`/creator/payouts?shopId=${shopId}`)
+    await page.goto(`/studio/${shopId}/payouts`)
     await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
     await page.waitForLoadState('networkidle')
@@ -88,7 +88,7 @@ test.describe('creator payouts list', () => {
   })
 
   test('payout row invoice link navigates to the invoice page', async ({ page }) => {
-    await page.goto(`/creator/payouts?shopId=${shopId}`)
+    await page.goto(`/studio/${shopId}/payouts`)
     await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
 
@@ -106,7 +106,7 @@ test.describe('creator payouts list', () => {
   })
 
   test('disconnect button opens confirmation dialog when present', async ({ page }) => {
-    await page.goto(`/creator/payouts?shopId=${shopId}`)
+    await page.goto(`/studio/${shopId}/payouts`)
     await waitForAppHydration(page)
     await dismissAnalyticsConsentBanner(page)
 

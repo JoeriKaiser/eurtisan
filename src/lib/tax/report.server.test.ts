@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
+import { encrypt } from '#/lib/encryption.server'
 import { clearTestTables } from '#/test/cleanup'
 import {
   createInvoice,
@@ -490,6 +491,27 @@ describe.sequential('Shop Tax Report', () => {
 
     const types = report.recentInvoices.map((i) => i.type)
     expect(types.every((t) => t === 'customer' || t === 'platform_fee')).toBe(true)
+  })
+
+  it('treats encrypted-at-rest DAC7 identity fields as complete', async () => {
+    const encryptedCreator = await createUser({
+      id: 'creator-encrypted',
+      name: 'Encrypted Seller',
+      email: 'encrypted@example.com',
+      role: 'creator',
+    })
+
+    await createShop(encryptedCreator, {
+      id: 'shop-encrypted',
+      name: 'Encrypted Store',
+      slug: 'encrypted-store',
+      legalEntityType: 'individual',
+      dateOfBirth: encrypt('1990-01-01'),
+      taxId: encrypt('1234567890'),
+    })
+
+    const report = await getShopTaxReportQuery('shop-encrypted', { year: currentYear })
+    expect(report.dac7IdentityComplete).toBe(true)
   })
 
   it('flags DAC7 identity as incomplete when required fields are missing', async () => {

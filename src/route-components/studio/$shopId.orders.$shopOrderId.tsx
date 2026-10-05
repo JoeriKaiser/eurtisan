@@ -175,12 +175,12 @@ export function ShopOrderDetailPage() {
             className='inline-flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary'
           >
             <ArrowLeft size={16} aria-hidden='true' />
-            Back to orders
+            {m.studio_order_back_to_orders()}
           </Link>
         </div>
         <div className='mb-6 flex flex-wrap items-center justify-between gap-4'>
           <div>
-            <h1 className='display-title text-2xl font-semibold text-text-primary'>Order Detail</h1>
+            <h1 className='text-2xl font-semibold text-text-primary'>{m.studio_order_title()}</h1>
             <p className='font-mono text-sm text-text-secondary'>{shopOrderId.slice(0, 8)}…</p>
           </div>
           <Badge

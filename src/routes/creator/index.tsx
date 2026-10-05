@@ -1,31 +1,24 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { CreatorDashboardError, CreatorDashboardLoading } from '#/components/CreatorDashboardPage'
-import { CreatorRouteComponent } from '#/route-components/creator'
-import {
-  getCreatorDashboardStats,
-  getCreatorRecentActivity,
-  getCreatorShops,
-} from '#/lib/creator-dashboard'
-import { guardPrivilegedRole } from '#/lib/route-guards'
-import { m } from '#/paraglide/messages'
+import { createFileRoute, redirect } from '@tanstack/react-router'
+import z from 'zod'
+
+const creatorSearchSchema = z.object({
+  shopId: z.string().optional(),
+})
 
 export const Route = createFileRoute('/creator/')({
-  beforeLoad: async () => guardPrivilegedRole('creator'),
-  loader: async () => {
-    const [stats, activity, shops] = await Promise.all([
-      getCreatorDashboardStats(),
-      getCreatorRecentActivity({ data: { limit: 20 } }),
-      getCreatorShops(),
-    ])
-    return { stats, activity, shops }
+  validateSearch: creatorSearchSchema,
+  beforeLoad: ({ search }) => {
+    if (search.shopId) {
+      throw redirect({
+        to: '/studio/$shopId',
+        params: { shopId: search.shopId },
+        replace: true,
+      })
+    }
+
+    throw redirect({
+      to: '/studio',
+      replace: true,
+    })
   },
-  head: () => ({
-    meta: [
-      { title: `${m.creator_title()} | Eurtisan` },
-      { name: 'description', content: m.creator_description() },
-    ],
-  }),
-  component: CreatorRouteComponent,
-  pendingComponent: CreatorDashboardLoading,
-  errorComponent: CreatorDashboardError,
 })

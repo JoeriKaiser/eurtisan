@@ -47,7 +47,7 @@ export function ShopCard({ shop }: { shop: Awaited<ReturnType<typeof getSellerSh
     ? `/sell/onboarding/${shop.id}`
     : statusOnly
       ? `/sell/status/${shop.id}`
-      : `/creator?shopId=${shop.id}`
+      : `/studio/${shop.id}`
   const action = editable
     ? m.seller_hub_continue_setup()
     : statusOnly

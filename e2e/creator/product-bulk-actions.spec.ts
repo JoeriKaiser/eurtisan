@@ -49,7 +49,7 @@ test.describe('creator product bulk actions', () => {
       await createTestProduct(shop.id, name, 'published', true)
     }
 
-    await page.goto(`/creator/products?shopId=${shop.id}`)
+    await page.goto(`/studio/${shop.id}/products`)
     await waitForAppHydration(page)
 
     await page
@@ -89,7 +89,7 @@ test.describe('creator product bulk actions', () => {
       await createTestProduct(shop.id, name, 'draft', true)
     }
 
-    await page.goto(`/creator/products?shopId=${shop.id}`)
+    await page.goto(`/studio/${shop.id}/products`)
     await waitForAppHydration(page)
 
     await page

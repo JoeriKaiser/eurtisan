@@ -22,7 +22,7 @@ export function MollieMockOauth({ shopId, state, redirect_uri }: MollieMockOauth
 
   const handleCancel = () => {
     // Redirect back to Creator Payouts dashboard directly
-    window.location.href = `/creator/payouts?shopId=${encodeURIComponent(shopId)}`
+    window.location.href = `/studio/${encodeURIComponent(shopId)}/payouts`
   }
 
   return (

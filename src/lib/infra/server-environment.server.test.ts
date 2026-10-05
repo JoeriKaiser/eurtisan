@@ -48,6 +48,8 @@ function validServerEnvironment(): Record<string, string> {
     EMAIL_SMTP_PORT: '587',
     EMAIL_FROM_ADDRESS: 'noreply@eurtisan.test',
     EMAIL_REPLY_TO_ADDRESS: 'support@eurtisan.test',
+    OPERATOR_VAT_ID: 'FR11223344556',
+    OPERATOR_STREET: '12 Rue du Faubourg Saint-Denis',
     METRICS_TOKEN: 'metricsvalue00000000000000000000001',
     ENABLE_VIES_VALIDATION: 'false',
     PLATFORM_VAT_LIABLE: 'true',
@@ -186,24 +188,29 @@ describe('parseServerEnvironment', () => {
     expect(() => parseServerEnvironment(environment)).toThrow('EMAIL_SMTP_HOST')
   })
 
-  it('provides safe operator defaults and accepts configured operator identity', () => {
+  it('accepts a configured operator identity', () => {
     const env = parseServerEnvironment(validServerEnvironment())
     expect(env.OPERATOR_LEGAL_NAME).toBe('Eurtisan Platform')
-    expect(env.OPERATOR_LEGAL_EMAIL).toBe('legal@eurtisan.eu')
-    expect(env.OPERATOR_BILLING_EMAIL).toBe('billing@eurtisan.eu')
-    expect(env.OPERATOR_VAT_ID).toBe('FR00000000000')
-    expect(env.OPERATOR_STREET).toBe('1 Place de la République')
-    expect(env.OPERATOR_CITY).toBe('Paris')
-    expect(env.OPERATOR_POSTAL_CODE).toBe('75001')
-    expect(env.OPERATOR_COUNTRY).toBe('FR')
+    expect(env.OPERATOR_VAT_ID).toBe('FR11223344556')
+    expect(env.OPERATOR_STREET).toBe('12 Rue du Faubourg Saint-Denis')
 
     const customEnv = validServerEnvironment()
     customEnv.OPERATOR_LEGAL_NAME = 'Custom SAS'
     customEnv.OPERATOR_LEGAL_EMAIL = 'custom@example.com'
-    customEnv.OPERATOR_VAT_ID = 'FR11223344556'
+    customEnv.OPERATOR_VAT_ID = 'FR99887766554'
     const parsedCustom = parseServerEnvironment(customEnv)
     expect(parsedCustom.OPERATOR_LEGAL_NAME).toBe('Custom SAS')
     expect(parsedCustom.OPERATOR_LEGAL_EMAIL).toBe('custom@example.com')
-    expect(parsedCustom.OPERATOR_VAT_ID).toBe('FR11223344556')
+    expect(parsedCustom.OPERATOR_VAT_ID).toBe('FR99887766554')
+  })
+
+  it('rejects placeholder operator VAT and street in production', () => {
+    const vatEnv = validServerEnvironment()
+    vatEnv.OPERATOR_VAT_ID = 'FR00000000000'
+    expect(() => parseServerEnvironment(vatEnv)).toThrow('OPERATOR_VAT_ID')
+
+    const streetEnv = validServerEnvironment()
+    streetEnv.OPERATOR_STREET = '1 Place de la République'
+    expect(() => parseServerEnvironment(streetEnv)).toThrow('OPERATOR_STREET')
   })
 })

@@ -433,13 +433,16 @@ describe('CreatorProductNewPage', () => {
 
   /* ---------------------------- Cancel flow ------------------------------ */
 
-  it('navigates to /creator/products on cancel when no changes made', () => {
+  it('navigates to studio products on cancel when no changes made', () => {
     render(<CreatorProductNewPage shops={makeShops()} categories={makeCategories()} />)
 
     const cancelButton = screen.getByRole('button', { name: 'Cancel' })
     fireEvent.click(cancelButton)
 
-    expect(mockNavigate).toHaveBeenCalledWith({ to: '/creator/products' })
+    expect(mockNavigate).toHaveBeenCalledWith({
+      to: '/studio/$shopId/products',
+      params: { shopId: 'shop-1' },
+    })
   })
 
   it('shows confirmation dialog on cancel when form has changes', () => {
@@ -469,7 +472,10 @@ describe('CreatorProductNewPage', () => {
     const leaveButton = screen.getByRole('button', { name: 'Leave' })
     fireEvent.click(leaveButton)
 
-    expect(mockNavigate).toHaveBeenCalledWith({ to: '/creator/products' })
+    expect(mockNavigate).toHaveBeenCalledWith({
+      to: '/studio/$shopId/products',
+      params: { shopId: 'shop-1' },
+    })
   })
 
   it('dismisses confirmation dialog when clicking Stay', () => {

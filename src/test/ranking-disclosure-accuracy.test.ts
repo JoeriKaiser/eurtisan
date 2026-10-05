@@ -49,11 +49,23 @@ const DISCLOSED_RANKING_RULES: { rule: string; message: string }[] = [
  * `attribute` rule weights by — so the disclosure names the four fields in
  * order. These are the phrases each locale uses for them.
  */
-const DISCLOSED_ATTRIBUTES: { attribute: string; en: string; nl: string }[] = [
-  { attribute: 'name', en: 'product name', nl: 'productnaam' },
-  { attribute: 'shopName', en: 'shop name', nl: 'winkelnaam' },
-  { attribute: 'categoryName', en: 'category', nl: 'categorie' },
-  { attribute: 'description', en: 'description', nl: 'beschrijving' },
+const DISCLOSED_ATTRIBUTES: { attribute: string; phrases: Record<string, string> }[] = [
+  {
+    attribute: 'name',
+    phrases: { en: 'product name', nl: 'productnaam', fr: 'nom du produit' },
+  },
+  {
+    attribute: 'shopName',
+    phrases: { en: 'shop name', nl: 'winkelnaam', fr: 'nom de la boutique' },
+  },
+  {
+    attribute: 'categoryName',
+    phrases: { en: 'category', nl: 'categorie', fr: 'catégorie' },
+  },
+  {
+    attribute: 'description',
+    phrases: { en: 'description', nl: 'beschrijving', fr: 'description' },
+  },
 ]
 
 function readSource(path: string): string {
@@ -67,13 +79,19 @@ function extractArrayLiteral(source: string, key: string): string[] {
   return Array.from(match[1].matchAll(/'([^']+)'/g), (entry) => entry[1])
 }
 
-function readMessages(locale: 'en' | 'nl'): Record<string, string> {
+function readConfiguredLocales(): string[] {
+  const settings = JSON.parse(readSource('project.inlang/settings.json')) as { locales: string[] }
+  return settings.locales
+}
+
+function readMessages(locale: string): Record<string, string> {
   return JSON.parse(readSource(`messages/${locale}.json`)) as Record<string, string>
 }
 
+const LOCALES = readConfiguredLocales()
 const meilisearchSource = readSource('src/lib/products/meilisearch.server.ts')
 const componentSource = readSource('src/components/browse/RankingDisclosure.tsx')
-const messages = { en: readMessages('en'), nl: readMessages('nl') }
+const messages = Object.fromEntries(LOCALES.map((locale) => [locale, readMessages(locale)]))
 
 describe('ranking disclosure', () => {
   it('describes the ranking rules that are actually configured, in order', () => {
@@ -85,7 +103,7 @@ describe('ranking disclosure', () => {
   it('has a disclosed step for every ranking rule and no orphans', () => {
     // An orphaned step is as much a defect as a missing one: it tells a buyer
     // a parameter applies when it no longer does.
-    for (const locale of ['en', 'nl'] as const) {
+    for (const locale of LOCALES) {
       const present = Object.keys(messages[locale]).filter((key) =>
         /^ranking_disclosure_search_\d+$/.test(key),
       )
@@ -107,9 +125,9 @@ describe('ranking disclosure', () => {
       DISCLOSED_ATTRIBUTES.map((entry) => entry.attribute),
     )
 
-    for (const locale of ['en', 'nl'] as const) {
+    for (const locale of LOCALES) {
       const text = messages[locale].ranking_disclosure_search_4.toLowerCase()
-      const positions = DISCLOSED_ATTRIBUTES.map((entry) => text.indexOf(entry[locale]))
+      const positions = DISCLOSED_ATTRIBUTES.map((entry) => text.indexOf(entry.phrases[locale]))
 
       expect(positions.some((position) => position === -1)).toBe(false)
       expect(positions).toEqual([...positions].sort((a, b) => a - b))
@@ -120,11 +138,22 @@ describe('ranking disclosure', () => {
     // Verified against the schema and lib: no sponsored, promoted, or boosted
     // placement mechanism exists. If one is ever added, this claim becomes false
     // and the disclosure must change before the feature ships.
-    for (const locale of ['en', 'nl'] as const) {
+    for (const locale of LOCALES) {
       expect(messages[locale].ranking_disclosure_no_payment.length).toBeGreaterThan(0)
     }
 
     const paidPlacement = /\b(sponsored|promoted|boostAmount|isSponsored|isPromoted)\b/i
     expect(paidPlacement.test(readSource('src/db/schema.ts'))).toBe(false)
+  })
+
+  it('discloses category browse as newest by default, matching listProductsQuery', () => {
+    const operations = readSource('src/lib/products/operations.server.ts')
+    expect(operations).toMatch(/sort: SortOption = 'newest'/)
+    expect(operations).toMatch(/default:\s*return desc\(product\.createdAt\)/)
+    for (const locale of LOCALES) {
+      expect(messages[locale].ranking_disclosure_category_body.toLowerCase()).toMatch(
+        /newest|nieuwste|plus récent/,
+      )
+    }
   })
 })

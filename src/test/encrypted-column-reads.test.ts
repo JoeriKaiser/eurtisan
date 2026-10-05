@@ -21,14 +21,23 @@ import { describe, expect, it } from 'vitest'
  * no test of their own, which is exactly where the bugs were.
  */
 
-const ENCRYPTED_COLUMNS = ['shippingOrigin', 'businessAddress', 'billingDetails'] as const
+const ENCRYPTED_COLUMNS = [
+  'shippingOrigin',
+  'businessAddress',
+  'billingDetails',
+  'shippingAddress',
+  'billingAddress',
+] as const
 
 /** `x.shippingOrigin as SomeType` — a cast that skips decryption. */
 const RAW_CAST = new RegExp(`\\.(${ENCRYPTED_COLUMNS.join('|')})\\s+as\\s`, 'g')
 
 /** `shipping_origin->>'country'` — SQL cannot see inside the ciphertext. */
 const SQL_EXTRACTION =
-  /(shippingOrigin|shipping_origin|businessAddress|business_address|billingDetails|billing_details)\s*}?\s*->>/g
+  /(shippingOrigin|shipping_origin|businessAddress|business_address|billingDetails|billing_details|shippingAddress|shipping_address|billingAddress|billing_address)\s*}?\s*->>/g
+
+/** Text columns encrypted at rest. JSON extraction is equally blind. */
+const TEXT_SQL_EXTRACTION = /(taxId|tax_id|dateOfBirth|date_of_birth)\s*}?\s*->>/g
 
 /**
  * Files allowed to name these columns without decrypting.
@@ -79,5 +88,11 @@ describe('encrypted shop columns', () => {
 
   it('are never queried with SQL json extraction, which cannot read ciphertext', () => {
     expect(scanFor(SQL_EXTRACTION)).toEqual([])
+  })
+})
+
+describe('encrypted shop text columns', () => {
+  it('are never queried with SQL json extraction, which cannot read ciphertext', () => {
+    expect(scanFor(TEXT_SQL_EXTRACTION)).toEqual([])
   })
 })

@@ -5,9 +5,7 @@ export function AdminUsersError({ error }: { error: Error }) {
   return (
     <div className='space-y-6'>
       <div>
-        <h1 className='display-title text-3xl font-semibold text-text-primary'>
-          {m.admin_users_title()}
-        </h1>
+        <h1 className='text-3xl font-semibold text-text-primary'>{m.admin_users_title()}</h1>
         <p className='mt-1 text-text-secondary'>{m.admin_users_description()}</p>
       </div>
       <div

@@ -425,9 +425,7 @@ function AdminShopsContent() {
     <div className='space-y-6'>
       {/* Header */}
       <div>
-        <h1 className='display-title text-3xl font-semibold text-text-primary'>
-          {m.admin_shops_title()}
-        </h1>
+        <h1 className='text-3xl font-semibold text-text-primary'>{m.admin_shops_title()}</h1>
         <p className='mt-1 text-text-secondary'>{m.admin_shops_description()}</p>
       </div>
 

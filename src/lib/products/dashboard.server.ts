@@ -1,7 +1,7 @@
 import { and, count, desc, eq, gte, inArray, lt, not, sum } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { platformOrder, product, review, shop, shopOrder, shopSocials, user } from '#/db/schema'
-import { decryptJsonb } from '#/lib/encryption.server'
+import { decryptIfEncrypted, decryptJsonb } from '#/lib/encryption.server'
 import { PLATFORM_FEE_PERCENT } from '#/lib/platform-constants'
 import type { Policies, SocialRow } from '#/lib/sell-onboarding'
 import type { TraderStatus } from '#/lib/shops/trader-status'
@@ -299,8 +299,8 @@ export async function getCreatorShopQuery(
     vatId: record.vatId,
     legalEntityType: record.legalEntityType as 'individual' | 'business' | null,
     traderStatus: record.traderStatus as TraderStatus | null,
-    dateOfBirth: record.dateOfBirth,
-    taxId: record.taxId,
+    dateOfBirth: decryptIfEncrypted(record.dateOfBirth),
+    taxId: decryptIfEncrypted(record.taxId),
     businessRegistrationNumber: record.businessRegistrationNumber,
     policies: (record.policies as Policies | null) ?? null,
     socials: socials.map((s) => ({

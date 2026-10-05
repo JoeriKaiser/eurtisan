@@ -105,9 +105,7 @@ export default function CartPage({ cart: initialCart, showEmptyMessage }: CartPa
         </div>
       )}
       <div className='mb-8'>
-        <h1 className='display-title text-3xl font-semibold text-text-primary sm:text-4xl'>
-          {m.cart_title()}
-        </h1>
+        <h1 className='text-3xl font-semibold text-text-primary sm:text-4xl'>{m.cart_title()}</h1>
         <p className='mt-1 text-sm text-text-secondary'>
           {distinctItems === 1
             ? m.cart_item_single()
@@ -253,7 +251,7 @@ function EmptyCart({ showEmptyMessage }: { showEmptyMessage?: boolean }) {
             <div className='mx-auto mb-6 flex size-20 items-center justify-center rounded-full border border-accent-primary/10 bg-accent-primary-subtle text-accent-primary'>
               <ShoppingBag size={36} strokeWidth={1.5} aria-hidden='true' />
             </div>
-            <h1 className='display-title mb-3 text-2xl font-semibold text-text-primary'>
+            <h1 className='mb-3 text-2xl font-semibold text-text-primary'>
               {m.cart_empty_title()}
             </h1>
             <p className='mb-8 text-text-secondary'>{m.cart_empty_description()}</p>

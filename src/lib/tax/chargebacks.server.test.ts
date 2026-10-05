@@ -1,7 +1,8 @@
 import { and, eq } from 'drizzle-orm'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { db } from '#/db/index'
 import { invoices, payout, platformOrder, product, shopOrder } from '#/db/schema'
+import { molliePaymentProvider } from '#/integrations/mollie'
 import { clearTestTables } from '#/test/cleanup'
 import {
   createOrderItem,
@@ -91,10 +92,16 @@ describe('handleChargeback', () => {
 
   it('reverses the payout, issues a credit note, restores stock and marks the order chargeback', async () => {
     const { product: prod, platformOrder: po, shopOrder: so } = await seedChargebackFixture()
+    const refundSpy = vi.spyOn(molliePaymentProvider, 'refundPayment').mockResolvedValue(undefined)
 
     const result = await handleChargeback('tr_mock_000001')
 
     expect(result.status).toBe('chargeback')
+    expect(refundSpy).toHaveBeenCalledWith('tr_mock_000001', 1200, {
+      reverseRouting: true,
+      idempotencyKey: `chargeback-reverse:${po.id}:1200`,
+    })
+    refundSpy.mockRestore()
 
     const [updatedPo] = await db.select().from(platformOrder).where(eq(platformOrder.id, po.id))
     expect(updatedPo.status).toBe('chargeback')

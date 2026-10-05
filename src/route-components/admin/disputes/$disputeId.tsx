@@ -96,7 +96,7 @@ export function AdminDisputeDetailPage() {
 
         {/* Title */}
         <div className='mb-8'>
-          <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary'>
+          <h1 className='mb-2 text-2xl font-semibold text-text-primary'>
             Dispute {getReasonLabel(dispute.reason)}
           </h1>
           <div className='flex flex-wrap items-center gap-4 text-sm text-text-secondary'>

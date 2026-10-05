@@ -2,7 +2,7 @@ import { and, eq, gte, lte, sql } from 'drizzle-orm'
 
 import { db } from '#/db/index'
 import { invoices, shop, shopOrder } from '#/db/schema'
-import { decryptJsonb } from '../encryption.server'
+import { decryptIfEncrypted, decryptJsonb } from '../encryption.server'
 import { getDac7ComplianceStatus, type Dac7Status } from './dac7.server'
 import type { BillingDetails } from '../invoices.server'
 import { normalizeCountryCode } from './vat.server'
@@ -279,7 +279,9 @@ function computeDac7IdentityComplete(
     | undefined,
 ): boolean {
   if (!shopRecord) return false
-  const { legalEntityType, dateOfBirth, taxId, businessRegistrationNumber } = shopRecord
+  const { legalEntityType, businessRegistrationNumber } = shopRecord
+  const taxId = decryptIfEncrypted(shopRecord.taxId)
+  const dateOfBirth = decryptIfEncrypted(shopRecord.dateOfBirth)
 
   if (!legalEntityType) return false
   if (!taxId || taxId.trim().length === 0) return false
