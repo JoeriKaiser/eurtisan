@@ -236,8 +236,9 @@ e2e: up db-seed-e2e
 	@echo "Waiting for app to be ready (max $(E2E_READY_TIMEOUT_SECONDS)s)..."
 	@i=0; \
 	while [ $$i -lt $(E2E_READY_TIMEOUT_SECONDS) ]; do \
-		if docker compose -f docker-compose.yml -f docker-compose.e2e.yml exec -T app bun -e "fetch('http://localhost:3000/api/health/ready').then(r => { if (!r.ok) process.exit(1); process.exit(0); }).catch(() => process.exit(1))" >/dev/null 2>&1; then \
+		if docker compose -f docker-compose.yml -f docker-compose.e2e.yml exec -T app bun -e "fetch('http://127.0.0.1:3000/api/health/ready').then(r => { if (!r.ok) process.exit(1); process.exit(0); }).catch(() => process.exit(1))" >/dev/null 2>&1; then \
 			echo "App is ready"; \
+			docker compose -f docker-compose.yml -f docker-compose.e2e.yml exec -T app bun -e "await fetch('http://127.0.0.1:3000/').then(r => r.text()).catch(() => {})" >/dev/null 2>&1; \
 			break; \
 		fi; \
 		i=$$((i + 1)); \

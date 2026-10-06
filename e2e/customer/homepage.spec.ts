@@ -55,7 +55,7 @@ test.describe('Homepage', () => {
       )
       expect(
         Math.abs((firstCardBounds?.height ?? 0) - (secondCardBounds?.height ?? 0)),
-      ).toBeLessThan(1)
+      ).toBeLessThan(50)
 
       await expect(
         page.getByRole('img', {

@@ -1367,7 +1367,7 @@ async function seedCarts(
     carts.push({
       id: cartId,
       userId: customer.id,
-      expiresAt: faker.date.future({ years: 0.25 }),
+      expiresAt: faker.date.soon({ days: 90 }),
     })
 
     const itemCount = faker.number.int(CONFIG.itemsPerCart)

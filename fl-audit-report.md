@@ -25,18 +25,18 @@ All automated gates were executed and verified on this machine:
 | Automated Gate | Target / Tool | Result | Details & Evidence |
 | :--- | :--- | :--- | :--- |
 | **TypeScript Typecheck** | `make check` (`tsc --noEmit`) | **PASS (0 errors)** | 100% strict type safety across all routes, models, and loaders |
-| **Biome Linter** | `make lint` | **PASS (0 errors, 0 warnings)** | 1,261 files checked |
-| **Biome Formatter** | `make format` | **PASS (0 diffs)** | 1,261 files checked |
+| **Biome Linter** | `make lint` | **PASS (0 errors, 0 warnings)** | 1,286 files checked |
+| **Biome Formatter** | `make format` | **PASS (0 diffs)** | 1,286 files checked |
 | **Dependency Security** | `make audit-production` (`bun audit`) | **PASS (0 advisories)** | 0 moderate/high vulnerabilities in production dependencies |
-| **Database Schema** | `make db-check` (`drizzle-kit check`) | **PASS** | Schema matches 87 migration files |
-| **Accessibility (a11y)** | `make test-accessibility` (Axe-core) | **PASS (228/228 tests)** | 0 axe violations on checkout, cart, store, search, product detail |
+| **Database Schema** | `make db-check` (`drizzle-kit check`) | **PASS** | Schema matches committed migration files |
+| **Accessibility (a11y)** | `make test-accessibility` (Axe-core) | **PASS (233/233 tests)** | 0 axe violations across 12 files (checkout, cart, store, search, product detail) |
 | **Alert Rules & Promtool**| `make promtool-check` & `promtool-test` | **PASS (12 files, 33 rules)** | All Prometheus alert rules validated and behaviorally tested |
 | **Ansible / Host Preflight**| `make ansible-check` & `compose-check` | **PASS (21 assertions)** | Staging/production inventories, templates, and Compose configs valid |
-| **Pure Unit Tests** | Vitest `unit-pure` | **PASS (80/80 files, 636 tests)** | 100% passing across pure domain utilities |
-| **Browser Component Tests**| Vitest `browser` | **PASS (68/68 files, 700 tests)** | 100% passing across UI components |
-| **Database Unit Tests** | Vitest `unit-db` (Solo run) | **PASS (115/115 files, 1808 tests)** | 100% passing in clean isolated run |
-| **Full Suite Concurrency**| `make test` (Full concurrent suite) | **INTERMITTENT FLAKE** | Async pool query timing under concurrent CPU load |
-
+| **Pure Unit Tests** | Vitest `unit-pure` | **PASS (84/84 files, 662 tests)** | 100% passing across pure domain utilities |
+| **Browser Component Tests**| Vitest `browser` | **PASS (71/71 files, 723 tests)** | 100% passing across UI components |
+| **Database Unit Tests** | Vitest `unit-db` (Serial) | **PASS (117/117 files, 1833 tests)** | 100% passing in serial DB run |
+| **Full Suite Concurrency**| `make test` (Full concurrent suite) | **PASS (3/3 consecutive green runs)** | 272/272 files, 3,218/3,218 tests passing cleanly (129.57s, 129.79s, 135.39s) |
+| **End-to-End User Journeys**| `make e2e` (Playwright full suite) | **PASS (200/200 active tests)** | 100% passing across buyer, creator, admin journeys and auth fixtures |
 ---
 
 ## 3. P0 — Critical Vulnerabilities & Financial Blockers (Verified in Source)
@@ -138,9 +138,9 @@ All automated gates were executed and verified on this machine:
    - **Issue:** French LCEN Art. 6-III-1 mandates publishing SIRET/RCS registration number, publication director, and web host identity/address.
    - **Fix:** Add SIRET/RCS, publication director, and host info to `operator.server.ts` and legal notices.
 
-10. [PENDING STAGING] **Test Suite Flake Under Concurrent Timing:**
-    - **Issue:** Full `make test` runs intermittently flake due to connection draining timing between serial test files under heavy CPU load.
-    - **Fix:** Ensure test teardowns drain connection pool promises cleanly and require 3 consecutive green `make test` runs before staging sign-off.
+10. [RESOLVED] **Test Suite Flake Under Concurrent Timing:**
+    - **Issue:** Full `make test` runs intermittently flaked due to connection draining timing between serial test files under heavy CPU load.
+    - **Fix:** Merged PR #36 with multi-statement database cleanup, parallel worker scaling, and AST classification caching. Qualified with 3 consecutive green `make test` runs (129.57s, 129.79s, 135.39s; 100% pass across all 272 files / 3,218 tests).
 
 ---
 
@@ -182,11 +182,11 @@ Week 1 (Days 1–7): Critical Fixes & Regulatory Compliance [COMPLETE]
 ├── [x] Day 6: Fix P1-6 & P1-7 (Unify worker-daemon in Compose & decouple Meilisearch from /api/health/ready)
 └── [x] Day 7: Fix P1-5 & P1-9 (Admin order decryption & French LCEN legal imprint)
 
-Week 2 (Days 8–14): Hardening, Verification & Staging Drills [PENDING]
+Week 2 (Days 8–14): Hardening, Verification & Staging Drills [QUALIFIED]
 ├── [x] Day 8:   Sync `docs/DATA_RETENTION.md`, configure Docker log rotation & memory right-sizing
-├── [ ] Day 9:   Triage test suite timing; ensure ≥3 consecutive green `make test` runs
-├── [ ] Day 10:  Run complete automated gate suite: `make lint`, `make check`, `make test-accessibility`, `make test`
-├── [ ] Day 11:  Execute staging disaster recovery & PITR restore drill (`docs/runbooks/backup-restore.md`)
-├── [ ] Day 12:  Run full Playwright E2E suite (`make e2e`) on release candidate SHA
-└── [ ] Day 13–14: Staging smoke qualification (`make staging-smoke`) and Beta Launch Approval 🚀
+├── [x] Day 9:   Triage test suite timing; ensure ≥3 consecutive green `make test` runs (Runs: 129.57s, 129.79s, 135.39s; 100% pass)
+├── [x] Day 10:  Run complete automated gate suite: `make lint`, `make check`, `make test-accessibility`, `make test`, `make build`, `make bundle-check`, `make production-image-smoke`, infrastructure checks
+├── [-] Day 11:  Execute staging disaster recovery & PITR restore drill (Skipped per directive)
+├── [x] Day 12:  Run full Playwright E2E suite (`make e2e`) on release candidate SHA (200/200 active tests passed)
+└── [-] Days 13–14: Staging smoke qualification (Skipped per directive) & Beta Launch Approval 🚀
 ```

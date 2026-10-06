@@ -436,7 +436,10 @@ export function AdminLayout() {
           <button
             type='button'
             onClick={() => {
-              void authClient.signOut().then(() => router.navigate({ to: '/' }))
+              void authClient.signOut().then(async () => {
+                await router.invalidate()
+                await router.navigate({ to: '/' })
+              })
             }}
             className='rounded p-1.5 text-text-muted hover:bg-bg-inset hover:text-text-primary transition-colors'
             aria-label={m.admin_layout_logout()}
