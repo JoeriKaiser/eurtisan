@@ -81,8 +81,11 @@ check: ensure-up
 	docker compose exec -T app bun run check
 
 # Fail on production dependency advisories of moderate severity or higher.
+# - GHSA-vfj7-8cjw-p6xm: transitive braces dependency inside @tanstack/start-plugin-core.
+# - GHSA-p6vx-979v-rg4c, GHSA-jp82-f5mq-hwhp: seroval vulnerabilities in @tanstack/react-start.
+#   Seroval >= 1.6 breaks TanStack Start SSR query streaming at runtime; await upstream patch.
 audit-production: ensure-up
-	docker compose exec -T app bun audit --production --audit-level=moderate --ignore=GHSA-vfj7-8cjw-p6xm --ignore=GHSA-p6vx-979v-rg4c --ignore=GHSA-jp82-f5mq-hwhp --ignore=GHSA-68fv-2mgg-jv7q
+	docker compose exec -T app bun audit --production --audit-level=moderate --ignore=GHSA-vfj7-8cjw-p6xm --ignore=GHSA-p6vx-979v-rg4c --ignore=GHSA-jp82-f5mq-hwhp
 
 i18n-compile: ensure-up
 	docker compose exec -T app bun run i18n:compile
