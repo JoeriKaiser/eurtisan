@@ -81,8 +81,11 @@ check: ensure-up
 	docker compose exec -T app bun run check
 
 # Fail on production dependency advisories of moderate severity or higher.
+# - GHSA-vfj7-8cjw-p6xm: transitive braces dependency inside @tanstack/start-plugin-core.
+# - GHSA-p6vx-979v-rg4c, GHSA-jp82-f5mq-hwhp: seroval vulnerabilities in @tanstack/react-start.
+#   Seroval >= 1.6 breaks TanStack Start SSR query streaming at runtime; await upstream patch.
 audit-production: ensure-up
-	docker compose exec -T app bun audit --production --audit-level=moderate --ignore=GHSA-vfj7-8cjw-p6xm
+	docker compose exec -T app bun audit --production --audit-level=moderate --ignore=GHSA-vfj7-8cjw-p6xm --ignore=GHSA-p6vx-979v-rg4c --ignore=GHSA-jp82-f5mq-hwhp
 
 i18n-compile: ensure-up
 	docker compose exec -T app bun run i18n:compile
@@ -236,8 +239,9 @@ e2e: up db-seed-e2e
 	@echo "Waiting for app to be ready (max $(E2E_READY_TIMEOUT_SECONDS)s)..."
 	@i=0; \
 	while [ $$i -lt $(E2E_READY_TIMEOUT_SECONDS) ]; do \
-		if docker compose -f docker-compose.yml -f docker-compose.e2e.yml exec -T app bun -e "fetch('http://localhost:3000/api/health/ready').then(r => { if (!r.ok) process.exit(1); process.exit(0); }).catch(() => process.exit(1))" >/dev/null 2>&1; then \
+		if docker compose -f docker-compose.yml -f docker-compose.e2e.yml exec -T app bun -e "fetch('http://127.0.0.1:3000/api/health/ready').then(r => { if (!r.ok) process.exit(1); process.exit(0); }).catch(() => process.exit(1))" >/dev/null 2>&1; then \
 			echo "App is ready"; \
+			docker compose -f docker-compose.yml -f docker-compose.e2e.yml exec -T app bun -e "await fetch('http://127.0.0.1:3000/').then(r => r.text()).catch(() => {})" >/dev/null 2>&1; \
 			break; \
 		fi; \
 		i=$$((i + 1)); \

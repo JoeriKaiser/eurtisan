@@ -44,6 +44,7 @@ export default function UserMenu() {
   const initials = user.name?.charAt(0).toUpperCase() || 'U'
   const handleSignOut = async () => {
     await authClient.signOut()
+    await router.invalidate()
     await router.navigate({ to: '/' })
   }
 
