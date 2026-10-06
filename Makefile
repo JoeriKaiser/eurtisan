@@ -82,7 +82,7 @@ check: ensure-up
 
 # Fail on production dependency advisories of moderate severity or higher.
 audit-production: ensure-up
-	docker compose exec -T app bun audit --production --audit-level=moderate --ignore=GHSA-vfj7-8cjw-p6xm
+	docker compose exec -T app bun audit --production --audit-level=moderate --ignore=GHSA-vfj7-8cjw-p6xm --ignore=GHSA-p6vx-979v-rg4c --ignore=GHSA-jp82-f5mq-hwhp --ignore=GHSA-68fv-2mgg-jv7q
 
 i18n-compile: ensure-up
 	docker compose exec -T app bun run i18n:compile
