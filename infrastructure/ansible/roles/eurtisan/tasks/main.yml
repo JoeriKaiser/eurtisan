@@ -422,7 +422,7 @@
 
     - name: Sync observability compose and configs
       synchronize:
-        src: "{{ playbook_dir }}/../../infra/observability/"
+        src: "{{ playbook_dir }}/../observability/"
         dest: /opt/eurtisan/observability/
         delete: yes
         rsync_opts:
@@ -431,7 +431,7 @@
 
     - name: Render Prometheus scrape config with metrics token
       template:
-        src: "{{ playbook_dir }}/../../infra/observability/prometheus/prometheus.yml"
+        src: "{{ playbook_dir }}/../observability/prometheus/prometheus.yml"
         dest: /opt/eurtisan/observability/prometheus/prometheus.yml
         mode: "0644"
 

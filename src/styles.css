@@ -3,9 +3,7 @@
 @source not "../.agents";
 @source not "../.github";
 @source not "../docs";
-@source not "../infra";
 @source not "../infrastructure";
-@source not "../load-tests";
 @source not "../README.md";
 @source not "../DESIGN.md";
 @source not "../PRODUCT.md";

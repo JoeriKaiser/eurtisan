@@ -17,7 +17,7 @@
 ## Retention
 
 - Application `audit_log` rows: purged by `job:audit-log-cleanup` (see job schedule / env).
-- Infrastructure logs (Loki): see `infra/observability/loki/loki.yml` and production retention overrides.
+- Infrastructure logs (Loki): see `infrastructure/observability/loki/loki.yml` and production retention overrides.
 
 ## Future
 

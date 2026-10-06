@@ -125,15 +125,7 @@ Each item requires provider-dashboard evidence and correlated safe application o
 
 ### Performance, E2E, and accessibility
 
-Run the pinned Docker k6 targets only in an approved load window:
-
-```bash
-make load-staging \
-  STAGING_LOAD_AUTHORIZED=I_HAVE_OWNER_AUTHORIZATION \
-  STAGING_BASE_URL=https://staging.eurtisan.eu
-```
-
-The current targets are explicit provisional service objectives (`GET /` p95 < 800 ms, search p95 < 1200 ms, errors < 1%). Record environment size, image digest, dataset, VUs, duration, and results. An owner must approve or revise them after the first measured staging baseline; do not silently raise thresholds.
+Execute load testing against staging only during an approved window. The provisional service objectives are `GET /` p95 < 800 ms, search p95 < 1200 ms, and errors < 1%. Record environment size, image digest, dataset, VUs, duration, and results. An owner must approve or revise them after the first measured staging baseline; do not silently raise thresholds.
 
 Run the production-realistic Playwright subset against staging with sandbox accounts, privileged 2FA, production cookie/CSRF/rate-limit settings, and no launch-critical skips. Record browser/network/console failures. Run automated axe checks plus manual keyboard, focus, screen-reader, zoom/reflow, contrast, loading/error, and checkout checks.
 

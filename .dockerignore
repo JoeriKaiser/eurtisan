@@ -62,5 +62,3 @@ scratch
 project.inlang/cache
 .tanstack
 
-# Load tests (not needed at runtime)
-load-tests
