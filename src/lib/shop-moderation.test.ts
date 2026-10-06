@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
 import { meilisearchSyncQueue, notification, product, shop, user } from '#/db/schema'
+import { clearTestTables } from '#/test/cleanup'
 import { listAllShopsQuery, moderateShopQuery } from './shop-moderation.server'
 
 vi.mock('./auth', () => ({
@@ -14,9 +15,7 @@ vi.mock('./auth', () => ({
 }))
 
 beforeEach(async () => {
-  await db.delete(notification)
-  await db.delete(shop)
-  await db.delete(user)
+  await clearTestTables()
 })
 
 async function seedUser(overrides?: Partial<typeof user.$inferInsert>) {

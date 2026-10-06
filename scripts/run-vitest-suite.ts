@@ -1,8 +1,15 @@
-import { classifyUnitTestFiles, UNIT_TEST_CLASSIFICATION_ENV } from './vitest-test-classification'
+import os from 'node:os'
+import {
+  assertBrowserTestsDatabaseFree,
+  BROWSER_TEST_DATABASE_FREE_ENV,
+  classifyUnitTestFiles,
+  UNIT_TEST_CLASSIFICATION_ENV,
+} from './vitest-test-classification'
 
 interface SuiteDefinition {
   label: string
   command: string[]
+  env?: Record<string, string>
 }
 
 interface SuiteResult {
@@ -13,8 +20,11 @@ interface SuiteResult {
 }
 
 const classification = classifyUnitTestFiles()
+assertBrowserTestsDatabaseFree()
+
 const { database, pure } = classification
-const workerCount = process.env.VITEST_PARALLEL_WORKERS ?? '2'
+const defaultWorkers = Math.max(2, Math.min(4, os.cpus().length))
+const workerCount = process.env.VITEST_PARALLEL_WORKERS ?? String(defaultWorkers)
 
 const suites: SuiteDefinition[] = [
   {
@@ -46,22 +56,26 @@ const suites: SuiteDefinition[] = [
       '--maxWorkers',
       workerCount,
     ],
+    env: {
+      [BROWSER_TEST_DATABASE_FREE_ENV]: 'true',
+    },
   },
 ]
 
 console.log('Running independent Vitest suites concurrently:')
 for (const suite of suites) console.log(`- ${suite.label}`)
 
-const childEnvironment = {
+const baseChildEnvironment = {
   ...process.env,
   [UNIT_TEST_CLASSIFICATION_ENV]: JSON.stringify(classification),
+  VITEST_PARALLEL_WORKERS: workerCount,
 }
 
 const results: SuiteResult[] = await Promise.all(
   suites.map(async (suite) => {
     const subprocess = Bun.spawn(suite.command, {
       cwd: process.cwd(),
-      env: childEnvironment,
+      env: { ...baseChildEnvironment, ...suite.env },
       stdin: 'inherit',
       stdout: 'pipe',
       stderr: 'pipe',

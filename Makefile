@@ -201,10 +201,10 @@ BUN_JSC_FORCE_RAM_SIZE ?= 30000000000
 
 test: ensure-up db-migrate-unit
 	@if [ -z "$(filter-out test,$(MAKECMDGOALS))" ]; then \
-		docker compose exec -T -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) app \
+		docker compose exec -T -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) $(if $(VITEST_PARALLEL_WORKERS),-e VITEST_PARALLEL_WORKERS=$(VITEST_PARALLEL_WORKERS)) app \
 		  bun run scripts/run-checked-command.ts test -- bun run scripts/run-vitest-suite.ts; \
 	else \
-		docker compose exec -T -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) app bun run test $(filter-out test,$(MAKECMDGOALS)); \
+		docker compose exec -T -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) $(if $(VITEST_PARALLEL_WORKERS),-e VITEST_PARALLEL_WORKERS=$(VITEST_PARALLEL_WORKERS)) app bun run test $(filter-out test,$(MAKECMDGOALS)); \
 	fi
 
 test-related: ensure-up
@@ -212,7 +212,7 @@ test-related: ensure-up
 
 # Focused rendered accessibility scans and static theme/reflow contracts.
 test-accessibility: ensure-up db-migrate-unit
-	docker compose exec -T -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) app bun run test -- \
+	docker compose exec -T -e BUN_JSC_forceRAMSize=$(BUN_JSC_FORCE_RAM_SIZE) $(if $(VITEST_PARALLEL_WORKERS),-e VITEST_PARALLEL_WORKERS=$(VITEST_PARALLEL_WORKERS)) app bun run test -- \
 	  src/lib/accessibility/contrast.test.ts \
 	  src/components/ui/accessibility.test.tsx \
 	  src/components/ui/primitives/accessibility.test.tsx \

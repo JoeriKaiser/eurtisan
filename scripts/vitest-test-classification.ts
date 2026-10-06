@@ -267,8 +267,19 @@ export function loadUnitTestClassification(
   return parsed
 }
 
-export function assertBrowserTestsDatabaseFree(projectRoot = process.cwd()): void {
+export const BROWSER_TEST_DATABASE_FREE_ENV = 'VITEST_BROWSER_TESTS_VERIFIED'
+
+export function assertBrowserTestsDatabaseFree(
+  projectRoot = process.cwd(),
+  verified?: string,
+): void {
   const root = resolve(projectRoot)
+  const isDefaultRoot = root === resolve(process.cwd())
+  const isExplicitlyVerified = verified !== undefined ? verified === 'true' : false
+  const isEnvVerified = process.env[BROWSER_TEST_DATABASE_FREE_ENV] === 'true'
+
+  if (isExplicitlyVerified || (isDefaultRoot && isEnvVerified)) return
+
   const tests = collectTestFiles(join(root, 'src'), '.test.tsx')
   const { databaseDependencyPath } = createDependencyClassifier(root, true)
   const violations = tests.flatMap((test) => {

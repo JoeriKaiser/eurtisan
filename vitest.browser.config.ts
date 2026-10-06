@@ -17,7 +17,8 @@ export default defineProject({
     exclude: ['node_modules', 'e2e', 'dist'],
     pool: 'forks',
     fileParallelism: true,
-    maxWorkers: 2,
-    execArgv: [],
+    maxWorkers: process.env.VITEST_PARALLEL_WORKERS
+      ? Number(process.env.VITEST_PARALLEL_WORKERS)
+      : undefined,
   },
 })
