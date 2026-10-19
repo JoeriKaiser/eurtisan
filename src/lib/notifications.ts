@@ -13,7 +13,7 @@ export type {
 
 export const getNotifications = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       page: z.number().int().min(1).optional().default(1),
       pageSize: z.number().int().min(1).max(100).optional().default(20),
@@ -49,7 +49,7 @@ export const getUnreadNotificationCount = createServerFn({ method: 'GET' })
 
 export const markNotificationsRead = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ notificationIds: z.array(z.string().uuid()).min(1).max(100) }))
+  .validator(z.object({ notificationIds: z.array(z.string().uuid()).min(1).max(100) }))
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(

@@ -160,6 +160,7 @@ infrastructure/
 │   │   └── eurtisan/                # App deployment
 │   └── files/
 │       └── deploy.sh                # VPS deploy script
+├── observability/                   # Grafana, Prometheus, Alertmanager, Loki, Tempo, Alloy
 └── README.md
 ```
 

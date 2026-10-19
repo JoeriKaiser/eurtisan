@@ -94,7 +94,7 @@ export const Route = createFileRoute('/shops/$shopSlug/')({
       canonicalPath,
       image: shop.bannerImage ?? shop.image,
       logo: shop.image,
-      sameAs: shop.socials.map((social) => social.url),
+      sameAs: shop.socials.map((social: { url: string }) => social.url),
       addressCountry: shop.origin?.country ?? null,
       aggregateRating: shop.rating
         ? { ratingValue: shop.rating.ratingAverage, reviewCount: shop.rating.reviewCount }

@@ -63,7 +63,7 @@ export const listCategoriesAdmin = createServerFn({ method: 'GET' })
 
 export const moveCategory = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator((data: unknown) => moveCategoryInputSchema.parse(data))
+  .validator((data: unknown) => moveCategoryInputSchema.parse(data))
   .handler(async ({ context, data }) => {
     const modules = await Promise.all([
       requireAdmin(context),
@@ -87,7 +87,7 @@ export const moveCategory = createServerFn({ method: 'POST' })
 
 export const reorderCategories = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator((data: unknown) => reorderCategoriesInputSchema.parse(data))
+  .validator((data: unknown) => reorderCategoriesInputSchema.parse(data))
   .handler(async ({ context, data }) => {
     const modules = await Promise.all([
       requireAdmin(context),

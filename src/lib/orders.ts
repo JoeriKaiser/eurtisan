@@ -14,7 +14,7 @@ export type {
 
 export const requireOrderAccess = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ orderId: z.string().uuid() }))
+  .validator(z.object({ orderId: z.string().uuid() }))
   .handler(async ({ context, data }) => {
     const { canAccessOrder } = await import('./checkout/guest-access.server')
     if (!(await canAccessOrder(data.orderId, context.user?.id))) {
@@ -28,7 +28,7 @@ export const requireOrderAccess = createServerFn({ method: 'GET' })
 
 export const getBuyerOrderDetail = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ orderId: z.string().uuid() }))
+  .validator(z.object({ orderId: z.string().uuid() }))
   .handler(async ({ context, data }) => {
     const { getBuyerOrderDetailQuery, getOrderOwnerId } = await import('./orders.server')
     const ownerId = await getOrderOwnerId(data.orderId)
@@ -59,7 +59,7 @@ export const getBuyerOrderDetail = createServerFn({ method: 'GET' })
 
 export const getBuyerOrderDetailByOrderNumber = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       orderNumber: z
         .string()
@@ -90,7 +90,7 @@ export const getBuyerOrderDetailByOrderNumber = createServerFn({ method: 'GET' }
 
 export const listBuyerOrders = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       limit: z.number().int().min(1).max(50).default(10),
       offset: z.number().int().min(0).default(0),

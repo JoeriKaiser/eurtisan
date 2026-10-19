@@ -1,4 +1,4 @@
-.PHONY: db-migrate-unit up down stop logs dev build preview start install lint format format-fix check bundle-check test test-related test-accessibility shell auth-secret db-generate db-check db-migrate db-migrate-fresh db-push db-studio i18n-compile init db-seed meili-setup promtool-check promtool-test pgbackrest-check audit-production production-image-smoke compose-check ci-workflow-check shell-syntax ansible-check ansible-syntax ansible-preflight-staging ansible-preflight-production staging-smoke staging-evidence-create staging-evidence-validate staging-evidence-final load-staging FORCE
+.PHONY: db-migrate-unit up down stop logs dev build preview start install lint format format-fix check bundle-check test test-related test-accessibility shell auth-secret db-generate db-check db-migrate db-migrate-fresh db-push db-studio i18n-compile init db-seed meili-setup promtool-check promtool-test pgbackrest-check audit-production production-image-smoke compose-check ci-workflow-check shell-syntax ansible-check ansible-syntax ansible-preflight-staging ansible-preflight-production staging-smoke staging-evidence-create staging-evidence-validate staging-evidence-final FORCE
 
 # Docker Compose lifecycle
 up:
@@ -91,10 +91,10 @@ i18n-compile: ensure-up
 	docker compose exec -T app bun run i18n:compile
 
 # Observability & alerting validation
-PROMETHEUS_IMAGE ?= prom/prometheus:v2.55.0@sha256:378f4e03703557d1c6419e6caccf922f96e6d88a530f7431d66a4c4f4b1000fe
+PROMETHEUS_IMAGE ?= prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
 
 promtool-check:
-	docker run --rm -v "$(PWD)/infra/observability/prometheus/rules:/rules:ro" \
+	docker run --rm -v "$(PWD)/infrastructure/observability/prometheus/rules:/rules:ro" \
 	  --entrypoint promtool \
 	  $(PROMETHEUS_IMAGE) \
 	  check rules \
@@ -116,7 +116,7 @@ promtool-check:
 # background-job rules had a parsing-clean expression that silently matched the
 # wrong label for a long time, which is what these guard against.
 promtool-test:
-	docker run --rm -v "$(PWD)/infra/observability/prometheus:/p:ro" \
+	docker run --rm -v "$(PWD)/infrastructure/observability/prometheus:/p:ro" \
 	  --entrypoint promtool \
 	  $(PROMETHEUS_IMAGE) \
 	  test rules \
@@ -150,13 +150,13 @@ deploy-smoke-test: up
 
 # Local observability stack
 obs-up:
-	docker compose -f infra/observability/docker-compose.observability.yml --env-file .env.local up -d
+	docker compose -f infrastructure/observability/docker-compose.observability.yml --env-file .env.local up -d
 
 obs-down:
-	docker compose -f infra/observability/docker-compose.observability.yml --env-file .env.local down
+	docker compose -f infrastructure/observability/docker-compose.observability.yml --env-file .env.local down
 
 obs-logs:
-	docker compose -f infra/observability/docker-compose.observability.yml --env-file .env.local logs -f
+	docker compose -f infrastructure/observability/docker-compose.observability.yml --env-file .env.local logs -f
 
 obs-status:
 	@echo "Grafana:      http://127.0.0.1:3001"
@@ -333,7 +333,7 @@ meili-setup: up
 	docker compose exec app bun run src/lib/meili-setup.ts
 
 # ── Release and infrastructure validation ───────────────────────────────
-ACTIONLINT_IMAGE ?= rhysd/actionlint:1.7.7@sha256:887a259a5a534f3c4f36cb02dca341673c6089431057242cdc931e9f133147e9
+ACTIONLINT_IMAGE ?= rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
 
 compose-check:
 	sh scripts/validate-compose-config.sh
@@ -365,17 +365,10 @@ staging-evidence-final: ensure-up
 	@test -n "$(QUALIFICATION_EVIDENCE)" || (echo "QUALIFICATION_EVIDENCE is required"; exit 1)
 	docker compose exec -T app bun run staging:qualification validate --evidence "$(QUALIFICATION_EVIDENCE)" --final true
 
-K6_IMAGE ?= grafana/k6:1.1.0@sha256:aa8202f377550cee0c8bad295bbe8d2d4d4cf88d15c98383e9ecc53c56882308
-load-staging:
-	@test "$(STAGING_LOAD_AUTHORIZED)" = "I_HAVE_OWNER_AUTHORIZATION" || (echo "Set STAGING_LOAD_AUTHORIZED=I_HAVE_OWNER_AUTHORIZATION after approval"; exit 1)
-	@test -n "$(STAGING_BASE_URL)" || (echo "STAGING_BASE_URL is required"; exit 1)
-	docker run --rm -e BASE_URL="$(STAGING_BASE_URL)" -v "$(PWD)/load-tests:/scripts:ro" $(K6_IMAGE) run /scripts/homepage.js
-	docker run --rm -e BASE_URL="$(STAGING_BASE_URL)" -v "$(PWD)/load-tests:/scripts:ro" $(K6_IMAGE) run /scripts/search.js
-
 # ── Owner-supplied Ansible validation/deployment ─────────────────────────
 ANSIBLE_PREFLIGHT_VARS ?=
-ANSIBLE_VALIDATION_IMAGE ?= python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf
-ANSIBLE_VALIDATION_SETUP = PIP_ROOT_USER_ACTION=ignore pip install --disable-pip-version-check --quiet ansible==14.1.0
+ANSIBLE_VALIDATION_IMAGE ?= python:3.13-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f
+ANSIBLE_VALIDATION_SETUP = PIP_ROOT_USER_ACTION=ignore pip install --disable-pip-version-check --quiet ansible==14.5.0
 
 ansible-syntax:
 	docker run --rm -v "$(PWD):/workspace:ro" -w /workspace $(ANSIBLE_VALIDATION_IMAGE) sh -c "$(ANSIBLE_VALIDATION_SETUP) && ansible-playbook -i infrastructure/ansible/inventory/staging.example.yml infrastructure/ansible/playbook.yml --syntax-check && ansible-playbook -i infrastructure/ansible/inventory/production.example.yml infrastructure/ansible/playbook.yml --syntax-check"

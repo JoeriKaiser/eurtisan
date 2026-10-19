@@ -56,7 +56,7 @@ purpose.
 
 ## Monitoring
 
-Prometheus alert rules in `infra/observability/prometheus/rules/` will fire on:
+Prometheus alert rules in `infrastructure/observability/prometheus/rules/` will fire on:
 
 - `webhookProcessedTotal{status="chargeback"}` spikes.
 - `ordersCancelledTotal` increases driven by chargebacks.

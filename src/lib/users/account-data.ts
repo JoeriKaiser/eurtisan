@@ -21,7 +21,7 @@ export const exportMyData = createServerFn({ method: 'POST' })
 
 export const deleteMyAccount = createServerFn({ method: 'POST' })
   .middleware([authMiddleware, createUserRateLimitMiddleware(2, 86_400_000, 'account-delete')])
-  .inputValidator(deleteAccountSchema)
+  .validator(deleteAccountSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')

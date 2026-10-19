@@ -3,7 +3,7 @@ import { AlertTriangle } from 'lucide-react'
 import { m } from '#/paraglide/messages'
 import { Button } from './ui/button'
 
-export function CreatorProductsError({ error }: { error: Error }) {
+export function CreatorProductsError({ error }: { error: unknown; reset?: () => void }) {
   const router = useRouter()
 
   return (
@@ -15,7 +15,9 @@ export function CreatorProductsError({ error }: { error: Error }) {
         <div className='py-12 text-center'>
           <AlertTriangle size={48} className='mx-auto mb-4 text-text-muted' aria-hidden='true' />
           <p className='text-text-secondary'>{m.creator_products_error_load()}</p>
-          <p className='mt-2 text-sm text-text-muted'>{error.message}</p>
+          <p className='mt-2 text-sm text-text-muted'>
+            {error instanceof Error ? error.message : String(error)}
+          </p>
           <div className='mt-6'>
             <Button variant='secondary' onClick={() => void router.invalidate()}>
               {m.creator_error_retry()}

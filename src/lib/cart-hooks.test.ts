@@ -77,7 +77,7 @@ describe('useUpdateCartItem', () => {
 
     useUpdateCartItem()
 
-    const captured = mockUseMutation.mock.calls[1]?.[0] as {
+    const captured = mockUseMutation.mock.calls.at(-1)?.[0] as {
       onSuccess?: () => void
     }
 
@@ -112,7 +112,7 @@ describe('useRemoveCartItem', () => {
 
     useRemoveCartItem()
 
-    const captured = mockUseMutation.mock.calls[2]?.[0] as {
+    const captured = mockUseMutation.mock.calls.at(-1)?.[0] as {
       onSuccess?: () => void
     }
 

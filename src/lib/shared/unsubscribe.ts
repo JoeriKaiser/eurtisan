@@ -7,7 +7,7 @@ const unsubscribeSchema = z.object({
 })
 
 export const unsubscribeByToken = createServerFn({ method: 'POST' })
-  .inputValidator(unsubscribeSchema)
+  .validator(unsubscribeSchema)
   .handler(async ({ data }) => {
     const { unsubscribeByToken: serverUnsubscribe } = await import('../email-preferences.server')
     return serverUnsubscribe(data.token, data.category)

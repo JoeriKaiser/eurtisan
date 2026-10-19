@@ -115,17 +115,20 @@ describe('five-stage onboarding schemas', () => {
     ['non_trader', 'individual'],
     ['trader', 'business'],
     ['non_trader', 'business'],
-  ] as const)('accepts the explicit %s declaration independently of the DAC7 %s identity', (traderStatus, legalEntityType) => {
-    expect(
-      step4LocationSchema.safeParse({
-        ...sellerDetails,
-        traderStatus,
-        legalEntityType,
-        dateOfBirth: legalEntityType === 'individual' ? '1990-05-15' : '',
-        businessRegistrationNumber: legalEntityType === 'business' ? 'RCS PARIS 123 456 789' : '',
-      }).success,
-    ).toBe(true)
-  })
+  ] as const)(
+    'accepts the explicit %s declaration independently of the DAC7 %s identity',
+    (traderStatus, legalEntityType) => {
+      expect(
+        step4LocationSchema.safeParse({
+          ...sellerDetails,
+          traderStatus,
+          legalEntityType,
+          dateOfBirth: legalEntityType === 'individual' ? '1990-05-15' : '',
+          businessRegistrationNumber: legalEntityType === 'business' ? 'RCS PARIS 123 456 789' : '',
+        }).success,
+      ).toBe(true)
+    },
+  )
 
   it('rejects omitted or null trader status rather than inferring it from DAC7 identity', () => {
     const withoutTraderStatus: Record<string, unknown> = { ...sellerDetails }

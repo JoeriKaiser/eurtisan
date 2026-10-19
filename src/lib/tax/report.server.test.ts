@@ -40,7 +40,7 @@ function makePlatformFeeBillingDetails(reverseCharge = false): BillingDetails {
   }
 }
 
-describe.sequential('Shop Tax Report', () => {
+describe('Shop Tax Report', () => {
   const currentYear = new Date().getFullYear()
 
   beforeEach(async () => {

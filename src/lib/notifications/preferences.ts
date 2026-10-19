@@ -29,7 +29,7 @@ export const getMyInAppNotificationPreferences = createServerFn({ method: 'GET' 
 
 export const updateMyInAppNotificationPreference = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(inAppNotificationPreferenceSchema)
+  .validator(inAppNotificationPreferenceSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })

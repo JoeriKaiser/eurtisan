@@ -12,7 +12,7 @@ const shopIdSchema = z.object({
 
 export const pauseShop = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(shopIdSchema)
+  .validator(shopIdSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
@@ -42,7 +42,7 @@ export const pauseShop = createServerFn({ method: 'POST' })
 
 export const resumeShop = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(shopIdSchema)
+  .validator(shopIdSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
@@ -72,7 +72,7 @@ export const resumeShop = createServerFn({ method: 'POST' })
 
 export const archiveShop = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(shopIdSchema)
+  .validator(shopIdSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
@@ -102,7 +102,7 @@ export const archiveShop = createServerFn({ method: 'POST' })
 
 export const requestShopDeletion = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(shopIdSchema)
+  .validator(shopIdSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
@@ -132,7 +132,7 @@ export const requestShopDeletion = createServerFn({ method: 'POST' })
 
 export const cancelShopDeletion = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(shopIdSchema)
+  .validator(shopIdSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(

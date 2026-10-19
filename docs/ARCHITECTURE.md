@@ -35,7 +35,7 @@ Background work runs as separate Bun entrypoints in `src/jobs/`. Production depl
 | `drizzle/` | Committed Drizzle migration SQL and migration metadata | Ad hoc schema edits or deletion/renaming of applied migrations |
 | `messages/` | Source translation messages for Paraglide | Generated locale modules |
 | `src/paraglide/` | Generated Paraglide runtime and locale modules | Hand-written application logic; do not edit directly |
-| `infra/observability/` | The separately deployed Grafana, Loki, Tempo, Prometheus, Alertmanager, and Alloy configuration | Application deployment configuration |
+| `infrastructure/observability/` | The separately deployed Grafana, Loki, Tempo, Prometheus, Alertmanager, and Alloy configuration | Application deployment configuration |
 | `infrastructure/ansible/` | Ansible provisioning, deployment, secrets templates, and VPS configuration | Runtime marketplace code |
 | `docs/` | Architectural, operational, compliance, runbook, and product-flow documentation | Source code or task-status tracking |
 

@@ -9,206 +9,121 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as VerifyEmailRouteImport } from './routes/verify-email'
-import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
-import { Route as TermsRouteImport } from './routes/terms'
-import { Route as SigninRouteImport } from './routes/signin'
-import { Route as SearchRouteImport } from './routes/search'
-import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as PrivacyRouteImport } from './routes/privacy'
-import { Route as OrdersRouteImport } from './routes/orders'
-import { Route as NotificationsRouteImport } from './routes/notifications'
-import { Route as MollieMockOauthRouteImport } from './routes/mollie-mock-oauth'
-import { Route as ImprintRouteImport } from './routes/imprint'
-import { Route as GuestOrderAccessRouteImport } from './routes/guest-order-access'
-import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
-import { Route as ForbiddenRouteImport } from './routes/forbidden'
-import { Route as CreatorRouteImport } from './routes/creator'
-import { Route as CookiesRouteImport } from './routes/cookies'
-import { Route as CheckoutRouteImport } from './routes/checkout'
-import { Route as CartRouteImport } from './routes/cart'
-import { Route as AboutRouteImport } from './routes/about'
-import { Route as StudioRouteRouteImport } from './routes/studio/route'
-import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as StudioIndexRouteImport } from './routes/studio/index'
-import { Route as SellIndexRouteImport } from './routes/sell/index'
-import { Route as OrdersIndexRouteImport } from './routes/orders.index'
-import { Route as CreatorIndexRouteImport } from './routes/creator/index'
-import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AboutRouteImport } from './routes/about'
+import { Route as AdminRouteRouteImport } from './routes/admin/route'
+import { Route as CartRouteImport } from './routes/cart'
+import { Route as CheckoutRouteImport } from './routes/checkout'
+import { Route as CookiesRouteImport } from './routes/cookies'
+import { Route as CreatorRouteImport } from './routes/creator'
+import { Route as ForbiddenRouteImport } from './routes/forbidden'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as GuestOrderAccessRouteImport } from './routes/guest-order-access'
+import { Route as ImprintRouteImport } from './routes/imprint'
+import { Route as MollieMockOauthRouteImport } from './routes/mollie-mock-oauth'
+import { Route as NotificationsRouteImport } from './routes/notifications'
+import { Route as OrdersRouteImport } from './routes/orders'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as SearchRouteImport } from './routes/search'
+import { Route as SigninRouteImport } from './routes/signin'
+import { Route as StudioRouteRouteImport } from './routes/studio/route'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
+import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as AccountIndexRouteImport } from './routes/account/index'
-import { Route as StudioShopIdRouteImport } from './routes/studio/$shopId'
-import { Route as SitemapXmlRouteImport } from './routes/sitemap.xml'
-import { Route as ShopsShopSlugRouteImport } from './routes/shops/$shopSlug'
-import { Route as RobotsTxtRouteImport } from './routes/robots.txt'
-import { Route as ReturnsReturnRequestIdRouteImport } from './routes/returns.$returnRequestId'
-import { Route as OrdersPlatformOrderIdRouteImport } from './routes/orders.$platformOrderId'
-import { Route as InvoicesInvoiceIdRouteImport } from './routes/invoices.$invoiceId'
-import { Route as DisputesDisputeIdRouteImport } from './routes/disputes.$disputeId'
-import { Route as CreatorShopRouteImport } from './routes/creator/shop'
-import { Route as CreatorProductsRouteImport } from './routes/creator/products'
-import { Route as CreatorPayoutsRouteImport } from './routes/creator/payouts'
-import { Route as CategoryAllRouteImport } from './routes/category/all'
-import { Route as CategorySlugRouteImport } from './routes/category/$slug'
-import { Route as ApiUnsubscribeRouteImport } from './routes/api/unsubscribe'
-import { Route as ApiProductsRouteImport } from './routes/api/products'
-import { Route as ApiMetricsRouteImport } from './routes/api/metrics'
-import { Route as ApiImageRouteImport } from './routes/api/image'
-import { Route as ApiHealthRouteImport } from './routes/api/health'
-import { Route as ApiBackupReportRouteImport } from './routes/api/backup-report'
-import { Route as AdminUsersRouteImport } from './routes/admin/users'
-import { Route as AdminShopsRouteImport } from './routes/admin/shops'
-import { Route as AdminReviewsRouteImport } from './routes/admin/reviews'
-import { Route as AdminReportsRouteImport } from './routes/admin/reports'
-import { Route as AdminProductsRouteImport } from './routes/admin/products'
-import { Route as AdminPayoutsRouteImport } from './routes/admin/payouts'
-import { Route as AdminOrdersRouteImport } from './routes/admin/orders'
-import { Route as AdminDisputesRouteImport } from './routes/admin/disputes'
-import { Route as AdminCategoriesRouteImport } from './routes/admin/categories'
-import { Route as AdminAuditLogRouteImport } from './routes/admin/audit-log'
-import { Route as AccountSettingsRouteImport } from './routes/account/settings'
-import { Route as AccountSecurityRouteImport } from './routes/account/security'
 import { Route as AccountOrdersRouteImport } from './routes/account/orders'
-import { Route as StudioShopIdIndexRouteImport } from './routes/studio/$shopId.index'
-import { Route as ShopsShopSlugIndexRouteImport } from './routes/shops/$shopSlug.index'
-import { Route as OrdersPlatformOrderIdIndexRouteImport } from './routes/orders.$platformOrderId.index'
-import { Route as CreatorProductsIndexRouteImport } from './routes/creator/products/index'
-import { Route as AdminOrdersIndexRouteImport } from './routes/admin/orders.index'
-import { Route as AdminDisputesIndexRouteImport } from './routes/admin/disputes.index'
+import { Route as AccountSecurityRouteImport } from './routes/account/security'
+import { Route as AccountSettingsRouteImport } from './routes/account/settings'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminAuditLogRouteImport } from './routes/admin/audit-log'
+import { Route as AdminCategoriesRouteImport } from './routes/admin/categories'
+import { Route as AdminDisputesRouteImport } from './routes/admin/disputes'
+import { Route as AdminOrdersRouteImport } from './routes/admin/orders'
+import { Route as AdminPayoutsRouteImport } from './routes/admin/payouts'
+import { Route as AdminProductsRouteImport } from './routes/admin/products'
+import { Route as AdminReportsRouteImport } from './routes/admin/reports'
+import { Route as AdminReviewsRouteImport } from './routes/admin/reviews'
+import { Route as AdminShopsRouteImport } from './routes/admin/shops'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as ApiBackupReportRouteImport } from './routes/api/backup-report'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiImageRouteImport } from './routes/api/image'
+import { Route as ApiMetricsRouteImport } from './routes/api/metrics'
+import { Route as ApiProductsRouteImport } from './routes/api/products'
+import { Route as ApiUnsubscribeRouteImport } from './routes/api/unsubscribe'
+import { Route as CategorySlugRouteImport } from './routes/category/$slug'
+import { Route as CategoryAllRouteImport } from './routes/category/all'
+import { Route as CreatorIndexRouteImport } from './routes/creator/index'
+import { Route as CreatorPayoutsRouteImport } from './routes/creator/payouts'
+import { Route as CreatorProductsRouteImport } from './routes/creator/products'
+import { Route as CreatorShopRouteImport } from './routes/creator/shop'
+import { Route as DisputesDisputeIdRouteImport } from './routes/disputes.$disputeId'
+import { Route as InvoicesInvoiceIdRouteImport } from './routes/invoices.$invoiceId'
+import { Route as OrdersIndexRouteImport } from './routes/orders.index'
+import { Route as OrdersPlatformOrderIdRouteImport } from './routes/orders.$platformOrderId'
+import { Route as ReturnsReturnRequestIdRouteImport } from './routes/returns.$returnRequestId'
+import { Route as RobotsTxtRouteImport } from './routes/robots.txt'
+import { Route as SellIndexRouteImport } from './routes/sell/index'
+import { Route as ShopsShopSlugRouteImport } from './routes/shops/$shopSlug'
+import { Route as SitemapXmlRouteImport } from './routes/sitemap.xml'
+import { Route as StudioIndexRouteImport } from './routes/studio/index'
+import { Route as StudioShopIdRouteImport } from './routes/studio/$shopId'
 import { Route as AccountOrdersIndexRouteImport } from './routes/account/orders.index'
-import { Route as StudioShopIdSettingsRouteImport } from './routes/studio/$shopId.settings'
-import { Route as StudioShopIdOrdersRouteImport } from './routes/studio/$shopId.orders'
-import { Route as StudioShopIdCustomersRouteImport } from './routes/studio/$shopId.customers'
-import { Route as SellStatusShopIdRouteImport } from './routes/sell/status/$shopId'
-import { Route as SellOnboardingDraftIdRouteImport } from './routes/sell/onboarding/$draftId'
-import { Route as OrdersPlatformOrderIdSuccessRouteImport } from './routes/orders.$platformOrderId.success'
-import { Route as CreatorProductsNewRouteImport } from './routes/creator/products/new'
-import { Route as ApiWebhooksSendcloudRouteImport } from './routes/api/webhooks/sendcloud'
-import { Route as ApiWebhooksMollieChargebackRouteImport } from './routes/api/webhooks/mollie-chargeback'
-import { Route as ApiWebhooksMollieRouteImport } from './routes/api/webhooks/mollie'
-import { Route as ApiWebhooksBrevoRouteImport } from './routes/api/webhooks/brevo'
-import { Route as ApiHealthReadyRouteImport } from './routes/api/health.ready'
-import { Route as ApiHealthLiveRouteImport } from './routes/api/health.live'
-import { Route as ApiHealthDepsRouteImport } from './routes/api/health.deps'
-import { Route as ApiE2eMockPaymentStatusRouteImport } from './routes/api/e2e/mock-payment-status'
-import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
-import { Route as AdminOrdersPlatformOrderIdRouteImport } from './routes/admin/orders.$platformOrderId'
-import { Route as AdminDisputesDisputeIdRouteImport } from './routes/admin/disputes/$disputeId'
 import { Route as AccountOrdersOrderNumberRouteImport } from './routes/account/orders.$orderNumber'
-import { Route as StudioShopIdOrdersIndexRouteImport } from './routes/studio/$shopId.orders.index'
-import { Route as StudioShopIdCustomersIndexRouteImport } from './routes/studio/$shopId.customers.index'
-import { Route as SellOnboardingDraftIdIndexRouteImport } from './routes/sell/onboarding/$draftId/index'
-import { Route as StudioShopIdSettingsTaxRouteImport } from './routes/studio/$shopId.settings.tax'
-import { Route as StudioShopIdOrdersShopOrderIdRouteImport } from './routes/studio/$shopId.orders.$shopOrderId'
-import { Route as StudioShopIdCustomersCustomerHashRouteImport } from './routes/studio/$shopId.customers.$customerHash'
-import { Route as ShopsShopSlugProductsProductSlugRouteImport } from './routes/shops/$shopSlug.products.$productSlug'
-import { Route as SellOnboardingDraftIdVisualsRouteImport } from './routes/sell/onboarding/$draftId/visuals'
-import { Route as SellOnboardingDraftIdStoryRouteImport } from './routes/sell/onboarding/$draftId/story'
-import { Route as SellOnboardingDraftIdSocialsRouteImport } from './routes/sell/onboarding/$draftId/socials'
-import { Route as SellOnboardingDraftIdReviewRouteImport } from './routes/sell/onboarding/$draftId/review'
-import { Route as SellOnboardingDraftIdPoliciesRouteImport } from './routes/sell/onboarding/$draftId/policies'
-import { Route as SellOnboardingDraftIdLocationRouteImport } from './routes/sell/onboarding/$draftId/location'
-import { Route as SellOnboardingDraftIdListingRouteImport } from './routes/sell/onboarding/$draftId/listing'
-import { Route as SellOnboardingDraftIdIdentityRouteImport } from './routes/sell/onboarding/$draftId/identity'
-import { Route as OrdersPlatformOrderIdReturnsNewRouteImport } from './routes/orders.$platformOrderId.returns.new'
-import { Route as CreatorProductsProductIdEditRouteImport } from './routes/creator/products/$productId/edit'
-import { Route as ApiShopsShopIdSettingsRouteImport } from './routes/api/shops/$shopId/settings'
-import { Route as ApiShopsShopIdProductsRouteImport } from './routes/api/shops/$shopId/products'
-import { Route as ApiShopsShopIdOrdersRouteImport } from './routes/api/shops/$shopId/orders'
-import { Route as ApiShopsShopIdDashboardRouteImport } from './routes/api/shops/$shopId/dashboard'
-import { Route as ApiAuthMollieCallbackRouteImport } from './routes/api/auth/mollie/callback'
+import { Route as AdminDisputesIndexRouteImport } from './routes/admin/disputes.index'
+import { Route as AdminDisputesDisputeIdRouteImport } from './routes/admin/disputes/$disputeId'
+import { Route as AdminOrdersIndexRouteImport } from './routes/admin/orders.index'
+import { Route as AdminOrdersPlatformOrderIdRouteImport } from './routes/admin/orders.$platformOrderId'
+import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiE2eMockPaymentStatusRouteImport } from './routes/api/e2e/mock-payment-status'
+import { Route as ApiHealthDepsRouteImport } from './routes/api/health.deps'
+import { Route as ApiHealthLiveRouteImport } from './routes/api/health.live'
+import { Route as ApiHealthReadyRouteImport } from './routes/api/health.ready'
+import { Route as ApiWebhooksBrevoRouteImport } from './routes/api/webhooks/brevo'
+import { Route as ApiWebhooksMollieRouteImport } from './routes/api/webhooks/mollie'
+import { Route as ApiWebhooksMollieChargebackRouteImport } from './routes/api/webhooks/mollie-chargeback'
+import { Route as ApiWebhooksSendcloudRouteImport } from './routes/api/webhooks/sendcloud'
+import { Route as CreatorProductsIndexRouteImport } from './routes/creator/products/index'
+import { Route as CreatorProductsNewRouteImport } from './routes/creator/products/new'
+import { Route as OrdersPlatformOrderIdIndexRouteImport } from './routes/orders.$platformOrderId.index'
+import { Route as OrdersPlatformOrderIdSuccessRouteImport } from './routes/orders.$platformOrderId.success'
+import { Route as SellOnboardingDraftIdRouteImport } from './routes/sell/onboarding/$draftId'
+import { Route as SellStatusShopIdRouteImport } from './routes/sell/status/$shopId'
+import { Route as ShopsShopSlugIndexRouteImport } from './routes/shops/$shopSlug.index'
+import { Route as StudioShopIdIndexRouteImport } from './routes/studio/$shopId.index'
+import { Route as StudioShopIdCustomersRouteImport } from './routes/studio/$shopId.customers'
+import { Route as StudioShopIdOrdersRouteImport } from './routes/studio/$shopId.orders'
+import { Route as StudioShopIdSettingsRouteImport } from './routes/studio/$shopId.settings'
 import { Route as ApiAdminPayoutsPayoutIdRouteImport } from './routes/api/admin/payouts.$payoutId'
-import { Route as ApiShopsShopIdProductsProductIdRouteImport } from './routes/api/shops/$shopId/products.$productId'
+import { Route as ApiAuthMollieCallbackRouteImport } from './routes/api/auth/mollie/callback'
+import { Route as ApiShopsShopIdDashboardRouteImport } from './routes/api/shops/$shopId/dashboard'
+import { Route as ApiShopsShopIdOrdersRouteImport } from './routes/api/shops/$shopId/orders'
+import { Route as ApiShopsShopIdProductsRouteImport } from './routes/api/shops/$shopId/products'
+import { Route as ApiShopsShopIdSettingsRouteImport } from './routes/api/shops/$shopId/settings'
+import { Route as CreatorProductsProductIdEditRouteImport } from './routes/creator/products/$productId/edit'
+import { Route as OrdersPlatformOrderIdReturnsNewRouteImport } from './routes/orders.$platformOrderId.returns.new'
+import { Route as SellOnboardingDraftIdIndexRouteImport } from './routes/sell/onboarding/$draftId/index'
+import { Route as SellOnboardingDraftIdIdentityRouteImport } from './routes/sell/onboarding/$draftId/identity'
+import { Route as SellOnboardingDraftIdListingRouteImport } from './routes/sell/onboarding/$draftId/listing'
+import { Route as SellOnboardingDraftIdLocationRouteImport } from './routes/sell/onboarding/$draftId/location'
+import { Route as SellOnboardingDraftIdPoliciesRouteImport } from './routes/sell/onboarding/$draftId/policies'
+import { Route as SellOnboardingDraftIdReviewRouteImport } from './routes/sell/onboarding/$draftId/review'
+import { Route as SellOnboardingDraftIdSocialsRouteImport } from './routes/sell/onboarding/$draftId/socials'
+import { Route as SellOnboardingDraftIdStoryRouteImport } from './routes/sell/onboarding/$draftId/story'
+import { Route as SellOnboardingDraftIdVisualsRouteImport } from './routes/sell/onboarding/$draftId/visuals'
+import { Route as ShopsShopSlugProductsProductSlugRouteImport } from './routes/shops/$shopSlug.products.$productSlug'
+import { Route as StudioShopIdCustomersIndexRouteImport } from './routes/studio/$shopId.customers.index'
+import { Route as StudioShopIdCustomersCustomerHashRouteImport } from './routes/studio/$shopId.customers.$customerHash'
+import { Route as StudioShopIdOrdersIndexRouteImport } from './routes/studio/$shopId.orders.index'
+import { Route as StudioShopIdOrdersShopOrderIdRouteImport } from './routes/studio/$shopId.orders.$shopOrderId'
+import { Route as StudioShopIdSettingsTaxRouteImport } from './routes/studio/$shopId.settings.tax'
 import { Route as ApiShopsShopIdOrdersShopOrderIdRouteImport } from './routes/api/shops/$shopId/orders.$shopOrderId'
+import { Route as ApiShopsShopIdProductsProductIdRouteImport } from './routes/api/shops/$shopId/products.$productId'
 
-const VerifyEmailRoute = VerifyEmailRouteImport.update({
-  id: '/verify-email',
-  path: '/verify-email',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const UnsubscribeRoute = UnsubscribeRouteImport.update({
-  id: '/unsubscribe',
-  path: '/unsubscribe',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SigninRoute = SigninRouteImport.update({
-  id: '/signin',
-  path: '/signin',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SearchRoute = SearchRouteImport.update({
-  id: '/search',
-  path: '/search',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PrivacyRoute = PrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OrdersRoute = OrdersRouteImport.update({
-  id: '/orders',
-  path: '/orders',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const NotificationsRoute = NotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MollieMockOauthRoute = MollieMockOauthRouteImport.update({
-  id: '/mollie-mock-oauth',
-  path: '/mollie-mock-oauth',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ImprintRoute = ImprintRouteImport.update({
-  id: '/imprint',
-  path: '/imprint',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GuestOrderAccessRoute = GuestOrderAccessRouteImport.update({
-  id: '/guest-order-access',
-  path: '/guest-order-access',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
-  id: '/forgot-password',
-  path: '/forgot-password',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ForbiddenRoute = ForbiddenRouteImport.update({
-  id: '/forbidden',
-  path: '/forbidden',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CreatorRoute = CreatorRouteImport.update({
-  id: '/creator',
-  path: '/creator',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CookiesRoute = CookiesRouteImport.update({
-  id: '/cookies',
-  path: '/cookies',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CheckoutRoute = CheckoutRouteImport.update({
-  id: '/checkout',
-  path: '/checkout',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CartRoute = CartRouteImport.update({
-  id: '/cart',
-  path: '/cart',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -216,204 +131,109 @@ const AboutRoute = AboutRouteImport.update({
   path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
-const StudioRouteRoute = StudioRouteRouteImport.update({
-  id: '/studio',
-  path: '/studio',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AdminRouteRoute = AdminRouteRouteImport.update({
   id: '/admin',
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const CartRoute = CartRouteImport.update({
+  id: '/cart',
+  path: '/cart',
   getParentRoute: () => rootRouteImport,
 } as any)
-const StudioIndexRoute = StudioIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => StudioRouteRoute,
-} as any)
-const SellIndexRoute = SellIndexRouteImport.update({
-  id: '/sell/',
-  path: '/sell/',
+const CheckoutRoute = CheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OrdersIndexRoute = OrdersIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => OrdersRoute,
+const CookiesRoute = CookiesRouteImport.update({
+  id: '/cookies',
+  path: '/cookies',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const CreatorIndexRoute = CreatorIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => CreatorRoute,
+const CreatorRoute = CreatorRouteImport.update({
+  id: '/creator',
+  path: '/creator',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AdminIndexRoute = AdminIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AdminRouteRoute,
+const ForbiddenRoute = ForbiddenRouteImport.update({
+  id: '/forbidden',
+  path: '/forbidden',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuestOrderAccessRoute = GuestOrderAccessRouteImport.update({
+  id: '/guest-order-access',
+  path: '/guest-order-access',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ImprintRoute = ImprintRouteImport.update({
+  id: '/imprint',
+  path: '/imprint',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MollieMockOauthRoute = MollieMockOauthRouteImport.update({
+  id: '/mollie-mock-oauth',
+  path: '/mollie-mock-oauth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrdersRoute = OrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SigninRoute = SigninRouteImport.update({
+  id: '/signin',
+  path: '/signin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudioRouteRoute = StudioRouteRouteImport.update({
+  id: '/studio',
+  path: '/studio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UnsubscribeRoute = UnsubscribeRouteImport.update({
+  id: '/unsubscribe',
+  path: '/unsubscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerifyEmailRoute = VerifyEmailRouteImport.update({
+  id: '/verify-email',
+  path: '/verify-email',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AccountIndexRoute = AccountIndexRouteImport.update({
   id: '/account/',
   path: '/account/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const StudioShopIdRoute = StudioShopIdRouteImport.update({
-  id: '/$shopId',
-  path: '/$shopId',
-  getParentRoute: () => StudioRouteRoute,
-} as any)
-const SitemapXmlRoute = SitemapXmlRouteImport.update({
-  id: '/sitemap/xml',
-  path: '/sitemap/xml',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ShopsShopSlugRoute = ShopsShopSlugRouteImport.update({
-  id: '/shops/$shopSlug',
-  path: '/shops/$shopSlug',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RobotsTxtRoute = RobotsTxtRouteImport.update({
-  id: '/robots/txt',
-  path: '/robots/txt',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ReturnsReturnRequestIdRoute = ReturnsReturnRequestIdRouteImport.update({
-  id: '/returns/$returnRequestId',
-  path: '/returns/$returnRequestId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OrdersPlatformOrderIdRoute = OrdersPlatformOrderIdRouteImport.update({
-  id: '/$platformOrderId',
-  path: '/$platformOrderId',
-  getParentRoute: () => OrdersRoute,
-} as any)
-const InvoicesInvoiceIdRoute = InvoicesInvoiceIdRouteImport.update({
-  id: '/invoices/$invoiceId',
-  path: '/invoices/$invoiceId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DisputesDisputeIdRoute = DisputesDisputeIdRouteImport.update({
-  id: '/disputes/$disputeId',
-  path: '/disputes/$disputeId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CreatorShopRoute = CreatorShopRouteImport.update({
-  id: '/shop',
-  path: '/shop',
-  getParentRoute: () => CreatorRoute,
-} as any)
-const CreatorProductsRoute = CreatorProductsRouteImport.update({
-  id: '/products',
-  path: '/products',
-  getParentRoute: () => CreatorRoute,
-} as any)
-const CreatorPayoutsRoute = CreatorPayoutsRouteImport.update({
-  id: '/payouts',
-  path: '/payouts',
-  getParentRoute: () => CreatorRoute,
-} as any)
-const CategoryAllRoute = CategoryAllRouteImport.update({
-  id: '/category/all',
-  path: '/category/all',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CategorySlugRoute = CategorySlugRouteImport.update({
-  id: '/category/$slug',
-  path: '/category/$slug',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiUnsubscribeRoute = ApiUnsubscribeRouteImport.update({
-  id: '/api/unsubscribe',
-  path: '/api/unsubscribe',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiProductsRoute = ApiProductsRouteImport.update({
-  id: '/api/products',
-  path: '/api/products',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiMetricsRoute = ApiMetricsRouteImport.update({
-  id: '/api/metrics',
-  path: '/api/metrics',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiImageRoute = ApiImageRouteImport.update({
-  id: '/api/image',
-  path: '/api/image',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiHealthRoute = ApiHealthRouteImport.update({
-  id: '/api/health',
-  path: '/api/health',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiBackupReportRoute = ApiBackupReportRouteImport.update({
-  id: '/api/backup-report',
-  path: '/api/backup-report',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminUsersRoute = AdminUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminShopsRoute = AdminShopsRouteImport.update({
-  id: '/shops',
-  path: '/shops',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminReviewsRoute = AdminReviewsRouteImport.update({
-  id: '/reviews',
-  path: '/reviews',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminReportsRoute = AdminReportsRouteImport.update({
-  id: '/reports',
-  path: '/reports',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminProductsRoute = AdminProductsRouteImport.update({
-  id: '/products',
-  path: '/products',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminPayoutsRoute = AdminPayoutsRouteImport.update({
-  id: '/payouts',
-  path: '/payouts',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminOrdersRoute = AdminOrdersRouteImport.update({
-  id: '/orders',
-  path: '/orders',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminDisputesRoute = AdminDisputesRouteImport.update({
-  id: '/disputes',
-  path: '/disputes',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminCategoriesRoute = AdminCategoriesRouteImport.update({
-  id: '/categories',
-  path: '/categories',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AdminAuditLogRoute = AdminAuditLogRouteImport.update({
-  id: '/audit-log',
-  path: '/audit-log',
-  getParentRoute: () => AdminRouteRoute,
-} as any)
-const AccountSettingsRoute = AccountSettingsRouteImport.update({
-  id: '/account/settings',
-  path: '/account/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AccountSecurityRoute = AccountSecurityRouteImport.update({
-  id: '/account/security',
-  path: '/account/security',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AccountOrdersRoute = AccountOrdersRouteImport.update({
@@ -421,81 +241,251 @@ const AccountOrdersRoute = AccountOrdersRouteImport.update({
   path: '/account/orders',
   getParentRoute: () => rootRouteImport,
 } as any)
-const StudioShopIdIndexRoute = StudioShopIdIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => StudioShopIdRoute,
+const AccountSecurityRoute = AccountSecurityRouteImport.update({
+  id: '/account/security',
+  path: '/account/security',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const ShopsShopSlugIndexRoute = ShopsShopSlugIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => ShopsShopSlugRoute,
+const AccountSettingsRoute = AccountSettingsRouteImport.update({
+  id: '/account/settings',
+  path: '/account/settings',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const OrdersPlatformOrderIdIndexRoute =
-  OrdersPlatformOrderIdIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => OrdersPlatformOrderIdRoute,
-  } as any)
-const CreatorProductsIndexRoute = CreatorProductsIndexRouteImport.update({
+const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => CreatorProductsRoute,
+  getParentRoute: () => AdminRouteRoute,
 } as any)
-const AdminOrdersIndexRoute = AdminOrdersIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AdminOrdersRoute,
+const AdminAuditLogRoute = AdminAuditLogRouteImport.update({
+  id: '/audit-log',
+  path: '/audit-log',
+  getParentRoute: () => AdminRouteRoute,
 } as any)
-const AdminDisputesIndexRoute = AdminDisputesIndexRouteImport.update({
+const AdminCategoriesRoute = AdminCategoriesRouteImport.update({
+  id: '/categories',
+  path: '/categories',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminDisputesRoute = AdminDisputesRouteImport.update({
+  id: '/disputes',
+  path: '/disputes',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminOrdersRoute = AdminOrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminPayoutsRoute = AdminPayoutsRouteImport.update({
+  id: '/payouts',
+  path: '/payouts',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminProductsRoute = AdminProductsRouteImport.update({
+  id: '/products',
+  path: '/products',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminReportsRoute = AdminReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminReviewsRoute = AdminReviewsRouteImport.update({
+  id: '/reviews',
+  path: '/reviews',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminShopsRoute = AdminShopsRouteImport.update({
+  id: '/shops',
+  path: '/shops',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const ApiBackupReportRoute = ApiBackupReportRouteImport.update({
+  id: '/api/backup-report',
+  path: '/api/backup-report',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiImageRoute = ApiImageRouteImport.update({
+  id: '/api/image',
+  path: '/api/image',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMetricsRoute = ApiMetricsRouteImport.update({
+  id: '/api/metrics',
+  path: '/api/metrics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiProductsRoute = ApiProductsRouteImport.update({
+  id: '/api/products',
+  path: '/api/products',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiUnsubscribeRoute = ApiUnsubscribeRouteImport.update({
+  id: '/api/unsubscribe',
+  path: '/api/unsubscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CategorySlugRoute = CategorySlugRouteImport.update({
+  id: '/category/$slug',
+  path: '/category/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CategoryAllRoute = CategoryAllRouteImport.update({
+  id: '/category/all',
+  path: '/category/all',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CreatorIndexRoute = CreatorIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AdminDisputesRoute,
+  getParentRoute: () => CreatorRoute,
+} as any)
+const CreatorPayoutsRoute = CreatorPayoutsRouteImport.update({
+  id: '/payouts',
+  path: '/payouts',
+  getParentRoute: () => CreatorRoute,
+} as any)
+const CreatorProductsRoute = CreatorProductsRouteImport.update({
+  id: '/products',
+  path: '/products',
+  getParentRoute: () => CreatorRoute,
+} as any)
+const CreatorShopRoute = CreatorShopRouteImport.update({
+  id: '/shop',
+  path: '/shop',
+  getParentRoute: () => CreatorRoute,
+} as any)
+const DisputesDisputeIdRoute = DisputesDisputeIdRouteImport.update({
+  id: '/disputes/$disputeId',
+  path: '/disputes/$disputeId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InvoicesInvoiceIdRoute = InvoicesInvoiceIdRouteImport.update({
+  id: '/invoices/$invoiceId',
+  path: '/invoices/$invoiceId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OrdersIndexRoute = OrdersIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => OrdersRoute,
+} as any)
+const OrdersPlatformOrderIdRoute = OrdersPlatformOrderIdRouteImport.update({
+  id: '/$platformOrderId',
+  path: '/$platformOrderId',
+  getParentRoute: () => OrdersRoute,
+} as any)
+const ReturnsReturnRequestIdRoute = ReturnsReturnRequestIdRouteImport.update({
+  id: '/returns/$returnRequestId',
+  path: '/returns/$returnRequestId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RobotsTxtRoute = RobotsTxtRouteImport.update({
+  id: '/robots/txt',
+  path: '/robots/txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SellIndexRoute = SellIndexRouteImport.update({
+  id: '/sell/',
+  path: '/sell/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShopsShopSlugRoute = ShopsShopSlugRouteImport.update({
+  id: '/shops/$shopSlug',
+  path: '/shops/$shopSlug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapXmlRoute = SitemapXmlRouteImport.update({
+  id: '/sitemap/xml',
+  path: '/sitemap/xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StudioIndexRoute = StudioIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => StudioRouteRoute,
+} as any)
+const StudioShopIdRoute = StudioShopIdRouteImport.update({
+  id: '/$shopId',
+  path: '/$shopId',
+  getParentRoute: () => StudioRouteRoute,
 } as any)
 const AccountOrdersIndexRoute = AccountOrdersIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AccountOrdersRoute,
 } as any)
-const StudioShopIdSettingsRoute = StudioShopIdSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => StudioShopIdRoute,
-} as any)
-const StudioShopIdOrdersRoute = StudioShopIdOrdersRouteImport.update({
-  id: '/orders',
-  path: '/orders',
-  getParentRoute: () => StudioShopIdRoute,
-} as any)
-const StudioShopIdCustomersRoute = StudioShopIdCustomersRouteImport.update({
-  id: '/customers',
-  path: '/customers',
-  getParentRoute: () => StudioShopIdRoute,
-} as any)
-const SellStatusShopIdRoute = SellStatusShopIdRouteImport.update({
-  id: '/sell/status/$shopId',
-  path: '/sell/status/$shopId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SellOnboardingDraftIdRoute = SellOnboardingDraftIdRouteImport.update({
-  id: '/sell/onboarding/$draftId',
-  path: '/sell/onboarding/$draftId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OrdersPlatformOrderIdSuccessRoute =
-  OrdersPlatformOrderIdSuccessRouteImport.update({
-    id: '/success',
-    path: '/success',
-    getParentRoute: () => OrdersPlatformOrderIdRoute,
+const AccountOrdersOrderNumberRoute =
+  AccountOrdersOrderNumberRouteImport.update({
+    id: '/$orderNumber',
+    path: '/$orderNumber',
+    getParentRoute: () => AccountOrdersRoute,
   } as any)
-const CreatorProductsNewRoute = CreatorProductsNewRouteImport.update({
-  id: '/new',
-  path: '/new',
-  getParentRoute: () => CreatorProductsRoute,
+const AdminDisputesIndexRoute = AdminDisputesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminDisputesRoute,
 } as any)
-const ApiWebhooksSendcloudRoute = ApiWebhooksSendcloudRouteImport.update({
-  id: '/api/webhooks/sendcloud',
-  path: '/api/webhooks/sendcloud',
+const AdminDisputesDisputeIdRoute = AdminDisputesDisputeIdRouteImport.update({
+  id: '/$disputeId',
+  path: '/$disputeId',
+  getParentRoute: () => AdminDisputesRoute,
+} as any)
+const AdminOrdersIndexRoute = AdminOrdersIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminOrdersRoute,
+} as any)
+const AdminOrdersPlatformOrderIdRoute =
+  AdminOrdersPlatformOrderIdRouteImport.update({
+    id: '/$platformOrderId',
+    path: '/$platformOrderId',
+    getParentRoute: () => AdminOrdersRoute,
+  } as any)
+const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
+  id: '/api/auth/$',
+  path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiE2eMockPaymentStatusRoute = ApiE2eMockPaymentStatusRouteImport.update({
+  id: '/api/e2e/mock-payment-status',
+  path: '/api/e2e/mock-payment-status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiHealthDepsRoute = ApiHealthDepsRouteImport.update({
+  id: '/deps',
+  path: '/deps',
+  getParentRoute: () => ApiHealthRoute,
+} as any)
+const ApiHealthLiveRoute = ApiHealthLiveRouteImport.update({
+  id: '/live',
+  path: '/live',
+  getParentRoute: () => ApiHealthRoute,
+} as any)
+const ApiHealthReadyRoute = ApiHealthReadyRouteImport.update({
+  id: '/ready',
+  path: '/ready',
+  getParentRoute: () => ApiHealthRoute,
+} as any)
+const ApiWebhooksBrevoRoute = ApiWebhooksBrevoRouteImport.update({
+  id: '/api/webhooks/brevo',
+  path: '/api/webhooks/brevo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiWebhooksMollieRoute = ApiWebhooksMollieRouteImport.update({
+  id: '/api/webhooks/mollie',
+  path: '/api/webhooks/mollie',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiWebhooksMollieChargebackRoute =
@@ -504,138 +494,114 @@ const ApiWebhooksMollieChargebackRoute =
     path: '/api/webhooks/mollie-chargeback',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiWebhooksMollieRoute = ApiWebhooksMollieRouteImport.update({
-  id: '/api/webhooks/mollie',
-  path: '/api/webhooks/mollie',
+const ApiWebhooksSendcloudRoute = ApiWebhooksSendcloudRouteImport.update({
+  id: '/api/webhooks/sendcloud',
+  path: '/api/webhooks/sendcloud',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiWebhooksBrevoRoute = ApiWebhooksBrevoRouteImport.update({
-  id: '/api/webhooks/brevo',
-  path: '/api/webhooks/brevo',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiHealthReadyRoute = ApiHealthReadyRouteImport.update({
-  id: '/ready',
-  path: '/ready',
-  getParentRoute: () => ApiHealthRoute,
-} as any)
-const ApiHealthLiveRoute = ApiHealthLiveRouteImport.update({
-  id: '/live',
-  path: '/live',
-  getParentRoute: () => ApiHealthRoute,
-} as any)
-const ApiHealthDepsRoute = ApiHealthDepsRouteImport.update({
-  id: '/deps',
-  path: '/deps',
-  getParentRoute: () => ApiHealthRoute,
-} as any)
-const ApiE2eMockPaymentStatusRoute = ApiE2eMockPaymentStatusRouteImport.update({
-  id: '/api/e2e/mock-payment-status',
-  path: '/api/e2e/mock-payment-status',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
-  id: '/api/auth/$',
-  path: '/api/auth/$',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminOrdersPlatformOrderIdRoute =
-  AdminOrdersPlatformOrderIdRouteImport.update({
-    id: '/$platformOrderId',
-    path: '/$platformOrderId',
-    getParentRoute: () => AdminOrdersRoute,
-  } as any)
-const AdminDisputesDisputeIdRoute = AdminDisputesDisputeIdRouteImport.update({
-  id: '/$disputeId',
-  path: '/$disputeId',
-  getParentRoute: () => AdminDisputesRoute,
-} as any)
-const AccountOrdersOrderNumberRoute =
-  AccountOrdersOrderNumberRouteImport.update({
-    id: '/$orderNumber',
-    path: '/$orderNumber',
-    getParentRoute: () => AccountOrdersRoute,
-  } as any)
-const StudioShopIdOrdersIndexRoute = StudioShopIdOrdersIndexRouteImport.update({
+const CreatorProductsIndexRoute = CreatorProductsIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => StudioShopIdOrdersRoute,
+  getParentRoute: () => CreatorProductsRoute,
 } as any)
-const StudioShopIdCustomersIndexRoute =
-  StudioShopIdCustomersIndexRouteImport.update({
+const CreatorProductsNewRoute = CreatorProductsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => CreatorProductsRoute,
+} as any)
+const OrdersPlatformOrderIdIndexRoute =
+  OrdersPlatformOrderIdIndexRouteImport.update({
     id: '/',
     path: '/',
-    getParentRoute: () => StudioShopIdCustomersRoute,
+    getParentRoute: () => OrdersPlatformOrderIdRoute,
+  } as any)
+const OrdersPlatformOrderIdSuccessRoute =
+  OrdersPlatformOrderIdSuccessRouteImport.update({
+    id: '/success',
+    path: '/success',
+    getParentRoute: () => OrdersPlatformOrderIdRoute,
+  } as any)
+const SellOnboardingDraftIdRoute = SellOnboardingDraftIdRouteImport.update({
+  id: '/sell/onboarding/$draftId',
+  path: '/sell/onboarding/$draftId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SellStatusShopIdRoute = SellStatusShopIdRouteImport.update({
+  id: '/sell/status/$shopId',
+  path: '/sell/status/$shopId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShopsShopSlugIndexRoute = ShopsShopSlugIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ShopsShopSlugRoute,
+} as any)
+const StudioShopIdIndexRoute = StudioShopIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => StudioShopIdRoute,
+} as any)
+const StudioShopIdCustomersRoute = StudioShopIdCustomersRouteImport.update({
+  id: '/customers',
+  path: '/customers',
+  getParentRoute: () => StudioShopIdRoute,
+} as any)
+const StudioShopIdOrdersRoute = StudioShopIdOrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => StudioShopIdRoute,
+} as any)
+const StudioShopIdSettingsRoute = StudioShopIdSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => StudioShopIdRoute,
+} as any)
+const ApiAdminPayoutsPayoutIdRoute = ApiAdminPayoutsPayoutIdRouteImport.update({
+  id: '/api/admin/payouts/$payoutId',
+  path: '/api/admin/payouts/$payoutId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthMollieCallbackRoute = ApiAuthMollieCallbackRouteImport.update({
+  id: '/api/auth/mollie/callback',
+  path: '/api/auth/mollie/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiShopsShopIdDashboardRoute = ApiShopsShopIdDashboardRouteImport.update({
+  id: '/api/shops/$shopId/dashboard',
+  path: '/api/shops/$shopId/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiShopsShopIdOrdersRoute = ApiShopsShopIdOrdersRouteImport.update({
+  id: '/api/shops/$shopId/orders',
+  path: '/api/shops/$shopId/orders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiShopsShopIdProductsRoute = ApiShopsShopIdProductsRouteImport.update({
+  id: '/api/shops/$shopId/products',
+  path: '/api/shops/$shopId/products',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiShopsShopIdSettingsRoute = ApiShopsShopIdSettingsRouteImport.update({
+  id: '/api/shops/$shopId/settings',
+  path: '/api/shops/$shopId/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CreatorProductsProductIdEditRoute =
+  CreatorProductsProductIdEditRouteImport.update({
+    id: '/$productId/edit',
+    path: '/$productId/edit',
+    getParentRoute: () => CreatorProductsRoute,
+  } as any)
+const OrdersPlatformOrderIdReturnsNewRoute =
+  OrdersPlatformOrderIdReturnsNewRouteImport.update({
+    id: '/returns/new',
+    path: '/returns/new',
+    getParentRoute: () => OrdersPlatformOrderIdRoute,
   } as any)
 const SellOnboardingDraftIdIndexRoute =
   SellOnboardingDraftIdIndexRouteImport.update({
     id: '/',
     path: '/',
-    getParentRoute: () => SellOnboardingDraftIdRoute,
-  } as any)
-const StudioShopIdSettingsTaxRoute = StudioShopIdSettingsTaxRouteImport.update({
-  id: '/tax',
-  path: '/tax',
-  getParentRoute: () => StudioShopIdSettingsRoute,
-} as any)
-const StudioShopIdOrdersShopOrderIdRoute =
-  StudioShopIdOrdersShopOrderIdRouteImport.update({
-    id: '/$shopOrderId',
-    path: '/$shopOrderId',
-    getParentRoute: () => StudioShopIdOrdersRoute,
-  } as any)
-const StudioShopIdCustomersCustomerHashRoute =
-  StudioShopIdCustomersCustomerHashRouteImport.update({
-    id: '/$customerHash',
-    path: '/$customerHash',
-    getParentRoute: () => StudioShopIdCustomersRoute,
-  } as any)
-const ShopsShopSlugProductsProductSlugRoute =
-  ShopsShopSlugProductsProductSlugRouteImport.update({
-    id: '/products/$productSlug',
-    path: '/products/$productSlug',
-    getParentRoute: () => ShopsShopSlugRoute,
-  } as any)
-const SellOnboardingDraftIdVisualsRoute =
-  SellOnboardingDraftIdVisualsRouteImport.update({
-    id: '/visuals',
-    path: '/visuals',
-    getParentRoute: () => SellOnboardingDraftIdRoute,
-  } as any)
-const SellOnboardingDraftIdStoryRoute =
-  SellOnboardingDraftIdStoryRouteImport.update({
-    id: '/story',
-    path: '/story',
-    getParentRoute: () => SellOnboardingDraftIdRoute,
-  } as any)
-const SellOnboardingDraftIdSocialsRoute =
-  SellOnboardingDraftIdSocialsRouteImport.update({
-    id: '/socials',
-    path: '/socials',
-    getParentRoute: () => SellOnboardingDraftIdRoute,
-  } as any)
-const SellOnboardingDraftIdReviewRoute =
-  SellOnboardingDraftIdReviewRouteImport.update({
-    id: '/review',
-    path: '/review',
-    getParentRoute: () => SellOnboardingDraftIdRoute,
-  } as any)
-const SellOnboardingDraftIdPoliciesRoute =
-  SellOnboardingDraftIdPoliciesRouteImport.update({
-    id: '/policies',
-    path: '/policies',
-    getParentRoute: () => SellOnboardingDraftIdRoute,
-  } as any)
-const SellOnboardingDraftIdLocationRoute =
-  SellOnboardingDraftIdLocationRouteImport.update({
-    id: '/location',
-    path: '/location',
-    getParentRoute: () => SellOnboardingDraftIdRoute,
-  } as any)
-const SellOnboardingDraftIdListingRoute =
-  SellOnboardingDraftIdListingRouteImport.update({
-    id: '/listing',
-    path: '/listing',
     getParentRoute: () => SellOnboardingDraftIdRoute,
   } as any)
 const SellOnboardingDraftIdIdentityRoute =
@@ -644,59 +610,93 @@ const SellOnboardingDraftIdIdentityRoute =
     path: '/identity',
     getParentRoute: () => SellOnboardingDraftIdRoute,
   } as any)
-const OrdersPlatformOrderIdReturnsNewRoute =
-  OrdersPlatformOrderIdReturnsNewRouteImport.update({
-    id: '/returns/new',
-    path: '/returns/new',
-    getParentRoute: () => OrdersPlatformOrderIdRoute,
+const SellOnboardingDraftIdListingRoute =
+  SellOnboardingDraftIdListingRouteImport.update({
+    id: '/listing',
+    path: '/listing',
+    getParentRoute: () => SellOnboardingDraftIdRoute,
   } as any)
-const CreatorProductsProductIdEditRoute =
-  CreatorProductsProductIdEditRouteImport.update({
-    id: '/$productId/edit',
-    path: '/$productId/edit',
-    getParentRoute: () => CreatorProductsRoute,
+const SellOnboardingDraftIdLocationRoute =
+  SellOnboardingDraftIdLocationRouteImport.update({
+    id: '/location',
+    path: '/location',
+    getParentRoute: () => SellOnboardingDraftIdRoute,
   } as any)
-const ApiShopsShopIdSettingsRoute = ApiShopsShopIdSettingsRouteImport.update({
-  id: '/api/shops/$shopId/settings',
-  path: '/api/shops/$shopId/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiShopsShopIdProductsRoute = ApiShopsShopIdProductsRouteImport.update({
-  id: '/api/shops/$shopId/products',
-  path: '/api/shops/$shopId/products',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiShopsShopIdOrdersRoute = ApiShopsShopIdOrdersRouteImport.update({
-  id: '/api/shops/$shopId/orders',
-  path: '/api/shops/$shopId/orders',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiShopsShopIdDashboardRoute = ApiShopsShopIdDashboardRouteImport.update({
-  id: '/api/shops/$shopId/dashboard',
-  path: '/api/shops/$shopId/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAuthMollieCallbackRoute = ApiAuthMollieCallbackRouteImport.update({
-  id: '/api/auth/mollie/callback',
-  path: '/api/auth/mollie/callback',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAdminPayoutsPayoutIdRoute = ApiAdminPayoutsPayoutIdRouteImport.update({
-  id: '/api/admin/payouts/$payoutId',
-  path: '/api/admin/payouts/$payoutId',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiShopsShopIdProductsProductIdRoute =
-  ApiShopsShopIdProductsProductIdRouteImport.update({
-    id: '/$productId',
-    path: '/$productId',
-    getParentRoute: () => ApiShopsShopIdProductsRoute,
+const SellOnboardingDraftIdPoliciesRoute =
+  SellOnboardingDraftIdPoliciesRouteImport.update({
+    id: '/policies',
+    path: '/policies',
+    getParentRoute: () => SellOnboardingDraftIdRoute,
   } as any)
+const SellOnboardingDraftIdReviewRoute =
+  SellOnboardingDraftIdReviewRouteImport.update({
+    id: '/review',
+    path: '/review',
+    getParentRoute: () => SellOnboardingDraftIdRoute,
+  } as any)
+const SellOnboardingDraftIdSocialsRoute =
+  SellOnboardingDraftIdSocialsRouteImport.update({
+    id: '/socials',
+    path: '/socials',
+    getParentRoute: () => SellOnboardingDraftIdRoute,
+  } as any)
+const SellOnboardingDraftIdStoryRoute =
+  SellOnboardingDraftIdStoryRouteImport.update({
+    id: '/story',
+    path: '/story',
+    getParentRoute: () => SellOnboardingDraftIdRoute,
+  } as any)
+const SellOnboardingDraftIdVisualsRoute =
+  SellOnboardingDraftIdVisualsRouteImport.update({
+    id: '/visuals',
+    path: '/visuals',
+    getParentRoute: () => SellOnboardingDraftIdRoute,
+  } as any)
+const ShopsShopSlugProductsProductSlugRoute =
+  ShopsShopSlugProductsProductSlugRouteImport.update({
+    id: '/products/$productSlug',
+    path: '/products/$productSlug',
+    getParentRoute: () => ShopsShopSlugRoute,
+  } as any)
+const StudioShopIdCustomersIndexRoute =
+  StudioShopIdCustomersIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => StudioShopIdCustomersRoute,
+  } as any)
+const StudioShopIdCustomersCustomerHashRoute =
+  StudioShopIdCustomersCustomerHashRouteImport.update({
+    id: '/$customerHash',
+    path: '/$customerHash',
+    getParentRoute: () => StudioShopIdCustomersRoute,
+  } as any)
+const StudioShopIdOrdersIndexRoute = StudioShopIdOrdersIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => StudioShopIdOrdersRoute,
+} as any)
+const StudioShopIdOrdersShopOrderIdRoute =
+  StudioShopIdOrdersShopOrderIdRouteImport.update({
+    id: '/$shopOrderId',
+    path: '/$shopOrderId',
+    getParentRoute: () => StudioShopIdOrdersRoute,
+  } as any)
+const StudioShopIdSettingsTaxRoute = StudioShopIdSettingsTaxRouteImport.update({
+  id: '/tax',
+  path: '/tax',
+  getParentRoute: () => StudioShopIdSettingsRoute,
+} as any)
 const ApiShopsShopIdOrdersShopOrderIdRoute =
   ApiShopsShopIdOrdersShopOrderIdRouteImport.update({
     id: '/$shopOrderId',
     path: '/$shopOrderId',
     getParentRoute: () => ApiShopsShopIdOrdersRoute,
+  } as any)
+const ApiShopsShopIdProductsProductIdRoute =
+  ApiShopsShopIdProductsProductIdRouteImport.update({
+    id: '/$productId',
+    path: '/$productId',
+    getParentRoute: () => ApiShopsShopIdProductsRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -1413,130 +1413,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/verify-email': {
-      id: '/verify-email'
-      path: '/verify-email'
-      fullPath: '/verify-email'
-      preLoaderRoute: typeof VerifyEmailRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/unsubscribe': {
-      id: '/unsubscribe'
-      path: '/unsubscribe'
-      fullPath: '/unsubscribe'
-      preLoaderRoute: typeof UnsubscribeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/signin': {
-      id: '/signin'
-      path: '/signin'
-      fullPath: '/signin'
-      preLoaderRoute: typeof SigninRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/search': {
-      id: '/search'
-      path: '/search'
-      fullPath: '/search'
-      preLoaderRoute: typeof SearchRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/orders': {
-      id: '/orders'
-      path: '/orders'
-      fullPath: '/orders'
-      preLoaderRoute: typeof OrdersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/notifications': {
-      id: '/notifications'
-      path: '/notifications'
-      fullPath: '/notifications'
-      preLoaderRoute: typeof NotificationsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/mollie-mock-oauth': {
-      id: '/mollie-mock-oauth'
-      path: '/mollie-mock-oauth'
-      fullPath: '/mollie-mock-oauth'
-      preLoaderRoute: typeof MollieMockOauthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/imprint': {
-      id: '/imprint'
-      path: '/imprint'
-      fullPath: '/imprint'
-      preLoaderRoute: typeof ImprintRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/guest-order-access': {
-      id: '/guest-order-access'
-      path: '/guest-order-access'
-      fullPath: '/guest-order-access'
-      preLoaderRoute: typeof GuestOrderAccessRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/forgot-password': {
-      id: '/forgot-password'
-      path: '/forgot-password'
-      fullPath: '/forgot-password'
-      preLoaderRoute: typeof ForgotPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/forbidden': {
-      id: '/forbidden'
-      path: '/forbidden'
-      fullPath: '/forbidden'
-      preLoaderRoute: typeof ForbiddenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/creator': {
-      id: '/creator'
-      path: '/creator'
-      fullPath: '/creator'
-      preLoaderRoute: typeof CreatorRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/cookies': {
-      id: '/cookies'
-      path: '/cookies'
-      fullPath: '/cookies'
-      preLoaderRoute: typeof CookiesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/checkout': {
-      id: '/checkout'
-      path: '/checkout'
-      fullPath: '/checkout'
-      preLoaderRoute: typeof CheckoutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/cart': {
-      id: '/cart'
-      path: '/cart'
-      fullPath: '/cart'
-      preLoaderRoute: typeof CartRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -1546,13 +1427,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/studio': {
-      id: '/studio'
-      path: '/studio'
-      fullPath: '/studio'
-      preLoaderRoute: typeof StudioRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/admin': {
       id: '/admin'
       path: '/admin'
@@ -1560,270 +1434,144 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/cart': {
+      id: '/cart'
+      path: '/cart'
+      fullPath: '/cart'
+      preLoaderRoute: typeof CartRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/studio/': {
-      id: '/studio/'
-      path: '/'
-      fullPath: '/studio/'
-      preLoaderRoute: typeof StudioIndexRouteImport
-      parentRoute: typeof StudioRouteRoute
-    }
-    '/sell/': {
-      id: '/sell/'
-      path: '/sell'
-      fullPath: '/sell/'
-      preLoaderRoute: typeof SellIndexRouteImport
+    '/checkout': {
+      id: '/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof CheckoutRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/orders/': {
-      id: '/orders/'
-      path: '/'
-      fullPath: '/orders/'
-      preLoaderRoute: typeof OrdersIndexRouteImport
-      parentRoute: typeof OrdersRoute
+    '/cookies': {
+      id: '/cookies'
+      path: '/cookies'
+      fullPath: '/cookies'
+      preLoaderRoute: typeof CookiesRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/creator/': {
-      id: '/creator/'
-      path: '/'
-      fullPath: '/creator/'
-      preLoaderRoute: typeof CreatorIndexRouteImport
-      parentRoute: typeof CreatorRoute
+    '/creator': {
+      id: '/creator'
+      path: '/creator'
+      fullPath: '/creator'
+      preLoaderRoute: typeof CreatorRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/admin/': {
-      id: '/admin/'
-      path: '/'
-      fullPath: '/admin/'
-      preLoaderRoute: typeof AdminIndexRouteImport
-      parentRoute: typeof AdminRouteRoute
+    '/forbidden': {
+      id: '/forbidden'
+      path: '/forbidden'
+      fullPath: '/forbidden'
+      preLoaderRoute: typeof ForbiddenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guest-order-access': {
+      id: '/guest-order-access'
+      path: '/guest-order-access'
+      fullPath: '/guest-order-access'
+      preLoaderRoute: typeof GuestOrderAccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/imprint': {
+      id: '/imprint'
+      path: '/imprint'
+      fullPath: '/imprint'
+      preLoaderRoute: typeof ImprintRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mollie-mock-oauth': {
+      id: '/mollie-mock-oauth'
+      path: '/mollie-mock-oauth'
+      fullPath: '/mollie-mock-oauth'
+      preLoaderRoute: typeof MollieMockOauthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orders': {
+      id: '/orders'
+      path: '/orders'
+      fullPath: '/orders'
+      preLoaderRoute: typeof OrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signin': {
+      id: '/signin'
+      path: '/signin'
+      fullPath: '/signin'
+      preLoaderRoute: typeof SigninRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/studio': {
+      id: '/studio'
+      path: '/studio'
+      fullPath: '/studio'
+      preLoaderRoute: typeof StudioRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/unsubscribe': {
+      id: '/unsubscribe'
+      path: '/unsubscribe'
+      fullPath: '/unsubscribe'
+      preLoaderRoute: typeof UnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/verify-email': {
+      id: '/verify-email'
+      path: '/verify-email'
+      fullPath: '/verify-email'
+      preLoaderRoute: typeof VerifyEmailRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/account/': {
       id: '/account/'
       path: '/account'
       fullPath: '/account/'
       preLoaderRoute: typeof AccountIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/studio/$shopId': {
-      id: '/studio/$shopId'
-      path: '/$shopId'
-      fullPath: '/studio/$shopId'
-      preLoaderRoute: typeof StudioShopIdRouteImport
-      parentRoute: typeof StudioRouteRoute
-    }
-    '/sitemap/xml': {
-      id: '/sitemap/xml'
-      path: '/sitemap/xml'
-      fullPath: '/sitemap/xml'
-      preLoaderRoute: typeof SitemapXmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/shops/$shopSlug': {
-      id: '/shops/$shopSlug'
-      path: '/shops/$shopSlug'
-      fullPath: '/shops/$shopSlug'
-      preLoaderRoute: typeof ShopsShopSlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/robots/txt': {
-      id: '/robots/txt'
-      path: '/robots/txt'
-      fullPath: '/robots/txt'
-      preLoaderRoute: typeof RobotsTxtRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/returns/$returnRequestId': {
-      id: '/returns/$returnRequestId'
-      path: '/returns/$returnRequestId'
-      fullPath: '/returns/$returnRequestId'
-      preLoaderRoute: typeof ReturnsReturnRequestIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/orders/$platformOrderId': {
-      id: '/orders/$platformOrderId'
-      path: '/$platformOrderId'
-      fullPath: '/orders/$platformOrderId'
-      preLoaderRoute: typeof OrdersPlatformOrderIdRouteImport
-      parentRoute: typeof OrdersRoute
-    }
-    '/invoices/$invoiceId': {
-      id: '/invoices/$invoiceId'
-      path: '/invoices/$invoiceId'
-      fullPath: '/invoices/$invoiceId'
-      preLoaderRoute: typeof InvoicesInvoiceIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/disputes/$disputeId': {
-      id: '/disputes/$disputeId'
-      path: '/disputes/$disputeId'
-      fullPath: '/disputes/$disputeId'
-      preLoaderRoute: typeof DisputesDisputeIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/creator/shop': {
-      id: '/creator/shop'
-      path: '/shop'
-      fullPath: '/creator/shop'
-      preLoaderRoute: typeof CreatorShopRouteImport
-      parentRoute: typeof CreatorRoute
-    }
-    '/creator/products': {
-      id: '/creator/products'
-      path: '/products'
-      fullPath: '/creator/products'
-      preLoaderRoute: typeof CreatorProductsRouteImport
-      parentRoute: typeof CreatorRoute
-    }
-    '/creator/payouts': {
-      id: '/creator/payouts'
-      path: '/payouts'
-      fullPath: '/creator/payouts'
-      preLoaderRoute: typeof CreatorPayoutsRouteImport
-      parentRoute: typeof CreatorRoute
-    }
-    '/category/all': {
-      id: '/category/all'
-      path: '/category/all'
-      fullPath: '/category/all'
-      preLoaderRoute: typeof CategoryAllRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/category/$slug': {
-      id: '/category/$slug'
-      path: '/category/$slug'
-      fullPath: '/category/$slug'
-      preLoaderRoute: typeof CategorySlugRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/unsubscribe': {
-      id: '/api/unsubscribe'
-      path: '/api/unsubscribe'
-      fullPath: '/api/unsubscribe'
-      preLoaderRoute: typeof ApiUnsubscribeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/products': {
-      id: '/api/products'
-      path: '/api/products'
-      fullPath: '/api/products'
-      preLoaderRoute: typeof ApiProductsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/metrics': {
-      id: '/api/metrics'
-      path: '/api/metrics'
-      fullPath: '/api/metrics'
-      preLoaderRoute: typeof ApiMetricsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/image': {
-      id: '/api/image'
-      path: '/api/image'
-      fullPath: '/api/image'
-      preLoaderRoute: typeof ApiImageRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/health': {
-      id: '/api/health'
-      path: '/api/health'
-      fullPath: '/api/health'
-      preLoaderRoute: typeof ApiHealthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/backup-report': {
-      id: '/api/backup-report'
-      path: '/api/backup-report'
-      fullPath: '/api/backup-report'
-      preLoaderRoute: typeof ApiBackupReportRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/users': {
-      id: '/admin/users'
-      path: '/users'
-      fullPath: '/admin/users'
-      preLoaderRoute: typeof AdminUsersRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/shops': {
-      id: '/admin/shops'
-      path: '/shops'
-      fullPath: '/admin/shops'
-      preLoaderRoute: typeof AdminShopsRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/reviews': {
-      id: '/admin/reviews'
-      path: '/reviews'
-      fullPath: '/admin/reviews'
-      preLoaderRoute: typeof AdminReviewsRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/reports': {
-      id: '/admin/reports'
-      path: '/reports'
-      fullPath: '/admin/reports'
-      preLoaderRoute: typeof AdminReportsRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/products': {
-      id: '/admin/products'
-      path: '/products'
-      fullPath: '/admin/products'
-      preLoaderRoute: typeof AdminProductsRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/payouts': {
-      id: '/admin/payouts'
-      path: '/payouts'
-      fullPath: '/admin/payouts'
-      preLoaderRoute: typeof AdminPayoutsRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/orders': {
-      id: '/admin/orders'
-      path: '/orders'
-      fullPath: '/admin/orders'
-      preLoaderRoute: typeof AdminOrdersRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/disputes': {
-      id: '/admin/disputes'
-      path: '/disputes'
-      fullPath: '/admin/disputes'
-      preLoaderRoute: typeof AdminDisputesRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/categories': {
-      id: '/admin/categories'
-      path: '/categories'
-      fullPath: '/admin/categories'
-      preLoaderRoute: typeof AdminCategoriesRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/admin/audit-log': {
-      id: '/admin/audit-log'
-      path: '/audit-log'
-      fullPath: '/admin/audit-log'
-      preLoaderRoute: typeof AdminAuditLogRouteImport
-      parentRoute: typeof AdminRouteRoute
-    }
-    '/account/settings': {
-      id: '/account/settings'
-      path: '/account/settings'
-      fullPath: '/account/settings'
-      preLoaderRoute: typeof AccountSettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/account/security': {
-      id: '/account/security'
-      path: '/account/security'
-      fullPath: '/account/security'
-      preLoaderRoute: typeof AccountSecurityRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/account/orders': {
@@ -1833,47 +1581,257 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountOrdersRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/studio/$shopId/': {
-      id: '/studio/$shopId/'
-      path: '/'
-      fullPath: '/studio/$shopId/'
-      preLoaderRoute: typeof StudioShopIdIndexRouteImport
-      parentRoute: typeof StudioShopIdRoute
+    '/account/security': {
+      id: '/account/security'
+      path: '/account/security'
+      fullPath: '/account/security'
+      preLoaderRoute: typeof AccountSecurityRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/shops/$shopSlug/': {
-      id: '/shops/$shopSlug/'
-      path: '/'
-      fullPath: '/shops/$shopSlug/'
-      preLoaderRoute: typeof ShopsShopSlugIndexRouteImport
-      parentRoute: typeof ShopsShopSlugRoute
+    '/account/settings': {
+      id: '/account/settings'
+      path: '/account/settings'
+      fullPath: '/account/settings'
+      preLoaderRoute: typeof AccountSettingsRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/orders/$platformOrderId/': {
-      id: '/orders/$platformOrderId/'
+    '/admin/': {
+      id: '/admin/'
       path: '/'
-      fullPath: '/orders/$platformOrderId/'
-      preLoaderRoute: typeof OrdersPlatformOrderIdIndexRouteImport
-      parentRoute: typeof OrdersPlatformOrderIdRoute
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
-    '/creator/products/': {
-      id: '/creator/products/'
-      path: '/'
-      fullPath: '/creator/products/'
-      preLoaderRoute: typeof CreatorProductsIndexRouteImport
-      parentRoute: typeof CreatorProductsRoute
+    '/admin/audit-log': {
+      id: '/admin/audit-log'
+      path: '/audit-log'
+      fullPath: '/admin/audit-log'
+      preLoaderRoute: typeof AdminAuditLogRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
-    '/admin/orders/': {
-      id: '/admin/orders/'
-      path: '/'
-      fullPath: '/admin/orders/'
-      preLoaderRoute: typeof AdminOrdersIndexRouteImport
-      parentRoute: typeof AdminOrdersRoute
+    '/admin/categories': {
+      id: '/admin/categories'
+      path: '/categories'
+      fullPath: '/admin/categories'
+      preLoaderRoute: typeof AdminCategoriesRouteImport
+      parentRoute: typeof AdminRouteRoute
     }
-    '/admin/disputes/': {
-      id: '/admin/disputes/'
+    '/admin/disputes': {
+      id: '/admin/disputes'
+      path: '/disputes'
+      fullPath: '/admin/disputes'
+      preLoaderRoute: typeof AdminDisputesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/orders': {
+      id: '/admin/orders'
+      path: '/orders'
+      fullPath: '/admin/orders'
+      preLoaderRoute: typeof AdminOrdersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/payouts': {
+      id: '/admin/payouts'
+      path: '/payouts'
+      fullPath: '/admin/payouts'
+      preLoaderRoute: typeof AdminPayoutsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/products': {
+      id: '/admin/products'
+      path: '/products'
+      fullPath: '/admin/products'
+      preLoaderRoute: typeof AdminProductsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/reports': {
+      id: '/admin/reports'
+      path: '/reports'
+      fullPath: '/admin/reports'
+      preLoaderRoute: typeof AdminReportsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/reviews': {
+      id: '/admin/reviews'
+      path: '/reviews'
+      fullPath: '/admin/reviews'
+      preLoaderRoute: typeof AdminReviewsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/shops': {
+      id: '/admin/shops'
+      path: '/shops'
+      fullPath: '/admin/shops'
+      preLoaderRoute: typeof AdminShopsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/api/backup-report': {
+      id: '/api/backup-report'
+      path: '/api/backup-report'
+      fullPath: '/api/backup-report'
+      preLoaderRoute: typeof ApiBackupReportRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/image': {
+      id: '/api/image'
+      path: '/api/image'
+      fullPath: '/api/image'
+      preLoaderRoute: typeof ApiImageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/metrics': {
+      id: '/api/metrics'
+      path: '/api/metrics'
+      fullPath: '/api/metrics'
+      preLoaderRoute: typeof ApiMetricsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/products': {
+      id: '/api/products'
+      path: '/api/products'
+      fullPath: '/api/products'
+      preLoaderRoute: typeof ApiProductsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/unsubscribe': {
+      id: '/api/unsubscribe'
+      path: '/api/unsubscribe'
+      fullPath: '/api/unsubscribe'
+      preLoaderRoute: typeof ApiUnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/category/$slug': {
+      id: '/category/$slug'
+      path: '/category/$slug'
+      fullPath: '/category/$slug'
+      preLoaderRoute: typeof CategorySlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/category/all': {
+      id: '/category/all'
+      path: '/category/all'
+      fullPath: '/category/all'
+      preLoaderRoute: typeof CategoryAllRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/creator/': {
+      id: '/creator/'
       path: '/'
-      fullPath: '/admin/disputes/'
-      preLoaderRoute: typeof AdminDisputesIndexRouteImport
-      parentRoute: typeof AdminDisputesRoute
+      fullPath: '/creator/'
+      preLoaderRoute: typeof CreatorIndexRouteImport
+      parentRoute: typeof CreatorRoute
+    }
+    '/creator/payouts': {
+      id: '/creator/payouts'
+      path: '/payouts'
+      fullPath: '/creator/payouts'
+      preLoaderRoute: typeof CreatorPayoutsRouteImport
+      parentRoute: typeof CreatorRoute
+    }
+    '/creator/products': {
+      id: '/creator/products'
+      path: '/products'
+      fullPath: '/creator/products'
+      preLoaderRoute: typeof CreatorProductsRouteImport
+      parentRoute: typeof CreatorRoute
+    }
+    '/creator/shop': {
+      id: '/creator/shop'
+      path: '/shop'
+      fullPath: '/creator/shop'
+      preLoaderRoute: typeof CreatorShopRouteImport
+      parentRoute: typeof CreatorRoute
+    }
+    '/disputes/$disputeId': {
+      id: '/disputes/$disputeId'
+      path: '/disputes/$disputeId'
+      fullPath: '/disputes/$disputeId'
+      preLoaderRoute: typeof DisputesDisputeIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/invoices/$invoiceId': {
+      id: '/invoices/$invoiceId'
+      path: '/invoices/$invoiceId'
+      fullPath: '/invoices/$invoiceId'
+      preLoaderRoute: typeof InvoicesInvoiceIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/orders/': {
+      id: '/orders/'
+      path: '/'
+      fullPath: '/orders/'
+      preLoaderRoute: typeof OrdersIndexRouteImport
+      parentRoute: typeof OrdersRoute
+    }
+    '/orders/$platformOrderId': {
+      id: '/orders/$platformOrderId'
+      path: '/$platformOrderId'
+      fullPath: '/orders/$platformOrderId'
+      preLoaderRoute: typeof OrdersPlatformOrderIdRouteImport
+      parentRoute: typeof OrdersRoute
+    }
+    '/returns/$returnRequestId': {
+      id: '/returns/$returnRequestId'
+      path: '/returns/$returnRequestId'
+      fullPath: '/returns/$returnRequestId'
+      preLoaderRoute: typeof ReturnsReturnRequestIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/robots/txt': {
+      id: '/robots/txt'
+      path: '/robots/txt'
+      fullPath: '/robots/txt'
+      preLoaderRoute: typeof RobotsTxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sell/': {
+      id: '/sell/'
+      path: '/sell'
+      fullPath: '/sell/'
+      preLoaderRoute: typeof SellIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/shops/$shopSlug': {
+      id: '/shops/$shopSlug'
+      path: '/shops/$shopSlug'
+      fullPath: '/shops/$shopSlug'
+      preLoaderRoute: typeof ShopsShopSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap/xml': {
+      id: '/sitemap/xml'
+      path: '/sitemap/xml'
+      fullPath: '/sitemap/xml'
+      preLoaderRoute: typeof SitemapXmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/studio/': {
+      id: '/studio/'
+      path: '/'
+      fullPath: '/studio/'
+      preLoaderRoute: typeof StudioIndexRouteImport
+      parentRoute: typeof StudioRouteRoute
+    }
+    '/studio/$shopId': {
+      id: '/studio/$shopId'
+      path: '/$shopId'
+      fullPath: '/studio/$shopId'
+      preLoaderRoute: typeof StudioShopIdRouteImport
+      parentRoute: typeof StudioRouteRoute
     }
     '/account/orders/': {
       id: '/account/orders/'
@@ -1882,88 +1840,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AccountOrdersIndexRouteImport
       parentRoute: typeof AccountOrdersRoute
     }
-    '/studio/$shopId/settings': {
-      id: '/studio/$shopId/settings'
-      path: '/settings'
-      fullPath: '/studio/$shopId/settings'
-      preLoaderRoute: typeof StudioShopIdSettingsRouteImport
-      parentRoute: typeof StudioShopIdRoute
+    '/account/orders/$orderNumber': {
+      id: '/account/orders/$orderNumber'
+      path: '/$orderNumber'
+      fullPath: '/account/orders/$orderNumber'
+      preLoaderRoute: typeof AccountOrdersOrderNumberRouteImport
+      parentRoute: typeof AccountOrdersRoute
     }
-    '/studio/$shopId/orders': {
-      id: '/studio/$shopId/orders'
-      path: '/orders'
-      fullPath: '/studio/$shopId/orders'
-      preLoaderRoute: typeof StudioShopIdOrdersRouteImport
-      parentRoute: typeof StudioShopIdRoute
+    '/admin/disputes/': {
+      id: '/admin/disputes/'
+      path: '/'
+      fullPath: '/admin/disputes/'
+      preLoaderRoute: typeof AdminDisputesIndexRouteImport
+      parentRoute: typeof AdminDisputesRoute
     }
-    '/studio/$shopId/customers': {
-      id: '/studio/$shopId/customers'
-      path: '/customers'
-      fullPath: '/studio/$shopId/customers'
-      preLoaderRoute: typeof StudioShopIdCustomersRouteImport
-      parentRoute: typeof StudioShopIdRoute
+    '/admin/disputes/$disputeId': {
+      id: '/admin/disputes/$disputeId'
+      path: '/$disputeId'
+      fullPath: '/admin/disputes/$disputeId'
+      preLoaderRoute: typeof AdminDisputesDisputeIdRouteImport
+      parentRoute: typeof AdminDisputesRoute
     }
-    '/sell/status/$shopId': {
-      id: '/sell/status/$shopId'
-      path: '/sell/status/$shopId'
-      fullPath: '/sell/status/$shopId'
-      preLoaderRoute: typeof SellStatusShopIdRouteImport
+    '/admin/orders/': {
+      id: '/admin/orders/'
+      path: '/'
+      fullPath: '/admin/orders/'
+      preLoaderRoute: typeof AdminOrdersIndexRouteImport
+      parentRoute: typeof AdminOrdersRoute
+    }
+    '/admin/orders/$platformOrderId': {
+      id: '/admin/orders/$platformOrderId'
+      path: '/$platformOrderId'
+      fullPath: '/admin/orders/$platformOrderId'
+      preLoaderRoute: typeof AdminOrdersPlatformOrderIdRouteImport
+      parentRoute: typeof AdminOrdersRoute
+    }
+    '/api/auth/$': {
+      id: '/api/auth/$'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$'
+      preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sell/onboarding/$draftId': {
-      id: '/sell/onboarding/$draftId'
-      path: '/sell/onboarding/$draftId'
-      fullPath: '/sell/onboarding/$draftId'
-      preLoaderRoute: typeof SellOnboardingDraftIdRouteImport
+    '/api/e2e/mock-payment-status': {
+      id: '/api/e2e/mock-payment-status'
+      path: '/api/e2e/mock-payment-status'
+      fullPath: '/api/e2e/mock-payment-status'
+      preLoaderRoute: typeof ApiE2eMockPaymentStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/orders/$platformOrderId/success': {
-      id: '/orders/$platformOrderId/success'
-      path: '/success'
-      fullPath: '/orders/$platformOrderId/success'
-      preLoaderRoute: typeof OrdersPlatformOrderIdSuccessRouteImport
-      parentRoute: typeof OrdersPlatformOrderIdRoute
-    }
-    '/creator/products/new': {
-      id: '/creator/products/new'
-      path: '/new'
-      fullPath: '/creator/products/new'
-      preLoaderRoute: typeof CreatorProductsNewRouteImport
-      parentRoute: typeof CreatorProductsRoute
-    }
-    '/api/webhooks/sendcloud': {
-      id: '/api/webhooks/sendcloud'
-      path: '/api/webhooks/sendcloud'
-      fullPath: '/api/webhooks/sendcloud'
-      preLoaderRoute: typeof ApiWebhooksSendcloudRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/webhooks/mollie-chargeback': {
-      id: '/api/webhooks/mollie-chargeback'
-      path: '/api/webhooks/mollie-chargeback'
-      fullPath: '/api/webhooks/mollie-chargeback'
-      preLoaderRoute: typeof ApiWebhooksMollieChargebackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/webhooks/mollie': {
-      id: '/api/webhooks/mollie'
-      path: '/api/webhooks/mollie'
-      fullPath: '/api/webhooks/mollie'
-      preLoaderRoute: typeof ApiWebhooksMollieRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/webhooks/brevo': {
-      id: '/api/webhooks/brevo'
-      path: '/api/webhooks/brevo'
-      fullPath: '/api/webhooks/brevo'
-      preLoaderRoute: typeof ApiWebhooksBrevoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/health/ready': {
-      id: '/api/health/ready'
-      path: '/ready'
-      fullPath: '/api/health/ready'
-      preLoaderRoute: typeof ApiHealthReadyRouteImport
+    '/api/health/deps': {
+      id: '/api/health/deps'
+      path: '/deps'
+      fullPath: '/api/health/deps'
+      preLoaderRoute: typeof ApiHealthDepsRouteImport
       parentRoute: typeof ApiHealthRoute
     }
     '/api/health/live': {
@@ -1973,193 +1903,123 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiHealthLiveRouteImport
       parentRoute: typeof ApiHealthRoute
     }
-    '/api/health/deps': {
-      id: '/api/health/deps'
-      path: '/deps'
-      fullPath: '/api/health/deps'
-      preLoaderRoute: typeof ApiHealthDepsRouteImport
+    '/api/health/ready': {
+      id: '/api/health/ready'
+      path: '/ready'
+      fullPath: '/api/health/ready'
+      preLoaderRoute: typeof ApiHealthReadyRouteImport
       parentRoute: typeof ApiHealthRoute
     }
-    '/api/e2e/mock-payment-status': {
-      id: '/api/e2e/mock-payment-status'
-      path: '/api/e2e/mock-payment-status'
-      fullPath: '/api/e2e/mock-payment-status'
-      preLoaderRoute: typeof ApiE2eMockPaymentStatusRouteImport
+    '/api/webhooks/brevo': {
+      id: '/api/webhooks/brevo'
+      path: '/api/webhooks/brevo'
+      fullPath: '/api/webhooks/brevo'
+      preLoaderRoute: typeof ApiWebhooksBrevoRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/auth/$': {
-      id: '/api/auth/$'
-      path: '/api/auth/$'
-      fullPath: '/api/auth/$'
-      preLoaderRoute: typeof ApiAuthSplatRouteImport
+    '/api/webhooks/mollie': {
+      id: '/api/webhooks/mollie'
+      path: '/api/webhooks/mollie'
+      fullPath: '/api/webhooks/mollie'
+      preLoaderRoute: typeof ApiWebhooksMollieRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin/orders/$platformOrderId': {
-      id: '/admin/orders/$platformOrderId'
-      path: '/$platformOrderId'
-      fullPath: '/admin/orders/$platformOrderId'
-      preLoaderRoute: typeof AdminOrdersPlatformOrderIdRouteImport
-      parentRoute: typeof AdminOrdersRoute
+    '/api/webhooks/mollie-chargeback': {
+      id: '/api/webhooks/mollie-chargeback'
+      path: '/api/webhooks/mollie-chargeback'
+      fullPath: '/api/webhooks/mollie-chargeback'
+      preLoaderRoute: typeof ApiWebhooksMollieChargebackRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/admin/disputes/$disputeId': {
-      id: '/admin/disputes/$disputeId'
-      path: '/$disputeId'
-      fullPath: '/admin/disputes/$disputeId'
-      preLoaderRoute: typeof AdminDisputesDisputeIdRouteImport
-      parentRoute: typeof AdminDisputesRoute
+    '/api/webhooks/sendcloud': {
+      id: '/api/webhooks/sendcloud'
+      path: '/api/webhooks/sendcloud'
+      fullPath: '/api/webhooks/sendcloud'
+      preLoaderRoute: typeof ApiWebhooksSendcloudRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/account/orders/$orderNumber': {
-      id: '/account/orders/$orderNumber'
-      path: '/$orderNumber'
-      fullPath: '/account/orders/$orderNumber'
-      preLoaderRoute: typeof AccountOrdersOrderNumberRouteImport
-      parentRoute: typeof AccountOrdersRoute
-    }
-    '/studio/$shopId/orders/': {
-      id: '/studio/$shopId/orders/'
+    '/creator/products/': {
+      id: '/creator/products/'
       path: '/'
-      fullPath: '/studio/$shopId/orders/'
-      preLoaderRoute: typeof StudioShopIdOrdersIndexRouteImport
-      parentRoute: typeof StudioShopIdOrdersRoute
-    }
-    '/studio/$shopId/customers/': {
-      id: '/studio/$shopId/customers/'
-      path: '/'
-      fullPath: '/studio/$shopId/customers/'
-      preLoaderRoute: typeof StudioShopIdCustomersIndexRouteImport
-      parentRoute: typeof StudioShopIdCustomersRoute
-    }
-    '/sell/onboarding/$draftId/': {
-      id: '/sell/onboarding/$draftId/'
-      path: '/'
-      fullPath: '/sell/onboarding/$draftId/'
-      preLoaderRoute: typeof SellOnboardingDraftIdIndexRouteImport
-      parentRoute: typeof SellOnboardingDraftIdRoute
-    }
-    '/studio/$shopId/settings/tax': {
-      id: '/studio/$shopId/settings/tax'
-      path: '/tax'
-      fullPath: '/studio/$shopId/settings/tax'
-      preLoaderRoute: typeof StudioShopIdSettingsTaxRouteImport
-      parentRoute: typeof StudioShopIdSettingsRoute
-    }
-    '/studio/$shopId/orders/$shopOrderId': {
-      id: '/studio/$shopId/orders/$shopOrderId'
-      path: '/$shopOrderId'
-      fullPath: '/studio/$shopId/orders/$shopOrderId'
-      preLoaderRoute: typeof StudioShopIdOrdersShopOrderIdRouteImport
-      parentRoute: typeof StudioShopIdOrdersRoute
-    }
-    '/studio/$shopId/customers/$customerHash': {
-      id: '/studio/$shopId/customers/$customerHash'
-      path: '/$customerHash'
-      fullPath: '/studio/$shopId/customers/$customerHash'
-      preLoaderRoute: typeof StudioShopIdCustomersCustomerHashRouteImport
-      parentRoute: typeof StudioShopIdCustomersRoute
-    }
-    '/shops/$shopSlug/products/$productSlug': {
-      id: '/shops/$shopSlug/products/$productSlug'
-      path: '/products/$productSlug'
-      fullPath: '/shops/$shopSlug/products/$productSlug'
-      preLoaderRoute: typeof ShopsShopSlugProductsProductSlugRouteImport
-      parentRoute: typeof ShopsShopSlugRoute
-    }
-    '/sell/onboarding/$draftId/visuals': {
-      id: '/sell/onboarding/$draftId/visuals'
-      path: '/visuals'
-      fullPath: '/sell/onboarding/$draftId/visuals'
-      preLoaderRoute: typeof SellOnboardingDraftIdVisualsRouteImport
-      parentRoute: typeof SellOnboardingDraftIdRoute
-    }
-    '/sell/onboarding/$draftId/story': {
-      id: '/sell/onboarding/$draftId/story'
-      path: '/story'
-      fullPath: '/sell/onboarding/$draftId/story'
-      preLoaderRoute: typeof SellOnboardingDraftIdStoryRouteImport
-      parentRoute: typeof SellOnboardingDraftIdRoute
-    }
-    '/sell/onboarding/$draftId/socials': {
-      id: '/sell/onboarding/$draftId/socials'
-      path: '/socials'
-      fullPath: '/sell/onboarding/$draftId/socials'
-      preLoaderRoute: typeof SellOnboardingDraftIdSocialsRouteImport
-      parentRoute: typeof SellOnboardingDraftIdRoute
-    }
-    '/sell/onboarding/$draftId/review': {
-      id: '/sell/onboarding/$draftId/review'
-      path: '/review'
-      fullPath: '/sell/onboarding/$draftId/review'
-      preLoaderRoute: typeof SellOnboardingDraftIdReviewRouteImport
-      parentRoute: typeof SellOnboardingDraftIdRoute
-    }
-    '/sell/onboarding/$draftId/policies': {
-      id: '/sell/onboarding/$draftId/policies'
-      path: '/policies'
-      fullPath: '/sell/onboarding/$draftId/policies'
-      preLoaderRoute: typeof SellOnboardingDraftIdPoliciesRouteImport
-      parentRoute: typeof SellOnboardingDraftIdRoute
-    }
-    '/sell/onboarding/$draftId/location': {
-      id: '/sell/onboarding/$draftId/location'
-      path: '/location'
-      fullPath: '/sell/onboarding/$draftId/location'
-      preLoaderRoute: typeof SellOnboardingDraftIdLocationRouteImport
-      parentRoute: typeof SellOnboardingDraftIdRoute
-    }
-    '/sell/onboarding/$draftId/listing': {
-      id: '/sell/onboarding/$draftId/listing'
-      path: '/listing'
-      fullPath: '/sell/onboarding/$draftId/listing'
-      preLoaderRoute: typeof SellOnboardingDraftIdListingRouteImport
-      parentRoute: typeof SellOnboardingDraftIdRoute
-    }
-    '/sell/onboarding/$draftId/identity': {
-      id: '/sell/onboarding/$draftId/identity'
-      path: '/identity'
-      fullPath: '/sell/onboarding/$draftId/identity'
-      preLoaderRoute: typeof SellOnboardingDraftIdIdentityRouteImport
-      parentRoute: typeof SellOnboardingDraftIdRoute
-    }
-    '/orders/$platformOrderId/returns/new': {
-      id: '/orders/$platformOrderId/returns/new'
-      path: '/returns/new'
-      fullPath: '/orders/$platformOrderId/returns/new'
-      preLoaderRoute: typeof OrdersPlatformOrderIdReturnsNewRouteImport
-      parentRoute: typeof OrdersPlatformOrderIdRoute
-    }
-    '/creator/products/$productId/edit': {
-      id: '/creator/products/$productId/edit'
-      path: '/$productId/edit'
-      fullPath: '/creator/products/$productId/edit'
-      preLoaderRoute: typeof CreatorProductsProductIdEditRouteImport
+      fullPath: '/creator/products/'
+      preLoaderRoute: typeof CreatorProductsIndexRouteImport
       parentRoute: typeof CreatorProductsRoute
     }
-    '/api/shops/$shopId/settings': {
-      id: '/api/shops/$shopId/settings'
-      path: '/api/shops/$shopId/settings'
-      fullPath: '/api/shops/$shopId/settings'
-      preLoaderRoute: typeof ApiShopsShopIdSettingsRouteImport
+    '/creator/products/new': {
+      id: '/creator/products/new'
+      path: '/new'
+      fullPath: '/creator/products/new'
+      preLoaderRoute: typeof CreatorProductsNewRouteImport
+      parentRoute: typeof CreatorProductsRoute
+    }
+    '/orders/$platformOrderId/': {
+      id: '/orders/$platformOrderId/'
+      path: '/'
+      fullPath: '/orders/$platformOrderId/'
+      preLoaderRoute: typeof OrdersPlatformOrderIdIndexRouteImport
+      parentRoute: typeof OrdersPlatformOrderIdRoute
+    }
+    '/orders/$platformOrderId/success': {
+      id: '/orders/$platformOrderId/success'
+      path: '/success'
+      fullPath: '/orders/$platformOrderId/success'
+      preLoaderRoute: typeof OrdersPlatformOrderIdSuccessRouteImport
+      parentRoute: typeof OrdersPlatformOrderIdRoute
+    }
+    '/sell/onboarding/$draftId': {
+      id: '/sell/onboarding/$draftId'
+      path: '/sell/onboarding/$draftId'
+      fullPath: '/sell/onboarding/$draftId'
+      preLoaderRoute: typeof SellOnboardingDraftIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/shops/$shopId/products': {
-      id: '/api/shops/$shopId/products'
-      path: '/api/shops/$shopId/products'
-      fullPath: '/api/shops/$shopId/products'
-      preLoaderRoute: typeof ApiShopsShopIdProductsRouteImport
+    '/sell/status/$shopId': {
+      id: '/sell/status/$shopId'
+      path: '/sell/status/$shopId'
+      fullPath: '/sell/status/$shopId'
+      preLoaderRoute: typeof SellStatusShopIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/shops/$shopId/orders': {
-      id: '/api/shops/$shopId/orders'
-      path: '/api/shops/$shopId/orders'
-      fullPath: '/api/shops/$shopId/orders'
-      preLoaderRoute: typeof ApiShopsShopIdOrdersRouteImport
-      parentRoute: typeof rootRouteImport
+    '/shops/$shopSlug/': {
+      id: '/shops/$shopSlug/'
+      path: '/'
+      fullPath: '/shops/$shopSlug/'
+      preLoaderRoute: typeof ShopsShopSlugIndexRouteImport
+      parentRoute: typeof ShopsShopSlugRoute
     }
-    '/api/shops/$shopId/dashboard': {
-      id: '/api/shops/$shopId/dashboard'
-      path: '/api/shops/$shopId/dashboard'
-      fullPath: '/api/shops/$shopId/dashboard'
-      preLoaderRoute: typeof ApiShopsShopIdDashboardRouteImport
+    '/studio/$shopId/': {
+      id: '/studio/$shopId/'
+      path: '/'
+      fullPath: '/studio/$shopId/'
+      preLoaderRoute: typeof StudioShopIdIndexRouteImport
+      parentRoute: typeof StudioShopIdRoute
+    }
+    '/studio/$shopId/customers': {
+      id: '/studio/$shopId/customers'
+      path: '/customers'
+      fullPath: '/studio/$shopId/customers'
+      preLoaderRoute: typeof StudioShopIdCustomersRouteImport
+      parentRoute: typeof StudioShopIdRoute
+    }
+    '/studio/$shopId/orders': {
+      id: '/studio/$shopId/orders'
+      path: '/orders'
+      fullPath: '/studio/$shopId/orders'
+      preLoaderRoute: typeof StudioShopIdOrdersRouteImport
+      parentRoute: typeof StudioShopIdRoute
+    }
+    '/studio/$shopId/settings': {
+      id: '/studio/$shopId/settings'
+      path: '/settings'
+      fullPath: '/studio/$shopId/settings'
+      preLoaderRoute: typeof StudioShopIdSettingsRouteImport
+      parentRoute: typeof StudioShopIdRoute
+    }
+    '/api/admin/payouts/$payoutId': {
+      id: '/api/admin/payouts/$payoutId'
+      path: '/api/admin/payouts/$payoutId'
+      fullPath: '/api/admin/payouts/$payoutId'
+      preLoaderRoute: typeof ApiAdminPayoutsPayoutIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/mollie/callback': {
@@ -2169,19 +2029,152 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthMollieCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/admin/payouts/$payoutId': {
-      id: '/api/admin/payouts/$payoutId'
-      path: '/api/admin/payouts/$payoutId'
-      fullPath: '/api/admin/payouts/$payoutId'
-      preLoaderRoute: typeof ApiAdminPayoutsPayoutIdRouteImport
+    '/api/shops/$shopId/dashboard': {
+      id: '/api/shops/$shopId/dashboard'
+      path: '/api/shops/$shopId/dashboard'
+      fullPath: '/api/shops/$shopId/dashboard'
+      preLoaderRoute: typeof ApiShopsShopIdDashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/shops/$shopId/products/$productId': {
-      id: '/api/shops/$shopId/products/$productId'
-      path: '/$productId'
-      fullPath: '/api/shops/$shopId/products/$productId'
-      preLoaderRoute: typeof ApiShopsShopIdProductsProductIdRouteImport
-      parentRoute: typeof ApiShopsShopIdProductsRoute
+    '/api/shops/$shopId/orders': {
+      id: '/api/shops/$shopId/orders'
+      path: '/api/shops/$shopId/orders'
+      fullPath: '/api/shops/$shopId/orders'
+      preLoaderRoute: typeof ApiShopsShopIdOrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/shops/$shopId/products': {
+      id: '/api/shops/$shopId/products'
+      path: '/api/shops/$shopId/products'
+      fullPath: '/api/shops/$shopId/products'
+      preLoaderRoute: typeof ApiShopsShopIdProductsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/shops/$shopId/settings': {
+      id: '/api/shops/$shopId/settings'
+      path: '/api/shops/$shopId/settings'
+      fullPath: '/api/shops/$shopId/settings'
+      preLoaderRoute: typeof ApiShopsShopIdSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/creator/products/$productId/edit': {
+      id: '/creator/products/$productId/edit'
+      path: '/$productId/edit'
+      fullPath: '/creator/products/$productId/edit'
+      preLoaderRoute: typeof CreatorProductsProductIdEditRouteImport
+      parentRoute: typeof CreatorProductsRoute
+    }
+    '/orders/$platformOrderId/returns/new': {
+      id: '/orders/$platformOrderId/returns/new'
+      path: '/returns/new'
+      fullPath: '/orders/$platformOrderId/returns/new'
+      preLoaderRoute: typeof OrdersPlatformOrderIdReturnsNewRouteImport
+      parentRoute: typeof OrdersPlatformOrderIdRoute
+    }
+    '/sell/onboarding/$draftId/': {
+      id: '/sell/onboarding/$draftId/'
+      path: '/'
+      fullPath: '/sell/onboarding/$draftId/'
+      preLoaderRoute: typeof SellOnboardingDraftIdIndexRouteImport
+      parentRoute: typeof SellOnboardingDraftIdRoute
+    }
+    '/sell/onboarding/$draftId/identity': {
+      id: '/sell/onboarding/$draftId/identity'
+      path: '/identity'
+      fullPath: '/sell/onboarding/$draftId/identity'
+      preLoaderRoute: typeof SellOnboardingDraftIdIdentityRouteImport
+      parentRoute: typeof SellOnboardingDraftIdRoute
+    }
+    '/sell/onboarding/$draftId/listing': {
+      id: '/sell/onboarding/$draftId/listing'
+      path: '/listing'
+      fullPath: '/sell/onboarding/$draftId/listing'
+      preLoaderRoute: typeof SellOnboardingDraftIdListingRouteImport
+      parentRoute: typeof SellOnboardingDraftIdRoute
+    }
+    '/sell/onboarding/$draftId/location': {
+      id: '/sell/onboarding/$draftId/location'
+      path: '/location'
+      fullPath: '/sell/onboarding/$draftId/location'
+      preLoaderRoute: typeof SellOnboardingDraftIdLocationRouteImport
+      parentRoute: typeof SellOnboardingDraftIdRoute
+    }
+    '/sell/onboarding/$draftId/policies': {
+      id: '/sell/onboarding/$draftId/policies'
+      path: '/policies'
+      fullPath: '/sell/onboarding/$draftId/policies'
+      preLoaderRoute: typeof SellOnboardingDraftIdPoliciesRouteImport
+      parentRoute: typeof SellOnboardingDraftIdRoute
+    }
+    '/sell/onboarding/$draftId/review': {
+      id: '/sell/onboarding/$draftId/review'
+      path: '/review'
+      fullPath: '/sell/onboarding/$draftId/review'
+      preLoaderRoute: typeof SellOnboardingDraftIdReviewRouteImport
+      parentRoute: typeof SellOnboardingDraftIdRoute
+    }
+    '/sell/onboarding/$draftId/socials': {
+      id: '/sell/onboarding/$draftId/socials'
+      path: '/socials'
+      fullPath: '/sell/onboarding/$draftId/socials'
+      preLoaderRoute: typeof SellOnboardingDraftIdSocialsRouteImport
+      parentRoute: typeof SellOnboardingDraftIdRoute
+    }
+    '/sell/onboarding/$draftId/story': {
+      id: '/sell/onboarding/$draftId/story'
+      path: '/story'
+      fullPath: '/sell/onboarding/$draftId/story'
+      preLoaderRoute: typeof SellOnboardingDraftIdStoryRouteImport
+      parentRoute: typeof SellOnboardingDraftIdRoute
+    }
+    '/sell/onboarding/$draftId/visuals': {
+      id: '/sell/onboarding/$draftId/visuals'
+      path: '/visuals'
+      fullPath: '/sell/onboarding/$draftId/visuals'
+      preLoaderRoute: typeof SellOnboardingDraftIdVisualsRouteImport
+      parentRoute: typeof SellOnboardingDraftIdRoute
+    }
+    '/shops/$shopSlug/products/$productSlug': {
+      id: '/shops/$shopSlug/products/$productSlug'
+      path: '/products/$productSlug'
+      fullPath: '/shops/$shopSlug/products/$productSlug'
+      preLoaderRoute: typeof ShopsShopSlugProductsProductSlugRouteImport
+      parentRoute: typeof ShopsShopSlugRoute
+    }
+    '/studio/$shopId/customers/': {
+      id: '/studio/$shopId/customers/'
+      path: '/'
+      fullPath: '/studio/$shopId/customers/'
+      preLoaderRoute: typeof StudioShopIdCustomersIndexRouteImport
+      parentRoute: typeof StudioShopIdCustomersRoute
+    }
+    '/studio/$shopId/customers/$customerHash': {
+      id: '/studio/$shopId/customers/$customerHash'
+      path: '/$customerHash'
+      fullPath: '/studio/$shopId/customers/$customerHash'
+      preLoaderRoute: typeof StudioShopIdCustomersCustomerHashRouteImport
+      parentRoute: typeof StudioShopIdCustomersRoute
+    }
+    '/studio/$shopId/orders/': {
+      id: '/studio/$shopId/orders/'
+      path: '/'
+      fullPath: '/studio/$shopId/orders/'
+      preLoaderRoute: typeof StudioShopIdOrdersIndexRouteImport
+      parentRoute: typeof StudioShopIdOrdersRoute
+    }
+    '/studio/$shopId/orders/$shopOrderId': {
+      id: '/studio/$shopId/orders/$shopOrderId'
+      path: '/$shopOrderId'
+      fullPath: '/studio/$shopId/orders/$shopOrderId'
+      preLoaderRoute: typeof StudioShopIdOrdersShopOrderIdRouteImport
+      parentRoute: typeof StudioShopIdOrdersRoute
+    }
+    '/studio/$shopId/settings/tax': {
+      id: '/studio/$shopId/settings/tax'
+      path: '/tax'
+      fullPath: '/studio/$shopId/settings/tax'
+      preLoaderRoute: typeof StudioShopIdSettingsTaxRouteImport
+      parentRoute: typeof StudioShopIdSettingsRoute
     }
     '/api/shops/$shopId/orders/$shopOrderId': {
       id: '/api/shops/$shopId/orders/$shopOrderId'
@@ -2189,6 +2182,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/shops/$shopId/orders/$shopOrderId'
       preLoaderRoute: typeof ApiShopsShopIdOrdersShopOrderIdRouteImport
       parentRoute: typeof ApiShopsShopIdOrdersRoute
+    }
+    '/api/shops/$shopId/products/$productId': {
+      id: '/api/shops/$shopId/products/$productId'
+      path: '/$productId'
+      fullPath: '/api/shops/$shopId/products/$productId'
+      preLoaderRoute: typeof ApiShopsShopIdProductsProductIdRouteImport
+      parentRoute: typeof ApiShopsShopIdProductsRoute
     }
   }
 }

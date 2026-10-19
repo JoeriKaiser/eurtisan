@@ -31,12 +31,11 @@ describe('database constraints', () => {
         (async () => {
           await db
             .insert(session)
-            // @ts-expect-error — intentional schema violation to test DB constraint.
             .values({
               id: 'session-missing-hash',
               userId: u.id,
               expiresAt: new Date(Date.now() + 60_000),
-            })
+            } as unknown as typeof session.$inferInsert)
             .returning()
         })(),
       ).rejects.toThrow()

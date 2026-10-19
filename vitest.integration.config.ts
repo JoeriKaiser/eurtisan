@@ -1,5 +1,5 @@
 import { defineProject } from 'vitest/config'
-import { loadUnitTestClassification } from './scripts/vitest-test-classification'
+import { loadUnitTestClassification } from './scripts/vitest-test-classification.ts'
 
 const { database } = loadUnitTestClassification()
 

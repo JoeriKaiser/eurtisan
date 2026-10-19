@@ -3,12 +3,13 @@ import { ShieldAlert } from 'lucide-react'
 import { Button } from '#/components/ui/button'
 import { m } from '#/paraglide/messages'
 
-export function DisputeThreadError({ error }: { error: Error }) {
+export function DisputeThreadError({ error }: { error: unknown; reset?: () => void }) {
   const isForbidden =
-    error.message.toLowerCase().includes('forbidden') ||
-    error.message.toLowerCase().includes('permission')
+    (error instanceof Error ? error.message : String(error)).toLowerCase().includes('forbidden') ||
+    (error instanceof Error ? error.message : String(error)).toLowerCase().includes('permission')
   const isNotFound =
-    error.message.toLowerCase().includes('not found') || error.message.toLowerCase().includes('404')
+    (error instanceof Error ? error.message : String(error)).toLowerCase().includes('not found') ||
+    (error instanceof Error ? error.message : String(error)).toLowerCase().includes('404')
 
   return (
     <main className='page-wrap px-4 pb-16 pt-14'>
@@ -23,7 +24,9 @@ export function DisputeThreadError({ error }: { error: Error }) {
               ? m.dispute_not_found()
               : m.dispute_error_load()}
         </h1>
-        <p className='mb-8 text-sm text-text-secondary'>{error.message}</p>
+        <p className='mb-8 text-sm text-text-secondary'>
+          {error instanceof Error ? error.message : String(error)}
+        </p>
         <Link to='/orders' className='inline-block no-underline'>
           <Button variant='secondary'>{m.orders_back_to_list()}</Button>
         </Link>

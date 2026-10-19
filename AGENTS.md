@@ -267,7 +267,7 @@ Staging seed data is idempotent, additive, deterministic, and curated. Local dev
 - To refresh a server-only query from browser code, expose a browser-safe `createServerFn` contract rather than importing its implementation.
 - `instrument.server.mjs` must stay directly importable by Node at startup; do not add TypeScript syntax or incompatible imports.
 - Grafana Faro uses `sessionStorage`, not cookies; its beacon mechanism does not itself require analytics-cookie consent.
-- The observability stack in `infra/observability/` deploys separately and persists across application deployments.
+- The observability stack in `infrastructure/observability/` deploys separately and persists across application deployments.
 - Privileged tests may need 2FA-enabled users because server functions enforce 2FA independently of route guards.
 - Deleted users are deactivated; tests reusing deleted records should expect unauthenticated/banned behavior.
 - `make e2e` does not forward arbitrary Playwright flags. Follow `docs/DEVELOPER_TOOLING.md` and use both Compose files when invoking individual E2E specs directly.

@@ -1,6 +1,6 @@
 services:
   registry:
-    image: registry:3.0.0@sha256:6c5666b861f3505b116bb9aa9b25175e71210414bd010d92035ff64018f9457e
+    image: registry:3.1.2@sha256:ddf754342cfc8acc51a56d5d0ab6af06826461864460636d8bd5c546dab2a7b8
     container_name: eurtisan-release-registry
     restart: unless-stopped
     environment:
@@ -25,7 +25,7 @@ services:
           memory: 1g
 
   registry-proxy:
-    image: nginx:1.28.2-alpine@sha256:5b4900b042ccfa8b0a73df622c3a60f2322faeb2be800cbee5aa7b44d241649e
+    image: nginx:1.31.7-alpine@sha256:892bb2152464f0c5d8972593a5f5afaf8054552580b699d95f8ff4af08c2d33d
     container_name: eurtisan-release-registry-proxy
     restart: unless-stopped
     volumes:

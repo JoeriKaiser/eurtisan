@@ -48,7 +48,7 @@ summaries rendered "eurtisan" in place of the job name. All job metrics now use
 `job_name`. Do not reintroduce a `job` label on a metric.
 
 Alert-rule behaviour is covered by `make promtool-test`
-(`infra/observability/prometheus/tests/`), which runs in CI alongside
+(`infrastructure/observability/prometheus/tests/`), which runs in CI alongside
 `make promtool-check`. `promtool-check` only proves the PromQL parses; the tests
 prove it selects the right series and fires when it should.
 

@@ -118,8 +118,7 @@ Eurtisan connects European makers with European buyers. It is built as a product
 ├── drizzle/              # Committed Drizzle migrations and metadata
 ├── e2e/                  # Playwright fixtures, setup, and workflows
 ├── docs/                 # Architecture, operations, compliance, and runbooks
-├── infra/observability/  # Separately deployed Grafana stack configuration
-├── infrastructure/       # VPS provisioning and deployment automation
+├── infrastructure/       # VPS provisioning, deployment automation, and observability
 ├── public/               # Static assets
 ├── scripts/              # Development and operational helpers
 ├── docker-compose.yml    # Local dev services (app, postgres, search, mail)

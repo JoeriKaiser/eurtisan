@@ -6,7 +6,7 @@ const verifyEmailTokenSchema = z.object({
 })
 
 export const verifyEmailToken = createServerFn({ method: 'POST' })
-  .inputValidator(verifyEmailTokenSchema)
+  .validator(verifyEmailTokenSchema)
   .handler(async ({ data }) => {
     const { auth } = await import('./config.server')
     const result = await auth.api.verifyEmail({ query: { token: data.token } })

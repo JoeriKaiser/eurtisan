@@ -24,7 +24,7 @@ import {
 
 export const createProduct = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(createProductSchema.extend({ shopId: z.string().min(1) }))
+  .validator(createProductSchema.extend({ shopId: z.string().min(1) }))
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -45,7 +45,7 @@ export const createProduct = createServerFn({ method: 'POST' })
 
 export const updateProduct = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(updateProductSchema)
+  .validator(updateProductSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -68,7 +68,7 @@ export const updateProduct = createServerFn({ method: 'POST' })
 
 export const deleteProduct = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(deleteProductSchema)
+  .validator(deleteProductSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -91,7 +91,7 @@ export const deleteProduct = createServerFn({ method: 'POST' })
 
 export const listCreatorProducts = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(listCreatorProductsSchema)
+  .validator(listCreatorProductsSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -112,7 +112,7 @@ export const listCreatorProducts = createServerFn({ method: 'GET' })
 
 export const getCreatorProductDetail = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(getCreatorProductDetailSchema)
+  .validator(getCreatorProductDetailSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -132,7 +132,7 @@ export const getCreatorProductDetail = createServerFn({ method: 'GET' })
 
 export const toggleProductActive = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(toggleProductActiveSchema)
+  .validator(toggleProductActiveSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -155,7 +155,7 @@ export const toggleProductActive = createServerFn({ method: 'POST' })
 
 export const publishProduct = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(productLifecycleSchema)
+  .validator(productLifecycleSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -174,7 +174,7 @@ export const publishProduct = createServerFn({ method: 'POST' })
 
 export const unpublishProduct = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(productLifecycleSchema)
+  .validator(productLifecycleSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -193,7 +193,7 @@ export const unpublishProduct = createServerFn({ method: 'POST' })
 
 export const archiveProduct = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(productLifecycleSchema)
+  .validator(productLifecycleSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -216,7 +216,7 @@ export const archiveProduct = createServerFn({ method: 'POST' })
 
 export const bulkToggleProductActive = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(bulkToggleProductActiveSchema)
+  .validator(bulkToggleProductActiveSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -236,7 +236,7 @@ export const bulkToggleProductActive = createServerFn({ method: 'POST' })
 
 export const bulkDeleteProducts = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(bulkDeleteProductsSchema)
+  .validator(bulkDeleteProductsSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')

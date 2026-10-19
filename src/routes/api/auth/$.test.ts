@@ -28,11 +28,12 @@ vi.mock('#/lib/auth-lockout.server', () => ({
 
 import { Route } from './$'
 
-const getHandler = (
-  Route.options.server?.handlers as unknown as {
+const serverOptions = Route.options.server as unknown as {
+  handlers: {
     GET: (ctx: { request: Request }) => Promise<Response>
   }
-).GET
+}
+const getHandler = serverOptions.handlers.GET
 
 describe('GET /api/auth/$', () => {
   beforeEach(() => {

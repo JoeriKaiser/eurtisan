@@ -503,7 +503,7 @@ The app exposes `GET /api/metrics` for Prometheus. Optional protection: set `MET
 
 Grafana Alloy/Prometheus should scrape `eurtisan-app:3000` with `metrics_path: /api/metrics`.
 
-Alert rules live in `infra/observability/prometheus/rules/` and cover app health, database connectivity, Meilisearch health, disk space, job alert logs, payment-webhook errors, and checkout failures. Validate them with:
+Alert rules live in `infrastructure/observability/prometheus/rules/` and cover app health, database connectivity, Meilisearch health, disk space, job alert logs, payment-webhook errors, and checkout failures. Validate them with:
 
 ```bash
 make promtool-check

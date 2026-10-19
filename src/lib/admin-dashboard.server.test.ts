@@ -43,7 +43,7 @@ async function seedAuditLog(overrides?: Parameters<typeof createAuditLog>[1]) {
 /*                                   Tests                                    */
 /* -------------------------------------------------------------------------- */
 
-describe.sequential('admin-dashboard.server', () => {
+describe('admin-dashboard.server', () => {
   beforeEach(async () => {
     await clearTestTables()
   })

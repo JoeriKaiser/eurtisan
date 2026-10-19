@@ -101,7 +101,7 @@ export const Route = createFileRoute('/api/shops/$shopId/orders/$shopOrderId')({
               return new Response(
                 JSON.stringify({
                   error: 'Bad Request',
-                  message: parsed.error.errors.map((e) => e.message).join(', '),
+                  message: parsed.error.issues.map((e) => e.message).join(', '),
                 }),
                 { status: 400, headers: { 'Content-Type': 'application/json' } },
               )
@@ -155,7 +155,7 @@ export const Route = createFileRoute('/api/shops/$shopId/orders/$shopOrderId')({
               return new Response(
                 JSON.stringify({
                   error: 'Bad Request',
-                  message: parsed.error.errors.map((e) => e.message).join(', '),
+                  message: parsed.error.issues.map((e) => e.message).join(', '),
                 }),
                 { status: 400, headers: { 'Content-Type': 'application/json' } },
               )

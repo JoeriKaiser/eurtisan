@@ -19,7 +19,7 @@ export const createCategory = createServerFn({
   method: 'POST',
 })
   .middleware([authMiddleware])
-  .inputValidator(createCategorySchema)
+  .validator(createCategorySchema)
   .handler(async ({ context, data }) => {
     if (!context.user || context.user.role !== 'admin') {
       throw new Error('Unauthorized: admin access required')
@@ -86,7 +86,7 @@ export const createCategory = createServerFn({
 export const listCategories = createServerFn({
   method: 'GET',
 })
-  .inputValidator(z.object({ tree: z.boolean().optional() }).optional().default({}))
+  .validator(z.object({ tree: z.boolean().optional() }).optional().default({}))
   .handler(async ({ data }) => {
     const { listCategoriesQuery, listCategoryTreeQuery } = await import('./categories.server')
     if (data?.tree) {
@@ -122,7 +122,7 @@ export type CategoryWithDetails = {
 export const getCategoryBySlug = createServerFn({
   method: 'GET',
 })
-  .inputValidator(z.object({ slug: z.string().min(1) }))
+  .validator(z.object({ slug: z.string().min(1) }))
   .handler(async ({ data }) => {
     const { getCategoryBySlugQuery } = await import('./categories.server')
     return getCategoryBySlugQuery(data.slug)
@@ -140,7 +140,7 @@ export const updateCategory = createServerFn({
   method: 'POST',
 })
   .middleware([authMiddleware])
-  .inputValidator(updateCategorySchema)
+  .validator(updateCategorySchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -175,7 +175,7 @@ export const deleteCategory = createServerFn({
   method: 'POST',
 })
   .middleware([authMiddleware])
-  .inputValidator(deleteCategorySchema)
+  .validator(deleteCategorySchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')

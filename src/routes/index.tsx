@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, Link, type ErrorComponentProps } from '@tanstack/react-router'
 import z from 'zod'
 import HomePage from '#/components/HomePage'
 import { listCategories } from '#/lib/categories'
@@ -11,7 +11,7 @@ import { queryKeys } from '#/lib/query-keys'
 import { getCurrentUser } from '#/lib/server-auth'
 import { m } from '#/paraglide/messages'
 
-function HomeError({ error }: { error: Error }) {
+function HomeError({ error }: ErrorComponentProps) {
   const isDev = import.meta.env.DEV
 
   return (
@@ -19,14 +19,16 @@ function HomeError({ error }: { error: Error }) {
       <h1 className='display-title mb-4 text-3xl font-semibold text-text-primary'>
         Failed to load marketplace
       </h1>
-      <p className='mb-6 text-text-secondary'>{isDev ? error.message : m.error_unexpected()}</p>
+      <p className='mb-6 text-text-secondary'>
+        {isDev ? (error instanceof Error ? error.message : String(error)) : m.error_unexpected()}
+      </p>
       <Link
         to='/'
         className='inline-block rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground'
       >
         {m.error_go_home()}
       </Link>
-      {isDev && (
+      {isDev && error instanceof Error && error.stack && (
         <pre className='mx-auto mt-6 max-w-2xl overflow-auto rounded-xl bg-surface-inset p-4 text-left text-xs text-text-secondary'>
           {error.stack}
         </pre>

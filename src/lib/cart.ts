@@ -41,7 +41,7 @@ export const getCart = createServerFn({ method: 'GET' })
 
 export const addToCart = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       productId: z.string().min(1),
       quantity: z.number().int().positive(),
@@ -85,7 +85,7 @@ export const addToCart = createServerFn({ method: 'POST' })
 
 export const updateCartItem = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       productId: z.string().min(1),
       quantity: z.number().int().min(0),
@@ -120,7 +120,7 @@ export const updateCartItem = createServerFn({ method: 'POST' })
 
 export const removeCartItem = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       productId: z.string().min(1),
     }),

@@ -32,7 +32,7 @@ async function resolveBuyerAccess(
 
 export const createReturnRequest = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(createReturnRequestSchema)
+  .validator(createReturnRequestSchema)
   .handler(async ({ context, data }) => {
     const { getShopOrderPlatformOrderId, getOrderOwnerId } = await import('./orders.server')
     const platformOrderId = await getShopOrderPlatformOrderId(data.shopOrderId)
@@ -49,7 +49,7 @@ export const createReturnRequest = createServerFn({ method: 'POST' })
 
 export const getReturnRequest = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ returnRequestId: z.string().uuid() }))
+  .validator(z.object({ returnRequestId: z.string().uuid() }))
   .handler(async ({ context, data }) => {
     if (context.user?.role === 'admin' || context.user?.role === 'creator') {
       requirePrivileged2FA(context.user as SafeUser)
@@ -63,7 +63,7 @@ export const getReturnRequest = createServerFn({ method: 'GET' })
 
 export const listOrderReturns = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ platformOrderId: z.string().uuid() }))
+  .validator(z.object({ platformOrderId: z.string().uuid() }))
   .handler(async ({ context, data }) => {
     const { canAccessOrder } = await import('./checkout/guest-access.server')
     if (!(await canAccessOrder(data.platformOrderId, context.user?.id))) {
@@ -78,7 +78,7 @@ export const listOrderReturns = createServerFn({ method: 'GET' })
 
 export const listShopOrderReturns = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ shopOrderId: z.string().uuid() }))
+  .validator(z.object({ shopOrderId: z.string().uuid() }))
   .handler(async ({ context, data }) => {
     if (!context.user || !['creator', 'admin'].includes(context.user.role)) {
       throw new Response(null, { status: 403 })
@@ -93,7 +93,7 @@ export const listShopOrderReturns = createServerFn({ method: 'GET' })
 
 export const updateReturnShipment = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(updateReturnShipmentSchema)
+  .validator(updateReturnShipmentSchema)
   .handler(async ({ context, data }) => {
     const access = await resolveBuyerAccess(data.returnRequestId, context.user?.id)
     const { updateReturnShipmentQuery } = await import('./returns.server')
@@ -102,7 +102,7 @@ export const updateReturnShipment = createServerFn({ method: 'POST' })
 
 export const manageReturnRequest = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(manageReturnRequestSchema)
+  .validator(manageReturnRequestSchema)
   .handler(async ({ context, data }) => {
     if (!context.user || !['creator', 'admin'].includes(context.user.role)) {
       throw new Response(null, { status: 403 })
@@ -117,7 +117,7 @@ export const manageReturnRequest = createServerFn({ method: 'POST' })
 
 export const addReturnMessage = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(addReturnMessageSchema)
+  .validator(addReturnMessageSchema)
   .handler(async ({ context, data }) => {
     if (context.user?.role === 'creator' || context.user?.role === 'admin') {
       requirePrivileged2FA(context.user as SafeUser)

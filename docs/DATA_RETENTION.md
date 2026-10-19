@@ -8,8 +8,8 @@ Summary for GDPR and operations. Align `/privacy` if customer-facing text must m
 | Guest-order access tokens | 24 hours or until order claim | Only token/email hashes are stored in the access table; raw tokens exist only in email and the HttpOnly order-access cookie |
 | Audit log | 365 days (configurable) | `job:audit-log-cleanup` purges older rows via `purgeOldAuditLogs()` in `src/lib/audit-log.server.ts`; set `AUDIT_LOG_RETENTION_DAYS`. See `AUDIT_LOG_POLICY.md` |
 | Search telemetry (`search_event`) | 180 days (configurable) | `job:search-event-cleanup` purges older rows via `purgeOldSearchEvents()` in `src/lib/search/analytics.server.ts`; set `SEARCH_EVENT_RETENTION_DAYS`. Rows are user-typed free-text queries that can contain personal data, so they are not kept indefinitely |
-| Application and consented Faro logs/errors (Loki) | 30 days | `retention_period: 720h` in `infra/observability/loki/loki.yml` |
-| Browser and server traces (Tempo) | 7 days | `block_retention: 168h` in `infra/observability/tempo/tempo.yml` |
+| Application and consented Faro logs/errors (Loki) | 30 days | `retention_period: 720h` in `infrastructure/observability/loki/loki.yml` |
+| Browser and server traces (Tempo) | 7 days | `block_retention: 168h` in `infrastructure/observability/tempo/tempo.yml` |
 | Operational metrics (Prometheus) | 15 days | `--storage.tsdb.retention.time=15d` in the observability Compose model |
 | Optional Umami analytics | Disabled | Production deployment defaults keep Umami off; confirm and document retention before enabling |
 | Browser analytics preference | Until changed or browser storage is cleared | Stored in localStorage; Faro's non-persistent session identifier is tab-bound |

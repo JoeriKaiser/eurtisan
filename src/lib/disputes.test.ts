@@ -325,53 +325,52 @@ describe('openDisputeQuery', () => {
     expect(result.status).toBe('open')
   })
 
-  it.each([
-    { bannedAt: new Date() },
-    { deletedAt: new Date() },
-  ])('rejects banned or deleted buyer accounts at the query boundary', async (accountState) => {
-    await seedUser(accountState)
-    await seedShop()
-    const { shopOrder: so } = await seedNonDeliveryOrder()
+  it.each([{ bannedAt: new Date() }, { deletedAt: new Date() }])(
+    'rejects banned or deleted buyer accounts at the query boundary',
+    async (accountState) => {
+      await seedUser(accountState)
+      await seedShop()
+      const { shopOrder: so } = await seedNonDeliveryOrder()
 
-    await expect(
-      openDisputeQuery(
+      await expect(
+        openDisputeQuery(
+          {
+            shopOrderId: so.id,
+            reason: 'item_not_received',
+            description: 'This account must not be allowed to act.',
+          },
+          'user-1',
+        ),
+      ).rejects.toMatchObject({ status: 403 })
+    },
+  )
+
+  it.each(['pending', 'in_transit', 'sent'] as const)(
+    'does not create, release, or reverse a %s payout when non-delivery is reported',
+    async (payoutStatus) => {
+      await seedUser()
+      await seedShop()
+      const { shopOrder: so } = await seedNonDeliveryOrder({ status: 'shipped' })
+      const existingPayout = await createPayout('shop-1', {
+        shopOrderId: so.id,
+        amountCents: 1800,
+        status: payoutStatus,
+      })
+
+      await openDisputeQuery(
         {
           shopOrderId: so.id,
           reason: 'item_not_received',
-          description: 'This account must not be allowed to act.',
+          description: 'The parcel is overdue.',
         },
         'user-1',
-      ),
-    ).rejects.toMatchObject({ status: 403 })
-  })
+      )
 
-  it.each([
-    'pending',
-    'in_transit',
-    'sent',
-  ] as const)('does not create, release, or reverse a %s payout when non-delivery is reported', async (payoutStatus) => {
-    await seedUser()
-    await seedShop()
-    const { shopOrder: so } = await seedNonDeliveryOrder({ status: 'shipped' })
-    const existingPayout = await createPayout('shop-1', {
-      shopOrderId: so.id,
-      amountCents: 1800,
-      status: payoutStatus,
-    })
-
-    await openDisputeQuery(
-      {
-        shopOrderId: so.id,
-        reason: 'item_not_received',
-        description: 'The parcel is overdue.',
-      },
-      'user-1',
-    )
-
-    const payouts = await db.select().from(payout).where(eq(payout.shopOrderId, so.id))
-    expect(payouts).toHaveLength(1)
-    expect(payouts[0]).toMatchObject({ id: existingPayout.id, status: payoutStatus })
-  })
+      const payouts = await db.select().from(payout).where(eq(payout.shopOrderId, so.id))
+      expect(payouts).toHaveLength(1)
+      expect(payouts[0]).toMatchObject({ id: existingPayout.id, status: payoutStatus })
+    },
+  )
 
   it('serializes a non-delivery report against a concurrent delivery update', async () => {
     await seedUser()
