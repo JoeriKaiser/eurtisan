@@ -29,7 +29,7 @@ const getShopProfileSchema = z.object({
 export const getShopProfile = createServerFn({
   method: 'GET',
 })
-  .inputValidator(getShopProfileSchema)
+  .validator(getShopProfileSchema)
   .handler(async ({ data }) => {
     const { getShopProfileQuery } = await import('./shops/public-profile.server')
     const result = await getShopProfileQuery(data.slug)
@@ -43,7 +43,7 @@ export const getShopProfile = createServerFn({
 
 export const reportShop = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       shopId: z.string().min(1),
       reason: z.enum(['illegal', 'ip', 'fraud', 'offensive', 'other']),
@@ -63,7 +63,7 @@ export const reportShop = createServerFn({ method: 'POST' })
 
 export const getAdminShopReports = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       page: z.coerce.number().int().min(1).optional().default(1),
       pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
@@ -78,7 +78,7 @@ export const getAdminShopReports = createServerFn({ method: 'GET' })
 
 export const resolveShopReport = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       shopId: z.string().min(1),
       restrict: z.boolean(),

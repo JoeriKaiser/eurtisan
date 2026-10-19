@@ -20,7 +20,7 @@ export const getMyEmailPreferences = createServerFn({ method: 'GET' })
 
 export const updateMyEmailPreference = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(preferenceSchema)
+  .validator(preferenceSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401 })

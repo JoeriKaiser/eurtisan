@@ -49,7 +49,7 @@ async function requireAdmin(context: { user?: { id: string; role: string } | nul
  */
 export const listAllPlatformOrders = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       query: z.string().optional(),
       page: z.number().int().min(1).default(1),
@@ -107,7 +107,7 @@ export const listAllPlatformOrders = createServerFn({ method: 'GET' })
  */
 export const getPlatformOrderDetail = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       orderId: z.string().uuid(),
     }),

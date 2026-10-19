@@ -89,7 +89,7 @@ docker run -d --rm --name eurtisan-logical-restore \
   -e POSTGRES_USER=verify \
   -e POSTGRES_PASSWORD=verify-only \
   -e POSTGRES_DB=verify_restore \
-  postgres:16-alpine@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229
+  postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
 
 until docker exec eurtisan-logical-restore \
   pg_isready -U verify -d verify_restore; do sleep 2; done

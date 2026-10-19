@@ -24,8 +24,10 @@ export function AccountSecurity() {
         setError(result.error.message ?? 'Could not enable two-factor authentication.')
         return
       }
-      setTotpUri(result.data?.totpURI ?? null)
-      setBackupCodes(result.data?.backupCodes ?? null)
+      if (result.data && 'totpURI' in result.data) {
+        setTotpUri(result.data.totpURI ?? null)
+        setBackupCodes(result.data.backupCodes ?? null)
+      }
     } catch {
       setError('Could not enable two-factor authentication.')
     } finally {

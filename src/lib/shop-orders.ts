@@ -20,7 +20,7 @@ const isShopOwner = createServerOnlyFn(async (shopId: string, userId: string): P
 
 export const getShopOrder = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ shopOrderId: z.string().uuid() }))
+  .validator(z.object({ shopOrderId: z.string().uuid() }))
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
@@ -62,7 +62,7 @@ export const getShopOrder = createServerFn({ method: 'GET' })
 
 export const updateShopOrderStatus = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       shopOrderId: z.string().uuid(),
       status: z.enum([
@@ -121,7 +121,7 @@ export const updateShopOrderStatus = createServerFn({ method: 'POST' })
 
 export const getShopOrderDetail = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ shopOrderId: z.string().uuid() }))
+  .validator(z.object({ shopOrderId: z.string().uuid() }))
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
@@ -159,7 +159,7 @@ export const getShopOrderDetail = createServerFn({ method: 'GET' })
 
 export const markShopOrderShipped = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       shopOrderId: z.string().uuid(),
       trackingNumber: z.string().optional().nullable(),
@@ -206,7 +206,7 @@ export const markShopOrderShipped = createServerFn({ method: 'POST' })
 
 export const markShopOrderShippedWithLabel = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ shopOrderId: z.string().uuid() }))
+  .validator(z.object({ shopOrderId: z.string().uuid() }))
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
@@ -246,7 +246,7 @@ export const markShopOrderShippedWithLabel = createServerFn({ method: 'POST' })
 
 export const markShopOrderDelivered = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ shopOrderId: z.string().uuid() }))
+  .validator(z.object({ shopOrderId: z.string().uuid() }))
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
@@ -284,7 +284,7 @@ export const markShopOrderDelivered = createServerFn({ method: 'POST' })
 
 export const refundShopOrder = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ shopOrderId: z.string().uuid() }))
+  .validator(z.object({ shopOrderId: z.string().uuid() }))
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
@@ -300,7 +300,7 @@ export const refundShopOrder = createServerFn({ method: 'POST' })
 
 export const cancelShopOrder = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       shopOrderId: z.string().uuid(),
       reason: z.string().max(500).optional(),
@@ -343,7 +343,7 @@ export const cancelShopOrder = createServerFn({ method: 'POST' })
 
 export const updateShopOrderTracking = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       shopOrderId: z.string().uuid(),
       trackingNumber: z.string().max(255).optional().nullable(),
@@ -390,7 +390,7 @@ export const updateShopOrderTracking = createServerFn({ method: 'POST' })
 
 export const resolveShopOrderManualReview = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       shopOrderId: z.string().uuid(),
       resolution: z.enum(['paid', 'cancelled']),
@@ -452,7 +452,7 @@ export const resolveShopOrderManualReview = createServerFn({ method: 'POST' })
 
 export const listShopOrders = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       shopId: z.string().min(1),
       status: z.string().optional(),

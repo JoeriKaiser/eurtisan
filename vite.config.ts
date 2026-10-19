@@ -7,7 +7,7 @@ import { defineConfig, loadEnv } from 'vite'
 import {
   parsePublicBuildEnvironment,
   selectExplicitPublicBuildEnvironment,
-} from './src/lib/infra/public-environment'
+} from './src/lib/infra/public-environment.ts'
 
 function readPublicBuildEnvironment(mode: string): Record<string, string | undefined> {
   if (process.env.EURTISAN_PUBLIC_ENV_ONLY === 'true') {

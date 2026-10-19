@@ -27,7 +27,7 @@ export type {
 
 export const openDispute = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(openDisputeSchema)
+  .validator(openDisputeSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
@@ -42,7 +42,7 @@ export const openDispute = createServerFn({ method: 'POST' })
 
 export const addDisputeMessage = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(addDisputeMessageSchema)
+  .validator(addDisputeMessageSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
@@ -57,7 +57,7 @@ export const addDisputeMessage = createServerFn({ method: 'POST' })
 
 export const listOpenDisputes = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator((data: unknown) => listOpenDisputesInputSchema.parse(data))
+  .validator((data: unknown) => listOpenDisputesInputSchema.parse(data))
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
@@ -98,7 +98,7 @@ export const listOpenDisputes = createServerFn({ method: 'GET' })
 
 export const getDisputeDetail = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(addDisputeMessageSchema.pick({ disputeId: true }))
+  .validator(addDisputeMessageSchema.pick({ disputeId: true }))
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
@@ -125,7 +125,7 @@ export const getDisputeDetail = createServerFn({ method: 'GET' })
 
 export const resolveDispute = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(resolveDisputeSchema)
+  .validator(resolveDisputeSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(

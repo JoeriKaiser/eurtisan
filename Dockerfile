@@ -1,5 +1,5 @@
-# Pinned to Bun 1.3.13 to match CI and production builds.
-FROM oven/bun:1.3.13@sha256:87416c977a612a204eb54ab9f3927023c2a3c971f4f345a01da08ea6262ae30e AS dependencies
+# Pinned to Bun 1.4.3 to match CI and production builds.
+FROM oven/bun:1.4.3@sha256:ec06c3b6cea04192ae6770c434f668ca41d343ad19fa6472216c7b48be39c598 AS dependencies
 
 WORKDIR /app
 

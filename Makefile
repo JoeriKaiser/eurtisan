@@ -91,7 +91,7 @@ i18n-compile: ensure-up
 	docker compose exec -T app bun run i18n:compile
 
 # Observability & alerting validation
-PROMETHEUS_IMAGE ?= prom/prometheus:v2.55.0@sha256:378f4e03703557d1c6419e6caccf922f96e6d88a530f7431d66a4c4f4b1000fe
+PROMETHEUS_IMAGE ?= prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
 
 promtool-check:
 	docker run --rm -v "$(PWD)/infrastructure/observability/prometheus/rules:/rules:ro" \
@@ -333,7 +333,7 @@ meili-setup: up
 	docker compose exec app bun run src/lib/meili-setup.ts
 
 # ── Release and infrastructure validation ───────────────────────────────
-ACTIONLINT_IMAGE ?= rhysd/actionlint:1.7.7@sha256:887a259a5a534f3c4f36cb02dca341673c6089431057242cdc931e9f133147e9
+ACTIONLINT_IMAGE ?= rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
 
 compose-check:
 	sh scripts/validate-compose-config.sh
@@ -367,8 +367,8 @@ staging-evidence-final: ensure-up
 
 # ── Owner-supplied Ansible validation/deployment ─────────────────────────
 ANSIBLE_PREFLIGHT_VARS ?=
-ANSIBLE_VALIDATION_IMAGE ?= python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf
-ANSIBLE_VALIDATION_SETUP = PIP_ROOT_USER_ACTION=ignore pip install --disable-pip-version-check --quiet ansible==14.1.0
+ANSIBLE_VALIDATION_IMAGE ?= python:3.13-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f
+ANSIBLE_VALIDATION_SETUP = PIP_ROOT_USER_ACTION=ignore pip install --disable-pip-version-check --quiet ansible==14.5.0
 
 ansible-syntax:
 	docker run --rm -v "$(PWD):/workspace:ro" -w /workspace $(ANSIBLE_VALIDATION_IMAGE) sh -c "$(ANSIBLE_VALIDATION_SETUP) && ansible-playbook -i infrastructure/ansible/inventory/staging.example.yml infrastructure/ansible/playbook.yml --syntax-check && ansible-playbook -i infrastructure/ansible/inventory/production.example.yml infrastructure/ansible/playbook.yml --syntax-check"

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-ANSIBLE_IMAGE="${ANSIBLE_VALIDATION_IMAGE:-python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf}"
+ANSIBLE_IMAGE="${ANSIBLE_VALIDATION_IMAGE:-python:3.13-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f}"
 TEMP_DIR="$(mktemp -d)"
 LOG_FILE="$TEMP_DIR/ansible.log"
 cleanup() {
@@ -104,7 +104,7 @@ docker run --rm \
   -v "$TEMP_DIR:/validation:ro" \
   -w /workspace \
   "$ANSIBLE_IMAGE" \
-  sh -c "PIP_ROOT_USER_ACTION=ignore pip install --disable-pip-version-check --quiet ansible==14.1.0 && \
+  sh -c "PIP_ROOT_USER_ACTION=ignore pip install --disable-pip-version-check --quiet ansible==14.5.0 && \
     ansible-playbook -i infrastructure/ansible/inventory/staging.example.yml infrastructure/ansible/playbook.yml --syntax-check && \
     ansible-playbook -i infrastructure/ansible/inventory/production.example.yml infrastructure/ansible/playbook.yml --syntax-check && \
     ansible-playbook -i infrastructure/ansible/inventory/staging.example.yml infrastructure/ansible/preflight.yml -e @/validation/staging.yml && \

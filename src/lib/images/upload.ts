@@ -26,7 +26,7 @@ const presignedUrlSchema = z.object({
  */
 export const getPresignedUploadUrl = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(presignedUrlSchema)
+  .validator(presignedUrlSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')

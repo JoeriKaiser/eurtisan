@@ -1,6 +1,7 @@
+import type { ErrorComponentProps } from '@tanstack/react-router'
 import { m } from '#/paraglide/messages'
 
-export function RootError({ error }: { error: Error }) {
+export function RootError({ error }: ErrorComponentProps) {
   const isDev = import.meta.env.DEV
 
   return (
@@ -8,8 +9,10 @@ export function RootError({ error }: { error: Error }) {
       <h1 className='display-title mb-4 text-3xl font-semibold text-text-primary'>
         Something went wrong
       </h1>
-      <p className='mb-6 text-text-secondary'>{isDev ? error.message : m.error_unexpected()}</p>
-      {isDev && (
+      <p className='mb-6 text-text-secondary'>
+        {isDev ? (error instanceof Error ? error.message : String(error)) : m.error_unexpected()}
+      </p>
+      {isDev && error instanceof Error && error.stack && (
         <pre className='mx-auto max-w-2xl overflow-auto rounded-xl bg-surface-inset p-4 text-left text-xs text-text-secondary'>
           {error.stack}
         </pre>

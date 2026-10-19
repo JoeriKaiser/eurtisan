@@ -31,20 +31,19 @@ describe('return rules', () => {
     expect(result.exclusionCode).toBe('RETURN_WINDOW_EXPIRED')
   })
 
-  it.each([
-    'personalized',
-    'perishable',
-    'hygiene_sealed',
-  ] as const)('applies the %s withdrawal exclusion', (returnPolicy) => {
-    const result = getReturnEligibility({
-      type: 'withdrawal',
-      deliveredAt,
-      returnPolicy,
-      now: new Date('2026-03-05T12:00:00Z'),
-    })
-    expect(result.eligible).toBe(false)
-    expect(result.exclusionCode).toContain(returnPolicy.toUpperCase())
-  })
+  it.each(['personalized', 'perishable', 'hygiene_sealed'] as const)(
+    'applies the %s withdrawal exclusion',
+    (returnPolicy) => {
+      const result = getReturnEligibility({
+        type: 'withdrawal',
+        deliveredAt,
+        returnPolicy,
+        now: new Date('2026-03-05T12:00:00Z'),
+      })
+      expect(result.eligible).toBe(false)
+      expect(result.exclusionCode).toContain(returnPolicy.toUpperCase())
+    },
+  )
 
   it('does not apply discretionary exclusions to defective-item reports', () => {
     const result = getReturnEligibility({

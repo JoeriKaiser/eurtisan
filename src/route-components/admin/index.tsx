@@ -1,4 +1,4 @@
-import { getRouteApi, Link } from '@tanstack/react-router'
+import { getRouteApi, Link, type ErrorComponentProps } from '@tanstack/react-router'
 import { AlertTriangle, ArrowRight, Gavel, ShoppingBag, Store, Users } from 'lucide-react'
 import { Suspense } from 'react'
 import { Badge } from '#/components/ui/badge'
@@ -351,14 +351,16 @@ export function AdminDashboardPending() {
 /*                                Error State                                 */
 /* -------------------------------------------------------------------------- */
 
-export function AdminDashboardError({ error, reset }: { error: Error; reset?: () => void }) {
+export function AdminDashboardError({ error, reset }: ErrorComponentProps) {
   return (
     <div className='text-center py-12'>
       <AlertTriangle size={48} className='mx-auto mb-4 text-error' aria-hidden='true' />
       <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary'>
         {m.admin_error_load()}
       </h1>
-      <p className='mb-6 text-text-secondary'>{error.message}</p>
+      <p className='mb-6 text-text-secondary'>
+        {error instanceof Error ? error.message : String(error)}
+      </p>
       {reset && (
         <Button variant='secondary' onClick={reset}>
           {m.admin_error_retry()}

@@ -68,7 +68,7 @@ export const getCreatorShops = createServerFn({ method: 'GET' })
  */
 export const getCreatorShop = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       shopId: z.string().min(1, 'Shop ID is required.'),
     }),
@@ -98,7 +98,7 @@ export const getCreatorShop = createServerFn({ method: 'GET' })
  */
 export const getCreatorRecentActivity = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       limit: z.number().int().min(1).max(100).optional().default(20),
     }),
@@ -128,7 +128,7 @@ export const getCreatorRecentActivity = createServerFn({ method: 'GET' })
  */
 export const getShopDashboardStats = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       shopId: z.string().min(1, 'Shop ID is required.'),
     }),

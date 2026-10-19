@@ -11,7 +11,7 @@ export const Route = createFileRoute('/disputes/$disputeId')({
   loader: async ({ params }) => {
     const dispute = await getDisputeDetail({
       data: { disputeId: params.disputeId },
-    }).catch((err) => {
+    }).catch((err: unknown) => {
       if (err instanceof Response && err.status === 404) {
         throw notFound()
       }

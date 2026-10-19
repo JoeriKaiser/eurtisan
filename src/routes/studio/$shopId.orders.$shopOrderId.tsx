@@ -10,7 +10,7 @@ export const Route = createFileRoute('/studio/$shopId/orders/$shopOrderId')({
   beforeLoad: async ({ params }) => guardShopOwnership(params.shopId),
   loader: async ({ params }) => {
     const order = await getShopOrderDetail({ data: { shopOrderId: params.shopOrderId } }).catch(
-      (err) => {
+      (err: unknown) => {
         if (err instanceof Response && err.status === 404) {
           throw notFound()
         }

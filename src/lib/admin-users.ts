@@ -57,7 +57,7 @@ const unbanUserInputSchema = z.object({
 
 export const listUsers = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator((data: unknown) => listUsersInputSchema.parse(data))
+  .validator((data: unknown) => listUsersInputSchema.parse(data))
   .handler(async ({ context, data }) => {
     await requireAdmin(context)
     requirePrivileged2FA(context.user as SafeUser)
@@ -82,7 +82,7 @@ export const listUsers = createServerFn({ method: 'GET' })
 
 export const updateUserRole = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator((data: unknown) => updateUserRoleInputSchema.parse(data))
+  .validator((data: unknown) => updateUserRoleInputSchema.parse(data))
   .handler(async ({ context, data }) => {
     const modules = await Promise.all([
       requireAdmin(context),
@@ -104,7 +104,7 @@ export const updateUserRole = createServerFn({ method: 'POST' })
 
 export const banUser = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator((data: unknown) => banUserInputSchema.parse(data))
+  .validator((data: unknown) => banUserInputSchema.parse(data))
   .handler(async ({ context, data }) => {
     const modules = await Promise.all([
       requireAdmin(context),
@@ -126,7 +126,7 @@ export const banUser = createServerFn({ method: 'POST' })
 
 export const unbanUser = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator((data: unknown) => unbanUserInputSchema.parse(data))
+  .validator((data: unknown) => unbanUserInputSchema.parse(data))
   .handler(async ({ context, data }) => {
     const modules = await Promise.all([
       requireAdmin(context),

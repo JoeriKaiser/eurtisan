@@ -161,7 +161,7 @@ export const checkSlugSchema = z.object({
  */
 export const updateShop = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(updateShopSchema)
+  .validator(updateShopSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
@@ -277,7 +277,7 @@ export const updateShop = createServerFn({ method: 'POST' })
  */
 export const checkShopSlug = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(checkSlugSchema)
+  .validator(checkSlugSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
@@ -307,7 +307,7 @@ export const checkShopSlug = createServerFn({ method: 'GET' })
  */
 export const uploadShopImage = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(uploadShopImageSchema)
+  .validator(uploadShopImageSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(

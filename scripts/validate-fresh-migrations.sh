@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-POSTGRES_IMAGE="postgres:16-alpine@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229"
+POSTGRES_IMAGE="postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea"
 CONTAINER="eurtisan-fresh-migrations-$$"
 DATABASE="eurtisan_migration_check"
 USER_NAME="migration_check"

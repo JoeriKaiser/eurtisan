@@ -15,7 +15,7 @@ export type {
 
 export const getShopTaxReport = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       shopId: z.string().min(1, 'Shop ID is required.'),
       year: z.number().int().min(2020).max(2100),

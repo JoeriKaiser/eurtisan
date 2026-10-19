@@ -17,7 +17,7 @@ import {
 
 export const getProductVariantMatrix = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(getProductVariantDetailSchema)
+  .validator(getProductVariantDetailSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -36,7 +36,7 @@ export const getProductVariantMatrix = createServerFn({ method: 'GET' })
 
 export const createProductOption = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(createProductOptionSchema)
+  .validator(createProductOptionSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -60,7 +60,7 @@ export const createProductOption = createServerFn({ method: 'POST' })
 
 export const updateProductOption = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(updateProductOptionSchema)
+  .validator(updateProductOptionSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -84,7 +84,7 @@ export const updateProductOption = createServerFn({ method: 'POST' })
 
 export const deleteProductOption = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(deleteProductOptionSchema)
+  .validator(deleteProductOptionSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -104,7 +104,7 @@ export const deleteProductOption = createServerFn({ method: 'POST' })
 
 export const createProductVariant = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(createProductVariantSchema)
+  .validator(createProductVariantSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -135,7 +135,7 @@ export const createProductVariant = createServerFn({ method: 'POST' })
 
 export const updateProductVariant = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(updateProductVariantSchema)
+  .validator(updateProductVariantSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -166,7 +166,7 @@ export const updateProductVariant = createServerFn({ method: 'POST' })
 
 export const deleteProductVariant = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(deleteProductVariantSchema)
+  .validator(deleteProductVariantSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -189,7 +189,7 @@ export const deleteProductVariant = createServerFn({ method: 'POST' })
 
 export const ensureVariantMatrix = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(ensureVariantMatrixSchema)
+  .validator(ensureVariantMatrixSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')

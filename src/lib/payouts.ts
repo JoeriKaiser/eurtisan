@@ -17,7 +17,7 @@ export { PLATFORM_FEE_PERCENT } from './platform-constants'
  */
 export const listCreatorPayouts = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       shopId: z.string().min(1, 'Shop ID is required.'),
       page: z.coerce.number().int().min(1).optional().default(1),
@@ -51,7 +51,7 @@ export const listCreatorPayouts = createServerFn({ method: 'GET' })
  */
 export const getMollieConnectUrl = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ shopId: z.string().min(1) }))
+  .validator(z.object({ shopId: z.string().min(1) }))
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
@@ -75,7 +75,7 @@ export const getMollieConnectUrl = createServerFn({ method: 'POST' })
  */
 export const disconnectMollie = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ shopId: z.string().min(1) }))
+  .validator(z.object({ shopId: z.string().min(1) }))
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(

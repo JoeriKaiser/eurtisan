@@ -29,7 +29,7 @@ const listAllShopsInputSchema = z.object({
 const moderateShopInputSchema = z.object({
   shopId: z.string().min(1, 'Shop ID is required.'),
   action: z.enum(['suspend', 'unsuspend'], {
-    errorMap: () => ({ message: "Action must be 'suspend' or 'unsuspend'." }),
+    message: "Action must be 'suspend' or 'unsuspend'.",
   }),
   note: z.string().max(2000).optional(),
 })
@@ -75,7 +75,7 @@ async function requireAdmin(context: { user?: { id: string; role: string } | nul
  */
 export const listAllShops = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator((data: unknown) => listAllShopsInputSchema.parse(data))
+  .validator((data: unknown) => listAllShopsInputSchema.parse(data))
   .handler(async ({ context, data }) => {
     await requireAdmin(context)
     requirePrivileged2FA(context.user as SafeUser)
@@ -117,7 +117,7 @@ export const listAllShops = createServerFn({ method: 'GET' })
  */
 export const moderateShop = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator((data: unknown) => moderateShopInputSchema.parse(data))
+  .validator((data: unknown) => moderateShopInputSchema.parse(data))
   .handler(async ({ context, data }) => {
     const modules = await Promise.all([
       requireAdmin(context),

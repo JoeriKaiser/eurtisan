@@ -50,7 +50,7 @@ export type InvoiceBillingDetails = z.infer<typeof invoiceBillingDetailsSchema>
  */
 export const getInvoiceData = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       invoiceNumber: z.string().min(1, 'Invoice number is required.'),
     }),

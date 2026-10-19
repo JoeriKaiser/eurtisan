@@ -10,7 +10,9 @@ export const Route = createFileRoute('/orders/$platformOrderId/returns/new')({
   loaderDeps: ({ search }) => ({ shopOrderId: search.shopOrderId }),
   loader: async ({ params, deps }) => {
     const order = await getBuyerOrderDetail({ data: { orderId: params.platformOrderId } })
-    if (!order?.shops.some((shop) => shop.shopOrderId === deps.shopOrderId)) {
+    if (
+      !order?.shops.some((shop: { shopOrderId: string }) => shop.shopOrderId === deps.shopOrderId)
+    ) {
       throw notFound()
     }
     return { order, shopOrderId: deps.shopOrderId }

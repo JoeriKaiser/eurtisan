@@ -1,8 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
-BASH_IMAGE="bash:5.2.37@sha256:3bee76a96d86d5d2d5efc7c1c570e5a7c95db22348a26944e0e546fa174e3324"
-PYTHON_IMAGE="python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf"
+BASH_IMAGE="bash:5.3.20@sha256:61962062d969cb46dfc2bad061d36342406fa485f64f246aa7e95693ca07df1f"
+PYTHON_IMAGE="python:3.13-slim@sha256:70729b46c69b4f1e97c4822c1af3df53a1476cf5ddc6c087c0c10bc3a5678c2f"
 RENDERED_DIR="$(mktemp -d)"
 cleanup() {
   rm -rf "$RENDERED_DIR"

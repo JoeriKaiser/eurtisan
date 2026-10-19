@@ -48,7 +48,7 @@ vi.mock('#/lib/vat.server', async (importOriginal) => {
 // Run all tests in this file sequentially because they mutate the shared
 // test database. Parallel execution causes race conditions between beforeEach
 // cleanup and test seeding.
-describe.sequential('checkout', () => {
+describe('checkout', () => {
   // ---------------------------------------------------------------------------
   // Test stub for the payment provider
   // ---------------------------------------------------------------------------

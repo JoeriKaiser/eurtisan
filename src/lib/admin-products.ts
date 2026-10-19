@@ -52,7 +52,7 @@ const toggleProductActiveInputSchema = z.object({
 
 export const listAllProducts = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator((data: unknown) => listAllProductsInputSchema.parse(data))
+  .validator((data: unknown) => listAllProductsInputSchema.parse(data))
   .handler(async ({ context, data }) => {
     await requireAdmin(context)
     requirePrivileged2FA(context.user as SafeUser)
@@ -82,7 +82,7 @@ export const listAllProducts = createServerFn({ method: 'GET' })
 
 export const toggleProductActive = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator((data: unknown) => toggleProductActiveInputSchema.parse(data))
+  .validator((data: unknown) => toggleProductActiveInputSchema.parse(data))
   .handler(async ({ context, data }) => {
     const modules = await Promise.all([
       requireAdmin(context),

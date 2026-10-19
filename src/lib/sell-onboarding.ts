@@ -428,7 +428,7 @@ export const createShopDraft = createServerFn({ method: 'POST' })
  */
 export const getShopDraft = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator((data: { draftId: string }) => data)
+  .validator((data: { draftId: string }) => data)
   .handler(async ({ context, data }) => {
     if (!context.user) throw new Error('UNAUTHENTICATED')
     const { getShopDraftQuery } = await import('./sell-onboarding.server')
@@ -467,11 +467,11 @@ export function validateOnboardingStepData(step: number, data: unknown): void {
  */
 export const saveOnboardingStep = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       draftId: z.string().min(1),
       step: z.number().int().min(1).max(5),
-      data: z.record(z.unknown()),
+      data: z.record(z.string(), z.unknown()),
     }),
   )
   .handler(async ({ context, data }) => {
@@ -489,7 +489,7 @@ export const saveOnboardingStep = createServerFn({ method: 'POST' })
  */
 export const checkSlugAvailability = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ slug: z.string().min(1), excludeShopId: z.string().optional() }))
+  .validator(z.object({ slug: z.string().min(1), excludeShopId: z.string().optional() }))
   .handler(async ({ data }) => {
     const { checkSlugAvailabilityInternal } = await import('./sell-onboarding.server')
     return checkSlugAvailabilityInternal(data.slug, data.excludeShopId)
@@ -500,7 +500,7 @@ export const checkSlugAvailability = createServerFn({ method: 'GET' })
  */
 export const checkShopName = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ name: z.string().min(1), excludeShopId: z.string().optional() }))
+  .validator(z.object({ name: z.string().min(1), excludeShopId: z.string().optional() }))
   .handler(async ({ data }) => {
     const { checkShopNameInternal } = await import('./sell-onboarding.server')
     return checkShopNameInternal(data.name, data.excludeShopId)
@@ -523,7 +523,7 @@ export const getSellerShops = createServerFn({ method: 'GET' })
  */
 export const submitShopForReview = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       draftId: z.string().min(1),
       termsAgreed: z.literal(true),
@@ -541,7 +541,7 @@ export const submitShopForReview = createServerFn({ method: 'POST' })
 
 export const launchApprovedShop = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ shopId: z.string().min(1) }))
+  .validator(z.object({ shopId: z.string().min(1) }))
   .handler(async ({ context, data }) => {
     if (!context.user) throw new Error('UNAUTHENTICATED')
     const [
@@ -562,7 +562,7 @@ export const launchApprovedShop = createServerFn({ method: 'POST' })
 
 export const getOnboardingReadiness = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ draftId: z.string().min(1) }))
+  .validator(z.object({ draftId: z.string().min(1) }))
   .handler(async ({ context, data }) => {
     if (!context.user) throw new Error('UNAUTHENTICATED')
     const { getOnboardingReadinessInternal, verifyShopOwnershipOrAdmin } = await import(
@@ -574,7 +574,7 @@ export const getOnboardingReadiness = createServerFn({ method: 'GET' })
 
 export const getOnboardingListing = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ draftId: z.string().min(1) }))
+  .validator(z.object({ draftId: z.string().min(1) }))
   .handler(async ({ context, data }) => {
     if (!context.user) throw new Error('UNAUTHENTICATED')
     const { getOnboardingListingInternal, verifyShopOwnershipOrAdmin } = await import(
@@ -586,7 +586,7 @@ export const getOnboardingListing = createServerFn({ method: 'GET' })
 
 export const deleteShopDraft = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ shopId: z.string().min(1) }))
+  .validator(z.object({ shopId: z.string().min(1) }))
   .handler(async ({ context, data }) => {
     if (!context.user) throw new Error('UNAUTHENTICATED')
     if (context.user.role === 'admin') requirePrivileged2FA(context.user as SafeUser)
@@ -599,7 +599,7 @@ export const deleteShopDraft = createServerFn({ method: 'POST' })
  */
 export const getShopStatus = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator((data: { shopId: string }) => data)
+  .validator((data: { shopId: string }) => data)
   .handler(async ({ context, data }) => {
     if (!context.user) throw new Error('UNAUTHENTICATED')
     const { getShopStatusInternal } = await import('./sell-onboarding.server')
@@ -612,7 +612,7 @@ export const getShopStatus = createServerFn({ method: 'GET' })
  */
 export const saveDraftListing = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     step7ListingSchema.extend({
       draftId: z.string().min(1),
       slug: z
@@ -645,7 +645,7 @@ const moderationActionSchema = z.object({
  */
 export const getShopsForModeration = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       status: z
         .enum(['pending_review', 'changes_requested', 'approved', 'rejected', 'all'])
@@ -672,7 +672,7 @@ export const getShopsForModeration = createServerFn({ method: 'GET' })
 
 export const moderateShop = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(moderationActionSchema)
+  .validator(moderationActionSchema)
   .handler(async ({ context, data }) => {
     if (!context.user || context.user.role !== 'admin') throw new Error('FORBIDDEN')
     requirePrivileged2FA(context.user as SafeUser)
@@ -695,7 +695,7 @@ export const moderateShop = createServerFn({ method: 'POST' })
  */
 export const getShopDraftListings = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ shopId: z.string().min(1) }))
+  .validator(z.object({ shopId: z.string().min(1) }))
   .handler(async ({ context, data }) => {
     if (!context.user) throw new Error('UNAUTHENTICATED')
     const [{ verifyShopOwnershipOrAdmin }, { listCreatorProductsInternal }] = await Promise.all([

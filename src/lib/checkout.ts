@@ -32,7 +32,7 @@ const getCheckoutServicePointsServerOnly = createServerOnlyFn(
 
 export const getCheckoutSummary = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       cartId: z.string().uuid(),
       shippingAddress: checkoutAddressSchema.optional(),
@@ -69,7 +69,7 @@ const checkoutRateLimitMiddleware = createUserRateLimitMiddleware(1, 5_000, 'che
 
 export const createCheckout = createServerFn({ method: 'POST' })
   .middleware([authMiddleware, checkoutRateLimitMiddleware])
-  .inputValidator(checkoutInputSchema)
+  .validator(checkoutInputSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
@@ -90,7 +90,7 @@ const getServicePointsRateLimitMiddleware = createUserRateLimitMiddleware(
 
 export const getServicePoints = createServerFn({ method: 'POST' })
   .middleware([authMiddleware, getServicePointsRateLimitMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       postalCode: z.string().min(3).max(20),
       country: isoCountryCodeSchema,
@@ -114,7 +114,7 @@ export const getServicePoints = createServerFn({ method: 'POST' })
 
 export const rebuildCartFromOrder = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ platformOrderId: z.string().uuid() }))
+  .validator(z.object({ platformOrderId: z.string().uuid() }))
   .handler(async ({ context, data }) => {
     const { canAccessOrder } = await import('./checkout/guest-access.server')
     if (!(await canAccessOrder(data.platformOrderId, context.user?.id))) {
@@ -131,7 +131,7 @@ const retryPaymentRateLimitMiddleware = createUserRateLimitMiddleware(3, 60_000,
 
 export const retryPayment = createServerFn({ method: 'POST' })
   .middleware([authMiddleware, retryPaymentRateLimitMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       platformOrderId: z.string().uuid(),
     }),

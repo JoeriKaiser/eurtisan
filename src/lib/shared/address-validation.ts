@@ -92,10 +92,9 @@ export const isoCountryCodeSchema = z
   .string()
   .length(2)
   .regex(/^[A-Z]{2}$/, 'Country must be a valid ISO-3166-1 alpha-2 code')
-  .refine(
-    (code) => EU_COUNTRY_CODES.has(code),
-    (code) => ({ message: `${code} is not a supported country code` }),
-  )
+  .refine((code) => EU_COUNTRY_CODES.has(code), {
+    message: 'Country is not a supported country code',
+  })
 
 /**
  * Country-specific postal-code patterns for major European markets.

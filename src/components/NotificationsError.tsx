@@ -1,6 +1,6 @@
 import { m } from '#/paraglide/messages'
 
-export function NotificationsError({ error }: { error: Error }) {
+export function NotificationsError({ error }: { error: unknown; reset?: () => void }) {
   return (
     <main className='page-wrap px-4 py-12'>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
@@ -9,7 +9,9 @@ export function NotificationsError({ error }: { error: Error }) {
         </h1>
         <div className='py-12 text-center'>
           <p className='text-text-secondary'>{m.notifications_error()}</p>
-          <p className='mt-2 text-sm text-text-muted'>{error.message}</p>
+          <p className='mt-2 text-sm text-text-muted'>
+            {error instanceof Error ? error.message : String(error)}
+          </p>
         </div>
       </section>
     </main>
