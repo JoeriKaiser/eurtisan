@@ -84,7 +84,7 @@ export function ShopCustomersPage({ shopId, result, searchQuery, page }: ShopCus
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
         <div className='mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
           <div>
-            <h1 className='display-title mb-2 text-3xl font-semibold text-text-primary'>
+            <h1 className='mb-2 text-3xl font-semibold text-text-primary'>
               {m.studio_customers_title()}
             </h1>
             <p className='text-text-secondary'>{m.studio_customers_description()}</p>

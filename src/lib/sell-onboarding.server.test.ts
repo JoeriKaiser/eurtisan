@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '#/db/index'
 import { categories, product, productImage, shop, user } from '#/db/schema'
+import { decryptIfEncrypted } from '#/lib/encryption.server'
 import { clearTestTables } from '#/test/cleanup'
 import { SELLER_TERMS_VERSION } from './sell-onboarding'
 import {
@@ -204,9 +205,15 @@ describe('sell onboarding server', () => {
     })
 
     const draft = await getShopDraftQuery('shop-1', 'user-1', 'customer')
+    const [stored] = await db.select().from(shop).where(eq(shop.id, 'shop-1'))
     expect(draft.shippingOrigin?.city).toBe('Lyon')
     expect(draft.businessAddress?.street).toBe('4 Rue Mercière')
+    expect(draft.dateOfBirth).toBe('1990-05-15')
     expect(draft.taxId).toBe('FRTIN12345')
+    expect(stored.dateOfBirth).not.toBe('1990-05-15')
+    expect(stored.taxId).not.toBe('FRTIN12345')
+    expect(decryptIfEncrypted(stored.dateOfBirth)).toBe('1990-05-15')
+    expect(decryptIfEncrypted(stored.taxId)).toBe('FRTIN12345')
     expect(draft.traderStatus).toBe('non_trader')
     expect(draft.onboardingStep).toBe(3)
   })

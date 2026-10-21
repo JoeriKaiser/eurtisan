@@ -7,7 +7,7 @@ export function AdminReviewsError({ error, reset }: ErrorComponentProps) {
   return (
     <div className='py-12 text-center' role='alert'>
       <AlertTriangle size={48} className='mx-auto mb-4 text-error' aria-hidden='true' />
-      <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary'>
+      <h1 className='mb-2 text-2xl font-semibold text-text-primary'>
         {m.admin_reviews_error_load()}
       </h1>
       <p className='mb-6 text-text-secondary'>

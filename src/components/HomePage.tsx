@@ -1,13 +1,13 @@
 import type { listCategories } from '#/lib/categories'
 import type { FeaturedShop, RecentProduct } from '#/lib/products'
 import { m } from '#/paraglide/messages'
-import { HomeHeroSection } from './home/HomeHeroSection'
-import { HomeStatsStrip } from './home/HomeStatsStrip'
-import { HomeValuePropositionStrip } from './home/HomeValuePropositionStrip'
+import { HomeCategoryDiscovery } from './home/HomeCategoryDiscovery'
 import { HomeFeaturedProducts } from './home/HomeFeaturedProducts'
 import { HomeFeaturedShops } from './home/HomeFeaturedShops'
-import { HomeCategoryDiscovery } from './home/HomeCategoryDiscovery'
+import { HomeHeroSection } from './home/HomeHeroSection'
 import { HomePreFooterCTA } from './home/HomePreFooterCTA'
+import { HomeStatsStrip } from './home/HomeStatsStrip'
+import { HomeValuePropositionStrip } from './home/HomeValuePropositionStrip'
 
 export interface HomePageProps {
   categories: Awaited<ReturnType<typeof listCategories>>

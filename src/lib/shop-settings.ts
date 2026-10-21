@@ -181,7 +181,7 @@ export const updateShop = createServerFn({ method: 'POST' })
     const { updateShopInternal, SlugCollisionError } = await import('./shop-settings.server')
     // Dynamic, like every other server-only import in this handler: this module
     // is reachable from the browser graph and `encryption.server` must not be.
-    const { decryptJsonb } = await import('./encryption.server')
+    const { decryptIfEncrypted, decryptJsonb } = await import('./encryption.server')
     const { db } = await import('#/db/index')
     const { shopSocials } = await import('#/db/schema')
     const { eq } = await import('drizzle-orm')
@@ -243,8 +243,8 @@ export const updateShop = createServerFn({ method: 'POST' })
         vatId: record.vatId,
         legalEntityType: record.legalEntityType as 'individual' | 'business' | null,
         traderStatus: record.traderStatus as TraderStatus | null,
-        dateOfBirth: record.dateOfBirth,
-        taxId: record.taxId,
+        dateOfBirth: decryptIfEncrypted(record.dateOfBirth),
+        taxId: decryptIfEncrypted(record.taxId),
         businessRegistrationNumber: record.businessRegistrationNumber,
         policies: (record.policies as Policies | null) ?? null,
         socials: socials.map(

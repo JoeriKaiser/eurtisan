@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildRobotsTxt } from './robots-txt.server'
 
-const disallowedPaths = ['/cart', '/checkout', '/creator', '/admin', '/api', '/orders']
+const disallowedPaths = ['/cart', '/checkout', '/creator', '/studio', '/admin', '/api', '/orders']
 
 describe('buildRobotsTxt', () => {
   it('starts with User-agent: *', () => {

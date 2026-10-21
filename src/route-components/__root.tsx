@@ -14,7 +14,7 @@ const Devtools = import.meta.env.DEV
   : null
 
 const AUTH_ROUTES = new Set(['/signin', '/forgot-password', '/reset-password', '/verify-email'])
-const LOCALES = new Set(['en', 'nl'])
+const LOCALES = new Set(['en', 'nl', 'fr'])
 
 function stripLocalePrefix(pathname: string): string {
   // Strip an optional locale prefix (e.g. /nl/admin) so route detection works
