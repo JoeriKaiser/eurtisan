@@ -19,11 +19,17 @@ test.describe('creator advanced shop settings', () => {
   let originalPolicies: Record<string, unknown> | null
   let originalAnnouncement: string | null
   let originalSocials: Array<{ platform: string; url: string }>
+  let creatorUserId: string
 
   test.beforeAll(async () => {
     const shop = await getCreatorShop()
 
     shopId = shop.id
+    creatorUserId = shop.ownerId
+    await db
+      .update(schema.user)
+      .set({ twoFactorEnabled: true })
+      .where(eq(schema.user.id, creatorUserId))
     originalSlug = shop.slug
     originalName = shop.name
     originalDescription = shop.description ?? ''
@@ -66,6 +72,10 @@ test.describe('creator advanced shop settings', () => {
         })),
       )
     }
+    await db
+      .update(schema.user)
+      .set({ twoFactorEnabled: false })
+      .where(eq(schema.user.id, creatorUserId))
   })
 
   test('creator can update shop slug, business address, return policy, and social links', async ({

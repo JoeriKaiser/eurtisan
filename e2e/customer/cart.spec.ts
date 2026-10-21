@@ -51,6 +51,7 @@ test.describe('Cart', () => {
 
     // With stock=3 and cart quantity=1, two increases should hit the cap.
     await increaseButton.click()
+    await expect(page.getByText('2').first()).toBeVisible()
     await increaseButton.click()
 
     await expect(increaseButton).toBeDisabled()

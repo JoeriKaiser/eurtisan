@@ -312,7 +312,8 @@ export const betterAuthOptions = {
   // sign-in rate limits when multiple auth setups run in quick succession.
   // Production keeps the default rate limit behavior.
   rateLimit:
-    typeof process !== 'undefined' && process.env.NODE_ENV !== 'production'
+    typeof process !== 'undefined' &&
+    (process.env.NODE_ENV !== 'production' || process.env.E2E_TEST === 'true')
       ? { enabled: false }
       : undefined,
   plugins: [
