@@ -12,7 +12,7 @@ export const searchOverlay = createServerFn({
   method: 'GET',
 })
   .middleware([searchOverlayRateLimitMiddleware])
-  .inputValidator(z.object({ query: z.string().min(1).max(255) }))
+  .validator(z.object({ query: z.string().min(1).max(255) }))
   .handler(async ({ data }) => {
     const { searchOverlayQuery } = await import('./search-overlay.server')
     return searchOverlayQuery(data.query)

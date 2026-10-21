@@ -1,7 +1,8 @@
 import { AlertTriangle } from 'lucide-react'
+import type { ErrorComponentProps } from '@tanstack/react-router'
 import { m } from '#/paraglide/messages'
 
-export function AdminAuditLogError({ error }: { error: Error }) {
+export function AdminAuditLogError({ error }: ErrorComponentProps) {
   return (
     <div className='space-y-6'>
       <div>
@@ -15,7 +16,7 @@ export function AdminAuditLogError({ error }: { error: Error }) {
         className='island-shell rounded-xl border border-error/30 bg-error-subtle p-4 text-sm text-error'
       >
         <AlertTriangle size={16} className='mr-2 inline-block' aria-hidden='true' />
-        {error.message}
+        {error instanceof Error ? error.message : String(error)}
       </div>
     </div>
   )

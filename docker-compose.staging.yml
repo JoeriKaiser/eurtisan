@@ -81,7 +81,7 @@ services:
           memory: 2g
 
   db:
-    image: postgres:16-alpine@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229
+    image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
     container_name: eurtisan-db-staging
     logging:
       driver: "json-file"
@@ -111,7 +111,7 @@ services:
           memory: 4g
 
   meilisearch:
-    image: getmeili/meilisearch:v1.43.0@sha256:5d4e1353927785744486fe317d263f442710ab5b27b1983aa1b719dfe2c665b6
+    image: getmeili/meilisearch:v1.55.0@sha256:ff546679970126f8822e15d1b6a06bfbff1f2ce2e43f810cfb5258012f92de5c
     container_name: eurtisan-meilisearch-staging
     logging:
       driver: "json-file"
@@ -129,6 +129,7 @@ services:
       # to start.
       MEILI_ENV: production
       MEILI_NO_ANALYTICS: "true"
+      MEILI_UPGRADE_DB: "true"
     volumes:
       - meilisearch_data:/meili_data
     networks:
@@ -147,7 +148,7 @@ services:
           memory: 2g
 
   garage:
-    image: dxflrs/garage:v2.3.0@sha256:866bd13ed2038ba7e7190e840482bc27234c4afaf77be8cfa439ae088c1e4690
+    image: dxflrs/garage:v2.4.1@sha256:9c96caa2612d3411acc5b0e6701fb238dbfba33e533a6d7d3d811a4b12d0d020
     container_name: eurtisan-garage-staging
     logging:
       driver: "json-file"
@@ -175,7 +176,7 @@ services:
           memory: 1g
 
   imgproxy:
-    image: darthsim/imgproxy:v3@sha256:419f92ee3a3137ddc2552a92ae2f46a97e9b8c22e03f8a6efa0cb217d8db7f45
+    image: darthsim/imgproxy:v4.0.18@sha256:03aec6708216c3e017d7ad3fb08eba11d6b83be65556262f8d6cd72803fefeb6
     container_name: eurtisan-imgproxy-staging
     logging:
       driver: "json-file"
@@ -223,7 +224,7 @@ services:
           memory: 1g
 
   mailpit:
-    image: axllent/mailpit:v1.30.4@sha256:5a49a77c5bdbe7c5474450b4f46348d09949df3695257729c93a30369382d4f6
+    image: axllent/mailpit:v1.31.6@sha256:23fe39e81bde596a918000b3135c0f85dc8bb4c9ea6be274b051143f3e300387
     container_name: eurtisan-mailpit-staging
     logging:
       driver: "json-file"

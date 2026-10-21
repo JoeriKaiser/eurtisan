@@ -35,7 +35,7 @@ export type {
 
 export const listShopCustomers = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(listCustomersSchema)
+  .validator(listCustomersSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -56,7 +56,7 @@ export const listShopCustomers = createServerFn({ method: 'GET' })
 
 export const getShopCustomerDetail = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(getCustomerDetailSchema)
+  .validator(getCustomerDetailSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -77,7 +77,7 @@ export const getShopCustomerDetail = createServerFn({ method: 'GET' })
 
 export const addCustomerNote = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(addCustomerNoteSchema)
+  .validator(addCustomerNoteSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -97,7 +97,7 @@ export const addCustomerNote = createServerFn({ method: 'POST' })
 
 export const updateCustomerNote = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(updateCustomerNoteSchema)
+  .validator(updateCustomerNoteSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -113,7 +113,7 @@ export const updateCustomerNote = createServerFn({ method: 'POST' })
 
 export const deleteCustomerNote = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(deleteCustomerNoteSchema)
+  .validator(deleteCustomerNoteSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -129,7 +129,7 @@ export const deleteCustomerNote = createServerFn({ method: 'POST' })
 
 export const addCustomerTag = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(addCustomerTagSchema)
+  .validator(addCustomerTagSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -149,7 +149,7 @@ export const addCustomerTag = createServerFn({ method: 'POST' })
 
 export const removeCustomerTag = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(removeCustomerTagSchema)
+  .validator(removeCustomerTagSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')
@@ -169,7 +169,7 @@ export const removeCustomerTag = createServerFn({ method: 'POST' })
 
 export const exportCustomerData = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(exportCustomerDataSchema)
+  .validator(exportCustomerDataSchema)
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')

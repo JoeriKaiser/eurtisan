@@ -109,15 +109,15 @@ describe('useMarkNotificationsRead', () => {
 
   it('invalidates caches on success', () => {
     mockInvalidateQueries.mockClear()
+    useMarkNotificationsRead()
 
-    const captured = mockUseMutation.mock.calls[0]?.[0] as {
+    const captured = mockUseMutation.mock.calls.at(-1)?.[0] as {
       onSuccess?: () => void
     }
 
     if (captured?.onSuccess) {
       captured.onSuccess()
     }
-
     expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['notifications'] })
     expect(mockInvalidateQueries).toHaveBeenCalledWith({
       queryKey: ['notifications', 'unread-count'],
@@ -145,15 +145,15 @@ describe('useMarkAllNotificationsRead', () => {
 
   it('invalidates caches on success', () => {
     mockInvalidateQueries.mockClear()
+    useMarkAllNotificationsRead()
 
-    const captured = mockUseMutation.mock.calls[1]?.[0] as {
+    const captured = mockUseMutation.mock.calls.at(-1)?.[0] as {
       onSuccess?: () => void
     }
 
     if (captured?.onSuccess) {
       captured.onSuccess()
     }
-
     expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['notifications'] })
     expect(mockInvalidateQueries).toHaveBeenCalledWith({
       queryKey: ['notifications', 'unread-count'],

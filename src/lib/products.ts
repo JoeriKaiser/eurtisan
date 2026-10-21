@@ -26,7 +26,7 @@ export const createProductSchema = z.object({
 export const listProductsByCategorySlug = createServerFn({
   method: 'GET',
 })
-  .inputValidator(
+  .validator(
     z.object({
       slug: z.string().min(1),
       page: z.coerce.number().int().min(1).optional().default(1),
@@ -54,7 +54,7 @@ export const listProductsByCategorySlug = createServerFn({
 export const listRecentProducts = createServerFn({
   method: 'GET',
 })
-  .inputValidator(z.object({ limit: z.number().min(1).max(24).optional() }))
+  .validator(z.object({ limit: z.number().min(1).max(24).optional() }))
   .handler(async ({ data }) => {
     const { listRecentProductsQuery } = await import('./products.server')
     return listRecentProductsQuery(data.limit ?? 8)
@@ -63,7 +63,7 @@ export const listRecentProducts = createServerFn({
 export const getFeaturedShops = createServerFn({
   method: 'GET',
 })
-  .inputValidator(z.object({ limit: z.number().min(1).max(24) }))
+  .validator(z.object({ limit: z.number().min(1).max(24) }))
   .handler(async ({ data }) => {
     const { getFeaturedShopsQuery } = await import('./products.server')
     return getFeaturedShopsQuery(data.limit)
@@ -84,7 +84,7 @@ const getProductBySlugSchema = z.object({
 export const getProductBySlug = createServerFn({
   method: 'GET',
 })
-  .inputValidator(getProductBySlugSchema)
+  .validator(getProductBySlugSchema)
   .handler(async ({ data }) => {
     const { getProductBySlugQuery, getMoreFromShopQuery } = await import('./products.server')
     const result = await getProductBySlugQuery(data.shopSlug, data.productSlug)
@@ -112,7 +112,7 @@ const getShopBySlugSchema = z.object({
 export const getShopBySlug = createServerFn({
   method: 'GET',
 })
-  .inputValidator(getShopBySlugSchema)
+  .validator(getShopBySlugSchema)
   .handler(async ({ data }) => {
     const { getShopBySlugQuery } = await import('./products.server')
     const result = await getShopBySlugQuery(data.slug)
@@ -137,7 +137,7 @@ const getShopProductsSchema = z.object({
 export const getShopProducts = createServerFn({
   method: 'GET',
 })
-  .inputValidator(getShopProductsSchema)
+  .validator(getShopProductsSchema)
   .handler(async ({ data }) => {
     const { getShopProductsQuery } = await import('./products.server')
     return getShopProductsQuery(data.shopSlug, {
@@ -152,7 +152,7 @@ export const getShopProducts = createServerFn({
 export const getShopProductCategories = createServerFn({
   method: 'GET',
 })
-  .inputValidator(z.object({ shopSlug: z.string().min(1) }))
+  .validator(z.object({ shopSlug: z.string().min(1) }))
   .handler(async ({ data }) => {
     const { getShopProductCategoriesQuery } = await import('./products.server')
     return getShopProductCategoriesQuery(data.shopSlug)
@@ -173,7 +173,7 @@ const searchProductsSchema = z.object({
 export const listShops = createServerFn({
   method: 'GET',
 })
-  .inputValidator(
+  .validator(
     z.object({
       page: z.coerce.number().int().min(1).optional().default(1),
       pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
@@ -192,7 +192,7 @@ export const searchProducts = createServerFn({
   method: 'GET',
 })
   .middleware([searchRateLimitMiddleware])
-  .inputValidator(searchProductsSchema)
+  .validator(searchProductsSchema)
   .handler(async ({ data }) => {
     const { searchProductsQuery } = await import('./products.server')
     return searchProductsQuery(
@@ -217,7 +217,7 @@ export const searchSuggestionsFallback = createServerFn({
   method: 'GET',
 })
   .middleware([searchRateLimitMiddleware])
-  .inputValidator(searchSuggestionsFallbackSchema)
+  .validator(searchSuggestionsFallbackSchema)
   .handler(async ({ data }) => {
     const { searchSuggestionsFallbackQuery } = await import('./products.server')
     return searchSuggestionsFallbackQuery(data.query)
@@ -260,7 +260,7 @@ export const trackSearchClick = createServerFn({
   method: 'POST',
 })
   .middleware([searchRateLimitMiddleware])
-  .inputValidator(trackSearchClickSchema)
+  .validator(trackSearchClickSchema)
   .handler(async ({ data }) => {
     const { recordSearchClick } = await import('./search/analytics.server')
     const { searchResultClicksTotal } = await import('./metrics.server')
@@ -277,7 +277,7 @@ const productReportReasonSchema = z.enum(['illegal', 'ip', 'fraud', 'offensive',
 
 export const reportProduct = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       productId: z.string().min(1),
       reason: productReportReasonSchema,
@@ -297,7 +297,7 @@ export const reportProduct = createServerFn({ method: 'POST' })
 
 export const getAdminProductReports = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       page: z.coerce.number().int().min(1).optional().default(1),
       pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
@@ -312,7 +312,7 @@ export const getAdminProductReports = createServerFn({ method: 'GET' })
 
 export const resolveProductReport = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       productId: z.string().min(1),
       restrict: z.boolean(),

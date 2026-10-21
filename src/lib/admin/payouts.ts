@@ -50,7 +50,7 @@ const listPendingPayoutsInputSchema = z.object({
 
 export const listPendingPayouts = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(listPendingPayoutsInputSchema)
+  .validator(listPendingPayoutsInputSchema)
   .handler(async ({ context, data }) => {
     await requireAdmin(context)
     requirePrivileged2FA(context.user as SafeUser)
@@ -85,7 +85,7 @@ const executePayoutInputSchema = z.object({
  */
 export const executePayout = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(executePayoutInputSchema)
+  .validator(executePayoutInputSchema)
   .handler(async ({ context, data }) => {
     const modules = await Promise.all([
       requireAdmin(context),
@@ -130,7 +130,7 @@ const listPayoutHistoryInputSchema = z.object({
  */
 export const listPayoutHistory = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(listPayoutHistoryInputSchema)
+  .validator(listPayoutHistoryInputSchema)
   .handler(async ({ context, data }) => {
     await requireAdmin(context)
     requirePrivileged2FA(context.user as SafeUser)

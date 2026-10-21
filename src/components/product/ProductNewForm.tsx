@@ -334,7 +334,10 @@ export function ProductNewForm({ initialShops, categories }: ProductNewFormProps
           case 'slug':
             if (issue.code === 'too_big') {
               errors.slug = m.creator_product_new_slug_too_long()
-            } else if (issue.code === 'invalid_string') {
+            } else if (
+              (issue.code as string) === 'invalid_string' ||
+              issue.code === 'invalid_format'
+            ) {
               errors.slug = m.creator_product_new_slug_format_error()
             } else {
               errors.slug = m.creator_product_new_slug_required()

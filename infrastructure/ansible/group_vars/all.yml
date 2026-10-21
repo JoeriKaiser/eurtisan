@@ -113,7 +113,7 @@ backup_directory: "/opt/eurtisan/backups/logical"
 backup_state_directory: "/opt/eurtisan/backups/state"
 backup_retention_days: 30
 backup_offsite_retention_days: 90
-postgres_verify_image: "postgres:16-alpine@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229"
+postgres_verify_image: "postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea"
 
 # Off-site upload stays disabled in staging until a real independent destination
 # exists. Production overrides this to true and preflight then requires every
@@ -139,7 +139,7 @@ backup_report_token: ""
 # pgBackRest owns physical base backups and WAL retention. Staging enables a
 # local encrypted repository; production requires an S3 repository.
 postgres_wal_archive_enabled: false
-postgres_pgbackrest_image: "eurtisan-postgres:16-pgbackrest-2.57.0"
+postgres_pgbackrest_image: "eurtisan-postgres:16-pgbackrest-2.58.0"
 postgres_archive_timeout_seconds: 900
 pgbackrest_stanza: "eurtisan"
 pgbackrest_repository_type: "posix"

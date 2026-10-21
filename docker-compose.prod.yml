@@ -11,7 +11,7 @@ services:
   caddy:
     # Stock Caddy pinned to an immutable digest (see the pinning policy above).
     # The Caddyfile uses only core directives, so no custom proxy build exists.
-    image: caddy:2-alpine@sha256:86deaf5e3d3408a6ccec08fbb79989783dd26e206ae10bcf78a801dc8c9ab794
+    image: caddy:2-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
     container_name: eurtisan-caddy
     logging:
       driver: "json-file"
@@ -100,7 +100,7 @@ services:
 
   db:
     # Pinned digest for postgres:16-alpine
-    image: postgres:16-alpine@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229
+    image: postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
     container_name: eurtisan-db
     logging:
       driver: "json-file"
@@ -130,7 +130,7 @@ services:
 
   meilisearch:
     # Pinned digest for getmeili/meilisearch:v1.43.0
-    image: getmeili/meilisearch:v1.43.0@sha256:5d4e1353927785744486fe317d263f442710ab5b27b1983aa1b719dfe2c665b6
+    image: getmeili/meilisearch:v1.55.0@sha256:ff546679970126f8822e15d1b6a06bfbff1f2ce2e43f810cfb5258012f92de5c
     container_name: eurtisan-meilisearch
     logging:
       driver: "json-file"
@@ -146,6 +146,7 @@ services:
       # to start.
       - MEILI_ENV=production
       - MEILI_NO_ANALYTICS=true
+      - MEILI_UPGRADE_DB=true
     volumes:
       - meilisearch_data:/meili_data
     networks:
@@ -165,7 +166,7 @@ services:
 
   imgproxy:
     # Pinned digest for darthsim/imgproxy:v3
-    image: darthsim/imgproxy:v3@sha256:419f92ee3a3137ddc2552a92ae2f46a97e9b8c22e03f8a6efa0cb217d8db7f45
+    image: darthsim/imgproxy:v4.0.18@sha256:03aec6708216c3e017d7ad3fb08eba11d6b83be65556262f8d6cd72803fefeb6
     container_name: eurtisan-imgproxy
     logging:
       driver: "json-file"

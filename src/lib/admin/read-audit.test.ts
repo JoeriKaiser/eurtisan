@@ -81,7 +81,7 @@ function safeAdmin(actor: typeof user.$inferSelect): {
 /*                        Integration: query + audit                          */
 /* -------------------------------------------------------------------------- */
 
-describe.sequential('admin read audit integration', () => {
+describe('admin read audit integration', () => {
   it('listUsers logs admin.read.user when an admin queries users', async () => {
     const admin = await seedAdmin()
     await seedCustomer({ name: 'Alice', email: 'alice@example.com' })

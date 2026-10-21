@@ -110,17 +110,17 @@ describe('getNonDeliveryEligibility', () => {
     expect(eligibility).toMatchObject({ eligible: false, reason: 'shipment_in_transit' })
   })
 
-  it.each([
-    'unable_to_deliver',
-    'returned_to_sender',
-  ] as const)('allows an authoritative terminal carrier status: %s', (trackingStatus) => {
-    const eligibility = getNonDeliveryEligibility(
-      state({ status: 'shipped', trackingStatus, deliveryDueAt: new Date(NOW.getTime() + DAY) }),
-      NOW,
-    )
+  it.each(['unable_to_deliver', 'returned_to_sender'] as const)(
+    'allows an authoritative terminal carrier status: %s',
+    (trackingStatus) => {
+      const eligibility = getNonDeliveryEligibility(
+        state({ status: 'shipped', trackingStatus, deliveryDueAt: new Date(NOW.getTime() + DAY) }),
+        NOW,
+      )
 
-    expect(eligibility).toMatchObject({ eligible: true, basis: 'delivery_failed' })
-  })
+      expect(eligibility).toMatchObject({ eligible: true, basis: 'delivery_failed' })
+    },
+  )
 
   it('uses the 30-day fallback for historical or manual shipping promises', () => {
     const paidAt = new Date(NOW.getTime() - (NON_DELIVERY_FALLBACK_DAYS - 1) * DAY)

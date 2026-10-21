@@ -121,7 +121,8 @@ describe('guest order access', () => {
       .select({ data: emailOutbox.data })
       .from(emailOutbox)
       .where(eq(emailOutbox.template, 'guest_order_access'))
-    const encryptedToken = (outbox?.data as Record<string, unknown>).encryptedAccessToken
+    const outboxData = outbox?.data as Record<string, unknown> | undefined
+    const encryptedToken = outboxData?.encryptedAccessToken
     expect(encryptedToken).toEqual(expect.any(String))
 
     const platformOrderId = await exchangeGuestOrderAccessToken(decrypt(encryptedToken as string))

@@ -32,7 +32,7 @@ export const getCurrentUser = createServerFn({ method: 'GET' })
 export const requireAuthUser = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
   .handler(async ({ context }): Promise<SafeUser> => {
-    if (!context.user) {
+    if (!context?.user) {
       throw new Error('UNAUTHENTICATED')
     }
     if (context.user.bannedAt) {
@@ -50,9 +50,9 @@ export const requireAuthUser = createServerFn({ method: 'GET' })
  */
 export const requireRoleUser = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator((data: { minRole: UserRole }) => data)
+  .validator((data: { minRole: UserRole }) => data)
   .handler(async ({ context, data }): Promise<SafeUser> => {
-    if (!context.user) {
+    if (!context?.user) {
       throw new Error('UNAUTHENTICATED')
     }
     if (context.user.bannedAt) {
@@ -76,9 +76,9 @@ export const requireRoleUser = createServerFn({ method: 'GET' })
  */
 export const verifyShopOwnership = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator((data: { shopId: string }) => data)
+  .validator((data: { shopId: string }) => data)
   .handler(async ({ context, data }): Promise<SafeUser> => {
-    if (!context.user) {
+    if (!context?.user) {
       throw new Error('UNAUTHENTICATED')
     }
     if (context.user.bannedAt) {
@@ -159,7 +159,7 @@ export const becomeCreatorInternal = createServerOnlyFn(async function becomeCre
  */
 export const becomeCreator = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator((data: BecomeCreatorInput) => data)
+  .validator((data: BecomeCreatorInput) => data)
   .handler(async ({ context, data }): Promise<SafeUser> => {
     if (!context.user) {
       throw new Error('UNAUTHENTICATED')

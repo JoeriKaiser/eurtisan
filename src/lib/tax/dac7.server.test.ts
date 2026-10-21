@@ -5,7 +5,7 @@ import { clearTestTables } from '#/test/cleanup'
 import { createPlatformOrder, createShop, createShopOrder, createUser } from '#/test/factories'
 import { getDac7ComplianceStatus } from './dac7.server'
 
-describe.sequential('DAC7 Threshold Engine', () => {
+describe('DAC7 Threshold Engine', () => {
   const currentYear = new Date().getFullYear()
 
   beforeEach(async () => {

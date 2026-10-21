@@ -29,7 +29,7 @@ import {
   resolveManualReviewQuery,
 } from './shop-orders.server'
 
-describe.sequential('refundShopOrderQuery', () => {
+describe('refundShopOrderQuery', () => {
   beforeEach(async () => {
     await clearTestTables()
   })
@@ -268,7 +268,7 @@ describe.sequential('refundShopOrderQuery', () => {
   })
 })
 
-describe.sequential('cancelShopOrderQuery', () => {
+describe('cancelShopOrderQuery', () => {
   beforeEach(async () => {
     await clearTestTables()
     resetMockPaymentStatuses()
@@ -418,7 +418,7 @@ describe.sequential('cancelShopOrderQuery', () => {
   })
 })
 
-describe.sequential('resolveManualReviewQuery', () => {
+describe('resolveManualReviewQuery', () => {
   beforeEach(async () => {
     await clearTestTables()
     resetMockPaymentStatuses()

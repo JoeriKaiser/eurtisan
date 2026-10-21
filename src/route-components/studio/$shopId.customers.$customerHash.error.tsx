@@ -1,13 +1,16 @@
+import type { ErrorComponentProps } from '@tanstack/react-router'
 import { m } from '#/paraglide/messages'
 
-export function ShopCustomerDetailError({ error }: { error: Error }) {
+export function ShopCustomerDetailError({ error }: ErrorComponentProps) {
   return (
     <main className='page-wrap px-4 py-12'>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
         <h1 className='display-title mb-2 text-2xl font-semibold text-text-primary'>
           {m.creator_error_load()}
         </h1>
-        <p className='text-text-secondary'>{error.message}</p>
+        <p className='text-text-secondary'>
+          {error instanceof Error ? error.message : String(error)}
+        </p>
       </section>
     </main>
   )

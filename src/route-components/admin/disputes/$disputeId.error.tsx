@@ -1,7 +1,7 @@
-import { Link } from '@tanstack/react-router'
+import { Link, type ErrorComponentProps } from '@tanstack/react-router'
 import { AlertTriangle, ArrowLeft } from 'lucide-react'
 
-export function AdminDisputeDetailError({ error }: { error: Error }) {
+export function AdminDisputeDetailError({ error }: ErrorComponentProps) {
   return (
     <div className='py-8'>
       <div className='mx-auto max-w-4xl text-center'>
@@ -9,7 +9,9 @@ export function AdminDisputeDetailError({ error }: { error: Error }) {
         <h1 className='display-title mb-4 text-2xl font-semibold text-text-primary'>
           Failed to load dispute
         </h1>
-        <p className='mb-6 text-text-secondary'>{error.message}</p>
+        <p className='mb-6 text-text-secondary'>
+          {error instanceof Error ? error.message : String(error)}
+        </p>
         <Link
           to='/admin/disputes'
           search={{ page: 1 }}

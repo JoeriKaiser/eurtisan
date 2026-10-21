@@ -19,7 +19,7 @@ export type {
 } from './reviews.server'
 export const getReviewableItems = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ platformOrderId: z.string().uuid() }))
+  .validator(z.object({ platformOrderId: z.string().uuid() }))
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
@@ -43,7 +43,7 @@ export const getReviewableItems = createServerFn({ method: 'GET' })
 
 export const getProductReviews = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       productId: z.string().min(1),
       page: z.number().int().min(1).optional().default(1),
@@ -67,7 +67,7 @@ export const getProductReviews = createServerFn({ method: 'GET' })
 
 export const setReviewHelpful = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ reviewId: z.string().uuid(), helpful: z.boolean() }))
+  .validator(z.object({ reviewId: z.string().uuid(), helpful: z.boolean() }))
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
@@ -83,7 +83,7 @@ export const setReviewHelpful = createServerFn({ method: 'POST' })
 
 export const createReview = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       shopOrderId: z.string().uuid(),
       productId: z.string().min(1),
@@ -111,7 +111,7 @@ export const createReview = createServerFn({ method: 'POST' })
 
 export const reportReview = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       reviewId: z.string().uuid(),
       // DSA Article 16(2) requires a notice to carry a substantiated
@@ -135,7 +135,7 @@ export const reportReview = createServerFn({ method: 'POST' })
 
 export const getAdminReviews = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       status: z.enum(['all', 'approved', 'flagged', 'hidden']).default('all'),
       page: z.number().int().min(1).default(1),
@@ -175,7 +175,7 @@ export const getAdminReviews = createServerFn({ method: 'GET' })
 
 export const updateReviewModerationStatus = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       reviewId: z.string().uuid(),
       status: z.enum(['approved', 'flagged', 'hidden']),
@@ -221,7 +221,7 @@ export const updateReviewModerationStatus = createServerFn({ method: 'POST' })
 
 export const createSellerReply = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ reviewId: z.string().uuid(), body: z.string().min(1).max(2000) }))
+  .validator(z.object({ reviewId: z.string().uuid(), body: z.string().min(1).max(2000) }))
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
@@ -237,7 +237,7 @@ export const createSellerReply = createServerFn({ method: 'POST' })
 
 export const updateSellerReply = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ replyId: z.string().uuid(), body: z.string().min(1).max(2000) }))
+  .validator(z.object({ replyId: z.string().uuid(), body: z.string().min(1).max(2000) }))
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
@@ -253,7 +253,7 @@ export const updateSellerReply = createServerFn({ method: 'POST' })
 
 export const deleteSellerReply = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(z.object({ replyId: z.string().uuid() }))
+  .validator(z.object({ replyId: z.string().uuid() }))
   .handler(async ({ context, data }) => {
     if (!context.user) {
       throw new Response(
@@ -269,7 +269,7 @@ export const deleteSellerReply = createServerFn({ method: 'POST' })
 
 export const reportSellerReply = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       replyId: z.string().uuid(),
       reason: z.enum(['not_authentic', 'offensive', 'spam', 'personal_data', 'other']),
@@ -289,7 +289,7 @@ export const reportSellerReply = createServerFn({ method: 'POST' })
 
 export const getAdminSellerReplies = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       status: z.enum(['all', 'approved', 'flagged', 'hidden']).default('all'),
       page: z.number().int().min(1).default(1),
@@ -326,7 +326,7 @@ export const getAdminSellerReplies = createServerFn({ method: 'GET' })
 
 export const updateSellerReplyModerationStatus = createServerFn({ method: 'POST' })
   .middleware([authMiddleware])
-  .inputValidator(
+  .validator(
     z.object({
       replyId: z.string().uuid(),
       status: z.enum(['approved', 'flagged', 'hidden']),

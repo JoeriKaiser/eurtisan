@@ -2,7 +2,7 @@ import { useRouter } from '@tanstack/react-router'
 import { m } from '#/paraglide/messages'
 import { Button } from '#/components/ui/button'
 
-export function CreatorProductNewError({ error }: { error: Error }) {
+export function CreatorProductNewError({ error }: { error: unknown; reset?: () => void }) {
   const router = useRouter()
 
   return (
@@ -13,7 +13,9 @@ export function CreatorProductNewError({ error }: { error: Error }) {
         </h1>
         <div className='py-12 text-center'>
           <p className='text-text-secondary'>{m.creator_error_load()}</p>
-          <p className='mt-2 text-sm text-text-muted'>{error.message}</p>
+          <p className='mt-2 text-sm text-text-muted'>
+            {error instanceof Error ? error.message : String(error)}
+          </p>
           <div className='mt-6'>
             <Button variant='secondary' onClick={() => void router.invalidate()}>
               {m.creator_error_retry()}

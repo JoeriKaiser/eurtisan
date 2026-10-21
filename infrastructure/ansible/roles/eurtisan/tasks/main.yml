@@ -127,8 +127,8 @@
           - sh
           - -ec
           - >-
-            test "$(postgres --version)" = "postgres (PostgreSQL) 16.14";
-            test "$(pgbackrest version)" = "pgBackRest 2.57.0"
+            test "$(postgres --version)" = "postgres (PostgreSQL) 16.15";
+            test "$(pgbackrest version)" = "pgBackRest 2.58.0"
       delegate_to: localhost
       become: false
       changed_when: false
@@ -168,8 +168,8 @@
           - sh
           - -ec
           - >-
-            test "$(postgres --version)" = "postgres (PostgreSQL) 16.14";
-            test "$(pgbackrest version)" = "pgBackRest 2.57.0"
+            test "$(postgres --version)" = "postgres (PostgreSQL) 16.15";
+            test "$(pgbackrest version)" = "pgBackRest 2.58.0"
       changed_when: false
   always:
     - name: Remove transferred pgBackRest image archive

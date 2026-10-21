@@ -1,5 +1,5 @@
 import { defineProject } from 'vitest/config'
-import { assertBrowserTestsDatabaseFree } from './scripts/vitest-test-classification'
+import { assertBrowserTestsDatabaseFree } from './scripts/vitest-test-classification.ts'
 
 assertBrowserTestsDatabaseFree()
 
