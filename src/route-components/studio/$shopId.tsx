@@ -40,22 +40,22 @@ export function ShopDashboard() {
       icon: Tags,
       title: m.studio_nav_products(),
       description: m.studio_nav_products_desc(),
-      to: '/creator/products' as const,
-      search: { shopId },
+      to: '/studio/$shopId/products' as const,
+      params: { shopId },
     },
     {
       icon: Banknote,
       title: m.studio_nav_payouts(),
       description: m.studio_nav_payouts_desc(),
-      to: '/creator/payouts' as const,
-      search: { shopId },
+      to: '/studio/$shopId/payouts' as const,
+      params: { shopId },
     },
     {
       icon: Settings,
       title: m.studio_nav_settings(),
       description: m.studio_nav_settings_desc(),
-      to: '/creator/shop' as const,
-      search: { shopId },
+      to: '/studio/$shopId/settings' as const,
+      params: { shopId },
     },
     {
       icon: FileText,
@@ -69,7 +69,7 @@ export function ShopDashboard() {
   return (
     <main className='page-wrap px-4 py-12'>
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
-        <h1 className='display-title mb-2 text-3xl font-semibold text-text-primary'>
+        <h1 className='mb-2 text-3xl font-semibold text-text-primary'>
           {m.studio_dashboard_title()}
         </h1>
         <p className='mb-8 text-text-secondary'>{m.studio_dashboard_description()}</p>
@@ -92,7 +92,6 @@ export function ShopDashboard() {
               key={item.to}
               to={item.to}
               params={item.params}
-              search={item.search}
               className='island-shell flex flex-col gap-3 rounded-xl p-5 transition hover:bg-bg-inset'
             >
               <div className='flex size-10 items-center justify-center rounded-full bg-neutral-100 dark:bg-neutral-800'>

@@ -296,8 +296,8 @@ describe('CreatorShopSettingsPage', () => {
     fireEvent.change(selector, { target: { value: 'shop-2' } })
 
     expect(mockNavigate).toHaveBeenCalledWith({
-      to: '/creator/shop',
-      search: { shopId: 'shop-2' },
+      to: '/studio/$shopId/settings',
+      params: { shopId: 'shop-2' },
     })
   })
 

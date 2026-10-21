@@ -154,8 +154,9 @@ export function ShopStatusRouteComponent() {
                 </span>
                 {status.twoFactorEnabled && !status.paymentConnected && (
                   <Link
-                    to='/creator/payouts'
-                    search={{ shopId: status.id, status: 'all', page: 1 }}
+                    to='/studio/$shopId/payouts'
+                    params={{ shopId: status.id }}
+                    search={{ status: 'all', page: 1 }}
                     className='inline-flex min-h-11 items-center text-sm font-medium text-accent-primary hover:underline'
                   >
                     {m.onboarding_status_connect_now()}
@@ -210,7 +211,7 @@ export function ShopStatusRouteComponent() {
               >
                 <Button className='w-full sm:w-auto'>{m.onboarding_status_view_live_shop()}</Button>
               </Link>
-              <Link to='/creator' search={{ shopId: status.id }} className='no-underline'>
+              <Link to='/studio/$shopId' params={{ shopId: status.id }} className='no-underline'>
                 <Button variant='secondary' className='w-full sm:w-auto'>
                   {m.onboarding_status_active_cta()}
                 </Button>

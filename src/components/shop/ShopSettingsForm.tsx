@@ -638,7 +638,7 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
   /* ---------------------------- Shop switching ----------------------------- */
 
   const handleShopSwitch = (newShopId: string) => {
-    router.navigate({ to: '/creator/shop', search: { shopId: newShopId } })
+    router.navigate({ to: '/studio/$shopId/settings', params: { shopId: newShopId } })
   }
 
   /* ------------------------------ Render ----------------------------------- */
@@ -648,7 +648,7 @@ export function ShopSettingsForm({ initialShop, allShops, onShopChanged }: ShopS
       <section className='island-shell rounded-2xl p-6 sm:p-8'>
         {/* Header */}
         <div className='mb-8'>
-          <h1 className='display-title mb-2 text-3xl font-semibold text-text-primary'>
+          <h1 className='mb-2 text-3xl font-semibold text-text-primary'>
             {m.creator_shop_settings_title()}
           </h1>
           <p className='text-text-secondary'>{m.creator_shop_settings_description()}</p>

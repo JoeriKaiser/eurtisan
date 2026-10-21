@@ -625,6 +625,7 @@ export async function listPendingPayoutsQuery(
       shopId: shop.id,
       creatorName: user.name,
       creatorId: user.id,
+      isSuspended: shop.isSuspended,
     })
     .from(payout)
     .innerJoin(shop, eq(payout.shopId, shop.id))
@@ -701,6 +702,7 @@ export async function listPayoutHistoryQuery(
       shopId: shop.id,
       creatorName: user.name,
       creatorId: user.id,
+      isSuspended: shop.isSuspended,
     })
     .from(payout)
     .innerJoin(shop, eq(payout.shopId, shop.id))

@@ -39,7 +39,7 @@ Background work runs as separate Bun entrypoints in `src/jobs/`. Production depl
 | `infrastructure/ansible/` | Ansible provisioning, deployment, secrets templates, and VPS configuration | Runtime marketplace code |
 | `docs/` | Architectural, operational, compliance, runbook, and product-flow documentation | Source code or task-status tracking |
 
-`src/lib/` is currently mostly flat. Migrate it incrementally by cohesive domain family; do not mass-move existing modules solely for visual consistency. A migrated family uses these placement rules:
+`src/lib/` is organised by domain family, with root `createServerFn` files kept as public contracts. Remaining flat modules should be migrated only when a feature touches them. A migrated family uses these placement rules:
 
 - Keep an established root browser import such as `src/lib/shop-orders.ts` as the public `createServerFn` contract. It owns input validation and RPC authorization, and calls server-only helpers through `createServerOnlyFn` or dynamic imports.
 - Keep an established root server import such as `src/lib/shop-orders.server.ts` as a compatibility façade when routes, jobs, tests, or other domains already depend on it.
@@ -49,7 +49,7 @@ Background work runs as separate Bun entrypoints in `src/jobs/`. Production depl
 
 The `src/lib/shop-orders/` family is the reference migration: `types.ts` owns read-model types, `lifecycle.ts` owns pure state rules, `fulfillment.server.ts` owns shipping-label provider orchestration, and `operations.server.ts` preserves the transaction-coupled lifecycle and resolution workflows. The root `shop-orders.ts` and `shop-orders.server.ts` contracts remain stable. External provider adapters stay in `src/integrations/`.
 
-Migrated families as of this writing: `admin`, `audit`, `auth`, `cart`, `checkout`, `customers`, `disputes`, `email`, `images`, `invoices`, `jobs`, `marketing`, `notifications`, `orders`, `payouts`, `products`, `returns`, `reviews`, `search`, `security`, `shared`, `shipping`, `shop-orders`, `shops`, `tax`, `users`. Remaining flat modules should be migrated only when a feature touches them, preserving root compatibility contracts.
+Migrated families as of this writing: `accessibility`, `admin`, `audit`, `auth`, `cart`, `checkout`, `customers`, `disputes`, `email`, `images`, `infra`, `invoices`, `jobs`, `legal`, `marketing`, `notifications`, `orders`, `payments`, `payouts`, `products`, `returns`, `reviews`, `search`, `security`, `shared`, `shipping`, `shop-orders`, `shops`, `tax`, `users`. Remaining flat modules should be migrated only when a feature touches them, preserving root compatibility contracts.
 
 ## Route and UI convention
 

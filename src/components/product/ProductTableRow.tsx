@@ -182,8 +182,8 @@ export function ProductTableRow({
           {/* Edit link */}
           {currentShopId && (
             <Link
-              to='/creator/products/$productId/edit'
-              params={{ productId: product.id }}
+              to='/studio/$shopId/products/$productId/edit'
+              params={{ shopId: currentShopId, productId: product.id }}
               className='inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-text-secondary transition-colors hover:bg-surface-inset hover:text-text-primary'
               aria-label={m.creator_products_edit({ name: product.name })}
             >

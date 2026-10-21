@@ -586,7 +586,7 @@ describe('CreatorProductEditPage', () => {
 
   /* ---------------------------- Cancel flow ------------------------------ */
 
-  it('navigates to /creator/products on cancel when no changes made', () => {
+  it('navigates to studio products on cancel when no changes made', () => {
     render(
       <CreatorProductEditPage
         shops={makeShops()}
@@ -598,7 +598,10 @@ describe('CreatorProductEditPage', () => {
     const cancelButton = screen.getByRole('button', { name: 'Cancel' })
     fireEvent.click(cancelButton)
 
-    expect(mockNavigate).toHaveBeenCalledWith({ to: '/creator/products' })
+    expect(mockNavigate).toHaveBeenCalledWith({
+      to: '/studio/$shopId/products',
+      params: { shopId: 'shop-1' },
+    })
   })
 
   it('shows confirmation dialog on cancel when form has changes', () => {
@@ -868,7 +871,10 @@ describe('CreatorProductEditPage', () => {
     })
 
     await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith({ to: '/creator/products' })
+      expect(mockNavigate).toHaveBeenCalledWith({
+        to: '/studio/$shopId/products',
+        params: { shopId: 'shop-1' },
+      })
     })
   })
 

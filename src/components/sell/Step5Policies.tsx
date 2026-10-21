@@ -138,9 +138,7 @@ export function Step5Policies() {
     <div ref={stepActionsRef} className='space-y-8'>
       <header>
         <p className='text-sm font-medium text-accent-primary'>{m.onboarding_stage_delivery()}</p>
-        <h1 className='display-title mt-1 text-2xl text-text-primary'>
-          {m.onboarding_delivery_title()}
-        </h1>
+        <h1 className='mt-1 text-2xl text-text-primary'>{m.onboarding_delivery_title()}</h1>
         <p className='mt-2 max-w-[65ch] text-text-secondary'>
           {m.onboarding_delivery_description()}
         </p>

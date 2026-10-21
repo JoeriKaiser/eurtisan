@@ -62,7 +62,7 @@ test.describe('owner navigation', () => {
       await waitForAppHydration(page)
       await expect(page.getByRole('heading', { name: /approved/i })).toBeVisible({ timeout: 10000 })
       await page.getByRole('link', { name: /connect now/i }).click()
-      await page.waitForURL(/\/creator\/payouts\?shopId=/)
+      await page.waitForURL(new RegExp(`/studio/${testShop.id}/payouts`))
 
       // 2. Studio hub links
       await page.goto(`/studio/${testShop.id}`)
@@ -72,12 +72,12 @@ test.describe('owner navigation', () => {
       })
 
       await page.getByRole('link', { name: /settings/i }).click()
-      await page.waitForURL(/\/creator\/shop\?shopId=/)
+      await page.waitForURL(new RegExp(`/studio/${testShop.id}/settings`))
 
       await page.goto(`/studio/${testShop.id}`)
       await waitForAppHydration(page)
       await page.getByRole('link', { name: /products/i }).click()
-      await page.waitForURL(/\/creator\/products\?shopId=/)
+      await page.waitForURL(new RegExp(`/studio/${testShop.id}/products`))
 
       await page.goto(`/studio/${testShop.id}`)
       await waitForAppHydration(page)
@@ -86,17 +86,19 @@ test.describe('owner navigation', () => {
 
       // 3. Product edit link
       if (testProduct) {
-        await page.goto(`/creator/products?shopId=${testShop.id}`)
+        await page.goto(`/studio/${testShop.id}/products`)
         await waitForAppHydration(page)
         await expect(page.getByRole('heading', { name: /products/i })).toBeVisible({
           timeout: 10000,
         })
         const editLink = page
-          .locator('table tbody tr a[href*="/creator/products/"][href$="/edit"]')
+          .locator(`table tbody tr a[href*="/studio/${testShop.id}/products/"][href$="/edit"]`)
           .first()
         await expect(editLink).toBeVisible()
         await editLink.click()
-        await expect(page).toHaveURL(/\/creator\/products\/[^/]+\/edit/, { timeout: 10000 })
+        await expect(page).toHaveURL(new RegExp(`/studio/${testShop.id}/products/[^/]+/edit`), {
+          timeout: 10000,
+        })
       }
     } finally {
       await db

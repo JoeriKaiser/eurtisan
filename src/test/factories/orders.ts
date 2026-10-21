@@ -28,11 +28,11 @@ export async function createPlatformOrder(
       ...values,
       shippingAddress:
         typeof values.shippingAddress === 'object' && values.shippingAddress !== null
-          ? (encryptJsonb(values.shippingAddress) as typeof values.shippingAddress)
+          ? (encryptJsonb(values.shippingAddress) as unknown as typeof values.shippingAddress)
           : values.shippingAddress,
       billingAddress:
         typeof values.billingAddress === 'object' && values.billingAddress !== null
-          ? (encryptJsonb(values.billingAddress) as typeof values.billingAddress)
+          ? (encryptJsonb(values.billingAddress) as unknown as typeof values.billingAddress)
           : values.billingAddress,
     })
     .returning()
