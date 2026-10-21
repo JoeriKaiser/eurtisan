@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight, Package, Search } from 'lucide-react'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { formatPriceEUR } from '#/lib/pricing'
 import { m } from '#/paraglide/messages'
@@ -26,25 +26,12 @@ export function ShopOrdersPage() {
   const { result, status, searchQuery } = useLoaderData({ from: '/studio/$shopId/orders/' })
   const navigate = useNavigate()
 
-  const [localSearch, setLocalSearch] = useState(searchQuery ?? '')
-  const [localStatus, setLocalStatus] = useState(status ?? '')
-
-  const prevSearchQueryRef = useRef(searchQuery)
-  const prevStatusRef = useRef(status)
-
-  if (prevSearchQueryRef.current !== searchQuery) {
-    setLocalSearch(searchQuery ?? '')
-    prevSearchQueryRef.current = searchQuery
-  }
-  if (prevStatusRef.current !== status) {
-    setLocalStatus(status ?? '')
-    prevStatusRef.current = status
-  }
-
   const handleNavigate = useCallback(
     (updates: { status?: string; search?: string; page?: number }) => {
       navigate({
-        to: '.',
+        to: '/studio/$shopId/orders',
+        params: { shopId },
+        replace: true,
         search: (prev: Record<string, unknown>) => {
           const next: Record<string, unknown> = { ...prev }
           if (updates.status !== undefined) {
@@ -63,19 +50,7 @@ export function ShopOrdersPage() {
         },
       })
     },
-    [navigate],
-  )
-
-  const handleSearchSubmit = useCallback(() => {
-    handleNavigate({ search: localSearch, page: 1 })
-  }, [handleNavigate, localSearch])
-
-  const handleStatusChange = useCallback(
-    (nextStatus: string) => {
-      setLocalStatus(nextStatus)
-      handleNavigate({ status: nextStatus, page: 1 })
-    },
-    [handleNavigate],
+    [navigate, shopId],
   )
 
   const handlePageChange = useCallback(
@@ -108,13 +83,13 @@ export function ShopOrdersPage() {
               aria-hidden='true'
             />
             <input
+              key={searchQuery ?? ''}
+              defaultValue={searchQuery ?? ''}
               type='search'
-              value={localSearch}
-              onChange={(e) => setLocalSearch(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault()
-                  handleSearchSubmit()
+                  handleNavigate({ search: e.currentTarget.value, page: 1 })
                 }
               }}
               placeholder='Search by buyer name or order ID...'
@@ -123,8 +98,9 @@ export function ShopOrdersPage() {
             />
           </div>
           <select
-            value={localStatus}
-            onChange={(e) => handleStatusChange(e.target.value)}
+            key={status ?? ''}
+            defaultValue={status ?? ''}
+            onChange={(e) => handleNavigate({ status: e.target.value, page: 1 })}
             className='h-10 rounded-lg border border-border-default bg-surface-default px-3 py-2 text-sm text-text-primary transition-colors focus-visible:outline-none focus-visible:border-accent-secondary focus-visible:ring-2 focus-visible:ring-accent-secondary/20'
             aria-label='Filter by status'
           >
@@ -147,8 +123,6 @@ export function ShopOrdersPage() {
               <button
                 type='button'
                 onClick={() => {
-                  setLocalSearch('')
-                  setLocalStatus('')
                   handleNavigate({ search: '', status: '', page: 1 })
                 }}
                 className='mt-4 text-sm font-medium text-accent-primary hover:underline'

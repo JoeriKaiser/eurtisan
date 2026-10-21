@@ -489,7 +489,45 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
           ]) as (typeof schema.shopStatusEnum.enumValues)[number])
       const paymentConnected = ['active', 'paused'].includes(status)
       const isVatRegistered = paymentConnected && faker.datatype.boolean(0.5)
-      const vatId = isVatRegistered ? `${locale.country}${faker.string.numeric(11)}` : undefined
+      const vatId = isVatRegistered
+        ? (() => {
+            const c = (locale.country === 'GR' ? 'EL' : locale.country) as string
+            switch (c) {
+              case 'AT':
+                return `ATU${faker.string.numeric(8)}`
+              case 'BE':
+                return `BE0${faker.string.numeric(9)}`
+              case 'DE':
+                return `DE${faker.string.numeric(9)}`
+              case 'FR':
+                return `FR12${faker.string.numeric(9)}`
+              case 'HU':
+                return `HU${faker.string.numeric(8)}`
+              case 'IT':
+                return `IT${faker.string.numeric(11)}`
+              case 'NL':
+                return `NL${faker.string.numeric(9)}B01`
+              case 'ES':
+                return `ES1${faker.string.numeric(7)}A`
+              case 'PL':
+                return `PL${faker.string.numeric(10)}`
+              case 'PT':
+                return `PT${faker.string.numeric(9)}`
+              case 'SE':
+                return `SE${faker.string.numeric(12)}`
+              case 'DK':
+                return `DK${faker.string.numeric(8)}`
+              case 'FI':
+                return `FI${faker.string.numeric(8)}`
+              case 'IE':
+                return `IE${faker.string.numeric(7)}A`
+              case 'EL':
+                return `EL${faker.string.numeric(9)}`
+              default:
+                return `${c}${faker.string.numeric(8)}`
+            }
+          })()
+        : undefined
 
       const businessAddress = paymentConnected
         ? {

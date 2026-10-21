@@ -67,7 +67,10 @@ test.describe('creator orders list', () => {
     const searchInput = page.getByLabel('Search orders')
     await searchInput.fill('orders-list')
     await searchInput.press('Enter')
-    await page.waitForURL((url) => url.searchParams.get('search') === 'orders-list')
+    await page.waitForFunction(
+      (expected) => new URL(window.location.href).searchParams.get('search') === expected,
+      'orders-list',
+    )
     await page.waitForLoadState('networkidle')
 
     const newestOrder = orders[orders.length - 1]
@@ -77,7 +80,10 @@ test.describe('creator orders list', () => {
 
     await searchInput.fill('zzzz-no-match')
     await searchInput.press('Enter')
-    await page.waitForURL((url) => url.searchParams.get('search') === 'zzzz-no-match')
+    await page.waitForFunction(
+      (expected) => new URL(window.location.href).searchParams.get('search') === expected,
+      'zzzz-no-match',
+    )
     await page.waitForLoadState('networkidle')
 
     await expect(page.getByText('No orders match your filters.')).toBeVisible()
@@ -116,7 +122,7 @@ test.describe('creator orders list', () => {
     await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: 'Order Detail' })).toBeVisible()
-    await expect(page.getByRole('status')).toContainText('Paid')
+    await expect(page.getByRole('status').filter({ hasText: 'Paid' })).toBeVisible()
     await expect(page.getByText('Fulfillment Timeline')).toBeVisible()
   })
 })

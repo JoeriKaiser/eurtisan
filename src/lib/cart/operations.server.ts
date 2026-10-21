@@ -110,7 +110,7 @@ async function buildCartDetail(cartRecord: typeof cart.$inferSelect): Promise<Ca
     }
   }
 
-  const availableStockMap = await getAvailableStockForProducts(productIds)
+  const availableStockMap = await getAvailableStockForProducts(productIds, cartRecord.id)
 
   const groups = new Map<string | null, CartShopGroup>()
 

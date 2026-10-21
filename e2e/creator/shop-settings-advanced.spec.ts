@@ -20,12 +20,17 @@ test.describe('creator advanced shop settings', () => {
   let originalAnnouncement: string | null
   let originalSocials: Array<{ platform: string; url: string }>
   let creatorUserId: string
+  let originalVatId: string | null
 
   test.beforeAll(async () => {
     const shop = await getCreatorShop()
 
     shopId = shop.id
     creatorUserId = shop.ownerId
+    originalVatId = shop.vatId ?? null
+    if (shop.isVatRegistered) {
+      await db.update(schema.shop).set({ vatId: 'FR12345678901' }).where(eq(schema.shop.id, shopId))
+    }
     await db
       .update(schema.user)
       .set({ twoFactorEnabled: true })
@@ -57,6 +62,7 @@ test.describe('creator advanced shop settings', () => {
         shippingOrigin: originalShippingOrigin,
         policies: originalPolicies,
         announcement: originalAnnouncement,
+        vatId: originalVatId,
       })
       .where(eq(schema.shop.id, shopId))
 
