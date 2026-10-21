@@ -322,8 +322,8 @@ describe('ShopTaxReportPage', () => {
 
     expect(screen.getByText('Tax identity incomplete — update settings')).toBeDefined()
     const settingsLink = screen.getByRole('link', { name: 'Update tax identity' })
-    expect(settingsLink.getAttribute('href')).toBe('/creator/shop')
-    expect(settingsLink.getAttribute('data-search')).toBe(JSON.stringify({ shopId: 'shop-1' }))
+    expect(settingsLink.getAttribute('href')).toBe('/studio/$shopId/settings')
+    expect(settingsLink.getAttribute('data-params')).toBe(JSON.stringify({ shopId: 'shop-1' }))
   })
 
   it('announces loading state via aria-live', async () => {

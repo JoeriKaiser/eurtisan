@@ -18,7 +18,7 @@ export function ProductEditNoShopState() {
             {m.creator_product_new_no_shops_description()}
           </p>
           <div className='mt-6'>
-            <Button variant='primary' onClick={() => router.navigate({ to: '/creator/shop' })}>
+            <Button variant='primary' onClick={() => router.navigate({ to: '/studio' })}>
               {m.creator_shop_settings_title()}
             </Button>
           </div>

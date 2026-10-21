@@ -48,7 +48,7 @@ export function AdminOrderDetailPage() {
       {/* Header */}
       <div className='mb-6 flex flex-wrap items-start justify-between gap-4'>
         <div>
-          <h1 className='display-title text-2xl font-semibold text-text-primary sm:text-3xl'>
+          <h1 className='text-2xl font-semibold text-text-primary sm:text-3xl'>
             {m.admin_order_detail_title()}
           </h1>
           <p className='mt-1 font-mono text-sm text-text-secondary'>{order.orderNumber}</p>

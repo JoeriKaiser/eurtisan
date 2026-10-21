@@ -27,7 +27,7 @@ test.describe('creator product variants', () => {
 
     await page.getByRole('button', { name: 'Save as draft' }).click()
 
-    await page.waitForURL(/\/creator\/products/)
+    await page.waitForURL(/\/studio\/[^/]+\/products/)
     await waitForAppHydration(page)
 
     const productRow = page.locator('tbody tr').filter({ hasText: productName })

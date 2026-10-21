@@ -18,6 +18,8 @@ export interface CreateRouteInput {
   destinationOrganizationId: string
   /** Human-readable description for reconciliation. */
   description: string
+  /** Mollie Idempotency-Key. Retries for the same payout must reuse this. */
+  idempotencyKey?: string
 }
 
 export interface MollieRoute {
@@ -42,6 +44,7 @@ export interface MollieRouteError {
 /* -------------------------------------------------------------------------- */
 
 let mockRouteCounter = 0
+const mockRoutesByIdempotencyKey = new Map<string, MollieRoute>()
 
 function nextMockRouteId(): string {
   mockRouteCounter += 1
@@ -51,6 +54,7 @@ function nextMockRouteId(): string {
 /** Resets the mock route counter for deterministic tests. */
 export function resetMockRouteCounter(): void {
   mockRouteCounter = 0
+  mockRoutesByIdempotencyKey.clear()
 }
 
 /** Controls whether the next mock route creation should fail. */
@@ -159,6 +163,7 @@ async function createMollieRouteReal(input: CreateRouteInput): Promise<MollieRou
       headers: {
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
+        ...(input.idempotencyKey ? { 'Idempotency-Key': input.idempotencyKey } : {}),
       },
       body: JSON.stringify(body),
     })
@@ -274,7 +279,12 @@ async function createMollieRouteMock(input: CreateRouteInput): Promise<MollieRou
     throw new Error(reason ?? 'Mock route creation failed')
   }
 
-  return {
+  if (input.idempotencyKey) {
+    const existing = mockRoutesByIdempotencyKey.get(input.idempotencyKey)
+    if (existing) return existing
+  }
+
+  const route: MollieRoute = {
     id: nextMockRouteId(),
     paymentId: input.paymentId,
     amount: {
@@ -287,6 +297,12 @@ async function createMollieRouteMock(input: CreateRouteInput): Promise<MollieRou
       organizationId: input.destinationOrganizationId,
     },
   }
+
+  if (input.idempotencyKey) {
+    mockRoutesByIdempotencyKey.set(input.idempotencyKey, route)
+  }
+
+  return route
 }
 
 async function getMollieRouteMock(

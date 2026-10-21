@@ -61,10 +61,9 @@ export function HomeHeroSection({
     })
   }
 
-  // Auth-aware primary CTA calculation
-  let primaryLink = '/signin'
-  let primaryText = m.home_hero_cta_start_selling()
-  let isPrimaryRedirect = true
+  let primaryLink = '/search'
+  let primaryText = m.home_hero_cta_explore()
+  let isPrimaryRedirect = false
 
   if (user) {
     isPrimaryRedirect = false
@@ -78,7 +77,7 @@ export function HomeHeroSection({
       )
 
       if (activeShop) {
-        primaryLink = `/creator?shopId=${activeShop.id}`
+        primaryLink = `/studio/${activeShop.id}`
         primaryText = m.home_hero_cta_dashboard()
       } else if (draftShop) {
         primaryLink = `/sell/onboarding/${draftShop.id}`
@@ -87,7 +86,7 @@ export function HomeHeroSection({
         primaryLink = `/sell/status/${pendingShop.id}`
         primaryText = m.home_hero_cta_check_status()
       } else {
-        primaryLink = `/creator?shopId=${sellerShops[0].id}`
+        primaryLink = `/studio/${sellerShops[0].id}`
         primaryText = m.home_hero_cta_dashboard()
       }
     } else {
@@ -194,12 +193,22 @@ export function HomeHeroSection({
                 <span>{primaryText}</span>
                 <ArrowRight size={14} aria-hidden='true' />
               </Link>
-              <Link
-                to='/search'
-                className='inline-flex items-center gap-2 rounded-lg border border-border-strong bg-surface-default px-6 py-3 text-xs font-semibold text-text-primary hover:bg-surface-inset transition-colors no-underline'
-              >
-                <span>{m.home_hero_cta_explore()}</span>
-              </Link>
+              {user ? (
+                <Link
+                  to='/search'
+                  className='inline-flex items-center gap-2 rounded-lg border border-border-strong bg-surface-default px-6 py-3 text-xs font-semibold text-text-primary hover:bg-surface-inset transition-colors no-underline'
+                >
+                  <span>{m.home_hero_cta_explore()}</span>
+                </Link>
+              ) : (
+                <Link
+                  to='/signin'
+                  search={{ redirect: '/sell' }}
+                  className='inline-flex items-center gap-2 rounded-lg border border-border-strong bg-surface-default px-6 py-3 text-xs font-semibold text-text-primary hover:bg-surface-inset transition-colors no-underline'
+                >
+                  <span>{m.home_hero_cta_start_selling()}</span>
+                </Link>
+              )}
             </div>
           </div>
 

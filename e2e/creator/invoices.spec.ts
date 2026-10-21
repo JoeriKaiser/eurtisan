@@ -173,7 +173,7 @@ test.describe('Invoices E2E flow', () => {
   test('creator can view invoices from payouts portal', async ({ page }) => {
     if (!testShopOrder) throw new Error('testShopOrder not initialized')
 
-    await page.goto(`/creator/payouts?shopId=${testShopOrder.shopId}`)
+    await page.goto(`/studio/${testShopOrder.shopId}/payouts`)
     await page.waitForLoadState('networkidle')
 
     await expect(page.getByRole('heading', { name: 'Payouts', exact: true })).toBeVisible()
@@ -197,7 +197,7 @@ test.describe('Invoices E2E flow', () => {
     await expect(page.getByText('Seller (on behalf of Artisan)')).toBeVisible()
     await expect(page.getByText('Buyer (Customer)')).toBeVisible()
 
-    await page.goto(`/creator/payouts?shopId=${testShopOrder.shopId}`)
+    await page.goto(`/studio/${testShopOrder.shopId}/payouts`)
     await page.waitForLoadState('networkidle')
 
     const row2 = page

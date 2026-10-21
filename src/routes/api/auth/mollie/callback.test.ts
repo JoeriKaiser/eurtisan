@@ -194,7 +194,7 @@ describe('Mollie Connect OAuth Callback', () => {
 
       expect(res.status).toBe(302)
       expect(res.headers.get('Location')).toContain(
-        '/creator/payouts?shopId=shop-123&success=mollie_connected',
+        '/studio/shop-123/payouts?success=mollie_connected',
       )
 
       // Verify DB was updated
@@ -236,7 +236,7 @@ describe('Mollie Connect OAuth Callback', () => {
 
       expect(res.status).toBe(302)
       expect(res.headers.get('Location')).toContain(
-        '/creator/payouts?shopId=shop-123&success=mollie_connected',
+        '/studio/shop-123/payouts?success=mollie_connected',
       )
 
       // Verify DB was updated

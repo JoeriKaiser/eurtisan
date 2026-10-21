@@ -32,7 +32,7 @@ test.describe('creator product catalog', () => {
   })
 
   test('default product list renders', async ({ page }) => {
-    await page.goto(`/creator/products?shopId=${shopId}`)
+    await page.goto(`/studio/${shopId}/products`)
     await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: 'Products' })).toBeVisible()
@@ -59,7 +59,7 @@ test.describe('creator product catalog', () => {
     await createFixtureProduct({ name: draftName, status: 'draft', shopId })
     await createFixtureProduct({ name: archivedName, status: 'archived', shopId })
 
-    await page.goto(`/creator/products?shopId=${shopId}`)
+    await page.goto(`/studio/${shopId}/products`)
     await waitForAppHydration(page)
 
     await page.getByRole('tab', { name: 'Draft' }).click()
@@ -76,7 +76,7 @@ test.describe('creator product catalog', () => {
   })
 
   test('search filter finds a product and shows empty state for no matches', async ({ page }) => {
-    await page.goto(`/creator/products?shopId=${shopId}`)
+    await page.goto(`/studio/${shopId}/products`)
     await waitForAppHydration(page)
 
     const searchBox = page.getByRole('searchbox', { name: 'Search products by name…' })
@@ -111,7 +111,7 @@ test.describe('creator product catalog', () => {
     }
 
     const search = encodeURIComponent(`${E2E_PRODUCT_NAME_PREFIX} Pagination`)
-    await page.goto(`/creator/products?shopId=${shopId}&search=${search}`)
+    await page.goto(`/studio/${shopId}/products?search=${search}`)
     await waitForAppHydration(page)
 
     await expect(page.getByRole('navigation', { name: 'Product pagination' })).toBeVisible()

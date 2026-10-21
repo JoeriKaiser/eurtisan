@@ -26,7 +26,21 @@ function readSource(path: string): string {
   return readFileSync(join(REPO_ROOT, path), 'utf8')
 }
 
-function readMessages(locale: 'en' | 'nl'): Record<string, string> {
+function readConfiguredLocales(): string[] {
+  const raw = readSource('project.inlang/settings.json')
+  const settings: unknown = JSON.parse(raw)
+  if (
+    settings &&
+    typeof settings === 'object' &&
+    'locales' in settings &&
+    Array.isArray(settings.locales)
+  ) {
+    return settings.locales as string[]
+  }
+  return ['en', 'nl', 'fr']
+}
+
+function readMessages(locale: string): Record<string, string> {
   return JSON.parse(readSource(`messages/${locale}.json`)) as Record<string, string>
 }
 
@@ -35,8 +49,8 @@ const component = readSource('src/components/reviews/ReviewDisclosure.tsx')
 const visibility = readSource('src/lib/reviews/visibility.server.ts')
 const reviewRpc = readSource('src/lib/reviews.ts')
 const schema = readSource('src/db/schema.ts')
-const messages = { en: readMessages('en'), nl: readMessages('nl') }
-const LOCALES = ['en', 'nl'] as const
+const LOCALES = readConfiguredLocales()
+const messages = Object.fromEntries(LOCALES.map((locale) => [locale, readMessages(locale)]))
 
 /** Every claim the component makes, so an unrendered one cannot go stale unseen. */
 const DISCLOSED_MESSAGES = [
@@ -71,6 +85,7 @@ describe('review disclosure', () => {
 
     expect(messages.en.review_disclosure_check_delivered).toContain(`${days} days`)
     expect(messages.nl.review_disclosure_check_delivered).toContain(`${days} dagen`)
+    expect(messages.fr.review_disclosure_check_delivered).toContain(`${days} jours`)
   })
 
   it('only claims a purchase check while the checks are in place', () => {
@@ -98,6 +113,9 @@ describe('review disclosure', () => {
     expect(messages.nl.review_disclosure_order.toLowerCase()).toMatch(
       /nieuw naar oud.*hoogste beoordeling.*laagste beoordeling.*nuttige stemmen/,
     )
+    expect(messages.fr.review_disclosure_order.toLowerCase()).toMatch(
+      /plus récentes d'abord.*note la plus élevée.*note la plus basse.*votes utiles/,
+    )
   })
 
   it('only claims both dates while both are returned', () => {
@@ -112,6 +130,12 @@ describe('review disclosure', () => {
       'reporting alone changes nothing',
     )
 
+    expect(messages.nl.review_disclosure_moderation.toLowerCase()).toContain(
+      'melden alleen verandert niets',
+    )
+    expect(messages.fr.review_disclosure_moderation.toLowerCase()).toContain(
+      'un signalement seul ne change rien',
+    )
     // A report must not write `moderationStatus`. Scoped to the report function
     // so the admin path's legitimate write does not trip it.
     const reportFn = operations.slice(
@@ -138,6 +162,9 @@ describe('review disclosure', () => {
     expect(messages.en.review_disclosure_retention).not.toMatch(/\b\d+\s+(years?|months?|days?)\b/i)
     expect(messages.nl.review_disclosure_retention).not.toMatch(
       /\b\d+\s+(jaar|jaren|maanden|dagen)\b/i,
+    )
+    expect(messages.fr.review_disclosure_retention).not.toMatch(
+      /\b\d+\s+(ans?|années?|mois|jours?)\b/i,
     )
   })
 

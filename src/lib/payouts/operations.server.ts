@@ -188,8 +188,23 @@ async function insertPayoutReconciliationLog(
  * - If the payout is `failed`, retries the route creation.
  * - If the payout is `reversed`, returns an error (reversed payouts cannot be re-executed).
  */
+type PreparedPayout =
+  | { kind: 'error'; status: number; message: string }
+  | { kind: 'success'; routeId: string | undefined }
+  | {
+      kind: 'ready'
+      payoutId: string
+      amountCents: number
+      molliePaymentId: string
+      mollieAccountId: string
+      shopOrderId: string
+      shopId: string
+      ownerId: string | null
+      existingRouteId: string | null
+    }
+
 export async function executePayoutQuery(payoutId: string): Promise<ExecutePayoutResult> {
-  const txResult = await db.transaction(async (tx) => {
+  const prepared = await db.transaction(async (tx): Promise<PreparedPayout> => {
     const [payoutRecord] = await tx
       .select()
       .from(payout)
@@ -198,16 +213,16 @@ export async function executePayoutQuery(payoutId: string): Promise<ExecutePayou
       .limit(1)
 
     if (!payoutRecord) {
-      return { kind: 'error' as const, status: 404, message: 'Payout not found' }
+      return { kind: 'error', status: 404, message: 'Payout not found' }
     }
 
     if (payoutRecord.status === 'sent') {
-      return { kind: 'success' as const, routeId: payoutRecord.mollieRouteId ?? undefined }
+      return { kind: 'success', routeId: payoutRecord.mollieRouteId ?? undefined }
     }
 
     if (payoutRecord.status === 'reversed') {
       return {
-        kind: 'error' as const,
+        kind: 'error',
         status: 409,
         message: 'Payout has been reversed and cannot be re-executed',
       }
@@ -215,7 +230,7 @@ export async function executePayoutQuery(payoutId: string): Promise<ExecutePayou
 
     if (payoutRecord.status === 'returned') {
       return {
-        kind: 'error' as const,
+        kind: 'error',
         status: 409,
         message: 'Payout has been returned and cannot be re-executed',
       }
@@ -223,26 +238,16 @@ export async function executePayoutQuery(payoutId: string): Promise<ExecutePayou
 
     if (!['pending', 'failed', 'in_transit'].includes(payoutRecord.status)) {
       return {
-        kind: 'error' as const,
+        kind: 'error',
         status: 409,
         message: `Payout cannot be executed from status '${payoutRecord.status}'`,
       }
     }
 
-    // Load the related order and shop to obtain Mollie IDs.
     if (!payoutRecord.shopOrderId) {
       const reason = 'Payout has no associated shop order'
-      await tx
-        .update(payout)
-        .set({ status: 'failed', failedAt: new Date(), failureReason: reason })
-        .where(eq(payout.id, payoutId))
-      await insertPayoutReconciliationLog(tx, {
-        payoutId,
-        event: 'route_failed',
-        amountCents: payoutRecord.amountCents,
-        payload: { reason },
-      })
-      return { kind: 'error' as const, status: 412, message: reason }
+      await markPayoutFailedInTx(tx, payoutId, payoutRecord.amountCents, reason)
+      return { kind: 'error', status: 412, message: reason }
     }
 
     const [orderRecord] = await tx
@@ -258,7 +263,7 @@ export async function executePayoutQuery(payoutId: string): Promise<ExecutePayou
     if (orderRecord) {
       if (!['delivered', 'completed'].includes(orderRecord.status)) {
         const reason = `Payout cannot be executed while shop order status is '${orderRecord.status}'`
-        return { kind: 'error' as const, status: 409, message: reason }
+        return { kind: 'error', status: 409, message: reason }
       }
 
       if (
@@ -266,7 +271,7 @@ export async function executePayoutQuery(payoutId: string): Promise<ExecutePayou
         new Date(orderRecord.disputeWindowExpiresAt) > new Date()
       ) {
         const reason = 'Dispute window has not expired'
-        return { kind: 'error' as const, status: 409, message: reason }
+        return { kind: 'error', status: 409, message: reason }
       }
     }
 
@@ -291,78 +296,127 @@ export async function executePayoutQuery(payoutId: string): Promise<ExecutePayou
 
     if (shopRecord?.isSuspended) {
       const reason = 'Payout cannot be executed while shop is suspended'
-      return { kind: 'error' as const, status: 409, message: reason }
+      return { kind: 'error', status: 409, message: reason }
     }
 
-    const molliePaymentId = platformOrderRecord?.molliePaymentId
+    const molliePaymentId = platformOrderRecord?.molliePaymentId ?? payoutRecord.molliePaymentId
     const mollieAccountId = shopRecord?.mollieAccountId
 
     if (!molliePaymentId) {
       const reason = 'Platform order has no Mollie payment ID'
-      await tx
-        .update(payout)
-        .set({ status: 'failed', failedAt: new Date(), failureReason: reason })
-        .where(eq(payout.id, payoutId))
-      await insertPayoutReconciliationLog(tx, {
-        payoutId,
-        event: 'route_failed',
-        amountCents: payoutRecord.amountCents,
-        payload: { reason },
-      })
-      return { kind: 'error' as const, status: 412, message: reason }
+      await markPayoutFailedInTx(tx, payoutId, payoutRecord.amountCents, reason)
+      return { kind: 'error', status: 412, message: reason }
     }
 
     if (!mollieAccountId || !shopRecord?.paymentConnected) {
       const reason = 'Shop has no connected Mollie account'
-      await tx
-        .update(payout)
-        .set({ status: 'failed', failedAt: new Date(), failureReason: reason })
-        .where(eq(payout.id, payoutId))
-      await insertPayoutReconciliationLog(tx, {
-        payoutId,
-        event: 'route_failed',
-        molliePaymentId,
-        amountCents: payoutRecord.amountCents,
-        payload: { reason, paymentConnected: shopRecord?.paymentConnected ?? false },
+      await markPayoutFailedInTx(tx, payoutId, payoutRecord.amountCents, reason, molliePaymentId, {
+        paymentConnected: shopRecord?.paymentConnected ?? false,
       })
-      return { kind: 'error' as const, status: 412, message: reason }
+      return { kind: 'error', status: 412, message: reason }
     }
 
-    // Mark in_transit before the external call so concurrent callers see it.
-    await tx
-      .update(payout)
-      .set({ status: 'in_transit', molliePaymentId })
-      .where(eq(payout.id, payoutId))
-
-    let route: { id: string }
-    try {
-      route = await createMollieRoute({
-        paymentId: molliePaymentId,
-        amountCents: payoutRecord.amountCents,
-        currency: 'EUR',
-        destinationOrganizationId: mollieAccountId,
-        description: `Eurtisan payout for order ${payoutRecord.shopOrderId}`,
-      })
-    } catch (err) {
-      const reason = err instanceof Error ? err.message : 'Mollie route creation failed'
-      if (!isValidPayoutTransition('in_transit', 'failed')) {
+    if (payoutRecord.status === 'pending' || payoutRecord.status === 'failed') {
+      if (!isValidPayoutTransition(payoutRecord.status as PayoutStatus, 'in_transit')) {
         throw new PayoutError(
           'INVALID_STATUS_TRANSITION',
-          `Cannot transition payout ${payoutId} from 'in_transit' to 'failed'`,
+          `Cannot transition payout ${payoutId} from '${payoutRecord.status}' to 'in_transit'`,
         )
       }
       await tx
         .update(payout)
-        .set({ status: 'failed', failedAt: new Date(), failureReason: reason })
+        .set({ status: 'in_transit', molliePaymentId })
         .where(eq(payout.id, payoutId))
-      await insertPayoutReconciliationLog(tx, {
-        payoutId,
-        event: 'route_failed',
-        molliePaymentId,
-        amountCents: payoutRecord.amountCents,
-        payload: { reason: reason },
+    }
+
+    return {
+      kind: 'ready',
+      payoutId,
+      amountCents: payoutRecord.amountCents,
+      molliePaymentId,
+      mollieAccountId,
+      shopOrderId: payoutRecord.shopOrderId,
+      shopId: payoutRecord.shopId,
+      ownerId: shopRecord.ownerId ?? null,
+      existingRouteId: payoutRecord.mollieRouteId,
+    }
+  })
+
+  if (prepared.kind === 'error') {
+    throw payoutHttpError(prepared.status, prepared.message)
+  }
+
+  if (prepared.kind === 'success') {
+    return { success: true, routeId: prepared.routeId }
+  }
+
+  let routeId = prepared.existingRouteId
+  if (!routeId) {
+    try {
+      const route = await createMollieRoute({
+        paymentId: prepared.molliePaymentId,
+        amountCents: prepared.amountCents,
+        currency: 'EUR',
+        destinationOrganizationId: prepared.mollieAccountId,
+        description: `Eurtisan payout for order ${prepared.shopOrderId}`,
+        idempotencyKey: prepared.payoutId,
       })
-      return { kind: 'error' as const, status: 502, message: reason }
+      routeId = route.id
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : 'Mollie route creation failed'
+      await db.transaction(async (tx) => {
+        const [locked] = await tx
+          .select({ status: payout.status })
+          .from(payout)
+          .where(eq(payout.id, payoutId))
+          .for('update')
+          .limit(1)
+
+        if (locked?.status !== 'in_transit') {
+          return
+        }
+        if (!isValidPayoutTransition('in_transit', 'failed')) {
+          throw new PayoutError(
+            'INVALID_STATUS_TRANSITION',
+            `Cannot transition payout ${payoutId} from 'in_transit' to 'failed'`,
+          )
+        }
+        await markPayoutFailedInTx(
+          tx,
+          payoutId,
+          prepared.amountCents,
+          reason,
+          prepared.molliePaymentId,
+        )
+      })
+      throw payoutHttpError(502, reason)
+    }
+  }
+
+  await db.transaction(async (tx) => {
+    const [locked] = await tx
+      .select({ status: payout.status, mollieRouteId: payout.mollieRouteId })
+      .from(payout)
+      .where(eq(payout.id, payoutId))
+      .for('update')
+      .limit(1)
+
+    if (!locked) {
+      return
+    }
+
+    if (locked.status === 'sent') {
+      return
+    }
+
+    if (locked.status !== 'in_transit') {
+      logger.error('Payout left in_transit after Mollie route create; status changed', undefined, {
+        alert: true,
+        payoutId,
+        status: locked.status,
+        mollieRouteId: routeId,
+      })
+      return
     }
 
     if (!isValidPayoutTransition('in_transit', 'sent')) {
@@ -371,12 +425,13 @@ export async function executePayoutQuery(payoutId: string): Promise<ExecutePayou
         `Cannot transition payout ${payoutId} from 'in_transit' to 'sent'`,
       )
     }
+
     await tx
       .update(payout)
       .set({
         status: 'sent',
-        molliePaymentId,
-        mollieRouteId: route.id,
+        molliePaymentId: prepared.molliePaymentId,
+        mollieRouteId: routeId,
         sentAt: new Date(),
         executedAt: new Date(),
       })
@@ -385,49 +440,63 @@ export async function executePayoutQuery(payoutId: string): Promise<ExecutePayou
     await insertPayoutReconciliationLog(tx, {
       payoutId,
       event: 'route_created',
-      molliePaymentId,
-      mollieRouteId: route.id,
-      amountCents: payoutRecord.amountCents,
-      payload: { destinationOrganizationId: mollieAccountId },
+      molliePaymentId: prepared.molliePaymentId,
+      mollieRouteId: routeId,
+      amountCents: prepared.amountCents,
+      payload: { destinationOrganizationId: prepared.mollieAccountId },
     })
-
-    // Create notification — errors must not break the payout transaction
-    try {
-      const { createNotification } = await import('../notifications.server')
-      if (shopRecord.ownerId) {
-        const amount = String(payoutRecord.amountCents / 100)
-        await createNotification(shopRecord.ownerId, 'payout_sent', {
-          payoutId,
-          shopId: payoutRecord.shopId,
-          amount,
-          // Feeds the seller-alert email; see `NOTIFICATION_DELIVERY`.
-          headline: m.notification_payout_sent({ amount }),
-          body: m.email_payout_body(),
-          actionUrl: `/studio/${payoutRecord.shopId}`,
-        })
-      }
-    } catch (notifyErr) {
-      logger.error('Failed to send payout_sent notification', notifyErr, {
-        alert: true,
-        payoutId,
-        shopId: payoutRecord.shopId,
-      })
-    }
-
-    return { kind: 'success' as const, routeId: route.id }
   })
 
-  if (txResult.kind === 'error') {
-    throw new Response(
-      JSON.stringify({ error: getErrorCodeForStatus(txResult.status), message: txResult.message }),
-      {
-        status: txResult.status,
-        headers: { 'Content-Type': 'application/json' },
-      },
-    )
+  try {
+    const { createNotification } = await import('../notifications.server')
+    if (prepared.ownerId) {
+      const amount = String(prepared.amountCents / 100)
+      await createNotification(prepared.ownerId, 'payout_sent', {
+        payoutId,
+        shopId: prepared.shopId,
+        amount,
+        headline: m.notification_payout_sent({ amount }),
+        body: m.email_payout_body(),
+        actionUrl: `/studio/${prepared.shopId}`,
+      })
+    }
+  } catch (notifyErr) {
+    logger.error('Failed to send payout_sent notification', notifyErr, {
+      alert: true,
+      payoutId,
+      shopId: prepared.shopId,
+    })
   }
 
-  return { success: true, routeId: txResult.routeId }
+  return { success: true, routeId }
+}
+
+async function markPayoutFailedInTx(
+  tx: Omit<typeof db, '$client'>,
+  payoutId: string,
+  amountCents: number,
+  reason: string,
+  molliePaymentId?: string,
+  extraPayload?: Record<string, unknown>,
+): Promise<void> {
+  await tx
+    .update(payout)
+    .set({ status: 'failed', failedAt: new Date(), failureReason: reason })
+    .where(eq(payout.id, payoutId))
+  await insertPayoutReconciliationLog(tx, {
+    payoutId,
+    event: 'route_failed',
+    molliePaymentId,
+    amountCents,
+    payload: { reason, ...extraPayload },
+  })
+}
+
+function payoutHttpError(status: number, message: string): Response {
+  return new Response(JSON.stringify({ error: getErrorCodeForStatus(status), message }), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
 }
 
 function getErrorCodeForStatus(status: number): string {

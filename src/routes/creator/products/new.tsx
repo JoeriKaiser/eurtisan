@@ -1,31 +1,23 @@
-import { createFileRoute } from '@tanstack/react-router'
-import {
-  CreatorProductNewError,
-  CreatorProductNewLoading,
-} from '#/components/CreatorProductNewPage'
-import { CreatorProductNewRouteComponent } from '#/route-components/creator/products/new'
-import { listCategories } from '#/lib/categories'
+import { createFileRoute, redirect } from '@tanstack/react-router'
+import z from 'zod'
 import { getCreatorShops } from '#/lib/creator-dashboard'
-import { guardPrivilegedRole } from '#/lib/route-guards'
-import { m } from '#/paraglide/messages'
+
+const newProductSearchSchema = z.object({
+  shopId: z.string().optional(),
+})
 
 export const Route = createFileRoute('/creator/products/new')({
-  beforeLoad: async () => guardPrivilegedRole('creator'),
-  loader: async () => {
-    const [shops, categories] = await Promise.all([
-      getCreatorShops(),
-      listCategories({ data: { tree: false } }),
-    ])
+  validateSearch: newProductSearchSchema,
+  beforeLoad: async ({ search }) => {
+    const shopId = search.shopId ?? (await getCreatorShops())[0]?.id
+    if (!shopId) {
+      throw redirect({ to: '/studio', replace: true })
+    }
 
-    return { shops, categories }
+    throw redirect({
+      to: '/studio/$shopId/products/new',
+      params: { shopId },
+      replace: true,
+    })
   },
-  head: () => ({
-    meta: [
-      { title: `${m.creator_product_new_title()} | Eurtisan` },
-      { name: 'description', content: m.creator_product_new_description() },
-    ],
-  }),
-  component: CreatorProductNewRouteComponent,
-  pendingComponent: CreatorProductNewLoading,
-  errorComponent: CreatorProductNewError,
 })

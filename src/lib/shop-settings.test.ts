@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { db } from '#/db/index'
 import { orderItem, platformOrder, product, shop, shopOrder, shopSocials, user } from '#/db/schema'
-import { decryptJsonb, encryptJsonb } from '#/lib/encryption.server'
+import { decryptIfEncrypted, decryptJsonb, encryptJsonb } from '#/lib/encryption.server'
 
 import {
   checkSlugUniquePlatformWide,
@@ -459,10 +459,12 @@ describe('updateShopInternal', () => {
     expect(persisted).toMatchObject({
       traderStatus: 'non_trader',
       legalEntityType: 'individual',
-      dateOfBirth: '1985-06-15',
-      taxId: 'FR1234567890',
       businessRegistrationNumber: null,
     })
+    expect(persisted.dateOfBirth).not.toBe('1985-06-15')
+    expect(persisted.taxId).not.toBe('FR1234567890')
+    expect(decryptIfEncrypted(persisted.dateOfBirth)).toBe('1985-06-15')
+    expect(decryptIfEncrypted(persisted.taxId)).toBe('FR1234567890')
   })
 
   it('rejects an invalid taxId format', async () => {

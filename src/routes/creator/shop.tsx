@@ -1,13 +1,6 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 import z from 'zod'
-import {
-  CreatorShopSettingsError,
-  CreatorShopSettingsLoading,
-} from '#/components/CreatorShopSettingsPage'
-import { CreatorShopRouteComponent } from '#/route-components/creator/shop'
-import { getCreatorShop, getCreatorShops } from '#/lib/creator-dashboard'
-import { guardPrivilegedRole } from '#/lib/route-guards'
-import { m } from '#/paraglide/messages'
+import { getCreatorShops } from '#/lib/creator-dashboard'
 
 const shopSearchSchema = z.object({
   shopId: z.string().optional(),
@@ -15,28 +8,16 @@ const shopSearchSchema = z.object({
 
 export const Route = createFileRoute('/creator/shop')({
   validateSearch: shopSearchSchema,
-  loaderDeps: ({ search: { shopId } }) => ({ shopId }),
-  beforeLoad: async () => guardPrivilegedRole('creator'),
-  loader: async ({ deps }) => {
-    const shopsPromise = getCreatorShops()
-    const shopPromise = deps.shopId
-      ? getCreatorShop({ data: { shopId: deps.shopId } })
-      : shopsPromise.then((shops) => {
-          if (shops.length === 0) return null
-          return getCreatorShop({ data: { shopId: shops[0].id } })
-        })
+  beforeLoad: async ({ search }) => {
+    const shopId = search.shopId ?? (await getCreatorShops())[0]?.id
+    if (!shopId) {
+      throw redirect({ to: '/studio', replace: true })
+    }
 
-    const [shops, shop] = await Promise.all([shopsPromise, shopPromise])
-
-    return { shop, allShops: shops }
+    throw redirect({
+      to: '/studio/$shopId/settings',
+      params: { shopId },
+      replace: true,
+    })
   },
-  head: () => ({
-    meta: [
-      { title: `${m.creator_shop_settings_title()} | Eurtisan` },
-      { name: 'description', content: m.creator_shop_settings_description() },
-    ],
-  }),
-  component: CreatorShopRouteComponent,
-  pendingComponent: CreatorShopSettingsLoading,
-  errorComponent: CreatorShopSettingsError,
 })

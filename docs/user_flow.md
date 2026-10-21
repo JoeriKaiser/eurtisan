@@ -110,16 +110,17 @@ graph LR
 graph TD
     classDef route fill:#faf8f5,stroke:#6b6054,stroke-width:1px;
 
-    Dashboard["Creator Dashboard (/creator)"]:::route --> Products["Product Backoffice (/creator/products)"]:::route
-    Dashboard --> Settings["Shop Settings (/creator/shop)"]:::route
-    Dashboard --> Payouts["Payouts Overview (/creator/payouts)"]:::route
-    Dashboard --> Studio["Studio Space (/studio/$shopId)"]:::route
+    Studio["Shop Dashboard (/studio/$shopId)"]:::route --> Products["Product Backoffice (/studio/$shopId/products)"]:::route
+    Studio --> Settings["Shop Settings (/studio/$shopId/settings)"]:::route
+    Studio --> Payouts["Payouts Overview (/studio/$shopId/payouts)"]:::route
+    Studio --> Customers["Customers (/studio/$shopId/customers)"]:::route
 
-    Products --> NewProd["New Product (/creator/products/new)"]:::route
-    Products --> EditProd["Edit Product (/creator/products/$id/edit)"]:::route
+    Products --> NewProd["New Product (/studio/$shopId/products/new)"]:::route
+    Products --> EditProd["Edit Product (/studio/$shopId/products/$id/edit)"]:::route
 
     Studio --> ShopOrders["Shop Orders (/studio/$shopId/orders)"]:::route
     ShopOrders --> OrderDetail["Order Fulfillment (/studio/$shopId/orders/$id)"]:::route
+    Settings --> Tax["Tax report (/studio/$shopId/settings/tax)"]:::route
 
     OrderDetail -->|Actions| Fulfill[Ship / Buy Label / Add Tracking]
 ```

@@ -56,6 +56,23 @@ describe('createMollieRoute (mock mode)', () => {
       }),
     ).rejects.toThrow('Simulated Mollie error')
   })
+
+  it('returns the same mock route for a repeated idempotency key', async () => {
+    const input = {
+      paymentId: 'tr_test',
+      amountCents: 1000,
+      currency: 'EUR',
+      destinationOrganizationId: 'org_seller',
+      description: 'Test payout',
+      idempotencyKey: 'payout-1',
+    }
+
+    const first = await createMollieRoute(input)
+    const second = await createMollieRoute(input)
+
+    expect(second.id).toBe(first.id)
+    expect(first.id).toBe('crt_mock_000001')
+  })
 })
 
 describe('getMollieRoute (mock mode)', () => {

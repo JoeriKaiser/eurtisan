@@ -121,7 +121,7 @@ describe('configureProductsIndex', () => {
         pagination: { maxTotalHits: 10_000 },
         localizedAttributes: [
           {
-            locales: ['eng', 'nld'],
+            locales: ['eng', 'nld', 'fra'],
             attributePatterns: ['name', 'description', 'categoryName', 'shopName'],
           },
         ],

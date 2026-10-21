@@ -24,7 +24,7 @@ test.describe('creator product validation', () => {
   test('shows required-field errors on empty new-product form', async ({ page }) => {
     const shop = await getCreatorShop()
 
-    await page.goto(`/creator/products/new?shopId=${shop.id}`)
+    await page.goto(`/studio/${shop.id}/products/new`)
     await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: 'New Product' })).toBeVisible()
@@ -40,7 +40,7 @@ test.describe('creator product validation', () => {
     const shop = await getCreatorShop()
     const existingProduct = await getTestProduct(shop.id)
 
-    await page.goto(`/creator/products/new?shopId=${shop.id}`)
+    await page.goto(`/studio/${shop.id}/products/new`)
     await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: 'New Product' })).toBeVisible()
@@ -70,7 +70,7 @@ test.describe('creator product validation', () => {
   test('rejects negative price and stock values', async ({ page }) => {
     const shop = await getCreatorShop()
 
-    await page.goto(`/creator/products/new?shopId=${shop.id}`)
+    await page.goto(`/studio/${shop.id}/products/new`)
     await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: 'New Product' })).toBeVisible()
@@ -93,7 +93,7 @@ test.describe('creator product validation', () => {
   test('uploads a product image and saves the product', async ({ page }) => {
     const shop = await getCreatorShop()
 
-    await page.goto(`/creator/products/new?shopId=${shop.id}`)
+    await page.goto(`/studio/${shop.id}/products/new`)
     await waitForAppHydration(page)
 
     await expect(page.getByRole('heading', { name: 'New Product' })).toBeVisible()

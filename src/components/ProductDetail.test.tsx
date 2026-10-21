@@ -37,6 +37,10 @@ vi.mock('#/lib/cart-hooks', () => ({
   }),
 }))
 
+vi.mock('#/lib/products', () => ({
+  reportProduct: vi.fn().mockResolvedValue({ alreadyReported: false }),
+}))
+
 vi.mock('#/components/ProductReviews', () => ({
   default: ({ productId }: { productId: string }) => (
     <div data-testid='product-reviews' data-product-id={productId} />

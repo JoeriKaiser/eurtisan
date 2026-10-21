@@ -83,7 +83,7 @@ describe('ProductTableRow', () => {
     expect(img?.getAttribute('src')).toBe('https://img.example.com/uploads/prod-1-thumb.webp')
   })
 
-  it('links edit to /creator/products/$productId/edit', () => {
+  it('links edit to /studio/$shopId/products/$productId/edit', () => {
     render(
       <table>
         <tbody>
@@ -99,8 +99,10 @@ describe('ProductTableRow', () => {
     )
 
     const editLink = screen.getByRole('link', { name: 'Edit Handmade Vase' })
-    expect(editLink.getAttribute('href')).toBe('/creator/products/$productId/edit')
-    expect(editLink.getAttribute('data-params')).toBe(JSON.stringify({ productId: 'prod-1' }))
+    expect(editLink.getAttribute('href')).toBe('/studio/$shopId/products/$productId/edit')
+    expect(editLink.getAttribute('data-params')).toBe(
+      JSON.stringify({ shopId: 'shop-1', productId: 'prod-1' }),
+    )
   })
 
   it('toggles active state when toggle button is clicked', () => {

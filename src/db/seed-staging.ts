@@ -292,7 +292,6 @@ const CATEGORY_DEFS = [
   { name: 'Candles', subs: ['Soy Candles', 'Beeswax', 'Aromatherapy'] },
   { name: 'Furniture', subs: ['Chairs', 'Tables', 'Storage'] },
   { name: 'Soap & Bath', subs: ['Bar Soap', 'Bath Bombs', 'Skincare'] },
-  { name: 'Food & Drink', subs: ['Preserves', 'Honey', 'Spices'] },
   { name: 'Musical Instruments', subs: ['Flutes', 'Percussion', 'Strings'] },
 ]
 

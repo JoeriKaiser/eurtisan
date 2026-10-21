@@ -179,9 +179,7 @@ export function AdminCategoriesPage() {
     <div className='space-y-6'>
       <div className='flex items-center justify-between'>
         <div>
-          <h1 className='display-title text-3xl font-semibold text-text-primary'>
-            {m.admin_categories_title()}
-          </h1>
+          <h1 className='text-3xl font-semibold text-text-primary'>{m.admin_categories_title()}</h1>
           <p className='mt-1 text-text-secondary'>{m.admin_categories_description()}</p>
         </div>
         <Button onClick={openCreateDialog}>

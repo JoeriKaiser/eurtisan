@@ -28,7 +28,16 @@ describe('legal operator disclosures and billing identity', () => {
   })
 
   it('keeps translation fallbacks neutral across all locales', () => {
-    for (const locale of ['en', 'nl']) {
+    const rawSettings = readFileSync(join(REPO_ROOT, 'project.inlang/settings.json'), 'utf8')
+    const parsedSettings: unknown = JSON.parse(rawSettings)
+    const locales =
+      parsedSettings &&
+      typeof parsedSettings === 'object' &&
+      'locales' in parsedSettings &&
+      Array.isArray(parsedSettings.locales)
+        ? (parsedSettings.locales as string[])
+        : ['en', 'nl', 'fr']
+    for (const locale of locales) {
       const messages = readLocale(locale)
       expect(messages.legal_operator_name).toBe('Eurtisan')
       expect(messages.legal_contact_email).toBe('legal@eurtisan.eu')

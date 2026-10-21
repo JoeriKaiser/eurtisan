@@ -408,7 +408,7 @@ describe('HomePage', () => {
       />,
     )
     const heroCtaLink = screen.getByText('Go to Dashboard').closest('a')
-    expect(heroCtaLink?.getAttribute('href')).toBe('/creator?shopId=shop-paused')
+    expect(heroCtaLink?.getAttribute('href')).toBe('/studio/shop-paused')
   })
 
   it('renders auth-conditional CTAs for authenticated user with active shop', () => {
@@ -443,7 +443,7 @@ describe('HomePage', () => {
       />,
     )
     const heroCtaLink = screen.getByText('Go to Dashboard').closest('a')
-    expect(heroCtaLink?.getAttribute('href')).toBe('/creator?shopId=shop-active')
+    expect(heroCtaLink?.getAttribute('href')).toBe('/studio/shop-active')
   })
 
   it('renders value proposition strip', () => {

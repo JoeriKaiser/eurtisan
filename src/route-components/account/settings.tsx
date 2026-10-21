@@ -136,9 +136,7 @@ export function AccountSettings() {
     <main className='page-wrap px-4 py-12'>
       <div className='mx-auto max-w-2xl space-y-8'>
         <section className='island-shell rounded-2xl p-6 sm:p-8'>
-          <h1 className='display-title mb-2 text-3xl font-semibold text-text-primary'>
-            {m.account_settings()}
-          </h1>
+          <h1 className='mb-2 text-3xl font-semibold text-text-primary'>{m.account_settings()}</h1>
           <p className='mb-6 text-text-secondary'>
             <Link
               to='/account/security'

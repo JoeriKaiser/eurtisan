@@ -234,11 +234,11 @@ export async function configureProductsIndex(indexUid: string = PRODUCTS_INDEX):
     },
     pagination: { maxTotalHits: MAX_TOTAL_HITS },
     synonyms: PRODUCT_SYNONYMS,
-    // Listings are written in either language, so both tokenizers apply to
-    // every text field rather than defaulting to English segmentation.
+    // Listings are written in English, Dutch, or French, so those tokenizers
+    // apply to every text field rather than defaulting to English segmentation.
     localizedAttributes: [
       {
-        locales: ['eng', 'nld'],
+        locales: ['eng', 'nld', 'fra'],
         attributePatterns: ['name', 'description', 'categoryName', 'shopName'],
       },
     ],

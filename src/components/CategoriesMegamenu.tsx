@@ -16,7 +16,6 @@ import {
   GlassWater,
   Hammer,
   Wind,
-  Coffee,
   Music,
   FileText,
   ArrowRight,
@@ -40,7 +39,6 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ size?: number; classN
   candles: Flame,
   furniture: Table,
   'soap-bath': Wind,
-  'food-drink': Coffee,
   'musical-instruments': Music,
 }
 

@@ -312,8 +312,7 @@ export const betterAuthOptions = {
   // sign-in rate limits when multiple auth setups run in quick succession.
   // Production keeps the default rate limit behavior.
   rateLimit:
-    typeof process !== 'undefined' &&
-    (process.env.NODE_ENV !== 'production' || process.env.E2E_TEST === 'true')
+    typeof process !== 'undefined' && process.env.NODE_ENV !== 'production'
       ? { enabled: false }
       : undefined,
   plugins: [
@@ -363,6 +362,7 @@ export const betterAuthOptions = {
           const rows = await db
             .select({
               deletedAt: user.deletedAt,
+              bannedAt: user.bannedAt,
               email: user.email,
               emailVerified: user.emailVerified,
               isAnonymous: user.isAnonymous,
@@ -374,6 +374,12 @@ export const betterAuthOptions = {
             throw APIError.from('UNAUTHORIZED', {
               code: 'ACCOUNT_DELETED',
               message: 'This account has been deactivated.',
+            })
+          }
+          if (rows[0]?.bannedAt) {
+            throw APIError.from('UNAUTHORIZED', {
+              code: 'ACCOUNT_BANNED',
+              message: 'This account has been banned.',
             })
           }
           return true

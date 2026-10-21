@@ -67,9 +67,7 @@ export function Step8Review() {
     <div className='space-y-8'>
       <header>
         <p className='text-sm font-medium text-accent-primary'>{m.onboarding_stage_review()}</p>
-        <h1 className='display-title mt-1 text-2xl text-text-primary'>
-          {m.onboarding_review_title()}
-        </h1>
+        <h1 className='mt-1 text-2xl text-text-primary'>{m.onboarding_review_title()}</h1>
         <p className='mt-2 max-w-[65ch] text-text-secondary'>{m.onboarding_review_description()}</p>
       </header>
 

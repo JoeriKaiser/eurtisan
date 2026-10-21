@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
-import { m } from '#/paraglide/messages'
 import { getCategoryIcon } from '#/lib/category-icons'
+import { m } from '#/paraglide/messages'
 import CategoryCard from '../CategoryCard'
 
 export interface HomeCategoryItem {

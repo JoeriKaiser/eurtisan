@@ -39,7 +39,7 @@ test.describe('creator product lifecycle', () => {
 
     await page.getByRole('button', { name: 'Save as draft' }).click()
 
-    await page.waitForURL(/\/creator\/products/)
+    await page.waitForURL(/\/studio\/[^/]+\/products/)
     await waitForAppHydration(page)
     await page.getByRole('tab', { name: 'Draft' }).click()
     await page.waitForSelector('tbody tr')

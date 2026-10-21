@@ -56,7 +56,6 @@ import { Route as CategorySlugRouteImport } from './routes/category/$slug'
 import { Route as CategoryAllRouteImport } from './routes/category/all'
 import { Route as CreatorIndexRouteImport } from './routes/creator/index'
 import { Route as CreatorPayoutsRouteImport } from './routes/creator/payouts'
-import { Route as CreatorProductsRouteImport } from './routes/creator/products'
 import { Route as CreatorShopRouteImport } from './routes/creator/shop'
 import { Route as DisputesDisputeIdRouteImport } from './routes/disputes.$disputeId'
 import { Route as InvoicesInvoiceIdRouteImport } from './routes/invoices.$invoiceId'
@@ -94,6 +93,8 @@ import { Route as ShopsShopSlugIndexRouteImport } from './routes/shops/$shopSlug
 import { Route as StudioShopIdIndexRouteImport } from './routes/studio/$shopId.index'
 import { Route as StudioShopIdCustomersRouteImport } from './routes/studio/$shopId.customers'
 import { Route as StudioShopIdOrdersRouteImport } from './routes/studio/$shopId.orders'
+import { Route as StudioShopIdPayoutsRouteImport } from './routes/studio/$shopId.payouts'
+import { Route as StudioShopIdProductsRouteImport } from './routes/studio/$shopId.products'
 import { Route as StudioShopIdSettingsRouteImport } from './routes/studio/$shopId.settings'
 import { Route as ApiAdminPayoutsPayoutIdRouteImport } from './routes/api/admin/payouts.$payoutId'
 import { Route as ApiAuthMollieCallbackRouteImport } from './routes/api/auth/mollie/callback'
@@ -117,9 +118,13 @@ import { Route as StudioShopIdCustomersIndexRouteImport } from './routes/studio/
 import { Route as StudioShopIdCustomersCustomerHashRouteImport } from './routes/studio/$shopId.customers.$customerHash'
 import { Route as StudioShopIdOrdersIndexRouteImport } from './routes/studio/$shopId.orders.index'
 import { Route as StudioShopIdOrdersShopOrderIdRouteImport } from './routes/studio/$shopId.orders.$shopOrderId'
+import { Route as StudioShopIdProductsIndexRouteImport } from './routes/studio/$shopId.products.index'
+import { Route as StudioShopIdProductsNewRouteImport } from './routes/studio/$shopId.products.new'
+import { Route as StudioShopIdSettingsIndexRouteImport } from './routes/studio/$shopId.settings.index'
 import { Route as StudioShopIdSettingsTaxRouteImport } from './routes/studio/$shopId.settings.tax'
 import { Route as ApiShopsShopIdOrdersShopOrderIdRouteImport } from './routes/api/shops/$shopId/orders.$shopOrderId'
 import { Route as ApiShopsShopIdProductsProductIdRouteImport } from './routes/api/shops/$shopId/products.$productId'
+import { Route as StudioShopIdProductsProductIdEditRouteImport } from './routes/studio/$shopId.products.$productId.edit'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -356,11 +361,6 @@ const CreatorPayoutsRoute = CreatorPayoutsRouteImport.update({
   path: '/payouts',
   getParentRoute: () => CreatorRoute,
 } as any)
-const CreatorProductsRoute = CreatorProductsRouteImport.update({
-  id: '/products',
-  path: '/products',
-  getParentRoute: () => CreatorRoute,
-} as any)
 const CreatorShopRoute = CreatorShopRouteImport.update({
   id: '/shop',
   path: '/shop',
@@ -500,14 +500,14 @@ const ApiWebhooksSendcloudRoute = ApiWebhooksSendcloudRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const CreatorProductsIndexRoute = CreatorProductsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => CreatorProductsRoute,
+  id: '/products/',
+  path: '/products/',
+  getParentRoute: () => CreatorRoute,
 } as any)
 const CreatorProductsNewRoute = CreatorProductsNewRouteImport.update({
-  id: '/new',
-  path: '/new',
-  getParentRoute: () => CreatorProductsRoute,
+  id: '/products/new',
+  path: '/products/new',
+  getParentRoute: () => CreatorRoute,
 } as any)
 const OrdersPlatformOrderIdIndexRoute =
   OrdersPlatformOrderIdIndexRouteImport.update({
@@ -551,6 +551,16 @@ const StudioShopIdOrdersRoute = StudioShopIdOrdersRouteImport.update({
   path: '/orders',
   getParentRoute: () => StudioShopIdRoute,
 } as any)
+const StudioShopIdPayoutsRoute = StudioShopIdPayoutsRouteImport.update({
+  id: '/payouts',
+  path: '/payouts',
+  getParentRoute: () => StudioShopIdRoute,
+} as any)
+const StudioShopIdProductsRoute = StudioShopIdProductsRouteImport.update({
+  id: '/products',
+  path: '/products',
+  getParentRoute: () => StudioShopIdRoute,
+} as any)
 const StudioShopIdSettingsRoute = StudioShopIdSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -588,9 +598,9 @@ const ApiShopsShopIdSettingsRoute = ApiShopsShopIdSettingsRouteImport.update({
 } as any)
 const CreatorProductsProductIdEditRoute =
   CreatorProductsProductIdEditRouteImport.update({
-    id: '/$productId/edit',
-    path: '/$productId/edit',
-    getParentRoute: () => CreatorProductsRoute,
+    id: '/products/$productId/edit',
+    path: '/products/$productId/edit',
+    getParentRoute: () => CreatorRoute,
   } as any)
 const OrdersPlatformOrderIdReturnsNewRoute =
   OrdersPlatformOrderIdReturnsNewRouteImport.update({
@@ -681,6 +691,23 @@ const StudioShopIdOrdersShopOrderIdRoute =
     path: '/$shopOrderId',
     getParentRoute: () => StudioShopIdOrdersRoute,
   } as any)
+const StudioShopIdProductsIndexRoute =
+  StudioShopIdProductsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => StudioShopIdProductsRoute,
+  } as any)
+const StudioShopIdProductsNewRoute = StudioShopIdProductsNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => StudioShopIdProductsRoute,
+} as any)
+const StudioShopIdSettingsIndexRoute =
+  StudioShopIdSettingsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => StudioShopIdSettingsRoute,
+  } as any)
 const StudioShopIdSettingsTaxRoute = StudioShopIdSettingsTaxRouteImport.update({
   id: '/tax',
   path: '/tax',
@@ -697,6 +724,12 @@ const ApiShopsShopIdProductsProductIdRoute =
     id: '/$productId',
     path: '/$productId',
     getParentRoute: () => ApiShopsShopIdProductsRoute,
+  } as any)
+const StudioShopIdProductsProductIdEditRoute =
+  StudioShopIdProductsProductIdEditRouteImport.update({
+    id: '/$productId/edit',
+    path: '/$productId/edit',
+    getParentRoute: () => StudioShopIdProductsRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -744,7 +777,6 @@ export interface FileRoutesByFullPath {
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
   '/creator/payouts': typeof CreatorPayoutsRoute
-  '/creator/products': typeof CreatorProductsRouteWithChildren
   '/creator/shop': typeof CreatorShopRoute
   '/disputes/$disputeId': typeof DisputesDisputeIdRoute
   '/invoices/$invoiceId': typeof InvoicesInvoiceIdRoute
@@ -778,6 +810,8 @@ export interface FileRoutesByFullPath {
   '/sell/status/$shopId': typeof SellStatusShopIdRoute
   '/studio/$shopId/customers': typeof StudioShopIdCustomersRouteWithChildren
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
+  '/studio/$shopId/payouts': typeof StudioShopIdPayoutsRoute
+  '/studio/$shopId/products': typeof StudioShopIdProductsRouteWithChildren
   '/studio/$shopId/settings': typeof StudioShopIdSettingsRouteWithChildren
   '/account/orders/': typeof AccountOrdersIndexRoute
   '/admin/disputes/': typeof AdminDisputesIndexRoute
@@ -805,12 +839,16 @@ export interface FileRoutesByFullPath {
   '/shops/$shopSlug/products/$productSlug': typeof ShopsShopSlugProductsProductSlugRoute
   '/studio/$shopId/customers/$customerHash': typeof StudioShopIdCustomersCustomerHashRoute
   '/studio/$shopId/orders/$shopOrderId': typeof StudioShopIdOrdersShopOrderIdRoute
+  '/studio/$shopId/products/new': typeof StudioShopIdProductsNewRoute
   '/studio/$shopId/settings/tax': typeof StudioShopIdSettingsTaxRoute
   '/sell/onboarding/$draftId/': typeof SellOnboardingDraftIdIndexRoute
   '/studio/$shopId/customers/': typeof StudioShopIdCustomersIndexRoute
   '/studio/$shopId/orders/': typeof StudioShopIdOrdersIndexRoute
+  '/studio/$shopId/products/': typeof StudioShopIdProductsIndexRoute
+  '/studio/$shopId/settings/': typeof StudioShopIdSettingsIndexRoute
   '/api/shops/$shopId/orders/$shopOrderId': typeof ApiShopsShopIdOrdersShopOrderIdRoute
   '/api/shops/$shopId/products/$productId': typeof ApiShopsShopIdProductsProductIdRoute
+  '/studio/$shopId/products/$productId/edit': typeof StudioShopIdProductsProductIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -877,7 +915,7 @@ export interface FileRoutesByTo {
   '/creator/products/new': typeof CreatorProductsNewRoute
   '/orders/$platformOrderId/success': typeof OrdersPlatformOrderIdSuccessRoute
   '/sell/status/$shopId': typeof SellStatusShopIdRoute
-  '/studio/$shopId/settings': typeof StudioShopIdSettingsRouteWithChildren
+  '/studio/$shopId/payouts': typeof StudioShopIdPayoutsRoute
   '/account/orders': typeof AccountOrdersIndexRoute
   '/admin/disputes': typeof AdminDisputesIndexRoute
   '/admin/orders': typeof AdminOrdersIndexRoute
@@ -904,12 +942,16 @@ export interface FileRoutesByTo {
   '/shops/$shopSlug/products/$productSlug': typeof ShopsShopSlugProductsProductSlugRoute
   '/studio/$shopId/customers/$customerHash': typeof StudioShopIdCustomersCustomerHashRoute
   '/studio/$shopId/orders/$shopOrderId': typeof StudioShopIdOrdersShopOrderIdRoute
+  '/studio/$shopId/products/new': typeof StudioShopIdProductsNewRoute
   '/studio/$shopId/settings/tax': typeof StudioShopIdSettingsTaxRoute
   '/sell/onboarding/$draftId': typeof SellOnboardingDraftIdIndexRoute
   '/studio/$shopId/customers': typeof StudioShopIdCustomersIndexRoute
   '/studio/$shopId/orders': typeof StudioShopIdOrdersIndexRoute
+  '/studio/$shopId/products': typeof StudioShopIdProductsIndexRoute
+  '/studio/$shopId/settings': typeof StudioShopIdSettingsIndexRoute
   '/api/shops/$shopId/orders/$shopOrderId': typeof ApiShopsShopIdOrdersShopOrderIdRoute
   '/api/shops/$shopId/products/$productId': typeof ApiShopsShopIdProductsProductIdRoute
+  '/studio/$shopId/products/$productId/edit': typeof StudioShopIdProductsProductIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -957,7 +999,6 @@ export interface FileRoutesById {
   '/category/$slug': typeof CategorySlugRoute
   '/category/all': typeof CategoryAllRoute
   '/creator/payouts': typeof CreatorPayoutsRoute
-  '/creator/products': typeof CreatorProductsRouteWithChildren
   '/creator/shop': typeof CreatorShopRoute
   '/disputes/$disputeId': typeof DisputesDisputeIdRoute
   '/invoices/$invoiceId': typeof InvoicesInvoiceIdRoute
@@ -991,6 +1032,8 @@ export interface FileRoutesById {
   '/sell/status/$shopId': typeof SellStatusShopIdRoute
   '/studio/$shopId/customers': typeof StudioShopIdCustomersRouteWithChildren
   '/studio/$shopId/orders': typeof StudioShopIdOrdersRouteWithChildren
+  '/studio/$shopId/payouts': typeof StudioShopIdPayoutsRoute
+  '/studio/$shopId/products': typeof StudioShopIdProductsRouteWithChildren
   '/studio/$shopId/settings': typeof StudioShopIdSettingsRouteWithChildren
   '/account/orders/': typeof AccountOrdersIndexRoute
   '/admin/disputes/': typeof AdminDisputesIndexRoute
@@ -1018,12 +1061,16 @@ export interface FileRoutesById {
   '/shops/$shopSlug/products/$productSlug': typeof ShopsShopSlugProductsProductSlugRoute
   '/studio/$shopId/customers/$customerHash': typeof StudioShopIdCustomersCustomerHashRoute
   '/studio/$shopId/orders/$shopOrderId': typeof StudioShopIdOrdersShopOrderIdRoute
+  '/studio/$shopId/products/new': typeof StudioShopIdProductsNewRoute
   '/studio/$shopId/settings/tax': typeof StudioShopIdSettingsTaxRoute
   '/sell/onboarding/$draftId/': typeof SellOnboardingDraftIdIndexRoute
   '/studio/$shopId/customers/': typeof StudioShopIdCustomersIndexRoute
   '/studio/$shopId/orders/': typeof StudioShopIdOrdersIndexRoute
+  '/studio/$shopId/products/': typeof StudioShopIdProductsIndexRoute
+  '/studio/$shopId/settings/': typeof StudioShopIdSettingsIndexRoute
   '/api/shops/$shopId/orders/$shopOrderId': typeof ApiShopsShopIdOrdersShopOrderIdRoute
   '/api/shops/$shopId/products/$productId': typeof ApiShopsShopIdProductsProductIdRoute
+  '/studio/$shopId/products/$productId/edit': typeof StudioShopIdProductsProductIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -1072,7 +1119,6 @@ export interface FileRouteTypes {
     | '/category/$slug'
     | '/category/all'
     | '/creator/payouts'
-    | '/creator/products'
     | '/creator/shop'
     | '/disputes/$disputeId'
     | '/invoices/$invoiceId'
@@ -1106,6 +1152,8 @@ export interface FileRouteTypes {
     | '/sell/status/$shopId'
     | '/studio/$shopId/customers'
     | '/studio/$shopId/orders'
+    | '/studio/$shopId/payouts'
+    | '/studio/$shopId/products'
     | '/studio/$shopId/settings'
     | '/account/orders/'
     | '/admin/disputes/'
@@ -1133,12 +1181,16 @@ export interface FileRouteTypes {
     | '/shops/$shopSlug/products/$productSlug'
     | '/studio/$shopId/customers/$customerHash'
     | '/studio/$shopId/orders/$shopOrderId'
+    | '/studio/$shopId/products/new'
     | '/studio/$shopId/settings/tax'
     | '/sell/onboarding/$draftId/'
     | '/studio/$shopId/customers/'
     | '/studio/$shopId/orders/'
+    | '/studio/$shopId/products/'
+    | '/studio/$shopId/settings/'
     | '/api/shops/$shopId/orders/$shopOrderId'
     | '/api/shops/$shopId/products/$productId'
+    | '/studio/$shopId/products/$productId/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -1205,7 +1257,7 @@ export interface FileRouteTypes {
     | '/creator/products/new'
     | '/orders/$platformOrderId/success'
     | '/sell/status/$shopId'
-    | '/studio/$shopId/settings'
+    | '/studio/$shopId/payouts'
     | '/account/orders'
     | '/admin/disputes'
     | '/admin/orders'
@@ -1232,12 +1284,16 @@ export interface FileRouteTypes {
     | '/shops/$shopSlug/products/$productSlug'
     | '/studio/$shopId/customers/$customerHash'
     | '/studio/$shopId/orders/$shopOrderId'
+    | '/studio/$shopId/products/new'
     | '/studio/$shopId/settings/tax'
     | '/sell/onboarding/$draftId'
     | '/studio/$shopId/customers'
     | '/studio/$shopId/orders'
+    | '/studio/$shopId/products'
+    | '/studio/$shopId/settings'
     | '/api/shops/$shopId/orders/$shopOrderId'
     | '/api/shops/$shopId/products/$productId'
+    | '/studio/$shopId/products/$productId/edit'
   id:
     | '__root__'
     | '/'
@@ -1284,7 +1340,6 @@ export interface FileRouteTypes {
     | '/category/$slug'
     | '/category/all'
     | '/creator/payouts'
-    | '/creator/products'
     | '/creator/shop'
     | '/disputes/$disputeId'
     | '/invoices/$invoiceId'
@@ -1318,6 +1373,8 @@ export interface FileRouteTypes {
     | '/sell/status/$shopId'
     | '/studio/$shopId/customers'
     | '/studio/$shopId/orders'
+    | '/studio/$shopId/payouts'
+    | '/studio/$shopId/products'
     | '/studio/$shopId/settings'
     | '/account/orders/'
     | '/admin/disputes/'
@@ -1345,12 +1402,16 @@ export interface FileRouteTypes {
     | '/shops/$shopSlug/products/$productSlug'
     | '/studio/$shopId/customers/$customerHash'
     | '/studio/$shopId/orders/$shopOrderId'
+    | '/studio/$shopId/products/new'
     | '/studio/$shopId/settings/tax'
     | '/sell/onboarding/$draftId/'
     | '/studio/$shopId/customers/'
     | '/studio/$shopId/orders/'
+    | '/studio/$shopId/products/'
+    | '/studio/$shopId/settings/'
     | '/api/shops/$shopId/orders/$shopOrderId'
     | '/api/shops/$shopId/products/$productId'
+    | '/studio/$shopId/products/$productId/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1742,13 +1803,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CreatorPayoutsRouteImport
       parentRoute: typeof CreatorRoute
     }
-    '/creator/products': {
-      id: '/creator/products'
-      path: '/products'
-      fullPath: '/creator/products'
-      preLoaderRoute: typeof CreatorProductsRouteImport
-      parentRoute: typeof CreatorRoute
-    }
     '/creator/shop': {
       id: '/creator/shop'
       path: '/shop'
@@ -1940,17 +1994,17 @@ declare module '@tanstack/react-router' {
     }
     '/creator/products/': {
       id: '/creator/products/'
-      path: '/'
+      path: '/products'
       fullPath: '/creator/products/'
       preLoaderRoute: typeof CreatorProductsIndexRouteImport
-      parentRoute: typeof CreatorProductsRoute
+      parentRoute: typeof CreatorRoute
     }
     '/creator/products/new': {
       id: '/creator/products/new'
-      path: '/new'
+      path: '/products/new'
       fullPath: '/creator/products/new'
       preLoaderRoute: typeof CreatorProductsNewRouteImport
-      parentRoute: typeof CreatorProductsRoute
+      parentRoute: typeof CreatorRoute
     }
     '/orders/$platformOrderId/': {
       id: '/orders/$platformOrderId/'
@@ -2008,6 +2062,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioShopIdOrdersRouteImport
       parentRoute: typeof StudioShopIdRoute
     }
+    '/studio/$shopId/payouts': {
+      id: '/studio/$shopId/payouts'
+      path: '/payouts'
+      fullPath: '/studio/$shopId/payouts'
+      preLoaderRoute: typeof StudioShopIdPayoutsRouteImport
+      parentRoute: typeof StudioShopIdRoute
+    }
+    '/studio/$shopId/products': {
+      id: '/studio/$shopId/products'
+      path: '/products'
+      fullPath: '/studio/$shopId/products'
+      preLoaderRoute: typeof StudioShopIdProductsRouteImport
+      parentRoute: typeof StudioShopIdRoute
+    }
     '/studio/$shopId/settings': {
       id: '/studio/$shopId/settings'
       path: '/settings'
@@ -2059,10 +2127,10 @@ declare module '@tanstack/react-router' {
     }
     '/creator/products/$productId/edit': {
       id: '/creator/products/$productId/edit'
-      path: '/$productId/edit'
+      path: '/products/$productId/edit'
       fullPath: '/creator/products/$productId/edit'
       preLoaderRoute: typeof CreatorProductsProductIdEditRouteImport
-      parentRoute: typeof CreatorProductsRoute
+      parentRoute: typeof CreatorRoute
     }
     '/orders/$platformOrderId/returns/new': {
       id: '/orders/$platformOrderId/returns/new'
@@ -2169,6 +2237,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudioShopIdOrdersShopOrderIdRouteImport
       parentRoute: typeof StudioShopIdOrdersRoute
     }
+    '/studio/$shopId/products/': {
+      id: '/studio/$shopId/products/'
+      path: '/'
+      fullPath: '/studio/$shopId/products/'
+      preLoaderRoute: typeof StudioShopIdProductsIndexRouteImport
+      parentRoute: typeof StudioShopIdProductsRoute
+    }
+    '/studio/$shopId/products/new': {
+      id: '/studio/$shopId/products/new'
+      path: '/new'
+      fullPath: '/studio/$shopId/products/new'
+      preLoaderRoute: typeof StudioShopIdProductsNewRouteImport
+      parentRoute: typeof StudioShopIdProductsRoute
+    }
+    '/studio/$shopId/settings/': {
+      id: '/studio/$shopId/settings/'
+      path: '/'
+      fullPath: '/studio/$shopId/settings/'
+      preLoaderRoute: typeof StudioShopIdSettingsIndexRouteImport
+      parentRoute: typeof StudioShopIdSettingsRoute
+    }
     '/studio/$shopId/settings/tax': {
       id: '/studio/$shopId/settings/tax'
       path: '/tax'
@@ -2189,6 +2278,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/shops/$shopId/products/$productId'
       preLoaderRoute: typeof ApiShopsShopIdProductsProductIdRouteImport
       parentRoute: typeof ApiShopsShopIdProductsRoute
+    }
+    '/studio/$shopId/products/$productId/edit': {
+      id: '/studio/$shopId/products/$productId/edit'
+      path: '/$productId/edit'
+      fullPath: '/studio/$shopId/products/$productId/edit'
+      preLoaderRoute: typeof StudioShopIdProductsProductIdEditRouteImport
+      parentRoute: typeof StudioShopIdProductsRoute
     }
   }
 }
@@ -2282,12 +2378,30 @@ const StudioShopIdOrdersRouteChildren: StudioShopIdOrdersRouteChildren = {
 const StudioShopIdOrdersRouteWithChildren =
   StudioShopIdOrdersRoute._addFileChildren(StudioShopIdOrdersRouteChildren)
 
+interface StudioShopIdProductsRouteChildren {
+  StudioShopIdProductsNewRoute: typeof StudioShopIdProductsNewRoute
+  StudioShopIdProductsIndexRoute: typeof StudioShopIdProductsIndexRoute
+  StudioShopIdProductsProductIdEditRoute: typeof StudioShopIdProductsProductIdEditRoute
+}
+
+const StudioShopIdProductsRouteChildren: StudioShopIdProductsRouteChildren = {
+  StudioShopIdProductsNewRoute: StudioShopIdProductsNewRoute,
+  StudioShopIdProductsIndexRoute: StudioShopIdProductsIndexRoute,
+  StudioShopIdProductsProductIdEditRoute:
+    StudioShopIdProductsProductIdEditRoute,
+}
+
+const StudioShopIdProductsRouteWithChildren =
+  StudioShopIdProductsRoute._addFileChildren(StudioShopIdProductsRouteChildren)
+
 interface StudioShopIdSettingsRouteChildren {
   StudioShopIdSettingsTaxRoute: typeof StudioShopIdSettingsTaxRoute
+  StudioShopIdSettingsIndexRoute: typeof StudioShopIdSettingsIndexRoute
 }
 
 const StudioShopIdSettingsRouteChildren: StudioShopIdSettingsRouteChildren = {
   StudioShopIdSettingsTaxRoute: StudioShopIdSettingsTaxRoute,
+  StudioShopIdSettingsIndexRoute: StudioShopIdSettingsIndexRoute,
 }
 
 const StudioShopIdSettingsRouteWithChildren =
@@ -2296,6 +2410,8 @@ const StudioShopIdSettingsRouteWithChildren =
 interface StudioShopIdRouteChildren {
   StudioShopIdCustomersRoute: typeof StudioShopIdCustomersRouteWithChildren
   StudioShopIdOrdersRoute: typeof StudioShopIdOrdersRouteWithChildren
+  StudioShopIdPayoutsRoute: typeof StudioShopIdPayoutsRoute
+  StudioShopIdProductsRoute: typeof StudioShopIdProductsRouteWithChildren
   StudioShopIdSettingsRoute: typeof StudioShopIdSettingsRouteWithChildren
   StudioShopIdIndexRoute: typeof StudioShopIdIndexRoute
 }
@@ -2303,6 +2419,8 @@ interface StudioShopIdRouteChildren {
 const StudioShopIdRouteChildren: StudioShopIdRouteChildren = {
   StudioShopIdCustomersRoute: StudioShopIdCustomersRouteWithChildren,
   StudioShopIdOrdersRoute: StudioShopIdOrdersRouteWithChildren,
+  StudioShopIdPayoutsRoute: StudioShopIdPayoutsRoute,
+  StudioShopIdProductsRoute: StudioShopIdProductsRouteWithChildren,
   StudioShopIdSettingsRoute: StudioShopIdSettingsRouteWithChildren,
   StudioShopIdIndexRoute: StudioShopIdIndexRoute,
 }
@@ -2325,34 +2443,22 @@ const StudioRouteRouteWithChildren = StudioRouteRoute._addFileChildren(
   StudioRouteRouteChildren,
 )
 
-interface CreatorProductsRouteChildren {
+interface CreatorRouteChildren {
+  CreatorPayoutsRoute: typeof CreatorPayoutsRoute
+  CreatorShopRoute: typeof CreatorShopRoute
+  CreatorIndexRoute: typeof CreatorIndexRoute
   CreatorProductsNewRoute: typeof CreatorProductsNewRoute
   CreatorProductsIndexRoute: typeof CreatorProductsIndexRoute
   CreatorProductsProductIdEditRoute: typeof CreatorProductsProductIdEditRoute
 }
 
-const CreatorProductsRouteChildren: CreatorProductsRouteChildren = {
+const CreatorRouteChildren: CreatorRouteChildren = {
+  CreatorPayoutsRoute: CreatorPayoutsRoute,
+  CreatorShopRoute: CreatorShopRoute,
+  CreatorIndexRoute: CreatorIndexRoute,
   CreatorProductsNewRoute: CreatorProductsNewRoute,
   CreatorProductsIndexRoute: CreatorProductsIndexRoute,
   CreatorProductsProductIdEditRoute: CreatorProductsProductIdEditRoute,
-}
-
-const CreatorProductsRouteWithChildren = CreatorProductsRoute._addFileChildren(
-  CreatorProductsRouteChildren,
-)
-
-interface CreatorRouteChildren {
-  CreatorPayoutsRoute: typeof CreatorPayoutsRoute
-  CreatorProductsRoute: typeof CreatorProductsRouteWithChildren
-  CreatorShopRoute: typeof CreatorShopRoute
-  CreatorIndexRoute: typeof CreatorIndexRoute
-}
-
-const CreatorRouteChildren: CreatorRouteChildren = {
-  CreatorPayoutsRoute: CreatorPayoutsRoute,
-  CreatorProductsRoute: CreatorProductsRouteWithChildren,
-  CreatorShopRoute: CreatorShopRoute,
-  CreatorIndexRoute: CreatorIndexRoute,
 }
 
 const CreatorRouteWithChildren =
