@@ -12,6 +12,7 @@ import {
 const LOCALE_LABELS: Record<string, string> = {
   en: 'English',
   nl: 'Nederlands',
+  fr: 'Français',
 }
 
 export default function LocaleDropdown() {
