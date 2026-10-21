@@ -20,7 +20,7 @@ import { scheduleBackgroundWork } from '../background-work.server'
 import { restoreShopOrderStockInTx } from '../inventory.server'
 import { createCreditNoteForShopOrder, createInvoicesForPlatformOrder } from '../invoices.server'
 import type { ShippingAddress } from '../checkout/types'
-import { decryptJsonb } from '../encryption.server'
+import { decryptIfEncrypted, decryptJsonb } from '../encryption.server'
 import { getBaseUrl } from '../env.server'
 import { logger } from '../logger.server'
 import {
@@ -522,7 +522,7 @@ export async function markShopOrderDeliveredQuery(shopOrderId: string): Promise<
             .where(eq(shop.id, updatedShopOrder.shopId))
             .limit(1)
 
-          if (shopRecord && !shopRecord.taxId) {
+          if (shopRecord && !decryptIfEncrypted(shopRecord.taxId)) {
             const { createNotification } = await import('../notifications.server')
             const limitType = dac7Status.exceededLimit ? 'exceeded' : 'approaching'
             await createNotification(shopRecord.ownerId, 'dac7_warning_limit', {
@@ -966,11 +966,215 @@ export interface CancelShopOrderInput {
   reason?: string
 }
 
+function isAlreadyCapturedPaymentError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : ''
+  return (
+    message.includes('already been captured') ||
+    message.includes('Payment has already been captured')
+  )
+}
+
+async function shopOrderNotFoundAfterUpdate(): Promise<never> {
+  throw new Response(
+    JSON.stringify({ error: 'Not Found', message: 'Shop order not found after update' }),
+    { status: 404, headers: { 'Content-Type': 'application/json' } },
+  )
+}
+
+async function applyLocalShopOrderCancellation(
+  tx: Omit<typeof db, '$client'>,
+  record: { id: string; platformOrderId: string },
+): Promise<ShopOrderDetail> {
+  await tx
+    .update(shopOrder)
+    .set({ status: 'cancelled', updatedAt: new Date() })
+    .where(eq(shopOrder.id, record.id))
+
+  await restoreShopOrderStockInTx(tx, record.platformOrderId, record.id)
+
+  const [payoutRecord] = await tx
+    .select()
+    .from(payout)
+    .where(eq(payout.shopOrderId, record.id))
+    .limit(1)
+
+  if (payoutRecord && ['pending', 'in_transit'].includes(payoutRecord.status)) {
+    await tx
+      .update(payout)
+      .set({ status: 'reversed', reversedAt: new Date(), reversalReason: 'order_cancelled' })
+      .where(eq(payout.id, payoutRecord.id))
+  }
+
+  await recalcPlatformOrderStatus(tx, record.platformOrderId)
+
+  const order = await getShopOrderQuery(record.id, tx)
+  if (!order) return shopOrderNotFoundAfterUpdate()
+  return order
+}
+
+async function refundCapturedPendingPaymentShopOrder(input: {
+  shopOrderId: string
+  platformOrderId: string
+  molliePaymentId: string
+}): Promise<ShopOrderDetail> {
+  const prepared = await db.transaction(async (tx) => {
+    const [locked] = await tx
+      .select({
+        id: shopOrder.id,
+        status: shopOrder.status,
+        subtotalCents: shopOrder.subtotalCents,
+        shippingCostCents: shopOrder.shippingCostCents,
+        refundedCents: shopOrder.refundedCents,
+        refundPendingCents: shopOrder.refundPendingCents,
+      })
+      .from(shopOrder)
+      .where(eq(shopOrder.id, input.shopOrderId))
+      .for('update')
+      .limit(1)
+
+    if (!locked) {
+      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (locked.status === 'refunded') {
+      return { skipNetwork: true, refundCents: 0, reversalOptions: {} }
+    }
+
+    const refundCents =
+      locked.refundPendingCents > 0
+        ? locked.refundPendingCents
+        : locked.subtotalCents + locked.shippingCostCents - locked.refundedCents
+
+    if (refundCents <= 0) {
+      return { skipNetwork: true, refundCents: 0, reversalOptions: {} }
+    }
+
+    let reversalOptions = {}
+    if (locked.refundPendingCents === 0) {
+      reversalOptions = await reversePayoutForRefund(
+        tx,
+        input.shopOrderId,
+        refundCents,
+        'order_cancelled_after_capture',
+      )
+      await tx
+        .update(shopOrder)
+        .set({
+          refundPendingCents: refundCents,
+          lastRefundAttemptedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(shopOrder.id, input.shopOrderId))
+      await createInvoicesForPlatformOrder(input.platformOrderId, tx)
+      await createCreditNoteForShopOrder(input.shopOrderId, tx)
+    } else {
+      const [payoutRecord] = await tx
+        .select({ status: payout.status, mollieRouteId: payout.mollieRouteId })
+        .from(payout)
+        .where(eq(payout.shopOrderId, input.shopOrderId))
+        .limit(1)
+      if (payoutRecord?.status === 'reversed' || payoutRecord?.mollieRouteId) {
+        reversalOptions = { reverseRouting: true }
+      }
+    }
+
+    return { skipNetwork: false, refundCents, reversalOptions }
+  })
+
+  if (!prepared.skipNetwork) {
+    await molliePaymentProvider.refundPayment(
+      input.molliePaymentId,
+      prepared.refundCents,
+      prepared.reversalOptions,
+    )
+  }
+
+  const order = await db.transaction(async (tx) => {
+    const [locked] = await tx
+      .select({
+        id: shopOrder.id,
+        status: shopOrder.status,
+        subtotalCents: shopOrder.subtotalCents,
+        shippingCostCents: shopOrder.shippingCostCents,
+        refundedCents: shopOrder.refundedCents,
+        refundPendingCents: shopOrder.refundPendingCents,
+        platformOrderId: shopOrder.platformOrderId,
+      })
+      .from(shopOrder)
+      .where(eq(shopOrder.id, input.shopOrderId))
+      .for('update')
+      .limit(1)
+
+    if (!locked) {
+      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    if (locked.status === 'refunded') {
+      const existing = await getShopOrderQuery(input.shopOrderId, tx)
+      if (!existing) return shopOrderNotFoundAfterUpdate()
+      return existing
+    }
+
+    const refundCents =
+      prepared.refundCents > 0
+        ? prepared.refundCents
+        : locked.subtotalCents + locked.shippingCostCents - locked.refundedCents
+
+    await tx
+      .update(shopOrder)
+      .set({
+        status: 'refunded',
+        refundedCents: locked.subtotalCents + locked.shippingCostCents,
+        refundPendingCents: 0,
+        updatedAt: new Date(),
+      })
+      .where(eq(shopOrder.id, input.shopOrderId))
+
+    if (refundCents > 0) {
+      await tx
+        .update(platformOrder)
+        .set({
+          refundedCents: sql`${platformOrder.refundedCents} + ${refundCents}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(platformOrder.id, locked.platformOrderId))
+    }
+
+    await restoreShopOrderStockInTx(tx, locked.platformOrderId, input.shopOrderId)
+    await createInvoicesForPlatformOrder(locked.platformOrderId, tx)
+    await createCreditNoteForShopOrder(input.shopOrderId, tx)
+    await recalcPlatformOrderStatus(tx, locked.platformOrderId)
+
+    logger.error(
+      `Cancelled pending_payment shop order ${input.shopOrderId} was already captured; refunded buyer`,
+      undefined,
+      {
+        alert: true,
+        shopOrderId: input.shopOrderId,
+        platformOrderId: locked.platformOrderId,
+        refundCents,
+      },
+    )
+
+    const updated = await getShopOrderQuery(input.shopOrderId, tx)
+    if (!updated) return shopOrderNotFoundAfterUpdate()
+    return updated
+  })
+
+  return order
+}
+
 export async function cancelShopOrderQuery(
   shopOrderId: string,
   input: CancelShopOrderInput = {},
 ): Promise<ShopOrderDetail> {
-  const cancelled = await db.transaction(async (tx) => {
+  const prepared = await db.transaction(async (tx) => {
     const [record] = await tx
       .select()
       .from(shopOrder)
@@ -988,13 +1192,8 @@ export async function cancelShopOrderQuery(
     const currentStatus = record.status as OrderStatus
     if (currentStatus === 'cancelled') {
       const order = await getShopOrderQuery(shopOrderId, tx)
-      if (!order) {
-        throw new Response(
-          JSON.stringify({ error: 'Not Found', message: 'Shop order not found after update' }),
-          { status: 404, headers: { 'Content-Type': 'application/json' } },
-        )
-      }
-      return order
+      if (!order) return shopOrderNotFoundAfterUpdate()
+      return { kind: 'done' as const, order }
     }
 
     if (!isValidStatusTransition(currentStatus, 'cancelled')) {
@@ -1007,8 +1206,6 @@ export async function cancelShopOrderQuery(
       )
     }
 
-    // Pending-payment cancellations must void the Mollie payment so a late
-    // webhook cannot capture funds against a cancelled order (P0-14).
     if (currentStatus === 'pending_payment') {
       const [platformOrderRecord] = await tx
         .select({ molliePaymentId: platformOrder.molliePaymentId })
@@ -1017,115 +1214,76 @@ export async function cancelShopOrderQuery(
         .limit(1)
 
       if (platformOrderRecord?.molliePaymentId) {
-        try {
-          await molliePaymentProvider.cancelPayment(platformOrderRecord.molliePaymentId)
-        } catch (cancelErr) {
-          const message = cancelErr instanceof Error ? cancelErr.message : ''
-          if (
-            message.includes('already been captured') ||
-            message.includes('Payment has already been captured')
-          ) {
-            // The buyer completed payment before we could cancel. Refund them
-            // immediately and mark the shop order as refunded instead.
-            const refundCents =
-              record.subtotalCents + record.shippingCostCents - record.refundedCents
-            if (refundCents > 0) {
-              const reversalOptions = await reversePayoutForRefund(
-                tx,
-                shopOrderId,
-                refundCents,
-                'order_cancelled_after_capture',
-              )
-
-              await molliePaymentProvider.refundPayment(
-                platformOrderRecord.molliePaymentId,
-                refundCents,
-                reversalOptions,
-              )
-            }
-
-            await tx
-              .update(shopOrder)
-              .set({
-                status: 'refunded',
-                refundedCents: record.subtotalCents + record.shippingCostCents,
-                updatedAt: new Date(),
-              })
-              .where(eq(shopOrder.id, shopOrderId))
-
-            await tx
-              .update(platformOrder)
-              .set({
-                refundedCents: sql`${platformOrder.refundedCents} + ${refundCents}`,
-                updatedAt: new Date(),
-              })
-              .where(eq(platformOrder.id, record.platformOrderId))
-
-            await restoreShopOrderStockInTx(tx, record.platformOrderId, shopOrderId)
-            await createInvoicesForPlatformOrder(record.platformOrderId, tx)
-            await createCreditNoteForShopOrder(shopOrderId, tx)
-            await recalcPlatformOrderStatus(tx, record.platformOrderId)
-
-            logger.error(
-              `Cancelled pending_payment shop order ${shopOrderId} was already captured; refunded buyer`,
-              undefined,
-              {
-                alert: true,
-                shopOrderId,
-                platformOrderId: record.platformOrderId,
-                refundCents,
-              },
-            )
-
-            const order = await getShopOrderQuery(shopOrderId, tx)
-            if (!order) {
-              throw new Response(
-                JSON.stringify({
-                  error: 'Not Found',
-                  message: 'Shop order not found after update',
-                }),
-                { status: 404, headers: { 'Content-Type': 'application/json' } },
-              )
-            }
-            return order
-          }
-
-          throw cancelErr
+        return {
+          kind: 'needs_void' as const,
+          platformOrderId: record.platformOrderId,
+          molliePaymentId: platformOrderRecord.molliePaymentId,
         }
       }
     }
 
-    await tx
-      .update(shopOrder)
-      .set({ status: 'cancelled', updatedAt: new Date() })
-      .where(eq(shopOrder.id, shopOrderId))
+    const order = await applyLocalShopOrderCancellation(tx, record)
+    return { kind: 'done' as const, order }
+  })
 
-    await restoreShopOrderStockInTx(tx, record.platformOrderId, shopOrderId)
+  if (prepared.kind === 'done') {
+    logOrderCancelled({
+      platformOrderId: prepared.order.platformOrderId,
+      reason: input.reason,
+    })
+    return prepared.order
+  }
 
-    // Reverse any pending payout that may have been created prematurely.
-    const [payoutRecord] = await tx
+  try {
+    await molliePaymentProvider.cancelPayment(prepared.molliePaymentId)
+  } catch (cancelErr) {
+    if (isAlreadyCapturedPaymentError(cancelErr)) {
+      const order = await refundCapturedPendingPaymentShopOrder({
+        shopOrderId,
+        platformOrderId: prepared.platformOrderId,
+        molliePaymentId: prepared.molliePaymentId,
+      })
+      logOrderCancelled({
+        platformOrderId: order.platformOrderId,
+        reason: input.reason,
+      })
+      return order
+    }
+    throw cancelErr
+  }
+
+  const cancelled = await db.transaction(async (tx) => {
+    const [record] = await tx
       .select()
-      .from(payout)
-      .where(eq(payout.shopOrderId, shopOrderId))
+      .from(shopOrder)
+      .where(eq(shopOrder.id, shopOrderId))
+      .for('update')
       .limit(1)
 
-    if (payoutRecord && ['pending', 'in_transit'].includes(payoutRecord.status)) {
-      await tx
-        .update(payout)
-        .set({ status: 'reversed', reversedAt: new Date(), reversalReason: 'order_cancelled' })
-        .where(eq(payout.id, payoutRecord.id))
+    if (!record) {
+      throw new Response(JSON.stringify({ error: 'Not Found', message: 'Shop order not found' }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      })
     }
 
-    await recalcPlatformOrderStatus(tx, record.platformOrderId)
+    if (record.status === 'cancelled' || record.status === 'refunded') {
+      const order = await getShopOrderQuery(shopOrderId, tx)
+      if (!order) return shopOrderNotFoundAfterUpdate()
+      return order
+    }
 
-    const order = await getShopOrderQuery(shopOrderId, tx)
-    if (!order) {
+    if (!isValidStatusTransition(record.status as OrderStatus, 'cancelled')) {
       throw new Response(
-        JSON.stringify({ error: 'Not Found', message: 'Shop order not found after update' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } },
+        JSON.stringify({
+          error: 'Bad Request',
+          message: `Cannot cancel a shop order in status '${record.status}'`,
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
       )
     }
-    return order
+
+    return applyLocalShopOrderCancellation(tx, record)
   })
 
   logOrderCancelled({
@@ -1529,7 +1687,7 @@ export async function refundCancelledPlatformOrder(
   molliePaymentId: string,
   provider: PaymentProvider = molliePaymentProvider,
 ): Promise<number> {
-  const result = await db.transaction(async (tx) => {
+  const pendingRefunds = await db.transaction(async (tx) => {
     const [order] = await tx
       .select({ id: platformOrder.id, status: platformOrder.status })
       .from(platformOrder)
@@ -1538,7 +1696,7 @@ export async function refundCancelledPlatformOrder(
       .limit(1)
 
     if (!order || order.status !== 'cancelled') {
-      return 0
+      return []
     }
 
     const shopOrders = await tx
@@ -1547,15 +1705,37 @@ export async function refundCancelledPlatformOrder(
         subtotalCents: shopOrder.subtotalCents,
         shippingCostCents: shopOrder.shippingCostCents,
         refundedCents: shopOrder.refundedCents,
+        refundPendingCents: shopOrder.refundPendingCents,
         platformOrderId: shopOrder.platformOrderId,
       })
       .from(shopOrder)
       .where(eq(shopOrder.platformOrderId, platformOrderId))
       .for('update')
 
-    let totalRefunded = 0
+    const refunds: Array<{
+      shopOrderId: string
+      refundCents: number
+      reversalOptions: Awaited<ReturnType<typeof reversePayoutForRefund>>
+    }> = []
 
     for (const so of shopOrders) {
+      if (so.refundPendingCents > 0) {
+        const [payoutRecord] = await tx
+          .select({ status: payout.status, mollieRouteId: payout.mollieRouteId })
+          .from(payout)
+          .where(eq(payout.shopOrderId, so.id))
+          .limit(1)
+        refunds.push({
+          shopOrderId: so.id,
+          refundCents: so.refundPendingCents,
+          reversalOptions:
+            payoutRecord?.status === 'reversed' || payoutRecord?.mollieRouteId
+              ? { reverseRouting: true }
+              : {},
+        })
+        continue
+      }
+
       const refundCents = Math.max(0, so.subtotalCents + so.shippingCostCents - so.refundedCents)
       if (refundCents === 0) continue
 
@@ -1566,21 +1746,78 @@ export async function refundCancelledPlatformOrder(
         'cancelled_order_paid_webhook',
       )
 
-      await provider.refundPayment(molliePaymentId, refundCents, reversalOptions)
+      await tx
+        .update(shopOrder)
+        .set({
+          refundPendingCents: refundCents,
+          lastRefundAttemptedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(shopOrder.id, so.id))
+
+      await createCreditNoteForShopOrder(so.id, tx)
+
+      refunds.push({ shopOrderId: so.id, refundCents, reversalOptions })
+    }
+
+    return refunds
+  })
+
+  if (pendingRefunds.length === 0) {
+    return 0
+  }
+
+  for (const item of pendingRefunds) {
+    await provider.refundPayment(molliePaymentId, item.refundCents, {
+      ...item.reversalOptions,
+      idempotencyKey: `cancelled-order-refund:${item.shopOrderId}:${item.refundCents}`,
+    })
+  }
+
+  const result = await db.transaction(async (tx) => {
+    let totalRefunded = 0
+
+    for (const item of pendingRefunds) {
+      const [locked] = await tx
+        .select({
+          id: shopOrder.id,
+          refundedCents: shopOrder.refundedCents,
+          refundPendingCents: shopOrder.refundPendingCents,
+          platformOrderId: shopOrder.platformOrderId,
+          status: shopOrder.status,
+        })
+        .from(shopOrder)
+        .where(eq(shopOrder.id, item.shopOrderId))
+        .for('update')
+        .limit(1)
+
+      if (!locked || locked.refundPendingCents !== item.refundCents) {
+        logger.error(
+          `Refund finalization state mismatch for cancelled shop order ${item.shopOrderId}`,
+          undefined,
+          {
+            alert: true,
+            shopOrderId: item.shopOrderId,
+            refundCents: item.refundCents,
+            refundPendingCents: locked?.refundPendingCents,
+          },
+        )
+        continue
+      }
 
       await tx
         .update(shopOrder)
         .set({
           status: 'refunded',
-          refundedCents: so.refundedCents + refundCents,
+          refundedCents: locked.refundedCents + item.refundCents,
+          refundPendingCents: 0,
           updatedAt: new Date(),
         })
-        .where(eq(shopOrder.id, so.id))
+        .where(eq(shopOrder.id, item.shopOrderId))
 
-      await restoreShopOrderStockInTx(tx, so.platformOrderId, so.id)
-      await createCreditNoteForShopOrder(so.id, tx)
+      await restoreShopOrderStockInTx(tx, locked.platformOrderId, item.shopOrderId)
 
-      totalRefunded += refundCents
+      totalRefunded += item.refundCents
     }
 
     if (totalRefunded > 0) {

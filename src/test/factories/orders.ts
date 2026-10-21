@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { db } from '#/db/index'
 import * as schema from '#/db/schema'
+import { encryptJsonb } from '#/lib/encryption.server'
 import {
   makeTestAddress,
   type PlatformOrderLike,
@@ -13,15 +14,26 @@ export async function createPlatformOrder(
   overrides?: Partial<typeof schema.platformOrder.$inferInsert>,
 ): Promise<typeof schema.platformOrder.$inferSelect> {
   const userId = typeof buyer === 'string' ? buyer : buyer.id
+  const values = {
+    userId,
+    shippingAddress: makeTestAddress(),
+    billingAddress: makeTestAddress(),
+    totalCents: 2500,
+    status: 'paid' as const,
+    ...overrides,
+  }
   const [row] = await db
     .insert(schema.platformOrder)
     .values({
-      userId,
-      shippingAddress: makeTestAddress(),
-      billingAddress: makeTestAddress(),
-      totalCents: 2500,
-      status: 'paid',
-      ...overrides,
+      ...values,
+      shippingAddress:
+        typeof values.shippingAddress === 'object' && values.shippingAddress !== null
+          ? (encryptJsonb(values.shippingAddress) as typeof values.shippingAddress)
+          : values.shippingAddress,
+      billingAddress:
+        typeof values.billingAddress === 'object' && values.billingAddress !== null
+          ? (encryptJsonb(values.billingAddress) as typeof values.billingAddress)
+          : values.billingAddress,
     })
     .returning()
   return row
