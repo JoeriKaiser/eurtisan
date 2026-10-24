@@ -71,6 +71,43 @@ function readConfiguredLocales(rootDir: string): string[] {
   return ['en']
 }
 
+export function ensureParaglideRuntimeProject(rootDir = process.cwd()): string {
+  const runtimeDir = join(rootDir, '.inlang-runtime')
+  const runtimeProjectDir = join(runtimeDir, 'project.inlang')
+  const runtimeMessagesDir = join(runtimeDir, 'messages')
+
+  mkdirSync(runtimeProjectDir, { recursive: true })
+  mkdirSync(runtimeMessagesDir, { recursive: true })
+
+  const sourceSettingsPath = join(rootDir, 'project.inlang/settings.json')
+  const rawSettings = existsSync(sourceSettingsPath)
+    ? JSON.parse(readFileSync(sourceSettingsPath, 'utf8'))
+    : {}
+
+  const runtimeSettings = {
+    ...rawSettings,
+    'plugin.inlang.messageFormat': {
+      ...(rawSettings['plugin.inlang.messageFormat'] ?? {}),
+      pathPattern: './messages/{locale}.json',
+    },
+  }
+
+  writeFileSync(
+    join(runtimeProjectDir, 'settings.json'),
+    `${JSON.stringify(runtimeSettings, null, 2)}\n`,
+    'utf8',
+  )
+
+  const runtimeEnMessagesPath = join(runtimeMessagesDir, 'en.json')
+  writeFileSync(
+    runtimeEnMessagesPath,
+    '{"$schema":"https://inlang.com/schema/inlang-message-format","_":""}\n',
+    'utf8',
+  )
+
+  return runtimeProjectDir
+}
+
 export interface OrderedKeysResult {
   clientKeys: string[]
   allKeys: string[]
@@ -230,6 +267,7 @@ function emitParaglideMessagesArtifacts(rootDir: string, ordered: OrderedKeysRes
 }
 
 export function compileClientI18nCatalogs(rootDir = process.cwd()): OrderedKeysResult {
+  ensureParaglideRuntimeProject(rootDir)
   const locales = readConfiguredLocales(rootDir)
   const ordered = getOrderedMessageKeys(rootDir)
   const { clientKeys, allKeys, fallbackRaw } = ordered
@@ -280,5 +318,9 @@ export function compileClientI18nCatalogs(rootDir = process.cwd()): OrderedKeysR
 
 const meta = import.meta
 if ('main' in meta && meta.main) {
-  compileClientI18nCatalogs()
+  if (process.argv.includes('--prepare-runtime')) {
+    ensureParaglideRuntimeProject()
+  } else {
+    compileClientI18nCatalogs()
+  }
 }

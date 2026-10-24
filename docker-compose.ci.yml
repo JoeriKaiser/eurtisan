@@ -1,6 +1,38 @@
 services:
   db-test:
-    profiles: [ci-unused]
+    command:
+      - postgres
+      - -c
+      - fsync=off
+      - -c
+      - synchronous_commit=off
+      - -c
+      - full_page_writes=off
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eurtisan"]
+      interval: 1s
+      timeout: 3s
+      retries: 20
+
+  db:
+    command:
+      - postgres
+      - -c
+      - fsync=off
+      - -c
+      - synchronous_commit=off
+      - -c
+      - full_page_writes=off
+    tmpfs:
+      - /var/lib/postgresql/data
+    volumes: !override []
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U eurtisan"]
+      interval: 1s
+      timeout: 3s
+      retries: 20
 
   meilisearch:
     profiles: [ci-unused]
@@ -26,6 +58,8 @@ services:
       S3_SECRET_ACCESS_KEY: ci-placeholder
     depends_on: !override
       db:
+        condition: service_healthy
+      db-test:
         condition: service_healthy
 
   email-outbox-worker:

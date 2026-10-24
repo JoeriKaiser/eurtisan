@@ -7,6 +7,7 @@ import { defineConfig, loadEnv } from 'vite'
 import {
   buildSsrI18nVirtualModule,
   compileClientI18nCatalogs,
+  ensureParaglideRuntimeProject,
 } from './scripts/compile-client-i18n.ts'
 import { PREFIXED_EU_LOCALES } from './src/lib/i18n/eu-locales.ts'
 import {
@@ -71,6 +72,8 @@ function readPublicBuildEnvironment(mode: string): Record<string, string | undef
 const config = defineConfig(({ mode }) => {
   let keyToIndex: Record<string, number> = {}
   let ssrVirtualModuleCache: string | null = null
+
+  ensureParaglideRuntimeProject()
 
   return {
     resolve: { tsconfigPaths: true },
@@ -198,7 +201,7 @@ const config = defineConfig(({ mode }) => {
         },
       },
       paraglideVitePlugin({
-        project: './project.inlang',
+        project: './.inlang-runtime/project.inlang',
         outdir: './src/paraglide',
         outputStructure: 'locale-modules',
         cookieName: 'PARAGLIDE_LOCALE',
