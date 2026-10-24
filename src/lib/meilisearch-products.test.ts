@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { db } from '#/db/index'
 import { meilisearchSyncQueue, product, shop } from '#/db/schema'
+import { EU_ISO639_3_LOCALES } from '#/lib/i18n/eu-locales'
 
 import { clearTestTables } from '#/test/cleanup'
 import {
@@ -121,7 +122,7 @@ describe('configureProductsIndex', () => {
         pagination: { maxTotalHits: 10_000 },
         localizedAttributes: [
           {
-            locales: ['eng', 'nld', 'fra'],
+            locales: [...EU_ISO639_3_LOCALES],
             attributePatterns: ['name', 'description', 'categoryName', 'shopName'],
           },
         ],

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 export type CompactMessageEntry = string | Record<string, string>
@@ -24,6 +24,32 @@ function parseEntry(value: unknown): CompactMessageEntry {
     }
   }
   return ''
+}
+
+function extractEntryPlaceholders(value: unknown): string[] {
+  const found = new Set<string>()
+  if (typeof value === 'string') {
+    for (const match of value.matchAll(/\{(\w+)\}/g)) {
+      found.add(match[1])
+    }
+  } else if (Array.isArray(value) && value.length > 0) {
+    found.add('count')
+    const first = value[0]
+    if (
+      first &&
+      typeof first === 'object' &&
+      'match' in first &&
+      first.match &&
+      typeof first.match === 'object'
+    ) {
+      for (const mv of Object.values(first.match)) {
+        for (const match of String(mv).matchAll(/\{(\w+)\}/g)) {
+          found.add(match[1])
+        }
+      }
+    }
+  }
+  return Array.from(found).sort()
 }
 
 function readConfiguredLocales(rootDir: string): string[] {
@@ -77,54 +103,6 @@ export function getOrderedMessageKeys(rootDir = process.cwd()): OrderedKeysResul
   }
 
   return { clientKeys, allKeys, keyToIndex, fallbackRaw }
-}
-
-export function compileClientI18nCatalogs(rootDir = process.cwd()): OrderedKeysResult {
-  const locales = readConfiguredLocales(rootDir)
-  const ordered = getOrderedMessageKeys(rootDir)
-  const { clientKeys, allKeys, fallbackRaw } = ordered
-
-  const outputDir = join(rootDir, 'public/i18n')
-  const serverOutputDir = join(rootDir, 'public/i18n/ssr')
-  mkdirSync(outputDir, { recursive: true })
-  mkdirSync(serverOutputDir, { recursive: true })
-
-  // Remove legacy unused en.json if present
-  const legacyEnJson = join(outputDir, 'en.json')
-  if (existsSync(legacyEnJson)) {
-    rmSync(legacyEnJson, { force: true })
-  }
-
-  for (const locale of locales) {
-    const localePath = join(rootDir, `messages/${locale}.json`)
-    const raw: Record<string, unknown> = existsSync(localePath)
-      ? JSON.parse(readFileSync(localePath, 'utf8'))
-      : fallbackRaw
-
-    const denseClientCatalog: CompactMessageEntry[] = new Array(clientKeys.length)
-    for (let i = 0; i < clientKeys.length; i++) {
-      const key = clientKeys[i]
-      const val = Object.hasOwn(raw, key) ? raw[key] : fallbackRaw[key]
-      denseClientCatalog[i] = parseEntry(val)
-    }
-
-    const denseServerCatalog: CompactMessageEntry[] = new Array(allKeys.length)
-    for (let i = 0; i < allKeys.length; i++) {
-      const key = allKeys[i]
-      const val = Object.hasOwn(raw, key) ? raw[key] : fallbackRaw[key]
-      denseServerCatalog[i] = parseEntry(val)
-    }
-
-    const jsContent = `window.__EURTISAN_I18N__=${JSON.stringify(denseClientCatalog)};\n`
-    writeFileSync(join(outputDir, `${locale}.js`), jsContent, 'utf8')
-    writeFileSync(
-      join(serverOutputDir, `${locale}.json`),
-      JSON.stringify(denseServerCatalog),
-      'utf8',
-    )
-  }
-
-  return ordered
 }
 
 export function buildSsrI18nVirtualModule(rootDir = process.cwd()): string {
@@ -201,6 +179,103 @@ export function buildSsrI18nVirtualModule(rootDir = process.cwd()): string {
     'export { m };',
     '',
   ].join('\n')
+}
+
+function emitParaglideMessagesArtifacts(rootDir: string, ordered: OrderedKeysResult): void {
+  const paraglideDir = join(rootDir, 'src/paraglide')
+  const messagesDir = join(paraglideDir, 'messages')
+  if (!existsSync(paraglideDir)) return
+
+  mkdirSync(messagesDir, { recursive: true })
+
+  // Remove the 24 massive Paraglide locale .js files (300,000+ lines) so Vitest and tsc never parse them
+  for (const entry of readdirSync(messagesDir)) {
+    if (entry !== '_index.js' && entry !== '_index.d.ts') {
+      rmSync(join(messagesDir, entry), { force: true })
+    }
+  }
+
+  const ssrCode = buildSsrI18nVirtualModule(rootDir)
+  writeFileSync(join(messagesDir, '_index.js'), ssrCode, 'utf8')
+  writeFileSync(
+    join(paraglideDir, 'messages.js'),
+    "export { m } from './messages/_index.js';\n",
+    'utf8',
+  )
+
+  // Generate fast .d.ts declarations in ~10ms instead of running tsc --declaration on 391k lines of JS
+  const propLines: string[] = []
+  for (const key of ordered.allKeys) {
+    const placeholders = extractEntryPlaceholders(ordered.fallbackRaw[key])
+    if (placeholders.length === 0) {
+      propLines.push(
+        `  readonly ${key}: (inputs?: Record<string, unknown>, options?: { locale?: string }) => string;`,
+      )
+    } else {
+      const fields = placeholders.map((p) => `${p}: unknown`).join('; ')
+      propLines.push(
+        `  readonly ${key}: (inputs: { ${fields} }, options?: { locale?: string }) => string;`,
+      )
+    }
+  }
+
+  const dtsContent = ['export declare const m: {', ...propLines, '};', ''].join('\n')
+
+  writeFileSync(join(messagesDir, '_index.d.ts'), dtsContent, 'utf8')
+  writeFileSync(
+    join(paraglideDir, 'messages.d.ts'),
+    "export { m } from './messages/_index.js';\n",
+    'utf8',
+  )
+}
+
+export function compileClientI18nCatalogs(rootDir = process.cwd()): OrderedKeysResult {
+  const locales = readConfiguredLocales(rootDir)
+  const ordered = getOrderedMessageKeys(rootDir)
+  const { clientKeys, allKeys, fallbackRaw } = ordered
+
+  const outputDir = join(rootDir, 'public/i18n')
+  const serverOutputDir = join(rootDir, 'public/i18n/ssr')
+  mkdirSync(outputDir, { recursive: true })
+  mkdirSync(serverOutputDir, { recursive: true })
+
+  const legacyEnJson = join(outputDir, 'en.json')
+  if (existsSync(legacyEnJson)) {
+    rmSync(legacyEnJson, { force: true })
+  }
+
+  for (const locale of locales) {
+    const localePath = join(rootDir, `messages/${locale}.json`)
+    const raw: Record<string, unknown> = existsSync(localePath)
+      ? JSON.parse(readFileSync(localePath, 'utf8'))
+      : fallbackRaw
+
+    const denseClientCatalog: CompactMessageEntry[] = new Array(clientKeys.length)
+    for (let i = 0; i < clientKeys.length; i++) {
+      const key = clientKeys[i]
+      const val = Object.hasOwn(raw, key) ? raw[key] : fallbackRaw[key]
+      denseClientCatalog[i] = parseEntry(val)
+    }
+
+    const denseServerCatalog: CompactMessageEntry[] = new Array(allKeys.length)
+    for (let i = 0; i < allKeys.length; i++) {
+      const key = allKeys[i]
+      const val = Object.hasOwn(raw, key) ? raw[key] : fallbackRaw[key]
+      denseServerCatalog[i] = parseEntry(val)
+    }
+
+    const jsContent = `window.__EURTISAN_I18N__=${JSON.stringify(denseClientCatalog)};\n`
+    writeFileSync(join(outputDir, `${locale}.js`), jsContent, 'utf8')
+    writeFileSync(
+      join(serverOutputDir, `${locale}.json`),
+      JSON.stringify(denseServerCatalog),
+      'utf8',
+    )
+  }
+
+  emitParaglideMessagesArtifacts(rootDir, ordered)
+
+  return ordered
 }
 
 const meta = import.meta
