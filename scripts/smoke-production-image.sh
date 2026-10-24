@@ -1,6 +1,8 @@
 #!/bin/sh
 set -eu
 
+export DOCKER_BUILDKIT=1
+
 IMAGE_NAME="${PRODUCTION_SMOKE_IMAGE:-eurtisan-app:config-smoke}"
 PUBLIC_ORIGIN="${PRODUCTION_SMOKE_ORIGIN:-https://build-smoke.eurtisan.test}"
 RELEASE_VERSION="${PRODUCTION_SMOKE_VERSION:-$(git rev-parse HEAD)}"
@@ -136,12 +138,35 @@ VITE_UMAMI_ENABLED=false
 EOF
 
 docker run --rm --env-file "$SERVER_ENV_FILE" -e VALIDATE_ENV_ONLY=true "$IMAGE_NAME"
-docker run --rm --env-file "$SERVER_ENV_FILE" "$IMAGE_NAME" bun run validate:server-env
-docker run --rm --env-file "$SERVER_ENV_FILE" \
-  -e BREVO_API_KEY= \
-  -e EMAIL_SMTP_HOST=mailpit \
-  "$IMAGE_NAME" \
-  bun -e "await import('#/lib/env.server'); const { BrevoEmailProvider } = await import('./src/integrations/email/brevo-email-provider.ts'); new BrevoEmailProvider({ mock: true })"
+docker run --rm --env-file "$SERVER_ENV_FILE" "$IMAGE_NAME" sh -c '
+  set -eu
+  bun run validate:server-env
+  BREVO_API_KEY= EMAIL_SMTP_HOST=mailpit bun -e '\''await import("#/lib/env.server"); const { BrevoEmailProvider } = await import("./src/integrations/email/brevo-email-provider.ts"); new BrevoEmailProvider({ mock: true })'\''
+  pids=""
+  for job in \
+    job:inventory-cleanup \
+    job:session-cleanup \
+    job:cart-cleanup \
+    job:verification-cleanup \
+    job:meilisearch-sync \
+    job:audit-log-cleanup \
+    job:sendcloud-reconciliation \
+    job:mollie-payment-reconciliation \
+    job:payout-reconciliation \
+    job:payout-reconciliation-log-cleanup \
+    job:email-outbox-worker \
+    job:email-suppression-cleanup \
+    job:email-retention-cleanup \
+    job:financial-totals-reconciliation \
+    job:sendcloud-retention-cleanup
+  do
+    VALIDATE_ENV_ONLY=true bun run "$job" &
+    pids="$pids $!"
+  done
+  for pid in $pids; do
+    wait "$pid"
+  done
+'
 
 APP_CONTAINER="$(docker run -d --env-file "$SERVER_ENV_FILE" "$IMAGE_NAME")"
 health_body=""
@@ -198,26 +223,3 @@ docker exec "$APP_CONTAINER" bun -e '
 '
 docker rm -f "$APP_CONTAINER" >/dev/null
 APP_CONTAINER=""
-
-docker run --rm --env-file "$SERVER_ENV_FILE" -e VALIDATE_ENV_ONLY=true "$IMAGE_NAME" sh -c '
-  set -eu
-  for job in \
-    job:inventory-cleanup \
-    job:session-cleanup \
-    job:cart-cleanup \
-    job:verification-cleanup \
-    job:meilisearch-sync \
-    job:audit-log-cleanup \
-    job:sendcloud-reconciliation \
-    job:mollie-payment-reconciliation \
-    job:payout-reconciliation \
-    job:payout-reconciliation-log-cleanup \
-    job:email-outbox-worker \
-    job:email-suppression-cleanup \
-    job:email-retention-cleanup \
-    job:financial-totals-reconciliation \
-    job:sendcloud-retention-cleanup
-  do
-    bun run "$job"
-  done
-'

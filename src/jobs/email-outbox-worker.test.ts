@@ -213,6 +213,7 @@ describe('processOutboxBatch', () => {
       data: {},
       category: 'seller_updates',
       status: 'pending',
+      scheduledAt: new Date(),
       userId: user.id,
     })
 

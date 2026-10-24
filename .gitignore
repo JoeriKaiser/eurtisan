@@ -19,6 +19,8 @@ infrastructure/ansible/inventory/*.yml
 __unconfig*
 todos.json
 src/paraglide
+public/i18n
+.inlang-runtime
 public/uploads
 e2e/test-results
 e2e/report

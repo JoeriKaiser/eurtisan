@@ -1,6 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import {
+  REVIEW_DELIVERED_DAYS_PHRASES,
+  REVIEW_MODERATION_REPORT_PHRASES,
+  REVIEW_SORT_ORDER_PATTERNS,
+} from '#/lib/i18n/eu-legal-disclosures'
+import { isEuLocale } from '#/lib/i18n/eu-locales'
 
 /**
  * Keeps the review disclosure honest about how reviews are actually handled.
@@ -68,7 +74,7 @@ const DISCLOSED_MESSAGES = [
 ]
 
 describe('review disclosure', () => {
-  it('renders every claim, in both locales', () => {
+  it('renders every claim across all locales', () => {
     for (const key of DISCLOSED_MESSAGES) {
       expect(component).toContain(key)
       for (const locale of LOCALES) {
@@ -81,11 +87,14 @@ describe('review disclosure', () => {
     // The disclosure names "14 days". If the constant moves, the sentence lies.
     const match = operations.match(/const ELIGIBILITY_DAYS = (\d+)/)
     expect(match).not.toBeNull()
-    const days = match?.[1]
+    const days = match?.[1] ?? '14'
 
-    expect(messages.en.review_disclosure_check_delivered).toContain(`${days} days`)
-    expect(messages.nl.review_disclosure_check_delivered).toContain(`${days} dagen`)
-    expect(messages.fr.review_disclosure_check_delivered).toContain(`${days} jours`)
+    for (const locale of LOCALES) {
+      if (!isEuLocale(locale)) continue
+      expect(messages[locale].review_disclosure_check_delivered).toContain(
+        REVIEW_DELIVERED_DAYS_PHRASES[locale](days),
+      )
+    }
   })
 
   it('only claims a purchase check while the checks are in place', () => {
@@ -106,16 +115,12 @@ describe('review disclosure', () => {
     expect(operations).toContain("case 'lowest':")
     expect(operations).toContain("case 'helpful':")
     expect(operations).toContain('desc(review.createdAt), desc(review.id)')
-
-    expect(messages.en.review_disclosure_order.toLowerCase()).toMatch(
-      /newest first.*highest rating.*lowest rating.*helpful/,
-    )
-    expect(messages.nl.review_disclosure_order.toLowerCase()).toMatch(
-      /nieuw naar oud.*hoogste beoordeling.*laagste beoordeling.*nuttige stemmen/,
-    )
-    expect(messages.fr.review_disclosure_order.toLowerCase()).toMatch(
-      /plus récentes d'abord.*note la plus élevée.*note la plus basse.*votes utiles/,
-    )
+    for (const locale of LOCALES) {
+      if (!isEuLocale(locale)) continue
+      expect(messages[locale].review_disclosure_order.toLowerCase()).toMatch(
+        REVIEW_SORT_ORDER_PATTERNS[locale],
+      )
+    }
   })
 
   it('only claims both dates while both are returned', () => {
@@ -126,16 +131,12 @@ describe('review disclosure', () => {
     // Two claims: reporting alone changes nothing, and the author is told. Both
     // were false before this phase, which is exactly why they are pinned.
     expect(operations).toContain("createNotification(reviewRecord.buyerUserId, 'review_moderated'")
-    expect(messages.en.review_disclosure_moderation.toLowerCase()).toContain(
-      'reporting alone changes nothing',
-    )
-
-    expect(messages.nl.review_disclosure_moderation.toLowerCase()).toContain(
-      'melden alleen verandert niets',
-    )
-    expect(messages.fr.review_disclosure_moderation.toLowerCase()).toContain(
-      'un signalement seul ne change rien',
-    )
+    for (const locale of LOCALES) {
+      if (!isEuLocale(locale)) continue
+      expect(messages[locale].review_disclosure_moderation.toLowerCase()).toContain(
+        REVIEW_MODERATION_REPORT_PHRASES[locale],
+      )
+    }
     // A report must not write `moderationStatus`. Scoped to the report function
     // so the admin path's legitimate write does not trip it.
     const reportFn = operations.slice(
@@ -159,13 +160,11 @@ describe('review disclosure', () => {
     // cascading foreign keys already do. A time-based promise would need a purge
     // job, so this fails if the text starts naming a duration.
     expect(schema).toContain(".references(() => product.id, { onDelete: 'cascade' })")
-    expect(messages.en.review_disclosure_retention).not.toMatch(/\b\d+\s+(years?|months?|days?)\b/i)
-    expect(messages.nl.review_disclosure_retention).not.toMatch(
-      /\b\d+\s+(jaar|jaren|maanden|dagen)\b/i,
-    )
-    expect(messages.fr.review_disclosure_retention).not.toMatch(
-      /\b\d+\s+(ans?|années?|mois|jours?)\b/i,
-    )
+    for (const locale of LOCALES) {
+      expect(messages[locale].review_disclosure_retention).not.toMatch(
+        /\b\d+\s*(years?|months?|days?|jaar|jaren|maanden|dagen|ans?|années?|mois|jours?|tage|monate|jahre|giorni|mesi|anni|días|meses|años|dias|dní|dni|dage|dagar|päivää|päeva|dienas|dienų|nap|zile|dana|дни|ημέρες|ġurnata|lá)\b/i,
+      )
+    }
   })
 
   it('keeps the visibility rule the moderation claim depends on', () => {

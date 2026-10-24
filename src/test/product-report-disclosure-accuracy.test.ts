@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { isEuLocale } from '#/lib/i18n/eu-locales'
 
 const REPO_ROOT = join(import.meta.dirname, '../..')
 
@@ -34,10 +35,10 @@ describe('product report disclosure accuracy', () => {
       JSON.parse(readSource('project.inlang/settings.json')) as { locales: string[] }
     ).locales
     for (const locale of locales) {
+      if (!isEuLocale(locale)) continue
       const messages = JSON.parse(readSource(`messages/${locale}.json`)) as Record<string, string>
-      expect(messages.terms_section_16_text.toLowerCase()).toMatch(
-        /article 16|artikel 16|notice|signalement/,
-      )
+      expect(messages.terms_section_16_text).toMatch(/16/)
+      expect(messages.terms_section_16_text).toContain('{email}')
     }
   })
 })

@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import zlib from 'node:zlib'
 
 const assetsDir = fileURLToPath(new URL('../dist/client/assets', import.meta.url))
+const i18nDir = fileURLToPath(new URL('../dist/client/i18n', import.meta.url))
 
 if (!existsSync(assetsDir)) {
   console.log(`[precompress-assets] Assets directory not found at ${assetsDir}; skipping.`)
@@ -31,7 +32,10 @@ function getFilesRecursively(dir: string): string[] {
   return files
 }
 
-const files = getFilesRecursively(assetsDir)
+const files = [
+  ...getFilesRecursively(assetsDir),
+  ...(existsSync(i18nDir) ? getFilesRecursively(i18nDir) : []),
+]
 
 if (files.length === 0) {
   console.log('[precompress-assets] No matching asset files found to precompress.')

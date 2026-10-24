@@ -18,21 +18,28 @@ docker run -d --rm \
   -e POSTGRES_USER="$USER_NAME" \
   -e POSTGRES_PASSWORD="$PASSWORD" \
   -e POSTGRES_DB="$DATABASE" \
-  "$POSTGRES_IMAGE" >/dev/null
+  "$POSTGRES_IMAGE" \
+  -c fsync=off \
+  -c synchronous_commit=off \
+  -c full_page_writes=off >/dev/null
 
 attempt=0
 until docker exec "$CONTAINER" pg_isready -U "$USER_NAME" -d "$DATABASE" >/dev/null 2>&1; do
   attempt=$((attempt + 1))
-  if [ "$attempt" -ge 30 ]; then
+  if [ "$attempt" -ge 150 ]; then
     echo "Fresh PostgreSQL database did not become ready" >&2
     docker logs "$CONTAINER" >&2
     exit 1
   fi
-  sleep 1
+  sleep 0.2
 done
 
 DATABASE_URL="postgresql://${USER_NAME}:${PASSWORD}@${CONTAINER}:5432/${DATABASE}"
-docker compose run --rm --no-deps -e DATABASE_URL="$DATABASE_URL" app bun run db:migrate
+if docker compose ps --status running -q app 2>/dev/null | grep -q .; then
+  docker compose exec -T -e DATABASE_URL="$DATABASE_URL" app bun run db:migrate
+else
+  docker compose run --rm --no-deps -e DATABASE_URL="$DATABASE_URL" app bun run db:migrate
+fi
 
 verified_tables="$(docker exec "$CONTAINER" psql -U "$USER_NAME" -d "$DATABASE" -v ON_ERROR_STOP=1 -tAc \
   "SELECT COUNT(*) FROM information_schema.tables WHERE (table_schema = 'public' AND table_name IN ('user', 'platform_order')) OR table_name = '__drizzle_migrations'")"
