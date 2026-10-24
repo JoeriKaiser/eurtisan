@@ -51,7 +51,7 @@
     "format:fix": "biome format --write ./src ./scripts ./e2e ./*.ts",
     "check": "bun tsc --noEmit",
     "staging:qualification": "bun run scripts/staging-qualification.ts",
-    "i18n:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --strategy url cookie preferredLanguage baseLocale --emit-ts-declarations --output-structure locale-modules"
+    "i18n:compile": "paraglide-js compile --project ./project.inlang --outdir ./src/paraglide --strategy url cookie preferredLanguage baseLocale --emit-ts-declarations --output-structure locale-modules && bun run scripts/compile-client-i18n.ts"
   },
   "dependencies": {
     "@2toad/profanity": "^3.3.0",

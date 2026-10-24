@@ -10,6 +10,7 @@ import { PUBLIC_REVIEW_FILTER } from '../reviews/visibility.server'
 import { PRODUCT_SYNONYMS } from '../search/synonyms'
 import { escapeFilterValue } from '../search/utils'
 import { fetchFirstImageUrls } from './operations.server'
+import { EU_ISO639_3_LOCALES } from '#/lib/i18n/eu-locales'
 import type {
   PaginatedProducts,
   PublicProduct,
@@ -234,11 +235,11 @@ export async function configureProductsIndex(indexUid: string = PRODUCTS_INDEX):
     },
     pagination: { maxTotalHits: MAX_TOTAL_HITS },
     synonyms: PRODUCT_SYNONYMS,
-    // Listings are written in English, Dutch, or French, so those tokenizers
-    // apply to every text field rather than defaulting to English segmentation.
+    // Listings are written in any of the 24 official EU languages, so all 24
+    // official EU tokenizers apply to every text field rather than defaulting to English segmentation.
     localizedAttributes: [
       {
-        locales: ['eng', 'nld', 'fra'],
+        locales: [...EU_ISO639_3_LOCALES],
         attributePatterns: ['name', 'description', 'categoryName', 'shopName'],
       },
     ],

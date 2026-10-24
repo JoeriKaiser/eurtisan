@@ -3,6 +3,7 @@ import { lazy, Suspense, useCallback, useRef } from 'react'
 import { useAnalyticsConsent } from '#/hooks/use-analytics-consent'
 import { ObservabilityErrorBoundary } from '#/components/ObservabilityErrorBoundary'
 import { trackPageView } from '#/integrations/umami'
+import { stripEuLocalePrefix } from '#/lib/i18n/eu-locales'
 import { m } from '#/paraglide/messages'
 import { AnalyticsConsentBanner } from '../components/AnalyticsConsentBanner'
 import CartProvider from '../components/CartProvider'
@@ -14,29 +15,12 @@ const Devtools = import.meta.env.DEV
   : null
 
 const AUTH_ROUTES = new Set(['/signin', '/forgot-password', '/reset-password', '/verify-email'])
-const LOCALES = new Set(['en', 'nl', 'fr'])
-
-function stripLocalePrefix(pathname: string): string {
-  // Strip an optional locale prefix (e.g. /nl/admin) so route detection works
-  // regardless of the active locale.
-  const segments = pathname.split('/')
-  if (segments[1] && LOCALES.has(segments[1])) {
-    return segments.slice(2).join('/') === '' ? '/' : `/${segments.slice(2).join('/')}`
-  }
-  return pathname
-}
-
-function normalizeAuthRoute(pathname: string): string {
-  const withoutLocale = stripLocalePrefix(pathname)
-  return withoutLocale === '' ? '/' : withoutLocale
-}
-
 export function RootComponent() {
   const router = useRouter()
   const pathname = useRouterState({ select: (state) => state.location.pathname })
-  const normalizedPathname = stripLocalePrefix(pathname)
+  const normalizedPathname = stripEuLocalePrefix(pathname)
   const isOnboarding = pathname.includes('/sell/onboarding/')
-  const isAuthRoute = AUTH_ROUTES.has(normalizeAuthRoute(pathname))
+  const isAuthRoute = AUTH_ROUTES.has(normalizedPathname)
   const isAdminRoute = normalizedPathname.startsWith('/admin')
 
   const { consent } = useAnalyticsConsent()

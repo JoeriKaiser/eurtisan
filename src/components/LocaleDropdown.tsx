@@ -1,4 +1,5 @@
 import { Check, Globe } from 'lucide-react'
+import { EU_LOCALE_LABELS, isEuLocale } from '#/lib/i18n/eu-locales'
 import { m } from '#/paraglide/messages'
 import { getLocale, locales, setLocale } from '#/paraglide/runtime'
 import {
@@ -8,12 +9,6 @@ import {
   DropdownMenuPortal,
   DropdownMenuTrigger,
 } from './ui/primitives/dropdown-menu'
-
-const LOCALE_LABELS: Record<string, string> = {
-  en: 'English',
-  nl: 'Nederlands',
-  fr: 'Français',
-}
 
 export default function LocaleDropdown() {
   const currentLocale = getLocale()
@@ -31,7 +26,7 @@ export default function LocaleDropdown() {
       </DropdownMenuTrigger>
 
       <DropdownMenuPortal>
-        <DropdownMenuPopup size='compact' align='end' className='p-1'>
+        <DropdownMenuPopup size='compact' align='end' className='max-h-80 overflow-y-auto p-1'>
           {locales.map((locale) => {
             const isActive = locale === currentLocale
             return (
@@ -41,7 +36,9 @@ export default function LocaleDropdown() {
                 data-active={isActive ? '' : undefined}
                 className='justify-between px-3 py-2 text-sm data-[active]:bg-accent-primary-subtle data-[active]:text-accent-primary data-[active]:hover:bg-accent-primary-subtle'
               >
-                <span>{LOCALE_LABELS[locale] ?? locale.toUpperCase()}</span>
+                <span>
+                  {isEuLocale(locale) ? EU_LOCALE_LABELS[locale] : String(locale).toUpperCase()}
+                </span>
                 {isActive && <Check size={15} strokeWidth={2.25} aria-hidden='true' />}
               </DropdownMenuItem>
             )

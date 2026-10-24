@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { isEuLocale } from '#/lib/i18n/eu-locales'
 import { CATEGORY_DESCRIPTIONS, SUBCATEGORY_DESCRIPTIONS } from '../db/seed-descriptions.ts'
 
 /**
@@ -41,12 +42,11 @@ describe('food category exclusion', () => {
         ? (parsedSettings.locales as string[])
         : []
     for (const locale of locales) {
+      if (!isEuLocale(locale)) continue
       const rawMessages = readFileSync(join(REPO_ROOT, `messages/${locale}.json`), 'utf8')
       const messages: Record<string, string> = JSON.parse(rawMessages)
-      expect(messages.terms_section_11_text).toMatch(/food|voedsel|aliment/i)
-      expect(messages.terms_section_11_text).toMatch(
-        /1169\/2011|allergen|allergène|ingredient|ingrediënt|ingrédient/i,
-      )
+      expect(messages.terms_section_11_text).toContain('1169/2011')
+      expect(messages.terms_section_11_text.trim().length).toBeGreaterThan(0)
     }
   })
 })

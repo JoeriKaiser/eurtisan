@@ -12,6 +12,7 @@ export function RootDocument({ children }: { children: React.ReactNode }) {
       <head>
         {/* Theme: see docs/THEME_HYDRATION.md — client-only class on <html> */}
         <script>{`(function(){try{var s=window.localStorage.getItem('theme'),d=window.matchMedia('(prefers-color-scheme: dark)').matches,m=s==='light'||s==='dark'?s:d?'dark':'light',r=document.documentElement;r.classList.remove('light','dark');r.classList.add(m);r.setAttribute('data-theme',m);}catch(_e){}})();`}</script>
+        <script defer src={`/i18n/${getLocale()}.js`} />
         <HeadContent />
         {import.meta.env.DEV ? (
           // After TanStack Start route CSS: ensure design-system spacing wins on first paint.

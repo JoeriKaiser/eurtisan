@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { RANKING_ATTRIBUTE_PHRASES, RANKING_NEWEST_PHRASES } from '#/lib/i18n/eu-legal-disclosures'
+import { isEuLocale } from '#/lib/i18n/eu-locales'
 
 /**
  * Keeps the ranking disclosure honest about the ranking that actually runs.
@@ -47,26 +49,9 @@ const DISCLOSED_RANKING_RULES: { rule: string; message: string }[] = [
 /**
  * `searchableAttributes` order is itself a ranking parameter — it is what the
  * `attribute` rule weights by — so the disclosure names the four fields in
- * order. These are the phrases each locale uses for them.
+ * order.
  */
-const DISCLOSED_ATTRIBUTES: { attribute: string; phrases: Record<string, string> }[] = [
-  {
-    attribute: 'name',
-    phrases: { en: 'product name', nl: 'productnaam', fr: 'nom du produit' },
-  },
-  {
-    attribute: 'shopName',
-    phrases: { en: 'shop name', nl: 'winkelnaam', fr: 'nom de la boutique' },
-  },
-  {
-    attribute: 'categoryName',
-    phrases: { en: 'category', nl: 'categorie', fr: 'catégorie' },
-  },
-  {
-    attribute: 'description',
-    phrases: { en: 'description', nl: 'beschrijving', fr: 'description' },
-  },
-]
+const SEARCHABLE_ATTRIBUTE_ORDER = ['name', 'shopName', 'categoryName', 'description'] as const
 
 function readSource(path: string): string {
   return readFileSync(join(REPO_ROOT, path), 'utf8')
@@ -131,19 +116,22 @@ describe('ranking disclosure', () => {
 
   it('names the searchable attributes in the order they are weighted', () => {
     expect(extractArrayLiteral(meilisearchSource, 'searchableAttributes')).toEqual(
-      DISCLOSED_ATTRIBUTES.map((entry) => entry.attribute),
+      SEARCHABLE_ATTRIBUTE_ORDER,
     )
 
     for (const locale of LOCALES) {
+      if (!isEuLocale(locale)) continue
       const text = messages[locale].ranking_disclosure_search_4.toLowerCase()
-      const positions = DISCLOSED_ATTRIBUTES.map((entry) => text.indexOf(entry.phrases[locale]))
+      const positions = SEARCHABLE_ATTRIBUTE_ORDER.map((attr) =>
+        text.indexOf(RANKING_ATTRIBUTE_PHRASES[attr][locale]),
+      )
 
       expect(positions.some((position) => position === -1)).toBe(false)
       expect(positions).toEqual([...positions].sort((a, b) => a - b))
     }
   })
 
-  it('states in both locales that ranking cannot be bought', () => {
+  it('states across all locales that ranking cannot be bought', () => {
     // Verified against the schema and lib: no sponsored, promoted, or boosted
     // placement mechanism exists. If one is ever added, this claim becomes false
     // and the disclosure must change before the feature ships.
@@ -160,8 +148,9 @@ describe('ranking disclosure', () => {
     expect(operations).toMatch(/sort: SortOption = 'newest'/)
     expect(operations).toMatch(/default:\s*return desc\(product\.createdAt\)/)
     for (const locale of LOCALES) {
-      expect(messages[locale].ranking_disclosure_category_body.toLowerCase()).toMatch(
-        /newest|nieuwste|plus récent/,
+      if (!isEuLocale(locale)) continue
+      expect(messages[locale].ranking_disclosure_category_body.toLowerCase()).toContain(
+        RANKING_NEWEST_PHRASES[locale],
       )
     }
   })

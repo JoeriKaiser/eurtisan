@@ -9,9 +9,10 @@ vi.mock('#/paraglide/messages', () => ({
 }))
 
 // Mutable locale so individual tests can switch the active locale.
-const localeState = vi.hoisted(() => ({ current: 'en' as 'en' | 'nl' }))
+const localeState = vi.hoisted(() => ({ current: 'en' as string }))
 vi.mock('#/paraglide/runtime', () => ({ getLocale: () => localeState.current }))
 
+import { EU_LOCALES } from '#/lib/i18n/eu-locales'
 import { createPageMeta } from './seo'
 
 type PageMeta = ReturnType<typeof createPageMeta>
@@ -259,13 +260,14 @@ describe('createPageMeta', () => {
     expect(result.links.find((link) => link.rel === 'canonical')?.href).toBe('/about')
     expect(alternateHref(result, 'en')).toBe('/about')
     expect(alternateHref(result, 'nl')).toBe('/nl/about')
+    expect(alternateHref(result, 'de')).toBe('/de/about')
+    expect(alternateHref(result, 'fr')).toBe('/fr/about')
     expect(alternateHref(result, 'x-default')).toBe('/about')
 
     // Canonical first, then alternates in a stable order.
     expect(result.links.map((link) => link.hreflang ?? link.rel)).toEqual([
       'canonical',
-      'en',
-      'nl',
+      ...EU_LOCALES,
       'x-default',
     ])
   })
@@ -347,6 +349,49 @@ describe('createPageMeta', () => {
 
     for (const link of [...english.links, ...dutch.links]) {
       expect(link.href).not.toContain('/nl/nl')
+    }
+  })
+  it('supports active EU locales like de and fr for canonical, og tags, and prefix stripping', () => {
+    localeState.current = 'de'
+
+    const german = createPageMeta({
+      title: 'Über | Eurtisan',
+      description: 'Erfahren Sie mehr über unseren Marktplatz.',
+      canonicalPath: '/de/about',
+    })
+
+    expect(german.links.find((link) => link.rel === 'canonical')?.href).toBe('/de/about')
+    expect(german.meta.find((m) => m.property === 'og:url')?.content).toBe('/de/about')
+    expect(german.meta.find((m) => m.property === 'og:locale')?.content).toBe('de_DE')
+    expect(german.meta.find((m) => m.property === 'og:locale:alternate')?.content).toBe('en_US')
+    expect(alternateHref(german, 'en')).toBe('/about')
+    expect(alternateHref(german, 'de')).toBe('/de/about')
+    expect(alternateHref(german, 'fr')).toBe('/fr/about')
+    expect(alternateHref(german, 'x-default')).toBe('/about')
+
+    for (const link of german.links) {
+      expect(link.href).not.toContain('/de/de')
+    }
+
+    localeState.current = 'fr'
+
+    const french = createPageMeta({
+      title: 'À propos | Eurtisan',
+      description: 'En savoir plus sur notre marketplace.',
+      canonicalPath: '/fr/about',
+    })
+
+    expect(french.links.find((link) => link.rel === 'canonical')?.href).toBe('/fr/about')
+    expect(french.meta.find((m) => m.property === 'og:url')?.content).toBe('/fr/about')
+    expect(french.meta.find((m) => m.property === 'og:locale')?.content).toBe('fr_FR')
+    expect(french.meta.find((m) => m.property === 'og:locale:alternate')?.content).toBe('en_US')
+    expect(alternateHref(french, 'en')).toBe('/about')
+    expect(alternateHref(french, 'de')).toBe('/de/about')
+    expect(alternateHref(french, 'fr')).toBe('/fr/about')
+    expect(alternateHref(french, 'x-default')).toBe('/about')
+
+    for (const link of french.links) {
+      expect(link.href).not.toContain('/fr/fr')
     }
   })
 

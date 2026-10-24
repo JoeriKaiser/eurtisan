@@ -1,10 +1,12 @@
 import '@tanstack/react-start/server-only'
 
 import { m } from '#/paraglide/messages'
+import { type EuLocale, resolveEuLocale } from '#/lib/i18n/eu-locales'
 import { getBaseUrl } from '../env.server'
 import { getOperatorProfile } from '#/lib/legal/operator.server'
 import { getOrCreateUnsubscribeToken } from './preferences.server'
-type EmailLocale = 'en' | 'nl'
+
+type EmailLocale = EuLocale | string
 
 function escapeHtml(input: string): string {
   return input
@@ -37,7 +39,8 @@ export async function renderEmailLegalFooterHtml(
 ): Promise<string> {
   const settingsUrl = `${getBaseUrl()}/account/settings`
   const unsubscribeUrl = await buildUnsubscribeUrl(to)
-  const messageOptions = locale ? { locale } : undefined
+  const resolvedLocale = locale ? resolveEuLocale(locale, 'en') : undefined
+  const messageOptions = resolvedLocale ? { locale: resolvedLocale } : undefined
   const op = getOperatorProfile()
 
   return `<div style="font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
@@ -64,7 +67,8 @@ export async function renderEmailLegalFooterText(
 ): Promise<string> {
   const settingsUrl = `${getBaseUrl()}/account/settings`
   const unsubscribeUrl = await buildUnsubscribeUrl(to)
-  const messageOptions = locale ? { locale } : undefined
+  const resolvedLocale = locale ? resolveEuLocale(locale, 'en') : undefined
+  const messageOptions = resolvedLocale ? { locale: resolvedLocale } : undefined
   const op = getOperatorProfile()
 
   return `${m.email_legal_sender_block(

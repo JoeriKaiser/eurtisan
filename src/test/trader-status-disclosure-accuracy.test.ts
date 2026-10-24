@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { CRD_NON_TRADER_RIGHTS_NOTICE } from '#/lib/i18n/eu-legal-disclosures'
+import { isEuLocale } from '#/lib/i18n/eu-locales'
 
 /**
  * Keeps the public CRD Article 6a seller-status disclosure tied to the seller's
@@ -59,7 +61,7 @@ const DECLARATION_MESSAGE_KEYS = [
 const NON_TRADER_CONSEQUENCE_KEY = 'trader_status_non_trader_rights_notice'
 
 describe('trader-status disclosure accuracy', () => {
-  it('renders every declaration state and the non-trader consequence in both locales', () => {
+  it('renders every declaration state and the non-trader consequence across all locales', () => {
     for (const key of [...DECLARATION_MESSAGE_KEYS, NON_TRADER_CONSEQUENCE_KEY]) {
       expect(disclosure).toContain(`m.${key}()`)
       for (const locale of LOCALES) {
@@ -70,15 +72,13 @@ describe('trader-status disclosure accuracy', () => {
     // The consequence is conditional: it belongs to a non-trader contract, not
     // to the trader or legacy-declaration notices.
     expect(disclosure).toContain("traderStatus === 'non_trader'")
-    expect(messages.en[NON_TRADER_CONSEQUENCE_KEY]).toBe(
-      'Consumer rights stemming from EU consumer protection law do not apply to the contract.',
-    )
-    expect(messages.nl[NON_TRADER_CONSEQUENCE_KEY]).toBe(
-      'De consumentenrechtenbescherming die uit het Unierecht voortvloeit, is niet van toepassing op de overeenkomst.',
-    )
-    expect(messages.fr[NON_TRADER_CONSEQUENCE_KEY]).toBe(
-      "Les droits des consommateurs découlant du droit de l'Union en matière de protection des consommateurs ne s'appliquent pas au contrat.",
-    )
+    for (const locale of LOCALES) {
+      if (isEuLocale(locale)) {
+        expect(messages[locale][NON_TRADER_CONSEQUENCE_KEY]).toBe(
+          CRD_NON_TRADER_RIGHTS_NOTICE[locale],
+        )
+      }
+    }
   })
 
   it('uses only the explicit stored declaration for every buyer-facing projection', () => {

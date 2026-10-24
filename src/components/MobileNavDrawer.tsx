@@ -307,7 +307,7 @@ export default function MobileNavDrawer({
                 <span className='text-xs font-semibold text-text-muted'>
                   {m.mobile_nav_language()}
                 </span>
-                <div className='flex items-center rounded-xl bg-surface-inset p-1'>
+                <div className='flex max-w-[15rem] flex-wrap items-center gap-1 rounded-xl bg-surface-inset p-1'>
                   {locales.map((locale) => {
                     const isActive = locale === getLocale()
                     return (

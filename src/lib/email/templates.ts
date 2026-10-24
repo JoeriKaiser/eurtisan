@@ -9,9 +9,9 @@ import '@tanstack/react-start/server-only'
 
 import { m } from '#/paraglide/messages'
 import { getLocale } from '#/paraglide/runtime'
+import { resolveEuLocale } from '#/lib/i18n/eu-locales'
 import type { EmailTemplate } from './provider'
 import { renderEmailLegalFooterHtml, renderEmailLegalFooterText } from './legal-footer'
-
 /** Result of rendering a template. */
 export interface RenderedEmail {
   subject: string
@@ -712,8 +712,6 @@ ${await renderEmailLegalFooterText(to)}`
 /*                         Daily notification digest                          */
 /* -------------------------------------------------------------------------- */
 
-type DigestLocale = 'en' | 'nl'
-
 function renderDigestSection(label: string, names: string[], none: string): string {
   const list = names.length
     ? `<ul style="margin: 8px 0 16px; padding-left: 20px;">${names
@@ -729,9 +727,8 @@ async function renderNotificationDigest(
 ): Promise<RenderedEmail> {
   const sellerName = String(data.sellerName ?? m.email_default_name())
   const date = String(data.date ?? '')
-  const locale: DigestLocale =
-    typeof data.locale === 'string' && data.locale.toLowerCase().startsWith('nl') ? 'nl' : 'en'
-  const messageOptions = { locale } as const
+  const locale = resolveEuLocale(data.locale, 'en')
+  const messageOptions = { locale }
   const subject = m.email_notification_digest_subject({ date }, messageOptions)
   const title = m.email_notification_digest_title(undefined, messageOptions)
   const greeting = m.email_notification_digest_greeting({ name: sellerName }, messageOptions)
