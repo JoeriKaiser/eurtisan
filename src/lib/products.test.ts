@@ -16,6 +16,7 @@ import { encryptJsonb } from './infra/encryption.server'
 import { syncProductToMeilisearch } from './meilisearch-products.server'
 import { updateShopInternal } from './shops/settings.server'
 import { createProductSchema } from './products'
+import { clearServerCacheForTests } from './server-cache.server'
 import {
   createProductInternal,
   getFeaturedShopsQuery,
@@ -56,6 +57,7 @@ vi.mock('./logger.server', () => ({
 }))
 
 beforeEach(async () => {
+  clearServerCacheForTests()
   await clearTestTables()
 })
 
@@ -1355,6 +1357,31 @@ describe('getFeaturedShopsQuery', () => {
 
     const result = await getFeaturedShopsQuery(2)
     expect(result).toHaveLength(2)
+  })
+
+  it('extracts country and never leaks shippingOrigin or address PII', async () => {
+    const u = await createUser({ id: 'user-origin' })
+    await createShop(u, {
+      id: 'shop-origin',
+      name: 'Origin Shop',
+      slug: 'origin-shop',
+      shippingOrigin: {
+        country: 'PT',
+        city: 'Porto',
+        street: 'Rua Secreta',
+        postalCode: '4000-001',
+      },
+    })
+
+    const result = await getFeaturedShopsQuery(10)
+    expect(result).toHaveLength(1)
+    expect(result[0].country).toBe('PT')
+    const raw = result[0] as Record<string, unknown>
+    expect(raw.shippingOrigin).toBeUndefined()
+    expect(raw.businessAddress).toBeUndefined()
+    expect(raw.city).toBeUndefined()
+    expect(raw.street).toBeUndefined()
+    expect(raw.postalCode).toBeUndefined()
   })
 })
 

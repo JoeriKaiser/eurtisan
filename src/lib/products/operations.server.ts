@@ -3,6 +3,7 @@ import { db } from '#/db/index'
 import { categories, product, productImage, review, shop } from '#/db/schema'
 import { getDescendantCategoryIds } from '../categories.server'
 import { decryptJsonb } from '../encryption.server'
+import { parsePublicOrigin } from '../shops/public-profile'
 import { PUBLIC_REVIEW_FILTER } from '../reviews/visibility.server'
 import { computeRatingAverage } from '../search/relevance'
 import { logger } from '../logger.server'
@@ -569,31 +570,45 @@ export async function listRecentProductsQuery(limit = 8): Promise<RecentProduct[
   }))
 }
 
-export async function getFeaturedShopsQuery(limit: number): Promise<FeaturedShop[]> {
-  const result = await db
-    .select({
-      id: shop.id,
-      name: shop.name,
-      description: shop.description,
-      slug: shop.slug,
-      productCount: count(
-        sql`CASE WHEN ${product.status} = 'published' AND ${product.isActive} THEN 1 END`,
-      ),
-      tagline: shop.tagline,
-      category: shop.category,
-      image: shop.image,
-    })
-    .from(shop)
-    .leftJoin(product, eq(product.shopId, shop.id))
-    .where(and(eq(shop.status, 'active'), eq(shop.isSuspended, false)))
-    .groupBy(shop.id)
-    .orderBy(desc(shop.createdAt))
-    .limit(limit)
+const FEATURED_SHOPS_CACHE_PREFIX = 'cache:shops:featured:'
+const FEATURED_SHOPS_TTL_MS = 300_000 // 5 minutes TTL
 
-  return result.map((r) => ({
-    ...r,
-    productCount: Number(r.productCount),
-  }))
+export async function getFeaturedShopsQuery(limit: number): Promise<FeaturedShop[]> {
+  return withServerCache(
+    `${FEATURED_SHOPS_CACHE_PREFIX}${limit}`,
+    FEATURED_SHOPS_TTL_MS,
+    async () => {
+      const result = await db
+        .select({
+          id: shop.id,
+          name: shop.name,
+          description: shop.description,
+          slug: shop.slug,
+          productCount: count(
+            sql`CASE WHEN ${product.status} = 'published' AND ${product.isActive} THEN 1 END`,
+          ),
+          tagline: shop.tagline,
+          category: shop.category,
+          image: shop.image,
+          shippingOrigin: shop.shippingOrigin,
+        })
+        .from(shop)
+        .leftJoin(product, eq(product.shopId, shop.id))
+        .where(and(eq(shop.status, 'active'), eq(shop.isSuspended, false)))
+        .groupBy(shop.id)
+        .orderBy(desc(shop.createdAt))
+        .limit(limit)
+
+      return result.map(({ shippingOrigin: rawOrigin, ...rest }) => {
+        const origin = parsePublicOrigin(decryptJsonb<unknown>(rawOrigin))
+        return {
+          ...rest,
+          productCount: Number(rest.productCount),
+          country: origin?.country ?? null,
+        }
+      })
+    },
+  )
 }
 
 const MARKETPLACE_STATS_CACHE_KEY = 'cache:marketplace:stats'

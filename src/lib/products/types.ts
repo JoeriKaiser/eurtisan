@@ -37,6 +37,7 @@ export type FeaturedShop = {
   tagline: string | null
   category: string | null
   image: string | null
+  country?: string | null
 }
 
 export type ProductDetail = PublicProduct & {

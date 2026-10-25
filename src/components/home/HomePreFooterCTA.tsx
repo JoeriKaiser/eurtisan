@@ -60,7 +60,7 @@ export function HomePreFooterCTA({
 
   return (
     <section
-      className='rounded-2xl border border-border-subtle bg-surface-default p-10 sm:p-16 text-center shadow-xs'
+      className='rounded-3xl border border-border-subtle bg-surface-default p-10 sm:p-16 text-center shadow-xs'
       aria-labelledby='pre-footer-heading'
     >
       <div className='max-w-xl mx-auto flex flex-col items-center'>
@@ -75,10 +75,10 @@ export function HomePreFooterCTA({
         </p>
         <Link
           to={preFooterCtaLink}
-          className='inline-flex items-center gap-2 rounded-lg bg-accent-primary px-8 py-3 text-xs font-semibold text-text-on-primary hover:bg-accent-primary-hover active:bg-accent-primary-active transition-colors no-underline shadow-xs'
+          className='inline-flex items-center gap-2 rounded-xl bg-accent-primary px-8 py-3.5 text-sm font-semibold text-text-on-primary hover:bg-accent-primary-hover active:bg-accent-primary-active transition-colors no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
         >
           <span>{preFooterCtaText}</span>
-          <ArrowRight size={14} aria-hidden='true' />
+          <ArrowRight size={16} aria-hidden='true' />
         </Link>
       </div>
     </section>

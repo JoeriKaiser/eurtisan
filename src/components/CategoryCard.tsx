@@ -23,7 +23,7 @@ export default function CategoryCard({ name, slug, description, productCount }: 
     <Link
       to='/category/$slug'
       params={{ slug }}
-      className='group flex items-center gap-3 rounded-xl border border-border-default bg-surface-default p-4 shadow-sm transition-all duration-fast ease-out hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md no-underline'
+      className='group flex items-center gap-3 rounded-xl border border-border-default bg-surface-default p-4 shadow-sm transition-all duration-fast ease-out hover:-translate-y-0.5 hover:border-border-strong hover:shadow-md no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
     >
       <div className='flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent-primary-subtle text-accent-primary transition-colors duration-fast group-hover:bg-accent-primary group-hover:text-text-on-primary'>
         <Icon size={19} strokeWidth={1.5} aria-hidden='true' />
@@ -36,7 +36,7 @@ export default function CategoryCard({ name, slug, description, productCount }: 
           <p className='text-xs text-text-muted'>
             {productCount !== undefined
               ? m.category_product_count({ count: productCount })
-              : 'Browse collection'}
+              : m.home_explore_collections()}
           </p>
         )}
       </div>
