@@ -4,6 +4,8 @@ import { NotFoundPage } from '#/components/NotFoundPage'
 import { CategoryPage } from '#/route-components/category/$slug'
 import { getCategoryBySlug } from '#/lib/categories'
 import { listProductsByCategorySlug } from '#/lib/products'
+import { createPageMeta } from '#/lib/seo'
+import { m } from '#/paraglide/messages'
 
 /**
  * URL contract for a category page.
@@ -66,6 +68,21 @@ export const Route = createFileRoute('/category/$slug')({
       minPrice: deps.minPriceCents === undefined ? '' : String(deps.minPriceCents / 100),
       maxPrice: deps.maxPriceCents === undefined ? '' : String(deps.maxPriceCents / 100),
     }
+  },
+  head: ({ loaderData, params }) => {
+    const category = loaderData?.category
+    if (!category) {
+      return createPageMeta({
+        title: m.meta_title_default(),
+        description: m.meta_default_description(),
+        canonicalPath: `/category/${params.slug}`,
+      })
+    }
+    return createPageMeta({
+      title: `${category.name} | Eurtisan`,
+      description: category.description || m.meta_default_description(),
+      canonicalPath: `/category/${params.slug}`,
+    })
   },
   notFoundComponent: NotFoundPage,
   component: CategoryPage,

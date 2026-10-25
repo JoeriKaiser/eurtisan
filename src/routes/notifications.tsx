@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { createUtilityMeta } from '#/lib/seo'
 import z from 'zod'
 import { AccountShell } from '#/components/AccountShell'
 import { NotificationsLoading } from '#/components/NotificationsLoading'
@@ -29,12 +30,11 @@ export const Route = createFileRoute('/notifications')({
     hydrateQueryData(context.queryClient, queryKeys.notificationsPage(page, PAGE_SIZE), payload)
     return payload
   },
-  head: () => ({
-    meta: [
-      { title: `${m.notifications_title()} | Eurtisan` },
-      { name: 'description', content: m.notifications_title() },
-    ],
-  }),
+  head: () =>
+    createUtilityMeta({
+      title: `${m.notifications_title()} | Eurtisan`,
+      description: m.notifications_title(),
+    }),
   component: NotificationsRouteWrapper,
   pendingComponent: NotificationsLoading,
   errorComponent: NotificationsError,

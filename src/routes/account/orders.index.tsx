@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { createUtilityMeta } from '#/lib/seo'
 import z from 'zod'
 import { AccountOrders } from '#/route-components/account/orders'
 import { AccountShell } from '#/components/AccountShell'
@@ -20,12 +21,11 @@ export const Route = createFileRoute('/account/orders/')({
     const result = await listBuyerOrders({ data: { limit: PAGE_SIZE, offset } })
     return { ...result, page }
   },
-  head: () => ({
-    meta: [
-      { title: `${m.account_orders()} | Eurtisan` },
-      { name: 'description', content: m.account_orders() },
-    ],
-  }),
+  head: () =>
+    createUtilityMeta({
+      title: `${m.account_orders()} | Eurtisan`,
+      description: m.account_orders(),
+    }),
   component: AccountOrdersRoute,
 })
 

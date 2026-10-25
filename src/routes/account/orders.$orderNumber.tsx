@@ -1,4 +1,5 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
+import { createUtilityMeta } from '#/lib/seo'
 import { AccountShell } from '#/components/AccountShell'
 import { NotFoundPage } from '#/components/NotFoundPage'
 import { OrderDetailRouteComponent } from '#/route-components/account/orders.$orderNumber'
@@ -21,12 +22,11 @@ export const Route = createFileRoute('/account/orders/$orderNumber')({
       throw err
     }
   },
-  head: () => ({
-    meta: [
-      { title: `${m.order_detail_title()} | Eurtisan` },
-      { name: 'description', content: m.order_detail_title() },
-    ],
-  }),
+  head: () =>
+    createUtilityMeta({
+      title: `${m.order_detail_title()} | Eurtisan`,
+      description: m.order_detail_title(),
+    }),
   notFoundComponent: NotFoundPage,
   component: OrderDetailRouteWrapper,
 })

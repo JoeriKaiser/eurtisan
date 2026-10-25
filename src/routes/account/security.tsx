@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { createUtilityMeta } from '#/lib/seo'
 import { AccountSecurity } from '#/route-components/account/security'
 import { AccountShell } from '#/components/AccountShell'
 import { guardAuth } from '#/lib/route-guards'
@@ -6,12 +7,11 @@ import { m } from '#/paraglide/messages'
 
 export const Route = createFileRoute('/account/security')({
   beforeLoad: async () => guardAuth('/account/security'),
-  head: () => ({
-    meta: [
-      { title: `${m.account_security_title()} | Eurtisan` },
-      { name: 'description', content: m.account_security_description() },
-    ],
-  }),
+  head: () =>
+    createUtilityMeta({
+      title: `${m.account_security_title()} | Eurtisan`,
+      description: m.account_security_description(),
+    }),
   component: AccountSecurityRoute,
 })
 

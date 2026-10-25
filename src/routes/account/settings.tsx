@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { createUtilityMeta } from '#/lib/seo'
 import { AccountSettings } from '#/route-components/account/settings'
 import { AccountShell } from '#/components/AccountShell'
 import { guardAuth } from '#/lib/route-guards'
@@ -19,12 +20,11 @@ export const Route = createFileRoute('/account/settings')({
     ])
     return { preferences, inAppPreferences, user }
   },
-  head: () => ({
-    meta: [
-      { title: `${m.account_settings()} | Eurtisan` },
-      { name: 'description', content: m.account_settings() },
-    ],
-  }),
+  head: () =>
+    createUtilityMeta({
+      title: `${m.account_settings()} | Eurtisan`,
+      description: m.account_settings(),
+    }),
   component: AccountSettingsRoute,
 })
 
