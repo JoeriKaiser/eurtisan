@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // Mock paraglide messages before importing the module under test
 vi.mock('#/paraglide/messages', () => ({
   m: {
+    meta_title_default: () => 'Eurtisan — European Marketplace for Makers',
     meta_default_description: () =>
       'Discover unique, handcrafted pieces from independent makers across Europe.',
   },
@@ -13,7 +14,7 @@ const localeState = vi.hoisted(() => ({ current: 'en' as string }))
 vi.mock('#/paraglide/runtime', () => ({ getLocale: () => localeState.current }))
 
 import { EU_LOCALES } from '#/lib/i18n/eu-locales'
-import { createPageMeta } from './seo'
+import { createPageMeta, createUtilityMeta, createPrivateLayoutMeta, createRootMeta } from './seo'
 
 type PageMeta = ReturnType<typeof createPageMeta>
 
@@ -81,6 +82,21 @@ describe('createPageMeta', () => {
 
     const ogSiteName = result.meta.find((m) => m.property === 'og:site_name')
     expect(ogSiteName?.content).toBe('Eurtisan')
+
+    const twitterCard = result.meta.find((m) => m.name === 'twitter:card')
+    expect(twitterCard?.content).toBe('summary_large_image')
+
+    const twitterTitle = result.meta.find((m) => m.name === 'twitter:title')
+    expect(twitterTitle?.content).toBe('Product | Eurtisan')
+
+    const twitterDescription = result.meta.find((m) => m.name === 'twitter:description')
+    expect(twitterDescription?.content).toBe('A beautiful handmade product.')
+
+    const twitterUrl = result.meta.find((m) => m.name === 'twitter:url')
+    expect(twitterUrl?.content).toBe('/products/vase')
+
+    const twitterImage = result.meta.find((m) => m.name === 'twitter:image')
+    expect(twitterImage?.content).toBe('/logo512.png')
   })
 
   it('uses custom ogImageUrl when provided', () => {
@@ -93,6 +109,9 @@ describe('createPageMeta', () => {
 
     const ogImage = result.meta.find((m) => m.property === 'og:image')
     expect(ogImage?.content).toBe('/uploads/banner.jpg')
+
+    const twitterImage = result.meta.find((m) => m.name === 'twitter:image')
+    expect(twitterImage?.content).toBe('/uploads/banner.jpg')
   })
 
   it('overrides ogType', () => {
@@ -201,6 +220,9 @@ describe('createPageMeta', () => {
 
     const ogImage = result.meta.find((m) => m.property === 'og:image')
     expect(ogImage?.content).toBe('/logo512.png')
+
+    const twitterImage = result.meta.find((m) => m.name === 'twitter:image')
+    expect(twitterImage?.content).toBe('/logo512.png')
   })
 
   it('falls back to default OG image when ogImageUrl is an empty string', () => {
@@ -214,6 +236,9 @@ describe('createPageMeta', () => {
     // createPageMeta treats empty string as undefined → falls back to default
     const ogImage = result.meta.find((m) => m.property === 'og:image')
     expect(ogImage?.content).toBe('/logo512.png')
+
+    const twitterImage = result.meta.find((m) => m.name === 'twitter:image')
+    expect(twitterImage?.content).toBe('/logo512.png')
   })
 
   it('generates canonical link with the provided path', () => {
@@ -304,7 +329,7 @@ describe('createPageMeta', () => {
 
     expect(result.links.find((link) => link.rel === 'canonical')?.href).toBe('/nl/about')
     expect(result.meta.find((m) => m.property === 'og:url')?.content).toBe('/nl/about')
-    expect(alternateHref(result, 'en')).toBe('/about')
+    expect(result.meta.find((m) => m.name === 'twitter:url')?.content).toBe('/nl/about')
     expect(alternateHref(result, 'nl')).toBe('/nl/about')
     expect(alternateHref(result, 'x-default')).toBe('/about')
     expect(result.meta.find((m) => m.property === 'og:locale')?.content).toBe('nl_NL')
@@ -463,5 +488,233 @@ describe('createPageMeta', () => {
       expect(link.href).not.toContain('/nl/nl')
       expect(link.href).not.toContain('//about')
     }
+  })
+})
+
+describe('image URL resolution', () => {
+  it('preserves relative image paths when PUBLIC_URL is not set and window is undefined', () => {
+    delete process.env.PUBLIC_URL
+    const result = createPageMeta({
+      title: 'Item | Eurtisan',
+      description: 'Description',
+      canonicalPath: '/item',
+    })
+    expect(result.meta.find((m) => m.property === 'og:image')?.content).toBe('/logo512.png')
+    expect(result.meta.find((m) => m.name === 'twitter:image')?.content).toBe('/logo512.png')
+  })
+
+  it('converts relative image path to absolute URL when PUBLIC_URL is set', () => {
+    process.env.PUBLIC_URL = 'https://eurtisan.example'
+    const result = createPageMeta({
+      title: 'Item | Eurtisan',
+      description: 'Description',
+      canonicalPath: '/item',
+    })
+    expect(result.meta.find((m) => m.property === 'og:image')?.content).toBe(
+      'https://eurtisan.example/logo512.png',
+    )
+    expect(result.meta.find((m) => m.name === 'twitter:image')?.content).toBe(
+      'https://eurtisan.example/logo512.png',
+    )
+  })
+
+  it('converts custom relative image path when PUBLIC_URL is set', () => {
+    process.env.PUBLIC_URL = 'https://eurtisan.example'
+    const result = createPageMeta({
+      title: 'Item | Eurtisan',
+      description: 'Description',
+      canonicalPath: '/item',
+      ogImageUrl: '/uploads/product.jpg',
+    })
+    expect(result.meta.find((m) => m.property === 'og:image')?.content).toBe(
+      'https://eurtisan.example/uploads/product.jpg',
+    )
+    expect(result.meta.find((m) => m.name === 'twitter:image')?.content).toBe(
+      'https://eurtisan.example/uploads/product.jpg',
+    )
+  })
+
+  it('joins trailing-slash PUBLIC_URL with image path without double slash', () => {
+    process.env.PUBLIC_URL = 'https://eurtisan.example/'
+    const result = createPageMeta({
+      title: 'Item | Eurtisan',
+      description: 'Description',
+      canonicalPath: '/item',
+    })
+    expect(result.meta.find((m) => m.property === 'og:image')?.content).toBe(
+      'https://eurtisan.example/logo512.png',
+    )
+    expect(result.meta.find((m) => m.name === 'twitter:image')?.content).toBe(
+      'https://eurtisan.example/logo512.png',
+    )
+  })
+
+  it('preserves already-absolute image URLs regardless of PUBLIC_URL', () => {
+    process.env.PUBLIC_URL = 'https://eurtisan.example'
+    const result = createPageMeta({
+      title: 'Item | Eurtisan',
+      description: 'Description',
+      canonicalPath: '/item',
+      ogImageUrl: 'https://cdn.other.com/photos/item.png',
+    })
+    expect(result.meta.find((m) => m.property === 'og:image')?.content).toBe(
+      'https://cdn.other.com/photos/item.png',
+    )
+    expect(result.meta.find((m) => m.name === 'twitter:image')?.content).toBe(
+      'https://cdn.other.com/photos/item.png',
+    )
+  })
+
+  it('resolves image URL using window.location.origin when PUBLIC_URL is not set and window is defined', () => {
+    delete process.env.PUBLIC_URL
+    const originalWindow = globalThis.window
+    // @ts-expect-error test mock
+    globalThis.window = { location: { origin: 'https://browser.example' } }
+    try {
+      const result = createPageMeta({
+        title: 'Item | Eurtisan',
+        description: 'Description',
+        canonicalPath: '/item',
+      })
+      expect(result.meta.find((m) => m.property === 'og:image')?.content).toBe(
+        'https://browser.example/logo512.png',
+      )
+      expect(result.meta.find((m) => m.name === 'twitter:image')?.content).toBe(
+        'https://browser.example/logo512.png',
+      )
+    } finally {
+      globalThis.window = originalWindow
+    }
+  })
+})
+
+describe('createUtilityMeta', () => {
+  it('verifies title, description, noindex nofollow, Open Graph, and Twitter tags, and verifies links array is empty', () => {
+    const result = createUtilityMeta({
+      title: 'Page Not Found | Eurtisan',
+      description: 'The requested page could not be found.',
+    })
+
+    // Title and description
+    expect(result.meta.find((m) => m.title === 'Page Not Found | Eurtisan')).toBeDefined()
+    expect(result.meta.find((m) => m.name === 'description')?.content).toBe(
+      'The requested page could not be found.',
+    )
+
+    // Robots noindex, nofollow
+    expect(result.meta.find((m) => m.name === 'robots')?.content).toBe('noindex, nofollow')
+
+    // Open Graph tags
+    expect(result.meta.find((m) => m.property === 'og:title')?.content).toBe(
+      'Page Not Found | Eurtisan',
+    )
+    expect(result.meta.find((m) => m.property === 'og:description')?.content).toBe(
+      'The requested page could not be found.',
+    )
+    expect(result.meta.find((m) => m.property === 'og:type')?.content).toBe('website')
+    expect(result.meta.find((m) => m.property === 'og:image')?.content).toBe('/logo512.png')
+    expect(result.meta.find((m) => m.property === 'og:site_name')?.content).toBe('Eurtisan')
+
+    // Twitter tags
+    expect(result.meta.find((m) => m.name === 'twitter:card')?.content).toBe('summary_large_image')
+    expect(result.meta.find((m) => m.name === 'twitter:title')?.content).toBe(
+      'Page Not Found | Eurtisan',
+    )
+    expect(result.meta.find((m) => m.name === 'twitter:description')?.content).toBe(
+      'The requested page could not be found.',
+    )
+    expect(result.meta.find((m) => m.name === 'twitter:image')?.content).toBe('/logo512.png')
+
+    // Verifies links array is empty
+    expect(result.links).toEqual([])
+    expect(result.links).toHaveLength(0)
+    expect(result.links?.find((l) => l.rel === 'canonical')).toBeUndefined()
+    expect(result.links?.some((l) => l.rel === 'alternate')).toBe(false)
+  })
+
+  it('falls back to default description when description is omitted', () => {
+    const result = createUtilityMeta({
+      title: 'Server Error | Eurtisan',
+    })
+
+    const expectedDesc =
+      'Discover unique, handcrafted pieces from independent makers across Europe.'
+    expect(result.meta.find((m) => m.name === 'description')?.content).toBe(expectedDesc)
+    expect(result.meta.find((m) => m.property === 'og:description')?.content).toBe(expectedDesc)
+    expect(result.meta.find((m) => m.name === 'twitter:description')?.content).toBe(expectedDesc)
+  })
+
+  it('resolves custom ogImageUrl to absolute URL when PUBLIC_URL is set', () => {
+    process.env.PUBLIC_URL = 'https://eurtisan.example'
+    const result = createUtilityMeta({
+      title: 'Error | Eurtisan',
+      ogImageUrl: '/images/error.png',
+    })
+
+    expect(result.meta.find((m) => m.property === 'og:image')?.content).toBe(
+      'https://eurtisan.example/images/error.png',
+    )
+    expect(result.meta.find((m) => m.name === 'twitter:image')?.content).toBe(
+      'https://eurtisan.example/images/error.png',
+    )
+  })
+})
+
+describe('createPrivateLayoutMeta', () => {
+  it('verifies robots: noindex, nofollow', () => {
+    const result = createPrivateLayoutMeta()
+
+    expect(result.meta).toEqual([{ name: 'robots', content: 'noindex, nofollow' }])
+    expect(result.meta.find((m) => m.name === 'robots')?.content).toBe('noindex, nofollow')
+  })
+})
+
+describe('createRootMeta', () => {
+  it('verifies charset, viewport, default title, description, fallback og:*, fallback twitter:*, and no canonical/hreflang links', () => {
+    const result = createRootMeta()
+
+    const expectedTitle = 'Eurtisan — European Marketplace for Makers'
+    const expectedDesc =
+      'Discover unique, handcrafted pieces from independent makers across Europe.'
+
+    // Charset and viewport
+    expect(result.meta.find((m) => m.charSet === 'utf-8')).toBeDefined()
+    expect(
+      result.meta.find(
+        (m) => m.name === 'viewport' && m.content === 'width=device-width, initial-scale=1',
+      ),
+    ).toBeDefined()
+
+    // Title and description
+    expect(result.meta.find((m) => m.title === expectedTitle)).toBeDefined()
+    expect(result.meta.find((m) => m.name === 'description')?.content).toBe(expectedDesc)
+
+    // Fallback Open Graph
+    expect(result.meta.find((m) => m.property === 'og:site_name')?.content).toBe('Eurtisan')
+    expect(result.meta.find((m) => m.property === 'og:type')?.content).toBe('website')
+    expect(result.meta.find((m) => m.property === 'og:title')?.content).toBe(expectedTitle)
+    expect(result.meta.find((m) => m.property === 'og:description')?.content).toBe(expectedDesc)
+    expect(result.meta.find((m) => m.property === 'og:image')?.content).toBe('/logo512.png')
+
+    // Fallback Twitter
+    expect(result.meta.find((m) => m.name === 'twitter:card')?.content).toBe('summary_large_image')
+    expect(result.meta.find((m) => m.name === 'twitter:title')?.content).toBe(expectedTitle)
+    expect(result.meta.find((m) => m.name === 'twitter:description')?.content).toBe(expectedDesc)
+    expect(result.meta.find((m) => m.name === 'twitter:image')?.content).toBe('/logo512.png')
+
+    // No canonical or hreflang links
+    expect(result.links).toBeUndefined()
+  })
+
+  it('resolves absolute fallback image when PUBLIC_URL is set', () => {
+    process.env.PUBLIC_URL = 'https://eurtisan.example'
+    const result = createRootMeta()
+
+    expect(result.meta.find((m) => m.property === 'og:image')?.content).toBe(
+      'https://eurtisan.example/logo512.png',
+    )
+    expect(result.meta.find((m) => m.name === 'twitter:image')?.content).toBe(
+      'https://eurtisan.example/logo512.png',
+    )
   })
 })

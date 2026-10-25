@@ -3,6 +3,8 @@ import z from 'zod'
 import { VerifyEmail, VerifyEmailPending } from '#/route-components/verify-email'
 import { guardOptionalAuth } from '#/lib/route-guards'
 import { verifyEmailToken } from '#/lib/auth/verify-email'
+import { createUtilityMeta } from '#/lib/seo'
+import { m } from '#/paraglide/messages'
 
 const verifyEmailSearchSchema = z.object({
   email: z.string().optional().catch(''),
@@ -23,9 +25,15 @@ export const Route = createFileRoute('/verify-email')({
       return { status: 'error' as const }
     }
   },
-  head: () => ({
-    meta: [{ name: 'referrer', content: 'strict-origin-when-cross-origin' }],
-  }),
+  head: () => {
+    const utilityMeta = createUtilityMeta({
+      title: `${m.verify_email_title()} | Eurtisan`,
+    })
+    return {
+      ...utilityMeta,
+      meta: [...utilityMeta.meta, { name: 'referrer', content: 'strict-origin-when-cross-origin' }],
+    }
+  },
   component: VerifyEmail,
   pendingComponent: VerifyEmailPending,
 })

@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { createUtilityMeta } from '#/lib/seo'
 import z from 'zod'
 import { CartRouteComponent } from '#/route-components/cart'
 import { getCart } from '#/lib/cart'
@@ -17,11 +18,10 @@ export const Route = createFileRoute('/cart')({
     hydrateQueryData(context.queryClient, queryKeys.cart, cart)
     return { cart }
   },
-  head: () => ({
-    meta: [
-      { title: `${m.cart_title()} | Eurtisan` },
-      { name: 'description', content: m.cart_meta_description() },
-    ],
-  }),
+  head: () =>
+    createUtilityMeta({
+      title: `${m.cart_title()} | Eurtisan`,
+      description: m.cart_meta_description(),
+    }),
   component: CartRouteComponent,
 })

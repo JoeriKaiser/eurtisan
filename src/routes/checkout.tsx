@@ -1,4 +1,5 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
+import { createUtilityMeta } from '#/lib/seo'
 import { getCart } from '#/lib/cart'
 import { getCheckoutSummary } from '#/lib/checkout'
 import { guardAuth } from '#/lib/route-guards'
@@ -24,11 +25,10 @@ export const Route = createFileRoute('/checkout')({
         context.user && context.user.isAnonymous !== true ? context.user.email : '',
     }
   },
-  head: () => ({
-    meta: [
-      { title: `${m.checkout_title()} | Eurtisan` },
-      { name: 'description', content: m.checkout_meta_description() },
-    ],
-  }),
+  head: () =>
+    createUtilityMeta({
+      title: `${m.checkout_title()} | Eurtisan`,
+      description: m.checkout_meta_description(),
+    }),
   component: CheckoutRouteComponent,
 })

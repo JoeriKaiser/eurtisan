@@ -5,7 +5,7 @@ import { listCategories } from '#/lib/categories'
 import { getUnreadNotificationCount } from '#/lib/notifications'
 import { queryKeys } from '#/lib/query-keys'
 import { getCurrentUser } from '#/lib/server-auth'
-import { m } from '#/paraglide/messages'
+import { createRootMeta } from '#/lib/seo'
 import { RootComponent } from '#/route-components/__root'
 import { RootDocument } from '#/route-components/root/RootDocument'
 import { RootError } from '#/route-components/root/RootError'
@@ -36,9 +36,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
         name: 'viewport',
         content: 'width=device-width, initial-scale=1',
       },
-      {
-        title: m.meta_title_default(),
-      },
+      ...createRootMeta().meta,
     ],
     links: [
       {

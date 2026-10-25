@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { createUtilityMeta } from '#/lib/seo'
 import { Package, Settings } from 'lucide-react'
 import { AccountShell } from '#/components/AccountShell'
 import { guardAuth } from '#/lib/route-guards'
@@ -6,12 +7,11 @@ import { m } from '#/paraglide/messages'
 
 export const Route = createFileRoute('/account/')({
   beforeLoad: async () => guardAuth(),
-  head: () => ({
-    meta: [
-      { title: `${m.account_title()} | Eurtisan` },
-      { name: 'description', content: m.account_hub_description() },
-    ],
-  }),
+  head: () =>
+    createUtilityMeta({
+      title: `${m.account_title()} | Eurtisan`,
+      description: m.account_hub_description(),
+    }),
   component: Account,
 })
 
