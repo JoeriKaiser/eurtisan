@@ -8,8 +8,8 @@
  * `lib/notifications/retention.server.ts`.
  *
  * Configuration (via environment variables):
- *   NOTIFICATION_CLEANUP_INTERVAL_MS — polling interval in milliseconds (default: 86400000)
- *   NOTIFICATION_RETENTION_DAYS      — retention period in days (default: 365)
+ *   NOTIFICATION_CLEANUP_INTERVAL_MS: polling interval in milliseconds (default: 86400000)
+ *   NOTIFICATION_RETENTION_DAYS: retention period in days (default: 365)
  *
  * Usage:
  *   bun run src/jobs/notification-cleanup.ts

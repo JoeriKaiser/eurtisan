@@ -16,12 +16,12 @@ import { isEuLocale } from '#/lib/i18n/eu-locales'
  *
  * Nothing else couples the two. `rankingRules` lives in a server-only module
  * configured against Meilisearch at deploy time, and the disclosure is eight
- * translated strings — a change to one cannot fail the other's tests. So this
+ * translated strings: a change to one cannot fail the other's tests. So this
  * pins the mapping explicitly: every ranking rule names the message that
  * discloses it, in precedence order.
  *
  * **If this test fails, the fix is not to update the expectation.** It is to
- * change the disclosure text — in both locales — to describe the new ranking,
+ * change the disclosure text: in both locales: to describe the new ranking,
  * and only then re-pin the mapping here.
  *
  * A source scan rather than an import: `meilisearch.server.ts` constructs a
@@ -47,8 +47,8 @@ const DISCLOSED_RANKING_RULES: { rule: string; message: string }[] = [
 ]
 
 /**
- * `searchableAttributes` order is itself a ranking parameter — it is what the
- * `attribute` rule weights by — so the disclosure names the four fields in
+ * `searchableAttributes` order is itself a ranking parameter: it is what the
+ * `attribute` rule weights by: so the disclosure names the four fields in
  * order.
  */
 const SEARCHABLE_ATTRIBUTE_ORDER = ['name', 'shopName', 'categoryName', 'description'] as const

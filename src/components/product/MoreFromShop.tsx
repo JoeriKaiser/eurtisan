@@ -14,7 +14,7 @@ export interface MoreFromShopProps {
  *
  * **Not** "related products". There is no recommender in this codebase, and one
  * synthesised from category adjacency produces a rail of things that merely
- * share a label — which is worse than no rail, because it looks like a
+ * share a label: which is worse than no rail, because it looks like a
  * recommendation and is not. Same shop is a relationship the buyer already
  * understands and the data already expresses.
  *

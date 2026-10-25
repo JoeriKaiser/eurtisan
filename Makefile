@@ -321,7 +321,7 @@ db-push: up
 db-seed: up
 	docker compose exec app bun run src/db/seed.ts --clear --force
 
-# Staging / Production seed — idempotent, additive only. Safe to re-run.
+# Staging / Production seed: idempotent, additive only. Safe to re-run.
 db-staging-seed: up
 	docker compose exec app bun run src/db/seed-staging.ts
 

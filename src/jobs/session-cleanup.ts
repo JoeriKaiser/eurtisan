@@ -6,8 +6,8 @@
  * timestamp has passed.
  *
  * Configuration (via environment variables):
- *   SESSION_CLEANUP_INTERVAL_MS — polling interval in milliseconds (default: 60_000)
- *   SESSION_CLEANUP_BATCH_SIZE  — max rows to delete per run (default: 100)
+ *   SESSION_CLEANUP_INTERVAL_MS: polling interval in milliseconds (default: 60_000)
+ *   SESSION_CLEANUP_BATCH_SIZE: max rows to delete per run (default: 100)
  *
  * Usage:
  *   bun run src/jobs/session-cleanup.ts

@@ -808,7 +808,7 @@ export const reviewHelpfulVote = pgTable(
 )
 
 export const reviewReportReasonEnum = pgEnum('review_report_reason', [
-  /** Doubt about authenticity — the ground C. consom. L.111-7-2 requires a free reporting route for. */
+  /** Doubt about authenticity: the ground C. consom. L.111-7-2 requires a free reporting route for. */
   'not_authentic',
   'offensive',
   'spam',
@@ -827,7 +827,7 @@ export const reviewReportStatusEnum = pgEnum('review_report_status', [
  *
  * Reporting used to flip the review straight to `flagged` on a single click by
  * any signed-in user. Flagged reviews still display but leave `popularityScore`,
- * so one click silently moved a product's search ranking — report your own
+ * so one click silently moved a product's search ranking: report your own
  * one-star reviews to rise, or a competitor's five-stars to sink them.
  *
  * A report is therefore recorded here and changes no moderation state.
@@ -837,7 +837,7 @@ export const reviewReportStatusEnum = pgEnum('review_report_status', [
  *
  * `reason` and `details` exist because DSA Article 16(2) requires a notice to
  * carry a sufficiently substantiated explanation; a bare button cannot.
- * `status` closes the loop Article 16(5) requires — the notifier is told the
+ * `status` closes the loop Article 16(5) requires: the notifier is told the
  * decision.
  */
 export const reviewReport = pgTable(
@@ -1008,7 +1008,7 @@ export const payout = pgTable(
  * Notification kinds.
  *
  * Previously `text`, with the closed set enforced only by a Zod enum at the one
- * write path — while the read path asserted `row.type as NotificationType`, an
+ * write path: while the read path asserted `row.type as NotificationType`, an
  * assertion the column did not support. A row outside the set rendered as a
  * button with no icon and no text, announced to a screen reader as a bare
  * timestamp.
@@ -1350,7 +1350,7 @@ export const searchEventTypeEnum = pgEnum('search_event_type', ['search', 'click
  * Search telemetry: what buyers looked for, how many results they got, and
  * which result they opened.
  *
- * This is the feedback loop that makes relevance tuning measurable — zero-result
+ * This is the feedback loop that makes relevance tuning measurable: zero-result
  * queries reveal demand the catalogue does not serve, and click position
  * reveals whether ranking puts the right product first.
  *

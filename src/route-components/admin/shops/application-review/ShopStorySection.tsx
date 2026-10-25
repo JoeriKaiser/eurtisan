@@ -16,7 +16,7 @@ export function ShopStorySection({ details }: ShopStorySectionProps) {
         <div>
           <p className='text-xs text-text-muted'>{m.admin_shops_application_field_desc()}</p>
           <p className='text-sm text-text-primary whitespace-pre-wrap leading-relaxed max-w-[65ch] mt-0.5'>
-            {details.description || '—'}
+            {details.description || '-'}
           </p>
         </div>
         {details.languages.length > 0 && (

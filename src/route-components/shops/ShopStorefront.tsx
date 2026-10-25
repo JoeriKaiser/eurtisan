@@ -30,7 +30,7 @@ export interface ShopStorefrontProps {
  *
  * `inStock` is a real boolean, not the string `'true'`: the router serialises
  * search values as JSON, so a string lands in the address bar as
- * `?inStock=%22true%22` — unreadable in a shared link. `shopSearchSchema`
+ * `?inStock=%22true%22`: unreadable in a shared link. `shopSearchSchema`
  * accepts both on the way back in.
  */
 type StorefrontSearchParams = {
@@ -64,7 +64,7 @@ export default function ShopStorefront({
 
   /**
    * Merges into the existing params instead of replacing them, so changing one
-   * control never silently drops another — sorting a filtered list must not
+   * control never silently drops another: sorting a filtered list must not
    * clear the filter. Params at their default are omitted so a plain storefront
    * URL stays clean and canonical.
    */

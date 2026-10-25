@@ -218,7 +218,7 @@ const config = defineConfig(({ mode }) => {
           },
         ],
       }),
-      // devtools() disabled — its data-tsd-source instrumentation causes hydration
+      // devtools() disabled: its data-tsd-source instrumentation causes hydration
       // mismatches in dev (server/client line numbers diverge). Re-enable when the
       // plugin supports stable hashes or suppressHydrationWarning propagation.
       // devtools(),

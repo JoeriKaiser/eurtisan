@@ -25,7 +25,7 @@ export interface RecordSearchClickInput {
  * Record that a search was executed.
  *
  * Never throws: telemetry must not be able to fail a buyer's search. Empty
- * queries are ignored — a blank browse is not a search anyone can act on.
+ * queries are ignored: a blank browse is not a search anyone can act on.
  */
 export async function recordSearchEvent(input: RecordSearchInput): Promise<void> {
   const normalizedQuery = normalizeQueryForAnalytics(input.query)
@@ -75,7 +75,7 @@ export interface QueryReportRow {
  * Top queries by volume, with click-through rate.
  *
  * A high-volume query with a low CTR means buyers are searching for something
- * the ranking is not surfacing — the highest-value thing to fix.
+ * the ranking is not surfacing: the highest-value thing to fix.
  */
 export async function getTopQueriesReport(sinceDays = 30, limit = 50): Promise<QueryReportRow[]> {
   const since = new Date(Date.now() - sinceDays * 24 * 60 * 60 * 1000)
@@ -180,7 +180,7 @@ export async function purgeOldSearchEvents(retentionDays: number): Promise<{ del
   return { deleted: deleted.length }
 }
 
-/** Distinct queries recorded in the window — used for reporting headline counts. */
+/** Distinct queries recorded in the window: used for reporting headline counts. */
 export async function countDistinctQueries(sinceDays = 30): Promise<number> {
   const since = new Date(Date.now() - sinceDays * 24 * 60 * 60 * 1000)
   const [row] = await db

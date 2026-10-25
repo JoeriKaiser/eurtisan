@@ -1630,7 +1630,7 @@ describe('moderation decisions notify the people entitled to know', () => {
     const [sent] = await notificationsFor(author.id, 'review_moderated')
     expect(sent).toBeDefined()
     const data = sent.data as Record<string, unknown>
-    // (a) what, where, how long — (b) the facts and whether a notice prompted it
+    // (a) what, where, how long: (b) the facts and whether a notice prompted it
     expect(data.restriction).toBe('hidden')
     expect(data.territorialScope).toBe('all')
     expect(data.duration).toBe('indefinite')
@@ -1675,7 +1675,7 @@ describe('moderation decisions notify the people entitled to know', () => {
     const [sent] = await notificationsFor(reporter.id, 'review_report_resolved')
     expect((sent.data as Record<string, unknown>).outcome).toBe('dismissed')
 
-    // Nothing changed for the author — the review was already approved — so
+    // Nothing changed for the author: the review was already approved: so
     // there is no restriction to state reasons for.
     expect(await notificationsFor(author.id, 'review_moderated')).toHaveLength(0)
   })

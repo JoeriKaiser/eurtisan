@@ -52,7 +52,7 @@ export async function checkRateLimitDb(
   const row = result.rows[0] as { count: number; window_start: Date }
   const count = row.count
 
-  // Best-effort cleanup of stale rows — do not await and swallow errors
+  // Best-effort cleanup of stale rows: do not await and swallow errors
   // so that rate-limiting never fails because of cleanup.
   const retentionDays = getRateLimitRetentionDays()
   db.execute(sql`

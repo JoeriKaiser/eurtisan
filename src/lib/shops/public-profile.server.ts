@@ -20,7 +20,7 @@ import {
  * Columns read for the public profile.
  *
  * `isSuspended` and `status` are read for the visibility guard and are never
- * returned. Everything omitted here is omitted deliberately — notably
+ * returned. Everything omitted here is omitted deliberately: notably
  * `businessAddress`, `vatId`, `taxId`, `dateOfBirth`,
  * `businessRegistrationNumber`, `legalEntityType`, every `mollie*` column, the
  * moderation trail, and `ownerId`, which is a `user.id`.
@@ -108,7 +108,7 @@ async function getSocials(shopId: string) {
  * or is not publicly visible.
  *
  * A missing shop and a suspended shop are deliberately indistinguishable, so
- * suspension is not observable from outside — matching `getShopBySlugQuery`,
+ * suspension is not observable from outside: matching `getShopBySlugQuery`,
  * `getShopProductsQuery`, and the search index.
  */
 export async function getShopProfileQuery(slug: string): Promise<ShopProfile | null> {
@@ -168,7 +168,7 @@ export async function getShopProfileQuery(slug: string): Promise<ShopProfile | n
  * Two queries rather than one profile assembly per shop: this runs across the
  * whole marketplace on a schedule, and `getShopProfileQuery` would issue four
  * round trips each. Presence is all that is scored, so `shippingOrigin` is
- * tested for null without decrypting it — the ciphertext is as present as the
+ * tested for null without decrypting it: the ciphertext is as present as the
  * plaintext would be.
  */
 export async function getShopProfileCompletenessSamples(): Promise<number[]> {

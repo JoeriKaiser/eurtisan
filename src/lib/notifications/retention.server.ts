@@ -11,8 +11,8 @@ import { notification } from '#/db/schema'
  * numbers, product names, shop names, buyer names, and moderation explanations.
  *
  * **Read only, deliberately.** An unread notification is undelivered
- * information — a chargeback the seller has not seen, or a statement of reasons
- * the author has not opened — and deleting it on a timer would destroy the only
+ * information: a chargeback the seller has not seen, or a statement of reasons
+ * the author has not opened: and deleting it on a timer would destroy the only
  * copy the recipient has. Age alone is not consent to forget. So the cutoff is
  * measured on `readAt`, not `createdAt`: the clock starts when the recipient
  * has actually seen the thing.

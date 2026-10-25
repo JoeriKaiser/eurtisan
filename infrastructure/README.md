@@ -203,8 +203,8 @@ restore over the live database volume; use a fresh isolated instance and follow
 
 The default layout is a **single VPS** with Docker PostgreSQL. For lower RTO:
 
-1. **Managed Postgres** (OVH, Scaleway, RDS) — point `DATABASE_URL` at the provider; keep app on VPS.
-2. **Streaming replication** — standby on a second VPS; promote manually on primary failure (document failover in your runbook).
+1. **Managed Postgres** (OVH, Scaleway, RDS): point `DATABASE_URL` at the provider; keep app on VPS.
+2. **Streaming replication**: standby on a second VPS; promote manually on primary failure (document failover in your runbook).
 
 See `docs/DEPLOYMENT.md` for WAL/RPO targets when `postgres_wal_archive_enabled` is enabled.
 
@@ -235,7 +235,7 @@ See `docs/DEPLOYMENT.md` for full details.
 
 ## Staging Seed Data
 
-After the initial deployment, inject permanent curated demo data. The seed is idempotent —
+After the initial deployment, inject permanent curated demo data. The seed is idempotent:
 safe to re-run; existing records are skipped.
 
 ### Run on staging (via Coolify proxy)

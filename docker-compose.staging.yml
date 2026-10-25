@@ -1,6 +1,6 @@
-# Staging Docker Compose — coexists with an existing reverse proxy (e.g. Coolify)
+# Staging Docker Compose: coexists with an existing reverse proxy (e.g. Coolify)
 # The app binds only to localhost so the host proxy can reach it internally.
-# No Caddy container — SSL and routing are handled by the existing proxy.
+# No Caddy container: SSL and routing are handled by the existing proxy.
 #
 # Wire this up in Coolify:
 #   Domain: staging.eurtisan.eu
@@ -48,7 +48,7 @@ services:
       - EMAIL_SMTP_PORT=1025
     ports:
       # Direct access fallback (SSH tunnel or IP-whitelisted).
-      # Traefik routes internally via the coolify network — this port is not required for that.
+      # Traefik routes internally via the coolify network: this port is not required for that.
       - "127.0.0.1:3002:3000"
     networks:
       - eurtisan
@@ -125,7 +125,7 @@ services:
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?required Meilisearch master key}
       # Without MEILI_ENV=production Meilisearch serves the search-preview UI
       # and enables vendor telemetry by default. Production mode also enforces a
-      # master key of at least 16 bytes — a shorter key makes the service refuse
+      # master key of at least 16 bytes: a shorter key makes the service refuse
       # to start.
       MEILI_ENV: production
       MEILI_NO_ANALYTICS: "true"

@@ -12,7 +12,7 @@
  * whether sellers actually fill them in.
  *
  * Configuration (via environment variables):
- *   SHOP_PROFILE_COMPLETENESS_INTERVAL_MS — polling interval (default: 3_600_000)
+ *   SHOP_PROFILE_COMPLETENESS_INTERVAL_MS: polling interval (default: 3_600_000)
  *
  * Usage:
  *   bun run src/jobs/shop-profile-completeness.ts
@@ -38,7 +38,7 @@ async function tick(): Promise<void> {
   const samples = await getShopProfileCompletenessSamples()
 
   // Reset before re-observing. A Prometheus histogram accumulates forever, and
-  // this job resamples the *same* population every tick — without the reset the
+  // this job resamples the *same* population every tick: without the reset the
   // buckets would mix today's shops with every previous run's, and the
   // distribution would lag reality further the longer the process lived. What
   // this series means is "the current spread across active shops", so each tick

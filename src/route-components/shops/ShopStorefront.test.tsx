@@ -674,7 +674,7 @@ describe('ShopStorefront', () => {
 })
 
 /**
- * Part of the `make test-accessibility` gate — see `docs/ACCESSIBILITY_ASSURANCE.md`.
+ * Part of the `make test-accessibility` gate: see `docs/ACCESSIBILITY_ASSURANCE.md`.
  *
  * Both ends of the profile range are scanned because they render different
  * markup, not different content: the sparse shop drops whole panels and the

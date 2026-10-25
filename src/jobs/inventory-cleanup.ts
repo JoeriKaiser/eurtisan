@@ -7,8 +7,8 @@
  * to cancel stale `pending_payment` orders and release their stock.
  *
  * Configuration (via environment variables):
- *   INVENTORY_CLEANUP_INTERVAL_MS — polling interval in milliseconds (default: 60_000)
- *   INVENTORY_CLEANUP_BATCH_SIZE  — max rows to delete per run (default: 100)
+ *   INVENTORY_CLEANUP_INTERVAL_MS: polling interval in milliseconds (default: 60_000)
+ *   INVENTORY_CLEANUP_BATCH_SIZE: max rows to delete per run (default: 100)
  *
  * Usage:
  *   bun run src/jobs/inventory-cleanup.ts

@@ -34,7 +34,7 @@ test.describe('Invoices E2E flow', () => {
       .limit(1)
 
     if (!creatorUser) {
-      throw new Error('Seed creator user not found in E2E database — run `make db-seed-e2e`')
+      throw new Error('Seed creator user not found in E2E database: run `make db-seed-e2e`')
     }
 
     const [creatorShop] = await db

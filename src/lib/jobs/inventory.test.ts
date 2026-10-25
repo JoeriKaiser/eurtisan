@@ -763,7 +763,7 @@ describe('releaseExpiredReservations', () => {
       reserveStock(p.id, order2.id, 10, new Date(Date.now() + 60_000)),
     ).resolves.toBeUndefined()
 
-    // Run cleanup — stale row should be removed
+    // Run cleanup: stale row should be removed
     await releaseExpiredReservations()
 
     const remaining = await db

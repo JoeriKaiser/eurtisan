@@ -13,13 +13,13 @@ import { isEuLocale } from '#/lib/i18n/eu-locales'
  *
  * CRD Article 6a(1)(c) obliges us to say whether and how we ensure reviews come
  * from real purchasers. UCPD Annex I point 23b makes the *unfounded* version of
- * that claim a blacklisted practice — banned outright, no balancing test. French
+ * that claim a blacklisted practice: banned outright, no balancing test. French
  * C. consom. L.111-7-2 adds the ordering criteria, the dates, the retention
  * period and the moderation process.
  *
  * All of it is prose describing code that lives elsewhere, so it can rot without
  * anything failing. **If this test fails, the fix is not to update the
- * expectation** — it is to change the disclosure in both locales to describe
+ * expectation**: it is to change the disclosure in both locales to describe
  * what the code now does, and only then re-pin it here.
  *
  * A source scan rather than behavioural tests: the claims are about constants

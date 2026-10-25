@@ -6,7 +6,7 @@
  * delivered, the corresponding shop order is marked as delivered.
  *
  * Configuration (via environment variables):
- *   SENDCLOUD_RECONCILIATION_INTERVAL_MS — polling interval in milliseconds (default: 21_600_000 = 6h)
+ *   SENDCLOUD_RECONCILIATION_INTERVAL_MS: polling interval in milliseconds (default: 21_600_000 = 6h)
  *
  * Usage:
  *   bun run src/jobs/sendcloud-reconciliation.ts

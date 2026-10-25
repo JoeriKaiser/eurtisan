@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
  *
  * `shippingOrigin` and `businessAddress` are written with `encryptJsonb`
  * (`src/lib/shops/settings.server.ts`). `decryptJsonb` passes plaintext through
- * unchanged so legacy rows keep working — which means a read site that forgets
+ * unchanged so legacy rows keep working: which means a read site that forgets
  * to decrypt does not throw. It receives a base64 string, every property access
  * on it yields `undefined`, and the failure is silent.
  *
@@ -29,10 +29,10 @@ const ENCRYPTED_COLUMNS = [
   'billingAddress',
 ] as const
 
-/** `x.shippingOrigin as SomeType` — a cast that skips decryption. */
+/** `x.shippingOrigin as SomeType`: a cast that skips decryption. */
 const RAW_CAST = new RegExp(`\\.(${ENCRYPTED_COLUMNS.join('|')})\\s+as\\s`, 'g')
 
-/** `shipping_origin->>'country'` — SQL cannot see inside the ciphertext. */
+/** `shipping_origin->>'country'`: SQL cannot see inside the ciphertext. */
 const SQL_EXTRACTION =
   /(shippingOrigin|shipping_origin|businessAddress|business_address|billingDetails|billing_details|shippingAddress|shipping_address|billingAddress|billing_address)\s*}?\s*->>/g
 
@@ -74,7 +74,7 @@ function scanFor(pattern: RegExp): string[] {
     const contents = readFileSync(absolute, 'utf8')
     for (const match of contents.matchAll(pattern)) {
       const line = contents.slice(0, match.index).split('\n').length
-      offenders.push(`${path}:${line} — ${match[0].trim()}`)
+      offenders.push(`${path}:${line}: ${match[0].trim()}`)
     }
   }
   return offenders

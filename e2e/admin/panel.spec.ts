@@ -5,7 +5,7 @@ test.describe('admin panel navigation', () => {
   test('admin pages render with sidebar links', async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
 
-    // 1. Dashboard — verify sidebar links exist
+    // 1. Dashboard: verify sidebar links exist
     await page.goto('/admin')
     await waitForAppHydration(page)
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible({ timeout: 10000 })

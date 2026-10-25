@@ -1,5 +1,5 @@
 /**
- * Mollie classic Payments API webhook — POST /api/webhooks/mollie
+ * Mollie classic Payments API webhook: POST /api/webhooks/mollie
  *
  * Mollie posts an application/x-www-form-urlencoded body containing the
  * payment id. The server retrieves authoritative payment state from Mollie;

@@ -121,7 +121,7 @@ const REVIEW_COMMENTS = [
   'Beautiful craftsmanship and fast shipping.',
   'Even better than the photos. Highly recommend this maker.',
   'Lovely quality, exactly as described.',
-  'A thoughtful purchase — the seller was very helpful.',
+  'A thoughtful purchase: the seller was very helpful.',
   'Well made and arrived in perfect condition.',
   'Unique piece, great attention to detail.',
   'So happy with this order. Will buy again.',
@@ -560,7 +560,7 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
           postalCode: locale.locale.location.zipCode(),
           country: locale.country,
           // Onboarding makes both mandatory, so a shop without them is not a
-          // shape production can produce — and the storefront hides its
+          // shape production can produce: and the storefront hides its
           // dispatch facts when they are missing.
           processingTimeDays: faker.helpers.arrayElement([
             { min: 1, max: 3 },
@@ -631,7 +631,7 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
 
   // Demo shops in different onboarding / moderation statuses for the known creator
   if (knownCreator) {
-    // 1. Draft — mid-onboarding (step 3, identity + story filled)
+    // 1. Draft: mid-onboarding (step 3, identity + story filled)
     const draftSlug = uniqueSlug('Ceramic Dreams', shopSlugs)
     shops.push({
       id: crypto.randomUUID(),
@@ -664,7 +664,7 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
       traderStatus: 'trader',
     })
 
-    // 2. Pending Review — completed onboarding, submitted for admin review
+    // 2. Pending Review: completed onboarding, submitted for admin review
     const pendingSlug = uniqueSlug('Nordic Knits', shopSlugs)
     shops.push({
       id: crypto.randomUUID(),
@@ -705,7 +705,7 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
       traderStatus: 'trader',
     })
 
-    // 3. Approved — admin approved, waiting for Mollie Connect
+    // 3. Approved: admin approved, waiting for Mollie Connect
     const approvedSlug = uniqueSlug('Rustic Woodworks', shopSlugs)
     shops.push({
       id: crypto.randomUUID(),
@@ -748,7 +748,7 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
       traderStatus: 'trader',
     })
 
-    // 4. Aegean Crafts — Greek Shop for testing Greek VAT ID prefix ("EL" prefix)
+    // 4. Aegean Crafts: Greek Shop for testing Greek VAT ID prefix ("EL" prefix)
     const greekSlug = uniqueSlug('Aegean Crafts', shopSlugs)
     shops.push({
       id: crypto.randomUUID(),
@@ -841,7 +841,7 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
       status: 'active',
       onboardingStep: 8,
       // Exercises the production-partner disclosure, which is a DSA-adjacent
-      // statement rather than decoration — it must be visible somewhere.
+      // statement rather than decoration: it must be visible somewhere.
       hasProductionPartner: true,
       productionPartnerDetails:
         'Annealing is done by a partner workshop in Meisenthal that runs a larger kiln than ours.',
@@ -944,7 +944,7 @@ async function seedShops(users: (typeof schema.user.$inferInsert)[]) {
 
   // `shop_socials` was truncated by this script but never populated, so the
   // storefront's "Find this maker" panel could not appear in any seeded
-  // environment — including E2E. Only the complete shop gets links; the sparse
+  // environment: including E2E. Only the complete shop gets links; the sparse
   // one is deliberately left without.
   if (shops.some((s) => s.id === CURATED_COMPLETE_SHOP_ID)) {
     await db
@@ -991,8 +991,8 @@ async function seedCategories() {
     { name: 'Furniture', subs: ['Chairs', 'Tables', 'Storage'] },
     { name: 'Soap & Bath', subs: ['Bar Soap', 'Bath Bombs', 'Skincare'] },
     // No food categories, deliberately. Regulation (EU) 1169/2011 Article
-    // 14(1)(a) requires every mandatory particular — ingredients, allergens, net
-    // quantity, storage conditions, the food business operator's address — to be
+    // 14(1)(a) requires every mandatory particular: ingredients, allergens, net
+    // quantity, storage conditions, the food business operator's address: to be
     // on the listing *before the purchase is concluded*, and the product model
     // has nowhere to put any of it. Eurtisan does not sell food; the terms say
     // so, and migration 0081 removed the categories that implied otherwise.
@@ -1257,7 +1257,7 @@ async function seedProducts(
           id: crypto.randomUUID(),
           productId,
           url: productImageUrl(`${slug}-${j}`, 800 + j * 50, 600 + j * 50),
-          altText: `${name} — view ${j + 1}`,
+          altText: `${name}: view ${j + 1}`,
           sortOrder: j,
         })
       }
@@ -1708,7 +1708,7 @@ async function seedOrders(
             senderUserId: m % 2 === 0 ? customer.id! : ownerId,
             message: faker.helpers.arrayElement([
               'Could you please look into this and let me know how we can resolve it?',
-              'Thank you for raising this — I would like to understand what happened.',
+              'Thank you for raising this: I would like to understand what happened.',
               'I have sent photos of the issue for your review.',
               'I apologise for the inconvenience. I am happy to arrange a replacement or refund.',
               'Let me check the original listing and shipping details.',

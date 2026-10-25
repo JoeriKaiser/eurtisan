@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 
-/** Shared E2E credentials — must match `src/db/seed.ts`. */
+/** Shared E2E credentials: must match `src/db/seed.ts`. */
 export const E2E_CREATOR = {
   email: 'creator@eurtisan.local',
   password: 'creator',

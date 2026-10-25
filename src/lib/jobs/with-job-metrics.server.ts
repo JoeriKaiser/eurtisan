@@ -21,7 +21,7 @@ import { logger } from '#/lib/logger.server'
  *
  * A job that never declares one has no `eurtisan_job_interval_seconds` series,
  * and the alert's `unless` clause deliberately leaves it unmonitored rather than
- * guessing a threshold — an unmonitored job is visible as a gap in the metric,
+ * guessing a threshold: an unmonitored job is visible as a gap in the metric,
  * whereas a wrong threshold is invisible.
  */
 export function declareJobInterval(jobName: string, intervalMs: number): void {
@@ -33,7 +33,7 @@ export async function withJobMetrics(
   fn: () => Promise<void>,
   options: { rethrow?: boolean } = {},
 ): Promise<void> {
-  // `job_name`, not `job` — see the note on these metrics in metrics.server.ts.
+  // `job_name`, not `job`: see the note on these metrics in metrics.server.ts.
   const end = jobRunDurationSeconds.startTimer({ job_name: jobName })
 
   try {

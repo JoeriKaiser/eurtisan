@@ -6,8 +6,8 @@
  * `expiresAt` timestamp has passed.
  *
  * Configuration:
- *   EMAIL_SUPPRESSION_CLEANUP_INTERVAL_MS — polling interval (default: 86400000)
- *   EMAIL_SUPPRESSION_CLEANUP_BATCH_SIZE  — max rows to delete per run (default: 1000)
+ *   EMAIL_SUPPRESSION_CLEANUP_INTERVAL_MS: polling interval (default: 86400000)
+ *   EMAIL_SUPPRESSION_CLEANUP_BATCH_SIZE: max rows to delete per run (default: 1000)
  *
  * Usage:
  *   bun run src/jobs/email-suppression-cleanup.ts

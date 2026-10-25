@@ -79,7 +79,7 @@ export function withAuthz(
 }
 
 /**
- * Gate 1: Authentication — verifies the request carries a valid session.
+ * Gate 1: Authentication: verifies the request carries a valid session.
  * Returns an AuthContext with the user and session, or throws AuthError(401).
  */
 export async function requireAuth(request: Request): Promise<AuthContext> {
@@ -110,7 +110,7 @@ export async function requireAuth(request: Request): Promise<AuthContext> {
 }
 
 /**
- * Gate 2: Role check — verifies the authenticated user meets the minimum role.
+ * Gate 2: Role check: verifies the authenticated user meets the minimum role.
  * Returns the context on success, or throws AuthError(403).
  */
 export function requireRole(minRole: UserRole) {
@@ -129,12 +129,12 @@ export function requireRole(minRole: UserRole) {
 }
 
 /**
- * Gate 3: Ownership check — verifies the authenticated user owns the requested shop.
+ * Gate 3: Ownership check: verifies the authenticated user owns the requested shop.
  * Admin users bypass this check. Returns the context on success,
  * or throws AuthError(403).
  */
 export async function requireShopOwnership(ctx: AuthContext, shopId: string): Promise<AuthContext> {
-  // Admin bypass — authentication and role checks are still required upstream
+  // Admin bypass: authentication and role checks are still required upstream
   if (ctx.user.role === 'admin') {
     return ctx
   }

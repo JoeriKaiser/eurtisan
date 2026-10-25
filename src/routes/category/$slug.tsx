@@ -12,7 +12,7 @@ import { m } from '#/paraglide/messages'
  *
  * Every optional param catches rather than throws: a hand-edited or truncated
  * URL should degrade to the default view, not to an error page. `inStock`
- * accepts the raw value and is normalised in `loaderDeps` — `z.coerce.boolean()`
+ * accepts the raw value and is normalised in `loaderDeps`: `z.coerce.boolean()`
  * would read `?inStock=false` as true.
  */
 const categorySearchSchema = z.object({
@@ -24,7 +24,7 @@ const categorySearchSchema = z.object({
   maxPrice: z.coerce.number().min(0).optional().catch(undefined),
 })
 
-/** Euros in the URL, cents in the query — the boundary is here. */
+/** Euros in the URL, cents in the query: the boundary is here. */
 function toCents(euros: number | undefined): number | undefined {
   return euros === undefined ? undefined : Math.round(euros * 100)
 }

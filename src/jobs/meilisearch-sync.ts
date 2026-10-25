@@ -4,8 +4,8 @@
  * Runs continuously in the background, periodically processing pending/failed items in the outbox queue.
  *
  * Configuration (via environment variables):
- *   MEILISEARCH_SYNC_INTERVAL_MS — polling interval in milliseconds (default: 5000)
- *   MEILISEARCH_SYNC_BATCH_SIZE  — max rows to process per tick (default: 50)
+ *   MEILISEARCH_SYNC_INTERVAL_MS: polling interval in milliseconds (default: 5000)
+ *   MEILISEARCH_SYNC_BATCH_SIZE: max rows to process per tick (default: 50)
  *
  * Usage:
  *   bun run src/jobs/meilisearch-sync.ts

@@ -2,7 +2,7 @@
  * Pure construction of the search overlay's suggestion list.
  *
  * Kept free of data fetching so the ordering and de-duplication rules are
- * directly testable — they are easy to break and hard to notice.
+ * directly testable: they are easy to break and hard to notice.
  */
 
 export type SuggestionType = 'query' | 'product' | 'category'

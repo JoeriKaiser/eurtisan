@@ -7,8 +7,8 @@
  * personal data, so they are not retained indefinitely.
  *
  * Configuration (via environment variables):
- *   SEARCH_EVENT_CLEANUP_INTERVAL_MS — polling interval in milliseconds (default: 86400000)
- *   SEARCH_EVENT_RETENTION_DAYS      — retention period in days (default: 180)
+ *   SEARCH_EVENT_CLEANUP_INTERVAL_MS: polling interval in milliseconds (default: 86400000)
+ *   SEARCH_EVENT_RETENTION_DAYS: retention period in days (default: 180)
  *
  * Usage:
  *   bun run src/jobs/search-event-cleanup.ts

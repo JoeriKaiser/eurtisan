@@ -112,17 +112,17 @@ function buildTrackingEvents(_trackingNumber: string): TrackingEvent[] {
     {
       timestamp: ts(0),
       status: 'label_created',
-      location: 'Sendcloud Hub — Lille, FR',
+      location: 'Sendcloud Hub, Lille, FR',
     },
     {
       timestamp: ts(4),
       status: 'Shipment picked up by carrier',
-      location: 'Sendcloud Hub — Lille, FR',
+      location: 'Sendcloud Hub, Lille, FR',
     },
     {
       timestamp: ts(8),
       status: 'Package received at sorting centre',
-      location: 'Sendcloud Sorting — Paris, FR',
+      location: 'Sendcloud Sorting, Paris, FR',
     },
     {
       timestamp: ts(16),

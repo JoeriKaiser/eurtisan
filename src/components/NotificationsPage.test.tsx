@@ -52,7 +52,7 @@ vi.mock('#/paraglide/messages', () => ({
     notifications_status_read: () => 'Read notification',
     notifications_group_unread_badge: ({ count }: { count: string }) => `${count} unread`,
     notifications_group_items_capped: ({ shown, count }: { shown: string; count: string }) =>
-      `Showing the ${shown} most recent of ${count} — the daily digest email lists the rest.`,
+      `Showing the ${shown} most recent of ${count}; the daily digest email lists the rest.`,
     notification_group_low_stock: ({ count }: { count: string }) =>
       `Low stock: ${count} products need attention`,
     notification_group_review_received: ({ count }: { count: string }) =>
@@ -69,8 +69,8 @@ vi.mock('#/paraglide/messages', () => ({
       `New review on ${productName}`,
     notification_seller_reply_received: ({ productName }: { productName: string }) =>
       `Seller replied to your review of ${productName}`,
-    notification_seller_reply_hidden: () => 'Your seller reply was hidden — see why',
-    notification_seller_reply_flagged: () => 'Your seller reply was restricted — see why',
+    notification_seller_reply_hidden: () => 'Your seller reply was hidden: see why',
+    notification_seller_reply_flagged: () => 'Your seller reply was restricted: see why',
     notification_seller_reply_restored: () => 'Your seller reply is visible again',
     notification_seller_reply_report_upheld: () => 'We acted on the seller reply you reported',
     notification_seller_reply_report_dismissed: () =>
@@ -296,12 +296,12 @@ describe('NotificationsPage', () => {
     )
 
     expect(screen.getByText('Seller replied to your review of Vase')).toBeDefined()
-    expect(screen.getByText('Your seller reply was hidden — see why')).toBeDefined()
+    expect(screen.getByText('Your seller reply was hidden: see why')).toBeDefined()
     expect(screen.getByText('We acted on the seller reply you reported')).toBeDefined()
 
     for (const preview of [
       'Seller replied to your review of Vase',
-      'Your seller reply was hidden — see why',
+      'Your seller reply was hidden: see why',
       'We acted on the seller reply you reported',
     ]) {
       fireEvent.click(screen.getByRole('button', { name: new RegExp(preview) }))
@@ -489,7 +489,7 @@ describe('NotificationsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Low stock: 25 products need attention/i }))
 
     expect(
-      screen.getByText('Showing the 2 most recent of 25 — the daily digest email lists the rest.'),
+      screen.getByText('Showing the 2 most recent of 25; the daily digest email lists the rest.'),
     ).toBeDefined()
   })
 })

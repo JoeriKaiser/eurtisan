@@ -23,7 +23,7 @@ Deploy Eurtisan to staging and production using Ansible and Docker.
 Inventory files are not committed (they contain your VPS IPs). Copy the examples and fill in your real values:
 
 ```bash
-# One-time setup — copy examples to real files
+# One-time setup: copy examples to real files
 make infra-init
 
 # Then edit with your actual details
@@ -87,7 +87,7 @@ make infra-setup-production
 
 Ansible will:
 
-1. Harden the server (UFW, fail2ban, auto-updates) — skipped on staging if `coexist_with_proxy: true`
+1. Harden the server (UFW, fail2ban, auto-updates), skipped on staging if `coexist_with_proxy: true`
 2. Install Docker + Docker Compose plugin
 3. Clone the repository to `/opt/eurtisan`
 4. Build the exact release in an isolated controller worktree, publish and sign its immutable digest, then pull and verify that digest on the target
@@ -147,9 +147,9 @@ whose OCI revision or repository digest differs from Ansible-managed metadata.
 
 After `docker compose up -d`, the script polls:
 
-- `/api/health/ready` — critical dependencies (DB, Meilisearch, disk)
-- `/api/health/live` — process liveness
-- `/api/health` — critical dependencies (lightweight)
+- `/api/health/ready`: critical dependencies (DB, Meilisearch, disk)
+- `/api/health/live`: process liveness
+- `/api/health`: critical dependencies (lightweight)
 
 If any probe fails within the timeout (120s by default), the script:
 
@@ -207,14 +207,14 @@ Failure behavior:
 
 Environment variables:
 
-- `CANARY_PORT` — port the canary binds to (default: `3001`). On staging, set this to `3003` because Grafana and the staging app fallback use ports `3001` and `3002`.
-- `CANARY_STABILIZE_SECONDS` — observation period after initial health (default: `300`).
+- `CANARY_PORT`: port the canary binds to (default: `3001`). On staging, set this to `3003` because Grafana and the staging app fallback use ports `3001` and `3002`.
+- `CANARY_STABILIZE_SECONDS`: observation period after initial health (default: `300`).
 
 This is a single-host manual canary; it validates the new image in isolation but does not route live production traffic to the canary. True blue/green load-balanced canaries are future work.
 
 ### Accessing Staging
 
-**Option A — SSH Tunnel (most secure):**
+**Option A: SSH Tunnel (most secure):**
 
 From your local machine:
 
@@ -224,7 +224,7 @@ ssh -i ~/.ssh/server_id_rsa -L 3002:127.0.0.1:3002 ubuntu@STAGING_IP -N
 
 Then open `http://localhost:3002` in your browser.
 
-**Option B — Direct access with IP whitelist:**
+**Option B: Direct access with IP whitelist:**
 
 Add `app_access_ips` to your `secrets.yml` and re-run the playbook:
 
@@ -452,7 +452,7 @@ The pgBackRest repository is encrypted independently of application column
 encryption. Staging uses `pgbackrest_repository_type: posix`; production preflight
 requires `pgbackrest_repository_type: s3`, HTTPS object storage, a repository bucket,
 and dedicated credentials. pgBackRest owns WAL expiration relative to retained base
-backups—WAL files are never pruned independently by file age.
+backups. WAL files are never pruned independently by file age.
 
 Run `make pgbackrest-check` to exercise a disposable full backup, WAL archive, and
 time-targeted restore. A real isolated staging restore, encrypted-column verification,
@@ -465,7 +465,7 @@ Before sending live mail, complete SPF, DKIM, and DMARC per [docs/EMAIL_DNS.md](
 
 ## Object storage, image, and search routing
 
-Product and shop images use **S3-compatible storage** (Garage locally and on staging, Scaleway in production) with presigned uploads — see `.env.example` (`S3_*`, `IMGPROXY_*`). Staging exposes Garage's authenticated S3 API at `s3-staging.eurtisan.eu`; the Garage admin API remains private. This allows horizontal scaling without shared local disk.
+Product and shop images use **S3-compatible storage** (Garage locally and on staging, Scaleway in production) with presigned uploads: see `.env.example` (`S3_*`, `IMGPROXY_*`). Staging exposes Garage's authenticated S3 API at `s3-staging.eurtisan.eu`; the Garage admin API remains private. This allows horizontal scaling without shared local disk.
 
 Shared environments expose imgproxy at the same-origin `/uploads` route. Caddy and
 the Ansible-managed staging Traefik route strip this prefix before forwarding to
@@ -490,7 +490,7 @@ docker compose -f docker-compose.prod.yml run --rm app bun run search:reindex
 ```
 
 This builds a complete index alongside the live one and swaps them atomically, so
-search keeps serving the previous generation throughout — never clear the index and
+search keeps serving the previous generation throughout. Never clear the index and
 repopulate in production, which empties the storefront for the duration.
 
 Note that `MEILI_MASTER_KEY` must be at least 16 bytes: the containers run with

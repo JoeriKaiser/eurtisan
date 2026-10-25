@@ -246,7 +246,7 @@ export async function openDisputeQuery(
 
     // Inserted directly rather than through `createNotification` because this
     // has to be in the dispute's transaction. `type` is now constrained by the
-    // column, which is how this bypass became visible at all — it was untyped
+    // column, which is how this bypass became visible at all: it was untyped
     // for as long as the column was `text`.
     await tx.insert(notification).values(
       Array.from(notificationRecipients, ([userId, targetPath]) => ({
@@ -918,7 +918,7 @@ export async function resolveDisputeQuery(
   // Notifications run after the commit, never inside this transaction:
   // `createNotification` locks the recipient's user row (preference
   // serialization), and this transaction already holds a conflicting
-  // `FOR KEY SHARE` on it through its order/payout updates — a nested call
+  // `FOR KEY SHARE` on it through its order/payout updates: a nested call
   // deadlocks against its own outer transaction.
   const notificationData = {
     disputeId,

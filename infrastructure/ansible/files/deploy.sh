@@ -2,9 +2,9 @@
 # Eurtisan deploy script
 # Run on the VPS to recover an immutable digest already pulled and verified by Ansible.
 # Usage: ./deploy.sh [--skip-smoke-test] [--canary] [git-ref]
-#   --skip-smoke-test — bypass post-deploy smoke tests (emergency manual use only)
-#   --canary — run a single canary container before full rollout
-#   git-ref — branch or tag to deploy (default: main)
+#   --skip-smoke-test: bypass post-deploy smoke tests (emergency manual use only)
+#   --canary: run a single canary container before full rollout
+#   git-ref: branch or tag to deploy (default: main)
 #
 # Set COMPOSE_FILE env var to override (default: docker-compose.prod.yml)
 
@@ -232,7 +232,7 @@ if docker compose "${COMPOSE_FILES[@]}" run --rm --no-deps app bun run db:migrat
 
   if [ "$SKIP_SMOKE_TEST" = false ]; then
     if ! run_smoke_tests; then
-      echo "==> SMOKE TEST FAILED — rolling back to previous image"
+      echo "==> SMOKE TEST FAILED: rolling back to previous image"
       send_alert "🚨 Eurtisan deploy FAILED on $(hostname): smoke tests failed for ${GIT_REF}. Rolling back."
 
       echo "==> Ensuring old containers are running with rollback image..."
@@ -242,7 +242,7 @@ if docker compose "${COMPOSE_FILES[@]}" run --rm --no-deps app bun run db:migrat
       if run_smoke_tests; then
         echo "==> Rollback smoke tests passed"
       else
-        echo "==> ROLLBACK SMOKE TESTS ALSO FAILED — manual intervention required"
+        echo "==> ROLLBACK SMOKE TESTS ALSO FAILED: manual intervention required"
         send_alert "🚨🚨 Eurtisan rollback ALSO failed on $(hostname) for ${GIT_REF}. Manual intervention required."
       fi
       exit 1
@@ -254,7 +254,7 @@ if docker compose "${COMPOSE_FILES[@]}" run --rm --no-deps app bun run db:migrat
   echo "==> Tagging deployed image as latest..."
   docker tag "eurtisan-app:${IMAGE_TAG}" eurtisan-app:latest
 else
-  echo "==> MIGRATION FAILED — rolling back to previous image"
+  echo "==> MIGRATION FAILED: rolling back to previous image"
   send_alert "🚨 Eurtisan deploy FAILED on $(hostname): database migration failed for ${GIT_REF}. Rolling back."
 
   echo "==> Ensuring old containers are running with rollback image..."

@@ -1,5 +1,5 @@
 /**
- * Database pool configuration — pure logic, no side effects.
+ * Database pool configuration: pure logic, no side effects.
  *
  * Separated from `src/db.ts` so the configuration parsing can be
  * unit-tested without instantiating a live `pg.Pool`.

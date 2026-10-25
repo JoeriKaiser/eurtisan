@@ -1,5 +1,5 @@
 /**
- * Sendcloud webhook endpoint — POST /api/webhooks/sendcloud
+ * Sendcloud webhook endpoint: POST /api/webhooks/sendcloud
  *
  * Receives parcel status updates from Sendcloud. Signature verification is
  * mandatory. Order status transitions are driven exclusively by this webhook
@@ -127,7 +127,7 @@ export async function processSendcloudWebhook(
     .limit(1)
 
   if (!label) {
-    // Unknown tracking number — could be from another environment; respond 200
+    // Unknown tracking number: could be from another environment; respond 200
     // to stop Sendcloud from retrying.
     logger.warn('Sendcloud webhook: unknown tracking number', { trackingNumber, parcelId })
     await markEventProcessed(database, eventRecord.id, 'unknown_tracking_number')

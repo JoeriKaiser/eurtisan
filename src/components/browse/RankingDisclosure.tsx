@@ -4,7 +4,7 @@ import { m } from '#/paraglide/messages'
 export interface RankingDisclosureProps {
   /**
    * `search` describes text-relevance ranking; `category` describes a plain
-   * sorted list. They differ because the surfaces genuinely rank differently —
+   * sorted list. They differ because the surfaces genuinely rank differently,
    * one disclosure covering both would have to be vague enough to be useless.
    */
   variant: 'search' | 'category'
@@ -15,15 +15,15 @@ export interface RankingDisclosureProps {
  *
  * Required by CRD Article 6a(1)(a) (Omnibus) and French Code de la consommation
  * **L.111-7**, which carries penalties up to €75,000 for individuals and
- * €375,000 for legal entities. Unlike DSA Article 30 — which the shop-storefront
- * work established does not apply to a micro-enterprise operator — **there is no
+ * €375,000 for legal entities. Unlike DSA Article 30: which the shop-storefront
+ * work established does not apply to a micro-enterprise operator: **there is no
  * micro or small enterprise exemption here.**
  *
  * The wording is deliberately in plain language rather than naming the ranking
  * rules verbatim: the obligation is that a consumer can understand the main
  * parameters and their relative importance, not that the implementation is
  * reproduced. The order below mirrors `rankingRules` in
- * `src/lib/products/meilisearch.server.ts` exactly — **if that array changes,
+ * `src/lib/products/meilisearch.server.ts` exactly: **if that array changes,
  * this text must change with it.** `src/test/ranking-disclosure-accuracy.test.ts`
  * enforces that; a drifted disclosure is an inaccurate ranking statement, which
  * is precisely what L.111-7 penalises.

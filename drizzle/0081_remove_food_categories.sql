@@ -5,8 +5,8 @@
 --
 -- That mattered legally, not just cosmetically. Regulation (EU) 1169/2011
 -- Article 14(1)(a) requires every mandatory particular for prepacked food sold
--- at a distance — ingredients, allergens, net quantity, storage conditions, the
--- food business operator's name and address — to be available *before the
+-- at a distance: ingredients, allergens, net quantity, storage conditions, the
+-- food business operator's name and address: to be available *before the
 -- purchase is concluded*, and the `product` model has no field for any of them.
 -- A seller listing honey could not have complied, and the platform gave them no
 -- way to.

@@ -6,7 +6,7 @@ export interface ShopAnnouncementProps {
 }
 
 /**
- * The maker's current notice — holiday closures, dispatch delays, restocks.
+ * The maker's current notice: holiday closures, dispatch delays, restocks.
  *
  * Rendered as plain text. The stored value is seller-authored and is never
  * treated as markup.

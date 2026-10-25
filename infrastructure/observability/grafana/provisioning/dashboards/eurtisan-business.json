@@ -426,7 +426,7 @@
   "time": { "from": "now-24h", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Eurtisan — Business & Operations",
+  "title": "Eurtisan: Business & Operations",
   "uid": "eurtisan-business",
   "version": 1,
   "weekStart": ""

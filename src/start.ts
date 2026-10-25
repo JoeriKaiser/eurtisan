@@ -48,7 +48,7 @@ const paraglideRequestMiddleware = createMiddleware().server(async ({ request, n
 })
 
 // startInstance is consumed by the TanStack Start Vite plugin at build time.
-// It has no explicit importers in source — the plugin discovers it via heuristics.
+// It has no explicit importers in source: the plugin discovers it via heuristics.
 export const startInstance = createStart(() => ({
   requestMiddleware: [paraglideRequestMiddleware, cspMiddleware],
 }))

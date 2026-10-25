@@ -40,7 +40,7 @@ const REASONS: { value: ReviewReportReason; label: () => string }[] = [
  * The button used to submit a bare review id, and the server flipped the review
  * to `flagged` on the spot. DSA Article 16(2) requires a notice to carry a
  * sufficiently substantiated explanation of why the reporter believes the
- * content is illegal, which a single click cannot express — and the ground is
+ * content is illegal, which a single click cannot express: and the ground is
  * what a later Article 17(3)(b) statement of reasons has to cite.
  *
  * `other` requires the free-text field, since the label alone substantiates

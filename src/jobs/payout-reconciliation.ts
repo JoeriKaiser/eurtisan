@@ -7,7 +7,7 @@
  * alerts on pending payouts approaching the 90-day routing window.
  *
  * Configuration (via environment variables):
- *   PAYOUT_RECONCILIATION_INTERVAL_MS — polling interval in milliseconds (default: 21_600_000 = 6h)
+ *   PAYOUT_RECONCILIATION_INTERVAL_MS: polling interval in milliseconds (default: 21_600_000 = 6h)
  *
  * Usage:
  *   bun run src/jobs/payout-reconciliation.ts

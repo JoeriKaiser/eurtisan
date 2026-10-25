@@ -127,7 +127,7 @@ export async function createNotification(
     .insert(schema.notification)
     .values({
       userId,
-      // Was `'welcome'`, a type the application enum never contained — the
+      // Was `'welcome'`, a type the application enum never contained: the
       // column was `text`, so nothing rejected it and the read path would have
       // rendered it as a row with no icon and no text. Promoting the column to
       // an enum is what surfaced it.

@@ -8,7 +8,7 @@
  * - Graceful shutdown on SIGTERM/SIGINT
  *
  * The built TanStack Start handler (`dist/server/server.js`) only exports a
- * `fetch`-style handler — it does NOT create an HTTP server or serve static
+ * `fetch`-style handler: it does NOT create an HTTP server or serve static
  * files. This file wraps it with a full Node.js HTTP server.
  */
 
@@ -387,7 +387,7 @@ const server = createServer(async (req, res) => {
   })
 })
 
-// Server timeouts — mitigate Slowloris / idle-connection DoS
+// Server timeouts: mitigate Slowloris / idle-connection DoS
 server.timeout = 30000        // 30s total request timeout
 server.keepAliveTimeout = 5000 // 5s keep-alive timeout
 server.headersTimeout = 35000  // slightly longer than timeout

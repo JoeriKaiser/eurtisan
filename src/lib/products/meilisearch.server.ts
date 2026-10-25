@@ -23,7 +23,7 @@ const EMPTY_AGGREGATE: ReviewAggregate = { reviewCount: 0, ratingSum: 0 }
 
 /**
  * Approved-review totals per product. Flagged and hidden reviews must not
- * influence ranking, so they are excluded here rather than at read time —
+ * influence ranking, so they are excluded here rather than at read time,
  * through the same `PUBLIC_REVIEW_FILTER` the product page and the shop
  * aggregate use, which is what stops the three drifting apart again.
  */
@@ -217,7 +217,7 @@ export async function configureProductsIndex(indexUid: string = PRODUCTS_INDEX):
     //
     // Disclosed to buyers by `components/browse/RankingDisclosure.tsx` under
     // CRD 6a(1)(a) / C. consom. L.111-7. Changing this array without changing
-    // that text fails `src/test/ranking-disclosure-accuracy.test.ts` — update
+    // that text fails `src/test/ranking-disclosure-accuracy.test.ts`: update
     // the disclosure in both locales first.
     rankingRules: [
       'words',
@@ -373,7 +373,7 @@ function extractFacets(
 
 /**
  * Delete documents that Meilisearch still returns but that no longer satisfy
- * the index invariant (published, active, non-suspended shop). Never rejects —
+ * the index invariant (published, active, non-suspended shop). Never rejects,
  * this is best-effort self-healing on the read path.
  */
 async function purgeStaleDocuments(productIds: string[]): Promise<void> {
@@ -473,7 +473,7 @@ export async function rebuildProductsIndex(
   await configureProductsIndex(stagingUid)
   const result = await populateProductsIndex(batchSize, stagingUid)
 
-  // addDocuments only enqueues work — the swap must not happen until the
+  // addDocuments only enqueues work: the swap must not happen until the
   // staging index has actually finished indexing.
   await client.tasks.waitForTask(
     await client.index(stagingUid).updateSettings({ pagination: { maxTotalHits: MAX_TOTAL_HITS } }),
@@ -702,7 +702,7 @@ type SyncQueueItem = typeof meilisearchSyncQueue.$inferSelect
 /**
  * Apply a whole batch with one write per operation type.
  *
- * The previous implementation issued an `addDocuments` call per row — fifty
+ * The previous implementation issued an `addDocuments` call per row: fifty
  * separate Meilisearch tasks per tick, each preceded by its own shop and
  * category lookup.
  */

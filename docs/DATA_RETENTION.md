@@ -20,7 +20,7 @@ Summary for GDPR and operations. Align `/privacy` if customer-facing text must m
 | Brevo webhook events | 30 days | `job:email-retention-cleanup` |
 | Sendcloud webhook events | 30 days | `job:sendcloud-retention-cleanup` |
 | Payout reconciliation logs | 365 days (configurable) | `job:payout-reconciliation-log-cleanup`; set `PAYOUT_RECONCILIATION_LOG_RETENTION_DAYS` |
-| In-app notifications | 365 days after being **read** (configurable) | `job:notification-cleanup`; set `NOTIFICATION_RETENTION_DAYS`. Unread notifications are never purged — they are undelivered information, and age is not consent to forget. The clock runs from `read_at`, not creation |
+| In-app notifications | 365 days after being **read** (configurable) | `job:notification-cleanup`; set `NOTIFICATION_RETENTION_DAYS`. Unread notifications are never purged: they are undelivered information, and age is not consent to forget. The clock runs from `read_at`, not creation |
 | S3 uploads | Until entity deleted | Optional bucket lifecycle rules |
 | DB backups | Logical: 30 days local, 90 days off-site; physical/WAL: 4 full and 14 differential pgBackRest generations | `infrastructure/README.md`; provider lifecycle owns off-site logical/upload expiration |
 
@@ -42,9 +42,9 @@ Self-service deletion is implemented in `src/lib/users/account-data.server.ts` (
 | `order_item` | Product snapshots, quantities, prices | No direct PII; retained for order history |
 | `review` | Rating, product link | `comment` set to `null` |
 | `dispute` | Reason, status, resolution | `description` redacted |
-| `dispute_message` (sent by user) | Thread context | `message` replaced with `'[message removed — account deleted]'` |
+| `dispute_message` (sent by user) | Thread context | `message` replaced with `'[message removed: account deleted]'` |
 | `return_request` | Status, item/refund totals, deadlines, policy version, shipping evidence | Free-text `reason` redacted; financial and lifecycle evidence retained |
-| `return_request_message` (sent by user) | Thread context | `message` replaced with `'[message removed — account deleted]'` |
+| `return_request_message` (sent by user) | Thread context | `message` replaced with `'[message removed: account deleted]'` |
 | `guest_order_access` | None | Rows for the user's orders are deleted and links stop authorizing access |
 | `owner_message_thread` | Thread metadata | `subject` set to `'[REDACTED]'` |
 | `owner_message` | Message thread context | `body` set to `'[REDACTED]'` |

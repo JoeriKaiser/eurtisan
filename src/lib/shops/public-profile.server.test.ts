@@ -15,7 +15,7 @@ import { updateShopInternal } from './settings.server'
  * Every key a buyer may receive. This list is the publishing decision.
  *
  * If a change to `publicShopColumns` or the returned object widens the payload,
- * this test fails — which is the point. Do not update it to make a failure go
+ * this test fails: which is the point. Do not update it to make a failure go
  * away without deciding, deliberately, that the new field is publishable.
  */
 const EXPECTED_PROFILE_KEYS = [
@@ -142,7 +142,7 @@ describe('getShopProfileQuery', () => {
         expect(profile).not.toHaveProperty(forbidden)
       }
 
-      // Values, not just key names — a rename must not smuggle a secret through.
+      // Values, not just key names: a rename must not smuggle a secret through.
       for (const secret of [
         'access_secret',
         'refresh_secret',

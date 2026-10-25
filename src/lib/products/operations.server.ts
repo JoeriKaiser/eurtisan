@@ -140,7 +140,7 @@ function buildProductWhere(filters: ListProductsFilters) {
     // `productVariant.stockCount` is an independent column that nothing
     // aggregates back into `product.stockCount`, so a variant product with
     // stock on every variant and zero on its parent row counts as out of stock
-    // here — exactly as it already does in search. Fixing that belongs to the
+    // here: exactly as it already does in search. Fixing that belongs to the
     // catalog domain; two disagreeing definitions of "in stock" would be worse
     // than one consistent limitation.
     conditions.push(gt(product.stockCount, 0))
@@ -360,7 +360,7 @@ export async function getProductsByShopSlugQuery(
  * Other products from the same shop, for the product page's rail.
  *
  * Routed through `listProductsQuery` rather than hand-rolled, so it inherits
- * every visibility filter and a deterministic `ORDER BY` — the two things the
+ * every visibility filter and a deterministic `ORDER BY`: the two things the
  * category page turned out to be missing when it hand-rolled its own.
  *
  * Deliberately not "related products". There is no recommender in this codebase,
@@ -449,12 +449,12 @@ export async function getShopProductsQuery(
  * Categories that actually occur in this shop's publicly visible products.
  *
  * Offering the full marketplace taxonomy on a storefront would be mostly dead
- * options, so the filter is built from the shop's own catalogue — the same
+ * options, so the filter is built from the shop's own catalogue: the same
  * principle as search's facet counts, cheap here because the set is one shop.
  *
  * Deliberately independent of the current search and filter state: a category
  * list that shrank to the selected value would strand the buyer with no way
- * back. Suspended and inactive shops return nothing rather than 404 — callers
+ * back. Suspended and inactive shops return nothing rather than 404: callers
  * reach this only after `getShopProfile` has already gated on visibility.
  */
 export async function getShopProductCategoriesQuery(
@@ -630,7 +630,7 @@ export async function getMarketplaceStatsQuery(): Promise<{
         .from(product)
         .where(and(eq(product.status, 'published'), eq(product.isActive, true))),
       // `shippingOrigin` is encrypted at rest, so it is a JSON *string* in the
-      // column and `->>'country'` yields NULL for every row — this count was
+      // column and `->>'country'` yields NULL for every row: this count was
       // silently 0 on the homepage. SQL cannot see inside the ciphertext, so
       // the distinct-count has to happen after decryption, in application code.
       // Bounded by the number of active shops and cached for

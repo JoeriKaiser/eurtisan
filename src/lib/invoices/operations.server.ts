@@ -322,7 +322,7 @@ export async function createInvoicesForPlatformOrder(
     const ownerUser = ownersById.get(shopRecord.ownerId)
 
     // Both encrypted at rest. Read raw, the seller's address on a VAT invoice
-    // comes out entirely blank — including `country`, which also feeds the
+    // comes out entirely blank: including `country`, which also feeds the
     // reverse-charge determination below.
     const shopOrigin = decryptJsonb<{
       street?: string

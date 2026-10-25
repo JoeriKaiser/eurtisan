@@ -5,8 +5,8 @@
  * backoff, and records every outcome in `email_send_log`.
  *
  * Configuration:
- *   EMAIL_OUTBOX_WORKER_INTERVAL_MS — polling interval (default: 10000)
- *   EMAIL_OUTBOX_WORKER_BATCH_SIZE  — max rows per tick (default: 50)
+ *   EMAIL_OUTBOX_WORKER_INTERVAL_MS: polling interval (default: 10000)
+ *   EMAIL_OUTBOX_WORKER_BATCH_SIZE: max rows per tick (default: 50)
  *
  * Usage:
  *   bun run src/jobs/email-outbox-worker.ts

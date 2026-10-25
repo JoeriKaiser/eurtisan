@@ -40,7 +40,7 @@ Procedures and qualification evidence live in [`docs/runbooks/`](docs/runbooks/)
 ## Standing constraints
 
 - **Legal work is scoped to what is actually required.** Where an obligation was
-  uncertain, it was verified against the legislative text rather than recalled —
+  uncertain, it was verified against the legislative text rather than recalled,
   and where it did not apply, that was recorded rather than padded. DSA Art. 19
   exempts micro and small enterprises from Section 3 (Arts 20–28) **only**;
   Arts 16 and 17 apply at any size.
@@ -51,7 +51,7 @@ Procedures and qualification evidence live in [`docs/runbooks/`](docs/runbooks/)
   exact one-litre waiver and legacy completeness guard aligned with the tests.
 - **Eurtisan does not sell food.** The categories were removed and the terms say
   so. Do not re-add a food category without building the Regulation (EU)
-  1169/2011 Art. 14 fields first — ingredients, allergens, net quantity, storage
+  1169/2011 Art. 14 fields first: ingredients, allergens, net quantity, storage
   conditions, and the food business operator's address, all required on the
   listing *before* purchase.
 
@@ -59,7 +59,7 @@ Where a disclosure's accuracy is legally load-bearing, it is pinned to the code
 it describes by a test rather than left to review: see
 `src/test/ranking-disclosure-accuracy.test.ts`,
 `src/test/review-disclosure-accuracy.test.ts`, and
-`src/test/review-visibility.test.ts`. Follow that pattern for new ones — a
+`src/test/review-visibility.test.ts`. Follow that pattern for new ones: a
 drifted disclosure is an inaccurate statement, which is the failure these
 articles penalise.
 
@@ -103,9 +103,9 @@ sit on PII, GDPR, suspension-propagation, and money-path constraints.
 
 Before proposing a plan or writing code that reads, publishes, or moves a field:
 
-- **Read its write path**, not only its read path. Encryption (`encryptJsonb`), sanitization, and validation live where the value is stored. A column that reads as plain JSONB may be ciphertext on every row written since the encryption change. For `shop.shippingOrigin` and `shop.businessAddress` this is now enforced by `src/test/encrypted-column-reads.test.ts`, after ten read sites shipped undecrypted — `decryptJsonb` passes legacy plaintext through, so a missed decryption fails silently rather than throwing.
+- **Read its write path**, not only its read path. Encryption (`encryptJsonb`), sanitization, and validation live where the value is stored. A column that reads as plain JSONB may be ciphertext on every row written since the encryption change. For `shop.shippingOrigin` and `shop.businessAddress` this is now enforced by `src/test/encrypted-column-reads.test.ts`, after ten read sites shipped undecrypted. `decryptJsonb` passes legacy plaintext through, so a missed decryption fails silently rather than throwing.
 - **Read the canonical document, not its headings.** `DESIGN.md`, `docs/ARCHITECTURE.md`, and `docs/ACCESSIBILITY_ASSURANCE.md` carry tokens, placement rules, and enforced gates that no summary reproduces.
-- **Check whether a sibling feature already defines the term you are about to define** — "in stock", "approved review", "publicly visible". Match the existing definition or change both. Never introduce a second one.
+- **Check whether a sibling feature already defines the term you are about to define**: "in stock", "approved review", "publicly visible". Match the existing definition or change both. Never introduce a second one.
 - **Assume a formal gate exists before assuming a principle.** Accessibility (`make test-accessibility`, the OKLCH contrast table, the critical-flow matrix), `messages/*.json` key parity, the migration procedure, and the Vitest DB/browser split are all enforced.
 - **Resolve unknowns before presenting a plan.** A plan that defers a dependency as "confirm before committing to this shape" is unfinished; verify it and state the decision.
 
@@ -240,7 +240,7 @@ Tests must be deterministic and must not call external networks; mock providers 
 
 The Vitest gate classifies runtime database dependencies. DB-backed unit files remain serial; pure unit and browser files run in bounded parallel workers. Browser tests and their browser-runtime dependency graphs must remain database-free; keep database-sensitive coverage in `*.test.ts` files.
 
-Three databases, none shared: `eurtisan` (development, seeded), `eurtisan_test` (Playwright, seeded by `make db-seed-e2e`), and `eurtisan_unit` (Vitest, schema only). DB-backed tests call `clearTestTables()`, which truncates — so Vitest must never point at a seeded database. `vitest.config.ts` pins the URL and `make test` depends on `make db-migrate-unit`; do not repoint it at development to avoid creating the database.
+Three databases, none shared: `eurtisan` (development, seeded), `eurtisan_test` (Playwright, seeded by `make db-seed-e2e`), and `eurtisan_unit` (Vitest, schema only). DB-backed tests call `clearTestTables()`, which truncates, so Vitest must never point at a seeded database. `vitest.config.ts` pins the URL and `make test` depends on `make db-migrate-unit`; do not repoint it at development to avoid creating the database.
 
 Playwright E2E is a local/release gate, not a GitHub Actions gate. Use the documented Compose E2E overlay for individual specs. Better Auth rate-limits repeated auth setup, so reuse generated auth state when possible.
 

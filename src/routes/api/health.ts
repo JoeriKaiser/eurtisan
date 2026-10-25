@@ -301,7 +301,7 @@ export async function checkHealth(): Promise<{
 }
 
 /**
- * Readiness probe — 200 only if critical dependencies (database and disk) are up.
+ * Readiness probe: 200 only if critical dependencies (database and disk) are up.
  */
 export async function checkReady(): Promise<{
   body: HealthCheckResult
@@ -323,7 +323,7 @@ export async function checkReady(): Promise<{
 }
 
 /**
- * Dependency probe — reports external provider status (Mollie, Brevo, imgproxy,
+ * Dependency probe: reports external provider status (Mollie, Brevo, imgproxy,
  * S3) and email outbox backlog without impacting readiness decisions.
  */
 export async function checkDependencies(): Promise<{
@@ -352,7 +352,7 @@ export async function checkDependencies(): Promise<{
 }
 
 /**
- * Liveness probe — always 200 if the process is running.
+ * Liveness probe: always 200 if the process is running.
  */
 export function checkLive(): { body: { status: 'ok' }; status: number } {
   return { body: { status: 'ok' }, status: 200 }

@@ -243,7 +243,7 @@ export async function createReviewQuery(
   } catch (err) {
     // Duplicate review race condition. Uses the helper rather than reading
     // `err.code` directly: drizzle wraps the driver error, so the property is
-    // on `cause` and the inline check here never actually matched — a genuine
+    // on `cause` and the inline check here never actually matched: a genuine
     // race surfaced as a 500. The pre-check above hid that in tests.
     if (isPostgresUniqueViolation(err, 'review_shop_order_product_unique')) {
       throw new Response(
@@ -531,7 +531,7 @@ export async function setReviewHelpfulQuery(
  *
  * This used to set `flagged` on the first report from any signed-in user. Since
  * flagged reviews still display but are excluded from `popularityScore`, one
- * click moved a product's search ranking with nothing visible on the page —
+ * click moved a product's search ranking with nothing visible on the page,
  * report your own one-star reviews to rise, or a competitor's five-stars to sink
  * them. Recording the notice and leaving the decision to a human removes that
  * whole class rather than tuning a threshold.
@@ -574,7 +574,7 @@ export async function reportReviewQuery(
       details: sanitizedDetails,
     })
   } catch (err) {
-    // A second notice from the same person is not an error to them — the
+    // A second notice from the same person is not an error to them: the
     // unique index simply means it is already on record.
     if (isPostgresUniqueViolation(err, 'review_report_review_reporter_unique')) {
       return { alreadyReported: true }
@@ -661,7 +661,7 @@ export interface ModerationDecision {
    * rather than leaving the recipient to guess.
    */
   ground: 'illegal' | 'terms'
-  /** The facts relied on, in the moderator's words — Article 17(3)(b). */
+  /** The facts relied on, in the moderator's words: Article 17(3)(b). */
   explanation: string
   /** The admin deciding, recorded so the statement is not anonymous. */
   actorUserId: string
@@ -672,7 +672,7 @@ export interface ModerationDecision {
  *
  * DSA Article 17(1) requires a clear and specific statement of reasons to the
  * affected recipient for any restriction of the visibility of their content,
- * **including demotion** — and Article 19 exempts micro and small enterprises
+ * **including demotion**: and Article 19 exempts micro and small enterprises
  * from Section 3 (Articles 20–28) only, so Article 17 applies here at any size.
  * Until now this function wrote the new status and returned, telling nobody.
  *
@@ -735,14 +735,14 @@ export async function updateReviewModerationStatusQuery(
         // (b): the facts, and whether a notice prompted the decision.
         explanation: decision.explanation,
         promptedByNotice: openReports.length > 0,
-        // (c): no automated moderation exists — reports no longer change state
+        // (c): no automated moderation exists: reports no longer change state
         // on their own, and only an admin can reach this function.
         automatedMeans: false,
         // (d) / (e): which ground, so the recipient can contest the right one.
         ground: decision.ground,
         // (f): redress. Out-of-court dispute settlement under Article 21 is a
         // Section 3 obligation we are exempt from, so it is deliberately not
-        // offered here — the routes named are the ones that exist.
+        // offered here: the routes named are the ones that exist.
         redress: ['contact_support', 'judicial_remedy'],
       })
     }

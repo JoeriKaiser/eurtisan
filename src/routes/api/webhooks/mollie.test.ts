@@ -30,7 +30,7 @@ import {
 import { processMollieWebhook } from './mollie'
 
 // ---------------------------------------------------------------------------
-// Stub payment provider — returns configurable authoritative payment state
+// Stub payment provider: returns configurable authoritative payment state
 // ---------------------------------------------------------------------------
 
 let stubPaymentStatus: 'pending' | 'paid' | 'expired' | 'failed' | 'cancelled' | 'chargeback' =
@@ -378,13 +378,13 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
       const req = () =>
         mockRequest({ id: 'tr_mock_000042' }, { 'X-Mollie-Signature': 'mock_sig_tr_mock_000042' })
 
-      // First delivery — should process
+      // First delivery: should process
       const res1 = await processMollieWebhook(req(), { db, paymentProvider: provider })
       expect(res1.status).toBe(200)
       const body1 = await res1.json()
       expect(body1.status).toBe('processed')
 
-      // Second delivery (replay) — should be idempotent
+      // Second delivery (replay): should be idempotent
       const res2 = await processMollieWebhook(req(), { db, paymentProvider: provider })
       expect(res2.status).toBe(200)
       const body2 = await res2.json()
@@ -536,13 +536,13 @@ describe('POST /api/webhooks/mollie (processMollieWebhook)', () => {
       const req = () =>
         mockRequest({ id: 'tr_mock_000042' }, { 'X-Mollie-Signature': 'mock_sig_tr_mock_000042' })
 
-      // First delivery — should cancel
+      // First delivery: should cancel
       const res1 = await processMollieWebhook(req(), { db, paymentProvider: provider })
       expect(res1.status).toBe(200)
       const body1 = await res1.json()
       expect(body1.status).toBe('cancelled')
 
-      // Second delivery (replay) — should be idempotent
+      // Second delivery (replay): should be idempotent
       const res2 = await processMollieWebhook(req(), { db, paymentProvider: provider })
       expect(res2.status).toBe(200)
       const body2 = await res2.json()

@@ -27,7 +27,7 @@ interface ConfirmDialogProps {
  * Confirmation dialog for destructive actions.
  *
  * Replaces `window.confirm`, which cannot be styled, ignores the design system,
- * renders inconsistently across browsers, and — on some platforms — is
+ * renders inconsistently across browsers, and: on some platforms: is
  * suppressible in a way that silently returns `false`. Building on the dialog
  * primitive also gives focus trapping and Escape handling for free.
  */

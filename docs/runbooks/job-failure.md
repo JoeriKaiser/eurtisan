@@ -29,19 +29,19 @@ job needs an exclusion.
 
 This depends on each job calling `declareJobInterval(JOB_NAME, INTERVAL_MS)` at
 start-up, which populates `eurtisan_job_interval_seconds{job_name}`. A job that
-does not is **left unmonitored by the staleness rule** — the vector match simply
-drops it — and is reported by `EurtisanJobMissingInterval` instead. That is
+does not is **left unmonitored by the staleness rule**: the vector match simply
+drops it, and is reported by `EurtisanJobMissingInterval` instead. That is
 deliberate: an absent interval series is greppable, whereas a job silently
 measured against a wrong threshold is not.
 
-### The `job` label is reserved — use `job_name`
+### The `job` label is reserved: use `job_name`
 
 Prometheus sets `job` from the scrape target's `job_name`. With the default
 `honor_labels: false`, a scraped metric carrying its own `job` label has it
 renamed to `exported_job` on ingest.
 
 These series were previously labelled `job`, so **every rule matching
-`job="<a background job>"` was matching the scrape target instead** —
+`job="<a background job>"` was matching the scrape target instead**:
 `EurtisanJobStale`'s exclusion list excluded nothing, the three
 `financial-reconciliation.yml` rules selected no series at all, and alert
 summaries rendered "eurtisan" in place of the job name. All job metrics now use

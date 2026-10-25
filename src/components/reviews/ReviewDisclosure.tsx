@@ -10,7 +10,7 @@ import { m } from '#/paraglide/messages'
  * **CRD Article 6a(1)(c)** obliges a trader giving access to consumer reviews to
  * state whether and how it ensures they come from consumers who actually bought
  * or used the product. **UCPD Annex I point 23b** makes it a *blacklisted*
- * practice — banned outright, with no balancing test — to imply reviews are from
+ * practice: banned outright, with no balancing test: to imply reviews are from
  * real purchasers without taking reasonable and proportionate steps to check.
  * Eurtisan takes those steps and simply never said so.
  *

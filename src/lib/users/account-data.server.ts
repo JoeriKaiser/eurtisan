@@ -691,7 +691,7 @@ export async function deleteUserAccount(userId: string): Promise<void> {
     if (userDisputeIds.length > 0) {
       await tx
         .update(dispute)
-        .set({ description: '[redacted — account deleted]', updatedAt: new Date() })
+        .set({ description: '[redacted: account deleted]', updatedAt: new Date() })
         .where(eq(dispute.buyerUserId, userId))
     }
 
@@ -706,16 +706,16 @@ export async function deleteUserAccount(userId: string): Promise<void> {
 
     await tx
       .update(disputeMessage)
-      .set({ message: '[message removed — account deleted]' })
+      .set({ message: '[message removed: account deleted]' })
       .where(eq(disputeMessage.senderUserId, userId))
 
     await tx
       .update(returnRequest)
-      .set({ reason: '[redacted — account deleted]', updatedAt: new Date() })
+      .set({ reason: '[redacted: account deleted]', updatedAt: new Date() })
       .where(eq(returnRequest.buyerUserId, userId))
     await tx
       .update(returnRequestMessage)
-      .set({ message: '[message removed — account deleted]' })
+      .set({ message: '[message removed: account deleted]' })
       .where(eq(returnRequestMessage.senderUserId, userId))
 
     const ownedShopInvoiceIds = await tx
@@ -745,8 +745,8 @@ export async function deleteUserAccount(userId: string): Promise<void> {
         .where(eq(invoices.id, invoice.id))
     }
 
-    // Shipping labels hold no PII directly, but `labelUrl` resolves — with
-    // carrier credentials — to a PDF bearing the buyer's name and address, and
+    // Shipping labels hold no PII directly, but `labelUrl` resolves: with
+    // carrier credentials: to a PDF bearing the buyer's name and address, and
     // the tracking identifiers are carrier-side handles to the same shipment.
     // The document itself lives at Sendcloud and is subject to their retention,
     // so what we can erase is our resolvable pointer to it. The row survives

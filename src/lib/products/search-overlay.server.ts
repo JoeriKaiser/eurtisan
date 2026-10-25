@@ -4,7 +4,7 @@
  * The overlay previously queried Meilisearch directly from the browser with a
  * restricted search key baked into the client bundle. Every search now flows
  * through this server function so the rate limiter, the master key boundary,
- * and the Meilisearch outage fallback all live in one auditable place — and
+ * and the Meilisearch outage fallback all live in one auditable place: and
  * no search credential ships in the JavaScript bundle.
  */
 import { meilisearch } from '../meilisearch.server'
@@ -73,7 +73,7 @@ function readString(value: unknown): string | null {
  *
  * Queries Meilisearch for speed and engine-side highlighting. When Meilisearch
  * is unhealthy or errors, falls back to `searchProductsQuery`, which degrades
- * to the PostgreSQL text search — the same resilience the browser-direct path
+ * to the PostgreSQL text search: the same resilience the browser-direct path
  * had, except the IP rate limit now applies before either engine is touched.
  */
 export async function searchOverlayQuery(query: string): Promise<OverlayResults> {

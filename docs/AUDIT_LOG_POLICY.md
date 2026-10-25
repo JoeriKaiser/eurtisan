@@ -4,9 +4,9 @@
 
 | Class | Examples | Logged? |
 |-------|----------|---------|
-| **Mutations** | Role changes, bans, category CRUD, payout sent, dispute resolve, shop moderation, review moderation | Yes — `emitAuditEvent` |
-| **Admin reads (lists/detail)** | Admin orders list, dashboard stats, user search, payout history, audit log views | Yes — `emitAdminReadAudit` |
-| **Public/owner reads** | Buyer order history, owner product list, public shop pages | No — covered by application auth sessions and infrastructure logs |
+| **Mutations** | Role changes, bans, category CRUD, payout sent, dispute resolve, shop moderation, review moderation | Yes: `emitAuditEvent` |
+| **Admin reads (lists/detail)** | Admin orders list, dashboard stats, user search, payout history, audit log views | Yes: `emitAdminReadAudit` |
+| **Public/owner reads** | Buyer order history, owner product list, public shop pages | No: covered by application auth sessions and infrastructure logs |
 
 ## Rationale
 
@@ -21,4 +21,4 @@
 
 ## Future
 
-If regulators or insurers require read trails for specific resources, add targeted `emitAuditEvent` on export/download endpoints only—not blanket list logging.
+If regulators or insurers require read trails for specific resources, add targeted `emitAuditEvent` on export/download endpoints only, not blanket list logging.

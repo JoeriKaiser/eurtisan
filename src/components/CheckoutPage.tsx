@@ -1153,7 +1153,7 @@ export default function CheckoutPage({
                                         </div>
                                         <span className='text-sm font-semibold text-text-primary'>
                                           {option.costCents === 0
-                                            ? '—'
+                                            ? '-'
                                             : formatPriceEUR(option.costCents)}
                                         </span>
                                       </div>
@@ -1252,7 +1252,7 @@ export default function CheckoutPage({
                           </span>
                           <span className='font-medium text-text-primary'>
                             {shippingOption?.costCents === 0
-                              ? '—'
+                              ? '-'
                               : formatPriceEUR(shippingOption?.costCents ?? 0)}
                           </span>
                         </div>

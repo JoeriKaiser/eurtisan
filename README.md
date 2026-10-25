@@ -2,9 +2,9 @@
 
 A European-centered online marketplace for creatives, artisans, and makers.
 
-**Status:** Pre-launch — application remediation and the signed staging deployment channel are operational; release qualification and production approval remain in progress.
+**Status:** Pre-launch: application remediation and the signed staging deployment channel are operational; release qualification and production approval remain in progress.
 
-**Contributions:** Not currently accepted — issues are reviewed and welcome.
+**Contributions:** Not currently accepted. issues are reviewed and welcome.
 
 ---
 
@@ -276,7 +276,7 @@ For deeper architectural, compliance, and operational details, refer to:
 
 ## Design system
 
-- **Palette:** Warm OKLCH tones — moss green primary, sage accent, walnut neutrals. No purple or orange.
+- **Palette:** Warm OKLCH tones: moss green primary, sage accent, walnut neutrals. No purple or orange.
 - **Typography:** Fraunces (display) + Manrope (UI).
 - **Constraints:** WCAG 2.1 AA, `prefers-reduced-motion` support, flat-by-default elevation, ≤10% accent surface coverage on product UI.
 
@@ -287,7 +287,7 @@ Full tokens and rules are documented in [`DESIGN.md`](DESIGN.md).
 ## Contributing
 
 This project is not currently accepting pull requests or external contributions.  
-**Issues are welcome** — bug reports, feature suggestions, and security disclosures will be reviewed.
+**Issues are welcome**: bug reports, feature suggestions, and security disclosures will be reviewed.
 
 ---
 

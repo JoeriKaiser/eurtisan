@@ -84,7 +84,7 @@ test.describe('Customer two-factor authentication', () => {
     // Wait for the sign-out request to complete and the UI to reflect it.
     await expect(page.getByRole('link', { name: /^sign in$/i })).toBeVisible({ timeout: 10000 })
 
-    // Sign in again — should now prompt for TOTP.
+    // Sign in again: should now prompt for TOTP.
     await page.goto('/signin')
     await waitForAppHydration(page)
     await page.locator('[id="email"]').fill(customer.email)

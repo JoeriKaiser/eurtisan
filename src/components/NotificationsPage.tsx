@@ -22,7 +22,7 @@ import { useMarkAllNotificationsRead, useMarkNotificationsRead } from '#/lib/not
 import { m } from '#/paraglide/messages'
 import { Button } from './ui/button'
 /**
- * Shown for a type this build does not know — a row written before a type was
+ * Shown for a type this build does not know: a row written before a type was
  * retired, or by a newer deploy during a rollout. Without it the icon slot
  * renders `undefined` and the row becomes a button with no icon and no text,
  * announced as a bare timestamp.
@@ -268,7 +268,7 @@ function notificationPreview(item: NotificationItem): string {
 /**
  * The human-written prose a notification carries, if any.
  *
- * Two types carry an explanation someone typed, under different keys — the key
+ * Two types carry an explanation someone typed, under different keys: the key
  * names differ because the things differ, and flattening them to one would lose
  * that. What was wrong before was not the two keys but that the mapping lived
  * inline in the JSX for exactly one of them, so the other rendered nothing.

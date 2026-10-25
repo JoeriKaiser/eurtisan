@@ -10,7 +10,7 @@ import type { NotificationType } from './operations.server'
  * Email coverage used to be whatever each call site happened to add. Five of
  * thirteen types emailed, and the split tracked neither urgency nor the
  * recipient's chance of noticing: a **chargeback** and a **DAC7 threshold
- * warning** — money taken back, and a reporting obligation created — were in-app
+ * warning**: money taken back, and a reporting obligation created: were in-app
  * only, while a shipping confirmation the buyer already expects emailed.
  *
  * The table is exhaustive by type, so adding a notification type is a compile
@@ -19,11 +19,11 @@ import type { NotificationType } from './operations.server'
  *
  * Three modes:
  *
- * - `'in_app'` — the notification list only. For routine, high-frequency events
+ * - `'in_app'`: the notification list only. For routine, high-frequency events
  *   where an email per occurrence would train the recipient to filter them.
- * - `'auto_email'` — `createNotification` enqueues the email itself, because
+ * - `'auto_email'`: `createNotification` enqueues the email itself, because
  *   everything the template needs is already on the notification payload.
- * - `'caller_email'` — the call site sends, because the template needs data the
+ * - `'caller_email'`: the call site sends, because the template needs data the
  *   notification does not carry (order lines, tracking numbers, refund totals).
  *   Named so the split is visible here rather than discovered by grepping.
  */
@@ -128,7 +128,7 @@ export const NOTIFICATION_DELIVERY: Record<NotificationType, NotificationDeliver
     inApp: 'required',
   },
 
-  /* Routine and frequent — an email each would be noise. */
+  /* Routine and frequent: an email each would be noise. */
   low_stock: { mode: 'in_app', inApp: 'optional' },
   review_received: { mode: 'in_app', inApp: 'optional' },
   review_report_resolved: { mode: 'in_app', inApp: 'required' },

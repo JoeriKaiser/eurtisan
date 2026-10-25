@@ -7,7 +7,7 @@ import { notificationTypeEnum } from '#/lib/notifications/operations.server'
  *
  * `notification.type` was `text` until this phase, with the closed set enforced
  * only in Zod while the read path asserted `row.type as NotificationType`. The
- * column is now an enum, so that assertion is finally true — but only while the
+ * column is now an enum, so that assertion is finally true: but only while the
  * two lists agree.
  *
  * The failure modes are asymmetric and both bad:

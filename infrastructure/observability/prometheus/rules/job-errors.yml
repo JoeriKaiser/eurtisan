@@ -35,12 +35,12 @@ groups:
       # Staleness is judged against each job's own declared cadence rather than
       # one global window, so a 60-second poller and a daily cleanup are both
       # covered by this single rule and neither needs an exclusion. Three missed
-      # intervals is the trigger — one late tick is not an incident.
+      # intervals is the trigger: one late tick is not an incident.
       #
       # `unless on(job_name) ... == 0` is not a guard against absence: a job that
       # never calls `declareJobInterval` simply has no interval series, so the
       # `*` join drops it and it is left unmonitored. That is deliberate and
-      # visible — an absent interval series is greppable, whereas a job silently
+      # visible: an absent interval series is greppable, whereas a job silently
       # measured against a wrong threshold is not.
       - alert: EurtisanJobStale
         expr: >-

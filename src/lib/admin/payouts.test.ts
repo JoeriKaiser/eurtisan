@@ -282,7 +282,7 @@ describe('listPayoutHistoryQuery', () => {
 /* -------------------------------------------------------------------------- */
 
 describe('markPayoutSentQuery (idempotency)', () => {
-  it('is idempotent — marking already-sent returns success', async () => {
+  it('is idempotent: marking already-sent returns success', async () => {
     await seedUser()
     await seedShop()
     const p = await seedPayout({ status: 'sent', sentAt: new Date() })

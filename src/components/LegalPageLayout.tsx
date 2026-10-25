@@ -22,7 +22,7 @@ export default function LegalPageLayout({
   return (
     <main className='page-wrap px-4 py-12'>
       <div className='grid gap-8 lg:grid-cols-[240px_1fr]'>
-        {/* Table of Contents — desktop only */}
+        {/* Table of Contents: desktop only */}
         <aside className='hidden lg:block'>
           <nav aria-label={m.legal_toc_label()} className='sticky top-8'>
             <h2 className='mb-4 text-xs font-semibold uppercase tracking-widest text-text-muted'>

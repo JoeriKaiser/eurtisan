@@ -15,9 +15,9 @@ export interface RateLimitResult {
  * Extract the most trustworthy client IP from request headers.
  *
  * Priority:
- * 1. `X-Real-Ip` — typically set and overwritten by the immediate reverse proxy,
+ * 1. `X-Real-Ip`: typically set and overwritten by the immediate reverse proxy,
  *    making it harder to spoof than `X-Forwarded-For`.
- * 2. Last IP in `X-Forwarded-For` — added by the closest proxy; more trustworthy
+ * 2. Last IP in `X-Forwarded-For`: added by the closest proxy; more trustworthy
  *    than the first IP, which can be trivially spoofed by the client.
  * 3. Fallback to `'unknown'`.
  *

@@ -1,5 +1,5 @@
 /**
- * E2E order fixtures — creates deterministic orders against the isolated E2E
+ * E2E order fixtures: creates deterministic orders against the isolated E2E
  * database so specs can focus on UI assertions instead of seed data archaeology.
  */
 import { randomBytes, randomUUID, scryptSync } from 'node:crypto'

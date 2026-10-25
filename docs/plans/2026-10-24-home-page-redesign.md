@@ -57,7 +57,7 @@ The current home page looks and feels like an anonymous SaaS template with an e-
 
 ### 2.5 Contrast & Text over Photography Rule
 - `src/route-components/shops/storefront/ShopBanner.tsx:85-87` establishes the repository rule:
-  `"No text is placed on the photograph itself — contrast over an uncontrolled image cannot be proven, so type stays on solid surfaces below."`
+  `"No text is placed on the photograph itself: contrast over an uncontrolled image cannot be proven, so type stays on solid surfaces below."`
 - Over light photography, scrims fail WCAG 2.1 AA 4.5:1 text contrast.
 - **Decision:** All category titles, maker labels, and craft descriptions must sit on solid semantic surfaces (`bg-surface-default` or `bg-bg-base`) below or adjacent to imagery, never overlaid directly on photography.
 

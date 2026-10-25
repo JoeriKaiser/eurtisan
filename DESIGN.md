@@ -106,7 +106,7 @@ components:
 
 **Creative North Star: "The Lisbon Atelier"**
 
-Eurtisan's visual system evokes a maker's workshop in late-morning light: warm stone, handmade paper, mossy ceramic glazes, and linen curtains. The interface feels grounded, tactile, and European — never sterile, never loud. Every surface celebrates the artisan's craft rather than the platform itself.
+Eurtisan's visual system evokes a maker's workshop in late-morning light: warm stone, handmade paper, mossy ceramic glazes, and linen curtains. The interface feels grounded, tactile, and European, never sterile, never loud. Every surface celebrates the artisan's craft rather than the platform itself.
 
 The system serves a dual-register marketplace: brand surfaces (landing, discovery) lean into committed warmth and editorial typography, while product surfaces (dashboards, forms, shop management) stay restrained and task-focused. Both share the same warm DNA.
 
@@ -241,7 +241,7 @@ The system uses **subtle shadows for light mode** and **tonal layering for dark 
 - **Don't** use generic bootstrap marketplace card grids with icon + heading + text, repeated endlessly.
 - **Don't** use SaaS-cream minimalism (sterile white/gray/blue defaults).
 - **Don't** use dark-mode-terminal aesthetics (cold, technical dark themes).
-- **Don't** rely on color alone for state or meaning — always pair with icons, text, or shape.
+- **Don't** rely on color alone for state or meaning: always pair with icons, text, or shape.
 - **Don't** use `outline: none` without a `focus-visible` replacement.
 - **Don't** nest cards inside cards. Use spacing and dividers instead.
 - **Don't** use gradient text (`background-clip: text`). Use a single solid color.

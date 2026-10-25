@@ -28,7 +28,7 @@ export interface ModerationDecisionDialogProps {
  * Collects the grounds a moderation decision has to be justified on.
  *
  * DSA Article 17(3) requires the statement of reasons sent to the author to say
- * which ground applies — the law (d) or the terms (e) — and to set out the facts
+ * which ground applies: the law (d) or the terms (e): and to set out the facts
  * relied on (b). Neither can be inferred from the status alone, so both are
  * collected before the decision is applied rather than after.
  *

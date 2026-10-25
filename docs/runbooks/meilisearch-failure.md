@@ -31,7 +31,7 @@ throughout:
 docker compose -f docker-compose.prod.yml run --rm app bun run search:reindex
 ```
 
-Run this after **any change to index settings** — searchable attributes, ranking
+Run this after **any change to index settings**: searchable attributes, ranking
 rules, synonyms, `localizedAttributes`, filterable/sortable attributes. Settings
 only apply to documents indexed after the change, so existing documents keep the
 old behaviour until they are rewritten.
@@ -48,7 +48,7 @@ next run deletes it before starting, so simply re-run the command.
 A document that no longer satisfies the index invariant (published, active,
 non-suspended shop) is dropped from the result set on read and deleted from the
 index in the background, so isolated staleness self-corrects. Persistent
-staleness across many queries means the sync queue is not draining — check the
+staleness across many queries means the sync queue is not draining: check the
 `meilisearch-sync` container and the `meilisearch_sync_queue` table for rows with
 `status = 'failed'`.
 
@@ -64,13 +64,13 @@ rotate. Rotate the master key via Ansible Vault like any other server credential
 Search events (queries, result counts, clicked results) are recorded in the
 `search_event` table and purged by the `search-event-cleanup` job after
 `SEARCH_EVENT_RETENTION_DAYS` (default 180). Queries are user-typed free text, so
-this retention window is a privacy commitment — keep it aligned with the privacy
+this retention window is a privacy commitment: keep it aligned with the privacy
 notice, and do not add raw queries to application logs, which are not covered by
 it.
 
 Useful reports (`src/lib/search/analytics.server.ts`):
 
-- `getZeroResultQueries` — queries returning nothing; each row is a catalogue gap
+- `getZeroResultQueries`: queries returning nothing; each row is a catalogue gap
   or a missing synonym
-- `getTopQueriesReport` — volume and click-through rate; a high-volume query with
+- `getTopQueriesReport`: volume and click-through rate; a high-volume query with
   a low CTR means ranking is not surfacing what buyers want

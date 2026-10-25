@@ -169,7 +169,7 @@ export async function listAllPlatformOrdersQuery(
 
 /**
  * Returns the full order tree for a given platform order.
- * Admin-only — no ownership check is performed here; authorization is handled upstream.
+ * Admin-only: no ownership check is performed here; authorization is handled upstream.
  */
 export async function getPlatformOrderDetailQuery(
   platformOrderId: string,

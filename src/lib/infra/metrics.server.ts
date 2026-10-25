@@ -60,7 +60,7 @@ export const alertLogTotal = new Counter({
  * with the default `honor_labels: false` a metric that carries its own `job`
  * label has it renamed to `exported_job` on ingest. These series were previously
  * labelled `job`, so every alert rule matching `job="<a background job>"` was
- * matching the scrape target name (`eurtisan`) instead — silently selecting
+ * matching the scrape target name (`eurtisan`) instead: silently selecting
  * everything or nothing. Do not reintroduce a `job` label here.
  */
 export const jobRunsTotal = new Counter({
@@ -97,8 +97,8 @@ export const jobLockContentionTotal = new Counter({
  * actually promises rather than against one global threshold.
  *
  * This is what lets `EurtisanJobStale` cover a 60-second poller and a daily
- * cleanup with a single rule. Excluding slow jobs from the alert — the previous
- * approach — does not fix them, it removes their monitoring entirely.
+ * cleanup with a single rule. Excluding slow jobs from the alert: the previous
+ * approach: does not fix them, it removes their monitoring entirely.
  */
 export const jobIntervalSeconds = new Gauge({
   name: 'eurtisan_job_interval_seconds',
@@ -351,7 +351,7 @@ export const shopProfileCompleteness = new Histogram({
 /**
  * Category browsing reach.
  *
- * **Labelled by category slug, deliberately** — the opposite of
+ * **Labelled by category slug, deliberately**: the opposite of
  * `eurtisan_shop_profile_views_total`. Categories are a curated, bounded set
  * (36 at time of writing) that grows only when an admin adds one, so the series
  * count is knowable in advance. Shop slugs are unbounded and user-created,

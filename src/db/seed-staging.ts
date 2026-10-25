@@ -1,5 +1,5 @@
 /**
- * Staging / Production Seed — Idempotent Base Data
+ * Staging / Production Seed: Idempotent Base Data
  *
  * Run once after initial deployment to populate the database with permanent,
  * curated demo data. Safe to re-run: uses ON CONFLICT DO NOTHING and
@@ -162,7 +162,7 @@ const REVIEW_COMMENTS = [
   'Beautiful craftsmanship and fast shipping.',
   'Even better than the photos. Highly recommend this maker.',
   'Lovely quality, exactly as described.',
-  'A thoughtful purchase — the seller was very helpful.',
+  'A thoughtful purchase: the seller was very helpful.',
   'Well made and arrived in perfect condition.',
   'Unique piece, great attention to detail.',
   'So happy with this order. Will buy again.',
@@ -601,7 +601,7 @@ async function seedShops(
   for (const def of SHOP_DEFS) {
     const owner = userByEmail.get(def.ownerEmail)
     if (!owner) {
-      console.log(`  ⚠ Skipping shop "${def.name}" — owner ${def.ownerEmail} not found`)
+      console.log(`  ⚠ Skipping shop "${def.name}": owner ${def.ownerEmail} not found`)
       continue
     }
     // Skip if shop slug already exists (idempotent re-run guard)
@@ -679,7 +679,7 @@ async function seedShops(
 
   if (shops.length > 0) {
     // Encrypted at rest on every application write path, so it is encrypted
-    // here too — a plaintext staging row exercises `decryptJsonb`'s legacy
+    // here too: a plaintext staging row exercises `decryptJsonb`'s legacy
     // passthrough instead of the real decrypt, which is the branch production
     // never takes. Same reasoning as `seed.ts`.
     await db
@@ -721,7 +721,7 @@ const PRODUCT_DEFS: ProductDef[] = [
     name: 'Hand-Thrown Stoneware Bowl',
     slug: 'stoneware-bowl',
     description:
-      'A generously sized stoneware bowl, wheel-thrown and finished with a matte celadon glaze. Ideal for salads, pasta, or as a striking centrepiece. Each bowl is unique — slight variations in shape and glaze are part of its handmade character.',
+      'A generously sized stoneware bowl, wheel-thrown and finished with a matte celadon glaze. Ideal for salads, pasta, or as a striking centrepiece. Each bowl is unique: slight variations in shape and glaze are part of its handmade character.',
     priceCents: 4200,
     stockCount: 12,
     categoryName: 'Pottery',
@@ -740,7 +740,7 @@ const PRODUCT_DEFS: ProductDef[] = [
   },
   {
     shopSlug: 'the-forge',
-    name: 'Linen Table Runner — Natural',
+    name: 'Linen Table Runner: Natural',
     slug: 'linen-table-runner',
     description:
       'Woven from Belgian flax linen, this table runner brings understated elegance to any dining setting. Stonewashed for a soft drape. Available in natural, charcoal, and terracotta.',
@@ -808,7 +808,7 @@ const PRODUCT_DEFS: ProductDef[] = [
   },
   {
     shopSlug: 'silver-and-stone',
-    name: 'Glacier Ring — Labradorite',
+    name: 'Glacier Ring: Labradorite',
     slug: 'glacier-ring-labradorite',
     description:
       'A substantial sterling silver ring set with a labradorite cabochon that flashes blue and green like glacial ice. The band is textured to echo mountain rock faces.',
@@ -858,7 +858,7 @@ async function seedProducts(
   for (const def of PRODUCT_DEFS) {
     const shop = shopBySlug.get(def.shopSlug)
     if (!shop) {
-      console.log(`  ⚠ Skipping product "${def.name}" — shop "${def.shopSlug}" not found`)
+      console.log(`  ⚠ Skipping product "${def.name}": shop "${def.shopSlug}" not found`)
       continue
     }
     if (!activeShopSlugs.has(def.shopSlug)) continue
@@ -867,7 +867,7 @@ async function seedProducts(
     const existingId = existingKey.get(key)
 
     if (existingId) {
-      // Product already exists — skip both product and image inserts
+      // Product already exists: skip both product and image inserts
       skippedProducts++
       continue
     }
@@ -894,7 +894,7 @@ async function seedProducts(
         id: crypto.randomUUID(),
         productId,
         url: productImageUrl(seed),
-        altText: `${def.name} — view ${i + 1}`,
+        altText: `${def.name}: view ${i + 1}`,
         sortOrder: i,
       })
     })
@@ -950,7 +950,7 @@ async function seedOrders(
 
   const customer = users.find((u) => u.email === 'customer@eurtisan.local')
   if (!customer) {
-    console.log('  ⚠ Skipping orders — customer@eurtisan.local not found')
+    console.log('  ⚠ Skipping orders: customer@eurtisan.local not found')
     return
   }
 
@@ -980,7 +980,7 @@ async function seedOrders(
   const eligibleShops = activeShopIds.filter((id) => (productsByShop.get(id)?.length ?? 0) > 0)
 
   if (eligibleShops.length === 0) {
-    console.log('  ⚠ Skipping orders — no active shops with products')
+    console.log('  ⚠ Skipping orders: no active shops with products')
     return
   }
 
@@ -1183,7 +1183,7 @@ function assertSafeToRunStagingSeed(): void {
 async function seed(): Promise<void> {
   assertSafeToRunStagingSeed()
   console.log('╔══════════════════════════════════════════╗')
-  console.log('║  Eurtisan — Staging Seed (idempotent)  ║')
+  console.log('║  Eurtisan: Staging Seed (idempotent)  ║')
   console.log('╚══════════════════════════════════════════╝\n')
 
   const [users, categories] = await Promise.all([seedUsers(), seedCategories()])
@@ -1198,7 +1198,7 @@ async function seed(): Promise<void> {
   console.log(`Meilisearch: synced ${synced} products, ${errors} errors`)
 
   console.log('\n✅ Staging seed completed.')
-  console.log('   Safe to re-run — existing records are skipped.\n')
+  console.log('   Safe to re-run: existing records are skipped.\n')
 }
 
 seed()

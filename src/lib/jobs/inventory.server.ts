@@ -289,7 +289,7 @@ export async function releaseStockInTx(tx: DbOrTx, platformOrderId: string): Pro
  *
  * Increments each product's `stockCount` by the ordered quantity and removes
  * the matching `(productId, platformOrderId)` reservation rows. Safe to call
- * when no reservation exists — the stock is still restored.
+ * when no reservation exists: the stock is still restored.
  */
 export async function restoreShopOrderStockInTx(
   tx: DbOrTx,

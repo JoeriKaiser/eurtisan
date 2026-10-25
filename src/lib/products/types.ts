@@ -72,7 +72,7 @@ export type ProductDetail = PublicProduct & {
   lowStockThreshold: number
   /**
    * Approved-review aggregate, or null when the product has none. Shares
-   * `PUBLIC_REVIEW_FILTER` with the review list and the search index — the three
+   * `PUBLIC_REVIEW_FILTER` with the review list and the search index: the three
    * disagreeing is exactly what the reviews phase fixed.
    */
   rating: { average: number; reviewCount: number } | null
@@ -82,7 +82,7 @@ export type ListProductsFilters = {
   shopSlug?: string
   /**
    * Exact category match. A parent slug matches **only** products assigned
-   * directly to that parent — use `categoryIds` when subcategories must be
+   * directly to that parent: use `categoryIds` when subcategories must be
    * included. Correct for the shop storefront, whose filter list is built from
    * categories that actually occur on that shop's products.
    */
@@ -98,7 +98,7 @@ export type ListProductsFilters = {
   maxPriceCents?: number
   /** Case-insensitive partial match on the product name. */
   search?: string
-  /** Same meaning as `SearchFilters.inStockOnly` — see `buildProductWhere`. */
+  /** Same meaning as `SearchFilters.inStockOnly`: see `buildProductWhere`. */
   inStockOnly?: boolean
   /**
    * Product to leave out. Exists for the "more from this shop" rail, which must
@@ -150,7 +150,7 @@ export type SearchFilters = {
 /**
  * Result counts per facet value, as returned by the search engine. Absent when
  * a search is served by the PostgreSQL fallback, which cannot produce counts
- * cheaply — consumers must degrade gracefully rather than assume presence.
+ * cheaply: consumers must degrade gracefully rather than assume presence.
  */
 export type SearchFacets = {
   categorySlug: Record<string, number>

@@ -4,7 +4,7 @@ import { defineConfig } from 'vitest/config'
 config({ path: ['.env.local', '.env'], quiet: true })
 
 // Force Vitest onto its own database, so a test run cannot wipe either of the
-// two seeded ones. DB-backed tests call `clearTestTables()`, which truncates —
+// two seeded ones. DB-backed tests call `clearTestTables()`, which truncates,
 // pointed at `db:5432/eurtisan` it destroyed the development seed on every run,
 // and pointed at `db-test:5432/eurtisan_test` it would destroy the E2E seed.
 //

@@ -23,7 +23,7 @@ export function CategoryPage() {
 
   /**
    * Merges into the existing params instead of replacing them, so changing one
-   * control never silently drops another — sorting a price-filtered list must
+   * control never silently drops another: sorting a price-filtered list must
    * not clear the price. Params at their default are omitted so a plain
    * category URL stays clean and canonical.
    */

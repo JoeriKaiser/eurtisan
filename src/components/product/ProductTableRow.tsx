@@ -127,7 +127,7 @@ export function ProductTableRow({
       {/* Actions */}
       <td className='py-3 text-right min-w-[8rem]'>
         <div className='flex items-center justify-end gap-2'>
-          {/* Toggle button — only published products can be activated/deactivated */}
+          {/* Toggle button: only published products can be activated/deactivated */}
           {currentShopId && product.status === 'published' && (
             <button
               type='button'

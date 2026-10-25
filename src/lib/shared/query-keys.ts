@@ -1,4 +1,4 @@
-/** Shared React Query keys — keep in sync with route loader hydration. */
+/** Shared React Query keys: keep in sync with route loader hydration. */
 export const queryKeys = {
   cart: ['cart'] as const,
   categoriesList: ['categories-list'] as const,

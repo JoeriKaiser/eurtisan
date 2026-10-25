@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // Mock paraglide messages before importing the module under test
 vi.mock('#/paraglide/messages', () => ({
   m: {
-    meta_title_default: () => 'Eurtisan — European Marketplace for Makers',
+    meta_title_default: () => 'Eurtisan: European Marketplace for Makers',
     meta_default_description: () =>
       'Discover unique, handcrafted pieces from independent makers across Europe.',
   },
@@ -673,7 +673,7 @@ describe('createRootMeta', () => {
   it('verifies charset, viewport, default title, description, fallback og:*, fallback twitter:*, and no canonical/hreflang links', () => {
     const result = createRootMeta()
 
-    const expectedTitle = 'Eurtisan — European Marketplace for Makers'
+    const expectedTitle = 'Eurtisan: European Marketplace for Makers'
     const expectedDesc =
       'Discover unique, handcrafted pieces from independent makers across Europe.'
 

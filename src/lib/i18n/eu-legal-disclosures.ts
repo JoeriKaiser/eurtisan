@@ -264,7 +264,7 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
       'При търсене резултатите се подреждат според това колко добре съответстват на вашите думи, по следния ред на важност:',
     ranking_disclosure_search_1: 'Колко от думите ви за търсене съдържа обявата.',
     ranking_disclosure_search_2:
-      'Точността на изписване на думите — обява с точно съвпадение се класира над такава с корекция на правописа.',
+      'Точността на изписване на думите: обява с точно съвпадение се класира над такава с корекция на правописа.',
     ranking_disclosure_search_3: 'Колко близо една до друга се намират думите ви в обявата.',
     ranking_disclosure_search_4:
       'Коя част от обявата съвпада, в следния ред: име на продукта, име на магазина, категория, след това описание.',
@@ -272,18 +272,18 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
       'Избраното от вас сортиране, ако сте го променили от Релевантност.',
     ranking_disclosure_search_6: 'Дали съвпадението е пълно или частично.',
     ranking_disclosure_search_7:
-      'Дали продуктът е в наличност — наличните продукти се показват първи.',
+      'Дали продуктът е в наличност: наличните продукти се показват първи.',
     ranking_disclosure_search_8:
       'Оценката от отзиви за продукта, претеглена според броя отзиви, така че продукт с добри отзиви изпреварва такъв без история.',
     ranking_disclosure_search_note:
-      'Прилагат се корекция на правописа и синоними, и всички официални езици на Европейския съюз се разпознават. Скорошността умишлено не е част от оценката на отзивите — използвайте сортирането Най-нови за това.',
+      'Прилагат се корекция на правописа и синоними, и всички официални езици на Европейския съюз се разпознават. Скорошността умишлено не е част от оценката на отзивите: използвайте сортирането Най-нови за това.',
     review_disclosure_title: 'Как управляваме отзивите',
     review_disclosure_verified_body:
       'Всеки отзив в Eurtisan идва от потребител, закупил продукта тук. Ние проверяваме това автоматично преди написването на отзив:',
     review_disclosure_check_purchase:
       'Акаунтът на автора на отзива е направил поръчката, съдържаща продукта.',
     review_disclosure_check_delivered:
-      'Поръчката е отбелязана като доставена и оттогава са изминали 14 дни — така отзивът отразява опита с продукта, а не само разопаковането му.',
+      'Поръчката е отбелязана като доставена и оттогава са изминали 14 дни, така отзивът отразява опита с продукта, а не само разопаковането му.',
     review_disclosure_check_once:
       'Един отзив за продукт на поръчка, така че една покупка не може да бъде оценена два пъти.',
     review_disclosure_check_own:
@@ -293,7 +293,7 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
     review_disclosure_dates:
       'Всеки отзив показва датата на публикуване и датата, на която купувачът е получил продукта.',
     review_disclosure_moderation:
-      'Ние не редактираме отзиви. Всеки може да подаде сигнал — само подаването на сигнал не променя нищо. Модератор може да скрие отзив, който е незаконен или нарушава нашите условия, и авторът винаги се уведомява за решението и причините.',
+      'Ние не редактираме отзиви. Всеки може да подаде сигнал: само подаването на сигнал не променя нищо. Модератор може да скрие отзив, който е незаконен или нарушава нашите условия, и авторът винаги се уведомява за решението и причините.',
     review_disclosure_retention:
       'Ние пазим отзивите, докато продуктът е в списъка. Ако занаятчията премахне продукта или закриете акаунта си, отзивът се премахва.',
     review_disclosure_no_payment:
@@ -323,17 +323,17 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
       'Při vyhledávání jsou výsledky seřazeny podle toho, jak dobře odpovídají vašim slovům, v tomto pořadí důležitosti:',
     ranking_disclosure_search_1: 'Kolik z vašich hledaných slov nabídka obsahuje.',
     ranking_disclosure_search_2:
-      'Přesnost pravopisu slov — nabídka s přesnou shodou je řazena před nabídkou vyžadující opravu překlepu.',
+      'Přesnost pravopisu slov: nabídka s přesnou shodou je řazena před nabídkou vyžadující opravu překlepu.',
     ranking_disclosure_search_3: 'Jak blízko u sebe se vaše slova v nabídce nacházejí.',
     ranking_disclosure_search_4:
       'Která část nabídky se shodovala, v tomto pořadí: název produktu, název obchodu, kategorie, poté popis.',
     ranking_disclosure_search_5: 'Zvolené řazení, pokud jste jej změnili z Relevance.',
     ranking_disclosure_search_6: 'Zda je shoda přesná, nebo pouze částečná.',
-    ranking_disclosure_search_7: 'Zda je produkt skladem — produkty skladem mají přednost.',
+    ranking_disclosure_search_7: 'Zda je produkt skladem: produkty skladem mají přednost.',
     ranking_disclosure_search_8:
       'Hodnocení produktu v recenzích vážené jejich počtem, takže dobře hodnocený produkt předčí produkt bez historie.',
     ranking_disclosure_search_note:
-      'Na vaše slova se vztahuje oprava pravopisu a synonyma a jsou rozpoznávány všechny úřední jazyky Evropské unie. Aktuálnost záměrně není součástí hodnocení recenzí — k tomu použijte řazení Nejnovější.',
+      'Na vaše slova se vztahuje oprava pravopisu a synonyma a jsou rozpoznávány všechny úřední jazyky Evropské unie. Aktuálnost záměrně není součástí hodnocení recenzí: k tomu použijte řazení Nejnovější.',
     review_disclosure_title: 'Jak nakládáme s recenzemi',
     review_disclosure_verified_body:
       'Každá recenze na Eurtisan pochází od někoho, kdo si zde produkt zakoupil. To automaticky ověřujeme předtím, než může být recenze napsána:',
@@ -348,7 +348,7 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
     review_disclosure_dates:
       'Každá recenze uvádí datum zveřejnění a datum, kdy kupující produkt obdržel.',
     review_disclosure_moderation:
-      'Recenze neupravujeme. Kdokoli může recenzi nahlásit — samotné nahlášení nic nemění. Moderátor může skrýt recenzi, která je nezákonná nebo porušuje naše podmínky, a autor je vždy informován o rozhodnutí a důvodech.',
+      'Recenze neupravujeme. Kdokoli může recenzi nahlásit: samotné nahlášení nic nemění. Moderátor může skrýt recenzi, která je nezákonná nebo porušuje naše podmínky, a autor je vždy informován o rozhodnutí a důvodech.',
     review_disclosure_retention:
       'Recenze uchováváme po dobu, po kterou je produkt v nabídce. Pokud tvůrce produkt odstraní nebo zrušíte svůj účet, recenze bude smazána.',
     review_disclosure_no_payment:
@@ -379,24 +379,24 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
       'Når du søger, ordnes resultaterne efter, hvor godt de matcher dine ord, i denne prioritetsrækkefølge:',
     ranking_disclosure_search_1: 'Hvor mange af dine søgeord en annonce indeholder.',
     ranking_disclosure_search_2:
-      'Hvor nøjagtigt ordene er stavet — en annonce uden slåfejl placeres over en, der krævede korrektur.',
+      'Hvor nøjagtigt ordene er stavet: en annonce uden slåfejl placeres over en, der krævede korrektur.',
     ranking_disclosure_search_3: 'Hvor tæt dine ord optræder på hinanden i annoncen.',
     ranking_disclosure_search_4:
       'Hvilken del af annoncen der matchede, i denne rækkefølge: produktnavn, butiksnavn, kategori, derefter beskrivelse.',
     ranking_disclosure_search_5: 'Den valgte sortering, hvis du ændrede den fra Relevans.',
     ranking_disclosure_search_6: 'Om matchet er nøjagtigt frem for delvist.',
-    ranking_disclosure_search_7: 'Om produktet er på lager — varer på lager kommer først.',
+    ranking_disclosure_search_7: 'Om produktet er på lager: varer på lager kommer først.',
     ranking_disclosure_search_8:
       'Produktets anmeldelsesscore, vægtet efter antallet af anmeldelser, så et velanmeldt produkt overgår et uprøvet.',
     ranking_disclosure_search_note:
-      'Stavekorrektur og synonymer anvendes på dine ord, og alle officielle EU-sprog genkendes. Aktualitet er bevidst ikke en del af anmeldelsesscoren — brug sorteringen Nyeste til dette formål.',
+      'Stavekorrektur og synonymer anvendes på dine ord, og alle officielle EU-sprog genkendes. Aktualitet er bevidst ikke en del af anmeldelsesscoren: brug sorteringen Nyeste til dette formål.',
     review_disclosure_title: 'Hvordan vi håndterer anmeldelser',
     review_disclosure_verified_body:
       'Hver anmeldelse på Eurtisan kommer fra en køber, der har købt produktet her. Vi tjekker dette automatisk, før en anmeldelse kan skrives:',
     review_disclosure_check_purchase:
       'Anmelderens konto har afgivet den ordre, der indeholder produktet.',
     review_disclosure_check_delivered:
-      'Ordren blev markeret som leveret, og der er gået 14 dage siden — så anmeldelsen afspejler brugen af produktet og ikke kun udpakningen.',
+      'Ordren blev markeret som leveret, og der er gået 14 dage siden, så anmeldelsen afspejler brugen af produktet og ikke kun udpakningen.',
     review_disclosure_check_once:
       'Én anmeldelse pr. produkt pr. ordre, så et enkelt køb ikke kan anmeldes to gange.',
     review_disclosure_check_own:
@@ -406,7 +406,7 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
     review_disclosure_dates:
       'Hver anmeldelse viser datoen for offentliggørelse og datoen for køberens modtagelse af produktet.',
     review_disclosure_moderation:
-      'Vi redigerer ikke anmeldelser. Enhver kan anmelde en anmeldelse — en anmeldelse alene ændrer ingenting. En moderator kan skjule en anmeldelse, der er ulovlig eller overtræder vores vilkår, og forfatteren informeres altid om afgørelsen og begrundelsen.',
+      'Vi redigerer ikke anmeldelser. Enhver kan anmelde en anmeldelse: en anmeldelse alene ændrer ingenting. En moderator kan skjule en anmeldelse, der er ulovlig eller overtræder vores vilkår, og forfatteren informeres altid om afgørelsen og begrundelsen.',
     review_disclosure_retention:
       'Vi gemmer anmeldelser, så længe produktet er opført. Hvis en kunsthåndværker fjerner produktet, eller du lukker din konto, slettes anmeldelsen.',
     review_disclosure_no_payment:
@@ -495,7 +495,7 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
       'Όταν κάνετε αναζήτηση, τα αποτελέσματα ταξινομούνται ανάλογα με το πόσο καλά ταιριάζουν με τις λέξεις σας, με την εξής σειρά σπουδαιότητας:',
     ranking_disclosure_search_1: 'Πόσες από τις λέξεις αναζήτησής σας περιέχει μια καταχώριση.',
     ranking_disclosure_search_2:
-      'Πόσο ακριβής είναι η ορθογραφία των λέξεων — μια καταχώριση χωρίς τυπογραφικά λάθη κατατάσσεται πάνω από μία που χρειάστηκε διόρθωση.',
+      'Πόσο ακριβής είναι η ορθογραφία των λέξεων: μια καταχώριση χωρίς τυπογραφικά λάθη κατατάσσεται πάνω από μία που χρειάστηκε διόρθωση.',
     ranking_disclosure_search_3:
       'Πόσο κοντά βρίσκονται οι λέξεις σας η μία στην άλλη μέσα στην καταχώριση.',
     ranking_disclosure_search_4:
@@ -503,18 +503,18 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
     ranking_disclosure_search_5: 'Η ταξινόμηση που επιλέξατε, εάν την αλλάξατε από Σχετικότητα.',
     ranking_disclosure_search_6: 'Εάν η αντιστοίχιση είναι ακριβής και όχι μερική.',
     ranking_disclosure_search_7:
-      'Εάν το προϊόν είναι σε απόθεμα — τα διαθέσιμα προϊόντα προηγούνται.',
+      'Εάν το προϊόν είναι σε απόθεμα: τα διαθέσιμα προϊόντα προηγούνται.',
     ranking_disclosure_search_8:
       'Η βαθμολογία κριτικών του προϊόντος, σταθμισμένη με τον αριθμό των κριτικών, ώστε ένα προϊόν με πολλές θετικές κριτικές να υπερτερεί ενός αδοκίμαστου.',
     ranking_disclosure_search_note:
-      'Εφαρμόζεται διόρθωση ορθογραφίας και συνώνυμα στις λέξεις σας, και αναγνωρίζονται όλες οι επίσημες γλώσσες της Ευρωπαϊκής Ένωσης. Η πρόσφατη ημερομηνία σκοπίμως δεν αποτελεί μέρος της βαθμολογίας — χρησιμοποιήστε την ταξινόμηση Νεότερα για αυτό.',
+      'Εφαρμόζεται διόρθωση ορθογραφίας και συνώνυμα στις λέξεις σας, και αναγνωρίζονται όλες οι επίσημες γλώσσες της Ευρωπαϊκής Ένωσης. Η πρόσφατη ημερομηνία σκοπίμως δεν αποτελεί μέρος της βαθμολογίας: χρησιμοποιήστε την ταξινόμηση Νεότερα για αυτό.',
     review_disclosure_title: 'Πώς διαχειριζόμαστε τις κριτικές',
     review_disclosure_verified_body:
       'Κάθε κριτική στο Eurtisan προέρχεται από κάποιον που αγόρασε το προϊόν εδώ. Το ελέγχουμε αυτόματα προτού γραφτεί μια κριτική:',
     review_disclosure_check_purchase:
       'Ο λογαριασμός του αξιολογητή πραγματοποίησε την παραγγελία που περιέχει το προϊόν.',
     review_disclosure_check_delivered:
-      'Η παραγγελία επισημάνθηκε ως παραδοθείσα και έχουν περάσει 14 ημέρες από τότε — ώστε η αξιολόγηση να αντικατοπτρίζει τη χρήση του προϊόντος και όχι μόνο το άνοιγμα της συσκευασίας.',
+      'Η παραγγελία επισημάνθηκε ως παραδοθείσα και έχουν περάσει 14 ημέρες από τότε, ώστε η αξιολόγηση να αντικατοπτρίζει τη χρήση του προϊόντος και όχι μόνο το άνοιγμα της συσκευασίας.',
     review_disclosure_check_once:
       'Μία κριτική ανά προϊόν ανά παραγγελία, ώστε μία αγορά να μην μπορεί να αξιολογηθεί δύο φορές.',
     review_disclosure_check_own:
@@ -524,7 +524,7 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
     review_disclosure_dates:
       'Κάθε κριτική δείχνει την ημερομηνία δημοσίευσης και την ημερομηνία κατά την οποία ο αγοραστής παρέλαβε το προϊόν.',
     review_disclosure_moderation:
-      'Δεν τροποποιούμε τις κριτικές. Οποιοσδήποτε μπορεί να υποβάλει αναφορά — η αναφορά από μόνη της δεν αλλάζει τίποτα. Ένας συντονιστής μπορεί να αποκρύψει μια κριτική εάν είναι παράνομη ή παραβιάζει τους όρους μας, και ο συντάκτης ενημερώνεται πάντα για την απόφαση και την αιτιολογία.',
+      'Δεν τροποποιούμε τις κριτικές. Οποιοσδήποτε μπορεί να υποβάλει αναφορά: η αναφορά από μόνη της δεν αλλάζει τίποτα. Ένας συντονιστής μπορεί να αποκρύψει μια κριτική εάν είναι παράνομη ή παραβιάζει τους όρους μας, και ο συντάκτης ενημερώνεται πάντα για την απόφαση και την αιτιολογία.',
     review_disclosure_retention:
       'Διατηρούμε τις αξιολογήσεις για όσο διάστημα το προϊόν παραμένει καταχωρισμένο. Εάν ένας δημιουργός αφαιρέσει το προϊόν ή κλείσετε τον λογαριασμό σας, η αξιολόγηση διαγράφεται.',
     review_disclosure_no_payment:
@@ -613,24 +613,24 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
       'Otsimisel järjestatakse tulemused vastavalt sellele, kui hästi need teie sõnadega sobivad, järgmises tähtsuse järjekorras:',
     ranking_disclosure_search_1: 'Kui mitut teie otsingusõna kuulutus sisaldab.',
     ranking_disclosure_search_2:
-      'Sõnade kirjapildi täpsus — ilma trükivigadeta kuulutus seatakse parandust vajanust ettepoole.',
+      'Sõnade kirjapildi täpsus: ilma trükivigadeta kuulutus seatakse parandust vajanust ettepoole.',
     ranking_disclosure_search_3: 'Kui lähestikku teie sõnad kuulutuses asuvad.',
     ranking_disclosure_search_4:
       'Milline kuulutuse osa vastas otsingule, järgmises järjekorras: toote nimi, poe nimi, kategooria, seejärel kirjeldus.',
     ranking_disclosure_search_5:
       'Teie valitud sortimine, kui muutsite selle asjakohasusest erinevaks.',
     ranking_disclosure_search_6: 'Kas vaste on täpne või osaline.',
-    ranking_disclosure_search_7: 'Kas toode on laos — laotooted kuvatakse esimesena.',
+    ranking_disclosure_search_7: 'Kas toode on laos: laotooted kuvatakse esimesena.',
     ranking_disclosure_search_8:
       'Toote arvustuste hinne, kaalutud arvustuste arvuga, nii et hea tagasisidega toode edestab tõestamata toodet.',
     ranking_disclosure_search_note:
-      'Teie sõnadele rakendatakse õigekirjakorrektsiooni ja sünonüüme ning tuvastatakse kõik Euroopa Liidu ametlikud keeled. Värskus ei kuulu teadlikult arvustuste skoori hulka — selleks kasutage sortimist Uusimad.',
+      'Teie sõnadele rakendatakse õigekirjakorrektsiooni ja sünonüüme ning tuvastatakse kõik Euroopa Liidu ametlikud keeled. Värskus ei kuulu teadlikult arvustuste skoori hulka: selleks kasutage sortimist Uusimad.',
     review_disclosure_title: 'Kuidas me arvustusi haldame',
     review_disclosure_verified_body:
       'Iga Eurtisani arvustus pärineb kelleltki, kes ostis toote siit. Kontrollime seda automaatselt enne arvustuse kirjutamist:',
     review_disclosure_check_purchase: 'Arvustaja konto tegi tellimuse, mis sisaldab toodet.',
     review_disclosure_check_delivered:
-      'Tellimus märgiti kohaletoimetatuks ja sellest on möödunud 14 päeva — seega peegeldab arvustus toote kasutamist, mitte pelgalt lahtipakkimist.',
+      'Tellimus märgiti kohaletoimetatuks ja sellest on möödunud 14 päeva, seega peegeldab arvustus toote kasutamist, mitte pelgalt lahtipakkimist.',
     review_disclosure_check_once:
       'Üks arvustus toote kohta tellimuse kohta, nii et ühte ostu ei saa kaks korda arvustada.',
     review_disclosure_check_own: 'Käsitöölised ei saa arvustada oma poe tooteid.',
@@ -639,7 +639,7 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
     review_disclosure_dates:
       'Iga arvustus näitab avaldamise kuupäeva ja kuupäeva, millal ostja toote kätte sai.',
     review_disclosure_moderation:
-      'Me ei muuda arvustusi. Igaüks saab arvustusest teatada — üksnes teatamine ei muuda midagi. Moderaator võib ebaseadusliku või tingimusi rikkuva arvustuse peita ning autorit teavitatakse alati otsusest ja põhjustest.',
+      'Me ei muuda arvustusi. Igaüks saab arvustusest teatada: üksnes teatamine ei muuda midagi. Moderaator võib ebaseadusliku või tingimusi rikkuva arvustuse peita ning autorit teavitatakse alati otsusest ja põhjustest.',
     review_disclosure_retention:
       'Säilitame arvustusi seni, kuni toode on müügis. Kui käsitööline toote eemaldab või sulgete oma konto, kustutatakse ka arvustus.',
     review_disclosure_no_payment:
@@ -669,24 +669,24 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
       'Haettaessa tulokset järjestetään sen mukaan, miten hyvin ne vastaavat hakusanojasi, seuraavassa tärkeysjärjestyksessä:',
     ranking_disclosure_search_1: 'Kuinka montaa hakusanaasi ilmoitus sisältää.',
     ranking_disclosure_search_2:
-      'Sanojen kirjoitusasun tarkkuus — ilmoitus ilman kirjoitusvirheitä sijoittuu korjausta vaatineen edelle.',
+      'Sanojen kirjoitusasun tarkkuus: ilmoitus ilman kirjoitusvirheitä sijoittuu korjausta vaatineen edelle.',
     ranking_disclosure_search_3: 'Kuinka lähellä toisiaan hakusanasi esiintyvät ilmoituksessa.',
     ranking_disclosure_search_4:
       'Mikä ilmoituksen osa vastasi hakua, seuraavassa järjestyksessä: tuotteen nimi, kaupan nimi, kategoria, sitten kuvaus.',
     ranking_disclosure_search_5: 'Valitsemasi lajittelu, jos muutit sen Osuvuudesta.',
     ranking_disclosure_search_6: 'Onko osuma tarkka vai osittainen.',
     ranking_disclosure_search_7:
-      'Onko tuotetta varastossa — varastossa olevat tuotteet näytetään ensin.',
+      'Onko tuotetta varastossa: varastossa olevat tuotteet näytetään ensin.',
     ranking_disclosure_search_8:
       'Tuotteen arvostelupisteet suhteutettuna arvostelujen määrään, joten hyvän palautteen saanut tuote ohittaa todentamattoman.',
     ranking_disclosure_search_note:
-      'Sanoihisi sovelletaan oikeinkirjoituksen korjausta ja synonyymejä, ja kaikki Euroopan unionin viralliset kielet tunnistetaan. Tuoreus ei tarkoituksella ole osa arvostelupisteitä — käytä siihen Uusimmat-lajittelua.',
+      'Sanoihisi sovelletaan oikeinkirjoituksen korjausta ja synonyymejä, ja kaikki Euroopan unionin viralliset kielet tunnistetaan. Tuoreus ei tarkoituksella ole osa arvostelupisteitä: käytä siihen Uusimmat-lajittelua.',
     review_disclosure_title: 'Miten käsittelemme arvosteluja',
     review_disclosure_verified_body:
       'Jokainen Eurtisanin arvostelu on peräisin henkilöltä, joka osti tuotteen täältä. Tarkistamme tämän automaattisesti ennen arvostelun kirjoittamista:',
     review_disclosure_check_purchase: 'Arvostelijan tili teki tilauksen, joka sisältää tuotteen.',
     review_disclosure_check_delivered:
-      'Tilaus merkittiin toimitetuksi ja siitä on kulunut 14 päivää — joten arvostelu heijastaa tuotteen käyttöä eikä vain pakkauksen avaamista.',
+      'Tilaus merkittiin toimitetuksi ja siitä on kulunut 14 päivää, joten arvostelu heijastaa tuotteen käyttöä eikä vain pakkauksen avaamista.',
     review_disclosure_check_once:
       'Yksi arvostelu tuotetta kohti tilausta kohden, joten samaa ostosta ei voi arvostella kahdesti.',
     review_disclosure_check_own: 'Käsityöläiset eivät voi arvostella oman kauppansa tuotteita.',
@@ -695,7 +695,7 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
     review_disclosure_dates:
       'Jokaisessa arvostelussa näkyy julkaisupäivämäärä ja päivämäärä, jolloin ostaja vastaanotti tuotteen.',
     review_disclosure_moderation:
-      'Emme muokkaa arvosteluja. Kuka tahansa voi ilmoittaa arvostelusta — pelkkä ilmoitus ei muuta mitään. Moderaattori voi piilottaa laittoman tai ehtojemme vastaisen arvostelun, ja tekijälle kerrotaan aina päätöksestä ja sen perusteluista.',
+      'Emme muokkaa arvosteluja. Kuka tahansa voi ilmoittaa arvostelusta: pelkkä ilmoitus ei muuta mitään. Moderaattori voi piilottaa laittoman tai ehtojemme vastaisen arvostelun, ja tekijälle kerrotaan aina päätöksestä ja sen perusteluista.',
     review_disclosure_retention:
       'Säilytämme arvosteluja niin kauan kuin tuote on listattuna. Jos käsityöläinen poistaa tuotteen tai suljet tilisi, arvostelu poistuu sen mukana.',
     review_disclosure_no_payment:
@@ -725,7 +725,7 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
       'Nuair a dhéanann tú cuardach, déantar torthaí a ordú de réir mar a mheaitseálann siad do chuid focal, san ord tábhachta seo:',
     ranking_disclosure_search_1: "Cé mhéad de d'fhocail chuardaigh a mheaitseálann liostú.",
     ranking_disclosure_search_2:
-      'Cé chomh cruinn agus a litrítear na focail — rangaítear liostú gan earráidí cló os cionn ceann a raibh ceartú ag teastáil uaidh.',
+      'Cé chomh cruinn agus a litrítear na focail: rangaítear liostú gan earráidí cló os cionn ceann a raibh ceartú ag teastáil uaidh.',
     ranking_disclosure_search_3:
       'Cé chomh gar agus a fheictear do chuid focal dá chéile sa liostú.',
     ranking_disclosure_search_4:
@@ -733,18 +733,18 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
     ranking_disclosure_search_5: "An sórtáil a roghnaigh tú, má d'athraigh tú ó Ábharthacht é.",
     ranking_disclosure_search_6: 'Cibé an bhfuil an meaitseáil cruinn seachas páirteach.',
     ranking_disclosure_search_7:
-      'Cibé an bhfuil an táirge i stoc — tagann táirgí atá i stoc ar dtús.',
+      'Cibé an bhfuil an táirge i stoc: tagann táirgí atá i stoc ar dtús.',
     ranking_disclosure_search_8:
       'Scór léirmheasa an táirge, ualaithe de réir líon na léirmheasanna, ionas go mbíonn táirge a bhfuil dea-léirmheasanna air níos airde ná ceann gan cruthú.',
     ranking_disclosure_search_note:
-      "Cuirtear ceartú litrithe agus comhchiallaigh i bhfeidhm ar d'fhocail, agus aithnítear gach teanga oifigiúil de chuid an Aontais Eorpaigh. Ní cuid de scór an léirmheasa é an t-am go hintinneach — bain úsáid as an sórtáil Is déanaí chuige sin.",
+      "Cuirtear ceartú litrithe agus comhchiallaigh i bhfeidhm ar d'fhocail, agus aithnítear gach teanga oifigiúil de chuid an Aontais Eorpaigh. Ní cuid de scór an léirmheasa é an t-am go hintinneach: bain úsáid as an sórtáil Is déanaí chuige sin.",
     review_disclosure_title: 'Conas a láimhseálaimid léirmheasanna',
     review_disclosure_verified_body:
       'Tagann gach léirmheas ar Eurtisan ó dhuine a cheannaigh an táirge anseo. Seiceálaimid é seo go huathoibríoch sular féidir léirmheas a scríobh:',
     review_disclosure_check_purchase:
       'Chuir cuntas an léirmheastóra an t-ordú ina bhfuil an táirge isteach.',
     review_disclosure_check_delivered:
-      'Marcáladh an t-ordú mar ordú seachadta, agus tá 14 lá caite ó shin — ionas go léiríonn an léirmheas úsáid an táirge, ní hamháin é a dhíphacáil.',
+      'Marcáladh an t-ordú mar ordú seachadta, agus tá 14 lá caite ó shin, ionas go léiríonn an léirmheas úsáid an táirge, ní hamháin é a dhíphacáil.',
     review_disclosure_check_once:
       'Léirmheas amháin in aghaidh an táirge in aghaidh an ordaithe, ionas nach féidir athbhreithniú a dhéanamh ar aon cheannachán faoi dhó.',
     review_disclosure_check_own:
@@ -754,7 +754,7 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
     review_disclosure_dates:
       'Léiríonn gach léirmheas an dáta a foilsíodh é agus an dáta a fuair an ceannaitheoir an táirge.',
     review_disclosure_moderation:
-      'Ní dhéanaimid léirmheasanna a chur in eagar. Is féidir le duine ar bith ceann a thuairisciú — ní athraíonn tuairisciú amháin aon rud. Is féidir le modhnóir léirmheas atá neamhdhleathach nó a bhriseann ár dtéarmaí a chur i bhfolach, agus cuirtear an cinneadh agus na cúiseanna in iúl don údar i gcónaí.',
+      'Ní dhéanaimid léirmheasanna a chur in eagar. Is féidir le duine ar bith ceann a thuairisciú: ní athraíonn tuairisciú amháin aon rud. Is féidir le modhnóir léirmheas atá neamhdhleathach nó a bhriseann ár dtéarmaí a chur i bhfolach, agus cuirtear an cinneadh agus na cúiseanna in iúl don údar i gcónaí.',
     review_disclosure_retention:
       'Coinnímid léirmheasanna fad atá an táirge liostaithe. Má bhaineann déantóir an táirge nó má dhúnann tú do chuntas, baintear an léirmheas leis.',
     review_disclosure_no_payment:
@@ -784,25 +784,24 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
       'Prilikom pretraživanja rezultati se razvrstavaju prema tome koliko dobro odgovaraju vašim riječima, sljedećim redoslijedom važnosti:',
     ranking_disclosure_search_1: 'Koliko vaših riječi za pretraživanje ponuda sadrži.',
     ranking_disclosure_search_2:
-      'Točnost pravopisa riječi — ponuda bez tipfelera rangira se iznad one koja je trebala ispravak.',
+      'Točnost pravopisa riječi: ponuda bez tipfelera rangira se iznad one koja je trebala ispravak.',
     ranking_disclosure_search_3: 'Koliko su vaše riječi blizu jedna drugoj u ponudi.',
     ranking_disclosure_search_4:
       'Koji se dio ponude podudarao, ovim redoslijedom: naziv proizvoda, naziv trgovine, kategorija, zatim opis.',
     ranking_disclosure_search_5:
       'Poredak koji ste odabrali, ako ste ga promijenili u odnosu na Relevantnost.',
     ranking_disclosure_search_6: 'Je li podudaranje točno, a ne djelomično.',
-    ranking_disclosure_search_7:
-      'Je li proizvod na zalihi — proizvodi na zalihi prikazuju se prvi.',
+    ranking_disclosure_search_7: 'Je li proizvod na zalihi: proizvodi na zalihi prikazuju se prvi.',
     ranking_disclosure_search_8:
       'Ocjena recenzija proizvoda, ponderirana brojem recenzija, tako da dobro ocijenjen proizvod nadmašuje nedokazani.',
     ranking_disclosure_search_note:
-      'Ispravak pravopisa i sinonimi primjenjuju se na vaše riječi, a prepoznaju se svi službeni jezici Europske unije. Vremenska svježina namjerno nije dio ocjene recenzija — za to upotrijebite razvrstavanje Najnovije.',
+      'Ispravak pravopisa i sinonimi primjenjuju se na vaše riječi, a prepoznaju se svi službeni jezici Europske unije. Vremenska svježina namjerno nije dio ocjene recenzija: za to upotrijebite razvrstavanje Najnovije.',
     review_disclosure_title: 'Kako upravljamo recenzijama',
     review_disclosure_verified_body:
       'Svaka recenzija na Eurtisanu dolazi od nekoga tko je ovdje kupio proizvod. To automatski provjeravamo prije nego što se recenzija može napisati:',
     review_disclosure_check_purchase: 'Račun recenzenta izvršio je narudžbu koja sadrži proizvod.',
     review_disclosure_check_delivered:
-      'Narudžba je označena kao isporučena i od tada je prošlo 14 dana — tako da recenzija odražava stvarno korištenje proizvoda, a ne samo raspakiranje.',
+      'Narudžba je označena kao isporučena i od tada je prošlo 14 dana, tako da recenzija odražava stvarno korištenje proizvoda, a ne samo raspakiranje.',
     review_disclosure_check_once:
       'Jedna recenzija po proizvodu po narudžbi, tako da se jedna kupnja ne može dvaput ocijeniti.',
     review_disclosure_check_own: 'Obrtnici ne mogu recenzirati proizvode iz vlastite trgovine.',
@@ -811,7 +810,7 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
     review_disclosure_dates:
       'Svaka recenzija prikazuje datum objave i datum kada je kupac primio proizvod.',
     review_disclosure_moderation:
-      'Ne uređujemo recenzije. Svatko može prijaviti recenziju — sama prijava ne mijenja ništa. Moderator može sakriti recenziju koja je nezakonita ili krši naše uvjete, a autor je uvijek obaviješten o odluci i razlozima.',
+      'Ne uređujemo recenzije. Svatko može prijaviti recenziju: sama prijava ne mijenja ništa. Moderator može sakriti recenziju koja je nezakonita ili krši naše uvjete, a autor je uvijek obaviješten o odluci i razlozima.',
     review_disclosure_retention:
       'Recenzije čuvamo sve dok je proizvod u ponudi. Ako obrtnik ukloni proizvod ili zatvorite račun, recenzija se briše.',
     review_disclosure_no_payment:
@@ -958,24 +957,24 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
       'Atliekant paiešką, rezultatai rikiuojami pagal tai, kaip gerai jie atitinka jūsų žodžius, šia svarbos tvarka:',
     ranking_disclosure_search_1: 'Kiek jūsų paieškos žodžių atitinka skelbimas.',
     ranking_disclosure_search_2:
-      'Žodžių rašybos tikslumas — skelbimas be rašybos klaidų rikiuojamas aukščiau už tą, kurį reikėjo taisyti.',
+      'Žodžių rašybos tikslumas: skelbimas be rašybos klaidų rikiuojamas aukščiau už tą, kurį reikėjo taisyti.',
     ranking_disclosure_search_3: 'Kaip arti vienas kito jūsų žodžiai yra skelbime.',
     ranking_disclosure_search_4:
       'Kuri skelbimo dalis atitiko, šia tvarka: produkto pavadinimas, parduotuvės pavadinimas, kategorija, tada aprašymas.',
     ranking_disclosure_search_5: 'Jūsų pasirinktas rikiavimas, jei pakeitėte jį iš Tinkamumas.',
     ranking_disclosure_search_6: 'Ar atitiktis yra tiksli, o ne dalinė.',
-    ranking_disclosure_search_7: 'Ar prekė yra sandėlyje — turimos prekės rodomos pirmos.',
+    ranking_disclosure_search_7: 'Ar prekė yra sandėlyje: turimos prekės rodomos pirmos.',
     ranking_disclosure_search_8:
       'Produkto atsiliepimų įvertinimas, įvertintas pagal atsiliepimų skaičių, todėl gerai įvertintas produktas lenkia nepatikrintą.',
     ranking_disclosure_search_note:
-      'Jūsų žodžiams taikomas rašybos taisymas ir sinonimai, atpažįstamos visos oficialios Europos Sąjungos kalbos. Naujumas sąmoningai nėra atsiliepimų balo dalis — tam naudokite rikiavimą Naujausi.',
+      'Jūsų žodžiams taikomas rašybos taisymas ir sinonimai, atpažįstamos visos oficialios Europos Sąjungos kalbos. Naujumas sąmoningai nėra atsiliepimų balo dalis: tam naudokite rikiavimą Naujausi.',
     review_disclosure_title: 'Kaip tvarkome atsiliepimus',
     review_disclosure_verified_body:
       'Kiekvienas „Eurtisan“ atsiliepimas yra parašytas asmens, kuris čia įsigijo produktą. Tai automatiškai patikriname prieš leidžiant parašyti atsiliepimą:',
     review_disclosure_check_purchase:
       'Atsiliepimą pateikusio asmens paskyra pateikė užsakymą, kuriame yra produktas.',
     review_disclosure_check_delivered:
-      'Užsakymas buvo pažymėtas kaip pristatytas ir nuo to laiko praėjo 14 dienų — tad atsiliepimas atspindi produkto naudojimą, o ne vien išpakavimą.',
+      'Užsakymas buvo pažymėtas kaip pristatytas ir nuo to laiko praėjo 14 dienų, tad atsiliepimas atspindi produkto naudojimą, o ne vien išpakavimą.',
     review_disclosure_check_once:
       'Vienas atsiliepimas apie produktą vienam užsakymui, todėl vienas pirkinys negali būti įvertintas du kartus.',
     review_disclosure_check_own: 'Kūrėjai negali vertinti produktų iš savo parduotuvės.',
@@ -984,7 +983,7 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
     review_disclosure_dates:
       'Kiekviename atsiliepime nurodoma jo paskelbimo data ir data, kada pirkėjas gavo produktą.',
     review_disclosure_moderation:
-      'Mes neredaguojame atsiliepimų. Kiekvienas gali pranešti apie atsiliepimą — vien pranešimas nieko nepakeičia. Moderatorius gali paslėpti neteisėtą ar sąlygas pažeidžiantį atsiliepimą, o autoriui visada pranešama apie sprendimą ir motyvus.',
+      'Mes neredaguojame atsiliepimų. Kiekvienas gali pranešti apie atsiliepimą: vien pranešimas nieko nepakeičia. Moderatorius gali paslėpti neteisėtą ar sąlygas pažeidžiantį atsiliepimą, o autoriui visada pranešama apie sprendimą ir motyvus.',
     review_disclosure_retention:
       'Atsiliepimus saugome tol, kol produktas yra pateiktas prekybai. Jei kūrėjas pašalina produktą arba uždarote savo paskyrą, atsiliepimas pašalinamas kartu.',
     review_disclosure_no_payment:
@@ -1014,24 +1013,24 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
       'Meklējot rezultāti tiek sakārtoti pēc tā, cik labi tie atbilst jūsu vārdiem, šādā svarīguma secībā:',
     ranking_disclosure_search_1: 'Cik daudz jūsu meklēto vārdu ietver sludinājums.',
     ranking_disclosure_search_2:
-      'Cik precīzi vārdi ir uzrakstīti — sludinājums bez drukas kļūdām tiek ierindots augstāk par to, kuram bija nepieciešams labojums.',
+      'Cik precīzi vārdi ir uzrakstīti: sludinājums bez drukas kļūdām tiek ierindots augstāk par to, kuram bija nepieciešams labojums.',
     ranking_disclosure_search_3: 'Cik tuvu cits citam jūsu vārdi atrodas sludinājumā.',
     ranking_disclosure_search_4:
       'Kura sludinājuma daļa atbilda, šādā secībā: produkta nosaukums, veikala nosaukums, kategorija, pēc tam apraksts.',
     ranking_disclosure_search_5: 'Jūsu izvēlētā kārtošana, ja mainījāt to no Atbilstība.',
     ranking_disclosure_search_6: 'Vai atbilstība ir precīza, nevis daļēja.',
-    ranking_disclosure_search_7: 'Vai prece ir noliktavā — preces noliktavā parādās vispirms.',
+    ranking_disclosure_search_7: 'Vai prece ir noliktavā: preces noliktavā parādās vispirms.',
     ranking_disclosure_search_8:
       'Produkta atsauksmju vērtējums, kas svērts pēc atsauksmju skaita, tādējādi labi novērtēts produkts pārspēj nepārbaudītu.',
     ranking_disclosure_search_note:
-      'Jūsu vārdiem tiek piemērots pareizrakstības labojums un sinonīmi, un tiek atpazītas visas Eiropas Savienības oficiālās valodas. Aktualitāte apzināti nav daļa no atsauksmju rādītāja — šim nolūkam izmantojiet kārtošanu Jaunākie.',
+      'Jūsu vārdiem tiek piemērots pareizrakstības labojums un sinonīmi, un tiek atpazītas visas Eiropas Savienības oficiālās valodas. Aktualitāte apzināti nav daļa no atsauksmju rādītāja: šim nolūkam izmantojiet kārtošanu Jaunākie.',
     review_disclosure_title: 'Kā mēs apstrādājam atsauksmes',
     review_disclosure_verified_body:
       'Katra atsauksme vietnē Eurtisan nāk no pircēja, kurš šeit iegādājies produktu. Pirms atsauksmes rakstīšanas mēs to automātiski pārbaudām:',
     review_disclosure_check_purchase:
       'Atsauksmes autora konts veica pasūtījumu, kurā ietilpst produkts.',
     review_disclosure_check_delivered:
-      'Pasūtījums tika atzīmēts kā piegādāts, un kopš tā laika ir pagājušas 14 dienas — tāpēc atsauksme atspoguļo produkta lietošanu, nevis tikai izpakošanu.',
+      'Pasūtījums tika atzīmēts kā piegādāts, un kopš tā laika ir pagājušas 14 dienas, tāpēc atsauksme atspoguļo produkta lietošanu, nevis tikai izpakošanu.',
     review_disclosure_check_once:
       'Viena atsauksme par produktu katrā pasūtījumā, lai vienu pirkumu nevarētu novērtēt divreiz.',
     review_disclosure_check_own: 'Amatnieki nevar novērtēt produktus no sava veikala.',
@@ -1040,7 +1039,7 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
     review_disclosure_dates:
       'Katrā atsauksmē ir norādīts tās publicēšanas datums un datums, kad pircējs saņēma preci.',
     review_disclosure_moderation:
-      'Mēs nerediģējam atsauksmes. Ikviens var ziņot par atsauksmi — ziņojums pats par sevi neko nemaina. Moderators var paslēpt atsauksmi, kas ir nelikumīga vai pārkāpj mūsu noteikumus, un autoram vienmēr tiek paziņots lēmums un tā pamatojums.',
+      'Mēs nerediģējam atsauksmes. Ikviens var ziņot par atsauksmi: ziņojums pats par sevi neko nemaina. Moderators var paslēpt atsauksmi, kas ir nelikumīga vai pārkāpj mūsu noteikumus, un autoram vienmēr tiek paziņots lēmums un tā pamatojums.',
     review_disclosure_retention:
       'Mēs glabājam atsauksmes tik ilgi, kamēr produkts ir piedāvājumā. Ja amatnieks preci noņem vai jūs slēdzat kontu, atsauksme tiek dzēsta.',
     review_disclosure_no_payment:
@@ -1070,23 +1069,23 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
       "Meta tfittex, ir-riżultati jiġu ordnati skont kemm jaqblu mal-kliem tiegħek, f'din l-ordni ta' importanza:",
     ranking_disclosure_search_1: "Kemm mill-kliem tat-tfittxija tiegħek jinsab f'elenku.",
     ranking_disclosure_search_2:
-      "Kemm il-kliem huwa miktub b'mod preċiż — elenku mingħajr żbalji jikklassifika qabel wieħed li kellu bżonn korrezzjoni.",
+      "Kemm il-kliem huwa miktub b'mod preċiż: elenku mingħajr żbalji jikklassifika qabel wieħed li kellu bżonn korrezzjoni.",
     ranking_disclosure_search_3: 'Kemm il-kliem tiegħek jinsab qrib xulxin fl-elenku.',
     ranking_disclosure_search_4:
       "Liema parti tal-elenku qablet, f'din l-ordni: isem tal-prodott, isem tal-ħanut, kategorija, imbagħad deskrizzjoni.",
     ranking_disclosure_search_5: 'L-ordni li għażilt, jekk biddiltha minn Rilevanza.',
     ranking_disclosure_search_6: 'Jekk it-tqabbil huwiex eżatt minflok parzjali.',
-    ranking_disclosure_search_7: 'Jekk il-prodott hux fl-istokk — prodotti fl-istokk jiġu l-ewwel.',
+    ranking_disclosure_search_7: 'Jekk il-prodott hux fl-istokk: prodotti fl-istokk jiġu l-ewwel.',
     ranking_disclosure_search_8:
       "Il-punteġġ tar-reviżjonijiet tal-prodott, peżat bin-numru ta' reviżjonijiet, sabiex prodott b'reviżjonijiet tajbin jikklassifika qabel wieħed mhux ippruvat.",
     ranking_disclosure_search_note:
-      'Il-korrezzjoni tal-ortografija u sinonimi huma applikati għall-kliem tiegħek, u l-lingwi uffiċjali kollha tal-Unjoni Ewropea huma rikonoxxuti. Ir-reċenza deliberatament mhijiex parti mill-punteġġ tar-reviżjonijiet — uża l-għażla L-aktar reċenti għal dan.',
+      'Il-korrezzjoni tal-ortografija u sinonimi huma applikati għall-kliem tiegħek, u l-lingwi uffiċjali kollha tal-Unjoni Ewropea huma rikonoxxuti. Ir-reċenza deliberatament mhijiex parti mill-punteġġ tar-reviżjonijiet: uża l-għażla L-aktar reċenti għal dan.',
     review_disclosure_title: 'Kif nittrattaw ir-reviżjonijiet',
     review_disclosure_verified_body:
       "Kull reviżjoni fuq Eurtisan ġejja minn xi ħadd li xtara l-prodott hawnhekk. Aħna nivverifikaw dan awtomatikament qabel ma tkun tista' tinkiteb reviżjoni:",
     review_disclosure_check_purchase: 'Il-kont tar-reviżur għamel l-ordni li fiha l-prodott.',
     review_disclosure_check_delivered:
-      'L-ordni ġiet immarkata bħala kkonsenjata u għaddew 14-il ġurnata minn dakinhar — biex ir-reviżjoni tirrifletti l-użu tal-prodott, mhux biss il-ftuħ tiegħu.',
+      'L-ordni ġiet immarkata bħala kkonsenjata u għaddew 14-il ġurnata minn dakinhar, biex ir-reviżjoni tirrifletti l-użu tal-prodott, mhux biss il-ftuħ tiegħu.',
     review_disclosure_check_once:
       "Reviżjoni waħda għal kull prodott għal kull ordni, sabiex xirja waħda ma tkunx tista' tiġi riveduta darbtejn.",
     review_disclosure_check_own:
@@ -1096,7 +1095,7 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
     review_disclosure_dates:
       'Kull reviżjoni turi d-data meta ġiet ippubblikata u d-data meta x-xerrej irċieva l-prodott.',
     review_disclosure_moderation:
-      "Aħna ma neditjawx reviżjonijiet. Kulħadd jista' jirrapporta waħda — ir-rappurtar waħdu ma jibdel xejn. Moderatur jista' jaħbi reviżjoni li tkun illegali jew li tikser it-termini tagħna, u l-awtur dejjem jiġi infurmat b'dak li ġie deċiż u għaliex.",
+      "Aħna ma neditjawx reviżjonijiet. Kulħadd jista' jirrapporta waħda: ir-rappurtar waħdu ma jibdel xejn. Moderatur jista' jaħbi reviżjoni li tkun illegali jew li tikser it-termini tagħna, u l-awtur dejjem jiġi infurmat b'dak li ġie deċiż u għaliex.",
     review_disclosure_retention:
       'Aħna nżommu r-reviżjonijiet sakemm il-prodott ikun elenkat. Jekk artiġjan ineħħi l-prodott jew tagħlaq il-kont tiegħek, ir-reviżjoni titneħħa miegħu.',
     review_disclosure_no_payment:
@@ -1126,24 +1125,24 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
       'Podczas wyszukiwania wyniki są porządkowane według tego, jak dobrze pasują do Twoich słów, w następującej kolejności ważności:',
     ranking_disclosure_search_1: 'Ile ze słów wyszukiwania zawiera oferta.',
     ranking_disclosure_search_2:
-      'Dokładność pisowni słów — oferta bez literówek plasuje się wyżej niż ta, która wymagała poprawki.',
+      'Dokładność pisowni słów: oferta bez literówek plasuje się wyżej niż ta, która wymagała poprawki.',
     ranking_disclosure_search_3: 'Jak blisko siebie znajdują się Twoje słowa w ofercie.',
     ranking_disclosure_search_4:
       'Która część oferty pasuje, w następującej kolejności: nazwa produktu, nazwa sklepu, kategoria, a następnie opis.',
     ranking_disclosure_search_5: 'Wybrane sortowanie, jeśli zostało zmienione z Trafność.',
     ranking_disclosure_search_6: 'Czy dopasowanie jest dokładne, a nie częściowe.',
     ranking_disclosure_search_7:
-      'Czy produkt jest dostępny — produkty w magazynie są wyświetlane w pierwszej kolejności.',
+      'Czy produkt jest dostępny: produkty w magazynie są wyświetlane w pierwszej kolejności.',
     ranking_disclosure_search_8:
       'Ocena produktu w opiniach, ważona liczbą opinii, dzięki czemu dobrze oceniony produkt wyprzedza niesprawdzony.',
     ranking_disclosure_search_note:
-      'Korekta pisowni i synonimy są stosowane do Twoich słów, a wszystkie oficjalne języki Unii Europejskiej są rozpoznawane. Świeżość celowo nie jest częścią oceny opinii — użyj sortowania Najnowsze w tym celu.',
+      'Korekta pisowni i synonimy są stosowane do Twoich słów, a wszystkie oficjalne języki Unii Europejskiej są rozpoznawane. Świeżość celowo nie jest częścią oceny opinii: użyj sortowania Najnowsze w tym celu.',
     review_disclosure_title: 'Jak postępujemy z opiniami',
     review_disclosure_verified_body:
       'Każda opinia na Eurtisan pochodzi od osoby, która kupiła produkt tutaj. Sprawdzamy to automatycznie, zanim opinia zostanie napisana:',
     review_disclosure_check_purchase: 'Konto recenzenta złożyło zamówienie zawierające produkt.',
     review_disclosure_check_delivered:
-      'Zamówienie zostało oznaczone jako doręczone i minęło od tego momentu 14 dni — dzięki temu opinia odzwierciedla korzystanie z produktu, a nie tylko jego rozpakowanie.',
+      'Zamówienie zostało oznaczone jako doręczone i minęło od tego momentu 14 dni, dzięki temu opinia odzwierciedla korzystanie z produktu, a nie tylko jego rozpakowanie.',
     review_disclosure_check_once:
       'Jedna opinia na produkt na zamówienie, więc pojedynczy zakup nie może być oceniony dwukrotnie.',
     review_disclosure_check_own: 'Twórcy nie mogą oceniać produktów z własnego sklepu.',
@@ -1152,7 +1151,7 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
     review_disclosure_dates:
       'Każda opinia zawiera datę publikacji oraz datę otrzymania produktu przez kupującego.',
     review_disclosure_moderation:
-      'Nie edytujemy opinii. Każdy może zgłosić opinię — samo zgłoszenie niczego nie zmienia. Moderator może ukryć opinię, która jest nielegalna lub narusza nasz regulamin, a autor jest zawsze informowany o decyzji i jej uzasadnieniu.',
+      'Nie edytujemy opinii. Każdy może zgłosić opinię: samo zgłoszenie niczego nie zmienia. Moderator może ukryć opinię, która jest nielegalna lub narusza nasz regulamin, a autor jest zawsze informowany o decyzji i jej uzasadnieniu.',
     review_disclosure_retention:
       'Przechowujemy opinie tak długo, jak długo produkt jest wystawiony na sprzedaż. Jeśli twórca usunie produkt lub zamkniesz konto, opinia zostanie usunięta.',
     review_disclosure_no_payment:
@@ -1182,24 +1181,24 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
       'Ao pesquisar, os resultados são ordenados de acordo com a correspondência com as suas palavras, por esta ordem de importância:',
     ranking_disclosure_search_1: 'Quantas das suas palavras de pesquisa um anúncio contém.',
     ranking_disclosure_search_2:
-      'O rigor ortográfico das palavras — um anúncio sem erros ortográficos classifica-se à frente de um que necessitou de correção.',
+      'O rigor ortográfico das palavras: um anúncio sem erros ortográficos classifica-se à frente de um que necessitou de correção.',
     ranking_disclosure_search_3: 'A proximidade das suas palavras entre si no anúncio.',
     ranking_disclosure_search_4:
       'Qual a parte do anúncio que correspondeu, pela seguinte ordem: nome do produto, nome da loja, categoria e depois descrição.',
     ranking_disclosure_search_5: 'A ordenação que escolheu, se a alterou a partir de Relevância.',
     ranking_disclosure_search_6: 'Se a correspondência é exata em vez de parcial.',
     ranking_disclosure_search_7:
-      'Se o produto está em stock — os produtos em stock aparecem primeiro.',
+      'Se o produto está em stock: os produtos em stock aparecem primeiro.',
     ranking_disclosure_search_8:
       'A pontuação de avaliações do produto, ponderada pelo número de avaliações, de modo que um produto bem avaliado supere um sem histórico.',
     ranking_disclosure_search_note:
-      'A correção ortográfica e os sinónimos são aplicados às suas palavras e são reconhecidas todas as línguas oficiais da União Europeia. A atualidade não faz deliberadamente parte da pontuação de avaliação — utilize a ordenação Mais recentes para esse efeito.',
+      'A correção ortográfica e os sinónimos são aplicados às suas palavras e são reconhecidas todas as línguas oficiais da União Europeia. A atualidade não faz deliberadamente parte da pontuação de avaliação: utilize a ordenação Mais recentes para esse efeito.',
     review_disclosure_title: 'Como gerimos as avaliações',
     review_disclosure_verified_body:
       'Cada avaliação no Eurtisan provém de alguém que comprou o produto aqui. Verificamos isto automaticamente antes de uma avaliação poder ser escrita:',
     review_disclosure_check_purchase: 'A conta do avaliador fez a encomenda que contém o produto.',
     review_disclosure_check_delivered:
-      'A encomenda foi marcada como entregue e passaram 14 dias desde então — para que a avaliação reflita a utilização do produto e não apenas a abertura da embalagem.',
+      'A encomenda foi marcada como entregue e passaram 14 dias desde então, para que a avaliação reflita a utilização do produto e não apenas a abertura da embalagem.',
     review_disclosure_check_once:
       'Uma avaliação por produto por encomenda, para que uma compra não possa ser avaliada duas vezes.',
     review_disclosure_check_own: 'Os artesãos não podem avaliar produtos da sua própria loja.',
@@ -1208,7 +1207,7 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
     review_disclosure_dates:
       'Cada avaliação indica a data de publicação e a data em que o comprador recebeu o produto.',
     review_disclosure_moderation:
-      'Não editamos avaliações. Qualquer pessoa pode denunciar uma avaliação — uma denúncia por si só não altera nada. Um moderador pode ocultar uma avaliação ilícita ou que viole os nossos termos, e o autor é sempre informado sobre a decisão e os motivos.',
+      'Não editamos avaliações. Qualquer pessoa pode denunciar uma avaliação: uma denúncia por si só não altera nada. Um moderador pode ocultar uma avaliação ilícita ou que viole os nossos termos, e o autor é sempre informado sobre a decisão e os motivos.',
     review_disclosure_retention:
       'Guardamos as avaliações enquanto o produto estiver listado. Se um artesão remover o produto ou se encerrar a sua conta, a avaliação é eliminada em conformidade.',
     review_disclosure_no_payment:
@@ -1238,25 +1237,25 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
       'Când căutați, rezultatele sunt ordonate în funcție de cât de bine se potrivesc cu cuvintele dvs., în această ordine de importanță:',
     ranking_disclosure_search_1: 'Câte dintre cuvintele dvs. de căutare conține un anunț.',
     ranking_disclosure_search_2:
-      'Cât de corect sunt scrise cuvintele — un anunț fără greșeli de tipar este clasat înaintea unuia care a necesitat o corecție.',
+      'Cât de corect sunt scrise cuvintele: un anunț fără greșeli de tipar este clasat înaintea unuia care a necesitat o corecție.',
     ranking_disclosure_search_3: 'Cât de aproape apar cuvintele dvs. unul de celălalt în anunț.',
     ranking_disclosure_search_4:
       'Ce parte a anunțului s-a potrivit, în această ordine: numele produsului, numele magazinului, categorie, apoi descriere.',
     ranking_disclosure_search_5: 'Sortarea aleasă de dvs., dacă ați schimbat-o din Relevanță.',
     ranking_disclosure_search_6: 'Dacă potrivirea este exactă și nu parțială.',
     ranking_disclosure_search_7:
-      'Dacă produsul este în stoc — produsele din stoc sunt afișate primele.',
+      'Dacă produsul este în stoc: produsele din stoc sunt afișate primele.',
     ranking_disclosure_search_8:
       'Scorul recenziilor produsului, ponderat cu numărul de recenzii, astfel încât un produs bine evaluat să depășească unul fără istoric.',
     ranking_disclosure_search_note:
-      'Corectarea ortografică și sinonimele se aplică cuvintelor dvs. și sunt recunoscute toate limbile oficiale ale Uniunii Europene. Noutatea nu face parte în mod deliberat din scorul recenziilor — utilizați sortarea Cele mai noi pentru aceasta.',
+      'Corectarea ortografică și sinonimele se aplică cuvintelor dvs. și sunt recunoscute toate limbile oficiale ale Uniunii Europene. Noutatea nu face parte în mod deliberat din scorul recenziilor: utilizați sortarea Cele mai noi pentru aceasta.',
     review_disclosure_title: 'Cum gestionăm recenziile',
     review_disclosure_verified_body:
       'Fiecare recenzie de pe Eurtisan provine de la cineva care a cumpărat produsul de aici. Verificăm acest lucru automat înainte ca o recenzie să poată fi scrisă:',
     review_disclosure_check_purchase:
       'Contul recenzentului a plasat comanda care conține produsul.',
     review_disclosure_check_delivered:
-      'Comanda a fost marcată ca livrată și au trecut 14 de zile de atunci — astfel încât recenzia să reflecte utilizarea produsului, nu doar despachetarea lui.',
+      'Comanda a fost marcată ca livrată și au trecut 14 de zile de atunci, astfel încât recenzia să reflecte utilizarea produsului, nu doar despachetarea lui.',
     review_disclosure_check_once:
       'O singură recenzie per produs per comandă, astfel încât o achiziție unică să nu poată fi evaluată de două ori.',
     review_disclosure_check_own: 'Meșteșugarii nu pot evalua produse din propriul magazin.',
@@ -1265,7 +1264,7 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
     review_disclosure_dates:
       'Fiecare recenzie indică data publicării și data la care cumpărătorul a primit produsul.',
     review_disclosure_moderation:
-      'Nu edităm recenziile. Oricine poate raporta o recenzie — o simplă raportare nu schimbă nimic. Un moderator poate ascunde o recenzie ilegală sau care încalcă termenii noștri, iar autorul este întotdeauna informat despre decizie și motive.',
+      'Nu edităm recenziile. Oricine poate raporta o recenzie: o simplă raportare nu schimbă nimic. Un moderator poate ascunde o recenzie ilegală sau care încalcă termenii noștri, iar autorul este întotdeauna informat despre decizie și motive.',
     review_disclosure_retention:
       'Păstrăm recenziile atâta timp cât produsul este listat. Dacă un meșteșugar retrage produsul sau vă închideți contul, recenzia este ștearsă.',
     review_disclosure_no_payment:
@@ -1295,18 +1294,18 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
       'Pri vyhľadávaní sa výsledky zoradia podľa toho, ako dobre zodpovedajú vašim slovám, v tomto poradí dôležitosti:',
     ranking_disclosure_search_1: 'Koľko z vašich hľadaných slov ponuka obsahuje.',
     ranking_disclosure_search_2:
-      'Presnosť pravopisu slov — ponuka bez preklepov sa umiestni pred tou, ktorá vyžadovala opravu.',
+      'Presnosť pravopisu slov: ponuka bez preklepov sa umiestni pred tou, ktorá vyžadovala opravu.',
     ranking_disclosure_search_3: 'Ako blízko pri sebe sa vaše slová v ponuke nachádzajú.',
     ranking_disclosure_search_4:
       'Ktorá časť ponuky sa zhodovala, v tomto poradí: názov produktu, názov obchodu, kategória, potom popis.',
     ranking_disclosure_search_5: 'Zvolené radenie, ak ste ho zmenili z Relevantnosť.',
     ranking_disclosure_search_6: 'Či je zhoda presná alebo čiastočná.',
     ranking_disclosure_search_7:
-      'Či je produkt na sklade — produkty na sklade sa zobrazujú ako prvé.',
+      'Či je produkt na sklade: produkty na sklade sa zobrazujú ako prvé.',
     ranking_disclosure_search_8:
       'Hodnotenie produktu v recenziách, vážené počtom recenzií, takže dobre hodnotený produkt predstihne neoverený.',
     ranking_disclosure_search_note:
-      'Na vaše slová sa vzťahuje oprava pravopisu a synonymá a rozpoznávajú sa všetky úradné jazyky Európskej únie. Aktuálnosť zámerne nie je súčasťou hodnotenia recenzií — použite na to radenie Najnovšie.',
+      'Na vaše slová sa vzťahuje oprava pravopisu a synonymá a rozpoznávajú sa všetky úradné jazyky Európskej únie. Aktuálnosť zámerne nie je súčasťou hodnotenia recenzií: použite na to radenie Najnovšie.',
     review_disclosure_title: 'Ako zaobchádzame s recenziami',
     review_disclosure_verified_body:
       'Každá recenzia na Eurtisan pochádza od niekoho, kto si tu produkt kúpil. Toto automaticky kontrolujeme predtým, ako je možné recenziu napísať:',
@@ -1321,7 +1320,7 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
     review_disclosure_dates:
       'Každá recenzia uvádza dátum jej zverejnenia a dátum, kedy kupujúci produkt prevzal.',
     review_disclosure_moderation:
-      'Recenzie neupravujeme. Ktokoľvek môže nahlásiť recenziu — samotné nahlásenie nič nemení. Moderátor môže skryť recenziu, ktorá je nezákonná alebo porušuje naše podmienky, a autor je vždy informovaný o rozhodnutí a dôvodoch.',
+      'Recenzie neupravujeme. Ktokoľvek môže nahlásiť recenziu: samotné nahlásenie nič nemení. Moderátor môže skryť recenziu, ktorá je nezákonná alebo porušuje naše podmienky, a autor je vždy informovaný o rozhodnutí a dôvodoch.',
     review_disclosure_retention:
       'Recenzie uchovávame po dobu, počas ktorej je produkt v ponuke. Ak tvorca produkt odstráni alebo zrušíte svoj účet, recenzia sa vymaže.',
     review_disclosure_no_payment:
@@ -1351,25 +1350,25 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
       'Pri iskanju se rezultati razvrstijo glede na to, kako dobro se ujemajo z vašimi besedami, po naslednjem vrstnem redu pomembnosti:',
     ranking_disclosure_search_1: 'Koliko vaših iskalnih besed vsebuje ponudba.',
     ranking_disclosure_search_2:
-      'Točnost črkovanja besed — ponudba brez tipkarskih napak se uvrsti pred tisto, ki je potrebovala popravek.',
+      'Točnost črkovanja besed: ponudba brez tipkarskih napak se uvrsti pred tisto, ki je potrebovala popravek.',
     ranking_disclosure_search_3: 'Kako blizu skupaj so vaše besede v ponudbi.',
     ranking_disclosure_search_4:
       'Kateri del ponudbe se je ujemal, v naslednjem vrstnem redu: ime izdelka, ime trgovine, kategorija, nato opis.',
     ranking_disclosure_search_5:
       'Razvrstitev, ki ste jo izbrali, če ste jo spremenili glede na Ustreznost.',
     ranking_disclosure_search_6: 'Ali je ujem natančen ali le delen.',
-    ranking_disclosure_search_7: 'Ali je izdelek na zalogi — izdelki na zalogi so prikazani prvi.',
+    ranking_disclosure_search_7: 'Ali je izdelek na zalogi: izdelki na zalogi so prikazani prvi.',
     ranking_disclosure_search_8:
       'Ocena mnenj o izdelku, ponderirana s številom ocen, tako da dobro ocenjen izdelek prehiti nedokazanega.',
     ranking_disclosure_search_note:
-      'Za vaše besede veljajo popravki črkovanja in sopomenke, prepoznani pa so vsi uradni jeziki Evropske unije. Časovna svežina namerno ni del ocene mnenj — za to uporabite razvrščanje Najnovejše.',
+      'Za vaše besede veljajo popravki črkovanja in sopomenke, prepoznani pa so vsi uradni jeziki Evropske unije. Časovna svežina namerno ni del ocene mnenj: za to uporabite razvrščanje Najnovejše.',
     review_disclosure_title: 'Kako ravnamo z mnenji',
     review_disclosure_verified_body:
       'Vsako mnenje na Eurtisanu prihaja od nekoga, ki je izdelek kupil tukaj. To samodejno preverimo, preden je mogoče napisati mnenje:',
     review_disclosure_check_purchase:
       'Z računom ocenjevalca je bilo oddano naročilo, ki vsebuje izdelek.',
     review_disclosure_check_delivered:
-      'Naročilo je bilo označeno kot dostavljeno in od takrat je minilo 14 dni — tako da ocena odraža uporabo izdelka in ne le odpiranja paketa.',
+      'Naročilo je bilo označeno kot dostavljeno in od takrat je minilo 14 dni, tako da ocena odraža uporabo izdelka in ne le odpiranja paketa.',
     review_disclosure_check_once:
       'Eno mnenje na izdelek na naročilo, tako da posameznega nakupa ni mogoče oceniti dvakrat.',
     review_disclosure_check_own: 'Ustvarjalci ne morejo ocenjevati izdelkov iz svoje trgovine.',
@@ -1378,7 +1377,7 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
     review_disclosure_dates:
       'Vsako mnenje prikazuje datum objave in datum, ko je kupec prejel izdelek.',
     review_disclosure_moderation:
-      'Mnenj ne urejamo. Vsakdo lahko prijavi mnenje — sama prijava ne spremeni ničesar. Moderator lahko skrije mnenje, ki je nezakonito ali krši naše pogoje, avtor pa je vedno obveščen o odločitvi in razlogih.',
+      'Mnenj ne urejamo. Vsakdo lahko prijavi mnenje: sama prijava ne spremeni ničesar. Moderator lahko skrije mnenje, ki je nezakonito ali krši naše pogoje, avtor pa je vedno obveščen o odločitvi in razlogih.',
     review_disclosure_retention:
       'Mnenja hranimo tako dolgo, dokler je izdelek v ponudbi. Če ustvarjalec izdelek odstrani ali zaprete svoj račun, se mnenje izbriše.',
     review_disclosure_no_payment:
@@ -1408,18 +1407,17 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
       'När du söker ordnas resultaten efter hur väl de matchar dina ord, i denna prioritetsordning:',
     ranking_disclosure_search_1: 'Hur många av dina sökord en annons matchar.',
     ranking_disclosure_search_2:
-      'Hur noggrant orden är stavade — en annons utan stavfel rankas högre än en som behövde korrigeras.',
+      'Hur noggrant orden är stavade: en annons utan stavfel rankas högre än en som behövde korrigeras.',
     ranking_disclosure_search_3: 'Hur nära dina ord förekommer varandra i annonsen.',
     ranking_disclosure_search_4:
       'Vilken del av annonsen som matchade, i denna ordning: produktnamn, butiksnamn, kategori, sedan beskrivning.',
     ranking_disclosure_search_5: 'Den sortering du valde, om du ändrade den från Relevans.',
     ranking_disclosure_search_6: 'Huruvida matchningen är exakt snarare än partiell.',
-    ranking_disclosure_search_7:
-      'Huruvida produkten finns i lager — produkter i lager visas först.',
+    ranking_disclosure_search_7: 'Huruvida produkten finns i lager: produkter i lager visas först.',
     ranking_disclosure_search_8:
       'Produktens recensionsbetyg, vägt efter hur många recensioner som stödjer det, så att en välrecenserad produkt rankas före en oprövad.',
     ranking_disclosure_search_note:
-      'Stavningskorrigering och synonymer tillämpas på dina ord, och alla officiella språk inom Europeiska unionen identifieras. Aktualitet är medvetet inte en del av recensionsbetyget — använd sorteringen Nyaste för det.',
+      'Stavningskorrigering och synonymer tillämpas på dina ord, och alla officiella språk inom Europeiska unionen identifieras. Aktualitet är medvetet inte en del av recensionsbetyget: använd sorteringen Nyaste för det.',
     review_disclosure_title: 'Hur vi hanterar recensioner',
     review_disclosure_verified_body:
       'Varje recension på Eurtisan kommer från någon som har köpt produkten här. Vi kontrollerar detta automatiskt innan en recension kan skrivas:',
@@ -1435,7 +1433,7 @@ export const LEGAL_DISCLOSURE_OVERRIDES: Record<
     review_disclosure_dates:
       'Varje recension visar datumet då den publicerades och datumet då köparen tog emot produkten.',
     review_disclosure_moderation:
-      'Vi redigerar inte recensioner. Vem som helst kan anmäla en recension — en anmälan ensam ändrar ingenting. En moderator kan dölja en recension som är olaglig eller bryter mot våra villkor, och författaren meddelas alltid om beslutet och skälen.',
+      'Vi redigerar inte recensioner. Vem som helst kan anmäla en recension: en anmälan ensam ändrar ingenting. En moderator kan dölja en recension som är olaglig eller bryter mot våra villkor, och författaren meddelas alltid om beslutet och skälen.',
     review_disclosure_retention:
       'Vi behåller recensioner så länge produkten finns i sortimentet. Om en hantverkare tar bort produkten eller om du avslutar ditt konto försvinner recensionen.',
     review_disclosure_no_payment:

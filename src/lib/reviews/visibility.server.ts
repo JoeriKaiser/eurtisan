@@ -12,7 +12,7 @@ import { review } from '#/db/schema'
  *
  * Converged on `approved` rather than picking the wider filter, because
  * `flagged` now means something it did not before. Reporting no longer changes
- * moderation state — only an admin does, after a decision, with a statement of
+ * moderation state: only an admin does, after a decision, with a statement of
  * reasons sent under DSA Article 17. A `flagged` review is therefore one a human
  * looked at and had doubts about, and such a review should not prop up an
  * average it is not trusted enough to rank with.

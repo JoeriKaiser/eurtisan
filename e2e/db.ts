@@ -1,5 +1,5 @@
 /**
- * E2E database connection — isolated from the development database.
+ * E2E database connection: isolated from the development database.
  *
  * Set `E2E_DATABASE_URL` (see Makefile `db-seed-e2e` / `make e2e`).
  */

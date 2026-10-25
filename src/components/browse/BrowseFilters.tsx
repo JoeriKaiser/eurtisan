@@ -12,7 +12,7 @@ export interface BrowseFilterChange {
 }
 
 export interface BrowseFiltersProps {
-  /** Omit to hide the category control entirely — see `showCategory` below. */
+  /** Omit to hide the category control entirely: see `showCategory` below. */
   categories?: { id: string; name: string; slug: string }[]
   categorySlug?: string
   /** Facet counts by slug. Absent when the backing query cannot produce them. */
@@ -35,7 +35,7 @@ export interface BrowseFiltersProps {
  * per surface: the same control should read the same way wherever a buyer meets
  * it, and a reworded translation should not drift between them.
  *
- * Every group is optional so a surface shows only what it can actually filter —
+ * Every group is optional so a surface shows only what it can actually filter,
  * a shop storefront has no price facet, and a category page has no in-shop
  * category list. Controls are omitted rather than disabled, because a control
  * that cannot do anything is worse than no control.

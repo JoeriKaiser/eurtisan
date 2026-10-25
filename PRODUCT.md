@@ -6,11 +6,11 @@ brand / product (dual-register marketplace; brand surfaces and product surfaces 
 
 ## Users
 
-**Primary:** European creatives, artisans, and makers — ranging from hobbyists selling their first handmade item to established professional artisans with ongoing storefronts.
+**Primary:** European creatives, artisans, and makers, ranging from hobbyists selling their first handmade item to established professional artisans with ongoing storefronts.
 
 **Context:** Users browse, discover, and purchase custom merchandise and artisan goods. Makers manage their shops, products, orders, and settings. The platform must serve both the discovery mindset (browsing, inspiration) and the task mindset (shop management, order fulfillment).
 
-**Job to be done:** For buyers — find unique, high-quality handmade goods from European creators. For sellers — reach a European audience, manage a storefront, and grow a creative business.
+**Job to be done:** For buyers: find unique, high-quality handmade goods from European creators. For sellers: reach a European audience, manage a storefront, and grow a creative business.
 
 ## Product Purpose
 
@@ -37,7 +37,7 @@ Eurtisan is a European-centered online marketplace for handmade and custom merch
 1. **The maker is the hero.** Every design decision should elevate the artisan and their work, not the platform.
 2. **Warmth over flash.** The interface should feel like a well-lit workshop, not a billboard. Restrained color, tactile surfaces, human scale.
 3. **European sensibility.** Refined typography, generous whitespace, attention to detail. Think quality over quantity.
-4. **Trust through craft.** The UI itself should feel crafted — intentional spacing, consistent patterns, no rough edges. If the platform looks hastily built, makers won't trust it with their livelihood.
+4. **Trust through craft.** The UI itself should feel crafted: intentional spacing, consistent patterns, no rough edges. If the platform looks hastily built, makers won't trust it with their livelihood.
 5. **Accessibility is non-negotiable.** WCAG 2.1 AA is the floor, not the ceiling. The marketplace must work for everyone.
 
 ## Accessibility & Inclusion

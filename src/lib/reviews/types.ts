@@ -29,7 +29,7 @@ export interface ProductReview {
   comment: string | null
   createdAt: Date
   /**
-   * When the buyer received the product — the "date of the consumer's
+   * When the buyer received the product: the "date of the consumer's
    * experience" C. consom. L.111-7-2 requires shown next to the publication
    * date. Null only for orders delivered before delivery timestamps existed.
    */

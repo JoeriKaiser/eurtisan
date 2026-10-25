@@ -29,7 +29,7 @@ export async function getPendingShopReviewCountQuery(): Promise<number> {
 
 /**
  * Returns aggregated platform-wide counts for the admin dashboard.
- * Each metric returns as a number — zero when no records match.
+ * Each metric returns as a number: zero when no records match.
  */
 export async function getAdminDashboardStatsQuery(): Promise<AdminDashboardStats> {
   const [[totalUsersResult], [activeShopsResult], [openDisputesResult], [pendingPayoutsResult]] =

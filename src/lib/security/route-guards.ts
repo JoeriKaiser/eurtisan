@@ -129,7 +129,7 @@ export async function guardGuest(): Promise<void> {
 
 /**
  * beforeLoad helper that makes auth user available to the route.
- * Does not redirect — safe for mixed-access pages.
+ * Does not redirect: safe for mixed-access pages.
  */
 export async function guardOptionalAuth(): Promise<AuthRouteContext> {
   const user = await getCurrentUser()

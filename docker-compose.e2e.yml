@@ -1,4 +1,4 @@
-# Overlay for `make e2e` — point the app at the isolated test database.
+# Overlay for `make e2e`: point the app at the isolated test database.
 services:
   app:
     environment:

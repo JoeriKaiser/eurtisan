@@ -287,7 +287,7 @@ export async function markShopOrderShippedQuery(
 
     const currentStatus = record.status as OrderStatus
 
-    // Idempotency: already shipped — allow updating tracking info
+    // Idempotency: already shipped: allow updating tracking info
     if (currentStatus === 'shipped') {
       const updateData: Partial<typeof shopOrder.$inferInsert> = {
         updatedAt: new Date(),

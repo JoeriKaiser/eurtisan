@@ -3,7 +3,7 @@
  *
  * All image operations go through this module. In development, images are
  * stored in Garage. In staging/production, images are stored in Scaleway
- * Object Storage. The same code runs in every environment — only the
+ * Object Storage. The same code runs in every environment: only the
  * S3_ENDPOINT and credentials change.
  *
  * Upload flow (presigned URLs):

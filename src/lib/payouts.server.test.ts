@@ -170,7 +170,7 @@ describe('createPayoutForShopOrder', () => {
     expect(payoutRecord?.amountCents).toBe(subtotalCents - expectedFee)
   })
 
-  it('is idempotent — duplicate transitions do not create multiple payouts', async () => {
+  it('is idempotent: duplicate transitions do not create multiple payouts', async () => {
     await seedUser()
     await seedShop()
     const platformOrd = await seedPlatformOrder()

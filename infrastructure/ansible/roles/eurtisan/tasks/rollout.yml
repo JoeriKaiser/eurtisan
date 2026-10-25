@@ -98,7 +98,7 @@
       {% endif %}
 
 # A rollout that fails partway is otherwise silent: the runtime alerts cover a
-# sick service, but not a deploy that never completed. Best-effort by design —
+# sick service, but not a deploy that never completed. Best-effort by design:
 # a notification outage must never fail an otherwise good rollout.
 - name: Notify that the rollout completed
   ansible.builtin.uri:

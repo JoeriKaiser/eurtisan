@@ -188,7 +188,7 @@ export async function getCheckoutSummaryQuery(
 
     // Decrypted, like the reads at the top of this file. Left raw, the buyer
     // saw VAT charged on a cross-border B2B order that qualifies for reverse
-    // charge — the quoted price, not just the stored order.
+    // charge: the quoted price, not just the stored order.
     const sellerCountry =
       decryptJsonb<{ country?: string } | null>(shopRecord.shippingOrigin)?.country ?? ''
     const buyerCountry = shippingAddress?.country ?? ''

@@ -15,7 +15,7 @@ const FALLBACK_SHIPPING_OPTIONS: ShippingOption[] = [
     method: 'manual',
     rateId: undefined,
     costCents: 0,
-    label: 'Manual shipping — contact seller',
+    label: 'Manual shipping: contact seller',
     fallback: true,
   },
 ]
@@ -25,7 +25,7 @@ const UNSUPPORTED_FALLBACK: ShippingOption = {
   method: 'manual',
   rateId: undefined,
   costCents: 0,
-  label: 'We cannot ship to this address — contact seller',
+  label: 'We cannot ship to this address: contact seller',
   fallback: true,
   code: 'SHIPPING_UNSUPPORTED',
 }

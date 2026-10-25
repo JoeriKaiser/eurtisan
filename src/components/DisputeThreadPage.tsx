@@ -215,7 +215,7 @@ export default function DisputeThreadPage({ dispute }: DisputeThreadPageProps) {
               <div className='mt-6 rounded-lg bg-surface-inset p-4 text-center text-sm text-text-secondary'>
                 {m.dispute_status()}: {getDisputeStatusLabel(localDispute.status)}
                 {localDispute.resolution &&
-                  ` — ${getDisputeResolutionLabel(localDispute.resolution)}`}
+                  `: ${getDisputeResolutionLabel(localDispute.resolution)}`}
               </div>
             )}
           </div>

@@ -15,7 +15,7 @@ export interface ShopBannerProps {
  * Both images are decorative: the shop name is rendered as text immediately
  * below, so announcing them again would be noise.
  *
- * A shop with no banner — or one whose banner fails to load — collapses to the
+ * A shop with no banner: or one whose banner fails to load: collapses to the
  * avatar alone. Without the load-failure branch a broken image leaves roughly
  * 340px of empty page above the shop name, which is how the storefront would
  * greet a buyer during any image-delivery outage. The same applies to the
@@ -25,7 +25,7 @@ export interface ShopBannerProps {
  * Ref callback that catches an image which already failed before hydration.
  *
  * These images are server-rendered, so a failed request fires its `error`
- * event while the HTML is being parsed — before React attaches `onError`, and
+ * event while the HTML is being parsed: before React attaches `onError`, and
  * React does not replay it. A mounted-but-broken image reports `complete` with
  * a `naturalWidth` of zero, which is the only reliable way to detect it after
  * the fact. `onError` still covers failures that happen later.
@@ -83,7 +83,7 @@ export function ShopBanner({ shopId, bannerImage, avatarImage }: ShopBannerProps
         {/* Warm scrim so the avatar edge stays legible over any uploaded image.
             Uses the design system's image-scrim token, which inverts with the
             theme, rather than a hardcoded palette value. No text is placed on
-            the photograph itself — contrast over an uncontrolled image cannot
+            the photograph itself: contrast over an uncontrolled image cannot
             be proven, so type stays on solid surfaces below. */}
         <div
           className='absolute inset-0 bg-gradient-to-t from-scrim-image-subtle to-transparent'

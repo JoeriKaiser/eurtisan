@@ -5,7 +5,7 @@ import z from 'zod'
  * establishment state). The Directive lets Member States limit the non-food
  * obligation to a positive list (Art. 5(2)); France's is the annex of the
  * arrêté of 16 November 1999 (NOR ECOC9900157A), which lists, among others,
- * toilet soaps, soaps, and bath-and-shower products — i.e. the Soap & Bath
+ * toilet soaps, soaps, and bath-and-shower products: i.e. the Soap & Bath
  * category. Candles, textiles, and every other category are not listed.
  *
  * The scope decision is made once, at write time, against the product's
@@ -30,7 +30,7 @@ export function isUnitPricingScoped(categoryChainSlugs: ReadonlyArray<string | n
 
 /**
  * The unit price in cents per kilogram (weight basis) or per litre (volume
- * basis), VAT included — the selling price already is. Returns null when the
+ * basis), VAT included: the selling price already is. Returns null when the
  * product carries no basis or the matching quantity, and when the net
  * quantity is exactly one kilogram or one litre: the arrêté's Art. 6 waives
  * the unit price then, because it would equal the selling price.

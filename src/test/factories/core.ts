@@ -45,7 +45,7 @@ export async function createShop(
       ...overrides,
       // Written the way production writes them. Tests pass these as plain
       // objects, which `decryptJsonb` would hand back unchanged via its legacy
-      // passthrough — so a read site that forgot to decrypt would still pass.
+      // passthrough: so a read site that forgot to decrypt would still pass.
       // That is precisely how four checkout and invoicing sites shipped broken.
       ...encryptedAddressColumns(overrides),
     })

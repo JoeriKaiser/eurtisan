@@ -186,7 +186,7 @@ describe('listAllShopsQuery', () => {
     expect(result.shops).toHaveLength(3)
 
     // Shops should be ordered newest first (id order doesn't guarantee it,
-    // but createdAt should be descending — verify the timestamp order)
+    // but createdAt should be descending: verify the timestamp order)
     for (let i = 1; i < result.shops.length; i++) {
       expect(result.shops[i - 1].createdAt.getTime()).toBeGreaterThanOrEqual(
         result.shops[i].createdAt.getTime(),

@@ -140,7 +140,7 @@ export interface ModerateShopResult {
  * - When `note` is provided, it overwrites the existing moderation note.
  * - When `note` is undefined, the existing moderation note is left unchanged.
  * - Suspending an already-suspended shop or unsuspending an already-active
- *   shop is idempotent — it succeeds without error.
+ *   shop is idempotent: it succeeds without error.
  * - Returns the updated shop fields, or throws if the shop does not exist.
  */
 export async function moderateShopQuery(
@@ -187,7 +187,7 @@ export async function moderateShopQuery(
     })
 
     // Suspension state is part of the search index invariant, but the index is
-    // a separate store that nothing here would otherwise update — a suspended
+    // a separate store that nothing here would otherwise update: a suspended
     // shop's listings would stay searchable until something happened to
     // re-index them. Enqueue rather than calling Meilisearch inline so the
     // moderation action cannot fail on a search outage.

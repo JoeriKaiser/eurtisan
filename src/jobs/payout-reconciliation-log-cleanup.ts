@@ -5,9 +5,9 @@
  * payout_reconciliation_log rows older than the configured retention period.
  *
  * Configuration:
- *   PAYOUT_RECONCILIATION_LOG_RETENTION_DAYS      — retention period in days (default: 365, min: 1)
- *   PAYOUT_RECONCILIATION_LOG_CLEANUP_INTERVAL_MS — polling interval (default: 86400000)
- *   PAYOUT_RECONCILIATION_LOG_CLEANUP_BATCH_SIZE  — max rows per run (default: 1000)
+ *   PAYOUT_RECONCILIATION_LOG_RETENTION_DAYS: retention period in days (default: 365, min: 1)
+ *   PAYOUT_RECONCILIATION_LOG_CLEANUP_INTERVAL_MS: polling interval (default: 86400000)
+ *   PAYOUT_RECONCILIATION_LOG_CLEANUP_BATCH_SIZE: max rows per run (default: 1000)
  *
  * Usage:
  *   bun run src/jobs/payout-reconciliation-log-cleanup.ts

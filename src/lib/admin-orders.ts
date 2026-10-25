@@ -15,7 +15,7 @@ export type {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Shared admin auth guard — throws 401/403 if not authenticated or not admin.
+ * Shared admin auth guard: throws 401/403 if not authenticated or not admin.
  */
 async function requireAdmin(context: { user?: { id: string; role: string } | null }) {
   if (!context.user) {
@@ -45,7 +45,7 @@ async function requireAdmin(context: { user?: { id: string; role: string } | nul
 
 /**
  * Returns a paginated, searchable list of all platform orders.
- * Admin-only — requires authentication and admin role.
+ * Admin-only: requires authentication and admin role.
  */
 export const listAllPlatformOrders = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])
@@ -103,7 +103,7 @@ export const listAllPlatformOrders = createServerFn({ method: 'GET' })
 
 /**
  * Returns the full order tree for a given platform order.
- * Admin-only — requires authentication and admin role.
+ * Admin-only: requires authentication and admin role.
  */
 export const getPlatformOrderDetail = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])

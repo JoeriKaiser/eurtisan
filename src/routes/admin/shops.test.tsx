@@ -164,7 +164,7 @@ if (!AdminShopsPage) {
 /*                               Initial Render                               */
 /* -------------------------------------------------------------------------- */
 
-describe('AdminShopsPage — initial render', () => {
+describe('AdminShopsPage: initial render', () => {
   it('renders the page title', () => {
     render(<AdminShopsPage />)
     expect(screen.getByText('admin_shops_title')).toBeDefined()
@@ -241,7 +241,7 @@ describe('AdminShopsPage — initial render', () => {
 /*                             Filter Tab Clicks                              */
 /* -------------------------------------------------------------------------- */
 
-describe('AdminShopsPage — filter tabs', () => {
+describe('AdminShopsPage: filter tabs', () => {
   beforeEach(() => {
     mockNavigateFn.mockClear()
   })
@@ -296,7 +296,7 @@ describe('AdminShopsPage — filter tabs', () => {
 /*                            Suspend Flow (Happy)                            */
 /* -------------------------------------------------------------------------- */
 
-describe('AdminShopsPage — suspend flow', () => {
+describe('AdminShopsPage: suspend flow', () => {
   beforeEach(() => {
     mockModerateShop.mockClear()
   })
@@ -375,7 +375,7 @@ describe('AdminShopsPage — suspend flow', () => {
 /*                           Unsuspend Flow (Happy)                           */
 /* -------------------------------------------------------------------------- */
 
-describe('AdminShopsPage — unsuspend flow', () => {
+describe('AdminShopsPage: unsuspend flow', () => {
   beforeEach(() => {
     mockModerateShop.mockClear()
   })
@@ -442,7 +442,7 @@ describe('AdminShopsPage — unsuspend flow', () => {
 /*                               Pagination                                   */
 /* -------------------------------------------------------------------------- */
 
-describe('AdminShopsPage — pagination', () => {
+describe('AdminShopsPage: pagination', () => {
   beforeEach(() => {
     mockNavigateFn.mockClear()
   })
@@ -479,7 +479,7 @@ describe('AdminShopsPage — pagination', () => {
 /*                        Onboarding Review Flow                              */
 /* -------------------------------------------------------------------------- */
 
-describe('AdminShopsPage — onboarding applications view', () => {
+describe('AdminShopsPage: onboarding applications view', () => {
   const mockApplications = [
     {
       id: 'app-1',

@@ -9,7 +9,7 @@ const SUPPORT_EMAIL = 'support@eurtisan.eu'
  * The DSA Article 17 statement of reasons, as the affected recipient reads it.
  *
  * Article 17(1) requires the statement be *provided* to the person whose content
- * was restricted — recording it is not providing it. The reviews phase stored
+ * was restricted: recording it is not providing it. The reviews phase stored
  * all six Article 17(3) elements on the notification and rendered only the
  * one-line preview, so the statement existed and could not be read. This is that
  * fix.
@@ -78,7 +78,7 @@ export function StatementOfReasons({ item }: { item: NotificationItem }) {
 
           <div>
             <dt className='font-medium text-text-primary'>{m.statement_of_reasons_why_label()}</dt>
-            {/* The moderator's words, shown verbatim — this is 17(3)(b), and
+            {/* The moderator's words, shown verbatim: this is 17(3)(b), and
                 paraphrasing it here would defeat the point. */}
             <dd className='m-0 whitespace-pre-wrap'>{explanation}</dd>
             <dd className='m-0 mt-1'>

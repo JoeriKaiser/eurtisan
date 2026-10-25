@@ -178,7 +178,7 @@ test.describe('Shop page', () => {
       await expect(page.getByText(/not found/i)).toBeVisible()
 
       // The response must not reveal that this slug belongs to a real shop, nor
-      // why it is gone — a suspended shop and an unknown one look identical.
+      // why it is gone: a suspended shop and an unknown one look identical.
       const body = await page.locator('body').innerText()
       expect(body).not.toContain(shop.name)
       expect(body).not.toMatch(/suspend/i)

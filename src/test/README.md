@@ -27,10 +27,10 @@ await createProduct(shop.id)
 
 ### Available factories
 
-- `core.ts` — users, shops, categories, products, product images, variants.
-- `orders.ts` — platform orders, shop orders, order items, inventory reservations, shipping labels.
-- `financial.ts` — payouts, invoices.
-- `engagement.ts` — carts, cart items, reviews, disputes, dispute messages, notifications.
+- `core.ts`: users, shops, categories, products, product images, variants.
+- `orders.ts`: platform orders, shop orders, order items, inventory reservations, shipping labels.
+- `financial.ts`: payouts, invoices.
+- `engagement.ts`: carts, cart items, reviews, disputes, dispute messages, notifications.
 
 ## Scenarios
 

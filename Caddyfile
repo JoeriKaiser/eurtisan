@@ -2,7 +2,7 @@
 # Domain is injected via the CADDY_DOMAIN environment variable
 
 {$CADDY_DOMAIN} {
-	# Compression — gzip and zstd are included in the official Caddy image.
+	# Compression: gzip and zstd are included in the official Caddy image.
 	# Brotli is intentionally omitted because it requires a third-party plugin.
 	encode gzip zstd
 
@@ -11,7 +11,7 @@
 		reverse_proxy alloy:8027
 	}
 
-	# Grafana UI — restrict to admin IPs only.
+	# Grafana UI: restrict to admin IPs only.
 	# Set GRAFANA_ADMIN_IPS to a space-separated list of CIDR ranges.
 	# Defaults to 0.0.0.0/32 so the route is blocked if the variable is not set.
 	handle /grafana* {
@@ -58,7 +58,7 @@
 		Cross-Origin-Embedder-Policy "require-corp"
 		Cross-Origin-Resource-Policy "same-origin"
 		Document-Policy "force-load-at-top"
-		# Baseline edge CSP — covers all known external resources used by the app
+		# Baseline edge CSP: covers all known external resources used by the app
 		# (Mollie, Brevo, Meilisearch, Umami). The app emits a nonce-based policy
 		# for HTML responses; this line protects non-app responses (error pages,
 		# static files, upstream services). Inline scripts are not allowed here.

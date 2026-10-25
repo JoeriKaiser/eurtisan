@@ -166,7 +166,7 @@ describe('AdminDashboard', () => {
     render(<AdminDashboard />)
 
     expect(screen.getByText('Recent Orders')).toBeDefined()
-    // Order ID fragments — both start with same prefix, so use getAllByText
+    // Order ID fragments: both start with same prefix, so use getAllByText
     const orderIds = screen.getAllByText('00000000…')
     expect(orderIds).toHaveLength(2)
     // Status badges

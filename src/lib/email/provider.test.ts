@@ -79,7 +79,7 @@ describe('BrevoEmailProvider (mock)', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
     const result = await provider.sendTransactional('buyer@example.com', 'order_confirmation', {
-      // Missing required fields — template render still works with defaults
+      // Missing required fields: template render still works with defaults
       orderNumber: null,
     })
 

@@ -51,7 +51,7 @@ export async function renderTemplate(
     case 'notification_digest':
       return renderNotificationDigest(data, to)
     default: {
-      // Exhaustiveness check — should never happen at runtime with correct types.
+      // Exhaustiveness check: should never happen at runtime with correct types.
       const _exhaustive: never = template
       throw new Error(`Unknown email template: ${_exhaustive}`)
     }
@@ -78,11 +78,11 @@ async function renderOrderConfirmation(
   data: Record<string, unknown>,
   to?: string,
 ): Promise<RenderedEmail> {
-  const orderNumber = String(data.orderNumber ?? '—')
+  const orderNumber = String(data.orderNumber ?? '-')
   const buyerName = String(data.buyerName ?? 'Valued Customer')
   const shopName = String(data.shopName ?? 'Eurtisan')
   const items = Array.isArray(data.items) ? data.items : []
-  const total = String(data.total ?? '—')
+  const total = String(data.total ?? '-')
   const orderUrl = String(data.orderUrl ?? '')
   const sellerTradeName = data.sellerTradeName ? String(data.sellerTradeName) : null
   const sellerContactEmail = data.sellerContactEmail ? String(data.sellerContactEmail) : null
@@ -106,7 +106,7 @@ async function renderOrderConfirmation(
       const i = item as Record<string, unknown>
       const name = String(i.name ?? 'Item')
       const quantity = Number(i.quantity ?? 1)
-      const price = String(i.price ?? '—')
+      const price = String(i.price ?? '-')
       return `<li>${escapeHtml(m.email_item_line({ name, quantity, price }))}</li>`
     })
     .join('')
@@ -117,7 +117,7 @@ async function renderOrderConfirmation(
       const i = item as Record<string, unknown>
       const name = String(i.name ?? 'Item')
       const quantity = Number(i.quantity ?? 1)
-      const price = String(i.price ?? '—')
+      const price = String(i.price ?? '-')
       return `- ${m.email_item_line({ name, quantity, price })}`
     })
     .join('\n')
@@ -213,12 +213,12 @@ async function renderShippingNotification(
   data: Record<string, unknown>,
   to?: string,
 ): Promise<RenderedEmail> {
-  const orderNumber = String(data.orderNumber ?? '—')
+  const orderNumber = String(data.orderNumber ?? '-')
   const buyerName = String(data.buyerName ?? 'Valued Customer')
   const shopName = String(data.shopName ?? 'Eurtisan')
-  const trackingNumber = String(data.trackingNumber ?? '—')
-  const carrier = String(data.carrier ?? '—')
-  const estimatedDelivery = String(data.estimatedDelivery ?? '—')
+  const trackingNumber = String(data.trackingNumber ?? '-')
+  const carrier = String(data.carrier ?? '-')
+  const estimatedDelivery = String(data.estimatedDelivery ?? '-')
   const trackingUrl = String(data.trackingUrl ?? '')
 
   const contentHtml = `<div style="font-size: 20px; font-weight: 700; color: #111827; line-height: 1.3;">${escapeHtml(
@@ -272,7 +272,7 @@ async function renderDisputeUpdate(
   data: Record<string, unknown>,
   to?: string,
 ): Promise<RenderedEmail> {
-  const orderNumber = String(data.orderNumber ?? '—')
+  const orderNumber = String(data.orderNumber ?? '-')
   const buyerName = String(data.buyerName ?? 'Valued Customer')
   const shopName = String(data.shopName ?? 'Eurtisan')
   const status = String(data.status ?? 'updated')
@@ -332,10 +332,10 @@ async function renderOrderRefunded(
   data: Record<string, unknown>,
   to?: string,
 ): Promise<RenderedEmail> {
-  const orderNumber = String(data.orderNumber ?? '—')
+  const orderNumber = String(data.orderNumber ?? '-')
   const buyerName = String(data.buyerName ?? 'Valued Customer')
   const shopName = String(data.shopName ?? 'Eurtisan')
-  const refundAmount = String(data.refundAmount ?? '—')
+  const refundAmount = String(data.refundAmount ?? '-')
   const orderUrl = String(data.orderUrl ?? '')
 
   const contentHtml = `<div style="font-size: 20px; font-weight: 700; color: #111827; line-height: 1.3;">${escapeHtml(
@@ -572,7 +572,7 @@ ${await renderEmailLegalFooterText(to)}`
  * a chargeback, a DAC7 threshold warning, and a payout.
  *
  * Shared rather than three near-identical templates because the shape is the
- * same — headline, one line of detail, one link — and three copies would drift.
+ * same: headline, one line of detail, one link: and three copies would drift.
  * The wording per event comes from the caller's `headline` and `body`, which are
  * already localized message calls at the point the notification is created.
  */
@@ -614,7 +614,7 @@ ${await renderEmailLegalFooterText(to)}`
  *
  * The in-app copy is what satisfies Article 17(1); this exists so the statement
  * does not depend on the recipient returning to the site. Both render the same
- * six elements from the same payload — `src/test/statement-of-reasons.test.ts`
+ * six elements from the same payload: `src/test/statement-of-reasons.test.ts`
  * fails if either drops one.
  */
 async function renderStatementOfReasons(

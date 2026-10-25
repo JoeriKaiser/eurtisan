@@ -104,7 +104,7 @@ export function ShopOrderDetailPage() {
   }, [withLoading, shopOrderId])
 
   // Refund and cancel move money and are irreversible, so both confirm through
-  // a real dialog rather than window.confirm — which cannot be styled and is
+  // a real dialog rather than window.confirm: which cannot be styled and is
   // suppressible in some browsers in a way that silently returns false.
   const [pendingAction, setPendingAction] = useState<'refund' | 'cancel' | null>(null)
 

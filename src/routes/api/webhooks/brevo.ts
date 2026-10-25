@@ -1,5 +1,5 @@
 /**
- * Brevo transactional webhook — POST /api/webhooks/brevo
+ * Brevo transactional webhook: POST /api/webhooks/brevo
  *
  * Ingests delivery events (bounces, complaints, deliveries) and updates the
  * send log. Configure Brevo to POST here with an `Authorization: Bearer <token>`

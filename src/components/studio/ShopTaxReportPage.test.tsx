@@ -42,7 +42,7 @@ vi.mock('#/paraglide/messages', () => ({
     tax_report_dac7_gross_sales: ({ amount }: { amount: string }) => `${amount} gross sales`,
     tax_report_dac7_warning_approaching: () => 'Approaching DAC7 reporting threshold',
     tax_report_dac7_warning_exceeded: () => 'DAC7 reporting threshold exceeded',
-    tax_report_dac7_incomplete: () => 'Tax identity incomplete — update settings',
+    tax_report_dac7_incomplete: () => 'Tax identity incomplete: update settings',
     tax_report_dac7_settings_link: () => 'Update tax identity',
     tax_report_vat_title: () => 'VAT Collected',
     tax_report_vat_empty: () => 'No VAT data for the selected period.',
@@ -320,7 +320,7 @@ describe('ShopTaxReportPage', () => {
       />,
     )
 
-    expect(screen.getByText('Tax identity incomplete — update settings')).toBeDefined()
+    expect(screen.getByText('Tax identity incomplete: update settings')).toBeDefined()
     const settingsLink = screen.getByRole('link', { name: 'Update tax identity' })
     expect(settingsLink.getAttribute('href')).toBe('/studio/$shopId/settings')
     expect(settingsLink.getAttribute('data-params')).toBe(JSON.stringify({ shopId: 'shop-1' }))

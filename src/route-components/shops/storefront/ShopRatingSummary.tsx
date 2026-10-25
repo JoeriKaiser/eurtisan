@@ -12,7 +12,7 @@ export interface ShopRatingSummaryProps {
  * Buyer rating, or the catalogue size when there is not enough evidence for one.
  *
  * The projection returns null below the review threshold rather than a thin
- * average, so an unproven shop shows what it does have — products — instead of
+ * average, so an unproven shop shows what it does have: products: instead of
  * a number that would misrepresent it.
  */
 export function ShopRatingSummary({ rating, productCount }: ShopRatingSummaryProps) {

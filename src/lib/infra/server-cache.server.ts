@@ -35,7 +35,7 @@ export function invalidateServerCache(keyPrefix?: string): void {
   }
 }
 
-/** @internal — reset between tests */
+/** @internal: reset between tests */
 export function clearServerCacheForTests(): void {
   store.clear()
 }

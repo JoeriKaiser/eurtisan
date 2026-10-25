@@ -447,7 +447,7 @@ export async function updateProductInternal(
   }
 
   updatedProduct = await Promise.resolve(updatedProduct).then(async (result) => {
-    // Transaction committed — safe to delete old images from S3
+    // Transaction committed: safe to delete old images from S3
     if (data.images !== undefined && oldImageKeys.length > 0) {
       const newKeys = new Set(data.images.map((img) => img.key))
       for (const key of oldImageKeys) {

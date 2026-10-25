@@ -6,7 +6,7 @@ import { requirePrivileged2FA } from './server-auth'
 export type { AdminDashboardStats, RecentOrder, RecentSignup } from './admin-dashboard.server'
 
 /**
- * Shared admin auth guard — throws 401/403 if not authenticated or not admin.
+ * Shared admin auth guard: throws 401/403 if not authenticated or not admin.
  */
 async function requireAdmin(context: { user?: { id: string; role: string } | null }) {
   if (!context.user) {
@@ -46,7 +46,7 @@ export const getPendingShopReviewCount = createServerFn({ method: 'GET' })
 
 /**
  * Returns aggregated platform-wide counts for the admin dashboard.
- * Only accessible by users with the admin role — returns 403 otherwise.
+ * Only accessible by users with the admin role: returns 403 otherwise.
  */
 export const getAdminDashboardStats = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])

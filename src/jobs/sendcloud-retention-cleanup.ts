@@ -5,9 +5,9 @@
  * event rows older than the configured retention period.
  *
  * Configuration:
- *   SENDCLOUD_WEBHOOK_RETENTION_DAYS        — retention period in days (default: 30, min: 1)
- *   SENDCLOUD_WEBHOOK_CLEANUP_INTERVAL_MS   — polling interval (default: 86400000)
- *   SENDCLOUD_WEBHOOK_CLEANUP_BATCH_SIZE    — max rows per run (default: 1000)
+ *   SENDCLOUD_WEBHOOK_RETENTION_DAYS: retention period in days (default: 30, min: 1)
+ *   SENDCLOUD_WEBHOOK_CLEANUP_INTERVAL_MS: polling interval (default: 86400000)
+ *   SENDCLOUD_WEBHOOK_CLEANUP_BATCH_SIZE: max rows per run (default: 1000)
  *
  * Usage:
  *   bun run src/jobs/sendcloud-retention-cleanup.ts

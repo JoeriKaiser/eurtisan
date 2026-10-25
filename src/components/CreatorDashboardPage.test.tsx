@@ -30,7 +30,7 @@ vi.mock('#/paraglide/messages', () => ({
     creator_activity_empty: () => 'No recent activity yet.',
     creator_activity_empty_description: () => 'New orders and reviews will appear here.',
     creator_activity_order_text: ({ buyerName, total }: { buyerName: string; total: string }) =>
-      `${buyerName} placed an order — ${total}`,
+      `${buyerName} placed an order: ${total}`,
     creator_activity_review_text: ({
       buyerName,
       productName,
@@ -39,7 +39,7 @@ vi.mock('#/paraglide/messages', () => ({
       buyerName: string
       productName: string
       rating: string
-    }) => `${buyerName} reviewed ${productName} — ${rating} stars`,
+    }) => `${buyerName} reviewed ${productName}: ${rating} stars`,
     creator_no_shops_title: () => 'Welcome, creator!',
     creator_no_shops_description: () => "You don't have any shops yet.",
     creator_no_shops_cta: () => 'Go to studio',
@@ -170,8 +170,8 @@ describe('CreatorDashboardPage', () => {
     )
 
     expect(screen.getByText('Recent activity')).toBeDefined()
-    expect(screen.getByText('Bob placed an order — €50.00')).toBeDefined()
-    expect(screen.getByText('Carol reviewed Mug — 4 stars')).toBeDefined()
+    expect(screen.getByText('Bob placed an order: €50.00')).toBeDefined()
+    expect(screen.getByText('Carol reviewed Mug: 4 stars')).toBeDefined()
     expect(screen.getByText('"Great product!"')).toBeDefined()
   })
 

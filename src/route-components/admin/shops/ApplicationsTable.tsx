@@ -140,7 +140,7 @@ export function ApplicationsTable({ applications, onReview }: ApplicationsTableP
 
               {/* Submitted At */}
               <td className='py-3 pr-4 text-text-secondary font-mono text-xs'>
-                {app.submittedAt ? formatDate(app.submittedAt) : '—'}
+                {app.submittedAt ? formatDate(app.submittedAt) : '-'}
               </td>
 
               {/* Actions */}

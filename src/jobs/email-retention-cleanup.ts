@@ -5,8 +5,8 @@
  * rows, old send log rows, and stale Brevo webhook events.
  *
  * Configuration:
- *   EMAIL_RETENTION_CLEANUP_INTERVAL_MS — polling interval (default: 86400000)
- *   EMAIL_RETENTION_CLEANUP_BATCH_SIZE  — max rows per table per run (default: 1000)
+ *   EMAIL_RETENTION_CLEANUP_INTERVAL_MS: polling interval (default: 86400000)
+ *   EMAIL_RETENTION_CLEANUP_BATCH_SIZE: max rows per table per run (default: 1000)
  *
  * Usage:
  *   bun run src/jobs/email-retention-cleanup.ts

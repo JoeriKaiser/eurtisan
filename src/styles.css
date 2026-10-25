@@ -10,7 +10,7 @@
 /* Google Fonts are loaded via <link> tags in the HTML <head> (see __root.tsx)
    rather than @import in CSS. This avoids the render-blocking cascade where
    the browser must load the full CSS file, discover the @import, then fetch
-   Google Fonts CSS — all before applying any styles. */
+   Google Fonts CSS: all before applying any styles. */
 @plugin "@tailwindcss/typography";
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -24,7 +24,7 @@
 
 /* ─── Layer 1: Primitive Palette ─── */
 :root {
-  /* Moss — primary green, hue 145 */
+  /* Moss: primary green, hue 145 */
   --palette-moss-50: oklch(96% 0.03 145);
   --palette-moss-100: oklch(92% 0.05 145);
   --palette-moss-200: oklch(85% 0.07 145);
@@ -37,7 +37,7 @@
   --palette-moss-900: oklch(20% 0.05 145);
   --palette-moss-950: oklch(12% 0.04 145);
 
-  /* Sage — accent teal, hue 175 */
+  /* Sage: accent teal, hue 175 */
   --palette-sage-50: oklch(96% 0.03 175);
   --palette-sage-100: oklch(92% 0.05 175);
   --palette-sage-200: oklch(85% 0.07 175);
@@ -50,7 +50,7 @@
   --palette-sage-900: oklch(22% 0.06 175);
   --palette-sage-950: oklch(14% 0.05 175);
 
-  /* Walnut — warm dark neutrals, hue 75 */
+  /* Walnut: warm dark neutrals, hue 75 */
   --palette-walnut-50: oklch(97% 0.005 75);
   --palette-walnut-100: oklch(93% 0.008 75);
   --palette-walnut-200: oklch(86% 0.012 75);
@@ -63,7 +63,7 @@
   --palette-walnut-900: oklch(18% 0.014 75);
   --palette-walnut-950: oklch(10% 0.012 75);
 
-  /* Brick — warm error red, hue 25 */
+  /* Brick: warm error red, hue 25 */
   --palette-brick-50: oklch(95% 0.04 25);
   --palette-brick-100: oklch(90% 0.08 25);
   --palette-brick-200: oklch(82% 0.12 25);
@@ -76,7 +76,7 @@
   --palette-brick-900: oklch(24% 0.1 25);
   --palette-brick-950: oklch(14% 0.08 25);
 
-  /* Ochre — warm warning yellow, hue 95 */
+  /* Ochre: warm warning yellow, hue 95 */
   --palette-ochre-50: oklch(96% 0.03 95);
   --palette-ochre-100: oklch(92% 0.06 95);
   --palette-ochre-200: oklch(86% 0.09 95);
@@ -90,7 +90,7 @@
   --palette-ochre-950: oklch(16% 0.04 95);
 }
 
-/* ─── Layer 2: Semantic Tokens — Light Mode ─── */
+/* ─── Layer 2: Semantic Tokens: Light Mode ─── */
 :root {
   /* Text */
   --ds-text-primary: var(--palette-walnut-900);
@@ -107,7 +107,7 @@
   --ds-bg-overlay: color-mix(in oklch, var(--palette-walnut-950) 40%, transparent);
   --ds-bg-inset: var(--palette-walnut-100);
 
-  /* Scrims — tinted overlays for surfaces, images, and backdrops */
+  /* Scrims: tinted overlays for surfaces, images, and backdrops */
   --ds-scrim-subtle: color-mix(in oklch, var(--palette-walnut-950) 8%, transparent);
   --ds-scrim: color-mix(in oklch, var(--palette-walnut-950) 16%, transparent);
   --ds-scrim-strong: color-mix(in oklch, var(--palette-walnut-950) 32%, transparent);
@@ -154,7 +154,7 @@
   --ds-ring-offset: 2px;
   --ds-ring-color: var(--palette-sage-600);
 
-  /* Spacing (4pt base) — layout tokens for explicit use, NOT mapped to the Tailwind utility spacing scale. Tailwind utilities like p-8, gap-8, h-8, size-9 must remain on the standard Tailwind scale so component sizing is predictable. */
+  /* Spacing (4pt base): layout tokens for explicit use, NOT mapped to the Tailwind utility spacing scale. Tailwind utilities like p-8, gap-8, h-8, size-9 must remain on the standard Tailwind scale so component sizing is predictable. */
   --ds-space-1: 4px;
   --ds-space-2: 8px;
   --ds-space-3: 12px;
@@ -187,7 +187,7 @@
   --ds-z-toast: 500;
   --ds-z-tooltip: 600;
 
-  /* Legacy compatibility tokens — used by product components */
+  /* Legacy compatibility tokens: used by product components */
   --sea-ink: #173a40;
   --sea-ink-soft: #416166;
   --lagoon: #4fb8b2;
@@ -206,7 +206,7 @@
   --link-bg-hover: rgba(255, 255, 255, 0.9);
 }
 
-/* ─── Layer 2: Semantic Tokens — Dark Mode ─── */
+/* ─── Layer 2: Semantic Tokens: Dark Mode ─── */
 :root[data-theme="dark"] {
   --ds-text-primary: var(--palette-walnut-100);
   --ds-text-secondary: var(--palette-walnut-300);
@@ -221,7 +221,7 @@
   --ds-bg-overlay: color-mix(in oklch, var(--palette-walnut-950) 60%, transparent);
   --ds-bg-inset: var(--palette-walnut-900);
 
-  /* Scrims — warm-tinted overlays that avoid pure black in dark mode */
+  /* Scrims: warm-tinted overlays that avoid pure black in dark mode */
   --ds-scrim-subtle: color-mix(in oklch, var(--palette-walnut-50) 8%, transparent);
   --ds-scrim: color-mix(in oklch, var(--palette-walnut-50) 16%, transparent);
   --ds-scrim-strong: color-mix(in oklch, var(--palette-walnut-50) 32%, transparent);
@@ -260,7 +260,7 @@
 
   --ds-ring-color: var(--palette-sage-500);
 
-  /* Legacy compatibility tokens — dark mode */
+  /* Legacy compatibility tokens: dark mode */
   --sea-ink: #d7ece8;
   --sea-ink-soft: #afcdc8;
   --lagoon: #60d7cf;
@@ -294,7 +294,7 @@
     --ds-bg-overlay: color-mix(in oklch, var(--palette-walnut-950) 60%, transparent);
     --ds-bg-inset: var(--palette-walnut-900);
 
-    /* Scrims — warm-tinted overlays that avoid pure black in dark mode */
+    /* Scrims: warm-tinted overlays that avoid pure black in dark mode */
     --ds-scrim-subtle: color-mix(in oklch, var(--palette-walnut-50) 8%, transparent);
     --ds-scrim: color-mix(in oklch, var(--palette-walnut-50) 16%, transparent);
     --ds-scrim-strong: color-mix(in oklch, var(--palette-walnut-50) 32%, transparent);
@@ -333,7 +333,7 @@
 
     --ds-ring-color: var(--palette-sage-500);
 
-    /* Legacy compatibility tokens — dark mode */
+    /* Legacy compatibility tokens: dark mode */
     --sea-ink: #d7ece8;
     --sea-ink-soft: #afcdc8;
     --lagoon: #60d7cf;
@@ -413,7 +413,7 @@
   --color-success: var(--ds-success);
   --color-success-subtle: var(--ds-success-subtle);
 
-  /* Spacing — standard Tailwind scale so utilities like h-8, p-8, gap-8 are predictable and consistent with component sizing (e.g., h-10 = 40px). Layout tokens above are for explicit CSS use only. */
+  /* Spacing: standard Tailwind scale so utilities like h-8, p-8, gap-8 are predictable and consistent with component sizing (e.g., h-10 = 40px). Layout tokens above are for explicit CSS use only. */
   --spacing-1: 0.25rem;
   --spacing-2: 0.5rem;
   --spacing-3: 0.75rem;
@@ -495,7 +495,7 @@
       background-color var(--ds-transition-base) var(--ds-ease-out);
   }
 
-  /* Subtle atmospheric radial glow — restrained, one layer only */
+  /* Subtle atmospheric radial glow: restrained, one layer only */
   body::before {
     content: "";
     position: fixed;
@@ -515,7 +515,7 @@
     color: var(--palette-walnut-900);
   }
 
-  /* Focus visible — consistent across all interactive elements */
+  /* Focus visible: consistent across all interactive elements */
   :focus-visible {
     outline: var(--ds-ring-width) solid var(--ds-ring-color);
     outline-offset: var(--ds-ring-offset);
@@ -553,7 +553,7 @@
     color: inherit;
   }
 
-  /* Scrollbar — subtle, tinted */
+  /* Scrollbar: subtle, tinted */
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;

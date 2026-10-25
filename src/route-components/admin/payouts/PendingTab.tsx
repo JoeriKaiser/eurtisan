@@ -32,7 +32,7 @@ interface PendingTabProps {
 const PAGE_SIZES = [10, 20, 50] as const
 
 function formatDate(date: Date | string | null): string {
-  if (!date) return '—'
+  if (!date) return '-'
   return formatDateMediumTime(new Date(date))
 }
 
@@ -103,7 +103,7 @@ export function PendingTab({
                     <span className='font-medium text-text-primary'>{payout.creatorName}</span>
                   </td>
 
-                  {/* Shop — links to shop moderation */}
+                  {/* Shop: links to shop moderation */}
                   <td className='py-3 pr-4'>
                     <Link
                       to='/admin/shops'

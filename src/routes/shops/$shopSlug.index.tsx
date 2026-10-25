@@ -17,7 +17,7 @@ const shopSearchSchema = z.object({
   // linkable and the back button works. Each one catches rather than throws: a
   // hand-edited or truncated URL should degrade to the default view, not to an
   // error page. `inStock` accepts the raw value and is normalised in
-  // `loaderDeps` — `z.coerce.boolean()` would read `?inStock=false` as true.
+  // `loaderDeps`: `z.coerce.boolean()` would read `?inStock=false` as true.
   sort: z.enum(['newest', 'price_asc', 'price_desc']).optional().catch(undefined),
   inStock: z.union([z.string(), z.boolean()]).optional().catch(undefined),
   category: z.string().max(255).optional().catch(undefined),
@@ -87,7 +87,7 @@ export const Route = createFileRoute('/shops/$shopSlug/')({
 
     // JSON-LD Store structured data. `shop.rating` is already null below
     // `SHOP_RATING_MIN_REVIEWS`, so the threshold that governs the visible
-    // rating governs the emitted `aggregateRating` too — one decision, not two.
+    // rating governs the emitted `aggregateRating` too: one decision, not two.
     const jsonLd = generateStoreJsonLd({
       shopName: shop.name,
       description: shop.description,

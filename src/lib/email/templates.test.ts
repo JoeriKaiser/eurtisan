@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest'
 
 import { renderFallbackPlainText, renderTemplate } from './templates'
 
-describe('renderTemplate — order_confirmation', () => {
+describe('renderTemplate: order_confirmation', () => {
   it('renders HTML and plain text with all fields', async () => {
     const result = await renderTemplate('order_confirmation', {
       orderNumber: 'ORD-123',
@@ -22,7 +22,7 @@ describe('renderTemplate — order_confirmation', () => {
       orderUrl: 'https://eurtisan.example.com/orders/123',
     })
 
-    expect(result.subject).toBe('Order Confirmation #ORD-123 — Pottery by Alice')
+    expect(result.subject).toBe('Order Confirmation #ORD-123: Pottery by Alice')
     expect(result.html).toContain('Alice')
     expect(result.html).toContain('ORD-123')
     expect(result.html).toContain('Ceramic Mug')
@@ -41,7 +41,7 @@ describe('renderTemplate — order_confirmation', () => {
       orderNumber: 'ORD-456',
     })
 
-    expect(result.subject).toBe('Order Confirmation #ORD-456 — Eurtisan')
+    expect(result.subject).toBe('Order Confirmation #ORD-456: Eurtisan')
     expect(result.html).toBeTruthy()
     expect(result.text).toBeTruthy()
     expect(result.text).toContain('No items')
@@ -61,7 +61,7 @@ describe('renderTemplate — order_confirmation', () => {
   })
 })
 
-describe('renderTemplate — shipping_notification', () => {
+describe('renderTemplate: shipping_notification', () => {
   it('renders HTML and plain text with all fields', async () => {
     const result = await renderTemplate('shipping_notification', {
       orderNumber: 'ORD-123',
@@ -73,7 +73,7 @@ describe('renderTemplate — shipping_notification', () => {
       trackingUrl: 'https://track.example.com/TRK-98765432',
     })
 
-    expect(result.subject).toBe('Your order #ORD-123 has shipped — Woodworks')
+    expect(result.subject).toBe('Your order #ORD-123 has shipped: Woodworks')
     expect(result.html).toContain('Bob')
     expect(result.html).toContain('TRK-98765432')
     expect(result.html).toContain('DHL')
@@ -91,13 +91,13 @@ describe('renderTemplate — shipping_notification', () => {
       orderNumber: 'ORD-789',
     })
 
-    expect(result.subject).toBe('Your order #ORD-789 has shipped — Eurtisan')
+    expect(result.subject).toBe('Your order #ORD-789 has shipped: Eurtisan')
     expect(result.html).toBeTruthy()
     expect(result.text).toBeTruthy()
   })
 })
 
-describe('renderTemplate — dispute_update', () => {
+describe('renderTemplate: dispute_update', () => {
   it('renders HTML and plain text with all fields', async () => {
     const result = await renderTemplate('dispute_update', {
       orderNumber: 'ORD-123',
@@ -108,7 +108,7 @@ describe('renderTemplate — dispute_update', () => {
       disputeUrl: 'https://eurtisan.example.com/disputes/456',
     })
 
-    expect(result.subject).toBe('Dispute update for order #ORD-123 — Leather Goods')
+    expect(result.subject).toBe('Dispute update for order #ORD-123: Leather Goods')
     expect(result.html).toContain('Charlie')
     expect(result.html).toContain('resolved')
     expect(result.html).toContain('A refund of €30 has been issued.')
@@ -124,14 +124,14 @@ describe('renderTemplate — dispute_update', () => {
       orderNumber: 'ORD-999',
     })
 
-    expect(result.subject).toBe('Dispute update for order #ORD-999 — Eurtisan')
+    expect(result.subject).toBe('Dispute update for order #ORD-999: Eurtisan')
     expect(result.html).toBeTruthy()
     expect(result.text).toBeTruthy()
     expect(result.html).not.toContain('View dispute details')
   })
 })
 
-describe('renderTemplate — statement_of_reasons', () => {
+describe('renderTemplate: statement_of_reasons', () => {
   it('identifies seller replies and preserves every Article 17 element in HTML and text', async () => {
     const result = await renderTemplate('statement_of_reasons', {
       contentType: 'seller_reply',
@@ -214,7 +214,7 @@ describe('renderFallbackPlainText', () => {
   })
 })
 
-describe('renderTemplate — email_verification', () => {
+describe('renderTemplate: email_verification', () => {
   it('renders HTML and plain text with all fields', async () => {
     const result = await renderTemplate('email_verification', {
       userName: 'Dave',
@@ -230,7 +230,7 @@ describe('renderTemplate — email_verification', () => {
   })
 })
 
-describe('renderTemplate — password_reset', () => {
+describe('renderTemplate: password_reset', () => {
   it('renders HTML and plain text with all fields', async () => {
     const result = await renderTemplate('password_reset', {
       userName: 'Eve',
@@ -246,7 +246,7 @@ describe('renderTemplate — password_reset', () => {
   })
 })
 
-describe('renderTemplate — account_security_alert', () => {
+describe('renderTemplate: account_security_alert', () => {
   it('renders HTML and plain text with all fields', async () => {
     const result = await renderTemplate('account_security_alert', {
       userName: 'Frank',
@@ -262,7 +262,7 @@ describe('renderTemplate — account_security_alert', () => {
   })
 })
 
-describe('renderFallbackPlainText — account_security_alert', () => {
+describe('renderFallbackPlainText: account_security_alert', () => {
   it('returns a safe plain-text fallback', () => {
     const result = renderFallbackPlainText('account_security_alert', { userName: 'Frank' })
 
@@ -271,7 +271,7 @@ describe('renderFallbackPlainText — account_security_alert', () => {
   })
 })
 
-describe('renderTemplate — notification_digest', () => {
+describe('renderTemplate: notification_digest', () => {
   it('renders an escaped English digest with bounded product names', async () => {
     const result = await renderTemplate('notification_digest', {
       sellerName: '<seller>',
@@ -284,7 +284,7 @@ describe('renderTemplate — notification_digest', () => {
       locale: 'en',
     })
 
-    expect(result.subject).toBe('Your daily seller update — 2026-06-01')
+    expect(result.subject).toBe('Your daily seller update: 2026-06-01')
     expect(result.html).toContain('&lt;seller&gt;')
     expect(result.html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
     expect(result.html).not.toContain('<script>alert(1)</script>')
@@ -304,7 +304,7 @@ describe('renderTemplate — notification_digest', () => {
       locale: 'nl',
     })
 
-    expect(result.subject).toBe('Je dagelijkse verkopersupdate — 2026-06-01')
+    expect(result.subject).toBe('Je dagelijkse verkopersupdate: 2026-06-01')
     expect(result.html).toContain('Geen updates.')
     expect(result.text).toContain('Bekijk je meldingen')
   })

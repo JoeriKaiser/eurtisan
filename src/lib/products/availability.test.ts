@@ -8,7 +8,7 @@ describe('resolveAvailability', () => {
 
   it('treats a negative count as out of stock rather than low', () => {
     // Stock should never go negative, but an oversell race is the one place it
-    // could — and "Only -1 left" would be the worst possible way to find out.
+    // could: and "Only -1 left" would be the worst possible way to find out.
     expect(resolveAvailability(-2, 5)).toEqual({ kind: 'out_of_stock' })
   })
 

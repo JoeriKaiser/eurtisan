@@ -27,7 +27,7 @@ function getReasonLabel(reason: string): string {
 
 function getResolutionLabel(resolution: string): string {
   const labels: Record<string, string> = {
-    close: 'Closed — no action',
+    close: 'Closed: no action',
     partial_refund: 'Partial refund',
     full_refund: 'Full refund',
   }

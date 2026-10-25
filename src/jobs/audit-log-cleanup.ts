@@ -6,8 +6,8 @@
  * the configured retention period.
  *
  * Configuration (via environment variables):
- *   AUDIT_LOG_CLEANUP_INTERVAL_MS — polling interval in milliseconds (default: 86400000)
- *   AUDIT_LOG_RETENTION_DAYS      — retention period in days (default: 365)
+ *   AUDIT_LOG_CLEANUP_INTERVAL_MS: polling interval in milliseconds (default: 86400000)
+ *   AUDIT_LOG_RETENTION_DAYS: retention period in days (default: 365)
  *
  * Usage:
  *   bun run src/jobs/audit-log-cleanup.ts

@@ -39,7 +39,7 @@ const moderateShopInputSchema = z.object({
 /* -------------------------------------------------------------------------- */
 
 /**
- * Shared admin auth guard — throws 401/403 if not authenticated or not admin.
+ * Shared admin auth guard: throws 401/403 if not authenticated or not admin.
  */
 async function requireAdmin(context: { user?: { id: string; role: string } | null }) {
   if (!context.user) {

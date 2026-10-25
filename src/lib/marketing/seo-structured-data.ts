@@ -25,7 +25,7 @@ export interface ProductJsonLdInput {
   price: string
   /** ISO 4217 currency code, default: "EUR". */
   currency?: string
-  /** Stock count — > 0 means InStock, otherwise OutOfStock. */
+  /** Stock count: > 0 means InStock, otherwise OutOfStock. */
   stockCount: number
   /** The shop / brand name that sells this product. */
   brandName?: string
@@ -60,12 +60,12 @@ export function generateProductJsonLd(input: ProductJsonLdInput): Record<string,
     },
   }
 
-  // Description — omit if missing rather than setting to null
+  // Description: omit if missing rather than setting to null
   if (input.description) {
     jsonLd.description = input.description
   }
 
-  // Image array — omit if empty
+  // Image array: omit if empty
   if (input.images.length > 0) {
     jsonLd.image = input.images.map((img) => img.url)
   }
@@ -104,7 +104,7 @@ export interface StoreJsonLdInput {
    */
   sameAs?: string[]
   /**
-   * ISO-3166-1 alpha-2 country. Country only, never the street-level fields —
+   * ISO-3166-1 alpha-2 country. Country only, never the street-level fields,
    * see the storefront plan §4.3: the rest of that column is seller PII.
    */
   addressCountry?: string | null

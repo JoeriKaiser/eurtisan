@@ -669,7 +669,7 @@ describe('CheckoutPage', () => {
             {
               method: 'manual' as const,
               costCents: 0,
-              label: 'Manual shipping — contact seller',
+              label: 'Manual shipping: contact seller',
               fallback: true,
             },
           ],
@@ -678,7 +678,7 @@ describe('CheckoutPage', () => {
     })
 
     render(<CheckoutPage summary={summary} cartId='cart-1' />)
-    expect(screen.getAllByText('Manual shipping — contact seller').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Manual shipping: contact seller').length).toBeGreaterThanOrEqual(1)
   })
 
   it('keeps the selected shipping method attached to the correct shop after a re-fetch reverses shop order', async () => {

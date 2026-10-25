@@ -317,7 +317,7 @@
   "time": { "from": "now-24h", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Eurtisan — Frontend RUM & Web Vitals",
+  "title": "Eurtisan: Frontend RUM & Web Vitals",
   "uid": "eurtisan-rum",
   "version": 1,
   "weekStart": ""

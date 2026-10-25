@@ -586,7 +586,7 @@ function derivePayoutLine(
  * Returns paginated pending payouts enriched with creator and shop details.
  * Sorted oldest first so admins process the longest-waiting payouts first.
  *
- * This is a pure query function — callers are responsible for authorization.
+ * This is a pure query function: callers are responsible for authorization.
  */
 export async function listPendingPayoutsQuery(
   page = 1,
@@ -652,7 +652,7 @@ export async function listPendingPayoutsQuery(
  * Returns paginated payout history (all statuses) enriched with creator and shop details.
  * Sorted most recent first.
  *
- * This is a pure query function — callers are responsible for authorization.
+ * This is a pure query function: callers are responsible for authorization.
  */
 export async function listPayoutHistoryQuery(
   options: { page?: number; pageSize?: number; from?: Date; to?: Date; query?: string } = {},
@@ -734,7 +734,7 @@ export async function listPayoutHistoryQuery(
  * - When `status` filter is provided, all matching orders are fetched, statuses derived,
  *   and results are filtered in-memory before pagination.
  *
- * This is a pure query function — callers are responsible for authorization.
+ * This is a pure query function: callers are responsible for authorization.
  */
 export async function listCreatorPayoutsQuery(
   shopId: string,

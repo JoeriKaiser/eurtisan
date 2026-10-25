@@ -17,7 +17,7 @@ const ROLE_HIERARCHY: Record<UserRole, number> = {
 
 /**
  * Returns the currently authenticated user, or null if unauthenticated.
- * Safe to call from any route — does not throw.
+ * Safe to call from any route: does not throw.
  */
 export const getCurrentUser = createServerFn({ method: 'GET' })
   .middleware([authMiddleware])

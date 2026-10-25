@@ -88,7 +88,7 @@ COPY --from=builder --chown=bun:bun /app/drizzle.config.ts ./
 COPY --from=builder --chown=bun:bun /app/drizzle ./drizzle
 
 # Include source tree so server-side scripts (seed, jobs) can be run
-# with `bun run`. TypeScript only — no secrets live here.
+# with `bun run`. TypeScript only: no secrets live here.
 COPY --from=builder --chown=bun:bun /app/src ./src
 COPY --from=builder --chown=bun:bun /app/scripts ./scripts
 COPY --from=builder --chown=bun:bun /app/tsconfig.json ./tsconfig.json

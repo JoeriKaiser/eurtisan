@@ -60,7 +60,7 @@ interface HistoryTabProps {
 const PAGE_SIZES = [10, 20, 50] as const
 
 function formatDate(date: Date | string | null): string {
-  if (!date) return '—'
+  if (!date) return '-'
   return formatDateMediumTime(new Date(date))
 }
 

@@ -173,7 +173,7 @@ export async function createCheckoutWithProvider(
   const originByShopId = new Map<string, ProviderShippingAddress | undefined>()
   for (const shopRecord of shopRecords) {
     // Encrypted at rest (`settings.server.ts` writes it with `encryptJsonb`).
-    // A raw cast yields a base64 string here, which is truthy — so the guard
+    // A raw cast yields a base64 string here, which is truthy: so the guard
     // below passes and every address field reads `undefined`.
     const origin = decryptJsonb<ProviderShippingAddress | null>(shopRecord.shippingOrigin)
     if (origin) {

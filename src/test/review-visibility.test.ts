@@ -8,12 +8,12 @@ import { describe, expect, it } from 'vitest'
  * Three call sites used to disagree about this. The product page and the shop
  * rating aggregate counted everything not `hidden`; search's `popularityScore`
  * counted `approved` only. The result was a review that raised the displayed
- * average while contributing nothing to ranking — and a storefront trust signal
+ * average while contributing nothing to ranking: and a storefront trust signal
  * that could contradict search on the same shop.
  *
  * They now share `PUBLIC_REVIEW_FILTER`. Nothing stops a fourth reader writing
  * its own `eq(review.moderationStatus, …)`, and the failure would again be
- * silent — the numbers just disagree. So this fails on any moderation predicate
+ * silent: the numbers just disagree. So this fails on any moderation predicate
  * written outside the file that owns it.
  */
 
@@ -27,7 +27,7 @@ const SQL_PREDICATE = /moderation_status\s*(=|!=|<>|IN|NOT IN)/gi
  * Files allowed to name the column directly.
  *
  * `visibility.server.ts` defines the filter. `operations.server.ts` is the
- * moderation path itself — it reads and writes the column by definition, and
+ * moderation path itself: it reads and writes the column by definition, and
  * its public reads go through the shared filter. The admin queue filters by
  * status because that is its whole purpose. Anything else added here needs a
  * reason.
@@ -64,7 +64,7 @@ function scanFor(pattern: RegExp): string[] {
     const contents = readFileSync(absolute, 'utf8')
     for (const match of contents.matchAll(pattern)) {
       const line = contents.slice(0, match.index).split('\n').length
-      offenders.push(`${path}:${line} — ${match[0].trim()}`)
+      offenders.push(`${path}:${line}: ${match[0].trim()}`)
     }
   }
   return offenders

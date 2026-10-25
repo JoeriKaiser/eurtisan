@@ -11,7 +11,7 @@ export type { AdminPayoutRow } from '../payouts.server'
 /* -------------------------------------------------------------------------- */
 
 /**
- * Shared admin auth guard — throws 401/403 if not authenticated or not admin.
+ * Shared admin auth guard: throws 401/403 if not authenticated or not admin.
  */
 async function requireAdmin(context: { user?: { id: string; role: string } | null }) {
   if (!context.user) {
@@ -80,7 +80,7 @@ const executePayoutInputSchema = z.object({
 
 /**
  * Executes a pending or failed payout by creating a Mollie delayed-routing route.
- * Idempotent — executing an already-sent payout returns the existing route ID.
+ * Idempotent: executing an already-sent payout returns the existing route ID.
  * Admin only.
  */
 export const executePayout = createServerFn({ method: 'POST' })

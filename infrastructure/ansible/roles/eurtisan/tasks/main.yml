@@ -1041,7 +1041,7 @@
                   - eurtisan-staging-redirect
                 service: noop@internal
 
-              # Faro collector — must be public (receives client beacons from all IPs)
+              # Faro collector: must be public (receives client beacons from all IPs)
               # Higher priority so it matches before the catch-all app route.
               eurtisan-staging-collect:
                 rule: "Host(`staging.eurtisan.eu`) && PathPrefix(`/collect`)"
@@ -1086,9 +1086,9 @@
                   certResolver: letsencrypt
                 service: eurtisan-staging-garage
 
-              # Grafana UI — behind the same IP whitelist as the app.
+              # Grafana UI: behind the same IP whitelist as the app.
               # Higher priority so it matches before the catch-all app route.
-              # DO NOT strip /grafana — Grafana with serve_from_sub_path=true
+              # DO NOT strip /grafana: Grafana with serve_from_sub_path=true
               # expects to receive the full subpath and strips it internally.
               eurtisan-staging-grafana:
                 rule: "Host(`staging.eurtisan.eu`) && PathPrefix(`/grafana`)"
@@ -1103,7 +1103,7 @@
                   - eurtisan-staging-whitelist
           {% endif %}
 
-              # Main app — catch-all for everything else.
+              # Main app: catch-all for everything else.
               # Lower priority so /collect and /grafana match first.
               eurtisan-staging-app:
                 rule: "Host(`staging.eurtisan.eu`)"

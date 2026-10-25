@@ -12,7 +12,7 @@ export interface ShopSocialLinksProps {
  *
  * `rel="nofollow ugc"` because these are user-generated and must not pass
  * ranking signal; `noopener noreferrer` because they open in a new tab. The
- * scheme is re-checked here even though the projection already filtered it —
+ * scheme is re-checked here even though the projection already filtered it,
  * this is the layer closest to the DOM and a stored `javascript:` URL is an
  * XSS vector.
  */

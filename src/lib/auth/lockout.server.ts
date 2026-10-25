@@ -103,7 +103,7 @@ export async function recordFailedSignIn(email: string): Promise<void> {
         status: 'failed',
         statusDetail: detail,
       })
-      // Intentionally swallowed — do not fail authentication because email failed.
+      // Intentionally swallowed: do not fail authentication because email failed.
     }
   }
 }

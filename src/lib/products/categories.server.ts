@@ -153,7 +153,7 @@ export async function getCategoryChainSlugs(categoryId: string | null): Promise<
 
 /**
  * A category's direct children, each with the number of products a buyer can
- * actually reach beneath it — its own plus every descendant's.
+ * actually reach beneath it: its own plus every descendant's.
  *
  * One recursive query rather than a count per child: the subcategory grid is on
  * a hot anonymous page, and the number of children is not bounded.
@@ -218,7 +218,7 @@ export async function getCategoryBySlugQuery(slug: string) {
 
   // Counts only what a buyer can actually reach. Without the publication and
   // shop-visibility filters this counted drafts, deactivated products, and
-  // products belonging to suspended shops — so the heading claimed more
+  // products belonging to suspended shops: so the heading claimed more
   // products than the grid below it could ever show.
   const productCountResult = await db
     .select({ count: count() })

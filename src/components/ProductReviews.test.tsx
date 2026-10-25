@@ -32,8 +32,8 @@ vi.mock('#/lib/reviews', () => ({
 }))
 
 vi.mock('#/paraglide/messages', () => {
-  // Explicit entries are the ones this file asserts on. Everything else — keys
-  // reached through the report dialog and its primitives — falls back to its own
+  // Explicit entries are the ones this file asserts on. Everything else: keys
+  // reached through the report dialog and its primitives: falls back to its own
   // name, so an unrelated component adding a message cannot break these tests
   // with a TypeError.
   const explicit: Record<string, unknown> = {

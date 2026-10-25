@@ -1957,7 +1957,7 @@ describe('getMoreFromShopQuery', () => {
 
   it('never offers a draft or deactivated product', async () => {
     // Inherited from `listProductsQuery` rather than reimplemented, which is the
-    // point of routing through it — the category page's hand-rolled query is
+    // point of routing through it: the category page's hand-rolled query is
     // what got these wrong.
     const u = await createUser({ id: 'user-rail-hidden' })
     const s = await createShop(u, { id: 'shop-rail-hidden', name: 'H', slug: 'shop-rail-hidden' })

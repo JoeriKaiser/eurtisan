@@ -458,7 +458,7 @@
   "time": { "from": "now-1h", "to": "now" },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Eurtisan — Application Performance & APM",
+  "title": "Eurtisan: Application Performance & APM",
   "uid": "eurtisan-apm",
   "version": 1,
   "weekStart": ""

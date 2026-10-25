@@ -222,7 +222,7 @@ describe('CreatorPayoutsPage', () => {
       />,
     )
 
-    // Status badges — check within table body to avoid filter tab duplicates
+    // Status badges: check within table body to avoid filter tab duplicates
     const tbody = document.querySelector('tbody')
     expect(tbody).toBeDefined()
     if (!tbody) throw new Error('tbody not found')

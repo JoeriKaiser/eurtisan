@@ -1,5 +1,5 @@
 /**
- * Legacy Mollie callback alias — POST /api/webhooks/mollie-chargeback
+ * Legacy Mollie callback alias: POST /api/webhooks/mollie-chargeback
  *
  * New Mollie payment and chargeback callbacks must use /api/webhooks/mollie.
  * This compatibility endpoint accepts the same classic form-encoded contract

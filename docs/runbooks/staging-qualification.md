@@ -80,29 +80,29 @@ It validates HTTPS reachability (therefore DNS, certificate trust, and the TLS h
 
 ### Release and infrastructure
 
-- **`release.immutable-image`** — capture `docker image inspect`/registry evidence showing the running service and promotion candidate use the recorded digest; verify no host rebuild occurred.
-- **`release.public-config`** — match `VITE_APP_VERSION` and the public config digest; verify public Meilisearch credentials are search-only without recording the value.
-- **`infrastructure.eu-region`** — owner confirms compute, PostgreSQL, object storage, backups, logs, and traces reside in approved EU regions.
-- **`infrastructure.dns-tls`** — validate A/AAAA/CNAME records, trusted certificate chain, SAN, expiry/renewal, HTTP redirect, TLS policy, and HSTS.
+- **`release.immutable-image`**: capture `docker image inspect`/registry evidence showing the running service and promotion candidate use the recorded digest; verify no host rebuild occurred.
+- **`release.public-config`**: match `VITE_APP_VERSION` and the public config digest; verify public Meilisearch credentials are search-only without recording the value.
+- **`infrastructure.eu-region`**: owner confirms compute, PostgreSQL, object storage, backups, logs, and traces reside in approved EU regions.
+- **`infrastructure.dns-tls`**: validate A/AAAA/CNAME records, trusted certificate chain, SAN, expiry/renewal, HTTP redirect, TLS policy, and HSTS.
 
 ### Security boundary
 
-- **`security.headers-csp`** — check CSP on nonce-bearing HTML and edge error/static responses; verify frame, MIME, referrer, permissions, COOP/CORP policies and browser console violations.
-- **`security.cookies`** — inspect attributes only: `Secure`, `HttpOnly` where applicable, intended `SameSite`, path/domain scope, expiry, session rotation, logout invalidation. Never save cookie values.
-- **`security.csrf`** — from an isolated account, prove protected state changes reject missing/invalid origin or token and accept a valid same-origin request.
-- **`security.rate-limits`** — use dedicated accounts/IPs in an approved window; verify auth and mutation thresholds, `429`, recovery window, and observability without locking real users.
-- **`security.proxy-headers`** — verify the application trusts only the deployment proxy and derives HTTPS origin/client IP correctly; attempt spoofed forwarded headers through a controlled direct path.
+- **`security.headers-csp`**: check CSP on nonce-bearing HTML and edge error/static responses; verify frame, MIME, referrer, permissions, COOP/CORP policies and browser console violations.
+- **`security.cookies`**: inspect attributes only: `Secure`, `HttpOnly` where applicable, intended `SameSite`, path/domain scope, expiry, session rotation, logout invalidation. Never save cookie values.
+- **`security.csrf`**: from an isolated account, prove protected state changes reject missing/invalid origin or token and accept a valid same-origin request.
+- **`security.rate-limits`**: use dedicated accounts/IPs in an approved window; verify auth and mutation thresholds, `429`, recovery window, and observability without locking real users.
+- **`security.proxy-headers`**: verify the application trusts only the deployment proxy and derives HTTPS origin/client IP correctly; attempt spoofed forwarded headers through a controlled direct path.
 - Verify privileged creator/admin E2E with 2FA enabled and no test bypass.
 
 ### Health, migrations, jobs, and recovery
 
-- **`health.liveness-readiness`** — healthy status, dependency degradation, startup behavior, and no restart loop. Readiness must not depend on non-critical provider latency.
-- **`database.migrations`** — run the full chain on an isolated empty database and the deployment migration against staging; record duration and schema/journal verification.
-- **`jobs.required-services`** — confirm every required job container uses the same image digest, is single-instance/locked, reports recent success, and restarts with backoff.
-- **`jobs.reconciliation`** — exercise payment, payout, Sendcloud, inventory, financial-total, cleanup, and retention reconciliation with controlled records; verify idempotency.
-- **`jobs.financial-discrepancy-detection`** — status `not-run` until an operations owner, with accounting review, uses an isolated non-PII staging qualification database to seed a deterministic one-cent discrepancy. Run a temporary continuous production-image service against the clone and verify its correlated mismatch log/metric/alert; separately run `bun run job:financial-totals-reconciliation --once` and expect exit 2, then destroy or restore the clone and expect exit 0. Also verify failed/stale alert routing. See [financial-reconciliation.md](./financial-reconciliation.md).
-- **`database.backup-restore`** — create a real staging backup, restore into a new isolated database, verify critical row counts and encrypted-column decryption with the authorized key, measure RPO/RTO, then destroy the clone.
-- **`resilience.rollback`** — rehearse application rollback using a backward-compatible schema and the recorded rollback criteria. Do not claim database rollback from an image rollback.
+- **`health.liveness-readiness`**: healthy status, dependency degradation, startup behavior, and no restart loop. Readiness must not depend on non-critical provider latency.
+- **`database.migrations`**: run the full chain on an isolated empty database and the deployment migration against staging; record duration and schema/journal verification.
+- **`jobs.required-services`**: confirm every required job container uses the same image digest, is single-instance/locked, reports recent success, and restarts with backoff.
+- **`jobs.reconciliation`**: exercise payment, payout, Sendcloud, inventory, financial-total, cleanup, and retention reconciliation with controlled records; verify idempotency.
+- **`jobs.financial-discrepancy-detection`**: status `not-run` until an operations owner, with accounting review, uses an isolated non-PII staging qualification database to seed a deterministic one-cent discrepancy. Run a temporary continuous production-image service against the clone and verify its correlated mismatch log/metric/alert; separately run `bun run job:financial-totals-reconciliation --once` and expect exit 2, then destroy or restore the clone and expect exit 0. Also verify failed/stale alert routing. See [financial-reconciliation.md](./financial-reconciliation.md).
+- **`database.backup-restore`**: create a real staging backup, restore into a new isolated database, verify critical row counts and encrypted-column decryption with the authorized key, measure RPO/RTO, then destroy the clone.
+- **`resilience.rollback`**: rehearse application rollback using a backward-compatible schema and the recorded rollback criteria. Do not claim database rollback from an image rollback.
 
 ### Provider sandboxes
 

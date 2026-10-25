@@ -29,7 +29,7 @@ CREATE INDEX "review_report_created_at_idx" ON "review_report" USING btree ("cre
 -- This matters because `flagged` now restricts visibility. Leaving the
 -- stranger-flagged rows would retroactively restrict content whose author never
 -- received the statement of reasons DSA Article 17 requires, so they return to
--- `approved` — the state they displayed in all along. Admin decisions are left
+-- `approved`: the state they displayed in all along. Admin decisions are left
 -- exactly as they are.
 UPDATE "review" SET "moderation_status" = 'approved'
 WHERE "moderation_status" = 'flagged'

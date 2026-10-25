@@ -21,8 +21,8 @@ vi.mock('@tanstack/react-router', () => ({
 vi.mock('#/paraglide/runtime', () => ({ getLocale: () => 'en' }))
 
 vi.mock('#/paraglide/messages', () => {
-  // Explicit entries are the ones this file asserts on. Everything else — keys
-  // reached through ProductGrid, ProductCard, and their children — falls back to
+  // Explicit entries are the ones this file asserts on. Everything else: keys
+  // reached through ProductGrid, ProductCard, and their children: falls back to
   // its own name, so an unrelated component adding a message cannot break these
   // tests with a TypeError.
   const explicit = {

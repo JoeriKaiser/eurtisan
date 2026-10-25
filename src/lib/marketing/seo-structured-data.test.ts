@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 // Mock paraglide messages before importing the module under test
 vi.mock('#/paraglide/messages', () => ({
   m: {
-    meta_title_default: () => 'Eurtisan — European Marketplace for Makers',
+    meta_title_default: () => 'Eurtisan: European Marketplace for Makers',
   },
 }))
 
@@ -247,7 +247,7 @@ describe('generateWebSiteJsonLd', () => {
 
     expect(result['@context']).toBe('https://schema.org')
     expect(result['@type']).toBe('WebSite')
-    expect(result.name).toBe('Eurtisan — European Marketplace for Makers')
+    expect(result.name).toBe('Eurtisan: European Marketplace for Makers')
     expect(result.url).toBe('/')
 
     const action = result.potentialAction as Record<string, unknown>

@@ -45,8 +45,8 @@ describe('purgeOldNotifications', () => {
 
   it('never deletes an unread notification, however old', async () => {
     // The point of the whole job. An unread notification is undelivered
-    // information — a chargeback nobody saw, a statement of reasons nobody
-    // opened — and age is not consent to forget it.
+    // information: a chargeback nobody saw, a statement of reasons nobody
+    // opened: and age is not consent to forget it.
     const u = await seedUser()
     const ancient = await createNotification(u.id, 'order_chargeback')
     await db

@@ -38,7 +38,7 @@ export type ShopPolicySummary = z.infer<typeof publicPoliciesSchema>
  * Publishable subset of `shop.shippingOrigin`.
  *
  * The stored object also carries `state`, `city`, and `postalCode`. Those are
- * seller PII — the column is encrypted at rest for that reason — and are never
+ * seller PII: the column is encrypted at rest for that reason, and are never
  * published. The country is accepted as any two-letter code rather than as the
  * write-path country enum so that a legacy or out-of-list value degrades to a
  * hidden field instead of discarding the processing times alongside it.

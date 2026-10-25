@@ -509,13 +509,13 @@ describe('deleteUserAccount', () => {
     expect(reviewRows[0]?.comment).toBeNull()
 
     const disputeRows = await db.select().from(dispute).where(eq(dispute.buyerUserId, u.id))
-    expect(disputeRows[0]?.description).toBe('[redacted — account deleted]')
+    expect(disputeRows[0]?.description).toBe('[redacted: account deleted]')
 
     const disputeMessageRows = await db
       .select()
       .from(disputeMessage)
       .where(eq(disputeMessage.senderUserId, u.id))
-    expect(disputeMessageRows[0]?.message).toBe('[message removed — account deleted]')
+    expect(disputeMessageRows[0]?.message).toBe('[message removed: account deleted]')
   })
 
   it('marks the user so subsequent auth checks reject them', async () => {
