@@ -115,7 +115,7 @@ export function HomeHeroSection({
   return (
     <section className='border-b border-border-subtle bg-bg-base py-10 sm:py-14 lg:py-20'>
       <div className='mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
-        <div className='flex flex-col lg:flex-row lg:items-center lg:justify-between lg:gap-12'>
+        <div className='flex flex-col lg:flex-row lg:items-start lg:justify-between lg:gap-12'>
           {/* Mobile maker window */}
           <div className='lg:hidden mb-8'>
             {featuredShop ? (
@@ -145,7 +145,7 @@ export function HomeHeroSection({
           </div>
 
           {/* Primary hero content */}
-          <div className='lg:w-[55%] flex flex-col justify-center'>
+          <div className='lg:w-[55%] flex flex-col'>
             <h1 className='display-title text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-text-primary leading-[1.08]'>
               {m.home_hero_title()}
             </h1>
