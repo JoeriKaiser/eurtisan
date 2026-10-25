@@ -43,6 +43,13 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     links: [
       {
         rel: 'preload',
+        as: 'font',
+        type: 'font/woff2',
+        href: '/fonts/6NU78FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9v0c2Wa0KxC9TeA.woff2',
+        crossOrigin: 'anonymous',
+      },
+      {
+        rel: 'preload',
         as: 'style',
         href: '/fonts/fonts.css',
       },

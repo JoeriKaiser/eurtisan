@@ -107,8 +107,8 @@ services:
       IMGPROXY_S3_ENDPOINT: http://garage:3900
       IMGPROXY_S3_ENDPOINT_USE_PATH_STYLE: "true"
       IMGPROXY_S3_REGION: ${S3_REGION:-garage}
-      IMGPROXY_KEY: ${IMGPROXY_KEY:-}
-      IMGPROXY_SALT: ${IMGPROXY_SALT:-}
+      IMGPROXY_KEY: ${IMGPROXY_KEY:-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}
+      IMGPROXY_SALT: ${IMGPROXY_SALT:-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb}
       IMGPROXY_LOCAL_FILESYSTEM_ROOT: ""
       IMGPROXY_DEVELOPMENT_ERRORS_MODE: "true"
       IMGPROXY_MAX_SRC_RESOLUTION: 50
@@ -137,8 +137,8 @@ services:
       S3_REGION: garage
       S3_BUCKET: eurtisan-uploads
       IMGPROXY_BASE_URL: http://localhost:8080
-      IMGPROXY_KEY: ${IMGPROXY_KEY:-}
-      IMGPROXY_SALT: ${IMGPROXY_SALT:-}
+      IMGPROXY_KEY: ${IMGPROXY_KEY:-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}
+      IMGPROXY_SALT: ${IMGPROXY_SALT:-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb}
       VITE_PUBLIC_URL: http://localhost:3000
       VITE_IMGPROXY_BASE_URL: http://localhost:8080
       VITE_S3_BUCKET: eurtisan-uploads

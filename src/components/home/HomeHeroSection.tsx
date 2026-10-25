@@ -1,5 +1,5 @@
 import { Link, useRouter } from '@tanstack/react-router'
-import { ArrowRight, Search } from 'lucide-react'
+import { ArrowRight, MapPin, Search } from 'lucide-react'
 import { useState } from 'react'
 import { getImageUrl } from '#/lib/image-url'
 import { m } from '#/paraglide/messages'
@@ -8,10 +8,21 @@ interface FeaturedMakerShop {
   id: string
   name: string
   slug: string
-  category: string | null
-  tagline: string | null
+  category?: string | null
+  tagline?: string | null
+  description?: string | null
   productCount: number
   image: string | null
+  country?: string | null
+}
+
+function getCountryName(countryCode: string | null | undefined): string | null {
+  if (!countryCode) return null
+  try {
+    return new Intl.DisplayNames(['en'], { type: 'region' }).of(countryCode) ?? countryCode
+  } catch {
+    return countryCode
+  }
 }
 
 interface HomeHeroSectionProps {
@@ -48,7 +59,7 @@ export function HomeHeroSection({
   const [searchQuery, setSearchQuery] = useState('')
   const [searchError, setSearchError] = useState(false)
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const trimmed = searchQuery.trim()
     if (!trimmed) {
@@ -95,21 +106,23 @@ export function HomeHeroSection({
     }
   }
 
-  const featuredShop = shops[0]
+  const featuredShop = shops.find((s) => s.image !== null && s.productCount > 0) ?? shops[0]
   const featuredImageSrc = featuredShop?.image
     ? getImageUrl(featuredShop.image, { width: 960, format: 'webp' })
     : '/images/hero_artisan_goods.webp'
+  const bio = featuredShop?.tagline ?? featuredShop?.description
+  const countryName = getCountryName(featuredShop?.country)
   return (
     <section className='border-b border-border-subtle bg-bg-base py-10 sm:py-14 lg:py-20'>
       <div className='mx-auto max-w-7xl px-4 sm:px-6 lg:px-8'>
-        <div className='flex flex-col lg:flex-row lg:items-center lg:justify-between lg:gap-12'>
+        <div className='flex flex-col lg:flex-row lg:items-start lg:justify-between lg:gap-12'>
           {/* Mobile maker window */}
           <div className='lg:hidden mb-8'>
             {featuredShop ? (
               <Link
                 to='/shops/$shopSlug'
                 params={{ shopSlug: featuredShop.slug }}
-                className='block no-underline rounded-xl overflow-hidden border border-border-subtle shadow-xs'
+                className='block no-underline rounded-xl overflow-hidden border border-border-subtle shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
               >
                 <div
                   role='img'
@@ -132,12 +145,7 @@ export function HomeHeroSection({
           </div>
 
           {/* Primary hero content */}
-          <div className='lg:w-[55%] flex flex-col justify-center'>
-            <div className='mb-3 inline-flex items-center gap-2 font-mono text-xs font-medium uppercase tracking-wider text-accent-primary'>
-              <span className='size-1.5 rounded-full bg-accent-primary' aria-hidden='true' />
-              <span>{m.home_hero_kicker()}</span>
-            </div>
-
+          <div className='lg:w-[55%] flex flex-col'>
             <h1 className='display-title text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-text-primary leading-[1.08]'>
               {m.home_hero_title()}
             </h1>
@@ -147,37 +155,38 @@ export function HomeHeroSection({
             </p>
 
             {/* Hero Search */}
-            <form
-              aria-label={m.home_search_button()}
-              className='mt-8 max-w-xl'
-              onSubmit={handleSearch}
-            >
-              <div className='flex items-center rounded-xl border border-border-strong bg-surface-default shadow-xs p-1.5 focus-within:border-accent-primary focus-within:ring-2 focus-within:ring-accent-primary/20 transition-all'>
+            <form onSubmit={handleSearchSubmit} className='mt-8 max-w-md w-full'>
+              <div className='flex items-center rounded-xl border border-border-default bg-surface-default shadow-xs p-1.5 focus-within:border-accent-secondary focus-within:ring-2 focus-within:ring-accent-secondary/20 transition-all'>
                 <div className='flex items-center pl-3 text-text-muted'>
                   <Search className='size-4' aria-hidden='true' />
                 </div>
                 <input
                   type='search'
+                  name='search'
                   placeholder={m.home_search_placeholder()}
-                  className='w-full border-0 bg-transparent px-3 py-2 text-sm text-text-primary placeholder:text-text-placeholder focus:outline-none'
+                  aria-label={m.home_search_placeholder()}
+                  aria-invalid={searchError}
+                  aria-describedby={searchError ? 'hero-search-error' : undefined}
+                  className='w-full border-0 bg-transparent px-3 py-2 text-sm text-text-primary placeholder:text-text-placeholder focus:outline-hidden'
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value)
                     if (searchError) setSearchError(false)
                   }}
-                  aria-label={m.home_search_placeholder()}
-                  aria-invalid={searchError}
-                  aria-describedby={searchError ? 'search-error' : undefined}
                 />
                 <button
                   type='submit'
-                  className='rounded-lg bg-accent-primary px-5 py-2.5 text-xs font-semibold text-text-on-primary hover:bg-accent-primary-hover active:bg-accent-primary-active transition-colors cursor-pointer shrink-0'
+                  className='rounded-lg bg-accent-primary px-5 py-2.5 text-sm font-semibold text-text-on-primary hover:bg-accent-primary-hover active:bg-accent-primary-active transition-colors cursor-pointer shrink-0 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
                 >
                   {m.home_search_button()}
                 </button>
               </div>
               {searchError && (
-                <p id='search-error' className='mt-1 text-xs text-error font-medium'>
+                <p
+                  id='hero-search-error'
+                  role='alert'
+                  className='mt-2 text-xs text-error font-medium'
+                >
                   {m.home_search_error_empty()}
                 </p>
               )}
@@ -188,7 +197,7 @@ export function HomeHeroSection({
               <Link
                 to={primaryLink}
                 search={isPrimaryRedirect ? { redirect: '/sell' } : undefined}
-                className='inline-flex items-center gap-2 rounded-lg bg-accent-primary px-6 py-3 text-xs font-semibold text-text-on-primary hover:bg-accent-primary-hover active:bg-accent-primary-active transition-colors no-underline shadow-xs'
+                className='inline-flex items-center gap-2 rounded-lg bg-accent-primary px-6 py-3 text-sm font-semibold text-text-on-primary hover:bg-accent-primary-hover active:bg-accent-primary-active transition-colors no-underline shadow-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
               >
                 <span>{primaryText}</span>
                 <ArrowRight size={14} aria-hidden='true' />
@@ -196,7 +205,7 @@ export function HomeHeroSection({
               {user ? (
                 <Link
                   to='/search'
-                  className='inline-flex items-center gap-2 rounded-lg border border-border-strong bg-surface-default px-6 py-3 text-xs font-semibold text-text-primary hover:bg-surface-inset transition-colors no-underline'
+                  className='inline-flex items-center gap-2 rounded-lg border border-border-strong bg-surface-default px-6 py-3 text-sm font-semibold text-text-primary hover:bg-surface-inset transition-colors no-underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
                 >
                   <span>{m.home_hero_cta_explore()}</span>
                 </Link>
@@ -204,7 +213,7 @@ export function HomeHeroSection({
                 <Link
                   to='/signin'
                   search={{ redirect: '/sell' }}
-                  className='inline-flex items-center gap-2 rounded-lg border border-border-strong bg-surface-default px-6 py-3 text-xs font-semibold text-text-primary hover:bg-surface-inset transition-colors no-underline'
+                  className='inline-flex items-center gap-2 rounded-lg border border-border-strong bg-surface-default px-6 py-3 text-sm font-semibold text-text-primary hover:bg-surface-inset transition-colors no-underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
                 >
                   <span>{m.home_hero_cta_start_selling()}</span>
                 </Link>
@@ -214,12 +223,9 @@ export function HomeHeroSection({
 
           {/* Right Visual Column */}
           {featuredShop && (
-            <div className='hidden lg:flex lg:w-[42%]'>
-              <div className='w-full rounded-2xl border border-border-subtle bg-surface-default p-4 shadow-sm'>
-                <div
-                  className='relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-surface-inset bg-cover bg-center'
-                  style={{ backgroundImage: "url('/images/hero_artisan_goods.webp')" }}
-                >
+            <div className='hidden lg:flex lg:w-[42%] lg:justify-end'>
+              <div className='w-full max-w-md rounded-2xl border border-border-subtle bg-surface-default overflow-hidden shadow-xs'>
+                <div className='aspect-[16/10] w-full overflow-hidden bg-surface-inset'>
                   <img
                     src={featuredImageSrc}
                     alt={featuredShop.name}
@@ -228,39 +234,51 @@ export function HomeHeroSection({
                       currentTarget.style.display = 'none'
                     }}
                   />
-                  <div className='absolute bottom-3 left-3 rounded-lg bg-bg-base/90 backdrop-blur-sm px-3 py-1.5 text-xs font-semibold text-text-primary shadow-xs'>
-                    {m.home_hero_featured_maker()}
+                </div>
+
+                <div className='p-5 sm:p-6'>
+                  <div className='flex items-center justify-between gap-2 mb-3'>
+                    <span className='inline-flex items-center rounded-full bg-accent-primary-subtle px-2.5 py-0.5 text-xs font-semibold text-accent-primary'>
+                      {m.home_hero_newest_maker()}
+                    </span>
+                    {countryName && (
+                      <span className='inline-flex items-center gap-1 text-xs font-medium text-text-secondary'>
+                        <MapPin className='size-3.5 text-accent-secondary' aria-hidden='true' />
+                        <span>{countryName}</span>
+                      </span>
+                    )}
                   </div>
-                </div>
 
-                <div className='mt-4 flex items-baseline justify-between'>
-                  <h3 className='display-title text-xl font-bold text-text-primary'>
-                    {featuredShop.name}
-                  </h3>
-                  <span className='text-xs font-medium text-text-secondary'>
-                    {featuredShop.productCount === 1
-                      ? m.home_hero_featured_maker_product_single()
-                      : m.home_hero_featured_maker_products({
-                          count: String(featuredShop.productCount),
-                        })}
-                  </span>
-                </div>
-                {featuredShop.tagline && (
-                  <p className='mt-1 text-xs text-text-secondary line-clamp-2 leading-relaxed'>
-                    {featuredShop.tagline}
-                  </p>
-                )}
+                  <div className='flex items-baseline justify-between gap-2'>
+                    <h3 className='display-title text-xl font-bold text-text-primary'>
+                      {featuredShop.name}
+                    </h3>
+                    <span className='text-xs font-medium text-text-secondary shrink-0'>
+                      {featuredShop.productCount === 1
+                        ? m.home_hero_featured_maker_product_single()
+                        : m.home_hero_featured_maker_products({
+                            count: String(featuredShop.productCount),
+                          })}
+                    </span>
+                  </div>
 
-                <div className='mt-4 pt-3 border-t border-border-subtle flex items-center justify-between'>
-                  <span className='text-xs text-text-muted'>{m.home_trust_direct()}</span>
-                  <Link
-                    to='/shops/$shopSlug'
-                    params={{ shopSlug: featuredShop.slug }}
-                    className='text-xs font-semibold text-accent-primary hover:underline inline-flex items-center gap-1'
-                  >
-                    <span>{m.product_visit_shop()}</span>
-                    <span aria-hidden='true'>&rarr;</span>
-                  </Link>
+                  {bio && (
+                    <p className='mt-2 text-xs sm:text-sm text-text-secondary line-clamp-2 leading-relaxed'>
+                      {bio}
+                    </p>
+                  )}
+
+                  <div className='mt-5 pt-4 border-t border-border-subtle flex items-center justify-between'>
+                    <span className='text-xs text-text-muted'>{m.home_trust_direct()}</span>
+                    <Link
+                      to='/shops/$shopSlug'
+                      params={{ shopSlug: featuredShop.slug }}
+                      className='text-xs font-semibold text-accent-primary hover:underline inline-flex items-center gap-1 rounded-xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
+                    >
+                      <span>{m.product_visit_shop()}</span>
+                      <ArrowRight className='size-3.5' aria-hidden='true' />
+                    </Link>
+                  </div>
                 </div>
               </div>
             </div>

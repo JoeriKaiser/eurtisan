@@ -25,9 +25,9 @@ export function HomeFeaturedProducts({ products }: HomeFeaturedProductsProps) {
         </div>
         <Link
           to='/search'
-          className='text-xs font-semibold text-accent-primary hover:text-accent-primary-hover no-underline inline-flex items-center gap-1.5 transition-colors self-start sm:self-auto'
+          className='text-xs font-semibold text-accent-primary hover:text-accent-primary-hover no-underline inline-flex items-center gap-1.5 transition-colors self-start sm:self-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2 rounded-xs'
         >
-          <span>View all products</span>
+          <span>{m.home_products_view_all()}</span>
           <ArrowRight size={14} aria-hidden='true' />
         </Link>
       </div>
@@ -46,7 +46,7 @@ export function HomeFeaturedProducts({ products }: HomeFeaturedProductsProps) {
             </p>
             <Link
               to='/category/all'
-              className='inline-flex items-center gap-2 rounded-lg bg-accent-primary px-6 py-2.5 text-xs font-semibold text-text-on-primary hover:bg-accent-primary-hover active:bg-accent-primary-active transition-colors no-underline'
+              className='inline-flex items-center gap-2 rounded-lg bg-accent-primary px-6 py-2.5 text-xs font-semibold text-text-on-primary hover:bg-accent-primary-hover active:bg-accent-primary-active transition-colors no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-secondary focus-visible:ring-offset-2'
             >
               <span>{m.home_products_empty_cta()}</span>
               <ArrowRight size={14} aria-hidden='true' />
