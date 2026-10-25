@@ -146,11 +146,6 @@ export function HomeHeroSection({
 
           {/* Primary hero content */}
           <div className='lg:w-[55%] flex flex-col justify-center'>
-            <div className='mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-accent-secondary'>
-              <span className='size-1.5 rounded-full bg-accent-secondary' aria-hidden='true' />
-              <span>{m.home_hero_kicker()}</span>
-            </div>
-
             <h1 className='display-title text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-text-primary leading-[1.08]'>
               {m.home_hero_title()}
             </h1>
